@@ -30,7 +30,6 @@ def run(
         warnings.warn("We do not support the injection of context at this time. We will use empty context")
         context = EmptyContext()
 
-
     return execute(
         start_node,
         ExecutionInfo.create_new(start_node, context, subscriber, executor_config),
