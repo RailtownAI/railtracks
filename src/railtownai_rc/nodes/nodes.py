@@ -104,14 +104,6 @@ class Node(ABC, Generic[_TOutput]):
         warnings.warn("You are using the default context. It will be empty.")
         return EmptyContext()
 
-    @classmethod
-    def required_params(cls):
-        return {
-            "invoke_node",
-            "context",
-            "data_streamer",
-        }
-
     def __init__(
         self,
     ):
