@@ -13,7 +13,7 @@ def test_single_stamper():
 
     assert stamp.step == 0
     assert stamp.identifier == message
-    assert t >= stamp.time >= time.time()
+    assert t <= stamp.time <= time.time()
 
 
 def test_multi_stamp():
@@ -24,14 +24,14 @@ def test_multi_stamp():
 
     assert stamp.step == 0
     assert stamp.identifier == message
-    assert t >= stamp.time >= time.time()
+    assert t <= stamp.time <= time.time()
 
     t = time.time()
     stamp2 = sm.create_stamp(message)
 
     assert stamp2.step == 1
     assert stamp2.identifier == message
-    assert t >= stamp2.time >= time.time()
+    assert t <= stamp2.time <= time.time()
 
 
 def test_parallel_stamps():
@@ -54,9 +54,9 @@ def test_parallel_stamps():
     assert tres.identifier == "3"
 
     # check that the time fit with what is expected
-    assert t >= uno.time >= dos.time
-    assert uno.time >= dos.time >= tres.time
-    assert dos.time >= tres.time >= time.time()
+    assert t <= uno.time <= dos.time
+    assert uno.time <= dos.time <= tres.time
+    assert dos.time <= tres.time <= time.time()
 
 
 def test_two_parallel_stamps():
@@ -86,11 +86,11 @@ def test_two_parallel_stamps():
     assert tres_1.identifier == "3"
     assert tres_2.identifier == "3"
 
-    assert uno_1.time >= uno_2.time
-    assert uno_2.time >= dos_1.time
-    assert dos_1.time >= dos_2.time
-    assert dos_2.time >= tres_1.time
-    assert tres_1.time >= tres_2.time
+    assert uno_1.time <= uno_2.time
+    assert uno_2.time <= dos_1.time
+    assert dos_1.time <= dos_2.time
+    assert dos_2.time <= tres_1.time
+    assert tres_1.time <= tres_2.time
 
 
 def test_combo():
@@ -113,6 +113,6 @@ def test_combo():
     assert singleton.identifier == "3"
     assert tres.identifier == "4"
 
-    assert uno.time >= dos.time
-    assert dos.time >= singleton.time
-    assert singleton.time >= tres.time
+    assert uno.time <= dos.time
+    assert dos.time <= singleton.time
+    assert singleton.time <= tres.time
