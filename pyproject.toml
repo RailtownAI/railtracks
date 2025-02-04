@@ -4,7 +4,7 @@ build-backend = "flit_core.buildapi"
 
 
 [project]
-name = "railtownai_rc"
+name = "request-completion"
 authors = [
     { name = "Logan Underwood", email = "logan@railtown.ai" },
     { name = "Levi Varsanyi", email = "levi@railtownn.ai" },
