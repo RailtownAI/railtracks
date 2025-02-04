@@ -20,7 +20,7 @@ jobs:
           python-version: '3.10'
           cache: 'pip'
 
-      - name: Extract Package Name and Version
+      - name: Check if package version already exists
         id: package-infoGG
         run: |
           PACKAGE_NAME=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['name'])")
