@@ -30,7 +30,7 @@ Home = "https://railtown.ai"
 
 
 [tool.flit.module]
-name = "railtownai_rc"
+name = "request-completion"
 
 [tool.black]
 line-length = 120
