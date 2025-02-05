@@ -4,7 +4,7 @@ name: Publish to Azure Artifacts on Release
 on:
   push:
     branches:
-      - aime/4623/debug-releases
+      - jaime/4623/debug-releases
 
 # on:
 #   release:
