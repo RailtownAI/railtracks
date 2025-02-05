@@ -16,4 +16,4 @@ __all__ = ["nodes", "run", "exceptions", "llm"]
 
 load_dotenv()
 # TODO: Bump this
-__version__ = "0.0.1"
+__version__ = "0.0.2"
