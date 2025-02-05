@@ -12,3 +12,8 @@
 
 `pytest`
 
+## Release Process
+
+- Ensure you bump the version (semver) in `src/railtownai_rc/**init**.py`
+- Commit the change and get it merged into `main`
+- Create a Release through GitHub and tag it as the version that was bumped "v1.0.3"
