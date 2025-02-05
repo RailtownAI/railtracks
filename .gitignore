@@ -5,6 +5,7 @@
 .vscode
 __pycache__
 .prettierrc
+build
 dist
 package-lock.json
 package.json
