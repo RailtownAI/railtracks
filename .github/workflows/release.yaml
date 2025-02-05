@@ -1,14 +1,8 @@
 name: Publish to Azure Artifacts on Release
 
-# For testing purposes, we are using the push event to trigger the workflow.
 on:
-  push:
-    branches:
-      - jaime/4623/debug-releases
-
-# on:
-#   release:
-#     types: [published]
+  release:
+    types: [published]
 
 permissions:
   id-token: write # Required for Azure authentication
