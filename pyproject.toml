@@ -4,7 +4,7 @@ build-backend = "flit_core.buildapi"
 
 
 [project]
-name = "request-completion"
+name = "railtownai_rc"
 authors = [
     { name = "Logan Underwood", email = "logan@railtown.ai" },
     { name = "Levi Varsanyi", email = "levi@railtownn.ai" },
@@ -30,7 +30,7 @@ Home = "https://railtown.ai"
 
 
 [tool.flit.module]
-name = "request-completion"
+name = "railtownai_rc"
 
 [tool.black]
 line-length = 120
