@@ -10,15 +10,15 @@ on:
 #   release:
 #     types: [published]
 
-permissions:
-  id-token: write # Required for Azure authentication
+# permissions:
+#   id-token: write # Required for Azure authentication
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v2
 
       - name: Set up Python
         uses: actions/setup-python@v5
