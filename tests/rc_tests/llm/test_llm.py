@@ -3,7 +3,7 @@ import random
 
 import pytest
 
-from src.requestcompletionn.llm import (
+from src.requestcompletion.llm import (
     ModelBase,
     AssistantMessage,
     MessageHistory,
