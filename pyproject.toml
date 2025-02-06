@@ -20,9 +20,9 @@ dependencies = [
     "requests-mock >= 1.12.1",
     "python-dotenv == 1.0.0",
     "pyvis == 0.3.1",
-    "llama-index==0.12.11",
-    "llama-index-llms-openai==0.3.13",
-    "llama-index-llms-anthropic==0.6.4",
+    "llama-index == 0.12.*",
+    "llama-index-llms-openai == 0.3.*",
+    "llama-index-llms-anthropic == 0.6.*",
 ]
 
 [project.urls]
