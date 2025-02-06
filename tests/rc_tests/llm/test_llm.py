@@ -3,7 +3,7 @@ import random
 
 import pytest
 
-from src.railtownai_rc.llm import (
+from src.requestcompletionn.llm import (
     ModelBase,
     AssistantMessage,
     MessageHistory,
@@ -15,7 +15,7 @@ from src.railtownai_rc.llm import (
 
 from typing import Type, List
 
-from src.railtownai_rc.llm.response import Response
+from src.requestcompletion.llm.response import Response
 from tests.rc_tests.llm.fixtures import MockLLM
 
 
@@ -79,7 +79,11 @@ def test_tool_call():
     def tool_call(mess_hist: MessageHistory, tool_calls: List[Tool]):
         tool = random.choice(tool_calls)
 
-        return Response(AssistantMessage([ToolCall(identifier=identifier, name=tool.name, arguments={})]))
+        return Response(
+            AssistantMessage(
+                [ToolCall(identifier=identifier, name=tool.name, arguments={})]
+            )
+        )
 
     model = MockLLM(chat_with_tools=tool_call)
 
@@ -101,7 +105,11 @@ def test_multiple_tool_calls():
     def tool_call(mess_hist: MessageHistory, tool_calls: List[Tool]):
         tool = random.choice(tool_calls)
 
-        return Response(AssistantMessage([ToolCall(identifier=identifier, name=tool.name, arguments={})]))
+        return Response(
+            AssistantMessage(
+                [ToolCall(identifier=identifier, name=tool.name, arguments={})]
+            )
+        )
 
     model = MockLLM(chat_with_tools=tool_call)
 
@@ -111,7 +119,10 @@ def test_multiple_tool_calls():
     for _ in range(10):
         response = model.chat_with_tools(
             MessageHistory(),
-            [Tool(name, description, []) for name, description in zip(tool_names, tool_descriptions)],
+            [
+                Tool(name, description, [])
+                for name, description in zip(tool_names, tool_descriptions)
+            ],
         )
 
         assert response.message.content[0].identifier == identifier
@@ -125,7 +136,11 @@ def test_many_calls_in_parallel():
     def tool_call(mess_hist: MessageHistory, tool_calls: List[Tool]):
         tool = random.choice(tool_calls)
 
-        return Response(AssistantMessage([ToolCall(identifier=identifier, name=tool.name, arguments={})]))
+        return Response(
+            AssistantMessage(
+                [ToolCall(identifier=identifier, name=tool.name, arguments={})]
+            )
+        )
 
     model = MockLLM(chat_with_tools=tool_call)
 
@@ -137,7 +152,10 @@ def test_many_calls_in_parallel():
         def func():
             response = model.chat_with_tools(
                 MessageHistory(),
-                [Tool(name, description, []) for name, description in zip(tool_names, tool_descriptions)],
+                [
+                    Tool(name, description, [])
+                    for name, description in zip(tool_names, tool_descriptions)
+                ],
             )
 
             assert response.message.content[0].identifier == identifier
