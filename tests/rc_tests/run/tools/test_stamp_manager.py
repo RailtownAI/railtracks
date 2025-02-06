@@ -2,7 +2,7 @@ import pytest
 
 import time
 
-from railtownai_rc.run.tools.profiling import StampManager
+from requestcompletion.run.tools.profiling import StampManager
 
 
 def test_single_stamper():

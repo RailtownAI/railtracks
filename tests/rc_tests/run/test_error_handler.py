@@ -2,17 +2,17 @@ from __future__ import annotations
 
 import pytest
 
-import railtownai_rc.nodes.nodes as no
-from railtownai_rc.run.config import ExecutorConfig
-from railtownai_rc.run.run import run
+import requestcompletion.nodes.nodes as no
+from requestcompletion.run.config import ExecutorConfig
+from requestcompletion.run.run import run
 
-from railtownai_rc.run.state.execute import (
+from requestcompletion.run.state.execute import (
     GlobalTimeOut,
     GlobalRetriesExceeded,
     ExecutionException,
 )
 
-from railtownai_rc.exceptions import (
+from requestcompletion.exceptions import (
     NodeException,
     FatalException,
     ResetException,
@@ -30,7 +30,6 @@ from tests.rc_tests.fixtures.nodes import (
 
 
 def test_simple_request():
-
     result = run(start_node=RNGNode())
 
     assert isinstance(result.answer, float)
@@ -90,7 +89,9 @@ def test_override_scorched_earth():
     with pytest.raises(ExecutionException) as err:
         run(
             i_node,
-            executor_config=ExecutorConfig(global_num_retries=6, retry_upstream_request_on_failure=False),
+            executor_config=ExecutorConfig(
+                global_num_retries=6, retry_upstream_request_on_failure=False
+            ),
         )
     assert isinstance(err.value.final_exception, NodeException)
     assert err.value.failed_request.sink_id == str(i_node.uuid)
@@ -98,7 +99,6 @@ def test_override_scorched_earth():
 
 
 def test_call_with_fatal_error():
-
     i_node = CallNode(3, 3, FatalErrorNode)
 
     with pytest.raises(ExecutionException) as err:
@@ -112,7 +112,6 @@ def test_call_with_fatal_error():
 
 
 def test_call_with_failed_retries():
-
     i_node = CallNode(3, 10, lambda: ScorchedEarthNode())
 
     with pytest.raises(ExecutionException) as err:
@@ -129,7 +128,6 @@ def test_call_with_failed_retries():
 
 
 def test_call_with_inserted_data():
-
     i_node = CallNode(
         3,
         3,
@@ -144,7 +142,6 @@ def test_call_with_inserted_data():
 
 
 def test_crazy_errors():
-
     num_calls = 10
     parallel_calls = 5
     i_node = CallNode(
@@ -153,7 +150,9 @@ def test_crazy_errors():
         lambda: CompletionProtocolNode("hello world"),
     )
 
-    finished_result = run(i_node, executor_config=ExecutorConfig(global_num_retries=350, timeout=250))
+    finished_result = run(
+        i_node, executor_config=ExecutorConfig(global_num_retries=350, timeout=250)
+    )
 
     assert isinstance(finished_result.answer, list)
     assert len(finished_result.answer) == num_calls * parallel_calls
@@ -161,12 +160,13 @@ def test_crazy_errors():
 
 
 def test_even_crazier_errors():
-
     i_node = CallNode(10, 50, lambda: RNGNode())
 
     finished_result = run(
         i_node,
-        executor_config=ExecutorConfig(global_num_retries=10000, timeout=250, workers=290),
+        executor_config=ExecutorConfig(
+            global_num_retries=10000, timeout=250, workers=290
+        ),
     )
 
     assert isinstance(finished_result.answer, list)
@@ -175,7 +175,6 @@ def test_even_crazier_errors():
 
 
 def test_time_out():
-
     i_node = TimeoutNode(5)
 
     with pytest.raises(ExecutionException) as err:
@@ -186,10 +185,11 @@ def test_time_out():
 
 
 def test_passed_time_out():
-
     i_node = TimeoutNode(1)
 
-    finished_result = run(i_node, executor_config=ExecutorConfig(global_num_retries=10, timeout=10))
+    finished_result = run(
+        i_node, executor_config=ExecutorConfig(global_num_retries=10, timeout=10)
+    )
 
     assert finished_result.answer is None
 
@@ -204,7 +204,6 @@ def test_complicated_graph_structure():
 
 
 def test_complicated_graph_structure_2():
-
     i_node = CallNode(
         3,
         3,

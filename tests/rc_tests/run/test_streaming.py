@@ -1,10 +1,10 @@
 import concurrent.futures
 import time
 
-from railtownai_rc.context.context import EmptyContext
-from railtownai_rc.run.config import ExecutorConfig
-from railtownai_rc.run.run import run
-from railtownai_rc.run.tools.stream import (
+from requestcompletion.context.context import EmptyContext
+from requestcompletion.run.config import ExecutorConfig
+from requestcompletion.run.run import run
+from requestcompletion.run.tools.stream import (
     Subscriber,
 )
 
@@ -35,7 +35,9 @@ def test_simple_streamer():
     # force close streams flag must be set to false to allow the slow streaming to finish.
 
     assert isinstance(finished_result.answer, float)
-    assert sub.finished_message == StreamingRNGNode.rng_template.format(finished_result.answer)
+    assert sub.finished_message == StreamingRNGNode.rng_template.format(
+        finished_result.answer
+    )
 
     assert 0 < finished_result.answer < 1
 
@@ -68,7 +70,6 @@ def rng_stream_tester(
     parallel_call_nums=3,
     multiplier=1,
 ):
-
     i_node = StreamingCallNode(
         num_calls,
         parallel_call_nums,
@@ -76,14 +77,12 @@ def rng_stream_tester(
     )
 
     class Sub(Subscriber[str]):
-
         def __init__(self):
             self.num_rngs = 0
             self.num_call_calls = 0
             self.errors = []
 
         def handle(self, item: str) -> None:
-
             # just look at the first part of the template
             call_template = StreamingCallNode.call_template_call.split()[:4]
             finished_template = StreamingRNGNode.rng_template.split()[:2]

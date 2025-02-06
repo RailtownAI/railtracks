@@ -5,8 +5,8 @@ import time
 
 from enum import Enum
 from typing import List, Callable
-from railtownai_rc.nodes import Node, NodeFactory
-from railtownai_rc.exceptions import *
+from requestcompletion.nodes import Node, NodeFactory
+from requestcompletion.exceptions import *
 
 
 EMPHATIC_ERROR = "The Node has failed emphatically"
@@ -15,7 +15,6 @@ REGULAR_ERROR = "The Node has failed regularly"
 
 
 class CapitalizeText(Node[str]):
-
     def __init__(self, data: str):
         super().__init__()
         self.data = data
@@ -29,7 +28,6 @@ class CapitalizeText(Node[str]):
 
 
 class FatalErrorNode(Node[str]):
-
     def invoke(self):
         raise FatalException(
             self,
@@ -47,7 +45,6 @@ class CompletionProtocolNode(Node[str]):
         self.completion_protocol = completion_protocol
 
     def invoke(self):
-
         raise CompletionException(
             self,
             detail=REGULAR_ERROR,
@@ -60,7 +57,6 @@ class CompletionProtocolNode(Node[str]):
 
 
 class ScorchedEarthNode(Node[str]):
-
     def invoke(self):
         raise ResetException(
             self,
@@ -84,7 +80,6 @@ class UnknownErrorNode(Node):
 
 
 class RNGNode(Node[float]):
-
     def invoke(
         self,
     ) -> float:
@@ -96,7 +91,6 @@ class RNGNode(Node[float]):
 
 
 class CallNode(Node[List]):
-
     def __init__(
         self,
         number_of_calls: int,
@@ -111,9 +105,10 @@ class CallNode(Node[List]):
         self.data: List = []
 
     def invoke(self):
-
         for _ in range(self.number_of_calls):
-            response = self.call_nodes([NodeFactory(self.node_creator) for _ in range(self.parallel_call_num)])
+            response = self.call_nodes(
+                [NodeFactory(self.node_creator) for _ in range(self.parallel_call_num)]
+            )
 
             self.data.extend([d.data for d in response])
 
@@ -125,7 +120,6 @@ class CallNode(Node[List]):
 
 
 class TimeoutNode(Node):
-
     def __init__(self, timeout: float):
         super().__init__()
         self.timeout = timeout
@@ -171,7 +165,9 @@ class StreamingCallNode(CallNode):
 
     def invoke(self):
         for _ in range(self.number_of_calls):
-            nodes = [NodeFactory(self.node_creator) for _ in range(self.parallel_call_num)]
+            nodes = [
+                NodeFactory(self.node_creator) for _ in range(self.parallel_call_num)
+            ]
             for n in nodes:
                 self.data_streamer(self.call_template_call.format(n.new_node))
             response = self.call_nodes(nodes)

@@ -1,7 +1,7 @@
 import threading
 import time
 
-from railtownai_rc.run.tools.stream import (
+from requestcompletion.run.tools.stream import (
     DataStream,
     Subscriber,
 )
@@ -75,7 +75,6 @@ def test_force_close():
     time.sleep(0.1)
     ds.stop(force=True)
     for i in range(1000):
-
         if len(h.data) == 0:
             assert i > 5
             break

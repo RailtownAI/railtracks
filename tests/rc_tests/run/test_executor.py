@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import time
 
-from railtownai_rc.run.config import ExecutorConfig
-from railtownai_rc.run.run import run
+from requestcompletion.run.config import ExecutorConfig
+from requestcompletion.run.run import run
 
 from tests.rc_tests.fixtures.nodes import (
     CallNode,
@@ -12,7 +12,6 @@ from tests.rc_tests.fixtures.nodes import (
 
 
 def test_no_deadlock():
-
     num_calls = 4
     parallel_calls = 55
     t = time.time()
@@ -33,7 +32,6 @@ def test_no_deadlock():
 
 
 def test_small_no_deadlock():
-
     num_calls = 10
     parallel_calls = 15
 
@@ -54,7 +52,6 @@ def test_small_no_deadlock():
 
 
 def test_large_no_deadlock():
-
     num_calls = 45
     parallel_calls = 23
 
@@ -75,7 +72,6 @@ def test_large_no_deadlock():
 
 
 def test_simple_rng_graph():
-
     i_r = RNGNode()
     finished_result = run(i_r)
 

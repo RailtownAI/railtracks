@@ -1,9 +1,8 @@
 import pytest
-import railtownai_rc as rc
+import requestcompletion as rc
 
 
 class CapitalizeText(rc.nodes.Node[str]):
-
     def __init__(self, string: str):
         self.string = string
         super().__init__()
@@ -17,7 +16,6 @@ class CapitalizeText(rc.nodes.Node[str]):
 
 
 def test_call_capitalize_text():
-
     node = CapitalizeText("hello world")
     assert node.invoke() == "Hello world"
     assert node.pretty_name() == "Capitalize Text"

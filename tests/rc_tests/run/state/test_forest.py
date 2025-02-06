@@ -3,8 +3,8 @@ import uuid
 import pytest
 from dataclasses import dataclass
 
-from railtownai_rc.run.tools.profiling import Stamp
-from railtownai_rc.run.state.forest import Forest, AbstractLinkedObject
+from requestcompletion.run.tools.profiling import Stamp
+from requestcompletion.run.state.forest import Forest, AbstractLinkedObject
 
 
 @dataclass(frozen=True)
