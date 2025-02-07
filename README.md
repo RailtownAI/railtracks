@@ -12,19 +12,18 @@ such systems. It's core principle of the system follows from a Request and Compl
 modular components. Each modular component has the ability to answer the upstream query or open a new downstream request
 to another modular component.
 
-
 ## Key Features
 
 - **Automatic Parallelism** - The system will automatically parallelize the execution of the modular components.
 - **Streaming Capability** - By defining what you want to stream and attaching a handler you can stream updates to the
-system via a callback mechanism.
+  system via a callback mechanism.
 - **Error Handling** - The system has a 3 tiered error handling approach that allows you to handle errors with grace to
-keep your application up and running.
+  keep your application up and running.
 - **Debugging** - The system has built in debugging tools that will allow you to inspect flows to understand what is
-going on in your application.
+  going on in your application.
 - **Control Flow Definition** - The system allows you to define the exact allowed flows between your modular components.
 - **Automatic Mapping of Linear Flows into RC** - The system will automatically map a simple linear flow to work within
-the RC framework.
+  the RC framework.
 
 ## Getting Started
 
@@ -32,9 +31,11 @@ In the below section, I will walk you through the steps on how to get started us
 
 ### Step 1: Install the Library
 
-```commandline
-pip install request-completion
+```bash
+pip install requestcompletion
 ```
+
+Or add it to your requirements.txt.
 
 ### Step 2: Define your Modular Components
 
@@ -53,7 +54,6 @@ pip install request-completion
 ```python
 
 ```
-
 
 ## Contributing
 
