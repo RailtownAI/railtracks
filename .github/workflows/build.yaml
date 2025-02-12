@@ -44,18 +44,18 @@ jobs:
       - name: Read current version
         id: get_version
         run: |
-          version=$(grep '__version__' src/requestcompletion/__init__.py | cut -d '"' -f 2)
-          echo "version=$version" >> $GITHUB_STATE
+          version=$(grep '__version__' src/requestcompletion/__init__.py | sed -E 's/__version__ = "(.*)"/\1/')
+          echo "version=$version" >> "$GITHUB_ENV"
           echo "Current version: $version"
 
       - name: Update patch version
         id: update_version
         run: |
-          IFS='.' read -r major minor patch <<< "${{ steps.get_version.outputs.version }}"
+          IFS='.' read -r major minor patch <<< "$version"
           patch=${{ github.run_number }}
           new_version="$major.$minor.$patch"
           echo "New version: $new_version"
-          echo "new_version=$new_version" >> $GITHUB_STATE
+          echo "new_version=$new_version" >> "$GITHUB_ENV"
 
       # - name: Set new version
       #   run: |
