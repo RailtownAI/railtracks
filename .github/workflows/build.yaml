@@ -56,14 +56,14 @@ jobs:
           echo "New version: $new_version"
           echo "new_version=$new_version" >> "$GITHUB_ENV"
 
-      # - name: Set new version
-      #   run: |
-      #     sed -i -E "s/__version__ = .*/__version__ = \"$new_version\"/" src/requestcompletion/__init__.py
-      #     echo "Updated __version__ in src/requestcompletion/__init__.py to $new_version"
+      - name: Set new version
+        run: |
+          sed -i -E "s/__version__ = .*/__version__ = \"$new_version\"/" src/requestcompletion/__init__.py
+          echo "Updated __version__ in src/requestcompletion/__init__.py to $new_version"
 
-      #     git config --global user.name 'github-actions'
-      #     git config --global user.email 'github-actions@github.com'
+          git config --global user.name 'github-actions'
+          git config --global user.email 'github-actions@github.com'
 
-      #     git add src/requestcompletion/__init__.py
-      #     git commit -m "Bump version to $new_version"
-      #     git push
+          git add src/requestcompletion/__init__.py
+          git commit -m "Bump version to $new_version"
+          git push
