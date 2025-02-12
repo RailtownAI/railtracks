@@ -58,11 +58,11 @@ jobs:
 
       - name: Set new version
         run: |
-          git checkout ${{ github.ref }}
-          echo "Switched to branch ${{ github.ref }}"
+          git checkout ${{ github.ref_name }}
+          echo "Switched to branch ${{ github.ref_name }}"
 
           sed -i -E "s/__version__ = .*/__version__ = \"$new_version\"/" src/requestcompletion/__init__.py
-          echo "[${{ github.ref }}] Updated __version__ in src/requestcompletion/__init__.py to $new_version"
+          echo "[${{ github.ref_name }}] Updated __version__ in src/requestcompletion/__init__.py to $new_version"
 
           git config --global user.name 'github-actions'
           git config --global user.email 'github-actions@github.com'
