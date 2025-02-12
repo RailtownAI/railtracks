@@ -74,8 +74,8 @@ jobs:
           flit build
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           if-no-files-found: error
-          name: requestcompletion-v${{ steps.update_version.outputs.new_version }}
+          name: 'requestcompletion-v$new_version'
           path: dist/*
