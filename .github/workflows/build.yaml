@@ -58,15 +58,15 @@ jobs:
 
       - name: Set new version
         run: |
-          git checkout ${{ github.ref_name }}
-          echo "Switched to branch ${{ github.ref_name }}"
-
           sed -i -E "s/__version__ = .*/__version__ = \"$new_version\"/" src/requestcompletion/__init__.py
-          echo "[${{ github.ref_name }}] Updated __version__ in src/requestcompletion/__init__.py to $new_version"
+          echo "Updated __version__ in src/requestcompletion/__init__.py to $new_version"
 
-          git config --global user.name 'github-actions'
-          git config --global user.email 'github-actions@github.com'
+      - name: Build package
+        run: |
+          flit build
 
-          git add src/requestcompletion/__init__.py
-          git commit -m "Bump version to $new_version"
-          git status
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: build-artifact
+          path: dist/*
