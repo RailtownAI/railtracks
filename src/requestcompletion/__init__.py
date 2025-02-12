@@ -15,5 +15,5 @@ from . import llm
 __all__ = ["nodes", "run", "exceptions", "llm"]
 
 load_dotenv()
-# TODO: Bump this
-__version__ = "0.0.7"
+
+__version__ = "0.1.0"
