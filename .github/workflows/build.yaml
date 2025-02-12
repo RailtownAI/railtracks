@@ -8,10 +8,6 @@ on:
     branches:
       - main
 
-permissions:
-  contents: read
-  id-token: write
-
 jobs:
   build:
     name: Build and Test
@@ -34,48 +30,3 @@ jobs:
       - name: Run tests
         run: |
           pytest -s -v --junit-xml=test-results.xml
-
-  bump-version:
-    name: Bump Package Version
-    needs: build
-    runs-on: ubuntu-latest
-    # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.10'
-
-      - name: Read current version
-        id: get_version
-        run: |
-          version=$(grep '__version__' src/requestcompletion/__init__.py | sed -E 's/__version__ = "(.*)"/\1/')
-          echo "version=$version" >> "$GITHUB_ENV"
-          echo "Current version: $version"
-
-      - name: Update patch version
-        id: update_version
-        run: |
-          IFS='.' read -r major minor patch <<< "$version"
-          patch=${{ github.run_number }}
-          new_version="$major.$minor.$patch"
-          echo "New version: $new_version"
-          echo "new_version=$new_version" >> "$GITHUB_ENV"
-          sed -i -E "s/__version__ = .*/__version__ = \"$new_version\"/" src/requestcompletion/__init__.py
-          echo "Updated __version__ in src/requestcompletion/__init__.py to $new_version"
-
-      - name: Build package
-        run: |
-          python -m pip install --upgrade pip
-          pip install flit
-          flit build
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          if-no-files-found: error
-          name: 'requestcompletion-v${{ steps.update_version.outputs.new_version }}'
-          path: dist/*
