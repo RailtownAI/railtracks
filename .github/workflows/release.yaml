@@ -45,6 +45,5 @@ jobs:
           FLIT_INDEX_URL: 'https://pkgs.dev.azure.com/railtownai/ML/_packaging/railtownai_rc/pypi/upload/' # Private Package URL
           FLIT_USERNAME: 'AZURE'
           FLIT_PASSWORD: ${{ secrets.AZURE_ARTIFACTS_PAT }}
-          FLIT_VERSION: ${{ env.RELEASE_TAG }}
         run: |
           flit publish
