@@ -10,12 +10,13 @@ permissions:
 
 env:
   RELEASE_TAG: ${{ github.ref_name }}
+
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -26,6 +27,18 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install flit
+
+      - name: Normalize version number
+        run: |
+          VERSION_CLEANED=${{ env.RELEASE_TAG }}
+          VERSION_CLEANED=${VERSION_CLEANED#v}  # Remove 'v' if present
+          echo "VERSION_CLEANED=$VERSION_CLEANED" >> $GITHUB_ENV
+          echo "Publishing version: $VERSION_CLEANED"
+
+      - name: Update version in __init__.py
+        run: |
+          sed -i -E 's/__version__ = ".+"/__version__ = "'"$VERSION_CLEANED"'"/' src/requestcompletion/__init__.py
+          echo "Updated __init__.py to version $VERSION_CLEANED"
 
       - name: Build and Publish with Flit
         env:
