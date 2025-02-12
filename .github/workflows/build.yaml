@@ -77,5 +77,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: error
-          name: 'requestcompletion-v$new_version'
+          name: 'requestcompletion-v${{ steps.update_version.outputs.new_version }}'
           path: dist/*
