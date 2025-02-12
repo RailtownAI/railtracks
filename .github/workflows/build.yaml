@@ -44,7 +44,7 @@ jobs:
         id: get_version
         run: |
           version=$(grep '__version__' src/requestcompletion/__init__.py | cut -d '"' -f 2)
-          echo "::set-output name=version::$version"
+          run: echo "version=$version" >> $GITHUB_STATE
           echo "Current version: $version"
 
       - name: Update patch version
@@ -53,7 +53,6 @@ jobs:
           IFS='.' read -r major minor patch <<< "${{ steps.get_version.outputs.version }}"
           patch=$((patch + 1))
           new_version="$major.$minor.$patch"
-          echo "::set-output name=new_version::$new_version"
           echo "New version: $new_version"
 
       # - name: Set new version
