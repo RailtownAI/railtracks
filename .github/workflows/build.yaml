@@ -20,7 +20,6 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: '3.10'
-          cache: 'pip'
 
       - name: Install dependencies
         run: |
@@ -59,9 +58,12 @@ jobs:
 
       # - name: Set new version
       #   run: |
-      #     sed -i "s/__version__ = .*/__version__ = \"$new_version\"/" src/requestcompletion/__init__.py
+      #     sed -i -E "s/__version__ = .*/__version__ = \"$new_version\"/" src/requestcompletion/__init__.py
+      #     echo "Updated __version__ in src/requestcompletion/__init__.py to $new_version"
+
       #     git config --global user.name 'github-actions'
       #     git config --global user.email 'github-actions@github.com'
+
       #     git add src/requestcompletion/__init__.py
       #     git commit -m "Bump version to $new_version"
       #     git push
