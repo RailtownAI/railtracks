@@ -54,6 +54,7 @@ jobs:
           patch=${{ github.run_number }}
           new_version="$major.$minor.$patch"
           echo "New version: $new_version"
+          echo "new_version=$new_version" >> $GITHUB_STATE
 
       # - name: Set new version
       #   run: |
