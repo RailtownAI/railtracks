@@ -58,12 +58,15 @@ jobs:
 
       - name: Set new version
         run: |
+          git checkout ${{ github.ref }}
+          echo "Switched to branch ${{ github.ref }}"
+
           sed -i -E "s/__version__ = .*/__version__ = \"$new_version\"/" src/requestcompletion/__init__.py
-          echo "Updated __version__ in src/requestcompletion/__init__.py to $new_version"
+          echo "[${{ github.ref }}] Updated __version__ in src/requestcompletion/__init__.py to $new_version"
 
           git config --global user.name 'github-actions'
           git config --global user.email 'github-actions@github.com'
 
           git add src/requestcompletion/__init__.py
           git commit -m "Bump version to $new_version"
-          git push
+          git status
