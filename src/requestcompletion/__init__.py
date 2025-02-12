@@ -15,5 +15,5 @@ from . import llm
 __all__ = ["nodes", "run", "exceptions", "llm"]
 
 load_dotenv()
-# Don't change this anymore
+# Only change the MAJOR.MINOR if you need to. Do not change the PATCH. (vMAJOR.MINOR.PATCH).
 __version__ = "0.1.0"
