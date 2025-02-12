@@ -8,6 +8,10 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   build:
     name: Build and Test
@@ -60,9 +64,6 @@ jobs:
           new_version="$major.$minor.$patch"
           echo "New version: $new_version"
           echo "new_version=$new_version" >> "$GITHUB_ENV"
-
-      - name: Set new version
-        run: |
           sed -i -E "s/__version__ = .*/__version__ = \"$new_version\"/" src/requestcompletion/__init__.py
           echo "Updated __version__ in src/requestcompletion/__init__.py to $new_version"
 
@@ -70,6 +71,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install flit
+          flit install --deps production --extras "test"
           flit build
 
       - name: Upload artifact
