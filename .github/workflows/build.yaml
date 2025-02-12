@@ -32,7 +32,7 @@ jobs:
           pytest -s -v --junit-xml=test-results.xml
 
   bump-version:
-    name: Bump package version
+    name: Bump Package Version
     needs: build
     runs-on: ubuntu-latest
     # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -44,15 +44,17 @@ jobs:
         id: get_version
         run: |
           version=$(grep '__version__' src/requestcompletion/__init__.py | cut -d '"' -f 2)
-          echo "version=$version" >> $GITHUB_ENV
+          echo "::set-output name=version::$version"
+          echo "Current version: $version"
 
       - name: Update patch version
         id: update_version
         run: |
-          IFS='.' read -r major minor patch <<< "$version"
+          IFS='.' read -r major minor patch <<< "${{ steps.get_version.outputs.version }}"
           patch=$((patch + 1))
           new_version="$major.$minor.$patch"
-          echo "new_version=$new_version" >> $GITHUB_ENV
+          echo "::set-output name=new_version::$new_version"
+          echo "New version: $new_version"
 
       # - name: Set new version
       #   run: |
