@@ -30,3 +30,32 @@ jobs:
       - name: Run tests
         run: |
           pytest -s -v --junit-xml=test-results.xml
+
+  bump-version:
+    name: Bump package version
+    needs: build
+    runs-on: ubuntu-latest
+    # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Read current version
+        id: get_version
+        run: |
+          version=$(grep '__version__' src/requestcompletion/__init__.py | cut -d '"' -f 2)
+          echo "version=$version" >> $GITHUB_ENV
+
+      - name: Update patch version
+        id: update_version
+        run: |
+          IFS='.' read -r major minor patch <<< "$version"
+          patch=$((patch + 1))
+          new_version="$major.$minor.$patch"
+          echo "new_version=$new_version" >> $GITHUB_ENV
+
+      - name: Set new version
+        run: |
+          sed -i "s/__version__ = .*/__version__ = \"$new_version\"/" src/requestcompletion/__init__.py
+          git config --global user.name 'github-actions'
+          git config --global user.email 'github-actions@github.com'
+          git add src/requestcompletion/__init__.py
+          git commit -m "Bump version to $new_version"
+          git push
