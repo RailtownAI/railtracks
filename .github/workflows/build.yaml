@@ -66,4 +66,4 @@ jobs:
 
           git add src/requestcompletion/__init__.py
           git commit -m "Bump version to $new_version"
-          git status
+          git push
