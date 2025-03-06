@@ -92,15 +92,18 @@ class FunctionNode(Node[TOutput]):
                 break
 
         # Use regex to capture lines of the form "name (type): description"
-        # This regex assumes each argument is on a separate line.
-        # You may need to tweak it for multi-line descriptions.
         pattern = re.compile(r'^\s*(\w+)\s*\([^)]+\):\s*(.+)$')
 
         arg_descriptions = {}
+        current_arg = None
         for line in args_section.splitlines():
             match = pattern.match(line)
             if match:
                 arg_name, arg_desc = match.groups()
                 arg_descriptions[arg_name] = arg_desc.strip()
+                current_arg = arg_name
+            elif current_arg:
+                # Append to the current argument's description
+                arg_descriptions[current_arg] += ' ' + line.strip()
 
         return arg_descriptions
