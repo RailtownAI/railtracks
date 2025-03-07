@@ -2,10 +2,10 @@ from typing import Callable, Set, Type
 
 import pytest
 
-import requestcompletion as rc
 from src.requestcompletion.nodes.library import ToolCallLLM, FunctionNode
-from requestcompletion.llm import ModelBase
-from requestcompletion.nodes import Node
+from src.requestcompletion.llm import ModelBase, MessageHistory, SystemMessage, UserMessage
+from src.requestcompletion.nodes import Node
+import src.requestcompletion as rc  
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -21,9 +21,9 @@ def simple_function(input_num: int) -> str:
     return str(input_num)*input_num
 
 def top_level_node(test_function: Callable, usr_prompt: str):
-    class TopLevelNode(rc.nodes.library.ToolCallLLM):
-        def __init__(self, message_history: rc.llm.MessageHistory):
-            message_history.insert(0, rc.llm.SystemMessage(self.system_message()))
+    class TopLevelNode(ToolCallLLM):
+        def __init__(self, message_history: MessageHistory):
+            message_history.insert(0, SystemMessage(self.system_message()))
 
             super().__init__(
                 message_history=message_history,
@@ -41,13 +41,19 @@ def top_level_node(test_function: Callable, usr_prompt: str):
 
         @classmethod
         def connected_nodes(cls) -> Set[Type[Node]]:
-            return {FunctionNode(test_function)}
+            return {FunctionNode}
         
+        def create_node(self, tool_name, arguments):
+            return FunctionNode(simple_function, **arguments)
+
+        def tools(self):
+            return [FunctionNode(simple_function).tool_info()] # TODO: This is a hack, need to figure out how to get the tool info from the function node 
+
         @classmethod
         def pretty_name(cls) -> str:
             return "Top Level Node"
 
-    return TopLevelNode(rc.llm.MessageHistory([rc.llm.UserMessage(usr_prompt)]))
+    return TopLevelNode(MessageHistory([UserMessage(usr_prompt)]))
 
 def test_simple_function():
     user_prompt = "What is the magic number for 6?"

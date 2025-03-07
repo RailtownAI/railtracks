@@ -50,6 +50,10 @@ class FunctionNode(Node[TOutput]):
     def tool_info(self) -> Tool:
         return self._tool_info_from_func(self.func)
 
+    @classmethod
+    def prepare_tool(cls, tool_parameters):
+        return cls(**tool_parameters)
+    
     def _tool_info_from_func(self,func: Callable):
 
         # determine if it's a class method
@@ -59,7 +63,7 @@ class FunctionNode(Node[TOutput]):
 
         signature = inspect.signature(func)
         
-        parameters = []
+        parameters = set()
         for param in signature.parameters.values():
             if in_class and param.name == "self":
                 continue
@@ -85,7 +89,7 @@ class FunctionNode(Node[TOutput]):
 
             param_type = type_mapping.get(param.annotation, "object")
 
-            parameters.append(Parameter(
+            parameters.add(Parameter(
                 name=param.name,
                 param_type=param_type,
                 description=arg_descriptions.get(param.name, ""),
@@ -97,7 +101,7 @@ class FunctionNode(Node[TOutput]):
         if docstring.count("Args:") > 1:
             warnings.warn("Multiple 'Args:' sections found in the docstring.")
         docstring = docstring.split("Args:\n")[0].strip()
-        
+
         tool_info = Tool(
             name=func.__name__,
             detail=docstring,
