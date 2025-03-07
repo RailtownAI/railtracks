@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import inspect
 import re
+import warnings
 
 from typing import (
     Any,
     TypeVar,
     Callable,
+    List,
 )
 
 
@@ -48,7 +50,7 @@ class FunctionNode(Node[TOutput]):
     def tool_info(self) -> Tool:
         return self._tool_info_from_func(self.func)
 
-    def _tool_info_from_func(self, func: Callable):
+    def _tool_info_from_func(self,func: Callable):
 
         # determine if it's a class method
         in_class = bool(func.__qualname__ and "." in func.__qualname__)
@@ -59,22 +61,52 @@ class FunctionNode(Node[TOutput]):
         
         parameters = []
         for param in signature.parameters.values():
+            if in_class and param.name == "self":
+                continue
+            # Map Python types to the allowed literal types
+            type_mapping = {
+                str: "string",
+                int: "integer",
+                float: "float",
+                bool: "boolean",
+                list: "array",
+                List: "array",
+            }
+            
+            # if inspect.isclass(param.annotation) and issubclass(param.annotation, BaseModel):
+            #     schema = param.annotation.model_json_schema()
+            #     parameters.append(Parameter(
+            #         name=schema['title'],
+            #         param_type="object",
+            #         description=arg_descriptions.get(param.name, ""),
+            #         required=param.default == inspect.Parameter.empty
+            #     ))
+            #     continue
+
+            param_type = type_mapping.get(param.annotation, "object")
+
             parameters.append(Parameter(
                 name=param.name,
-                param_type=param.annotation,
+                param_type=param_type,
                 description=arg_descriptions.get(param.name, ""),
                 required=param.default == inspect.Parameter.empty
             ))
 
+        # Extract the top chunk of the docstring, excluding the 'Args:' section
+        docstring = func.__doc__.strip() if func.__doc__ else ""
+        if docstring.count("Args:") > 1:
+            warnings.warn("Multiple 'Args:' sections found in the docstring.")
+        docstring = docstring.split("Args:\n")[0].strip()
+        
         tool_info = Tool(
             name=func.__name__,
-            detail=func.__doc__,
+            detail=docstring,
             parameters=parameters,
         )
         
         return tool_info
     
-    def _parse_docstring_args(docstring: str) -> dict[str, str]:
+    def _parse_docstring_args(self, docstring: str) -> dict[str, str]:
         """
         Parses the 'Args:' section from the given docstring.
         Returns a dictionary mapping parameter names to their descriptions.
@@ -87,8 +119,11 @@ class FunctionNode(Node[TOutput]):
         split_lines = docstring.splitlines()
         for i, line in enumerate(split_lines):
             if line.strip().startswith("Args:"):
-                # Everything after the "Args:" line is assumed to be part of the parameters section.
-                args_section = "\n".join(split_lines[i+1:])
+                # Collect lines until we hit another section or the end of the docstring
+                for j in range(i + 1, len(split_lines)):
+                    if re.match(r'^\s*\w+:\s*$', split_lines[j]):
+                        break
+                    args_section += split_lines[j] + "\n"
                 break
 
         # Use regex to capture lines of the form "name (type): description"
