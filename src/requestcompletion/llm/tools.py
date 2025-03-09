@@ -1,5 +1,8 @@
+import inspect
+import warnings
 from copy import deepcopy
 from typing import List, Callable, Optional, Type, Set, Literal
+import re
 from pydantic import BaseModel, Field, create_model
 from typing_extensions import Self
 
@@ -143,8 +146,98 @@ class Tool:
         return f"Tool(name={self._name}, detail={self._detail}, parameters={self._parameters.model_json_schema()})"
 
     @classmethod
-    def from_function(cls, function: Callable) -> Self:
-        # TODO: complete the specialized logic. See github issue.
-        pass
+    def from_function(cls, func: Callable) -> Self:
 
-    # TODO: add a method to convert a node into a tool.
+        # determine if it's a class method
+        in_class = bool(func.__qualname__ and "." in func.__qualname__)
+
+        arg_descriptions = cls._parse_docstring_args(func.__doc__)
+
+        signature = inspect.signature(func)
+
+        parameters = set()
+        for param in signature.parameters.values():
+            if in_class and param.name == "self":
+                continue
+            # Map Python types to the allowed literal types
+            type_mapping = {
+                str: "string",
+                int: "integer",
+                float: "float",
+                bool: "boolean",
+                list: "array",
+                List: "array",
+            }
+
+            # if inspect.isclass(param.annotation) and issubclass(param.annotation, BaseModel):
+            #     schema = param.annotation.model_json_schema()
+            #     parameters.append(Parameter(
+            #         name=schema['title'],
+            #         param_type="object",
+            #         description=arg_descriptions.get(param.name, ""),
+            #         required=param.default == inspect.Parameter.empty
+            #     ))
+            #     continue
+
+            param_type = type_mapping.get(param.annotation, "object")
+
+            parameters.add(
+                Parameter(
+                    name=param.name,
+                    param_type=param_type,
+                    description=arg_descriptions.get(param.name, ""),
+                    required=param.default == inspect.Parameter.empty,
+                )
+            )
+
+        # Extract the top chunk of the docstring, excluding the 'Args:' section
+        docstring = func.__doc__.strip() if func.__doc__ else ""
+        if docstring.count("Args:") > 1:
+            warnings.warn("Multiple 'Args:' sections found in the docstring.")
+        docstring = docstring.split("Args:\n")[0].strip()
+
+        tool_info = Tool(
+            name=func.__name__,
+            detail=docstring,
+            parameters=parameters,
+        )
+
+        return tool_info
+
+    @classmethod
+    def _parse_docstring_args(cls, docstring: str) -> dict[str, str]:
+        """
+        Parses the 'Args:' section from the given docstring.
+        Returns a dictionary mapping parameter names to their descriptions.
+        """
+        if not docstring:
+            return {}
+
+        # Look for a section starting with "Args:".
+        args_section = ""
+        split_lines = docstring.splitlines()
+        for i, line in enumerate(split_lines):
+            if line.strip().startswith("Args:"):
+                # Collect lines until we hit another section or the end of the docstring
+                for j in range(i + 1, len(split_lines)):
+                    if re.match(r"^\s*\w+:\s*$", split_lines[j]):
+                        break
+                    args_section += split_lines[j] + "\n"
+                break
+
+        # Use regex to capture lines of the form "name (type): description"
+        pattern = re.compile(r"^\s*(\w+)\s*\([^)]+\):\s*(.+)$")
+
+        arg_descriptions = {}
+        current_arg = None
+        for line in args_section.splitlines():
+            match = pattern.match(line)
+            if match:
+                arg_name, arg_desc = match.groups()
+                arg_descriptions[arg_name] = arg_desc.strip()
+                current_arg = arg_name
+            elif current_arg:
+                # Append to the current argument's description
+                arg_descriptions[current_arg] += " " + line.strip()
+
+        return arg_descriptions
