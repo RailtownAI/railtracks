@@ -2,13 +2,15 @@ from typing import Callable, Set, Type
 
 import pytest
 
-from src.requestcompletion.nodes.library import ToolCallLLM, FunctionNode
+from src.requestcompletion.nodes.library import ToolCallLLM, FunctionNode, from_function
 from src.requestcompletion.llm import ModelBase, MessageHistory, SystemMessage, UserMessage
 from src.requestcompletion.nodes import Node
-import src.requestcompletion as rc  
+import src.requestcompletion as rc
 
 from dotenv import load_dotenv
+
 load_dotenv()
+
 
 def simple_function(input_num: int) -> str:
     """
@@ -18,7 +20,8 @@ def simple_function(input_num: int) -> str:
     Returns:
         The input value plus one.
     """
-    return str(input_num)*input_num
+    return str(input_num) * input_num
+
 
 def top_level_node(test_function: Callable, usr_prompt: str):
     class TopLevelNode(ToolCallLLM):
@@ -34,26 +37,21 @@ def top_level_node(test_function: Callable, usr_prompt: str):
         def system_message(cls) -> str:
             return "You are a helpful assistant that can call the tools available to you to answer user queries"
             # return "You are a helpful assistant"
-            
+
         @classmethod
         def create_model(cls) -> ModelBase:
             return rc.llm.OpenAILLM("gpt-4o")
 
         @classmethod
         def connected_nodes(cls) -> Set[Type[Node]]:
-            return {FunctionNode}
-        
-        def create_node(self, tool_name, arguments):
-            return FunctionNode(simple_function, **arguments)
-
-        def tools(self):
-            return [FunctionNode(simple_function).tool_info()] # TODO: This is a hack, need to figure out how to get the tool info from the function node 
+            return {from_function(simple_function)}
 
         @classmethod
         def pretty_name(cls) -> str:
             return "Top Level Node"
 
     return TopLevelNode(MessageHistory([UserMessage(usr_prompt)]))
+
 
 def test_simple_function():
     user_prompt = "What is the magic number for 6?"
@@ -63,5 +61,6 @@ def test_simple_function():
     response = rc.run.run(agent)
     print(response.answer)
 
-if __name__=='__main__':
+
+if __name__ == "__main__":
     test_simple_function()

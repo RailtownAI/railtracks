@@ -1,6 +1,5 @@
 from functools import partial
-from typing import TypeVar, Generic, Set, Type, Dict, Any
-
+from typing import TypeVar, Generic, Set, Type, Dict, Any, Callable
 
 from ..nodes import Node, NodeFactory, ResetException, FatalException
 
@@ -27,7 +26,7 @@ class OutputLessToolCallLLM(Node[_T], ABC, Generic[_T]):
         self.message_hist = message_history
 
     @abstractmethod
-    def connected_nodes(self) -> Set[Type[Node]]: ...
+    def connected_nodes(self) -> Set[Type[Node] | Callable]: ...
 
     def create_node(self, tool_name: str, arguments: Dict[str, Any]) -> Node:
         """
