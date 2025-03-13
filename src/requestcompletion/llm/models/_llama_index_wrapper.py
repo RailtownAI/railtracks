@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import List, Callable, Any, Type, Dict
+from typing import List, Callable, Any, Type, Dict, Optional
 
 from llama_index.core.llms import ChatMessage
 from llama_index.core.tools import FunctionTool, ToolMetadata
@@ -17,6 +17,27 @@ from ..tools import Tool
 
 
 from pydantic import BaseModel, ValidationError
+
+
+# Custom tool class that works with our implementation
+class CustomTool:
+    """A simple tool class that can be used with LlamaIndex"""
+    
+    def __init__(self, name: str, description: str, schema: Dict):
+        self.name = name
+        self.description = description
+        self.schema = schema
+        
+    def to_openai_tool(self):
+        """Convert to OpenAI tool format"""
+        return {
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": self.schema
+            }
+        }
 
 
 def _to_llama_chat(message: Message, tool_call_fn: Callable[[ToolCall], Dict]) -> ChatMessage:
@@ -45,25 +66,48 @@ def _to_llama_chat(message: Message, tool_call_fn: Callable[[ToolCall], Dict]) -
     return ChatMessage(content=message.content, role=message.role)
 
 
-def _to_llama_tool(tool: Tool) -> FunctionTool:
+def _to_llama_tool(tool: Tool) -> CustomTool:
     """
-    Converts the given `tool` to a llama tool.
+    Converts the given `tool` to a custom tool.
 
     Args:
         tool: The tool you would like to convert.
 
     Returns:
-        A `FunctionTool` object that represents the given tool.
+        A `CustomTool` object that represents the given tool.
     """
-
-    # note we pass in a dummy function becuase we aren't using that part of the llama index API. Function calls should be tracked by RC.
-    return FunctionTool(
-        fn=lambda *args, **kwargs: None,
-        metadata=ToolMetadata(
-            name=tool.name,
-            description=tool.detail,
-            fn_schema=tool.parameters,
-        ),
+    # Get the schema from the tool's parameters
+    schema = None
+    if tool.parameters:
+        if hasattr(tool.parameters, "model_json_schema"):
+            # If it's a Pydantic model, get the schema
+            schema = tool.parameters.model_json_schema()
+            
+            # Ensure additionalProperties is set to false for OpenAI compatibility
+            if "additionalProperties" not in schema:
+                schema["additionalProperties"] = False
+        elif isinstance(tool.parameters, dict):
+            # If it's already a dict, use it directly
+            schema = tool.parameters
+            if "additionalProperties" not in schema:
+                schema["additionalProperties"] = False
+            if "type" not in schema:
+                schema["type"] = "object"
+    
+    # If we couldn't get a schema, create a minimal valid one
+    if not schema:
+        schema = {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": False
+        }
+    
+    # Use our custom tool class
+    return CustomTool(
+        name=tool.name,
+        description=tool.detail,
+        schema=schema
     )
 
 
@@ -150,11 +194,30 @@ class LlamaWrapper(ModelBase):
         return Response(message=None, streamer=map_to_string())
 
     def chat_with_tools(self, messages: MessageHistory, tools: List[Tool], **kwargs):
-        # TODO: add a descriptive error for a tool call with bad parameters.
-
+        """
+        Chat with the model using tools.
+        
+        Args:
+            messages: The message history to use as context
+            tools: The tools to make available to the model
+            **kwargs: Additional arguments to pass to the model
+            
+        Returns:
+            A Response object containing the model's response
+        """
+        # Convert our tools and messages to the format expected by the underlying implementation
         llama_tools = [_to_llama_tool(t) for t in tools]
         llama_chat = [_to_llama_chat(m, self.prepare_tool_calls) for m in messages]
-
+        
+        # TODO: Supporting OpenAI for now
+        try:
+            # Try to use the model-specific implementation if available
+            return self._handle_model_specific_tool_call(llama_chat, llama_tools, **kwargs)
+        except NotImplementedError:
+            # Fall back to the default implementation if the model-specific one is not available
+            pass
+        
+        # Default implementation for most models
         response = self.model.chat_with_tools(
             llama_tools,
             chat_history=llama_chat,
@@ -174,6 +237,24 @@ class LlamaWrapper(ModelBase):
             ],
         )
         return Response(message=message)
+
+    def _handle_model_specific_tool_call(self, llama_chat, llama_tools, **kwargs):
+        """
+        Optional method for model-specific tool call handling.
+        
+        Subclasses can implement this method to provide custom tool call handling
+        for specific model types. If implemented, chat_with_tools will use this
+        implementation instead of the default one.
+        
+        Args:
+            llama_chat: The chat history in llama format
+            llama_tools: The tools in llama format
+            **kwargs: Additional arguments to pass to the model
+            
+        Returns:
+            A Response object containing the model's response
+        """
+        raise NotImplementedError("This model does not implement model-specific tool call handling")
 
     def __str__(self):
         return f"Model(type={self._model_type}, name={self._model_name})"

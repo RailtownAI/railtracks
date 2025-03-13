@@ -18,8 +18,7 @@ from .docstring_parser import parse_docstring_args, extract_main_description
 from .parameter_handlers import (
     ParameterHandler,
     PydanticModelHandler,
-    TupleParameterHandler,
-    ListParameterHandler,
+    SequenceParameterHandler,
     DictParameterHandler,
     DefaultParameterHandler
 )
@@ -111,8 +110,7 @@ class Tool:
         # Create parameter handlers
         handlers: List[ParameterHandler] = [
             PydanticModelHandler(),
-            TupleParameterHandler(),
-            ListParameterHandler(),
+            SequenceParameterHandler(),
             DictParameterHandler(),
             DefaultParameterHandler()
         ]
