@@ -89,15 +89,17 @@ class PydanticModelHandler(ParameterHandler):
         )
 
 
-class TupleParameterHandler(ParameterHandler):
-    """Handler for tuple parameters."""
+class SequenceParameterHandler(ParameterHandler):
+    """Handler for sequence parameters (lists and tuples)."""
     
     def can_handle(self, param_annotation: Any) -> bool:
-        """Check if the annotation is a tuple type."""
-        return (
-            hasattr(param_annotation, "__origin__") and 
-            param_annotation.__origin__ is tuple
-        )
+        """Check if the annotation is a list or tuple type."""
+        # Handle typing.List and typing.Tuple
+        if hasattr(param_annotation, "__origin__"):
+            return param_annotation.__origin__ in (list, tuple)
+        
+        # Handle direct list and tuple types
+        return param_annotation in (list, tuple, List, Tuple)
     
     def create_parameter(
         self, 
@@ -106,50 +108,45 @@ class TupleParameterHandler(ParameterHandler):
         description: str, 
         required: bool
     ) -> Parameter:
-        """Create a PydanticParameter for a tuple."""
-        # Add more specific information about the tuple structure
-        tuple_args = getattr(param_annotation, "__args__", [])
-        tuple_types = [t.__name__ if hasattr(t, "__name__") else str(t) for t in tuple_args]
+        """Create a Parameter for a list or tuple."""
+        # Determine if it's a list or tuple
+        is_tuple = False
+        if hasattr(param_annotation, "__origin__"):
+            is_tuple = param_annotation.__origin__ is tuple
+        else:
+            is_tuple = param_annotation in (tuple, Tuple)
+            
+        sequence_type = "tuple" if is_tuple else "list"
+        
+        # Get the element types if available
+        sequence_args = []
+        if hasattr(param_annotation, "__args__"):
+            sequence_args = getattr(param_annotation, "__args__", [])
+        
+        # For tuples, we have multiple types (potentially)
+        if is_tuple:
+            type_names = [t.__name__ if hasattr(t, "__name__") else str(t) for t in sequence_args]
+            type_desc = f"{sequence_type} of {', '.join(type_names)}" if type_names else sequence_type
+        # For lists, we have a single type
+        else:
+            if sequence_args:
+                element_type = sequence_args[0]
+                type_name = element_type.__name__ if hasattr(element_type, "__name__") else str(element_type)
+                type_desc = f"{sequence_type} of {type_name}"
+            else:
+                type_desc = sequence_type
         
         if description:
-            description += f" (Expected format: tuple of {', '.join(tuple_types)})"
+            description += f" (Expected format: {type_desc})"
         else:
-            description = f"Expected format: tuple of {', '.join(tuple_types)}"
+            description = f"Expected format: {type_desc}"
         
-        # Create properties for the tuple elements
-        properties = {}
-        for i, t in enumerate(tuple_args):
-            type_name = t.__name__ if hasattr(t, "__name__") else str(t)
-            param_type = self._get_param_type_for_annotation(t)
-                
-            # For student tuple, use more descriptive names
-            element_name = str(i)
-            element_desc = f"Element {i} of type {type_name}"
-            
-            if param_name == "student" and len(tuple_args) == 3:
-                if i == 0:
-                    element_name = "first"
-                    element_desc = "First name"
-                elif i == 1:
-                    element_name = "last"
-                    element_desc = "Last name"
-                elif i == 2:
-                    element_name = "age"
-                    element_desc = "Age"
-            
-            properties[element_name] = Parameter(
-                name=element_name,
-                param_type=param_type,
-                description=element_desc,
-                required=True
-            )
-        
-        return PydanticParameter(
+        # For regular sequences, use the array type
+        return Parameter(
             name=param_name,
-            param_type="object",
+            param_type="array",
             description=description,
             required=required,
-            properties=properties
         )
     
     def _get_param_type_for_annotation(self, annotation: Any) -> str:
@@ -164,78 +161,8 @@ class TupleParameterHandler(ParameterHandler):
             return "string"  # Default to string for other types
 
 
-class ListParameterHandler(ParameterHandler):
-    """Handler for list parameters."""
-    
-    def can_handle(self, param_annotation: Any) -> bool:
-        """Check if the annotation is a list type."""
-        return (
-            hasattr(param_annotation, "__origin__") and 
-            param_annotation.__origin__ in (list, List)
-        )
-    
-    def create_parameter(
-        self, 
-        param_name: str, 
-        param_annotation: Any, 
-        description: str, 
-        required: bool
-    ) -> Parameter:
-        """Create a Parameter for a list."""
-        # Get the list element type if available
-        list_args = getattr(param_annotation, "__args__", [])
-        list_type = list_args[0] if list_args else "any"
-        type_name = list_type.__name__ if hasattr(list_type, "__name__") else str(list_type)
-        
-        if description:
-            description += f" (Expected format: list of {type_name})"
-        else:
-            description = f"Expected format: list of {type_name}"
-        
-        # For student list, create a more descriptive schema
-        if param_name == "student":
-            # Create an object with properties that will be converted to a list
-            properties = {}
-            
-            # Add descriptive properties for student list
-            properties["0"] = Parameter(
-                name="0",
-                param_type="string",
-                description="First name (first element of the list)",
-                required=True
-            )
-            properties["1"] = Parameter(
-                name="1",
-                param_type="string",
-                description="Last name (second element of the list)",
-                required=True
-            )
-            properties["2"] = Parameter(
-                name="2",
-                param_type="string" if list_type == str else "integer",
-                description="Age (third element of the list)",
-                required=True
-            )
-            
-            return PydanticParameter(
-                name=param_name,
-                param_type="object",  # We'll convert this to a list in the invoke method
-                description=description,
-                required=required,
-                properties=properties
-            )
-        else:
-            # For regular lists, use the array type
-            return Parameter(
-                name=param_name,
-                param_type="array",
-                description=description,
-                required=required,
-            )
-
-
 class DictParameterHandler(ParameterHandler):
-    """Handler for dictionary parameters."""
+    """Handler for dictionary parameters that raises an exception."""
     
     def can_handle(self, param_annotation: Any) -> bool:
         """Check if the annotation is a dictionary type."""
@@ -251,73 +178,19 @@ class DictParameterHandler(ParameterHandler):
         description: str, 
         required: bool
     ) -> Parameter:
-        """Create a Parameter for a dictionary."""
-        # Get the key and value types if available
+        """Raise an exception for dictionary parameters."""
+        # Get the key and value types if available for better error message
         dict_args = getattr(param_annotation, "__args__", [])
-        key_type = dict_args[0] if len(dict_args) > 0 else "string"
-        value_type = dict_args[1] if len(dict_args) > 1 else "any"
+        key_type = dict_args[0] if len(dict_args) > 0 else "unknown"
+        value_type = dict_args[1] if len(dict_args) > 1 else "unknown"
         
         key_type_name = key_type.__name__ if hasattr(key_type, "__name__") else str(key_type)
         value_type_name = value_type.__name__ if hasattr(value_type, "__name__") else str(value_type)
         
-        if description:
-            description += f" (Expected format: dictionary with {key_type_name} keys and {value_type_name} values)"
-        else:
-            description = f"Expected format: dictionary with {key_type_name} keys and {value_type_name} values"
+        param_type = f"Dict[{key_type_name}, {value_type_name}]"
         
-        # Special handling for student dict
-        if param_name == "student":
-            # Create a structured schema for student dict
-            properties = {}
-            
-            # Create a nested structure for name
-            name_properties = {
-                "first": Parameter(
-                    name="first",
-                    param_type="string",
-                    description="First name of the student",
-                    required=True
-                ),
-                "last": Parameter(
-                    name="last",
-                    param_type="string",
-                    description="Last name of the student",
-                    required=True
-                )
-            }
-            
-            # Add name as a nested object
-            properties["name"] = PydanticParameter(
-                name="name",
-                param_type="object",
-                description="Student's name",
-                required=True,
-                properties=name_properties
-            )
-            
-            # Add age
-            properties["age"] = Parameter(
-                name="age",
-                param_type="integer",
-                description="Age of the student",
-                required=True
-            )
-            
-            return PydanticParameter(
-                name=param_name,
-                param_type="object",
-                description=description,
-                required=required,
-                properties=properties
-            )
-        else:
-            # For regular dictionaries, use a generic object type
-            return Parameter(
-                name=param_name,
-                param_type="object",
-                description=description,
-                required=required,
-            )
+        # Raise an exception for dictionary parameters
+        raise UnsupportedParameterException(param_name, param_type)
 
 
 class DefaultParameterHandler(ParameterHandler):
@@ -332,7 +205,10 @@ class DefaultParameterHandler(ParameterHandler):
             bool: "boolean",
             list: "array",
             List: "array",
+            tuple: "array",
+            Tuple: "array",
             dict: "object",
+            Dict: "object",
         }
     
     def can_handle(self, param_annotation: Any) -> bool:
@@ -347,6 +223,10 @@ class DefaultParameterHandler(ParameterHandler):
         required: bool
     ) -> Parameter:
         """Create a Parameter for a primitive or unknown type."""
+        # Check if it's a dictionary type that wasn't caught by DictParameterHandler
+        if param_annotation in (dict, Dict):
+            raise UnsupportedParameterException(param_name, str(param_annotation))
+            
         # Default to object if type not found in mapping
         mapped_type = self.type_mapping.get(param_annotation, "object")
         return Parameter(
@@ -354,4 +234,10 @@ class DefaultParameterHandler(ParameterHandler):
             param_type=mapped_type,
             description=description,
             required=required,
-        ) 
+        )
+
+class UnsupportedParameterException(Exception):
+    """Exception raised when a parameter type is not supported."""
+    def __init__(self, param_name: str, param_type: str):
+        self.message = f"Unsupported parameter type: {param_type} for parameter: {param_name}"
+        super().__init__(self.message)
