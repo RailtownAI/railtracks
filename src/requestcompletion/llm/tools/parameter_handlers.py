@@ -133,6 +133,28 @@ class SequenceParameterHandler(ParameterHandler):
                 element_type = sequence_args[0]
                 type_name = element_type.__name__ if hasattr(element_type, "__name__") else str(element_type)
                 type_desc = f"{sequence_type} of {type_name}"
+                
+                # Check if the element type is a Pydantic model
+                if inspect.isclass(element_type) and issubclass(element_type, BaseModel):
+                    # Get the JSON schema for the Pydantic model
+                    schema = element_type.model_json_schema()
+                    
+                    # Process the schema to extract parameter information
+                    inner_params = parse_model_properties(schema)
+                    
+                    # Create a PydanticParameter with the extracted information
+                    if description:
+                        description += f" (Expected format: {type_desc})"
+                    else:
+                        description = f"Expected format: {type_desc}"
+                    
+                    return PydanticParameter(
+                        name=param_name,
+                        param_type="array",
+                        description=description,
+                        required=required,
+                        properties=inner_params,
+                    )
             else:
                 type_desc = sequence_type
         

@@ -16,11 +16,6 @@ from .utils import create_top_level_node
 from src.requestcompletion.nodes.library import ToolCallLLM, from_function
 import src.requestcompletion as rc
 
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
-
 # ===== Test Models =====
 
 # Define model providers to test with
@@ -198,3 +193,50 @@ class TestDictionaryInputTypes:
         with pytest.raises(Exception):
             agent = create_top_level_node(dict_func, "What is the result for {'key': 'value'}?", model_provider=model_provider)
             rc.run.run(agent)
+
+class TestRealisticScenarios:
+    @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
+    def test_realistic_scenario(self, model_provider):
+        """Test that a function with a realistic scenario works correctly."""
+
+        class StaffDirectory(BaseModel):
+            name: str = Field(description="The name of the staff member")
+            role: str = Field(description="The role of the staff member")
+            phone: str = Field(description="The phone number of the staff member")
+
+        # Define DB at class level so it's accessible for assertions
+        DB = {
+            "John": {
+                "role": "Manager",
+                "phone": "1234567890"
+            },
+        }
+
+        def update_staff_directory(staff: List[StaffDirectory]) -> None:
+            """
+            For a given list of staff, updates the staff directory with new members or updates existing members.
+
+            Args:
+                staff (List[StaffDirectory]): The list of staff to to gather information about.
+
+            """
+            for person in staff:
+                DB[person.name] = {
+                    "role": person.role,
+                    "phone": person.phone
+                }
+        
+        usr_prompt = "Update the staff directory with the following information: John is now a Senior Manager and his phone number is changed to 5555"\
+                     " and Jane is new a Developer and her phone number is 0987654321."
+
+        
+        agent = create_top_level_node(update_staff_directory, usr_prompt, model_provider=model_provider)
+
+        response = rc.run.run(agent)
+
+        assert DB["John"]["role"] == "Senior Manager"
+        assert DB["John"]["phone"] == "5555"
+        assert DB["Jane"]["role"] == "Developer"
+        assert DB["Jane"]["phone"] == "0987654321"
+        
+
