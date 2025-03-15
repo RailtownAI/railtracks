@@ -59,7 +59,7 @@ class Message(Generic[_T]):
         return self._role
 
     def __str__(self):
-        return f"{self.role}: {self.content}"
+        return f"{self.role.value}: {self.content}"
 
     def __repr__(self):
         return str(self)

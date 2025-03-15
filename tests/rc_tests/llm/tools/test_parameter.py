@@ -5,11 +5,7 @@ This module contains tests for the Parameter classes and related functionality
 in the requestcompletion.llm.tools.parameter module.
 """
 
-import pytest
-from copy import deepcopy
-
 from src.requestcompletion.llm.tools.parameter import (
-    ParameterType,
     Parameter,
     PydanticParameter,
 )
@@ -51,7 +47,8 @@ class TestParameter:
         
         expected_str = (
             "Parameter(name=test_param, type=boolean, "
-            "description=A test parameter, required=False)"
+            "description=A test parameter, required=False, "
+            "additional_properties=False)"
         )
         assert str(param) == expected_str
 

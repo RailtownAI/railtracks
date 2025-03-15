@@ -18,6 +18,24 @@ from ..tools import Tool
 
 from pydantic import BaseModel, ValidationError
 
+class ToolMetadata:
+    """Internal class to match LlamaIndex's ToolMetadata structure"""
+    
+    def __init__(self, name: str, description: str, schema: Dict):
+        self.name = name
+        self.description = description
+        self.schema = schema
+        
+    def to_openai_tool(self):
+        """Convert to OpenAI tool format"""
+        return {
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": self.schema
+            }
+        }
 
 # Custom tool class that works with our implementation
 class CustomTool:
@@ -27,6 +45,8 @@ class CustomTool:
         self.name = name
         self.description = description
         self.schema = schema
+        # Create a metadata object that matches LlamaIndex's expectations
+        self.metadata = ToolMetadata(name, description, schema)    
         
     def to_openai_tool(self):
         """Convert to OpenAI tool format"""
@@ -209,15 +229,7 @@ class LlamaWrapper(ModelBase):
         llama_tools = [_to_llama_tool(t) for t in tools]
         llama_chat = [_to_llama_chat(m, self.prepare_tool_calls) for m in messages]
         
-        # TODO: Supporting OpenAI for now
-        try:
-            # Try to use the model-specific implementation if available
-            return self._handle_model_specific_tool_call(llama_chat, llama_tools, **kwargs)
-        except NotImplementedError:
-            # Fall back to the default implementation if the model-specific one is not available
-            pass
-        
-        # Default implementation for most models
+        # Use the default implementation for all models
         response = self.model.chat_with_tools(
             llama_tools,
             chat_history=llama_chat,
@@ -237,24 +249,6 @@ class LlamaWrapper(ModelBase):
             ],
         )
         return Response(message=message)
-
-    def _handle_model_specific_tool_call(self, llama_chat, llama_tools, **kwargs):
-        """
-        Optional method for model-specific tool call handling.
-        
-        Subclasses can implement this method to provide custom tool call handling
-        for specific model types. If implemented, chat_with_tools will use this
-        implementation instead of the default one.
-        
-        Args:
-            llama_chat: The chat history in llama format
-            llama_tools: The tools in llama format
-            **kwargs: Additional arguments to pass to the model
-            
-        Returns:
-            A Response object containing the model's response
-        """
-        raise NotImplementedError("This model does not implement model-specific tool call handling")
 
     def __str__(self):
         return f"Model(type={self._model_type}, name={self._model_name})"

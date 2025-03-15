@@ -29,6 +29,7 @@ class Parameter:
         param_type: Literal["string", "integer", "float", "boolean", "array", "object"],
         description: str = "",
         required: bool = True,
+        additional_properties: bool = False,
     ):
         """
         Creates a new instance of a parameter object.
@@ -38,11 +39,13 @@ class Parameter:
             param_type: The type of the parameter.
             description: A description of the parameter.
             required: Whether the parameter is required. Defaults to True.
+            additional_properties: Whether to allow additional properties for object types. Defaults to False.
         """
         self._name = name
         self._param_type = param_type
         self._description = description
         self._required = required
+        self._additional_properties = additional_properties
 
     @property
     def name(self) -> str:
@@ -63,12 +66,18 @@ class Parameter:
     def required(self) -> bool:
         """Check if the parameter is required."""
         return self._required
+        
+    @property
+    def additional_properties(self) -> bool:
+        """Check if additional properties are allowed for object types."""
+        return self._additional_properties
 
     def __str__(self) -> str:
         """String representation of the parameter."""
         return (
             f"Parameter(name={self._name}, type={self._param_type}, "
-            f"description={self._description}, required={self._required})"
+            f"description={self._description}, required={self._required}, "
+            f"additional_properties={self._additional_properties})"
         )
 
     @classmethod
@@ -96,6 +105,7 @@ class PydanticParameter(Parameter):
         description: str = "",
         required: bool = True,
         properties: Optional[Dict[str, Parameter]] = None,
+        additional_properties: bool = False,
     ):
         """
         Creates a new instance of a PydanticParameter object.
@@ -106,8 +116,9 @@ class PydanticParameter(Parameter):
             description: A description of the parameter.
             required: Whether the parameter is required. Defaults to True.
             properties: Nested properties if this parameter is itself an object.
+            additional_properties: Whether to allow additional properties for object types. Defaults to False.
         """
-        super().__init__(name, param_type, description, required)
+        super().__init__(name, param_type, description, required, additional_properties)
         self._properties = properties or {}
 
     @property
@@ -119,5 +130,6 @@ class PydanticParameter(Parameter):
         """String representation of the parameter with properties."""
         return (
             f"PydanticParameter(name={self._name}, type={self._param_type}, "
-            f"description={self._description}, required={self._required}, properties={self._properties})"
+            f"description={self._description}, required={self._required}, "
+            f"additional_properties={self._additional_properties}, properties={self._properties})"
         ) 
