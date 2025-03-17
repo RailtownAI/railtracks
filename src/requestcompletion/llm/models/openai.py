@@ -3,7 +3,6 @@ from llama_index.llms.openai import OpenAI
 import json
 
 from ..content import ToolCall
-from ..content import ToolCall
 
 class OpenAILLM(LlamaWrapper):
     @classmethod
