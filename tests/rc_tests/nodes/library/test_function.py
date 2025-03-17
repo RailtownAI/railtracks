@@ -112,8 +112,23 @@ class TestPrimitiveInputTypes:
         response = rc.run.run(agent)
         assert response.answer == "Wish Granted"
 
-class PydanticInputTypes:
-    pass
+    @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
+    def test_function_error_handling(self, model_provider):
+        """Test that errors in function execution are handled gracefully."""
+        def error_function(x: int) -> str:
+            """
+            Args:
+                x (int): The input number to the function
+
+            Returns:
+                str: The result of the function.
+            """
+            return str(1 / x)
+
+        agent = create_top_level_node(error_function, "What does the tool return for an input of 0? Only return the result, no other text.", model_provider=model_provider)
+
+        response = rc.run.run(agent)
+        assert response.answer == "Error invoking function error_function"
 
 class TestSequenceInputTypes:
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
@@ -157,7 +172,7 @@ class TestSequenceInputTypes:
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
     def test_lists(self, model_provider):
         """Test that a function with a list parameter works correctly."""
-        def magic_result(num_items: List[int], prices: List[float]) -> float:
+        def magic_result(num_items: List[float], prices: List[float]) -> float:
             """
             Args:
                 num_items (List[str]): The list of items to test.

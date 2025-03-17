@@ -9,6 +9,7 @@ from src.requestcompletion.llm.tools.parameter import (
     Parameter,
     PydanticParameter,
 )
+from src.requestcompletion.llm.tools import Tool
 
 class TestParameter:
     """Tests for the Parameter base class."""
@@ -150,3 +151,49 @@ class TestParameterEdgeCases:
         
         # param2's properties should still be empty
         assert "new_prop" not in param2.properties
+
+class TestClassMethodParameters:
+    """Tests for handling self and cls parameters in class methods."""
+
+    def test_instance_method_self_parameter(self):
+        """Test that self parameter is excluded from instance methods."""
+        class TestClass:
+            def instance_method(self, value: str) -> str:
+                """
+                Args:
+                    value: The value to process
+                Returns:
+                    The processed value
+                """
+                return value.upper()
+
+        tool = Tool.from_function(TestClass.instance_method)
+        params = tool.parameters.model_json_schema().get("properties", {})
+        
+        # Verify self is not in parameters
+        assert "self" not in params
+        # Verify value parameter is present
+        assert "value" in params
+        assert params["value"]["type"] == "string"
+
+    def test_class_method_cls_parameter(self):
+        """Test that cls parameter is excluded from class methods."""
+        class TestClass:
+            @classmethod
+            def class_method(cls, value: str) -> str:
+                """
+                Args:
+                    value: The value to process
+                Returns:
+                    The processed value
+                """
+                return value.upper()
+
+        tool = Tool.from_function(TestClass.class_method)
+        params = tool.parameters.model_json_schema().get("properties", {})
+        
+        # Verify cls is not in parameters
+        assert "cls" not in params
+        # Verify value parameter is present
+        assert "value" in params
+        assert params["value"]["type"] == "string"

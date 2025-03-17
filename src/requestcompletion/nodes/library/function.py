@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing_extensions import Self
+import warnings
 
 from ...llm.tools import Tool
 from ...llm.tools.parameter_handlers import UnsupportedParameterException
@@ -20,12 +21,12 @@ from typing import (
     get_args,
 )
 
-from ..nodes import Node, Tool, Parameter
+from ..nodes import Node, Tool
 import inspect
 from pydantic import BaseModel
 
 
-TOutput = TypeVar("TOutput")
+_TOutput = TypeVar("_TOutput")
 
 
 def from_function(func: Callable) -> Type[Node]:
@@ -49,7 +50,8 @@ def from_function(func: Callable) -> Type[Node]:
                 result = func(*self.args, **converted_kwargs)
                 return result
             except Exception as e:
-                print(f"Error invoking function: {str(e)}\nProvidedArgs: {self.args}\nProvided kwargs: {self.kwargs}")
+                warnings.warn(f"Error invoking function: {str(e)}\nProvidedArgs: {self.args}\nProvided kwargs: {self.kwargs}.\n")
+                return f"Error invoking function {func.__name__}"
         
         def _convert_kwargs_to_appropriate_types(self) -> Dict[str, Any]:
             """Convert kwargs to appropriate types based on function signature."""
@@ -182,17 +184,17 @@ def from_function(func: Callable) -> Type[Node]:
     return DynamicFunctionNode
 
 
-class FunctionNode(Node[TOutput]):
+class FunctionNode(Node[_TOutput]):
     """
     A class for ease of creating a function node for the user
     """
 
-    def __init__(self, func: Callable[..., TOutput], **kwargs: dict[str, Any]):
+    def __init__(self, func: Callable[..., _TOutput], **kwargs: dict[str, Any]):
         super().__init__()
         self.func = func
         self.kwargs = kwargs
 
-    def invoke(self) -> TOutput:
+    def invoke(self) -> _TOutput:
         try:
             result = self.func(**self.kwargs)
             if result and isinstance(result, str):

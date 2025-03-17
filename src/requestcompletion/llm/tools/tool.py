@@ -119,7 +119,7 @@ class Tool:
         
         for param in signature.parameters.values():
             # Skip 'self' parameter for class methods
-            if in_class and param.name == "self":
+            if in_class and (param.name == "self" or param.name == "cls"):
                 continue
             
             description = arg_descriptions.get(param.name, "")

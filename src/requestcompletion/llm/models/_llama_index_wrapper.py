@@ -5,6 +5,7 @@ from llama_index.core.llms import ChatMessage
 from llama_index.core.tools import FunctionTool, ToolMetadata
 
 import json
+import warnings
 
 from ..model import ModelBase
 
@@ -116,6 +117,7 @@ def _to_llama_tool(tool: Tool) -> CustomTool:
     
     # If we couldn't get a schema, create a minimal valid one
     if not schema:
+        warnings.warn(f"Failed to get schema for tool '{tool.name}'. Using minimal valid schema with no parameters.")
         schema = {
             "type": "object",
             "properties": {},
