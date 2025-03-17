@@ -127,8 +127,8 @@ class TestPrimitiveInputTypes:
 
         agent = create_top_level_node(error_function, "What does the tool return for an input of 0? Only return the result, no other text.", model_provider=model_provider)
 
-        response = rc.run.run(agent)
-        assert response.answer == "Error invoking function error_function"
+        with pytest.raises(Exception):
+            rc.run.run(agent)
 
 class TestSequenceInputTypes:
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
