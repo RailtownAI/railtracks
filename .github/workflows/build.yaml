@@ -29,4 +29,5 @@ jobs:
 
       - name: Run tests
         run: |
+          export OPENAI_API_KEY=${{ secrets.INTEGRATION_TESTS_OPENAI_API_KEY }}
           pytest -s -v --junit-xml=test-results.xml
