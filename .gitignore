@@ -14,3 +14,7 @@ test-results.xml
 # jupyter notebook
 .ipynb_checkpoints
 */.ipynb_checkpoints/*
+
+# extras generated whn using Agent Viewer
+interactive_graph.html
+lib/
