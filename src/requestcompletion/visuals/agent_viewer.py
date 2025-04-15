@@ -42,8 +42,32 @@ class AgentViewer:
         raise NotImplementedError()
 
     def _type_to_color(self, type: str):
-        color_map = {"DirectorNode": "lightblue", "TerminalNode": "lightcoral", "Start": "springgreen"}
+        color_map = color_map = {
+            "OutputLessToolCallLLM": "#F4A261",    # Warm Orange - indicates action with no output
+            "Node": "#E76F51",                     # Orange Red - indicates a node
+            "StructuredLLM": "#264653",            # Dark Slate - logic-heavy, structured reasoning
+            "TerminalLLM": "#1D3557",              # Navy Blue - final node, terminal decision
+            "Start": "#A8DADC",                    # Soft Cyan - gentle start
+        }
         return color_map.get(type, "gray")
+    
+    def _get_font(self, type: str) -> dict:
+
+        def _is_dark_color(hex_color: str) -> bool:
+            """Determine if a hex color is dark using luminance."""
+            hex_color = hex_color.lstrip('#')
+            r, g, b = [int(hex_color[i:i+2], 16) for i in (0, 2, 4)]
+            # Calculate luminance
+            luminance = (0.299 * r + 0.587 * g + 0.114 * b)
+            return luminance < 128  # Threshold for 'dark'
+
+        color = self._type_to_color(type)
+        font_color = "white" if _is_dark_color(color) else "black"
+        return {
+            "size": 15,
+            "color": font_color,
+            "align": "center",
+        }
 
     def _get_linkednode_info(self, linkednode: LinkedNode):
 
