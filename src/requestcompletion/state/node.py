@@ -34,7 +34,7 @@ class LinkedNode(AbstractLinkedObject):
         """
         try:
             # special handling for
-            return self._node.safe_copy()
+            return self._node#.safe_copy()
         except Exception as e:
             raise NodeCopyException(
                 "Every node must be able to be deep copied. Failed to copy node {0}, due to {1}.".format(
