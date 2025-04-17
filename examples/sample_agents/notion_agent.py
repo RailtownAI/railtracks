@@ -15,13 +15,13 @@ NotionAgent = rc.library.tool_call_llm(
     pretty_name="Notion Agent",
     system_message=SYSTEM_PROMPT,
     model=rc.llm.OpenAILLM(model_name="gpt-4o"),
-    connected_nodes=[
+    connected_nodes={
         from_function(find_page),
         from_function(create_page),
         from_function(add_block),
         from_function(find_user),
         from_function(tag_user),
-    ],
+    },
 )
 
 if __name__ == "__main__":

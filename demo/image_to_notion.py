@@ -6,7 +6,8 @@ from src.requestcompletion.nodes.library import from_function
 from src.requestcompletion.visuals.agent_viewer import AgentViewer
 
 
-USER_PROMPT = "I have a sample flowchart I made on a whiteboard, the path to the image is 'demo/assets/mermaid.jpeg'. I want you add a mermaid diagram under the 'Agent Demo Root' page in Notion."
+USER_PROMPT = "I have a sample flowchart I made on a whiteboard, the path to the image is 'demo/assets/uml.jpg'. " \
+"I want you add a mermaid diagram under the 'Agent Demo Root' page in Notion."
 
 
 async def top_level_node():

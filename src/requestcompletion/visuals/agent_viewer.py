@@ -44,12 +44,13 @@ class AgentViewer:
     def _type_to_color(self, type: str):
         color_map = color_map = {
             "OutputLessToolCallLLM": "#F4A261",    # Warm Orange - indicates action with no output
+            "ToolCallLLM": "#2A9D8F",              # Teal - indicates action with output
             "Node": "#E76F51",                     # Orange Red - indicates a node
             "StructuredLLM": "#264653",            # Dark Slate - logic-heavy, structured reasoning
             "TerminalLLM": "#1D3557",              # Navy Blue - final node, terminal decision
             "Start": "#A8DADC",                    # Soft Cyan - gentle start
         }
-        return color_map.get(type, "gray")
+        return color_map.get(type, "#000000")
     
     def _get_font(self, type: str) -> dict:
 
