@@ -5,13 +5,11 @@ from PIL import Image
 from typing import Union, Optional, Dict, Any
 from openai import OpenAI
     
-def upload_image(source: Union[str, bytes, io.BytesIO]) -> str:
+def upload_image(source: str) -> str:
     """
-    Upload an image from a file path, bytes, or BytesIO object and return base64 encoding.
-    
+    Upload an image from a file path
     Args:
-        source (Union[str, bytes, io.BytesIO]): Image source - can be a file path, 
-                                                    bytes, or BytesIO object
+        image_source str: Image to parse - a file path
     
     Returns:
         str: Base64 encoded image string
@@ -21,28 +19,19 @@ def upload_image(source: Union[str, bytes, io.BytesIO]) -> str:
         print(f"Loading image from {source}")
         with open(source, "rb") as image_file:
             image_bytes = image_file.read()
-    elif isinstance(source, bytes):
-        # Source is already bytes
-        image_bytes = source
-    elif isinstance(source, io.BytesIO):
-        # Source is a BytesIO object
-        image_bytes = source.getvalue()
     else:
-        raise TypeError("Source must be a file path, bytes, or BytesIO object")
+        raise TypeError("Source must be a file path")
     
     # Encode to base64
     base64_image = base64.b64encode(image_bytes).decode("utf-8")
     print("Image successfully uploaded and encoded")
     return base64_image
 
-def parse_image_to_text(image_source: Union[str, bytes, io.BytesIO]) -> str:
+def parse_image_to_text(image_source: str) -> str:
     """
     Extract text from an image using OpenAI's API.
-    
     Args:
-        image_source (Union[str, bytes, io.BytesIO]): Image to parse - can be a file path,
-                                                        bytes, or BytesIO object
-    
+        image_source str: Image to parse - a file path
     Returns:
         str: Extracted text from the image
     """
@@ -72,13 +61,12 @@ def parse_image_to_text(image_source: Union[str, bytes, io.BytesIO]) -> str:
     print("Text extraction complete")
     return extracted_text
 
-def parse_image_to_mermaid(image_source: Union[str, bytes, io.BytesIO]) -> str:
+def parse_image_to_mermaid(image_source: str) -> str:
     """
     Convert a diagram image to Mermaid code using OpenAI's API.
     
     Args:
-        image_source (Union[str, bytes, io.BytesIO]): Image to parse - can be a file path,
-                                                        bytes, or BytesIO object
+        image_source str: Image to parse - a file path
     
     Returns:
         str: Mermaid code representation of the diagram
@@ -115,14 +103,14 @@ def parse_image_to_mermaid(image_source: Union[str, bytes, io.BytesIO]) -> str:
     print("Mermaid code generation complete")
     return mermaid_code.strip()
 
-def save_image(image_data: Union[str, bytes, io.BytesIO], 
+def save_image(image_data: str, 
                 filename: str, 
                 is_base64: bool = False) -> str:
     """
     Save image data to a file.
     
     Args:
-        image_data (Union[str, bytes, io.BytesIO]): Image data to save
+        image_data str: Image data to save (file_path)
         filename (str): Output filename
         is_base64 (bool): Whether the image_data is a base64 string
     
@@ -132,12 +120,6 @@ def save_image(image_data: Union[str, bytes, io.BytesIO],
     if is_base64 and isinstance(image_data, str):
         # Convert base64 string to bytes
         image_bytes = base64.b64decode(image_data)
-    elif isinstance(image_data, str):
-        # Assume it's a file path
-        with open(image_data, "rb") as f:
-            image_bytes = f.read()
-    elif isinstance(image_data, io.BytesIO):
-        image_bytes = image_data.getvalue()
     else:
         # Assume it's already bytes
         image_bytes = image_data
@@ -152,13 +134,13 @@ def save_image(image_data: Union[str, bytes, io.BytesIO],
     print(f"Image saved to {filename}")
     return filename
 
-def analyze_image(image_source: Union[str, bytes, io.BytesIO], 
+def analyze_image(image_source: str, 
                 analysis_prompt: str = "What's in this image?") -> Dict[str, Any]:
     """
     Perform a general analysis of an image using OpenAI's API.
     
     Args:
-        image_source (Union[str, bytes, io.BytesIO]): Image to analyze
+        image_source str: Image to analyze (file_path)
         analysis_prompt (str): The question or prompt to ask about the image
     
     Returns:

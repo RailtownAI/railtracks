@@ -12,7 +12,7 @@ class Transcription(BaseModel):
 
 SYSTEM_PROMPT = SystemMessage(
     """
-    You are a helpful assistant that can parse images, analyze images, and transcribe them.
+    You are a helpful assistant that can parse images(mermaid code and text), analyze images, and transcribe them.
     """
 )
 

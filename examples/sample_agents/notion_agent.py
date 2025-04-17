@@ -8,8 +8,7 @@ from src.requestcompletion.visuals.agent_viewer import AgentViewer
 SYSTEM_PROMPT = SystemMessage(
     """
     You are a helpful assistant that can create and manage Notion pages.
-    If you are asked to provide code blocks, ensure you are not including any markdown formatting 
-    and provide the text for the code block.
+    If you are asked to provide code blocks, ensure you are not including any markdown formatting.
     """
 )
 NotionAgent = rc.library.tool_call_llm(

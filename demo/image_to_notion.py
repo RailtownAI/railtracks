@@ -6,7 +6,7 @@ from src.requestcompletion.nodes.library import from_function
 from src.requestcompletion.visuals.agent_viewer import AgentViewer
 
 
-USER_PROMPT = "I have a sample flowchart I made on a whiteboard, the path to the image is 'demo/assets/mermaid.jpeg'. I want you to make a mermaid image out of it and us the NotionAgent save it to notion under a page called 'Agent Demo Root'."
+USER_PROMPT = "I have a sample flowchart I made on a whiteboard, the path to the image is 'demo/assets/mermaid.jpeg'. I want you add a mermaid diagram under the 'Agent Demo Root' page in Notion."
 
 
 async def top_level_node():
@@ -14,8 +14,8 @@ async def top_level_node():
                            message_history=MessageHistory([UserMessage(USER_PROMPT)]))
     
     await rc.call(NotionAgent, message_history=MessageHistory([UserMessage(USER_PROMPT),
-                                                               UserMessage(f"Transctiption text:  , {transcription.text}"),
-                                                               UserMessage(f"Transctiption code:  , {transcription.code}"),
+                                                               UserMessage(f"Transctiption text: {transcription.text}"),
+                                                               UserMessage(f"Transctiption code: {transcription.code}"),
                                                                ]))
 
 
@@ -30,4 +30,4 @@ if __name__ == "__main__":
         request_heap=result.request_heap,
         node_heap=result.node_heap
     )
-    viewer.display_graph()
+    # viewer.display_graph()
