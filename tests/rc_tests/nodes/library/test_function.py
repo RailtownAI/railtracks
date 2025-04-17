@@ -8,12 +8,10 @@ This module tests the ability to create nodes from functions with various parame
 """
 
 import pytest
-from typing import Callable, Set, Type, Tuple, List, Dict, Any
+from typing import Tuple, List, Dict
 from pydantic import BaseModel, Field
 
 from requestcompletion.state.request import Failure
-from .utils import create_top_level_node
-
 import requestcompletion as rc
 
 # ===== Test Models =====
@@ -25,7 +23,7 @@ MODEL_PROVIDERS = ["openai"]
 # ===== Test Classes =====
 class TestPrimitiveInputTypes:
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_empty_function(self, model_provider):
+    def test_empty_function(self, model_provider, create_top_level_node):
         """Test that a function with no parameters works correctly."""
 
         def secret_phrase() -> str:
@@ -51,7 +49,7 @@ class TestPrimitiveInputTypes:
         assert response.answer == "Constantinople"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_single_int_input(self, model_provider):
+    def test_single_int_input(self, model_provider, create_top_level_node):
         """Test that a function with a single int parameter works correctly."""
 
         def magic_number(input_num: int) -> str:
@@ -83,7 +81,7 @@ class TestPrimitiveInputTypes:
         assert response.answer == "666666"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_single_str_input(self, model_provider):
+    def test_single_str_input(self, model_provider, create_top_level_node):
         """Test that a function with a single str parameter works correctly."""
 
         def magic_phrase(word: str) -> str:
@@ -115,7 +113,7 @@ class TestPrimitiveInputTypes:
         assert response.answer == "h$e$l$l$o"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_single_float_input(self, model_provider):
+    def test_single_float_input(self, model_provider, create_top_level_node):
         """Test that a function with a single float parameter works correctly."""
 
         def magic_test(num: float) -> str:
@@ -143,7 +141,7 @@ class TestPrimitiveInputTypes:
         assert response.answer == "True"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_single_bool_input(self, model_provider):
+    def test_single_bool_input(self, model_provider, create_top_level_node):
         """Test that a function with a single bool parameter works correctly."""
 
         def magic_test(is_magic: bool) -> str:
@@ -170,7 +168,7 @@ class TestPrimitiveInputTypes:
         assert response.answer == "Wish Granted"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_function_error_handling(self, model_provider):
+    def test_function_error_handling(self, model_provider, create_top_level_node):
         """Test that errors in function execution are handled gracefully."""
 
         def error_function(x: int) -> str:
@@ -208,7 +206,7 @@ class TestPrimitiveInputTypes:
 
 class TestSequenceInputTypes:
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_single_list_input(self, model_provider):
+    def test_single_list_input(self, model_provider, create_top_level_node):
         """Test that a function with a single list parameter works correctly."""
 
         def magic_list(items: List[str]) -> str:
@@ -241,7 +239,7 @@ class TestSequenceInputTypes:
         assert response.answer == "3 2 1"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_single_tuple_input(self, model_provider):
+    def test_single_tuple_input(self, model_provider, create_top_level_node):
         """Test that a function with a single tuple parameter works correctly."""
 
         def magic_tuple(items: Tuple[str, str, str]) -> str:
@@ -274,7 +272,7 @@ class TestSequenceInputTypes:
         assert response.answer == "3 2 1"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_lists(self, model_provider):
+    def test_lists(self, model_provider, create_top_level_node):
         """Test that a function with a list parameter works correctly."""
 
         def magic_result(num_items: List[float], prices: List[float]) -> float:
@@ -312,7 +310,7 @@ class TestDictionaryInputTypes:
     """Test that dictionary input types raise appropriate errors."""
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_dict_input_raises_error(self, model_provider):
+    def test_dict_input_raises_error(self, model_provider, create_top_level_node):
         """Test that a function with a dictionary parameter raises an error."""
 
         def dict_func(data: Dict[str, str]):
@@ -335,7 +333,7 @@ class TestDictionaryInputTypes:
 
 class TestRealisticScenarios:
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_realistic_scenario(self, model_provider):
+    def test_realistic_scenario(self, model_provider, create_top_level_node):
         """Test that a function with a realistic scenario works correctly."""
 
         class StaffDirectory(BaseModel):

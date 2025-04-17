@@ -1,7 +1,6 @@
 import pytest
 from copy import deepcopy
 import requestcompletion as rc
-from conftest import structured_nodes, tool_calling_nodes, terminal_nodes, model
 
 NODE_INIT_METHODS = ["class_based", "easy_wrapper"]
 

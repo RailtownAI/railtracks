@@ -31,25 +31,7 @@ async def test_call_capitalize_text_stream():
     assert node.pretty_name() == "Capitalize Text"
 
 
-# ======== Using TerminalLLMs as tools ==========
-@pytest.fixture
-def encoder_system_message():
-    return rc.llm.SystemMessage(
-        "You are a text encoder. Encode the input string into bytes and do a random operation on them. "
-        "You can use the following operations: reverse the byte order, or repeat each byte twice, or jumble the bytes."
-    )
-
-
-@pytest.fixture
-def decoder_system_message():
-    return rc.llm.SystemMessage("You are a text decoder. Decode the bytes into a string.")
-
-
-@pytest.fixture
-def model():
-    return rc.llm.OpenAILLM("gpt-4o")
-
-
+# ======== Tests using TerminalLLMs as tools ==========
 @pytest.mark.asyncio
 async def test_terminal_llm_as_tool_correct_initialization(model, encoder_system_message, decoder_system_message):
     # We can use them as tools by creating a TerminalLLM node and passing it to the tool_call_llm node
