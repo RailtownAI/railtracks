@@ -8,7 +8,7 @@ from typing import Optional
 load_dotenv()
 notion = Client(auth=os.environ["NOTION_TOKEN"])
 
-ROOT_PAGE_ID = ""
+ROOT_PAGE_ID = os.environ["NOTION_ROOT_PAGE_ID"]
 
 class PageProperties(BaseModel):
     id: str

@@ -42,6 +42,17 @@ class LinkedNode(AbstractLinkedObject):
                 )
             )
 
+    @property
+    def node_info(self):
+        """
+        The id of the node contained in this object.
+        """
+
+        return (
+            self._node.pretty_name(),
+            self._node.__class__.__bases__[0].__name__,
+            self._node.uuid
+        )
 
 class NodeCopyException(Exception):
     """An exception thrown when a node cannot be copied due to a given error"""

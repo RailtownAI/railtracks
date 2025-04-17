@@ -71,9 +71,7 @@ class AgentViewer:
 
     def _get_linkednode_info(self, linkednode: LinkedNode):
 
-        name = linkednode.node.pretty_name()
-        node_type = linkednode.node.__class__.__bases__[0].__name__  # __bases__[0].__name__
-        node_id = linkednode.node.uuid
+        name, node_type, node_id = linkednode.node_info
 
         timelapse = f"{linkednode.stamp.step}: {linkednode.stamp.identifier}\n"
         parent = linkednode.parent
@@ -160,7 +158,7 @@ class AgentViewer:
                     label=src_name,
                     color=self._type_to_color(src_type),
                     shape=SHAPE,
-                    font=FONT,
+                    font=self._get_font(src_type),
                     title=src_info,
                     size=SIZE,
                 )
@@ -169,7 +167,7 @@ class AgentViewer:
                     label=des_name,
                     color=self._type_to_color(des_type),
                     shape=SHAPE,
-                    font=FONT,
+                    font=self._get_font(des_type),
                     title=des_info,
                     size=SIZE,
                 )
