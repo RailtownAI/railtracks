@@ -1,0 +1,56 @@
+[
+  {
+    "query": "Claim in article about why insects are attracted to light\nIn this article they are addressing the reason insects are attracted to light when they say\nHeat radiation as an attractive component is refuted by the effect of LED lighting, which supplies negligible infrared radiation yet still entraps vast numbers of insects.\nI don't see why attraction to LEDs shows they're not seeking heat. Could they for example be evolutionarily programmed to associate light with heat? So that even though they don't encounter heat near/on the LEDs they still \"expect\" to?",
+    "reasoning": "The question probes why insects are drawn to low-heat LED lights, challenging the idea that their attraction to light is heat-based. The document helps distinguish between heat attraction and evolved behaviors, shedding light on why insects might be attracted to LEDs despite their minimal heat.",
+    "id": "0",
+    "excluded_ids": [
+      "N/A"
+    ],
+    "gold_ids_long": [
+      "insects_attracted_to_light/Proximate_and_ultimate_causation.txt",
+      "insects_attracted_to_light/Phototaxis.txt"
+    ],
+    "gold_ids": [
+      "insects_attracted_to_light/Proximate_and_ultimate_causation_0.txt",
+      "insects_attracted_to_light/Proximate_and_ultimate_causation_1.txt",
+      "insects_attracted_to_light/Phototaxis_0.txt",
+      "insects_attracted_to_light/Phototaxis_3.txt",
+      "insects_attracted_to_light/Phototaxis_4.txt"
+    ],
+    "gold_answer": "$\\begingroup$\n\nThey're looking for and describing _proximate_ relationships (see e.g. [\nhttps://en.wikipedia.org/wiki/Proximate_and_ultimate_causation\n](https://en.wikipedia.org/wiki/Proximate_and_ultimate_causation) ).\n\nIf the light isn't warm and insects still move towards it, that means they're\nnot _using heat_ to make the decision where to move. They're not saying\nanything about the ultimate underlying motives, just the immediate proximate\nmechanism.\n\nTheir alternative model is that it's based on orientation to the sky, by which\ninsects point the top of their body (dorsal surface) toward light; if the sky\nis bright that would keep them oriented back-upward, but if it's a point\nsource near the ground keeping their back towards the light causes them to fly\nin circles around the light:\n\n> Our guidance model demonstrates that this dorsal tilting is sufficient to\n> create the seemingly erratic flight paths of insects near lights and is the\n> most plausible model for why flying insects gather at artificial lights.\n\nSo, if you want to propose heat-seeking as a better hypothesis, you'd need to\nprovide data that would explain why this dorsal facing tilt would make sense\nfor an insect seeking heat."
+  },
+  {
+    "query": "If the brain has no pain receptors, how come you can get a headache?\nI've read many years ago in books, that the brain has no nerves on it, and if someone was touching your brain, you couldn't feel a thing.\nJust two days before now, I had a very bad migraine, due to a cold. It's become better now, but when I had it I felt my head was going to literally split in half, as the pain was literally coming from my brain.\nSo it lead me to the question: How come people can get headaches if the brain has no nerves?",
+    "reasoning": "The question addresses why headaches occur despite the brain lacking pain receptors. The document explains that headaches arise from pain receptors in the head and neck areas, like blood vessels, nerves, and muscles, which can become irritated or inflamed. This clarification resolves the contradiction between the absence of pain receptors in the brain and the experience of headaches, making the document a suitable choice for the query.",
+    "id": "10",
+    "excluded_ids": [
+      "N/A"
+    ],
+    "gold_ids_long": [
+      "brain_no_pain_receptors_headache/Headache.txt",
+      "brain_no_pain_receptors_headache/Psychogenic_pain.txt"
+    ],
+    "gold_ids": [
+      "brain_no_pain_receptors_headache/Headache_0.txt",
+      "brain_no_pain_receptors_headache/Psychogenic_pain_0.txt",
+      "brain_no_pain_receptors_headache/Headache_2.txt"
+    ],
+    "gold_answer": "$\\begingroup$\n\nBrain, indeed, cannot feel pain, as it lacks pain receptors (nociceptors).\nHowever, what you feel when you have a headache is not your brain hurting --\nthere are plenty of other areas in your head and neck that do have nociceptors\nwhich can perceive pain, and they literally cause the headaches.\n\nIn especially, many types of headaches are generally thought to have a\nneurovascular background, and the responsible pain receptors are associated\nwith blood vessels. However, the pathophysiology of migraines and headaches is\nstill poorly understood."
+  },
+  {
+    "query": "What types of light can't a plant photosynthesize in?\nI have a plant on my desk, and it got me to wondering: Can my plant use the light from my monitors to photosynthesize? If so, what light (apart from green light, to a degree) can't plants use to perform photosynthesis?\nI know that plants have the photosynthetic pigments to absorb many different wavelengths of light (primarily red and blue) but would there be certain types of light it can't use?\n(The specific plant by the way is Schlumbergera truncata)",
+    "reasoning": "We can explore how the green pigment in plants captures light and how this influences the types of light used in photosynthesis.",
+    "id": "100",
+    "excluded_ids": [
+      "N/A"
+    ],
+    "gold_ids_long": [
+      "plant_light_pho/Chlorophyll.txt"
+    ],
+    "gold_ids": [
+      "plant_light_pho/Chlorophyll_0.txt",
+      "plant_light_pho/Chlorophyll_2.txt"
+    ],
+    "gold_answer": "$\\begingroup$\n\nChlorophyll can use a quite broad range of light for photosynthesis, the only\nrange where it is not working is approximately between 500 and 620nm. See this\nadsorption spectrum of chlorophyll (from the Wikipedia article on [\nChlorophyll ](http://en.wikipedia.org/wiki/Chlorophyll) ):\n\n![enter image description here](https://i.sstatic.net/WAZfw.png)\n\nThe lack of chlorophyll to absorb light between 500 and 620nm (roughly)\nresults in the green color of leafs, because this light is reflected. Besides\nthe wavelength also the energy of the light is important, so plants will grow\nbetter in sunlight than in the light of your monitor. This [ link\n](http://scienceline.ucsb.edu/getkey.php?key=1668) about the maximum\neffectiveness of photosynthesis is also interesting."
+  }
+]

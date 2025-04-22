@@ -1,0 +1,62 @@
+[
+  {
+    "query": "Is there a melt command in Snowflake?\n\nIs there a Snowflake command that will transform a table like this:\n```\na,b,c\n1,10,0.1\n2,11,0.12\n3,12,0.13\n```\nto a table like this:\n```\nkey,value\na,1\na,2\na,3\nb,10\nb,11\nb,13\nc,0.1\nc,0.12\nc,0.13\n```\n?\n\nThis operation is often called melt in other tabular systems, but the basic idea is to convert the table into a list of key value pairs.\n\nThere is an UNPIVOT in SnowSQL, but as I understand it UNPIVOT requires to manually specify every single column. This doesn't seem practical for a large number of columns.",
+    "reasoning": "The desired behavior looks like some kind of table transformation. We should try to find some operation to make a two-dimensional table flat.",
+    "id": "0",
+    "excluded_ids": [
+      "N/A"
+    ],
+    "gold_ids_long": [
+      "snowflake_docs/flatten.txt"
+    ],
+    "gold_ids": [
+      "snowflake_docs/flatten_2_0.txt",
+      "snowflake_docs/flatten_1_0.txt",
+      "snowflake_docs/flatten_6_3.txt",
+      "snowflake_docs/flatten_4_0.txt",
+      "snowflake_docs/flatten_6_0.txt",
+      "snowflake_docs/flatten_6_1.txt",
+      "snowflake_docs/flatten_6_2.txt",
+      "snowflake_docs/flatten_6_4.txt",
+      "snowflake_docs/flatten_3_0.txt"
+    ],
+    "gold_answer": "Snowflake's SQL is powerful enough to perform such operation without help of\nthird-party tools or other extensions.\n\nData prep:\n\n    \n    \n    CREATE OR REPLACE TABLE t(a INT, b INT, c DECIMAL(10,2))\n    AS\n    SELECT 1,10,0.1\n    UNION SELECT 2,11,0.12\n    UNION SELECT 3,12,0.13;\n    \n\n[ ![enter image description here](https://i.sstatic.net/o3qiS.png)\n](https://i.sstatic.net/o3qiS.png)\n\nQuery(aka \"dynamic\" UNPIVOT):\n\n    \n    \n    SELECT f.KEY, f.VALUE\n    FROM (SELECT OBJECT_CONSTRUCT_KEEP_NULL(*) AS j FROM t) AS s\n    ,TABLE(FLATTEN(input => s.j)) f\n    ORDER BY f.KEY;\n    \n\nOutput:\n\n[ ![enter image description here](https://i.sstatic.net/HGmXI.png)\n](https://i.sstatic.net/HGmXI.png)\n\n* * *\n\nHow does it work?\n\n  1. Transform row into JSON(row 1 becomes ` { \"A\": 1,\"B\": 10,\"C\": 0.1 } ` ) \n  2. Parse the JSON into key-value pairs using FLATTEN"
+  },
+  {
+    "query": "I\u00b4ve got the following DataFrame:\n\n                        value\nA   B\n111 2024-03-22 00:00:00 1\n111 2024-03-22 01:00:00 2\n111 2024-03-22 02:00:00 3\n222 2024-03-22 00:00:00 4\n222 2024-03-22 01:00:00 5\n222 2024-03-22 02:00:00 6\nNow I want to resample and sum index B to days and would expect the following result:\n\n                        value\nA   B\n111 2024-03-22 00:00:00 6\n222 2024-03-22 00:00:00 15\nHow can I achieve something like that?\n\nAnother Example would be the following:\n\n                        value\nA   B\n111 2024-03-22 00:00:00 1\n111 2024-03-22 01:00:00 2\n111 2024-03-22 02:00:00 3\n222 2024-03-22 00:00:00 4\n222 2024-03-22 01:00:00 5\n222 2024-03-22 02:00:00 6\n333 2024-03-22 05:00:00 7\nOf which I want the following result with resampling by 1h:\n\n                        value\nA   B\n111 2024-03-22 00:00:00 1\n111 2024-03-22 01:00:00 2\n111 2024-03-22 02:00:00 3\n111 2024-03-22 03:00:00 0\n111 2024-03-22 04:00:00 0\n111 2024-03-22 05:00:00 0\n222 2024-03-22 00:00:00 4\n222 2024-03-22 01:00:00 5\n222 2024-03-22 02:00:00 6\n222 2024-03-22 03:00:00 0\n222 2024-03-22 04:00:00 0\n222 2024-03-22 05:00:00 0\n333 2024-03-22 00:00:00 0\n333 2024-03-22 01:00:00 0\n333 2024-03-22 02:00:00 0\n333 2024-03-22 03:00:00 0\n333 2024-03-22 04:00:00 0\n333 2024-03-22 05:00:00 7\nPandas Version: 2.0.1\n\nI tried using level on resample but that way I lose Index A.\n\nI have the same issue when I have two timestamps in the index and want one to be resampled to days and the other to hours.\n\nI\u00b4ve looked at other answers of related questions here but couldn\u00b4t find a way to get them working for me.",
+    "reasoning": "Programmers want to merge or expand the rows of a table based on the characteristics of a particular column.",
+    "id": "10",
+    "excluded_ids": [
+      "N/A"
+    ],
+    "gold_ids_long": [
+      "Python_pandas_functions/DataFrame.txt"
+    ],
+    "gold_ids": [
+      "Python_pandas_functions/DataFrame_74_5.txt",
+      "Python_pandas_functions/DataFrame_74_4.txt",
+      "Python_pandas_functions/DataFrame_98_6.txt",
+      "Python_pandas_functions/DataFrame_74_6.txt",
+      "Python_pandas_functions/DataFrame_74_7.txt",
+      "Python_pandas_functions/DataFrame_98_5.txt",
+      "Python_pandas_functions/DataFrame_98_4.txt"
+    ],
+    "gold_answer": "You need to ` groupby ` before you ` resample ` to preserve the ` A ` index.\n\n    \n    \n    import pandas as pd\n    \n    df = pd.DataFrame.from_dict({'value': \n     {(111, pd.Timestamp('2024-03-22 00:00:00')): 1,\n      (111, pd.Timestamp('2024-03-22 01:00:00')): 2,\n      (111, pd.Timestamp('2024-03-22 02:00:00')): 3,\n      (222, pd.Timestamp('2024-03-22 00:00:00')): 4,\n      (222, pd.Timestamp('2024-03-22 01:00:00')): 5,\n      (222, pd.Timestamp('2024-03-22 02:00:00')): 6}}\n    )\n    \n    df.groupby(level=0).resample('d', level=1).sum()\n    # returns:\n                    value\n    A   B\n    111 2024-03-22      6\n    222 2024-03-22     15"
+  },
+  {
+    "query": "DAX RLS Function using LOOKUPVALUE Parsing but not working\n\nI have a table that I'm trying to implement RLS on using a secondary table with a structure below:\n\nEmployeeTable\n```\nEmployeeID        EmployeeEmail\n1        1234@email.com\n2        4567@email.com\n```\n\nFilterTable\n```\nEmployeeID        ManagerHierarchy\n1        3&4&5\n2        6&7&4&5\n```\n\nThe ManagerHierarchy column is a string that shows all managers of an employee concatenated together and separated by \"&\".\n\nThe goal of the RLS is to create a filter that allows any manager to view the report and have their data only display employeeIDs wherein their own ID exists within the ManagerHierarchy column and thus only showing their subordinates.\n\nI have the below DAX expression applied on EmployeeTable that I thought would work and parses in the expression builder, but it is giving me errors:\n```\n[EmplID]=\nLOOKUPVALUE(\nFilterTable[EmployeeID], FilterTable[ManagerHIERARCHY],\n\nLOOKUPVALUE( //This is to return the viewer's own employeeID to be crossed over into the FilterTable\n[EmployeeID], [EmployeeEmail], USERPRINCIPALNAME())\n)\n```\n\nThe Report it gives is as follows:\n\nAn error was encoutnered during the evaluation of the row level security defined on EmployeeTable. Function 'LOOKUPVALUE' does not support values of type Text with values of type integer. Consider using the VALUE or FORMAT function to convert one of the values.\n\nI've tried re-shuffling my DAX expression with to convert it as such, but I haven't been able to make it work as intended.",
+    "reasoning": "When setting up row-level security with DAX, attempting to filter the EmployeeTable based on the EmployeeID contained in the ManagerHierarchy string via the LOOKUPVALUE function encountered a mismatch between the text and integer types.The definition of LOOKUPVALUE needs to be looked at again to get the correct understanding of the Error.",
+    "id": "100",
+    "excluded_ids": [
+      "N/A"
+    ],
+    "gold_ids_long": [
+      "Learn_filter_financial_functions/Learn_filter.txt"
+    ],
+    "gold_ids": [
+      "Learn_filter_financial_functions/Learn_filter_0_0.txt",
+      "Learn_filter_financial_functions/Learn_filter_0_1.txt"
+    ],
+    "gold_answer": "I would avoid the need for complex DAX (hard to code and test - especially in\nthe context of security) by splitting the ManagerHierarchy column into\nmultiple rows.\n\nThe **Power Query Editor** can easily handle this - select the column and from\nthe **Home** ribbon choose **Split Column / By Delimiter** . Specify the \"&\"\ncharacter as the delimiter (if the editor doesn't guess that), **Split at =\neach occurrence** , and then in the **Advanced options** section choose\n**Split into = Rows** .\n\nIf you need to preserve your current data structure, this could be a new\nquery, starting by Reference to your existing FilterTable query.\n\nAfter that transformation, the DAX expression you wrote can be used to apply\nRow Level Security.\n\nPersonally I would go a step further in the Query design, and add steps to\n**Merge Queries / Expand** to copy the Manager's Email ID onto each row of the\nFilterTable. This would make the security implementation even easier to code\nand test. It would also be much more transparent e.g. for a security audit.\n\nFrom experience, testing and building confidence in any Power BI security\nimplementation is difficult (can't impersonate without granting access) and\nhigh-risk. Mistakes can be really embarrassing and burn confidence in your\nsolution. The best approach is always to keep the technical details of the\nsecurity design as simple as possible, so you can involve many others in\nsigning off the testing. A solution that involves complex code only understood\nby and visible to a handful of developers would typically not pass a security\naudit."
+  }
+]

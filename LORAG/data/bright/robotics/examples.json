@@ -1,0 +1,73 @@
+[
+  {
+    "query": "Can\u2019t see debug messages using RCLCPP_DEBUG\n\nI can\u2019t see messages using RCLCPP_DEBUG by terminal and rqt, but I can using other levels of verbosity( INFO, ERROR, FATAL\u2026).Selecting debug in rqt to see those messages doesn\u2019t work either.\n\nI\u2019m using rolling, working in C++ in a plugin of a controller and launching tb3_simulation_launch.py from nav2_bringup.\n\nI also saw a post here where they recommended to set the environment variable:\n\nRCLCPP_LOG_MIN_SEVERITY=RCLCPP_LOG_MIN_SEVERITY_DEBUG\n\nbut that didn\u2019t work either. It must be something silly that I\u2019m missing. Has this ever happened to you?\n\nThank you",
+    "reasoning": "showing debug messages is usually related to log-level. We can check whether there is some argument that can adjust this.",
+    "id": "0",
+    "excluded_ids": [
+      "N/A"
+    ],
+    "gold_ids_long": [
+      "ros2cpp/navigationlaunchpy.txt"
+    ],
+    "gold_ids": [
+      "ros2cpp/navigationlaunchpy_20.txt",
+      "ros2cpp/navigationlaunchpy_19.txt"
+    ],
+    "gold_answer": "$\\begingroup$\n\nYou can try adding ` arguments=[\"--ros-args\", \"--log-level\", \"debug\"], ` to\nthe Node which you are interested in at the launch file.\n\nOr in the case where you seem to be using the nav2_bringup straight, you can\nchange it at [ https://github.com/ros-\nplanning/navigation2/blob/ab9b1010d7a126c0c407cd09228d97068646ee4c/nav2_bringup/launch/navigation_launch.py#L134\n](https://github.com/ros-\nplanning/navigation2/blob/ab9b1010d7a126c0c407cd09228d97068646ee4c/nav2_bringup/launch/navigation_launch.py#L134)\n\nYou should also be able to give argument ` log_level:=debug ` when launching\nthe launch file since that is being handled in [ the launch file\n](https://github.com/ros-\nplanning/navigation2/blob/ab9b1010d7a126c0c407cd09228d97068646ee4c/nav2_bringup/launch/navigation_launch.py#L119)\n. Downside is that then all nodes will have debug level and there will be lots\nof extras\n\nExample of launch file addition\n\n    \n    \n        controller_server = Node(\n            package=\"nav2_controller\",\n            executable=\"controller_server\",\n            output={\"both\": {\"screen\", \"log\", \"own_log\"}},\n            emulate_tty=True,\n            parameters=[],\n            arguments=[\"--ros-args\", \"--log-level\", \"debug\"],\n         )"
+  },
+  {
+    "query": "How do I post-process rviz images? [closed]\n\nI've made a gazebo envirnment and successfully visualized the cam image with rviz. However I wanted to do some post process to make it simulate the result of image segmentation and send it back to rviz. Is there any similiar methods or tutorials for this? Maybe a way to import the node to python?",
+    "reasoning": "We may find packages to process images in ros.",
+    "id": "10",
+    "excluded_ids": [
+      "N/A"
+    ],
+    "gold_ids_long": [
+      "image_process/imageproc.txt"
+    ],
+    "gold_ids": [
+      "image_process/imageproc_49.txt",
+      "image_process/imageproc_52.txt",
+      "image_process/imageproc_65.txt",
+      "image_process/imageproc_43.txt",
+      "image_process/imageproc_36.txt",
+      "image_process/imageproc_42.txt",
+      "image_process/imageproc_64.txt",
+      "image_process/imageproc_55.txt",
+      "image_process/imageproc_61.txt",
+      "image_process/imageproc_40.txt",
+      "image_process/imageproc_51.txt",
+      "image_process/imageproc_50.txt",
+      "image_process/imageproc_48.txt",
+      "image_process/imageproc_44.txt",
+      "image_process/imageproc_39.txt",
+      "image_process/imageproc_46.txt",
+      "image_process/imageproc_35.txt",
+      "image_process/imageproc_63.txt",
+      "image_process/imageproc_60.txt",
+      "image_process/imageproc_57.txt",
+      "image_process/imageproc_37.txt",
+      "image_process/imageproc_56.txt",
+      "image_process/imageproc_45.txt",
+      "image_process/imageproc_54.txt",
+      "image_process/imageproc_53.txt",
+      "image_process/imageproc_58.txt"
+    ],
+    "gold_answer": "$\\begingroup$\n\nThere are so many nice tutorials that you could follow. I am listing down some\nof them below:\n\n[ http://wiki.ros.org/image_proc ](http://wiki.ros.org/image_proc)\n\n[ https://roboticsbackend.com/ros-import-python-module-from-another-package/\n](https://roboticsbackend.com/ros-import-python-module-from-another-package/)\n\nAnd for the last part of your question, see this.\n\n[ https://gist.github.com/zkytony/fb7616b745d77025f6abe919c41f8ea4\n](https://gist.github.com/zkytony/fb7616b745d77025f6abe919c41f8ea4)"
+  },
+  {
+    "query": "Add files to be loaded when ROS node is launched\n\nRosanswers logo\n\nHello ROS community,\n\nI have a python code for a hardware device (radar) that uses a parameters.cfg file for hardware settings (independantly of ROS).\n\nIn the same code, I am creating a ROS node so that the device publishes its collected data.\n\nWhen I use a launch file, the basic format is as follows :\n\n<launch>\n <node pkg=\"radar_uart\" \n    name=\"radar\" \n    type=\"radar.py\" \n    output=\"screen\"> \n </node>\n</launch>\nBut when I do my $roslaunch radar radar.launch command, I get the error that it could not find the config file : [ No such file or directory 'radar_config30hz.cfg' ]\n\nI tested by adding this line to the launch file, so the config would be loaded when launching the node :\n\n<rosparam file=\"$(find radar)/src/radar_config30hz.cfg\" command=\"load\"/>\nIt is still not working and the new error is : [ Ressource not found: your_package_name ]\n\nPS : As said the file is a not a dynamic reconfigure file, it just contains parameters to be used by the radar Hardware.\n\nPlease enlighten me on how to simly make the ros node find the file and use it when it launches.\n\nThanks and regards,\n\nLilia",
+    "reasoning": "The error with the No such file or directory could be due to the fact that you are giving a relative path for radar_config30hz.cfg, assuming that the working directory of your node will be the one in which the .py file is. Be aware that this may not be the case. We need to check packages that can obtain absolute path in python.",
+    "id": "100",
+    "excluded_ids": [
+      "N/A"
+    ],
+    "gold_ids_long": [
+      "relative_path/PackagesClientLibrar.txt"
+    ],
+    "gold_ids": [
+      "relative_path/PackagesClientLibrar_6.txt"
+    ],
+    "gold_answer": "$\\begingroup$\n\n![Rosanswers logo](https://i.sstatic.net/yuGTR.png)\n\nHi!\n\nThe error with the **No such file or directory** could be due to the fact that\nyou are giving a relative path for ` radar_config30hz.cfg ` , assuming that\nthe working directory of your node will be the one in which the ` .py ` file\nis. Be aware that this is not the case unless you specify it with the [ ` cwd\n` attribute ](https://wiki.ros.org/roslaunch/XML/node) on launch. Find below\nsome possible solutions:\n\n  * From inside your Python script, get the location of the ROS package [ with ` rospack ` ](https://wiki.ros.org/Packages#Client_Library_Support) and specify the absolute path to the ` .cfg ` file. This is what I would personally do. \n  * From inside your Python script, get the location of the Python file by following [ these instructions ](https://stackoverflow.com/questions/3430372/how-do-i-get-the-full-path-of-the-current-files-directory) and specify the absolute path to the ` .cfg ` file \n  * Specify the working directory to be the one where your ` .cfg ` file lies with the ` cwd ` argument in the launch file. \n\nAs for the **Resource not found** error, from what you have written, the error\nis simply that your package name is ` radar_uart ` , but then you ask ROS to `\nfind radar ` instead.\n\n* * *\n\nOriginally posted by [ bluegiraffe-sc\n](https://answers.ros.org/users/69377/bluegiraffe-sc/) with karma: 221 on\n2023-07-10\n\nThis answer was **ACCEPTED** on the original site\n\nPost score: 0\n\n* * *\n\n###  Original comments\n\n**Comment by[ Lilipop ](https://answers.ros.org/users/149103/lilipop/) on\n2023-07-11 ** :  \nHello,\n\nThanks for the answer, effectively I was giving a path related to my src\ndirectory before doing the catkin_make, I looked for the ROS package and added\nthe cfg file then modified the path based on its location in the ROS package.\n\nThanks a lot :)\n\n**Comment by[ bluegiraffe-sc\n](https://answers.ros.org/users/69377/bluegiraffe-sc/) on 2023-07-11 ** :  \nGlad it helped!\n\nA minor piece of advice on the use of ROS Answers: the message you have just\nposted, should have been a comment to my previous answer, rather than an\nanswer itself. Sorry for being so pedantic!"
+  }
+]
