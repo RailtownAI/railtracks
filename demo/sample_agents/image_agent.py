@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from examples.sample_tools.image_tools import upload_image, parse_image_to_text, parse_image_to_mermaid, save_image, analyze_image
+from demo.sample_tools.image_tools import parse_image_to_text, parse_image_to_mermaid, save_image, analyze_image
 
 import src.requestcompletion as rc
 from src.requestcompletion.llm import SystemMessage

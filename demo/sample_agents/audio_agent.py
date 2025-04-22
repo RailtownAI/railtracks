@@ -1,9 +1,9 @@
 from pydantic import BaseModel
 
-from examples.sample_tools.audio_tools import record_audio, transcribe_audio
+from demo.sample_tools.audio_tools import record_audio, transcribe_audio, play_audio
 
 import src.requestcompletion as rc
-from src.requestcompletion.llm import MessageHistory, SystemMessage, UserMessage, AssistantMessage
+from src.requestcompletion.llm import SystemMessage
 from src.requestcompletion.nodes.library import from_function
 
 class AudioTranscription(BaseModel):
@@ -22,6 +22,7 @@ AudioAgent = rc.library.tool_call_llm(
     connected_nodes=[
         from_function(record_audio),
         from_function(transcribe_audio),
+        from_function(play_audio),
     ],
     output_model=AudioTranscription,
 )

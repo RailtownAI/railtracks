@@ -1,7 +1,5 @@
 import base64
 import os
-import io
-from PIL import Image
 from typing import Union, Optional, Dict, Any
 from openai import OpenAI
     

@@ -1,7 +1,6 @@
-from examples.sample_tools.notion_tools import find_page, create_page, add_block, find_user, tag_user
-
+from demo.sample_tools.notion_tools import find_page, create_page, add_block, find_user, tag_user
 import src.requestcompletion as rc
-from src.requestcompletion.llm import MessageHistory, SystemMessage, UserMessage, AssistantMessage
+from src.requestcompletion.llm import MessageHistory, SystemMessage, UserMessage
 from src.requestcompletion.nodes.library import from_function
 from src.requestcompletion.visuals.agent_viewer import AgentViewer
 
@@ -9,6 +8,7 @@ SYSTEM_PROMPT = SystemMessage(
     """
     You are a helpful assistant that can create and manage Notion pages.
     If you are asked to provide code blocks, ensure you are not including any markdown formatting.
+    If you are provided a parent page name, always find the exact page name using the find_page tool before proceeding.
     """
 )
 NotionAgent = rc.library.tool_call_llm(
