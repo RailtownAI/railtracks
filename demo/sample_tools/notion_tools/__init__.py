@@ -8,8 +8,10 @@ from .notion import (
     PageProperties,
     NewPageProperties,
     BlockProperties,
-    BlockType
+    BlockType,
 )
+
+from .notion_agentic import NotionAgenticTool
 
 __all__ = [
     'find_page',
@@ -21,5 +23,6 @@ __all__ = [
     'PageProperties',
     'NewPageProperties',
     'BlockProperties',
-    'BlockType'
+    'BlockType',
+    'NotionAgenticTool',
 ]
