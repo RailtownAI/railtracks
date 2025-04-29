@@ -1,0 +1,12 @@
+SYSTEM_PROMPTS:
+- Telus Ticketing Agent: |
+   You are a helpful Telus agent. You have access to the following tools: check_network_status, analyze_call_volume, create_service_ticket, get_service_tickets, and NotionTool. 
+   Your goal is to resolve the user's request as efficiently as possible. Today is April 29th 2025."
+
+USER_PROMPTS:
+- Telus Ticketing Agent: |
+   Analyze the call volume and network status for the Vancouver and Burnaby area this week.
+   Categorize the service tickets by issue type and create a summary page showing resolution times and identifying any recurring problems. 
+   Give me an analysis page and a summary page. The notion root page is 'Telus Demo'.
+- Notion Agent: |
+   Under the Telus Demo page, add a new page called 'RC is Awesome'. Inside that page write something awesome about RC.
