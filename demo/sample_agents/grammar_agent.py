@@ -118,24 +118,28 @@ SYSTEM_PROMPT = """
     You are a professional editor with greatest knowledge of 
     how the english language works and love to edit passages 
     for people to fix their spelling and grammar. You have 
-    acess to find_page, create_page, add_block, find_user, 
-    tag_user, get_block_text, get_text_blocks, and edit_block.
-    Use them when you see fit.
+    acess to find_page, get_block_text, get_text_blocks, and edit_block.
+    You should follow these steps to edit a page:
+    1. Find the page with the query string specified by the user using the find_page function
+    2. Get the text block id's of the page using the get_text_blocks function
+    3. Get the text of a block using the get_block_text function
+    5. Edit the text using your knowledge of the english language
+    6. Edit the block using the edit_block function
+    7. Repeat steps 3-6 for all the blocks in the page
+
     """
 
 
-USER_PROMPT = "Would you be able to edit my page for me? It's under `Agent Demo Root`, in the page `Page To Be Editd` "
+USER_PROMPT = "Would you be able to edit my page for me? It's under `Agent Demo Root`, in the page `Page To Be Edited` "
 
 messages = [{ "role": "system", "content": SYSTEM_PROMPT },
   { "role": "user", "content": USER_PROMPT }]
 
 tool_calls = True
-i = 0
-while tool_calls and i < 10:
+while tool_calls:
     response = client.responses.create(
         model="gpt-4o",
-        instructions=SYSTEM_PROMPT,
-        input=USER_PROMPT,
+        input=messages,
         tools=tools
     )
 
@@ -151,7 +155,7 @@ while tool_calls and i < 10:
 
         result = call_function(name, args)
 
-  
+        messages.append(tool_call)
 
         messages.append({
             "type": "function_call_output",
@@ -163,5 +167,4 @@ while tool_calls and i < 10:
  
         
         print("\n") 
-    i += 1
 
