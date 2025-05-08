@@ -1,3 +1,9 @@
+import os
+import sys
+current_file = os.path.abspath(__file__)
+cur_dir = os.path.dirname(current_file)
+project_root = os.path.dirname(os.path.dirname(cur_dir))
+sys.path.append(project_root)
 from demo.sample_tools.notion_tools import find_page, create_page, add_block, find_user, tag_user
 import src.requestcompletion as rc
 from src.requestcompletion.llm import MessageHistory, SystemMessage, UserMessage
