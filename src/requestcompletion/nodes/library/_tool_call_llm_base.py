@@ -87,10 +87,10 @@ class OutputLessToolCallLLM(Node[_T], ABC, Generic[_T]):
                 )
         
         if self.structured_resp_node:
-            last_message = self.message_hist[-1]
             try:
                 self.structured_output =  await call(
-                    self.structured_resp_node, message_history=MessageHistory([UserMessage(last_message.content)])
+                    self.structured_resp_node, 
+                    message_history=MessageHistory([UserMessage(str(self.message_hist))])
                 )
             except Exception as e:
                 self.structured_output = ValueError(f"Failed to parse assistant response into structured output: {e}")
