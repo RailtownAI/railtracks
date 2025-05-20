@@ -10,7 +10,7 @@ load_dotenv()
 # Add the parent directory of "demo" to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from demo.sample_tools.notion_tools import find_page, get_block_text, get_text_blocks, edit_block
+from demo.sample_tools.notion_tools.notion import find_page, get_block_text, get_text_blocks, edit_block
 
 def call_function(name, args):
     if name == "find_page":
@@ -145,39 +145,8 @@ def ask_agent(messages, tools):
     )
     return response
 
-# def update_messages(messages, response):
+def update_messages(messages, response):
 
-#     for tool_call in response.output:
-#         if tool_call.type != "function_call":
-#             messages.append(tool_call)
-#             continue
-
-#         tool_calls = True
-#         name = tool_call.name
-#         args = json.loads(tool_call.arguments)
-
-#         result = call_function(name, args)
-
-#         messages.append(tool_call)
-
-#         messages.append({
-#             "type": "function_call_output",
-#             "call_id": tool_call.call_id,
-#             "output": str(result)
-#         })
-#         print(messages[-1])
-#         print(messages[-2])
-#         return messages
-
-tool_calls = True
-while tool_calls:
-    response = client.responses.create(
-        model="gpt-4o",
-        input=messages,
-        tools=tools
-    )
-
-    tool_calls = False
     for tool_call in response.output:
         if tool_call.type != "function_call":
             messages.append(tool_call)
@@ -196,9 +165,40 @@ while tool_calls:
             "call_id": tool_call.call_id,
             "output": str(result)
         })
-        print(messages[-1]) 
+        print(messages[-1])
+        print(messages[-2])
+        return messages
+
+# tool_calls = True
+# while tool_calls:
+#     response = client.responses.create(
+#         model="gpt-4o",
+#         input=messages,
+#         tools=tools
+#     )
+
+#     tool_calls = False
+#     for tool_call in response.output:
+#         if tool_call.type != "function_call":
+#             messages.append(tool_call)
+#             continue
+
+#         tool_calls = True
+#         name = tool_call.name
+#         args = json.loads(tool_call.arguments)
+
+#         result = call_function(name, args)
+
+#         messages.append(tool_call)
+
+#         messages.append({
+#             "type": "function_call_output",
+#             "call_id": tool_call.call_id,
+#             "output": str(result)
+#         })
+#         print(messages[-1]) 
 
  
         
-        print("\n") 
+#         print("\n") 
 

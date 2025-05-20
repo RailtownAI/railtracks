@@ -142,10 +142,9 @@ def test_grammar_agent_response1(mocker, mock_notion_responses, mock_openai_resp
     prompt = update_messages(prompt, result1)
 
     # Verify the initial messages
-    print(prompt)
     assert len(prompt) == 4
-    assert prompt[2] == "find_page"
-    assert prompt[3]["output"] == "Page To Be Edited"
+    assert prompt[2].name == "find_page"
+    assert prompt[3]["output"] == "[PageProperties(id='1d71b3a3-98fd-80e3-bfc4-c4226c281833', title='Agent Demo Root'), PageProperties(id='1e01b3a3-98fd-80f5-91a1-f4ea96d868df', title='Telus Demo')]"
 
 
     mock_ask_agent = mocker.patch('demo.sample_agents.grammar_agent')
@@ -154,12 +153,10 @@ def test_grammar_agent_response1(mocker, mock_notion_responses, mock_openai_resp
     prompt = update_messages(prompt, result2)
 
     # Verify the initial messages
-    print(prompt)
     assert len(prompt) == 6
-    assert prompt[4]["role"] == "system"
-    assert prompt[4]["content"] == SYSTEM_PROMPT
-    assert prompt[5]["role"] == "user"
-    assert prompt[5]["content"] == USER_PROMPT
+    assert prompt[4].name == "find_page"
+    assert prompt[5]["output"] == "[PageProperties(id='1ec1b3a3-98fd-8092-9868-dd18e3839acc', title='Page To Be Edited')]"
+
 
     
     mock_ask_agent = mocker.patch('demo.sample_agents.grammar_agent')
@@ -168,26 +165,9 @@ def test_grammar_agent_response1(mocker, mock_notion_responses, mock_openai_resp
     prompt = update_messages(prompt, result3)
 
     # Verify the initial messages
-    print(prompt)
     assert len(prompt) == 8
-    assert prompt[6]["role"] == "system"
-    assert prompt[6]["content"] == SYSTEM_PROMPT
-    assert prompt[7]["role"] == "user"
-    assert prompt[7]["content"] == USER_PROMPT
-
-    mock_ask_agent = mocker.patch('demo.sample_agents.grammar_agent')
-    mock_ask_agent.responses.create.return_value = mocker.Mock(**mock_openai_response4)
-    result4 = ask_agent(prompt, tools)    
-    prompt = update_messages(prompt, result3)
-
-    # Verify the initial messages
-    print(prompt)
-    assert len(prompt) == 10
-    assert prompt[8]["role"] == "system"
-    assert prompt[8]["content"] == SYSTEM_PROMPT
-    assert prompt[9]["role"] == "user"
-    assert prompt[9]["content"] == USER_PROMPT
-
+    assert prompt[6].name == "get_text_blocks"
+    assert prompt[7]["output"] == "['1ec1b3a3-98fd-8045-a0c4-e8e4f65a4934', '1ed1b3a3-98fd-80e1-a2db-d4c6a8fca9da', '1ec1b3a3-98fd-8046-86d9-f9dab0e98e7c', '1ec1b3a3-98fd-80d6-a4a6-ca62c5a5fad9']"
 
     
 
