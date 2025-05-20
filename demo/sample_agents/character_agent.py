@@ -27,7 +27,7 @@ CharAgent = rc.library.tool_call_llm(
 )
 
 if __name__ == "__main__":
-    USER_PROMPT = "How many r's are there in the word Strawberry"
+    USER_PROMPT = "How many l's are there in the word lollapalooza"
     
     with rc.Runner() as runner:
         result = runner.run_sync(CharAgent,

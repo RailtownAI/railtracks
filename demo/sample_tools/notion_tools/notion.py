@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from pydantic import BaseModel
 from enum import Enum
 from typing import Optional
+from openai import OpenAI
 
 load_dotenv()
 notion = Client(auth=os.environ["NOTION_TOKEN"])
@@ -186,3 +187,79 @@ def add_block(properties: BlockProperties) -> None:
         block_id=properties.page_id,
         children=[block_content]
     )
+
+
+def get_block_text(page_id: str, block_id: str) -> str:
+    """
+    Get the text from a simple text block
+
+    Args:
+        page_id: id of the parent page
+        block_id: id of the block to get text from
+
+    Returns:
+        The text from the block specified
+    """
+    block = notion.blocks.retrieve(block_id=block_id)
+
+    block_type = block["type"]
+    text_items = block[block_type]["rich_text"]
+    text_content = "".join([item["text"]["content"] for item in text_items])
+    return text_content
+    
+
+def get_text_blocks(page_id : str) -> list[str]:
+    """
+    Get a list of block id's to be edited
+
+    Args:
+        page_id: ID of the parent page
+
+    Returns:
+        List of id's for blocks that need to be edited
+    """
+
+    text_blocks = []
+    children = notion.blocks.children.list(block_id=page_id)
+
+    for block in children["results"]:
+        text_types = ["paragraph", "heading_1", "heading_2", "heading_3", "quote", "callout", "bulleted_list_item", "numbered_list_item", "to_do", "toggle"]
+        if (block["type"] in text_types and "rich_text" in block[block["type"]]):
+            text_blocks.append(block["id"])
+    
+    return text_blocks
+
+
+
+
+def edit_block(page_id: str, block_id: str, new_text: str) -> str:
+    """
+    Edit existing block
+
+    Args:
+        page_id (str): ID of the page to edit
+        block_id (str): ID of the block to edit
+        new_text (str): The text to update the block with
+
+    Returns:
+        None
+    """
+    block = notion.blocks.retrieve(block_id=block_id)
+    block_id = block["id"]
+    block_type = block["type"]
+    notion.blocks.update(
+        block_id=block_id,
+        **{
+            block_type: {
+                "rich_text": [{
+                    "type": "text",
+                    "text": {
+                        "content": new_text
+                    }
+                }]
+            }
+        }
+    )
+    return "Called"
+
+

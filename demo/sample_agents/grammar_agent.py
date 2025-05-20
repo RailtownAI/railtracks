@@ -117,15 +117,17 @@ tools = [{
 SYSTEM_PROMPT = """
     You are a professional editor with greatest knowledge of 
     how the english language works and love to edit passages 
-    for people to fix their spelling and grammar. You have 
+    for people to fix their spelling, grammar, and punctuation. 
+    You are a stickler about these types of things and also 
+    consistency in capitalization of titles. You have 
     acess to find_page, get_block_text, get_text_blocks, and edit_block.
     You should follow these steps to edit a page:
-    1. Find the page with the query string specified by the user using the find_page function
+    1. Find the page with the query string specified by the user using the find_page function. Do not stop until you find the page specified unless you're certain it doesn't exist.
     2. Get the text block id's of the page using the get_text_blocks function
     3. Get the text of a block using the get_block_text function
-    5. Edit the text using your knowledge of the english language
-    6. Edit the block using the edit_block function
-    7. Repeat steps 3-6 for all the blocks in the page
+    4. Edit the text using your knowledge of the english language. Correct all spelling, grammar, and punctuation mistakes.
+    5. Edit the block using the edit_block function
+    6. Repeat steps 3-6 for all the blocks in the page
 
     """
 
@@ -134,6 +136,38 @@ USER_PROMPT = "Would you be able to edit my page for me? It's under `Agent Demo 
 
 messages = [{ "role": "system", "content": SYSTEM_PROMPT },
   { "role": "user", "content": USER_PROMPT }]
+
+def ask_agent(messages, tools):
+    response = client.responses.create(
+        model="gpt-4o",
+        input=messages,
+        tools=tools
+    )
+    return response
+
+# def update_messages(messages, response):
+
+#     for tool_call in response.output:
+#         if tool_call.type != "function_call":
+#             messages.append(tool_call)
+#             continue
+
+#         tool_calls = True
+#         name = tool_call.name
+#         args = json.loads(tool_call.arguments)
+
+#         result = call_function(name, args)
+
+#         messages.append(tool_call)
+
+#         messages.append({
+#             "type": "function_call_output",
+#             "call_id": tool_call.call_id,
+#             "output": str(result)
+#         })
+#         print(messages[-1])
+#         print(messages[-2])
+#         return messages
 
 tool_calls = True
 while tool_calls:

@@ -1,0 +1,48 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Grammar Agent Documentation
+
+## Overview
+The Grammar Agent is a specialized tool that helps edit and improve text content in Notion pages. It uses OpenAI's GPT-4 model to analyze and correct grammar, spelling, and language usage.
+
+## Key Components
+
+### Main Agent Class
+The core functionality is implemented in the `GrammarAgent` class in [grammar_agent.py](mdc:demo/sample_agents/grammar_agent.py). This class:
+- Manages communication with OpenAI's API
+- Handles tool calls for Notion operations
+- Processes user requests for page editing
+
+### Available Tools
+The agent has access to several Notion-related tools:
+- `find_page`: Search for pages in the Notion workspace
+- `get_block_text`: Retrieve text from a specific block
+- `get_text_blocks`: Get a list of block IDs for editing
+- `edit_block`: Modify existing text blocks
+
+### Tool Call Structure
+Tool calls are represented by the `ToolCall` dataclass which contains:
+- `name`: The name of the tool being called
+- `arguments`: Dictionary of arguments for the tool
+- `call_id`: Unique identifier for the call
+- `result`: The result of the tool call
+
+## Usage
+To use the Grammar Agent:
+1. Initialize with an optional OpenAI client
+2. Call `edit_page()` with a user prompt
+3. The agent will process the request and make necessary edits to Notion pages
+
+## Dependencies
+- OpenAI Python client
+- Notion client
+- Python-dotenv for environment variable management
+
+## Environment Setup
+The agent requires:
+- OpenAI API key
+- Notion API integration
+- Proper environment variables set in `.env` file
