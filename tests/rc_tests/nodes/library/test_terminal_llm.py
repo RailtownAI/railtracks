@@ -60,7 +60,6 @@ async def test_terminal_llm_as_tool_correct_initialization(model, encoder_system
         tool_details=decoder_tool_details,
         tool_params=decoder_tool_params,
     )
-
     # Checking if the terminal_llms are correctly initialized
     assert encoder.tool_info().name == "Encoder" and decoder.tool_info().name == "Decoder"
     assert encoder.tool_info().detail == encoder_tool_details and decoder.tool_info().detail == decoder_tool_details
