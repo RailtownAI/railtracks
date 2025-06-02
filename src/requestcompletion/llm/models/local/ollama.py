@@ -30,12 +30,9 @@ class Ollama(LiteLLMWrapper):
 
             if self.model_name not in model_names:
                 error_msg = f"{model_name} not available on server {self.domain}. Avaiable models are: {model_names}"
-                self.logger.error(error_msg)
                 raise OllamaException(error_msg)
         except Exception as e:
-            error_msg = f"{model_name} not available on server {self.domain}. Avaiable models are: {model_names}"
-            self.logger.error(error_msg)
-            raise OllamaException(f"Error occurred sending requests to Ollama server {self.domain}") from e
+            raise Exception(f"The following error occured: {e}")
 
     def _run_check(self, endpoint: str):
         url = f"{self.domain}/{endpoint.lstrip('/')}"
@@ -44,11 +41,11 @@ class Ollama(LiteLLMWrapper):
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
-            self.logger.error(f"Failed to reach {url}: {e}")
+            self.logger.critical(f"Failed to reach {url}")
             raise
 
     def chat_with_tools(self, messages, tools, **kwargs):
-        if not litellm.supports_function_calling(model=self.model_name):
+        if not litellm.supports_function_calling(model=self._model_name):
             raise ValueError(f"Model '{self.model_name}' does not support function calling.")
 
         return super().chat_with_tools(messages, tools, **kwargs)
