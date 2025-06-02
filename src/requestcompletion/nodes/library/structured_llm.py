@@ -25,6 +25,9 @@ class StructuredLLM(Node[_TOutput], ABC):
         self.model = model
         self.message_hist = deepcopy(message_history)
 
+        if self.output_model() is None or len(self.output_model().model_fields) == 0:
+            raise ValueError("Output model cannot be empty")
+
     async def invoke(self) -> _TOutput:
         """Makes a call containing the inputted message and system prompt to the model and returns the response
 

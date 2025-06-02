@@ -1,7 +1,7 @@
 import pytest
 from typing import List
 from pydantic import BaseModel, Field
-import requestcompletion as rc
+import src.requestcompletion as rc
 
 @pytest.fixture
 def model():

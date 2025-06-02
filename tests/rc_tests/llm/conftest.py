@@ -1,10 +1,10 @@
 from typing import List, Callable
 import pytest
-import requestcompletion.llm as llm
+import src.requestcompletion.llm as llm
 from pydantic import BaseModel
-from requestcompletion.llm import MessageHistory, Tool, AssistantMessage, UserMessage
-from requestcompletion.llm.response import Response
-from requestcompletion.llm.history import MessageHistory
+from src.requestcompletion.llm import MessageHistory, Tool, AssistantMessage, UserMessage
+from src.requestcompletion.llm.response import Response
+from src.requestcompletion.llm.history import MessageHistory
 
 # ====================================== Message History ======================================
 @pytest.fixture

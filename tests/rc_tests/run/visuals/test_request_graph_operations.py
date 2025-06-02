@@ -1,10 +1,10 @@
 from typing import Dict, List, Any, Tuple
 from uuid import uuid4
 
-from requestcompletion.state.request import (
+from src.requestcompletion.state.request import (
     RequestTemplate,
 )
-from requestcompletion.utils.profiling import Stamp
+from src.requestcompletion.utils.profiling import Stamp
 
 
 def create_tree_from_graph(graph: Dict[str, List[Tuple[str, Any]]]):

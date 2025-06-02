@@ -2,7 +2,7 @@ import random
 import asyncio
 
 import pytest
-import requestcompletion as rc
+import src.requestcompletion as rc
 import re
 
 

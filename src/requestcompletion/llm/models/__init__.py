@@ -1,4 +1,3 @@
-from .openai import OpenAILLM
-from .anthropic import AnthropicLLM
+from .api_providers import OpenAILLM, AnthropicLLM
 
 __all__ = [OpenAILLM, AnthropicLLM]

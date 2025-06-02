@@ -1,6 +1,6 @@
 import time
 
-from requestcompletion.utils.profiling import StampManager
+from src.requestcompletion.utils.profiling import StampManager
 
 
 def test_single_stamper():

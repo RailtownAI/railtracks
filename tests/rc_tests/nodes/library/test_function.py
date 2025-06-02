@@ -13,8 +13,8 @@ from pydantic import BaseModel, Field
 import time
 import math
 
-from requestcompletion.state.request import Failure
-import requestcompletion as rc
+from src.requestcompletion.state.request import Failure
+import src.requestcompletion as rc
 
 # ===== Test Models =====
 

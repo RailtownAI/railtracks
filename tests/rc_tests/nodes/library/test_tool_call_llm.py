@@ -2,23 +2,19 @@ from copy import deepcopy
 from typing import Dict, Any
 
 import pytest
-import requestcompletion as rc
-from itertools import product
+import src.requestcompletion as rc
 
 from pydantic import BaseModel
 
-from requestcompletion.llm import MessageHistory, UserMessage
+from src.requestcompletion.llm import MessageHistory, UserMessage
 
 from src.requestcompletion.nodes.library import from_function
 
 # ============ TEST CASES ===========
 NODE_INIT_METHODS = ["easy_wrapper", "class_based"]
 
-simple_model_test_cases = list(product(NODE_INIT_METHODS, ["simple_model"]))
-
-
 @pytest.mark.asyncio
-@pytest.mark.parametrize("simple_node", simple_model_test_cases, indirect=True, ids=lambda x: f"{x[0]}_with_{x[1]}")
+@pytest.mark.parametrize("simple_node", NODE_INIT_METHODS, indirect=True)
 async def test_structured_with_no_tool_calls(simple_node, simple_output_model):
     """Test basic functionality of returning a structured output."""
     with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="QUIET")) as runner:
@@ -29,20 +25,45 @@ async def test_structured_with_no_tool_calls(simple_node, simple_output_model):
         assert isinstance(response.answer.number, int)
 
 
-empty_model_test_cases = list(product(NODE_INIT_METHODS, ["empty_model"]))
-
-
 @pytest.mark.asyncio
-@pytest.mark.parametrize("simple_node", empty_model_test_cases, indirect=True, ids=lambda x: f"{x[0]}_with_{x[1]}")
-async def test_empty_output_model(simple_node, empty_output_model):
-    """Test when the output model is empty."""
-    with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="QUIET")) as runner:
-        message_history = rc.llm.MessageHistory([rc.llm.UserMessage("Generate a simple text and number.")])
-        response = await runner.run(simple_node, message_history=message_history)
-        assert isinstance(
-            response.answer, empty_output_model
-        ), f"Expected instance of {empty_output_model}, got {type(response.answer)}"
+async def test_empty_output_model_easy_wrapper(empty_output_model, model):
+    """Test when the output model is empty while making a node with easy wrapper."""
+    with pytest.raises(ValueError, match="Output model cannot be empty"):
+        _ = rc.library.structured_llm(
+            output_model=empty_output_model,
+            system_message=rc.llm.SystemMessage("You are a helpful assistant that can strucure the response into a structured output."),
+            model=model,
+            pretty_name="Structured ToolCallLLM",
+        )
 
+@pytest.mark.asyncio  
+async def test_empty_output_model_class_based(empty_output_model, model):
+    """Test when the output model is empty while making a node with class based."""
+
+    system_simple = rc.llm.SystemMessage("Return a simple text and number. Don't use any tools.")
+
+    class SimpleNode(rc.library.StructuredToolCallLLM):
+            def __init__(
+                self,
+                message_history: rc.llm.MessageHistory,
+                output_model: BaseModel = empty_output_model,
+                llm_model: rc.llm.ModelBase = model,
+            ):
+                message_history = [x for x in message_history if x.role != "system"]
+                message_history.insert(0, system_simple)
+                super().__init__(message_history=message_history, llm_model=llm_model, output_model=output_model)
+
+            @classmethod
+            def connected_nodes(cls):
+                return {}
+
+            @classmethod
+            def pretty_name(cls) -> str:
+                return "Simple Node"
+            
+    with pytest.raises(ValueError, match="Output model cannot be empty"):
+        await rc.call(SimpleNode, message_history=MessageHistory([]))
+        
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("travel_planner_node", NODE_INIT_METHODS, indirect=True)
@@ -127,12 +148,12 @@ async def test_structured_tool_call_with_output_model_and_output_type(model, mat
 @pytest.mark.asyncio
 async def test_tool_with_llm_tool_as_input_easy_tools():
     """Test a tool that uses another LLM tool as input."""
-    def print_hello(true_to_call: bool = True):
-        return "Hello!"
+    def secret_phrase(true_to_call: bool = True):
+        return "2 foxes and a dog"
 
     # Define the child tool
     child_tool = rc.library.tool_call_llm(
-        connected_nodes={from_function(print_hello)},
+        connected_nodes={from_function(secret_phrase)},
         pretty_name="Child Tool",
         system_message=rc.llm.SystemMessage("When asked for a response, provide the output of the tool."),
         model=rc.llm.OpenAILLM("gpt-4o"),
@@ -145,7 +166,7 @@ async def test_tool_with_llm_tool_as_input_easy_tools():
     parent_tool = rc.library.tool_call_llm(
         connected_nodes={child_tool},
         pretty_name="Parent Tool",
-        system_message=rc.llm.SystemMessage("Provide a response using the tool when asked."),
+        system_message=rc.llm.SystemMessage("Provide a response using the tool avaliable to you."),
         model=rc.llm.OpenAILLM("gpt-4o"),
     )
 
@@ -161,7 +182,7 @@ async def test_tool_with_llm_tool_as_input_easy_tools():
         response = await runner.run(parent_tool, message_history=message_history)
 
     assert response.answer is not None
-    assert response.answer.content == "Hello!"
+    assert response.answer.content == "2 foxes and a dog"
 
 
 @pytest.mark.asyncio
@@ -291,8 +312,8 @@ async def test_tool_with_llm_tool_as_input_easy_class():
 @pytest.mark.asyncio
 async def test_tool_with_llm_tool_as_input_class_tools():
     """Test a tool that uses another LLM tool as input."""
-    def print_hello(true_to_call: bool = True):
-        return "Hello!"
+    def secret_phrase(true_to_call: bool = True):
+        return "2 foxes and a dog"
 
     # Define the child tool
     class ChildTool(rc.library.ToolCallLLM):
@@ -308,7 +329,7 @@ async def test_tool_with_llm_tool_as_input_class_tools():
 
         @classmethod
         def connected_nodes(cls):
-            return {rc.library.from_function(print_hello)}
+            return {rc.library.from_function(secret_phrase)}
 
         @classmethod
         def tool_info(cls) -> rc.llm.Tool:
@@ -340,7 +361,7 @@ async def test_tool_with_llm_tool_as_input_class_tools():
                 message_history: rc.llm.MessageHistory,
         ):
             message_history_copy = deepcopy(message_history)
-            message_history_copy.insert(0, rc.llm.SystemMessage("Provide a response using the tool when asked."))
+            message_history_copy.insert(0, rc.llm.SystemMessage("Provide a response using the tool avalaible to you."))
 
             super().__init__(message_history=message_history_copy,
                              model=rc.llm.OpenAILLM("gpt-4o"))
@@ -365,7 +386,7 @@ async def test_tool_with_llm_tool_as_input_class_tools():
         response = await runner.run(ParentTool, message_history=message_history)
 
     assert response.answer is not None
-    assert response.answer.content == "Hello!"
+    assert response.answer.content == "2 foxes and a dog"
 
 
 @pytest.mark.asyncio
@@ -385,7 +406,7 @@ async def test_tool_with_structured_output_child_tool():
     # Define the child tool with structured output
     child_tool = rc.library.structured_llm(
         output_model=ChildResponse,
-        system_message=rc.llm.SystemMessage("Generate a structured response from the request in the user message.."),
+        system_message=rc.llm.SystemMessage("You are a word counting tool that counts the number of words in the request provided by the user."),
         model=rc.llm.OpenAILLM("gpt-4o"),
         pretty_name="Structured Child Tool",
         tool_details="A tool that generates a structured response that includes word count.",

@@ -6,7 +6,7 @@ import time
 from typing import Dict, Any
 
 import pytest
-import requestcompletion as rc
+import src.requestcompletion as rc
 from typing_extensions import Self
 
 from src.requestcompletion.state.request import RequestTemplate

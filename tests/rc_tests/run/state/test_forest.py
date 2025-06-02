@@ -3,8 +3,8 @@ import uuid
 import pytest
 from dataclasses import dataclass
 
-from requestcompletion.utils.profiling import Stamp
-from requestcompletion.state.forest import Forest, AbstractLinkedObject
+from src.requestcompletion.utils.profiling import Stamp
+from src.requestcompletion.state.forest import Forest, AbstractLinkedObject
 
 
 @dataclass(frozen=True)

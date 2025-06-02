@@ -6,7 +6,7 @@ import time
 
 from enum import Enum
 from typing import List, Callable
-import requestcompletion as rc
+import src.requestcompletion as rc
 
 EMPHATIC_ERROR = "The Node has failed emphatically"
 

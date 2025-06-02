@@ -3,11 +3,11 @@ from copy import deepcopy
 from typing import Set, Type, Union, Literal, Dict, Any
 
 from pydantic import BaseModel
-from requestcompletion.llm import MessageHistory, ModelBase, SystemMessage, AssistantMessage, UserMessage, Tool
-from requestcompletion.nodes.library import structured_llm
-from requestcompletion.nodes.library._tool_call_llm_base import OutputLessToolCallLLM
-from requestcompletion.nodes.nodes import Node
-from requestcompletion.llm.message import Role
+from src.requestcompletion.llm import MessageHistory, ModelBase, SystemMessage, AssistantMessage, UserMessage, Tool
+from src.requestcompletion.nodes.library import structured_llm
+from src.requestcompletion.nodes.library._tool_call_llm_base import OutputLessToolCallLLM
+from src.requestcompletion.nodes.nodes import Node
+from src.requestcompletion.llm.message import Role
 
 from typing_extensions import Self
 

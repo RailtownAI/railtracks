@@ -2,10 +2,10 @@ import warnings
 from typing import TypeVar, Type, Dict, Any
 from copy import deepcopy
 
-from requestcompletion.llm import UserMessage, MessageHistory, ModelBase, SystemMessage, Tool
+from src.requestcompletion.llm import UserMessage, MessageHistory, ModelBase, SystemMessage, Tool
 from typing_extensions import Self
 
-from requestcompletion.nodes.library.structured_llm import StructuredLLM
+from src.requestcompletion.nodes.library.structured_llm import StructuredLLM
 from pydantic import BaseModel
 
 
@@ -81,5 +81,7 @@ def structured_llm(
         raise RuntimeError("If no parameters are required for the tool, `tool_params` must be set to None.")
     elif tool_details and tool_params and len({param.name for param in tool_params}) != len(tool_params):
         raise ValueError("Duplicate parameter names are not allowed.")
+    if not output_model or len(output_model.model_fields) == 0:
+            raise ValueError("Output model cannot be empty")
 
     return StructuredLLMNode

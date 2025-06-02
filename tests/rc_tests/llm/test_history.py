@@ -1,6 +1,6 @@
 import pytest
-from requestcompletion.llm.message import Message
-from requestcompletion.llm.history import MessageHistory
+from src.requestcompletion.llm.message import Message
+from src.requestcompletion.llm.history import MessageHistory
 
 
 def test_message_history_is_valid(message_history):
