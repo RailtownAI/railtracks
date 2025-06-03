@@ -27,7 +27,9 @@ class SystemStateManager:
      request graph
     """
 
-    def __init__(self, stamps: List[Stamp], request_heap: RequestForest, node_heap: NodeForest):
+    def __init__(
+        self, stamps: List[Stamp], request_heap: RequestForest, node_heap: NodeForest
+    ):
         """
         Creates a new instance of a `SystemStateManager` object.
 
@@ -46,10 +48,19 @@ class SystemStateManager:
         requests_templates, nodes = self.graph.all_data(step)
         requests, failed_tree, insertion_request = convert_into_requests()
 
-        all_requests = requests + list(chain(*failed_tree)) if failed_tree is not None else [] + [insertion_request]
+        all_requests = (
+            requests + list(chain(*failed_tree))
+            if failed_tree is not None
+            else [] + [insertion_request]
+        )
         all_nodes = collect_nodes(all_requests)
 
-        node_str = "\n".join([self.node_details(node, insertion_request, requests, failed_tree) for node in all_nodes])
+        node_str = "\n".join(
+            [
+                self.node_details(node, insertion_request, requests, failed_tree)
+                for node in all_nodes
+            ]
+        )
         step_log_str = "\n".join([x.identifier for x in self.stamps if x.step == step])
 
         _str = f"""# Step: {step}
@@ -84,7 +95,9 @@ class SystemStateManager:
 
         node_str = "\n".join(
             [
-                self.node_details(node.node, request_heap.heap().values(), node_heap.id_type_mapping)
+                self.node_details(
+                    node.node, request_heap.heap().values(), node_heap.id_type_mapping
+                )
                 for node in node_heap.heap().values()
             ]
         )
@@ -92,7 +105,9 @@ class SystemStateManager:
         start_time = min([x.time for x in self.stamps])
         for stamp in self.stamps:
             execution_detail_data["Step"].append(str(stamp.step))
-            execution_detail_data["Time (s.)"].append(f"{round(stamp.time - start_time, 4)}")
+            execution_detail_data["Time (s.)"].append(
+                f"{round(stamp.time - start_time, 4)}"
+            )
             execution_detail_data["Info"].append(stamp.identifier)
 
         return f"""# Full System Review
@@ -117,7 +132,6 @@ TBD
         all_request_templates: List[RequestTemplate],
         id_mapping: Dict[str, Type[Node]],
     ):
-
         _str = f"""{cls.simple_node_details(node, all_request_templates, id_mapping)}
 #### Run Details:
 {cls.node_run_detail(node)}
@@ -131,15 +145,20 @@ TBD
         all_request_templates: List[RequestTemplate],
         id_mapping: Dict[str, Type[Node]],
     ):
-
         relevant_requests = []
         relevant_requests.extend(
-            [r for r in all_request_templates if r.source_id == str(node.uuid) or r.sink_id == str(node.uuid)]
+            [
+                r
+                for r in all_request_templates
+                if r.source_id == str(node.uuid) or r.sink_id == str(node.uuid)
+            ]
         )
 
         # note that we have to flatten the failed tree since it is a list of list of requests
         if len(relevant_requests) > 0:
-            up, down = cls.request_info_table_for_node(node, relevant_requests, id_mapping)
+            up, down = cls.request_info_table_for_node(
+                node, relevant_requests, id_mapping
+            )
             request_detail = "\n".join([up, down])
         else:
             request_detail = "*No connected requests*"
@@ -147,7 +166,7 @@ TBD
         _str = f"""### {node.pretty_name()}
 id: {node.uuid} 
 #### Current State:
-{cls.get_table({'Attribute': list(node.state_details().keys()), 'Data': list(node.state_details().values())})}
+{cls.get_table({"Attribute": list(node.state_details().keys()), "Data": list(node.state_details().values())})}
 #### Requests:
 {request_detail}
 """
@@ -176,7 +195,12 @@ id: {node.uuid}
         list_len = len(data[list(data.keys())[0]])
         table = "| " + " | ".join(data.keys()) + " |\n"
         table += "| " + " | ".join([":---" for _ in data.keys()]) + " |\n"
-        table += "\n".join(["| " + " | ".join([data[k][i] for k in data.keys()]) + " |" for i in range(list_len)])
+        table += "\n".join(
+            [
+                "| " + " | ".join([data[k][i] for k in data.keys()]) + " |"
+                for i in range(list_len)
+            ]
+        )
 
         return table
 
@@ -201,12 +225,16 @@ id: {node.uuid}
         has_up = False
         has_down = False
         for r in requests:
-            duration = f"{round(r.duration_detail, 5) if r.output is not None else 'N/A'}"
+            duration = (
+                f"{round(r.duration_detail, 5) if r.output is not None else 'N/A'}"
+            )
             output_str = format_multiline_for_markdown(repr(r.output))
 
             if r.sink_id == str(current_node.uuid):
                 if r.source_id is None:
-                    upstream += f"| START | {duration} | {output_str} | {r.identifier[:5]} |\n"
+                    upstream += (
+                        f"| START | {duration} | {output_str} | {r.identifier[:5]} |\n"
+                    )
 
                 else:
                     upstream += f"| {id_mapping[r.source_id].pretty_name()} - ({r.source_id[:5]}) | {duration} | {output_str} | {r.identifier[:5]} |\n"
@@ -253,14 +281,28 @@ id: {node.uuid}
         info += "##### Normal\n"
         info += cls.get_table(
             {
-                "Source": [node_name(x.source_id, id_node_type_mapping) for x in active_requests],
-                "Sink": [node_name(x.sink_id, id_node_type_mapping) for x in active_requests],
+                "Source": [
+                    node_name(x.source_id, id_node_type_mapping)
+                    for x in active_requests
+                ],
+                "Sink": [
+                    node_name(x.sink_id, id_node_type_mapping) for x in active_requests
+                ],
                 "Current Status": [x.status for x in active_requests],
                 "Duration": [
-                    (str(round(x.duration_detail, 5)) if x.output is not None else "N/A") for x in active_requests
+                    (
+                        str(round(x.duration_detail, 5))
+                        if x.output is not None
+                        else "N/A"
+                    )
+                    for x in active_requests
                 ],
                 "Output?": [
-                    (format_multiline_for_markdown(repr(x.output)) if x.output is not None else "None")
+                    (
+                        format_multiline_for_markdown(repr(x.output))
+                        if x.output is not None
+                        else "None"
+                    )
                     for x in active_requests
                 ],
                 "Id": [x.identifier for x in active_requests],
@@ -274,12 +316,27 @@ id: {node.uuid}
 
             info += cls.get_table(
                 {
-                    "Source": [node_name(x.source_id, id_node_type_mapping) for x in failed],
-                    "Sink": [node_name(x.sink_id, id_node_type_mapping) for x in failed],
+                    "Source": [
+                        node_name(x.source_id, id_node_type_mapping) for x in failed
+                    ],
+                    "Sink": [
+                        node_name(x.sink_id, id_node_type_mapping) for x in failed
+                    ],
                     "Current Status": [x.status for x in failed],
-                    "Duration": [(str(round(x.duration_detail, 5)) if x.output is not None else "N/A") for x in failed],
+                    "Duration": [
+                        (
+                            str(round(x.duration_detail, 5))
+                            if x.output is not None
+                            else "N/A"
+                        )
+                        for x in failed
+                    ],
                     "Output?": [
-                        (format_multiline_for_markdown(repr(x.output)) if x.output is not None else "None")
+                        (
+                            format_multiline_for_markdown(repr(x.output))
+                            if x.output is not None
+                            else "None"
+                        )
                         for x in failed
                     ],
                     "Id": [x.identifier for x in failed],
@@ -296,8 +353,10 @@ id: {node.uuid}
         states = [self.simplified_view_at_step(x) for x in sorted_steps]
         diff_detail = ""
         for i in range(len(states) - 1):
-            diff_detail += f"## Step {i} -> {i+1}\n"
-            diff_detail += f"{', '.join([x.identifier for x in self.stamps if x.step == i])}"
+            diff_detail += f"## Step {i} -> {i + 1}\n"
+            diff_detail += (
+                f"{', '.join([x.identifier for x in self.stamps if x.step == i])}"
+            )
 
             diff_detail += "Example change" + "\n"
 
@@ -319,10 +378,13 @@ id: {node.uuid}
         all_nodes = collect_nodes(all_requests)
 
         node_str = "\n".join(
-            [self.simple_node_details(node, insertion_request, requests, failed_tree) for node in all_nodes]
+            [
+                self.simple_node_details(node, insertion_request, requests, failed_tree)
+                for node in all_nodes
+            ]
         )
 
-        return f"""## Request Ledger 
+        return f"""## Request Ledger
 {self.request_info_table(insertion_request, requests, failed_tree)}
 
 ## Node Library
@@ -339,7 +401,6 @@ if __name__ == "__main__":
     import dill
 
     with open("data/c3-runs/2024-09-10-16-44-38.pickle", "rb") as f:
-
         json_payload = dill.load(f)
 
     ssm = SystemStateManager(json_payload["stamps"], json_payload["runtime_graph"])

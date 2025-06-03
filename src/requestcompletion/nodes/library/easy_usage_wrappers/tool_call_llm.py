@@ -3,7 +3,14 @@ from copy import deepcopy
 from typing import Set, Type, Union, Literal, Dict, Any
 
 from pydantic import BaseModel
-from requestcompletion.llm import MessageHistory, ModelBase, SystemMessage, AssistantMessage, UserMessage, Tool
+from requestcompletion.llm import (
+    MessageHistory,
+    ModelBase,
+    SystemMessage,
+    AssistantMessage,
+    UserMessage,
+    Tool,
+)
 from requestcompletion.nodes.library import structured_llm
 from requestcompletion.nodes.library._tool_call_llm_base import OutputLessToolCallLLM
 from requestcompletion.nodes.nodes import Node
@@ -12,7 +19,7 @@ from requestcompletion.llm.message import Role
 from typing_extensions import Self
 
 
-def tool_call_llm(
+def tool_call_llm(  # noqa: C901
     connected_nodes: Set[Type[Node]],
     pretty_name: str | None = None,
     model: ModelBase | None = None,
@@ -22,16 +29,19 @@ def tool_call_llm(
     tool_details: str | None = None,
     tool_params: dict | None = None,
 ) -> Type[OutputLessToolCallLLM[Union[MessageHistory, AssistantMessage, BaseModel]]]:
-
     if output_model:
-        OutputType = output_model
+        OutputType = output_model  # noqa: N806
     else:
-        OutputType = MessageHistory if output_type == "MessageHistory" else AssistantMessage
+        OutputType = (  # noqa: N806
+            MessageHistory if output_type == "MessageHistory" else AssistantMessage
+        )
 
     if (
         output_model and output_type == "MessageHistory"
     ):  # TODO: add support for MessageHistory output type with output_model. Maybe resp.answer = message_hist and resp.structured = model response
-        raise NotImplementedError("MessageHistory output type is not supported with output_model at the moment.")
+        raise NotImplementedError(
+            "MessageHistory output type is not supported with output_model at the moment."
+        )
 
     class ToolCallLLM(OutputLessToolCallLLM[OutputType]):
         def return_output(self):
@@ -52,8 +62,12 @@ def tool_call_llm(
             message_history_copy = deepcopy(message_history)
             if system_message is not None:
                 if len([x for x in message_history_copy if x.role == Role.system]) > 0:
-                    warnings.warn("System message already exists in message history. We will replace it.")
-                    message_history_copy = [x for x in message_history_copy if x.role != Role.system]
+                    warnings.warn(
+                        "System message already exists in message history. We will replace it."
+                    )
+                    message_history_copy = [
+                        x for x in message_history_copy if x.role != Role.system
+                    ]
                     message_history_copy.insert(0, system_message)
                 else:
                     message_history_copy.insert(0, system_message)
@@ -65,7 +79,9 @@ def tool_call_llm(
                     )
             else:
                 if model is None:
-                    raise RuntimeError("You must provide a model to the ToolCallLLM class")
+                    raise RuntimeError(
+                        "You must provide a model to the ToolCallLLM class"
+                    )
                 llm_model = model
 
             super().__init__(message_history_copy, llm_model)
@@ -83,9 +99,12 @@ def tool_call_llm(
 
         @classmethod
         def pretty_name(cls) -> str:
-
             if pretty_name is None:
-                return "ToolCallLLM(" + ", ".join([x.pretty_name() for x in connected_nodes]) + ")"
+                return (
+                    "ToolCallLLM("
+                    + ", ".join([x.pretty_name() for x in connected_nodes])
+                    + ")"
+                )
             else:
                 return pretty_name
 
@@ -110,10 +129,18 @@ def tool_call_llm(
             return cls(message_hist)
 
     if tool_params and not tool_details:
-        raise RuntimeError("Tool parameters are provided, but tool details are missing.")
+        raise RuntimeError(
+            "Tool parameters are provided, but tool details are missing."
+        )
     elif tool_details and (tool_params is not None and not tool_params):
-        raise RuntimeError("If no parameters are required for the tool, `tool_params` must be set to None.")
-    elif tool_details and tool_params and len({param.name for param in tool_params}) != len(tool_params):
+        raise RuntimeError(
+            "If no parameters are required for the tool, `tool_params` must be set to None."
+        )
+    elif (
+        tool_details
+        and tool_params
+        and len({param.name for param in tool_params}) != len(tool_params)
+    ):
         raise ValueError("Duplicate parameter names are not allowed.")
 
     return ToolCallLLM

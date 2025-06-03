@@ -2,8 +2,7 @@
 # In the following document, we will use the interface types defined in this module to interact with the llama index to
 # route to a given model.
 ###
-import warnings
-from typing import Literal, List, Generator
+from typing import List
 
 
 from pydantic import BaseModel
@@ -22,7 +21,9 @@ class ModelBase(ABC):
         pass
 
     @abstractmethod
-    def structured(self, messages: MessageHistory, schema: BaseModel, **kwargs) -> Response:
+    def structured(
+        self, messages: MessageHistory, schema: BaseModel, **kwargs
+    ) -> Response:
         pass
 
     @abstractmethod
@@ -30,5 +31,7 @@ class ModelBase(ABC):
         pass
 
     @abstractmethod
-    def chat_with_tools(self, messages: MessageHistory, tools: List[Tool], **kwargs) -> Response:
+    def chat_with_tools(
+        self, messages: MessageHistory, tools: List[Tool], **kwargs
+    ) -> Response:
         pass

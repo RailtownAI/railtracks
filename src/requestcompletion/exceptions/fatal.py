@@ -1,5 +1,5 @@
-from . import RCException
+from . import RCError
 
 
-class FatalError(RCException):
+class FatalError(RCError):
     pass

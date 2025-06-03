@@ -1,10 +1,10 @@
-from .general import RCException
+from .general import RCError
 from .fatal import FatalError
-from .execution import ExecutionException, GlobalTimeOut
+from .execution import ExecutionError, GlobalTimeOutError
 
 __all__ = [
-    "RCException",
+    "RCError",
     "FatalError",
-    "ExecutionException",
-    "GlobalTimeOut",
+    "ExecutionError",
+    "GlobalTimeOutError",
 ]

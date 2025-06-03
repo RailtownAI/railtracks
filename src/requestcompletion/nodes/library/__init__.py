@@ -9,7 +9,7 @@ __all__ = [
     "tool_call_llm",
     "terminal_llm",
     "structured_llm",
-    "from_mcp_server"
+    "from_mcp_server",
 ]
 
 from .function import FunctionNode, from_function

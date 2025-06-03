@@ -29,7 +29,6 @@ def save_run(
     save_path += "/{0}.pickle"
     file_name = save_path.format(datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
     with open(file_name, "wb") as f:
-
         save = {
             "stamps": all_stamps,
             "request_heap": request_heap,

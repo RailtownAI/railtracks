@@ -1,10 +1,10 @@
-from . import RCException
+from . import RCError
 
 from ..state.request import RequestTemplate
 from ..info import ExecutionInfo
 
 
-class ExecutionException(RCException):
+class ExecutionError(RCError):
     """A general exception thrown when an error occurs during the execution of the graph."""
 
     # note we are allowing any exception to be passed, it need not be an exception from RC.
@@ -15,7 +15,7 @@ class ExecutionException(RCException):
         final_exception: Exception,
     ):
         """
-        Creates a new instance of an ExecutionException
+        Creates a new instance of an ExecutionError
 
         Args:
             failed_request: The request that failed during the execution that triggered this exception
@@ -34,7 +34,7 @@ class ExecutionException(RCException):
         return self.execution_info.exception_history
 
 
-class GlobalTimeOut(RCException):
+class GlobalTimeOutError(RCError):
     """A general exception to be thrown when a global timeout has been exceeded during execution."""
 
     def __init__(self, timeout: float):

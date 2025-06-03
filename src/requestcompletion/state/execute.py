@@ -9,7 +9,11 @@ from typing import TypeVar, List, Callable, ParamSpec, Tuple, Dict, TYPE_CHECKIN
 
 # all the things we need to import from RC directly.
 from .request import Cancelled, Failure
-from ..utils.logging.action import RequestCreationAction, RequestCompletionAction, NodeExceptionAction
+from ..utils.logging.action import (
+    RequestCreationAction,
+    RequestCompletionAction,
+    NodeExceptionAction,
+)
 
 if TYPE_CHECKING:
     from .. import ExecutorConfig
@@ -17,7 +21,7 @@ from ..context import parent_id
 from ..exceptions import FatalError
 from ..nodes.nodes import Node
 from ..info import ExecutionInfo
-from ..exceptions import ExecutionException, GlobalTimeOut
+from ..exceptions import ExecutionError, GlobalTimeOutError
 from ..utils.profiling import Stamp
 from ..utils.logging.create import get_rc_logger
 
@@ -47,7 +51,6 @@ class RCState:
     # the main role of this object is to augment the executor object with all the things it needs to track state as the
     #  the graph runs.
     def __init__(self, execution_info: ExecutionInfo, executor_config: ExecutorConfig):
-
         self._node_heap = execution_info.node_heap
         self._request_heap = execution_info.request_heap
         self._stamper = execution_info.stamper
@@ -82,15 +85,16 @@ class RCState:
         # TODO: come up with a better algorithm for finding the start of execution.
 
         try:
-
-            output = await asyncio.wait_for(self._run_request(request_id), timeout=self.executor_config.timeout)
+            _ = await asyncio.wait_for(
+                self._run_request(request_id), timeout=self.executor_config.timeout
+            )
             # Note that since this is the insertion requests, its output is our answer.
 
         except asyncio.TimeoutError:
-            raise ExecutionException(
+            raise ExecutionError(
                 failed_request=self._request_heap["START"],
                 execution_info=self.info,
-                final_exception=GlobalTimeOut(self.executor_config.timeout),
+                final_exception=GlobalTimeOutError(self.executor_config.timeout),
             )
 
     async def cancel(self, node_id: str):
@@ -98,7 +102,9 @@ class RCState:
             assert False
 
         r_id = self._request_heap.get_request_from_child_id(node_id)
-        self._request_heap.update(r_id, Cancelled, self._stamper.create_stamp(f"Cancelled request {r_id}"))
+        self._request_heap.update(
+            r_id, Cancelled, self._stamper.create_stamp(f"Cancelled request {r_id}")
+        )
 
     async def _run_node(
         self,
@@ -145,10 +151,14 @@ class RCState:
         self._node_heap.update(node, sc(f"Creating {node.pretty_name()}"))
 
         # 3. Attach the requests that will tied to this node.
-        request_ids = self._create_new_request_set(parent_node_id, [node.uuid], [args], [kwargs], sc)
+        request_ids = self._create_new_request_set(
+            parent_node_id, [node.uuid], [args], [kwargs], sc
+        )
 
         parent_node_type = self._node_heap.get_node_type(parent_node_id)
-        parent_node_name = parent_node_type.pretty_name() if parent_node_type else "START"
+        parent_node_name = (
+            parent_node_type.pretty_name() if parent_node_type else "START"
+        )
         request_creation_obj = RequestCreationAction(
             parent_node_name=parent_node_name,
             child_node_name=node.pretty_name(),
@@ -181,7 +191,9 @@ class RCState:
             The output of the node that was run. It will match the output type of the child node that was run.
 
         """
-        request_id = self._create_node_and_request(parent_node_id, node, *args, **kwargs)
+        request_id = self._create_node_and_request(
+            parent_node_id, node, *args, **kwargs
+        )
 
         outputs: _TOutput = await self._run_request(request_id)
         return outputs
@@ -210,9 +222,13 @@ class RCState:
 
         # note it is assumed that all of the children id are valid and have already been created.
         assert all(
-            [n in self._node_heap for n in children]
+            n in self._node_heap for n in children
         ), "You cannot add a request for a node which has not yet been added"
-        parent_node_name = self._node_heap.id_type_mapping[parent_node] if parent_node is not None else "START"
+        parent_node_name = (
+            self._node_heap.id_type_mapping[parent_node]
+            if parent_node is not None
+            else "START"
+        )
         # to simplify we are going to create a new request for each child node with the parent as its source.
         request_ids = list(
             map(
@@ -223,7 +239,9 @@ class RCState:
                 input_args,
                 input_kwargs,
                 [
-                    stamp_gen(f"Adding request between {parent_node_name} and {self._node_heap.id_type_mapping[n]}")
+                    stamp_gen(
+                        f"Adding request between {parent_node_name} and {self._node_heap.id_type_mapping[n]}"
+                    )
                     for n in children
                 ],
             )
@@ -254,7 +272,9 @@ class RCState:
         try:
             result = await self._run_node(node)
         except Exception as e:
-            handled_error = self._handle_failed_request(node.pretty_name(), request_id, e)
+            handled_error = self._handle_failed_request(
+                node.pretty_name(), request_id, e
+            )
             result = handled_error
 
         stamp = self._stamper.create_stamp(f"Finished executing {node.pretty_name()}")
@@ -273,12 +293,14 @@ class RCState:
 
         return result
 
-    def _handle_failed_request(self, failed_node_name: str, request_id: str, exception: Exception):
+    def _handle_failed_request(
+        self, failed_node_name: str, request_id: str, exception: Exception
+    ):
         """
         Handles the provided exception for the given request identifier.
 
         If the given exception is a `FatalException` or if the config flag for `end_on_error` is set to be true, then
-        the function will return a `ExecutionException` object wrapped in a `Failure` object.
+        the function will return a `ExecutionError` object wrapped in a `Failure` object.
 
         Otherwise, it will return a `Failure` object containing the exception that was thrown.
 
@@ -290,7 +312,7 @@ class RCState:
             An object containing the error thrown during the request wrapped in a Failure object.
 
         Raises:
-            ExecutionException: If the exception was a `FatalException`, or if the config flag for `end_on_error` is set
+            ExecutionError: If the exception was a `FatalException`, or if the config flag for `end_on_error` is set
             to be true.
 
         """
@@ -303,7 +325,7 @@ class RCState:
 
         if self.executor_config.end_on_error:
             self.logger.critical(node_exception_action.to_logging_msg())
-            ee = ExecutionException(
+            ee = ExecutionError(
                 failed_request=self._request_heap[request_id],
                 execution_info=self.info,
                 final_exception=exception,
@@ -313,7 +335,7 @@ class RCState:
         # fatal exceptions should only be thrown if there is something seriously wrong.
         if isinstance(exception, FatalError):
             self.logger.critical(node_exception_action.to_logging_msg())
-            ee = ExecutionException(
+            ee = ExecutionError(
                 failed_request=self._request_heap[request_id],
                 execution_info=self.info,
                 final_exception=exception,

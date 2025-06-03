@@ -8,7 +8,9 @@ from typing_extensions import Self
 from ..utils.profiling import Stamp
 
 
-def get_all_open_heads(all_linked_objects: Iterable[T], active_pointers: Iterable[T]) -> Tuple[List[T], List[T]]:
+def get_all_open_heads(
+    all_linked_objects: Iterable[T], active_pointers: Iterable[T]
+) -> Tuple[List[T], List[T]]:
     # the first step is to traverse the active pointers that we can then search for the extras after
     removed_normal_pathway = set(all_linked_objects)
     for l_o in active_pointers:
@@ -21,8 +23,11 @@ def get_all_open_heads(all_linked_objects: Iterable[T], active_pointers: Iterabl
     # now that we just have the dead ones we can traverse backwards
     dead_heads = []
 
-    for identifier in set([x.identifier for x in removed_normal_pathway]):
-        relevant_nodes = set([x for x in removed_normal_pathway if x.identifier == identifier])
+    for identifier in {x.identifier for x in removed_normal_pathway}:
+        relevant_nodes = {
+            x for x in removed_normal_pathway if x.identifier == identifier
+        }
+
         parents = {x.parent for x in relevant_nodes}
         for n in relevant_nodes:
             if n not in parents:
@@ -75,7 +80,7 @@ class Forest(Generic[T]):
         """
         # note that all of the objects are immutable so we can do this without worry of pass by reference bugs
 
-        return {k: v for k, v in self._heap.items()}
+        return dict(self._heap)
 
     def full_data(self, at_step: int = None):
         """
@@ -84,7 +89,7 @@ class Forest(Generic[T]):
         NOTE: You can do whatever you please with this object, and it will not affect the inner workings of the object.
         """
         if at_step is None:
-            return [x for x in self._full_data]
+            return list(self._full_data)
         return [x for x in self._full_data if x.stamp.step <= at_step]
 
     def __getitem__(self, identifier: str):
@@ -127,7 +132,9 @@ class Forest(Generic[T]):
                     item.parent == self._heap[item.identifier]
                 ), "The parent of the inserted item must be currently pointed to"
             else:
-                assert item.parent is None, "The parent of an item not present in the heap must be None"
+                assert (
+                    item.parent is None
+                ), "The parent of an item not present in the heap must be None"
 
             self._heap[item.identifier] = item
             self._full_data.append(item)
@@ -176,5 +183,9 @@ if __name__ == "__main__":
     import pickle
 
     h = Forest()
-    h._update_heap(AbstractLinkedObject("1", Stamp(time=time.time(), step=1, identifier="hello world"), None))
+    h._update_heap(
+        AbstractLinkedObject(
+            "1", Stamp(time=time.time(), step=1, identifier="hello world"), None
+        )
+    )
     print(pickle.dumps(h))

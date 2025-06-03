@@ -33,7 +33,9 @@ async def test_runner_call_with_context():
         response = await rc.call(RNGNode)
         assert isinstance(response, float), "Expected a float result from RNGNode"
         info = run.info
-        assert info.answer == response, "Expected the answer to be the same as the response"
+        assert info.answer == response, (
+            "Expected the answer to be the same as the response"
+        )
 
 
 async def logging_config_test_async():
@@ -55,7 +57,9 @@ async def logging_config_test_async():
         response = info.answer
         assert isinstance(response, float), "Expected a float result from RNGNode"
         assert 0 < response < 1, "Expected a float result from RNGNode"
-        assert info.answer == response, "Expected the answer to be the same as the response"
+        assert info.answer == response, (
+            "Expected the answer to be the same as the response"
+        )
 
     async def run_with_logging_config_w_context_w_call(log_setting):
         rc.set_config(rc.ExecutorConfig(logging_setting=log_setting))
@@ -98,7 +102,6 @@ async def test_different_config_local_set_async():
 
 
 def logging_config_test_threads():
-
     def run_with_logging_config_w_context(log_setting):
         rc.set_config(rc.ExecutorConfig(logging_setting=log_setting))
         with rc.Runner() as run:
@@ -111,10 +114,14 @@ def logging_config_test_threads():
         response = info.answer
         assert isinstance(response, float), "Expected a float result from RNGNode"
         assert 0 < response < 1, "Expected a float result from RNGNode"
-        assert info.answer == response, "Expected the answer to be the same as the response"
+        assert info.answer == response, (
+            "Expected the answer to be the same as the response"
+        )
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        executor.map(run_with_logging_config_w_context, ["VERBOSE", "QUIET", "REGULAR", "NONE"])
+        executor.map(
+            run_with_logging_config_w_context, ["VERBOSE", "QUIET", "REGULAR", "NONE"]
+        )
 
 
 def test_threads_config():
@@ -135,7 +142,9 @@ def test_sequence_of_changes():
 def test_sequence_of_changes_overwrite():
     rc.set_config(rc.ExecutorConfig(end_on_error=True))
     rc.set_config(rc.ExecutorConfig(end_on_error=False))
-    with rc.Runner(executor_config=rc.ExecutorConfig(end_on_error=True, logging_setting="NONE")) as run:
+    with rc.Runner(
+        executor_config=rc.ExecutorConfig(end_on_error=True, logging_setting="NONE")
+    ) as run:
         info = run.run_sync(RNGNode)
         assert run.rc_state.executor_config.end_on_error
         assert run.rc_state.executor_config.logging_setting == "NONE"

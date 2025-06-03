@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import random
-import time
 
 from enum import Enum
 from typing import List, Callable
@@ -64,7 +63,9 @@ class CallNode(rc.Node[List]):
 
     def invoke(self):
         for _ in range(self.number_of_calls):
-            contracts = [rc.call(self.node_creator) for _ in range(self.parallel_call_num)]
+            contracts = [
+                rc.call(self.node_creator) for _ in range(self.parallel_call_num)
+            ]
             response = asyncio.gather(*contracts)
 
             self.data.extend([d for d in response])
@@ -121,9 +122,10 @@ class StreamingCallNode(CallNode):
     call_template_call = "Creating Call with type {0}"
 
     def invoke(self):
-
         for _ in range(self.number_of_calls):
-            contracts = [rc.call(self.node_creator) for _ in range(self.parallel_call_num)]
+            contracts = [
+                rc.call(self.node_creator) for _ in range(self.parallel_call_num)
+            ]
             response = asyncio.gather(*contracts)
             [rc.stream(r) for r in response]
 

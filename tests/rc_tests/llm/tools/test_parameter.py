@@ -11,6 +11,7 @@ from src.requestcompletion.llm.tools.parameter import (
 )
 from src.requestcompletion.llm.tools import Tool
 
+
 class TestParameter:
     """Tests for the Parameter base class."""
 
@@ -22,7 +23,7 @@ class TestParameter:
             description="A test parameter",
             required=True,
         )
-        
+
         assert param.name == "test_param"
         assert param.param_type == "string"
         assert param.description == "A test parameter"
@@ -31,7 +32,7 @@ class TestParameter:
     def test_parameter_default_values(self):
         """Test that Parameter objects use default values correctly."""
         param = Parameter(name="test_param", param_type="integer")
-        
+
         assert param.name == "test_param"
         assert param.param_type == "integer"
         assert param.description == ""
@@ -45,7 +46,7 @@ class TestParameter:
             description="A test parameter",
             required=False,
         )
-        
+
         expected_str = (
             "Parameter(name=test_param, type=boolean, "
             "description=A test parameter, required=False, "
@@ -56,13 +57,14 @@ class TestParameter:
     def test_type_mapping(self):
         """Test that type_mapping returns the expected mapping."""
         mapping = Parameter.type_mapping()
-        
+
         assert mapping["string"] is str
         assert mapping["integer"] is int
         assert mapping["float"] is float
         assert mapping["boolean"] is bool
         assert mapping["array"] is list
         assert mapping["object"] is dict
+
 
 class TestPydanticParameter:
     """Tests for the PydanticParameter class."""
@@ -76,7 +78,7 @@ class TestPydanticParameter:
             required=True,
             properties={},
         )
-        
+
         assert param.name == "test_param"
         assert param.param_type == "object"
         assert param.description == "A test parameter"
@@ -86,7 +88,7 @@ class TestPydanticParameter:
     def test_pydantic_parameter_default_properties(self):
         """Test that PydanticParameter uses an empty dict for properties by default."""
         param = PydanticParameter(name="test_param", param_type="object")
-        
+
         assert param.properties == {}
 
     def test_pydantic_parameter_with_nested_properties(self):
@@ -94,13 +96,13 @@ class TestPydanticParameter:
         nested_param = Parameter(
             name="nested", param_type="string", description="A nested parameter"
         )
-        
+
         param = PydanticParameter(
             name="test_param",
             param_type="object",
             properties={"nested": nested_param},
         )
-        
+
         assert param.properties["nested"] is nested_param
         assert param.properties["nested"].name == "nested"
         assert param.properties["nested"].param_type == "string"
@@ -115,7 +117,7 @@ class TestPydanticParameter:
             required=False,
             properties={"nested": nested_param},
         )
-        
+
         # The string representation should include properties
         str_repr = str(param)
         assert "PydanticParameter" in str_repr
@@ -124,6 +126,7 @@ class TestPydanticParameter:
         assert "required=False" in str_repr
         assert "properties=" in str_repr
         assert "nested" in str_repr
+
 
 class TestParameterEdgeCases:
     """Tests for edge cases and validation in Parameter classes."""
@@ -137,7 +140,7 @@ class TestParameterEdgeCases:
         level1 = PydanticParameter(
             name="level1", param_type="object", properties={"level2": level2}
         )
-        
+
         assert level1.properties["level2"].properties["level3"] is level3
         assert level1.properties["level2"].properties["level3"].param_type == "string"
 
@@ -145,18 +148,20 @@ class TestParameterEdgeCases:
         """Test that modifying properties in one instance doesn't affect others."""
         param1 = PydanticParameter(name="param1", param_type="object")
         param2 = PydanticParameter(name="param2", param_type="object")
-        
+
         # Add a property to param1
         param1.properties["new_prop"] = Parameter(name="new", param_type="string")
-        
+
         # param2's properties should still be empty
         assert "new_prop" not in param2.properties
+
 
 class TestClassMethodParameters:
     """Tests for handling self and cls parameters in class methods."""
 
     def test_instance_method_self_parameter(self):
         """Test that self parameter is excluded from instance methods."""
+
         class TestClass:
             def instance_method(self, value: str) -> str:
                 """
@@ -169,7 +174,7 @@ class TestClassMethodParameters:
 
         tool = Tool.from_function(TestClass.instance_method)
         params = tool.parameters.model_json_schema().get("properties", {})
-        
+
         # Verify self is not in parameters
         assert "self" not in params
         # Verify value parameter is present
@@ -178,6 +183,7 @@ class TestClassMethodParameters:
 
     def test_class_method_cls_parameter(self):
         """Test that cls parameter is excluded from class methods."""
+
         class TestClass:
             @classmethod
             def class_method(cls, value: str) -> str:
@@ -191,7 +197,7 @@ class TestClassMethodParameters:
 
         tool = Tool.from_function(TestClass.class_method)
         params = tool.parameters.model_json_schema().get("properties", {})
-        
+
         # Verify cls is not in parameters
         assert "cls" not in params
         # Verify value parameter is present

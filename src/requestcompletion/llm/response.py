@@ -10,7 +10,11 @@ class Response:
 
     # TODO: add elements like log_probs etc as optional params to this class
 
-    def __init__(self, message: Message | None = None, streamer: Generator[str, None, None] | None = None):
+    def __init__(
+        self,
+        message: Message | None = None,
+        streamer: Generator[str, None, None] | None = None,
+    ):
         """
         Creates a new instance of a response object.
 

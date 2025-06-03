@@ -2,7 +2,14 @@ import asyncio
 from typing import TypeVar, Generic, Set, Type, Dict, Any
 from copy import deepcopy
 from ..nodes import Node
-from ...llm import MessageHistory, ModelBase, ToolCall, ToolResponse, ToolMessage, UserMessage
+from ...llm import (
+    MessageHistory,
+    ModelBase,
+    ToolCall,
+    ToolResponse,
+    ToolMessage,
+    UserMessage,
+)
 from ...interaction.call import call
 from abc import ABC, abstractmethod
 from ...exceptions import FatalError
@@ -35,7 +42,7 @@ class OutputLessToolCallLLM(Node[_T], ABC, Generic[_T]):
         This function may be overwritten to fit the needs of the given node as needed.
         """
         node = [x for x in self.connected_nodes() if x.tool_info().name == tool_name]
-        if node is []:
+        if node == []:
             raise RuntimeError(f"Tool {tool_name} cannot be create a node")
         if len(node) > 1:
             raise FatalError(
@@ -54,21 +61,36 @@ class OutputLessToolCallLLM(Node[_T], ABC, Generic[_T]):
     ) -> _T:
         while True:
             # collect the response from the model
-            returned_mess = self.model.chat_with_tools(self.message_hist, tools=self.tools())
+            returned_mess = self.model.chat_with_tools(
+                self.message_hist, tools=self.tools()
+            )
             self.message_hist.append(returned_mess.message)
 
             if returned_mess.message.role == "assistant":
                 # if the returned item is a list then it is a list of tool calls
                 if isinstance(returned_mess.message.content, list):
-                    assert all([isinstance(x, ToolCall) for x in returned_mess.message.content])
+                    assert all(
+                        isinstance(x, ToolCall) for x in returned_mess.message.content
+                    )
                     contracts = [
-                        call(lambda arguments: self.create_node(tool_name=t_c.name, arguments=arguments), t_c.arguments)
+                        call(
+                            lambda arguments: self.create_node(
+                                tool_name=t_c.name, arguments=arguments
+                            ),
+                            t_c.arguments,
+                        )
                         for t_c in returned_mess.message.content
                     ]
 
-                    tool_responses = await asyncio.gather(*contracts, return_exceptions=True)
+                    tool_responses = await asyncio.gather(
+                        *contracts, return_exceptions=True
+                    )
                     tool_responses = [
-                        x if not isinstance(x, Exception) else f"There was an error running the tool: \n Exception message: {x} "
+                        (
+                            x
+                            if not isinstance(x, Exception)
+                            else f"There was an error running the tool: \n Exception message: {x} "
+                        )
                         for x in tool_responses
                     ]
 
@@ -76,22 +98,30 @@ class OutputLessToolCallLLM(Node[_T], ABC, Generic[_T]):
                         [x.identifier for x in returned_mess.message.content],
                         tool_responses,
                     ):
-                        self.message_hist.append(ToolMessage(ToolResponse(identifier=r_id, result=str(resp))))
+                        self.message_hist.append(
+                            ToolMessage(ToolResponse(identifier=r_id, result=str(resp)))
+                        )
 
                 elif returned_mess.message.content is not None:
                     # this means the tool call is finished
                     break
             else:
                 # the message is malformed from the model
-                raise RuntimeError("ModelLLM returned an unexpected message type.",
-                                   )
+                raise RuntimeError(
+                    "ModelLLM returned an unexpected message type.",
+                )
 
         if self.structured_resp_node:
             try:
                 self.structured_output = await call(
                     self.structured_resp_node,
-                    message_history=MessageHistory([UserMessage(str(self.message_hist))]))
+                    message_history=MessageHistory(
+                        [UserMessage(str(self.message_hist))]
+                    ),
+                )
             except Exception as e:
-                self.structured_output = ValueError(f"Failed to parse assistant response into structured output: {e}")
+                self.structured_output = ValueError(
+                    f"Failed to parse assistant response into structured output: {e}"
+                )
 
         return self.return_output()

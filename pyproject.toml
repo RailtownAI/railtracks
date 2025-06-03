@@ -17,6 +17,7 @@ dynamic = ["version", "description"]
 dependencies = [
     "colorama >= 0.4.6",
     "llama-index >= 0.12.0",
+    "llama-index-core >= 0.12.0, <= 0.12.38", # Pinned because of an issue in 0.12.39
     "llama-index-llms-anthropic >= 0.6.0",
     "llama-index-llms-openai >= 0.3.0,<=0.3.38",
     "mcp >= 1.9.0",
@@ -27,6 +28,7 @@ dependencies = [
     "pyvis >= 0.3.1",
     "requests >=2.31,<3",
     "requests-mock >= 1.12.1",
+
 ]
 
 [project.urls]
@@ -36,9 +38,34 @@ Home = "https://railtown.ai"
 [tool.flit.module]
 name = "requestcompletion"
 
-[tool.black]
-line-length = 120
-fast = true
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+
+format.indent-style = "space"
+format.docstring-code-format = true
+
+lint.select = [
+    "E",
+    "W",
+    "F",
+    "C",
+    "N",
+]
+
+lint.ignore = ["E501", "W191", "E114", "E117", "D206", "D300", "Q000", "Q002", "Q003", "COM812", "COM819"]
+
+fix = true
+lint.fixable = ["F401", "F841",]
+
+exclude = [".git", "examples", "docs", ".venv", ".conda", "tests", "src/requestcompletion/visuals"]
+
+
+
+lint.mccabe.max-complexity = 10
+
+
+
 
 [project.optional-dependencies]
 test = ["pytest >=7.1.2"]

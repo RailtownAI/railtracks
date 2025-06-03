@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from typing import Tuple, Any, Dict
 
 
-import logging
 
 
 class RCAction(ABC):
@@ -12,13 +11,16 @@ class RCAction(ABC):
         """Creates a string representation of this action designed to be logged"""
         pass
 
-
     # TODO consider from an enacapsulation perspective if it would be better to handle the logging in this module or just return the message as normal
 
 
 class RequestCreationAction(RCAction):
     def __init__(
-        self, parent_node_name: str, child_node_name: str, input_args: Tuple[Any], input_kwargs: Dict[str, Any]
+        self,
+        parent_node_name: str,
+        child_node_name: str,
+        input_args: Tuple[Any],
+        input_kwargs: Dict[str, Any],
     ):
         self.parent_node_name = parent_node_name
         self.child_node_name = child_node_name
@@ -26,9 +28,7 @@ class RequestCreationAction(RCAction):
         self.kwargs = input_kwargs
 
     def to_logging_msg(self) -> str:
-        return (
-            f"{self.parent_node_name} CREATED {self.child_node_name} - {arg_kwarg_logging_str(self.args, self.kwargs)}"
-        )
+        return f"{self.parent_node_name} CREATED {self.child_node_name} - {arg_kwarg_logging_str(self.args, self.kwargs)}"
 
 
 class RequestCompletionAction(RCAction):

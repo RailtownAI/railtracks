@@ -15,7 +15,9 @@ from ..state.request import (
 
 
 class AgentViewer:
-    def __init__(self, stamps: List[Stamp], request_heap: RequestForest, node_heap: NodeForest):
+    def __init__(
+        self, stamps: List[Stamp], request_heap: RequestForest, node_heap: NodeForest
+    ):
         """
         Creates a new instance of a `AgentViewer` object.
 
@@ -42,13 +44,18 @@ class AgentViewer:
         raise NotImplementedError()
 
     def _type_to_color(self, type: str):
-        color_map = {"DirectorNode": "lightblue", "TerminalNode": "lightcoral", "Start": "springgreen"}
+        color_map = {
+            "DirectorNode": "lightblue",
+            "TerminalNode": "lightcoral",
+            "Start": "springgreen",
+        }
         return color_map.get(type, "gray")
 
     def _get_linkednode_info(self, linkednode: LinkedNode):
-
         name = linkednode.node.pretty_name()
-        node_type = linkednode.node.__class__.__bases__[0].__name__  # __bases__[0].__name__
+        node_type = linkednode.node.__class__.__bases__[
+            0
+        ].__name__  # __bases__[0].__name__
         node_id = linkednode.node.uuid
 
         timelapse = f"{linkednode.stamp.step}: {linkednode.stamp.identifier}\n"
@@ -56,7 +63,9 @@ class AgentViewer:
 
         while parent:
             linkednode = parent
-            timelapse = f"{linkednode.stamp.step}: {linkednode.stamp.identifier}\n" + timelapse
+            timelapse = (
+                f"{linkednode.stamp.step}: {linkednode.stamp.identifier}\n" + timelapse
+            )
             parent = linkednode.parent
 
         info = f"""{node_type}: {node_id}
@@ -120,16 +129,19 @@ class AgentViewer:
 
         for source, connection_list in graph.items():
             for sink, req_id in connection_list:
-
                 if not source:
                     src_name = "START"
                     src_type = "Start"
                     src_info = "Starting point for Agentic Flow"
                     src_id = "STRT"
                 else:
-                    src_name, src_type, src_info, src_id = self._get_linkednode_info(self.node_heap[source])
+                    src_name, src_type, src_info, src_id = self._get_linkednode_info(
+                        self.node_heap[source]
+                    )
 
-                des_name, des_type, des_info, des_id = self._get_linkednode_info(self.node_heap[sink])
+                des_name, des_type, des_info, des_id = self._get_linkednode_info(
+                    self.node_heap[sink]
+                )
 
                 net.add_node(
                     src_id,
@@ -150,7 +162,12 @@ class AgentViewer:
                     size=SIZE,
                 )
 
-                net.add_edge(src_id, des_id, label=req_id[:8], title=self._get_edge_info(self.request_heap[req_id]))
+                net.add_edge(
+                    src_id,
+                    des_id,
+                    label=req_id[:8],
+                    title=self._get_edge_info(self.request_heap[req_id]),
+                )
 
         net.force_atlas_2based(gravity=-100, central_gravity=0.001, spring_length=200)
 

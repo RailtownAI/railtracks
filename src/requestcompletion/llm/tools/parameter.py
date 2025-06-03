@@ -12,6 +12,7 @@ from typing import Dict, Any, Optional, Literal
 
 class ParameterType(str, Enum):
     """Enum representing the possible parameter types for tool parameters."""
+
     STRING = "string"
     INTEGER = "integer"
     FLOAT = "float"
@@ -22,7 +23,7 @@ class ParameterType(str, Enum):
 
 class Parameter:
     """Base class for representing a tool parameter."""
-    
+
     def __init__(
         self,
         name: str,
@@ -66,7 +67,7 @@ class Parameter:
     def required(self) -> bool:
         """Check if the parameter is required."""
         return self._required
-        
+
     @property
     def additional_properties(self) -> bool:
         """Check if additional properties are allowed for object types."""
@@ -97,7 +98,7 @@ class Parameter:
 
 class PydanticParameter(Parameter):
     """Extended Parameter class that can represent nested object structures."""
-    
+
     def __init__(
         self,
         name: str,
@@ -132,4 +133,4 @@ class PydanticParameter(Parameter):
             f"PydanticParameter(name={self._name}, type={self._param_type}, "
             f"description={self._description}, required={self._required}, "
             f"additional_properties={self._additional_properties}, properties={self._properties})"
-        ) 
+        )

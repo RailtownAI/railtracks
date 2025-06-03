@@ -3,7 +3,7 @@ import warnings
 
 from typing import ParamSpec, Callable, TypeVar
 
-from ..run import get_runner, Runner, RunnerNotFoundError
+from ..run import get_runner, Runner
 from ..context import parent_id
 from ..nodes.nodes import Node
 
@@ -50,7 +50,9 @@ async def call(node: Callable[_P, Node[_TOutput]], *args: _P.args, **kwargs: _P.
     except (asyncio.TimeoutError, asyncio.CancelledError):
         child_id = parent_id.get()
         if child_id == p_n_id:
-            warnings.warn("The child node was not created before the call was cancelled.")
+            warnings.warn(
+                "The child node was not created before the call was cancelled."
+            )
             return
 
         await runner.cancel(child_id)

@@ -42,10 +42,10 @@ class Runner:
 
     Example Usage:
     ```python
-    import requestcompletion as rc
+           import requestcompletion as rc
 
-    with rc.Runner() as run:
-        result = run.run_sync(RNGNode)
+           with rc.Runner() as run:
+               result = run.run_sync(RNGNode)
     ```
     """
 
@@ -57,7 +57,6 @@ class Runner:
         subscriber: Callable[[str], None] = None,
         executor_config: ExecutorConfig = None,
     ):
-
         # first lets read from defaults if nessecary for the provided input config
         if executor_config is None:
             saved_config = config.get()
@@ -103,14 +102,22 @@ class Runner:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._close()
 
-    def run_sync(self, start_node: Callable[_P, Node] | None = None, *args: _P.args, **kwargs: _P.kwargs):
+    def run_sync(
+        self,
+        start_node: Callable[_P, Node] | None = None,
+        *args: _P.args,
+        **kwargs: _P.kwargs,
+    ):
         """Runs the provided node synchronously."""
         # If no loop is running, create one and run the coroutine.
         result = asyncio.run(self.run(start_node, *args, **kwargs))
         return result
 
     def _close(self):
-        threading.Thread(self._data_streamer.stop(self.rc_state.executor_config.force_close_streams)).start()
+        threading.Thread(
+            self._data_streamer.stop(self.rc_state.executor_config.force_close_streams)
+        ).start()
+
         delete_loggers()
         # by deleting all of the state variables we are ensuring that the next time we create a runner it is fresh
         active_runner.set(None)
@@ -135,7 +142,9 @@ class Runner:
 
         # relevant if we ever want to have future support for optional start nodes
         if not self.rc_state.is_empty:
-            raise RuntimeError("The run function can only be used to start not in the middle of a run.")
+            raise RuntimeError(
+                "The run function can only be used to start not in the middle of a run."
+            )
 
         await self.call(None, start_node, *args, **kwargs)
 

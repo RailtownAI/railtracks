@@ -1,8 +1,7 @@
 from abc import abstractmethod
-from typing import List, Callable, Any, Type, Dict, Optional
+from typing import List, Callable, Type, Dict
 
 from llama_index.core.llms import ChatMessage
-from llama_index.core.tools import FunctionTool, ToolMetadata
 
 import json
 import warnings
@@ -13,7 +12,7 @@ from ..message import Message
 from ..response import Response
 from ..history import MessageHistory
 from ..message import AssistantMessage, ToolMessage
-from ..content import ToolCall, Content
+from ..content import ToolCall
 from ..tools import Tool
 
 
@@ -32,7 +31,11 @@ class ToolMetadata:
         """Convert to OpenAI tool format"""
         return {
             "type": "function",
-            "function": {"name": self.name, "description": self.description, "parameters": self.schema},
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": self.schema,
+            },
         }
 
 
@@ -51,11 +54,17 @@ class CustomTool:
         """Convert to OpenAI tool format"""
         return {
             "type": "function",
-            "function": {"name": self.name, "description": self.description, "parameters": self.schema},
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": self.schema,
+            },
         }
 
 
-def _to_llama_chat(message: Message, tool_call_fn: Callable[[ToolCall], Dict]) -> ChatMessage:
+def _to_llama_chat(
+    message: Message, tool_call_fn: Callable[[ToolCall], Dict]
+) -> ChatMessage:
     """
     Converts the given `message` to a llama chat message.
 
@@ -65,13 +74,18 @@ def _to_llama_chat(message: Message, tool_call_fn: Callable[[ToolCall], Dict]) -
     if isinstance(message, ToolMessage):
         # TODO: update this logic to be dependency injected
         return ChatMessage(
-            content=message.content, role=message.role, additional_kwargs={"tool_call_id": message.identifier}
+            content=message.content,
+            role=message.role,
+            additional_kwargs={"tool_call_id": message.identifier},
         )
     # only time this is true is if tool calls
     if isinstance(message.content, list):
         assert all(isinstance(t_c, ToolCall) for t_c in message.content)
         return ChatMessage(
-            additional_kwargs={"tool_calls": [tool_call_fn(t_c) for t_c in message.content]}, role=message.role
+            additional_kwargs={
+                "tool_calls": [tool_call_fn(t_c) for t_c in message.content]
+            },
+            role=message.role,
         )
 
     # TODO: complete this for the openai case then move one to next step.
@@ -111,8 +125,15 @@ def _to_llama_tool(tool: Tool) -> CustomTool:
 
     # If we couldn't get a schema, create a minimal valid one
     if not schema:
-        warnings.warn(f"Failed to get schema for tool '{tool.name}'. Using minimal valid schema with no parameters.")
-        schema = {"type": "object", "properties": {}, "required": [], "additionalProperties": False}
+        warnings.warn(
+            f"Failed to get schema for tool '{tool.name}'. Using minimal valid schema with no parameters."
+        )
+        schema = {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": False,
+        }
 
     # Use our custom tool class
     return CustomTool(name=tool.name, description=tool.detail, schema=schema)
@@ -175,22 +196,30 @@ class LlamaWrapper(ModelBase):
             A response object that contains the response from the model. Note the `message` field will be filled and
                 the `streamer` field will be empty.
         """
-        response = self.model.chat([_to_llama_chat(m, self.prepare_tool_calls) for m in messages], **kwargs)
+        response = self.model.chat(
+            [_to_llama_chat(m, self.prepare_tool_calls) for m in messages], **kwargs
+        )
         return Response(message=AssistantMessage(response.message.content))
 
     def structured(self, messages: MessageHistory, schema: Type[BaseModel], **kwargs):
         # TODO add a descriptive error for failed structured prediction
         sllm = self.model.as_structured_llm(schema)
-        response = sllm.chat([_to_llama_chat(m, self.prepare_tool_calls) for m in messages], **kwargs)
+        response = sllm.chat(
+            [_to_llama_chat(m, self.prepare_tool_calls) for m in messages], **kwargs
+        )
 
         try:
-            return Response(message=AssistantMessage(schema(**json.loads(response.message.content))))
-        except ValidationError as e:
+            return Response(
+                message=AssistantMessage(schema(**json.loads(response.message.content)))
+            )
+        except ValidationError:
             # TODO come up with a better exception message here.
             return Exception()
 
     def stream_chat(self, messages: MessageHistory, **kwargs):
-        message = self.model.stream_chat([_to_llama_chat(m, self.prepare_tool_calls) for m in messages], **kwargs)
+        message = self.model.stream_chat(
+            [_to_llama_chat(m, self.prepare_tool_calls) for m in messages], **kwargs
+        )
 
         # we need to get creative to map the provided streamer
         def map_to_string():
@@ -223,7 +252,9 @@ class LlamaWrapper(ModelBase):
             **kwargs,
         )
 
-        tool_calls = self.model.get_tool_calls_from_response(response, error_on_no_tool_call=False)
+        tool_calls = self.model.get_tool_calls_from_response(
+            response, error_on_no_tool_call=False
+        )
         if len(tool_calls) == 0:
             message = AssistantMessage(content=response.message.content)
             return Response(
@@ -232,7 +263,12 @@ class LlamaWrapper(ModelBase):
 
         message = AssistantMessage(
             content=[
-                ToolCall(identifier=t_c.tool_id, name=t_c.tool_name, arguments=t_c.tool_kwargs) for t_c in tool_calls
+                ToolCall(
+                    identifier=t_c.tool_id,
+                    name=t_c.tool_name,
+                    arguments=t_c.tool_kwargs,
+                )
+                for t_c in tool_calls
             ],
         )
         return Response(message=message)

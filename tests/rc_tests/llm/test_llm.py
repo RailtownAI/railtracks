@@ -1,10 +1,8 @@
 import concurrent.futures
 import random
 
-import pytest
 
 from src.requestcompletion.llm import (
-    ModelBase,
     AssistantMessage,
     MessageHistory,
     UserMessage,
@@ -13,7 +11,7 @@ from src.requestcompletion.llm import (
     ToolCall,
 )
 
-from typing import Type, List
+from typing import List
 
 from src.requestcompletion.llm.response import Response
 from tests.rc_tests.llm.fixtures import MockLLM
@@ -94,7 +92,10 @@ def test_tool_call():
         [Tool(tool_name, tool_description, [])],
     )
 
-    assert str(Tool(tool_name, tool_description, [])) == 'Tool(name=tool1, detail=Call this tool sometime, parameters=None)'
+    assert (
+        str(Tool(tool_name, tool_description, []))
+        == "Tool(name=tool1, detail=Call this tool sometime, parameters=None)"
+    )
     assert response.message.content[0].identifier == identifier
     assert response.message.content[0].name == tool_name
     assert response.message.content[0].arguments == {}

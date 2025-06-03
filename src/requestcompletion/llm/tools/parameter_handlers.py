@@ -8,7 +8,7 @@ and creating the appropriate Parameter object.
 
 import inspect
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List, Tuple, Set, Type
+from typing import Dict, Any, List, Tuple
 
 from pydantic import BaseModel
 
@@ -33,7 +33,9 @@ class ParameterHandler(ABC):
         pass
 
     @abstractmethod
-    def create_parameter(self, param_name: str, param_annotation: Any, description: str, required: bool) -> Parameter:
+    def create_parameter(
+        self, param_name: str, param_annotation: Any, description: str, required: bool
+    ) -> Parameter:
         """
         Creates a Parameter object for the given parameter.
 
@@ -54,9 +56,13 @@ class PydanticModelHandler(ParameterHandler):
 
     def can_handle(self, param_annotation: Any) -> bool:
         """Check if the annotation is a Pydantic model."""
-        return inspect.isclass(param_annotation) and issubclass(param_annotation, BaseModel)
+        return inspect.isclass(param_annotation) and issubclass(
+            param_annotation, BaseModel
+        )
 
-    def create_parameter(self, param_name: str, param_annotation: Any, description: str, required: bool) -> Parameter:
+    def create_parameter(
+        self, param_name: str, param_annotation: Any, description: str, required: bool
+    ) -> Parameter:
         """Create a PydanticParameter for a Pydantic model."""
         # Get the JSON schema for the Pydantic model
         schema = param_annotation.model_json_schema()
@@ -86,7 +92,9 @@ class SequenceParameterHandler(ParameterHandler):
         # Handle direct list and tuple types
         return param_annotation in (list, tuple, List, Tuple)
 
-    def create_parameter(self, param_name: str, param_annotation: Any, description: str, required: bool) -> Parameter:
+    def create_parameter(
+        self, param_name: str, param_annotation: Any, description: str, required: bool
+    ) -> Parameter:
         """Create a Parameter for a list or tuple."""
         # Determine if it's a list or tuple
         is_tuple = False
@@ -104,17 +112,29 @@ class SequenceParameterHandler(ParameterHandler):
 
         # For tuples, we have multiple types (potentially)
         if is_tuple:
-            type_names = [t.__name__ if hasattr(t, "__name__") else str(t) for t in sequence_args]
-            type_desc = f"{sequence_type} of {', '.join(type_names)}" if type_names else sequence_type
+            type_names = [
+                t.__name__ if hasattr(t, "__name__") else str(t) for t in sequence_args
+            ]
+            type_desc = (
+                f"{sequence_type} of {', '.join(type_names)}"
+                if type_names
+                else sequence_type
+            )
         # For lists, we have a single type
         else:
             if sequence_args:
                 element_type = sequence_args[0]
-                type_name = element_type.__name__ if hasattr(element_type, "__name__") else str(element_type)
+                type_name = (
+                    element_type.__name__
+                    if hasattr(element_type, "__name__")
+                    else str(element_type)
+                )
                 type_desc = f"{sequence_type} of {type_name}"
 
                 # Check if the element type is a Pydantic model
-                if inspect.isclass(element_type) and issubclass(element_type, BaseModel):
+                if inspect.isclass(element_type) and issubclass(
+                    element_type, BaseModel
+                ):
                     # Get the JSON schema for the Pydantic model
                     schema = element_type.model_json_schema()
 
@@ -152,11 +172,11 @@ class SequenceParameterHandler(ParameterHandler):
 
     def _get_param_type_for_annotation(self, annotation: Any) -> str:
         """Get the parameter type string for a type annotation."""
-        if annotation == int:
+        if issubclass(annotation, int):
             return "integer"
-        elif annotation == float:
+        elif issubclass(annotation, float):
             return "float"
-        elif annotation == bool:
+        elif issubclass(annotation, bool):
             return "boolean"
         else:
             return "string"  # Default to string for other types
@@ -167,22 +187,30 @@ class DictParameterHandler(ParameterHandler):
 
     def can_handle(self, param_annotation: Any) -> bool:
         """Check if the annotation is a dictionary type."""
-        return hasattr(param_annotation, "__origin__") and param_annotation.__origin__ in (dict, Dict)
+        return hasattr(
+            param_annotation, "__origin__"
+        ) and param_annotation.__origin__ in (dict, Dict)
 
-    def create_parameter(self, param_name: str, param_annotation: Any, description: str, required: bool) -> Parameter:
+    def create_parameter(
+        self, param_name: str, param_annotation: Any, description: str, required: bool
+    ) -> Parameter:
         """Raise an exception for dictionary parameters."""
         # Get the key and value types if available for better error message
         dict_args = getattr(param_annotation, "__args__", [])
         key_type = dict_args[0] if len(dict_args) > 0 else "unknown"
         value_type = dict_args[1] if len(dict_args) > 1 else "unknown"
 
-        key_type_name = key_type.__name__ if hasattr(key_type, "__name__") else str(key_type)
-        value_type_name = value_type.__name__ if hasattr(value_type, "__name__") else str(value_type)
+        key_type_name = (
+            key_type.__name__ if hasattr(key_type, "__name__") else str(key_type)
+        )
+        value_type_name = (
+            value_type.__name__ if hasattr(value_type, "__name__") else str(value_type)
+        )
 
         param_type = f"Dict[{key_type_name}, {value_type_name}]"
 
         # Raise an exception for dictionary parameters
-        raise UnsupportedParameterException(param_name, param_type)
+        raise UnsupportedParameterError(param_name, param_type)
 
 
 class DefaultParameterHandler(ParameterHandler):
@@ -207,11 +235,13 @@ class DefaultParameterHandler(ParameterHandler):
         """This handler can handle any parameter type as a fallback."""
         return True
 
-    def create_parameter(self, param_name: str, param_annotation: Any, description: str, required: bool) -> Parameter:
+    def create_parameter(
+        self, param_name: str, param_annotation: Any, description: str, required: bool
+    ) -> Parameter:
         """Create a Parameter for a primitive or unknown type."""
         # Check if it's a dictionary type that wasn't caught by DictParameterHandler
         if param_annotation in (dict, Dict):
-            raise UnsupportedParameterException(param_name, str(param_annotation))
+            raise UnsupportedParameterError(param_name, str(param_annotation))
 
         # Default to object if type not found in mapping
         mapped_type = self.type_mapping.get(param_annotation, "object")
@@ -223,9 +253,11 @@ class DefaultParameterHandler(ParameterHandler):
         )
 
 
-class UnsupportedParameterException(Exception):
+class UnsupportedParameterError(Exception):
     """Exception raised when a parameter type is not supported."""
 
     def __init__(self, param_name: str, param_type: str):
-        self.message = f"Unsupported parameter type: {param_type} for parameter: {param_name}"
+        self.message = (
+            f"Unsupported parameter type: {param_type} for parameter: {param_name}"
+        )
         super().__init__(self.message)

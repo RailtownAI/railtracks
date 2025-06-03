@@ -11,7 +11,6 @@ import pytest
 from typing import Tuple, List, Dict
 from pydantic import BaseModel, Field
 import time
-import math
 
 from requestcompletion.state.request import Failure
 import requestcompletion as rc
@@ -45,7 +44,11 @@ class TestPrimitiveInputTypes:
             response = run.run_sync(
                 agent,
                 rc.llm.MessageHistory(
-                    [rc.llm.UserMessage("What is the secret phrase? Only return the secret phrase, no other text.")]
+                    [
+                        rc.llm.UserMessage(
+                            "What is the secret phrase? Only return the secret phrase, no other text."
+                        )
+                    ]
                 ),
             )
         assert response.answer == "Constantinople"
@@ -136,7 +139,11 @@ class TestPrimitiveInputTypes:
             response = run.run_sync(
                 agent,
                 rc.llm.MessageHistory(
-                    [rc.llm.UserMessage("Does 5 pass the magic test? Only return the result, no other text.")]
+                    [
+                        rc.llm.UserMessage(
+                            "Does 5 pass the magic test? Only return the result, no other text."
+                        )
+                    ]
                 ),
             )
 
@@ -164,7 +171,11 @@ class TestPrimitiveInputTypes:
             response = run.run_sync(
                 agent,
                 rc.llm.MessageHistory(
-                    [rc.llm.UserMessage("Is the magic test true? Only return the result, no other text.")]
+                    [
+                        rc.llm.UserMessage(
+                            "Is the magic test true? Only return the result, no other text."
+                        )
+                    ]
                 ),
             )
         assert response.answer == "Wish Granted"
@@ -188,7 +199,6 @@ class TestPrimitiveInputTypes:
             model_provider=model_provider,
         )
         with rc.Runner() as run:
-
             output = run.run_sync(
                 agent,
                 rc.llm.MessageHistory(
@@ -212,7 +222,12 @@ class TestPrimitiveInputTypes:
         with pytest.raises(ValueError):
             agent = create_top_level_node(time.sleep, model_provider=model_provider)
             with rc.Runner() as run:
-                response = run.run_sync(agent, rc.llm.MessageHistory([rc.llm.UserMessage("Try to run this function")]))
+                response = run.run_sync(
+                    agent,
+                    rc.llm.MessageHistory(
+                        [rc.llm.UserMessage("Try to run this function")]
+                    ),
+                )
 
 
 class TestSequenceInputTypes:
@@ -338,7 +353,10 @@ class TestDictionaryInputTypes:
             agent = create_top_level_node(dict_func, model_provider=model_provider)
             with rc.Runner() as run:
                 response = run.run_sync(
-                    agent, rc.llm.MessageHistory([rc.llm.UserMessage("What is the result for {'key': 'value'}?")])
+                    agent,
+                    rc.llm.MessageHistory(
+                        [rc.llm.UserMessage("What is the result for {'key': 'value'}?")]
+                    ),
                 )
 
 
@@ -373,10 +391,14 @@ class TestRealisticScenarios:
             " and Jane is new a Developer and her phone number is 0987654321."
         )
 
-        agent = create_top_level_node(update_staff_directory, model_provider=model_provider)
+        agent = create_top_level_node(
+            update_staff_directory, model_provider=model_provider
+        )
 
         with rc.Runner() as run:
-            response = run.run_sync(agent, rc.llm.MessageHistory([rc.llm.UserMessage(usr_prompt)]))
+            response = run.run_sync(
+                agent, rc.llm.MessageHistory([rc.llm.UserMessage(usr_prompt)])
+            )
 
         assert DB["John"]["role"] == "Senior Manager"
         assert DB["John"]["phone"] == "5555"

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-import warnings
 from copy import deepcopy
 
 from ..llm import Tool
@@ -13,10 +12,7 @@ import inspect
 from typing import (
     TypeVar,
     Generic,
-    Type,
-    List,
     Dict,
-    Callable,
     ParamSpec,
     Any,
     Coroutine,
@@ -41,7 +37,6 @@ class EnsureInvokeCoroutineMeta(ABCMeta):
         if method_name in dct and callable(dct[method_name]):
             method = dct[method_name]
             if not inspect.iscoroutinefunction(method):
-
                 # a simple async wrapper of the sequential method.
                 async def async_wrapper(self, *args, **kwargs):
                     return await asyncio.to_thread(method(self, *args, **kwargs))
@@ -87,7 +82,9 @@ class Node(ABC, Generic[_TOutput], metaclass=EnsureInvokeCoroutineMeta):
         This is commonly used with LLMs Tool Calling tooling.
         """
         # TODO: finish implementing this method
-        raise NotImplementedError("You must implement the tool_info method in your node")
+        raise NotImplementedError(
+            "You must implement the tool_info method in your node"
+        )
         # detail = inspect.getdoc(cls)
         # if detail is None:
         #     warnings.warn(f"Node {cls.__name__} does not have a docstring. Using empty string instead.")

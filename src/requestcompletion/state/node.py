@@ -4,7 +4,7 @@ from __future__ import annotations
 import warnings
 
 from dataclasses import dataclass
-from typing import Optional, Iterable, Callable, ParamSpec, List, Dict, Type
+from typing import Optional, Iterable, ParamSpec, Dict, Type
 
 from .forest import (
     AbstractLinkedObject,
@@ -36,14 +36,14 @@ class LinkedNode(AbstractLinkedObject):
             # special handling for
             return self._node.safe_copy()
         except Exception as e:
-            raise NodeCopyException(
+            raise NodeCopyError(
                 "Every node must be able to be deep copied. Failed to copy node {0}, due to {1}.".format(
                     self.identifier, e
                 )
             )
 
 
-class NodeCopyException(Exception):
+class NodeCopyError(Exception):
     """An exception thrown when a node cannot be copied due to a given error"""
 
 
@@ -62,7 +62,7 @@ class NodeForest(Forest[LinkedNode]):
         """
         Collects the node of the given id from the heap.
 
-        Note it will throw a NodeCopyException if the node cannot be copied.
+        Note it will throw a NodeCopyError if the node cannot be copied.
         """
 
         node = self._heap[item]
@@ -126,19 +126,19 @@ class NodeForest(Forest[LinkedNode]):
                     self._heap[node_id] = item
 
 
-class ConcurrentNodeUpdatesException(Exception):
+class ConcurrentNodeUpdatesError(Exception):
     """A special exception used to signify when you are trying to update a node which is already being updated"""
 
     pass
 
 
-class NodeUpdatePasscodeException(Exception):
+class NodeUpdatePasscodeError(Exception):
     """A special exception used to signify when you are trying to update a node with the wrong passcode"""
 
     pass
 
 
-class IllegalNodeAccessException(Exception):
+class IllegalNodeAccessError(Exception):
     """
     A special exception used to signify when you are trying to access a node in the heap without using the
      concurrency protection

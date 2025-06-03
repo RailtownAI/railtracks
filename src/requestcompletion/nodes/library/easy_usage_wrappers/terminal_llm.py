@@ -6,7 +6,7 @@ from ....llm.tools import Parameter, Tool
 from copy import deepcopy
 
 
-def terminal_llm(
+def terminal_llm(  # noqa: C901
     pretty_name: str | None = None,
     system_message: SystemMessage | None = None,
     model: ModelBase | None = None,
@@ -22,8 +22,12 @@ def terminal_llm(
             message_history_copy = deepcopy(message_history)
             if system_message is not None:
                 if len([x for x in message_history_copy if x.role == "system"]) > 0:
-                    warnings.warn("System message already exists in message history. We will replace it.")
-                    message_history_copy = [x for x in message_history_copy if x.role != "system"]
+                    warnings.warn(
+                        "System message already exists in message history. We will replace it."
+                    )
+                    message_history_copy = [
+                        x for x in message_history_copy if x.role != "system"
+                    ]
                     message_history_copy.insert(0, system_message)
                 else:
                     message_history_copy.insert(0, system_message)
@@ -35,7 +39,9 @@ def terminal_llm(
                     )
             else:
                 if model is None:
-                    raise RuntimeError("You Must provide a model to the TerminalLLM class")
+                    raise RuntimeError(
+                        "You Must provide a model to the TerminalLLM class"
+                    )
                 llm_model = model
 
             super().__init__(message_history=message_history_copy, model=llm_model)
@@ -43,7 +49,9 @@ def terminal_llm(
         @classmethod
         def pretty_name(cls) -> str:
             if pretty_name is None:
-                if tool_details:  # at this point if tool_details is not None, then terminal_llm is being used as a tool
+                if (
+                    tool_details
+                ):  # at this point if tool_details is not None, then terminal_llm is being used as a tool
                     raise RuntimeError(
                         "You must provide a pretty_name when using TerminalLLM as a tool, as this is used to identify the tool."
                     )
@@ -74,8 +82,14 @@ def terminal_llm(
     if tool_params and not tool_details:
         raise RuntimeError("Tool parameters provided but no tool details provided.")
     elif tool_details and tool_params is not None and len(tool_params) == 0:
-        raise RuntimeError("If you want no params for the tool, tool_params must be set to None.")
-    elif tool_details and tool_params and len([x.name for x in tool_params]) != len(set([x.name for x in tool_params])):
+        raise RuntimeError(
+            "If you want no params for the tool, tool_params must be set to None."
+        )
+    elif (
+        tool_details
+        and tool_params
+        and len([x.name for x in tool_params]) != len({x.name for x in tool_params})
+    ):
         raise ValueError("Duplicate parameter names are not allowed")
 
     return TerminalLLMNode

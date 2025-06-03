@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import logging
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -31,7 +29,8 @@ class ExecutorConfig(BaseModel):
     )
     # Make sure that this default is in line with allowable_log_levels
     logging_setting: allowable_log_levels = Field(
-        default="VERBOSE", description="The setting for the level of logging you would like to have."
+        default="VERBOSE",
+        description="The setting for the level of logging you would like to have.",
     )
     # logging_file: str | None = Field(
     #     default=None,

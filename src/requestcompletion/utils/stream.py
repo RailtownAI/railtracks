@@ -52,10 +52,11 @@ class DataStream(Generic[T]):
         self._subscribers = subscribers if subscribers is not None else []
 
         # Each sub will have its own queue to maintain ordering of the handling.
-        self._queues: Dict[Subscriber, queue.Queue] = {subscriber: queue.Queue() for subscriber in self._subscribers}
+        self._queues: Dict[Subscriber, queue.Queue] = {
+            subscriber: queue.Queue() for subscriber in self._subscribers
+        }
         # default to running.
         self._running = True
-
         self._executor = ThreadPoolExecutor(max_workers=len(self._subscribers) + 1)
         self._futures = []
 
@@ -67,7 +68,7 @@ class DataStream(Generic[T]):
     def is_unhandled(self):
         """Is there any outstanding data publish which is waiting to be collected by the subscribers."""
         # thankfully queues are thread safe so we dont have to worry about concurrent reads and writes
-        return any([not q.empty() for q in self._queues.values()])
+        return any(not q.empty() for q in self._queues.values())
 
     def publish(self, item: T):
         """
@@ -92,7 +93,9 @@ class DataStream(Generic[T]):
                     subscriber.handle(item)
                 except Exception as err:
                     # we need to handle every error so a simple error does not prevent future data from being handled.
-                    warnings.warn(f"Subscriber {subscriber} failed to handle {item} with error {err}")
+                    warnings.warn(
+                        f"Subscriber {subscriber} failed to handle {item} with error {err}"
+                    )
             except queue.Empty:
                 continue
 
@@ -108,7 +111,6 @@ class DataStream(Generic[T]):
         if not force:
             # if there is currently unhandled data we should wait until every sub has picked it up.
             if self.is_unhandled:
-
                 while self.is_unhandled:
                     # add a debounced checker to see if all outstanding changes have been addressed
                     time.sleep(0.05)
@@ -118,7 +120,9 @@ class DataStream(Generic[T]):
         self._executor.shutdown(wait=not force)
         if not force:
             while self.is_unhandled:
-                time.sleep(0.05)  # we want to debounce this a bit because it could be locking for repetitive access to
+                time.sleep(
+                    0.05
+                )  # we want to debounce this a bit because it could be locking for repetitive access to
                 # thread safe type.
 
         self._running = False

@@ -1,15 +1,21 @@
 import warnings
-from typing import TypeVar, Type, Dict, Any
+from typing import Type, Dict, Any
 from copy import deepcopy
 
-from requestcompletion.llm import UserMessage, MessageHistory, ModelBase, SystemMessage, Tool
+from requestcompletion.llm import (
+    UserMessage,
+    MessageHistory,
+    ModelBase,
+    SystemMessage,
+    Tool,
+)
 from typing_extensions import Self
 
 from requestcompletion.nodes.library.structured_llm import StructuredLLM
 from pydantic import BaseModel
 
 
-def structured_llm(
+def structured_llm(  # noqa: C901
     output_model: Type[BaseModel],
     system_message: SystemMessage | None = None,
     model: ModelBase | None = None,
@@ -26,8 +32,12 @@ def structured_llm(
             message_history_copy = deepcopy(message_history)
             if system_message is not None:
                 if len([x for x in message_history_copy if x.role == "system"]) > 0:
-                    warnings.warn("System message already exists in message history. We will replace it.")
-                    message_history_copy = [x for x in message_history_copy if x.role != "system"]
+                    warnings.warn(
+                        "System message already exists in message history. We will replace it."
+                    )
+                    message_history_copy = [
+                        x for x in message_history_copy if x.role != "system"
+                    ]
                     message_history_copy.insert(0, system_message)
                 else:
                     message_history_copy.insert(0, system_message)
@@ -39,7 +49,9 @@ def structured_llm(
                     )
             else:
                 if model is None:
-                    raise RuntimeError("You Must provide a model to the StructuredLLM class")
+                    raise RuntimeError(
+                        "You Must provide a model to the StructuredLLM class"
+                    )
                 llm_model = model
 
             super().__init__(message_history=message_history_copy, model=llm_model)
@@ -76,10 +88,18 @@ def structured_llm(
             return cls(message_hist)
 
     if tool_params and not tool_details:
-        raise RuntimeError("Tool parameters are provided, but tool details are missing.")
+        raise RuntimeError(
+            "Tool parameters are provided, but tool details are missing."
+        )
     elif tool_details and (tool_params is not None and not tool_params):
-        raise RuntimeError("If no parameters are required for the tool, `tool_params` must be set to None.")
-    elif tool_details and tool_params and len({param.name for param in tool_params}) != len(tool_params):
+        raise RuntimeError(
+            "If no parameters are required for the tool, `tool_params` must be set to None."
+        )
+    elif (
+        tool_details
+        and tool_params
+        and len({param.name for param in tool_params}) != len(tool_params)
+    ):
         raise ValueError("Duplicate parameter names are not allowed.")
 
     return StructuredLLMNode

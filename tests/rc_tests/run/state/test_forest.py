@@ -18,21 +18,58 @@ def example_structure():
     identifier_2 = str(uuid.uuid4())
     identifier_3 = str(uuid.uuid4())
 
-    linked1_1 = MockLinkedObject(identifier_1, Stamp(8091, 0, "Init"), parent=None, message="Hello world")
-    linked1_2 = MockLinkedObject(identifier_1, Stamp(8091, 1, "second try"), parent=linked1_1, message="Hello world...")
-    linked1_3 = MockLinkedObject(identifier_1, Stamp(8091, 5, "third try"), parent=linked1_2, message="Hello world...!")
+    linked1_1 = MockLinkedObject(
+        identifier_1, Stamp(8091, 0, "Init"), parent=None, message="Hello world"
+    )
+    linked1_2 = MockLinkedObject(
+        identifier_1,
+        Stamp(8091, 1, "second try"),
+        parent=linked1_1,
+        message="Hello world...",
+    )
+    linked1_3 = MockLinkedObject(
+        identifier_1,
+        Stamp(8091, 5, "third try"),
+        parent=linked1_2,
+        message="Hello world...!",
+    )
 
-    linked2_1 = MockLinkedObject(identifier_2, Stamp(8091, 0, "Init"), parent=None, message="Hello world")
-    linked2_2 = MockLinkedObject(identifier_2, Stamp(8091, 1, "second try"), parent=linked2_1, message="Hello world...")
+    linked2_1 = MockLinkedObject(
+        identifier_2, Stamp(8091, 0, "Init"), parent=None, message="Hello world"
+    )
+    linked2_2 = MockLinkedObject(
+        identifier_2,
+        Stamp(8091, 1, "second try"),
+        parent=linked2_1,
+        message="Hello world...",
+    )
 
-    linked3_1 = MockLinkedObject(identifier_3, Stamp(8091, 1, "Init"), parent=None, message="Hello world")
-    linked3_2 = MockLinkedObject(identifier_3, Stamp(8091, 2, "second try"), parent=linked3_1, message="Hello world...")
-    linked3_3 = MockLinkedObject(identifier_3, Stamp(8091, 3, "third try"), parent=linked3_2, message="Hello world...!")
+    linked3_1 = MockLinkedObject(
+        identifier_3, Stamp(8091, 1, "Init"), parent=None, message="Hello world"
+    )
+    linked3_2 = MockLinkedObject(
+        identifier_3,
+        Stamp(8091, 2, "second try"),
+        parent=linked3_1,
+        message="Hello world...",
+    )
+    linked3_3 = MockLinkedObject(
+        identifier_3,
+        Stamp(8091, 3, "third try"),
+        parent=linked3_2,
+        message="Hello world...!",
+    )
     linked3_4 = MockLinkedObject(
-        identifier_3, Stamp(8091, 4, "fourth try"), parent=linked3_3, message="Hello world...!!"
+        identifier_3,
+        Stamp(8091, 4, "fourth try"),
+        parent=linked3_3,
+        message="Hello world...!!",
     )
     linked3_5 = MockLinkedObject(
-        identifier_3, Stamp(8091, 5, "fifth try"), parent=linked3_4, message="Hello world...!!!"
+        identifier_3,
+        Stamp(8091, 5, "fifth try"),
+        parent=linked3_4,
+        message="Hello world...!!!",
     )
 
     heap = Forest[MockLinkedObject]()

@@ -1,4 +1,3 @@
-import json
 from typing import List
 
 from ._llama_index_wrapper import LlamaWrapper

@@ -4,7 +4,6 @@ from typing import Literal, Generic, TypeVar
 from .content import Content, ToolResponse
 
 
-
 _T = TypeVar("_T", bound=Content)
 
 
@@ -28,7 +27,9 @@ class Message(Generic[_T]):
     Note the content may take on a variety of allowable types.
     """
 
-    def __init__(self, content: _T, role: Literal["assistant", "user", "system", "tool"]):
+    def __init__(
+        self, content: _T, role: Literal["assistant", "user", "system", "tool"]
+    ):
         """
         A simple class that represents a message that an LLM can read.
 

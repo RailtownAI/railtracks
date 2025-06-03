@@ -48,6 +48,7 @@ class TestExtractMainDescription:
         """
         assert extract_main_description(docstring) == "This is the main description."
 
+
 class TestExtractArgsSection:
     """Tests for the extract_args_section function."""
 
@@ -85,6 +86,7 @@ class TestExtractArgsSection:
         result = extract_args_section(docstring)
         assert "param1 (str): Description of param1." in result
         assert "param2 (int): Description of param2." in result
+
 
 class TestParseArgsSection:
     """Tests for the parse_args_section function."""
@@ -125,6 +127,7 @@ class TestParseArgsSection:
             "param2": "Description of param2.",
         }
         assert parse_args_section(args_section) == expected
+
 
 class TestParseDocstringArgs:
     """Tests for the parse_docstring_args function."""

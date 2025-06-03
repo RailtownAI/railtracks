@@ -21,7 +21,10 @@ def encoder_system_message():
 
 @pytest.fixture
 def decoder_system_message():
-    return rc.llm.SystemMessage("You are a text decoder. Decode the bytes into a string.")
+    return rc.llm.SystemMessage(
+        "You are a text decoder. Decode the bytes into a string."
+    )
+
 
 # ============ Helper function for test_function.py ===========
 @pytest.fixture
@@ -29,6 +32,7 @@ def create_top_level_node():
     """
     Returns a factory function that creates top-level nodes for testing.
     """
+
     def _create_node(test_function: Callable, model_provider: str = "openai"):
         """
         Creates a top-level node for testing function nodes.
@@ -40,6 +44,7 @@ def create_top_level_node():
         Returns:
             A ToolCallLLM node that can be used to test the function.
         """
+
         class TopLevelNode(rc.library.ToolCallLLM):
             def __init__(self, message_history: rc.llm.MessageHistory):
                 message_history.insert(0, rc.llm.SystemMessage(self.system_message()))
@@ -71,8 +76,9 @@ def create_top_level_node():
                 return "Top Level Node"
 
         return TopLevelNode
-    
+
     return _create_node
+
 
 # ============ Output Models ===========
 class SimpleOutput(BaseModel):  # simple structured output case
@@ -88,7 +94,9 @@ class TravelPlannerOutput(BaseModel):  # structured using tool calls
 
 class MathOutput(BaseModel):  # structured using terminal llm as tool
     sum: float = Field(description="The sum of the random numbers")
-    random_numbers: List[int] = Field(description="The list of random numbers generated")
+    random_numbers: List[int] = Field(
+        description="The list of random numbers generated"
+    )
 
 
 class EmptyModel(BaseModel):  # empty structured output case
@@ -98,7 +106,9 @@ class EmptyModel(BaseModel):  # empty structured output case
 class PersonOutput(BaseModel):  # complex structured output case
     name: str = Field(description="The name of the person")
     age: int = Field(description="The age of the person")
-    Favourites: SimpleOutput = Field(description="The favourite text and number of the person")
+    Favourites: SimpleOutput = Field(
+        description="The favourite text and number of the person"
+    )
 
 
 @pytest.fixture
@@ -231,8 +241,9 @@ def travel_planner_tools():
 # ============ Nodes ===========
 @pytest.fixture
 def simple_node(request, model, simple_output_model, empty_output_model):
-
-    system_simple = rc.llm.SystemMessage("Return a simple text and number. Don't use any tools.")
+    system_simple = rc.llm.SystemMessage(
+        "Return a simple text and number. Don't use any tools."
+    )
     fixture_name, output_model_name = request.param
 
     match output_model_name:
@@ -265,7 +276,11 @@ def simple_node(request, model, simple_output_model, empty_output_model):
             ):
                 message_history = [x for x in message_history if x.role != "system"]
                 message_history.insert(0, system_simple)
-                super().__init__(message_history=message_history, llm_model=llm_model, output_model=output_model)
+                super().__init__(
+                    message_history=message_history,
+                    llm_model=llm_model,
+                    output_model=output_model,
+                )
 
             @classmethod
             def connected_nodes(cls):
@@ -281,12 +296,16 @@ def simple_node(request, model, simple_output_model, empty_output_model):
 
 
 @pytest.fixture
-def travel_planner_node(request, model, travel_planner_tools, travel_planner_output_model):
+def travel_planner_node(
+    request, model, travel_planner_tools, travel_planner_output_model
+):
     """
     Returns the appropriate nodes based on the parametrized fixture name.
     """
     fixture_name = request.param
-    convert_currency, available_locations, currency_used, average_location_cost = travel_planner_tools
+    convert_currency, available_locations, currency_used, average_location_cost = (
+        travel_planner_tools
+    )
     system_travel_planner = rc.llm.SystemMessage(
         "You are a travel planner that will plan a trip. you have access to AvailableLocations, ConvertCurrency, CurrencyUsed and AverageLocationCost tools. Use them when you need to."
     )
@@ -322,11 +341,20 @@ def travel_planner_node(request, model, travel_planner_tools, travel_planner_out
             ):
                 message_history = [x for x in message_history if x.role != "system"]
                 message_history.insert(0, system_travel_planner)
-                super().__init__(message_history=message_history, llm_model=llm_model, output_model=output_model)
+                super().__init__(
+                    message_history=message_history,
+                    llm_model=llm_model,
+                    output_model=output_model,
+                )
 
             @classmethod
             def connected_nodes(cls):
-                return {convert_currency_node, available_locations_node, currency_used_node, average_location_cost_node}
+                return {
+                    convert_currency_node,
+                    available_locations_node,
+                    currency_used_node,
+                    average_location_cost_node,
+                }
 
             @classmethod
             def pretty_name(cls) -> str:
@@ -375,7 +403,11 @@ def math_node(request, model, math_output_model):
             ):
                 message_history = [x for x in message_history if x.role != "system"]
                 message_history.insert(0, system_math_genius)
-                super().__init__(message_history=message_history, llm_model=llm_model, output_model=output_model)
+                super().__init__(
+                    message_history=message_history,
+                    llm_model=llm_model,
+                    output_model=output_model,
+                )
 
             @classmethod
             def connected_nodes(cls):
@@ -392,7 +424,6 @@ def math_node(request, model, math_output_model):
 
 @pytest.fixture
 def complex_node(request, model, person_output_model):
-
     system_complex = rc.llm.SystemMessage(
         "You are an all knowing sentient being. You can answer any question asked to you. You may make up any answer you want. Just provide all info asked for."
     )
@@ -420,7 +451,11 @@ def complex_node(request, model, person_output_model):
             ):
                 message_history = [x for x in message_history if x.role != "system"]
                 message_history.insert(0, system_complex)
-                super().__init__(message_history=message_history, llm_model=llm_model, output_model=output_model)
+                super().__init__(
+                    message_history=message_history,
+                    llm_model=llm_model,
+                    output_model=output_model,
+                )
 
             @classmethod
             def connected_nodes(cls):

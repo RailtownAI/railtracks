@@ -1,7 +1,6 @@
 import random
 import asyncio
 
-import pytest
 import requestcompletion as rc
 import re
 
@@ -13,12 +12,11 @@ def strip_ansi_colors(message: str) -> str:
     """
     Removes ANSI color codes from the given message.
     """
-    ansi_escape = re.compile(r'\x1b\[[0-9;]*m')
-    return ansi_escape.sub('', message)
+    ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
+    return ansi_escape.sub("", message)
 
 
 async def top_level(number_of_calls: int):
-
     contracts = [rc.call(RNGNode) for _ in range(number_of_calls)]
 
     random_numbers = await asyncio.gather(*contracts)

@@ -24,8 +24,18 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
+          pip install pytest-asyncio
           pip install flit
           flit install --deps production --extras "test"
+
+      - name: Run Ruff Lint
+        run: |
+          python -m pip install ruff
+          ruff check .
+
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: 'Ruff style fixes'
 
       - name: Check pyproject.toml dependency order
         run: |
@@ -37,3 +47,8 @@ jobs:
         run: |
           export OPENAI_API_KEY=${{ secrets.INTEGRATION_TESTS_OPENAI_API_KEY }}
           pytest -s -v --junit-xml=test-results.xml
+          
+          
+
+      
+

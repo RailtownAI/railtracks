@@ -1,8 +1,7 @@
 import logging
-import warnings
-from typing import Literal, Optional
+from typing import Literal
 import re
-from colorama import Fore, Style, init
+from colorama import Fore, init
 
 allowable_log_levels = Literal["VERBOSE", "REGULAR", "QUIET", "NONE"]
 # the temporary name for the logger that RC will use.
@@ -114,7 +113,13 @@ def setup_none_logger_config():
 def setup_file_handler(
     file_name: str,
     file_logging_config: dict | None,
-    file_logging_level: logging.DEBUG | logging.INFO | logging.WARNING | logging.ERROR | logging.CRITICAL,
+    file_logging_level: (
+        logging.DEBUG
+        | logging.INFO
+        | logging.WARNING
+        | logging.ERROR
+        | logging.CRITICAL
+    ),
 ):
     file_handler = logging.FileHandler(file_name)
     logging_level = logging.DEBUG if file_logging_level else file_logging_level
@@ -171,5 +176,4 @@ def prepare_logger(
 
 
 def delete_loggers():
-    # TODO implement this
     pass

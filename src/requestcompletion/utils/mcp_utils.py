@@ -30,6 +30,7 @@ class MCPAsyncClient:
     """
     Async client for communicating with an MCP server via stdio or HTTP Stream, with streaming support.
     """
+
     def __init__(
         self,
         config: Union[StdioServerParameters, MCPHttpParams],
@@ -87,6 +88,7 @@ class MCPAsyncClient:
                 else:
                     filtered_kwargs[k] = v
 
+
         # Call client_factory with only accepted kwargs
         read_stream, write_stream, *_ = await self.exit_stack.enter_async_context(
             client_factory(**filtered_kwargs)
@@ -100,13 +102,14 @@ class MCPAsyncClient:
         else:
             resp = await self.session.list_tools()
             self._tools_cache = resp.tools
+            
         return self._tools_cache
 
     async def call_tool(self, tool_name: str, tool_args: dict):
         return await self.session.call_tool(tool_name, tool_args)
 
 
-def from_mcp(
+def from_mcp( # noqa: C901
     tool,
     config: Union[StdioServerParameters, MCPHttpParams],
 ):
@@ -120,6 +123,7 @@ def from_mcp(
     Returns:
         A Node subclass that invokes the MCP tool.
     """
+
     class MCPToolNode(Node):
         def __init__(self, **kwargs):
             super().__init__()
@@ -129,6 +133,7 @@ def from_mcp(
         async def invoke(self):
             async with self.client:
                 result = await self.client.call_tool(tool.name, self.kwargs)
+                
             if hasattr(result, "content"):
                 return result.content
             return result

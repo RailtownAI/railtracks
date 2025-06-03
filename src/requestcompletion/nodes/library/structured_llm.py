@@ -6,10 +6,11 @@ from ..nodes import Node
 from pydantic import BaseModel
 from abc import ABC, abstractmethod
 
+print("hello world")
 _TOutput = TypeVar("_TOutput", bound=BaseModel)
 
-class StructuredLLM(Node[_TOutput], ABC):
 
+class StructuredLLM(Node[_TOutput], ABC):
     # TODO: allow for more general (non-pydantic) outputs
     @classmethod
     @abstractmethod
@@ -32,8 +33,9 @@ class StructuredLLM(Node[_TOutput], ABC):
             (TerminalLLM.Output): The response message from the model
         """
 
-        returned_mess = self.model.structured(self.message_hist, schema=self.output_model())
-
+        returned_mess = self.model.structured(
+            self.message_hist, schema=self.output_model()
+        )
 
         self.message_hist.append(returned_mess.message)
 
@@ -43,7 +45,9 @@ class StructuredLLM(Node[_TOutput], ABC):
                 raise RuntimeError("ModelLLM returned None content")
             if isinstance(cont, self.output_model()):
                 return cont
-            raise RuntimeError("The LLM returned content does not match the expected return type")
+            raise RuntimeError(
+                "The LLM returned content does not match the expected return type"
+            )
 
         raise RuntimeError(
             "ModelLLM returned an unexpected message type.",

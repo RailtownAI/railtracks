@@ -15,6 +15,6 @@ def get_rc_logger(name: str | None):
     if name is None:
         return logging.getLogger(rc_logger_name)
 
-    l = logging.getLogger(f"{rc_logger_name}.{name}")
+    logger = logging.getLogger(f"{rc_logger_name}.{name}")
 
-    return l
+    return logger

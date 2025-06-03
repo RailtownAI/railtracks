@@ -18,7 +18,6 @@ StreamingRNGNode = rc.library.from_function(streaming_rng)
 
 
 def test_simple_streamer():
-
     class SubObject:
         def __init__(self):
             self.finished_message = None
@@ -27,7 +26,10 @@ def test_simple_streamer():
             self.finished_message = item
 
     sub = SubObject()
-    with rc.Runner(subscriber=sub.handle, executor_config=rc.ExecutorConfig(force_close_streams=True)) as runner:
+    with rc.Runner(
+        subscriber=sub.handle,
+        executor_config=rc.ExecutorConfig(force_close_streams=True),
+    ) as runner:
         finished_result = runner.run_sync(StreamingRNGNode)
 
     # force close streams flag must be set to false to allow the slow streaming to finish.
@@ -40,7 +42,6 @@ def test_simple_streamer():
 
 # rather annoyingly this test could fail but it should be good nearly all of the time
 def test_slow_streamer():
-
     class Sub:
         def __init__(self):
             self.finished_message = None
@@ -52,7 +53,6 @@ def test_slow_streamer():
 
     sub = Sub()
     with rc.Runner(executor_config=ExecutorConfig(force_close_streams=True)) as runner:
-
         finished_result = runner.run_sync(StreamingRNGNode, subscriber=sub.handle)
 
     assert isinstance(finished_result.answer, float)
@@ -81,7 +81,6 @@ def rng_stream_tester(
     parallel_call_nums=3,
     multiplier=1,
 ):
-
     class Sub:
         def __init__(self):
             self.total_streams = []
@@ -90,8 +89,12 @@ def rng_stream_tester(
             self.total_streams.append(item)
 
     sub = Sub()
-    with rc.Runner(executor_config=ExecutorConfig(force_close_streams=False), subscriber=sub.handle) as run:
-        finished_result = run.run_sync(RNGTreeStreamer, num_calls, parallel_call_nums, multiplier)
+    with rc.Runner(
+        executor_config=ExecutorConfig(force_close_streams=False), subscriber=sub.handle
+    ) as run:
+        finished_result = run.run_sync(
+            RNGTreeStreamer, num_calls, parallel_call_nums, multiplier
+        )
 
     assert isinstance(finished_result.answer, list)
     assert len(finished_result.answer) == num_calls * parallel_call_nums

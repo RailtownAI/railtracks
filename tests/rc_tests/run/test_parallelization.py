@@ -19,7 +19,6 @@ TimeoutNodeAsync = rc.library.from_function(timeout_node_async)
 
 
 async def top_level_async():
-
     uno = rc.call(TimeoutNodeAsync, 1)
     dos = rc.call(TimeoutNodeAsync, 2)
     tres = rc.call(TimeoutNodeAsync, 3)
@@ -32,7 +31,6 @@ async def top_level_async():
 
 
 async def top_level():
-
     uno = rc.call(TimeoutNode, 1)
     dos = rc.call(TimeoutNode, 2)
     tres = rc.call(TimeoutNode, 3)

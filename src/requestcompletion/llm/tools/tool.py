@@ -20,7 +20,7 @@ from .parameter_handlers import (
     PydanticModelHandler,
     SequenceParameterHandler,
     DictParameterHandler,
-    DefaultParameterHandler
+    DefaultParameterHandler,
 )
 
 
@@ -29,11 +29,14 @@ class Tool:
     A quasi-immutable class designed to represent a single Tool object.
     You pass in key details (name, description, and required parameters).
     """
+
     def __init__(
-        self, 
-        name: str, 
-        detail: str, 
-        parameters: Optional[Union[Type[BaseModel], Set[Parameter], Dict[str, Any]]] = None
+        self,
+        name: str,
+        detail: str,
+        parameters: Optional[
+            Union[Type[BaseModel], Set[Parameter], Dict[str, Any]]
+        ] = None,
     ):
         """
         Creates a new Tool instance.
@@ -45,7 +48,7 @@ class Tool:
         """
         # Store original parameters for debugging
         self._original_parameters = parameters if isinstance(parameters, set) else None
-        
+
         if isinstance(parameters, set):
             self._parameters = convert_params_to_model_recursive(name, parameters)
         elif isinstance(parameters, dict):
@@ -91,56 +94,53 @@ class Tool:
         """
         Creates a Tool from a Python callable.
         Uses the function's docstring and type annotations to extract details and parameter info.
-        
+
         Args:
             func: The function to create a tool from.
-            
+
         Returns:
             A Tool instance representing the function.
         """
         # Check if the function is a method in a class
         in_class = bool(func.__qualname__ and "." in func.__qualname__)
-        
+
         # Parse the docstring to get parameter descriptions
         arg_descriptions = parse_docstring_args(func.__doc__ or "")
-        
+
         # Get the function signature
         signature = inspect.signature(func)
-        
+
         # Create parameter handlers
         handlers: List[ParameterHandler] = [
             PydanticModelHandler(),
             SequenceParameterHandler(),
             DictParameterHandler(),
-            DefaultParameterHandler()
+            DefaultParameterHandler(),
         ]
-        
+
         parameters: Set[Parameter] = set()
-        
+
         for param in signature.parameters.values():
             # Skip 'self' parameter for class methods
             if in_class and (param.name == "self" or param.name == "cls"):
                 continue
-            
+
             description = arg_descriptions.get(param.name, "")
-            
+
             # Check if the parameter is required
             required = param.default == inspect.Parameter.empty
-            
+
             handler = next(h for h in handlers if h.can_handle(param.annotation))
-            
+
             param_obj = handler.create_parameter(
-                param.name,
-                param.annotation,
-                description,
-                required
+                param.name, param.annotation, description, required
             )
-            
+
             parameters.add(param_obj)
-        
+
         docstring = func.__doc__.strip() if func.__doc__ else ""
         main_description = extract_main_description(docstring)
-        
+
         # Check for multiple Args sections (warning)
         if docstring.count("Args:") > 1:
             warnings.warn("Multiple 'Args:' sections found in the docstring.")
@@ -165,8 +165,10 @@ class Tool:
         """
         input_schema = getattr(tool, "inputSchema", None)
         if not input_schema or input_schema["type"] != "object":
-            raise ValueError("The inputSchema for an MCP Tool must be 'object'. "
-                             "If an MCP tool has a different schema, create a GitHub issue and support will be added.")
+            raise ValueError(
+                "The inputSchema for an MCP Tool must be 'object'. "
+                "If an MCP tool has a different schema, create a GitHub issue and support will be added."
+            )
 
         properties = input_schema.get("properties", {})
         required_fields = set(input_schema.get("required", []))
@@ -180,12 +182,8 @@ class Tool:
                     name=name,
                     param_type=param_type,
                     description=description,
-                    required=required
+                    required=required,
                 )
             )
 
-        return cls(
-            name=tool.name,
-            detail=tool.description,
-            parameters=param_objs
-        )
+        return cls(name=tool.name, detail=tool.description, parameters=param_objs)

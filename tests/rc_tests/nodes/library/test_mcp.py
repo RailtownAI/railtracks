@@ -1,6 +1,5 @@
 import asyncio
 import pytest
-from unittest.mock import patch
 import requestcompletion as rc
 from mcp import StdioServerParameters
 from requestcompletion.nodes.library.mcp_tool import from_mcp_server
@@ -33,19 +32,19 @@ def test_from_mcp_server_with_llm():
     parent_tool = rc.library.tool_call_llm(
         connected_nodes={*time_tools},
         pretty_name="Parent Tool",
-        system_message=rc.llm.SystemMessage("Provide a response using the tool when asked. If the tool doesn't work,"
-                                            " respond with 'It didn't work!'"),
+        system_message=rc.llm.SystemMessage(
+            "Provide a response using the tool when asked. If the tool doesn't work,"
+            " respond with 'It didn't work!'"
+        ),
         model=rc.llm.OpenAILLM("gpt-4o"),
     )
 
     # Run the parent tool
-    with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="QUIET", timeout=1000)) as runner:
+    with rc.Runner(
+        executor_config=rc.ExecutorConfig(logging_setting="QUIET", timeout=1000)
+    ) as runner:
         message_history = rc.llm.MessageHistory(
-            [
-                rc.llm.UserMessage(
-                    "What time is it?"
-                )
-            ]
+            [rc.llm.UserMessage("What time is it?")]
         )
         response = asyncio.run(runner.run(parent_tool, message_history=message_history))
 
