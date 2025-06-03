@@ -24,24 +24,27 @@ class Ollama(LiteLLMWrapper):
         self.logger = get_rc_logger(LOGGER_NAME)
         self.model_name = model_name.rsplit("/", 1)[-1]
 
-        try:
-            models = self._run_check("api/tags")
-            model_names = {model["name"] for model in models["models"]}
-
-            if self.model_name not in model_names:
-                error_msg = f"{model_name} not available on server {self.domain}. Avaiable models are: {model_names}"
-                raise OllamaException(error_msg)
-        except Exception as e:
-            raise Exception(f"The following error occured: {e}")
-
+        self._run_check("api/tags") # This will crash the workflow if Ollama is not setup properly
+            
     def _run_check(self, endpoint: str):
         url = f"{self.domain}/{endpoint.lstrip('/')}"
         try:
             response = requests.get(url)
             response.raise_for_status()
-            return response.json()
+
+            models = response.json()
+            
+            model_names = {model["name"] for model in models["models"]}
+
+            if self.model_name not in model_names:
+                error_msg = f"{self.model_name} not available on server {self.domain}. Avaiable models are: {model_names}"
+                raise OllamaException(error_msg)
+
+        except OllamaException as e:
+            self.logger.critical(e)
+            raise
         except requests.exceptions.RequestException as e:
-            self.logger.critical(f"Failed to reach {url}")
+            self.logger.critical(e)
             raise
 
     def chat_with_tools(self, messages, tools, **kwargs):
