@@ -4,6 +4,7 @@ from .message import UserMessage, SystemMessage, AssistantMessage, Message, Tool
 from .history import MessageHistory
 from .tools import Tool, Parameter
 from .models import AnthropicLLM, OpenAILLM
+from .models.local.ollama import OllamaLLM
 
 __all__ = [
     "ModelBase",
@@ -19,4 +20,5 @@ __all__ = [
     "Parameter",
     "AnthropicLLM",
     "OpenAILLM",
+    "OllamaLLM",
 ]

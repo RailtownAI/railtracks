@@ -4,7 +4,7 @@ import requests
 import litellm
 
 from .._litellm_wrapper import LiteLLMWrapper
-from requestcompletion.utils.logging.create import get_rc_logger
+from ....utils.logging.create import get_rc_logger
 
 LOGGER_NAME = "OLLAMA"
 
@@ -13,7 +13,7 @@ class OllamaError(Exception):
     pass
 
 
-class Ollama(LiteLLMWrapper):
+class OllamaLLM(LiteLLMWrapper):
     @classmethod
     def model_type(cls):
         return "Ollama"
