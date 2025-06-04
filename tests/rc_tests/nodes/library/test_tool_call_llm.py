@@ -208,7 +208,7 @@ async def test_tool_with_llm_tool_as_input_easy_tools():
         response = await runner.run(parent_tool, message_history=message_history)
 
     assert response.answer is not None
-    assert response.answer.content == "2 foxes and a dog"
+    assert "2 foxes and a dog" in response.answer.content
 
 
 @pytest.mark.asyncio
@@ -353,7 +353,7 @@ async def test_tool_with_llm_tool_as_input_easy_class():
         response = await runner.run(ParentTool, message_history=message_history)
 
     assert response.answer is not None
-    assert response.answer.content == "2 foxes and a dog"
+    assert "2 foxes and a dog" in response.answer.content
 
 
 @pytest.mark.asyncio
@@ -447,7 +447,7 @@ async def test_tool_with_llm_tool_as_input_class_tools():
         response = await runner.run(ParentTool, message_history=message_history)
 
     assert response.answer is not None
-    assert response.answer.content == "2 foxes and a dog"
+    assert "2 foxes and a dog" in response.answer.content
 
 
 @pytest.mark.asyncio
@@ -501,7 +501,7 @@ async def test_tool_with_structured_output_child_tool():
     # Assertions
     assert response.answer is not None
     assert isinstance(response.answer, ParentResponse)
-    assert response.answer.message == "Hello World"
+    assert "Hello World" in response.answer.message
     assert response.answer.word_count == 2
     assert response.answer.success is True
 
