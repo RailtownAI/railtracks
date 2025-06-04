@@ -1,4 +1,3 @@
-
 import os
 import pytest
 import requests
@@ -47,9 +46,8 @@ def test_init_with_custom_domain(mock_response):
     """Test initialization with custom domain"""
     custom_domain = "http://custom-domain:11434"
     with patch('requests.get', return_value=mock_response):
-        with patch.dict(os.environ, {'OLLAMA_HOST': custom_domain}):
-            ollama = OllamaLLM("test-model")
-            assert ollama.domain == custom_domain
+        ollama = OllamaLLM("test-model", domain="custom", custom_domain=custom_domain)
+        assert ollama.domain == custom_domain
 
 
 def test_init_model_not_available(mock_response):
@@ -100,3 +98,45 @@ def test_model_name_extraction(mock_response):
     with patch('requests.get', return_value=mock_response):
         ollama = OllamaLLM("organization/test-model")
         assert ollama.model_name == "test-model"
+
+
+def test_init_with_auto_domain_missing_env(mock_response):
+    """Test initialization with auto domain but missing environment variable"""
+    with patch('requests.get', return_value=mock_response):
+        with patch.dict(os.environ, {}, clear=True):
+            with pytest.raises(OllamaError) as exc_info:
+                OllamaLLM("test-model", domain="auto")
+            assert "OLLAMA_HOST environment variable not set" in str(exc_info.value)
+
+
+def test_init_with_custom_domain_missing_env(mock_response):
+    """Test initialization with custom domain but missing environment variable"""
+    with patch('requests.get', return_value=mock_response):
+        with patch.dict(os.environ, {}, clear=True):
+            with pytest.raises(OllamaError) as exc_info:
+                OllamaLLM("test-model", domain="auto")
+            assert "OLLAMA_HOST environment variable not set" in str(exc_info.value)
+
+
+def test_init_with_default_domain(mock_response):
+    """Test initialization with default domain setting"""
+    with patch('requests.get', return_value=mock_response):
+        ollama = OllamaLLM("test-model", domain="default")
+        assert ollama.domain == "http://localhost:11434"
+
+
+def test_init_with_auto_domain(mock_response):
+    """Test initialization with auto domain"""
+    custom_domain = "http://custom-domain:11434"
+    with patch('requests.get', return_value=mock_response):
+        with patch.dict(os.environ, {'OLLAMA_HOST': custom_domain}):
+            ollama = OllamaLLM("test-model", domain="auto")
+            assert ollama.domain == custom_domain
+
+
+def test_init_with_custom_domain_missing_arg(mock_response):
+    """Test initialization with custom domain but missing custom_domain argument"""
+    with patch('requests.get', return_value=mock_response):
+        with pytest.raises(OllamaError) as exc_info:
+            OllamaLLM("test-model", domain="custom")
+        assert "Custom domain must be provided" in str(exc_info.value)

@@ -1,5 +1,6 @@
 import os
 import requests
+from typing import Literal
 
 import litellm
 
@@ -7,6 +8,7 @@ from .._litellm_wrapper import LiteLLMWrapper
 from ....utils.logging.create import get_rc_logger
 
 LOGGER_NAME = "OLLAMA"
+DEFAULT_DOMAIN = "http://localhost:11434"
 
 
 class OllamaError(Exception):
@@ -18,13 +20,57 @@ class OllamaLLM(LiteLLMWrapper):
     def model_type(cls):
         return "Ollama"
 
-    def __init__(self, model_name: str, **kwargs):
+    def __init__(
+        self,
+        model_name: str,
+        domain: Literal["default", "auto", "custom"] = "default",
+        custom_domain: str | None = None,
+        **kwargs,
+    ):
+        """Initialize an Ollama LLM instance.
+
+        Args:
+            model_name (str): Name of the Ollama model to use.
+            domain (Literal["default", "auto", "custom"], optional): The domain configuration mode.
+                - "default": Uses the default localhost domain (http://localhost:11434)
+                - "auto": Uses the OLLAMA_HOST environment variable, raises OllamaError if not set
+                - "custom": Uses the provided custom_domain parameter, raises OllamaError if not provided
+                Defaults to "default".
+            custom_domain (str | None, optional): Custom domain URL to use when domain is set to "custom".
+                Must be provided if domain="custom". Defaults to None.
+            **kwargs: Additional arguments passed to the parent LiteLLMWrapper.
+
+        Raises:
+            OllamaError: If:
+                - domain is "auto" and OLLAMA_HOST environment variable is not set
+                - domain is "custom" and custom_domain is not provided
+                - specified model is not available on the server
+            RequestException: If connection to Ollama server fails
+        """
         super().__init__(model_name, **kwargs)
-        self.domain = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-        self.logger = get_rc_logger(LOGGER_NAME)
+
         self.model_name = model_name.rsplit("/", 1)[-1]
 
-        self._run_check("api/tags") # This will crash the workflow if Ollama is not setup properly
+        match domain:
+            case "default":
+                self.domain = DEFAULT_DOMAIN
+            case "auto":
+                domain_from_env = os.getenv("OLLAMA_HOST")
+                if domain_from_env is None:
+                    raise OllamaError("OLLAMA_HOST environment variable not set")
+                self.domain = domain_from_env
+            case "custom":
+                if custom_domain is None:
+                    raise OllamaError(
+                        "Custom domain must be provided when domain is set to 'custom'"
+                    )
+                self.domain = custom_domain
+
+        self.logger = get_rc_logger(LOGGER_NAME)
+
+        self._run_check(
+            "api/tags"
+        )  # This will crash the workflow if Ollama is not setup properly
 
     def _run_check(self, endpoint: str):
         url = f"{self.domain}/{endpoint.lstrip('/')}"
@@ -49,6 +95,8 @@ class OllamaLLM(LiteLLMWrapper):
 
     def chat_with_tools(self, messages, tools, **kwargs):
         if not litellm.supports_function_calling(model=self._model_name):
-            raise RuntimeError(f"Model '{self.model_name}' does not support function calling.")
+            raise RuntimeError(
+                f"Model '{self.model_name}' does not support function calling."
+            )
 
         return super().chat_with_tools(messages, tools, **kwargs)
