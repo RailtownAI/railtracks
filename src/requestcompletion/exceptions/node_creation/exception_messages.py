@@ -10,6 +10,8 @@ class ExceptionMessageKey(Enum):
     CONNECTED_NODES_EMPTY_NOTES = "CONNECTED_NODES_EMPTY_NOTES"
     CONNECTED_NODES_TYPE_MSG = "CONNECTED_NODES_TYPE_MSG"
     CONNECTED_NODES_TYPE_NOTES = "CONNECTED_NODES_TYPE_NOTES"
+    DICT_PARAMETER_NOT_ALLOWED_MSG = "DICT_PARAMETER_NOT_ALLOWED_MSG"
+    DICT_PARAMETER_NOT_ALLOWED_NOTES = "DICT_PARAMETER_NOT_ALLOWED_NOTES"
     DUPLICATE_PARAMETER_NAMES_MSG = "DUPLICATE_PARAMETER_NAMES_MSG"
     DUPLICATE_PARAMETER_NAMES_NOTES = "DUPLICATE_PARAMETER_NAMES_NOTES"
     INVALID_SYSTEM_MESSAGE_MSG = "INVALID_SYSTEM_MESSAGE_MSG"
@@ -29,13 +31,13 @@ with open(_yaml_path, "r", encoding="utf-8") as f:
     _messages = yaml.safe_load(f)
 
 
-def get_message(key):
+def get_message(key: str) -> str:
     if isinstance(key, Enum):
         key = key.value
     return _messages[key]
 
 
-def get_notes(key):
+def get_notes(key: str) -> str:
     if isinstance(key, Enum):
         key = key.value
     return _messages[key]

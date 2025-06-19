@@ -7,10 +7,17 @@ CONNECTED_NODES_EMPTY_MSG: "connected_nodes must not return an empty set."
 CONNECTED_NODES_EMPTY_NOTES:
   - "Please provide a set nodes that can be used as tools by the ToolCallLLM node."
 
-CONNECTED_NODES_TYPE_MSG: "connected_nodes must return a set of Nodes or functions."
+CONNECTED_NODES_TYPE_MSG: "connected_nodes must return a set of Nodes."
 CONNECTED_NODES_TYPE_NOTES:
   - "Ensure all the nodes provided as connected_nodes are of type Node."
   - "You can use the from_function function to convert a function to a Node."
+
+DICT_PARAMETER_NOT_ALLOWED_MSG: "Parameter '{param_name}' contains a dictionary type at {path}, which is not allowed."
+DICT_PARAMETER_NOT_ALLOWED_NOTES:
+  - "Parameter '{param_name}' uses a dict or Dict type directly or nested at {path}."
+  - "Dictionaries are not supported as function parameters for node creation."
+  - "Consider using a Pydantic model or a more specific type instead of dict."
+  - "Check your type annotations for nested structures like List[Dict], Tuple[Dict], etc."
 
 DUPLICATE_PARAMETER_NAMES_MSG: "Duplicate parameter names are not allowed."
 DUPLICATE_PARAMETER_NAMES_NOTES:

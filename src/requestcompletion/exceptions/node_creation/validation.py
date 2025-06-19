@@ -1,8 +1,60 @@
 from .exception_messages import ExceptionMessageKey, get_message, get_notes
-from typing import Any, Iterable
+from typing import Any, Iterable, Callable, Dict, get_origin
+import inspect
 from ..errors import NodeCreationError
 from pydantic import BaseModel
 from ...llm import SystemMessage
+
+
+def validate_function(func: Callable) -> None:
+    """
+    Validate that the function is safe to use in a node.
+    If there are any dict or Dict parameters, raise an error.
+    Also checks recursively for any nested dictionary structures, including inside BaseModels.
+
+    Args:
+        func: The function to validate.
+
+    Raises:
+        NodeCreationError: If the function has dict or Dict parameters, even nested.
+    """
+
+    def check_for_nested_dict(annotation, param_name, path=""):
+        origin = get_origin(annotation)
+        # Direct dict or typing.Dict
+        if annotation is dict or origin in (dict, Dict):
+            notes = get_notes(ExceptionMessageKey.DICT_PARAMETER_NOT_ALLOWED_NOTES)
+            notes[0] = notes[0].format(param_name=param_name, path=path)
+            raise NodeCreationError(
+                message=get_message(
+                    ExceptionMessageKey.DICT_PARAMETER_NOT_ALLOWED_MSG
+                ).format(param_name=param_name, path=path or param_name),
+                notes=notes,
+            )
+        # If annotation is a subclass of BaseModel, check its fields recursively
+        try:
+            if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+                for field_name, field in annotation.__annotations__.items():
+                    check_for_nested_dict(
+                        field, param_name, f"{path or param_name}.{field_name}"
+                    )
+        except (
+            AttributeError
+        ):  # Only swallow attribute errors (e.g., __annotations__ missing)
+            pass
+        except Exception as e:  # if a nested error is caught, pass it along (includes passing up NodeCreationError)
+            raise e
+
+        args = getattr(annotation, "__args__", None)
+        if args:
+            for idx, arg in enumerate(args):
+                nested_path = f"{path or param_name}[{idx}]"
+                check_for_nested_dict(arg, param_name, nested_path)
+
+    sig = inspect.signature(func)
+    for param in sig.parameters.values():
+        annotation = param.annotation
+        check_for_nested_dict(annotation, param.name)
 
 
 def check_classmethod(method: Any, method_name: str) -> None:

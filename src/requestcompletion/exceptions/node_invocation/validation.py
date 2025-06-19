@@ -22,7 +22,11 @@ def check_message_history(
             notes=["Please provide an initial message"],
             fatal=True,
         )
-    elif len(message_history) > 0 and message_history[0].role != "system":
+    elif (
+        len(message_history) > 0
+        and message_history[0].role != "system"
+        and not system_message
+    ):
         warnings.warn(
             "No SystemMessage was provided. This is not recommended. Please provide the first message as a SystemMessage."
         )

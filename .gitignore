@@ -18,3 +18,5 @@ test-results.xml
 myenv 
 venv
 .venv
+
+.ruff_cache

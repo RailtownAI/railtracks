@@ -21,6 +21,7 @@ __all__ = [
     "set_config",
     "set_streamer",
     "context",
+    "to_node",
 ]
 
 from . import mcp
@@ -33,6 +34,7 @@ from .run import Runner, set_config, set_streamer
 from .config import ExecutorConfig
 from . import llm
 from . import context
+from .nodes.library.function import to_node
 
 load_dotenv()
 # Only change the MAJOR.MINOR if you need to. Do not change the PATCH. (vMAJOR.MINOR.PATCH).

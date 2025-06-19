@@ -8,399 +8,201 @@ This module tests the ability to create nodes from functions with various parame
 """
 
 import pytest
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Union
 from pydantic import BaseModel, Field
 import time
-
-from requestcompletion.state.request import Failure
+import asyncio
+from requestcompletion.llm.tools.parameter_handlers import UnsupportedParameterError
+from requestcompletion.exceptions.errors import NodeCreationError
 import requestcompletion as rc
+from requestcompletion.exceptions import NodeCreationError
+from requestcompletion.nodes.library import from_function
 
-# ===== Test Models =====
+class PydanticModel(BaseModel):
+    """A simple Pydantic model for testing."""
+    name: str
+    value: int
 
-# Define model providers to test with
-MODEL_PROVIDERS = ["openai"]
+simple_test_inputs = [
+    ("5", type("5")),
+    (5, type(5)),
+    (5.0, type(5.0)),
+    (True, type(True)),
+    ((1,2,3), type((1,2,3))),
+    (None, type(None)),
+    ([5,4,3,2,1], type([5,4,3,2,1])),
+    ({"key": "value"}, type({"key": "value"})),
+]
 
+arg_test_inputs =   [
+    (("5", 5, 5.0), [type("5"), type(5), type(5.0)]),
+    ((["5", "5"], {"key": "value"}, (1, 2, 3)), [type(["5", "5"]), type({"key": "value"}), type((1, 2, 3))]),
+]
+
+kwarg_test_inputs = [
+    ({"zeroth" : None, "first": "5", "second": 5, "third": 5.0}, [type(None),type("5"), type(5), type(5.0)]),
+    ({"zeroth" : [None], "first": ["5", "5"], "second": {"key": "value"}, "third": (1, 2, 3)}, [type([None]), type(["5", "5"]), type({"key": "value"}), type((1, 2, 3))]),
+]
+
+def func_type(arg):
+    return type(arg)
+
+def func_multiple_types(*args):
+    return [type(arg) for arg in args]
+
+async def func_multiple_ktypes_coroutine(zeroth = None, first : int = 5, second : PydanticModel = PydanticModel, third = [1,2], **kwargs):
+    await asyncio.sleep(1)
+    return [type(zeroth), type(first), type(second), type(third)] + [type(kwargs[kwarg]) for kwarg in kwargs]
+
+def func_kwarg_auto(zeroth = None, first : int = 5, second : PydanticModel = PydanticModel, third : List[int] = [1,2], fourth: List = [1,2]):
+    return [zeroth, first, second, third, fourth]
+
+def func_kwarg_error_dict(dict: Dict[str, int] = {"first" : 5}):
+    return
+
+def func_kwarg_error_pydantic(pydantic_model: PydanticModel = PydanticModel(name="name", value=5)):
+    return
+
+def func_buggy():
+    async def corout():
+        asyncio.sleep(1)
+        return "This is a coroutine function."
+    return corout()
+
+
+# ===== Unit Tests =====
+def test_to_node():
+    """Test that to_node decorator works correctly."""
+    @rc.to_node
+    def secret_phrase() -> str:
+        """
+        Function that returns a secret phrase.
+
+        Returns:
+            str: The secret phrase.
+        """
+        return "Constantinople"
+
+    assert issubclass(secret_phrase, rc.Node)
+    assert secret_phrase.pretty_name() == "secret_phrase Node"
 
 # ===== Test Classes =====
 class TestPrimitiveInputTypes:
-    @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_empty_function(self, model_provider, create_top_level_node):
+    def test_empty_function(self):
         """Test that a function with no parameters works correctly."""
-
-        def secret_phrase() -> str:
+        def empty_function() -> str:
             """
-            Function that returns a secret phrase.
-
             Returns:
-                str: The secret phrase.
+                str: A simple string indicating the function was called.
             """
-            return "Constantinople"
+            return "This is an empty function."
+        test_node = from_function(empty_function)
+        with rc.Runner() as run:
+            result = run.run_sync(test_node).answer
+        assert "This is an empty function." == result
 
-        agent = create_top_level_node(
-            secret_phrase,
-            model_provider=model_provider,
-        )
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
-            response = run.run_sync(
-                agent,
-                rc.llm.MessageHistory(
-                    [
-                        rc.llm.UserMessage(
-                            "What is the secret phrase? Only return the secret phrase, no other text."
-                        )
-                    ]
-                ),
-            )
-        assert response.answer == "Constantinople"
 
-    @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_single_int_input(self, model_provider, create_top_level_node):
+    @pytest.mark.parametrize("input, expected_output", simple_test_inputs)
+    def test_single_int_input(self, input, expected_output):
         """Test that a function with a single int parameter works correctly."""
-
-        def magic_number(input_num: int) -> str:
-            """
-            Args:
-                input_num (int): The input number to test.
-
-            Returns:
-                str: The result of the function.
-            """
-            return f"str(input_num)" * input_num
-
-        agent = create_top_level_node(
-            magic_number,
-            model_provider=model_provider,
-        )
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
-            response = run.run_sync(
-                agent,
-                rc.llm.MessageHistory(
-                    [
-                        rc.llm.UserMessage(
-                            "Find what the magic function output is for 6? Only return the magic number, no other text."
-                        )
-                    ]
-                ),
-            )
-
-        assert response.answer == "666666"
-
-    @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_single_str_input(self, model_provider, create_top_level_node):
-        """Test that a function with a single str parameter works correctly."""
-
-        def magic_phrase(word: str) -> str:
-            """
-            Args:
-                word (str): The word to create the magic phrase from
-
-            Returns:
-                str: The result of the function.
-            """
-            return "$".join(list(word))
-
-        agent = create_top_level_node(
-            magic_phrase,
-            model_provider=model_provider,
-        )
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
-            response = run.run_sync(
-                agent,
-                rc.llm.MessageHistory(
-                    [
-                        rc.llm.UserMessage(
-                            "What is the magic phrase for the word 'hello'? Only return the magic phrase, no other text."
-                        )
-                    ]
-                ),
-            )
-
-        assert response.answer == "h$e$l$l$o"
-
-    @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_single_float_input(self, model_provider, create_top_level_node):
-        """Test that a function with a single float parameter works correctly."""
-
-        def magic_test(num: float) -> str:
-            """
-            Args:
-                num (float): The number to test.
-
-            Returns:
-                str: The result of the function.
-            """
-            return str(isinstance(num, float))
-
-        agent = create_top_level_node(
-            magic_test,
-            model_provider=model_provider,
-        )
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
-            response = run.run_sync(
-                agent,
-                rc.llm.MessageHistory(
-                    [
-                        rc.llm.UserMessage(
-                            "Does 5 pass the magic test? Only return the result, no other text."
-                        )
-                    ]
-                ),
-            )
-
-        assert response.answer == "True"
-
-    @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_single_bool_input(self, model_provider, create_top_level_node):
-        """Test that a function with a single bool parameter works correctly."""
-
-        def magic_test(is_magic: bool) -> str:
-            """
-            Args:
-                is_magic (bool): The boolean to test.
-
-            Returns:
-                str: The result of the function.
-            """
-            return "Wish Granted" if is_magic else "Wish Denied"
-
-        agent = create_top_level_node(
-            magic_test,
-            model_provider=model_provider,
-        )
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
-            response = run.run_sync(
-                agent,
-                rc.llm.MessageHistory(
-                    [
-                        rc.llm.UserMessage(
-                            "Is the magic test true? Only return the result, no other text."
-                        )
-                    ]
-                ),
-            )
-        assert response.answer == "Wish Granted"
-
-    @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_function_error_handling(self, model_provider, create_top_level_node):
-        """Test that errors in function execution are handled gracefully."""
-
-        def error_function(x: int) -> str:
-            """
-            Args:
-                x (int): The input number to the function
-
-            Returns:
-                str: The result of the function.
-            """
-            return str(1 / x)
-
-        agent = create_top_level_node(
-            error_function,
-            model_provider=model_provider,
-        )
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
-            output = run.run_sync(
-                agent,
-                rc.llm.MessageHistory(
-                    [
-                        rc.llm.UserMessage(
-                            "What does the tool return for an input of 0? Only return the result, no other text."
-                        )
-                    ]
-                ),
-            )
-
-            i_r = output.request_heap.insertion_request
-            children = output.request_heap.children(i_r.sink_id)[0]
-
-            assert isinstance(children.output, Failure)
-
-    @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_builtin_function_raises_error(self, model_provider, create_top_level_node):
-        """Test that a builtin function raises error."""
-
-        with pytest.raises(ValueError):
-            agent = create_top_level_node(time.sleep, model_provider=model_provider)
-            with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
-                response = run.run_sync(
-                    agent,
-                    rc.llm.MessageHistory(
-                        [rc.llm.UserMessage("Try to run this function")]
-                    ),
-                )
-
+        test_node = from_function(func_type)
+        with rc.Runner() as run:
+            assert run.run_sync(test_node, input).answer == expected_output
 
 class TestSequenceInputTypes:
-    @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_single_list_input(self, model_provider, create_top_level_node):
-        """Test that a function with a single list parameter works correctly."""
+    @pytest.mark.parametrize("input, expected_output", arg_test_inputs)
+    def test_multi_arg_input(self, input, expected_output):
+        """Test that a function with multiple arg parameters works correctly."""
+        test_node = from_function(func_multiple_types)
+        with rc.Runner() as run:
+            assert run.run_sync(test_node, *input).answer == expected_output
 
-        def magic_list(items: List[str]) -> str:
-            """
-            Args:
-                items (List[str]): The list of items to test.
+    @pytest.mark.parametrize("input, expected_output", kwarg_test_inputs)
+    def test_multi_kwarg_input(self, input, expected_output):
+        """Test that a function with multiple kwarg parameters works correctly."""
+        test_node = from_function(func_multiple_ktypes_coroutine)
+        with rc.Runner() as run:
+            assert run.run_sync(test_node, **input).answer == expected_output
 
-            Returns:
-                str: The result of the function.
-            """
-            items_copy = items.copy()
-            items_copy.reverse()
-            return " ".join(items_copy)
-
-        agent = create_top_level_node(
-            magic_list,
-            model_provider=model_provider,
-        )
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
-            response = run.run_sync(
-                agent,
-                rc.llm.MessageHistory(
-                    [
-                        rc.llm.UserMessage(
-                            "What is the magic list for ['1', '2', '3']? Only return the result, no other text."
-                        )
-                    ]
-                ),
-            )
-        assert response.answer == "3 2 1"
-
-    @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_single_tuple_input(self, model_provider, create_top_level_node):
-        """Test that a function with a single tuple parameter works correctly."""
-
-        def magic_tuple(items: Tuple[str, str, str]) -> str:
-            """
-            Args:
-                items (Tuple[str, str, str]): The tuple of items to test.
-
-            Returns:
-                str: The result of the function.
-            """
-            return " ".join(reversed(items))
-
-        agent = create_top_level_node(
-            magic_tuple,
-            model_provider=model_provider,
-        )
-
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
-            response = run.run_sync(
-                agent,
-                rc.llm.MessageHistory(
-                    [
-                        rc.llm.UserMessage(
-                            "What is the magic tuple for ('1', '2', '3')? Only return the result, no other text."
-                        )
-                    ]
-                ),
-            )
-
-        assert response.answer == "3 2 1"
-
-    @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_lists(self, model_provider, create_top_level_node):
-        """Test that a function with a list parameter works correctly."""
-
-        def magic_result(num_items: List[float], prices: List[float]) -> float:
-            """
-            Args:
-                num_items (List[str]): The list of items to test.
-                prices (List[float]): The list of prices to test.
-
-            Returns:
-                str: The result of the function.
-            """
-            total = sum(price * item for price, item in zip(prices, num_items))
-            return total
-
-        agent = create_top_level_node(
-            magic_result,
-            model_provider=model_provider,
-        )
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
-            response = run.run_sync(
-                agent,
-                rc.llm.MessageHistory(
-                    [
-                        rc.llm.UserMessage(
-                            "What is the magic result for [1, 2] and [5.5, 10]? Only return the result, no other text."
-                        )
-                    ]
-                ),
-            )
-
-        assert response.answer == "25.5"
+class TestfunctionMethods:
+    def test_prepare_tools(self):
+        """Test that tools are prepared properly when called."""
+        test_nodea = from_function(func_kwarg_auto)
+        test_nodeb = from_function(func_kwarg_auto)
+        test_parent_node = from_function(func_multiple_types)
+        child_toola = test_nodea.prepare_tool({"zeroth" : None, "first" : 5,"second": {"name": "name", "value" : 5}, "third" : [1,2,3]})
+        child_toolb = test_nodea.prepare_tool({ "third" : (1,2,3,4), "fourth" : "[1,2]"})
+        child_toolc = test_nodea.prepare_tool({ "third" : "1,2,3,4"})
+        parent_tool = test_parent_node.prepare_tool({"nodeA": test_nodea, "nodeB": test_nodeb, "first" : 5,"second": {"name": "name", "value" : 5}, "third": 5.0, "fourth": None})
+        assert child_toola.kwargs == {"zeroth": None, "first": 5, "second": PydanticModel(name="name", value=5), "third": [1, 2, 3]}
+        assert child_toolb.kwargs == {"third": [1,2,3,4], "fourth": ["[1,2]"]}
+        assert child_toolc.kwargs == {"third": ['Tool call parameter type conversion failed.']}
+        assert parent_tool.kwargs == {}
 
 
-class TestDictionaryInputTypes:
-    """Test that dictionary input types raise appropriate errors."""
+class TestRaiseErrors:
+    DICT_ERROR_FROM_FUNCTION_MSG = r"Parameter '.*' contains a dictionary type at .*, which is not allowed\."
 
-    @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_dict_input_raises_error(self, model_provider, create_top_level_node):
-        """Test that a function with a dictionary parameter raises an error."""
+    def test_builtin_function_raises_error(self):
+        """Test that a builtin function raises error"""
+        with pytest.raises(RuntimeError):
+            test_node = from_function(time.sleep)
+            test_node.prepare_tool({"seconds": 5})
 
-        def dict_func(data: Dict[str, str]):
-            """
-            Args:
-                data (Dict[str, str]): A dictionary input that should raise an error
+    def test_nested_async_func_raises_error(self):
+        """Test edge case where a function that returns a coroutine raises an error."""
+        test_node = from_function(func_buggy)
+        with pytest.raises(NodeCreationError):
+            with rc.Runner() as run:
+                run.run_sync(test_node)
 
-            Returns:
-                str: This should never be reached
-            """
-            return "test"
+    def test_dict_parameter(self):
+        """Test that a function with a dict parameter raises an error."""
+        def secret_function(fruits: dict[str, str]) -> str:
+            return fruits.get("secret", "")
+        
+        with pytest.raises(NodeCreationError, match=self.DICT_ERROR_FROM_FUNCTION_MSG):
+            _ = rc.library.from_function(secret_function)
+            
 
-        with pytest.raises(Exception):
-            agent = create_top_level_node(dict_func, model_provider=model_provider)
-            with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
-                response = run.run_sync(
-                    agent,
-                    rc.llm.MessageHistory(
-                        [rc.llm.UserMessage("What is the result for {'key': 'value'}?")]
-                    ),
-                )
+    def test_nested_dict_parameter(self):
+        """Test that a function with a nested dict parameter raises an error."""
+        with pytest.raises(NodeCreationError, match=self.DICT_ERROR_FROM_FUNCTION_MSG):
+            @rc.to_node
+            def secret_function(fruits: list[Union[str, list[dict[str, str]]]]) -> str:
+                return "test"
 
 
-class TestRealisticScenarios:
-    @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_realistic_scenario(self, model_provider, create_top_level_node):
-        """Test that a function with a realistic scenario works correctly."""
+    def test_bmodel_with_dict_param(self):
+        """Test that a BaseModel with a dict field raises an error when used as a function parameter."""
+        class MyModel(BaseModel):
+            name: str
+            age: int
+            data: dict[str, str]
 
-        class StaffDirectory(BaseModel):
-            name: str = Field(description="The name of the staff member")
-            role: str = Field(description="The role of the staff member")
-            phone: str = Field(description="The phone number of the staff member")
+        def secret_function(model: MyModel) -> str:
+            pass
+        
+        with pytest.raises(NodeCreationError, match=self.DICT_ERROR_FROM_FUNCTION_MSG):
+            _ = rc.library.from_function(secret_function)
+        
 
-        # Define DB at class level so it's accessible for assertions
-        DB = {
-            "John": {"role": "Manager", "phone": "1234567890"},
-        }
+    def test_bmodel_with_nested_dict_param(self):
+        """Test that a BaseModel with a nested dict field raises an error when used as a function parameter."""
+        class InnerModel(BaseModel):
+            info: dict
 
-        def update_staff_directory(staff: List[StaffDirectory]) -> None:
-            """
-            For a given list of staff, updates the staff directory with new members or updates existing members.
+        class OuterModel(BaseModel):
+            inner: InnerModel
 
-            Args:
-                staff (List[StaffDirectory]): The list of staff to to gather information about.
+        with pytest.raises(NodeCreationError, match=self.DICT_ERROR_FROM_FUNCTION_MSG):
+            @rc.to_node
+            def secret_function(model: OuterModel) -> str:
+                pass
 
-            """
-            for person in staff:
-                DB[person.name] = {"role": person.role, "phone": person.phone}
 
-        usr_prompt = (
-            "Update the staff directory with the following information: John is now a Senior Manager and his phone number is changed to 5555"
-            " and Jane is new a Developer and her phone number is 0987654321."
-        )
-
-        agent = create_top_level_node(
-            update_staff_directory, model_provider=model_provider
-        )
-
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
-            response = run.run_sync(
-                agent, rc.llm.MessageHistory([rc.llm.UserMessage(usr_prompt)])
-            )
-
-        assert DB["John"]["role"] == "Senior Manager"
-        assert DB["John"]["phone"] == "5555"
-        assert DB["Jane"]["role"] == "Developer"
-        assert DB["Jane"]["phone"] == "0987654321"
+    def test_pydantic_for_kwarg_raises_error(self):
+        """Test that passing a dict for a kwarg raises an error since we don't support dicts as kwargs yet"""
+        with pytest.raises(UnsupportedParameterError):
+            test_node = from_function(func_kwarg_error_pydantic)
+            test_node.prepare_tool({"pydantic_model" : ("name", 5)})
