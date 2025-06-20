@@ -4,12 +4,11 @@ import asyncio
 
 from collections import deque
 
-
 from typing import TypeVar, List, Callable, ParamSpec, Tuple, Dict, TYPE_CHECKING
-
 
 # all the things we need to import from RC directly.
 from .request import Cancelled, Failure
+from .utils import create_sub_state_info
 from ..context.central import update_parent_id
 from ..execution.coordinator import Coordinator
 from ..pubsub.publisher import RCPublisher
@@ -26,8 +25,8 @@ from ..pubsub.messages import (
 
 from ..utils.logging.action import (
     RequestCreationAction,
-    RequestCompletionAction,
-    NodeExceptionAction,
+    RequestSuccessAction,
+    RequestFailureAction,
 )
 
 if TYPE_CHECKING:
@@ -41,8 +40,6 @@ from ..utils.logging.create import get_rc_logger
 
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
-
-LOGGER_NAME = "RUNNER"
 
 
 class RCState:
@@ -82,7 +79,7 @@ class RCState:
         ## These are the elements which need to be created as new objects every time. They should not serialized.
 
         # each new instance of a state object should have its own logger.
-        self.logger = get_rc_logger(LOGGER_NAME)
+        self.logger = get_rc_logger()
 
         publisher.subscribe(self.handle, "State Object Handler")
         self.publisher = publisher
@@ -168,22 +165,30 @@ class RCState:
 
         # 2. Add it to the node heap.
         sc = self._stamper.stamp_creator()
-        self._node_heap.update(node, sc(f"Creating {node.pretty_name()}"))
-
-        # 3. Attach the requests that will tied to this node.
-        request_ids = self._create_new_request_set(
-            parent_node_id, [node.uuid], [args], [kwargs], sc, request_ids=[request_id]
-        )
-
         parent_node_type = self._node_heap.get_node_type(parent_node_id)
         parent_node_name = (
             parent_node_type.pretty_name() if parent_node_type else "START"
         )
+
         request_creation_obj = RequestCreationAction(
             parent_node_name=parent_node_name,
             child_node_name=node.pretty_name(),
             input_args=args,
             input_kwargs=kwargs,
+        )
+
+        stamp = sc(request_creation_obj.to_logging_msg())
+
+        self._node_heap.update(node, stamp)
+
+        # 3. Attach the requests that will tied to this node.
+        request_ids = self._create_new_request_set(
+            parent_node=parent_node_id,
+            children=[node.uuid],
+            input_args=[args],
+            input_kwargs=[kwargs],
+            stamp=stamp,
+            request_ids=[request_id],
         )
 
         self.logger.info(request_creation_obj.to_logging_msg())
@@ -222,13 +227,20 @@ class RCState:
                 kwargs=kwargs,
             )
         except Exception as e:
-            # if there was an error creating the node we want to handle it here.
+            # TODO improve this so we know the name of the node trying to be created in the case of a tool call llm.
+            rfa = RequestFailureAction(
+                node_name=node.pretty_name()
+                if hasattr(node, "pretty_name")
+                else node.__name__,
+                exception=e,
+            )
             await self.publisher.publish(
                 RequestCreationFailure(
                     request_id=request_id,
                     error=e,
                 )
             )
+            self.logger.exception(rfa.to_logging_msg())
             raise e
         # you have to run this in a task so it isn't blocking other completions
         outputs = asyncio.create_task(self._run_request(request_id))
@@ -242,7 +254,7 @@ class RCState:
         children: List[str],
         input_args: List[Tuple],
         input_kwargs: List[Dict[str, Tuple]],
-        stamp_gen: Callable[[str], Stamp],
+        stamp: Stamp,
         request_ids: List[str | None] | None = None,
     ) -> List[str]:
         """
@@ -266,11 +278,6 @@ class RCState:
         if request_ids is None:
             request_ids = [None] * len(children)
 
-        parent_node_name = (
-            self._node_heap.id_type_mapping[parent_node].pretty_name()
-            if parent_node is not None
-            else "START"
-        )
         # to simplify we are going to create a new request for each child node with the parent as its source.
         request_ids = list(
             map(
@@ -280,12 +287,7 @@ class RCState:
                 children,
                 input_args,
                 input_kwargs,
-                [
-                    stamp_gen(
-                        f"Adding request between {parent_node_name} and {self._node_heap.id_type_mapping[n].pretty_name()}"
-                    )
-                    for n in children
-                ],
+                [stamp for _ in children],
             )
         )
 
@@ -342,13 +344,15 @@ class RCState:
         # before doing any handling we must make sure our exception history object is up to date.
 
         self.exception_history.append(exception)
-        node_exception_action = NodeExceptionAction(
+        node_exception_action = RequestFailureAction(
             node_name=failed_node_name,
             exception=exception,
         )
 
         if self.executor_config.end_on_error:
-            self.logger.critical(node_exception_action.to_logging_msg())
+            self.logger.critical(
+                node_exception_action.to_logging_msg(), exc_info=exception
+            )
             await self.publisher.publish(FatalFailure(error=exception))
             return Failure(exception)
 
@@ -356,12 +360,14 @@ class RCState:
         if (
             isinstance(exception, NodeInvocationError) and exception.fatal
         ) or isinstance(exception, FatalError):
-            self.logger.critical(node_exception_action.to_logging_msg())
+            self.logger.critical(
+                node_exception_action.to_logging_msg(), exc_info=exception
+            )
             await self.publisher.publish(FatalFailure(error=exception))
             return Failure(exception)
 
         # for any other error we want it to bubble up so the user can handle.
-        self.logger.exception(node_exception_action.to_logging_msg())
+        self.logger.error(node_exception_action.to_logging_msg(), exc_info=exception)
         return Failure(exception)
 
     @property
@@ -370,6 +376,17 @@ class RCState:
         return ExecutionInfo(
             node_heap=self._node_heap,
             request_heap=self._request_heap,
+            stamper=self._stamper,
+            exception_history=list(self.exception_history),
+        )
+
+    def get_info(self, ids: List[str] | str) -> ExecutionInfo:
+        filtered_nodes, filtered_requests = create_sub_state_info(
+            self._node_heap.heap(), self._request_heap.heap(), ids
+        )
+        return ExecutionInfo(
+            node_heap=filtered_nodes,
+            request_heap=filtered_requests,
             stamper=self._stamper,
             exception_history=list(self.exception_history),
         )
@@ -383,7 +400,7 @@ class RCState:
             returnable_result = result.error
         elif isinstance(result, RequestSuccess):
             output = result.result
-            request_completion_obj = RequestCompletionAction(
+            request_completion_obj = RequestSuccessAction(
                 child_node_name=result.node.pretty_name(),
                 output=result.result,
             )

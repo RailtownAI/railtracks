@@ -147,6 +147,7 @@ async def test_functions_passed_tool_calls(only_function_taking_travel_planner_n
         assert isinstance(response.answer, travel_planner_output_model)
         assert isinstance(response.answer.travel_plan, str)
         assert isinstance(response.answer.Total_cost, float)
+
         assert isinstance(response.answer.Currency, str)
 
 @pytest.mark.asyncio

@@ -5,6 +5,7 @@ import time
 import asyncio
 import concurrent.futures
 
+import requestcompletion.context.central
 import requestcompletion.interaction.stream
 
 RNGNode = rc.library.from_function(random.random)
@@ -43,13 +44,17 @@ async def test_runner_call_with_context():
 
 async def logging_config_test_async():
     async def run_with_logging_config(log_setting):
-        rc.set_config(rc.ExecutorConfig(end_on_error=True))
+        requestcompletion.context.central.set_config(
+            rc.ExecutorConfig(end_on_error=True)
+        )
         with pytest.raises(Exception):
             resp = await rc.call(ExceptionNode)
             print(resp)
 
     async def run_with_logging_config_w_context(log_setting):
-        rc.set_config(rc.ExecutorConfig(logging_setting=log_setting))
+        requestcompletion.context.central.set_config(
+            rc.ExecutorConfig(logging_setting=log_setting)
+        )
         with rc.Runner() as run:
             info = await run.run(RNGNode)
             runner = run
@@ -65,7 +70,9 @@ async def logging_config_test_async():
         ), "Expected the answer to be the same as the response"
 
     async def run_with_logging_config_w_context_w_call(log_setting):
-        rc.set_config(rc.ExecutorConfig(logging_setting=log_setting))
+        requestcompletion.context.central.set_config(
+            rc.ExecutorConfig(logging_setting=log_setting)
+        )
         with rc.Runner() as run:
             resp = await rc.call(RNGNode)
             info = run.info
@@ -96,7 +103,7 @@ async def logging_config_test_async():
 
 
 async def test_different_config_global_set_async():
-    rc.set_config(rc.ExecutorConfig(end_on_error=False))
+    requestcompletion.context.central.set_config(rc.ExecutorConfig(end_on_error=False))
     await logging_config_test_async()
 
 
@@ -106,7 +113,9 @@ async def test_different_config_local_set_async():
 
 def logging_config_test_threads():
     def run_with_logging_config_w_context(log_setting):
-        rc.set_config(rc.ExecutorConfig(logging_setting=log_setting))
+        requestcompletion.context.central.set_config(
+            rc.ExecutorConfig(logging_setting=log_setting)
+        )
         with rc.Runner() as run:
             info = run.run_sync(RNGNode)
             runner = run
@@ -131,9 +140,11 @@ def test_threads_config():
 
 
 def test_sequence_of_changes():
-    rc.set_config(rc.ExecutorConfig(end_on_error=True))
-    rc.set_config(rc.ExecutorConfig(end_on_error=False))
-    rc.set_config(rc.ExecutorConfig(end_on_error=True, logging_setting="NONE"))
+    requestcompletion.context.central.set_config(rc.ExecutorConfig(end_on_error=True))
+    requestcompletion.context.central.set_config(rc.ExecutorConfig(end_on_error=False))
+    requestcompletion.context.central.set_config(
+        rc.ExecutorConfig(end_on_error=True, logging_setting="NONE")
+    )
     with rc.Runner() as run:
         info = run.run_sync(RNGNode)
         assert run.rc_state.executor_config.end_on_error
@@ -142,8 +153,8 @@ def test_sequence_of_changes():
 
 
 def test_sequence_of_changes_overwrite():
-    rc.set_config(rc.ExecutorConfig(end_on_error=True))
-    rc.set_config(rc.ExecutorConfig(end_on_error=False))
+    requestcompletion.context.central.set_config(rc.ExecutorConfig(end_on_error=True))
+    requestcompletion.context.central.set_config(rc.ExecutorConfig(end_on_error=False))
     with rc.Runner(
         executor_config=rc.ExecutorConfig(end_on_error=True, logging_setting="NONE")
     ) as run:
@@ -175,7 +186,7 @@ StreamingNode = rc.library.from_function(streaming_func)
 def test_streaming_inserted_globally():
     handler = StreamHandler()
 
-    rc.set_streamer(handler.handle)
+    requestcompletion.context.central.set_streamer(handler.handle)
     with rc.Runner() as run:
         result = run.run_sync(StreamingNode)
         assert result.answer == None
@@ -204,7 +215,7 @@ def fake_handler(item: str) -> None:
 def test_streaming_overwrite():
     handler = StreamHandler()
 
-    rc.set_streamer(fake_handler)
+    requestcompletion.context.central.set_streamer(fake_handler)
     with rc.Runner(rc.ExecutorConfig(subscriber=handler.handle)) as run:
         result = run.run_sync(StreamingNode)
         assert result.answer == None

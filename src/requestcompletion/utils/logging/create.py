@@ -3,7 +3,7 @@ import logging
 from .config import rc_logger_name
 
 
-def get_rc_logger(name: str | None):
+def get_rc_logger(name: str | None = None):
     """
     A method used to get a logger of the provided name.
 

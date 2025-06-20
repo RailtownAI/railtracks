@@ -10,7 +10,10 @@ from typing import TYPE_CHECKING
 from ..pubsub.messages import RequestSuccess, RequestFailure
 
 from ..context.internal import InternalContext
-from ..context.central import get_globals, register_globals
+from ..context.central import (
+    get_publisher,
+    update_parent_id,
+)
 from ..nodes.nodes import NodeState
 
 if TYPE_CHECKING:
@@ -45,7 +48,7 @@ class AsyncioExecutionStrategy(TaskExecutionStrategy):
         """
         invoke_func = task.invoke
 
-        publisher = get_globals().publisher
+        publisher = get_publisher()
 
         try:
             result = await invoke_func()
@@ -86,16 +89,10 @@ class ConcurrentFuturesExecutor(TaskExecutionStrategy):
         else:
             invoke_func = task.invoke
 
-        parent_global_variables = get_globals()
-
-        publisher = parent_global_variables.publisher
+        publisher = get_publisher()
 
         def wrapped_invoke(global_vars: InternalContext):
-            register_globals(
-                global_vars.prepare_new(
-                    new_parent_id=task.node.uuid,
-                )
-            )
+            update_parent_id(task.node.uuid)
             try:
                 result = invoke_func()
                 response = RequestSuccess(
@@ -110,9 +107,9 @@ class ConcurrentFuturesExecutor(TaskExecutionStrategy):
             finally:
                 publisher.publish(response)
 
-        f = self.executor.submit(wrapped_invoke, parent_global_variables)
+        # f = self.executor.submit(wrapped_invoke, parent_global_variables)
 
-        return f
+        # return f
 
 
 class ThreadedExecutionStrategy(ConcurrentFuturesExecutor):

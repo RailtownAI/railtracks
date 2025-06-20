@@ -67,10 +67,28 @@ class Forest(Generic[T]):
     because all `T` are immutable, you can pass around the objects without worry of pass by reference bugs.
     """
 
-    def __init__(self):
-        self._heap: Dict[str, T] = {}
-        self._full_data: List[T] = []
+    def __init__(self, heap: Dict[str, T] | None = None):
+        if heap is not None:
+            self._heap = heap
+            self._full_data = self._create_full_data_from_heap(heap)
+        else:
+            self._heap: Dict[str, T] = {}
+            self._full_data: List[T] = []
         self._lock = threading.RLock()
+
+    @classmethod
+    def _create_full_data_from_heap(cls, heap: Dict[str, T]):
+        full_data = []
+        for item in heap.values():
+            curr_ref = item
+            while True:
+                full_data.append(curr_ref)
+
+                curr_ref = curr_ref.parent
+                if curr_ref is None:
+                    break
+
+        return full_data
 
     def heap(self):
         """

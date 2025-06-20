@@ -1,23 +1,30 @@
-from typing import ParamSpec, Callable, TypeVar, Union
+import asyncio
 from types import FunctionType
+from typing import Callable, Union, Coroutine, ParamSpec, TypeVar
 
-from ..run import Runner
-from ..context.central import get_globals
-from ..pubsub.messages import (
-    RequestCreation,
+from requestcompletion.nodes.nodes import Node
+from requestcompletion.context.central import (
+    is_context_present,
+    is_context_active,
+    activate_publisher,
+    get_config,
+    shutdown_publisher,
+    get_publisher,
+    get_parent_id,
+)
+from requestcompletion.exceptions import GlobalTimeOutError
+
+from requestcompletion.pubsub.messages import (
     RequestCompletionMessage,
     RequestFinishedBase,
+    FatalFailure,
+    RequestCreation,
 )
+from requestcompletion.pubsub.utils import output_mapping
+from requestcompletion.state.request import RequestTemplate
 
-from ..pubsub.utils import output_mapping
-
-
-from ..nodes.nodes import Node
-from ..state.request import RequestTemplate
-from ..nodes.library.function import from_function
-
-_TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
+_TOutput = TypeVar("_TOutput")
 
 
 async def call(
@@ -44,43 +51,130 @@ async def call(
         *args: The arguments to pass to the node
         **kwargs: The keyword arguments to pass to the node
     """
-    try:
-        context = get_globals()
-    except KeyError:
-        # If function is passed, we will convert it to a node
-        if isinstance(node, FunctionType):
-            node = from_function(node)
-        with Runner() as runner:
-            await runner.run(node, *args, **kwargs)
-            return runner.info.answer
+    if isinstance(node, FunctionType):
+        # If a function is passed, we will convert it to a node
+        from ..nodes.library.function import from_function
 
-    if not context.publisher.is_running():
-        raise NotImplementedError(
-            "We do not support running rc.call after the runner has been created. Use `Runner.run` instead."
+        node = from_function(node)
+
+    node: Callable[_P, Node[_TOutput]]
+
+    # if the context is none then we will need to create a wrapper for the state object to work with.
+    if not is_context_present():
+        from requestcompletion.run import Runner
+
+        with Runner():
+            result = await _start(node, args=args, kwargs=kwargs)
+            return result
+
+    # if the context is not active then we know this is the top level request
+    if not is_context_active():
+        result = await _start(node, args=args, kwargs=kwargs)
+        return result
+
+    # if the context is active then we can just run the node
+    result = await _run(node, args=args, kwargs=kwargs)
+    return result
+
+
+def _regular_message_filter(request_id: str):
+    """
+    Returns a filter function that checks if the message matches the request ID.
+    """
+
+    def filter_func(item: RequestCompletionMessage) -> bool:
+        if isinstance(item, RequestFinishedBase):
+            return item.request_id == request_id
+        return False
+
+    return filter_func
+
+
+def _top_level_message_filter(request_id: str):
+    """
+    Returns a filter function that checks if the message matches the request ID.
+    """
+
+    def message_filter(item: RequestCompletionMessage) -> bool:
+        # we want to filter and collect the message that matches this request_id
+        matches_request_id = (
+            isinstance(item, RequestFinishedBase) and item.request_id == request_id
         )
+        fatal_failure = isinstance(item, FatalFailure)
 
-    publisher = context.publisher
+        return matches_request_id or fatal_failure
+
+    return message_filter
+
+
+async def _start(
+    node: Callable[_P, Node[_TOutput]],
+    args,
+    kwargs,
+):
+    await activate_publisher()
+
+    # there is a really funny edge case that we need to handle here to prevent if the user itself throws an timeout
+    #  exception. It should be handled differently then the global timeout exception.
+    #  Yes I am aware that is a bit of a hack but this is the best way to handle this specific case.
+    timeout_exception_flag = {"value": False}
+
+    async def wrapped_fut(f: Coroutine):
+        try:
+            return await f
+        except asyncio.TimeoutError as error:
+            timeout_exception_flag["value"] = True
+            raise error
+
+    timeout = get_config().timeout
+    fut = _execute(
+        node, args=args, kwargs=kwargs, message_filter=_top_level_message_filter
+    )
+    # Here we wait the completion of the future with timeouts.
+    try:
+        result = await asyncio.wait_for(wrapped_fut(fut), timeout=timeout)
+    except asyncio.TimeoutError as e:
+        # if the internal flag is set then the coroutine itself raised a timeout error and it was not the wait
+        #  for function.
+        if timeout_exception_flag["value"]:
+            raise e
+
+        raise GlobalTimeOutError(timeout=timeout)
+    finally:
+        await shutdown_publisher()
+
+    return result
+
+
+async def _run(
+    node: Callable[_P, Node[_TOutput]],
+    args: _P.args,
+    kwargs: _P.kwargs,
+):
+    return await _execute(
+        node, args=args, kwargs=kwargs, message_filter=_regular_message_filter
+    )
+
+
+async def _execute(
+    node: Callable[_P, Node[_TOutput]],
+    args,
+    kwargs,
+    message_filter: Callable[[str], Callable[[RequestCompletionMessage], bool]],
+):
+    publisher = get_publisher()
 
     # generate a unique request ID for this request. We need to hold this reference here because we will use it to
     # filter for its completion
     request_id = RequestTemplate.generate_id()
 
-    def message_filter(message: RequestCompletionMessage) -> bool:
-        """
-        Filters out the message waiting for any messages which match the request_id of the current request.
-        """
-        # we want to filter and collect the message that matches this request_id
-        if isinstance(message, RequestFinishedBase):
-            return message.request_id == request_id
-        return False
-
     # note we set the listener before we publish the messages ensure that we do not miss any messages
     # I am actually a bit worried about this logic and I think there is a chance of a bug popping up here.
-    f = publisher.listener(message_filter, output_mapping)
+    f = publisher.listener(message_filter(request_id), output_mapping)
 
     await publisher.publish(
         RequestCreation(
-            current_node_id=context.parent_id,
+            current_node_id=get_parent_id(),
             new_request_id=request_id,
             running_mode="async",
             new_node_type=node,
@@ -90,3 +184,44 @@ async def call(
     )
 
     return await f
+
+
+def call_sync(
+    node: Callable[_P, Union[Node[_TOutput], _TOutput]],
+    *args: _P.args,
+    **kwargs: _P.kwargs,
+):
+    """
+    Call a node from within a node inside the framework synchronously. This will block until the node is completed
+    and return the result.
+
+    Usage:
+    ```python
+    result = call_sync(NodeA, "hello world", 42)
+    ```
+
+    Args:
+        node: The node type you would like to create
+        *args: The arguments to pass to the node
+        **kwargs: The keyword arguments to pass to the node
+    """
+    try:
+        loop = asyncio.get_running_loop()
+        # if we made it here then we already have a running loop. We will create a new thread and execute the call in there
+        raise RuntimeError(
+            "You cannot call `call_sync` from within an already running event loop. "
+            "Use `call` instead to run the node asynchronously."
+        )
+
+    except RuntimeError:
+        # If there is no running loop, we need to create one
+        pass
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        task = loop.create_task(call(node, *args, **kwargs))
+        result = loop.run_until_complete(task)
+    finally:
+        loop.close()
+
+    return result

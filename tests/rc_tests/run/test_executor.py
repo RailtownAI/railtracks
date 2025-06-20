@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import random
+from typing import List
 
 import pytest
 import requestcompletion as rc
@@ -33,12 +34,11 @@ def many_calls_tester(num_calls: int, parallel_calls: int):
     assert isinstance(ans, list)
     assert len(ans) == num_calls * parallel_calls
     assert all([0 < x < 1 for x in ans])
-    print("\n".join([f"{x.step}. {x.identifier}" for x in finished_result.all_stamps]))
     assert {x.step for x in finished_result.all_stamps} == {
         i for i in range(num_calls * parallel_calls * 2 + 2)
     }
 
-    assert len(finished_result.all_stamps) == 3 * num_calls * parallel_calls + 3
+    assert len(finished_result.all_stamps) == 2 * num_calls * parallel_calls + 2
 
 
 @pytest.mark.timeout(5)
@@ -121,7 +121,8 @@ def nested_many_calls_tester(num_calls: int, parallel_calls: int, depth: int):
     assert all([0 < x < 1 for x in ans])
 
     r_h = finished_result.request_heap
-    child_requests = r_h.children(r_h.insertion_request.sink_id)
+    assert len(r_h.insertion_request) ==  1
+    child_requests = r_h.children(r_h.insertion_request[0].sink_id)
 
     assert len(child_requests) == num_calls * parallel_calls
     for r in child_requests:
@@ -159,8 +160,120 @@ def test_multiple_runs():
     with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as run:
         result = run.run_sync(RNGNode)
         assert 0 < result.answer < 1
-        with pytest.raises(NodeInvocationError):
-            run.run_sync(RNGNode)
+
+        result = run.run_sync(RNGNode)
+
+
+        info = run.info
+        assert isinstance(info.answer, List)
+        assert 0 < info.answer[0] < 1
+        assert 0 < info.answer[1] < 1
+
+        insertion_requests = info.request_heap.insertion_request
+
+        assert isinstance(insertion_requests, List)
+        assert len(insertion_requests) == 2
+        for i_r in insertion_requests:
+            i_r_id = i_r.identifier
+
+            subset_info = info.get_info(i_r_id)
+            assert 0 < subset_info.answer < 1
+            assert len(subset_info.node_heap.heap()) == 1
+
+@pytest.mark.asyncio
+async def test_multiple_runs_async():
+    with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as run:
+        result = await run.run(RNGNode)
+        assert 0 < result.answer < 1
+
+        result = await run.run(RNGNode)
+        assert isinstance(result.answer, List)
+        assert 0 < result.answer[0] < 1
+        assert 0 < result.answer[1] < 1
+
+        info = run.info
+
+        insertion_requests = info.request_heap.insertion_request
+
+        assert isinstance(insertion_requests, List)
+        assert len(insertion_requests) == 2
+        for i_r in insertion_requests:
+            i_r_id = i_r.identifier
+
+            subset_info = info.get_info(i_r_id)
+            assert 0 < subset_info.answer < 1
+            assert len(subset_info.node_heap.heap()) == 1
+
+def level_3(message: str):
+    return message
+
+Level3 = rc.library.from_function(level_3)
+
+async def a_level_2(message: str):
+    return await rc.call(Level3, message)
+
+def level_2(message: str):
+    return rc.call_sync(Level3, message)
+
+ALevel2 = rc.library.from_function(a_level_2)
+Level2 = rc.library.from_function(level_2)
+
+@pytest.mark.parametrize("level_2_node", [Level2, ALevel2], ids=["sync", "async"])
+def test_multi_level_calls(level_2_node):
+    async def level_1_async(message: str):
+        return await rc.call(level_2_node, message)
+
+    def level_1(message: str):
+        return rc.call_sync(level_2_node, message)
+
+    ALevel1 = rc.library.from_function(level_1_async)
+    Level1 = rc.library.from_function(level_1)
+
+    with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as run:
+        result = run.run_sync(Level1, "Hello from Level 1")
+        assert result.answer == "Hello from Level 1"
+
+    with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")):
+        result = rc.call_sync(ALevel1, "Hello from Level 1 (async)")
+        assert result == "Hello from Level 1 (async)"
+
+    with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as run:
+        result = rc.call_sync(Level1, "Hello from Level 1")
+        assert result == "Hello from Level 1"
+
+    with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as run:
+        result = run.run_sync(ALevel1, "Hello from Level 1 (async)")
+        assert result.answer == "Hello from Level 1 (async)"
+
+
+@pytest.mark.parametrize("level_2_node", [Level2, ALevel2], ids=["sync", "async"])
+@pytest.mark.asyncio
+async def test_multi_level_calls(level_2_node):
+    async def level_1_async(message: str):
+        return await rc.call(level_2_node, message)
+
+    def level_1(message: str):
+        return rc.call_sync(level_2_node, message)
+
+    ALevel1 = rc.library.from_function(level_1_async)
+    Level1 = rc.library.from_function(level_1)
+
+    with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as run:
+        result = await run.run(Level1, "Hello from Level 1")
+        assert result.answer == "Hello from Level 1"
+
+    with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")):
+        result = await rc.call(ALevel1, "Hello from Level 1 (async)")
+        assert result == "Hello from Level 1 (async)"
+
+    with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as run:
+        result = await rc.call(Level1, "Hello from Level 1")
+        assert result == "Hello from Level 1"
+
+    with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as run:
+        result = await run.run(ALevel1, "Hello from Level 1 (async)")
+        assert result.answer == "Hello from Level 1 (async)"
+
 
 
 async def timeout_node(timeout_len: float):

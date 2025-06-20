@@ -48,14 +48,18 @@ class NodeCopyError(Exception):
 
 
 class NodeForest(Forest[LinkedNode]):
-    def __init__(self):
+    def __init__(self, node_heap: Dict[str, LinkedNode] | None = None):
         """
         Creates a new instance of a node heap with no objects present.
         """
-        super().__init__()
+        super().__init__(node_heap)
 
         self._hard_revert_list = set()
-        self.id_type_mapping: Dict[str, Type[Node]] = {}
+        self.id_type_mapping: Dict[str, Type[Node]] = (
+            {node.identifier: type(node.node) for node in node_heap.values()}
+            if node_heap
+            else {}
+        )
         self.registration_details = None
 
     def __getitem__(self, item):

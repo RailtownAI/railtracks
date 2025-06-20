@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import uuid
 
-from .messages import RequestCompletionMessage
+from .messages import RequestCompletionMessage, RequestCreationFailure, RequestFailure
 
 from typing import List, Callable, TypeVar, Generic, Coroutine
 
@@ -13,7 +13,7 @@ from ..utils.logging.create import get_rc_logger
 _T = TypeVar("_T")
 _TOutput = TypeVar("_TOutput")
 
-logger = get_rc_logger(__name__)
+logger = get_rc_logger("Publisher")
 
 
 class Subscriber(Generic[_T]):
@@ -35,11 +35,11 @@ class Subscriber(Generic[_T]):
             result = self.callback(message)
             if asyncio.iscoroutine(result):
                 await result
-        except Exception as e:  # TODO: deal with this during logging task
-            logger.exception(msg=f"Error in {self.name}", exc_info=e)
+        except Exception as e:
+            logger.debug(msg=f"Error in {self.name}", exc_info=e)
 
 
-class RCPublisher(Generic[_T]):
+class Publisher(Generic[_T]):
     """
     A simple publisher object with some basic functionality to publish and suvbscribe to messages.
 
@@ -55,7 +55,7 @@ class RCPublisher(Generic[_T]):
     def __init__(
         self,
     ):
-        self._queue: asyncio.Queue[_T] = asyncio.Queue()
+        self._queue: asyncio.Queue[_T] | None = None
         self._subscribers: List[Subscriber[_T]] = []
 
         self._running = False
@@ -70,6 +70,7 @@ class RCPublisher(Generic[_T]):
     async def start(self):
         # you must set the kill variables first or the publisher loop will early exit.
         self._running = True
+        self._queue = asyncio.Queue()
         self.pub_loop = asyncio.create_task(
             self._published_data_loop(), name="Publisher Loop"
         )
@@ -231,3 +232,17 @@ class RCPublisher(Generic[_T]):
             bool: True if the publisher is running, False otherwise.
         """
         return self._running
+
+
+class RCPublisher(Publisher[RequestCompletionMessage]):
+    def __init__(self):
+        super().__init__()
+        self.subscribe(self.logging_sub)
+
+    @classmethod
+    async def logging_sub(cls, message: RequestCompletionMessage):
+        """Logs the provided message as a debug message."""
+        if isinstance(message, (RequestCreationFailure, RequestFailure)):
+            logger.debug(message.log_message(), exc_info=message.error)
+        else:
+            logger.debug(message.log_message())

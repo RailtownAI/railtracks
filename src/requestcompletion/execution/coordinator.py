@@ -148,7 +148,7 @@ class Coordinator:
         )
         self.execution_strategy = execution_modes
 
-    def start(self, publisher: RCPublisher[RequestCompletionMessage]):
+    def start(self, publisher: RCPublisher):
         publisher.subscribe(self.handle_item, name="Coordinator Subscriber")
 
     def handle_item(self, item: RequestCompletionMessage):

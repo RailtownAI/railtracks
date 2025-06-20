@@ -231,44 +231,40 @@ def test_start_of_time(example_structure):
 
 
 def test_state_saving_operation():
-    heap = Forest[MockLinkedObject]()
+        heap = Forest[MockLinkedObject]()
 
-    identifier = str(uuid.uuid4())
+        identifier = str(uuid.uuid4())
 
-    message_object = MockLinkedObject(
-        identifier=identifier,
-        message="Hello world",
-        stamp=Stamp(901, 0, "Init"),
-        parent=None,
-    )
+        message_object = MockLinkedObject(
+            identifier=identifier,
+            message="Hello world",
+            stamp=Stamp(901, 0, "Init"),
+            parent=None,
+        )
 
-    heap._update_heap(message_object)
+        heap._update_heap(message_object)
 
-    assert heap[message_object.identifier].message == message_object.message
+        assert heap[message_object.identifier].message == message_object.message
 
-    state = heap.__getstate__()
-    heap2 = Forest[MockLinkedObject]()
-    heap2.__setstate__(state)
-    heap = heap2
+        state = heap.__getstate__()
+        heap2 = Forest[MockLinkedObject]()
+        heap2.__setstate__(state)
+        heap = heap2
 
-    linked_obj = heap[message_object.identifier]
+        linked_obj = heap[message_object.identifier]
 
-    updated_obj = MockLinkedObject(
-        identifier=identifier,
-        message="Hello world",
-        stamp=Stamp(901, 1, "Init"),
-        parent=linked_obj,
-    )
+        updated_obj = MockLinkedObject(
+            identifier=identifier,
+            message="Hello world",
+            stamp=Stamp(901, 1, "Init"),
+            parent=linked_obj,
+        )
 
-    heap._update_heap(updated_obj)
+        heap._update_heap(updated_obj)
 
-    assert heap[updated_obj.identifier].parent == linked_obj
-    assert heap[updated_obj.identifier].message == updated_obj.message
-    assert heap[updated_obj.identifier].stamp == updated_obj.stamp
-
-    assert heap[message_object.identifier].message == message_object.message
-    assert heap[message_object.identifier].stamp == message_object.stamp
-    assert heap[message_object.identifier].parent is None
+        assert heap[updated_obj.identifier].parent == linked_obj
+        assert heap[updated_obj.identifier].message == updated_obj.message
+        assert heap[updated_obj.identifier].stamp == updated_obj.stamp
 
 
 def test_update_operation():
@@ -396,101 +392,6 @@ def test_level_old_reference():
         heap._update_heap(updated_obj_2)
 
 
-def test_heap(example_structure):
-    forest, data = example_structure
-
-    heap = forest.heap()
-
-    i_1 = data["1"][-1].identifier
-    assert heap[i_1] == data["1"][-1]
-
-    i_2 = data["2"][-1].identifier
-    assert heap[i_2] == data["2"][-1]
-
-    i_3 = data["3"][-1].identifier
-    assert heap[i_3] == data["3"][-1]
-
-
-def test_time_machine(example_structure):
-    forest, data = example_structure
-
-    forest.time_machine(step=1)
-
-    i_1 = data["1"][-1].identifier
-    assert forest[i_1] == data["1"][1]
-
-    i_2 = data["2"][-1].identifier
-    assert forest[i_2] == data["2"][1]
-
-    i_3 = data["3"][-1].identifier
-    assert forest[i_3] == data["3"][0]
-
-
-def test_specific_time_machine(example_structure):
-    forest, data = example_structure
-    i_1 = data["1"][-1].identifier
-    i_2 = data["2"][-1].identifier
-    i_3 = data["3"][-1].identifier
-
-    forest.time_machine(step=2, item_list=[i_3])
-
-    assert forest[i_1] == data["1"][-1]
-
-    assert forest[i_2] == data["2"][-1]
-
-    assert forest[i_3] == data["3"][1]
-
-
-def test_no_step_time_machine(example_structure):
-    forest, data = example_structure
-    i_1 = data["1"][-1].identifier
-    i_2 = data["2"][-1].identifier
-    i_3 = data["3"][-1].identifier
-
-    forest.time_machine(step=None)
-
-    assert forest[i_1] == data["1"][-1]
-
-    assert forest[i_2] == data["2"][-1]
-
-    assert forest[i_3] == data["3"][-1]
-
-
-def test_start_of_time(example_structure):
-    forest, data = example_structure
-    i_1 = data["1"][-1].identifier
-    i_2 = data["2"][-1].identifier
-    i_3 = data["3"][-1].identifier
-
-    forest.time_machine(step=0)
-
-    assert forest[i_1] == data["1"][0]
-
-    assert forest[i_2] == data["2"][0]
-
-    assert i_3 not in forest
-
-
-def test_full_data(example_structure):
-    forest, data = example_structure
-    full_data = forest.full_data()
-
-    assert len(full_data) == 10
-
-    assert data["1"][0] in full_data
-    assert data["1"][1] in full_data
-    assert data["1"][2] in full_data
-
-    assert data["2"][0] in full_data
-    assert data["2"][1] in full_data
-
-    assert data["3"][0] in full_data
-    assert data["3"][1] in full_data
-    assert data["3"][2] in full_data
-    assert data["3"][3] in full_data
-    assert data["3"][4] in full_data
-
-
 def test_at_step_full_data(example_structure):
     forest, data = example_structure
     full_data = forest.full_data(at_step=1)
@@ -506,38 +407,3 @@ def test_at_step_full_data(example_structure):
     assert data["3"][0] in full_data
 
 
-def test_state_saving_operation():
-    heap = Forest[MockLinkedObject]()
-
-    identifier = str(uuid.uuid4())
-
-    message_object = MockLinkedObject(
-        identifier=identifier,
-        message="Hello world",
-        stamp=Stamp(901, 0, "Init"),
-        parent=None,
-    )
-
-    heap._update_heap(message_object)
-
-    assert heap[message_object.identifier].message == message_object.message
-
-    state = heap.__getstate__()
-    heap2 = Forest[MockLinkedObject]()
-    heap2.__setstate__(state)
-    heap = heap2
-
-    linked_obj = heap[message_object.identifier]
-
-    updated_obj = MockLinkedObject(
-        identifier=identifier,
-        message="Hello world",
-        stamp=Stamp(901, 1, "Init"),
-        parent=linked_obj,
-    )
-
-    heap._update_heap(updated_obj)
-
-    assert heap[updated_obj.identifier].parent == linked_obj
-    assert heap[updated_obj.identifier].message == updated_obj.message
-    assert heap[updated_obj.identifier].stamp == updated_obj.stamp

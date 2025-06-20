@@ -234,3 +234,67 @@ async def test_no_context_call():
             "This is a test argument",
             key="This is a test keyword argument",
         )
+
+
+# below are tests for `call_sync` function
+
+
+def add(x: float, y: float):
+    """A simple synchronous function that adds two numbers."""
+    return x + y
+
+
+AddNode = rc.library.from_function(add)
+
+
+def add_many(pairs: list[float]):
+    total = 0
+    for i in range(len(pairs)):
+        total = rc.call_sync(AddNode, total, pairs[i])
+
+    return total
+
+
+async def async_add_many(pairs: list[float]):
+    """An asynchronous function that adds many numbers."""
+    total = 0
+    for i in range(len(pairs)):
+        total = await rc.call(AddNode, total, pairs[i])
+    return total
+
+
+AddManyNode = rc.library.from_function(add_many)
+AddManyAsyncNode = rc.library.from_function(async_add_many)
+
+
+@pytest.mark.parametrize(
+    "top_level_node",
+    [AddManyNode, AddManyAsyncNode],
+    ids=["Sync Top Level", "Async Top Level"],
+)
+def test_simple_call_sync(top_level_node):
+    """Test the synchronous call of a simple function."""
+    with rc.Runner() as runner:
+        result = runner.run_sync(top_level_node, [1, 3, 4, 5])
+        assert result.answer == 13, f"Expected 13, got {result}"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "top_level_node",
+    [AddManyNode, AddManyAsyncNode],
+    ids=["Sync Top Level", "Async Top Level"],
+)
+async def test_simple_call_sync_in_async_context(top_level_node):
+    """Test the synchronous call of a simple function in an async context."""
+    with rc.Runner() as runner:
+        result = await runner.run(top_level_node, [5, 6])
+        assert result.answer == 11, f"Expected 11, got {result}"
+
+
+@pytest.mark.asyncio
+async def test_even_simple_call_sync_in_async_context():
+    """Test the synchronous call of a simple function in an async context."""
+    with rc.Runner() as runner:
+        result = await runner.run(AddNode, 5, 6)
+        assert result.answer == 11, f"Expected 11, got {result}"

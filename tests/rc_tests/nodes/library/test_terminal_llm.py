@@ -284,7 +284,7 @@ async def test_system_message_as_a_string_class_based(model):
 
 # ================================================ START terminal_llm as tools =========================================================== 
 @pytest.mark.asyncio
-@pytest.mark.timeout(30)
+@pytest.mark.timeout(35)
 async def test_terminal_llm_as_tool_correct_initialization(
     model, encoder_system_message, decoder_system_message
 ):

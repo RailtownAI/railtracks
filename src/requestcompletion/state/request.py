@@ -159,11 +159,14 @@ class RequestTemplate(AbstractLinkedObject):
 
 
 class RequestForest(Forest[RequestTemplate]):
-    def __init__(self):
+    def __init__(
+        self,
+        request_heap: Dict[str, RequestTemplate] | None = None,
+    ):
         """
         Creates a new instance of a request heap with no objects present.
         """
-        super().__init__()
+        super().__init__(heap=request_heap)
         self._dead_children: Set[str] = set()
         self._failure_tree: Set[FrozenSet[RequestTemplate]] = set()
 
@@ -481,15 +484,19 @@ class RequestForest(Forest[RequestTemplate]):
     @property
     def insertion_request(self):
         insertions = [v for v in self._heap.values() if v.source_id is None]
-        assert len(insertions) == 1, (
-            f"Expected 1 insertion request, instead got {len(insertions)}"
-        )
-        return insertions[0]
+
+        return insertions
 
     @property
     def answer(self):
         # first we must find the insertion request
-        return self.insertion_request.output
+
+        if len(self.insertion_request) == 0:
+            return None
+        if len(self.insertion_request) > 1:
+            return [x.output for x in self.insertion_request]
+        else:
+            return self.insertion_request[0].output
 
 
 class DeadRequestError(Exception):

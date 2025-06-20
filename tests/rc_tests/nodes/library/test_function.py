@@ -99,6 +99,7 @@ class TestPrimitiveInputTypes:
         test_node = from_function(empty_function)
         with rc.Runner() as run:
             result = run.run_sync(test_node).answer
+
         assert "This is an empty function." == result
 
 
@@ -160,10 +161,10 @@ class TestRaiseErrors:
         """Test that a function with a dict parameter raises an error."""
         def secret_function(fruits: dict[str, str]) -> str:
             return fruits.get("secret", "")
-        
+
         with pytest.raises(NodeCreationError, match=self.DICT_ERROR_FROM_FUNCTION_MSG):
             _ = rc.library.from_function(secret_function)
-            
+
 
     def test_nested_dict_parameter(self):
         """Test that a function with a nested dict parameter raises an error."""
@@ -182,10 +183,10 @@ class TestRaiseErrors:
 
         def secret_function(model: MyModel) -> str:
             pass
-        
+
         with pytest.raises(NodeCreationError, match=self.DICT_ERROR_FROM_FUNCTION_MSG):
             _ = rc.library.from_function(secret_function)
-        
+
 
     def test_bmodel_with_nested_dict_param(self):
         """Test that a BaseModel with a nested dict field raises an error when used as a function parameter."""

@@ -1,7 +1,8 @@
 import inspect
 from typing import List
 
-from mcp.server import FastMCP
+
+from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.tools import Tool as MCPTool
 from mcp.server.fastmcp.utilities.func_metadata import func_metadata
 
@@ -102,9 +103,11 @@ def create_mcp_server(
             fn=func,
             name=node_info.name,
             description=node_info.detail,
-            parameters=node_info.parameters.model_json_schema()
-            if node_info.parameters is not None
-            else {},
+            parameters=(
+                node_info.parameters.model_json_schema()
+                if node_info.parameters is not None
+                else {}
+            ),
             fn_metadata=func_metadata(func, []),
             is_async=True,
             context_kwarg=None,

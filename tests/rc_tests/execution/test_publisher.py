@@ -3,7 +3,7 @@ import time
 import pytest
 import asyncio
 
-from requestcompletion.pubsub.publisher import Subscriber, RCPublisher
+from requestcompletion.pubsub.publisher import Subscriber, Publisher
 
 
 @pytest.mark.asyncio
@@ -41,7 +41,7 @@ async def test_sleep_sub():
 @pytest.mark.timeout(0.5)
 @pytest.mark.asyncio
 async def test_basic_publisher_without_context():
-    publisher = RCPublisher()
+    publisher = Publisher()
     await publisher.start()
     _message = None
 
@@ -63,7 +63,7 @@ async def test_basic_publisher_without_context():
 @pytest.mark.timeout(0.5)
 @pytest.mark.asyncio
 async def test_basic_publisher():
-    async with RCPublisher() as publisher:
+    async with Publisher() as publisher:
         _message = None
 
         def callback(message: str):
@@ -81,7 +81,7 @@ async def test_basic_publisher():
 
 @pytest.mark.timeout(0.5)
 async def test_many_publishers():
-    async with RCPublisher() as publisher:
+    async with Publisher() as publisher:
         _message_1 = None
         _message_2 = None
 
@@ -106,7 +106,7 @@ async def test_many_publishers():
 
 @pytest.mark.timeout(1)
 async def test_blocking_publisher():
-    async with RCPublisher() as publisher:
+    async with Publisher() as publisher:
         _message = []
 
         async def callback(message: str):
@@ -131,7 +131,7 @@ async def test_blocking_publisher():
 
 @pytest.mark.asyncio
 async def test_multiple_subs_with_blocking():
-    async with RCPublisher() as publisher:
+    async with Publisher() as publisher:
         _message_1 = []
         _message_2 = []
 
@@ -162,7 +162,7 @@ async def test_multiple_subs_with_blocking():
 
 @pytest.mark.asyncio
 async def test_unsubscribe():
-    async with RCPublisher() as publisher:
+    async with Publisher() as publisher:
         _message = None
 
         def callback(message: str):
@@ -188,7 +188,7 @@ async def test_unsubscribe():
 
 @pytest.mark.asyncio
 async def test_bad_unsubscribe():
-    async with RCPublisher() as publisher:
+    async with Publisher() as publisher:
         with pytest.raises(KeyError):
             # Attempting to unsubscribe a non-existent subscriber should raise KeyError
             publisher.unsubscribe("nonexistent_id")
@@ -196,7 +196,7 @@ async def test_bad_unsubscribe():
 
 @pytest.mark.asyncio
 async def test_bad_subscribe():
-    async with RCPublisher() as publisher:
+    async with Publisher() as publisher:
 
         async def sample_sub(message: str):
             pass
@@ -208,7 +208,7 @@ async def test_bad_subscribe():
 
 @pytest.mark.asyncio
 async def test_exception_thrower():
-    async with RCPublisher() as publisher:
+    async with Publisher() as publisher:
 
         def exception_thrower(message: str):
             raise ValueError("This is a test exception")
@@ -234,7 +234,7 @@ async def test_exception_thrower():
 
 @pytest.mark.asyncio
 async def test_listener_simple():
-    async with RCPublisher() as publisher:
+    async with Publisher() as publisher:
         _message = None
 
         def callback(message: str):
@@ -258,7 +258,7 @@ async def test_listener_simple():
 @pytest.mark.timeout(0.1)
 @pytest.mark.asyncio
 async def test_listener_many_messages():
-    async with RCPublisher() as pub:
+    async with Publisher() as pub:
         hw_listener = pub.listener(lambda x: x == "hello world")
 
         am_listener = pub.listener(lambda x: x == "another message")
@@ -273,7 +273,7 @@ async def test_listener_many_messages():
 
 @pytest.mark.asyncio
 async def test_precheck_listener():
-    async with RCPublisher() as pub:
+    async with Publisher() as pub:
         hw_listener = pub.listener(lambda x: x == "hello world")
 
         await pub.publish("lala")
@@ -284,7 +284,7 @@ async def test_precheck_listener():
 
 @pytest.mark.asyncio
 async def test_get_listener_after_shutdown():
-    async with RCPublisher() as pub:
+    async with Publisher() as pub:
         hw_listener = pub.listener(lambda x: x == "hello world")
 
         await pub.publish("greenery")
