@@ -1,5 +1,3 @@
-import os
-from typing import Literal
 import litellm
 
 # litellm.drop_params=True
@@ -8,14 +6,12 @@ from ....exceptions.errors import LLMError
 from .._litellm_wrapper import LiteLLMWrapper
 from ....utils.logging.create import get_rc_logger
 
-from ...response import Response
 
 LOGGER_NAME = "AZURE_AI"
 
 
 class AzureAIError(LLMError):
-    def __init__(self, reason: str):
-        super().__init__(reason=reason)
+    pass
 
 
 class AzureAILLM(LiteLLMWrapper):
@@ -38,10 +34,11 @@ class AzureAILLM(LiteLLMWrapper):
             AzureAIError: If the specified model is not available or if there are issues with the Azure AI service.
         """
         super().__init__(model_name, **kwargs)
-        
+
+        # Currently matching names to Azure models is case sensitive
         self._available_models = [model.lower() for model in litellm.azure_ai_models]
         self._is_model_available()
-        
+
         self.logger = get_rc_logger(LOGGER_NAME)
 
     def chat(self, messages, **kwargs):
@@ -67,7 +64,6 @@ class AzureAILLM(LiteLLMWrapper):
             raise AzureAIError(
                 reason=f"Azure AI LLM error while processing the request: {e}"
             ) from e
-
 
     def _is_model_available(self) -> None:
         """Check if the model is available and supports tool calling."""
