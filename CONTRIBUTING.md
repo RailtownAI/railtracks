@@ -1,29 +1,65 @@
-# Setup for development
+# Contributing Guide
 
-## Setup Steps
+Welcome! This guide will help you set up your development environment and contribute effectively to our project.
 
-We use Python 3.10+ for development, so make sure you have that installed.
+## Development Setup
 
-### 1. Setup and activate your virtual environment
-##### Using `venv`
-1. Create your virtual environment `python -m venv .venv`
-1. Activate your venv: `.venv\Scripts\activate`
+### Prerequisites
 
-or
-##### Using `conda`
-1. Create your conda environment `conda create -n myenv python=3.10`
-2. Activate your conda environment `conda activate myenv`
+- **Python Version**: Ensure Python 3.10+ is installed on your system.
+- **Environment Manager**: You can use either `venv` or `conda` for creating a virtual environment.
 
+### Steps to Set Up Your Development Environment
 
-### 2. Install required packages
+#### 1. Create and Activate a Virtual Environment
 
-1. Install the editable package locally `pip install -e .`
+**Using `venv`**  
+1. Create a virtual environment:  
+   ```bash
+   python -m venv .venv
+   ```
+2. Activate the virtual environment:  
+   - On Windows:  
+     ```bash
+     .venv\Scripts\activate
+     ```
+   - On macOS/Linux:  
+     ```bash
+     source .venv/bin/activate
+     ```
 
+**Using `conda`**  
+1. Create a Conda environment:  
+   ```bash
+   conda create -n myenv python=3.10
+   ```
+2. Activate the Conda environment:  
+   ```bash
+   conda activate myenv
+   ```
 
+#### 2. Install Required Packages
+
+1. Install the package in editable mode:  
+   ```bash
+   pip install -e .
+   ```
+
+---
 
 ## Running Tests
-`pytest tests`
+
+To verify your changes and ensure everything works correctly, run:  
+```bash
+pytest tests
+```
+
+---
 
 ## How to Contribute
 
-- Commit the change and put up a PR into `main`
+1. Make your changes in a new branch or fork.
+2. Commit your changes with a meaningful message.
+3. Open a Pull Request (PR) into the `main` branch.
+
+We look forward to your contributions! 🎉
