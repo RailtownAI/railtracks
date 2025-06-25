@@ -40,7 +40,7 @@ Welcome! This guide will help you set up your development environment and contri
 
 #### 2. Install Required Packages
 
-1. Install the package in editable mode:  
+- Install the package in editable mode:  
    ```bash
    pip install -e .
    ```
@@ -53,8 +53,15 @@ To verify your changes and ensure everything works correctly, run:
 ```bash
 pytest tests
 ```
-
+- You may need to download `pytest-asyncio` and `pytest-timeout` to run the suite properly.
 ---
+
+## Code Style
+We follow the `ruff` code style. Please ensure your code adheres to the style by running:
+```bash
+ruff check .
+ruff format .
+```
 
 ## How to Contribute
 
@@ -63,3 +70,4 @@ pytest tests
 3. Open a Pull Request (PR) into the `main` branch.
 
 We look forward to your contributions! 🎉
+
