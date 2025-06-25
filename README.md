@@ -1,5 +1,3 @@
-from curses.textpad import Textbox
-
 # Request Completion Agentic Framework (RC)
 
 ## Overview
