@@ -10,6 +10,8 @@ import React, {
   useState,
   ReactElement,
 } from 'react';
+import AgenticFlowVisualizer from './AgenticFlowVisualizer';
+import flowData from './data.json';
 
 /**
  * A template for creating Streamlit components with React
@@ -102,6 +104,7 @@ function MyComponent({ args, disabled, theme }: ComponentProps): ReactElement {
       >
         Click Me!
       </button>
+      <AgenticFlowVisualizer flowData={flowData} />
     </div>
   );
 }
