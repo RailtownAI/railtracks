@@ -226,6 +226,11 @@ interface AgenticFlowVisualizerProps {
   className?: string;
 }
 
+// Custom node types
+const nodeTypes: NodeTypes = {
+  agent: AgentNode,
+};
+
 // Main Component
 const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
   flowData,
@@ -328,11 +333,6 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
     (params: Connection) => setEdges((eds: Edge[]) => addEdge(params, eds)),
     [setEdges],
   );
-
-  // Custom node types
-  const nodeTypes: NodeTypes = {
-    agent: AgentNode,
-  };
 
   return (
     <div
