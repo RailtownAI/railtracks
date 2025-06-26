@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 # Title
-st.title("Covalence Demo")
+st.title("RC Agentic Visualizer Demo")
 
 # Create two columns
 left_col, right_col = st.columns([1, 2])
