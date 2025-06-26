@@ -1,4 +1,10 @@
-import React from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import ReactFlow, {
   Node,
   Edge,
@@ -14,49 +20,59 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
-// Custom Agent Node Component
-const AgentNode: React.FC<{
-  data: {
-    label: string;
-    description: string;
-    nodeType: string;
-    step?: number;
-    time?: number;
-  };
-}> = ({ data }) => {
-  return (
-    <div className="agent-node">
-      <Handle
-        type="target"
-        position={Position.Left}
-        style={{ background: '#6366f1' }}
-      />
-      <div className="agent-header">
-        <div className="agent-icon">🤖</div>
-        <div className="agent-label">{data.label}</div>
-      </div>
-      <div className="agent-description">{data.description}</div>
-      {data.step && (
-        <div className="agent-meta">
-          <span className="step">Step: {data.step}</span>
-          {data.time && (
-            <span className="time">
-              {new Date(data.time * 1000).toLocaleTimeString()}
-            </span>
-          )}
-        </div>
-      )}
-      <Handle
-        type="source"
-        position={Position.Right}
-        style={{ background: '#6366f1' }}
-      />
-    </div>
-  );
-};
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
 
-// Custom Edge Component
-const CustomEdge: React.FC<{
+interface DataJsonNode {
+  identifier: string;
+  node_type: string;
+  details: {
+    stamp: {
+      time: number;
+      step: number;
+      identifier: string;
+    };
+    details: any;
+  };
+}
+
+interface DataJsonEdge {
+  identifier: string;
+  source: string | null;
+  target: string;
+  details: {
+    stamp: {
+      time: number;
+      step: number;
+      identifier: string;
+    };
+    input: any;
+    output: any;
+  };
+}
+
+interface DataJsonStructure {
+  nodes: DataJsonNode[];
+  edges: DataJsonEdge[];
+}
+
+interface AgenticFlowVisualizerProps {
+  flowData: DataJsonStructure;
+  width?: string | number;
+  height?: string | number;
+  className?: string;
+}
+
+interface AgentNodeData {
+  label: string;
+  description: string;
+  nodeType: string;
+  step?: number;
+  time?: number;
+}
+
+interface CustomEdgeProps {
   id: string;
   sourceX: number;
   sourceY: number;
@@ -66,41 +82,16 @@ const CustomEdge: React.FC<{
   targetPosition: any;
   style?: React.CSSProperties;
   markerEnd?: string;
-}> = ({
-  id,
-  sourceX,
-  sourceY,
-  targetX,
-  targetY,
-  sourcePosition,
-  targetPosition,
-  style = {},
-  markerEnd,
-}) => {
-  const [edgePath] = React.useMemo(() => {
-    const centerX = (sourceX + targetX) / 2;
-    const centerY = (sourceY + targetY) / 2;
+}
 
-    const path = `M ${sourceX} ${sourceY} Q ${centerX} ${centerY} ${targetX} ${targetY}`;
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
 
-    return [path];
-  }, [sourceX, sourceY, targetX, targetY]);
-
-  return (
-    <g>
-      <path
-        id={id}
-        className="react-flow__edge-path"
-        d={edgePath}
-        markerEnd={markerEnd}
-        style={style}
-      />
-    </g>
-  );
-};
-
-// Auto-layout utility function
-const calculateAutoLayout = (nodes: any[], edges: any[]) => {
+/**
+ * Calculates auto-layout positions for nodes in a hierarchical graph
+ */
+const calculateAutoLayout = (nodes: DataJsonNode[], edges: DataJsonEdge[]) => {
   const nodeMap = new Map();
   const childrenMap = new Map();
   const levelMap = new Map();
@@ -121,7 +112,7 @@ const calculateAutoLayout = (nodes: any[], edges: any[]) => {
     }
   });
 
-  // Calculate levels (BFS)
+  // Calculate levels using BFS
   const visited = new Set();
   const queue: Array<{ nodeId: string; level: number }> = [];
 
@@ -185,67 +176,133 @@ const calculateAutoLayout = (nodes: any[], edges: any[]) => {
   return positions;
 };
 
-// Type definitions for data.json structure
-interface DataJsonNode {
-  identifier: string;
-  node_type: string;
-  details: {
-    stamp: {
-      time: number;
-      step: number;
-      identifier: string;
-    };
-    details: any;
-  };
-}
+/**
+ * Extracts LLM details from node data for display
+ */
+const extractLLMDetails = (
+  node: DataJsonNode,
+): { description: string; modelInfo: string } => {
+  let description = node.node_type;
+  let modelInfo = '';
 
-interface DataJsonEdge {
-  identifier: string;
-  source: string | null;
-  target: string;
-  details: {
-    stamp: {
-      time: number;
-      step: number;
-      identifier: string;
-    };
-    input: any;
-    output: any;
-  };
-}
+  if (node.details?.details?.llm_details) {
+    const llmDetails = node.details.details.llm_details;
+    if (llmDetails.length > 0) {
+      const lastLLM = llmDetails[llmDetails.length - 1];
+      modelInfo = `${lastLLM.model_name} (${lastLLM.model_provider})`;
+      description = `${node.node_type}\n${modelInfo}`;
+    }
+  }
 
-interface DataJsonStructure {
-  nodes: DataJsonNode[];
-  edges: DataJsonEdge[];
-}
+  return { description, modelInfo };
+};
 
-interface AgenticFlowVisualizerProps {
-  flowData: DataJsonStructure;
-  width?: string | number;
-  height?: string | number;
-  className?: string;
-}
+/**
+ * Truncates text to specified length with ellipsis
+ */
+const truncateText = (text: string, maxLength: number): string => {
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength) + '...';
+};
 
-// Custom node types
+// ============================================================================
+// CUSTOM COMPONENTS
+// ============================================================================
+
+/**
+ * Custom node component for displaying agent information
+ */
+const AgentNode: React.FC<{ data: AgentNodeData }> = ({ data }) => {
+  return (
+    <div className="agent-node">
+      <Handle
+        type="target"
+        position={Position.Left}
+        style={{ background: '#6366f1' }}
+      />
+      <div className="agent-header">
+        <div className="agent-icon">🤖</div>
+        <div className="agent-label">{data.label}</div>
+      </div>
+      <div className="agent-description">{data.description}</div>
+      {data.step && (
+        <div className="agent-meta">
+          <span className="step">Step: {data.step}</span>
+          {data.time && (
+            <span className="time">
+              {new Date(data.time * 1000).toLocaleTimeString()}
+            </span>
+          )}
+        </div>
+      )}
+      <Handle
+        type="source"
+        position={Position.Right}
+        style={{ background: '#6366f1' }}
+      />
+    </div>
+  );
+};
+
+/**
+ * Custom edge component with curved paths
+ */
+const CustomEdge: React.FC<CustomEdgeProps> = ({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  style = {},
+  markerEnd,
+}) => {
+  const [edgePath] = useMemo(() => {
+    const centerX = (sourceX + targetX) / 2;
+    const centerY = (sourceY + targetY) / 2;
+    const path = `M ${sourceX} ${sourceY} Q ${centerX} ${centerY} ${targetX} ${targetY}`;
+    return [path];
+  }, [sourceX, sourceY, targetX, targetY]);
+
+  return (
+    <g>
+      <path
+        id={id}
+        className="react-flow__edge-path"
+        d={edgePath}
+        markerEnd={markerEnd}
+        style={style}
+      />
+    </g>
+  );
+};
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
 const nodeTypes: NodeTypes = {
   agent: AgentNode,
 };
 
-// Main Component
+/**
+ * Main component for visualizing agentic flow data
+ */
 const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
   flowData,
   width = '100%',
   height = '600px',
   className = '',
 }) => {
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  const [containerDimensions, setContainerDimensions] = React.useState({
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerDimensions, setContainerDimensions] = useState({
     width: typeof width === 'number' ? width : 800,
     height: typeof height === 'number' ? height : 600,
   });
 
   // Update dimensions when width/height props change
-  React.useEffect(() => {
+  useEffect(() => {
     const updateDimensions = () => {
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
@@ -270,27 +327,15 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
   }, [width, height]);
 
   // Calculate auto-layout positions
-  const positions = React.useMemo(() => {
+  const positions = useMemo(() => {
     return calculateAutoLayout(flowData.nodes, flowData.edges);
   }, [flowData.nodes, flowData.edges]);
 
   // Convert flow data to ReactFlow format
-  const initialNodes: Node[] = React.useMemo(() => {
+  const initialNodes: Node[] = useMemo(() => {
     return flowData.nodes.map((node) => {
       const position = positions.get(node.identifier) || { x: 0, y: 0 };
-
-      // Extract LLM details if available
-      let description = node.node_type;
-      let modelInfo = '';
-
-      if (node.details?.details?.llm_details) {
-        const llmDetails = node.details.details.llm_details;
-        if (llmDetails.length > 0) {
-          const lastLLM = llmDetails[llmDetails.length - 1];
-          modelInfo = `${lastLLM.model_name} (${lastLLM.model_provider})`;
-          description = `${node.node_type}\n${modelInfo}`;
-        }
-      }
+      const { description } = extractLLMDetails(node);
 
       return {
         id: node.identifier,
@@ -307,7 +352,7 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
     });
   }, [flowData.nodes, positions]);
 
-  const initialEdges: Edge[] = React.useMemo(() => {
+  const initialEdges: Edge[] = useMemo(() => {
     return flowData.edges
       .filter((edge) => edge.source && edge.target) // Filter out edges with null source
       .map((edge) => ({
@@ -320,8 +365,7 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
           strokeWidth: 2,
         },
         label: edge.details?.output
-          ? String(edge.details.output).substring(0, 50) +
-            (String(edge.details.output).length > 50 ? '...' : '')
+          ? truncateText(String(edge.details.output), 50)
           : undefined,
       }));
   }, [flowData.edges]);
@@ -329,7 +373,7 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  const onConnect = React.useCallback(
+  const onConnect = useCallback(
     (params: Connection) => setEdges((eds: Edge[]) => addEdge(params, eds)),
     [setEdges],
   );
