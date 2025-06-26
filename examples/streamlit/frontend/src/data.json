@@ -1,0 +1,76 @@
+{
+  "nodes": [
+    {
+      "id": "1",
+      "type": "agent",
+      "position": { "x": 100, "y": 100 },
+      "data": {
+        "label": "Content Strategist",
+        "description": "Identifies trending topics and defines content goals."
+      }
+    },
+    {
+      "id": "2",
+      "type": "agent",
+      "position": { "x": 400, "y": 100 },
+      "data": {
+        "label": "Scriptwriter",
+        "description": "Writes the video script based on the topic and tone."
+      }
+    },
+    {
+      "id": "3",
+      "type": "agent",
+      "position": { "x": 700, "y": 100 },
+      "data": {
+        "label": "Voiceover Artist",
+        "description": "Records narration based on the finalized script."
+      }
+    },
+    {
+      "id": "4",
+      "type": "agent",
+      "position": { "x": 1000, "y": 100 },
+      "data": {
+        "label": "Video Editor",
+        "description": "Edits footage, syncs audio, and adds visuals."
+      }
+    },
+    {
+      "id": "5",
+      "type": "agent",
+      "position": { "x": 1300, "y": 100 },
+      "data": {
+        "label": "Thumbnail Designer",
+        "description": "Creates click-attracting thumbnails for the video."
+      }
+    },
+    {
+      "id": "6",
+      "type": "agent",
+      "position": { "x": 1600, "y": 100 },
+      "data": {
+        "label": "Uploader & Optimizer",
+        "description": "Uploads the video and applies SEO metadata."
+      }
+    },
+    {
+      "id": "7",
+      "type": "agent",
+      "position": { "x": 1900, "y": 100 },
+      "data": {
+        "label": "Distribution Manager",
+        "description": "Shares video on social media and coordinates promotion."
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1-2", "source": "1", "target": "2" },
+    { "id": "e2-3", "source": "2", "target": "3" },
+    { "id": "e3-4", "source": "3", "target": "4" },
+    { "id": "e2-5", "source": "2", "target": "5" },
+    { "id": "e4-6", "source": "4", "target": "6" },
+    { "id": "e5-6", "source": "5", "target": "6" },
+    { "id": "e6-7", "source": "6", "target": "7" }
+  ]
+}
