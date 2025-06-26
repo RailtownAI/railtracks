@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from ...llm import SystemMessage
 import warnings
 
+
 def validate_function(func: Callable) -> None:
     """
     Validate that the function is safe to use in a node.
