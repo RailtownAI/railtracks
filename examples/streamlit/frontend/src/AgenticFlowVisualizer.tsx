@@ -9,6 +9,8 @@ import ReactFlow, {
   addEdge,
   useNodesState,
   useEdgesState,
+  Handle,
+  Position,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -21,11 +23,21 @@ const AgentNode: React.FC<{
 }> = ({ data }) => {
   return (
     <div className="agent-node">
+      <Handle
+        type="target"
+        position={Position.Left}
+        style={{ background: '#6366f1' }}
+      />
       <div className="agent-header">
         <div className="agent-icon">🤖</div>
         <div className="agent-label">{data.label}</div>
       </div>
       <div className="agent-description">{data.description}</div>
+      <Handle
+        type="source"
+        position={Position.Right}
+        style={{ background: '#6366f1' }}
+      />
     </div>
   );
 };
@@ -173,6 +185,7 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             min-width: 200px;
             transition: all 0.2s ease;
+            position: relative;
           }
           
           .agent-node:hover {
@@ -201,6 +214,12 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
             color: #6b7280;
             font-size: 12px;
             line-height: 1.4;
+          }
+          
+          .react-flow__handle {
+            width: 8px;
+            height: 8px;
+            border: 2px solid #6366f1;
           }
         `}
       </style>
