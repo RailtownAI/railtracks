@@ -12,13 +12,13 @@ st.set_page_config(
 )
 
 # Title
-st.title("RC Framework Demo")
+st.title("Covalence Demo")
 
 # Create two columns
 left_col, right_col = st.columns([1, 2])
 
 with left_col:
-    st.subheader("💬 AI Chat Interface")
+    st.subheader("💬 Chat With Your Agents")
     
     # Initialize chat history
     if "messages" not in st.session_state:
@@ -47,7 +47,7 @@ with left_col:
         st.session_state.messages.append({"role": "assistant", "content": response})
 
 with right_col:
-    st.subheader("🎛️ Run Visualizer")
+    st.subheader("🎛️ Agentic Flow Visualizer")
     
     # Create an instance of our component with a constant `name` arg, and
     # print its output value.
