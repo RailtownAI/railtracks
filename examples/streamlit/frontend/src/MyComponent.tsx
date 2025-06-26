@@ -92,8 +92,7 @@ function MyComponent({ args, disabled, theme }: ComponentProps): ReactElement {
   }, []);
 
   return (
-    <span>
-      Hello, {name}! &nbsp;
+    <div>
       <button
         style={style}
         onClick={onClicked}
@@ -103,7 +102,7 @@ function MyComponent({ args, disabled, theme }: ComponentProps): ReactElement {
       >
         Click Me!
       </button>
-    </span>
+    </div>
   );
 }
 
