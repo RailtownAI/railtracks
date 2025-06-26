@@ -1,6 +1,15 @@
 {
   "nodes": [
     {
+      "id": "start",
+      "type": "start",
+      "position": { "x": -200, "y": 100 },
+      "data": {
+        "label": "Start",
+        "description": "Begin video production workflow"
+      }
+    },
+    {
       "id": "1",
       "type": "agent",
       "position": { "x": 100, "y": 100 },
@@ -65,6 +74,7 @@
     }
   ],
   "edges": [
+    { "id": "e-start-1", "source": "start", "target": "1" },
     { "id": "e1-2", "source": "1", "target": "2" },
     { "id": "e2-3", "source": "2", "target": "3" },
     { "id": "e3-4", "source": "3", "target": "4" },
