@@ -89,89 +89,97 @@ interface CustomEdgeProps {
 // ============================================================================
 
 /**
- * Calculates auto-layout positions for nodes in a hierarchical graph
+ * Calculates a clean tree layout: parents centered above children, siblings spaced evenly, no overlap.
  */
 const calculateAutoLayout = (nodes: DataJsonNode[], edges: DataJsonEdge[]) => {
-  const nodeMap = new Map();
-  const childrenMap = new Map();
-  const levelMap = new Map();
-
-  // Initialize maps
-  nodes.forEach((node) => {
-    nodeMap.set(node.identifier, node);
-    childrenMap.set(node.identifier, []);
-    levelMap.set(node.identifier, 0);
-  });
-
-  // Build parent-child relationships
-  edges.forEach((edge) => {
-    if (edge.source && edge.target) {
-      const children = childrenMap.get(edge.source) || [];
-      children.push(edge.target);
-      childrenMap.set(edge.source, children);
+  // Build maps for fast lookup
+  const nodeMap = new Map(nodes.map((n) => [n.identifier, n]));
+  const childrenMap = new Map<string, string[]>();
+  const parentMap = new Map<string, string>();
+  nodes.forEach((n) => childrenMap.set(n.identifier, []));
+  edges.forEach((e) => {
+    if (e.source && e.target) {
+      childrenMap.get(e.source)?.push(e.target);
+      parentMap.set(e.target, e.source);
     }
   });
 
-  // Calculate levels using BFS
-  const visited = new Set();
-  const queue: Array<{ nodeId: string; level: number }> = [];
+  // Find root nodes (no parent)
+  const roots = nodes.filter((n) => !parentMap.has(n.identifier));
 
-  // Find root nodes (nodes with no incoming edges)
-  const hasIncoming = new Set();
-  edges.forEach((edge) => {
-    if (edge.target) {
-      hasIncoming.add(edge.target);
-    }
-  });
-
-  nodes.forEach((node) => {
-    if (!hasIncoming.has(node.identifier)) {
-      queue.push({ nodeId: node.identifier, level: 0 });
-    }
-  });
-
-  while (queue.length > 0) {
-    const { nodeId, level } = queue.shift()!;
-    if (visited.has(nodeId)) continue;
-
-    visited.add(nodeId);
+  // Assign levels (depths)
+  const levelMap = new Map<string, number>();
+  const assignLevels = (nodeId: string, level: number) => {
     levelMap.set(nodeId, level);
-
-    const children = childrenMap.get(nodeId) || [];
-    children.forEach((childId: string) => {
-      if (!visited.has(childId)) {
-        queue.push({ nodeId: childId, level: level + 1 });
-      }
-    });
-  }
+    for (const childId of childrenMap.get(nodeId) || []) {
+      assignLevels(childId, level + 1);
+    }
+  };
+  roots.forEach((root) => assignLevels(root.identifier, 0));
 
   // Group nodes by level
-  const levelGroups = new Map();
-  nodes.forEach((node) => {
-    const level = levelMap.get(node.identifier) || 0;
-    if (!levelGroups.has(level)) {
-      levelGroups.set(level, []);
+  const levels: string[][] = [];
+  nodes.forEach((n) => {
+    const lvl = levelMap.get(n.identifier) ?? 0;
+    if (!levels[lvl]) levels[lvl] = [];
+    levels[lvl].push(n.identifier);
+  });
+
+  // Calculate subtree widths for each node (for centering)
+  const subtreeWidth = new Map<string, number>();
+  const nodeWidth = 280;
+  const nodeSpacing = 60;
+  const calcSubtreeWidth = (nodeId: string): number => {
+    const children = childrenMap.get(nodeId) || [];
+    if (children.length === 0) {
+      subtreeWidth.set(nodeId, nodeWidth);
+      return nodeWidth;
     }
-    levelGroups.get(level).push(node.identifier);
-  });
+    let width = 0;
+    for (const childId of children) {
+      width += calcSubtreeWidth(childId);
+    }
+    width += (children.length - 1) * nodeSpacing;
+    subtreeWidth.set(nodeId, width);
+    return width;
+  };
+  roots.forEach((root) => calcSubtreeWidth(root.identifier));
 
-  // Calculate positions
-  const positions = new Map();
-  const nodeWidth = 250;
-  const nodeHeight = 120;
-  const levelSpacing = 300;
-  const nodeSpacing = 50;
-
-  levelGroups.forEach((nodeIds: string[], level: number) => {
-    const levelWidth = nodeIds.length * (nodeWidth + nodeSpacing) - nodeSpacing;
-    const startX = -levelWidth / 2;
-
-    nodeIds.forEach((nodeId: string, index: number) => {
-      const x = startX + index * (nodeWidth + nodeSpacing);
-      const y = level * levelSpacing;
-      positions.set(nodeId, { x, y });
-    });
-  });
+  // Assign positions recursively
+  const positions = new Map<string, { x: number; y: number }>();
+  const levelSpacing = 180;
+  const assignPositions = (nodeId: string, xLeft: number, level: number) => {
+    const width = subtreeWidth.get(nodeId) || nodeWidth;
+    const y = level * levelSpacing;
+    const children = childrenMap.get(nodeId) || [];
+    let x = xLeft;
+    if (children.length === 0) {
+      // Leaf node: center in its width
+      positions.set(nodeId, { x: xLeft + width / 2 - nodeWidth / 2, y });
+    } else {
+      // Internal node: center above its children
+      let childX = xLeft;
+      for (const childId of children) {
+        const childWidth = subtreeWidth.get(childId) || nodeWidth;
+        assignPositions(childId, childX, level + 1);
+        childX += childWidth + nodeSpacing;
+      }
+      // Center parent above children
+      const firstChild = children[0];
+      const lastChild = children[children.length - 1];
+      const firstPos = positions.get(firstChild)!;
+      const lastPos = positions.get(lastChild)!;
+      const parentX = (firstPos.x + lastPos.x) / 2;
+      positions.set(nodeId, { x: parentX, y });
+    }
+  };
+  // Lay out each tree
+  let xCursor = 0;
+  for (const root of roots) {
+    assignPositions(root.identifier, xCursor, 0);
+    xCursor +=
+      (subtreeWidth.get(root.identifier) || nodeWidth) + nodeSpacing * 2;
+  }
 
   return positions;
 };
