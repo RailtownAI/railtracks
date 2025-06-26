@@ -1,86 +1,131 @@
 {
   "nodes": [
     {
-      "id": "start",
-      "type": "start",
-      "position": { "x": -200, "y": 100 },
-      "data": {
-        "label": "Start",
-        "description": "Begin video production workflow"
+      "identifier": "d28bf5a3-b1a6-4708-bfa0-aa4ffd779211",
+      "node_type": "ToolCallLLM(rng Node)",
+      "details": {
+        "stamp": {
+          "time": 1750974791.5612297,
+          "step": 7,
+          "identifier": "Finished executing ToolCallLLM(rng Node)"
+        },
+        "details": {
+          "llm_details": [
+            {
+              "model_name": "gpt-4o",
+              "model_provider": "OpenAI",
+              "input": ["ERROR: user: Give me 3 random numbers please"],
+              "output": "ERROR: assistant: [ToolCall(identifier='call_CzgCRuuJmTraT3bCsDsFYluW', name='rng', arguments={}), ToolCall(identifier='call_I5V2q8Widc3YOFEL6EhtGS4z', name='rng', arguments={}), ToolCall(identifier='call_OQLGvR7Z9jaOHTVrZxBBthQg', name='rng', arguments={})]"
+            },
+            {
+              "model_name": "gpt-4o",
+              "model_provider": "OpenAI",
+              "input": [
+                "ERROR: user: Give me 3 random numbers please",
+                "ERROR: assistant: [ToolCall(identifier='call_CzgCRuuJmTraT3bCsDsFYluW', name='rng', arguments={}), ToolCall(identifier='call_I5V2q8Widc3YOFEL6EhtGS4z', name='rng', arguments={}), ToolCall(identifier='call_OQLGvR7Z9jaOHTVrZxBBthQg', name='rng', arguments={})]",
+                "ERROR: tool: rng -> 0.689194966369548",
+                "ERROR: tool: rng -> 0.3587284664253334",
+                "ERROR: tool: rng -> 0.4407852451471538"
+              ],
+              "output": "ERROR: assistant: Here are three random numbers for you: 0.6892, 0.3587, and 0.4408."
+            }
+          ]
+        }
       }
     },
     {
-      "id": "1",
-      "type": "agent",
-      "position": { "x": 100, "y": 100 },
-      "data": {
-        "label": "Content Strategist",
-        "description": "Identifies trending topics and defines content goals."
+      "identifier": "6d5b40a0-a1f9-4fcc-a97f-2b1c17cc54e2",
+      "node_type": "rng Node",
+      "details": {
+        "stamp": {
+          "time": 1750974790.4197373,
+          "step": 4,
+          "identifier": "Finished executing rng Node"
+        },
+        "details": {}
       }
     },
     {
-      "id": "2",
-      "type": "agent",
-      "position": { "x": 400, "y": 100 },
-      "data": {
-        "label": "Scriptwriter",
-        "description": "Writes the video script based on the topic and tone."
+      "identifier": "7ed6b7eb-2f88-40e0-ba45-3ca40acb7d12",
+      "node_type": "rng Node",
+      "details": {
+        "stamp": {
+          "time": 1750974790.4197373,
+          "step": 5,
+          "identifier": "Finished executing rng Node"
+        },
+        "details": {}
       }
     },
     {
-      "id": "3",
-      "type": "agent",
-      "position": { "x": 700, "y": 100 },
-      "data": {
-        "label": "Voiceover Artist",
-        "description": "Records narration based on the finalized script."
-      }
-    },
-    {
-      "id": "4",
-      "type": "agent",
-      "position": { "x": 1000, "y": 100 },
-      "data": {
-        "label": "Video Editor",
-        "description": "Edits footage, syncs audio, and adds visuals."
-      }
-    },
-    {
-      "id": "5",
-      "type": "agent",
-      "position": { "x": 1300, "y": 100 },
-      "data": {
-        "label": "Thumbnail Designer",
-        "description": "Creates click-attracting thumbnails for the video."
-      }
-    },
-    {
-      "id": "6",
-      "type": "agent",
-      "position": { "x": 1600, "y": 100 },
-      "data": {
-        "label": "Uploader & Optimizer",
-        "description": "Uploads the video and applies SEO metadata."
-      }
-    },
-    {
-      "id": "7",
-      "type": "agent",
-      "position": { "x": 1900, "y": 100 },
-      "data": {
-        "label": "Distribution Manager",
-        "description": "Shares video on social media and coordinates promotion."
+      "identifier": "772d7486-2366-4eed-b567-b5adfdca6a18",
+      "node_type": "rng Node",
+      "details": {
+        "stamp": {
+          "time": 1750974790.4197373,
+          "step": 6,
+          "identifier": "Finished executing rng Node"
+        },
+        "details": {}
       }
     }
   ],
   "edges": [
-    { "id": "e-start-1", "source": "start", "target": "1" },
-    { "id": "e1-2", "source": "1", "target": "2" },
-    { "id": "e2-3", "source": "2", "target": "3" },
-    { "id": "e3-4", "source": "3", "target": "4" },
-    { "id": "e2-5", "source": "2", "target": "5" },
-    { "id": "e4-6", "source": "4", "target": "6" },
-    { "id": "e5-6", "source": "5", "target": "6" },
-    { "id": "e6-7", "source": "6", "target": "7" }
+    {
+      "identifier": "df53d2ba-597c-4e9b-a8d5-c310dd59e316",
+      "source": null,
+      "target": "d28bf5a3-b1a6-4708-bfa0-aa4ffd779211",
+      "details": {
+        "stamp": {
+          "time": 1750974791.5612297,
+          "step": 7,
+          "identifier": "Finished executing ToolCallLLM(rng Node)"
+        },
+        "input": [[["ERROR: user: Give me 3 random numbers please"]], {}],
+        "output": "ERROR: assistant: Here are three random numbers for you: 0.6892, 0.3587, and 0.4408."
+      }
+    },
+    {
+      "identifier": "87daffa3-6b1d-408a-b512-7fb596ce8aa8",
+      "source": "d28bf5a3-b1a6-4708-bfa0-aa4ffd779211",
+      "target": "6d5b40a0-a1f9-4fcc-a97f-2b1c17cc54e2",
+      "details": {
+        "stamp": {
+          "time": 1750974790.4197373,
+          "step": 4,
+          "identifier": "Finished executing rng Node"
+        },
+        "input": [["rng", {}], {}],
+        "output": 0.689194966369548
+      }
+    },
+    {
+      "identifier": "ac99ca31-440a-4923-bdb2-de5304b15c40",
+      "source": "d28bf5a3-b1a6-4708-bfa0-aa4ffd779211",
+      "target": "7ed6b7eb-2f88-40e0-ba45-3ca40acb7d12",
+      "details": {
+        "stamp": {
+          "time": 1750974790.4197373,
+          "step": 5,
+          "identifier": "Finished executing rng Node"
+        },
+        "input": [["rng", {}], {}],
+        "output": 0.3587284664253334
+      }
+    },
+    {
+      "identifier": "88c358b8-fce6-4527-b915-43f04f45f8ba",
+      "source": "d28bf5a3-b1a6-4708-bfa0-aa4ffd779211",
+      "target": "772d7486-2366-4eed-b567-b5adfdca6a18",
+      "details": {
+        "stamp": {
+          "time": 1750974790.4197373,
+          "step": 6,
+          "identifier": "Finished executing rng Node"
+        },
+        "input": [["rng", {}], {}],
+        "output": 0.4407852451471538
+      }
+    }
   ]
 }
