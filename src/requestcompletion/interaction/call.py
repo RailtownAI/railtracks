@@ -7,10 +7,10 @@ from requestcompletion.context.central import (
     is_context_present,
     is_context_active,
     activate_publisher,
-    get_config,
     shutdown_publisher,
     get_publisher,
     get_parent_id,
+    get_local_config,
 )
 from requestcompletion.exceptions import GlobalTimeOutError
 
@@ -126,7 +126,7 @@ async def _start(
             timeout_exception_flag["value"] = True
             raise error
 
-    timeout = get_config().timeout
+    timeout = get_local_config().timeout
     fut = _execute(
         node, args=args, kwargs=kwargs, message_filter=_top_level_message_filter
     )

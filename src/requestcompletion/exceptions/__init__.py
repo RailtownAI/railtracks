@@ -4,6 +4,7 @@ from .errors import (
     NodeInvocationError,
     GlobalTimeOutError,
     LLMError,
+    ContextError,
 )
 
 
@@ -13,4 +14,5 @@ __all__ = [
     "NodeInvocationError",
     "GlobalTimeOutError",
     "LLMError",
+    "ContextError",
 ]

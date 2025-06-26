@@ -1,3 +1,4 @@
+# ------------------------------- Exception Messages ------------------------------
 CLASSMETHOD_REQUIRED_MSG: "The '{method_name}' method must be a @classmethod."
 CLASSMETHOD_REQUIRED_NOTES:
   - "Add @classmethod decorator to '{method_name}'."
@@ -11,6 +12,7 @@ CONNECTED_NODES_TYPE_MSG: "connected_nodes must return a set of Nodes."
 CONNECTED_NODES_TYPE_NOTES:
   - "Ensure all the nodes provided as connected_nodes are of type Node."
   - "You can use the from_function function to convert a function to a Node."
+  - "You can use the @rc.to_node decorator to convert a function to a Node. eg.-\n@rc.to_node\ndef my_function(): ..."
 
 DICT_PARAMETER_NOT_ALLOWED_MSG: "Parameter '{param_name}' contains a dictionary type at {path}, which is not allowed."
 DICT_PARAMETER_NOT_ALLOWED_NOTES:
@@ -25,11 +27,31 @@ DUPLICATE_PARAMETER_NAMES_NOTES:
 
 INVALID_SYSTEM_MESSAGE_MSG: "system_message must be a SystemMessage object or a string, not any other type."
 
+MAX_TOOL_CALLS_NEGATIVE_MSG: "max_tool_calls must be a non-negative integer."
+MAX_TOOL_CALLS_NEGATIVE_NOTES:
+  - "The default value for any tool_call_llm node is 30."
+  - "To give the llm access to unlimited tool calls, set max_tool_calls to None."
+  - "If you want to allow only a limited number of tool calls, set max_tool_calls to that number."
+
+MESSAGE_HISTORY_EMPTY_MSG: "Message history must contain at least one message."
+MESSAGE_HISTORY_EMPTY_NOTES:
+  - "Please provide an initial message."
+
+MESSAGE_HISTORY_TYPE_MSG: "Message history must be a list of Message objects."
+MESSAGE_HISTORY_TYPE_NOTES:
+  - "System messages must be of type rc.llm.SystemMessage (not string)."
+  - "User messages must be of type rc.llm.UserMessage (not string)."
+
 MISSING_PRETTY_NAME_MSG: "You must provide a pretty_name when using this node as a tool, as this is used to identify the tool."
 
 MISSING_TOOL_DETAILS_MSG: "Tool parameters are provided, but tool details are missing."
 MISSING_TOOL_DETAILS_NOTES:
   - "If you want to use this node as a tool, you must provide tool details."
+
+MODEL_REQUIRED_MSG: "You must provide a model to this node."
+MODEL_REQUIRED_NOTES:
+  - "You can provide the model during the time of node creation using easy_usage_wrappers. Eg:\n_ = rc.library.terminal_llm(..., model=rc.llm.OpenAILLM('gpt-4o'))"
+  - "You can insert the model during the time of node invocation using the 'model' parameter. Eg:\n_ = rc.call(node, model=rc.llm.OpenAILLM('gpt-4o'))"
 
 OUTPUT_MODEL_EMPTY_MSG: "Output model has no fields defined."
 OUTPUT_MODEL_EMPTY_NOTES:
@@ -47,3 +69,13 @@ OUTPUT_MODEL_TYPE_MSG: "Output model must be a pydantic model, not {actual_type}
 OUTPUT_MODEL_TYPE_NOTES:
   - "Check to see if the output_model is a pydantic model."
   - "The model fields must be defined in the output_model. Eg.-\n class MyModel(BaseModel): \n    field1: str = Field(description='field1 description')"
+
+
+
+# ----------------------------------- Warnings ------------------------------------
+
+MAX_TOOL_CALLS_UNLIMITED_WARN: "You have set max_tool_calls to None. The llm will be able to make unlimited tool calls."
+
+NO_SYSTEM_MESSAGE_WARN: "No SystemMessage was provided. This is not recommended. Please provide the first message as a SystemMessage."
+
+ONLY_SYSTEM_MESSAGE_WARN: "Only SystemMessage was provided. This is not recommended. Please provide at least one UserMessage."

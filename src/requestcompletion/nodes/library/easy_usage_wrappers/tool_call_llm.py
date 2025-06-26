@@ -11,9 +11,7 @@ from ....llm import (
     Tool,
 )
 from ....nodes.library import structured_llm
-from ....nodes.library._tool_call_llm_base import (
-    OutputLessToolCallLLM,
-)
+from ..tool_calling_llms._base import OutputLessToolCallLLM
 from ....nodes.nodes import Node
 from ....llm.message import Role
 
@@ -29,6 +27,7 @@ def tool_call_llm(  # noqa: C901
     connected_nodes: Set[Union[Type[Node], Callable]],
     pretty_name: str | None = None,
     model: ModelBase | None = None,
+    max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
     output_type: Literal["MessageHistory", "LastMessage"] = "LastMessage",
     output_model: BaseModel | None = None,
@@ -36,11 +35,9 @@ def tool_call_llm(  # noqa: C901
     tool_params: dict | None = None,
 ) -> Type[OutputLessToolCallLLM[Union[MessageHistory, AssistantMessage, BaseModel]]]:
     if output_model:
-        OutputType = output_model  # noqa: N806
+        output = output_model
     else:
-        OutputType = (  # noqa: N806
-            MessageHistory if output_type == "MessageHistory" else AssistantMessage
-        )
+        output = MessageHistory if output_type == "MessageHistory" else AssistantMessage
 
     if (
         output_model and output_type == "MessageHistory"
@@ -50,7 +47,7 @@ def tool_call_llm(  # noqa: C901
         )
 
     # If a function is passed in, we will convert it to a node
-    for elem in connected_nodes:
+    for elem in list(connected_nodes):
         if isclass(elem):
             if not issubclass(elem, Node):
                 raise NodeCreationError(
@@ -70,7 +67,7 @@ def tool_call_llm(  # noqa: C901
                 ],
             )
 
-    class ToolCallLLM(OutputLessToolCallLLM[OutputType]):
+    class ToolCallLLM(OutputLessToolCallLLM[output]):
         def return_output(self):
             if output_model:
                 if isinstance(self.structured_output, Exception):
@@ -85,7 +82,7 @@ def tool_call_llm(  # noqa: C901
             self,
             message_history: MessageHistory,
             llm_model: ModelBase | None = None,
-            max_tool_calls: int | None = 30,
+            max_tool_calls: int = max_tool_calls if max_tool_calls is not None else 30,
         ):
             check_message_history(
                 message_history, system_message
@@ -109,9 +106,7 @@ def tool_call_llm(  # noqa: C901
                         "You have provided a model as a parameter and as a class variable. We will use the parameter."
                     )
             else:
-                check_model(
-                    model
-                )  # raises NodeInvocationError if any of the checks fail
+                check_model(model)
                 llm_model = model
 
             super().__init__(
@@ -158,7 +153,9 @@ def tool_call_llm(  # noqa: C901
             )
             return cls(message_hist)
 
-    validate_tool_metadata(tool_params, tool_details, system_message, pretty_name)
+    validate_tool_metadata(
+        tool_params, tool_details, system_message, pretty_name, max_tool_calls
+    )
     if system_message is not None and isinstance(
         system_message, str
     ):  # system_message is a string, (tackled at the time of node creation)

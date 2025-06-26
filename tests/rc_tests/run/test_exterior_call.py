@@ -7,6 +7,7 @@ import concurrent.futures
 
 import requestcompletion.context.central
 import requestcompletion.interaction.stream
+from requestcompletion import ExecutorConfig
 
 RNGNode = rc.library.from_function(random.random)
 
@@ -162,6 +163,20 @@ def test_sequence_of_changes_overwrite():
         assert run.rc_state.executor_config.end_on_error
         assert run.rc_state.executor_config.logging_setting == "NONE"
         assert info.answer == run.info.answer
+
+def test_back_to_defaults():
+    rc.set_config(ExecutorConfig(end_on_error=True, logging_setting="REGULAR"))
+    with rc.Runner(
+        executor_config=rc.ExecutorConfig(end_on_error=True, logging_setting="NONE")
+    ) as run:
+        assert run.rc_state.executor_config.end_on_error
+        assert run.rc_state.executor_config.logging_setting == "NONE"
+
+    with rc.Runner() as run:
+        assert run.rc_state.executor_config.end_on_error
+        assert run.rc_state.executor_config.logging_setting == "REGULAR"
+
+
 
 
 message = "Hello, World!"

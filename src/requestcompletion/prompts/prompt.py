@@ -1,6 +1,7 @@
 import string
 import requestcompletion as rc
-from ..context.central import get_config
+from requestcompletion.exceptions import ContextError
+from ..context.central import get_local_config
 from ..llm import MessageHistory, Message
 
 
@@ -32,7 +33,14 @@ def inject_context(message_history: MessageHistory):
         message_history (MessageHistory): The prompts to inject context into.
 
     """
-    if get_config().prompt_injection:
+    # we need to be able to handle the case where the user is not running this within the context of a `rc.Runner()`
+    try:
+        local_config = get_local_config()
+        is_prompt_inject = local_config.prompt_injection
+    except ContextError:
+        is_prompt_inject = False
+
+    if is_prompt_inject:
         for i, message in enumerate(message_history):
             if message.inject_prompt and isinstance(message.content, str):
                 try:

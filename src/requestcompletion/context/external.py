@@ -32,8 +32,14 @@ class MutableExternalContext(ExternalContext):
     A context that can be initially defined, then be interacted with using the `get` and `put` methods.
     """
 
-    def __init__(self):
-        self._context_var_store = {}
+    def __init__(
+        self,
+        input_dict: Dict[str, Any] | None = None,
+    ):
+        if input_dict is not None:
+            self._context_var_store = input_dict
+        else:
+            self._context_var_store = {}
 
     def update(self, data: Dict[str, Any]) -> None:
         """

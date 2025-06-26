@@ -20,12 +20,12 @@ def test_simple_request():
     assert 0 < result.answer < 1
 
 
-class TestError(Exception):
+class ErrorforTest(Exception):
     pass
 
 
 async def error_thrower():
-    raise TestError("This is a test error")
+    raise ErrorforTest("This is a test error")
 
 
 ErrorThrower = rc.library.from_function(error_thrower)
@@ -33,14 +33,14 @@ ErrorThrower = rc.library.from_function(error_thrower)
 
 def test_error():
     with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as run:
-        with pytest.raises(TestError):
+        with pytest.raises(ErrorforTest):
             run.run_sync(ErrorThrower)
 
 
 async def error_handler():
     try:
         answer = await rc.call(ErrorThrower)
-    except TestError as e:
+    except ErrorforTest as e:
         return "Caught the error"
 
 
@@ -55,7 +55,7 @@ def test_error_handler():
 
 
 def test_error_handler_wo_retry():
-    with pytest.raises(TestError):
+    with pytest.raises(ErrorforTest):
         with rc.Runner(
             executor_config=rc.ExecutorConfig(
                 end_on_error=True, logging_setting="NONE"
@@ -68,7 +68,7 @@ async def error_handler_with_retry(retries: int):
     for _ in range(retries):
         try:
             return await rc.call(ErrorThrower)
-        except TestError as e:
+        except ErrorforTest as e:
             continue
 
     return "Caught the error"
@@ -93,9 +93,9 @@ def test_error_handler_with_retry():
 
         for r in children:
             assert isinstance(r.output, Failure)
-            assert isinstance(r.output.exception, TestError)
+            assert isinstance(r.output.exception, ErrorforTest)
 
-        assert all([isinstance(e, TestError) for e in result.exception_history])
+        assert all([isinstance(e, ErrorforTest) for e in result.exception_history])
         assert len(result.exception_history) == num_retries
 
 
@@ -124,14 +124,14 @@ def test_parallel_error_tester():
 
         assert isinstance(result.answer, list)
         assert len(result.answer) == n_c * p_c
-        assert all([isinstance(x, TestError) for x in result.answer])
+        assert all([isinstance(x, ErrorforTest) for x in result.answer])
 
 
 # wraps the above error handler in a top level function
 async def error_handler_wrapper(num_calls: int, parallel_calls: int):
     try:
         return await rc.call(ParallelErrorHandler, num_calls, parallel_calls)
-    except TestError as e:
+    except ErrorforTest as e:
         return "Caught the error"
 
 
@@ -146,7 +146,7 @@ def test_parallel_error_wrapper():
             result = run.run_sync(ErrorHandlerWrapper, n_c, p_c)
 
         assert len(result.answer) == n_c * p_c
-        assert all([isinstance(x, TestError) for x in result.answer])
+        assert all([isinstance(x, ErrorforTest) for x in result.answer])
 
         i_r = result.request_heap.insertion_request[0]
 
@@ -159,7 +159,7 @@ def test_parallel_error_wrapper():
 
         for r in full_children:
             assert isinstance(r.output, Failure)
-            assert isinstance(r.output.exception, TestError)
+            assert isinstance(r.output.exception, ErrorforTest)
 
-        assert all([isinstance(e, TestError) for e in result.exception_history])
+        assert all([isinstance(e, ErrorforTest) for e in result.exception_history])
         assert len(result.exception_history) == n_c * p_c

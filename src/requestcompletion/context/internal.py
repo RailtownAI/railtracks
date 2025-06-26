@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from requestcompletion.config import ExecutorConfig
+
 if TYPE_CHECKING:
     from requestcompletion.pubsub.publisher import RCPublisher
 
@@ -19,10 +21,26 @@ class InternalContext:
         runner_id: str | None = None,
         publisher: RCPublisher | None = None,
         parent_id: str | None = None,
+        executor_config: ExecutorConfig,
     ):
         self._parent_id: str | None = parent_id
         self._publisher: RCPublisher | None = publisher
         self._runner_id: str | None = runner_id
+        self._executor_config: ExecutorConfig = executor_config
+
+    @property
+    def executor_config(self) -> ExecutorConfig:
+        """
+        Returns the executor configuration for this run.
+        """
+        return self._executor_config
+
+    @executor_config.setter
+    def executor_config(self, value: ExecutorConfig):
+        """
+        Sets the executor configuration for this run.
+        """
+        self._executor_config = value
 
     # Not super pythonic but it allows us to slap in debug statements on the getters and setters with ease
     @property
@@ -70,4 +88,5 @@ class InternalContext:
             publisher=self._publisher,
             parent_id=new_parent_id,
             runner_id=self._runner_id,
+            executor_config=self._executor_config,
         )

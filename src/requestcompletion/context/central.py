@@ -6,32 +6,74 @@ from typing import Any, Callable
 
 
 from requestcompletion.context.external import MutableExternalContext, ExternalContext
-
+from requestcompletion.exceptions import ContextError
 
 from requestcompletion.config import ExecutorConfig
 from requestcompletion.context.internal import InternalContext
 from requestcompletion.pubsub.publisher import RCPublisher
 
-external_context: contextvars.ContextVar[ExternalContext] = contextvars.ContextVar(
-    "external_context", default=MutableExternalContext()
+
+class RunnerContextVars:
+    """
+    A class to hold context variables which are scoped within the context of a single runner.
+    """
+
+    def __init__(
+        self,
+        *,
+        runner_id: str,
+        internal_context: InternalContext,
+        external_context: ExternalContext,
+    ):
+        self.runner_id = runner_id
+        self.internal_context = internal_context
+        self.external_context = external_context
+
+    def prepare_new(self, new_parent_id: str):
+        """
+        Update the parent ID of the internal context.
+        """
+        new_internal_context = self.internal_context.prepare_new(new_parent_id)
+
+        return RunnerContextVars(
+            runner_id=self.runner_id,
+            internal_context=new_internal_context,
+            external_context=self.external_context,
+        )
+
+
+runner_context: contextvars.ContextVar[RunnerContextVars | None] = (
+    contextvars.ContextVar("runner_context", default=None)
 )
-config: contextvars.ContextVar[ExecutorConfig | None] = contextvars.ContextVar(
+global_executor_config: contextvars.ContextVar[ExecutorConfig] = contextvars.ContextVar(
     "executor_config", default=ExecutorConfig()
 )
-thread_context: contextvars.ContextVar[InternalContext | None] = contextvars.ContextVar(
-    "thread_context", default=None
-)
 
 
-def get_globals() -> InternalContext:
+def safe_get_runner_context() -> RunnerContextVars:
     """
-    Get the global variables for the current thread.
+    Safely get the runner context for the current thread.
+
+        Returns:
+            RunnerContextVars: The runner context associated with the current thread.
+
+        Raises:
+            RuntimeError: If the global variables have not been registered.
     """
-    return thread_context.get()
+    context = runner_context.get()
+    if context is None:
+        raise ContextError(
+            message="Context is not available. But some function tried to access it.",
+            notes=[
+                "You need to have an active runner to access context.",
+                "Eg.-\n with rc.Runner():\n    _ = rc.call(node)",
+            ],
+        )
+    return context
 
 
 def is_context_present():
-    t_c = thread_context.get()
+    t_c = runner_context.get()
     return t_c is not None
 
 
@@ -42,8 +84,8 @@ def is_context_active():
     Returns:
         bool: True if the global variables are active, False otherwise.
     """
-    context = thread_context.get()
-    return context is not None and context.is_active
+    context = runner_context.get()
+    return context is not None and context.internal_context.is_active
 
 
 def get_publisher() -> RCPublisher:
@@ -56,12 +98,8 @@ def get_publisher() -> RCPublisher:
     Raises:
         RuntimeError: If the global variables have not been registered.
     """
-    context = thread_context.get()
-    if context is None:
-        raise RuntimeError(
-            "Global variables have not been registered. Call `register_globals()` first."
-        )
-    return context.publisher
+    context = safe_get_runner_context()
+    return context.internal_context.publisher
 
 
 def get_runner_id() -> str:
@@ -74,11 +112,7 @@ def get_runner_id() -> str:
     Raises:
         RuntimeError: If the global variables have not been registered.
     """
-    context = thread_context.get()
-    if context is None:
-        raise RuntimeError(
-            "Global variables have not been registered. Call `register_globals()` first."
-        )
+    context = safe_get_runner_context()
     return context.runner_id
 
 
@@ -92,26 +126,36 @@ def get_parent_id() -> str | None:
     Raises:
         RuntimeError: If the global variables have not been registered.
     """
-    context = thread_context.get()
-    if context is None:
-        raise RuntimeError(
-            "Global variables have not been registered. Call `register_globals()` first."
-        )
-    return context.parent_id
+    context = safe_get_runner_context()
+    return context.internal_context.parent_id
 
 
 def register_globals(
+    *,
     runner_id: str,
-    rc_publisher: RCPublisher | None = None,
-    parent_id: str | None = None,
+    rc_publisher: RCPublisher | None,
+    parent_id: str | None,
+    executor_config: ExecutorConfig,
+    global_context_vars: dict[str, Any],
 ):
     """
     Register the global variables for the current thread.
     """
     i_c = InternalContext(
-        publisher=rc_publisher, parent_id=parent_id, runner_id=runner_id
+        publisher=rc_publisher,
+        parent_id=parent_id,
+        runner_id=runner_id,
+        executor_config=executor_config,
     )
-    thread_context.set(i_c)
+    e_c = MutableExternalContext(global_context_vars)
+
+    runner_context_vars = RunnerContextVars(
+        runner_id=runner_id,
+        internal_context=i_c,
+        external_context=e_c,
+    )
+
+    runner_context.set(runner_context_vars)
 
 
 async def activate_publisher():
@@ -120,12 +164,13 @@ async def activate_publisher():
 
     This function should be called to ensure that the publisher is running and can be used to publish messages.
     """
-    context = thread_context.get()
-    assert context is not None
+    r_c = safe_get_runner_context()
+    internal_context = r_c.internal_context
+    assert internal_context is not None
 
-    assert context.publisher is not None
+    assert internal_context.publisher is not None
 
-    await context.publisher.start()
+    await internal_context.publisher.start()
 
 
 async def shutdown_publisher():
@@ -134,21 +179,50 @@ async def shutdown_publisher():
 
     This function should be called to stop the publisher and clean up resources.
     """
-    context = thread_context.get()
+    context = safe_get_runner_context()
+    context = context.internal_context
     assert context is not None
 
     assert context.publisher.is_running()
     await context.publisher.shutdown()
 
 
-def get_config() -> ExecutorConfig | None:
+def get_global_config() -> ExecutorConfig:
     """
     Get the executor configuration for the current thread's global variables.
 
     Returns:
-        ExecutorConfig | None: The executor configuration associated with the current thread's global variables, or None if not set.
+        ExecutorConfig: The executor configuration associated with the current thread's global variables, or None if not set.
     """
-    return config.get()
+    executor_config = global_executor_config.get()
+    return executor_config
+
+
+def get_local_config() -> ExecutorConfig:
+    """
+    Get the executor configuration for the current thread's global variables.
+
+    Returns:
+        ExecutorConfig: The executor configuration associated with the current thread's global variables, or None if not set.
+    """
+    context = safe_get_runner_context()
+
+    return context.internal_context.executor_config
+
+
+def set_local_config(
+    executor_config: ExecutorConfig,
+):
+    """
+    Set the executor configuration for the current thread's global variables.
+
+    Args:
+        executor_config (ExecutorConfig): The executor configuration to set.
+    """
+    context = safe_get_runner_context()
+
+    context.executor_config = executor_config
+    runner_context.set(context)
 
 
 def set_global_config(
@@ -160,25 +234,25 @@ def set_global_config(
     Args:
         executor_config (ExecutorConfig): The executor configuration to set.
     """
-    config.set(executor_config)
+    global_executor_config.set(executor_config)
 
 
 def update_parent_id(new_parent_id: str):
     """
     Update the parent ID of the current thread's global variables.
     """
-    current_context = thread_context.get()
+    current_context = safe_get_runner_context()
 
     if current_context is None:
         raise RuntimeError("No global variable set")
 
     new_context = current_context.prepare_new(new_parent_id)
 
-    thread_context.set(new_context)
+    runner_context.set(new_context)
 
 
 def delete_globals():
-    thread_context.set(None)
+    runner_context.set(None)
 
 
 def get(
@@ -198,8 +272,8 @@ def get(
     Raises:
         KeyError: If the key does not exist and no default value is provided.
     """
-    context = external_context.get()
-    return context.get(key, default=default)
+    context = safe_get_runner_context()
+    return context.external_context.get(key, default=default)
 
 
 def put(
@@ -212,13 +286,13 @@ def put(
     :param key: The key to set.
     :param value: The value to associate with the key.
     """
-    context = external_context.get()
-    context.put(key, value)
+    context = safe_get_runner_context()
+    context.external_context.put(key, value)
 
 
 def set_config(executor_config: ExecutorConfig):
     """
-    Sets the executor config for the current runner.
+    Sets the global configuration for the executor. This will be propagated to all new runners created after this call.
     """
 
     if is_context_active():
@@ -227,12 +301,12 @@ def set_config(executor_config: ExecutorConfig):
         )
         # TODO figure out what happens when you do this.
 
-    config.set(executor_config)
+    global_executor_config.set(executor_config)
 
 
 def set_streamer(subscriber: Callable[[str], None]):
     """
-    Sets the data streamer for the current runner.
+    Sets the data streamer globally.
     """
 
     if is_context_active():
@@ -241,6 +315,6 @@ def set_streamer(subscriber: Callable[[str], None]):
         )
         # TODO figure out what happens when you do this.
 
-    executor_config = config.get()
+    executor_config = global_executor_config.get()
     executor_config.subscriber = subscriber
-    config.set(executor_config)
+    global_executor_config.set(executor_config)

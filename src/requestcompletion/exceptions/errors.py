@@ -105,5 +105,27 @@ class GlobalTimeOutError(RCError):
         return self._color(self.message, self.RED)
 
 
+class ContextError(RCError):
+    """
+    Raised when there is an error with the context.
+    """
+
+    def __init__(self, message: str = None, notes: list[str] = None):
+        self.message = message or "Context error"
+        self.notes = notes or []
+        super().__init__(self.message)
+
+    def __str__(self):
+        base = super().__str__()
+        if self.notes:
+            notes_str = (
+                "\n"
+                + self._color("Tips to debug:\n", self.GREEN)
+                + "\n".join(self._color(f"- {note}", self.GREEN) for note in self.notes)
+            )
+            return f"\n{self._color(base, self.RED)}{notes_str}"
+        return self._color(base, self.RED)
+
+
 class FatalError(RCError):
     pass

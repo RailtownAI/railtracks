@@ -1,4 +1,4 @@
-from ._tool_call_llm_base import OutputLessToolCallLLM
+from ._base import OutputLessToolCallLLM
 
 from abc import ABC
 

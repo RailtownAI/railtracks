@@ -1,18 +1,20 @@
 import asyncio
 from typing import TypeVar, ParamSpec, Generic, Set, Type, Dict, Any, Union, Callable
-from ..nodes import Node
-from ._llm_base import LLMBase
-from ...llm import (
+from ...nodes import Node
+from requestcompletion.llm import (
     MessageHistory,
     ModelBase,
     ToolCall,
     ToolResponse,
     ToolMessage,
     UserMessage,
+    AssistantMessage,
 )
-from ...interaction.call import call
+from .._llm_base import LLMBase
+from requestcompletion.run import call
 from abc import ABC, abstractmethod
-from ...exceptions import NodeCreationError, LLMError
+from requestcompletion.exceptions import NodeCreationError, LLMError
+from requestcompletion.exceptions.node_invocation.validation import check_max_tool_calls
 
 _T = TypeVar("_T")
 _P = ParamSpec("_P")
@@ -30,8 +32,8 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
         max_tool_calls: int | None = 30,
     ):
         super().__init__(model=model, message_history=message_history)
+        check_max_tool_calls(max_tool_calls)
         self.structured_resp_node = None  # The structured LLM node
-
         self.max_tool_calls = max_tool_calls
 
     @abstractmethod
@@ -62,26 +64,29 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
     @abstractmethod
     def return_output(self) -> _T: ...
 
-    async def invoke(
-        self,
-    ) -> _T:
+    async def _on_max_tool_calls_exceeded(self):
+        """force a final response"""
+        returned_mess = self.model.chat_with_tools(self.message_hist, tools=[])
+        self.message_hist.append(returned_mess.message)
+
+    async def invoke(self) -> _T:
         while True:
-            # special check for maximum tool calls
-            if self.max_tool_calls is not None and (
-                len([m for m in self.message_hist if isinstance(m, ToolMessage)])
-                >= self.max_tool_calls
-            ):
-                raise LLMError(
-                    reason=f"Maximum number of tool calls ({self.max_tool_calls}) exceeded.",
-                    message_history=self.message_hist,
-                )
+            current_tool_calls = len(
+                [m for m in self.message_hist if isinstance(m, ToolMessage)]
+            )
+            allowed_tool_calls = (
+                self.max_tool_calls - current_tool_calls
+                if self.max_tool_calls is not None
+                else None
+            )
+            if self.max_tool_calls is not None and allowed_tool_calls <= 0:
+                await self._on_max_tool_calls_exceeded()
+                break
 
             # collect the response from the model
             returned_mess = self.model.chat_with_tools(
                 self.message_hist, tools=self.tools()
             )
-
-            self.message_hist.append(returned_mess.message)
 
             if returned_mess.message.role == "assistant":
                 # if the returned item is a list then it is a list of tool calls
@@ -90,8 +95,18 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                         isinstance(x, ToolCall) for x in returned_mess.message.content
                     )
 
+                    tool_calls = returned_mess.message.content
+                    if (
+                        allowed_tool_calls is not None
+                        and len(tool_calls) > allowed_tool_calls
+                    ):
+                        tool_calls = tool_calls[:allowed_tool_calls]
+
+                    # append the requested tool calls assistant message, once the tool calls have been verified and truncated (if needed)
+                    self.message_hist.append(AssistantMessage(content=tool_calls))
+
                     contracts = []
-                    for t_c in returned_mess.message.content:
+                    for t_c in tool_calls:
                         contract = call(
                             self.create_node,
                             t_c.name,
@@ -110,8 +125,8 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                         )
                         for x in tool_responses
                     ]
-                    tool_ids = [x.identifier for x in returned_mess.message.content]
-                    tool_names = [x.name for x in returned_mess.message.content]
+                    tool_ids = [x.identifier for x in tool_calls]
+                    tool_names = [x.name for x in tool_calls]
 
                     for r_id, r_name, resp in zip(
                         tool_ids,
@@ -127,6 +142,9 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                         )
                 else:
                     # this means the tool call is finished
+                    self.message_hist.append(
+                        AssistantMessage(content=returned_mess.message.content)
+                    )
                     break
             else:
                 # the message is malformed from the model

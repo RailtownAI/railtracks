@@ -17,9 +17,9 @@ from .mcp_tool import from_mcp_server
 
 from .terminal_llm import TerminalLLM
 
-from .tool_call_llm import ToolCallLLM
-from .mess_hist_tool_call_llm import MessageHistoryToolCallLLM
-from .structured_tool_call_llm import StructuredToolCallLLM
+from .tool_calling_llms.tool_call_llm import ToolCallLLM
+from .tool_calling_llms.mess_hist_tool_call_llm import MessageHistoryToolCallLLM
+from .tool_calling_llms.structured_tool_call_llm import StructuredToolCallLLM
 
 from .structured_llm import StructuredLLM
 

@@ -1,10 +1,10 @@
-from .exception_messages import ExceptionMessageKey, get_message, get_notes
+from ..messages.exception_messages import ExceptionMessageKey, get_message, get_notes
 from typing import Any, Iterable, Callable, Dict, get_origin
 import inspect
 from ..errors import NodeCreationError
 from pydantic import BaseModel
 from ...llm import SystemMessage
-
+import warnings
 
 def validate_function(func: Callable) -> None:
     """
@@ -206,11 +206,32 @@ def _check_tool_params_and_details(tool_params: Any, tool_details: Any) -> None:
         )
 
 
+def _check_max_tool_calls(max_tool_calls: int | None) -> None:
+    """
+    Ensure max_tool_calls is a non-negative integer.
+    Args:
+        max_tool_calls: The maximum number of tool calls allowed.
+    Raises:
+        NodeCreationError: If max_tool_calls is negative.
+    """
+    if max_tool_calls is None:
+        warnings.warn(
+            get_message(ExceptionMessageKey.MAX_TOOL_CALLS_UNLIMITED_WARN),
+            UserWarning,
+        )
+    elif max_tool_calls < 0:
+        raise NodeCreationError(
+            get_message(ExceptionMessageKey.MAX_TOOL_CALLS_NEGATIVE_MSG),
+            notes=get_notes(ExceptionMessageKey.MAX_TOOL_CALLS_NEGATIVE_NOTES),
+        )
+
+
 def validate_tool_metadata(
     tool_params: Any,
     tool_details: Any,
     system_message: Any,
     pretty_name: str | None,
+    max_tool_calls: int | None = None,
 ) -> None:
     """
     Run all tool metadata validation checks at once.
@@ -220,6 +241,7 @@ def validate_tool_metadata(
         tool_details: The tool details object.
         system_message: The system message to check.
         pretty_name: The pretty name to check.
+        max_tool_calls: The maximum number of tool calls allowed.
 
     Raises:
         NodeCreationError: If any validation fails.
@@ -228,6 +250,7 @@ def validate_tool_metadata(
     _check_duplicate_param_names(tool_params or [])
     _check_system_message(system_message)
     _check_pretty_name(pretty_name, tool_details)
+    _check_max_tool_calls(max_tool_calls)
 
 
 # ================================================ END Common Validation accross easy_usage_wrappers ===========================================================

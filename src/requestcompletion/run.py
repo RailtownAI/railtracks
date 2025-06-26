@@ -8,11 +8,9 @@ from typing import TypeVar, ParamSpec, Callable, Dict, Any
 
 from .config import ExecutorConfig
 from .context.central import (
-    external_context,
     register_globals,
     delete_globals,
-    get_config,
-    set_global_config,
+    get_global_config,
 )
 from .execution.coordinator import Coordinator
 from .execution.execution_strategy import AsyncioExecutionStrategy
@@ -75,18 +73,12 @@ class Runner:
     ):
         # first lets read from defaults if nessecary for the provided input config
         if executor_config is None:
-            executor_config = get_config()
-        else:
-            # if we have a config, we will set it as the global config
-            set_global_config(executor_config)
+            executor_config = get_global_config()
 
         self.executor_config = executor_config
 
         if context is None:
             context = {}
-        context_global = external_context.get()
-        context_global.update(context)
-        external_context.set(context_global)
 
         # TODO see issue about logger
         prepare_logger(
@@ -107,7 +99,13 @@ class Runner:
 
         self.coordinator.start(self.publisher)
         self.setup_subscriber()
-        register_globals(runner_id=self._identifier, rc_publisher=self.publisher)
+        register_globals(
+            runner_id=self._identifier,
+            rc_publisher=self.publisher,
+            parent_id=None,
+            executor_config=executor_config,
+            global_context_vars=context,
+        )
 
         logger.debug("Runner %s is initialized" % self._identifier)
 
