@@ -229,7 +229,7 @@ const nodeTypes: NodeTypes = {
 const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
   flowData,
   width = '100%',
-  height = '600px',
+  height = '1000px',
   className = '',
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -417,8 +417,8 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
         borderRadius: '8px',
         overflow: 'hidden',
         position: 'relative',
-        minWidth: '400px',
-        minHeight: '300px',
+        minWidth: '800px',
+        minHeight: '600px',
       }}
       className={className}
     >
