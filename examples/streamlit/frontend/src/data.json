@@ -1,131 +1,405 @@
 {
   "nodes": [
     {
-      "identifier": "d28bf5a3-b1a6-4708-bfa0-aa4ffd779211",
+      "identifier": "a0e5e928-b627-4c55-9ec4-47150a126313",
       "node_type": "ToolCallLLM(rng Node)",
+      "stamp": {
+        "step": 7,
+        "time": 1751049736.8893209,
+        "identifier": "Finished executing ToolCallLLM(rng Node)"
+      },
       "details": {
-        "stamp": {
-          "time": 1750974791.5612297,
-          "step": 7,
-          "identifier": "Finished executing ToolCallLLM(rng Node)"
-        },
-        "details": {
+        "internals": {
           "llm_details": [
             {
-              "model_name": "gpt-4o",
-              "model_provider": "OpenAI",
-              "input": ["ERROR: user: Give me 3 random numbers please"],
-              "output": "ERROR: assistant: [ToolCall(identifier='call_CzgCRuuJmTraT3bCsDsFYluW', name='rng', arguments={}), ToolCall(identifier='call_I5V2q8Widc3YOFEL6EhtGS4z', name='rng', arguments={}), ToolCall(identifier='call_OQLGvR7Z9jaOHTVrZxBBthQg', name='rng', arguments={})]"
-            },
-            {
-              "model_name": "gpt-4o",
+              "model_name": "gpt-4o-2024-08-06",
               "model_provider": "OpenAI",
               "input": [
-                "ERROR: user: Give me 3 random numbers please",
-                "ERROR: assistant: [ToolCall(identifier='call_CzgCRuuJmTraT3bCsDsFYluW', name='rng', arguments={}), ToolCall(identifier='call_I5V2q8Widc3YOFEL6EhtGS4z', name='rng', arguments={}), ToolCall(identifier='call_OQLGvR7Z9jaOHTVrZxBBthQg', name='rng', arguments={})]",
-                "ERROR: tool: rng -> 0.689194966369548",
-                "ERROR: tool: rng -> 0.3587284664253334",
-                "ERROR: tool: rng -> 0.4407852451471538"
+                {
+                  "role": "user",
+                  "content": "Give me 3 random numbers please"
+                }
               ],
-              "output": "ERROR: assistant: Here are three random numbers for you: 0.6892, 0.3587, and 0.4408."
+              "output": {
+                "role": "assistant",
+                "content": [
+                  {
+                    "identifier": "call_x2bnOyrbSxGoPctuIAeQBh3N",
+                    "name": "rng",
+                    "arguments": {}
+                  },
+                  {
+                    "identifier": "call_rkQwg0pvHdUjPY1qecxuLCaH",
+                    "name": "rng",
+                    "arguments": {}
+                  },
+                  {
+                    "identifier": "call_018q95ED7H3jsCn1dAXlQkO2",
+                    "name": "rng",
+                    "arguments": {}
+                  }
+                ]
+              },
+              "input_tokens": 48,
+              "output_tokens": 50,
+              "total_cost": 0.00062,
+              "system_fingerprint": "fp_07871e2ad8"
+            },
+            {
+              "model_name": "gpt-4o-2024-08-06",
+              "model_provider": "OpenAI",
+              "input": [
+                {
+                  "role": "user",
+                  "content": "Give me 3 random numbers please"
+                },
+                {
+                  "role": "assistant",
+                  "content": [
+                    {
+                      "identifier": "call_x2bnOyrbSxGoPctuIAeQBh3N",
+                      "name": "rng",
+                      "arguments": {}
+                    },
+                    {
+                      "identifier": "call_rkQwg0pvHdUjPY1qecxuLCaH",
+                      "name": "rng",
+                      "arguments": {}
+                    },
+                    {
+                      "identifier": "call_018q95ED7H3jsCn1dAXlQkO2",
+                      "name": "rng",
+                      "arguments": {}
+                    }
+                  ]
+                },
+                {
+                  "role": "tool",
+                  "content": {
+                    "identifier": "call_x2bnOyrbSxGoPctuIAeQBh3N",
+                    "name": "rng",
+                    "result": "0.01547525340685385"
+                  }
+                },
+                {
+                  "role": "tool",
+                  "content": {
+                    "identifier": "call_rkQwg0pvHdUjPY1qecxuLCaH",
+                    "name": "rng",
+                    "result": "0.5422917972250834"
+                  }
+                },
+                {
+                  "role": "tool",
+                  "content": {
+                    "identifier": "call_018q95ED7H3jsCn1dAXlQkO2",
+                    "name": "rng",
+                    "result": "0.7564761775246583"
+                  }
+                }
+              ],
+              "output": {
+                "role": "assistant",
+                "content": "Here are three random numbers:\n\n1. 0.015\n2. 0.542\n3. 0.756"
+              },
+              "input_tokens": 138,
+              "output_tokens": 27,
+              "total_cost": 0.0006150000000000001,
+              "system_fingerprint": "fp_07871e2ad8"
             }
-          ]
+          ],
+          "latency": {
+            "total_time": 3.1278419494628906
+          }
         }
+      },
+      "parent": {
+        "identifier": "a0e5e928-b627-4c55-9ec4-47150a126313",
+        "node_type": "ToolCallLLM(rng Node)",
+        "stamp": {
+          "step": 0,
+          "time": 1751049733.7604754,
+          "identifier": "START CREATED ToolCallLLM(rng Node)"
+        },
+        "details": {
+          "internals": {
+            "llm_details": []
+          }
+        },
+        "parent": null
       }
     },
     {
-      "identifier": "6d5b40a0-a1f9-4fcc-a97f-2b1c17cc54e2",
+      "identifier": "deb35eb3-edfc-4c84-a386-5327154a8cf0",
       "node_type": "rng Node",
+      "stamp": {
+        "step": 4,
+        "time": 1751049735.421915,
+        "identifier": "Finished executing rng Node"
+      },
       "details": {
+        "internals": {
+          "latency": {
+            "total_time": 0.0020401477813720703
+          }
+        }
+      },
+      "parent": {
+        "identifier": "deb35eb3-edfc-4c84-a386-5327154a8cf0",
+        "node_type": "rng Node",
         "stamp": {
-          "time": 1750974790.4197373,
-          "step": 4,
-          "identifier": "Finished executing rng Node"
+          "step": 1,
+          "time": 1751049735.4188771,
+          "identifier": "ToolCallLLM(rng Node) CREATED rng Node"
         },
-        "details": {}
+        "details": {
+          "internals": {}
+        },
+        "parent": null
       }
     },
     {
-      "identifier": "7ed6b7eb-2f88-40e0-ba45-3ca40acb7d12",
+      "identifier": "fd30e362-fcc2-40d1-96fc-ba5c6a3c366a",
       "node_type": "rng Node",
+      "stamp": {
+        "step": 5,
+        "time": 1751049735.421915,
+        "identifier": "Finished executing rng Node"
+      },
       "details": {
+        "internals": {
+          "latency": {
+            "total_time": 0.000997781753540039
+          }
+        }
+      },
+      "parent": {
+        "identifier": "fd30e362-fcc2-40d1-96fc-ba5c6a3c366a",
+        "node_type": "rng Node",
         "stamp": {
-          "time": 1750974790.4197373,
-          "step": 5,
-          "identifier": "Finished executing rng Node"
+          "step": 2,
+          "time": 1751049735.4209173,
+          "identifier": "ToolCallLLM(rng Node) CREATED rng Node"
         },
-        "details": {}
+        "details": {
+          "internals": {}
+        },
+        "parent": null
       }
     },
     {
-      "identifier": "772d7486-2366-4eed-b567-b5adfdca6a18",
+      "identifier": "e941ab38-6a5c-4a8f-8ad7-d2b1f9110980",
       "node_type": "rng Node",
+      "stamp": {
+        "step": 6,
+        "time": 1751049735.421915,
+        "identifier": "Finished executing rng Node"
+      },
       "details": {
+        "internals": {
+          "latency": {
+            "total_time": 0
+          }
+        }
+      },
+      "parent": {
+        "identifier": "e941ab38-6a5c-4a8f-8ad7-d2b1f9110980",
+        "node_type": "rng Node",
         "stamp": {
-          "time": 1750974790.4197373,
-          "step": 6,
-          "identifier": "Finished executing rng Node"
+          "step": 3,
+          "time": 1751049735.4209173,
+          "identifier": "ToolCallLLM(rng Node) CREATED rng Node"
         },
-        "details": {}
+        "details": {
+          "internals": {}
+        },
+        "parent": null
       }
     }
   ],
   "edges": [
     {
-      "identifier": "df53d2ba-597c-4e9b-a8d5-c310dd59e316",
       "source": null,
-      "target": "d28bf5a3-b1a6-4708-bfa0-aa4ffd779211",
+      "target": "a0e5e928-b627-4c55-9ec4-47150a126313",
+      "identifier": "d4764186-b1b9-43eb-9d9c-7af2c34517a7",
+      "stamp": {
+        "step": 7,
+        "time": 1751049736.8893209,
+        "identifier": "Finished executing ToolCallLLM(rng Node)"
+      },
       "details": {
+        "input_args": [
+          [
+            {
+              "role": "user",
+              "content": "Give me 3 random numbers please"
+            }
+          ]
+        ],
+        "input_kwargs": {},
+        "output": {
+          "role": "assistant",
+          "content": "Here are three random numbers:\n\n1. 0.015\n2. 0.542\n3. 0.756"
+        }
+      },
+      "parent": {
+        "source": null,
+        "target": "a0e5e928-b627-4c55-9ec4-47150a126313",
+        "identifier": "d4764186-b1b9-43eb-9d9c-7af2c34517a7",
         "stamp": {
-          "time": 1750974791.5612297,
-          "step": 7,
-          "identifier": "Finished executing ToolCallLLM(rng Node)"
+          "step": 0,
+          "time": 1751049733.7604754,
+          "identifier": "START CREATED ToolCallLLM(rng Node)"
         },
-        "input": [[["ERROR: user: Give me 3 random numbers please"]], {}],
-        "output": "ERROR: assistant: Here are three random numbers for you: 0.6892, 0.3587, and 0.4408."
+        "details": {
+          "input_args": [
+            [
+              {
+                "role": "user",
+                "content": "Give me 3 random numbers please"
+              }
+            ]
+          ],
+          "input_kwargs": {},
+          "output": null
+        },
+        "parent": null
       }
     },
     {
-      "identifier": "87daffa3-6b1d-408a-b512-7fb596ce8aa8",
-      "source": "d28bf5a3-b1a6-4708-bfa0-aa4ffd779211",
-      "target": "6d5b40a0-a1f9-4fcc-a97f-2b1c17cc54e2",
+      "source": "a0e5e928-b627-4c55-9ec4-47150a126313",
+      "target": "deb35eb3-edfc-4c84-a386-5327154a8cf0",
+      "identifier": "cda00415-f862-4d0b-ab8e-cea6be4b250e",
+      "stamp": {
+        "step": 4,
+        "time": 1751049735.421915,
+        "identifier": "Finished executing rng Node"
+      },
       "details": {
+        "input_args": ["rng", {}],
+        "input_kwargs": {},
+        "output": 0.01547525340685385
+      },
+      "parent": {
+        "source": "a0e5e928-b627-4c55-9ec4-47150a126313",
+        "target": "deb35eb3-edfc-4c84-a386-5327154a8cf0",
+        "identifier": "cda00415-f862-4d0b-ab8e-cea6be4b250e",
         "stamp": {
-          "time": 1750974790.4197373,
-          "step": 4,
-          "identifier": "Finished executing rng Node"
+          "step": 1,
+          "time": 1751049735.4188771,
+          "identifier": "ToolCallLLM(rng Node) CREATED rng Node"
         },
-        "input": [["rng", {}], {}],
-        "output": 0.689194966369548
+        "details": {
+          "input_args": ["rng", {}],
+          "input_kwargs": {},
+          "output": null
+        },
+        "parent": null
       }
     },
     {
-      "identifier": "ac99ca31-440a-4923-bdb2-de5304b15c40",
-      "source": "d28bf5a3-b1a6-4708-bfa0-aa4ffd779211",
-      "target": "7ed6b7eb-2f88-40e0-ba45-3ca40acb7d12",
+      "source": "a0e5e928-b627-4c55-9ec4-47150a126313",
+      "target": "fd30e362-fcc2-40d1-96fc-ba5c6a3c366a",
+      "identifier": "8ac8c925-e110-4063-ac5c-efc962a72f4f",
+      "stamp": {
+        "step": 5,
+        "time": 1751049735.421915,
+        "identifier": "Finished executing rng Node"
+      },
       "details": {
+        "input_args": ["rng", {}],
+        "input_kwargs": {},
+        "output": 0.5422917972250834
+      },
+      "parent": {
+        "source": "a0e5e928-b627-4c55-9ec4-47150a126313",
+        "target": "fd30e362-fcc2-40d1-96fc-ba5c6a3c366a",
+        "identifier": "8ac8c925-e110-4063-ac5c-efc962a72f4f",
         "stamp": {
-          "time": 1750974790.4197373,
-          "step": 5,
-          "identifier": "Finished executing rng Node"
+          "step": 2,
+          "time": 1751049735.4209173,
+          "identifier": "ToolCallLLM(rng Node) CREATED rng Node"
         },
-        "input": [["rng", {}], {}],
-        "output": 0.3587284664253334
+        "details": {
+          "input_args": ["rng", {}],
+          "input_kwargs": {},
+          "output": null
+        },
+        "parent": null
       }
     },
     {
-      "identifier": "88c358b8-fce6-4527-b915-43f04f45f8ba",
-      "source": "d28bf5a3-b1a6-4708-bfa0-aa4ffd779211",
-      "target": "772d7486-2366-4eed-b567-b5adfdca6a18",
+      "source": "a0e5e928-b627-4c55-9ec4-47150a126313",
+      "target": "e941ab38-6a5c-4a8f-8ad7-d2b1f9110980",
+      "identifier": "cbd136b0-5ff3-4bc2-8c6c-4aa9fe45e348",
+      "stamp": {
+        "step": 6,
+        "time": 1751049735.421915,
+        "identifier": "Finished executing rng Node"
+      },
       "details": {
+        "input_args": ["rng", {}],
+        "input_kwargs": {},
+        "output": 0.7564761775246583
+      },
+      "parent": {
+        "source": "a0e5e928-b627-4c55-9ec4-47150a126313",
+        "target": "e941ab38-6a5c-4a8f-8ad7-d2b1f9110980",
+        "identifier": "cbd136b0-5ff3-4bc2-8c6c-4aa9fe45e348",
         "stamp": {
-          "time": 1750974790.4197373,
-          "step": 6,
-          "identifier": "Finished executing rng Node"
+          "step": 3,
+          "time": 1751049735.4209173,
+          "identifier": "ToolCallLLM(rng Node) CREATED rng Node"
         },
-        "input": [["rng", {}], {}],
-        "output": 0.4407852451471538
+        "details": {
+          "input_args": ["rng", {}],
+          "input_kwargs": {},
+          "output": null
+        },
+        "parent": null
       }
+    }
+  ],
+  "stamps": [
+    {
+      "step": 0,
+      "time": 1751049733.7604754,
+      "identifier": "START CREATED ToolCallLLM(rng Node)"
+    },
+    {
+      "step": 1,
+      "time": 1751049735.4188771,
+      "identifier": "ToolCallLLM(rng Node) CREATED rng Node"
+    },
+    {
+      "step": 2,
+      "time": 1751049735.4209173,
+      "identifier": "ToolCallLLM(rng Node) CREATED rng Node"
+    },
+    {
+      "step": 3,
+      "time": 1751049735.4209173,
+      "identifier": "ToolCallLLM(rng Node) CREATED rng Node"
+    },
+    {
+      "step": 4,
+      "time": 1751049735.421915,
+      "identifier": "Finished executing rng Node"
+    },
+    {
+      "step": 5,
+      "time": 1751049735.421915,
+      "identifier": "Finished executing rng Node"
+    },
+    {
+      "step": 6,
+      "time": 1751049735.421915,
+      "identifier": "Finished executing rng Node"
+    },
+    {
+      "step": 7,
+      "time": 1751049736.8893209,
+      "identifier": "Finished executing ToolCallLLM(rng Node)"
     }
   ]
 }
