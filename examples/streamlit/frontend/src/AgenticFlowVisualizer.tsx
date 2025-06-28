@@ -93,6 +93,179 @@ interface AgenticFlowVisualizerProps {
 }
 
 // ============================================================================
+// TIMELINE COMPONENT
+// ============================================================================
+
+interface TimelineProps {
+  stamps: Array<{
+    step: number;
+    time: number;
+    identifier: string;
+  }>;
+  currentStep: number;
+  isPlaying: boolean;
+  onStepChange: (step: number) => void;
+  onPlayPause: () => void;
+}
+
+const Timeline: React.FC<TimelineProps> = ({
+  stamps,
+  currentStep,
+  isPlaying,
+  onStepChange,
+  onPlayPause,
+}) => {
+  const maxStep =
+    stamps.length > 0 ? Math.max(...stamps.map((s) => s.step)) : 0;
+  const minStep =
+    stamps.length > 0 ? Math.min(...stamps.map((s) => s.step)) : 0;
+  const totalSteps = maxStep - minStep + 1;
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: '60px',
+        backgroundColor: 'white',
+        borderTop: '1px solid #e5e7eb',
+        display: 'flex',
+        alignItems: 'center',
+        padding: '0 16px',
+        gap: '12px',
+        zIndex: 10,
+      }}
+    >
+      {/* Play/Pause Button */}
+      <button
+        onClick={onPlayPause}
+        style={{
+          width: '32px',
+          height: '32px',
+          borderRadius: '50%',
+          border: '1px solid #d1d5db',
+          backgroundColor: 'white',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = '#f3f4f6';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = 'white';
+        }}
+      >
+        {isPlaying ? (
+          <div style={{ display: 'flex', gap: '2px' }}>
+            <div
+              style={{
+                width: '3px',
+                height: '12px',
+                backgroundColor: '#374151',
+              }}
+            />
+            <div
+              style={{
+                width: '3px',
+                height: '12px',
+                backgroundColor: '#374151',
+              }}
+            />
+          </div>
+        ) : (
+          <div
+            style={{
+              width: 0,
+              height: 0,
+              borderLeft: '8px solid #374151',
+              borderTop: '6px solid transparent',
+              borderBottom: '6px solid transparent',
+              marginLeft: '2px',
+            }}
+          />
+        )}
+      </button>
+
+      {/* Timeline Steps */}
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '0 8px',
+        }}
+      >
+        {Array.from({ length: totalSteps }, (_, index) => {
+          const step = minStep + index;
+          const isActive = step === currentStep;
+          const hasStep = stamps.some((s) => s.step === step);
+
+          return (
+            <button
+              key={step}
+              onClick={() => onStepChange(step)}
+              style={{
+                width: '16px',
+                height: '16px',
+                borderRadius: '50%',
+                border: isActive ? '2px solid #6366f1' : '1px solid #d1d5db',
+                backgroundColor: isActive
+                  ? '#6366f1'
+                  : hasStep
+                  ? '#e5e7eb'
+                  : 'white',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                position: 'relative',
+              }}
+              onMouseEnter={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.backgroundColor = hasStep
+                    ? '#d1d5db'
+                    : '#f3f4f6';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.backgroundColor = hasStep
+                    ? '#e5e7eb'
+                    : 'white';
+                }
+              }}
+              title={`Step ${step}${
+                hasStep
+                  ? ` - ${
+                      stamps.find((s) => s.step === step)?.identifier || ''
+                    }`
+                  : ' - No activity'
+              }`}
+            />
+          );
+        })}
+      </div>
+
+      {/* Step Counter */}
+      <div
+        style={{
+          fontSize: '12px',
+          color: '#6b7280',
+          minWidth: '60px',
+          textAlign: 'right',
+        }}
+      >
+        {currentStep} / {maxStep}
+      </div>
+    </div>
+  );
+};
+
+// ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================
 
@@ -237,6 +410,51 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
     height: typeof height === 'number' ? height : 600,
   });
 
+  // Timeline state
+  const [currentStep, setCurrentStep] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const playIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Get max step from stamps
+  const maxStep = useMemo(() => {
+    return flowData.stamps.length > 0
+      ? Math.max(...flowData.stamps.map((s) => s.step))
+      : 0;
+  }, [flowData.stamps]);
+
+  // Auto-play functionality
+  useEffect(() => {
+    if (isPlaying) {
+      playIntervalRef.current = setInterval(() => {
+        setCurrentStep((prev) => {
+          if (prev >= maxStep) {
+            setIsPlaying(false);
+            return prev;
+          }
+          return prev + 1;
+        });
+      }, 1000); // 1 second per step
+    } else {
+      if (playIntervalRef.current) {
+        clearInterval(playIntervalRef.current);
+        playIntervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (playIntervalRef.current) {
+        clearInterval(playIntervalRef.current);
+      }
+    };
+  }, [isPlaying, maxStep]);
+
+  // Initialize current step to first step
+  useEffect(() => {
+    if (flowData.stamps.length > 0) {
+      setCurrentStep(Math.min(...flowData.stamps.map((s) => s.step)));
+    }
+  }, [flowData.stamps]);
+
   // Update dimensions when width/height props change
   useEffect(() => {
     const updateDimensions = () => {
@@ -267,11 +485,28 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
     return calculateAutoLayout(flowData.nodes, flowData.edges);
   }, [flowData.nodes, flowData.edges]);
 
-  // Convert flow data to ReactFlow format
-  const initialNodes: Node[] = useMemo(() => {
-    return flowData.nodes.map((node) => {
+  // Get nodes and edges for current step
+  const getNodesForStep = useCallback(
+    (step: number) => {
+      return flowData.nodes.filter((node) => node.stamp.step <= step);
+    },
+    [flowData.nodes],
+  );
+
+  const getEdgesForStep = useCallback(
+    (step: number) => {
+      return flowData.edges.filter((edge) => edge.stamp.step <= step);
+    },
+    [flowData.edges],
+  );
+
+  // Convert flow data to ReactFlow format with step filtering
+  const nodes: Node[] = useMemo(() => {
+    const stepNodes = getNodesForStep(currentStep);
+    return stepNodes.map((node) => {
       const position = positions.get(node.identifier) || { x: 0, y: 0 };
       const { description } = extractLLMDetails(node);
+      const isActive = node.stamp.step === currentStep;
 
       return {
         id: node.identifier,
@@ -283,36 +518,66 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
           nodeType: node.node_type,
           step: node.stamp?.step,
           time: node.stamp?.time,
+          isActive,
+        },
+        style: {
+          opacity: isActive ? 1 : 0.6,
+          filter: isActive
+            ? 'drop-shadow(0 4px 8px rgba(99, 102, 241, 0.3))'
+            : 'none',
         },
       };
     });
-  }, [flowData.nodes, positions]);
+  }, [flowData.nodes, positions, currentStep, getNodesForStep]);
 
-  const initialEdges: Edge[] = useMemo(() => {
-    return flowData.edges
-      .filter((edge) => edge.source && edge.target) // Filter out edges with null source
-      .map((edge) => ({
-        id: edge.identifier,
-        source: edge.source!,
-        target: edge.target,
-        animated: true,
-        style: {
-          stroke: '#6366f1',
-          strokeWidth: 2,
-        },
-        label: edge.details?.output
-          ? truncateText(String(edge.details.output), 50)
-          : undefined,
-      }));
-  }, [flowData.edges]);
+  const edges: Edge[] = useMemo(() => {
+    const stepEdges = getEdgesForStep(currentStep);
+    return stepEdges
+      .filter((edge) => edge.source && edge.target)
+      .map((edge) => {
+        const isActive = edge.stamp.step === currentStep;
+        return {
+          id: edge.identifier,
+          source: edge.source!,
+          target: edge.target,
+          animated: isActive,
+          style: {
+            stroke: isActive ? '#6366f1' : '#9ca3af',
+            strokeWidth: isActive ? 3 : 2,
+            opacity: isActive ? 1 : 0.6,
+          },
+          label: edge.details?.output
+            ? truncateText(String(edge.details.output), 50)
+            : undefined,
+        };
+      });
+  }, [flowData.edges, currentStep, getEdgesForStep]);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [nodesState, setNodes, onNodesChange] = useNodesState(nodes);
+  const [edgesState, setEdges, onEdgesChange] = useEdgesState(edges);
+
+  // Update nodes and edges when currentStep changes
+  useEffect(() => {
+    setNodes(nodes);
+  }, [nodes, setNodes]);
+
+  useEffect(() => {
+    setEdges(edges);
+  }, [edges, setEdges]);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds: Edge[]) => addEdge(params, eds)),
     [setEdges],
   );
+
+  const handleStepChange = useCallback((step: number) => {
+    setCurrentStep(step);
+    setIsPlaying(false);
+  }, []);
+
+  const handlePlayPause = useCallback(() => {
+    setIsPlaying((prev) => !prev);
+  }, []);
 
   return (
     <div
@@ -330,8 +595,8 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
       className={className}
     >
       <ReactFlow
-        nodes={nodes}
-        edges={edges}
+        nodes={nodesState}
+        edges={edgesState}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
@@ -341,13 +606,22 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
         attributionPosition="bottom-left"
         style={{
           width: '100%',
-          height: '100%',
+          height: 'calc(100% - 60px)', // Account for timeline height
         }}
         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
       >
         <Controls />
         <Background color="#f3f4f6" gap={16} />
       </ReactFlow>
+
+      {/* Timeline */}
+      <Timeline
+        stamps={flowData.stamps}
+        currentStep={currentStep}
+        isPlaying={isPlaying}
+        onStepChange={handleStepChange}
+        onPlayPause={handlePlayPause}
+      />
 
       <style>
         {`
