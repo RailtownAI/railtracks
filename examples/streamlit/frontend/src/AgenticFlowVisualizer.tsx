@@ -374,8 +374,8 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
             strokeWidth: isActive ? 3 : 2,
             opacity: isActive ? 1 : 0.6,
           },
-          label: edge.details?.output
-            ? truncateText(String(edge.details.output), 50)
+          label: edge.stamp?.identifier
+            ? truncateText(String(edge.stamp.identifier), 50)
             : undefined,
         };
       });
