@@ -95,7 +95,7 @@ function MyComponent({ args, disabled, theme }: ComponentProps): ReactElement {
 
   return (
     <div>
-      <button
+      {/* <button
         style={style}
         onClick={onClicked}
         disabled={disabled}
@@ -103,7 +103,7 @@ function MyComponent({ args, disabled, theme }: ComponentProps): ReactElement {
         onBlur={onBlur}
       >
         Click Me!
-      </button>
+      </button> */}
       <AgenticFlowVisualizer flowData={flowData} />
     </div>
   );
