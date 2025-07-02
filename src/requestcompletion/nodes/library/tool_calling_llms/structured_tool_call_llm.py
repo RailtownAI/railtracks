@@ -14,8 +14,10 @@ class StructuredToolCallLLM(OutputLessToolCallLLM[str], ABC):
         output_model: Type[BaseModel],
         tool_details: str | None = None,
         tool_params: dict | None = None,
+        *,
+        return_into: str | None = None,
     ):
-        super().__init__(message_history, llm_model)
+        super().__init__(message_history, llm_model, return_into=return_into)
         system_structured = SystemMessage(
             "You are a structured LLM tasked with extracting structured information from the conversation history of another LLM.\n"
             "The input will be the full message history (including system, user, tool, and assistant messages) from a prior LLM interaction."

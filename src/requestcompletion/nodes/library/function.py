@@ -51,8 +51,8 @@ def from_function(  # noqa: C901
 
     # TODO figure out how to type this properly
     class DynamicFunctionNode(Node[_TOutput], Generic[_P, _TOutput]):
-        def __init__(self, *args: _P.args, **kwargs: _P.kwargs):
-            super().__init__()
+        def __init__(self, *args: _P.args, return_into: str | None = None, **kwargs: _P.kwargs):
+            super().__init__(return_into=return_into)
             self.args = args
             self.kwargs = kwargs
 

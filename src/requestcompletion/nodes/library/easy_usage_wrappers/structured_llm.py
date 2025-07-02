@@ -22,6 +22,7 @@ def structured_llm(  # noqa: C901
     pretty_name: str | None = None,
     tool_details: str | None = None,
     tool_params: dict | None = None,
+    return_into: str | None = None,
 ) -> Type[StructuredLLM]:
     class StructuredLLMNode(StructuredLLM):
         def __init__(
@@ -54,7 +55,7 @@ def structured_llm(  # noqa: C901
                 check_model(model)  # raises error if model is not valid
                 llm_model = model
 
-            super().__init__(message_history=message_history_copy, model=llm_model)
+            super().__init__(message_history=message_history_copy, model=llm_model, return_into=return_into)
 
         @classmethod
         def output_model(cls) -> Type[BaseModel]:

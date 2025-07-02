@@ -188,8 +188,8 @@ def from_mcp(
     """
 
     class MCPToolNode(Node):
-        def __init__(self, **kwargs):
-            super().__init__()
+        def __init__(self, *, return_into: str | None = None, **kwargs):
+            super().__init__(return_into=return_into)
             self.kwargs = kwargs
             self.client = MCPAsyncClient(config)
 

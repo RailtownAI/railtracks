@@ -33,6 +33,7 @@ def tool_call_llm(  # noqa: C901
     output_model: BaseModel | None = None,
     tool_details: str | None = None,
     tool_params: dict | None = None,
+    return_into: str | None = None,
 ) -> Type[OutputLessToolCallLLM[Union[MessageHistory, AssistantMessage, BaseModel]]]:
     if output_model:
         output = output_model
@@ -110,7 +111,7 @@ def tool_call_llm(  # noqa: C901
                 llm_model = model
 
             super().__init__(
-                message_history_copy, llm_model, max_tool_calls=max_tool_calls
+                message_history_copy, llm_model, max_tool_calls=max_tool_calls, return_into=return_into
             )
 
             if output_model:

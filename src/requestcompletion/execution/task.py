@@ -23,7 +23,7 @@ class Task(Generic[_TOutput]):
         result = await self.node.invoke()
 
         # If return_into is specified, put the result into context instead of returning it
-        if hasattr(self.node, 'return_into') and self.node.return_into is not None:
+        if self.node.return_into is not None:
             put(self.node.return_into, result)
             return None  # Return None when storing in context
 
