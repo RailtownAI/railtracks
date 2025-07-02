@@ -175,6 +175,7 @@ class MCPAsyncClient:
 def from_mcp(
     tool,
     config: StdioServerParameters | MCPHttpParams,
+    return_into: str | None = None,
 ):
     """
     Wrap an MCP tool as a Node class for use in the requestcompletion framework.
@@ -182,13 +183,14 @@ def from_mcp(
     Args:
         tool: The MCP tool object.
         config: Configuration parameters for the MCP client, either Stdio or HTTP.
+        return_into: Optional key to store the result in context instead of returning it.
 
     Returns:
         A Node subclass that invokes the MCP tool.
     """
 
     class MCPToolNode(Node):
-        def __init__(self, *, return_into: str | None = None, **kwargs):
+        def __init__(self, **kwargs):
             super().__init__(return_into=return_into)
             self.kwargs = kwargs
             self.client = MCPAsyncClient(config)

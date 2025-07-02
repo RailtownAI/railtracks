@@ -40,9 +40,17 @@ def to_node(func):
 
 def from_function(  # noqa: C901
     func: Callable[[_P], Coroutine[None, None, _TOutput] | _TOutput],
+    return_into: str | None = None,
 ):
     """
     A function to create a node from a function
+    
+    Args:
+        func: The function to wrap as a Node.
+        return_into: Optional key to store the result in context instead of returning it.
+        
+    Returns:
+        A Node class that wraps the function.
     """
     if not isinstance(
         func, types.BuiltinFunctionType
@@ -51,7 +59,7 @@ def from_function(  # noqa: C901
 
     # TODO figure out how to type this properly
     class DynamicFunctionNode(Node[_TOutput], Generic[_P, _TOutput]):
-        def __init__(self, *args: _P.args, return_into: str | None = None, **kwargs: _P.kwargs):
+        def __init__(self, *args: _P.args, **kwargs: _P.kwargs):
             super().__init__(return_into=return_into)
             self.args = args
             self.kwargs = kwargs
