@@ -34,7 +34,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Create two columns
-left_col, right_col = st.columns([1, 3])
+left_col, right_col = st.columns([1, 5])
 
 with left_col:
     st.subheader("💬 Chat With Your Agents")
