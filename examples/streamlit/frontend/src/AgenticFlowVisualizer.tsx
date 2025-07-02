@@ -78,8 +78,13 @@ interface DataJsonEdge {
 
 interface DataJsonStructure {
   nodes: DataJsonNode[];
-  edges: DataJsonEdge[];
-  stamps: Array<{
+  edges?: DataJsonEdge[];
+  stamps?: Array<{
+    step: number;
+    time: number;
+    identifier: string;
+  }>;
+  steps?: Array<{
     step: number;
     time: number;
     identifier: string;
@@ -106,12 +111,24 @@ const calculateAutoLayout = (nodes: DataJsonNode[], edges: DataJsonEdge[]) => {
   const childrenMap = new Map<string, string[]>();
   const parentMap = new Map<string, string>();
   nodes.forEach((n) => childrenMap.set(n.identifier, []));
-  edges.forEach((e) => {
-    if (e.source && e.target) {
-      childrenMap.get(e.source)?.push(e.target);
-      parentMap.set(e.target, e.source);
-    }
-  });
+
+  // Handle edges if they exist
+  if (edges.length > 0) {
+    edges.forEach((e) => {
+      if (e.source && e.target) {
+        childrenMap.get(e.source)?.push(e.target);
+        parentMap.set(e.target, e.source);
+      }
+    });
+  } else {
+    // If no edges, try to infer relationships from parent field
+    nodes.forEach((node) => {
+      if (node.parent && node.parent.identifier !== node.identifier) {
+        childrenMap.get(node.parent.identifier)?.push(node.identifier);
+        parentMap.set(node.identifier, node.parent.identifier);
+      }
+    });
+  }
 
   // Find root nodes (no parent)
   const roots = nodes.filter((n) => !parentMap.has(n.identifier));
@@ -243,12 +260,11 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const playIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Get max step from stamps
+  // Get max step from stamps or steps
   const maxStep = useMemo(() => {
-    return flowData.stamps.length > 0
-      ? Math.max(...flowData.stamps.map((s) => s.step))
-      : 0;
-  }, [flowData.stamps]);
+    const stamps = flowData.stamps || flowData.steps || [];
+    return stamps.length > 0 ? Math.max(...stamps.map((s) => s.step)) : 0;
+  }, [flowData.stamps, flowData.steps]);
 
   // Auto-play functionality
   useEffect(() => {
@@ -278,10 +294,11 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
 
   // Initialize current step to last step
   useEffect(() => {
-    if (flowData.stamps.length > 0) {
-      setCurrentStep(Math.max(...flowData.stamps.map((s) => s.step)));
+    const stamps = flowData.stamps || flowData.steps || [];
+    if (stamps.length > 0) {
+      setCurrentStep(Math.max(...stamps.map((s) => s.step)));
     }
-  }, [flowData.stamps]);
+  }, [flowData.stamps, flowData.steps]);
 
   // Update dimensions when width/height props change
   useEffect(() => {
@@ -310,7 +327,7 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
 
   // Calculate auto-layout positions
   const positions = useMemo(() => {
-    return calculateAutoLayout(flowData.nodes, flowData.edges);
+    return calculateAutoLayout(flowData.nodes, flowData.edges || []);
   }, [flowData.nodes, flowData.edges]);
 
   // Get nodes and edges for current step
@@ -323,7 +340,7 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
 
   const getEdgesForStep = useCallback(
     (step: number) => {
-      return flowData.edges.filter((edge) => edge.stamp.step <= step);
+      return (flowData.edges || []).filter((edge) => edge.stamp.step <= step);
     },
     [flowData.edges],
   );
@@ -356,7 +373,7 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
         },
       };
     });
-  }, [flowData.nodes, positions, currentStep, getNodesForStep]);
+  }, [positions, currentStep, getNodesForStep]);
 
   const edges: Edge[] = useMemo(() => {
     const stepEdges = getEdgesForStep(currentStep);
@@ -379,7 +396,7 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
             : undefined,
         };
       });
-  }, [flowData.edges, currentStep, getEdgesForStep]);
+  }, [currentStep, getEdgesForStep]);
 
   const [nodesState, setNodes, onNodesChange] = useNodesState(nodes);
   const [edgesState, setEdges, onEdgesChange] = useEdgesState(edges);
@@ -444,7 +461,7 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
 
       {/* Timeline */}
       <Timeline
-        stamps={flowData.stamps}
+        stamps={flowData.stamps || flowData.steps || []}
         currentStep={currentStep}
         isPlaying={isPlaying}
         onStepChange={handleStepChange}
