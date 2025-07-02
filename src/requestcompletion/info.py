@@ -1,13 +1,16 @@
 from __future__ import annotations
 
-from typing import List, TypeVar
+from typing import List, TypeVar, Tuple
 
 from .state.utils import create_sub_state_info
 from .utils.profiling import Stamp, StampManager
 from .state.request import RequestForest
 from .state.node import NodeForest
+from .utils.serialization.graph import Edge, Vertex
 from .visuals.agent_viewer import AgentViewer
 
+import json
+from requestcompletion.utils.serialization import RCJSONEncoder
 
 _TOutput = TypeVar("_TOutput")
 
@@ -17,8 +20,8 @@ class ExecutionInfo:
     """
     A class that contains the full details of the state of a run at any given point in time.
 
-    The class is designed to be used as a snapshot of the state which can be both used to view the state of the run and
-    to be used to continue the run from the point it was saved.
+    The class is designed to be used as a snapshot of state that can be used to display the state of the run, or to
+    create a graphical representation of the system.
     """
 
     def __init__(
@@ -26,12 +29,10 @@ class ExecutionInfo:
         request_heap: RequestForest,
         node_heap: NodeForest,
         stamper: StampManager,
-        exception_history: List[Exception] = None,
     ):
         self.request_heap = request_heap
         self.node_heap = node_heap
         self.stamper = stamper
-        self.exception_history = exception_history or []
 
     @classmethod
     def default(cls):
@@ -54,7 +55,6 @@ class ExecutionInfo:
             request_heap=request_heap,
             node_heap=node_heap,
             stamper=stamper,
-            exception_history=[],
         )
 
     @property
@@ -108,8 +108,87 @@ class ExecutionInfo:
                 node_heap=new_node_forest,
                 request_heap=new_request_forest,
                 stamper=self.stamper,
-                exception_history=list(self.exception_history),
             )
+
+    def to_graph(self) -> Tuple[List[Vertex], List[Edge]]:
+        """
+        Converts the current state into its graph representation.
+
+        Returns:
+            List[Node]: An iterable of nodes in the graph.
+            List[Edge]: An iterable of edges in the graph.
+        """
+        return self.node_heap.to_vertices(), self.request_heap.to_edges()
+
+    def graph_serialization(self) -> str:
+        """
+                Creates a string (JSON) representation of this info object designed to be used to construct a graph for this
+                info object.
+
+                Some important notes about its structure are outlined below:
+                - The `nodes` key contains a list of all the nodes in the graph, represented as `Vertex` objects.
+                - The `edges` key contains a list of all the edges in the graph, represented as `Edge` objects.
+                - The `stamps` key contains an ease of use list of all the stamps associated with the run, represented as `Stamp` objects.
+
+                - The "nodes" and "requests" key will be outlined with normal graph details like connections and identifiers in addition to a loose details object.
+                - However, both will carry an addition param called "stamp" which is a timestamp style object.
+                - They also will carry a "parent" param which is a recursive structure that allows you to traverse the graph in time.
+
+                The current schema looks something like the following.
+                ```json
+        {
+          "nodes": [
+            {
+              "identifier": str,
+              "node_type": str,
+              "stamp": {
+                 "step": int,
+                 "time": float,
+                 "identifier": str
+              }
+              "details": {
+                 "internals": {
+                    "latency": float,
+                    <any other debugging details specific to that node type (i.e. LLM nodes)>
+              }
+              "parent": <recursive the same as above | terminating when this param is null>
+          ]
+          "edges": [
+            {
+              "source": str | null,
+              "target": str,
+              "indentifier": str,
+              "stamp": {
+                "step": int,
+                "time": float,
+                "identifier": str
+              }
+              "details": {
+                 "input_args": [<list of input args>],
+                 "input_kwargs": {<dict of input kwargs>},
+                 "output": Any
+              }
+              "parent": <recursive, the same as above | terminating when this param is null>
+            }
+          ],
+          "stamps": [
+            {
+               "step": int,
+               "time": float,
+               "identifier: str
+            }
+          ]
+        }
+        ```
+        """
+        return json.dumps(
+            {
+                "nodes": self.node_heap.to_vertices(),
+                "edges": self.request_heap.to_edges(),
+                "steps": self.all_stamps,
+            },
+            cls=RCJSONEncoder,
+        )
 
     def view_graph(self):
         """A convenience method used to view a graph representation of the run."""

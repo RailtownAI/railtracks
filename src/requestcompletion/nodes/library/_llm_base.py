@@ -28,11 +28,19 @@ class RequestDetails:
         output: llm.Message | None,
         model_name: str | None,
         model_provider: str | None,
+        input_tokens: int | None = None,
+        output_tokens: int | None = None,
+        total_cost: float | None = None,
+        system_fingerprint: str | None = None,
     ):
         self.input = message_input
         self.output = output
         self.model_name = model_name
         self.model_provider = model_provider
+        self.input_tokens = input_tokens
+        self.output_tokens = output_tokens
+        self.total_cost = total_cost
+        self.system_fingerprint = system_fingerprint
 
     def __repr__(self):
         return f"RequestDetails(model_name={self.model_name}, model_provider={self.model_provider}, input={self.input}, output={self.output})"
@@ -80,8 +88,14 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
             RequestDetails(
                 message_input=deepcopy(message_history),
                 output=deepcopy(response.message),
-                model_name=self.model.model_name(),
+                model_name=response.message_info.model_name
+                if response.message_info.model_name is not None
+                else self.model.model_name(),
                 model_provider=self.model.model_type(),
+                input_tokens=response.message_info.input_tokens,
+                output_tokens=response.message_info.output_tokens,
+                total_cost=response.message_info.total_cost,
+                system_fingerprint=response.message_info.system_fingerprint,
             )
         )
 

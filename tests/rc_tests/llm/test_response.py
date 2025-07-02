@@ -33,7 +33,7 @@ def test_response_without_message_or_streamer():
     assert response.message is None
     assert response.streamer is None
     assert str(response) == "Response(<no-data>)"
-    assert repr(response) == "Response(message=None, streamer=None)"
+    assert repr(response).startswith("Response(message=None, streamer=None")
 
 
 def test_response_invalid_streamer_type():

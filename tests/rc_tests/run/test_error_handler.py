@@ -95,10 +95,6 @@ def test_error_handler_with_retry():
             assert isinstance(r.output, Failure)
             assert isinstance(r.output.exception, ErrorforTest)
 
-        assert all([isinstance(e, ErrorforTest) for e in result.exception_history])
-        assert len(result.exception_history) == num_retries
-
-
 async def parallel_error_handler(num_calls: int, parallel_calls: int):
     data = []
     for _ in range(num_calls):
@@ -161,5 +157,3 @@ def test_parallel_error_wrapper():
             assert isinstance(r.output, Failure)
             assert isinstance(r.output.exception, ErrorforTest)
 
-        assert all([isinstance(e, ErrorforTest) for e in result.exception_history])
-        assert len(result.exception_history) == n_c * p_c

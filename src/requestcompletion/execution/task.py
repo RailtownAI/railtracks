@@ -20,7 +20,8 @@ class Task(Generic[_TOutput]):
     async def invoke(self):
         """The callable that this task is representing."""
         update_parent_id(self.node.uuid)
-        result = await self.node.invoke()
+        
+        result = await self.node.tracked_invoke()
 
         # If return_into is specified, put the result into context instead of returning it
         if self.node.return_into is not None:

@@ -1,6 +1,7 @@
 import asyncio
 from types import FunctionType
 from typing import Callable, Union, Coroutine, ParamSpec, TypeVar
+from uuid import uuid4
 
 from requestcompletion.nodes.nodes import Node
 from requestcompletion.context.central import (
@@ -21,7 +22,6 @@ from requestcompletion.pubsub.messages import (
     RequestCreation,
 )
 from requestcompletion.pubsub.utils import output_mapping
-from requestcompletion.state.request import RequestTemplate
 
 _P = ParamSpec("_P")
 _TOutput = TypeVar("_TOutput")
@@ -166,7 +166,7 @@ async def _execute(
 
     # generate a unique request ID for this request. We need to hold this reference here because we will use it to
     # filter for its completion
-    request_id = RequestTemplate.generate_id()
+    request_id = str(uuid4())
 
     # note we set the listener before we publish the messages ensure that we do not miss any messages
     # I am actually a bit worried about this logic and I think there is a chance of a bug popping up here.

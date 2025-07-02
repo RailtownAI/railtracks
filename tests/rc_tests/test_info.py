@@ -9,7 +9,6 @@ def confirm_empty(info: ExecutionInfo):
     """
     assert len(info.request_heap.heap()) == 0
     assert len(info.node_heap.heap()) == 0
-    assert info.exception_history == []
     assert info.stamper._step == 0
     assert info.all_stamps == []
     assert info.answer is None

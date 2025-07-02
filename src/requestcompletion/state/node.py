@@ -14,6 +14,7 @@ from ..utils.profiling import Stamp
 from ..nodes.nodes import (
     Node,
 )
+from ..utils.serialization.graph import Vertex
 
 _P = ParamSpec("_P")
 
@@ -26,6 +27,15 @@ class LinkedNode(AbstractLinkedObject):
 
     _node: Node  # have to be careful here because Node objects are mutable.
     parent: Optional[LinkedNode]
+
+    def to_vertex(self):
+        return Vertex(
+            identifier=self.identifier,
+            node_type=self.node.pretty_name(),
+            stamp=self.stamp,
+            details={"internals": self.node.details},
+            parent=self.parent.to_vertex() if self.parent else None,
+        )
 
     @property
     def node(self):
@@ -71,6 +81,14 @@ class NodeForest(Forest[LinkedNode]):
 
         node = self._heap[item]
         return node
+
+    def to_vertices(self):
+        """
+        Converts the current heap into a list of `Vertex` objects.
+        """
+        full_nodes = [n.to_vertex() for n in self._heap.values()]
+
+        return full_nodes
 
     def update(self, new_node: Node, stamp: Stamp):
         """
