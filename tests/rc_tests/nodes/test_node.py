@@ -148,3 +148,25 @@ async def test_coordinator_workflow_with_return_into():
         assert "Analysis:" in analysis_result
         assert "machine learning algorithms" in analysis_result
         assert "well-structured" in analysis_result
+
+
+@pytest.mark.asyncio
+async def test_return_into_with_safe_copy():
+    """Test that return_into parameter is preserved when using safe_copy method."""
+    
+    # Create a node with return_into parameter
+    original_node = CapitalizeText("hello world", return_into="copied_result")
+    
+    # Use safe_copy to create a copy
+    copied_node = original_node.safe_copy()
+    
+    # Verify the return_into parameter was copied
+    assert copied_node.return_into == "copied_result"
+    assert copied_node.string == "hello world"
+    
+    # Verify they are different instances
+    assert copied_node is not original_node
+    
+    # Note: safe_copy uses deepcopy, so UUID is the same (this is expected behavior)
+    # But the functionality should work the same
+    assert copied_node.uuid == original_node.uuid
