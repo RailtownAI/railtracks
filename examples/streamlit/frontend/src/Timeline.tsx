@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 
 // ============================================================================
 // TIMELINE COMPONENT
@@ -28,6 +28,23 @@ const Timeline: React.FC<TimelineProps> = ({
   const minStep =
     stamps.length > 0 ? Math.min(...stamps.map((s) => s.step)) : 0;
   const totalSteps = maxStep - minStep + 1;
+
+  // Initialize Bootstrap tooltips
+  useEffect(() => {
+    // Initialize all tooltips
+    const tooltipTriggerList = document.querySelectorAll(
+      '[data-bs-toggle="tooltip"]',
+    );
+    const tooltipList = Array.from(tooltipTriggerList).map(
+      (tooltipTriggerEl) =>
+        new (window as any).bootstrap.Tooltip(tooltipTriggerEl),
+    );
+
+    // Cleanup function to dispose tooltips
+    return () => {
+      tooltipList.forEach((tooltip) => tooltip.dispose());
+    };
+  }, [stamps, currentStep]); // Re-initialize when stamps or currentStep changes
 
   return (
     <div
@@ -112,47 +129,68 @@ const Timeline: React.FC<TimelineProps> = ({
         {Array.from({ length: totalSteps }, (_, index) => {
           const step = minStep + index;
           const isActive = step === currentStep;
+          const isPast = step < currentStep;
           const hasStep = stamps.some((s) => s.step === step);
+
+          // Determine background color based on step state
+          let backgroundColor = 'white';
+          if (isActive) {
+            backgroundColor = '#6366f1';
+          } else if (isPast) {
+            backgroundColor = hasStep ? '#fef3c7' : '#fef3c7'; // Light yellow for past steps
+          } else if (hasStep) {
+            backgroundColor = '#e5e7eb';
+          }
+
+          const tooltipText = `Step ${step}${
+            hasStep
+              ? ` - ${stamps.find((s) => s.step === step)?.identifier || ''}`
+              : ' - No activity'
+          }`;
 
           return (
             <button
               key={step}
               onClick={() => onStepChange(step)}
+              data-bs-toggle="tooltip"
+              data-bs-placement="top"
+              data-bs-title={tooltipText}
               style={{
                 width: '16px',
                 height: '16px',
                 borderRadius: '50%',
                 border: isActive ? '2px solid #6366f1' : '1px solid #d1d5db',
-                backgroundColor: isActive
-                  ? '#6366f1'
-                  : hasStep
-                  ? '#e5e7eb'
-                  : 'white',
+                backgroundColor: backgroundColor,
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 position: 'relative',
               }}
               onMouseEnter={(e) => {
                 if (!isActive) {
-                  e.currentTarget.style.backgroundColor = hasStep
-                    ? '#d1d5db'
-                    : '#f3f4f6';
+                  if (isPast) {
+                    e.currentTarget.style.backgroundColor = hasStep
+                      ? '#fde68a'
+                      : '#fde68a'; // Darker yellow on hover for past steps
+                  } else {
+                    e.currentTarget.style.backgroundColor = hasStep
+                      ? '#d1d5db'
+                      : '#f3f4f6';
+                  }
                 }
               }}
               onMouseLeave={(e) => {
                 if (!isActive) {
-                  e.currentTarget.style.backgroundColor = hasStep
-                    ? '#e5e7eb'
-                    : 'white';
+                  if (isPast) {
+                    e.currentTarget.style.backgroundColor = hasStep
+                      ? '#fef3c7'
+                      : '#fef3c7'; // Back to light yellow for past steps
+                  } else {
+                    e.currentTarget.style.backgroundColor = hasStep
+                      ? '#e5e7eb'
+                      : 'white';
+                  }
                 }
               }}
-              title={`Step ${step}${
-                hasStep
-                  ? ` - ${
-                      stamps.find((s) => s.step === step)?.identifier || ''
-                    }`
-                  : ' - No activity'
-              }`}
             />
           );
         })}
