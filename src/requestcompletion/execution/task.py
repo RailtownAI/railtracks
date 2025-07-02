@@ -1,6 +1,6 @@
 from typing import TypeVar, Generic
 
-from ..context.central import update_parent_id
+from ..context.central import update_parent_id, put
 from ..nodes.nodes import Node
 
 _TOutput = TypeVar("_TOutput")
@@ -20,4 +20,11 @@ class Task(Generic[_TOutput]):
     async def invoke(self):
         """The callable that this task is representing."""
         update_parent_id(self.node.uuid)
-        return await self.node.invoke()
+        result = await self.node.invoke()
+
+        # If return_into is specified, put the result into context instead of returning it
+        if hasattr(self.node, 'return_into') and self.node.return_into is not None:
+            put(self.node.return_into, result)
+            return None  # Return None when storing in context
+
+        return result

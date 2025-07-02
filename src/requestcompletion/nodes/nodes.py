@@ -111,10 +111,12 @@ class Node(ABC, Generic[_TOutput], metaclass=NodeCreationMeta):
         self,
         *,
         debug_details: DebugDetails | None = None,
+        return_into: str | None = None,
     ):
         # each fresh node will have a generated uuid that identifies it.
         self.uuid = str(uuid.uuid4())
         self._details: DebugDetails = debug_details or DebugDetails()
+        self.return_into = return_into
 
     @property
     def details(self) -> DebugDetails:
