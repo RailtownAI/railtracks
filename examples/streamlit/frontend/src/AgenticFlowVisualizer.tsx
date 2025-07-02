@@ -11,6 +11,7 @@ import ReactFlow, {
   Controls,
   Background,
   NodeTypes,
+  EdgeTypes,
   Connection,
   addEdge,
   useNodesState,
@@ -243,6 +244,10 @@ const nodeTypes: NodeTypes = {
   agent: RCNode,
 };
 
+const edgeTypes: EdgeTypes = {
+  default: RCEdge,
+};
+
 const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
   flowData,
   width = '100%',
@@ -366,7 +371,6 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
           isActive,
         },
         style: {
-          opacity: isActive ? 1 : 0.6,
           filter: isActive
             ? 'drop-shadow(0 4px 8px rgba(99, 102, 241, 0.3))'
             : 'none',
@@ -383,17 +387,28 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
         const isActive = edge.stamp.step === currentStep;
         return {
           id: edge.identifier,
+          type: 'default',
           source: edge.source!,
           target: edge.target,
           animated: isActive,
+          bidirectional: true, // Enable bidirectional edges with arrow heads
           style: {
             stroke: isActive ? '#6366f1' : '#9ca3af',
             strokeWidth: isActive ? 3 : 2,
-            opacity: isActive ? 1 : 0.6,
           },
           label: edge.stamp?.identifier
             ? truncateText(String(edge.stamp.identifier), 50)
             : undefined,
+          data: {
+            label: edge.stamp?.identifier
+              ? truncateText(String(edge.stamp.identifier), 50)
+              : undefined,
+            source: edge.source!,
+            target: edge.target,
+            step: edge.stamp?.step,
+            time: edge.stamp?.time,
+            details: edge.details,
+          },
         };
       });
   }, [currentStep, getEdgesForStep]);
@@ -446,6 +461,7 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         fitView
         fitViewOptions={{ padding: 0.1 }}
         attributionPosition="bottom-left"
