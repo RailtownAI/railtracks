@@ -44,11 +44,11 @@ def from_function(  # noqa: C901
 ):
     """
     A function to create a node from a function
-    
+
     Args:
         func: The function to wrap as a Node.
         return_into: Optional key to store the result in context instead of returning it.
-        
+
     Returns:
         A Node class that wraps the function.
     """

@@ -55,7 +55,13 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
 
     """
 
-    def __init__(self, model: llm.ModelBase, message_history: llm.MessageHistory, *, return_into: str | None = None):
+    def __init__(
+        self,
+        model: llm.ModelBase,
+        message_history: llm.MessageHistory,
+        *,
+        return_into: str | None = None,
+    ):
         super().__init__(return_into=return_into)
         self.model = model
         check_message_history(

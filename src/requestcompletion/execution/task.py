@@ -1,6 +1,6 @@
 from typing import TypeVar, Generic
 
-from ..context.central import update_parent_id, put
+from ..context.central import update_parent_id
 from ..nodes.nodes import Node
 
 _TOutput = TypeVar("_TOutput")
@@ -20,6 +20,5 @@ class Task(Generic[_TOutput]):
     async def invoke(self):
         """The callable that this task is representing."""
         update_parent_id(self.node.uuid)
-        
+
         return await self.node.tracked_invoke()
-    

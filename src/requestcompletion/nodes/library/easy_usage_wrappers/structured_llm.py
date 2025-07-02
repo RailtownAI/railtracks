@@ -55,7 +55,11 @@ def structured_llm(  # noqa: C901
                 check_model(model)  # raises error if model is not valid
                 llm_model = model
 
-            super().__init__(message_history=message_history_copy, model=llm_model, return_into=return_into)
+            super().__init__(
+                message_history=message_history_copy,
+                model=llm_model,
+                return_into=return_into,
+            )
 
         @classmethod
         def output_model(cls) -> Type[BaseModel]:
@@ -85,7 +89,6 @@ def structured_llm(  # noqa: C901
                 ]
             )
             return cls(message_hist)
-
 
     validate_tool_metadata(tool_params, tool_details, system_message, pretty_name)
     if system_message is not None and isinstance(

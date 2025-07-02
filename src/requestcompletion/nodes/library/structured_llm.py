@@ -15,7 +15,12 @@ class StructuredLLM(LLMBase[_TOutput], ABC):
     @abstractmethod
     def output_model(cls) -> Type[_TOutput]: ...
 
-    def __init__(self, message_history: MessageHistory, model: ModelBase, return_into: str | None = None):
+    def __init__(
+        self,
+        message_history: MessageHistory,
+        model: ModelBase,
+        return_into: str | None = None,
+    ):
         """Creates a new instance of the StructuredLLM class
 
         Args:
@@ -46,9 +51,7 @@ class StructuredLLM(LLMBase[_TOutput], ABC):
                 )
             if isinstance(cont, self.output_model()):
                 if self.return_into is not None:
-                    self.format_for_context(
-                        cont
-                    )
+                    self.format_for_context(cont)
                     return cont
                 return cont
             raise LLMError(

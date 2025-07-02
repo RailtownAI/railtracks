@@ -47,7 +47,11 @@ def terminal_llm(  # noqa: C901
                 check_model(model)  # raises Error if model is not valid
                 llm_model = model
 
-            super().__init__(message_history=message_history_copy, model=llm_model, return_into=return_into)
+            super().__init__(
+                message_history=message_history_copy,
+                model=llm_model,
+                return_into=return_into,
+            )
 
         @classmethod
         def pretty_name(cls) -> str:

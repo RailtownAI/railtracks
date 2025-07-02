@@ -111,7 +111,10 @@ def tool_call_llm(  # noqa: C901
                 llm_model = model
 
             super().__init__(
-                message_history_copy, llm_model, max_tool_calls=max_tool_calls, return_into=return_into
+                message_history_copy,
+                llm_model,
+                max_tool_calls=max_tool_calls,
+                return_into=return_into,
             )
 
             if output_model:
