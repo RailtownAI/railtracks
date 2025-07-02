@@ -277,7 +277,7 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
           }
           return prev + 1;
         });
-      }, 1000); // 1 second per step
+      }, 250); // 1 second per step
     } else {
       if (playIntervalRef.current) {
         clearInterval(playIntervalRef.current);
