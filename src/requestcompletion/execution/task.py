@@ -21,11 +21,5 @@ class Task(Generic[_TOutput]):
         """The callable that this task is representing."""
         update_parent_id(self.node.uuid)
         
-        result = await self.node.tracked_invoke()
-
-        # If return_into is specified, put the result into context instead of returning it
-        if self.node.return_into is not None:
-            put(self.node.return_into, result)
-            return None  # Return None when storing in context
-
-        return result
+        return await self.node.tracked_invoke()
+    

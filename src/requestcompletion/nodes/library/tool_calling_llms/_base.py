@@ -33,8 +33,9 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
         *,
         return_into: str | None = None,
     ):
-        super().__init__(model=model, message_history=message_history, return_into=return_into)
+        super().__init__(model=model, message_history=message_history)
         check_max_tool_calls(max_tool_calls)
+        self.return_into = return_into
         self.structured_resp_node = None  # The structured LLM node
         self.max_tool_calls = max_tool_calls
 

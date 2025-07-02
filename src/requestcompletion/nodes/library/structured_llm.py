@@ -15,13 +15,14 @@ class StructuredLLM(LLMBase[_TOutput], ABC):
     @abstractmethod
     def output_model(cls) -> Type[_TOutput]: ...
 
-    def __init__(self, message_history: MessageHistory, model: ModelBase, *, return_into: str | None = None):
+    def __init__(self, message_history: MessageHistory, model: ModelBase, return_into: str | None = None):
         """Creates a new instance of the StructuredLLM class
 
         Args:
 
         """
-        super().__init__(model=model, message_history=message_history, return_into=return_into)
+        self.return_into = return_into
+        super().__init__(model=model, message_history=message_history)
 
     async def invoke(self) -> _TOutput:
         """Makes a call containing the inputted message and system prompt to the model and returns the response
@@ -44,6 +45,11 @@ class StructuredLLM(LLMBase[_TOutput], ABC):
                     message_history=self.message_hist,
                 )
             if isinstance(cont, self.output_model()):
+                if self.return_into is not None:
+                    self.format_for_context(
+                        cont
+                    )
+                    return cont
                 return cont
             raise LLMError(
                 reason="The LLM returned content does not match the expected return type",

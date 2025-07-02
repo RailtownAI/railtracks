@@ -126,12 +126,10 @@ class Node(ABC, Generic[_TOutput], metaclass=NodeCreationMeta):
         self,
         *,
         debug_details: DebugDetails | None = None,
-        return_into: str | None = None,
     ):
         # each fresh node will have a generated uuid that identifies it.
         self.uuid = str(uuid.uuid4())
         self._details: DebugDetails = debug_details or DebugDetails()
-        self.return_into = return_into
 
     @property
     def details(self) -> DebugDetails:
@@ -153,6 +151,13 @@ class Node(ABC, Generic[_TOutput], metaclass=NodeCreationMeta):
     async def invoke(self) -> _TOutput:
         """
         The main method that runs when this node is called
+        """
+        pass
+
+    @abstractmethod
+    def format_for_context(self, value: Any) -> Any:
+        """
+        A method used to format the Node's result to be put into the context, as well as reformat the return value.
         """
         pass
 

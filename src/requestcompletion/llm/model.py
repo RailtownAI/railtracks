@@ -145,7 +145,8 @@ class ModelBase(ABC):
 
         try:
             result = self._chat_with_tools(messages, tools, **kwargs)
-            result.message._inject_prompt = False
+            if hasattr(result.message, '_inject_prompt'):
+                result.message._inject_prompt = False
         except Exception as e:
             for hook in self._exception_hook:
                 hook(messages, e)
