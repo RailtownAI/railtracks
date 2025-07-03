@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time AI Chat - Async/Await Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Consolas', 'Monaco', 'Lucida Console', monospace;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #e0e0e0;
+            overflow: auto;
+            padding: 10px;
+        }
+        
+        .main-container {
+            width: 95%;
+            max-width: 1200px;
+            min-height: 90vh;
+            max-height: 95vh;
+            background: #1e1e2e;
+            border-radius: 12px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.1);
+            border: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .app-header {
+            background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+            color: #e2e8f0;
+            padding: 15px 20px;
+            border-bottom: 1px solid #4a5568;
+            position: relative;
+        }
+        
+        .app-header h1 {
+            margin-bottom: 3px;
+            font-size: 20px;
+            font-weight: 600;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+        
+        .app-header p {
+            opacity: 0.8;
+            font-size: 12px;
+            color: #a0aec0;
+        }
+        
+        .tab-container {
+            background: #252d3a;
+            border-bottom: 1px solid #4a5568;
+            display: flex;
+            padding: 0;
+        }
+        
+        .tab {
+            padding: 12px 20px;
+            background: #1a202c;
+            color: #a0aec0;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 500;
+            border-right: 1px solid #4a5568;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        
+        .tab:hover {
+            background: #2d3748;
+            color: #e2e8f0;
+        }
+        
+        .tab.active {
+            background: #1e1e2e;
+            color: #00ff88;
+            border-bottom: 2px solid #00ff88;
+        }
+        
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #1e1e2e;
+        }
+        
+        .tab-content {
+            flex: 1;
+            display: none;
+            flex-direction: column;
+            min-height: 0; /* Important for flex containers */
+            overflow: hidden;
+        }
+        
+        .tab-content.active {
+            display: flex;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 20px;
+            background: #1e1e2e;
+            scrollbar-width: thin;
+            scrollbar-color: #4a5568 #1e1e2e;
+            min-height: 0; /* Important for flex containers */
+            max-height: calc(95vh - 200px); /* Ensure it doesn't grow too large */
+        }
+        
+        .chat-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .chat-messages::-webkit-scrollbar-track {
+            background: #1e1e2e;
+        }
+        
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: #4a5568;
+            border-radius: 4px;
+        }
+        
+        .chat-messages::-webkit-scrollbar-thumb:hover {
+            background: #718096;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            max-width: 85%;
+            word-wrap: break-word;
+            animation: slideIn 0.3s ease-out;
+            font-size: 14px;
+            line-height: 1.4;
+            border: 1px solid transparent;
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .message.user {
+            background: linear-gradient(135deg, #00a8ff 0%, #0078d4 100%);
+            color: white;
+            margin-left: auto;
+            text-align: right;
+            border: 1px solid #0078d4;
+            box-shadow: 0 2px 8px rgba(0, 120, 212, 0.3);
+        }
+        
+        .message.assistant {
+            background: #2d3748;
+            color: #e2e8f0;
+            border: 1px solid #4a5568;
+            margin-right: auto;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        
+        .message.system {
+            background: #1a202c;
+            color: #ffd700;
+            font-style: italic;
+            margin: 0 auto;
+            text-align: center;
+            font-size: 13px;
+            max-width: 90%;
+            border: 1px solid #4a5568;
+        }
+        
+        .message.progress {
+            background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+            color: white;
+            margin: 0 auto;
+            text-align: center;
+            font-size: 13px;
+            max-width: 60%;
+            border: 1px solid #dd6b20;
+            box-shadow: 0 2px 8px rgba(237, 137, 54, 0.3);
+        }
+        
+        .message.thinking {
+            background: linear-gradient(135deg, #38b2ac 0%, #319795 100%);
+            color: white;
+            margin: 0 auto;
+            text-align: center;
+            font-size: 13px;
+            max-width: 60%;
+            border: 1px solid #319795;
+            box-shadow: 0 2px 8px rgba(56, 178, 172, 0.3);
+        }
+        
+        .timestamp {
+            font-size: 10px;
+            opacity: 0.6;
+            margin-top: 4px;
+            font-family: 'Consolas', monospace;
+        }
+        
+        .chat-input {
+            padding: 20px;
+            background: #252d3a;
+            border-top: 1px solid #4a5568;
+            display: flex;
+            gap: 12px;
+            flex-shrink: 0; /* Prevent shrinking */
+            position: sticky;
+            bottom: 0;
+        }
+        
+        .message-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #4a5568;
+            border-radius: 6px;
+            outline: none;
+            font-size: 14px;
+            font-family: inherit;
+            background: #1a202c;
+            color: #e2e8f0;
+            transition: all 0.3s ease;
+        }
+        
+        .message-input:focus {
+            border-color: #00ff88;
+            box-shadow: 0 0 0 2px rgba(0, 255, 136, 0.2);
+        }
+        
+        .message-input::placeholder {
+            color: #a0aec0;
+        }
+        
+        .send-button {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+            color: #1a202c;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: inherit;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .send-button:hover:not(:disabled) {
+            background: linear-gradient(135deg, #00cc6a 0%, #00a85a 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 255, 136, 0.3);
+        }
+        
+        .send-button:disabled {
+            background: #4a5568;
+            color: #a0aec0;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .status {
+            padding: 12px 20px;
+            background: #252d3a;
+            border-top: 1px solid #4a5568;
+            font-size: 13px;
+            color: #a0aec0;
+            text-align: center;
+            font-family: 'Consolas', monospace;
+            flex-shrink: 0; /* Prevent shrinking */
+        }
+        
+        .status.processing {
+            background: #2d3748;
+            color: #ffd700;
+        }
+        
+        .connection-status {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .connection-status.connected {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+            border: 1px solid #00ff88;
+        }
+        
+        .connection-status.disconnected {
+            background: rgba(255, 107, 107, 0.2);
+            color: #ff6b6b;
+            border: 1px solid #ff6b6b;
+        }
+        
+        .demo-info {
+            position: absolute;
+            bottom: 15px;
+            left: 20px;
+            font-size: 10px;
+            color: rgba(224, 224, 224, 0.5);
+            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+            font-family: 'Consolas', monospace;
+        }
+        
+        .visual-debugger {
+            flex: 1;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #a0aec0;
+            text-align: center;
+        }
+        
+        .visual-debugger h2 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #e2e8f0;
+        }
+        
+        .visual-debugger p {
+            font-size: 14px;
+            opacity: 0.7;
+            max-width: 400px;
+            line-height: 1.6;
+        }
+        
+        .code-accent {
+            color: #00ff88;
+            font-family: 'Consolas', monospace;
+            font-weight: 600;
+        }
+        
+        .glow {
+            text-shadow: 0 0 10px currentColor;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="app-header">
+            <div class="connection-status" id="connectionStatus">Connecting...</div>
+            <h1>🤖 <span class="code-accent glow">Real-time AI Chat</span></h1>
+            <p>Async/Await + Server-Sent Events Demo</p>
+        </div>
+        
+        <div class="tab-container">
+            <button class="tab active" onclick="switchTab('chat')">Chat Interface</button>
+            <button class="tab" onclick="switchTab('debugger')">Visual Debugger</button>
+        </div>
+        
+        <!-- Chat Tab Content -->
+        <div class="tab-content active" id="chatTab">
+            <div class="chat-messages" id="chatMessages">
+                <div class="message system">
+                    <div>Welcome to the <span class="code-accent">async/await</span> demonstration! The AI assistant takes 3 seconds to respond with real-time progress updates.</div>
+                    <div class="timestamp">System message</div>
+                </div>
+            </div>
+            
+            <div class="status" id="statusBar">Ready to chat! Background tasks are running...</div>
+            
+            <div class="chat-input">
+                <input 
+                    type="text" 
+                    class="message-input" 
+                    id="messageInput" 
+                    placeholder="Type your message here..." 
+                    maxlength="500"
+                    onkeypress="handleKeyPress(event)"
+                >
+                <button class="send-button" id="sendButton" onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+        
+        <!-- Visual Debugger Tab Content -->
+        <div class="tab-content" id="debuggerTab">
+            <div class="visual-debugger">
+                <h2>🔍 Visual Debugger</h2>
+                <p>This tab will visualize the <span class="code-accent">async/await</span> flow, message queues, and real-time task execution. Coming soon...</p>
+                <br>
+                <p style="opacity: 0.5;">Future features: Task timeline, Queue visualization, SSE stream monitor, Performance metrics</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="demo-info">
+        Press Enter to send • Real-time async/await demo • <span class="code-accent">chat_brainstorm</span>
+    </div>
+
+    <script>
+        let eventSource = null;
+        let isProcessing = false;
+        let messageCount = 0;
+        let currentTab = 'chat';
+        
+        // Tab switching functionality
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            if (tabName === 'chat') {
+                document.getElementById('chatTab').classList.add('active');
+            } else if (tabName === 'debugger') {
+                document.getElementById('debuggerTab').classList.add('active');
+            }
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+            currentTab = tabName;
+        }
+        
+        // Initialize SSE connection
+        function initializeSSE() {
+            eventSource = new EventSource('/events');
+            
+            eventSource.onopen = function(event) {
+                console.log('SSE connection opened');
+                updateConnectionStatus(true);
+            };
+            
+            eventSource.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleSSEMessage(data);
+                } catch (error) {
+                    console.error('Error parsing SSE message:', error);
+                }
+            };
+            
+            eventSource.onerror = function(event) {
+                console.error('SSE connection error:', event);
+                updateConnectionStatus(false);
+                
+                // Reconnect after 3 seconds
+                setTimeout(() => {
+                    if (eventSource.readyState === EventSource.CLOSED) {
+                        console.log('Attempting to reconnect...');
+                        initializeSSE();
+                    }
+                }, 3000);
+            };
+        }
+        
+        function updateConnectionStatus(connected) {
+            const status = document.getElementById('connectionStatus');
+            if (connected) {
+                status.textContent = '🟢 Connected';
+                status.className = 'connection-status connected';
+            } else {
+                status.textContent = '🔴 Disconnected';
+                status.className = 'connection-status disconnected';
+            }
+        }
+        
+        function handleSSEMessage(data) {
+            console.log('📡 SSE Message received:', data.type, data);
+            const messagesContainer = document.getElementById('chatMessages');
+            const statusBar = document.getElementById('statusBar');
+            
+            switch(data.type) {
+                case 'background_update':
+                    // Just update the status bar, don't add chat messages
+                    statusBar.innerHTML = `<span class="code-accent">Background:</span> ${data.data}`;
+                    statusBar.className = 'status';
+                    break;
+                    
+                case 'message_received':
+                    // Just update status bar, don't add chat message
+                    statusBar.innerHTML = '🤖 <span class="code-accent">Assistant is processing...</span>';
+                    statusBar.className = 'status processing';
+                    break;
+                    
+                case 'assistant_thinking':
+                    // Update status bar instead of adding chat message
+                    statusBar.innerHTML = `🤖 <span class="code-accent">${data.data}</span>`;
+                    statusBar.className = 'status processing';
+                    break;
+                    
+                case 'assistant_progress':
+                    // Update status bar instead of adding chat message
+                    statusBar.innerHTML = `🔄 <span class="code-accent">${data.data}</span>`;
+                    statusBar.className = 'status processing';
+                    break;
+                    
+                case 'assistant_response':
+                    addMessage('assistant', data.data, data.timestamp);
+                    setProcessing(false);
+                    statusBar.innerHTML = 'Ready to chat! <span class="code-accent">Background tasks running...</span>';
+                    statusBar.className = 'status';
+                    break;
+                    
+                case 'error':
+                    addMessage('system', `❌ ${data.data}`, data.timestamp);
+                    setProcessing(false);
+                    break;
+                    
+                case 'heartbeat':
+                    // Keep connection alive
+                    break;
+                    
+                default:
+                    console.log('Unknown message type:', data.type, data);
+            }
+        }
+        
+        function addMessage(type, content, timestamp) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            
+            messageDiv.innerHTML = `
+                <div>${content}</div>
+                <div class="timestamp">${timestamp || new Date().toLocaleTimeString()}</div>
+            `;
+            
+            messagesContainer.appendChild(messageDiv);
+            
+            // Auto-scroll to bottom with smooth behavior
+            setTimeout(() => {
+                messagesContainer.scrollTo({
+                    top: messagesContainer.scrollHeight,
+                    behavior: 'smooth'
+                });
+            }, 100);
+        }
+        
+        function setProcessing(processing) {
+            isProcessing = processing;
+            const sendButton = document.getElementById('sendButton');
+            const messageInput = document.getElementById('messageInput');
+            
+            sendButton.disabled = processing;
+            messageInput.disabled = processing;
+            
+            if (processing) {
+                sendButton.textContent = 'Processing...';
+                messageInput.placeholder = 'Assistant is thinking...';
+            } else {
+                sendButton.textContent = 'Send';
+                messageInput.placeholder = 'Type your message here...';
+            }
+        }
+        
+        async function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            
+            if (!message || isProcessing) return;
+            
+            // Add user message to chat
+            addMessage('user', message, new Date().toLocaleTimeString());
+            messageInput.value = '';
+            setProcessing(true);
+            
+            try {
+                const response = await fetch('/send_message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.detail || 'Failed to send message');
+                }
+                
+                console.log('Message sent successfully:', result);
+                
+            } catch (error) {
+                console.error('Error sending message:', error);
+                addMessage('system', `❌ Error: ${error.message}`, new Date().toLocaleTimeString());
+                setProcessing(false);
+            }
+        }
+        
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Initializing Real-time AI Chat...');
+            initializeSSE();
+            
+            // Focus on input
+            document.getElementById('messageInput').focus();
+        });
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            if (eventSource) {
+                eventSource.close();
+            }
+        });
+    </script>
+</body>
+</html>
