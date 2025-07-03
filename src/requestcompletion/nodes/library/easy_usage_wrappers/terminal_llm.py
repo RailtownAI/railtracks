@@ -1,11 +1,11 @@
-import warnings
-from typing import Type, Dict, Any
+from typing import Type
 from ..terminal_llm import TerminalLLM
-from ....llm import MessageHistory, ModelBase, SystemMessage, UserMessage
+from ....llm import ModelBase, SystemMessage
 from ....llm.tools import Parameter, Tool
 from copy import deepcopy
 from ....exceptions.node_creation.validation import validate_tool_metadata
 from ....exceptions.node_invocation.validation import check_model, check_message_history
+from requestcompletion.nodes.library.easy_usage_wrappers._terminal_llm import TerminalBase
 
 
 def terminal_llm(  # noqa: C901
@@ -15,39 +15,12 @@ def terminal_llm(  # noqa: C901
     tool_details: str | None = None,
     tool_params: set[Parameter] | None = None,
 ) -> Type[TerminalLLM]:
-    class TerminalLLMNode(TerminalLLM):
-        def __init__(
-            self,
-            message_history: MessageHistory,
-            llm_model: ModelBase | None = None,
-        ):
-            check_message_history(
-                message_history, system_message
-            )  # raises Error if message_history is not valid
-            message_history_copy = deepcopy(message_history)
-            if system_message is not None:
-                if len([x for x in message_history_copy if x.role == "system"]) > 0:
-                    warnings.warn(
-                        "System message already exists in message history. We will replace it."
-                    )
-                    message_history_copy = [
-                        x for x in message_history_copy if x.role != "system"
-                    ]
-                    message_history_copy.insert(0, system_message)
-                else:
-                    message_history_copy.insert(0, system_message)
-
-            if llm_model is not None:
-                if model is not None:
-                    warnings.warn(
-                        "You have provided a model as a parameter and as a class variable. We will use the parameter."
-                    )
-            else:
-                check_model(model)  # raises Error if model is not valid
-                llm_model = model
-
-            super().__init__(message_history=message_history_copy, model=llm_model)
-
+    class TerminalLLM(TerminalBase,
+                          pretty_name=pretty_name,
+                          system_message=system_message,
+                          model=model,
+                          tool_details=tool_details,
+                          tool_params=tool_params,):
         @classmethod
         def pretty_name(cls) -> str:
             if pretty_name is None:
@@ -55,29 +28,4 @@ def terminal_llm(  # noqa: C901
             else:
                 return pretty_name
 
-        if tool_details:  # params might be empty
-
-            @classmethod
-            def tool_info(cls) -> Tool:
-                return Tool(
-                    name=cls.pretty_name().replace(" ", "_"),
-                    detail=tool_details,
-                    parameters=tool_params,
-                )
-
-            @classmethod
-            def prepare_tool(cls, tool_parameters: Dict[str, Any]) -> TerminalLLM:
-                message_hist = MessageHistory(
-                    [
-                        UserMessage(f"{param.name}: '{tool_parameters[param.name]}'")
-                        for param in (tool_params if tool_params else [])
-                    ]
-                )
-                return cls(message_hist)
-
-    validate_tool_metadata(tool_params, tool_details, system_message, pretty_name)
-    if system_message is not None and isinstance(
-        system_message, str
-    ):  # system_message is a string, (tackled at the time of node creation)
-        system_message = SystemMessage(system_message)
-    return TerminalLLMNode
+    return TerminalLLM

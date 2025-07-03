@@ -14,9 +14,7 @@ from requestcompletion.llm import (
     Tool,
 )
 from requestcompletion.nodes.library import structured_llm
-from requestcompletion.nodes.library._tool_call_llm_base import (
-    OutputLessToolCallLLM,
-)
+from requestcompletion.nodes.library.easy_usage_wrappers._tool_call_llm import ToolCallBase
 from requestcompletion.nodes.nodes import Node
 from requestcompletion.llm.message import Role
 
@@ -32,20 +30,15 @@ import requestcompletion as rc
 _T = TypeVar("_T")
 
 
-class MCPAgentBase(OutputLessToolCallLLM[_T], ABC, Generic[_T]):
+class MCPAgentBase(ToolCallBase[_T], ABC, Generic[_T]):
     def __init_subclass__(
         cls,
         mcp_command: str | None = None,
         mcp_args: list[str] | None = None,
         mcp_env: dict[str, str] | None = None,
         api_token: str | None = None,
-        pretty_name: str | None = None,
-        model: ModelBase | None = None,
         system_message: SystemMessage | str | None = None,
-        output_type: Literal["MessageHistory", "LastMessage"] = "LastMessage",
-        output_model: BaseModel | None = None,
-        tool_details: str | None = None,
-        tool_params: dict | None = None,
+        **kwargs,
     ):
         # Look to see if the user has set the NOTION_TOKEN environment variable
         if api_token is None:
@@ -73,24 +66,10 @@ class MCPAgentBase(OutputLessToolCallLLM[_T], ABC, Generic[_T]):
         )
         connected_nodes = {*tools}
 
-        validate_tool_metadata(tool_params, tool_details, system_message, pretty_name)
-        if system_message is not None and isinstance(
-            system_message, str
-        ):  # system_message is a string, (tackled at the time of node creation)
-            system_message = SystemMessage(system_message)
-
-        # Initialize class wide variables passed by factory function
-        cls._connected_nodes = connected_nodes
-        cls.tool_params = tool_params
-        cls.tool_details = tool_details
-        cls._pretty_name = pretty_name
-        cls._output_type = output_type
-        cls._output_model = output_model
-        cls.system_message = system_message
-        cls.model = model
-
-        # Now that attributes are set, we can validate the attributes
-        super().__init_subclass__()
+        super().__init_subclass__(
+            connected_nodes=connected_nodes,
+            system_message=system_message,
+            **kwargs)
 
     def return_output(self):
         if self.__class__._output_model:

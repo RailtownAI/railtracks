@@ -53,8 +53,9 @@ class DebugDetails(dict[str, Any]):
 class Node(ABC, Generic[_TOutput]):
     """An abstract base class which defines some the functionality of a node"""
 
-    def __init_subclass__(cls):
-
+    def __init_subclass__(cls,**kwargs):
+        #Ensure superclasses get to init subclass first
+        super().__init_subclass__()
         # now we need to make sure the invoke method is a coroutine, if not we should automatically switch it here.
         method_name = "invoke"
 
