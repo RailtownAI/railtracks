@@ -1,6 +1,7 @@
 from typing import TypeVar, Type
 
 from ._llm_base import LLMBase
+from ... import context
 from ...llm import MessageHistory, ModelBase
 from ...exceptions import LLMError
 from pydantic import BaseModel
@@ -26,8 +27,7 @@ class StructuredLLM(LLMBase[_TOutput], ABC):
         Args:
 
         """
-        self.return_into = return_into
-        super().__init__(model=model, message_history=message_history)
+        super().__init__(model=model, message_history=message_history, return_into=return_into)
 
     async def invoke(self) -> _TOutput:
         """Makes a call containing the inputted message and system prompt to the model and returns the response
@@ -51,8 +51,8 @@ class StructuredLLM(LLMBase[_TOutput], ABC):
                 )
             if isinstance(cont, self.output_model()):
                 if self.return_into is not None:
-                    self.format_for_context(cont)
-                    return cont
+                    context.put(self.return_into, self.format_for_context(cont))
+                    return self.format_for_return(cont)
                 return cont
             raise LLMError(
                 reason="The LLM returned content does not match the expected return type",

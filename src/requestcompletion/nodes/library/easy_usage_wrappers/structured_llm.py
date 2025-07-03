@@ -1,6 +1,7 @@
 import warnings
-from typing import Type, Dict, Any
+from typing import Type, Dict, Any, Callable
 from copy import deepcopy
+
 from ....llm import (
     UserMessage,
     MessageHistory,
@@ -23,6 +24,8 @@ def structured_llm(  # noqa: C901
     tool_details: str | None = None,
     tool_params: dict | None = None,
     return_into: str | None = None,
+    format_for_context_fn: Callable[[Any], Any] | None = None,
+    format_for_return_fn: Callable[[Any], Any] | None = None,
 ) -> Type[StructuredLLM]:
     class StructuredLLMNode(StructuredLLM):
         def __init__(
@@ -60,6 +63,20 @@ def structured_llm(  # noqa: C901
                 model=llm_model,
                 return_into=return_into,
             )
+
+        if format_for_context_fn is not None:
+            def format_for_context(self, value: Any) -> Any:
+                return format_for_context_fn(value)
+        else:
+            def format_for_context(self, value: Any) -> Any:
+                return value
+
+        if format_for_return_fn is not None:
+            def format_for_return(self, value: Any) -> Any:
+                return format_for_return_fn(value)
+        else:
+            def format_for_return(self, value: Any) -> Any:
+                return None
 
         @classmethod
         def output_model(cls) -> Type[BaseModel]:

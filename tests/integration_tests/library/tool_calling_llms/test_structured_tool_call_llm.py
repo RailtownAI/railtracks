@@ -157,3 +157,33 @@ async def test_structured_with_tool_calls(
         assert isinstance(response.answer.travel_plan, str)
         assert isinstance(response.answer.Total_cost, float)
         assert isinstance(response.answer.Currency, str)
+
+
+def test_return_into_structured():
+    """Test that a node can return its structured result into context instead of returning it directly."""
+    from requestcompletion.llm import Message, MessageHistory
+    from requestcompletion.llm.response import Response
+    from tests.rc_tests.llm.conftest import MockLLM
+    import requestcompletion as rc
+
+    class StructuredModel(BaseModel):
+        text: str
+        number: int
+
+    def return_structured_message(messages: MessageHistory, basemodel) -> Response:
+        return Response(message=Message(role="assistant", content=basemodel(text="Hello", number=42)))
+
+    node = rc.library.structured_llm(
+        system_message="Hello",
+        model=MockLLM(structured=return_structured_message),
+        return_into="structured_greeting",  # Store result in context
+        output_model=StructuredModel,
+    )
+
+    with rc.Runner() as run:
+        result = run.run_sync(node, message_history=MessageHistory()).answer
+        assert result is None  # The result should be None since it was stored in context
+        stored = rc.context.get("structured_greeting")
+        assert stored is not None
+        assert stored.text == "Hello"
+        assert stored.number == 42

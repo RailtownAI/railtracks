@@ -1,5 +1,7 @@
 import asyncio
 from typing import TypeVar, ParamSpec, Generic, Set, Type, Dict, Any, Union, Callable
+
+from requestcompletion import context
 from ...nodes import Node
 from requestcompletion.llm import (
     MessageHistory,
@@ -170,5 +172,10 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                     reason="Failed to parse assistant response into structured output.",
                     message_history=self.message_hist,
                 )
-
+        if self.return_into is not None:
+            context.put(
+                self.return_into,
+                self.format_for_context(self.return_output()),
+            )
+            return self.format_for_return(self.return_output())
         return self.return_output()

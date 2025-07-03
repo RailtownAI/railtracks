@@ -4,6 +4,8 @@ import asyncio
 
 from typing_extensions import Self
 
+from ... import context
+from ...context import put
 from ...llm.tools import Tool
 import types
 from typing import (
@@ -41,6 +43,8 @@ def to_node(func):
 def from_function(  # noqa: C901
     func: Callable[[_P], Coroutine[None, None, _TOutput] | _TOutput],
     return_into: str | None = None,
+    format_for_context_fn: Callable[[Any], Any] | None = None,
+    format_for_return_fn: Callable[[Any], Any] | None = None,
 ):
     """
     A function to create a node from a function
@@ -48,6 +52,8 @@ def from_function(  # noqa: C901
     Args:
         func: The function to wrap as a Node.
         return_into: Optional key to store the result in context instead of returning it.
+        format_for_context_fn: Optional function to format the result for context if return_into is not None.
+        format_for_return_fn: Optional function to format the result for return if return_into is not None.
 
     Returns:
         A Node class that wraps the function.
@@ -60,15 +66,20 @@ def from_function(  # noqa: C901
     # TODO figure out how to type this properly
     class DynamicFunctionNode(Node[_TOutput], Generic[_P, _TOutput]):
         def __init__(self, *args: _P.args, **kwargs: _P.kwargs):
-            super().__init__(return_into=return_into)
+            super().__init__()
             self.args = args
             self.kwargs = kwargs
+            self.return_into = return_into
 
         if inspect.iscoroutinefunction(func):
 
             async def invoke(self) -> _TOutput:
                 """Invoke the function as a coroutine."""
-                return await func(*self.args, **self.kwargs)
+                result = await func(*self.args, **self.kwargs)
+                if self.return_into is not None:
+                    context.put(self.return_into, self.format_for_context(result))
+                    return self.format_for_return(result)
+                return result
 
         else:
 
@@ -83,7 +94,24 @@ def from_function(  # noqa: C901
                             "If you see this error unexpectedly, check if any library function you call is async.",
                         ],
                     )
+                if self.return_into is not None:
+                    context.put(self.return_into, self.format_for_context(result))
+                    return self.format_for_return(result)
                 return result
+
+        if format_for_context_fn is not None:
+            def format_for_context(self, value: Any) -> Any:
+                return format_for_context_fn(value)
+        else:
+            def format_for_context(self, value: Any) -> Any:
+                return value
+
+        if format_for_return_fn is not None:
+            def format_for_return(self, value: Any) -> Any:
+                return format_for_return_fn(value)
+        else:
+            def format_for_return(self, value: Any) -> Any:
+                return None
 
         @classmethod
         def _convert_kwargs_to_appropriate_types(cls, kwargs) -> Dict[str, Any]:

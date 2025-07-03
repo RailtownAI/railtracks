@@ -1,5 +1,5 @@
 import warnings
-from typing import Type, Dict, Any
+from typing import Type, Dict, Any, Callable
 from ..terminal_llm import TerminalLLM
 from ....llm import MessageHistory, ModelBase, SystemMessage, UserMessage
 from ....llm.tools import Parameter, Tool
@@ -15,6 +15,8 @@ def terminal_llm(  # noqa: C901
     tool_details: str | None = None,
     tool_params: set[Parameter] | None = None,
     return_into: str | None = None,
+    format_for_context_fn: Callable[[Any], Any] | None = None,
+    format_for_return_fn: Callable[[Any], Any] | None = None,
 ) -> Type[TerminalLLM]:
     class TerminalLLMNode(TerminalLLM):
         def __init__(
@@ -79,6 +81,20 @@ def terminal_llm(  # noqa: C901
                     ]
                 )
                 return cls(message_hist)
+
+        if format_for_context_fn is not None:
+            def format_for_context(self, value: Any) -> Any:
+                return format_for_context_fn(value)
+        else:
+            def format_for_context(self, value: Any) -> Any:
+                return value
+
+        if format_for_return_fn is not None:
+            def format_for_return(self, value: Any) -> Any:
+                return format_for_return_fn(value)
+        else:
+            def format_for_return(self, value: Any) -> Any:
+                return None
 
     validate_tool_metadata(tool_params, tool_details, system_message, pretty_name)
     if system_message is not None and isinstance(

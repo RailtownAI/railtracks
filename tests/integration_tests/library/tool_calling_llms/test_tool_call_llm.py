@@ -2,6 +2,8 @@ from copy import deepcopy
 from typing import Dict, Any
 
 import pytest
+
+import requestcompletion
 import requestcompletion as rc
 
 from requestcompletion.exceptions import NodeCreationError
@@ -413,6 +415,32 @@ def test_return_into():
         result = run.run_sync(node, message_history=MessageHistory()).answer
         assert result is None  # The result should be None since it was stored in context
         assert rc.context.get("greeting") == "Hello"
+
+
+def test_return_into_custom_fn():
+    """Test that a node can return its result into context instead of returning it directly."""
+    def format_function(value: Any) -> str:
+        """Custom function to format the value before storing it in context."""
+        requestcompletion.context.put("greeting", value.content.upper())
+        return "Success!"
+
+    def return_message(messages: MessageHistory, list) -> Response:
+        return Response(message=Message(role="assistant", content="Hello"))
+
+    node = tool_call_llm(
+        system_message="Hello",
+        connected_nodes={return_message},
+        model=MockLLM(chat_with_tools=return_message),
+        return_into="greeting",  # Specify that the result should be stored in context under the key "greeting"
+        format_for_return_fn=format_function  # Use the custom formatting function
+    )
+
+    with rc.Runner() as run:
+        result = run.run_sync(node, message_history=MessageHistory()).answer
+        assert result == "Success!"  # The result should be None since it was stored in context
+        assert rc.context.get("greeting") == "HELLO"
+
+
 
 
 # =========================================== END BASE FUNCTIONALITY TESTS ===========================================

@@ -34,6 +34,8 @@ def tool_call_llm(  # noqa: C901
     tool_details: str | None = None,
     tool_params: dict | None = None,
     return_into: str | None = None,
+    format_for_context_fn: Callable[[Any], Any] | None = None,
+    format_for_return_fn: Callable[[Any], Any] | None = None,
 ) -> Type[OutputLessToolCallLLM[Union[MessageHistory, AssistantMessage, BaseModel]]]:
     if output_model:
         output = output_model
@@ -127,6 +129,22 @@ def tool_call_llm(  # noqa: C901
 
         def connected_nodes(self) -> Set[Union[Type[Node], Callable]]:
             return connected_nodes
+
+        if format_for_context_fn is not None:
+            def format_for_context(self, value: Any) -> Any:
+                return format_for_context_fn(value)
+        else:
+            def format_for_context(self, value: Any) -> Any:
+                if isinstance(value, AssistantMessage):
+                    value = value.content
+                return value
+
+        if format_for_return_fn is not None:
+            def format_for_return(self, value: Any) -> Any:
+                return format_for_return_fn(value)
+        else:
+            def format_for_return(self, value: Any) -> Any:
+                return None
 
         @classmethod
         def pretty_name(cls) -> str:

@@ -154,10 +154,15 @@ class Node(ABC, Generic[_TOutput], metaclass=NodeCreationMeta):
         """
         pass
 
-    @abstractmethod
-    def format_for_context(self, value: Any) -> Any:
+    def format_for_context(self, result: Any) -> Any:
         """
-        A method used to format the Node's result to be put into the context, as well as reformat the return value.
+        A method used to format the Node's result to be put into the context when return_into is not None.
+        """
+        pass
+
+    def format_for_return(self, result: Any) -> Any:
+        """
+        A method used to format the Node's result to be returned when return_into is not None.
         """
         pass
 

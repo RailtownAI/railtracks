@@ -1,4 +1,5 @@
 from ._llm_base import LLMBase
+from ... import context
 from ...llm import MessageHistory, ModelBase
 from abc import ABC
 from ...exceptions import LLMError
@@ -45,6 +46,9 @@ class TerminalLLM(LLMBase[str], ABC):
                     reason="ModelLLM returned None content",
                     message_history=self.message_hist,
                 )
+            if self.return_into is not None:
+                context.put(self.return_into, self.format_for_context(cont))
+                return self.format_for_return(cont)
             return cont
 
         raise LLMError(

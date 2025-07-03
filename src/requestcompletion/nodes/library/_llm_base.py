@@ -62,7 +62,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         *,
         return_into: str | None = None,
     ):
-        super().__init__(return_into=return_into)
+        super().__init__()
         self.model = model
         check_message_history(
             message_history
@@ -70,7 +70,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         self.message_hist = deepcopy(message_history)
 
         self._details["llm_details"] = []
-
+        self.return_into = return_into
         self._attach_llm_hooks()
 
     def _attach_llm_hooks(self):
