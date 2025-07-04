@@ -1,3 +1,4 @@
+import warnings
 from typing import Any, TypeVar, Generic
 from pydantic import BaseModel
 from inspect import isclass, isfunction
@@ -13,7 +14,7 @@ from requestcompletion.nodes.library.easy_usage_wrappers.easy_base import EasyBa
 from requestcompletion.nodes.nodes import Node
 from requestcompletion.exceptions import NodeCreationError, LLMError
 from requestcompletion.exceptions.node_invocation.validation import check_max_tool_calls
-from requestcompletion.exceptions import NodeCreationError
+from requestcompletion.exceptions.node_invocation.validation import check_model
 import requestcompletion as rc
 
 _T = TypeVar("_T")
@@ -22,13 +23,24 @@ _T = TypeVar("_T")
 class TerminalBase(EasyBase[str], ABC):
     """A simple LLM nodes that takes in a message and returns a response. It is the simplest of all llms."""
 
-    def __init__(self, message_history: MessageHistory, llm_model: ModelBase):
+    def __init__(self, message_history: MessageHistory, llm_model: ModelBase | None = None):
         """Creates a new instance of the TerminalLLM class
 
         Args:
 
         """
-        super().__init__(llmmodel=llm_model, message_history=message_history)
+        if llm_model is not None:
+            if self.__class__._model is not None:
+                warnings.warn(
+                    "You have provided a model as a parameter and as a class variable. We will use the parameter."
+                )
+        else:
+            check_model(
+                self.__class__._model
+            )  # raises NodeInvocationError if any of the checks fail
+            llm_model = self.__class__._model
+
+        super().__init__(llm_model=llm_model, message_history=message_history)
 
     async def invoke(self) -> str | None:
         """Makes a call containing the inputted message and system prompt to the model and returns the response

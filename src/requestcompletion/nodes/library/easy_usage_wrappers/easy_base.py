@@ -85,17 +85,6 @@ class EasyBase(LLMBase[_T], ABC, Generic[_T]):
             else:
                 message_history_copy.insert(0, self.__class__._system_message)
 
-        if llm_model is not None:
-            if self.__class__._model is not None:
-                warnings.warn(
-                    "You have provided a model as a parameter and as a class variable. We will use the parameter."
-                )
-        else:
-            check_model(
-                self.__class__._model
-            )  # raises NodeInvocationError if any of the checks fail
-            llm_model = self.__class__._model
-
         super().__init__(message_history=message_history_copy, model=llm_model)
 
 

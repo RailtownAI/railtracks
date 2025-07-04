@@ -1,4 +1,5 @@
 import asyncio
+import warnings
 from copy import deepcopy
 from typing import Set, Type, Union, Literal, Dict, Any, Callable, TypeVar, Generic
 from pydantic import BaseModel
@@ -17,6 +18,7 @@ from requestcompletion.nodes.nodes import Node
 from requestcompletion.exceptions import NodeCreationError, LLMError
 from requestcompletion.exceptions.node_invocation.validation import check_max_tool_calls
 from requestcompletion.exceptions import NodeCreationError
+from requestcompletion.exceptions.node_invocation.validation import check_model
 import requestcompletion as rc
 
 _T = TypeVar("_T")
@@ -45,6 +47,17 @@ class StructuredBase(EasyBase[_T], ABC, Generic[_T, _TOutput]):
         message_history: MessageHistory,
         llm_model: ModelBase | None = None,
     ):
+        if llm_model is not None:
+            if self.__class__._model is not None:
+                warnings.warn(
+                    "You have provided a model as a parameter and as a class variable. We will use the parameter."
+                )
+        else:
+            check_model(
+                self.__class__._model
+            )  # raises NodeInvocationError if any of the checks fail
+            llm_model = self.__class__._model
+
 
         super().__init__(message_history=message_history, llm_model=llm_model)
 

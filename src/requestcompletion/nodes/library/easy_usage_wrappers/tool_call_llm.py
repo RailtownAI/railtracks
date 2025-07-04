@@ -46,14 +46,6 @@ def tool_call_llm(  # noqa: C901
                       output_model=output_model,
                       tool_details=tool_details,
                       tool_params=tool_params,):
-        
-        def __init__(
-            self,
-            message_history: str,
-            llm_model: ModelBase | None = None,
-            max_tool_calls: int | None = 30,
-        ):
-            super().__init__(message_history=message_history, llm_model=llm_model,max_tool_calls=max_tool_calls)
 
         def connected_nodes(self) -> Set[Union[Type[Node], Callable]]:
             return self.__class__._connected_nodes
