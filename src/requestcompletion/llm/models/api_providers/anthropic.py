@@ -1,4 +1,4 @@
-from .provider_wrapper import ProviderLLMWrapper
+from ._provider_wrapper import ProviderLLMWrapper
 
 
 class AnthropicLLM(ProviderLLMWrapper):

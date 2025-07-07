@@ -3,8 +3,7 @@ from .content import ToolCall, ToolResponse
 from .message import UserMessage, SystemMessage, AssistantMessage, Message, ToolMessage
 from .history import MessageHistory
 from .tools import Tool, Parameter
-from .models import AnthropicLLM, OpenAILLM
-from .models.local.ollama import OllamaLLM
+from .models import AnthropicLLM, OpenAILLM, OllamaLLM, AzureAILLM, GeminiLLM
 
 __all__ = [
     "ModelBase",
@@ -21,4 +20,6 @@ __all__ = [
     "AnthropicLLM",
     "OpenAILLM",
     "OllamaLLM",
+    "AzureAILLM",
+    "GeminiLLM",
 ]

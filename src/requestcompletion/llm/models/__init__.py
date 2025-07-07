@@ -1,4 +1,5 @@
-from .api_providers import OpenAILLM, AnthropicLLM
-from .cloud.azureai import AzureAILLM
+from .api_providers import OpenAILLM, AnthropicLLM, GeminiLLM
+from .cloud import AzureAILLM
+from .local import OllamaLLM
 
-__all__ = [OpenAILLM, AnthropicLLM, AzureAILLM]
+__all__ = [OpenAILLM, AnthropicLLM, GeminiLLM, AzureAILLM, OllamaLLM]
