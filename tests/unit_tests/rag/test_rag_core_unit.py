@@ -1,6 +1,7 @@
 import pytest
 
 from conftest import DummyEmbeddingService, DummyTextChunkingService, DummyVectorRecord, DummyTextObject
+from requestcompletion.RAG.rag_core import RAG, textobject_to_vectorrecords
 
 
 # Patch all dependencies using monkeypatch fixture
@@ -43,8 +44,6 @@ def patch_all(monkeypatch):
     )
     # Also patch VectorRecord in ragmod.textobject_to_vectorrecords if needed
     ragmod.textobject_to_vectorrecords.__globals__["VectorRecord"] = DummyVectorRecord
-
-from requestcompletion.RAG.rag_core import RAG, textobject_to_vectorrecords
 
 def test_textobject_to_vectorrecords_basic():
     class DummyTextObjectForTest:

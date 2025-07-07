@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import MagicMock, AsyncMock
-
+import asyncio
 from requestcompletion.state.state import RCState
 from requestcompletion.utils.profiling import Stamp
 from requestcompletion.state.request import Failure
@@ -160,7 +160,6 @@ def test_handle_unknown_message_type(dummy_execution_info, dummy_executor_config
     class X: pass
     msg = X()
     with pytest.raises(TypeError):
-        import asyncio
         asyncio.run(state.handle_result(msg))
 # =========== END RCState handle_result unknown type tests ============
 

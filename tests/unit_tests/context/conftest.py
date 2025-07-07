@@ -1,5 +1,6 @@
 import pytest
 from unittest import mock
+import requestcompletion.context.central as central
 
 
 @pytest.fixture
@@ -9,8 +10,6 @@ def dummy_executor_config():
 
 @pytest.fixture(autouse=True)
 def cleanup_globals():
-
-    import requestcompletion.context.central as central
 
     central.delete_globals()
     yield
@@ -45,8 +44,6 @@ def make_external_context_mock():
 @pytest.fixture
 def make_runner_context_vars(make_internal_context_mock, make_external_context_mock):
     def _make_runner_context_vars(**kwargs):
-        import requestcompletion.context.central as central
-
         return central.RunnerContextVars(
             runner_id=kwargs.get("runner_id", "runner-1"),
             internal_context=kwargs.get("internal_context", make_internal_context_mock()),

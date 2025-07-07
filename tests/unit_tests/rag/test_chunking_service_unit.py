@@ -1,4 +1,8 @@
 import pytest
+from requestcompletion.RAG.chunking_service import (
+    BaseChunkingService,
+    TextChunkingService,
+)
 
 # -- Import module and patch DummyTokenizer using monkeypatch fixture --
 @pytest.fixture(autouse=True)
@@ -14,11 +18,6 @@ def patch_tokenizer(monkeypatch):
             return ''.join(chr(t) for t in tokens)
 
     monkeypatch.setattr(chunking_mod, "Tokenizer", DummyTokenizer)
-
-from requestcompletion.RAG.chunking_service import (
-    BaseChunkingService,
-    TextChunkingService,
-)
 
 def test_base_chunking_set_and_call():
     called = {}

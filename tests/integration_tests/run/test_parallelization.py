@@ -1,6 +1,3 @@
-import concurrent.futures
-import threading
-
 import pytest
 import requestcompletion as rc
 import asyncio

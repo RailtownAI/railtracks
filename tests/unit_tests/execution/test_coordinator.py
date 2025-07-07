@@ -3,11 +3,11 @@ import pytest
 from unittest.mock import MagicMock, AsyncMock
 from typing import get_args
 
-from src.requestcompletion.execution.coordinator import (
+from requestcompletion.execution.coordinator import (
     Job, CoordinatorState, Coordinator
 )
-from src.requestcompletion.execution.task import Task
-from src.requestcompletion.pubsub.messages import (
+from requestcompletion.execution.task import Task
+from requestcompletion.pubsub.messages import (
     RequestSuccess, RequestFailure, RequestCreationFailure, ExecutionConfigurations
 )
 

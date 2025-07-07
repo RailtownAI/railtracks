@@ -4,6 +4,7 @@ from requestcompletion.rc_mcp.oauth import (
 )
 from unittest.mock import MagicMock, ANY
 import time 
+import threading
 
 # ======= START InMemoryTokenStorage tests ============
 
@@ -112,7 +113,6 @@ def test_callback_server_wait_for_callback_success(patch_time_sleep):
         for _ in range(3):
             time.sleep(0.1)
         cs.callback_data["authorization_code"] = "mycode"
-    import threading
     thr = threading.Thread(target=set_code)
     thr.start()
     code = cs.wait_for_callback(timeout=2)

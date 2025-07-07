@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from src.requestcompletion.execution.task import Task
+from requestcompletion.execution.task import Task
 
 
 @pytest.fixture

@@ -14,6 +14,7 @@ def patch_vectorstore_deps(monkeypatch):
     # No need to patch AbstractVectorStore if real base is abstract and not used directly
 
 from requestcompletion.RAG.vector_store.in_memory import InMemoryVectorStore
+import math
 
 # --------------------------- TESTS -----------------------------
 
@@ -61,8 +62,6 @@ def test_delete(store):
     assert store.count() == 1
     deleted2 = store.delete(["nonexistent"])
     assert deleted2 == 0
-
-import math
 
 def vectors_allclose(vec1, vec2, tol=1e-8):
     if len(vec1) != len(vec2):

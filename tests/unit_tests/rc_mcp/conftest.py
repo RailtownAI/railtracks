@@ -1,7 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import timedelta
-
 from mcp import ClientSession, StdioServerParameters
 from requestcompletion.rc_mcp.main import MCPHttpParams
 from requestcompletion import Node
@@ -98,8 +97,6 @@ def dummy_node():
     return DummyNode()
 
 # ============ END value/object fixtures ===============
-import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
 
 # ========== START to_node.py fixtures ===============
 @pytest.fixture

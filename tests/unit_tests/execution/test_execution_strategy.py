@@ -1,16 +1,16 @@
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 
-from src.requestcompletion.execution.execution_strategy import (
+from requestcompletion.execution.execution_strategy import (
     AsyncioExecutionStrategy,
 )
-from src.requestcompletion.pubsub.messages import RequestSuccess, RequestFailure
+from requestcompletion.pubsub.messages import RequestSuccess, RequestFailure
 
 # ============ START AsyncioExecutionStrategy Tests ===============
 
 @pytest.mark.asyncio
-@patch("src.requestcompletion.execution.execution_strategy.NodeState")
-@patch("src.requestcompletion.execution.execution_strategy.get_publisher")
+@patch("requestcompletion.execution.execution_strategy.NodeState")
+@patch("requestcompletion.execution.execution_strategy.get_publisher")
 async def test_asyncio_execute_success(
     mock_get_publisher, mock_node_state, mock_task, mock_publisher
 ):
@@ -31,8 +31,8 @@ async def test_asyncio_execute_success(
     mock_publisher.publish.assert_awaited_once_with(response)
 
 @pytest.mark.asyncio
-@patch("src.requestcompletion.execution.execution_strategy.NodeState")
-@patch("src.requestcompletion.execution.execution_strategy.get_publisher")
+@patch("requestcompletion.execution.execution_strategy.NodeState")
+@patch("requestcompletion.execution.execution_strategy.get_publisher")
 async def test_asyncio_execute_failure(
     mock_get_publisher, mock_node_state, mock_task, mock_publisher
 ):

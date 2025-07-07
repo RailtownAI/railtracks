@@ -1,6 +1,7 @@
 import pytest
 import requestcompletion as rc
 import uuid
+import asyncio
 from requestcompletion.nodes.nodes import DebugDetails, NodeState
 from requestcompletion.exceptions import NodeCreationError
 # ========== DUMMY NODES ==========
@@ -94,7 +95,7 @@ def test_abstract_node_instantiation_raises():
     assert isinstance(n, AbstractNode)
     # But its invoke raises NotImplementedError
     with pytest.raises(NotImplementedError):
-        import asyncio; asyncio.run(n.invoke())
+        asyncio.run(n.invoke())
 
 def test_not_implemented_tool_info(cap_node):
     with pytest.raises(NotImplementedError):
@@ -121,8 +122,6 @@ def test_debugdetails_dict_compatibility():
 
 def test_node_creation_meta_checks(monkeypatch):
     # NodeCreationMeta checks: Try making a class with wrong classmethod, breaks
-    from types import FunctionType
-
     # Pretty name is NOT classmethod, should error on creation
     with pytest.raises(NodeCreationError):
         class BadNode(rc.Node[str]):

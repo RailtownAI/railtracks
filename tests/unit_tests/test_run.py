@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import MagicMock, patch, call
-
+import asyncio
 from requestcompletion.run import Runner, RunnerCreationError, RunnerNotFoundError
 
 # ================= START Mock Fixture ============
@@ -188,7 +188,6 @@ def test_cancel_is_not_implemented(mock_dependencies):
     config = MagicMock()
     runner = Runner(executor_config=config)
     with pytest.raises(NotImplementedError):
-        import asyncio
         asyncio.run(runner.cancel("some-node-id"))
 
 def test_from_state_is_not_implemented(mock_dependencies):
