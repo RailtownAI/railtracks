@@ -177,7 +177,7 @@ const Node: React.FC<{ data: NodeData }> = ({ data }) => {
             border: 1px solid #e5e7eb;
             border-radius: 8px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-            z-index: 1000;
+            z-index: 8001;
             animation: popoverFadeIn 0.2s ease-out;
           }
 
