@@ -24,6 +24,14 @@ class UserMessage(BaseModel):
     timestamp: Optional[str] = None
 
 
+class ToolInvocation(BaseModel):
+    name: str
+    identifier: str
+    arguments: dict
+    result: str
+    success: bool = True
+
+
 class ChatUI:
     """
     Simple interface for chatbot interaction with the web UI.
@@ -81,6 +89,16 @@ class ChatUI:
             await self.user_input_queue.put(message_data)
             return {"status": "success", "message": "Message received"}
         
+        @app.post("/update_tools")
+        async def update_tools(tool_invocation: ToolInvocation):
+            """Update the tools tab with a new tool invocation"""
+            message = {
+                "type": "tool_invoked",
+                "data": tool_invocation.dict()
+            }
+            await self.sse_queue.put(message)
+            return {"status": "success", "message": "Tool updated"}
+        
         @app.get("/events")
         async def stream_events():
             """SSE endpoint for real-time updates"""
@@ -135,6 +153,29 @@ class ChatUI:
             "type": "assistant_response",
             "data": content,
             "timestamp": datetime.now().strftime("%H:%M:%S")
+        }
+        await self.sse_queue.put(message)
+    
+    async def update_tools(self, tool_name: str, tool_id: str, arguments: dict, result: str, success: bool = True) -> None:
+        """
+        Send a tool invocation update to the chat interface.
+        
+        Args:
+            tool_name: Name of the tool that was invoked
+            tool_id: Unique identifier for the tool call
+            arguments: Arguments passed to the tool
+            result: Result returned by the tool
+            success: Whether the tool call was successful
+        """
+        message = {
+            "type": "tool_invoked",
+            "data": {
+                "name": tool_name,
+                "identifier": tool_id,
+                "arguments": arguments,
+                "result": result,
+                "success": success
+            }
         }
         await self.sse_queue.put(message)
     

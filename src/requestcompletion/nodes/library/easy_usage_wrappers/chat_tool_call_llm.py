@@ -187,6 +187,16 @@ def chat_tool_call_llm(
                                     )
                                 )
                             )
+                            
+                            # Update the tools tab in the UI
+                            success = not isinstance(resp, str) or not resp.startswith("There was an error running the tool:")
+                            await chat_ui.update_tools(
+                                tool_name=r_name,
+                                tool_id=r_id,
+                                arguments=next(tc.arguments for tc in tool_calls if tc.identifier == r_id),
+                                result=str(resp),
+                                success=success
+                            )
                     else:
                         assistant_message = returned_mess.message.content
                         

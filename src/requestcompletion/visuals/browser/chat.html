@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time AI Chat - Async/Await Demo</title>
     <link rel="stylesheet" href="chat.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
     <div class="main-container">
@@ -18,7 +19,7 @@
         
         <div class="tab-container">
             <button class="tab active" onclick="switchTab('chat')">Chat Interface</button>
-            <button class="tab" onclick="switchTab('debugger')">Visual Debugger</button>
+            <button class="tab" onclick="switchTab('tools')">Invoked Tools</button>
         </div>
         
         <!-- Chat Tab Content -->
@@ -26,7 +27,7 @@
             <div class="chat-messages" id="chatMessages">
             </div>
             
-            <div class="status" id="statusBar">Ready to chat! Background tasks are running...</div>
+            <div class="status" id="statusBar"></div>
             
             <div class="chat-input">
                 <input 
@@ -41,19 +42,18 @@
             </div>
         </div>
         
-        <!-- Visual Debugger Tab Content -->
-        <div class="tab-content" id="debuggerTab">
-            <div class="visual-debugger">
-                <h2>🔍 Visual Debugger</h2>
-                <p>This tab will visualize the <span class="code-accent">async/await</span> flow, message queues, and real-time task execution. Coming soon...</p>
-                <br>
-                <p style="opacity: 0.5;">Future features: Task timeline, Queue visualization, SSE stream monitor, Performance metrics</p>
+        <!-- Invoked Tools Tab Content -->
+        <div class="tab-content" id="toolsTab">
+            <div class="tools-container">
+                <div class="tools-header">
+                    <h2>🧰 Invoked Tools</h2>
+                    <button class="clear-tools-button" onclick="clearTools()">Clear Tools</button>
+                </div>
+                <div class="tools-list" id="toolsList">
+                    <div class="no-tools-message">No tools have been invoked yet.</div>
+                </div>
             </div>
         </div>
-    </div>
-    
-    <div class="demo-info">
-        Press Enter to send • Real-time async/await demo • <span class="code-accent">chat_brainstorm</span>
     </div>
 
     <script src="chat.js"></script>

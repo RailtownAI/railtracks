@@ -2,6 +2,18 @@ let eventSource = null;
 let isProcessing = false;
 let messageCount = 0;
 let currentTab = 'chat';
+let toolsData = [];
+
+// Configure marked.js for better security and styling
+if (typeof marked !== 'undefined') {
+    marked.setOptions({
+        breaks: true, // Convert \n to <br>
+        gfm: true,    // GitHub Flavored Markdown
+        sanitize: false, // Allow HTML (we trust our content)
+        smartLists: true,
+        smartypants: true
+    });
+}
 
 // Tab switching functionality
 function switchTab(tabName) {
@@ -18,8 +30,8 @@ function switchTab(tabName) {
     // Show selected tab content
     if (tabName === 'chat') {
         document.getElementById('chatTab').classList.add('active');
-    } else if (tabName === 'debugger') {
-        document.getElementById('debuggerTab').classList.add('active');
+    } else if (tabName === 'tools') {
+        document.getElementById('toolsTab').classList.add('active');
     }
     
     // Add active class to clicked tab
@@ -103,13 +115,17 @@ function handleSSEMessage(data) {
         case 'assistant_response':
             addMessage('assistant', data.data, data.timestamp);
             setProcessing(false);
-            statusBar.innerHTML = 'Ready to chat! <span class="code-accent">Background tasks running...</span>';
+            statusBar.innerHTML = '';
             statusBar.className = 'status';
             break;
             
         case 'error':
             addMessage('system', `❌ ${data.data}`, data.timestamp);
             setProcessing(false);
+            break;
+            
+        case 'tool_invoked':
+            addTool(data.data);
             break;
             
         case 'heartbeat':
@@ -126,8 +142,21 @@ function addMessage(type, content, timestamp) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${type}`;
     
+    // Parse markdown for assistant messages using marked.js, keep plain text for user/system messages
+    let processedContent;
+    if (type === 'assistant' && typeof marked !== 'undefined') {
+        try {
+            processedContent = marked.parse(content);
+        } catch (error) {
+            console.warn('Markdown parsing failed, falling back to plain text:', error);
+            processedContent = content.replace(/\n/g, '<br>');
+        }
+    } else {
+        processedContent = content.replace(/\n/g, '<br>');
+    }
+    
     messageDiv.innerHTML = `
-        <div>${content}</div>
+        <div>${processedContent}</div>
         <div class="timestamp">${timestamp || new Date().toLocaleTimeString()}</div>
     `;
     
@@ -249,6 +278,75 @@ function handleKeyPress(event) {
         event.preventDefault();
         sendMessage();
     }
+}
+
+function addTool(toolData) {
+    toolsData.push(toolData);
+    updateToolsDisplay();
+}
+
+function updateToolsDisplay() {
+    const toolsList = document.getElementById('toolsList');
+    
+    if (toolsData.length === 0) {
+        toolsList.innerHTML = '<div class="no-tools-message">No tools have been invoked yet.</div>';
+        return;
+    }
+    
+    const toolsHTML = toolsData.map((tool, index) => {
+        const statusClass = tool.success ? 'success' : 'error';
+        const statusIcon = tool.success ? '✅' : '❌';
+        
+        return `
+            <div class="tool-item ${statusClass}">
+                <div class="tool-header" onclick="toggleToolDetails(${index})">
+                    <div class="tool-header-left">
+                        <span class="tool-name">${statusIcon} ${tool.name}</span>
+                        <span class="tool-id">#${tool.identifier}</span>
+                    </div>
+                    <button class="toggle-button collapsed" id="toggle-${index}">Show Details</button>
+                </div>
+                <div class="tool-details collapsed" id="details-${index}">
+                    <div class="tool-section">
+                        <strong>Arguments:</strong>
+                        <pre class="tool-args">${JSON.stringify(tool.arguments, null, 2)}</pre>
+                    </div>
+                    <div class="tool-section">
+                        <strong>Result:</strong>
+                        <pre class="tool-result">${tool.result}</pre>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    toolsList.innerHTML = toolsHTML;
+}
+
+function toggleToolDetails(index) {
+    const details = document.getElementById(`details-${index}`);
+    const toggle = document.getElementById(`toggle-${index}`);
+    
+    if (details.classList.contains('collapsed')) {
+        // Expand
+        details.classList.remove('collapsed');
+        details.classList.add('expanded');
+        toggle.classList.remove('collapsed');
+        toggle.classList.add('expanded');
+        toggle.textContent = 'Hide Details';
+    } else {
+        // Collapse
+        details.classList.remove('expanded');
+        details.classList.add('collapsed');
+        toggle.classList.remove('expanded');
+        toggle.classList.add('collapsed');
+        toggle.textContent = 'Show Details';
+    }
+}
+
+function clearTools() {
+    toolsData = [];
+    updateToolsDisplay();
 }
 
 // Initialize when page loads
