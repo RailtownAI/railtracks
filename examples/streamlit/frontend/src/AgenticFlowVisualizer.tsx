@@ -486,22 +486,19 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
     return { x: svgP.x, y: svgP.y };
   };
 
-  // Zoom to first node on initial load
+  // Pan the viewport down by 300px after 500ms on initial load
   const reactFlowInstance = useReactFlow();
-  const hasZoomedRef = useRef(false);
+  const hasPannedRef = useRef(false);
+
   useEffect(() => {
-    if (!hasZoomedRef.current && nodes.length > 0) {
-      const firstNode = nodes[0];
-      if (firstNode && firstNode.position) {
-        reactFlowInstance.setViewport({
-          x: firstNode.position.x - 200, // Center with some offset
-          y: firstNode.position.y - 200,
-          zoom: 1.5,
-        });
-        hasZoomedRef.current = true;
-      }
+    if (!hasPannedRef.current && reactFlowInstance) {
+      const timer = setTimeout(() => {
+        reactFlowInstance.setViewport({ x: 0, y: 300, zoom: 2 });
+        hasPannedRef.current = true;
+      }, 500);
+      return () => clearTimeout(timer);
     }
-  }, [nodes, reactFlowInstance]);
+  }, [reactFlowInstance]);
 
   return (
     <div
@@ -543,8 +540,6 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
               />
             ),
           }}
-          fitView
-          fitViewOptions={{ padding: 0.1 }}
           attributionPosition="bottom-left"
           style={{
             width: 'calc(100% - 280px)', // Account for vertical timeline width
@@ -552,11 +547,19 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
             marginLeft: '280px', // Push content to the right of vertical timeline
           }}
           defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-          onInit={() => {
+          onInit={(instance) => {
             if (containerRef.current) {
               const svg = containerRef.current.querySelector('svg');
               if (svg) svgRef.current = svg as SVGSVGElement;
             }
+
+            // Also try to zoom to resolver node on init
+            setTimeout(() => {
+              if (!hasPannedRef.current && nodes.length > 0) {
+                console.log('ReactFlow initialized, attempting zoom...');
+                reactFlowInstance.setViewport({ x: 0, y: 300, zoom: 1 });
+              }
+            }, 600);
           }}
         >
           <Controls />
