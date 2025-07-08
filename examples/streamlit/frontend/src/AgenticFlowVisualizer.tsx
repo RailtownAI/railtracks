@@ -269,7 +269,10 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
 
   // Drawer state
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [selectedEdgeData, setSelectedEdgeData] = useState<any>(null);
+  const [selectedData, setSelectedData] = useState<{
+    type: 'node' | 'edge';
+    data: any;
+  } | null>(null);
 
   // Get max step from stamps or steps
   const maxStep = useMemo(() => {
@@ -356,6 +359,30 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
     [flowData.edges],
   );
 
+  // Handle node inspection
+  const handleNodeInspect = useCallback((nodeData: any) => {
+    setSelectedData({ type: 'node', data: nodeData });
+    setIsDrawerOpen(true);
+  }, []);
+
+  // Handle edge inspection
+  const handleEdgeInspect = useCallback(
+    (edgeData: any) => {
+      // Find the edge in the current edges to get the ID
+      const currentEdges = getEdgesForStep(currentStep);
+      const edge = currentEdges.find(
+        (e) => e.source === edgeData.source && e.target === edgeData.target,
+      );
+      const edgeWithId = {
+        ...edgeData,
+        id: edge?.identifier || 'N/A',
+      };
+      setSelectedData({ type: 'edge', data: edgeWithId });
+      setIsDrawerOpen(true);
+    },
+    [getEdgesForStep, currentStep],
+  );
+
   // Convert flow data to ReactFlow format with step filtering
   const nodes: Node[] = useMemo(() => {
     const stepNodes = getNodesForStep(currentStep);
@@ -375,6 +402,7 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
           step: node.stamp?.step,
           time: node.stamp?.time,
           isActive,
+          onInspect: handleNodeInspect,
         },
         style: {
           filter: isActive
@@ -383,7 +411,7 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
         },
       };
     });
-  }, [positions, currentStep, getNodesForStep]);
+  }, [positions, currentStep, getNodesForStep, handleNodeInspect]);
 
   const edges: Edge[] = useMemo(() => {
     const stepEdges = getEdgesForStep(currentStep);
@@ -444,25 +472,6 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
   const handlePlayPause = useCallback(() => {
     setIsPlaying((prev) => !prev);
   }, []);
-
-  // Handle edge inspection
-  const handleEdgeInspect = useCallback(
-    (edgeData: any) => {
-      // Find the edge in the current edges to get the ID
-      const edge = edges.find(
-        (e) =>
-          e.data?.source === edgeData.source &&
-          e.data?.target === edgeData.target,
-      );
-      const edgeWithId = {
-        ...edgeData,
-        id: edge?.id || 'N/A',
-      };
-      setSelectedEdgeData(edgeWithId);
-      setIsDrawerOpen(true);
-    },
-    [edges],
-  );
 
   // Function to convert client (screen) coordinates to SVG coordinates
   const clientToSvgCoords = (clientX: number, clientY: number) => {
@@ -534,10 +543,12 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
           <span>{isDrawerOpen ? '×' : '⚙'}</span>
         </div>
 
-        {isDrawerOpen && selectedEdgeData && (
+        {isDrawerOpen && selectedData && (
           <div className="drawer-content">
             <div className="drawer-header">
-              <h3>Edge Details</h3>
+              <h3>
+                {selectedData.type === 'node' ? 'Node Details' : 'Edge Details'}
+              </h3>
               <button
                 className="close-button"
                 onClick={() => setIsDrawerOpen(false)}
@@ -546,102 +557,167 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
               </button>
             </div>
             <div className="drawer-body">
-              <div className="detail-row">
-                <span className="detail-label">ID:</span>
-                <span className="detail-value">
-                  {selectedEdgeData.id || 'N/A'}
-                </span>
-              </div>
-              {selectedEdgeData.source && (
-                <div className="detail-row">
-                  <span className="detail-label">Source:</span>
-                  <span className="detail-value">
-                    {selectedEdgeData.source}
-                  </span>
-                </div>
-              )}
-              {selectedEdgeData.target && (
-                <div className="detail-row">
-                  <span className="detail-label">Target:</span>
-                  <span className="detail-value">
-                    {selectedEdgeData.target}
-                  </span>
-                </div>
-              )}
-              {selectedEdgeData.label && (
-                <div className="detail-row">
-                  <span className="detail-label">Label:</span>
-                  <span className="detail-value">{selectedEdgeData.label}</span>
-                </div>
-              )}
-              {selectedEdgeData.step && (
-                <div className="detail-row">
-                  <span className="detail-label">Step:</span>
-                  <span className="detail-value">{selectedEdgeData.step}</span>
-                </div>
-              )}
-              {selectedEdgeData.time && (
-                <div className="detail-row">
-                  <span className="detail-label">Time:</span>
-                  <span className="detail-value">
-                    {new Date(selectedEdgeData.time * 1000).toLocaleString()}
-                  </span>
-                </div>
-              )}
-
-              {selectedEdgeData?.details?.input_args &&
-                Array.isArray(selectedEdgeData.details.input_args) &&
-                selectedEdgeData.details.input_args.length > 0 && (
-                  <>
+              {selectedData.type === 'node' ? (
+                // Node Details
+                <>
+                  <div className="detail-row">
+                    <span className="detail-label">Label:</span>
+                    <span className="detail-value">
+                      {selectedData.data.label || 'N/A'}
+                    </span>
+                  </div>
+                  {selectedData.data.description && (
                     <div className="detail-row">
-                      <span className="detail-label">Inputs</span>
-                      <span
-                        className="detail-value"
-                        style={{ overflowY: 'auto', maxHeight: '300px' }}
-                      >
-                        {Array.isArray(
-                          selectedEdgeData.details.input_args[0],
-                        ) ? (
-                          selectedEdgeData.details.input_args[0].map(
-                            (arg: any, index: number) => (
-                              <div
-                                key={arg?.role || index}
-                                style={{ marginBottom: 8 }}
-                              >
-                                <span className="detail-label">Role:</span>
-                                <span className="detail-value">
-                                  {arg?.role || 'Unknown'}
-                                </span>
-                                <span className="detail-label">Content:</span>
-                                <span className="detail-value">
-                                  {arg?.content || 'No content'}
-                                </span>
-                              </div>
-                            ),
-                          )
-                        ) : (
+                      <span className="detail-label">Description:</span>
+                      <span className="detail-value">
+                        {selectedData.data.description}
+                      </span>
+                    </div>
+                  )}
+                  {selectedData.data.nodeType && (
+                    <div className="detail-row">
+                      <span className="detail-label">Type:</span>
+                      <span className="detail-value">
+                        {selectedData.data.nodeType}
+                      </span>
+                    </div>
+                  )}
+                  {selectedData.data.step && (
+                    <div className="detail-row">
+                      <span className="detail-label">Step:</span>
+                      <span className="detail-value">
+                        {selectedData.data.step}
+                      </span>
+                    </div>
+                  )}
+                  {selectedData.data.time && (
+                    <div className="detail-row">
+                      <span className="detail-label">Time:</span>
+                      <span className="detail-value">
+                        {new Date(
+                          selectedData.data.time * 1000,
+                        ).toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                  {selectedData.data.icon && (
+                    <div className="detail-row">
+                      <span className="detail-label">Icon:</span>
+                      <span className="detail-value">
+                        {selectedData.data.icon}
+                      </span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                // Edge Details
+                <>
+                  <div className="detail-row">
+                    <span className="detail-label">ID:</span>
+                    <span className="detail-value">
+                      {selectedData.data.id || 'N/A'}
+                    </span>
+                  </div>
+                  {selectedData.data.source && (
+                    <div className="detail-row">
+                      <span className="detail-label">Source:</span>
+                      <span className="detail-value">
+                        {selectedData.data.source}
+                      </span>
+                    </div>
+                  )}
+                  {selectedData.data.target && (
+                    <div className="detail-row">
+                      <span className="detail-label">Target:</span>
+                      <span className="detail-value">
+                        {selectedData.data.target}
+                      </span>
+                    </div>
+                  )}
+                  {selectedData.data.label && (
+                    <div className="detail-row">
+                      <span className="detail-label">Label:</span>
+                      <span className="detail-value">
+                        {selectedData.data.label}
+                      </span>
+                    </div>
+                  )}
+                  {selectedData.data.step && (
+                    <div className="detail-row">
+                      <span className="detail-label">Step:</span>
+                      <span className="detail-value">
+                        {selectedData.data.step}
+                      </span>
+                    </div>
+                  )}
+                  {selectedData.data.time && (
+                    <div className="detail-row">
+                      <span className="detail-label">Time:</span>
+                      <span className="detail-value">
+                        {new Date(
+                          selectedData.data.time * 1000,
+                        ).toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+
+                  {selectedData.data?.details?.input_args &&
+                    Array.isArray(selectedData.data.details.input_args) &&
+                    selectedData.data.details.input_args.length > 0 && (
+                      <>
+                        <div className="detail-row">
+                          <span className="detail-label">Inputs</span>
+                          <span
+                            className="detail-value"
+                            style={{ overflowY: 'auto', maxHeight: '300px' }}
+                          >
+                            {Array.isArray(
+                              selectedData.data.details.input_args[0],
+                            ) ? (
+                              selectedData.data.details.input_args[0].map(
+                                (arg: any, index: number) => (
+                                  <div
+                                    key={arg?.role || index}
+                                    style={{ marginBottom: 8 }}
+                                  >
+                                    <span className="detail-label">Role:</span>
+                                    <span className="detail-value">
+                                      {arg?.role || 'Unknown'}
+                                    </span>
+                                    <span className="detail-label">
+                                      Content:
+                                    </span>
+                                    <span className="detail-value">
+                                      {arg?.content || 'No content'}
+                                    </span>
+                                  </div>
+                                ),
+                              )
+                            ) : (
+                              <span className="detail-value">
+                                {JSON.stringify(
+                                  selectedData.data.details.input_args[0],
+                                  null,
+                                  2,
+                                )}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                        <div className="detail-row">
+                          <span className="detail-label">Outputs</span>
                           <span className="detail-value">
                             {JSON.stringify(
-                              selectedEdgeData.details.input_args[0],
+                              selectedData.data?.details?.output,
                               null,
                               2,
                             )}
                           </span>
-                        )}
-                      </span>
-                    </div>
-                    <div className="detail-row">
-                      <span className="detail-label">Outputs</span>
-                      <span className="detail-value">
-                        {JSON.stringify(
-                          selectedEdgeData?.details?.output,
-                          null,
-                          2,
-                        )}
-                      </span>
-                    </div>
-                  </>
-                )}
+                        </div>
+                      </>
+                    )}
+                </>
+              )}
             </div>
           </div>
         )}
