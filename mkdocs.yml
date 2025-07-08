@@ -32,6 +32,7 @@ nav:
 
       - Guides:
         - Notion: tools/guides/notion.md
+        - Github: tools/guides/github.md
 
   - MCP:
         - mcp/index.md
@@ -51,6 +52,9 @@ nav:
 
   - Examples:
       - examples/index.md
+
+  - API Reference:
+      - api_reference/index.md
 
 
 plugins:
