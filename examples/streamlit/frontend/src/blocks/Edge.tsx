@@ -19,6 +19,11 @@ interface EdgeProps {
     time?: number;
     details?: any;
   };
+  clientToSvgCoords?: (
+    clientX: number,
+    clientY: number,
+  ) => { x: number; y: number };
+  svgRef?: React.RefObject<SVGSVGElement>;
 }
 
 const Edge: React.FC<EdgeProps> = ({
@@ -33,16 +38,22 @@ const Edge: React.FC<EdgeProps> = ({
   markerEnd,
   bidirectional = false,
   data,
+  clientToSvgCoords,
+  svgRef,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isClicked, setIsClicked] = useState(false);
+  const [clickPosition, setClickPosition] = useState({ x: 0, y: 0 });
 
   // Handle click outside to close the panel
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // Check if the click is outside the edge path
+      // Check if the click is outside the edge path and outside the drawer
       const target = event.target as Element;
-      if (!target.closest(`[data-edge-id="${id}"]`)) {
+      const isInsideEdge = target.closest(`[data-edge-id="${id}"]`);
+      const isInsideDrawer = target.closest('.edge-drawer');
+
+      if (!isInsideEdge && !isInsideDrawer) {
         setIsClicked(false);
       }
     };
@@ -118,6 +129,11 @@ const Edge: React.FC<EdgeProps> = ({
 
   const handleEdgeClick = (event: React.MouseEvent) => {
     event.stopPropagation();
+    if (clientToSvgCoords) {
+      setClickPosition(clientToSvgCoords(event.clientX, event.clientY));
+    } else {
+      setClickPosition({ x: event.clientX, y: event.clientY });
+    }
     setIsClicked(!isClicked);
   };
 
@@ -186,21 +202,21 @@ const Edge: React.FC<EdgeProps> = ({
         </foreignObject>
       )}
 
-      {/* Edge Detail Popover */}
+      {/* Edge Detail Drawer */}
       {shouldShowPanel && data && (
         <foreignObject
-          x={(sourceX + targetX) / 2 - 200}
-          y={(sourceY + targetY) / 2 - 80}
-          width="600"
-          height="400"
+          x={(sourceX + targetX) / 2 + 60}
+          y={(sourceY + targetY) / 2 - 100}
+          width="400"
+          height="600"
           style={{ overflow: 'visible' }}
         >
           <div
-            className={`edge-popover ${isClicked ? 'persistent' : ''} ${
+            className={`edge-drawer ${isClicked ? 'persistent' : ''} ${
               stateLabel === 'Completed' ? 'completed' : ''
             }`}
           >
-            <div className="popover-header">
+            <div className="drawer-header">
               <h3>Edge Details ({stateLabel})</h3>
               {isClicked && (
                 <button
@@ -214,7 +230,7 @@ const Edge: React.FC<EdgeProps> = ({
                 </button>
               )}
             </div>
-            <div className="popover-content" style={{ minHeight: '400px' }}>
+            <div className="drawer-content">
               <div className="detail-row">
                 <span className="detail-label">ID:</span>
                 <span className="detail-value">{id}</span>
@@ -315,39 +331,44 @@ const Edge: React.FC<EdgeProps> = ({
 
       <style>
         {`
-          .edge-popover {
+          .edge-drawer {
             background: white;
             border: 1px solid #e5e7eb;
             border-radius: 8px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 4px 25px rgba(0, 0, 0, 0.15);
             z-index: 8001;
-            animation: popoverFadeIn 0.2s ease-out;
+            animation: drawerSlideIn 0.3s ease-out;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            height: 600px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            max-height: 80vh;
           }
 
-          .edge-popover.persistent {
+          .edge-drawer.persistent {
             border-color: #10b981;
-            box-shadow: 0 10px 25px rgba(16, 185, 129, 0.2);
+            box-shadow: 0 4px 25px rgba(16, 185, 129, 0.15);
           }
 
-          .edge-popover.completed {
+          .edge-drawer.completed {
             border-color: #10b981;
-            box-shadow: 0 10px 25px rgba(16, 185, 129, 0.2);
+            box-shadow: 0 4px 25px rgba(16, 185, 129, 0.15);
           }
 
-          .popover-header {
-            padding: 12px 16px;
+          .drawer-header {
+            padding: 16px 20px;
             border-bottom: 1px solid #e5e7eb;
             background: #f9fafb;
-            border-radius: 8px 8px 0 0;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-shrink: 0;
           }
 
-          .popover-header h3 {
+          .drawer-header h3 {
             margin: 0;
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 600;
             color: #1f2937;
           }
@@ -355,16 +376,16 @@ const Edge: React.FC<EdgeProps> = ({
           .close-button {
             background: none;
             border: none;
-            font-size: 18px;
+            font-size: 20px;
             color: #6b7280;
             cursor: pointer;
-            padding: 0;
-            width: 20px;
-            height: 20px;
+            padding: 4px;
+            width: 28px;
+            height: 28px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 4px;
+            border-radius: 6px;
             transition: all 0.2s ease;
           }
 
@@ -373,19 +394,20 @@ const Edge: React.FC<EdgeProps> = ({
             color: #1f2937;
           }
 
-          .popover-content {
-            padding: 16px;
-            /* max-height: 120px; */
+          .drawer-content {
+            padding: 20px;
             overflow-y: auto;
+            flex: 1;
             width: 100%;
             box-sizing: border-box;
           }
 
           .detail-row {
             display: grid;
-            grid-template-columns: 120px 1fr;
-            margin-bottom: 8px;
+            grid-template-columns: 100px 1fr;
+            margin-bottom: 12px;
             align-items: flex-start;
+            gap: 8px;
           }
 
           .detail-row:last-child {
@@ -395,15 +417,13 @@ const Edge: React.FC<EdgeProps> = ({
           .detail-label {
             font-weight: 600;
             color: #6b7280;
-            font-size: 12px;
-            min-width: 60px;
-            margin-right: 8px;
+            font-size: 13px;
             word-break: break-word;
           }
 
           .detail-value {
             color: #1f2937;
-            font-size: 12px;
+            font-size: 13px;
             word-break: break-word;
             flex: 1;
             width: 100%;
@@ -411,21 +431,23 @@ const Edge: React.FC<EdgeProps> = ({
             text-overflow: unset;
             max-width: unset;
             white-space: pre-line;
+            line-height: 1.4;
           }
 
-          @keyframes popoverFadeIn {
+          @keyframes drawerSlideIn {
             from {
               opacity: 0;
-              transform: translateY(-10px);
+              transform: scale(0.95) translateY(-10px);
             }
             to {
               opacity: 1;
-              transform: translateY(0);
+              transform: scale(1) translateY(0);
             }
           }
 
           .edge-label-renderer {
             z-index: 8001;
+            user-select: none;
             pointer-events: auto;
           }
 
