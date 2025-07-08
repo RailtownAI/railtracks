@@ -73,6 +73,7 @@ interface DataJsonEdge {
     identifier: string;
   };
   details: {
+    state?: string;
     input_args?: any[];
     input_kwargs?: any;
     output?: any;
