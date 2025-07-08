@@ -1,14 +1,11 @@
-##################################################################
-# For this example, ensure you have a valid GitHub PAT token set
-# in the environment variables.
-##################################################################
-import os
+# Using GitHub MCP Server with RequestCompletion
 
+To use the GitHub MCP server with RC, use the `from_mcp_server` utility to load tools directly from the MCP server. A valid GitHub Personal Access Token (PAT) is required, which in this example is provided via an environment variable.
+
+```python
+import os
 from requestcompletion.rc_mcp import MCPHttpParams
 from requestcompletion.nodes.library.mcp_tool import from_mcp_server
-
-from requestcompletion.nodes.library.easy_usage_wrappers.tool_call_llm import tool_call_llm
-import requestcompletion as rc
 
 tools = from_mcp_server(
     MCPHttpParams(
@@ -18,10 +15,13 @@ tools = from_mcp_server(
         },
     )
 )
+```
 
-##################################################################
-# Example using the tools with an agent
+At this point, the tools can be used the same as any other RC tool. See the following code as a simple example.
 
+```python
+from requestcompletion.nodes.library.easy_usage_wrappers.tool_call_llm import tool_call_llm
+import requestcompletion as rc
 
 agent = tool_call_llm(
     connected_nodes={*tools},
@@ -37,3 +37,5 @@ with rc.Runner() as run:
     result = run.run_sync(agent, message_history)
 
 print(result.answer.content)
+
+```
