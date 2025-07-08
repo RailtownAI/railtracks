@@ -3,7 +3,7 @@ from typing import Type
 from mcp import StdioServerParameters
 import asyncio
 
-from ...mcp.main import MCPAsyncClient, MCPHttpParams, from_mcp
+from ...rc_mcp.main import MCPAsyncClient, MCPHttpParams, from_mcp
 from ...nodes.nodes import Node
 
 

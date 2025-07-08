@@ -66,7 +66,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
 
     async def _on_max_tool_calls_exceeded(self):
         """force a final response"""
-        returned_mess = self.model.chat_with_tools(self.message_hist, tools=[])
+        returned_mess = await self.model.achat_with_tools(self.message_hist, tools=[])
         self.message_hist.append(returned_mess.message)
 
     async def invoke(self) -> _T:
@@ -84,7 +84,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                 break
 
             # collect the response from the model
-            returned_mess = self.model.chat_with_tools(
+            returned_mess = await self.model.achat_with_tools(
                 self.message_hist, tools=self.tools()
             )
 

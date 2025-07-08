@@ -30,7 +30,7 @@ class StructuredLLM(LLMBase[_TOutput], ABC):
             (TerminalLLM.Output): The response message from the model
         """
 
-        returned_mess = self.model.structured(
+        returned_mess = await self.model.astructured(
             self.message_hist, schema=self.output_model()
         )
 
