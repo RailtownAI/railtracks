@@ -175,9 +175,10 @@ const calculateAutoLayout = (nodes: DataJsonNode[], edges: DataJsonEdge[]) => {
   // Assign positions recursively - now left to right
   const positions = new Map<string, { x: number; y: number }>();
   const levelSpacing = 280; // Horizontal spacing between levels
+  const horizontalMargin = 120; // Add margin to the left
   const assignPositions = (nodeId: string, yTop: number, level: number) => {
     const height = subtreeHeight.get(nodeId) || nodeHeight;
-    const x = level * levelSpacing;
+    const x = level * levelSpacing + horizontalMargin; // Add margin here
     const children = childrenMap.get(nodeId) || [];
     let y = yTop;
     if (children.length === 0) {
@@ -255,6 +256,7 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
   className = '',
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
   const [containerDimensions, setContainerDimensions] = useState({
     width: typeof width === 'number' ? width : 800,
     height: typeof height === 'number' ? height : 600,
@@ -439,6 +441,16 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
     setIsPlaying((prev) => !prev);
   }, []);
 
+  // Function to convert client (screen) coordinates to SVG coordinates
+  const clientToSvgCoords = (clientX: number, clientY: number) => {
+    if (!svgRef.current) return { x: 0, y: 0 };
+    const pt = svgRef.current.createSVGPoint();
+    pt.x = clientX;
+    pt.y = clientY;
+    const svgP = pt.matrixTransform(svgRef.current.getScreenCTM()?.inverse());
+    return { x: svgP.x, y: svgP.y };
+  };
+
   return (
     <div
       ref={containerRef}
@@ -461,7 +473,15 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
+        edgeTypes={{
+          default: (edgeProps) => (
+            <RCEdge
+              {...edgeProps}
+              clientToSvgCoords={clientToSvgCoords}
+              svgRef={svgRef}
+            />
+          ),
+        }}
         fitView
         fitViewOptions={{ padding: 0.1 }}
         attributionPosition="bottom-left"
@@ -470,6 +490,12 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
           height: 'calc(100% - 60px)', // Account for timeline height
         }}
         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+        onInit={() => {
+          if (containerRef.current) {
+            const svg = containerRef.current.querySelector('svg');
+            if (svg) svgRef.current = svg as SVGSVGElement;
+          }
+        }}
       >
         <Controls />
         <Background color="#f3f4f6" gap={16} />
