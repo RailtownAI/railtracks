@@ -486,19 +486,7 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
     return { x: svgP.x, y: svgP.y };
   };
 
-  // Pan the viewport down by 300px after 500ms on initial load
   const reactFlowInstance = useReactFlow();
-  const hasPannedRef = useRef(false);
-
-  useEffect(() => {
-    if (!hasPannedRef.current && reactFlowInstance) {
-      const timer = setTimeout(() => {
-        reactFlowInstance.setViewport({ x: 0, y: 300, zoom: 2 });
-        hasPannedRef.current = true;
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [reactFlowInstance]);
 
   return (
     <div
@@ -552,14 +540,6 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
               const svg = containerRef.current.querySelector('svg');
               if (svg) svgRef.current = svg as SVGSVGElement;
             }
-
-            // Also try to zoom to resolver node on init
-            setTimeout(() => {
-              if (!hasPannedRef.current && nodes.length > 0) {
-                console.log('ReactFlow initialized, attempting zoom...');
-                reactFlowInstance.setViewport({ x: 0, y: 300, zoom: 1 });
-              }
-            }, 600);
           }}
         >
           <Controls />
