@@ -21,6 +21,7 @@ import 'reactflow/dist/style.css';
 import { Edge as RCEdge } from './blocks/Edge';
 import { Node as RCNode } from './blocks/Node';
 import { Timeline } from './Timeline';
+import { VerticalTimeline } from './VerticalTimeline';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -498,6 +499,13 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
       }}
       className={className}
     >
+      {/* Vertical Timeline */}
+      <VerticalTimeline
+        stamps={flowData.stamps || flowData.steps || []}
+        currentStep={currentStep}
+        onStepChange={handleStepChange}
+      />
+
       <ReactFlow
         nodes={nodesState}
         edges={edgesState}
@@ -519,8 +527,9 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
         fitViewOptions={{ padding: 0.1 }}
         attributionPosition="bottom-left"
         style={{
-          width: '100%',
+          width: 'calc(100% - 280px)', // Account for vertical timeline width
           height: 'calc(100% - 60px)', // Account for timeline height
+          marginLeft: '280px', // Push content to the right of vertical timeline
         }}
         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
         onInit={() => {
@@ -724,13 +733,15 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
       </div>
 
       {/* Timeline */}
-      <Timeline
-        stamps={flowData.stamps || flowData.steps || []}
-        currentStep={currentStep}
-        isPlaying={isPlaying}
-        onStepChange={handleStepChange}
-        onPlayPause={handlePlayPause}
-      />
+      <div style={{ marginLeft: '280px' }}>
+        <Timeline
+          stamps={flowData.stamps || flowData.steps || []}
+          currentStep={currentStep}
+          isPlaying={isPlaying}
+          onStepChange={handleStepChange}
+          onPlayPause={handlePlayPause}
+        />
+      </div>
 
       <style>
         {`
@@ -756,6 +767,7 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
             display: flex;
             align-items: flex-start;
             transition: transform 0.3s ease;
+            margin-left: 280px; /* Account for vertical timeline */
           }
 
           .right-drawer:not(.open) {
