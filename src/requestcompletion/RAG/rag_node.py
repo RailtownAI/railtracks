@@ -1,4 +1,4 @@
-from requestcompletion.RAG.rag_core import RAG
+from .rag_core import RAG
 from requestcompletion import Node
 import requestcompletion as rc
 

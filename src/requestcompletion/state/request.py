@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import uuid
-import warnings
 from dataclasses import dataclass
 from functools import reduce
-from typing import Optional, Dict, List, Tuple, Iterable, Set, FrozenSet, Any
+from typing import Optional, Dict, List, Tuple, Iterable, Any
 
 
 from .forest import (
@@ -186,18 +185,9 @@ class RequestForest(Forest[RequestTemplate]):
         Creates a new instance of a request heap with no objects present.
         """
         super().__init__(heap=request_heap)
-        self._dead_children: Set[str] = set()
-        self._failure_tree: Set[FrozenSet[RequestTemplate]] = set()
 
     def __getitem__(self, item):
         with self._lock:
-            if item in self._dead_children:
-                warnings.warn(
-                    "You are attempting to access a request that has been reverted."
-                )
-                raise DeadRequestError(
-                    "You are attempting to access a request that has been reverted."
-                )
             try:
                 return self._heap[item]
             except KeyError:
@@ -206,27 +196,6 @@ class RequestForest(Forest[RequestTemplate]):
                 )
                 raise
 
-    def failure_tree(self, at_step: int | None = None):
-        """
-        Gets a failure tree containing the requests that have failed. If the at_step is provided then it will only
-        return the failures up to and including that step.
-
-        Args:
-            at_step (int | None): The step to collect the failures up to. If None then it will collect all the failures.
-
-        Returns:
-            Set[FrozenSet[RequestTemplate]]: A set of frozen sets containing the requests that have failed.
-        """
-
-        new_set = set()
-        for tree in self._failure_tree:
-            if at_step is None:
-                new_set.add(set(tree))
-            else:
-                new_set.add({x for x in tree if x.stamp.step <= at_step})
-
-        return new_set
-
     def to_edges(self):
         """
         Converts the current heap into a list of `Edge` objects.
@@ -234,104 +203,6 @@ class RequestForest(Forest[RequestTemplate]):
         edge_list = [request.to_edge() for request in self._heap.values()]
 
         return edge_list
-
-    def collect_dead_request(self, request_id: str):
-        """
-        A special method to collect a request which had died via some sort of error in the system.
-        """
-        with self._lock:
-            deads = sorted(
-                [x for x in self._full_data if x.identifier == request_id],
-                key=lambda x: x.stamp.step,
-            )
-            if len(deads) == 0:
-                return None
-            return deads[-1]
-
-    def revert_heap(self, request_id: str):
-        """
-        This method will preform the following actions to revert the requests in the heap:
-        1. It will collect the request connected the parent of the provided request
-        2. Collect the children of the provided request
-        4. Remove all the children from the heap (note that this is becuase all of these should have been created after
-         the last completion of the parent request)
-        5. Saves the list of dead children so we can access them again as needed outside the regular heap mechanism.
-
-        Args:
-            request_id (str): The request id of the request that failed and you would like to revert.
-
-        Returns:
-            Tuple[List[RequestTemplate], int, str]: A tuple containing the list of children requests that were removed,
-            the step of the parent request after it was reverted, and the request id of the parent request. The parent
-            request id is the next item that can be completed.
-
-        Raises:
-            DeadRequestError: If the request has already been reverted.
-
-        """
-
-        with self._lock:
-            if request_id in self._dead_children:
-                warnings.warn(
-                    "You are attempting to revert a request that has already been reverted. This is ok, but nothing will be reverted."
-                )
-                raise DeadRequestError(
-                    "You are attempting to revert a request that has already been reverted."
-                )
-
-            try:
-                source_id = self._heap[request_id].source_id
-            except KeyError:
-                assert False
-
-            # we need to return the request where the source_id is the sink_id to its previous state.
-            upstream_request_list = RequestTemplate.upstream(
-                self._heap.values(), source_id
-            )
-
-            # if the failed request is the start request it will need to be handled on a special case basis
-            if len(upstream_request_list) == 0:
-                all_children = []
-                upstream_request = self._heap[request_id]
-            elif len(upstream_request_list) == 1:
-                upstream_request = upstream_request_list[0]
-
-                all_children = RequestTemplate.all_downstream(
-                    self._heap.values(), source_id
-                )
-            else:
-                assert False, "There should never be more than 1 upstream request"
-
-            # note the upstream request contains the stamp we care about
-            # it is assumed that the upstream request is at the state when the request was completed
-            new_upstream_request = upstream_request
-            assert new_upstream_request is not None, (
-                f"Fix this bug here {upstream_request}"
-            )
-            for child in all_children:
-                assert child.stamp.step > new_upstream_request.stamp.step, (
-                    "All children should have been created in the future of this request."
-                )
-                del self._heap[child.identifier]
-
-            # finally we revert that upstream_request
-            self._heap[upstream_request.identifier] = new_upstream_request
-
-            self._dead_children.update([x.identifier for x in all_children])
-            try:
-                failed_elements = set(all_children)
-
-            except TypeError as e:
-                print("\n".join([repr(x) for x in all_children]))
-                print(e)
-                raise
-
-            self._failure_tree.add(frozenset(failed_elements))
-            return (
-                all_children,
-                new_upstream_request.stamp.step,
-                upstream_request.identifier,
-            )
 
     def create(
         self,
@@ -394,12 +265,6 @@ class RequestForest(Forest[RequestTemplate]):
 
         """
         with self._lock:
-            if identifier in self._dead_children:
-                warnings.warn(
-                    "You are attempting to update a request that has been reverted. This is ok, but nothing will be updated."
-                )
-                return None
-
             old_request = self._heap.get(identifier, None)
 
             # one cannot update a request that does not exist
@@ -524,15 +389,6 @@ class RequestForest(Forest[RequestTemplate]):
             return [x.output for x in self.insertion_request]
         else:
             return self.insertion_request[0].output
-
-
-class DeadRequestError(Exception):
-    """
-    A special exception to be thrown when the request you are looking collect has been killed during a scorched earth
-     process
-    """
-
-    pass
 
 
 class RequestDoesNotExistError(Exception):

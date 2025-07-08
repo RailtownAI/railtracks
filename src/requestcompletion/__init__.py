@@ -15,7 +15,7 @@ __all__ = [
     "call_sync",
     "stream",
     "batch",
-    "mcp",
+    "rc_mcp",
     "ExecutionInfo",
     "ExecutorConfig",
     "llm",
@@ -27,7 +27,7 @@ __all__ = [
 ]
 
 
-from . import mcp
+from . import rc_mcp
 from .nodes import library
 from .nodes.nodes import Node
 from .interaction.call import call, call_sync

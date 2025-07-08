@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 
-import warnings
-
 from dataclasses import dataclass
-from typing import Optional, Iterable, ParamSpec, Dict, Type
+from typing import Optional, ParamSpec, Dict, Type
 
 from .forest import (
     AbstractLinkedObject,
@@ -64,13 +62,11 @@ class NodeForest(Forest[LinkedNode]):
         """
         super().__init__(node_heap)
 
-        self._hard_revert_list = set()
         self.id_type_mapping: Dict[str, Type[Node]] = (
             {node.identifier: type(node.node) for node in node_heap.values()}
             if node_heap
             else {}
         )
-        self.registration_details = None
 
     def __getitem__(self, item):
         """
@@ -117,35 +113,6 @@ class NodeForest(Forest[LinkedNode]):
 
     def get_node_type(self, identifier: str):
         return self.id_type_mapping.get(identifier, None)
-
-    def hard_revert(self, node_ids: Iterable[str], to_step: int):
-        """
-        Preforms a hard revert on all the nodes in the heap that have the provided ids back to the provided step.
-
-        By "Hard", that means that even if there a node which is currently being updated, it will be reverted back to
-        the provided step regardless of the updates that are provided to it. To prevent against race conditions any
-        nodes which are already being updated will wait for those updates to be complete for them to be removed.
-
-        Args:
-            node_ids (Iterable[str]): The ids of the nodes you would like to revert
-            to_step (int): The step you would like to revert the nodes to.
-
-        Raises:
-            KeyError: If any of the provided node_ids are not in the heap.
-        """
-        with self._lock:
-            for node_id in node_ids:
-                if node_id not in self._heap:
-                    warnings.warn("Node with id {0} not in heap.".format(node_id))
-
-                # in the below code we will iterate backwards until we have gotten to valid node
-                item = self._heap[node_id]
-                while item is not None and item.stamp.step > to_step:
-                    item = item.parent
-                if item is None:
-                    del self._heap[node_id]
-                else:
-                    self._heap[node_id] = item
 
 
 class ConcurrentNodeUpdatesError(Exception):

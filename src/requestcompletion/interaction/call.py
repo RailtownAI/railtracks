@@ -205,17 +205,20 @@ def call_sync(
         *args: The arguments to pass to the node
         **kwargs: The keyword arguments to pass to the node
     """
+    loop_found = False
     try:
         loop = asyncio.get_running_loop()
+        loop_found = True
         # if we made it here then we already have a running loop. We will create a new thread and execute the call in there
         raise RuntimeError(
             "You cannot call `call_sync` from within an already running event loop. "
             "Use `call` instead to run the node asynchronously."
         )
-
     except RuntimeError:
         # If there is no running loop, we need to create one
-        pass
+        if loop_found:
+            raise
+
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:

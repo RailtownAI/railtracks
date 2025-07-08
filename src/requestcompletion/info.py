@@ -7,7 +7,6 @@ from .utils.profiling import Stamp, StampManager
 from .state.request import RequestForest
 from .state.node import NodeForest
 from .utils.serialization.graph import Edge, Vertex
-from .visuals.agent_viewer import AgentViewer
 
 import json
 from requestcompletion.utils.serialization import RCJSONEncoder
@@ -189,7 +188,3 @@ class ExecutionInfo:
             },
             cls=RCJSONEncoder,
         )
-
-    def view_graph(self):
-        """A convenience method used to view a graph representation of the run."""
-        AgentViewer(self.all_stamps, self.request_heap, self.node_heap).display_graph()
