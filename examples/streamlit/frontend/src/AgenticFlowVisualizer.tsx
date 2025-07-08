@@ -50,10 +50,10 @@ interface DataJsonNode {
           role: string;
           content: any;
         };
-        input_tokens: number;
-        output_tokens: number;
-        total_cost: number;
-        system_fingerprint: string;
+        input_tokens: number | null;
+        output_tokens: number | null;
+        total_cost: number | null;
+        system_fingerprint: string | null;
       }>;
       latency?: {
         total_time: number;
@@ -389,6 +389,7 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
   // Convert flow data to ReactFlow format with step filtering
   const nodes: Node[] = useMemo(() => {
     const stepNodes = getNodesForStep(currentStep);
+    const stepEdges = getEdgesForStep(currentStep);
     return stepNodes.map((node) => {
       const position = positions.get(node.identifier) || { x: 0, y: 0 };
       const { description } = extractLLMDetails(node);
@@ -407,6 +408,7 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
           isActive,
           onInspect: handleNodeInspect,
           id: node.identifier, // Add id for zoom functionality
+          edges: stepEdges, // Pass edges to the node
         },
         style: {
           filter: isActive
@@ -415,7 +417,13 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
         },
       };
     });
-  }, [positions, currentStep, getNodesForStep, handleNodeInspect]);
+  }, [
+    positions,
+    currentStep,
+    getNodesForStep,
+    getEdgesForStep,
+    handleNodeInspect,
+  ]);
 
   const edges: Edge[] = useMemo(() => {
     const stepEdges = getEdgesForStep(currentStep);
@@ -563,12 +571,6 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
               <h3>
                 {selectedData.type === 'node' ? 'Node Details' : 'Edge Details'}
               </h3>
-              <button
-                className="close-button"
-                onClick={() => setIsDrawerOpen(false)}
-              >
-                ×
-              </button>
             </div>
             <div className="drawer-body">
               {selectedData.type === 'node' ? (
