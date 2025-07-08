@@ -1,6 +1,7 @@
 import React, { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import MyComponent from './MyComponent';
+import { ReactFlowProvider } from 'reactflow';
 
 const rootElement = document.getElementById('root');
 
@@ -12,6 +13,8 @@ const root = createRoot(rootElement);
 
 root.render(
   <StrictMode>
-    <MyComponent />
+    <ReactFlowProvider>
+      <MyComponent />
+    </ReactFlowProvider>
   </StrictMode>,
 );
