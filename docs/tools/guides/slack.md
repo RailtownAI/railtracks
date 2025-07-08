@@ -31,7 +31,7 @@ tools = from_mcp_server(
 At this point, the tools can be used the same as any other RC tool. See the following code as a simple example.
 
 ```python
-from requestcompletion.nodes.library.easy_usage_wrappers.tool_call_llm import tool_call_llm
+from requestcompletion.nodes.library import tool_call_llm
 import requestcompletion as rc
 
 agent = tool_call_llm(

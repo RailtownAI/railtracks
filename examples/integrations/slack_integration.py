@@ -6,9 +6,7 @@
 import os
 
 from mcp import StdioServerParameters
-from requestcompletion.nodes.library import from_mcp_server
-
-from requestcompletion.nodes.library.easy_usage_wrappers.tool_call_llm import tool_call_llm
+from requestcompletion.nodes.library import from_mcp_server, tool_call_llm
 import requestcompletion as rc
 
 MCP_COMMAND = "npx"
