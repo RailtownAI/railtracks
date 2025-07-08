@@ -108,6 +108,7 @@ const Node: React.FC<{ data: NodeData }> = ({ data }) => {
             max-width: 250px;
             transition: all 0.2s ease;
             position: relative;
+            z-index: -5;
           }
           
           .agent-node:hover {
