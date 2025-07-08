@@ -5,11 +5,11 @@ from inspect import isfunction
 from mcp import StdioServerParameters
 
 from requestcompletion.llm import Parameter
-from requestcompletion.nodes.library import StructuredLLM, TerminalLLM
-from requestcompletion.nodes.library._llm_base import LLMBase
-from requestcompletion.nodes.library.tool_calling_llms.mess_hist_tool_call_llm import MessageHistoryToolCallLLM
-from requestcompletion.nodes.library.tool_calling_llms.tool_call_llm import ToolCallLLM
-from requestcompletion.nodes.nodes import Node
+from ....nodes.library.structured_llm import StructuredLLM
+from ...library._llm_base import LLMBase
+from ...library.tool_calling_llms.mess_hist_tool_call_llm import MessageHistoryToolCallLLM
+from ...library.tool_calling_llms.tool_call_llm import ToolCallLLM
+from ....nodes.nodes import Node
 from requestcompletion.exceptions.node_creation.validation import (
     _check_tool_params_and_details,
     _check_duplicate_param_names,
@@ -17,11 +17,11 @@ from requestcompletion.exceptions.node_creation.validation import (
     _check_pretty_name,
     _check_max_tool_calls,
     check_connected_nodes,)
-from requestcompletion.llm import (
+from ....llm import (
     MessageHistory,
     UserMessage,
 )
-from requestcompletion.nodes.library.function import from_function
+from ...library.function import from_function
 import requestcompletion as rc
 from pydantic import BaseModel
 

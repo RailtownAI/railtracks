@@ -9,7 +9,7 @@ from requestcompletion.llm import (
 
 from ....nodes.nodes import Node
 from ..easy_usage_wrappers.node_builder import NodeBuilder
-from ...library.tool_calling_llms.tool_call_llm import ToolCallLLM
+from ...library.tool_calling_llms.structured_tool_call_llm import StructuredToolCallLLM
 
 
 def tool_call_llm(  # noqa: C901
@@ -18,12 +18,26 @@ def tool_call_llm(  # noqa: C901
     model: ModelBase | None = None,
     max_tool_calls: int | None = 30,
     system_message: SystemMessage | str | None = None,
+    output_type: Literal["MessageHistory", "LastMessage"] = "LastMessage",
+    output_model: BaseModel | None = None,
     tool_details: str | None = None,
     tool_params: dict | None = None,
-) -> Type[ToolCallLLM[AssistantMessage]]:
+) -> Type[StructuredToolCallLLM[Union[MessageHistory, AssistantMessage, BaseModel]]]:
+    if output_model:
+        OutputType = output_model  # noqa: N806
+    else:
+        OutputType = (  # noqa: N806
+            MessageHistory if output_type == "MessageHistory" else AssistantMessage
+        )
 
+    if (
+        output_model and output_type == "MessageHistory"
+    ):  # TODO: add support for MessageHistory output type with output_model. Maybe resp.answer = message_hist and resp.structured = model response
+        raise NotImplementedError(
+            "MessageHistory output type is not supported with output_model at the moment."
+        )
     builder = NodeBuilder(
-        ToolCallLLM[AssistantMessage],
+        StructuredToolCallLLM[OutputType],
         pretty_name=pretty_name,
         class_name="EasyToolCallLLM",
     )

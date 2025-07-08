@@ -9,7 +9,7 @@ from requestcompletion.llm import (
 
 from ....nodes.nodes import Node
 from ..easy_usage_wrappers.node_builder import NodeBuilder
-from ...library.tool_calling_llms.tool_call_llm import ToolCallLLM
+from ...library.tool_calling_llms.mess_hist_tool_call_llm import MessageHistoryToolCallLLM
 
 
 def tool_call_llm(  # noqa: C901
@@ -20,10 +20,10 @@ def tool_call_llm(  # noqa: C901
     system_message: SystemMessage | str | None = None,
     tool_details: str | None = None,
     tool_params: dict | None = None,
-) -> Type[ToolCallLLM[AssistantMessage]]:
+) -> Type[MessageHistoryToolCallLLM[Union[MessageHistory, AssistantMessage, BaseModel]]]:
 
     builder = NodeBuilder(
-        ToolCallLLM[AssistantMessage],
+        MessageHistoryToolCallLLM[MessageHistory],
         pretty_name=pretty_name,
         class_name="EasyToolCallLLM",
     )

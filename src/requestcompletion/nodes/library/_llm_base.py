@@ -61,7 +61,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
     @classmethod
     def _verify_message_history(cls, message_history: llm.MessageHistory):
         """Verify the message history is valid for this LLM."""
-        check_message_history(message_history)
+        check_message_history(message_history, cls.system_message())
 
     @classmethod
     def _verify_model(cls, model: llm.ModelBase):
@@ -79,12 +79,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
     def __init__(self, message_history: llm.MessageHistory, model: llm.ModelBase | None = None):
         super().__init__()
 
-        if self.llm_model() is not None:
-            if model is not None:
-                warnings.warn(
-                    "You have provided a model as a parameter and as a class variable. We will use the parameter.")
-            else:
-                model = self.llm_model()
+        self._verify_message_history(message_history)
 
         message_history_copy = deepcopy(message_history)  # Ensure we don't modify the original message history
 
@@ -99,11 +94,16 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
                 message_history_copy.insert(0, self.system_message())
             else:
                 message_history_copy.insert(0, self.system_message())
+        
+        if self.llm_model() is not None:
+            if model is not None:
+                warnings.warn(
+                    "You have provided a model as a parameter and as a class variable. We will use the parameter.")
+            else:
+                model = self.llm_model()
 
         self._verify_model(model)
         self.model = model
-
-        self._verify_message_history(message_history_copy)
 
         self.message_hist = message_history_copy
 
