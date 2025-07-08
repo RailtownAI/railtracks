@@ -45,6 +45,21 @@ const Edge: React.FC<EdgeProps> = ({
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 
+  // Function to determine stroke color based on edge state
+  const getStrokeColor = () => {
+    const state = data?.details?.state;
+    switch (state) {
+      case 'Open':
+        return '#000000'; // Black
+      case 'Completed':
+        return '#15803d'; // Darker Green
+      case 'Error':
+        return '#ef4444'; // Red
+      default:
+        return style.stroke || '#6366f1'; // Default color
+    }
+  };
+
   const [edgePath, arrowMarkers] = useMemo(() => {
     const centerX = (sourceX + targetX) / 2;
     const centerY = (sourceY + targetY) / 2;
@@ -53,7 +68,7 @@ const Edge: React.FC<EdgeProps> = ({
     // Create arrow markers for bidirectional edges
     const markers = [];
     if (bidirectional) {
-      const strokeColor = style.stroke || '#6366f1';
+      const strokeColor = getStrokeColor();
       // Forward arrow (source to target)
       markers.push(
         <defs key={`${id}-markers`}>
@@ -84,11 +99,19 @@ const Edge: React.FC<EdgeProps> = ({
     }
 
     return [path, markers];
-  }, [sourceX, sourceY, targetX, targetY, id, bidirectional, style.stroke]);
+  }, [
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    id,
+    bidirectional,
+    data?.details?.state,
+  ]);
 
   const hoverStyle = {
     ...style,
-    stroke: style.stroke,
+    stroke: getStrokeColor(),
     strokeWidth: style.strokeWidth || 4,
     cursor: 'pointer',
   };
