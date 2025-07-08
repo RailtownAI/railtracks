@@ -7,7 +7,8 @@ from requestcompletion.llm import (
 from typing_extensions import Self
 from requestcompletion.exceptions.node_creation.validation import validate_tool_metadata
 from requestcompletion.exceptions.node_invocation.validation import check_model, check_message_history
-from requestcompletion.nodes.library.easy_usage_wrappers._structured_llm import StructuredBase
+from requestcompletion.nodes.library.easy_usage_wrappers.node_builder import NodeBuilder
+from requestcompletion.nodes.library.structured_llm import StructuredLLM
 from pydantic import BaseModel
 
 
@@ -18,18 +19,16 @@ def structured_llm(  # noqa: C901
     pretty_name: str | None = None,
     tool_details: str | None = None,
     tool_params: dict | None = None,
-) -> Type[StructuredBase]:
-    class StructuredLLM(StructuredBase,
-                        output_model=output_model,
-                        system_message=system_message,
-                        model=model,
-                        pretty_name=pretty_name,
-                        tool_details=tool_details,
-                        tool_params=tool_params,
-                        ):
+) -> Type[StructuredLLM]:
+    
+    builder = NodeBuilder(StructuredLLM, pretty_name=pretty_name, class_name="EasyStructuredLLM")
+    builder.llm_base(model, system_message)
+    builder.structured(output_model)
+    if tool_details is not None:
+        builder.tool_callable_llm(tool_details, tool_params)
+        builder.override_tool_details(tool_details, tool_params)
 
-        @classmethod
-        def output_model(cls) -> Type[BaseModel]:
-            return cls._output_model
+    return builder.build()
 
-    return StructuredLLM
+####NEED TO CHECK VALIDATION AND THEN ALSO THE TOOL CALLABLE/DETAILS STUFF
+####CURRENTLY CAN'T USE NODES AS TOOLS UNLESS WE GIVE THEM TOOL DETAILS

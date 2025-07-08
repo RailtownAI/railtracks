@@ -14,7 +14,7 @@ from requestcompletion.llm import (
     Tool,
 )
 from requestcompletion.nodes.library import structured_llm
-from requestcompletion.nodes.library.easy_usage_wrappers._tool_call_llm import ToolCallBase
+from requestcompletion.nodes.library._llm_base import LLMBase
 from requestcompletion.nodes.nodes import Node
 from requestcompletion.llm.message import Role
 
@@ -30,7 +30,7 @@ import requestcompletion as rc
 _T = TypeVar("_T")
 
 
-class MCPAgentBase(ToolCallBase[_T], ABC, Generic[_T]):
+class MCPLLM(LLMBase, ABC, Generic[_T]):
     def __init_subclass__(
         cls,
         mcp_command: str | None = None,
@@ -40,22 +40,7 @@ class MCPAgentBase(ToolCallBase[_T], ABC, Generic[_T]):
         system_message: SystemMessage | str | None = None,
         **kwargs,
     ):
-        # Look to see if the user has set the NOTION_TOKEN environment variable
-        if api_token is None:
-            if os.getenv("NOTION_TOKEN"):
-                api_token = os.getenv("NOTION_TOKEN")
-            else:
-                raise NodeCreationError(
-                    "Notion API token not found",
-                    [
-                        "Please set a NOTION_TOKEN in your .env or pass it as a parameter to the notion_agent function."
-                    ],
-                )
-        # Look to see if the user has set the NOTION_ROOT_PAGE_ID environment variable
-        if os.getenv("NOTION_ROOT_PAGE_ID"):
-            system_message = system_message + (
-                f"Use the page with ID {os.getenv('NOTION_ROOT_PAGE_ID')} as the parent page for your operations."
-            )
+        
 
         tools = rc.nodes.library.from_mcp_server(
             StdioServerParameters(

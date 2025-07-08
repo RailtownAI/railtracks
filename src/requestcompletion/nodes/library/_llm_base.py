@@ -1,11 +1,14 @@
 from __future__ import annotations
-from abc import ABC
+
+import warnings
+from abc import ABC, abstractmethod
 from copy import deepcopy
 
 from typing_extensions import Self
 
+
 from requestcompletion.exceptions.node_invocation.validation import (
-    check_message_history,
+    check_message_history, check_model,
 )
 from requestcompletion.nodes.nodes import Node
 import requestcompletion.llm as llm
@@ -28,11 +31,19 @@ class RequestDetails:
         output: llm.Message | None,
         model_name: str | None,
         model_provider: str | None,
+        input_tokens: int | None = None,
+        output_tokens: int | None = None,
+        total_cost: float | None = None,
+        system_fingerprint: str | None = None,
     ):
         self.input = message_input
         self.output = output
         self.model_name = model_name
         self.model_provider = model_provider
+        self.input_tokens = input_tokens
+        self.output_tokens = output_tokens
+        self.total_cost = total_cost
+        self.system_fingerprint = system_fingerprint
 
     def __repr__(self):
         return f"RequestDetails(model_name={self.model_name}, model_provider={self.model_provider}, input={self.input}, output={self.output})"
@@ -47,17 +58,62 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
 
     """
 
-    def __init__(self, model: llm.ModelBase, message_history: llm.MessageHistory):
+    @classmethod
+    def _verify_message_history(cls, message_history: llm.MessageHistory):
+        """Verify the message history is valid for this LLM."""
+        check_message_history(message_history)
+
+    @classmethod
+    def _verify_model(cls, model: llm.ModelBase):
+        """Verify the model is valid for this LLM."""
+        check_model(model)
+
+    @classmethod
+    def llm_model(cls) -> llm.ModelBase | None:
+        return None
+
+    @classmethod
+    def system_message(cls) -> llm.SystemMessage | str | None:
+        return None
+
+    def __init__(self, message_history: llm.MessageHistory, model: llm.ModelBase | None = None):
         super().__init__()
+
+        if self.llm_model() is not None:
+            if model is not None:
+                warnings.warn(
+                    "You have provided a model as a parameter and as a class variable. We will use the parameter.")
+            else:
+                model = self.llm_model()
+
+        message_history_copy = deepcopy(message_history)  # Ensure we don't modify the original message history
+
+        if self.system_message() is not None:
+            if len([x for x in message_history_copy if x.role == "system"]) > 0:
+                warnings.warn(
+                    "System message already exists in message history. We will replace it."
+                )
+                message_history_copy = [
+                    x for x in message_history_copy if x.role != "system"
+                ]
+                message_history_copy.insert(0, self.system_message())
+            else:
+                message_history_copy.insert(0, self.system_message())
+
+        self._verify_model(model)
         self.model = model
-        check_message_history(
-            message_history
-        )  # raises NodeInvocationError if any of the checks fail
-        self.message_hist = deepcopy(message_history)
+
+        self._verify_message_history(message_history_copy)
+
+        self.message_hist = message_history_copy
 
         self._details["llm_details"] = []
 
         self._attach_llm_hooks()
+
+    @abstractmethod
+    def return_output(self) -> _T:
+        pass
 
     def _attach_llm_hooks(self):
         """Attach pre and post hooks to the model."""
@@ -80,8 +136,14 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
             RequestDetails(
                 message_input=deepcopy(message_history),
                 output=deepcopy(response.message),
-                model_name=self.model.model_name(),
+                model_name=response.message_info.model_name
+                if response.message_info.model_name is not None
+                else self.model.model_name(),
                 model_provider=self.model.model_type(),
+                input_tokens=response.message_info.input_tokens,
+                output_tokens=response.message_info.output_tokens,
+                total_cost=response.message_info.total_cost,
+                system_fingerprint=response.message_info.system_fingerprint,
             )
         )
 

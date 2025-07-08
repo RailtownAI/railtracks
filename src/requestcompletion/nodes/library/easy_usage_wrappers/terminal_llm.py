@@ -5,7 +5,7 @@ from ....llm.tools import Parameter, Tool
 from copy import deepcopy
 from ....exceptions.node_creation.validation import validate_tool_metadata
 from ....exceptions.node_invocation.validation import check_model, check_message_history
-from requestcompletion.nodes.library.easy_usage_wrappers._terminal_llm import TerminalBase
+from requestcompletion.nodes.library.easy_usage_wrappers.node_builder import NodeBuilder
 
 
 def terminal_llm(  # noqa: C901
@@ -15,17 +15,11 @@ def terminal_llm(  # noqa: C901
     tool_details: str | None = None,
     tool_params: set[Parameter] | None = None,
 ) -> Type[TerminalLLM]:
-    class TerminalLLM(TerminalBase,
-                          pretty_name=pretty_name,
-                          system_message=system_message,
-                          model=model,
-                          tool_details=tool_details,
-                          tool_params=tool_params,):
-        @classmethod
-        def pretty_name(cls) -> str:
-            if pretty_name is None:
-                return "TerminalLLM"
-            else:
-                return pretty_name
+    
+    builder = NodeBuilder(TerminalLLM, pretty_name=pretty_name, class_name="EasyTerminalLLM")
+    builder.llm_base(model, system_message)
+    if tool_details is not None:
+        builder.tool_callable_llm(tool_details, tool_params)
+        builder.override_tool_details(tool_details, tool_params)
 
-    return TerminalLLM
+    return builder.build()
