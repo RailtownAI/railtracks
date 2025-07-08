@@ -10,10 +10,20 @@ interface NodeData {
   icon?: string;
   onInspect?: (nodeData: any) => void;
   id?: string; // Add id for zoom functionality
+  edges?: any[]; // Add edges to node data
 }
 
-const Node: React.FC<{ data: NodeData; id: string }> = ({ data, id }) => {
+interface NodeProps {
+  data: NodeData;
+  id: string;
+}
+
+const Node: React.FC<NodeProps> = ({ data, id }) => {
   const { fitView } = useReactFlow();
+
+  // Check if this node has any outgoing edges (source edges)
+  const hasOutgoingEdges =
+    data.edges?.some((edge: any) => edge.source === id) || false;
 
   const handleNodeClick = () => {
     // Zoom to the node
@@ -67,11 +77,13 @@ const Node: React.FC<{ data: NodeData; id: string }> = ({ data, id }) => {
             )}
           </div>
         )}
-        <Handle
-          type="source"
-          position={Position.Right}
-          style={{ background: '#6366f1' }}
-        />
+        {hasOutgoingEdges && (
+          <Handle
+            type="source"
+            position={Position.Right}
+            style={{ background: '#6366f1' }}
+          />
+        )}
       </div>
 
       <style>
