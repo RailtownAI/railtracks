@@ -256,32 +256,53 @@ const Edge: React.FC<EdgeProps> = ({
                 </div>
               )}
 
-              {data?.details?.input_args?.length > 0 && (
-                <>
-                  <div className="detail-row">
-                    <span className="detail-label">Inputs</span>
-                    <span
-                      className="detail-value"
-                      style={{ overflowY: 'auto', maxHeight: '300px' }}
-                    >
-                      {data?.details?.input_args[0].map((arg: any) => (
-                        <div key={arg.role} style={{ marginBottom: 8 }}>
-                          <span className="detail-label">Role:</span>
-                          <span className="detail-value">{arg.role}</span>
-                          <span className="detail-label">Content:</span>
-                          <span className="detail-value">{arg.content}</span>
-                        </div>
-                      ))}
-                    </span>
-                  </div>
-                  <div className="detail-row">
-                    <span className="detail-label">Outputs</span>
-                    <span className="detail-value">
-                      {JSON.stringify(data?.details?.output, null, 2)}
-                    </span>
-                  </div>
-                </>
-              )}
+              {data?.details?.input_args &&
+                Array.isArray(data.details.input_args) &&
+                data.details.input_args.length > 0 && (
+                  <>
+                    <div className="detail-row">
+                      <span className="detail-label">Inputs</span>
+                      <span
+                        className="detail-value"
+                        style={{ overflowY: 'auto', maxHeight: '300px' }}
+                      >
+                        {Array.isArray(data.details.input_args[0]) ? (
+                          data.details.input_args[0].map(
+                            (arg: any, index: number) => (
+                              <div
+                                key={arg?.role || index}
+                                style={{ marginBottom: 8 }}
+                              >
+                                <span className="detail-label">Role:</span>
+                                <span className="detail-value">
+                                  {arg?.role || 'Unknown'}
+                                </span>
+                                <span className="detail-label">Content:</span>
+                                <span className="detail-value">
+                                  {arg?.content || 'No content'}
+                                </span>
+                              </div>
+                            ),
+                          )
+                        ) : (
+                          <span className="detail-value">
+                            {JSON.stringify(
+                              data.details.input_args[0],
+                              null,
+                              2,
+                            )}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="detail-row">
+                      <span className="detail-label">Outputs</span>
+                      <span className="detail-value">
+                        {JSON.stringify(data?.details?.output, null, 2)}
+                      </span>
+                    </div>
+                  </>
+                )}
 
               {/* {data.details && (
                 <div className="detail-row">
