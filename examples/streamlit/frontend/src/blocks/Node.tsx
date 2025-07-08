@@ -1,5 +1,5 @@
 import React from 'react';
-import { Handle, Position } from 'reactflow';
+import { Handle, Position, useReactFlow } from 'reactflow';
 
 interface NodeData {
   label: string;
@@ -9,10 +9,23 @@ interface NodeData {
   time?: number;
   icon?: string;
   onInspect?: (nodeData: any) => void;
+  id?: string; // Add id for zoom functionality
 }
 
-const Node: React.FC<{ data: NodeData }> = ({ data }) => {
+const Node: React.FC<{ data: NodeData; id: string }> = ({ data, id }) => {
+  const { fitView } = useReactFlow();
+
   const handleNodeClick = () => {
+    // Zoom to the node
+    fitView({
+      nodes: [{ id }],
+      duration: 800,
+      padding: 0.1,
+      minZoom: 0.5,
+      maxZoom: 1.5,
+    });
+
+    // Open inspection drawer
     if (data.onInspect) {
       data.onInspect({
         label: data.label,
