@@ -1,5 +1,6 @@
 from __future__ import annotations
 import asyncio
+import time
 
 import uuid
 from copy import deepcopy
@@ -104,6 +105,20 @@ class DebugDetails(dict[str, Any]):
     pass
 
 
+class LatencyDetails:
+    def __init__(
+        self,
+        total_time: float,
+    ):
+        """
+        A simple class that contains latency details for a node during execution.
+
+        Args:
+            total_time (float): The total time taken for the node to execute, in seconds.
+        """
+        self.total_time = total_time
+
+
 class Node(ABC, Generic[_TOutput], metaclass=NodeCreationMeta):
     """An abstract base class which defines some the functionality of a node"""
 
@@ -138,6 +153,19 @@ class Node(ABC, Generic[_TOutput], metaclass=NodeCreationMeta):
         The main method that runs when this node is called
         """
         pass
+
+    async def tracked_invoke(self) -> _TOutput:
+        """
+        A special method that will track and save the latency of the running of this invoke method.
+        """
+        start_time = time.time()
+        try:
+            return await self.invoke()
+        except Exception as e:
+            raise e
+        finally:
+            latency = time.time() - start_time
+            self.details["latency"] = LatencyDetails(total_time=latency)
 
     def state_details(self) -> Dict[str, str]:
         """

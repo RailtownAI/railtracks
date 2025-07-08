@@ -1,6 +1,7 @@
 import asyncio
 from types import FunctionType
 from typing import Callable, Union, Coroutine, ParamSpec, TypeVar
+from uuid import uuid4
 
 from requestcompletion.nodes.nodes import Node
 from requestcompletion.context.central import (
@@ -21,7 +22,6 @@ from requestcompletion.pubsub.messages import (
     RequestCreation,
 )
 from requestcompletion.pubsub.utils import output_mapping
-from requestcompletion.state.request import RequestTemplate
 
 _P = ParamSpec("_P")
 _TOutput = TypeVar("_TOutput")
@@ -166,7 +166,7 @@ async def _execute(
 
     # generate a unique request ID for this request. We need to hold this reference here because we will use it to
     # filter for its completion
-    request_id = RequestTemplate.generate_id()
+    request_id = str(uuid4())
 
     # note we set the listener before we publish the messages ensure that we do not miss any messages
     # I am actually a bit worried about this logic and I think there is a chance of a bug popping up here.
@@ -205,17 +205,20 @@ def call_sync(
         *args: The arguments to pass to the node
         **kwargs: The keyword arguments to pass to the node
     """
+    loop_found = False
     try:
         loop = asyncio.get_running_loop()
+        loop_found = True
         # if we made it here then we already have a running loop. We will create a new thread and execute the call in there
         raise RuntimeError(
             "You cannot call `call_sync` from within an already running event loop. "
             "Use `call` instead to run the node asynchronously."
         )
-
     except RuntimeError:
         # If there is no running loop, we need to create one
-        pass
+        if loop_found:
+            raise
+
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:

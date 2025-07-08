@@ -9,7 +9,7 @@ dist
 package-lock.json
 package.json
 test-results.xml
-
+.coverage
 # jupyter notebook
 .ipynb_checkpoints
 */.ipynb_checkpoints/*
@@ -18,7 +18,6 @@ test-results.xml
 myenv 
 venv
 .venv
-
 .ruff_cache
 
 .logs
