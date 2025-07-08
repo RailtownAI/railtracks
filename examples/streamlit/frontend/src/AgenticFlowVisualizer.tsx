@@ -5,6 +5,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useReactFlow } from 'reactflow';
 import ReactFlow, {
   Node,
   Edge,
@@ -16,6 +17,7 @@ import ReactFlow, {
   addEdge,
   useNodesState,
   useEdgesState,
+  ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Edge as RCEdge } from './blocks/Edge';
@@ -156,7 +158,7 @@ const calculateAutoLayout = (nodes: DataJsonNode[], edges: DataJsonEdge[]) => {
   // Calculate subtree heights for each node (for centering vertically)
   const subtreeHeight = new Map<string, number>();
   const nodeHeight = 120; // Approximate node height
-  const nodeSpacing = 60;
+  const nodeSpacing = 120; // Increased vertical spacing
   const calcSubtreeHeight = (nodeId: string): number => {
     const children = childrenMap.get(nodeId) || [];
     if (children.length === 0) {
@@ -175,7 +177,7 @@ const calculateAutoLayout = (nodes: DataJsonNode[], edges: DataJsonEdge[]) => {
 
   // Assign positions recursively - now left to right
   const positions = new Map<string, { x: number; y: number }>();
-  const levelSpacing = 280; // Horizontal spacing between levels
+  const levelSpacing = 350; // Increased horizontal spacing between levels
   const horizontalMargin = 120; // Add margin to the left
   const assignPositions = (nodeId: string, yTop: number, level: number) => {
     const height = subtreeHeight.get(nodeId) || nodeHeight;
@@ -484,6 +486,23 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
     return { x: svgP.x, y: svgP.y };
   };
 
+  // Zoom to first node on initial load
+  const reactFlowInstance = useReactFlow();
+  const hasZoomedRef = useRef(false);
+  useEffect(() => {
+    if (!hasZoomedRef.current && nodes.length > 0) {
+      const firstNode = nodes[0];
+      if (firstNode && firstNode.position) {
+        reactFlowInstance.setViewport({
+          x: firstNode.position.x - 200, // Center with some offset
+          y: firstNode.position.y - 200,
+          zoom: 1.5,
+        });
+        hasZoomedRef.current = true;
+      }
+    }
+  }, [nodes, reactFlowInstance]);
+
   return (
     <div
       ref={containerRef}
@@ -506,42 +525,44 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
         onStepChange={handleStepChange}
       />
 
-      <ReactFlow
-        nodes={nodesState}
-        edges={edgesState}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        nodeTypes={nodeTypes}
-        edgeTypes={{
-          default: (edgeProps) => (
-            <RCEdge
-              {...edgeProps}
-              clientToSvgCoords={clientToSvgCoords}
-              svgRef={svgRef}
-              onInspect={handleEdgeInspect}
-            />
-          ),
-        }}
-        fitView
-        fitViewOptions={{ padding: 0.1 }}
-        attributionPosition="bottom-left"
-        style={{
-          width: 'calc(100% - 280px)', // Account for vertical timeline width
-          height: 'calc(100% - 60px)', // Account for timeline height
-          marginLeft: '280px', // Push content to the right of vertical timeline
-        }}
-        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-        onInit={() => {
-          if (containerRef.current) {
-            const svg = containerRef.current.querySelector('svg');
-            if (svg) svgRef.current = svg as SVGSVGElement;
-          }
-        }}
-      >
-        <Controls />
-        <Background color="#f3f4f6" gap={16} />
-      </ReactFlow>
+      <ReactFlowProvider>
+        <ReactFlow
+          nodes={nodesState}
+          edges={edgesState}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          nodeTypes={nodeTypes}
+          edgeTypes={{
+            default: (edgeProps) => (
+              <RCEdge
+                {...edgeProps}
+                clientToSvgCoords={clientToSvgCoords}
+                svgRef={svgRef}
+                onInspect={handleEdgeInspect}
+              />
+            ),
+          }}
+          fitView
+          fitViewOptions={{ padding: 0.1 }}
+          attributionPosition="bottom-left"
+          style={{
+            width: 'calc(100% - 280px)', // Account for vertical timeline width
+            height: 'calc(100% - 60px)', // Account for timeline height
+            marginLeft: '280px', // Push content to the right of vertical timeline
+          }}
+          defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+          onInit={() => {
+            if (containerRef.current) {
+              const svg = containerRef.current.querySelector('svg');
+              if (svg) svgRef.current = svg as SVGSVGElement;
+            }
+          }}
+        >
+          <Controls />
+          <Background color="#f3f4f6" gap={16} />
+        </ReactFlow>
+      </ReactFlowProvider>
 
       {/* Right Drawer */}
       <div className={`right-drawer ${isDrawerOpen ? 'open' : ''}`}>
@@ -733,7 +754,7 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
       </div>
 
       {/* Timeline */}
-      <div style={{ marginLeft: '280px' }}>
+      <div style={{ marginLeft: '280px', marginTop: '100px' }}>
         <Timeline
           stamps={flowData.stamps || flowData.steps || []}
           currentStep={currentStep}
