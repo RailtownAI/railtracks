@@ -64,8 +64,7 @@ const Edge: React.FC<EdgeProps> = ({
     // Create arrow markers for bidirectional edges
     const markers = [];
     if (bidirectional) {
-      const strokeColor =
-        isHovered || isClicked ? '#10b981' : style.stroke || '#6366f1';
+      const strokeColor = isClicked ? '#10b981' : style.stroke || '#6366f1';
       // Forward arrow (source to target)
       markers.push(
         <defs key={`${id}-markers`}>
@@ -110,11 +109,10 @@ const Edge: React.FC<EdgeProps> = ({
 
   const hoverStyle = {
     ...style,
-    stroke: isHovered || isClicked ? '#10b981' : style.stroke,
-    strokeWidth:
-      isHovered || isClicked
-        ? (Number(style.strokeWidth) || 4) + 1
-        : style.strokeWidth || 4,
+    stroke: isClicked ? '#10b981' : style.stroke,
+    strokeWidth: isClicked
+      ? (Number(style.strokeWidth) || 4) + 1
+      : style.strokeWidth || 4,
     cursor: 'pointer',
   };
 
@@ -123,7 +121,7 @@ const Edge: React.FC<EdgeProps> = ({
     setIsClicked(!isClicked);
   };
 
-  const shouldShowPanel = isHovered || isClicked;
+  const shouldShowPanel = isClicked;
   const stateLabel = data?.details?.state || 'Open'; // Completed | Open
   return (
     <g data-edge-id={id}>
@@ -137,8 +135,6 @@ const Edge: React.FC<EdgeProps> = ({
           bidirectional ? `url(#${id}-arrowhead-backward)` : undefined
         }
         style={hoverStyle}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
         onClick={handleEdgeClick}
       />
 
