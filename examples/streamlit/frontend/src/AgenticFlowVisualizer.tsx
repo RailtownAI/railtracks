@@ -267,6 +267,10 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const playIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Drawer state
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [selectedEdgeData, setSelectedEdgeData] = useState<any>(null);
+
   // Get max step from stamps or steps
   const maxStep = useMemo(() => {
     const stamps = flowData.stamps || flowData.steps || [];
@@ -441,6 +445,25 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
     setIsPlaying((prev) => !prev);
   }, []);
 
+  // Handle edge inspection
+  const handleEdgeInspect = useCallback(
+    (edgeData: any) => {
+      // Find the edge in the current edges to get the ID
+      const edge = edges.find(
+        (e) =>
+          e.data?.source === edgeData.source &&
+          e.data?.target === edgeData.target,
+      );
+      const edgeWithId = {
+        ...edgeData,
+        id: edge?.id || 'N/A',
+      };
+      setSelectedEdgeData(edgeWithId);
+      setIsDrawerOpen(true);
+    },
+    [edges],
+  );
+
   // Function to convert client (screen) coordinates to SVG coordinates
   const clientToSvgCoords = (clientX: number, clientY: number) => {
     if (!svgRef.current) return { x: 0, y: 0 };
@@ -479,6 +502,7 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
               {...edgeProps}
               clientToSvgCoords={clientToSvgCoords}
               svgRef={svgRef}
+              onInspect={handleEdgeInspect}
             />
           ),
         }}
@@ -501,6 +525,128 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
         <Background color="#f3f4f6" gap={16} />
       </ReactFlow>
 
+      {/* Right Drawer */}
+      <div className={`right-drawer ${isDrawerOpen ? 'open' : ''}`}>
+        <div
+          className="drawer-toggle"
+          onClick={() => setIsDrawerOpen(!isDrawerOpen)}
+        >
+          <span>{isDrawerOpen ? '×' : '⚙'}</span>
+        </div>
+
+        {isDrawerOpen && selectedEdgeData && (
+          <div className="drawer-content">
+            <div className="drawer-header">
+              <h3>Edge Details</h3>
+              <button
+                className="close-button"
+                onClick={() => setIsDrawerOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="drawer-body">
+              <div className="detail-row">
+                <span className="detail-label">ID:</span>
+                <span className="detail-value">
+                  {selectedEdgeData.id || 'N/A'}
+                </span>
+              </div>
+              {selectedEdgeData.source && (
+                <div className="detail-row">
+                  <span className="detail-label">Source:</span>
+                  <span className="detail-value">
+                    {selectedEdgeData.source}
+                  </span>
+                </div>
+              )}
+              {selectedEdgeData.target && (
+                <div className="detail-row">
+                  <span className="detail-label">Target:</span>
+                  <span className="detail-value">
+                    {selectedEdgeData.target}
+                  </span>
+                </div>
+              )}
+              {selectedEdgeData.label && (
+                <div className="detail-row">
+                  <span className="detail-label">Label:</span>
+                  <span className="detail-value">{selectedEdgeData.label}</span>
+                </div>
+              )}
+              {selectedEdgeData.step && (
+                <div className="detail-row">
+                  <span className="detail-label">Step:</span>
+                  <span className="detail-value">{selectedEdgeData.step}</span>
+                </div>
+              )}
+              {selectedEdgeData.time && (
+                <div className="detail-row">
+                  <span className="detail-label">Time:</span>
+                  <span className="detail-value">
+                    {new Date(selectedEdgeData.time * 1000).toLocaleString()}
+                  </span>
+                </div>
+              )}
+
+              {selectedEdgeData?.details?.input_args &&
+                Array.isArray(selectedEdgeData.details.input_args) &&
+                selectedEdgeData.details.input_args.length > 0 && (
+                  <>
+                    <div className="detail-row">
+                      <span className="detail-label">Inputs</span>
+                      <span
+                        className="detail-value"
+                        style={{ overflowY: 'auto', maxHeight: '300px' }}
+                      >
+                        {Array.isArray(
+                          selectedEdgeData.details.input_args[0],
+                        ) ? (
+                          selectedEdgeData.details.input_args[0].map(
+                            (arg: any, index: number) => (
+                              <div
+                                key={arg?.role || index}
+                                style={{ marginBottom: 8 }}
+                              >
+                                <span className="detail-label">Role:</span>
+                                <span className="detail-value">
+                                  {arg?.role || 'Unknown'}
+                                </span>
+                                <span className="detail-label">Content:</span>
+                                <span className="detail-value">
+                                  {arg?.content || 'No content'}
+                                </span>
+                              </div>
+                            ),
+                          )
+                        ) : (
+                          <span className="detail-value">
+                            {JSON.stringify(
+                              selectedEdgeData.details.input_args[0],
+                              null,
+                              2,
+                            )}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="detail-row">
+                      <span className="detail-label">Outputs</span>
+                      <span className="detail-value">
+                        {JSON.stringify(
+                          selectedEdgeData?.details?.output,
+                          null,
+                          2,
+                        )}
+                      </span>
+                    </div>
+                  </>
+                )}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Timeline */}
       <Timeline
         stamps={flowData.stamps || flowData.steps || []}
@@ -522,6 +668,151 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+          }
+
+          /* Right Drawer Styles */
+          .right-drawer {
+            position: absolute;
+            top: 0;
+            right: 0;
+            height: 100%;
+            z-index: 1000;
+            display: flex;
+            align-items: flex-start;
+            transition: transform 0.3s ease;
+          }
+
+          .right-drawer:not(.open) {
+            transform: translateX(calc(100% - 50px));
+          }
+
+          .right-drawer.open {
+            transform: translateX(0);
+          }
+
+          .drawer-toggle {
+            width: 50px;
+            height: 50px;
+            background: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 8px 0 0 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.2s ease;
+            margin-top: 20px;
+          }
+
+          .drawer-toggle:hover {
+            background: #4f46e5;
+          }
+
+          .drawer-content {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px 0 0 8px;
+            box-shadow: -4px 0 25px rgba(0, 0, 0, 0.15);
+            width: 400px;
+            height: calc(100% - 40px);
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            animation: drawerSlideIn 0.3s ease-out;
+          }
+
+          .drawer-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #e5e7eb;
+            background: #f9fafb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+          }
+
+          .drawer-header h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #1f2937;
+          }
+
+          .close-button {
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 4px;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+          }
+
+          .close-button:hover {
+            background: #e5e7eb;
+            color: #1f2937;
+          }
+
+          .drawer-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+            width: 100%;
+            box-sizing: border-box;
+          }
+
+          .detail-row {
+            display: grid;
+            grid-template-columns: 100px 1fr;
+            margin-bottom: 12px;
+            align-items: flex-start;
+            gap: 8px;
+          }
+
+          .detail-row:last-child {
+            margin-bottom: 0;
+          }
+
+          .detail-label {
+            font-weight: 600;
+            color: #6b7280;
+            font-size: 13px;
+            word-break: break-word;
+          }
+
+          .detail-value {
+            color: #1f2937;
+            font-size: 13px;
+            word-break: break-word;
+            flex: 1;
+            width: 100%;
+            overflow: visible;
+            text-overflow: unset;
+            max-width: unset;
+            white-space: pre-line;
+            line-height: 1.4;
+          }
+
+          @keyframes drawerSlideIn {
+            from {
+              opacity: 0;
+              transform: translateX(20px);
+            }
+            to {
+              opacity: 1;
+              transform: translateX(0);
+            }
           }
         `}
       </style>
