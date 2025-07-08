@@ -17,7 +17,6 @@ import ReactFlow, {
   addEdge,
   useNodesState,
   useEdgesState,
-  ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Edge as RCEdge } from './blocks/Edge';
