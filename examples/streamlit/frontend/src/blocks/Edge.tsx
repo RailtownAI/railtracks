@@ -320,7 +320,7 @@ const Edge: React.FC<EdgeProps> = ({
             border: 1px solid #e5e7eb;
             border-radius: 8px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-            z-index: 9999;
+            z-index: 8001;
             animation: popoverFadeIn 0.2s ease-out;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           }
@@ -425,7 +425,7 @@ const Edge: React.FC<EdgeProps> = ({
           }
 
           .edge-label-renderer {
-            z-index: 10000;
+            z-index: 8001;
             pointer-events: auto;
           }
 
