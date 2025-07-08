@@ -25,9 +25,6 @@ from ....llm import (
 from ....visuals.browser.chat_ui import ChatUI
 from requestcompletion.utils.logging.create import get_rc_logger
 
-logger = get_rc_logger("Chat UI")
-
-
 def chat_tool_call_llm(
     connected_nodes: Set[Union[Type[Node], Callable]],
     pretty_name: str | None = None,
@@ -63,8 +60,10 @@ def chat_tool_call_llm(
             llm_model: ModelBase | None = None,
             max_tool_calls: int | None = max_tool_calls,
         ):
-
             check_message_history(message_history, system_message)
+
+            self.logger = get_rc_logger("ChatUI")
+            self.logger.info(msg=f"CREATED UI server started at {server_address}")
 
             message_history_copy = deepcopy(message_history)
 
@@ -90,6 +89,9 @@ def chat_tool_call_llm(
                 check_model(model)
                 llm_model = model
 
+            self.tool_calls = []
+            self.tool_responses = []
+
             super().__init__(
                 message_history_copy,
                 llm_model,
@@ -106,6 +108,8 @@ def chat_tool_call_llm(
             # If there's no last user message, we need to wait for user input
             if self.message_hist[-1].role != Role.user:
                 msg = await chat_ui.wait_for_user_input()
+                if msg == "EXIT":
+                    return self.return_output()
                 self.message_hist.append(
                     UserMessage(
                         msg,
@@ -194,11 +198,11 @@ def chat_tool_call_llm(
 
 
                         user_message = await chat_ui.wait_for_user_input()
+                        if user_message == "EXIT":
+                            break
                         self.message_hist.append(
                             UserMessage(content=user_message)
                         )
-
-                        # break
                 else:
                     # the message is malformed from the model
                     raise LLMError(
@@ -207,19 +211,6 @@ def chat_tool_call_llm(
                     )
 
             return self.return_output()
-
-        # async def invoke(self) -> Union[MessageHistory, AssistantMessage]:
-
-        #     logger.info(msg=f"UI server started at {server_address} CREATED")
-
-        #     while msg := await chat_ui.wait_for_user_input():
-        #         self.message_hist.append(AssistantMessage(msg))
-        #         await chat_ui.send_message(
-        #             f"Received user input: {msg}"
-        #         )
-        #         if msg == "die":
-        #             break
-        #     return self.return_output()
 
         def connected_nodes(self) -> Set[Union[Type[Node], Callable]]:
             return connected_nodes

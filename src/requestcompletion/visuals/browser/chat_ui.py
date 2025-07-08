@@ -8,18 +8,17 @@ chat interface. Focused on the two core needs:
 2. Waiting for user input
 """
 import asyncio
-import uvicorn
+import json
+import threading
 from datetime import datetime
 from typing import Optional
-from contextlib import asynccontextmanager
-from fastapi import FastAPI
-from fastapi.responses import StreamingResponse, HTMLResponse
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import json
 
-import threading
 import uvicorn
+from fastapi import FastAPI, Response
+from fastapi.responses import HTMLResponse, StreamingResponse
+from pydantic import BaseModel
+from importlib.resources import files
+
 class UserMessage(BaseModel):
     message: str
     timestamp: Optional[str] = None
@@ -46,26 +45,32 @@ class ChatUI:
         self.sse_queue = asyncio.Queue()
         self.user_input_queue = asyncio.Queue()
         self.app = self._create_app()
-        self.server_task = None
+        self.server_thread = None
+    
+    def _get_static_file_content(self, filename: str) -> str:
+        """
+        Get the content of a static file from the package.
+        
+        Args:
+            filename: Name of the file (e.g., 'chat.html', 'chat.css', 'chat.js')
+            
+        Returns:
+            Content of the file as a string
+            
+        Raises:
+            FileNotFoundError: If the static file cannot be found
+        """
+        try:
+            # Try to use importlib.resources for Python 3.9+
+            package_files = files('requestcompletion.visuals.browser')
+            return (package_files / filename).read_text(encoding='utf-8')
+        except Exception as e:
+            raise Exception(f"Exception occurred loading static '{filename}' for Chat UI") from e
     
     def _create_app(self) -> FastAPI:
         """Create and configure the FastAPI application."""
-        @asynccontextmanager
-        async def lifespan(app: FastAPI):
-            yield
-            # Shutdown (nothing to do)
-        
-        app = FastAPI(title="ChatUI Server", lifespan=lifespan)
-        
-        # Enable CORS
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=["*"],
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
-        
+        app = FastAPI(title="ChatUI Server")
+
         @app.post("/send_message")
         async def send_message(user_message: UserMessage):
             """Receive user input from chat interface"""
@@ -102,8 +107,20 @@ class ChatUI:
         @app.get("/", response_class=HTMLResponse)
         async def get_chat_interface():
             """Serve the chat interface HTML"""
-            with open("src/requestcompletion/visuals/browser/chat.html", "r") as f:
-                return HTMLResponse(f.read())
+            content = self._get_static_file_content("chat.html")
+            return HTMLResponse(content)
+        
+        @app.get("/chat.css")
+        async def get_chat_css():
+            """Serve the chat CSS file"""
+            content = self._get_static_file_content("chat.css")
+            return Response(content, media_type="text/css")
+        
+        @app.get("/chat.js")
+        async def get_chat_js():
+            """Serve the chat JavaScript file"""
+            content = self._get_static_file_content("chat.js")
+            return Response(content, media_type="application/javascript")
         
         return app
     
@@ -141,33 +158,17 @@ class ChatUI:
             
         except asyncio.TimeoutError:
             return None
-    
-    def start_server(self):
-        """Start the FastAPI server"""
-        print("🤖 Starting ChatUI Server...")
-        print("📡 SSE endpoint: http://localhost:8000/events")
-        print("💬 Message endpoint: http://localhost:8000/send_message")
-        print("🌐 Open browser: http://localhost:8000")
-        
-        uvicorn.run(self.app, host="0.0.0.0", port=self.port, log_level="info")
-    
+
+    def run_server(self):
+        uvicorn.run(self.app, host="0.0.0.0", port=self.port, log_level="warning")
+
     def start_server_async(self):
         """Start the FastAPI server in the background"""
         localhost_url = f"http://localhost:{self.port}"
         
-        if self.server_task is None:
-            print("🤖 Starting ChatUI Server...")
-            print(f"📡 SSE endpoint: {localhost_url}/events")
-            print(f"💬 Message endpoint: {localhost_url}/send_message")
-            print(f"🌐 Open browser: {localhost_url}")
+        if self.server_thread is None:
             
-            def run_server():
-                uvicorn.run(self.app, host="0.0.0.0", port=self.port, log_level="warning")
-            
-            self.server_thread = threading.Thread(target=run_server, daemon=True)
+            self.server_thread = threading.Thread(target=self.run_server, daemon=True)
             self.server_thread.start()
-            
-            # # Give server time to start
-            # await asyncio.sleep(1)
         
         return localhost_url
