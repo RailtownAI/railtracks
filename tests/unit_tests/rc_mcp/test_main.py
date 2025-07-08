@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
-from requestcompletion.rc_mcp.main import MCPHttpParams, MCPAsyncClient, from_mcp
+from requestcompletion.rc_mcp.main import MCPHttpParams, MCPAsyncClient, from_mcp, StdioNotAvailableError
 
 # ============= START MCPHttpParams tests =============
 
@@ -35,6 +35,24 @@ async def test_async_client_enter_exit_stdio(
     async with MCPAsyncClient(stdio_config) as client:
         assert isinstance(client, MCPAsyncClient)
         assert client.session == mock_client_session
+
+@pytest.mark.asyncio
+async def test_async_client_stdio_restricted_environment(stdio_config):
+    """Test that StdioNotAvailableError is raised when subprocess creation is restricted."""
+    from requestcompletion.rc_mcp.main import StdioNotAvailableError
+    
+    # Mock anyio.open_process to simulate restricted environment like Jupyter/Streamlit
+    with patch('requestcompletion.rc_mcp.main.anyio.open_process', side_effect=NotImplementedError("subprocess creation restricted")):
+        client = MCPAsyncClient(stdio_config)
+        with pytest.raises(StdioNotAvailableError) as exc_info:
+            async with client:
+                pass
+        
+        # Verify the error message is helpful
+        error_msg = str(exc_info.value)
+        assert "Jupyter notebooks" in error_msg
+        assert "Streamlit" in error_msg
+        assert "MCPHttpParams" in error_msg
 
 @pytest.mark.asyncio
 async def test_async_client_enter_exit_http(

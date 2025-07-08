@@ -2,9 +2,11 @@ import webbrowser
 from contextlib import AsyncExitStack
 from datetime import timedelta
 from typing import Any, Dict
+import sys
 
 import httpx
 from typing_extensions import Self
+import anyio
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.auth import OAuthClientProvider
@@ -17,6 +19,35 @@ from pydantic import BaseModel
 from ..llm import Tool
 from ..rc_mcp.oauth import InMemoryTokenStorage, CallbackServer
 from ..nodes.nodes import Node
+
+
+class StdioNotAvailableError(Exception):
+    """Raised when stdio MCP client cannot be used due to environment restrictions."""
+    pass
+
+
+async def _check_subprocess_availability() -> bool:
+    """
+    Check if subprocess creation is available in the current environment.
+    
+    Returns:
+        True if subprocess creation is available, False otherwise.
+    """
+    try:
+        # Try to create a simple process to test subprocess availability
+        if sys.platform == "win32":
+            # On Windows, test with a simple command
+            process = await anyio.open_process(["cmd", "/c", "echo", "test"])
+        else:
+            # On Unix-like systems, test with a simple command
+            process = await anyio.open_process(["echo", "test"])
+        
+        # If we got here, subprocess creation works
+        process.terminate()
+        return True
+    except (NotImplementedError, OSError, PermissionError):
+        # Subprocess creation is restricted or not available
+        return False
 
 
 class MCPHttpParams(BaseModel):
@@ -46,13 +77,29 @@ class MCPAsyncClient:
 
     async def __aenter__(self):
         if isinstance(self.config, StdioServerParameters):
-            stdio_transport = await self.exit_stack.enter_async_context(
-                stdio_client(self.config)
-            )
-            self.session = await self.exit_stack.enter_async_context(
-                ClientSession(*stdio_transport)
-            )
-            await self.session.initialize()
+            # Check if subprocess creation is available before attempting stdio client
+            if not await _check_subprocess_availability():
+                raise StdioNotAvailableError(
+                    "Stdio MCP servers are not available in this environment due to subprocess restrictions. "
+                    "This commonly occurs in Jupyter notebooks, Streamlit, and other restricted environments. "
+                    "Consider using HTTP-based MCP servers instead by configuring MCPHttpParams with a server URL."
+                )
+            
+            try:
+                stdio_transport = await self.exit_stack.enter_async_context(
+                    stdio_client(self.config)
+                )
+                self.session = await self.exit_stack.enter_async_context(
+                    ClientSession(*stdio_transport)
+                )
+                await self.session.initialize()
+            except NotImplementedError as e:
+                # Fallback error handling in case our detection missed something
+                raise StdioNotAvailableError(
+                    "Stdio MCP servers are not available in this environment: " + str(e) + ". "
+                    "This commonly occurs in Jupyter notebooks, Streamlit, and other restricted environments. "
+                    "Consider using HTTP-based MCP servers instead by configuring MCPHttpParams with a server URL."
+                ) from e
         elif isinstance(self.config, MCPHttpParams):
             await self._init_http()
 
