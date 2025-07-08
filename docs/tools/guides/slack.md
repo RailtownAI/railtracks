@@ -8,7 +8,7 @@ Finally, use the `from_mcp_server` utility to load tools directly from the MCP s
 import os
 
 from mcp import StdioServerParameters
-from requestcompletion.nodes.library.mcp_tool import from_mcp_server
+from requestcompletion.nodes.library import from_mcp_server
 
 MCP_COMMAND = "npx"
 MCP_ARGS = ["-y", "@modelcontextprotocol/server-slack"]
