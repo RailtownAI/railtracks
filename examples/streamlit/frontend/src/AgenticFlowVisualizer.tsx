@@ -406,6 +406,7 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
           time: node.stamp?.time,
           isActive,
           onInspect: handleNodeInspect,
+          id: node.identifier, // Add id for zoom functionality
         },
         style: {
           filter: isActive
