@@ -70,7 +70,7 @@ const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
         left: 0,
         top: 0,
         width: '280px',
-        height: '100%',
+        height: 'calc(100% - 60px)',
         backgroundColor: 'white',
         borderRight: '1px solid #e5e7eb',
         display: 'flex',
@@ -113,7 +113,7 @@ const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: '8px 0',
+          padding: '8px 0 16px 0', // Add bottom padding
         }}
       >
         {Array.from({ length: totalSteps }, (_, index) => {
