@@ -180,7 +180,7 @@ const Edge: React.FC<EdgeProps> = ({
                 outline: isClicked ? '2px solid #10b981' : 'none',
               }}
             >
-              {data.label}
+              Inspect
             </button>
           </div>
         </foreignObject>
