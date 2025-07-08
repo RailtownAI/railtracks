@@ -1378,7 +1378,7 @@
         "identifier": "Finished executing PDE Grader"
       },
       "details": {
-        "state": "Completed",
+        "state": "Error",
         "input_args": [
           [
             {
