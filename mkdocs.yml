@@ -1,0 +1,63 @@
+site_name: Request Completion Docs
+site_url: https://something
+theme:
+  name: material
+  features:
+    - navigation.indexes
+    - navigation.sections
+    - navigation.instant
+    - navigation.prefetch
+    - search.suggest
+    - navigation.top
+    - content.code.copy
+# TODO: add other features
+
+
+
+nav:
+  - Home: index.md
+
+  - Getting Started:
+      - get_started/index.md
+
+
+  - Guides:
+        - guides/index.md
+
+
+
+  - Tools:
+      - tools/index.md
+      - Create Your Own Tool: tools/create_your_own.md
+
+      - Guides:
+        - Notion: tools/guides/notion.md
+
+  - MCP:
+        - mcp/index.md
+
+  - Visualization:
+        - visualization/index.md
+
+
+  - LLM Support:
+      - llm_support/index.md
+
+  - Deploy:
+        - deploy/index.md
+
+  - Streaming:
+    - streaming/index.md
+
+  - Examples:
+      - examples/index.md
+
+
+plugins:
+  - search
+  - mkdocstrings
+#  - mkdocs-mermaid2-plugin
+#  - awesome-pages
+
+
+
