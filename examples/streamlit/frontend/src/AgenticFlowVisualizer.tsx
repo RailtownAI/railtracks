@@ -102,7 +102,6 @@ interface AgenticFlowVisualizerProps {
   height?: string | number;
   className?: string;
 }
-
 // ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================
@@ -909,6 +908,92 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
               opacity: 1;
               transform: translateX(0);
             }
+          }
+
+          /* Scoreboard Styles */
+          .scoreboard {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            min-width: 400px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          }
+
+          .scoreboard-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e5e7eb;
+            background: #f9fafb;
+            text-align: center;
+          }
+
+          .scoreboard-header h3 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1f2937;
+          }
+
+          .scoreboard-content {
+            padding: 16px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            gap: 20px;
+          }
+
+          .scoreboard-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+          }
+
+          .scoreboard-label {
+            font-size: 12px;
+            color: #6b7280;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+
+          .scoreboard-count {
+            font-size: 18px;
+            font-weight: 700;
+            padding: 6px 12px;
+            border-radius: 6px;
+            min-width: 40px;
+            text-align: center;
+          }
+
+          .scoreboard-count.open {
+            background: #fef3c7;
+            color: #92400e;
+          }
+
+          .scoreboard-count.completed {
+            background: #d1fae5;
+            color: #065f46;
+          }
+
+          .scoreboard-count.error {
+            background: #fee2e2;
+            color: #991b1b;
+          }
+
+          .scoreboard-count.error.clickable {
+            transition: all 0.2s ease;
+          }
+
+          .scoreboard-count.error.clickable:hover {
+            background: #fecaca;
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
           }
         `}
       </style>
