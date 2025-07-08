@@ -519,42 +519,40 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
         onStepChange={handleStepChange}
       />
 
-      <ReactFlowProvider>
-        <ReactFlow
-          nodes={nodesState}
-          edges={edgesState}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          nodeTypes={nodeTypes}
-          edgeTypes={{
-            default: (edgeProps) => (
-              <RCEdge
-                {...edgeProps}
-                clientToSvgCoords={clientToSvgCoords}
-                svgRef={svgRef}
-                onInspect={handleEdgeInspect}
-              />
-            ),
-          }}
-          attributionPosition="bottom-left"
-          style={{
-            width: 'calc(100% - 280px)', // Account for vertical timeline width
-            height: 'calc(100% - 60px)', // Account for timeline height
-            marginLeft: '280px', // Push content to the right of vertical timeline
-          }}
-          defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-          onInit={(instance) => {
-            if (containerRef.current) {
-              const svg = containerRef.current.querySelector('svg');
-              if (svg) svgRef.current = svg as SVGSVGElement;
-            }
-          }}
-        >
-          <Controls />
-          <Background color="#f3f4f6" gap={16} />
-        </ReactFlow>
-      </ReactFlowProvider>
+      <ReactFlow
+        nodes={nodesState}
+        edges={edgesState}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        nodeTypes={nodeTypes}
+        edgeTypes={{
+          default: (edgeProps) => (
+            <RCEdge
+              {...edgeProps}
+              clientToSvgCoords={clientToSvgCoords}
+              svgRef={svgRef}
+              onInspect={handleEdgeInspect}
+            />
+          ),
+        }}
+        attributionPosition="bottom-left"
+        style={{
+          width: 'calc(100% - 280px)', // Account for vertical timeline width
+          height: 'calc(100% - 60px)', // Account for timeline height
+          marginLeft: '280px', // Push content to the right of vertical timeline
+        }}
+        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+        onInit={(instance) => {
+          if (containerRef.current) {
+            const svg = containerRef.current.querySelector('svg');
+            if (svg) svgRef.current = svg as SVGSVGElement;
+          }
+        }}
+      >
+        <Controls />
+        <Background color="#f3f4f6" gap={16} />
+      </ReactFlow>
 
       {/* Right Drawer */}
       <div className={`right-drawer ${isDrawerOpen ? 'open' : ''}`}>
