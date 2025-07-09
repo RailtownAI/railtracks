@@ -86,75 +86,149 @@ class ModelBase(ABC):
         """The name of the provider of this model or the model type."""
         return None
 
-    def chat(self, messages: MessageHistory, **kwargs) -> Response:
+    def _run_pre_hooks(self, message_history: MessageHistory) -> MessageHistory:
+        """Runs all pre-hooks on the provided message history."""
+        for hook in self._pre_hook:
+            message_history = hook(message_history)
+        return message_history
+
+    def _run_post_hooks(
+        self, message_history: MessageHistory, result: Response
+    ) -> Response:
+        """Runs all post-hooks on the provided message history and result."""
+        for hook in self._post_hook:
+            result = hook(message_history, result)
+        return result
+
+    def _run_exception_hooks(
+        self, message_history: MessageHistory, exception: Exception
+    ) -> None:
+        """Runs all exception hooks on the provided message history and exception."""
+        for hook in self._exception_hook:
+            hook(message_history, exception)
+
+    def chat(self, messages: MessageHistory, **kwargs):
         """Chat with the model using the provided messages."""
-        for hook in self._pre_hook:
-            messages = hook(messages)
+
+        messages = self._run_pre_hooks(messages)
+
         try:
-            result = self._chat(messages, **kwargs)
-            result.message._inject_prompt = False
-        except Exception as e:
-            for hook in self._exception_hook:
-                hook(messages, e)
-            raise e
+            response = self._chat(messages, **kwargs)
+        except:
+            self._run_exception_hooks(messages, Exception("Error during chat"))
+            raise
 
-        for hook in self._post_hook:
-            result = hook(messages, result)
+        response = self._run_post_hooks(messages, response)
+        return response
 
-        return result
+    async def achat(self, messages: MessageHistory, **kwargs):
+        """Asynchronous chat with the model using the provided messages."""
+        messages = self._run_pre_hooks(messages)
 
-    def structured(
-        self, messages: MessageHistory, schema: BaseModel, **kwargs
-    ) -> Response:
+        try:
+            response = await self._achat(messages, **kwargs)
+        except:
+            self._run_exception_hooks(messages, Exception("Error during async chat"))
+            raise
+
+        response = self._run_post_hooks(messages, response)
+
+        return response
+
+    def structured(self, messages: MessageHistory, schema: BaseModel, **kwargs):
         """Structured interaction with the model using the provided messages and schema."""
-        for hook in self._pre_hook:
-            messages = hook(messages)
+        messages = self._run_pre_hooks(messages)
 
         try:
-            result = self._structured(messages, schema, **kwargs)
-            result.message._inject_prompt = False
-        except Exception as e:
-            for hook in self._exception_hook:
-                hook(messages, e)
-            raise e
+            response = self._structured(messages, schema, **kwargs)
+        except:
+            self._run_exception_hooks(
+                messages, Exception("Error during structured interaction")
+            )
+            raise
 
-        for hook in self._post_hook:
-            result = hook(messages, result)
+        response = self._run_post_hooks(messages, response)
 
-        return result
+        return response
 
-    def stream_chat(self, messages: MessageHistory, **kwargs) -> Response:
+    async def astructured(self, messages: MessageHistory, schema: BaseModel, **kwargs):
+        """Asynchronous structured interaction with the model using the provided messages and schema."""
+        messages = self._run_pre_hooks(messages)
+
+        try:
+            response = await self._astructured(messages, schema, **kwargs)
+        except:
+            self._run_exception_hooks(
+                messages, Exception("Error during async structured interaction")
+            )
+            raise
+
+        response = self._run_post_hooks(messages, response)
+
+        return response
+
+    def stream_chat(self, messages: MessageHistory, **kwargs):
         """Stream chat with the model using the provided messages."""
-        # TODO migrate this streamer logic to work better.
-        for hook in self._pre_hook:
-            messages = hook(messages)
-
-        result = self._stream_chat(messages, **kwargs)
-
-        for hook in self._post_hook:
-            result = hook(messages, result)
-
-        return result
-
-    def chat_with_tools(
-        self, messages: MessageHistory, tools: List[Tool], **kwargs
-    ) -> Response:
-        """Chat with the model using the provided messages and tools."""
-        for hook in self._pre_hook:
-            messages = hook(messages)
+        messages = self._run_pre_hooks(messages)
 
         try:
-            result = self._chat_with_tools(messages, tools, **kwargs)
-            result.message._inject_prompt = False
-        except Exception as e:
-            for hook in self._exception_hook:
-                hook(messages, e)
-            raise e
+            response = self._stream_chat(messages, **kwargs)
+        except:
+            self._run_exception_hooks(messages, Exception("Error during stream chat"))
+            raise
 
-        for hook in self._post_hook:
-            result = hook(messages, result)
+        response = self._run_post_hooks(messages, response)
 
-        return result
+        return response
+
+    async def astream_chat(self, messages: MessageHistory, **kwargs):
+        """Asynchronous stream chat with the model using the provided messages."""
+        messages = self._run_pre_hooks(messages)
+
+        try:
+            response = await self._astream_chat(messages, **kwargs)
+        except:
+            self._run_exception_hooks(
+                messages, Exception("Error during async stream chat")
+            )
+            raise
+
+        response = self._run_post_hooks(messages, response)
+
+        return response
+
+    def chat_with_tools(self, messages: MessageHistory, tools: List[Tool], **kwargs):
+        """Chat with the model using the provided messages and tools."""
+        messages = self._run_pre_hooks(messages)
+
+        try:
+            response = self._chat_with_tools(messages, tools, **kwargs)
+        except:
+            self._run_exception_hooks(
+                messages, Exception("Error during chat with tools")
+            )
+            raise
+
+        response = self._run_post_hooks(messages, response)
+        return response
+
+    async def achat_with_tools(
+        self, messages: MessageHistory, tools: List[Tool], **kwargs
+    ):
+        """Asynchronous chat with the model using the provided messages and tools."""
+        messages = self._run_pre_hooks(messages)
+
+        try:
+            response = await self._achat_with_tools(messages, tools, **kwargs)
+        except:
+            self._run_exception_hooks(
+                messages, Exception("Error during async chat with tools")
+            )
+            raise
+
+        response = self._run_post_hooks(messages, response)
+
+        return response
 
     @abstractmethod
     def _chat(self, messages: MessageHistory, **kwargs) -> Response:
@@ -172,6 +246,26 @@ class ModelBase(ABC):
 
     @abstractmethod
     def _chat_with_tools(
+        self, messages: MessageHistory, tools: List[Tool], **kwargs
+    ) -> Response:
+        pass
+
+    @abstractmethod
+    async def _achat(self, messages: MessageHistory, **kwargs) -> Response:
+        pass
+
+    @abstractmethod
+    async def _astructured(
+        self, messages: MessageHistory, schema: BaseModel, **kwargs
+    ) -> Response:
+        pass
+
+    @abstractmethod
+    async def _astream_chat(self, messages: MessageHistory, **kwargs) -> Response:
+        pass
+
+    @abstractmethod
+    async def _achat_with_tools(
         self, messages: MessageHistory, tools: List[Tool], **kwargs
     ) -> Response:
         pass

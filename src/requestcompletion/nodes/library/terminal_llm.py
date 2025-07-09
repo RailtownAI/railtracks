@@ -22,7 +22,7 @@ class TerminalLLM(LLMBase[str], ABC):
             (TerminalLLM.Output): The response message from the model
         """
         try:
-            returned_mess = self.model.chat(self.message_hist)
+            returned_mess = await self.model.achat(self.message_hist)
         except Exception as e:
             raise LLMError(
                 reason=f"Exception during model chat: {str(e)}",
