@@ -1,5 +1,5 @@
 import warnings
-from typing import Set, Union, Type, Callable, Literal, Dict, Any
+from typing import Set, Union, Type, Callable, Literal
 from inspect import isclass, isfunction
 from copy import deepcopy
 import asyncio
@@ -9,7 +9,6 @@ from ....nodes.nodes import Node
 from ....llm.message import Role
 from ..tool_calling_llms._base import OutputLessToolCallLLM
 from ....exceptions import NodeCreationError, LLMError
-from ....exceptions.node_creation.validation import validate_tool_metadata
 from ....nodes.library.function import from_function
 from ....exceptions.node_invocation.validation import check_model, check_message_history
 from ....llm import (
@@ -25,7 +24,8 @@ from ....llm import (
 from ....visuals.browser.chat_ui import ChatUI
 from requestcompletion.utils.logging.create import get_rc_logger
 
-def chat_tool_call_llm(
+
+def chat_tool_call_llm(  # noqa: C901
     connected_nodes: Set[Union[Type[Node], Callable]],
     pretty_name: str | None = None,
     model: ModelBase | None = None,
@@ -33,7 +33,6 @@ def chat_tool_call_llm(
     system_message: SystemMessage | str | None = None,
     output_type: Literal["MessageHistory", "LastMessage"] = "LastMessage",
 ) -> Type[OutputLessToolCallLLM[Union[MessageHistory, AssistantMessage]]]:
-
     output = MessageHistory if output_type == "MessageHistory" else AssistantMessage
 
     # Converting functions to nodes if needed
@@ -104,7 +103,7 @@ def chat_tool_call_llm(
             else:
                 return self.message_hist[-1]
 
-        async def invoke(self):
+        async def invoke(self):  # noqa: C901
             # If there's no last user message, we need to wait for user input
             if self.message_hist[-1].role != Role.user:
                 msg = await chat_ui.wait_for_user_input()
@@ -187,32 +186,34 @@ def chat_tool_call_llm(
                                     )
                                 )
                             )
-                            
+
                             # Update the tools tab in the UI
-                            success = not isinstance(resp, str) or not resp.startswith("There was an error running the tool:")
+                            success = not isinstance(resp, str) or not resp.startswith(
+                                "There was an error running the tool:"
+                            )
                             await chat_ui.update_tools(
                                 tool_name=r_name,
                                 tool_id=r_id,
-                                arguments=next(tc.arguments for tc in tool_calls if tc.identifier == r_id),
+                                arguments=next(
+                                    tc.arguments
+                                    for tc in tool_calls
+                                    if tc.identifier == r_id
+                                ),
                                 result=str(resp),
-                                success=success
+                                success=success,
                             )
                     else:
                         assistant_message = returned_mess.message.content
-                        
+
                         self.message_hist.append(
                             AssistantMessage(content=assistant_message)
                         )
-                        await chat_ui.send_message(
-                            assistant_message                        )
-
+                        await chat_ui.send_message(assistant_message)
 
                         user_message = await chat_ui.wait_for_user_input()
                         if user_message == "EXIT":
                             break
-                        self.message_hist.append(
-                            UserMessage(content=user_message)
-                        )
+                        self.message_hist.append(UserMessage(content=user_message))
                 else:
                     # the message is malformed from the model
                     raise LLMError(

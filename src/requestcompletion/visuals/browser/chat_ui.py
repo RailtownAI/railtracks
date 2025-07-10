@@ -19,7 +19,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 from importlib.resources import files
 
-class UserMessage(BaseModel):
+class UIUserMessage(BaseModel):
     message: str
     timestamp: Optional[str] = None
 
@@ -69,7 +69,6 @@ class ChatUI:
             FileNotFoundError: If the static file cannot be found
         """
         try:
-            # Try to use importlib.resources for Python 3.9+
             package_files = files('requestcompletion.visuals.browser')
             return (package_files / filename).read_text(encoding='utf-8')
         except Exception as e:
@@ -80,7 +79,7 @@ class ChatUI:
         app = FastAPI(title="ChatUI Server")
 
         @app.post("/send_message")
-        async def send_message(user_message: UserMessage):
+        async def send_message(user_message: UIUserMessage):
             """Receive user input from chat interface"""
             message_data = {
                 "message": user_message.message,
