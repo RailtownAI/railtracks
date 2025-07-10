@@ -14,6 +14,7 @@ from datetime import datetime
 from typing import Optional
 
 import uvicorn
+import webbrowser
 from fastapi import FastAPI, Response
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
@@ -118,7 +119,7 @@ class ChatUI:
                 headers={
                     "Cache-Control": "no-cache",
                     "Connection": "keep-alive",
-                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Origin": f"http://{self.host}:{self.port}",
                     "Access-Control-Allow-Headers": "Cache-Control",
                 }
             )
@@ -206,11 +207,12 @@ class ChatUI:
 
     def start_server_async(self):
         """Start the FastAPI server in the background"""
-        localhost_url = f"http://localhost:{self.port}"
+        localhost_url = f"http://{self.host}:{self.port}"
         
         if self.server_thread is None:
             
             self.server_thread = threading.Thread(target=self.run_server, daemon=True)
             self.server_thread.start()
         
+        webbrowser.open(localhost_url)
         return localhost_url

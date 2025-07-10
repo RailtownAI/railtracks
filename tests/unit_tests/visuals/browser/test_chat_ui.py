@@ -181,7 +181,7 @@ def test_start_server_async_creates_thread(mock_threading, mock_uvicorn, chat_ui
     
     url = chat_ui.start_server_async()
     
-    assert url == f"http://localhost:{chat_ui.port}"
+    assert url == f"http://{chat_ui.host}:{chat_ui.port}"
     mock_threading.Thread.assert_called_once()
     mock_thread.start.assert_called_once()
     assert chat_ui.server_thread == mock_thread
@@ -195,7 +195,7 @@ def test_start_server_async_reuses_existing_thread(mock_threading, mock_uvicorn,
     
     url = chat_ui.start_server_async()
     
-    assert url == f"http://localhost:{chat_ui.port}"
+    assert url == f"http://{chat_ui.host}:{chat_ui.port}"
     mock_threading.Thread.assert_not_called()
     assert chat_ui.server_thread == existing_thread
 

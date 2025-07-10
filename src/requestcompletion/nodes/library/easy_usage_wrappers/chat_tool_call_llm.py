@@ -27,6 +27,8 @@ from requestcompletion.utils.logging.create import get_rc_logger
 
 def chat_tool_call_llm(  # noqa: C901
     connected_nodes: Set[Union[Type[Node], Callable]],
+    port: int | None = None,
+    host: str | None = None,
     pretty_name: str | None = None,
     model: ModelBase | None = None,
     max_tool_calls: int | None = None,
@@ -49,7 +51,13 @@ def chat_tool_call_llm(  # noqa: C901
             connected_nodes.remove(elem)
             connected_nodes.add(from_function(elem))
 
-    chat_ui = ChatUI(port=8000)
+    kwargs = {}
+    if port is not None:
+        kwargs["port"] = port
+    if host is not None:
+        kwargs["host"] = host
+
+    chat_ui = ChatUI(**kwargs)
     server_address = chat_ui.start_server_async()
 
     class ChatToolCallLLM(OutputLessToolCallLLM[output]):
