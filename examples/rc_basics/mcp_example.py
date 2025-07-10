@@ -25,6 +25,8 @@ async def main():
         response = await runner.run(parent_tool, message_history=message_history)
         print("Response:", response.answer)
 
+    await fetch_server.close()
+
 
 asyncio.run(main())
 

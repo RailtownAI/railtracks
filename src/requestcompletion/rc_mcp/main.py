@@ -128,6 +128,12 @@ class MCPServer:
         await self.client.__aenter__()
         self._tools = [from_mcp(tool, self.client) for tool in await self.client.list_tools()]
 
+    async def close(self):
+        """
+        Close the MCP server connection.
+        """
+        await self.client.__aexit__(None, None, None)
+
     @property
     def tools(self):
         return self._tools
@@ -152,10 +158,9 @@ def from_mcp(
         def __init__(self, **kwargs):
             super().__init__()
             self.kwargs = kwargs
-            self.client = client
 
         async def invoke(self):
-            result = await self.client.call_tool(tool.name, self.kwargs)
+            result = await client.call_tool(tool.name, self.kwargs)
             if hasattr(result, "content"):
                 return result.content
             return result
