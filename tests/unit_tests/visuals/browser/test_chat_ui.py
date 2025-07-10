@@ -206,7 +206,7 @@ def test_run_server_calls_uvicorn(mock_uvicorn, chat_ui):
     
     mock_uvicorn.run.assert_called_once_with(
         chat_ui.app,
-        host="0.0.0.0",
+        host="127.0.0.1",
         port=chat_ui.port,
         log_level="warning"
     )

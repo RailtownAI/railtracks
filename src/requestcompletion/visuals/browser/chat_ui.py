@@ -42,14 +42,16 @@ class ChatUI:
     - Set up and manage the FastAPI server
     """
     
-    def __init__(self, port: int = 8000):
+    def __init__(self, port: int = 8000, host: str = "127.0.0.1"):
         """
         Initialize the ChatUI interface.
         
         Args:
             port: Port number for the FastAPI server
+            host: Host to bind to (default: 127.0.0.1 for localhost only)
         """
         self.port = port
+        self.host = host
         self.sse_queue = asyncio.Queue()
         self.user_input_queue = asyncio.Queue()
         self.app = self._create_app()
@@ -200,7 +202,7 @@ class ChatUI:
             return None
 
     def run_server(self):
-        uvicorn.run(self.app, host="0.0.0.0", port=self.port, log_level="warning")
+        uvicorn.run(self.app, host=self.host, port=self.port, log_level="warning")
 
     def start_server_async(self):
         """Start the FastAPI server in the background"""
