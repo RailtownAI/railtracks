@@ -32,6 +32,10 @@ nav:
 
       - Guides:
         - Notion: tools/guides/notion.md
+        - Notion: tools/guides/github.md
+        - Notion: tools/guides/python_sandbox.md
+        - Notion: tools/guides/shell_bash.md
+        - Notion: tools/guides/slack.md
 
   - MCP:
         - mcp/index.md
