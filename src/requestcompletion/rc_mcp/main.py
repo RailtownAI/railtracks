@@ -172,16 +172,44 @@ class MCPAsyncClient:
         await self.session.initialize()
 
 
+class MCPServer:
+    """
+    Class representation for MCP server
+
+    This class contains the tools of the MCP server and manages the connection to the server.
+
+    On initialization, it will connect to the MCP server, and will remain connected until closed.
+    """
+
+    def __init__(self, client: MCPAsyncClient, config: StdioServerParameters | MCPHttpParams):
+        self.client = client
+        self.client.__aenter__()
+        self._config = config
+        self._tools = None
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        await self.client.__aexit__(exc_type, exc, tb)
+
+    @property
+    async def tools(self):
+        if self._tools is None:
+            self._tools = [from_mcp(tool, self.client) for tool in await self.client.list_tools()]
+        return self._tools
+
+
 def from_mcp(
     tool,
-    config: StdioServerParameters | MCPHttpParams,
+    client,
 ):
     """
     Wrap an MCP tool as a Node class for use in the requestcompletion framework.
 
     Args:
         tool: The MCP tool object.
-        config: Configuration parameters for the MCP client, either Stdio or HTTP.
+        client: An instance of MCPAsyncClient to communicate with the MCP server.
 
     Returns:
         A Node subclass that invokes the MCP tool.
@@ -191,11 +219,10 @@ def from_mcp(
         def __init__(self, **kwargs):
             super().__init__()
             self.kwargs = kwargs
-            self.client = MCPAsyncClient(config)
+            self.client = client
 
         async def invoke(self):
-            async with self.client:
-                result = await self.client.call_tool(tool.name, self.kwargs)
+            result = await self.client.call_tool(tool.name, self.kwargs)
             if hasattr(result, "content"):
                 return result.content
             return result

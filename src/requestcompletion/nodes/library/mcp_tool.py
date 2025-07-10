@@ -3,13 +3,13 @@ from typing import Type
 from mcp import StdioServerParameters
 import asyncio
 
-from ...rc_mcp.main import MCPAsyncClient, MCPHttpParams, from_mcp
+from ...rc_mcp.main import MCPAsyncClient, MCPHttpParams, from_mcp, MCPServer
 from ...nodes.nodes import Node
 
 
 def from_mcp_server(
     config: StdioServerParameters | MCPHttpParams,
-) -> [Type[Node]]:
+) -> MCPServer:
     """
     Discover all tools from an MCP server and wrap them as Node classes.
 
@@ -24,7 +24,7 @@ def from_mcp_server(
 
 async def async_from_mcp_server(
     config: StdioServerParameters | MCPHttpParams,
-) -> [Type[Node]]:
+) -> MCPServer:
     """
     Asynchronously discover all tools from an MCP server and wrap them as Node classes.
 
@@ -34,6 +34,4 @@ async def async_from_mcp_server(
     Returns:
         List of Nodes, one for each discovered tool.
     """
-    async with MCPAsyncClient(config) as client:
-        tools = await client.list_tools()
-        return [from_mcp(tool, config) for tool in tools]
+    return MCPServer(client=MCPAsyncClient(config), config=config)
