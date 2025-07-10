@@ -1,21 +1,16 @@
-import webbrowser
 from contextlib import AsyncExitStack
 from datetime import timedelta
 from typing import Any, Dict
 
-import httpx
 from typing_extensions import Self
 
 from mcp import ClientSession, StdioServerParameters
-from mcp.client.auth import OAuthClientProvider
-from mcp.shared.auth import OAuthClientMetadata
 from mcp.client.stdio import stdio_client
 from mcp.client.streamable_http import streamablehttp_client
 from mcp.client.sse import sse_client
 
 from pydantic import BaseModel
 from ..llm import Tool
-from ..rc_mcp.oauth import InMemoryTokenStorage, CallbackServer
 from ..nodes.nodes import Node
 
 
@@ -45,16 +40,17 @@ class MCPAsyncClient:
         self._tools_cache = None
 
     async def __aenter__(self):
-        if isinstance(self.config, StdioServerParameters):
-            stdio_transport = await self.exit_stack.enter_async_context(
-                stdio_client(self.config)
-            )
-            self.session = await self.exit_stack.enter_async_context(
-                ClientSession(*stdio_transport)
-            )
-            await self.session.initialize()
-        elif isinstance(self.config, MCPHttpParams):
-            await self._init_http()
+        if self.session is None:
+            if isinstance(self.config, StdioServerParameters):
+                stdio_transport = await self.exit_stack.enter_async_context(
+                    stdio_client(self.config)
+                )
+                self.session = await self.exit_stack.enter_async_context(
+                    ClientSession(*stdio_transport)
+                )
+                await self.session.initialize()
+            elif isinstance(self.config, MCPHttpParams):
+                await self._init_http()
 
         return self
 
@@ -79,89 +75,23 @@ class MCPAsyncClient:
         else:
             self.transport_type = "streamable_http"
 
-        async def get_oauth_metadata(server_url: str):
-            from urllib.parse import urlparse, urlunparse, urljoin
-
-            parsed = urlparse(server_url)
-            base_url = urlunparse((parsed.scheme, parsed.netloc, "", "", "", ""))
-            metadata_url = urljoin(base_url, "/.well-known/oauth-authorization-server")
-            async with httpx.AsyncClient() as client:
-                resp = await client.get(metadata_url)
-                if resp.status_code == 200:
-                    return resp.json()
-                return None
-
-        oauth_metadata = await get_oauth_metadata(self.config.url)
-
-        if oauth_metadata:
-            callback_server = CallbackServer(port=3000)
-            callback_server.start()
-
-            async def callback_handler() -> tuple[str, str | None]:
-                print("⏳ Waiting for authorization callback...")
-                try:
-                    auth_code = callback_server.wait_for_callback(timeout=300)
-                    return auth_code, callback_server.get_state()
-                finally:
-                    callback_server.stop()
-
-            client_metadata_dict = {
-                "client_name": "Simple Auth Client",
-                "redirect_uris": ["http://localhost:3000/callback"],
-                "grant_types": ["authorization_code", "refresh_token"],
-                "response_types": ["code"],
-                "token_endpoint_auth_method": "client_secret_post",
-            }
-
-            async def _default_redirect_handler(authorization_url: str) -> None:
-                print(f"Opening browser for authorization: {authorization_url}")
-                webbrowser.open(authorization_url)
-
-            oauth_auth = OAuthClientProvider(
-                server_url=self.config.url,
-                client_metadata=OAuthClientMetadata.model_validate(
-                    client_metadata_dict
-                ),
-                storage=InMemoryTokenStorage(),
-                redirect_handler=_default_redirect_handler,
-                callback_handler=callback_handler,
+        if self.transport_type == "sse":
+            client = sse_client(
+                url=self.config.url,
+                headers=self.config.headers,
+                timeout=self.config.timeout.total_seconds(),
+                sse_read_timeout=self.config.sse_read_timeout.total_seconds(),
+                auth=self.config.auth if hasattr(self.config, "auth") else None,
             )
-
-            if self.transport_type == "sse":
-                client = sse_client(
-                    url=self.config.url,
-                    headers=self.config.headers,
-                    timeout=self.config.timeout.total_seconds(),
-                    sse_read_timeout=self.config.sse_read_timeout.total_seconds(),
-                    auth=oauth_auth,
-                )
-            else:
-                client = streamablehttp_client(
-                    url=self.config.url,
-                    headers=self.config.headers,
-                    timeout=self.config.timeout.total_seconds(),
-                    sse_read_timeout=self.config.sse_read_timeout.total_seconds(),
-                    terminate_on_close=self.config.terminate_on_close,
-                    auth=oauth_auth,
-                )
         else:
-            if self.transport_type == "sse":
-                client = sse_client(
-                    url=self.config.url,
-                    headers=self.config.headers,
-                    timeout=self.config.timeout.total_seconds(),
-                    sse_read_timeout=self.config.sse_read_timeout.total_seconds(),
-                    auth=self.config.auth if hasattr(self.config, "auth") else None,
-                )
-            else:
-                client = streamablehttp_client(
-                    url=self.config.url,
-                    headers=self.config.headers,
-                    timeout=self.config.timeout,
-                    sse_read_timeout=self.config.sse_read_timeout,
-                    terminate_on_close=self.config.terminate_on_close,
-                    auth=self.config.auth if hasattr(self.config, "auth") else None,
-                )
+            client = streamablehttp_client(
+                url=self.config.url,
+                headers=self.config.headers,
+                timeout=self.config.timeout.total_seconds(),
+                sse_read_timeout=self.config.sse_read_timeout.total_seconds(),
+                terminate_on_close=self.config.terminate_on_close,
+                auth=self.config.auth if hasattr(self.config, "auth") else None,
+            )
 
         read_stream, write_stream, *_ = await self.exit_stack.enter_async_context(
             client
@@ -181,10 +111,8 @@ class MCPServer:
     On initialization, it will connect to the MCP server, and will remain connected until closed.
     """
 
-    def __init__(self, client: MCPAsyncClient, config: StdioServerParameters | MCPHttpParams):
+    def __init__(self, client: MCPAsyncClient):
         self.client = client
-        self.client.__aenter__()
-        self._config = config
         self._tools = None
 
     async def __aenter__(self):
@@ -193,10 +121,15 @@ class MCPServer:
     async def __aexit__(self, exc_type, exc, tb):
         await self.client.__aexit__(exc_type, exc, tb)
 
+    async def setup(self):
+        """
+        Set up the MCP server and fetch tools.
+        """
+        await self.client.__aenter__()
+        self._tools = [from_mcp(tool, self.client) for tool in await self.client.list_tools()]
+
     @property
-    async def tools(self):
-        if self._tools is None:
-            self._tools = [from_mcp(tool, self.client) for tool in await self.client.list_tools()]
+    def tools(self):
         return self._tools
 
 

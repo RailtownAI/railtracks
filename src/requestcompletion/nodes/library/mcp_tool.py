@@ -34,4 +34,6 @@ async def async_from_mcp_server(
     Returns:
         List of Nodes, one for each discovered tool.
     """
-    return MCPServer(client=MCPAsyncClient(config), config=config)
+    server = MCPServer(client=MCPAsyncClient(config))
+    await server.setup()
+    return server
