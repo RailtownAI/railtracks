@@ -179,9 +179,7 @@ def math_node(request, model, math_output_model):
     )
     rng_node = rc.library.terminal_llm(
         pretty_name="RNG Tool",
-        system_message=rc.llm.SystemMessage(
-            "You are a helful assistant that can generate 5 random numbers between 1 and 100."
-        ),
+        system_message= "You are a helful assistant that can generate 5 random numbers between 1 and 100.",
         model=model,
         tool_details="A tool used to generate 5 random integers between 1 and 100.",
         tool_params=None,
@@ -192,9 +190,8 @@ def math_node(request, model, math_output_model):
 
 @pytest.fixture
 def complex_node(request, model, person_output_model):
-    system_complex = rc.llm.SystemMessage(
-        "You are an all knowing sentient being. You can answer any question asked to you. You may make up any answer you want. Just provide all info asked for."
-    )
+    system_complex = "You are an all knowing sentient being. You can answer any question asked to you. You may make up any answer you want. Just provide all info asked for."
+
     fixture_name = request.param
     tool_nodes = {rc.library.from_function(random.random)}
     return _make_node(fixture_name, system_complex, model, person_output_model, tool_nodes)
@@ -203,10 +200,9 @@ def complex_node(request, model, person_output_model):
 
 @pytest.fixture
 def simple_function_taking_node(model, simple_tools, simple_output_model):
-    system_mes = rc.llm.SystemMessage(
-        "You are a helpful assistant that uses the random number tool to generate a random number between 1 and 100"
-    )
-    return rc.library.tool_call_llm(
+    system_mes = "You are a helpful assistant that uses the random number tool to generate a random number between 1 and 100"
+
+    return rc.library.structured_tool_call_llm(
         connected_nodes={simple_tools},
         pretty_name="Random Number Provider Node",
         system_message=system_mes,
@@ -217,10 +213,9 @@ def simple_function_taking_node(model, simple_tools, simple_output_model):
 @pytest.fixture
 def some_function_taking_travel_planner_node(model, travel_planner_tools, travel_planner_output_model):
     convert_currency, available_locations, currency_used, average_location_cost = travel_planner_tools
-    system_travel_planner = rc.llm.SystemMessage(
-        "You are a travel planner that will plan a trip. you have access to AvailableLocations, ConvertCurrency, CurrencyUsed and AverageLocationCost tools. Use them when you need to."
-    )
-    return rc.library.tool_call_llm(
+    system_travel_planner = "You are a travel planner that will plan a trip. you have access to AvailableLocations, ConvertCurrency, CurrencyUsed and AverageLocationCost tools. Use them when you need to."
+
+    return rc.library.structured_tool_call_llm(
         connected_nodes={
             convert_currency,
             rc.library.from_function(available_locations),
@@ -239,7 +234,7 @@ def only_function_taking_travel_planner_node(model, travel_planner_tools, travel
     system_travel_planner = rc.llm.SystemMessage(
         "You are a travel planner that will plan a trip. you have access to AvailableLocations, ConvertCurrency, CurrencyUsed and AverageLocationCost tools. Use them when you need to."
     )
-    return rc.library.tool_call_llm(
+    return rc.library.structured_tool_call_llm(
         connected_nodes={
             convert_currency,
             available_locations,
@@ -264,9 +259,7 @@ def travel_message_history():
 def limited_tool_call_node_factory(model, travel_planner_tools):
     def _factory(max_tool_calls=1, system_message=None, tools=None, class_based=False):
         tools = tools or set([rc.library.from_function(tool) for tool in travel_planner_tools])
-        sys_msg = system_message or rc.llm.SystemMessage(
-            "You are a travel planner that will plan a trip. you have access to AvailableLocations, CurrencyUsed and AverageLocationCost tools. Use them when you need to."
-        )
+        sys_msg = system_message or "You are a travel planner that will plan a trip. you have access to AvailableLocations, CurrencyUsed and AverageLocationCost tools. Use them when you need to."
         tool_nodes = tools
         if not class_based:
             return rc.library.tool_call_llm(

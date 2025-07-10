@@ -37,9 +37,7 @@ async def test_tool_with_structured_output_child_tool():
     # Define the child tool with structured output
     child_tool = rc.library.structured_llm(
         output_model=ChildResponse,
-        system_message=rc.llm.SystemMessage(
-            "You are a word counting tool that counts the number of words in the request provided by the user."
-        ),
+        system_message="You are a word counting tool that counts the number of words in the request provided by the user.",
         model=rc.llm.OpenAILLM("gpt-4o"),
         pretty_name="Structured Child Tool",
         tool_details="A tool that generates a structured response that includes word count.",
@@ -57,9 +55,7 @@ async def test_tool_with_structured_output_child_tool():
         output_model=ParentResponse,
         connected_nodes={child_tool},
         pretty_name="Parent Tool",
-        system_message=rc.llm.SystemMessage(
-            "Use the child tool to generate a structured response. Respond with the output from the child tool only. No additional text."
-        ),
+        system_message="Use the child tool to generate a structured response. Respond with the output from the child tool only. No additional text.",
         model=rc.llm.OpenAILLM("gpt-4o"),
     )
 

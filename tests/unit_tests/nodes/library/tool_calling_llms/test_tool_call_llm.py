@@ -1,7 +1,7 @@
 import pytest
 import requestcompletion as rc
 from requestcompletion import Node
-from requestcompletion.nodes.library import tool_call_llm, ToolCallLLM
+from requestcompletion.nodes.library import tool_call_llm, ToolCallLLM, message_hist_tool_call_llm
 from requestcompletion.nodes.library.tool_calling_llms._base import OutputLessToolCallLLM
 from requestcompletion.exceptions import LLMError, NodeCreationError, NodeInvocationError
 from requestcompletion.llm import MessageHistory, ToolMessage, SystemMessage, UserMessage, AssistantMessage, ToolCall, ToolResponse, Tool
@@ -18,7 +18,7 @@ def test_tool_call_llm_return_output_returns_last_message_content(mock_llm, mock
         
     mh = MessageHistory([SystemMessage("sys"), UserMessage("hi"), AssistantMessage("final answer")])
     node = DummyToolCallLLM(mh, mock_llm())
-    assert node.return_output() == "final answer"
+    assert node.return_output().content == "final answer"
 
 # ---- OutputLessToolCallLLM tests ----
 
@@ -117,7 +117,7 @@ def test_limited_tool_call_llm_return_output(mock_tool, mock_llm, mock_chat_with
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("hello")])
     node = MockLimitedToolCallLLM(mh, mock_llm(chat_with_tools=mock_chat_with_tools_function))
     node.message_hist.append(AssistantMessage(content="The answer"))
-    assert node.return_output() == "The answer"
+    assert node.return_output().content == "The answer"
 
 @pytest.mark.asyncio
 async def test_tool_call_llm_on_max_tool_calls_exceeded_appends_final_answer(mock_tool, mock_llm, mock_chat_with_tools_function):
@@ -157,7 +157,6 @@ def test_tool_call_llm_return_output_last_message(mock_llm, mock_tool):
         connected_nodes={mock_tool},
         pretty_name="Test ToolCallLLM",
         model=mock_llm(),
-        output_type="LastMessage"
     )
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("hello")])
     node = ToolCallLLM(mh)
@@ -182,11 +181,10 @@ def test_tool_call_llm_pretty_name_default(mock_llm, mock_tool):
     assert "ToolCallLLM" in ToolCallLLM.pretty_name()
 
 def test_tool_call_llm_with_output_type_message_history(mock_llm, mock_tool):
-    ToolCallLLM = tool_call_llm(
+    ToolCallLLM = message_hist_tool_call_llm(
         connected_nodes={mock_tool},
         pretty_name="Test ToolCallLLM",
         model=mock_llm(),
-        output_type="MessageHistory"
     )
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("hello")])
     node = ToolCallLLM(mh)

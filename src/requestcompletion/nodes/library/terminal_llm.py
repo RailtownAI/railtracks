@@ -7,13 +7,17 @@ from ...exceptions import LLMError
 class TerminalLLM(LLMBase[str], ABC):
     """A simple LLM nodes that takes in a message and returns a response. It is the simplest of all llms."""
 
-    def __init__(self, message_history: MessageHistory, model: ModelBase):
+    def __init__(self, message_history: MessageHistory, model: ModelBase | None = None):
         """Creates a new instance of the TerminalLLM class
 
         Args:
 
         """
         super().__init__(model=model, message_history=message_history)
+
+    @classmethod
+    def pretty_name(cls) -> str:
+        return "TerminalLLM"
 
     async def invoke(self) -> str | None:
         """Makes a call containing the inputted message and system prompt to the model and returns the response

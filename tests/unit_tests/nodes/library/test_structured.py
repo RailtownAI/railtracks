@@ -63,9 +63,7 @@ async def test_easy_usage_no_output_model():
     with pytest.raises(NodeCreationError, match="Output model cannot be empty"):
         _ = rc.library.structured_llm(
             output_model=None,
-            system_message=rc.llm.SystemMessage(
-                "You are a helpful assistant that can strucure the response into a structured output."
-            ),
+            system_message="You are a helpful assistant that can strucure the response into a structured output.",
             model=rc.llm.OpenAILLM("gpt-4o"),
             pretty_name="Structured ToolCallLLM",
         )
@@ -75,9 +73,7 @@ async def test_easy_usage_empty_output_model(empty_output_model):
     with pytest.raises(NodeCreationError, match="Output model cannot be empty"):
         _ = rc.library.structured_llm(
             output_model=empty_output_model,
-            system_message=rc.llm.SystemMessage(
-                "You are a helpful assistant that can strucure the response into a structured output."
-            ),
+            system_message="You are a helpful assistant that can strucure the response into a structured output.",
             model=rc.llm.OpenAILLM("gpt-4o"),
             pretty_name="Structured ToolCallLLM",
         )
@@ -112,9 +108,7 @@ async def test_easy_usage_duplicate_parameter_names(simple_output_model):
     ):
         _ = rc.library.structured_llm(
             output_model=simple_output_model,
-            system_message=rc.llm.SystemMessage(
-                "You are a helpful assistant that can strucure the response into a structured output."
-            ),
+            system_message="You are a helpful assistant that can strucure the response into a structured output.",
             model=rc.llm.OpenAILLM("gpt-4o"),
             pretty_name="Structured ToolCallLLM",
             tool_details="A tool that generates a structured response that includes word count.",

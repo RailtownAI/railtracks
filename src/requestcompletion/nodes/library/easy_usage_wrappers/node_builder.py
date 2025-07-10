@@ -1,12 +1,13 @@
 import warnings
 from copy import deepcopy
 from typing import TypeVar, Generic, Dict, Any, cast, Type, overload, Iterable, Set
-from inspect import isfunction
+from inspect import isfunction, isclass
 from mcp import StdioServerParameters
 
 from requestcompletion.llm import Parameter
 from ....nodes.library.structured_llm import StructuredLLM
 from ...library._llm_base import LLMBase
+from ...library.tool_calling_llms._base import OutputLessToolCallLLM
 from ...library.tool_calling_llms.mess_hist_tool_call_llm import MessageHistoryToolCallLLM
 from ...library.tool_calling_llms.tool_call_llm import ToolCallLLM
 from ....nodes.nodes import Node
@@ -14,9 +15,10 @@ from requestcompletion.exceptions.node_creation.validation import (
     _check_tool_params_and_details,
     _check_duplicate_param_names,
     _check_system_message,
-    _check_pretty_name,
+    check_output_model,
     _check_max_tool_calls,
-    check_connected_nodes,)
+    check_connected_nodes,
+    check_classmethod)
 from ....llm import (
     MessageHistory,
     UserMessage,
@@ -35,23 +37,26 @@ class NodeBuilder(Generic[_TNode]):
             *,
             pretty_name: str | None = None,
             class_name: str | None = None,
+            tool_details : str | None = None, 
+            tool_params : set[Parameter] | None = None,
     ):
+        _check_tool_params_and_details(tool_params, tool_details)
         self._node_class = node_class
         self._name = class_name or f"Dynamic{node_class.__qualname__}"
         self._methods = {}
-        self._with_override("pretty_name", classmethod(lambda cls: pretty_name or cls.__name__))
+        if pretty_name is not None:
+            self._with_override("pretty_name", classmethod(lambda cls: pretty_name or cls.__name__))
 
     def llm_base(
             self,
             model: rc.llm.ModelBase | None,
-            system_message: rc.llm.SystemMessage | str | None = None,
+            system_message: str | None = None,
     ):
-        assert issubclass(self._node_class, LLMBase), "To preform this operation the node class we are building must be of type LLMBase"
+        assert issubclass(self._node_class, LLMBase), f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         if model is not None:
             self._with_override("llm_model", classmethod(lambda cls: model))
 
         _check_system_message(system_message)
-        system_message = rc.llm.SystemMessage(system_message)
         self._with_override("system_message", classmethod(lambda cls: system_message))
 
     def structured(
@@ -59,23 +64,23 @@ class NodeBuilder(Generic[_TNode]):
             output_model: Type[BaseModel],
     ):
         assert issubclass(self._node_class, StructuredLLM), "To preform this operation the node class we are building must be of type StructuredLLM"
-
+        check_output_model(output_model)
         self._with_override("output_model", classmethod(lambda cls: output_model))
 
     def tool_calling_llm(self, connected_nodes: Dict[str, Any] | Set[Type[Node]], max_tool_calls: int):
-        assert issubclass(self._node_class, ToolCallLLM), "To preform this operation the node class we are building must be of type LLMBase"
+        assert issubclass(self._node_class, OutputLessToolCallLLM), f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         for elem in connected_nodes:
             if isfunction(elem):
                         connected_nodes.remove(elem)
                         connected_nodes.add(from_function(elem))
-        _check_max_tool_calls(max_tool_calls)
-        check_connected_nodes(connected_nodes, self._node_class)
         if isinstance(connected_nodes, set):
             connected_nodes = {x: None for x in connected_nodes}
+        _check_max_tool_calls(max_tool_calls)
+        check_connected_nodes(connected_nodes, Node)
         self._with_override("connected_nodes", classmethod(lambda cls: connected_nodes))
     
     def mcp_llm(self, mcp_command, mcp_args, mcp_env, max_tool_calls):
-        assert issubclass(self._node_class, ToolCallLLM), "To preform this operation the node class we are building must be of type LLMBase"
+        assert issubclass(self._node_class, ToolCallLLM), f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         tools = rc.nodes.library.from_mcp_server(
             StdioServerParameters(
                 command=mcp_command,
@@ -99,7 +104,6 @@ class NodeBuilder(Generic[_TNode]):
         assert issubclass(self._node_class, LLMBase), f"You tried to add tool calling details to a non LLM Node of {type(self._node_class)}."
         _check_tool_params_and_details(tool_params, tool_details)
         _check_duplicate_param_names(tool_params or [])
-        _check_pretty_name(self.pretty_name, tool_details)
         self.override_tool_info(tool_details, tool_params)
         self.override_prepare_tool(tool_params)
 

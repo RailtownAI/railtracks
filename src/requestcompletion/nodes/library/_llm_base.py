@@ -16,6 +16,7 @@ from requestcompletion.llm.response import Response
 from typing import TypeVar, Generic
 
 from ...prompts.prompt import inject_context
+from  requestcompletion.llm.message import SystemMessage
 
 _T = TypeVar("_T")
 
@@ -73,7 +74,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         return None
 
     @classmethod
-    def system_message(cls) -> llm.SystemMessage | str | None:
+    def system_message(cls) -> str | None:
         return None
 
     def __init__(self, message_history: llm.MessageHistory, model: llm.ModelBase | None = None):
@@ -91,9 +92,9 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
                 message_history_copy = [
                     x for x in message_history_copy if x.role != "system"
                 ]
-                message_history_copy.insert(0, self.system_message())
+                message_history_copy.insert(0, SystemMessage(self.system_message()))
             else:
-                message_history_copy.insert(0, self.system_message())
+                message_history_copy.insert(0, SystemMessage(self.system_message()))
         
         if self.llm_model() is not None:
             if model is not None:
@@ -111,9 +112,6 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
 
         self._attach_llm_hooks()
 
-    @abstractmethod
-    def return_output(self) -> _T:
-        pass
 
     def _attach_llm_hooks(self):
         """Attach pre and post hooks to the model."""

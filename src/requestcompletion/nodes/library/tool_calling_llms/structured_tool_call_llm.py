@@ -16,7 +16,7 @@ class StructuredToolCallLLM(OutputLessToolCallLLM[str], ABC):
         tool_params: dict | None = None,
     ):
         super().__init__(message_history, model)
-        system_structured = SystemMessage(
+        system_structured =(
             "You are a structured LLM tasked with extracting structured information from the conversation history of another LLM.\n"
             "The input will be the full message history (including system, user, tool, and assistant messages) from a prior LLM interaction."
             "Your job is to analyze this history and produce a structured response according to a specified format.\n"

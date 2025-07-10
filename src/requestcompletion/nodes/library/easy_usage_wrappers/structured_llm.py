@@ -21,14 +21,15 @@ def structured_llm(  # noqa: C901
     tool_params: dict | None = None,
 ) -> Type[StructuredLLM]:
     
-    builder = NodeBuilder(StructuredLLM, pretty_name=pretty_name, class_name="EasyStructuredLLM")
+    builder = NodeBuilder(StructuredLLM, 
+                          pretty_name=pretty_name, 
+                          class_name="EasyStructuredLLM", 
+                          tool_details=tool_details, 
+                          tool_params=tool_params,
+                          )
     builder.llm_base(model, system_message)
     builder.structured(output_model)
     if tool_details is not None:
         builder.tool_callable_llm(tool_details, tool_params)
-        builder.override_tool_details(tool_details, tool_params)
 
     return builder.build()
-
-####NEED TO CHECK VALIDATION AND THEN ALSO THE TOOL CALLABLE/DETAILS STUFF
-####CURRENTLY CAN'T USE NODES AS TOOLS UNLESS WE GIVE THEM TOOL DETAILS

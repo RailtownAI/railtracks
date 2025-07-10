@@ -28,13 +28,21 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
     def __init__(
         self,
         message_history: MessageHistory,
-        model: ModelBase,
+        model: ModelBase | None = None,
         max_tool_calls: int | None = 30,
     ):
         super().__init__(model=model, message_history=message_history)
         check_max_tool_calls(max_tool_calls)
         self.structured_resp_node = None  # The structured LLM node
         self.max_tool_calls = max_tool_calls
+
+    @classmethod
+    def pretty_name(cls) -> str:
+        return (
+            "ToolCallLLM("
+            + ", ".join([x.pretty_name() for x in cls.connected_nodes()])
+            + ")"
+        )
 
     @abstractmethod
     def connected_nodes(self) -> Set[Union[Type[Node], Callable]]: ...

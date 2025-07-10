@@ -72,27 +72,6 @@ async def test_terminal_llm_missing_tool_details_easy_usage(mock_llm, encoder_sy
         )
         
 
-
-@pytest.mark.asyncio
-async def test_terminal_llm_no_pretty_name_with_tool_easy_usage(mock_llm, encoder_system_message):
-    # Test case where tool is configured but pretty_name is missing
-    
-    with pytest.raises(
-        NodeCreationError, match="You must provide a pretty_name when using this node as a tool"
-    ):
-        encoder_tool_details = "A tool used to encode text into bytes."
-
-        encoder_tool_params = {
-            rc.llm.Parameter("text_input", "string", "The string to encode.")
-        }
-        encoder_wo_pretty_name = rc.library.terminal_llm(
-                # Intentionally omitting pretty_name
-                system_message=encoder_system_message,
-                model=mock_llm(),
-                tool_details=encoder_tool_details,
-                tool_params=encoder_tool_params,
-            )
-
 @pytest.mark.asyncio
 async def test_terminal_llm_tool_duplicate_parameter_names_easy_usage(
     mock_llm, encoder_system_message
@@ -117,26 +96,6 @@ async def test_terminal_llm_tool_duplicate_parameter_names_easy_usage(
 # =================== END Easy Usage Node Creation ===================
 # =================== START Class Based Node Creation ===================
 
-@pytest.mark.asyncio
-async def test_no_pretty_name_class_based(mock_llm, encoder_system_message):
-    class Encoder_wo_pretty_name(rc.library.TerminalLLM): 
-        def __init__(
-                self,
-                message_history: rc.llm.MessageHistory,
-                model: rc.llm.ModelBase = mock_llm(),
-            ):
-                message_history = [x for x in message_history if x.role != "system"]
-                message_history.insert(0, encoder_system_message)
-                super().__init__(
-                    message_history=message_history,
-                    model=model,
-                )
-
-    with pytest.raises(
-        TypeError, match="Can't instantiate abstract class Encoder_wo_pretty_name"
-    ):
-        _ = await rc.call(Encoder_wo_pretty_name, message_history=rc.llm.MessageHistory([rc.llm.UserMessage("encoder 'hello world!'")]))
-        
 
 @pytest.mark.asyncio
 async def test_tool_info_not_classmethod(mock_llm, encoder_system_message):

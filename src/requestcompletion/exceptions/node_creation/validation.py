@@ -104,7 +104,7 @@ def check_connected_nodes(node_set, node: type) -> None:
         )
 
 
-def check_output_model(method: classmethod, cls: type) -> None:
+def check_output_model(output_model: BaseModel ) -> None:
     """
     Validate the output model returned by a classmethod.
 
@@ -115,7 +115,6 @@ def check_output_model(method: classmethod, cls: type) -> None:
     Raises:
         NodeCreationError: If the output model is missing, invalid, or empty.
     """
-    output_model = method.__func__(cls)
     if not output_model:
         raise NodeCreationError(
             message=get_message(ExceptionMessageKey.OUTPUT_MODEL_REQUIRED_MSG),
@@ -172,7 +171,7 @@ def _check_pretty_name(pretty_name: str | None, tool_details: Any) -> None:
         )
 
 
-def _check_system_message(system_message: SystemMessage | str | None) -> None:
+def _check_system_message(system_message: str | None) -> None:
     """
     Validate that system_message is an instance of SystemMessageType if provided.
     Args:
@@ -181,9 +180,7 @@ def _check_system_message(system_message: SystemMessage | str | None) -> None:
     Raises:
         NodeCreationError: If system_message is not of the correct type.
     """
-    if system_message is not None and not isinstance(
-        system_message, (SystemMessage, str)
-    ):
+    if system_message is not None and not isinstance(system_message, str):
         raise NodeCreationError(
             get_message(ExceptionMessageKey.INVALID_SYSTEM_MESSAGE_MSG),
         )

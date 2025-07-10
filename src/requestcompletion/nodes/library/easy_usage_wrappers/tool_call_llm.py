@@ -20,17 +20,18 @@ def tool_call_llm(  # noqa: C901
     system_message: SystemMessage | str | None = None,
     tool_details: str | None = None,
     tool_params: dict | None = None,
-) -> Type[ToolCallLLM[AssistantMessage]]:
+) -> Type[ToolCallLLM]:
 
-    builder = NodeBuilder(
-        ToolCallLLM[AssistantMessage],
-        pretty_name=pretty_name,
-        class_name="EasyToolCallLLM",
-    )
+    builder = NodeBuilder(ToolCallLLM, 
+                          pretty_name=pretty_name, 
+                          class_name="EasyToolCallLLM", 
+                          tool_details=tool_details, 
+                          tool_params=tool_params,
+                          )
     builder.llm_base(model, system_message)
     builder.tool_calling_llm(connected_nodes, max_tool_calls)
     if tool_details is not None:
-        builder.override_tool_details(tool_details, tool_params)
-        builder.override_tool_details(tool_details, tool_params)
+        builder.tool_callable_llm(tool_details, tool_params)
+
     
     return builder.build()

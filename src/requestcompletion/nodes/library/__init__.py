@@ -26,3 +26,5 @@ from .structured_llm import StructuredLLM
 from .easy_usage_wrappers.terminal_llm import terminal_llm
 from .easy_usage_wrappers.structured_llm import structured_llm
 from .easy_usage_wrappers.tool_call_llm import tool_call_llm
+from .easy_usage_wrappers.structured_tool_call_llm import structured_tool_call_llm
+from .easy_usage_wrappers.message_hist_tool_call_llm import message_hist_tool_call_llm

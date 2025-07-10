@@ -51,7 +51,7 @@ class TestPrimitiveInputTypes:
                     ]
                 ),
             )
-        assert response.answer == "Constantinople"
+        assert response.answer.content == "Constantinople"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
     def test_single_int_input(self, model_provider, create_top_level_node):
@@ -83,7 +83,7 @@ class TestPrimitiveInputTypes:
                 ),
             )
 
-        assert response.answer == "666666"
+        assert response.answer.content == "666666"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
     def test_single_str_input(self, model_provider, create_top_level_node):
@@ -115,7 +115,7 @@ class TestPrimitiveInputTypes:
                 ),
             )
 
-        assert response.answer == "h$e$l$l$o"
+        assert response.answer.content == "h$e$l$l$o"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
     def test_single_float_input(self, model_provider, create_top_level_node):
@@ -147,7 +147,7 @@ class TestPrimitiveInputTypes:
                 ),
             )
 
-        assert response.answer == "True"
+        assert response.answer.content == "True"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
     def test_single_bool_input(self, model_provider, create_top_level_node):
@@ -178,7 +178,7 @@ class TestPrimitiveInputTypes:
                     ]
                 ),
             )
-        assert response.answer == "Wish Granted"
+        assert response.answer.content == "Wish Granted"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
     def test_function_error_handling(self, model_provider, create_top_level_node):
@@ -248,7 +248,7 @@ class TestSequenceInputTypes:
                     ]
                 ),
             )
-        assert response.answer == "3 2 1"
+        assert response.answer.content == "3 2 1"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
     def test_single_tuple_input(self, model_provider, create_top_level_node):
@@ -281,7 +281,7 @@ class TestSequenceInputTypes:
                 ),
             )
 
-        assert response.answer == "3 2 1"
+        assert response.answer.content == "3 2 1"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
     def test_lists(self, model_provider, create_top_level_node):
@@ -315,7 +315,7 @@ class TestSequenceInputTypes:
                 ),
             )
 
-        assert response.answer == "25.5"
+        assert response.answer.content == "25.5"
 
 
 class TestDictionaryInputTypes:
