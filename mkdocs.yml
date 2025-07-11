@@ -30,8 +30,13 @@ nav:
       - tools/index.md
       - Create Your Own Tool: tools/create_your_own.md
 
-      - Guides:
+      - Integrations:
         - Notion: tools/guides/notion.md
+        - Github: tools/guides/github.md
+        - Python Sandbox: tools/guides/python_sandbox.md
+        - Shell Bash: tools/guides/shell_bash.md
+        - Slack: tools/guides/slack.md
+        - Web Search: tools/guides/websearch_integration.md
 
   - MCP:
         - mcp/index.md

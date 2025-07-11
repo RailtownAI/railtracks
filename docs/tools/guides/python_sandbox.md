@@ -1,3 +1,8 @@
+# Running python code with RequestCompletion
+This is a simple guide to running Python code with RequestCompletion, using a Docker container as a sandboxed environment.
+Before running the code, make sure you have Docker installed and running on your machine.
+
+```python
 import subprocess
 import requestcompletion as rc
 from requestcompletion.nodes.library import tool_call_llm
@@ -32,7 +37,12 @@ agent = tool_call_llm(
     You can install packages with code like 'import os; os.system('pip install numpy')'""",
     model=rc.llm.OpenAILLM("gpt-4o"),
 )
+```
 
+When running the agent, use the `create_sandbox_container` function to start the Docker container before running the agent, and the `kill_sandbox` function to stop and remove the container after you're done.
+The following example shows how to use the agent to execute Python code in the sandboxed environment:
+
+```python
 user_prompt = """Create a 3x3 array of random numbers using numpy, and print the array and its mean"""
 message_history = rc.llm.MessageHistory()
 message_history.append(rc.llm.UserMessage(user_prompt))
@@ -45,3 +55,4 @@ with rc.Runner(rc.ExecutorConfig(logging_setting="VERBOSE")) as run:
         kill_sandbox()
 
 print(result.answer.content)
+```

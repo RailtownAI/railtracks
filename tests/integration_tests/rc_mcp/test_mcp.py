@@ -13,7 +13,29 @@ from requestcompletion.rc_mcp.main import MCPHttpParams
 
 @pytest.fixture(scope="session", autouse=True)
 def install_mcp_server_time():
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "mcp_server_time"])
+    """Install mcp_server_time and ensure mcp dependency is available.
+    
+    This fixture ensures that both mcp and mcp_server_time are properly installed,
+    which is particularly important on Windows where dependency resolution
+    may not work correctly when packages are installed separately.
+    """
+    try:
+        # Install both packages together to ensure proper dependency resolution
+        subprocess.check_call([
+            sys.executable, "-m", "pip", "install", 
+            "mcp>=1.9.0", "mcp_server_time"
+        ])
+        
+        # Verify that the critical modules can be imported
+        # This helps catch environment/path issues early
+        try:
+            import mcp.server  # This is what mcp_server_time needs
+            import mcp_server_time
+        except ImportError as e:
+            pytest.fail(f"MCP packages installed but cannot be imported: {e}")
+            
+    except subprocess.CalledProcessError as e:
+        pytest.fail(f"Failed to install required MCP packages: {e}")
 
 
 def test_from_mcp_server_basic():
