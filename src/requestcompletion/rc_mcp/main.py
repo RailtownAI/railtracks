@@ -1,8 +1,10 @@
+import asyncio
+import threading
 from contextlib import AsyncExitStack
 from datetime import timedelta
 from typing import Any, Dict
 
-from typing_extensions import Self
+from typing_extensions import Self, Type
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -111,28 +113,56 @@ class MCPServer:
     On initialization, it will connect to the MCP server, and will remain connected until closed.
     """
 
-    def __init__(self, client: MCPAsyncClient):
+    def __init__(self, client: Type[MCPAsyncClient], config):
         self.client = client
+        self.config = config
         self._tools = None
+        self._loop = None
+        self._thread = threading.Thread(target=self._thread_main, daemon=True)
+        self._ready_event = threading.Event()
+        self._shutdown_event = threading.Event()
+        self._thread.start()
+        self._ready_event.wait()  # Wait for thread to finish setup
 
-    async def __aenter__(self):
+    def __enter__(self):
         return self
 
-    async def __aexit__(self, exc_type, exc, tb):
-        await self.client.__aexit__(exc_type, exc, tb)
+    def __exit__(self, exc_type, exc, tb):
+        self.close()
+
+    # async def _wait_for_shutdown(self):
+    #     while not self._shutdown_event.is_set():
+    #         await asyncio.sleep(0.1)
+
+    def _thread_main(self):
+        print("MCP server thread is starting...")
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        self._loop = loop
+
+        print("Setting up MCP server in thread...")
+        self._loop.run_until_complete(self.setup())
+        self._ready_event.set()
+
+        print("MCP server setup complete, waiting for shutdown...")
+        loop.run_until_complete(self._shutdown_event.wait())
+
+        self._loop.close()
+        print("MCP server thread has been closed.")
 
     async def setup(self):
         """
         Set up the MCP server and fetch tools.
         """
-        await self.client.__aenter__()
-        self._tools = [from_mcp(tool, self.client) for tool in await self.client.list_tools()]
+        await self.client(self.config).__aenter__()
+        self._tools = [from_mcp(tool, self.client, self._loop) for tool in await self.client.list_tools()]
 
-    async def close(self):
+    def close(self):
         """
         Close the MCP server connection.
         """
-        await self.client.__aexit__(None, None, None)
+        self._shutdown_event.set()
+        self._thread.join()
 
     @property
     def tools(self):
@@ -142,6 +172,7 @@ class MCPServer:
 def from_mcp(
     tool,
     client,
+    loop: asyncio.AbstractEventLoop,
 ):
     """
     Wrap an MCP tool as a Node class for use in the requestcompletion framework.
@@ -149,6 +180,7 @@ def from_mcp(
     Args:
         tool: The MCP tool object.
         client: An instance of MCPAsyncClient to communicate with the MCP server.
+        loop: The asyncio event loop to use for running the tool.
 
     Returns:
         A Node subclass that invokes the MCP tool.
@@ -160,10 +192,14 @@ def from_mcp(
             self.kwargs = kwargs
 
         async def invoke(self):
-            result = await client.call_tool(tool.name, self.kwargs)
-            if hasattr(result, "content"):
-                return result.content
-            return result
+            try:
+                future = asyncio.run_coroutine_threadsafe(
+                    client.call_tool(tool.name, self.kwargs), loop
+                )
+                result = future.result(timeout=30)
+                return result.content if hasattr(result, "content") else result
+            except Exception as e:
+                raise RuntimeError(f"Tool invocation failed: {type(e).__name__}: {str(e)}") from e
 
         @classmethod
         def pretty_name(cls):

@@ -19,7 +19,7 @@ def from_mcp_server(
     Returns:
         List of Nodes, one for each discovered tool.
     """
-    return asyncio.run(async_from_mcp_server(config))
+    return MCPServer(client=MCPAsyncClient, config=config)
 
 
 async def async_from_mcp_server(

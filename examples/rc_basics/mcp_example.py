@@ -7,28 +7,28 @@ from requestcompletion.rc_mcp import MCPHttpParams
 
 #%%
 
-async def main():
-    fetch_server = await async_from_mcp_server(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))
-    fetch_tools = fetch_server.tools
-
-    parent_tool = rc.library.tool_call_llm(
-        connected_nodes={*fetch_tools},
-        pretty_name="Parent Tool",
-        system_message=rc.llm.SystemMessage("Provide a response using the tool when asked."),
-        model=rc.llm.OpenAILLM("gpt-4o"),
-    )
-
-    user_message = "Tell me about conductr.ai"
-
-    with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="QUIET", timeout=1000)) as runner:
-        message_history = rc.llm.MessageHistory([rc.llm.UserMessage(user_message)])
-        response = await runner.run(parent_tool, message_history=message_history)
-        print("Response:", response.answer)
-
-    await fetch_server.close()
-
-
-asyncio.run(main())
+# async def main():
+#     fetch_server = await async_from_mcp_server(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))
+#     fetch_tools = fetch_server.tools
+#
+#     parent_tool = rc.library.tool_call_llm(
+#         connected_nodes={*fetch_tools},
+#         pretty_name="Parent Tool",
+#         system_message=rc.llm.SystemMessage("Provide a response using the tool when asked."),
+#         model=rc.llm.OpenAILLM("gpt-4o"),
+#     )
+#
+#     user_message = "Tell me about conductr.ai"
+#
+#     with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="QUIET", timeout=1000)) as runner:
+#         message_history = rc.llm.MessageHistory([rc.llm.UserMessage(user_message)])
+#         response = await runner.run(parent_tool, message_history=message_history)
+#         print("Response:", response.answer)
+#
+#     await fetch_server.close()
+#
+#
+# asyncio.run(main())
 
 #%%
 # Install mcp_server_time for time tools:
@@ -54,7 +54,6 @@ parent_tool = rc.library.tool_call_llm(
 #%%
 user_message = ("Tell me about conductr.ai")
 
-#%%
 with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="QUIET", timeout=1000)) as runner:
     message_history = rc.llm.MessageHistory(
         [
