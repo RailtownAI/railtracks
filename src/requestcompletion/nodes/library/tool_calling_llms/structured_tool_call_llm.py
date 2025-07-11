@@ -1,38 +1,35 @@
 from ._base import OutputLessToolCallLLM
-from requestcompletion.llm import MessageHistory, ModelBase, SystemMessage
 from ..easy_usage_wrappers.structured_llm import structured_llm
 from pydantic import BaseModel
-from typing import Type
-from abc import ABC
+from typing import Type, TypeVar
+from abc import ABC, abstractmethod
+
+
+_TOutput = TypeVar("_TOutput", bound=BaseModel)
 
 
 class StructuredToolCallLLM(OutputLessToolCallLLM[str], ABC):
-    def __init__(
-        self,
-        message_history: MessageHistory,
-        model: ModelBase,
-        output_model: Type[BaseModel],
-        tool_details: str | None = None,
-        tool_params: dict | None = None,
-    ):
-        super().__init__(message_history, model)
-        system_structured =(
-            "You are a structured LLM tasked with extracting structured information from the conversation history of another LLM.\n"
-            "The input will be the full message history (including system, user, tool, and assistant messages) from a prior LLM interaction."
-            "Your job is to analyze this history and produce a structured response according to a specified format.\n"
-            "Ensure the output is clean, valid, and matches the structure and schema defined. If certain fields cannot be confidently filled based on the conversation"
-            "return None\n"
-            "Do not summarize, speculate, or reinterpret the original intent—only extract information that is directly supported by the conversation content.\n"
-            "Respond only with the structured output in the specified format."
+    def __init_subclass__(cls):
+        super().__init_subclass__()
+        system_structured = (
+        "You are a structured LLM tasked with extracting structured information from the conversation history of another LLM.\n"
+        "The input will be the full message history (including system, user, tool, and assistant messages) from a prior LLM interaction."
+        "Your job is to analyze this history and produce a structured response according to a specified format.\n"
+        "Ensure the output is clean, valid, and matches the structure and schema defined. If certain fields cannot be confidently filled based on the conversation"
+        "return None\n"
+        "Do not summarize, speculate, or reinterpret the original intent—only extract information that is directly supported by the conversation content.\n"
+        "Respond only with the structured output in the specified format."
         )
-        self.structured_resp_node = structured_llm(
-            output_model,
+   
+        cls.structured_resp_node = structured_llm(
+            cls.output_model(),
             system_message=system_structured,
-            model=self.model,
-            tool_details=tool_details,
-            tool_params=tool_params,
-            pretty_name=self.pretty_name(),
+            model=cls.model,
         )
+
+    @classmethod
+    @abstractmethod
+    def output_model(cls) -> Type[_TOutput]: ...
 
     def return_output(self) -> BaseModel:
         # Return the structured output or raise the exception if it was an error

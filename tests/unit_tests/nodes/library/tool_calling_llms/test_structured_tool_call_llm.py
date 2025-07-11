@@ -23,9 +23,6 @@ def test_structured_tool_call_llm_init(mock_llm, output_model, mock_tool):
     node = MockStructuredToolCallLLM(
         message_history=mh,
         model=mock_llm(),
-        output_model=output_model,
-        tool_details="Extracts a value.",
-        tool_params=None,
     )
     assert hasattr(node, "structured_resp_node")
 
@@ -46,9 +43,6 @@ def test_structured_tool_call_llm_return_output_success(mock_tool, mock_llm, out
     node = MockStructuredToolCallLLM(
         message_history=mh,
         model=mock_llm(),
-        output_model=output_model,
-        tool_details="Extracts a value.",
-        tool_params=None,
     )
     node.structured_output = output_model(value=123)
     assert node.return_output().value == 123
@@ -64,7 +58,7 @@ def test_structured_tool_call_llm_return_output_exception(mock_llm, output_model
         pretty_name="Mock Structured ToolCallLLM",
     )
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("extract value")])
-    node = node(mh, mock_llm(), output_model=output_model)
+    node = node(mh, mock_llm())
     node.structured_output = ValueError("fail")
     with pytest.raises(ValueError):
         node.return_output()
@@ -80,7 +74,7 @@ def test_structured_llm_easy_usage_wrapper(mock_llm, output_model, mock_tool):
         tool_params=None,
         pretty_name="Mock Structured ToolCallLLM",
     )
-    node = node(mh, mock_llm(), output_model=output_model)
+    node = node(mh, mock_llm())
     assert hasattr(node, "structured_resp_node")
 
 

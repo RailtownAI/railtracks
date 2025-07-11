@@ -11,6 +11,7 @@ from typing import Type
 @pytest.mark.asyncio
 async def test_structured_llm_instantiate_and_invoke(simple_output_model, mock_llm, mock_structured_function):
     class MyLLM(StructuredLLM):
+
         @classmethod
         def output_model(cls) -> Type[BaseModel]:
             return simple_output_model
@@ -86,9 +87,7 @@ async def test_easy_usage_tool_details_not_provided(simple_output_model):
     ):
         _ = rc.library.structured_llm(
             output_model=simple_output_model,
-            system_message=rc.llm.SystemMessage(
-                "You are a helpful assistant that can strucure the response into a structured output."
-            ),
+            system_message="You are a helpful assistant that can strucure the response into a structured output.",
             model=rc.llm.OpenAILLM("gpt-4o"),
             pretty_name="Structured ToolCallLLM",
             tool_params={
@@ -143,7 +142,7 @@ async def test_easy_usage_system_message_as_a_string(simple_output_model):
 
 @pytest.mark.asyncio
 async def test_system_message_as_a_user_message(simple_output_model):
-    with pytest.raises(NodeCreationError, match="system_message must be a SystemMessage object or a string, not any other type."):
+    with pytest.raises(NodeCreationError, match="system_message must be a string, not any other type."):
         _ = rc.library.structured_llm(
             output_model=simple_output_model,
             system_message=rc.llm.UserMessage("You are a helpful assistant that can structure the response into a structured output."),
@@ -230,7 +229,7 @@ async def test_class_based_output_model_not_pydantic():
 async def test_string_in_message_history_easy_usage(simple_output_model):
     simple_structured = rc.library.structured_llm(
         output_model=simple_output_model,
-        system_message=rc.llm.SystemMessage("You are a helpful assistant that can strucure the response into a structured output."),
+        system_message="You are a helpful assistant that can strucure the response into a structured output.",
         model=rc.llm.OpenAILLM("gpt-4o"),
         pretty_name="Structured ToolCallLLM",
     )

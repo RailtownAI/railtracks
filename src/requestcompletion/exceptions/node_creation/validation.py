@@ -104,7 +104,7 @@ def check_connected_nodes(node_set, node: type) -> None:
         )
 
 
-def check_output_model(output_model: BaseModel ) -> None:
+def check_output_model(method: classmethod, cls: type) -> None:
     """
     Validate the output model returned by a classmethod.
 
@@ -115,6 +115,7 @@ def check_output_model(output_model: BaseModel ) -> None:
     Raises:
         NodeCreationError: If the output model is missing, invalid, or empty.
     """
+    output_model = method.__func__(cls)
     if not output_model:
         raise NodeCreationError(
             message=get_message(ExceptionMessageKey.OUTPUT_MODEL_REQUIRED_MSG),
@@ -132,7 +133,6 @@ def check_output_model(output_model: BaseModel ) -> None:
             message=get_message(ExceptionMessageKey.OUTPUT_MODEL_EMPTY_MSG),
             notes=get_notes(ExceptionMessageKey.OUTPUT_MODEL_EMPTY_NOTES),
         )
-
 
 # ========================= Common Validation accross easy_usage_wrappers ========================
 def _check_duplicate_param_names(tool_params: Iterable[Any]) -> None:

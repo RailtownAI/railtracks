@@ -70,7 +70,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         check_model(model)
 
     @classmethod
-    def llm_model(cls) -> llm.ModelBase | None:
+    def model(cls) -> llm.ModelBase | None:
         return None
 
     @classmethod
@@ -96,12 +96,12 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
             else:
                 message_history_copy.insert(0, SystemMessage(self.system_message()))
         
-        if self.llm_model() is not None:
+        if self.model() is not None:
             if model is not None:
                 warnings.warn(
                     "You have provided a model as a parameter and as a class variable. We will use the parameter.")
             else:
-                model = self.llm_model()
+                model = self.model()
 
         self._verify_model(model)
         self.model = model

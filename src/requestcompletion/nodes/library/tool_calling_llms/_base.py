@@ -25,6 +25,9 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
      an LLm that can make tool calls. The tool calls will be returned
     as calls or if there is a response, the response will be returned as an output"""
 
+    #Set structured response node to None by default
+    structured_resp_node = None
+
     def __init__(
         self,
         message_history: MessageHistory,
@@ -33,7 +36,6 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
     ):
         super().__init__(model=model, message_history=message_history)
         check_max_tool_calls(max_tool_calls)
-        self.structured_resp_node = None  # The structured LLM node
         self.max_tool_calls = max_tool_calls
 
     @classmethod
