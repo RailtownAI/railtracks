@@ -29,6 +29,7 @@ def chat_tool_call_llm(  # noqa: C901
     connected_nodes: Set[Union[Type[Node], Callable]],
     port: int | None = None,
     host: str | None = None,
+    auto_open: bool | None = None,
     pretty_name: str | None = None,
     model: ModelBase | None = None,
     max_tool_calls: int | None = None,
@@ -56,6 +57,8 @@ def chat_tool_call_llm(  # noqa: C901
         kwargs["port"] = port
     if host is not None:
         kwargs["host"] = host
+    if auto_open is not None:
+        kwargs["auto_open"] = auto_open
 
     chat_ui = ChatUI(**kwargs)
     server_address = chat_ui.start_server_async()

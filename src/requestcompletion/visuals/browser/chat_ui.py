@@ -43,16 +43,18 @@ class ChatUI:
     - Set up and manage the FastAPI server
     """
     
-    def __init__(self, port: int = 8000, host: str = "127.0.0.1"):
+    def __init__(self, port: int = 8000, host: str = "127.0.0.1", auto_open: bool = True):
         """
         Initialize the ChatUI interface.
         
         Args:
-            port: Port number for the FastAPI server
-            host: Host to bind to (default: 127.0.0.1 for localhost only)
+            port (int): Port number for the FastAPI server
+            host (str): Host to bind to (default: 127.0.0.1 for localhost only)
+            auto_open (bool): automatically open the browser
         """
         self.port = port
         self.host = host
+        self.auto_open = auto_open
         self.sse_queue = asyncio.Queue()
         self.user_input_queue = asyncio.Queue()
         self.app = self._create_app()
@@ -214,5 +216,6 @@ class ChatUI:
             self.server_thread = threading.Thread(target=self.run_server, daemon=True)
             self.server_thread.start()
         
-        webbrowser.open(localhost_url)
+        if self.auto_open:
+            webbrowser.open(localhost_url)
         return localhost_url

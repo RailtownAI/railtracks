@@ -7,7 +7,7 @@ from requestcompletion.visuals.browser.chat_ui import ChatUI, UIUserMessage, Too
 @pytest.fixture
 def chat_ui():
     """Fixture providing a ChatUI instance for testing."""
-    return ChatUI(port=8001)  # Use different port to avoid conflicts
+    return ChatUI(port=8001, auto_open=False)  # Use different port to avoid conflicts
 
 @pytest.fixture
 def mock_static_content():
