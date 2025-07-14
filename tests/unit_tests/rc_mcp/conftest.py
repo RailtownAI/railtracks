@@ -48,11 +48,6 @@ def patch_sse_client():
         yield p
 
 @pytest.fixture
-def patch_httpx_AsyncClient():
-    with patch("requestcompletion.rc_mcp.main.httpx.AsyncClient") as p:
-        yield p
-
-@pytest.fixture
 def patch_CallbackServer():
     with patch("requestcompletion.rc_mcp.main.CallbackServer") as p:
         yield p
