@@ -542,7 +542,7 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
             duration: 1000,
             padding: 0.2,
             minZoom: 0.2,
-            maxZoom: 0.8,
+            maxZoom: 1.5,
           });
         }, 500); // Small delay to ensure nodes are rendered
       }
