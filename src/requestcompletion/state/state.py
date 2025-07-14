@@ -6,7 +6,7 @@ import asyncio
 from typing import TypeVar, List, Callable, ParamSpec, Tuple, Dict, TYPE_CHECKING, Any
 
 # all the things we need to import from RC directly.
-from .request import Failure
+from .request import Failure, Cancelled
 from .utils import create_sub_state_info
 from ..context.central import update_parent_id
 from ..execution.coordinator import Coordinator
@@ -130,7 +130,13 @@ class RCState:
 
         It will update the state, but it will not kill the process running the node.
         """
-        raise NotImplementedError("We currently do not support the cancelling of nodes")
+        if node_id not in self._node_heap.heap():
+            assert False
+
+        r_id = self._request_heap.get_request_from_child_id(node_id)
+        self._request_heap.update(
+            r_id, Cancelled, self._stamper.create_stamp(f"Cancelled request {r_id}")
+        )
 
     def _create_node_and_request(
         self,

@@ -43,7 +43,7 @@ class RequestCompletionBase(RCAction, ABC):
         Args:
             node_name (str): The name of the child node that is being completed.
         """
-        self.child_node_name = node_name
+        self.node_name = node_name
 
 
 class RequestSuccessAction(RequestCompletionBase):
@@ -63,7 +63,7 @@ class RequestSuccessAction(RequestCompletionBase):
         self.output = output
 
     def to_logging_msg(self) -> str:
-        return f"{self.child_node_name} DONE"
+        return f"{self.node_name} DONE"
 
 
 class RequestFailureAction(RequestCompletionBase):
