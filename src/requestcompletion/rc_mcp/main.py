@@ -4,7 +4,7 @@ from contextlib import AsyncExitStack
 from datetime import timedelta
 from typing import Any, Dict
 
-from typing_extensions import Self
+from typing_extensions import Self, Type
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -145,16 +145,16 @@ class MCPServer:
 
         self._shutdown_event = asyncio.Event()
 
-        self._loop.run_until_complete(self.setup())
+        self._loop.run_until_complete(self._setup())
         self._ready_event.set()
 
         loop.run_until_complete(self._shutdown_event.wait())
 
         self._loop.close()
 
-    async def setup(self):
+    async def _setup(self):
         """
-        Set up the MCP server and fetch tools.
+        Set up the MCP server and fetch tools. This is run once, when the thread starts.
         """
         self.client = MCPAsyncClient(self.config, self.client_session)
         await self.client.connect()
@@ -169,15 +169,16 @@ class MCPServer:
         self._thread.join()
 
     @property
-    def tools(self):
+    def tools(self) -> list[Type[Node]]:
+        """ Returns a list of Tool Nodes available in the MCP server."""
         return self._tools
 
 
 def from_mcp(
-    tool,
-    client,
+    tool: Tool,
+    client: MCPAsyncClient,
     loop: asyncio.AbstractEventLoop,
-):
+) -> Type[Node]:
     """
     Wrap an MCP tool as a Node class for use in the requestcompletion framework.
 
@@ -200,7 +201,7 @@ def from_mcp(
                 future = asyncio.run_coroutine_threadsafe(
                     client.call_tool(tool.name, self.kwargs), loop
                 )
-                result = future.result(timeout=30)
+                result = future.result(timeout=client.config.timeout.total_seconds())
                 return result.content if hasattr(result, "content") else result
             except Exception as e:
                 raise RuntimeError(
