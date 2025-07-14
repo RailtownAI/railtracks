@@ -39,25 +39,25 @@ def install_mcp_server_time():
 
 
 def test_from_mcp_server_basic():
-    time_tools = from_mcp_server(
+    time_server = from_mcp_server(
         StdioServerParameters(
             command=sys.executable,
             args=["-m", "mcp_server_time", "--local-timezone=America/Vancouver"],
         )
     )
-    assert len(time_tools) == 2
-    assert all(issubclass(tool, Node) for tool in time_tools)
+    assert len(time_server.tools) == 2
+    assert all(issubclass(tool, Node) for tool in time_server.tools)
 
 
 def test_from_mcp_server_with_llm():
-    time_tools = from_mcp_server(
+    time_server = from_mcp_server(
         StdioServerParameters(
             command=sys.executable,
             args=["-m", "mcp_server_time", "--local-timezone=America/Vancouver"],
         )
     )
     parent_tool = rc.library.tool_call_llm(
-        connected_nodes={*time_tools},
+        connected_nodes={*time_server.tools},
         pretty_name="Parent Tool",
         system_message=rc.llm.SystemMessage(
             "Provide a response using the tool when asked. If the tool doesn't work,"
@@ -80,9 +80,9 @@ def test_from_mcp_server_with_llm():
 
 
 def test_from_mcp_server_with_http():
-    time_tools = from_mcp_server(MCPHttpParams(url="https://mcp.deepwiki.com/sse"))
+    time_server = from_mcp_server(MCPHttpParams(url="https://mcp.deepwiki.com/sse"))
     parent_tool = rc.library.tool_call_llm(
-        connected_nodes={*time_tools},
+        connected_nodes={*time_server.tools},
         pretty_name="Parent Tool",
         system_message=rc.llm.SystemMessage(
             "Provide a response using the tool when asked. If the tool doesn't work,"

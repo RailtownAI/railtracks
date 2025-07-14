@@ -39,25 +39,32 @@ class MCPAsyncClient:
         self.config = config
         self.session = client_session
         self.exit_stack = AsyncExitStack()
+        self._entered = False
         self._tools_cache = None
 
-    async def __aenter__(self):
-        if self.session is None:
-            if isinstance(self.config, StdioServerParameters):
-                stdio_transport = await self.exit_stack.enter_async_context(
-                    stdio_client(self.config)
-                )
-                self.session = await self.exit_stack.enter_async_context(
-                    ClientSession(*stdio_transport)
-                )
-                await self.session.initialize()
-            elif isinstance(self.config, MCPHttpParams):
-                await self._init_http()
+    async def connect(self):
+        await self.exit_stack.__aenter__()
+        self._entered = True
+        try:
+            if self.session is None:
+                if isinstance(self.config, StdioServerParameters):
+                    stdio_transport = await self.exit_stack.enter_async_context(
+                        stdio_client(self.config)
+                    )
+                    self.session = await self.exit_stack.enter_async_context(
+                        ClientSession(*stdio_transport)
+                    )
+                    await self.session.initialize()
+                elif isinstance(self.config, MCPHttpParams):
+                    await self._init_http()
+        except Exception:
+            await self.close()
+            raise
 
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb):
-        await self.exit_stack.aclose()
+    async def close(self):
+        if self._entered:
+            await self.exit_stack.aclose()
+            self._entered = False
 
     async def list_tools(self):
         if self._tools_cache is not None:
@@ -120,7 +127,7 @@ class MCPServer:
         self._loop = None
         self._thread = threading.Thread(target=self._thread_main, daemon=True)
         self._ready_event = threading.Event()
-        self._shutdown_event = threading.Event()
+        self._shutdown_event = None
         self._thread.start()
         self._ready_event.wait()  # Wait for thread to finish setup
 
@@ -130,15 +137,13 @@ class MCPServer:
     def __exit__(self, exc_type, exc, tb):
         self.close()
 
-    # async def _wait_for_shutdown(self):
-    #     while not self._shutdown_event.is_set():
-    #         await asyncio.sleep(0.1)
-
     def _thread_main(self):
         print("MCP server thread is starting...")
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         self._loop = loop
+
+        self._shutdown_event = asyncio.Event()
 
         print("Setting up MCP server in thread...")
         self._loop.run_until_complete(self.setup())
@@ -154,14 +159,16 @@ class MCPServer:
         """
         Set up the MCP server and fetch tools.
         """
-        await self.client(self.config).__aenter__()
-        self._tools = [from_mcp(tool, self.client, self._loop) for tool in await self.client.list_tools()]
+        self.client = self.client(self.config)
+        await self.client.connect()
+        tools = await self.client.list_tools()
+        self._tools = [from_mcp(tool, self.client, self._loop) for tool in tools]
 
     def close(self):
         """
         Close the MCP server connection.
         """
-        self._shutdown_event.set()
+        self._loop.call_soon_threadsafe(self._shutdown_event.set)
         self._thread.join()
 
     @property
@@ -192,6 +199,7 @@ def from_mcp(
             self.kwargs = kwargs
 
         async def invoke(self):
+            print("Invoke!")
             try:
                 future = asyncio.run_coroutine_threadsafe(
                     client.call_tool(tool.name, self.kwargs), loop
