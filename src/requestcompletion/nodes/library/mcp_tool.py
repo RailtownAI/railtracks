@@ -7,12 +7,13 @@ def from_mcp_server(
     config: StdioServerParameters | MCPHttpParams,
 ) -> MCPServer:
     """
-    Discover all tools from an MCP server and wrap them as Node classes.
+    Returns an MCPServer class. On creation, it will connect to the MCP server and fetch the tools.
+    The connection will remain open until the server is closed with `close()`.
 
     Args:
         config: Configuration for the MCP server, either as StdioServerParameters or MCPHttpParams.
 
     Returns:
-        List of Nodes, one for each discovered tool.
+        MCPServer: An instance of the MCPServer class.
     """
     return MCPServer(config=config)
