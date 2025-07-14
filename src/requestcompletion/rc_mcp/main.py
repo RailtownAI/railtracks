@@ -18,6 +18,8 @@ from ..llm import Tool
 from ..rc_mcp.oauth import InMemoryTokenStorage, CallbackServer
 from ..nodes.nodes import Node
 
+MCPStdioParams = StdioServerParameters
+
 
 class MCPHttpParams(BaseModel):
     url: str

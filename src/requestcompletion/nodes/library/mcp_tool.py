@@ -1,14 +1,12 @@
 from typing import Type
-
-from mcp import StdioServerParameters
 import asyncio
 
-from ...rc_mcp.main import MCPAsyncClient, MCPHttpParams, from_mcp
+from ...rc_mcp.main import MCPAsyncClient, MCPHttpParams, from_mcp, MCPStdioParams
 from ...nodes.nodes import Node
 
 
 def from_mcp_server(
-    config: StdioServerParameters | MCPHttpParams,
+    config: MCPStdioParams | MCPHttpParams,
 ) -> [Type[Node]]:
     """
     Discover all tools from an MCP server and wrap them as Node classes.
