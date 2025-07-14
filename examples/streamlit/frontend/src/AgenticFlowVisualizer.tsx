@@ -19,7 +19,7 @@ import ReactFlow, {
   useEdgesState,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { PanelLeft } from 'lucide-react';
+import { PanelLeft, PanelRight } from 'lucide-react';
 import { Edge as RCEdge } from './blocks/Edge';
 import { Node as RCNode } from './blocks/Node';
 import { Timeline } from './Timeline';
@@ -580,7 +580,7 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
           className="drawer-toggle"
           onClick={() => setIsDrawerOpen(!isDrawerOpen)}
         >
-          <span>{isDrawerOpen ? '×' : '⚙'}</span>
+          <PanelRight size={20} />
         </div>
 
         {isDrawerOpen && selectedData && (
@@ -810,30 +810,25 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
           .drawer-toggle {
             width: 50px;
             height: 50px;
-            background: #6366f1;
-            color: white;
+            background: none;
+            color: #6b7280;
             border: none;
-            border-radius: 8px 0 0 8px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
-            font-weight: bold;
-            box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
-            transition: background-color 0.2s ease;
+            transition: color 0.2s ease;
             margin-top: 20px;
           }
 
           .drawer-toggle:hover {
-            background: #4f46e5;
+            color: #374151;
           }
 
           .drawer-content {
             background: white;
             border: 1px solid #e5e7eb;
             border-radius: 8px 0 0 8px;
-            box-shadow: -4px 0 25px rgba(0, 0, 0, 0.15);
             width: 400px;
             height: calc(100% - 40px);
             margin-top: 20px;
