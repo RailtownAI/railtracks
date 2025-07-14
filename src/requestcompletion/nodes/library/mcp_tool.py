@@ -1,10 +1,8 @@
-from mcp import StdioServerParameters
-
-from ...rc_mcp.main import MCPHttpParams, MCPServer
+from ...rc_mcp.main import MCPStdioParams, MCPHttpParams, MCPServer
 
 
 def from_mcp_server(
-    config: StdioServerParameters | MCPHttpParams,
+    config: MCPStdioParams | MCPHttpParams,
 ) -> MCPServer:
     """
     Returns an MCPServer class. On creation, it will connect to the MCP server and fetch the tools.

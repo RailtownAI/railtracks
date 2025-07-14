@@ -15,6 +15,8 @@ from pydantic import BaseModel
 from ..llm import Tool
 from ..nodes.nodes import Node
 
+MCPStdioParams = StdioServerParameters
+
 
 class MCPHttpParams(BaseModel):
     url: str
