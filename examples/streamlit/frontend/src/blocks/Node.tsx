@@ -57,7 +57,7 @@ const Node: React.FC<NodeProps> = ({ data, id }) => {
       >
         <Handle
           type="target"
-          position={Position.Left}
+          position={Position.Top}
           style={{ background: '#6366f1' }}
         />
         <div className="agent-header">
@@ -80,7 +80,7 @@ const Node: React.FC<NodeProps> = ({ data, id }) => {
         {hasOutgoingEdges && (
           <Handle
             type="source"
-            position={Position.Right}
+            position={Position.Bottom}
             style={{ background: '#6366f1' }}
           />
         )}
