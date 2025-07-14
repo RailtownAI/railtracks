@@ -76,7 +76,7 @@ def level_filter(value: int):
 
 def setup_verbose_logger_config():
     """
-    Setups the logger configration in verbose mode.
+    Sets up the logger configuration in verbose mode.
 
     Specifically that means:
     - The console will log all messages (including debug)
@@ -131,8 +131,7 @@ def setup_quiet_logger_config():
 
 def setup_none_logger_config():
     """
-    Set up the logger to print nothing. This can be a useful optimization technique, but I don't know why someone would
-    do such a thing.
+    Set up the logger to print nothing. This can be a useful optimization technique.
     """
     # set up a logger which does not do anything.
     logger = logging.getLogger(rc_logger_name)

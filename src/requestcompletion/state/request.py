@@ -26,7 +26,7 @@ class Failure:
 @dataclass(frozen=True)
 class RequestTemplate(AbstractLinkedObject):
     """
-    A simpele object containing details about a request in the system.
+    A simple object containing details about a request in the system.
     """
 
     source_id: Optional[str]

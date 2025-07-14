@@ -24,7 +24,7 @@ supported_types = (
 )
 
 
-# TODO: I feel like there has got to be a better pattern to do this.
+# Consider refactoring this function to use a mapping of types to encoding functions for better scalability and maintainability.
 def encoder_extender(o) -> dict[str, Any]:
     """
     Extends the encoding of supported types to their dictionary representation.
