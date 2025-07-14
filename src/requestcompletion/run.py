@@ -1,5 +1,5 @@
 import asyncio
-from warnings import deprecated
+from typing_extensions import deprecated
 
 from .interaction.call import call
 
