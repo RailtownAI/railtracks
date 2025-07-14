@@ -4,7 +4,7 @@ from contextlib import AsyncExitStack
 from datetime import timedelta
 from typing import Any, Dict
 
-from typing_extensions import Self, Type
+from typing_extensions import Self
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -139,22 +139,18 @@ class MCPServer:
         self.close()
 
     def _thread_main(self):
-        print("MCP server thread is starting...")
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         self._loop = loop
 
         self._shutdown_event = asyncio.Event()
 
-        print("Setting up MCP server in thread...")
         self._loop.run_until_complete(self.setup())
         self._ready_event.set()
 
-        print("MCP server setup complete, waiting for shutdown...")
         loop.run_until_complete(self._shutdown_event.wait())
 
         self._loop.close()
-        print("MCP server thread has been closed.")
 
     async def setup(self):
         """
@@ -200,7 +196,6 @@ def from_mcp(
             self.kwargs = kwargs
 
         async def invoke(self):
-            print("Invoke!")
             try:
                 future = asyncio.run_coroutine_threadsafe(
                     client.call_tool(tool.name, self.kwargs), loop
@@ -208,7 +203,9 @@ def from_mcp(
                 result = future.result(timeout=30)
                 return result.content if hasattr(result, "content") else result
             except Exception as e:
-                raise RuntimeError(f"Tool invocation failed: {type(e).__name__}: {str(e)}") from e
+                raise RuntimeError(
+                    f"Tool invocation failed: {type(e).__name__}: {str(e)}"
+                ) from e
 
         @classmethod
         def pretty_name(cls):
