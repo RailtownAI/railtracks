@@ -23,7 +23,7 @@ supported_types = (
     BaseModel,
 )
 
-
+# TODO: I feel like there has got to be a better pattern to do this.
 def encoder_extender(o) -> dict[str, Any]:
     """
     Extends the encoding of supported types to their dictionary representation.
@@ -37,6 +37,7 @@ def encoder_extender(o) -> dict[str, Any]:
     - ToolResponse
     - ToolCall
     - LatencyDetails
+    - BaseModel (Pydantic models)
     """
     if isinstance(o, Edge):
         return encode_edge(o)
