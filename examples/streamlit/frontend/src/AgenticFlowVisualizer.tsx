@@ -19,6 +19,7 @@ import ReactFlow, {
   useEdgesState,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { PanelLeft } from 'lucide-react';
 import { Edge as RCEdge } from './blocks/Edge';
 import { Node as RCNode } from './blocks/Node';
 import { Timeline } from './Timeline';
@@ -516,15 +517,13 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
     >
       {/* Timeline Configuration */}
       <div className="timeline-config">
-        <label className="timeline-checkbox">
-          <input
-            type="checkbox"
-            checked={showTimelines}
-            onChange={(e) => setShowTimelines(e.target.checked)}
-          />
-          <span className="checkmark"></span>
-          Show Timelines
-        </label>
+        <button
+          className="timeline-toggle"
+          onClick={() => setShowTimelines(!showTimelines)}
+          title={showTimelines ? 'Hide Timelines' : 'Show Timelines'}
+        >
+          <PanelLeft size={20} />
+        </button>
       </div>
 
       {/* Vertical Timeline */}
@@ -1019,60 +1018,39 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
           .timeline-config {
             position: absolute;
             top: 20px;
-            right: 20px;
+            left: 20px;
             z-index: 1000;
             background: white;
             border: 1px solid #e5e7eb;
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            padding: 12px 16px;
+            padding: 8px;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           }
 
-          .timeline-checkbox {
+          .timeline-toggle {
             display: flex;
             align-items: center;
-            gap: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            color: #374151;
-            user-select: none;
-          }
-
-          .timeline-checkbox input[type="checkbox"] {
-            display: none;
-          }
-
-          .timeline-checkbox .checkmark {
-            width: 18px;
-            height: 18px;
-            border: 2px solid #d1d5db;
-            border-radius: 4px;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border: none;
             background: white;
-            position: relative;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #6b7280;
             transition: all 0.2s ease;
+            padding: 0;
           }
 
-          .timeline-checkbox input[type="checkbox"]:checked + .checkmark {
-            background: #6366f1;
-            border-color: #6366f1;
+          .timeline-toggle:hover {
+            background: #f3f4f6;
+            color: #374151;
+            transform: scale(1.05);
           }
 
-          .timeline-checkbox input[type="checkbox"]:checked + .checkmark::after {
-            content: '';
-            position: absolute;
-            left: 5px;
-            top: 2px;
-            width: 6px;
-            height: 10px;
-            border: solid white;
-            border-width: 0 2px 2px 0;
-            transform: rotate(45deg);
-          }
-
-          .timeline-checkbox:hover .checkmark {
-            border-color: #6366f1;
+          .timeline-toggle:active {
+            transform: scale(0.95);
           }
         `}
       </style>
