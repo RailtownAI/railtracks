@@ -1,4 +1,5 @@
 import React from 'react';
+import { PanelLeft } from 'lucide-react';
 
 // ============================================================================
 // VERTICAL TIMELINE COMPONENT
@@ -12,12 +13,14 @@ interface VerticalTimelineProps {
   }>;
   currentStep: number;
   onStepChange: (step: number) => void;
+  onToggle?: () => void;
 }
 
 const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
   stamps,
   currentStep,
   onStepChange,
+  onToggle,
 }) => {
   const maxStep =
     stamps.length > 0 ? Math.max(...stamps.map((s) => s.step)) : 0;
@@ -66,16 +69,11 @@ const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
   return (
     <div
       style={{
-        position: 'absolute',
-        left: 0,
-        top: 0,
-        width: '280px',
-        height: 'calc(100% - 60px)',
+        width: '100%',
+        height: '100%',
         backgroundColor: 'white',
-        borderRight: '1px solid #e5e7eb',
         display: 'flex',
         flexDirection: 'column',
-        zIndex: 10,
         overflow: 'hidden',
       }}
     >
@@ -85,27 +83,51 @@ const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
           padding: '16px',
           borderBottom: '1px solid #e5e7eb',
           backgroundColor: '#f9fafb',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
         }}
       >
-        <h3
-          style={{
-            margin: 0,
-            fontSize: '16px',
-            fontWeight: 600,
-            color: '#1f2937',
-          }}
-        >
-          Timeline
-        </h3>
-        <p
-          style={{
-            margin: '4px 0 0 0',
-            fontSize: '12px',
-            color: '#6b7280',
-          }}
-        >
-          Click to jump to step
-        </p>
+        <div>
+          <h3
+            style={{
+              margin: 0,
+              fontSize: '16px',
+              fontWeight: 600,
+              color: '#1f2937',
+            }}
+          >
+            Timeline
+          </h3>
+          <p
+            style={{
+              margin: '4px 0 0 0',
+              fontSize: '12px',
+              color: '#6b7280',
+            }}
+          >
+            Click to jump to step
+          </p>
+        </div>
+        {onToggle && (
+          <button
+            onClick={onToggle}
+            style={{
+              border: 'none',
+              background: 'none',
+              cursor: 'pointer',
+              color: '#6b7280',
+              padding: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'color 0.2s ease',
+            }}
+            title="Collapse Panel"
+          >
+            <PanelLeft size={16} />
+          </button>
+        )}
       </div>
 
       {/* Steps List */}
