@@ -120,9 +120,10 @@ class MCPServer:
     On initialization, it will connect to the MCP server, and will remain connected until closed.
     """
 
-    def __init__(self, client: Type[MCPAsyncClient], config):
-        self.client = client
+    def __init__(self, config, client_session: ClientSession | None = None):
+        self.client = None
         self.config = config
+        self.client_session = client_session
         self._tools = None
         self._loop = None
         self._thread = threading.Thread(target=self._thread_main, daemon=True)
@@ -159,7 +160,7 @@ class MCPServer:
         """
         Set up the MCP server and fetch tools.
         """
-        self.client = self.client(self.config)
+        self.client = MCPAsyncClient(self.config, self.client_session)
         await self.client.connect()
         tools = await self.client.list_tools()
         self._tools = [from_mcp(tool, self.client, self._loop) for tool in tools]
