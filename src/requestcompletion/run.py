@@ -1,5 +1,5 @@
 import asyncio
-
+from warnings import deprecated
 
 from .interaction.call import call
 
@@ -65,9 +65,6 @@ class Runner:
     ```
     """
 
-    # singleton pattern
-    _instance = None
-
     def __init__(
         self, executor_config: ExecutorConfig = None, context: Dict[str, Any] = None
     ):
@@ -80,7 +77,6 @@ class Runner:
         if context is None:
             context = {}
 
-        # TODO see issue about logger
         prepare_logger(
             setting=executor_config.logging_setting,
             path=executor_config.log_file,
@@ -139,6 +135,13 @@ class Runner:
         return self.rc_state.info
 
     def _close(self):
+        """
+        Closes the runner and cleans up all resources.
+
+        - Shuts down the state object
+        - Detaches logging handlers so they aren't duplicated
+        - Deletes all the global variables that were registered in the context
+        """
         # the publisher should have already been closed in `_run_base`
         self.rc_state.shutdown()
         detach_logging_handlers()
@@ -154,6 +157,8 @@ class Runner:
         """
         return self.rc_state.info
 
+
+    @deprecated("`call` is deprecated, use `runner.run` or access the global function `rc.call`")
     async def call(
         self,
         node: Callable[_P, Node[_TOutput]],
@@ -163,7 +168,7 @@ class Runner:
     ):
         return await call(node, *args, **kwargs)
 
-    # @warnings.deprecated("run_sync is deprecated, use `rc.call_sync`")
+
     async def run(
         self,
         start_node: Callable[_P, Node] | None = None,
@@ -172,20 +177,13 @@ class Runner:
     ):
         """Runs the rc framework with the given start node and provided arguments."""
 
-        await self.call(start_node, *args, **kwargs)
+        await call(start_node, *args, **kwargs)
 
         return self.rc_state.info
 
     async def cancel(self, node_id: str):
         raise NotImplementedError(
-            "Currently we do not support cancelling nodes. Please contact Logan to add this feature."
+            "This feature remains to be implemented. "
         )
         # collects the parent id of the current node that is running that is gonna get cancelled
         await self.rc_state.cancel(node_id)
-
-    # TODO implement this method and any additional logic in rc_state that is required.
-    def from_state(self, executor_info: ExecutionInfo):
-        raise NotImplementedError(
-            "Currently we do not support running from a state object. Please contact Logan to add this feature."
-        )
-        # self.rc_state = RCState(executor_info)

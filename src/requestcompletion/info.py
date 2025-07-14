@@ -57,7 +57,7 @@ class ExecutionInfo:
         )
 
     @property
-    def answer(self) -> _TOutput:
+    def answer(self):
         """Convenience method to access the answer of the run."""
         return self.request_heap.answer
 
