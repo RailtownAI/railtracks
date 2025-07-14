@@ -269,6 +269,9 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const playIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Timeline visibility state
+  const [showTimelines, setShowTimelines] = useState(false);
+
   // Drawer state
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedData, setSelectedData] = useState<{
@@ -511,12 +514,27 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
       }}
       className={className}
     >
+      {/* Timeline Configuration */}
+      <div className="timeline-config">
+        <label className="timeline-checkbox">
+          <input
+            type="checkbox"
+            checked={showTimelines}
+            onChange={(e) => setShowTimelines(e.target.checked)}
+          />
+          <span className="checkmark"></span>
+          Show Timelines
+        </label>
+      </div>
+
       {/* Vertical Timeline */}
-      <VerticalTimeline
-        stamps={flowData.stamps || flowData.steps || []}
-        currentStep={currentStep}
-        onStepChange={handleStepChange}
-      />
+      {showTimelines && (
+        <VerticalTimeline
+          stamps={flowData.stamps || flowData.steps || []}
+          currentStep={currentStep}
+          onStepChange={handleStepChange}
+        />
+      )}
 
       <ReactFlow
         nodes={nodesState}
@@ -537,9 +555,9 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
         }}
         attributionPosition="bottom-left"
         style={{
-          width: 'calc(100% - 280px)', // Account for vertical timeline width
+          width: showTimelines ? 'calc(100% - 280px)' : '100%', // Account for vertical timeline width when visible
           height: 'calc(100% - 60px)', // Account for timeline height
-          marginLeft: '280px', // Push content to the right of vertical timeline
+          marginLeft: showTimelines ? '280px' : '0', // Push content to the right of vertical timeline when visible
         }}
         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
         onInit={(instance) => {
@@ -737,15 +755,17 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
       </div>
 
       {/* Timeline */}
-      <div style={{ marginLeft: '280px', marginTop: '100px' }}>
-        <Timeline
-          stamps={flowData.stamps || flowData.steps || []}
-          currentStep={currentStep}
-          isPlaying={isPlaying}
-          onStepChange={handleStepChange}
-          onPlayPause={handlePlayPause}
-        />
-      </div>
+      {showTimelines && (
+        <div style={{ marginLeft: '280px', marginTop: '100px' }}>
+          <Timeline
+            stamps={flowData.stamps || flowData.steps || []}
+            currentStep={currentStep}
+            isPlaying={isPlaying}
+            onStepChange={handleStepChange}
+            onPlayPause={handlePlayPause}
+          />
+        </div>
+      )}
 
       <style>
         {`
@@ -771,7 +791,9 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
             display: flex;
             align-items: flex-start;
             transition: transform 0.3s ease;
-            margin-left: 280px; /* Account for vertical timeline */
+            margin-left: ${
+              showTimelines ? '280px' : '0'
+            }; /* Account for vertical timeline when visible */
           }
 
           .right-drawer:not(.open) {
@@ -991,6 +1013,66 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
             background: #fecaca;
             transform: scale(1.05);
             box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+          }
+
+          /* Timeline Configuration Styles */
+          .timeline-config {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 12px 16px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          }
+
+          .timeline-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            user-select: none;
+          }
+
+          .timeline-checkbox input[type="checkbox"] {
+            display: none;
+          }
+
+          .timeline-checkbox .checkmark {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #d1d5db;
+            border-radius: 4px;
+            background: white;
+            position: relative;
+            transition: all 0.2s ease;
+          }
+
+          .timeline-checkbox input[type="checkbox"]:checked + .checkmark {
+            background: #6366f1;
+            border-color: #6366f1;
+          }
+
+          .timeline-checkbox input[type="checkbox"]:checked + .checkmark::after {
+            content: '';
+            position: absolute;
+            left: 5px;
+            top: 2px;
+            width: 6px;
+            height: 10px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+          }
+
+          .timeline-checkbox:hover .checkmark {
+            border-color: #6366f1;
           }
         `}
       </style>
