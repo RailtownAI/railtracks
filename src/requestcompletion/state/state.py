@@ -406,7 +406,7 @@ class RCState:
         Handles the successful completion of a request. It will log the success and return the result.
         """
         request_completion_obj = RequestSuccessAction(
-            child_node_name=node_name,
+            node_name=node_name,
             output=result,
         )
 
