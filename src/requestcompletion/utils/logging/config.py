@@ -76,7 +76,7 @@ def level_filter(value: int):
 
 def setup_verbose_logger_config():
     """
-    Setups the logger configration in verbose mode.
+    Sets up the logger configuration in verbose mode.
 
     Specifically that means:
     - The console will log all messages (including debug)
