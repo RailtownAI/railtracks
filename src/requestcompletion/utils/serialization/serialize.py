@@ -23,6 +23,7 @@ supported_types = (
     BaseModel,
 )
 
+
 # TODO: I feel like there has got to be a better pattern to do this.
 def encoder_extender(o) -> dict[str, Any]:
     """

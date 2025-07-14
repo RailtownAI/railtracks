@@ -157,8 +157,9 @@ class Runner:
         """
         return self.rc_state.info
 
-
-    @deprecated("`call` is deprecated, use `runner.run` or access the global function `rc.call`")
+    @deprecated(
+        "`call` is deprecated, use `runner.run` or access the global function `rc.call`"
+    )
     async def call(
         self,
         node: Callable[_P, Node[_TOutput]],
@@ -167,7 +168,6 @@ class Runner:
         **kwargs: _P.kwargs,
     ):
         return await call(node, *args, **kwargs)
-
 
     async def run(
         self,
@@ -182,8 +182,6 @@ class Runner:
         return self.rc_state.info
 
     async def cancel(self, node_id: str):
-        raise NotImplementedError(
-            "This feature remains to be implemented. "
-        )
+        raise NotImplementedError("This feature remains to be implemented. ")
         # collects the parent id of the current node that is running that is gonna get cancelled
         await self.rc_state.cancel(node_id)
