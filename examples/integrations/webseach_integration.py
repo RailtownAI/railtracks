@@ -14,7 +14,8 @@ from typing import Dict, Any
 load_dotenv()
 
 # ============================== MCP Tools that can seach URLs ==============================
-fetch_mcp_tools = from_mcp_server(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))
+fetch_mcp_server = from_mcp_server(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))
+fetch_mcp_tools = fetch_mcp_server.tools
 # ===========================================================================================
 
 # ============================== Cutoms Search Tool using Google API ==============================
