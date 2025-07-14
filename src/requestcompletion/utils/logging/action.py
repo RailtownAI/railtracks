@@ -35,7 +35,7 @@ class RequestCreationAction(RCAction):
         return f"{self.parent_node_name} CREATED {self.child_node_name}"
 
 
-class RequestCompletionBase(ABC, RCAction):
+class RequestCompletionBase(RCAction, ABC):
     def __init__(self, node_name: str):
         """
         A base class for when a request is completed.
