@@ -515,25 +515,29 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
       }}
       className={className}
     >
-      {/* Timeline Configuration */}
-      <div className="timeline-config">
-        <button
-          className="timeline-toggle"
-          onClick={() => setShowTimelines(!showTimelines)}
-          title={showTimelines ? 'Hide Timelines' : 'Show Timelines'}
-        >
-          <PanelLeft size={20} />
-        </button>
-      </div>
+      {/* Collapsible Side Panel */}
+      <div className={`side-panel ${showTimelines ? 'expanded' : 'collapsed'}`}>
+        {!showTimelines && (
+          <button
+            className="panel-toggle"
+            onClick={() => setShowTimelines(!showTimelines)}
+            title="Expand Panel"
+          >
+            <PanelLeft size={20} />
+          </button>
+        )}
 
-      {/* Vertical Timeline */}
-      {showTimelines && (
-        <VerticalTimeline
-          stamps={flowData.stamps || flowData.steps || []}
-          currentStep={currentStep}
-          onStepChange={handleStepChange}
-        />
-      )}
+        {showTimelines && (
+          <div className="panel-content">
+            <VerticalTimeline
+              stamps={flowData.stamps || flowData.steps || []}
+              currentStep={currentStep}
+              onStepChange={handleStepChange}
+              onToggle={() => setShowTimelines(false)}
+            />
+          </div>
+        )}
+      </div>
 
       <ReactFlow
         nodes={nodesState}
@@ -554,9 +558,9 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
         }}
         attributionPosition="bottom-left"
         style={{
-          width: showTimelines ? 'calc(100% - 280px)' : '100%', // Account for vertical timeline width when visible
+          width: showTimelines ? 'calc(100% - 280px)' : '100%', // Account for side panel width when visible
           height: 'calc(100% - 60px)', // Account for timeline height
-          marginLeft: showTimelines ? '280px' : '0', // Push content to the right of vertical timeline when visible
+          marginLeft: showTimelines ? '280px' : '0', // Push content to the right of side panel when visible
         }}
         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
         onInit={(instance) => {
@@ -1014,43 +1018,49 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
             box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
           }
 
-          /* Timeline Configuration Styles */
-          .timeline-config {
+          /* Side Panel Styles */
+          .side-panel {
             position: absolute;
-            top: 20px;
-            left: 20px;
+            top: 0;
+            left: 0;
+            height: 100%;
             z-index: 1000;
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            padding: 8px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
           }
 
-          .timeline-toggle {
+          .side-panel.collapsed {
+            width: 60px;
+          }
+
+          .side-panel.expanded {
+            width: 280px;
+          }
+
+          .panel-toggle {
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 36px;
-            height: 36px;
             border: none;
-            background: white;
-            border-radius: 6px;
+            background: none;
             cursor: pointer;
             color: #6b7280;
-            transition: all 0.2s ease;
-            padding: 0;
+            transition: color 0.2s ease;
+            padding: 8px;
+            margin: 20px 0 0 0;
           }
 
-          .timeline-toggle:hover {
-            background: #f3f4f6;
+          .panel-toggle:hover {
             color: #374151;
-            transform: scale(1.05);
           }
 
-          .timeline-toggle:active {
-            transform: scale(0.95);
+          .panel-content {
+            flex: 1;
+            background: white;
+            border-right: 1px solid #e5e7eb;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
           }
         `}
       </style>
