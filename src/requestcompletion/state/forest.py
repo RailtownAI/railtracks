@@ -77,6 +77,9 @@ class Forest(Generic[T]):
 
     @classmethod
     def _create_full_data_from_heap(cls, heap: Dict[str, T]):
+        """
+        Recursively expands the heap object to create a full data list of all objects in the heap.
+        """
         full_data = []
         for item in heap.values():
             curr_ref = item
