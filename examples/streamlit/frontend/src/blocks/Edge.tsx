@@ -61,9 +61,22 @@ const Edge: React.FC<EdgeProps> = ({
   };
 
   const [edgePath, arrowMarkers] = useMemo(() => {
-    const centerX = (sourceX + targetX) / 2;
-    const centerY = (sourceY + targetY) / 2;
-    const path = `M ${sourceX} ${sourceY} Q ${centerX} ${centerY} ${targetX} ${targetY}`;
+    // For top-down layout, use a more direct path with minimal curve
+    const deltaX = Math.abs(targetX - sourceX);
+    const deltaY = Math.abs(targetY - sourceY);
+
+    // If the connection is mostly vertical (top-down), use a straight line
+    // If there's significant horizontal offset, use a gentle curve
+    let path;
+    if (deltaY > deltaX * 2) {
+      // Mostly vertical - use straight line
+      path = `M ${sourceX} ${sourceY} L ${targetX} ${targetY}`;
+    } else {
+      // Has horizontal component - use gentle curve
+      const centerX = (sourceX + targetX) / 2;
+      const centerY = (sourceY + targetY) / 2;
+      path = `M ${sourceX} ${sourceY} Q ${centerX} ${centerY} ${targetX} ${targetY}`;
+    }
 
     // Create arrow markers for bidirectional edges
     const markers = [];
