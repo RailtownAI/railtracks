@@ -34,6 +34,7 @@ class RequestCreationAction(RCAction):
     def to_logging_msg(self) -> str:
         return f"{self.parent_node_name} CREATED {self.child_node_name}"
 
+
 class RequestCompletionBase(ABC, RCAction):
     def __init__(self, node_name: str):
         """
@@ -51,7 +52,7 @@ class RequestSuccessAction(RequestCompletionBase):
         node_name: str,
         output: Any,
     ):
-        """"
+        """ "
         A simple abstraction of a message when a request is successfully completed.
 
         Args:

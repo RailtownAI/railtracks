@@ -73,7 +73,7 @@ def safe_get_runner_context() -> RunnerContextVars:
 
 
 def is_context_present():
-    """ Returns true if a context exists."""
+    """Returns true if a context exists."""
     t_c = runner_context.get()
     return t_c is not None
 
@@ -253,7 +253,7 @@ def update_parent_id(new_parent_id: str):
 
 
 def delete_globals():
-    """ Resets the globals to None."""
+    """Resets the globals to None."""
     runner_context.set(None)
 
 

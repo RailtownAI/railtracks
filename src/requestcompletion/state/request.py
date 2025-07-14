@@ -28,6 +28,7 @@ class RequestTemplate(AbstractLinkedObject):
     """
     A simpele object containing details about a request in the system.
     """
+
     source_id: Optional[str]
     sink_id: str
     input: Tuple[Tuple, Dict]

@@ -241,6 +241,7 @@ class RCPublisher(Publisher[RequestCompletionMessage]):
     """
     A specialized Publisher class designed to handle RequestCompletionMessage objects.
     """
+
     def __init__(self):
         super().__init__()
         self.subscribe(self.logging_sub)

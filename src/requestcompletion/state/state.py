@@ -6,7 +6,7 @@ import asyncio
 from typing import TypeVar, List, Callable, ParamSpec, Tuple, Dict, TYPE_CHECKING, Any
 
 # all the things we need to import from RC directly.
-from .request import Cancelled, Failure
+from .request import Failure
 from .utils import create_sub_state_info
 from ..context.central import update_parent_id
 from ..execution.coordinator import Coordinator
@@ -57,6 +57,7 @@ class RCState:
     system during execution. It can be accessed after run, to collect important details that will aid debugging and
     allow for retrospective analysis of the system.
     """
+
     def __init__(
         self,
         execution_info: ExecutionInfo,
@@ -76,7 +77,6 @@ class RCState:
 
         publisher.subscribe(self.handle, "State Object Handler")
         self.publisher = publisher
-
 
     async def handle(self, item: RequestCompletionMessage) -> None:
         """
@@ -161,7 +161,6 @@ class RCState:
         # 1. Create the node here
 
         node = node(*args, **kwargs)
-
 
         # 2. Add it to the node heap.
         sc = self._stamper.stamp_creator()
@@ -398,9 +397,9 @@ class RCState:
         )
 
     async def _handle_successful_request(
-            self,
-            node_name: str,
-            result: Any,
+        self,
+        node_name: str,
+        result: Any,
     ):
         """
         Handles the successful completion of a request. It will log the success and return the result.
@@ -412,7 +411,6 @@ class RCState:
 
         self.logger.info(request_completion_obj.to_logging_msg())
         return result
-
 
     async def handle_result(self, result: RequestFinishedBase):
         """

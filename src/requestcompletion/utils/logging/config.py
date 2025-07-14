@@ -21,6 +21,7 @@ class ColorfulFormatter(logging.Formatter):
     """
     A simple formatter that can be used to format log messages with colours based on the log level and specific keywords.
     """
+
     def __init__(self, fmt=None, datefmt=None):
         super().__init__(fmt, datefmt)
         self.level_colors = {
@@ -66,6 +67,7 @@ def level_filter(value: int):
     """
     A helper function to create a filter function that filters log records based on their level.
     """
+
     def filter_func(record: logging.LogRecord):
         return record.levelno >= value
 
@@ -166,7 +168,6 @@ def setup_file_handler(
     # we want to add this file handler to the root logger is it is propagated
     logger = logging.getLogger(rc_logger_name)
     logger.addHandler(file_handler)
-
 
 
 def prepare_logger(
