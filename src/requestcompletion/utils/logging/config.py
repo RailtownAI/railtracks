@@ -131,8 +131,7 @@ def setup_quiet_logger_config():
 
 def setup_none_logger_config():
     """
-    Set up the logger to print nothing. This can be a useful optimization technique, but I don't know why someone would
-    do such a thing.
+    Set up the logger to print nothing. This can be a useful optimization technique.
     """
     # set up a logger which does not do anything.
     logger = logging.getLogger(rc_logger_name)
