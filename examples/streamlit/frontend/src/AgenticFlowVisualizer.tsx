@@ -107,7 +107,7 @@ interface AgenticFlowVisualizerProps {
 // ============================================================================
 
 /**
- * Calculates a clean tree layout: parents centered to the left of children, siblings spaced evenly, no overlap.
+ * Calculates a clean tree layout: parents centered above children, siblings spaced evenly, no overlap.
  */
 const calculateAutoLayout = (nodes: DataJsonNode[], edges: DataJsonEdge[]) => {
   // Build maps for fast lookup
@@ -137,7 +137,7 @@ const calculateAutoLayout = (nodes: DataJsonNode[], edges: DataJsonEdge[]) => {
   // Find root nodes (no parent)
   const roots = nodes.filter((n) => !parentMap.has(n.identifier));
 
-  // Assign levels (depths) - now horizontal levels from left to right
+  // Assign levels (depths) - now vertical levels from top to bottom
   const levelMap = new Map<string, number>();
   const assignLevels = (nodeId: string, level: number) => {
     levelMap.set(nodeId, level);
@@ -155,61 +155,62 @@ const calculateAutoLayout = (nodes: DataJsonNode[], edges: DataJsonEdge[]) => {
     levels[lvl].push(n.identifier);
   });
 
-  // Calculate subtree heights for each node (for centering vertically)
-  const subtreeHeight = new Map<string, number>();
-  const nodeHeight = 120; // Approximate node height
-  const nodeSpacing = 120; // Increased vertical spacing
-  const calcSubtreeHeight = (nodeId: string): number => {
+  // Calculate subtree widths for each node (for centering horizontally)
+  const subtreeWidth = new Map<string, number>();
+  const nodeWidth = 200; // Approximate node width
+  const nodeSpacing = 100; // Horizontal spacing between nodes
+  const calcSubtreeWidth = (nodeId: string): number => {
     const children = childrenMap.get(nodeId) || [];
     if (children.length === 0) {
-      subtreeHeight.set(nodeId, nodeHeight);
-      return nodeHeight;
+      subtreeWidth.set(nodeId, nodeWidth);
+      return nodeWidth;
     }
-    let height = 0;
+    let width = 0;
     for (const childId of children) {
-      height += calcSubtreeHeight(childId);
+      width += calcSubtreeWidth(childId);
     }
-    height += (children.length - 1) * nodeSpacing;
-    subtreeHeight.set(nodeId, height);
-    return height;
+    width += (children.length - 1) * nodeSpacing;
+    subtreeWidth.set(nodeId, width);
+    return width;
   };
-  roots.forEach((root) => calcSubtreeHeight(root.identifier));
+  roots.forEach((root) => calcSubtreeWidth(root.identifier));
 
-  // Assign positions recursively - now left to right
+  // Assign positions recursively - now top to bottom
   const positions = new Map<string, { x: number; y: number }>();
-  const levelSpacing = 350; // Increased horizontal spacing between levels
-  const horizontalMargin = 120; // Add margin to the left
-  const assignPositions = (nodeId: string, yTop: number, level: number) => {
-    const height = subtreeHeight.get(nodeId) || nodeHeight;
-    const x = level * levelSpacing + horizontalMargin; // Add margin here
+  const levelSpacing = 200; // Vertical spacing between levels
+  const verticalMargin = 100; // Add margin to the top
+  const assignPositions = (nodeId: string, xLeft: number, level: number) => {
+    const width = subtreeWidth.get(nodeId) || nodeWidth;
+    const y = level * levelSpacing + verticalMargin; // Add margin here
     const children = childrenMap.get(nodeId) || [];
-    let y = yTop;
+
     if (children.length === 0) {
-      // Leaf node: center in its height
-      positions.set(nodeId, { x, y: yTop + height / 2 - nodeHeight / 2 });
+      // Leaf node: center in its width
+      positions.set(nodeId, { x: xLeft + width / 2 - nodeWidth / 2, y });
     } else {
-      // Internal node: center to the left of its children
-      let childY = yTop;
+      // Internal node: center above its children
+      let childX = xLeft;
       for (const childId of children) {
-        const childHeight = subtreeHeight.get(childId) || nodeHeight;
-        assignPositions(childId, childY, level + 1);
-        childY += childHeight + nodeSpacing;
+        const childWidth = subtreeWidth.get(childId) || nodeWidth;
+        assignPositions(childId, childX, level + 1);
+        childX += childWidth + nodeSpacing;
       }
-      // Center parent to the left of children
+      // Center parent above children
       const firstChild = children[0];
       const lastChild = children[children.length - 1];
       const firstPos = positions.get(firstChild)!;
       const lastPos = positions.get(lastChild)!;
-      const parentY = (firstPos.y + lastPos.y) / 2;
-      positions.set(nodeId, { x, y: parentY });
+      const parentX = (firstPos.x + lastPos.x) / 2;
+      positions.set(nodeId, { x: parentX, y });
     }
   };
+
   // Lay out each tree
-  let yCursor = 0;
+  let xCursor = 0;
   for (const root of roots) {
-    assignPositions(root.identifier, yCursor, 0);
-    yCursor +=
-      (subtreeHeight.get(root.identifier) || nodeHeight) + nodeSpacing * 2;
+    assignPositions(root.identifier, xCursor, 0);
+    xCursor +=
+      (subtreeWidth.get(root.identifier) || nodeWidth) + nodeSpacing * 2;
   }
 
   return positions;
