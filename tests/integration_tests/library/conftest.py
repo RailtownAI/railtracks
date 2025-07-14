@@ -43,7 +43,7 @@ def create_top_level_node():
 
         class TopLevelNode(rc.library.ToolCallLLM):
             def __init__(self, message_history: rc.llm.MessageHistory):
-                message_history.insert(0, rc.llm.SystemMessage(self.system_message()))
+                message_history.insert(0, self.system_message())
 
                 super().__init__(
                     message_history=message_history,

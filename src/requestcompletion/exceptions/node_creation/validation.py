@@ -3,7 +3,6 @@ from typing import Any, Iterable, Callable, Dict, get_origin
 import inspect
 from ..errors import NodeCreationError
 from pydantic import BaseModel
-from ...llm import SystemMessage
 import warnings
 
 
@@ -133,6 +132,7 @@ def check_output_model(method: classmethod, cls: type) -> None:
             message=get_message(ExceptionMessageKey.OUTPUT_MODEL_EMPTY_MSG),
             notes=get_notes(ExceptionMessageKey.OUTPUT_MODEL_EMPTY_NOTES),
         )
+
 
 # ========================= Common Validation accross easy_usage_wrappers ========================
 def _check_duplicate_param_names(tool_params: Iterable[Any]) -> None:

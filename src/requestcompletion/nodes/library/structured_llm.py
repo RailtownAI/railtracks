@@ -5,7 +5,10 @@ from ...llm import MessageHistory, ModelBase
 from ...exceptions import LLMError
 from pydantic import BaseModel
 from abc import ABC, abstractmethod
-from requestcompletion.exceptions.node_creation.validation import check_output_model, check_classmethod
+from requestcompletion.exceptions.node_creation.validation import (
+    check_output_model,
+    check_classmethod,
+)
 
 _TOutput = TypeVar("_TOutput", bound=BaseModel)
 
@@ -15,7 +18,9 @@ class StructuredLLM(LLMBase[_TOutput], ABC):
 
     def __init_subclass__(cls):
         super().__init_subclass__()
-        if "output_model" in cls.__dict__ and not getattr(cls, "__abstractmethods__", False):
+        if "output_model" in cls.__dict__ and not getattr(
+            cls, "__abstractmethods__", False
+        ):
             method = cls.__dict__["output_model"]
             check_classmethod(method, "output_model")
             check_output_model(method, cls)

@@ -1,24 +1,25 @@
 from __future__ import annotations
 
 import warnings
-from abc import ABC, abstractmethod
+from abc import ABC
 from copy import deepcopy
 
 from typing_extensions import Self
 
 
 from requestcompletion.exceptions.node_invocation.validation import (
-    check_message_history, check_model,
+    check_message_history,
+    check_model,
 )
 from requestcompletion.nodes.nodes import Node
 import requestcompletion.llm as llm
 from requestcompletion.llm.response import Response
 from typing import TypeVar, Generic
 
-from ...exceptions.messages.exception_messages import ExceptionMessageKey, get_message, get_notes
+from ...exceptions.messages.exception_messages import get_message
 from ...prompts.prompt import inject_context
 from ...exceptions.errors import NodeInvocationError
-from  requestcompletion.llm.message import SystemMessage
+from requestcompletion.llm.message import SystemMessage
 
 _T = TypeVar("_T")
 
@@ -79,10 +80,14 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
     def system_message(cls) -> str | None:
         return None
 
-    def __init__(self, message_history: llm.MessageHistory, model: llm.ModelBase | None = None):
+    def __init__(
+        self, message_history: llm.MessageHistory, model: llm.ModelBase | None = None
+    ):
         super().__init__()
 
-        message_history_copy = deepcopy(message_history)  # Ensure we don't modify the original message history
+        message_history_copy = deepcopy(
+            message_history
+        )  # Ensure we don't modify the original message history
         for i, msg in enumerate(message_history_copy):
             if isinstance(msg, str):
                 new_message = SystemMessage(msg)
@@ -90,12 +95,16 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
             elif isinstance(msg, SystemMessage):
                 raise NodeInvocationError(
                     message=get_message("INVALID_SYSTEM_MESSAGE_MSG"),
-                    notes=get_notes("INVALID_SYSTEM_MESSAGE_NOTES"),
                     fatal=True,
                 )
         self._verify_message_history(message_history_copy)
 
         if self.system_message() is not None:
+            if not isinstance(self.system_message(), str):
+                raise NodeInvocationError(
+                    message=get_message("INVALID_SYSTEM_MESSAGE_MSG"),
+                    fatal=True,
+                )
             if len([x for x in message_history_copy if x.role == "system"]) > 0:
                 warnings.warn(
                     "System message already exists in message history. We will replace it."
@@ -106,11 +115,12 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
                 message_history_copy.insert(0, SystemMessage(self.system_message()))
             else:
                 message_history_copy.insert(0, SystemMessage(self.system_message()))
-        
+
         if self.return_model() is not None:
             if model is not None:
                 warnings.warn(
-                    "You have provided a model as a parameter and as a class variable. We will use the parameter.")
+                    "You have provided a model as a parameter and as a class variable. We will use the parameter."
+                )
             else:
                 model = self.return_model()
 
@@ -122,7 +132,6 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         self._details["llm_details"] = []
 
         self._attach_llm_hooks()
-
 
     def _attach_llm_hooks(self):
         """Attach pre and post hooks to the model."""

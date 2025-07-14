@@ -1,10 +1,7 @@
-from typing import Set, Type, Union, Literal, Dict, Any, Callable
-from pydantic import BaseModel
+from typing import Set, Type, Union, Callable
 from requestcompletion.llm import (
-    MessageHistory,
     ModelBase,
     SystemMessage,
-    AssistantMessage,
 )
 
 from ....nodes.nodes import Node
@@ -21,17 +18,16 @@ def tool_call_llm(  # noqa: C901
     tool_details: str | None = None,
     tool_params: dict | None = None,
 ) -> Type[ToolCallLLM]:
-
-    builder = NodeBuilder(ToolCallLLM, 
-                          pretty_name=pretty_name, 
-                          class_name="EasyToolCallLLM", 
-                          tool_details=tool_details, 
-                          tool_params=tool_params,
-                          )
+    builder = NodeBuilder(
+        ToolCallLLM,
+        pretty_name=pretty_name,
+        class_name="EasyToolCallLLM",
+        tool_details=tool_details,
+        tool_params=tool_params,
+    )
     builder.llm_base(model, system_message)
     builder.tool_calling_llm(connected_nodes, max_tool_calls)
     if tool_details is not None:
         builder.tool_callable_llm(tool_details, tool_params)
 
-    
     return builder.build()

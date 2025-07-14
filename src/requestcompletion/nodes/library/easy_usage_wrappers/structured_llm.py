@@ -1,12 +1,8 @@
-from typing import Type, Dict, Any
-from copy import deepcopy
+from typing import Type
 from requestcompletion.llm import (
     ModelBase,
     SystemMessage,
 )
-from typing_extensions import Self
-from requestcompletion.exceptions.node_creation.validation import validate_tool_metadata
-from requestcompletion.exceptions.node_invocation.validation import check_model, check_message_history
 from requestcompletion.nodes.library.easy_usage_wrappers.node_builder import NodeBuilder
 from requestcompletion.nodes.library.structured_llm import StructuredLLM
 from pydantic import BaseModel
@@ -20,13 +16,13 @@ def structured_llm(  # noqa: C901
     tool_details: str | None = None,
     tool_params: dict | None = None,
 ) -> Type[StructuredLLM]:
-    
-    builder = NodeBuilder(StructuredLLM, 
-                          pretty_name=pretty_name, 
-                          class_name="EasyStructuredLLM", 
-                          tool_details=tool_details, 
-                          tool_params=tool_params,
-                          )
+    builder = NodeBuilder(
+        StructuredLLM,
+        pretty_name=pretty_name,
+        class_name="EasyStructuredLLM",
+        tool_details=tool_details,
+        tool_params=tool_params,
+    )
     builder.llm_base(model, system_message)
     builder.structured(output_model)
     if tool_details is not None:

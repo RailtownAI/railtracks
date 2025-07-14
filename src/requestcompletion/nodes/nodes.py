@@ -6,7 +6,7 @@ import uuid
 from copy import deepcopy
 
 from requestcompletion.nodes.tool_callable import ToolCallable
-from abc import ABC, abstractmethod, ABCMeta
+from abc import ABC, abstractmethod
 from typing import (
     TypeVar,
     Generic,
@@ -17,14 +17,13 @@ from typing import (
 from typing_extensions import Self
 from requestcompletion.exceptions.node_creation.validation import (
     check_classmethod,
-    check_output_model,
-    check_connected_nodes,
 )
 
 _TOutput = TypeVar("_TOutput")
 
 _TNode = TypeVar("_TNode", bound="Node")
 _P = ParamSpec("_P")
+
 
 class NodeState(Generic[_TNode]):
     """
@@ -73,7 +72,6 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
     """An abstract base class which defines some the functionality of a node"""
 
     def __init_subclass__(cls):
-
         # now we need to make sure the invoke method is a coroutine, if not we should automatically switch it here.
         method_name = "invoke"
 
@@ -163,7 +161,6 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
         """
         di = {k: str(v) for k, v in self.__dict__.items()}
         return di
-
 
     def safe_copy(self) -> Self:
         """

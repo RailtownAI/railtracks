@@ -27,16 +27,16 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
      an LLm that can make tool calls. The tool calls will be returned
     as calls or if there is a response, the response will be returned as an output"""
 
-    #Set structured response node to None by default
+    # Set structured response node to None by default
     structured_resp_node = None
 
     def __init_subclass__(cls):
         super().__init_subclass__()
         # 3. Check if the connected_nodes is not empty, special case for ToolCallLLM
-        #We will not check for abstract classes
+        # We will not check for abstract classes
         has_abstract_methods = any(
-        getattr(getattr(cls, name, None), '__isabstractmethod__', False)
-        for name in dir(cls)
+            getattr(getattr(cls, name, None), "__isabstractmethod__", False)
+            for name in dir(cls)
         )
         if not has_abstract_methods:
             if "connected_nodes" in cls.__dict__ and not has_abstract_methods:
@@ -50,7 +50,6 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                     node_set = method(dummy)
                 # Validate that the returned node_set is correct and contains only Node/function instances
                 check_connected_nodes(node_set, Node)
-        
 
     def __init__(
         self,
@@ -59,21 +58,23 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
         max_tool_calls: int | None = None,
     ):
         super().__init__(model=model, message_history=message_history)
-        #Set max_tool_calls for non easy usage wrappers
-        if not hasattr(self, 'max_tool_calls'):
-            #Check if max_tool_calls was passed
+        # Set max_tool_calls for non easy usage wrappers
+        if not hasattr(self, "max_tool_calls"):
+            # Check if max_tool_calls was passed
             if max_tool_calls is not None:
                 check_max_tool_calls(max_tool_calls)
                 self.max_tool_calls = max_tool_calls
-            #Default to 30 if not passed
+            # Default to 30 if not passed
             else:
                 self.max_tool_calls = 30
-        #Warn user that two max_tool_calls are set and we will use the parameter
+        # Warn user that two max_tool_calls are set and we will use the parameter
         else:
             if max_tool_calls is not None:
                 warnings.warn(
-                    "You have provided max_tool_calls as a parameter and as a class variable. We will use the parameter.")
+                    "You have provided max_tool_calls as a parameter and as a class variable. We will use the parameter."
+                )
                 self.max_tool_calls = max_tool_calls
+
     @classmethod
     def pretty_name(cls) -> str:
         return (

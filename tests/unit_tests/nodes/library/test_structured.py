@@ -19,7 +19,7 @@ async def test_structured_llm_instantiate_and_invoke(simple_output_model, mock_l
         @classmethod
         def pretty_name(cls):
             return "Mock LLM"
-    mh = MessageHistory([SystemMessage("system prompt"), UserMessage("hello")])
+    mh = MessageHistory(["system prompt", UserMessage("hello")])
     result = await rc.call(MyLLM, message_history=mh, model=mock_llm(structured=mock_structured_function))
     assert isinstance(result, simple_output_model)
     assert result.text == "dummy content"
@@ -226,20 +226,17 @@ async def test_class_based_output_model_not_pydantic():
 
 # =================== START invocation exceptions =====================
 @pytest.mark.asyncio
-async def test_string_in_message_history_easy_usage(simple_output_model):
-    simple_structured = rc.library.structured_llm(
-        output_model=simple_output_model,
-        system_message="You are a helpful assistant that can strucure the response into a structured output.",
-        model=rc.llm.OpenAILLM("gpt-4o"),
-        pretty_name="Structured ToolCallLLM",
-    )
-
-    with pytest.raises(NodeInvocationError, match="Message history must be a list of Message objects"):
-        _ = await rc.call(simple_structured, message_history=rc.llm.MessageHistory(["hello world"]))
-
+async def test_system_message_in_message_history_easy_usage(simple_output_model):
+    with pytest.raises(NodeCreationError, match="system_message must be a string, not any other type."):
+        simple_structured = rc.library.structured_llm(
+            output_model=simple_output_model,
+            system_message=rc.llm.SystemMessage("You are a helpful assistant that can strucure the response into a structured output."),
+            model=rc.llm.OpenAILLM("gpt-4o"),
+            pretty_name="Structured ToolCallLLM",
+        )
 
 @pytest.mark.asyncio
-async def test_string_in_message_history_class_based(simple_output_model):
+async def test_system_message_in_message_history_class_based(simple_output_model):
     class Structurer(rc.library.StructuredLLM):
         def __init__(
             self,
@@ -260,7 +257,7 @@ async def test_string_in_message_history_class_based(simple_output_model):
         def pretty_name(cls) -> str:
             return "Structurer"
         
-    with pytest.raises(NodeInvocationError, match="Message history must be a list of Message objects"):
+    with pytest.raises(NodeInvocationError, match="system_message must be a string, not any other type."):
         await rc.call(Structurer, message_history=rc.llm.MessageHistory(["hello world"]))
 # =================== END invocation exceptions =====================
 # ================================================ END Exception testing =============================================================
