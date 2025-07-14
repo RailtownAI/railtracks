@@ -148,6 +148,9 @@ def _make_node(fixture_name, system_message, model, output_model, tool_nodes, cl
             @classmethod
             def pretty_name(cls):
                 return output_model.__name__ + " Node"
+            @classmethod
+            def return_model(cls):
+                return model() if callable(model) else model
         return CustomNode
     else:
         raise ValueError(f"Unknown node fixture: {fixture_name}")

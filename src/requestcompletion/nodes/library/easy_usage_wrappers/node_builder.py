@@ -54,7 +54,10 @@ class NodeBuilder(Generic[_TNode]):
     ):
         assert issubclass(self._node_class, LLMBase), f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         if model is not None:
-            self._with_override("model", classmethod(lambda cls: model))
+            if callable(model):
+                 self._with_override("return_model", classmethod(lambda cls: model()))
+            else:
+                self._with_override("return_model", classmethod(lambda cls: model))
 
         _check_system_message(system_message)
         self._with_override("system_message", classmethod(lambda cls: system_message))
@@ -76,6 +79,7 @@ class NodeBuilder(Generic[_TNode]):
         _check_max_tool_calls(max_tool_calls)
         check_connected_nodes(connected_nodes, Node)
         self._with_override("connected_nodes", classmethod(lambda cls: connected_nodes))
+        self._with_override("max_tool_calls", max_tool_calls)
         
     def mcp_llm(self, mcp_command, mcp_args, mcp_env, max_tool_calls):
         assert issubclass(self._node_class, ToolCallLLM), f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
@@ -115,7 +119,7 @@ class NodeBuilder(Generic[_TNode]):
                 return rc.llm.Tool(
                     name=cls.pretty_name().replace(" ", "_"),
                     detail=tool_details,
-                    parameters=tool_params if tool_params is not None else set(),
+                    parameters=tool_params,
                 )
 
             self._with_override("tool_info", classmethod(tool_info))

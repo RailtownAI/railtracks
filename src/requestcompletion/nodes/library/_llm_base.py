@@ -15,7 +15,9 @@ import requestcompletion.llm as llm
 from requestcompletion.llm.response import Response
 from typing import TypeVar, Generic
 
+from ...exceptions.messages.exception_messages import ExceptionMessageKey, get_message, get_notes
 from ...prompts.prompt import inject_context
+from ...exceptions.errors import NodeInvocationError
 from  requestcompletion.llm.message import SystemMessage
 
 _T = TypeVar("_T")
@@ -70,7 +72,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         check_model(model)
 
     @classmethod
-    def model(cls) -> llm.ModelBase | None:
+    def return_model(cls) -> llm.ModelBase | None:
         return None
 
     @classmethod
@@ -80,9 +82,18 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
     def __init__(self, message_history: llm.MessageHistory, model: llm.ModelBase | None = None):
         super().__init__()
 
-        self._verify_message_history(message_history)
-
         message_history_copy = deepcopy(message_history)  # Ensure we don't modify the original message history
+        for i, msg in enumerate(message_history_copy):
+            if isinstance(msg, str):
+                new_message = SystemMessage(msg)
+                message_history_copy[i] = new_message
+            elif isinstance(msg, SystemMessage):
+                raise NodeInvocationError(
+                    message=get_message("INVALID_SYSTEM_MESSAGE_MSG"),
+                    notes=get_notes("INVALID_SYSTEM_MESSAGE_NOTES"),
+                    fatal=True,
+                )
+        self._verify_message_history(message_history_copy)
 
         if self.system_message() is not None:
             if len([x for x in message_history_copy if x.role == "system"]) > 0:
@@ -96,12 +107,12 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
             else:
                 message_history_copy.insert(0, SystemMessage(self.system_message()))
         
-        if self.model() is not None:
+        if self.return_model() is not None:
             if model is not None:
                 warnings.warn(
                     "You have provided a model as a parameter and as a class variable. We will use the parameter.")
             else:
-                model = self.model()
+                model = self.return_model()
 
         self._verify_model(model)
         self.model = model

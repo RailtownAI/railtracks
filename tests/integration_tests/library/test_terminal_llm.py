@@ -37,7 +37,7 @@ def test_terminal_llm_class_based_run(model , encoder_system_message):
             [rc.llm.UserMessage("The input string is 'hello world'")]
         )
         response = runner.run_sync(Encoder, message_history=message_history)
-        assert isinstance(response, str)
+        assert isinstance(response.answer, str)
 
 
 # ================================================ END terminal_llm basic functionality ===========================================================
@@ -127,12 +127,11 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(model):
 
     system_message = "You are a math genius that calls the RNG tool to generate 5 random numbers between 1 and 100 and gives the sum of those numbers."
 
-    math_node = rc.library.tool_call_llm(
+    math_node = rc.library.message_hist_tool_call_llm(
         connected_nodes={rng_node},
         pretty_name="Math Node",
         system_message=system_message,
         model=rc.llm.OpenAILLM("gpt-4o"),
-        output_type="MessageHistory",
     )
 
     with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as runner:
@@ -164,11 +163,10 @@ async def test_terminal_llm_tool_with_invalid_parameters_easy_usage(model, encod
     )
 
     system_message = "You are a helful assitant. Use the encoder tool with invalid parameters (invoke the tool with invalid parameters) once and then invoke it again with valid parameters."
-    tool_call_llm = rc.library.tool_call_llm(
+    tool_call_llm = rc.library.message_hist_tool_call_llm(
         connected_nodes={encoder},
         model=model,
         pretty_name="InvalidToolCaller",
-        output_type="MessageHistory",
         system_message=system_message,
     )
 

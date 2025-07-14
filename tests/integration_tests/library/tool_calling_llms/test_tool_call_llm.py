@@ -399,10 +399,7 @@ async def test_allows_only_one_toolcall(limited_tool_call_node_factory, travel_m
     with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as runner:
         reset_tools_called()
         response = await rc.call(node, message_history=message_history)
-        if class_based:
-            assert isinstance(response, str)
-        else:
-            assert isinstance(response.content, str)
+        assert isinstance(response.content, str)
         assert rc.context.get("tools_called") == 1
 
 @pytest.mark.asyncio
@@ -413,10 +410,7 @@ async def test_zero_tool_calls_forces_final_answer(limited_tool_call_node_factor
     with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as runner:
         reset_tools_called()
         response = await rc.call(node, message_history=message_history)
-        if class_based:
-            assert isinstance(response, str)
-        else:
-            assert isinstance(response.content, str)
+        assert isinstance(response.content, str)
         assert rc.context.get("tools_called") == 0
 
 @pytest.mark.asyncio
@@ -427,10 +421,7 @@ async def test_multiple_tool_calls_limit(limited_tool_call_node_factory, travel_
     with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as runner:
         reset_tools_called()
         response = await rc.call(node, message_history=message_history)
-        if class_based:
-            assert isinstance(response, str)
-        else:
-            assert isinstance(response.content, str)
+        assert isinstance(response.content, str)
         assert rc.context.get("tools_called") <= 5
 
 @pytest.mark.asyncio

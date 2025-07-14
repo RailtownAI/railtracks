@@ -167,7 +167,7 @@ async def test_system_message_as_a_string_class_based(mock_llm):
                 model: rc.llm.ModelBase = mock_llm(),
             ):
                 message_history = [x for x in message_history if x.role != "system"]
-                message_history.insert(0, "You are a helpful assistant that can encode text into bytes.")
+                message_history.insert(0, rc.llm.SystemMessage("You are a helpful assistant that can encode text into bytes."))
                 super().__init__(
                     message_history=message_history,
                     model=model,
