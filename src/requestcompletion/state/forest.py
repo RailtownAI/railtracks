@@ -59,7 +59,6 @@ class Forest(Generic[T]):
     can create a history of immutable objects that can be accessed at any point in time. You can also build out any of
     your own desired functionality of the object by subclassing `Forest`.
 
-
     The general principle of the object is you can add any subclass of `AbstractLinkedObject` to the heap. The heap will
     track any object with identical identifiers as connected objects. Any object which you add that already exists in
     the heap (and by that I mean an object with the same identifier) must have a parent in the graph that matches that

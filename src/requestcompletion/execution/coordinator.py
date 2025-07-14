@@ -149,9 +149,15 @@ class Coordinator:
         self.execution_strategy = execution_modes
 
     def start(self, publisher: RCPublisher):
+        """
+        Starts the coordinator by attaching any relevant subscribers to the provided publisher.
+        """
         publisher.subscribe(self.handle_item, name="Coordinator Subscriber")
 
     def handle_item(self, item: RequestCompletionMessage):
+        """
+        The basic handler for to attach to the RequestCompletionPublisher.
+        """
         if isinstance(item, RequestFinishedBase):
             # we ignore requests that were never created.
             if isinstance(item, RequestCreationFailure):
@@ -178,8 +184,14 @@ class Coordinator:
         return await self.execution_strategy[mode].execute(task)
 
     def system_detail(self) -> CoordinatorState:
+        """
+        Collects and returns details about the current state of Coordinator
+        """
         return self.state
 
     def shutdown(self):
+        """
+        Shuts down all active execution strategies.
+        """
         for strategy in self.execution_strategy.values():
             strategy.shutdown()
