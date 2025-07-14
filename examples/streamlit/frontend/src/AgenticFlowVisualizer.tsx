@@ -177,7 +177,7 @@ const calculateAutoLayout = (nodes: DataJsonNode[], edges: DataJsonEdge[]) => {
 
   // Assign positions recursively - now top to bottom
   const positions = new Map<string, { x: number; y: number }>();
-  const levelSpacing = 200; // Vertical spacing between levels
+  const levelSpacing = 300; // Increased vertical spacing between levels
   const verticalMargin = 100; // Add margin to the top
   const assignPositions = (nodeId: string, xLeft: number, level: number) => {
     const width = subtreeWidth.get(nodeId) || nodeWidth;
@@ -313,7 +313,7 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
     };
   }, [isPlaying, maxStep]);
 
-  // Initialize current step to last step
+  // Initialize current step to last step and pan to hub node
   useEffect(() => {
     const stamps = flowData.stamps || flowData.steps || [];
     if (stamps.length > 0) {
@@ -500,6 +500,54 @@ const AgenticFlowVisualizer: React.FC<AgenticFlowVisualizerProps> = ({
   };
 
   const reactFlowInstance = useReactFlow();
+
+  // Pan to hub node (most connected node) on initial load
+  useEffect(() => {
+    if (nodes.length > 0 && reactFlowInstance) {
+      // Find the node with the most connections
+      const nodeConnectionCounts = new Map<string, number>();
+
+      // Count incoming and outgoing connections for each node
+      edges.forEach((edge) => {
+        // Count outgoing connections (source)
+        const sourceCount = nodeConnectionCounts.get(edge.source) || 0;
+        nodeConnectionCounts.set(edge.source, sourceCount + 1);
+
+        // Count incoming connections (target)
+        const targetCount = nodeConnectionCounts.get(edge.target) || 0;
+        nodeConnectionCounts.set(edge.target, targetCount + 1);
+      });
+
+      // Find the node with the highest connection count
+      let hubNodeId = '';
+      let maxConnections = 0;
+
+      nodeConnectionCounts.forEach((count, nodeId) => {
+        if (count > maxConnections) {
+          maxConnections = count;
+          hubNodeId = nodeId;
+        }
+      });
+
+      // If no hub node found (no edges), use the first node
+      if (!hubNodeId && nodes.length > 0) {
+        hubNodeId = nodes[0].id;
+      }
+
+      // Pan to the hub node
+      if (hubNodeId) {
+        setTimeout(() => {
+          reactFlowInstance.fitView({
+            nodes: [{ id: hubNodeId }],
+            duration: 1000,
+            padding: 0.2,
+            minZoom: 0.5,
+            maxZoom: 1.5,
+          });
+        }, 500); // Small delay to ensure nodes are rendered
+      }
+    }
+  }, [nodes, edges, reactFlowInstance]);
 
   return (
     <div
