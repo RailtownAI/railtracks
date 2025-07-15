@@ -4,14 +4,13 @@ from contextlib import AsyncExitStack
 from datetime import timedelta
 from typing import Any, Dict
 
-from typing_extensions import Self, Type
-
 from mcp import ClientSession, StdioServerParameters
+from mcp.client.sse import sse_client
 from mcp.client.stdio import stdio_client
 from mcp.client.streamable_http import streamablehttp_client
-from mcp.client.sse import sse_client
-
 from pydantic import BaseModel
+from typing_extensions import Self, Type
+
 from ..llm import Tool
 from ..nodes.nodes import Node
 

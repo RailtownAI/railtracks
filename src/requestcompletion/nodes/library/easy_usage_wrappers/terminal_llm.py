@@ -1,11 +1,12 @@
 import warnings
-from typing import Type, Dict, Any
-from ..terminal_llm import TerminalLLM
+from copy import deepcopy
+from typing import Any, Dict, Type
+
+from ....exceptions.node_creation.validation import validate_tool_metadata
+from ....exceptions.node_invocation.validation import check_message_history, check_model
 from ....llm import MessageHistory, ModelBase, SystemMessage, UserMessage
 from ....llm.tools import Parameter, Tool
-from copy import deepcopy
-from ....exceptions.node_creation.validation import validate_tool_metadata
-from ....exceptions.node_invocation.validation import check_model, check_message_history
+from ..terminal_llm import TerminalLLM
 
 
 def terminal_llm(  # noqa: C901

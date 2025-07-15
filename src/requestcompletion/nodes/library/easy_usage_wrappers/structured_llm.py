@@ -1,18 +1,20 @@
 import warnings
-from typing import Type, Dict, Any
 from copy import deepcopy
+from typing import Any, Dict, Type
+
+from pydantic import BaseModel
+from typing_extensions import Self
+
+from ....exceptions.node_creation.validation import validate_tool_metadata
+from ....exceptions.node_invocation.validation import check_message_history, check_model
 from ....llm import (
-    UserMessage,
     MessageHistory,
     ModelBase,
     SystemMessage,
     Tool,
+    UserMessage,
 )
-from typing_extensions import Self
-from ....exceptions.node_creation.validation import validate_tool_metadata
-from ....exceptions.node_invocation.validation import check_model, check_message_history
 from ....nodes.library.structured_llm import StructuredLLM
-from pydantic import BaseModel
 
 
 def structured_llm(  # noqa: C901

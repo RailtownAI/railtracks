@@ -2,13 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-
-from .messages import RequestCompletionMessage, RequestCreationFailure, RequestFailure
-
-from typing import List, Callable, TypeVar, Generic, Coroutine
-
+from typing import Callable, Coroutine, Generic, List, TypeVar
 
 from ..utils.logging.create import get_rc_logger
+from .messages import RequestCompletionMessage, RequestCreationFailure, RequestFailure
 
 _T = TypeVar("_T")
 _TOutput = TypeVar("_TOutput")
