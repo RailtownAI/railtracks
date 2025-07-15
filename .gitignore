@@ -10,6 +10,7 @@ package-lock.json
 package.json
 test-results.xml
 .coverage
+.covailence
 # jupyter notebook
 .ipynb_checkpoints
 */.ipynb_checkpoints/*
