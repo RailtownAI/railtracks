@@ -10,6 +10,7 @@ __all__ = [
     "terminal_llm",
     "structured_llm",
     "from_mcp_server",
+    "chat_tool_call_llm",
 ]
 
 from .function import FunctionNode, from_function
@@ -26,3 +27,4 @@ from .structured_llm import StructuredLLM
 from .easy_usage_wrappers.terminal_llm import terminal_llm
 from .easy_usage_wrappers.structured_llm import structured_llm
 from .easy_usage_wrappers.tool_call_llm import tool_call_llm
+from .easy_usage_wrappers.chat_tool_call_llm import chat_tool_call_llm
