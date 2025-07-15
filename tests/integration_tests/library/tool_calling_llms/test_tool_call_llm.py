@@ -20,7 +20,7 @@ async def test_empty_connected_nodes_easy_wrapper(model):
         _ = rc.library.tool_call_llm(
             connected_nodes=set(),
             system_message="You are a helpful assistant that can strucure the response into a structured output.",
-            model=model,
+            llm_model=model,
             pretty_name="ToolCallLLM",
         )
 

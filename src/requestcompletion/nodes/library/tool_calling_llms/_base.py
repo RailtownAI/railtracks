@@ -54,10 +54,10 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
     def __init__(
         self,
         message_history: MessageHistory,
-        model: ModelBase | None = None,
+        llm_model: ModelBase | None = None,
         max_tool_calls: int | None = None,
     ):
-        super().__init__(model=model, message_history=message_history)
+        super().__init__(llm_model=llm_model, message_history=message_history)
         # Set max_tool_calls for non easy usage wrappers
         if not hasattr(self, "max_tool_calls"):
             # Check if max_tool_calls was passed
@@ -113,7 +113,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
 
     async def _on_max_tool_calls_exceeded(self):
         """force a final response"""
-        returned_mess = await self.model.achat_with_tools(self.message_hist, tools=[])
+        returned_mess = await self.llm_model.achat_with_tools(self.message_hist, tools=[])
         self.message_hist.append(returned_mess.message)
 
     async def invoke(self) -> _T:
@@ -130,8 +130,8 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                 await self._on_max_tool_calls_exceeded()
                 break
 
-            # collect the response from the model
-            returned_mess = await self.model.achat_with_tools(
+            # collect the response from the llm model
+            returned_mess = await self.llm_model.achat_with_tools(
                 self.message_hist, tools=self.tools()
             )
 
@@ -194,7 +194,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                     )
                     break
             else:
-                # the message is malformed from the model
+                # the message is malformed from the llm model
                 raise LLMError(
                     reason="ModelLLM returned an unexpected message type.",
                     message_history=self.message_hist,

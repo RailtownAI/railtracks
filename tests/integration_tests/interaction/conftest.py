@@ -169,17 +169,17 @@ def terminal_nodes(request, model, terminal_llms_system_messages):
 
     if fixture_name == "easy_wrapper":
         rng_node = rc.library.terminal_llm(
-            pretty_name="RNG Node", system_message=system_rng, model=model
+            pretty_name="RNG Node", system_message=system_rng, llm_model=model
         )
         rng_operation_node = rc.library.terminal_llm(
             pretty_name="RNG Operation Node",
             system_message=system_rng_operation,
-            model=model,
+            llm_model=model,
         )
         math_detective_node = rc.library.terminal_llm(
             pretty_name="Math Detective Node",
             system_message=system_math_genius,
-            model=model,
+            llm_model=model,
         )
 
         return rng_node, rng_operation_node, math_detective_node
@@ -197,7 +197,7 @@ def terminal_nodes(request, model, terminal_llms_system_messages):
                 ):
                     message_history = [x for x in message_history if x.role != "system"]
                     message_history.insert(0, system_message)
-                    super().__init__(message_history=message_history, model=llm_model)
+                    super().__init__(message_history=message_history, llm_model=llm_model)
 
                 @classmethod
                 def pretty_name(cls) -> str:
@@ -245,13 +245,13 @@ def structured_nodes(request, model, structured_llms_system_messages):
             pretty_name="Math Undergraduate Student Node",
             output_model=ProofModel,
             system_message=system_undergrad_student,
-            model=model,
+            llm_model=model,
         )
         math_professor_node = rc.library.structured_llm(
             pretty_name="Math Professor Node",
             output_model=GradingSchema,
             system_message=system_professor,
-            model=model,
+            llm_model=model,
         )
 
         return math_undergrad_student_node, math_professor_node
@@ -271,7 +271,7 @@ def structured_nodes(request, model, structured_llms_system_messages):
                 ):
                     message_history = [x for x in message_history if x.role != "system"]
                     message_history.insert(0, system_message)
-                    super().__init__(message_history=message_history, model=llm_model)
+                    super().__init__(message_history=message_history, llm_model=llm_model)
 
                 @classmethod
                 def output_model(cls) -> BaseModel:
@@ -327,13 +327,13 @@ def tool_calling_nodes(
             connected_nodes={AvailableCurrencies, ConvertCurrency},
             pretty_name="Currency Converter Node",
             system_message=system_currency_converter,
-            model=model,
+            llm_model=model,
         )
         travel_planner_node = rc.library.tool_call_llm(
             connected_nodes={AvailableLocations, CurrencyUsed, AverageLocationCost},
             pretty_name="Travel Planner Node",
             system_message=system_travel_planner,
-            model=model,
+            llm_model=model,
         )
 
         return currency_converter_node, travel_planner_node
@@ -352,7 +352,7 @@ def tool_calling_nodes(
                 ):
                     message_history = [x for x in message_history if x.role != "system"]
                     message_history.insert(0, system_message)
-                    super().__init__(message_history=message_history, model=llm_model)
+                    super().__init__(message_history=message_history, llm_model=llm_model)
 
                 def connected_nodes(self):
                     return connected_nodes

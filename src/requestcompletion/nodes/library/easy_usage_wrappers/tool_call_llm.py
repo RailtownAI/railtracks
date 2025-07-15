@@ -12,7 +12,7 @@ from ...library.tool_calling_llms.tool_call_llm import ToolCallLLM
 def tool_call_llm(  # noqa: C901
     connected_nodes: Set[Union[Type[Node], Callable]],
     pretty_name: str | None = None,
-    model: ModelBase | None = None,
+    llm_model: ModelBase | None = None,
     max_tool_calls: int | None = 30,
     system_message: SystemMessage | str | None = None,
     tool_details: str | None = None,
@@ -25,7 +25,7 @@ def tool_call_llm(  # noqa: C901
         tool_details=tool_details,
         tool_params=tool_params,
     )
-    builder.llm_base(model, system_message)
+    builder.llm_base(llm_model, system_message)
     builder.tool_calling_llm(connected_nodes, max_tool_calls)
     if tool_details is not None:
         builder.tool_callable_llm(tool_details, tool_params)

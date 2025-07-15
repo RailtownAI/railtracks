@@ -14,7 +14,7 @@ async def test_terminal_llm_instantiate_and_invoke(mock_llm, mock_chat_function)
             return "Mock LLM"
         
     mh = MessageHistory(["system prompt", UserMessage("hello")])
-    node = MockLLM(message_history=mh, model=mock_llm(chat=mock_chat_function))
+    node = MockLLM(message_history=mh, llm_model=mock_llm(chat=mock_chat_function))
     # with rc.Runner() as runner:
     result = await node.invoke()
     assert result == "dummy content"
@@ -24,7 +24,7 @@ async def test_terminal_llm_easy_usage_wrapper_invoke(mock_llm, mock_chat_functi
     node = terminal_llm(
         pretty_name="Mock LLM",
         system_message="system prompt",
-        model=mock_llm(chat=mock_chat_function),
+        llm_model=mock_llm(chat=mock_chat_function),
     )
     mh = MessageHistory([UserMessage("hello")])
     result = await rc.call(node, message_history=mh)
@@ -34,7 +34,7 @@ def test_terminal_llm_easy_usage_wrapper_classmethods(mock_llm):
     NodeClass = terminal_llm(
         pretty_name="Mock LLM",
         system_message="system prompt",
-        model=mock_llm(),
+        llm_model=mock_llm(),
     )
     assert NodeClass.pretty_name() == "Mock LLM"
 
@@ -43,7 +43,7 @@ async def test_terminal_llm_system_message_string_inserts_system_message(mock_ll
     NodeClass = terminal_llm(
         pretty_name="TestTerminalNode",
         system_message="system prompt",
-        model=mock_llm(),
+        llm_model=mock_llm(),
     )
     mh = MessageHistory([UserMessage("hello")])
     node = NodeClass(message_history=mh)
@@ -67,7 +67,7 @@ async def test_terminal_llm_missing_tool_details_easy_usage(mock_llm, encoder_sy
         encoder_wo_tool_details = rc.library.terminal_llm(
             pretty_name="Encoder",
             system_message=encoder_system_message,
-            model=mock_llm(),
+            llm_model=mock_llm(),
             tool_params=encoder_tool_params,  # Intentionally omitting tool_details
         )
         
@@ -89,7 +89,7 @@ async def test_terminal_llm_tool_duplicate_parameter_names_easy_usage(
        encoder_w_duplicate_param = rc.library.terminal_llm(
             pretty_name="Encoder",
             system_message=encoder_system_message,
-            model=mock_llm(),
+            llm_model=mock_llm(),
             tool_details=encoder_tool_details,
             tool_params=encoder_tool_params,
         )
@@ -106,13 +106,13 @@ async def test_tool_info_not_classmethod(mock_llm, encoder_system_message):
             def __init__(
                     self,
                     message_history: rc.llm.MessageHistory,
-                    model: rc.llm.ModelBase = mock_llm(),
+                    llm_model: rc.llm.ModelBase = mock_llm(),
                 ):
                     message_history = [x for x in message_history if x.role != "system"]
                     message_history.insert(0, encoder_system_message)
                     super().__init__(
                         message_history=message_history,
-                        model=model,
+                        llm_model=llm_model,
                     )
             
             @classmethod
@@ -138,7 +138,7 @@ async def test_tool_info_not_classmethod(mock_llm, encoder_system_message):
 async def test_no_message_history_easy_usage(mock_llm):
     simple_agent = rc.library.terminal_llm(
             pretty_name="Encoder",
-            model=mock_llm(),
+            llm_model=mock_llm(),
         )
     
     with pytest.raises(NodeInvocationError, match="Message history must contain at least one message"):
@@ -147,8 +147,8 @@ async def test_no_message_history_easy_usage(mock_llm):
 @pytest.mark.asyncio
 async def test_no_message_history_class_based():
     class Encoder(rc.library.TerminalLLM):
-        def __init__(self, message_history: rc.llm.MessageHistory, model: rc.llm.ModelBase = None):
-            super().__init__(message_history=message_history, model=model)
+        def __init__(self, message_history: rc.llm.MessageHistory, llm_model: rc.llm.ModelBase = None):
+            super().__init__(message_history=message_history, llm_model=llm_model)
 
         @classmethod 
         def pretty_name(cls) -> str:
@@ -164,13 +164,13 @@ async def test_system_message_as_a_string_class_based(mock_llm):
         def __init__(
                 self,
                 message_history: rc.llm.MessageHistory,
-                model: rc.llm.ModelBase = mock_llm(),
+                llm_model: rc.llm.ModelBase = mock_llm(),
             ):
                 message_history = [x for x in message_history if x.role != "system"]
                 message_history.insert(0, rc.llm.SystemMessage("You are a helpful assistant that can encode text into bytes."))
                 super().__init__(
                     message_history=message_history,
-                    model=model,
+                    llm_model=llm_model,
                 )
         @classmethod
         def pretty_name(cls) -> str:

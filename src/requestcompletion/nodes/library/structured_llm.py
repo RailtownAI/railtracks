@@ -29,26 +29,26 @@ class StructuredLLM(LLMBase[_TOutput], ABC):
     @abstractmethod
     def output_model(cls) -> Type[_TOutput]: ...
 
-    def __init__(self, message_history: MessageHistory, model: ModelBase | None = None):
+    def __init__(self, message_history: MessageHistory, llm_model: ModelBase | None = None):
         """Creates a new instance of the TerminalLLM class
 
         Args:
 
         """
-        super().__init__(model=model, message_history=message_history)
+        super().__init__(llm_model=llm_model, message_history=message_history)
 
     @classmethod
     def pretty_name(cls) -> str:
         return cls.output_model().__name__
 
     async def invoke(self) -> _TOutput:
-        """Makes a call containing the inputted message and system prompt to the model and returns the response
+        """Makes a call containing the inputted message and system prompt to the llm model and returns the response
 
         Returns:
-            (TerminalLLM.Output): The response message from the model
+            (StructuredlLLM.Output): The response message from the llm model
         """
 
-        returned_mess = await self.model.astructured(
+        returned_mess = await self.llm_model.astructured(
             self.message_hist, schema=self.output_model()
         )
 

@@ -31,8 +31,8 @@ def check_message_history(
         warnings.warn(get_message("ONLY_SYSTEM_MESSAGE_WARN"))
 
 
-def check_model(model: ModelBase):
-    if model is None:
+def check_llm_model(llm_model: ModelBase):
+    if llm_model is None:
         raise NodeInvocationError(
             message=get_message("MODEL_REQUIRED_MSG"),
             notes=get_notes("MODEL_REQUIRED_NOTES"),

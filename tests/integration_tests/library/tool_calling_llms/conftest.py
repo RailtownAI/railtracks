@@ -127,7 +127,7 @@ def _make_node(fixture_name, system_message, model, output_model, tool_nodes, cl
             connected_nodes=tool_nodes,
             pretty_name=output_model.__name__ + " Node",
             system_message=system_message,
-            model=model,
+            llm_model=model,
             output_model=output_model,
         )
     elif fixture_name == "class_based":
@@ -137,7 +137,7 @@ def _make_node(fixture_name, system_message, model, output_model, tool_nodes, cl
                 message_history.insert(0, system_message)
                 super().__init__(
                     message_history=message_history,
-                    model=model,
+                    llm_model=model,
                 )
             @classmethod
             def output_model(cls):
@@ -149,7 +149,7 @@ def _make_node(fixture_name, system_message, model, output_model, tool_nodes, cl
             def pretty_name(cls):
                 return output_model.__name__ + " Node"
             @classmethod
-            def return_model(cls):
+            def get_llm_model(cls):
                 return model() if callable(model) else model
         return CustomNode
     else:
@@ -181,7 +181,7 @@ def math_node(request, model, math_output_model):
     rng_node = rc.library.terminal_llm(
         pretty_name="RNG Tool",
         system_message= "You are a helful assistant that can generate 5 random numbers between 1 and 100.",
-        model=model,
+        llm_model=model,
         tool_details="A tool used to generate 5 random integers between 1 and 100.",
         tool_params=None,
     )
@@ -207,7 +207,7 @@ def simple_function_taking_node(model, simple_tools, simple_output_model):
         connected_nodes={simple_tools},
         pretty_name="Random Number Provider Node",
         system_message=system_mes,
-        model=model,
+        llm_model=model,
         output_model=simple_output_model,
     )
 
@@ -225,7 +225,7 @@ def some_function_taking_travel_planner_node(model, travel_planner_tools, travel
         },
         pretty_name="Travel Planner Node",
         system_message=system_travel_planner,
-        model=model,
+        llm_model=model,
         output_model=travel_planner_output_model,
     )
 
@@ -242,7 +242,7 @@ def only_function_taking_travel_planner_node(model, travel_planner_tools, travel
         },
         pretty_name="Travel Planner Node",
         system_message=system_travel_planner,
-        model=model,
+        llm_model=model,
         output_model=travel_planner_output_model,
     )
 
@@ -265,7 +265,7 @@ def limited_tool_call_node_factory(model, travel_planner_tools):
                 connected_nodes=tool_nodes,
                 pretty_name="Limited Tool Call Test Node",
                 system_message=sys_msg,
-                model=model,
+                llm_model=model,
                 max_tool_calls=max_tool_calls,
             )
         else:

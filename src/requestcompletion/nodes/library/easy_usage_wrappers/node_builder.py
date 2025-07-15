@@ -48,17 +48,17 @@ class NodeBuilder(Generic[_TNode]):
 
     def llm_base(
         self,
-        model: rc.llm.ModelBase | None,
+        llm_model: rc.llm.ModelBase | None,
         system_message: str | None = None,
     ):
         assert issubclass(self._node_class, LLMBase), (
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         )
-        if model is not None:
-            if callable(model):
-                self._with_override("return_model", classmethod(lambda cls: model()))
+        if llm_model is not None:
+            if callable(llm_model):
+                self._with_override("get_llm_model", classmethod(lambda cls: llm_model()))
             else:
-                self._with_override("return_model", classmethod(lambda cls: model))
+                self._with_override("get_llm_model", classmethod(lambda cls: llm_model))
 
         _check_system_message(system_message)
         self._with_override("system_message", classmethod(lambda cls: system_message))

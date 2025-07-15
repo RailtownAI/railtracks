@@ -47,7 +47,7 @@ def create_top_level_node():
 
                 super().__init__(
                     message_history=message_history,
-                    model=self.create_model(),
+                    llm_model=self.create_model(),
                 )
 
             @classmethod

@@ -24,16 +24,12 @@ class StructuredToolCallLLM(OutputLessToolCallLLM[str], ABC):
         cls.structured_resp_node = structured_llm(
             cls.output_model(),
             system_message=system_structured,
-            model=cls.return_model,
+            llm_model=cls.get_llm_model,
         )
 
     @classmethod
     @abstractmethod
     def output_model(cls) -> Type[_TOutput]: ...
-
-    @classmethod
-    def return_model(cls):
-        return None
 
     def return_output(self) -> BaseModel:
         # Return the structured output or raise the exception if it was an error
