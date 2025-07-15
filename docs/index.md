@@ -2,7 +2,7 @@
 
 Request Completion is a streamlined agentic workflow creation tool that allows users to quickly prototype, test, and 
 deploy agentic workflows. The foundational principles of Request Completion were designed to make the process of
-creating agents a exercise in writing code, not writing a configuration file. 
+creating agents an exercise in writing code, not writing a configuration file.
 
 <p style="text-align:center;">
   <a href="get_started" class="md-button" style="margin:3px">Quick Start</a>
