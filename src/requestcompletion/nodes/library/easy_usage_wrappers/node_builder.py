@@ -24,6 +24,32 @@ _TNode = TypeVar("_TNode", bound=Node)
 
 
 class NodeBuilder(Generic[_TNode]):
+    """
+    A flexible builder for dynamically creating Node subclasses with custom configuration.
+
+    NodeBuilder allows you to programmatically construct new node classes through the requestcompletion framework,
+    overriding methods and attributes such as pretty name, tool details, parameters, and LLM configuration.
+    This is useful for classes that need small changes to existing classes like ToolCalling, Structured, or Terminal LLMs.
+    See EasyUsageWrappers for examples of how to use this builder.
+
+    Parameters
+    ----------
+    node_class : type[_TNode]
+        The base node class to extend (must be a subclass of Node).
+    pretty_name : str, optional
+        Human-readable name for the node/tool (used for debugging and tool metadata).
+    class_name : str, optional
+        The name of the generated class (defaults to 'Dynamic{node_class.__qualname__}').
+    tool_details : str, optional
+        Description of the tool for LLM tool calling.
+    tool_params : set[Parameter], optional
+        Parameters for the tool, used in tool metadata and input validation.
+
+    Returns
+    -------
+    Type[_TNode]
+        The node subclass with the specified overrides and configurations.
+    """
     def __init__(
         self,
         node_class: type[_TNode],
@@ -48,6 +74,22 @@ class NodeBuilder(Generic[_TNode]):
         llm_model: ModelBase | None,
         system_message: SystemMessage | str | None = None,
     ):
+        """
+        Configure the node subclass to use a specific LLM model and system message.
+
+        Parameters
+        ----------
+        llm_model : ModelBase or None
+            The LLM model instance or to use for this node. If callable, it will be called to get the model.
+        system_message : SystemMessage or str or None, optional
+            The system prompt/message for the node. If not passed here, a system message can be passed at runtime.
+
+        Raises
+        ------
+        AssertionError
+            If the node class is not a subclass of LLMBase.
+
+        """
         assert issubclass(self._node_class, LLMBase), (
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         )
@@ -70,22 +112,56 @@ class NodeBuilder(Generic[_TNode]):
         self,
         output_model: Type[BaseModel],
     ):
+        """
+        Configure the node subclass to have a output_model method.
+
+        This method creates a class wide method which returns the output model for the node, 
+        which in turn is used for validation and serialization of structured outputs.
+
+        Parameters
+        ----------
+        output_model : Type[BaseModel]
+            The pydantic model class to use for the node's output.
+        """
+
         self._with_override("output_model", classmethod(lambda cls: output_model))
 
     def tool_calling_llm(
-        self, connected_nodes: Dict[str, Any] | Set[Type[Node]], max_tool_calls: int
+        self, connected_nodes: Set[Type[Node]], max_tool_calls: int
     ):
+        """
+        Configure the node subclass to have a connected_nodes method and max_tool_calls method.
+
+        This method creates methods that are helpful for tool calling llms with their tools
+        stored in connected_nodes and with a limit on the number of tool calls they can make. 
+
+        Parameters
+        ----------
+        connected_nodes : Set[Type[Node]]
+            The nodes/tools that this node can call.
+        max_tool_calls : int
+            The maximum number of tool calls allowed during a single invocation.
+
+        Raises
+        ------
+        AssertionError
+            If the node class is not a subclass of a ToolCallingLLM in the RC framework.
+        """
         assert issubclass(self._node_class, OutputLessToolCallLLM), (
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         )
+
         for elem in connected_nodes:
             if isfunction(elem):
                 connected_nodes.remove(elem)
                 connected_nodes.add(from_function(elem))
+
         if isinstance(connected_nodes, set):
             connected_nodes = {x: None for x in connected_nodes}
+
         _check_max_tool_calls(max_tool_calls)
         check_connected_nodes(connected_nodes, Node)
+
         self._with_override("connected_nodes", classmethod(lambda cls: connected_nodes))
         self._with_override("max_tool_calls", max_tool_calls)
 
@@ -114,9 +190,29 @@ class NodeBuilder(Generic[_TNode]):
         tool_details: str | None,
         tool_params: Iterable[Parameter] | None = None,
     ):
+        """
+        Configure the node subclass to have tool_info and prepare_tool method
+
+        This method creates methods that are used if the node was going to be used as a tool itself.
+        This will allow other nodes to know how to call and use this node as a tool.
+
+        Parameters
+        ----------
+        tool_details : str or None
+            Description of the tool for LLM tool calling (used in metadata and UI).
+        tool_params : Iterable[Parameter] or None
+            Parameters for the tool, used for input validation and metadata.
+
+        Raises
+        ------
+        AssertionError
+            If the node class is not a subclass of an RC LLM node.
+
+        """
         assert issubclass(self._node_class, LLMBase), (
             f"You tried to add tool calling details to a non LLM Node of {type(self._node_class)}."
         )
+
         _check_tool_params_and_details(tool_params, tool_details)
         _check_duplicate_param_names(tool_params or [])
         self.override_tool_info(tool_details, tool_params)
@@ -140,7 +236,7 @@ class NodeBuilder(Generic[_TNode]):
 
     def override_prepare_tool(self, tool_params: dict[str, Any]):
         """
-        Override the tool_info function for the node.
+        Override the prepare_tool function for the node.
         """
 
         def prepare_tool(cls, tool_parameters: Dict[str, Any]):
@@ -166,6 +262,18 @@ class NodeBuilder(Generic[_TNode]):
         self._methods[name] = method
 
     def build(self):
+        """
+        Construct and return the configured node subclass.
+
+        This method creates a the node subclass that inherits from the specified base node class, applying all method
+        and attribute overrides configured via the builder. 
+
+        Returns
+        -------
+        Type[_TNode]
+            The dynamically generated node subclass with all specified overrides.
+
+        """
         class_dict: Dict[str, Any] = {}
         class_dict.update(self._methods)
 
