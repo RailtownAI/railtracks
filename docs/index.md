@@ -32,7 +32,7 @@ Request Completion offers a unique approach that focuses on simplicity and devel
     </div>
     <div class="card">
         <h3>Logging</h3>
-        <p>Request Completion comes out of the box with logging that will allow you to know what is going in your system.</p>
+        <p>Request Completion comes out of the box with logging that will allow you to know what is going on in your system.</p>
     </div>
 </div>
 
