@@ -7,6 +7,7 @@ from requestcompletion.nodes.library.easy_usage_wrappers.node_builder import Nod
 
 def terminal_llm(  # noqa: C901
     pretty_name: str | None = None,
+    *,
     system_message: SystemMessage | str | None = None,
     llm_model: ModelBase | None = None,
     tool_details: str | None = None,

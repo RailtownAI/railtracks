@@ -11,6 +11,7 @@ from ...library.tool_calling_llms.tool_call_llm import ToolCallLLM
 
 def tool_call_llm(  # noqa: C901
     connected_nodes: Set[Union[Type[Node], Callable]],
+    *,
     pretty_name: str | None = None,
     llm_model: ModelBase | None = None,
     max_tool_calls: int | None = 30,

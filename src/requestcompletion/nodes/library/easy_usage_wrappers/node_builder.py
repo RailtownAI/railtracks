@@ -4,6 +4,7 @@ from inspect import isfunction
 from mcp import StdioServerParameters
 
 from requestcompletion.llm import Parameter
+from ...library import from_mcp_server
 from ...library._llm_base import LLMBase
 from ...library.tool_calling_llms._base import OutputLessToolCallLLM
 from ...library.tool_calling_llms.tool_call_llm import ToolCallLLM
@@ -15,9 +16,8 @@ from requestcompletion.exceptions.node_creation.validation import (
     _check_max_tool_calls,
     check_connected_nodes,
 )
-from ....llm import MessageHistory, UserMessage, SystemMessage
+from ....llm import MessageHistory, UserMessage, SystemMessage, ModelBase, Tool
 from ...library.function import from_function
-import requestcompletion as rc
 from pydantic import BaseModel
 
 _TNode = TypeVar("_TNode", bound=Node)
@@ -45,7 +45,7 @@ class NodeBuilder(Generic[_TNode]):
 
     def llm_base(
         self,
-        llm_model: rc.llm.ModelBase | None,
+        llm_model: ModelBase | None,
         system_message: SystemMessage | str | None = None,
     ):
         assert issubclass(self._node_class, LLMBase), (
@@ -93,7 +93,7 @@ class NodeBuilder(Generic[_TNode]):
         assert issubclass(self._node_class, ToolCallLLM), (
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         )
-        tools = rc.nodes.library.from_mcp_server(
+        tools = from_mcp_server(
             StdioServerParameters(
                 command=mcp_command,
                 args=mcp_args,
@@ -129,8 +129,8 @@ class NodeBuilder(Generic[_TNode]):
         Override the tool_info function for the node.
         """
 
-        def tool_info(cls: Type[_TNode]) -> rc.llm.Tool:
-            return rc.llm.Tool(
+        def tool_info(cls: Type[_TNode]) -> Tool:
+            return Tool(
                 name=cls.pretty_name().replace(" ", "_"),
                 detail=tool_details,
                 parameters=tool_params,

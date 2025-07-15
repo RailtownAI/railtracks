@@ -12,6 +12,7 @@ from ...library.tool_calling_llms.structured_tool_call_llm import StructuredTool
 
 def structured_tool_call_llm(  # noqa: C901
     connected_nodes: Set[Union[Type[Node], Callable]],
+    *,
     pretty_name: str | None = None,
     llm_model: ModelBase | None = None,
     max_tool_calls: int | None = 30,

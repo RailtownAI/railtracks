@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 def structured_llm(  # noqa: C901
     output_model: Type[BaseModel],
+    *,
     system_message: SystemMessage | str | None = None,
     llm_model: ModelBase | None = None,
     pretty_name: str | None = None,

@@ -211,7 +211,6 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                     ),
                 )
             except Exception as e:
-                raise Exception(e)
                 # will be raised in the return_output method in StructuredToolCallLLM
                 self.structured_output = LLMError(
                     reason="Failed to parse assistant response into structured output.",
