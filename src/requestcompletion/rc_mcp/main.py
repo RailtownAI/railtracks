@@ -133,7 +133,11 @@ class MCPServer:
     On initialization, it will connect to the MCP server, and will remain connected until closed.
     """
 
-    def __init__(self, config: MCPStdioParams | MCPHttpParams, client_session: ClientSession | None = None):
+    def __init__(
+        self,
+        config: MCPStdioParams | MCPHttpParams,
+        client_session: ClientSession | None = None,
+    ):
         self.client = None
         self.config = config
         self.client_session = client_session
