@@ -4,7 +4,7 @@ from typing import Any, Callable, Dict, Generic, ParamSpec, Set, Type, TypeVar, 
 
 from requestcompletion.exceptions import LLMError, NodeCreationError
 from requestcompletion.exceptions.node_invocation.validation import check_max_tool_calls
-from requestcompletion.interaction import call
+from requestcompletion.interaction.call import call
 from requestcompletion.llm import (
     AssistantMessage,
     MessageHistory,
