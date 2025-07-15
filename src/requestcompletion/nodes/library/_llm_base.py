@@ -1,16 +1,17 @@
 from __future__ import annotations
+
 from abc import ABC
 from copy import deepcopy
+from typing import Generic, TypeVar
 
 from typing_extensions import Self
 
+import requestcompletion.llm as llm
 from requestcompletion.exceptions.node_invocation.validation import (
     check_message_history,
 )
-from requestcompletion.nodes.nodes import Node
-import requestcompletion.llm as llm
 from requestcompletion.llm.response import Response
-from typing import TypeVar, Generic
+from requestcompletion.nodes.nodes import Node
 
 from ...prompts.prompt import inject_context
 
@@ -116,7 +117,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         raise exception
 
     def safe_copy(self) -> Self:
-        new_instance: LLMBase = super().safe_copy()  # noqa: Type checking broken.
+        new_instance: LLMBase = super().safe_copy()  # noqa: E501
 
         # This has got to be one of the weirdest things I've seen working with python
         # basically if we don't reattach the hooks, the `self` inserted into the model hooks will be the old memory address

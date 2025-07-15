@@ -1,26 +1,27 @@
 import warnings
 from copy import deepcopy
-from typing import Set, Type, Union, Literal, Dict, Any, Callable
+from inspect import isclass, isfunction
+from typing import Any, Callable, Dict, Literal, Set, Type, Union
+
 from pydantic import BaseModel
+from typing_extensions import Self
+
+from ....exceptions import NodeCreationError
+from ....exceptions.node_creation.validation import validate_tool_metadata
+from ....exceptions.node_invocation.validation import check_message_history, check_model
 from ....llm import (
+    AssistantMessage,
     MessageHistory,
     ModelBase,
     SystemMessage,
-    AssistantMessage,
-    UserMessage,
     Tool,
+    UserMessage,
 )
-from ....nodes.library import structured_llm
-from ..tool_calling_llms._base import OutputLessToolCallLLM
-from ....nodes.nodes import Node
 from ....llm.message import Role
-
-from typing_extensions import Self
-from ....exceptions import NodeCreationError
-from ....exceptions.node_creation.validation import validate_tool_metadata
-from ....exceptions.node_invocation.validation import check_model, check_message_history
-from inspect import isclass, isfunction
+from ....nodes.library import structured_llm
 from ....nodes.library.function import from_function
+from ....nodes.nodes import Node
+from ..tool_calling_llms._base import OutputLessToolCallLLM
 
 
 def tool_call_llm(  # noqa: C901

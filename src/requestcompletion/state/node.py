@@ -1,18 +1,17 @@
 from __future__ import annotations
 
-
 from dataclasses import dataclass
-from typing import Optional, ParamSpec, Dict, Type
+from typing import Dict, Optional, ParamSpec, Type
 
+from ..nodes.nodes import (
+    Node,
+)
+from ..utils.profiling import Stamp
+from ..utils.serialization.graph import Vertex
 from .forest import (
     AbstractLinkedObject,
     Forest,
 )
-from ..utils.profiling import Stamp
-from ..nodes.nodes import (
-    Node,
-)
-from ..utils.serialization.graph import Vertex
 
 _P = ParamSpec("_P")
 

@@ -1,33 +1,32 @@
 from __future__ import annotations
 
 import asyncio
-
-from typing_extensions import Self
-
-from ...llm.tools import Tool
+import inspect
 import types
 from typing import (
     Any,
-    TypeVar,
     Callable,
-    List,
-    Type,
-    Dict,
-    Tuple,
-    Union,
-    get_origin,
-    get_args,
     Coroutine,
-    ParamSpec,
+    Dict,
     Generic,
+    List,
+    ParamSpec,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    get_args,
+    get_origin,
 )
 
-from ..nodes import Node
-import inspect
 from pydantic import BaseModel
+from typing_extensions import Self
+
 from ...exceptions import NodeCreationError
 from ...exceptions.node_creation.validation import validate_function
+from ...llm.tools import Tool
 from ...llm.tools.parameter_handlers import UnsupportedParameterError
+from ..nodes import Node
 
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")

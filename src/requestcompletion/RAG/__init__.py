@@ -1,5 +1,5 @@
-from .rag_node import get_rag_node
 from .rag_core import RAG
+from .rag_node import get_rag_node
 
 __all__ = [
     "RAG",

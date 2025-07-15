@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass
-from typing import Generic, TypeVar, Optional, Dict, List, Tuple, Iterable
+from typing import Dict, Generic, Iterable, List, Optional, Tuple, TypeVar
+
 from typing_extensions import Self
 
 from ..utils.profiling import Stamp

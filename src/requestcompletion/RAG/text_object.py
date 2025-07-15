@@ -1,8 +1,8 @@
 # text_object.py
-from typing import Any, List, Optional
-import os
 import hashlib
 import logging
+import os
+from typing import Any, List, Optional
 
 logger = logging.getLogger(__name__)
 

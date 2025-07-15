@@ -1,10 +1,11 @@
 # embedding/service.py
 from __future__ import annotations
-from typing import List, Sequence, Iterable, Optional, Any
+
 import logging
 from abc import ABC, abstractmethod
-import litellm
+from typing import Any, Iterable, List, Optional, Sequence
 
+import litellm
 
 logger = logging.getLogger(__name__)
 
