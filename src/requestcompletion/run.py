@@ -1,6 +1,4 @@
 import asyncio
-import json
-import os.path
 from pathlib import Path
 
 from .interaction.call import call
@@ -118,13 +116,15 @@ class Runner:
         if self.executor_config.save_state:
             try:
                 covailence_dir = Path(".covailence")
-                covailence_dir.mkdir(exist_ok=True)  # Creates if doesn't exist, skips otherwise.
+                covailence_dir.mkdir(
+                    exist_ok=True
+                )  # Creates if doesn't exist, skips otherwise.
 
-                file_path = covailence_dir / f"{self.executor_config.run_identifier}.json"
+                file_path = (
+                    covailence_dir / f"{self.executor_config.run_identifier}.json"
+                )
                 if file_path.exists():
-                    logger.warning(
-                        "File %s already exists, overwriting it with the current execution info." % file_path
-                    )
+                    logger.warning("File %s already exists, overwriting..." % file_path)
 
                 logger.info("Saving execution info to %s" % file_path)
 
