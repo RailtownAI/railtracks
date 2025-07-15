@@ -20,7 +20,7 @@ Request Completion offers a unique approach that focuses on simplicity and devel
 
     <div class="card">
         <h3>Visualizable</h3>
-        <p>Easy to create visaluazations that are perfect to show off the internals of the agent you created.</p>
+        <p>Easy to create visualizations that are perfect to show off the internals of the agent you created.</p>
     </div>
     <div class="card">
         <h3>Code Defined Flows</h3>
