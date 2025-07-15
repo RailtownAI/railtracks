@@ -4,8 +4,7 @@ from ...rc_mcp.main import MCPStdioParams, MCPHttpParams, MCPServer
 
 
 def from_mcp_server(
-    config: MCPStdioParams | MCPHttpParams,
-    client_session: ClientSession | None = None
+    config: MCPStdioParams | MCPHttpParams, client_session: ClientSession | None = None
 ) -> MCPServer:
     """
     Returns an MCPServer class. On creation, it will connect to the MCP server and fetch the tools.

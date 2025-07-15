@@ -179,7 +179,7 @@ class MCPServer:
 
     @property
     def tools(self) -> list[Type[Node]]:
-        """ Returns a list of Tool Nodes available in the MCP server."""
+        """Returns a list of Tool Nodes available in the MCP server."""
         return self._tools
 
 
