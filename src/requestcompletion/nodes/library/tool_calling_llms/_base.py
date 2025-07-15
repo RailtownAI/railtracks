@@ -64,16 +64,18 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
             if max_tool_calls is not None:
                 check_max_tool_calls(max_tool_calls)
                 self.max_tool_calls = max_tool_calls
-            # Default to 30 if not passed
-            else:
-                self.max_tool_calls = 30
+            # Default to unlimited if not passed
+
         # Warn user that two max_tool_calls are set and we will use the parameter
         else:
             if max_tool_calls is not None:
                 warnings.warn(
                     "You have provided max_tool_calls as a parameter and as a class variable. We will use the parameter."
                 )
+                check_max_tool_calls(max_tool_calls)
                 self.max_tool_calls = max_tool_calls
+            else:
+                check_max_tool_calls(self.max_tool_calls)
 
     @classmethod
     def pretty_name(cls) -> str:
