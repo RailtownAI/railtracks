@@ -1,9 +1,8 @@
 #%%
 import asyncio
 import requestcompletion as rc
-from mcp import StdioServerParameters
 from requestcompletion.nodes.library.mcp_tool import from_mcp_server
-from requestcompletion.rc_mcp import MCPHttpParams
+from requestcompletion.rc_mcp import MCPHttpParams, MCPStdioParams
 
 
 #%%
@@ -16,7 +15,7 @@ MCP_ARGS = ["mcp-server-time"]
 #%%
 # Discover all tools
 fetch_server = from_mcp_server(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))
-time_server = from_mcp_server(StdioServerParameters(command=MCP_COMMAND, args=MCP_ARGS))
+time_server = from_mcp_server(MCPStdioParams(command=MCP_COMMAND, args=MCP_ARGS))
 
 fetch_tools = fetch_server.tools
 time_tools = time_server.tools

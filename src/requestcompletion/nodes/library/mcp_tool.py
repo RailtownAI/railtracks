@@ -1,8 +1,11 @@
+from mcp import ClientSession
+
 from ...rc_mcp.main import MCPStdioParams, MCPHttpParams, MCPServer
 
 
 def from_mcp_server(
     config: MCPStdioParams | MCPHttpParams,
+    client_session: ClientSession | None = None
 ) -> MCPServer:
     """
     Returns an MCPServer class. On creation, it will connect to the MCP server and fetch the tools.
@@ -10,8 +13,9 @@ def from_mcp_server(
 
     Args:
         config: Configuration for the MCP server, either as StdioServerParameters or MCPHttpParams.
+        client_session: Optional ClientSession to use for the MCP server connection. If not provided, a new session will be created.
 
     Returns:
         MCPServer: An instance of the MCPServer class.
     """
-    return MCPServer(config=config)
+    return MCPServer(config=config, client_session=client_session)

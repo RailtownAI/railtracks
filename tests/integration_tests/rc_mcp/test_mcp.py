@@ -1,4 +1,6 @@
 import asyncio
+import time
+
 import requestcompletion as rc
 from mcp import StdioServerParameters
 from requestcompletion.nodes.library.mcp_tool import from_mcp_server
@@ -8,7 +10,7 @@ import pytest
 import subprocess
 import sys
 
-from requestcompletion.rc_mcp.main import MCPHttpParams
+from requestcompletion.rc_mcp.main import MCPHttpParams, from_mcp
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -102,3 +104,48 @@ def test_from_mcp_server_with_http():
 
     assert response.answer is not None
     assert response.answer.content is not "It didn't work!"
+
+
+class MockClient:
+    def __init__(self, delay=1):
+        self.delay = delay
+
+    async def call_tool(self, tool_name, kwargs):
+        await asyncio.sleep(self.delay)
+        return type("Result", (), {"content": f"done {tool_name}"})()
+
+    async def list_tools(self):
+        Tool = type("Tool", (), {
+            "name": "tool1",
+            "description": "Mock tool 1",
+            "inputSchema": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        })
+        Tool2 = type("Tool", (), {
+            "name": "tool2",
+            "description": "Mock tool 2",
+            "inputSchema": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        })
+        return type("ToolResponse", (), {"tools": [Tool, Tool2]})()
+
+
+@pytest.mark.asyncio
+async def test_parallel_mcp_servers():
+    client = MockClient()
+    client2 = MockClient()
+    node1 = from_mcp_server(MCPHttpParams(url=""), client).tools[0]
+    node2 = from_mcp_server(MCPHttpParams(url=""), client2).tools[1]
+
+    start = time.perf_counter()
+    results = await asyncio.gather(rc.call(node1), rc.call(node2))
+    elapsed = time.perf_counter() - start
+
+    assert all("done" in r for r in results)
+    assert elapsed < 2

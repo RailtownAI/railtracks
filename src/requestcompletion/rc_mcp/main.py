@@ -15,7 +15,14 @@ from pydantic import BaseModel
 from ..llm import Tool
 from ..nodes.nodes import Node
 
-MCPStdioParams = StdioServerParameters
+
+class MCPStdioParams(StdioServerParameters):
+    timeout: timedelta = timedelta(seconds=30)
+
+    def as_stdio_params(self) -> StdioServerParameters:
+        # Collect all attributes except 'timeout'
+        stdio_kwargs = self.dict(exclude={"timeout"})
+        return StdioServerParameters(**stdio_kwargs)
 
 
 class MCPHttpParams(BaseModel):
@@ -35,7 +42,7 @@ class MCPAsyncClient:
 
     def __init__(
         self,
-        config: StdioServerParameters | MCPHttpParams,
+        config: MCPStdioParams | MCPHttpParams,
         client_session: ClientSession | None = None,
     ):
         self.config = config
@@ -49,9 +56,9 @@ class MCPAsyncClient:
         self._entered = True
         try:
             if self.session is None:
-                if isinstance(self.config, StdioServerParameters):
+                if isinstance(self.config, MCPStdioParams):
                     stdio_transport = await self.exit_stack.enter_async_context(
-                        stdio_client(self.config)
+                        stdio_client(self.config.as_stdio_params())
                     )
                     self.session = await self.exit_stack.enter_async_context(
                         ClientSession(*stdio_transport)
@@ -198,7 +205,7 @@ def from_mcp(
             super().__init__()
             self.kwargs = kwargs
 
-        async def invoke(self):
+        def invoke(self):
             try:
                 future = asyncio.run_coroutine_threadsafe(
                     client.call_tool(tool.name, self.kwargs), loop
