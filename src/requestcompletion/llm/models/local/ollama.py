@@ -1,11 +1,12 @@
 import os
-import requests
 from typing import Literal
 
 import litellm
+import requests
+
 from ....exceptions.errors import LLMError
-from .._litellm_wrapper import LiteLLMWrapper
 from ....utils.logging.create import get_rc_logger
+from .._litellm_wrapper import LiteLLMWrapper
 
 LOGGER_NAME = "OLLAMA"
 DEFAULT_DOMAIN = "http://localhost:11434"

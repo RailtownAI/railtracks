@@ -1,7 +1,8 @@
-from ._llm_base import LLMBase
-from ...llm import MessageHistory, ModelBase
 from abc import ABC
+
 from ...exceptions import LLMError
+from ...llm import MessageHistory, ModelBase
+from ._llm_base import LLMBase
 
 
 class TerminalLLM(LLMBase[str], ABC):

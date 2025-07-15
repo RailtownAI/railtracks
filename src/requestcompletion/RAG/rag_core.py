@@ -1,13 +1,13 @@
 # rag.py
-import random
-
-from typing import List, Any, Optional
-from .text_object import TextObject
-from .embedding_service import EmbeddingService
-from .chunking_service import TextChunkingService
-from .vector_store import create_store
 import os
-from .vector_store.base import VectorRecord, SearchResult
+import random
+from typing import Any, List, Optional
+
+from .chunking_service import TextChunkingService
+from .embedding_service import EmbeddingService
+from .text_object import TextObject
+from .vector_store import create_store
+from .vector_store.base import SearchResult, VectorRecord
 
 
 def textobject_to_vectorrecords(text_obj: TextObject) -> List[VectorRecord]:

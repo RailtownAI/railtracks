@@ -4,7 +4,7 @@ import abc
 import enum
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Sequence, Union, Optional
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 Vector = List[float]  # Alias for readability; represents a numeric vector
 

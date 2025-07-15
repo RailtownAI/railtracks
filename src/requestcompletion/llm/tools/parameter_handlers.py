@@ -8,7 +8,7 @@ and creating the appropriate Parameter object.
 
 import inspect
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 from pydantic import BaseModel
 

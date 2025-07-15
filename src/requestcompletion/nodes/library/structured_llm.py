@@ -1,10 +1,11 @@
-from typing import TypeVar, Type
-
-from ._llm_base import LLMBase
-from ...llm import MessageHistory, ModelBase
-from ...exceptions import LLMError
-from pydantic import BaseModel
 from abc import ABC, abstractmethod
+from typing import Type, TypeVar
+
+from pydantic import BaseModel
+
+from ...exceptions import LLMError
+from ...llm import MessageHistory, ModelBase
+from ._llm_base import LLMBase
 
 _TOutput = TypeVar("_TOutput", bound=BaseModel)
 

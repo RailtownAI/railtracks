@@ -1,7 +1,8 @@
 import logging
 import os
-from typing import Literal
 import re
+from typing import Literal
+
 from colorama import Fore, init
 
 allowable_log_levels = Literal["VERBOSE", "REGULAR", "QUIET", "NONE"]

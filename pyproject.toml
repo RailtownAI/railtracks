@@ -41,6 +41,7 @@ format.docstring-code-format = true
 
 lint.select = [
     "E",
+    "I",
     "W",
     "F",
     "C",
@@ -56,7 +57,7 @@ lint.ignore = [
 ]
 
 fix = true
-lint.fixable = ["F401", "F841" ]
+lint.fixable = ["F401", "F841", "I001"]
 
 exclude = [".git", "examples", "docs", ".venv", ".conda", "tests", "src/requestcompletion/visuals"]
 

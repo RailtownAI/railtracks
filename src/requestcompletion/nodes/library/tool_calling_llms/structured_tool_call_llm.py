@@ -1,9 +1,12 @@
-from ._base import OutputLessToolCallLLM
-from requestcompletion.llm import MessageHistory, ModelBase, SystemMessage
-from ..easy_usage_wrappers.structured_llm import structured_llm
-from pydantic import BaseModel
-from typing import Type
 from abc import ABC
+from typing import Type
+
+from pydantic import BaseModel
+
+from requestcompletion.llm import MessageHistory, ModelBase, SystemMessage
+
+from ..easy_usage_wrappers.structured_llm import structured_llm
+from ._base import OutputLessToolCallLLM
 
 
 class StructuredToolCallLLM(OutputLessToolCallLLM[str], ABC):
