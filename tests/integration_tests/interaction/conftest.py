@@ -1,11 +1,10 @@
-import random
 import asyncio
 
 import pytest
 from typing import List
 from pydantic import BaseModel, Field
 import requestcompletion as rc
-
+from requestcompletion.llm import SystemMessage
 
 @pytest.fixture
 def model():
@@ -196,7 +195,7 @@ def terminal_nodes(request, model, terminal_llms_system_messages):
                     llm_model: rc.llm.ModelBase,
                 ):
                     message_history = [x for x in message_history if x.role != "system"]
-                    message_history.insert(0, system_message)
+                    message_history.insert(0, SystemMessage(system_message))
                     super().__init__(message_history=message_history, llm_model=llm_model)
 
                 @classmethod
@@ -270,7 +269,7 @@ def structured_nodes(request, model, structured_llms_system_messages):
                     llm_model: rc.llm.ModelBase,
                 ):
                     message_history = [x for x in message_history if x.role != "system"]
-                    message_history.insert(0, system_message)
+                    message_history.insert(0, SystemMessage(system_message))
                     super().__init__(message_history=message_history, llm_model=llm_model)
 
                 @classmethod
@@ -351,7 +350,7 @@ def tool_calling_nodes(
                     llm_model: rc.llm.ModelBase,
                 ):
                     message_history = [x for x in message_history if x.role != "system"]
-                    message_history.insert(0, system_message)
+                    message_history.insert(0, SystemMessage(system_message))
                     super().__init__(message_history=message_history, llm_model=llm_model)
 
                 def connected_nodes(self):

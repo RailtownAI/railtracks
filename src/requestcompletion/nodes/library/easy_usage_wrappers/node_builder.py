@@ -15,10 +15,7 @@ from requestcompletion.exceptions.node_creation.validation import (
     _check_max_tool_calls,
     check_connected_nodes,
 )
-from ....llm import (
-    MessageHistory,
-    UserMessage,
-)
+from ....llm import MessageHistory, UserMessage, SystemMessage
 from ...library.function import from_function
 import requestcompletion as rc
 from pydantic import BaseModel
@@ -49,16 +46,22 @@ class NodeBuilder(Generic[_TNode]):
     def llm_base(
         self,
         llm_model: rc.llm.ModelBase | None,
-        system_message: str | None = None,
+        system_message: SystemMessage | str | None = None,
     ):
         assert issubclass(self._node_class, LLMBase), (
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         )
         if llm_model is not None:
             if callable(llm_model):
-                self._with_override("get_llm_model", classmethod(lambda cls: llm_model()))
+                self._with_override(
+                    "get_llm_model", classmethod(lambda cls: llm_model())
+                )
             else:
                 self._with_override("get_llm_model", classmethod(lambda cls: llm_model))
+
+        # Handle system message being passed as a string
+        if isinstance(system_message, str):
+            system_message = SystemMessage(system_message)
 
         _check_system_message(system_message)
         self._with_override("system_message", classmethod(lambda cls: system_message))

@@ -7,7 +7,7 @@ import warnings
 def check_message_history(
     message_history: MessageHistory, system_message: str = None
 ) -> None:
-    if any(not isinstance(m, (Message, str)) for m in message_history):
+    if any(not isinstance(m, Message) for m in message_history):
         raise NodeInvocationError(
             message=get_message("MESSAGE_HISTORY_TYPE_MSG"),
             notes=get_notes("MESSAGE_HISTORY_TYPE_NOTES"),

@@ -113,7 +113,9 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
 
     async def _on_max_tool_calls_exceeded(self):
         """force a final response"""
-        returned_mess = await self.llm_model.achat_with_tools(self.message_hist, tools=[])
+        returned_mess = await self.llm_model.achat_with_tools(
+            self.message_hist, tools=[]
+        )
         self.message_hist.append(returned_mess.message)
 
     async def invoke(self) -> _T:

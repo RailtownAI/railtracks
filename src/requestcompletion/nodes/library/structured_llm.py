@@ -29,7 +29,9 @@ class StructuredLLM(LLMBase[_TOutput], ABC):
     @abstractmethod
     def output_model(cls) -> Type[_TOutput]: ...
 
-    def __init__(self, message_history: MessageHistory, llm_model: ModelBase | None = None):
+    def __init__(
+        self, message_history: MessageHistory, llm_model: ModelBase | None = None
+    ):
         """Creates a new instance of the TerminalLLM class
 
         Args:

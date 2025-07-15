@@ -13,7 +13,7 @@ async def test_terminal_llm_instantiate_and_invoke(mock_llm, mock_chat_function)
         def pretty_name(cls):
             return "Mock LLM"
         
-    mh = MessageHistory(["system prompt", UserMessage("hello")])
+    mh = MessageHistory([SystemMessage("system prompt"), UserMessage("hello")])
     node = MockLLM(message_history=mh, llm_model=mock_llm(chat=mock_chat_function))
     # with rc.Runner() as runner:
     result = await node.invoke()
@@ -167,7 +167,7 @@ async def test_system_message_as_a_string_class_based(mock_llm):
                 llm_model: rc.llm.ModelBase = mock_llm(),
             ):
                 message_history = [x for x in message_history if x.role != "system"]
-                message_history.insert(0, rc.llm.SystemMessage("You are a helpful assistant that can encode text into bytes."))
+                message_history.insert(0, "You are a helpful assistant that can encode text into bytes.")
                 super().__init__(
                     message_history=message_history,
                     llm_model=llm_model,
@@ -176,7 +176,7 @@ async def test_system_message_as_a_string_class_based(mock_llm):
         def pretty_name(cls) -> str:
             return "Simple Node"
 
-    with pytest.raises(NodeInvocationError, match="system_message must be a string, not any other type."):
+    with pytest.raises(NodeInvocationError, match="Message history must be a list of Message objects."):
         response = await rc.call(Encoder, message_history=rc.llm.MessageHistory([rc.llm.UserMessage("hello world")]))
 # =================== END invocation exceptions =====================
 # ================================================ END terminal_llm Exception testing ===========================================================

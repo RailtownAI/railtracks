@@ -19,7 +19,7 @@ def test_structured_tool_call_llm_init(mock_llm, output_model, mock_tool):
         def connected_nodes(self):
             return {mock_tool}
     
-    mh = MessageHistory(["system prompt", UserMessage("extract value")])
+    mh = MessageHistory([SystemMessage("system prompt"), UserMessage("extract value")])
     node = MockStructuredToolCallLLM(
         message_history=mh,
         llm_model=mock_llm(),
@@ -39,7 +39,7 @@ def test_structured_tool_call_llm_return_output_success(mock_tool, mock_llm, out
         def connected_nodes(self):
             return {mock_tool}
     
-    mh = MessageHistory(["system prompt", UserMessage("extract value")])
+    mh = MessageHistory([SystemMessage("system prompt"), UserMessage("extract value")])
     node = MockStructuredToolCallLLM(
         message_history=mh,
         llm_model=mock_llm(),
@@ -57,14 +57,14 @@ def test_structured_tool_call_llm_return_output_exception(mock_llm, output_model
         tool_params=None,
         pretty_name="Mock Structured ToolCallLLM",
     )
-    mh = MessageHistory(["system prompt", UserMessage("extract value")])
+    mh = MessageHistory([SystemMessage("system prompt"), UserMessage("extract value")])
     node = node(mh, mock_llm())
     node.structured_output = ValueError("fail")
     with pytest.raises(ValueError):
         node.return_output()
 
 def test_structured_llm_easy_usage_wrapper(mock_llm, output_model, mock_tool):
-    mh = MessageHistory(["system prompt", UserMessage("extract value")])
+    mh = MessageHistory([SystemMessage("system prompt"), UserMessage("extract value")])
     node = structured_tool_call_llm(
         system_message="system prompt",
         connected_nodes={mock_tool},

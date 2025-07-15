@@ -4,6 +4,7 @@ from typing import List
 from pydantic import BaseModel, Field
 import random
 from requestcompletion.nodes.library import ToolCallLLM
+from requestcompletion.llm import SystemMessage
 
 # ============ Model ===========
 
@@ -134,7 +135,7 @@ def _make_node(fixture_name, system_message, model, output_model, tool_nodes, cl
         class CustomNode(rc.library.StructuredToolCallLLM if class_type is None else class_type):
             def __init__(self, message_history, model=model):
                 message_history = [x for x in message_history if x.role != "system"]
-                message_history.insert(0, system_message)
+                message_history.insert(0, SystemMessage(system_message) if isinstance(system_message, str) else system_message)
                 super().__init__(
                     message_history=message_history,
                     llm_model=model,
@@ -258,7 +259,7 @@ def travel_message_history():
 def limited_tool_call_node_factory(model, travel_planner_tools):
     def _factory(max_tool_calls=1, system_message=None, tools=None, class_based=False):
         tools = tools or set([rc.library.from_function(tool) for tool in travel_planner_tools])
-        sys_msg = system_message or "You are a travel planner that will plan a trip. you have access to AvailableLocations, CurrencyUsed and AverageLocationCost tools. Use them when you need to."
+        sys_msg = system_message or SystemMessage("You are a travel planner that will plan a trip. you have access to AvailableLocations, CurrencyUsed and AverageLocationCost tools. Use them when you need to.")
         tool_nodes = tools
         if not class_based:
             return rc.library.tool_call_llm(
@@ -271,7 +272,7 @@ def limited_tool_call_node_factory(model, travel_planner_tools):
         else:
             class LimitedToolCallTestNode(ToolCallLLM):
                 def __init__(self, message_history, model=model):
-                    message_history.insert(0, sys_msg)
+                    message_history.insert(0, SystemMessage(sys_msg) if isinstance(sys_msg, str) else sys_msg)
                     super().__init__(message_history, model, max_tool_calls=max_tool_calls)
                 @classmethod
                 def connected_nodes(cls):

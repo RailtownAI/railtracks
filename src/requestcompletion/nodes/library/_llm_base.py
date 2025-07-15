@@ -77,44 +77,40 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         return None
 
     @classmethod
-    def system_message(cls) -> str | None:
+    def system_message(cls) -> SystemMessage | str | None:
         return None
 
     def __init__(
-        self, message_history: llm.MessageHistory, llm_model: llm.ModelBase | None = None
+        self,
+        message_history: llm.MessageHistory,
+        llm_model: llm.ModelBase | None = None,
     ):
         super().__init__()
 
         message_history_copy = deepcopy(
             message_history
         )  # Ensure we don't modify the original message history
-        for i, msg in enumerate(message_history_copy):
-            if isinstance(msg, str):
-                new_message = SystemMessage(msg)
-                message_history_copy[i] = new_message
-            elif isinstance(msg, SystemMessage):
-                raise NodeInvocationError(
-                    message=get_message("INVALID_SYSTEM_MESSAGE_MSG"),
-                    fatal=True,
-                )
         self._verify_message_history(message_history_copy)
 
         if self.system_message() is not None:
-            if not isinstance(self.system_message(), str):
+            if not isinstance(self.system_message(), (SystemMessage, str)):
                 raise NodeInvocationError(
                     message=get_message("INVALID_SYSTEM_MESSAGE_MSG"),
                     fatal=True,
                 )
             if len([x for x in message_history_copy if x.role == "system"]) > 0:
                 warnings.warn(
-                    "System message already exists in message history. We will replace it."
+                    "System message was passed in message history and defined as a method. We will use the method definition."
                 )
                 message_history_copy = [
                     x for x in message_history_copy if x.role != "system"
                 ]
-                message_history_copy.insert(0, SystemMessage(self.system_message()))
-            else:
-                message_history_copy.insert(0, SystemMessage(self.system_message()))
+            message_history_copy.insert(
+                0,
+                SystemMessage(self.system_message())
+                if isinstance(self.system_message(), str)
+                else self.system_message(),
+            )
 
         if self.get_llm_model() is not None:
             if llm_model is not None:
