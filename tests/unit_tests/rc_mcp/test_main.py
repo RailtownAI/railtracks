@@ -147,7 +147,7 @@ def test_from_mcp_prepare_tool(fake_tool, mcp_http_params):
 async def test_from_mcp_invoke(fake_tool, mcp_http_params):
     mock_loop = MagicMock()
     mock_client = AsyncMock()
-    mock_result = MagicMock(content="abc")
+    mock_result = "abc"
     mock_client.call_tool.return_value = mock_result
 
     # Patch run_coroutine_threadsafe to return a Future with result

@@ -219,8 +219,7 @@ def from_mcp(
                     client.call_tool(tool.name, self.kwargs), loop
                 )
                 result = future.result(timeout=client.config.timeout.total_seconds())
-                print(result, type(result))
-                return result.content if hasattr(result, "content") else result
+                return result
             except Exception as e:
                 raise RuntimeError(
                     f"Tool invocation failed: {type(e).__name__}: {str(e)}"

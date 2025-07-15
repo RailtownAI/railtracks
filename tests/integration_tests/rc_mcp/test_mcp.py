@@ -111,7 +111,7 @@ class MockClient:
 
     async def call_tool(self, tool_name, kwargs):
         await asyncio.sleep(self.delay)
-        return type("Result", (), {"content": f"done {tool_name}"})()
+        return f"done {tool_name}"
 
     async def list_tools(self):
         Tool = type("Tool", (), {
