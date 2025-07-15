@@ -2,7 +2,6 @@ import asyncio
 import time
 
 import requestcompletion as rc
-from mcp import StdioServerParameters
 from requestcompletion.nodes.library.mcp_tool import from_mcp_server
 from requestcompletion.nodes.nodes import Node
 
@@ -10,7 +9,7 @@ import pytest
 import subprocess
 import sys
 
-from requestcompletion.rc_mcp.main import MCPHttpParams, from_mcp
+from requestcompletion.rc_mcp.main import MCPHttpParams, MCPStdioParams
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -42,7 +41,7 @@ def install_mcp_server_time():
 
 def test_from_mcp_server_basic():
     time_server = from_mcp_server(
-        StdioServerParameters(
+        MCPStdioParams(
             command=sys.executable,
             args=["-m", "mcp_server_time", "--local-timezone=America/Vancouver"],
         )
@@ -53,7 +52,7 @@ def test_from_mcp_server_basic():
 
 def test_from_mcp_server_with_llm():
     time_server = from_mcp_server(
-        StdioServerParameters(
+        MCPStdioParams(
             command=sys.executable,
             args=["-m", "mcp_server_time", "--local-timezone=America/Vancouver"],
         )

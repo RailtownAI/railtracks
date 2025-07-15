@@ -66,6 +66,10 @@ class MCPAsyncClient:
                     await self.session.initialize()
                 elif isinstance(self.config, MCPHttpParams):
                     await self._init_http()
+                else:
+                    raise ValueError(
+                        "Invalid configuration type. Expected MCPStdioParams or MCPHttpParams."
+                    )
         except Exception:
             await self.close()
             raise
@@ -129,7 +133,7 @@ class MCPServer:
     On initialization, it will connect to the MCP server, and will remain connected until closed.
     """
 
-    def __init__(self, config, client_session: ClientSession | None = None):
+    def __init__(self, config: MCPStdioParams | MCPHttpParams, client_session: ClientSession | None = None):
         self.client = None
         self.config = config
         self.client_session = client_session
@@ -211,6 +215,7 @@ def from_mcp(
                     client.call_tool(tool.name, self.kwargs), loop
                 )
                 result = future.result(timeout=client.config.timeout.total_seconds())
+                print(result, type(result))
                 return result.content if hasattr(result, "content") else result
             except Exception as e:
                 raise RuntimeError(

@@ -35,7 +35,7 @@ async def test_async_client_enter_exit_stdio(
     patch_ClientSession,
 ):
     # ClientSession and stdio_client are now context managers set up by the fixtures
-    client = MCPAsyncClient(stdio_config)
+    client = MCPAsyncClient(stdio_config, mock_client_session)
     await client.connect()
     try:
         assert isinstance(client, MCPAsyncClient)
