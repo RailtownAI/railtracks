@@ -1,16 +1,17 @@
 from __future__ import annotations
+
 from abc import ABC
 from copy import deepcopy
+from typing import Generic, TypeVar
 
 from typing_extensions import Self
 
+import requestcompletion.llm as llm
 from requestcompletion.exceptions.node_invocation.validation import (
     check_message_history,
 )
-from requestcompletion.nodes.nodes import Node
-import requestcompletion.llm as llm
 from requestcompletion.llm.response import Response
-from typing import TypeVar, Generic
+from requestcompletion.nodes.nodes import Node
 
 from ...prompts.prompt import inject_context
 

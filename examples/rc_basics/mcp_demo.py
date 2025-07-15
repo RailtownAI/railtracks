@@ -1,12 +1,11 @@
 import streamlit as st
 import asyncio
 import requestcompletion as rc
-from requestcompletion.nodes.library.mcp_tool import async_from_mcp_server
+from requestcompletion.nodes.library.mcp_tool import from_mcp_server
 from requestcompletion.rc_mcp.main import MCPHttpParams
 
 # MCP server URL
 urls = [
-    "https://mcp.paypal.com/sse",
     "https://remote.mcpservers.org/fetch/mcp",
 ]
 
@@ -15,11 +14,8 @@ if "node" not in st.session_state:
 
     # Initialize tools in session state
     async def get_node():
-        all_tools = set()
-        tasks = [async_from_mcp_server(MCPHttpParams(url=url)) for url in urls]
-        results = await asyncio.gather(*tasks)
-        for tools in results:
-            all_tools.update(tools)
+        servers = [from_mcp_server(MCPHttpParams(url=url)) for url in urls]
+        all_tools = set(*[server.tools for server in servers])
 
         return rc.library.tool_call_llm(
             connected_nodes=all_tools,

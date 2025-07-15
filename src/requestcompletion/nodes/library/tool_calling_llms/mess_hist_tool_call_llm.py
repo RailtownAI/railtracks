@@ -1,7 +1,8 @@
-from ._base import OutputLessToolCallLLM
+from abc import ABC
+
 from requestcompletion.llm import MessageHistory
 
-from abc import ABC
+from ._base import OutputLessToolCallLLM
 
 
 class MessageHistoryToolCallLLM(OutputLessToolCallLLM[MessageHistory], ABC):

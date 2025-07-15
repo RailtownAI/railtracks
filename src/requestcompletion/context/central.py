@@ -4,12 +4,10 @@ import contextvars
 import warnings
 from typing import Any, Callable
 
-
-from requestcompletion.context.external import MutableExternalContext, ExternalContext
-from requestcompletion.exceptions import ContextError
-
 from requestcompletion.config import ExecutorConfig
+from requestcompletion.context.external import ExternalContext, MutableExternalContext
 from requestcompletion.context.internal import InternalContext
+from requestcompletion.exceptions import ContextError
 from requestcompletion.pubsub.publisher import RCPublisher
 
 

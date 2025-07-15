@@ -1,24 +1,26 @@
 from __future__ import annotations
+
 import asyncio
 import time
-
 import uuid
+from abc import ABC, ABCMeta, abstractmethod
 from copy import deepcopy
-from ..llm import Tool
-from abc import ABC, abstractmethod, ABCMeta
 from typing import (
-    TypeVar,
-    Generic,
-    Dict,
-    ParamSpec,
     Any,
+    Dict,
+    Generic,
+    ParamSpec,
+    TypeVar,
 )
+
 from typing_extensions import Self
+
 from ..exceptions.node_creation.validation import (
     check_classmethod,
-    check_output_model,
     check_connected_nodes,
+    check_output_model,
 )
+from ..llm import Tool
 
 _TOutput = TypeVar("_TOutput")
 
