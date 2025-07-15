@@ -10,7 +10,9 @@ import os
 from mcp import StdioServerParameters
 from requestcompletion.nodes.library.mcp_tool import from_mcp_server
 
-from requestcompletion.nodes.library.easy_usage_wrappers.tool_call_llm import tool_call_llm
+from requestcompletion.nodes.library.easy_usage_wrappers.tool_call_llm import (
+    tool_call_llm,
+)
 import requestcompletion as rc
 
 
@@ -20,12 +22,10 @@ NOTION_VERSION = "2022-06-28"
 
 headers = {
     "Authorization": f"Bearer {os.environ['NOTION_API_TOKEN']}",
-    "Notion-Version": NOTION_VERSION
+    "Notion-Version": NOTION_VERSION,
 }
 
-notion_env = {
-    "OPENAPI_MCP_HEADERS": json.dumps(headers)
-}
+notion_env = {"OPENAPI_MCP_HEADERS": json.dumps(headers)}
 
 tools = from_mcp_server(
     StdioServerParameters(

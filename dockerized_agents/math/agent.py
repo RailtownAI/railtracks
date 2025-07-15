@@ -20,6 +20,7 @@ def main(*args, **kwargs):
         if y == 0:
             raise ZeroDivisionError("Cannot divide by zero")
         return x / y
+
     # =========================================
 
     agent = tool_call_llm(

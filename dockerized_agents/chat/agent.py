@@ -1,38 +1,43 @@
 import requestcompletion as rc
 from typing import Dict, Any
-import os, aiohttp
+import os
+import aiohttp
 from requestcompletion.rc_mcp import MCPHttpParams
 from requestcompletion.nodes.library import from_mcp_server, chat_tool_call_llm
 
 
 # ============================== MCP Tools that can seach URLs ==============================
-fetch_mcp_server = from_mcp_server(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))
+fetch_mcp_server = from_mcp_server(
+    MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp")
+)
 fetch_mcp_tools = fetch_mcp_server.tools
 # ===========================================================================================
 
+
 # ============================== Cutoms Search Tool using Google API ==============================
-# Helper 
+# Helper
 def _format_results(data: Dict[str, Any]) -> Dict[str, Any]:
     """Format Google API response"""
     results = []
-    
-    if 'items' in data:
-        for item in data['items']:
+
+    if "items" in data:
+        for item in data["items"]:
             result = {
-                'title': item.get('title', ''),
-                'snippet': item.get('snippet', ''),
-                'url': item.get('link', ''),
-                'siteName': item.get('displayLink', ''),
-                'byline': ''  # Google API doesn't provide author info
+                "title": item.get("title", ""),
+                "snippet": item.get("snippet", ""),
+                "url": item.get("link", ""),
+                "siteName": item.get("displayLink", ""),
+                "byline": "",  # Google API doesn't provide author info
             }
             results.append(result)
-    
+
     return {
-        'query': data.get('queries', {}).get('request', [{}])[0].get('searchTerms', ''),
-        'results': results,
-        'totalResults': data.get('searchInformation', {}).get('totalResults', '0')
+        "query": data.get("queries", {}).get("request", [{}])[0].get("searchTerms", ""),
+        "results": results,
+        "totalResults": data.get("searchInformation", {}).get("totalResults", "0"),
     }
-    
+
+
 @rc.to_node
 async def google_search(query: str, num_results: int = 3) -> Dict[str, Any]:
     """
@@ -45,15 +50,17 @@ async def google_search(query: str, num_results: int = 3) -> Dict[str, Any]:
         Dict[str, Any]: The search results
     """
     params = {
-        'key': os.environ['GOOGLE_SEARCH_API_KEY'],
-        'cx': os.environ['GOOGLE_SEARCH_ENGINE_ID'],
-        'q': query,
-        'num': min(num_results, 5)  # Google API max is 5
+        "key": os.environ["GOOGLE_SEARCH_API_KEY"],
+        "cx": os.environ["GOOGLE_SEARCH_ENGINE_ID"],
+        "q": query,
+        "num": min(num_results, 5),  # Google API max is 5
     }
-    
+
     async with aiohttp.ClientSession() as session:
         try:
-            async with session.get("https://www.googleapis.com/customsearch/v1", params=params) as response:
+            async with session.get(
+                "https://www.googleapis.com/customsearch/v1", params=params
+            ) as response:
                 if response.status == 200:
                     data = await response.json()
                     return _format_results(data)
@@ -75,8 +82,8 @@ ChatBot = chat_tool_call_llm(
     output_type="MessageHistory",
     connected_nodes={*tools},
     max_tool_calls=10,
-    host= "0.0.0.0",
-    port=8000
+    host="0.0.0.0",
+    port=8000,
 )
 
 with rc.Runner(rc.ExecutorConfig(timeout=600)) as runner:
