@@ -7,6 +7,7 @@ load_dotenv()
 # tools = from_mcp_server(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))     
 # tools = from_mcp_server(MCPHttpParams(url="https://mcp.paypal.com/sse"))
 
+
 def get_paypal_auth():
     response = requests.post(   # paypal only atm
         "https://api-m.sandbox.paypal.com/v1/oauth2/token",
@@ -23,54 +24,32 @@ def get_paypal_auth():
 
 paypal_headers = {"Authorization": f"Bearer {get_paypal_auth()}"}
 
-async def langchain():
-    from langchain.chat_models import init_chat_model
-    from langchain_mcp_adapters.client import MultiServerMCPClient
-    client = MultiServerMCPClient(
-        {
-            "fetch": {          # no auth needed
-                "transport": "streamable_http",
-                "url": "https://remote.mcpservers.org/fetch/mcp",
-            },
-            "paypal": {     # sse + oauth2.0
-                "transport": "sse",
-                "url": "https://mcp.paypal.com/sse",
-                "headers": paypal_headers,
-            },
-        }
-    )
-    mcp_tools = await client.get_tools()
-    # print(mcp_tools)
-    model_gpt = init_chat_model("gpt-4o-mini", model_provider="openai").bind_tools(tools=mcp_tools)
-    # message = "Who is Aryan Ballani? look up aryanballani.github.io"
-    message = "List the tools you available to you related to paypal"
-    response = model_gpt.invoke(message)
-    print(response.content)
+# #paragon 
+# import requestcompletion as rc
+# paypal_headers = {"Authorization": f"Bearer {rc.oauth("paypal")}"}
 
 def request_completion():
     import requestcompletion as rc
     from requestcompletion.nodes.library import from_mcp_server, tool_call_llm
     from requestcompletion.rc_mcp import MCPHttpParams
 
-    fetch_tools = from_mcp_server(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))
-    paypal_tools = from_mcp_server(MCPHttpParams(url="https://mcp.paypal.com/sse", headers=paypal_headers))
+    fetch_tools = from_mcp_server(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp")).tools
+    paypal_tools = from_mcp_server(MCPHttpParams(url="https://mcp.paypal.com/sse", headers=paypal_headers)).tools
     tools = fetch_tools + paypal_tools
-
     agent = tool_call_llm(
         connected_nodes={*tools},
         system_message="""You are a master paypal agent. You love creating beautiful
      and well-structured paypal pages and make sure that everything is correctly formatted.""",
         model=rc.llm.OpenAILLM("gpt-4o"),
-    )
+    ) 
 
     user_prompt = """List the tools you available to you related to paypal"""
-    mh = rc.llm.MessageHistory(rc.llm.UserMessage(user_prompt))
+    mh = rc.llm.MessageHistory([rc.llm.UserMessage(user_prompt)])
 
     with rc.Runner(rc.ExecutorConfig(logging_setting="VERBOSE")) as run:
         result = run.run_sync(agent, mh)
         print(result.answer.content)
 
 # Run the functions
-# asyncio.run(langchain())
 # asyncio.run(request_completion())
 request_completion()

@@ -1,0 +1,14 @@
+version: '3.8'
+services:
+  chat-agent:
+    build:
+      context: ../../
+      dockerfile: dockerized_agents/chat/Dockerfile
+    container_name: chat-agent
+    environment:
+      GOOGLE_SEARCH_API_KEY: ${GOOGLE_SEARCH_API_KEY}
+      GOOGLE_SEARCH_ENGINE_ID: ${GOOGLE_SEARCH_ENGINE_ID}
+    ports:
+      - "8000:8000"
+    command: ["python", "dockerized_agents/chat/agent.py"]
+    restart: unless-stopped

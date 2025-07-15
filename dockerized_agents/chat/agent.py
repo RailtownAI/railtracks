@@ -75,6 +75,8 @@ ChatBot = chat_tool_call_llm(
     output_type="MessageHistory",
     connected_nodes={*tools},
     max_tool_calls=10,
+    host= "0.0.0.0",
+    port=8000
 )
 
 with rc.Runner(rc.ExecutorConfig(timeout=600)) as runner:
