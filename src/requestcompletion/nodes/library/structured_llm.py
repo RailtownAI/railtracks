@@ -32,9 +32,11 @@ class StructuredLLM(LLMBase[_TOutput], ABC):
     def __init__(
         self, message_history: MessageHistory, llm_model: ModelBase | None = None
     ):
-        """Creates a new instance of the TerminalLLM class
+        """Creates a new instance of the StructuredlLLM class
 
         Args:
+            message_history (MessageHistory): The message history to use for the LLM.
+            llm_model (ModelBase | None, optional): The LLM model to use. Defaults to None.
 
         """
         super().__init__(llm_model=llm_model, message_history=message_history)
