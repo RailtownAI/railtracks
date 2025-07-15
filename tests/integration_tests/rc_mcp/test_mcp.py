@@ -1,6 +1,7 @@
 import asyncio
+import time
+
 import requestcompletion as rc
-from mcp import StdioServerParameters
 from requestcompletion.nodes.library.mcp_tool import from_mcp_server
 from requestcompletion.nodes.nodes import Node
 
@@ -8,7 +9,7 @@ import pytest
 import subprocess
 import sys
 
-from requestcompletion.rc_mcp.main import MCPHttpParams
+from requestcompletion.rc_mcp.main import MCPHttpParams, MCPStdioParams
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -39,25 +40,25 @@ def install_mcp_server_time():
 
 
 def test_from_mcp_server_basic():
-    time_tools = from_mcp_server(
-        StdioServerParameters(
+    time_server = from_mcp_server(
+        MCPStdioParams(
             command=sys.executable,
             args=["-m", "mcp_server_time", "--local-timezone=America/Vancouver"],
         )
     )
-    assert len(time_tools) == 2
-    assert all(issubclass(tool, Node) for tool in time_tools)
+    assert len(time_server.tools) == 2
+    assert all(issubclass(tool, Node) for tool in time_server.tools)
 
 
 def test_from_mcp_server_with_llm():
-    time_tools = from_mcp_server(
-        StdioServerParameters(
+    time_server = from_mcp_server(
+        MCPStdioParams(
             command=sys.executable,
             args=["-m", "mcp_server_time", "--local-timezone=America/Vancouver"],
         )
     )
     parent_tool = rc.library.tool_call_llm(
-        connected_nodes={*time_tools},
+        connected_nodes={*time_server.tools},
         pretty_name="Parent Tool",
         system_message=rc.llm.SystemMessage(
             "Provide a response using the tool when asked. If the tool doesn't work,"
@@ -80,9 +81,9 @@ def test_from_mcp_server_with_llm():
 
 
 def test_from_mcp_server_with_http():
-    time_tools = from_mcp_server(MCPHttpParams(url="https://mcp.deepwiki.com/sse"))
+    time_server = from_mcp_server(MCPHttpParams(url="https://mcp.deepwiki.com/sse"))
     parent_tool = rc.library.tool_call_llm(
-        connected_nodes={*time_tools},
+        connected_nodes={*time_server.tools},
         pretty_name="Parent Tool",
         system_message=rc.llm.SystemMessage(
             "Provide a response using the tool when asked. If the tool doesn't work,"
@@ -102,3 +103,48 @@ def test_from_mcp_server_with_http():
 
     assert response.answer is not None
     assert response.answer.content is not "It didn't work!"
+
+
+class MockClient:
+    def __init__(self, delay=1):
+        self.delay = delay
+
+    async def call_tool(self, tool_name, kwargs):
+        await asyncio.sleep(self.delay)
+        return f"done {tool_name}"
+
+    async def list_tools(self):
+        Tool = type("Tool", (), {
+            "name": "tool1",
+            "description": "Mock tool 1",
+            "inputSchema": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        })
+        Tool2 = type("Tool", (), {
+            "name": "tool2",
+            "description": "Mock tool 2",
+            "inputSchema": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        })
+        return type("ToolResponse", (), {"tools": [Tool, Tool2]})()
+
+
+@pytest.mark.asyncio
+async def test_parallel_mcp_servers():
+    client = MockClient()
+    client2 = MockClient()
+    node1 = from_mcp_server(MCPHttpParams(url=""), client).tools[0]
+    node2 = from_mcp_server(MCPHttpParams(url=""), client2).tools[1]
+
+    start = time.perf_counter()
+    results = await asyncio.gather(rc.call(node1), rc.call(node2))
+    elapsed = time.perf_counter() - start
+
+    assert all("done" in r for r in results)
+    assert elapsed < 2

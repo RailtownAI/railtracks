@@ -1,6 +1,9 @@
+import asyncio
+
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
-from requestcompletion.rc_mcp.main import MCPHttpParams, MCPAsyncClient, from_mcp
+from requestcompletion.rc_mcp.main import MCPHttpParams, MCPAsyncClient, from_mcp, MCPServer
+
 
 # ============= START MCPHttpParams tests =============
 
@@ -32,39 +35,40 @@ async def test_async_client_enter_exit_stdio(
     patch_ClientSession,
 ):
     # ClientSession and stdio_client are now context managers set up by the fixtures
-    async with MCPAsyncClient(stdio_config) as client:
+    client = MCPAsyncClient(stdio_config, mock_client_session)
+    await client.connect()
+    try:
         assert isinstance(client, MCPAsyncClient)
         assert client.session == mock_client_session
+    finally:
+        await client.close()
+        assert not client._entered
 
 @pytest.mark.asyncio
 async def test_async_client_enter_exit_http(
     mcp_http_params,
-    patch_httpx_AsyncClient,
     # DO NOT REMOVE: these patched mocks are set up in conftest and being used in the test in the background
     patch_streamablehttp_client,
     patch_ClientSession,
 ):
     # Patch HTTPX client to return no oauth metadata
-    patch_httpx_AsyncClient.return_value.__aenter__.return_value.get.return_value.status_code = 404
-    async with MCPAsyncClient(mcp_http_params) as client:
-        assert isinstance(client, MCPAsyncClient)
+    client = MCPAsyncClient(mcp_http_params)
+    await client.connect()
+    assert isinstance(client, MCPAsyncClient)
 
 # ========== END MCPAsyncClient context tests =========
 
 
 # ===== START MCPAsyncClient.list_tools/call_tool tests ====
 @pytest.mark.asyncio
-async def test_async_client_list_tools_caching(
+async def test_async_client_list_tools(
     mock_client_session,
     stdio_config,
 ):
-    client = MCPAsyncClient(stdio_config, client_session=mock_client_session)
-    # no cache first time
-    tools = await client.list_tools()
+    server = MCPServer(stdio_config, mock_client_session)
+
+    tools = await server.client.list_tools()
     assert tools == [{"name": "toolA"}]
-    # Should return cached value now (client._tools_cache)
-    tools2 = await client.list_tools()
-    assert tools2 == [{"name": "toolA"}]
     assert mock_client_session.list_tools.call_count == 1
 
 @pytest.mark.asyncio
@@ -80,7 +84,6 @@ async def test_async_client_call_tool(mock_client_session, stdio_config):
 @pytest.mark.asyncio
 async def test_async_client_init_http_uses_correct_transport(
     mcp_http_params,
-    patch_httpx_AsyncClient,
     # DO NOT REMOVE: these patched mocks are set up in conftest and being used in the test in the background
     patch_streamablehttp_client,
     patch_sse_client,
@@ -89,7 +92,6 @@ async def test_async_client_init_http_uses_correct_transport(
 ):
     # SSE URL usage
     mcp_http_params.url = "https://host.com/api/sse"
-    patch_httpx_AsyncClient.return_value.__aenter__.return_value.get.return_value.status_code = 404
     client = MCPAsyncClient(mcp_http_params)
     await client._init_http()
     assert client.transport_type == "sse"
@@ -99,64 +101,69 @@ async def test_async_client_init_http_uses_correct_transport(
     await client._init_http()
     assert client.transport_type == "streamable_http"
 
-@pytest.mark.asyncio
-async def test_async_client_init_http_oauth_flow(
-    mcp_http_params,
-    patch_httpx_AsyncClient,
-    # DO NOT REMOVE: these patched mocks are set up in conftest and being used in the test in the background
-    patch_streamablehttp_client,
-    patch_CallbackServer,
-    patch_OAuthClientProvider,
-    patch_ClientSession,
-    mock_client_session
-):
-    # Simulate OAuth server presence
-    mcp_http_params.url = "http://mock-oauth-server"
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {"issuer": "x"}
-    patch_httpx_AsyncClient.return_value.__aenter__.return_value.get.return_value = mock_response
-
-    client = MCPAsyncClient(mcp_http_params)
-    await client._init_http()
-    assert client.transport_type in ("sse", "streamable_http")
 
 # ============== END MCPAsyncClient _init_http tests ===============
 
 # =============== START from_mcp tests =================
 
 def test_from_mcp_returns_node_class(fake_tool, mcp_http_params):
-    result_class = from_mcp(fake_tool, mcp_http_params)
-    node = result_class(bar=1)
-    # must have custom pretty_name
-    assert result_class.pretty_name() == f"MCPToolNode({fake_tool.name})"
-    # must have correct tool_info
-    with patch.object(result_class, 'tool_info', wraps=result_class.tool_info) as ti:
-        Tool = type("Tool", (), {"from_mcp": staticmethod(lambda tool: "X")})
-        result_class.tool_info = classmethod(lambda cls: Tool.from_mcp(fake_tool))
-        assert result_class.tool_info() == "X"
+    mock_loop = MagicMock()
+    mock_client = AsyncMock()
+    mock_result = MagicMock(content="abc")
+    mock_client.call_tool.return_value = mock_result
+
+    # Patch run_coroutine_threadsafe to return a Future with result
+    future = MagicMock()
+    future.result.return_value = mock_result
+    with patch("asyncio.run_coroutine_threadsafe", return_value=future):
+        result_class = from_mcp(fake_tool, mock_client, mock_loop)
+
+        node = result_class(bar=1)
+        # must have custom pretty_name
+        assert result_class.pretty_name() == f"MCPToolNode({fake_tool.name})"
+        # must have correct tool_info
+        with patch.object(result_class, 'tool_info', wraps=result_class.tool_info) as ti:
+            Tool = type("Tool", (), {"from_mcp": staticmethod(lambda tool: "X")})
+            result_class.tool_info = classmethod(lambda cls: Tool.from_mcp(fake_tool))
+            assert result_class.tool_info() == "X"
 
 def test_from_mcp_prepare_tool(fake_tool, mcp_http_params):
-    result_class = from_mcp(fake_tool, mcp_http_params)
-    options = {"one": 1, "two": 2}
-    inst = result_class.prepare_tool(options)
-    assert isinstance(inst, result_class)
-    assert inst.kwargs == options
+    mock_loop = MagicMock()
+    mock_client = AsyncMock()
+    mock_result = MagicMock(content="abc")
+    mock_client.call_tool.return_value = mock_result
+
+    # Patch run_coroutine_threadsafe to return a Future with result
+    future = MagicMock()
+    future.result.return_value = mock_result
+    with patch("asyncio.run_coroutine_threadsafe", return_value=future):
+        result_class = from_mcp(fake_tool, mock_client, mock_loop)
+        options = {"one": 1, "two": 2}
+        inst = result_class.prepare_tool(options)
+        assert isinstance(inst, result_class)
+        assert inst.kwargs == options
 
 @pytest.mark.asyncio
 async def test_from_mcp_invoke(fake_tool, mcp_http_params):
-    result_class = from_mcp(fake_tool, mcp_http_params)
-    node = result_class(bar=2)
+    mock_loop = MagicMock()
     mock_client = AsyncMock()
-    mock_client.__aenter__.return_value = mock_client
-    mock_client.call_tool.return_value = MagicMock(content="abc")
-    node.client = mock_client
-    result = await node.invoke()
-    assert result == "abc"
+    mock_result = "abc"
+    mock_client.call_tool.return_value = mock_result
 
-    # also test no content attr
-    mock_client.call_tool.return_value = "valonly"
-    result = await node.invoke()
-    assert result == "valonly"
+    # Patch run_coroutine_threadsafe to return a Future with result
+    future = MagicMock()
+    future.result.return_value = mock_result
+    with patch("asyncio.run_coroutine_threadsafe", return_value=future):
+        node_cls = from_mcp(fake_tool, mock_client, mock_loop)
+        node = node_cls(bar=2)
+        result = await node.invoke()
+        assert result == "abc"
+
+        # also test fallback to raw result (no .content)
+        mock_result2 = "valonly"
+        future.result.return_value = mock_result2
+        result = await node.invoke()
+        assert result == "valonly"
+
 
 # =============== END from_mcp tests ==================

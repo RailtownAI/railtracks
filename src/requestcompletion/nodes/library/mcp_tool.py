@@ -1,39 +1,20 @@
-from typing import Type
+from mcp import ClientSession
 
-from mcp import StdioServerParameters
-import asyncio
-
-from ...rc_mcp.main import MCPAsyncClient, MCPHttpParams, from_mcp
-from ...nodes.nodes import Node
+from ...rc_mcp.main import MCPStdioParams, MCPHttpParams, MCPServer
 
 
 def from_mcp_server(
-    config: StdioServerParameters | MCPHttpParams,
-) -> [Type[Node]]:
+    config: MCPStdioParams | MCPHttpParams, client_session: ClientSession | None = None
+) -> MCPServer:
     """
-    Discover all tools from an MCP server and wrap them as Node classes.
+    Returns an MCPServer class. On creation, it will connect to the MCP server and fetch the tools.
+    The connection will remain open until the server is closed with `close()`.
 
     Args:
         config: Configuration for the MCP server, either as StdioServerParameters or MCPHttpParams.
+        client_session: Optional ClientSession to use for the MCP server connection. If not provided, a new session will be created.
 
     Returns:
-        List of Nodes, one for each discovered tool.
+        MCPServer: An instance of the MCPServer class.
     """
-    return asyncio.run(async_from_mcp_server(config))
-
-
-async def async_from_mcp_server(
-    config: StdioServerParameters | MCPHttpParams,
-) -> [Type[Node]]:
-    """
-    Asynchronously discover all tools from an MCP server and wrap them as Node classes.
-
-    Args:
-        config
-
-    Returns:
-        List of Nodes, one for each discovered tool.
-    """
-    async with MCPAsyncClient(config) as client:
-        tools = await client.list_tools()
-        return [from_mcp(tool, config) for tool in tools]
+    return MCPServer(config=config, client_session=client_session)

@@ -10,7 +10,7 @@ from requestcompletion.nodes.library.mcp_tool import from_mcp_server
 from requestcompletion.nodes.library.easy_usage_wrappers.tool_call_llm import tool_call_llm
 import requestcompletion as rc
 
-tools = from_mcp_server(
+server = from_mcp_server(
     MCPHttpParams(
         url="https://api.githubcopilot.com/mcp/",
         headers={
@@ -18,7 +18,7 @@ tools = from_mcp_server(
         },
     )
 )
-
+tools = server.tools
 ##################################################################
 # Example using the tools with an agent
 
