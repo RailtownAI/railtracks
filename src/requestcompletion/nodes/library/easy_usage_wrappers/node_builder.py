@@ -1,5 +1,5 @@
 import warnings
-from typing import TypeVar, Generic, Dict, Any, cast, Type, Iterable, Set
+from typing import TypeVar, Generic, Dict, Any, cast, Type, Iterable, Set, Union, Callable
 from inspect import isfunction
 from mcp import StdioServerParameters
 
@@ -127,7 +127,7 @@ class NodeBuilder(Generic[_TNode]):
         self._with_override("output_model", classmethod(lambda cls: output_model))
 
     def tool_calling_llm(
-        self, connected_nodes: Set[Type[Node]], max_tool_calls: int
+        self, connected_nodes: Set[Union[Type[Node], Callable]], max_tool_calls: int
     ):
         """
         Configure the node subclass to have a connected_nodes method and max_tool_calls method.
@@ -137,8 +137,8 @@ class NodeBuilder(Generic[_TNode]):
 
         Parameters
         ----------
-        connected_nodes : Set[Type[Node]]
-            The nodes/tools that this node can call.
+        connected_nodes : Set[Union[Type[Node], Callable]]
+            The nodes/tools/functions that this node can call.
         max_tool_calls : int
             The maximum number of tool calls allowed during a single invocation.
 
