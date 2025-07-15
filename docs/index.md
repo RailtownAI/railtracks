@@ -24,7 +24,7 @@ Request Completion offers a unique approach that focuses on simplicity and devel
     </div>
     <div class="card">
         <h3>Code Defined Flows</h3>
-        <p>Write your agentic workflows in Python code, no need to learn an API, basic python skills is all it takes.</p>
+        <p>Write your agentic workflows in Python code, no need to learn an API, basic Python skills is all it takes.</p>
     </div>
     <div class="card">
         <h3>Modularity</h3>
