@@ -11,7 +11,7 @@ from requestcompletion.nodes.library.structured_llm import StructuredLLM
 
 
 def structured_llm(  # noqa: C901
-    output_model: Type[BaseModel],
+    schema: Type[BaseModel],
     *,
     system_message: SystemMessage | str | None = None,
     llm_model: ModelBase | None = None,
@@ -20,15 +20,15 @@ def structured_llm(  # noqa: C901
     tool_params: dict | None = None,
 ) -> Type[StructuredLLM]:
     """
-    Dynamically reate a StructuredLLM node class with custom configuration for output type.
+    Dynamically reate a StructuredLLM node class with custom configuration for schema.
 
     This easy-usage wrapper dynamically builds a node class that supports structured LLM output.
-    This allows you to specify the output model, llm model, system message, tool metadata,
+    This allows you to specify the schema, llm model, system message, tool metadata,
     and parameters. The returned class can be instantiated and used in the requestcompletion framework on runtime.
 
     Parameters
     ----------
-    output_model : Type[BaseModel]
+    schema : Type[BaseModel]
         The Pydantic model that defines the structure of the output.
     pretty_name : str, optional
         Human-readable name for the node/tool.
@@ -55,7 +55,7 @@ def structured_llm(  # noqa: C901
         tool_params=tool_params,
     )
     builder.llm_base(llm_model, system_message)
-    builder.structured(output_model)
+    builder.structured(schema)
     if tool_details is not None:
         builder.tool_callable_llm(tool_details, tool_params)
 
