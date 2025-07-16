@@ -8,6 +8,7 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.sse import sse_client
 from mcp.client.stdio import stdio_client
 from mcp.client.streamable_http import streamablehttp_client
+from mcp.types import Tool as MCPTool
 from pydantic import BaseModel
 from typing_extensions import Self, Type
 
@@ -191,7 +192,7 @@ class MCPServer:
 
 
 def from_mcp(
-    tool: Tool,
+    tool: MCPTool,
     client: MCPAsyncClient,
     loop: asyncio.AbstractEventLoop,
 ) -> Type[Node]:
@@ -199,7 +200,7 @@ def from_mcp(
     Wrap an MCP tool as a Node class for use in the requestcompletion framework.
 
     Args:
-        tool: The MCP tool object.
+        tool: The MCP tool object from mcp.types.Tool.
         client: An instance of MCPAsyncClient to communicate with the MCP server.
         loop: The asyncio event loop to use for running the tool.
 
