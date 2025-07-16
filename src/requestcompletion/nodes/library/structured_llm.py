@@ -3,13 +3,14 @@ from typing import Type, TypeVar
 
 from pydantic import BaseModel
 
+from requestcompletion.exceptions.node_creation.validation import (
+    check_classmethod,
+    check_output_model,
+)
+
 from ...exceptions import LLMError
 from ...llm import MessageHistory, ModelBase
 from ._llm_base import LLMBase
-from requestcompletion.exceptions.node_creation.validation import (
-    check_output_model,
-    check_classmethod,
-)
 
 _TOutput = TypeVar("_TOutput", bound=BaseModel)
 

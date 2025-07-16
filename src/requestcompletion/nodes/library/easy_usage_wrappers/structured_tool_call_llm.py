@@ -1,13 +1,15 @@
-from typing import Set, Type, Union, Literal, Callable
+from typing import Callable, Literal, Set, Type, Union
+
 from pydantic import BaseModel
+
 from requestcompletion.llm import (
     ModelBase,
     SystemMessage,
 )
 
 from ....nodes.nodes import Node
-from ..easy_usage_wrappers.node_builder import NodeBuilder
 from ...library.tool_calling_llms.structured_tool_call_llm import StructuredToolCallLLM
+from ..easy_usage_wrappers.node_builder import NodeBuilder
 
 
 def structured_tool_call_llm(  # noqa: C901

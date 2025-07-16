@@ -3,11 +3,8 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
-from abc import ABC, ABCMeta, abstractmethod
-from copy import deepcopy
-
-from requestcompletion.nodes.tool_callable import ToolCallable
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from typing import (
     Any,
     Dict,
@@ -18,10 +15,11 @@ from typing import (
 
 from typing_extensions import Self
 
+from requestcompletion.nodes.tool_callable import ToolCallable
+
 from ..exceptions.node_creation.validation import (
     check_classmethod,
 )
-from ..llm import Tool
 
 _TOutput = TypeVar("_TOutput")
 

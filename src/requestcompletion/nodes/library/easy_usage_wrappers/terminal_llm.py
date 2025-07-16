@@ -1,8 +1,10 @@
 from typing import Type
-from ..terminal_llm import TerminalLLM
+
+from requestcompletion.nodes.library.easy_usage_wrappers.node_builder import NodeBuilder
+
 from ....llm import ModelBase, SystemMessage
 from ....llm.tools import Parameter
-from requestcompletion.nodes.library.easy_usage_wrappers.node_builder import NodeBuilder
+from ..terminal_llm import TerminalLLM
 
 
 def terminal_llm(  # noqa: C901

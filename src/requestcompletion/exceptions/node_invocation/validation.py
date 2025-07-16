@@ -1,6 +1,6 @@
 import warnings
 
-from ...llm import Message, MessageHistory, ModelBase, SystemMessage
+from ...llm import Message, MessageHistory, ModelBase
 from ..errors import NodeInvocationError
 from ..messages.exception_messages import ExceptionMessageKey, get_message, get_notes
 

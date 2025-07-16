@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 import warnings
 from abc import ABC
 from copy import deepcopy
@@ -8,18 +7,18 @@ from typing import Generic, TypeVar
 
 from typing_extensions import Self
 
-
 from requestcompletion.exceptions.node_invocation.validation import (
-    check_message_history,
     check_llm_model,
+    check_message_history,
 )
+from requestcompletion.llm import llm
+from requestcompletion.llm.message import SystemMessage
 from requestcompletion.llm.response import Response
 from requestcompletion.nodes.nodes import Node
 
+from ...exceptions.errors import NodeInvocationError
 from ...exceptions.messages.exception_messages import get_message
 from ...prompts.prompt import inject_context
-from ...exceptions.errors import NodeInvocationError
-from requestcompletion.llm.message import SystemMessage
 
 _T = TypeVar("_T")
 

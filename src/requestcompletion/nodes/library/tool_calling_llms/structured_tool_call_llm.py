@@ -1,9 +1,10 @@
-from ._base import OutputLessToolCallLLM
-from ..easy_usage_wrappers.structured_llm import structured_llm
-from pydantic import BaseModel
-from typing import Type, TypeVar
 from abc import ABC, abstractmethod
+from typing import Type, TypeVar
 
+from pydantic import BaseModel
+
+from ..easy_usage_wrappers.structured_llm import structured_llm
+from ._base import OutputLessToolCallLLM
 
 _TOutput = TypeVar("_TOutput", bound=BaseModel)
 

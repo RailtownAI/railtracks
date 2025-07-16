@@ -1,11 +1,13 @@
 from typing import Type
+
+from pydantic import BaseModel
+
 from requestcompletion.llm import (
     ModelBase,
     SystemMessage,
 )
 from requestcompletion.nodes.library.easy_usage_wrappers.node_builder import NodeBuilder
 from requestcompletion.nodes.library.structured_llm import StructuredLLM
-from pydantic import BaseModel
 
 
 def structured_llm(  # noqa: C901

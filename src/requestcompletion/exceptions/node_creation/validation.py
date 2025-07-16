@@ -1,11 +1,12 @@
 import inspect
-from pydantic import BaseModel
 import warnings
-from typing import Callable, Any, Iterable, Dict, get_origin
-from ..errors import NodeCreationError
-from ...llm.message import SystemMessage
-from ..messages.exception_messages import ExceptionMessageKey, get_message, get_notes
+from typing import Any, Callable, Dict, Iterable, get_origin
 
+from pydantic import BaseModel
+
+from ...llm.message import SystemMessage
+from ..errors import NodeCreationError
+from ..messages.exception_messages import ExceptionMessageKey, get_message, get_notes
 
 
 def validate_function(func: Callable) -> None:

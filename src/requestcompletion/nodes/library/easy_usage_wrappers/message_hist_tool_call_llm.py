@@ -1,14 +1,15 @@
-from typing import Set, Type, Union, Callable
+from typing import Callable, Set, Type, Union
+
 from requestcompletion.llm import (
     ModelBase,
     SystemMessage,
 )
 
 from ....nodes.nodes import Node
-from ..easy_usage_wrappers.node_builder import NodeBuilder
 from ...library.tool_calling_llms.mess_hist_tool_call_llm import (
     MessageHistoryToolCallLLM,
 )
+from ..easy_usage_wrappers.node_builder import NodeBuilder
 
 
 def message_hist_tool_call_llm(  # noqa: C901
