@@ -162,7 +162,7 @@ class NodeBuilder(Generic[_TNode]):
         """
         Configure the node subclass to use MCP (Model Context Protocol) tool calling.
 
-        This method sets up the node to call tools via an MCP server, specifying the command, 
+        This method sets up the node to call tools via an MCP server, specifying the command,
         arguments, environment, and maximum tool calls.
 
         Args:
