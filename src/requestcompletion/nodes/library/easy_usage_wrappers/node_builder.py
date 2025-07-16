@@ -13,7 +13,6 @@ from typing import (
     cast,
 )
 
-from mcp import StdioServerParameters
 from pydantic import BaseModel
 
 from requestcompletion.exceptions.node_creation.validation import (
@@ -25,6 +24,7 @@ from requestcompletion.exceptions.node_creation.validation import (
 )
 from requestcompletion.llm import Parameter
 from requestcompletion.nodes.library.mcp_tool import from_mcp_server
+from requestcompletion.rc_mcp.main import MCPStdioParams
 
 from ....llm import MessageHistory, ModelBase, SystemMessage, Tool, UserMessage
 from ....nodes.nodes import Node
@@ -208,7 +208,7 @@ class NodeBuilder(Generic[_TNode]):
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         )
         tools = from_mcp_server(
-            StdioServerParameters(
+            MCPStdioParams(
                 command=mcp_command,
                 args=mcp_args,
                 env=mcp_env if mcp_env is not None else None,
