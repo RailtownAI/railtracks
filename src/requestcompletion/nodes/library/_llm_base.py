@@ -11,7 +11,7 @@ from requestcompletion.exceptions.node_invocation.validation import (
     check_llm_model,
     check_message_history,
 )
-from requestcompletion.llm import llm
+import requestcompletion.llm as llm
 from requestcompletion.llm.message import SystemMessage
 from requestcompletion.llm.response import Response
 from requestcompletion.nodes.nodes import Node
