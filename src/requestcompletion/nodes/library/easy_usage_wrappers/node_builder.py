@@ -157,7 +157,7 @@ class NodeBuilder(Generic[_TNode]):
                 connected_nodes.add(from_function(elem))
 
         if isinstance(connected_nodes, set):
-            connected_nodes = {x: None for x in connected_nodes}
+            connected_nodes = {x for x in connected_nodes}
 
         _check_max_tool_calls(max_tool_calls)
         check_connected_nodes(connected_nodes, Node)
@@ -181,7 +181,7 @@ class NodeBuilder(Generic[_TNode]):
         check_connected_nodes(connected_nodes, self._node_class)
         if isinstance(connected_nodes, set):
             connected_nodes = {
-                x: None for x in connected_nodes
+                x for x in connected_nodes
             }  ######Need to investigate this and see whats going on##########
         self._with_override("connected_nodes", classmethod(lambda cls: connected_nodes))
 
