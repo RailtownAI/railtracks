@@ -65,6 +65,8 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                 check_max_tool_calls(max_tool_calls)
                 self.max_tool_calls = max_tool_calls
             # Default to unlimited if not passed
+            else:
+                self.max_tool_calls = None
 
         # Warn user that two max_tool_calls are set and we will use the parameter
         else:
