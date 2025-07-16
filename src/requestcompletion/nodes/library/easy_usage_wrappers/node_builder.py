@@ -1,4 +1,5 @@
 import warnings
+from pydantic import BaseModel
 from typing import (
     TypeVar,
     Generic,
@@ -15,7 +16,6 @@ from inspect import isfunction
 from mcp import StdioServerParameters
 
 from requestcompletion.llm import Parameter
-from ...library import from_mcp_server
 from ...library._llm_base import LLMBase
 from ...library.tool_calling_llms._base import OutputLessToolCallLLM
 from ...library.tool_calling_llms.tool_call_llm import ToolCallLLM
@@ -29,7 +29,7 @@ from requestcompletion.exceptions.node_creation.validation import (
 )
 from ....llm import MessageHistory, UserMessage, SystemMessage, ModelBase, Tool
 from ...library.function import from_function
-from pydantic import BaseModel
+from requestcompletion.nodes.library.mcp_tool import from_mcp_server
 
 _TNode = TypeVar("_TNode", bound=Node)
 
