@@ -50,21 +50,10 @@ class TestParameter:
         expected_str = (
             "Parameter(name=test_param, type=boolean, "
             "description=A test parameter, required=False, "
-            "additional_properties=False)"
+            "additional_properties=False, "
+            "enum=None, default=None)"
         )
         assert str(param) == expected_str
-
-    def test_type_mapping(self):
-        """Test that type_mapping returns the expected mapping."""
-        mapping = Parameter.type_mapping()
-
-        assert mapping["string"] is str
-        assert mapping["integer"] is int
-        assert mapping["float"] is float
-        assert mapping["boolean"] is bool
-        assert mapping["array"] is list
-        assert mapping["object"] is dict
-
 
 class TestPydanticParameter:
     """Tests for the PydanticParameter class."""

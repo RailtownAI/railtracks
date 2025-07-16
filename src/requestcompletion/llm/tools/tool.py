@@ -173,7 +173,6 @@ class Tool:
         input_schema = getattr(tool, "inputSchema", None)
         if not input_schema or input_schema["type"] != "object":
             from ...exceptions.errors import NodeCreationError
-
             raise NodeCreationError(
                 message="The inputSchema for an MCP Tool must be 'object'. ",
                 notes=[
@@ -181,20 +180,28 @@ class Tool:
                 ],
             )
 
+        def parse_param(name, prop, required):
+            param_type = prop.get("type", "string")
+            description = prop.get("description", "")
+            enum = prop.get("enum")
+            default = prop.get("default")
+            additional_properties = prop.get("additionalProperties", False)
+
+            return Parameter(
+                name=name,
+                param_type=param_type,
+                description=description,
+                required=required,
+                additional_properties=additional_properties,
+                enum=enum,
+                default=default,
+            )
+
         properties = input_schema.get("properties", {})
         required_fields = set(input_schema.get("required", []))
         param_objs = set()
         for name, prop in properties.items():
-            param_type = prop.get("type", "string")
-            description = prop.get("description", "")
             required = name in required_fields
-            param_objs.add(
-                Parameter(
-                    name=name,
-                    param_type=param_type,
-                    description=description,
-                    required=required,
-                )
-            )
+            param_objs.add(parse_param(name, prop, required))
 
         return cls(name=tool.name, detail=tool.description, parameters=param_objs)

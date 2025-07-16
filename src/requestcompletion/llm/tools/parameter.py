@@ -27,10 +27,12 @@ class Parameter:
     def __init__(
         self,
         name: str,
-        param_type: Literal["string", "integer", "float", "boolean", "array", "object"],
+        param_type: ParameterType | list,
         description: str = "",
         required: bool = True,
         additional_properties: bool = False,
+        enum: Optional[list] = None,
+        default: Any = None,
     ):
         """
         Creates a new instance of a parameter object.
@@ -47,6 +49,18 @@ class Parameter:
         self._description = description
         self._required = required
         self._additional_properties = additional_properties
+        self._enum = enum
+        self._default = default
+
+    @property
+    def enum(self) -> Optional[list]:
+        """Get the enum values for the parameter, if any."""
+        return self._enum
+
+    @property
+    def default(self) -> Any:
+        """Get the default value for the parameter, if any."""
+        return self._default
 
     @property
     def name(self) -> str:
@@ -54,7 +68,7 @@ class Parameter:
         return self._name
 
     @property
-    def param_type(self) -> str:
+    def param_type(self) -> str | list:
         """Get the type of the parameter."""
         return self._param_type
 
@@ -78,21 +92,9 @@ class Parameter:
         return (
             f"Parameter(name={self._name}, type={self._param_type}, "
             f"description={self._description}, required={self._required}, "
-            f"additional_properties={self._additional_properties})"
-        )
-
-    @classmethod
-    def type_mapping(cls) -> Dict[str, Any]:
-        """Map parameter types to Python types."""
-        return deepcopy(
-            {
-                "string": str,
-                "integer": int,
-                "float": float,
-                "boolean": bool,
-                "array": list,
-                "object": dict,
-            }
+            f"additional_properties={self._additional_properties}, "
+            f"enum={self._enum}, "
+            f"default={self._default})"
         )
 
 
