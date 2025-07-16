@@ -21,7 +21,7 @@ def structured_llm(  # noqa: C901
     Dynamically reate a StructuredLLM node class with custom configuration for output type.
 
     This easy-usage wrapper dynamically builds a node class that supports structured LLM output.
-    This allows you to specify the output model, llm model, system message, tool metadata, 
+    This allows you to specify the output model, llm model, system message, tool metadata,
     and parameters. The returned class can be instantiated and used in the requestcompletion framework on runtime.
 
     Parameters

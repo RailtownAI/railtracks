@@ -1,5 +1,16 @@
 import warnings
-from typing import TypeVar, Generic, Dict, Any, cast, Type, Iterable, Set, Union, Callable
+from typing import (
+    TypeVar,
+    Generic,
+    Dict,
+    Any,
+    cast,
+    Type,
+    Iterable,
+    Set,
+    Union,
+    Callable,
+)
 from inspect import isfunction
 from mcp import StdioServerParameters
 
@@ -50,6 +61,7 @@ class NodeBuilder(Generic[_TNode]):
     Type[_TNode]
         The node subclass with the specified overrides and configurations.
     """
+
     def __init__(
         self,
         node_class: type[_TNode],
@@ -115,7 +127,7 @@ class NodeBuilder(Generic[_TNode]):
         """
         Configure the node subclass to have a output_model method.
 
-        This method creates a class wide method which returns the output model for the node, 
+        This method creates a class wide method which returns the output model for the node,
         which in turn is used for validation and serialization of structured outputs.
 
         Parameters
@@ -133,7 +145,7 @@ class NodeBuilder(Generic[_TNode]):
         Configure the node subclass to have a connected_nodes method and max_tool_calls method.
 
         This method creates methods that are helpful for tool calling llms with their tools
-        stored in connected_nodes and with a limit on the number of tool calls they can make. 
+        stored in connected_nodes and with a limit on the number of tool calls they can make.
 
         Parameters
         ----------
@@ -180,9 +192,7 @@ class NodeBuilder(Generic[_TNode]):
         _check_max_tool_calls(max_tool_calls)
         check_connected_nodes(connected_nodes, self._node_class)
         if isinstance(connected_nodes, set):
-            connected_nodes = {
-                x for x in connected_nodes
-            }  ######Need to investigate this and see whats going on##########
+            connected_nodes = {x for x in connected_nodes}
         self._with_override("connected_nodes", classmethod(lambda cls: connected_nodes))
 
     def tool_callable_llm(
@@ -266,7 +276,7 @@ class NodeBuilder(Generic[_TNode]):
         Construct and return the configured node subclass.
 
         This method creates a the node subclass that inherits from the specified base node class, applying all method
-        and attribute overrides configured via the builder. 
+        and attribute overrides configured via the builder.
 
         Returns
         -------

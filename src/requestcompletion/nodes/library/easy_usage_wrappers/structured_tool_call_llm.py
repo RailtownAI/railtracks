@@ -26,7 +26,7 @@ def structured_tool_call_llm(  # noqa: C901
     Dynamically create a StructuredToolCallLLM node class with custom configuration for tool calling.
 
     This easy-usage wrapper dynamically builds a node class that supports LLM tool calling where it will return
-    a structured output. This allows you to specify connected tools, llm model, output model, system message, tool metadata, 
+    a structured output. This allows you to specify connected tools, llm model, output model, system message, tool metadata,
     and parameters. The returned class can be instantiated and used in the requestcompletion framework on runtime.
 
     Parameters

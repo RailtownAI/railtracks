@@ -23,8 +23,8 @@ def tool_call_llm(  # noqa: C901
     Dynamically create a ToolCallLLM node class with custom configuration for tool calling.
 
     This easy-usage wrapper dynamically builds a node class that supports LLM tool calling where it will return
-    the last message passed in the history. This allows you to specify connected tools, llm model, system message, 
-    tool metadata, and parameters. The returned class can be instantiated and used in the requestcompletion 
+    the last message passed in the history. This allows you to specify connected tools, llm model, system message,
+    tool metadata, and parameters. The returned class can be instantiated and used in the requestcompletion
     framework on runtime.
 
     Parameters
