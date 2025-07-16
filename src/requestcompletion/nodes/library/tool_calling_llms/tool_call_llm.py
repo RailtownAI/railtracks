@@ -1,6 +1,6 @@
-from ._base import OutputLessToolCallLLM
-
 from abc import ABC
+
+from ._base import OutputLessToolCallLLM
 
 
 class ToolCallLLM(OutputLessToolCallLLM[str], ABC):

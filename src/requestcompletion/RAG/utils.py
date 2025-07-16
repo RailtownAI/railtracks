@@ -2,11 +2,12 @@
 Utility functions for the LORAG system.
 """
 
-import os
 import glob
-from typing import List, Dict, Any, Optional, Union
+import os
+from typing import Any, Dict, List, Optional, Union
+
 import tiktoken
-from litellm import encode, decode
+from litellm import decode, encode
 
 
 class LORAGTokenizer:

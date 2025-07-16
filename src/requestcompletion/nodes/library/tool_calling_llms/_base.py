@@ -3,14 +3,16 @@ import warnings
 from typing import TypeVar, ParamSpec, Generic, Set, Type, Dict, Any, Union, Callable
 from ...nodes import Node
 from requestcompletion.llm import (
+    AssistantMessage,
     MessageHistory,
     ModelBase,
     ToolCall,
-    ToolResponse,
     ToolMessage,
+    ToolResponse,
     UserMessage,
-    AssistantMessage,
 )
+
+from ...nodes import Node
 from .._llm_base import LLMBase
 from requestcompletion.run import call
 from abc import ABC, abstractmethod
