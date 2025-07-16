@@ -17,7 +17,7 @@ from typing import (
     TypeVar,
     Union,
     get_args,
-    get_origin,
+    get_origin, overload,
 )
 
 import typing_extensions
@@ -39,36 +39,19 @@ def to_node(func):
     return from_function(func)
 
 class DynamicFunctionNode(Node[_TOutput], Generic[_P, _TOutput], ABC):
+    """
+    A base class which contains logic around converting function parameters to the required value given by the function.
+    It also contains the framework for functionality of function nodes that can be built using the `from_function`
+    method.
+
+    NOTE: This class is not designed to be worked with directly. The classes SyncDynamicFunctionNode and
+    AsyncDynamicFunctionNode are the ones designed for consumption.
+    """
 
     def __init__(self, *args: _P.args, **kwargs: _P.kwargs):
         super().__init__()
         self.args = args
         self.kwargs = kwargs
-
-    async def invoke(self):
-        func = self.func()
-        if inspect.iscoroutinefunction(func):
-            # invoke function is proper coroutine
-            return await func(*self.args, **self.kwargs)
-        else:
-            result = await asyncio.to_thread(func, *self.args, **self.kwargs)
-            # This is overly safe check to make sure the returned function isn't also a coroutine.
-
-            # this would happen if some did the following
-            # def function():
-            #     async def inner_function():
-            #         return "Hello"
-            #     return inner_function
-
-            if asyncio.iscoroutine(result):
-                raise NodeCreationError(
-                    message="The function you provided was a coroutine in the clothing of a sync context. Please label it as an async function.",
-                    notes=[
-                        "If your function returns a coroutine (e.g., calls async functions inside), refactor it to be async.",
-                        "If you see this error unexpectedly, check if any library function you call is async.",
-                    ],
-                )
-            return result
 
     @classmethod
     def _convert_kwargs_to_appropriate_types(cls, kwargs) -> Dict[str, Any]:
@@ -76,7 +59,7 @@ class DynamicFunctionNode(Node[_TOutput], Generic[_P, _TOutput], ABC):
         converted_kwargs = {}
 
         try:
-            sig = inspect.signature(cls.func())
+            sig = inspect.signature(cls.func)
 
         except ValueError:
             raise RuntimeError(
@@ -211,26 +194,81 @@ class DynamicFunctionNode(Node[_TOutput], Generic[_P, _TOutput], ABC):
 
         # Convert the value to the determined type
         return cls._convert_value(value, element_type)
-    
-    
+
+
     @classmethod
     @abstractmethod
-    def func(cls) -> Callable[[_P], Coroutine[None, None, _TOutput] | _TOutput]:
+    def func(cls, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput | Coroutine[None, None, _TOutput]:
         pass
         
 
     @classmethod
     def pretty_name(cls) -> str:
-        return f"{cls.func().__name__} Node"
+        return f"{cls.func.__name__} Node"
 
     @classmethod
     def tool_info(cls) -> Tool:
-        return Tool.from_function(cls.func())
+        return Tool.from_function(cls.func)
 
     @classmethod
     def prepare_tool(cls, tool_parameters: Dict[str, Any]) -> Self:
         converted_params = cls._convert_kwargs_to_appropriate_types(tool_parameters)
         return cls(**converted_params)
+
+
+class SyncDynamicFunctionNode(DynamicFunctionNode[_P, _TOutput], Generic[_P, _TOutput], ABC):
+    @classmethod
+    @abstractmethod
+    def func(cls, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
+        """
+        The function that this node will call.
+        This function should be synchronous.
+        """
+        pass
+
+    async def invoke(self):
+            result = self.func(*self.args, **self.kwargs)
+
+            # This is overly safe check to make sure the returned function isn't also a coroutine.
+
+            # this would happen if some did the following
+            # def function():
+            #     async def inner_function():
+            #         return "Hello"
+            #     return inner_function
+
+            if asyncio.iscoroutine(result):
+                raise NodeCreationError(
+                    message="The function you provided was a coroutine in the clothing of a sync context. Please label it as an async function.",
+                    notes=[
+                        "If your function returns a coroutine (e.g., calls async functions inside), refactor it to be async.",
+                        "If you see this error unexpectedly, check if any library function you call is async.",
+                    ],
+                )
+
+            return result
+
+class AsyncDynamicFunctionNode(DynamicFunctionNode[_P, _TOutput], Generic[_P, _TOutput], ABC):
+    """
+    A nearly complete class that expects an async function to be provided in the `func` method.
+
+    The class' internals will handle the creation of the rest of the internals required for a node to operate.
+
+    You can override methods like pretty_name and tool_info to provide custom names and tool information. However,
+    do note that these overrides can cause unexpected behavior if not done according to what is expected in the parent
+    class as it uses a lot of the structures in its implementation of other functions.
+    """
+
+    @classmethod
+    @abstractmethod
+    async def func(cls, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
+        """
+        The async function that this node will call.
+        """
+        pass
+
+    async def invoke(self) -> _TOutput:
+        return await self.func(*self.args, **self.kwargs)
 
 
 
@@ -239,7 +277,7 @@ def from_function(
     func: Callable[[_P], Coroutine[None, None, _TOutput] | _TOutput],
 ):
     """
-    A function to create a node from a function
+    Creates a new Node type from a function that can be used in `rc.call()`.
     """
     builder = NodeBuilder()
 
