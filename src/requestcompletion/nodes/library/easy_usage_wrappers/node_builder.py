@@ -179,7 +179,7 @@ class NodeBuilder(Generic[_TNode]):
         self._with_override("connected_nodes", classmethod(lambda cls: connected_nodes))
         self._with_override("max_tool_calls", max_tool_calls)
 
-    def mcp_llm(self, mcp_command, mcp_args, mcp_env, max_tool_calls):
+    def mcp_llm(self, mcp_command: str, mcp_args: list[str], mcp_env: dict[str, str] | None, max_tool_calls: int):
         """
         Configure the node subclass to use MCP (Model Context Protocol) tool calling.
 
