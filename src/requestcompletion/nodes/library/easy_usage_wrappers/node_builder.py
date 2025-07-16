@@ -168,8 +168,8 @@ class NodeBuilder(Generic[_TNode]):
                 connected_nodes.remove(elem)
                 connected_nodes.add(from_function(elem))
 
-        if isinstance(connected_nodes, set):
-            connected_nodes = {x for x in connected_nodes}
+        if not isinstance(connected_nodes, set):
+            connected_nodes = set(connected_nodes)
 
         _check_max_tool_calls(max_tool_calls)
         check_connected_nodes(connected_nodes, Node)
@@ -192,7 +192,7 @@ class NodeBuilder(Generic[_TNode]):
         _check_max_tool_calls(max_tool_calls)
         check_connected_nodes(connected_nodes, self._node_class)
         if isinstance(connected_nodes, set):
-            connected_nodes = {x for x in connected_nodes}
+            connected_nodes = Set(connected_nodes)
         self._with_override("connected_nodes", classmethod(lambda cls: connected_nodes))
 
     def tool_callable_llm(

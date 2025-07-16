@@ -142,19 +142,6 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
             latency = time.time() - start_time
             self.details["latency"] = LatencyDetails(total_time=latency)
 
-    async def tracked_invoke(self) -> _TOutput:
-        """
-        A special method that will track and save the latency of the running of this invoke method.
-        """
-        start_time = time.time()
-        try:
-            return await self.invoke()
-        except Exception as e:
-            raise e
-        finally:
-            latency = time.time() - start_time
-            self.details["latency"] = LatencyDetails(total_time=latency)
-
     def state_details(self) -> Dict[str, str]:
         """
         Places the __dict__ of the current object into a dictionary of strings.
