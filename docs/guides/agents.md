@@ -17,7 +17,7 @@ The key abilities of the agent include:
 
 - **Stateful**: Agent's maintain context and history and use it to inform their decisions
 
-#  🧠  LLM's have changed the game
+#  🧠  LLMs have changed the game
 
 Reinforcement Learning and other AI techniques which train specific agents to operate in its environment 
 for a while now, but LLMs have changed the game and made it much easier to use their generalized intelligence to
