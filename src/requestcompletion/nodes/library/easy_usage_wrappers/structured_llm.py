@@ -51,8 +51,6 @@ def structured_llm(  # noqa: C901
         StructuredLLM,
         pretty_name=pretty_name,
         class_name="EasyStructuredLLM",
-        tool_details=tool_details,
-        tool_params=tool_params,
     )
     builder.llm_base(llm_model, system_message)
     builder.structured(output_model)

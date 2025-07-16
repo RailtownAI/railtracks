@@ -45,8 +45,6 @@ def terminal_llm(  # noqa: C901
         TerminalLLM,
         pretty_name=pretty_name,
         class_name="EasyTerminalLLM",
-        tool_details=tool_details,
-        tool_params=tool_params,
     )
     builder.llm_base(llm_model, system_message)
     if tool_details is not None:

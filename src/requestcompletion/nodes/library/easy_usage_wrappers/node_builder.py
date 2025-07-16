@@ -10,7 +10,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
-    cast,
+    cast, overload,
 )
 
 from mcp import StdioServerParameters
@@ -25,6 +25,7 @@ from requestcompletion.exceptions.node_creation.validation import (
 )
 from requestcompletion.llm import Parameter
 from requestcompletion.nodes.library.mcp_tool import from_mcp_server
+from ..function import DynamicFunctionNode
 
 from ....llm import MessageHistory, ModelBase, SystemMessage, Tool, UserMessage
 from ....nodes.nodes import Node
@@ -53,10 +54,6 @@ class NodeBuilder(Generic[_TNode]):
         Human-readable name for the node/tool (used for debugging and tool metadata).
     class_name : str, optional
         The name of the generated class (defaults to 'Dynamic{node_class.__qualname__}').
-    tool_details : str, optional
-        Description of the tool for LLM tool calling.
-    tool_params : set[Parameter], optional
-        Parameters for the tool, used in tool metadata and input validation.
 
     Returns
     -------
@@ -71,10 +68,7 @@ class NodeBuilder(Generic[_TNode]):
         *,
         pretty_name: str | None = None,
         class_name: str | None = None,
-        tool_details: str | None = None,
-        tool_params: set[Parameter] | None = None,
     ):
-        _check_tool_params_and_details(tool_params, tool_details)
         self._node_class = node_class
         self._name = class_name or f"Dynamic{node_class.__qualname__}"
         self._methods = {}
@@ -108,6 +102,7 @@ class NodeBuilder(Generic[_TNode]):
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         )
         if llm_model is not None:
+            # TODO fix whatever this is.
             if callable(llm_model):
                 self._with_override(
                     "get_llm_model", classmethod(lambda cls: llm_model())
@@ -254,7 +249,22 @@ class NodeBuilder(Generic[_TNode]):
         _check_tool_params_and_details(tool_params, tool_details)
         _check_duplicate_param_names(tool_params or [])
         self.override_tool_info(tool_details, tool_params)
-        self.override_prepare_tool(tool_params)
+        self.override_prepare_tool_llm(tool_params)
+
+
+    def setup_dynamic_function_node(
+            self,
+            function: Callable[..., Any],
+    ):
+        """
+        Prepares a dynamic function node with the provided function.
+        """
+        assert issubclass(self._node_class, DynamicFunctionNode), (
+            f"To perform this operation the node class we are building must be of type DynamicFunctionNode but got {self._node_class}"
+        )
+
+        self._with_override("func", classmethod(function))
+
 
     def override_tool_info(
         self, tool_details: str, tool_params: dict[str, Any] | Iterable[Parameter]
@@ -272,9 +282,9 @@ class NodeBuilder(Generic[_TNode]):
 
         self._with_override("tool_info", classmethod(tool_info))
 
-    def override_prepare_tool(self, tool_params: dict[str, Any]):
+    def override_prepare_tool_llm(self, tool_params: dict[str, Any]):
         """
-        Override the prepare_tool function for the node.
+        Override the prepare_tool function for an LLM node.
         """
 
         def prepare_tool(cls, tool_parameters: Dict[str, Any]):
@@ -321,4 +331,4 @@ class NodeBuilder(Generic[_TNode]):
             class_dict,
         )
 
-        return cast(Type[_TNode], klass)
+        return cast(type[_TNode], klass)

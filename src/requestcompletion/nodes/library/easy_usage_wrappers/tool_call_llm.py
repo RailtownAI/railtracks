@@ -55,8 +55,6 @@ def tool_call_llm(  # noqa: C901
         ToolCallLLM,
         pretty_name=pretty_name,
         class_name="EasyToolCallLLM",
-        tool_details=tool_details,
-        tool_params=tool_params,
     )
     builder.llm_base(llm_model, system_message)
     builder.tool_calling_llm(connected_nodes, max_tool_calls)
