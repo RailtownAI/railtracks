@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-import types
-from abc import abstractmethod, ABC
+from abc import ABC, abstractmethod
 from typing import (
     Any,
     Callable,
@@ -17,7 +16,7 @@ from typing import (
     TypeVar,
     Union,
     get_args,
-    get_origin, overload,
+    get_origin,
 )
 
 import typing_extensions
@@ -25,7 +24,6 @@ from pydantic import BaseModel
 from typing_extensions import Self
 
 from ...exceptions import NodeCreationError
-from ...exceptions.node_creation.validation import validate_function
 from ...llm.tools import Tool
 from ...llm.tools.parameter_handlers import UnsupportedParameterError
 from ..nodes import Node
@@ -37,6 +35,7 @@ _P = ParamSpec("_P")
 def to_node(func):
     """Decorator to convert a function into a Node using from_function."""
     return from_function(func)
+
 
 class DynamicFunctionNode(Node[_TOutput], Generic[_P, _TOutput], ABC):
     """
@@ -77,10 +76,9 @@ class DynamicFunctionNode(Node[_TOutput], Generic[_P, _TOutput], ABC):
 
         return converted_kwargs
 
-
     @classmethod
     def _convert_value(
-            cls, value: Any, target_type: Any, param_name: str = "unknown"
+        cls, value: Any, target_type: Any, param_name: str = "unknown"
     ) -> Any:
         """
         Convert a value to the target type based on type annotation.
@@ -117,9 +115,7 @@ class DynamicFunctionNode(Node[_TOutput], Generic[_P, _TOutput], ABC):
         # For primitive types, try direct conversion
         try:
             # Only attempt conversion for basic types, not for complex types
-            if inspect.isclass(target_type) and not hasattr(
-                    target_type, "__origin__"
-            ):
+            if inspect.isclass(target_type) and not hasattr(target_type, "__origin__"):
                 return target_type(value)
         except (TypeError, ValueError):
             return "Tool call parameter type conversion failed."
@@ -129,7 +125,7 @@ class DynamicFunctionNode(Node[_TOutput], Generic[_P, _TOutput], ABC):
 
     @classmethod
     def _convert_to_pydantic_model(
-            cls, value: Any, model_class: Type[BaseModel]
+        cls, value: Any, model_class: Type[BaseModel]
     ) -> Any:
         """Convert a value to a Pydantic model."""
         if isinstance(value, dict):
@@ -138,7 +134,7 @@ class DynamicFunctionNode(Node[_TOutput], Generic[_P, _TOutput], ABC):
 
     @classmethod
     def _convert_to_sequence(
-            cls, value: Any, target_type: Type, type_args: Tuple[Type, ...]
+        cls, value: Any, target_type: Type, type_args: Tuple[Type, ...]
     ) -> Union[List[Any], Tuple[Any, ...]]:
         """
         Convert a value to a sequence (list or tuple) with the expected element types.
@@ -155,8 +151,7 @@ class DynamicFunctionNode(Node[_TOutput], Generic[_P, _TOutput], ABC):
         if isinstance(value, (list, tuple)):
             # Convert each element to the appropriate type
             result = [
-                cls._convert_element(item, type_args, i)
-                for i, item in enumerate(value)
+                cls._convert_element(item, type_args, i) for i, item in enumerate(value)
             ]
             # Return as the target type (list or tuple)
             return tuple(result) if target_type is tuple else result
@@ -167,7 +162,7 @@ class DynamicFunctionNode(Node[_TOutput], Generic[_P, _TOutput], ABC):
 
     @classmethod
     def _convert_element(
-            cls, value: Any, type_args: Tuple[Type, ...], index: int
+        cls, value: Any, type_args: Tuple[Type, ...], index: int
     ) -> Any:
         """
         Convert a sequence element to the expected type.
@@ -195,12 +190,12 @@ class DynamicFunctionNode(Node[_TOutput], Generic[_P, _TOutput], ABC):
         # Convert the value to the determined type
         return cls._convert_value(value, element_type)
 
-
     @classmethod
     @abstractmethod
-    def func(cls, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput | Coroutine[None, None, _TOutput]:
+    def func(
+        cls, *args: _P.args, **kwargs: _P.kwargs
+    ) -> _TOutput | Coroutine[None, None, _TOutput]:
         pass
-        
 
     @classmethod
     def pretty_name(cls) -> str:
@@ -216,7 +211,19 @@ class DynamicFunctionNode(Node[_TOutput], Generic[_P, _TOutput], ABC):
         return cls(**converted_params)
 
 
-class SyncDynamicFunctionNode(DynamicFunctionNode[_P, _TOutput], Generic[_P, _TOutput], ABC):
+class SyncDynamicFunctionNode(
+    DynamicFunctionNode[_P, _TOutput], Generic[_P, _TOutput], ABC
+):
+    """
+    A nearly complete class that expects a synchronous function to be provided in the `func` method.
+
+    The class' internals will handle the creation of the rest of the internals required for a node to operate.
+
+    You can override methods like pretty_name and tool_info to provide custom names and tool information. However,
+    do note that these overrides can cause unexpected behavior if not done according to what is expected in the parent
+    class as it uses a lot of the structures in its implementation of other functions.
+    """
+
     @classmethod
     @abstractmethod
     def func(cls, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
@@ -227,28 +234,31 @@ class SyncDynamicFunctionNode(DynamicFunctionNode[_P, _TOutput], Generic[_P, _TO
         pass
 
     async def invoke(self):
-            result = self.func(*self.args, **self.kwargs)
+        result = self.func(*self.args, **self.kwargs)
 
-            # This is overly safe check to make sure the returned function isn't also a coroutine.
+        # This is overly safe check to make sure the returned function isn't also a coroutine.
 
-            # this would happen if some did the following
-            # def function():
-            #     async def inner_function():
-            #         return "Hello"
-            #     return inner_function
+        # this would happen if some did the following
+        # def function():
+        #     async def inner_function():
+        #         return "Hello"
+        #     return inner_function
 
-            if asyncio.iscoroutine(result):
-                raise NodeCreationError(
-                    message="The function you provided was a coroutine in the clothing of a sync context. Please label it as an async function.",
-                    notes=[
-                        "If your function returns a coroutine (e.g., calls async functions inside), refactor it to be async.",
-                        "If you see this error unexpectedly, check if any library function you call is async.",
-                    ],
-                )
+        if asyncio.iscoroutine(result):
+            raise NodeCreationError(
+                message="The function you provided was a coroutine in the clothing of a sync context. Please label it as an async function.",
+                notes=[
+                    "If your function returns a coroutine (e.g., calls async functions inside), refactor it to be async.",
+                    "If you see this error unexpectedly, check if any library function you call is async.",
+                ],
+            )
 
-            return result
+        return result
 
-class AsyncDynamicFunctionNode(DynamicFunctionNode[_P, _TOutput], Generic[_P, _TOutput], ABC):
+
+class AsyncDynamicFunctionNode(
+    DynamicFunctionNode[_P, _TOutput], Generic[_P, _TOutput], ABC
+):
     """
     A nearly complete class that expects an async function to be provided in the `func` method.
 
@@ -271,8 +281,6 @@ class AsyncDynamicFunctionNode(DynamicFunctionNode[_P, _TOutput], Generic[_P, _T
         return await self.func(*self.args, **self.kwargs)
 
 
-
-
 def from_function(
     func: Callable[[_P], Coroutine[None, None, _TOutput] | _TOutput],
 ):
@@ -282,7 +290,9 @@ def from_function(
     builder = NodeBuilder()
 
 
-@typing_extensions.deprecated("The function node is deprecated use DynamicFunctionNode instead.")
+@typing_extensions.deprecated(
+    "The function node is deprecated use DynamicFunctionNode instead."
+)
 class FunctionNode(Node[_TOutput]):
     """
     A class for ease of creating a function node for the user
