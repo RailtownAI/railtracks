@@ -178,6 +178,30 @@ class NodeBuilder(Generic[_TNode]):
         self._with_override("max_tool_calls", max_tool_calls)
 
     def mcp_llm(self, mcp_command, mcp_args, mcp_env, max_tool_calls):
+        """
+        Configure the node subclass to use MCP (Model Context Protocol) tool calling.
+
+        This method sets up the node to call tools via an MCP server, specifying the command, arguments,
+        environment, and maximum tool calls.
+
+        Parameters
+        ----------
+        mcp_command : str
+            The command to run the MCP server (e.g., 'npx').
+        mcp_args : list
+            Arguments to pass to the MCP server command.
+        mcp_env : dict or None
+            Environment variables for the MCP server process.
+        max_tool_calls : int
+            Maximum number of tool calls allowed per invocation.
+
+        Raises
+        ------
+        AssertionError
+            If the node class is not a subclass of ToolCallLLM.
+
+        """
+
         assert issubclass(self._node_class, ToolCallLLM), (
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         )
@@ -188,12 +212,14 @@ class NodeBuilder(Generic[_TNode]):
                 env=mcp_env if mcp_env is not None else None,
             )
         )
+
         connected_nodes = {*tools}
+
         _check_max_tool_calls(max_tool_calls)
         check_connected_nodes(connected_nodes, self._node_class)
-        if isinstance(connected_nodes, set):
-            connected_nodes = Set(connected_nodes)
+
         self._with_override("connected_nodes", classmethod(lambda cls: connected_nodes))
+        self._with_override("max_tool_calls", max_tool_calls)
 
     def tool_callable_llm(
         self,
