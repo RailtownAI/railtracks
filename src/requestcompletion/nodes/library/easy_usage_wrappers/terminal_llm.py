@@ -1,84 +1,55 @@
-import warnings
-from copy import deepcopy
-from typing import Any, Dict, Type
+from typing import Type
 
-from ....exceptions.node_creation.validation import validate_tool_metadata
-from ....exceptions.node_invocation.validation import check_message_history, check_model
-from ....llm import MessageHistory, ModelBase, SystemMessage, UserMessage
-from ....llm.tools import Parameter, Tool
+from requestcompletion.nodes.library.easy_usage_wrappers.node_builder import NodeBuilder
+
+from ....llm import ModelBase, SystemMessage
+from ....llm.tools import Parameter
 from ..terminal_llm import TerminalLLM
 
 
 def terminal_llm(  # noqa: C901
     pretty_name: str | None = None,
+    *,
     system_message: SystemMessage | str | None = None,
-    model: ModelBase | None = None,
+    llm_model: ModelBase | None = None,
     tool_details: str | None = None,
     tool_params: set[Parameter] | None = None,
 ) -> Type[TerminalLLM]:
-    class TerminalLLMNode(TerminalLLM):
-        def __init__(
-            self,
-            message_history: MessageHistory,
-            llm_model: ModelBase | None = None,
-        ):
-            check_message_history(
-                message_history, system_message
-            )  # raises Error if message_history is not valid
-            message_history_copy = deepcopy(message_history)
-            if system_message is not None:
-                if len([x for x in message_history_copy if x.role == "system"]) > 0:
-                    warnings.warn(
-                        "System message already exists in message history. We will replace it."
-                    )
-                    message_history_copy = [
-                        x for x in message_history_copy if x.role != "system"
-                    ]
-                    message_history_copy.insert(0, system_message)
-                else:
-                    message_history_copy.insert(0, system_message)
+    """
+    Dynamically create a TerminalLLM node class with custom configuration.
 
-            if llm_model is not None:
-                if model is not None:
-                    warnings.warn(
-                        "You have provided a model as a parameter and as a class variable. We will use the parameter."
-                    )
-            else:
-                check_model(model)  # raises Error if model is not valid
-                llm_model = model
+    This easy-usage wrapper dynamically builds a node class that supports a basic LLM.
+    This allows you to specify the llm model, system message, tool metadata, and parameters.
+    The returned class can be instantiated and used in the requestcompletion framework on runtime.
 
-            super().__init__(message_history=message_history_copy, model=llm_model)
+    Parameters
+    ----------
+    pretty_name : str, optional
+        Human-readable name for the node/tool.
+    llm_model : ModelBase or None, optional
+        The LLM model instance to use for this node.
+    system_message : SystemMessage or str or None, optional
+        The system prompt/message for the node. If not passed here it can be passed at runtime in message history.
+    tool_details : str or None, optional
+        Description of the node subclass for other LLMs to know how to use this as a tool.
+    tool_params : dict or None, optional
+        Parameters that must be passed if other LLMs want to use this as a tool.
 
-        @classmethod
-        def pretty_name(cls) -> str:
-            if pretty_name is None:
-                return "TerminalLLM"
-            else:
-                return pretty_name
+    Returns
+    -------
+    Type[TerminalLLM]
+        The dynamically generated node class with the specified configuration.
 
-        if tool_details:  # params might be empty
+    """
+    builder = NodeBuilder(
+        TerminalLLM,
+        pretty_name=pretty_name,
+        class_name="EasyTerminalLLM",
+        tool_details=tool_details,
+        tool_params=tool_params,
+    )
+    builder.llm_base(llm_model, system_message)
+    if tool_details is not None:
+        builder.tool_callable_llm(tool_details, tool_params)
 
-            @classmethod
-            def tool_info(cls) -> Tool:
-                return Tool(
-                    name=cls.pretty_name().replace(" ", "_"),
-                    detail=tool_details,
-                    parameters=tool_params,
-                )
-
-            @classmethod
-            def prepare_tool(cls, tool_parameters: Dict[str, Any]) -> TerminalLLM:
-                message_hist = MessageHistory(
-                    [
-                        UserMessage(f"{param.name}: '{tool_parameters[param.name]}'")
-                        for param in (tool_params if tool_params else [])
-                    ]
-                )
-                return cls(message_hist)
-
-    validate_tool_metadata(tool_params, tool_details, system_message, pretty_name)
-    if system_message is not None and isinstance(
-        system_message, str
-    ):  # system_message is a string, (tackled at the time of node creation)
-        system_message = SystemMessage(system_message)
-    return TerminalLLMNode
+    return builder.build()

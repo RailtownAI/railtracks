@@ -4,7 +4,7 @@ from typing import Any, Callable, Dict, Iterable, get_origin
 
 from pydantic import BaseModel
 
-from ...llm import SystemMessage
+from ...llm.message import SystemMessage
 from ..errors import NodeCreationError
 from ..messages.exception_messages import ExceptionMessageKey, get_message, get_notes
 
@@ -174,7 +174,7 @@ def _check_pretty_name(pretty_name: str | None, tool_details: Any) -> None:
         )
 
 
-def _check_system_message(system_message: SystemMessage | str | None) -> None:
+def _check_system_message(system_message: SystemMessage | None) -> None:
     """
     Validate that system_message is an instance of SystemMessageType if provided.
     Args:
@@ -183,9 +183,7 @@ def _check_system_message(system_message: SystemMessage | str | None) -> None:
     Raises:
         NodeCreationError: If system_message is not of the correct type.
     """
-    if system_message is not None and not isinstance(
-        system_message, (SystemMessage, str)
-    ):
+    if system_message is not None and not isinstance(system_message, SystemMessage):
         raise NodeCreationError(
             get_message(ExceptionMessageKey.INVALID_SYSTEM_MESSAGE_MSG),
         )

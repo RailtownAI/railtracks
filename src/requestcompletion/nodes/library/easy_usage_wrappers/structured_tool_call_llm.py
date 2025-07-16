@@ -1,4 +1,6 @@
-from typing import Callable, Set, Type, Union
+from typing import Callable, Literal, Set, Type, Union
+
+from pydantic import BaseModel
 
 from requestcompletion.llm import (
     ModelBase,
@@ -6,27 +8,28 @@ from requestcompletion.llm import (
 )
 
 from ....nodes.nodes import Node
-from ...library.tool_calling_llms.tool_call_llm import ToolCallLLM
+from ...library.tool_calling_llms.structured_tool_call_llm import StructuredToolCallLLM
 from ..easy_usage_wrappers.node_builder import NodeBuilder
 
 
-def tool_call_llm(  # noqa: C901
+def structured_tool_call_llm(  # noqa: C901
     connected_nodes: Set[Union[Type[Node], Callable]],
     *,
     pretty_name: str | None = None,
     llm_model: ModelBase | None = None,
     max_tool_calls: int | None = 30,
     system_message: SystemMessage | str | None = None,
+    output_type: Literal["MessageHistory", "LastMessage"] = "LastMessage",
+    output_model: BaseModel,
     tool_details: str | None = None,
     tool_params: dict | None = None,
-) -> Type[ToolCallLLM]:
+) -> Type[StructuredToolCallLLM]:
     """
-    Dynamically create a ToolCallLLM node class with custom configuration for tool calling.
+    Dynamically create a StructuredToolCallLLM node class with custom configuration for tool calling.
 
     This easy-usage wrapper dynamically builds a node class that supports LLM tool calling where it will return
-    the last message passed in the history. This allows you to specify connected tools, llm model, system message,
-    tool metadata, and parameters. The returned class can be instantiated and used in the requestcompletion
-    framework on runtime.
+    a structured output. This allows you to specify connected tools, llm model, output model, system message, tool metadata,
+    and parameters. The returned class can be instantiated and used in the requestcompletion framework on runtime.
 
     Parameters
     ----------
@@ -40,6 +43,10 @@ def tool_call_llm(  # noqa: C901
         Maximum number of tool calls allowed per invocation (default: 30).
     system_message : SystemMessage or str or None, optional
         The system prompt/message for the node. If not passed here it can be passed at runtime in message history.
+    output_type : Literal["MessageHistory", "LastMessage"], optional
+        The type of output this node will return. Defaults to "LastMessage".
+    output_model : BaseModel
+        The Pydantic model that defines the structure of the output.
     tool_details : str or None, optional
         Description of the node subclass for other LLMs to know how to use this as a tool.
     tool_params : dict or None, optional
@@ -47,14 +54,21 @@ def tool_call_llm(  # noqa: C901
 
     Returns
     -------
-    Type[ToolCallLLM]
+    Type[StructuredToolCallLLM]
         The dynamically generated node class with the specified configuration.
 
     """
+    if (
+        output_model and output_type == "MessageHistory"
+    ):  # TODO: add support for MessageHistory output type with output_model. Maybe resp.answer = message_hist and resp.structured = model response
+        raise NotImplementedError(
+            "MessageHistory output type is not supported with output_model at the moment."
+        )
+
     builder = NodeBuilder(
-        ToolCallLLM,
+        StructuredToolCallLLM,
         pretty_name=pretty_name,
-        class_name="EasyToolCallLLM",
+        class_name="EasyStructuredToolCallLLM",
         tool_details=tool_details,
         tool_params=tool_params,
     )
@@ -62,5 +76,6 @@ def tool_call_llm(  # noqa: C901
     builder.tool_calling_llm(connected_nodes, max_tool_calls)
     if tool_details is not None:
         builder.tool_callable_llm(tool_details, tool_params)
+    builder.structured(output_model)
 
     return builder.build()

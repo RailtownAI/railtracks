@@ -4,6 +4,7 @@ from typing import List
 from pydantic import BaseModel, Field
 import random
 from requestcompletion.nodes.library import ToolCallLLM
+from requestcompletion.llm import SystemMessage
 
 # ============ Model ===========
 
@@ -123,36 +124,41 @@ def travel_planner_tools():
 
 def _make_node(fixture_name, system_message, model, output_model, tool_nodes, class_type=None):
     if fixture_name == "easy_wrapper":
-        return rc.library.tool_call_llm(
+        return rc.library.structured_tool_call_llm(
             connected_nodes=tool_nodes,
             pretty_name=output_model.__name__ + " Node",
             system_message=system_message,
-            model=model,
+            llm_model=model,
             output_model=output_model,
         )
     elif fixture_name == "class_based":
         class CustomNode(rc.library.StructuredToolCallLLM if class_type is None else class_type):
-            def __init__(self, message_history, output_model=output_model, llm_model=model):
+            def __init__(self, message_history, model=model):
                 message_history = [x for x in message_history if x.role != "system"]
-                message_history.insert(0, system_message)
+                message_history.insert(0, SystemMessage(system_message) if isinstance(system_message, str) else system_message)
                 super().__init__(
                     message_history=message_history,
-                    llm_model=llm_model,
-                    output_model=output_model,
+                    llm_model=model,
                 )
+            @classmethod
+            def output_model(cls):
+                return output_model
             @classmethod
             def connected_nodes(cls):
                 return tool_nodes
             @classmethod
             def pretty_name(cls):
                 return output_model.__name__ + " Node"
+            @classmethod
+            def get_llm_model(cls):
+                return model() if callable(model) else model
         return CustomNode
     else:
         raise ValueError(f"Unknown node fixture: {fixture_name}")
 
 @pytest.fixture
 def simple_node(request, model, simple_output_model):
-    system_simple = rc.llm.SystemMessage("Return a simple text and number. Don't use any tools.")
+    system_simple = "Return a simple text and number. Don't use any tools."
     fixture_name = request.param
     tool_nodes = {rc.library.from_function(random.random)}
     return _make_node(fixture_name, system_simple, model, simple_output_model, tool_nodes)
@@ -161,9 +167,7 @@ def simple_node(request, model, simple_output_model):
 def travel_planner_node(request, model, travel_planner_tools, travel_planner_output_model):
     fixture_name = request.param
     convert_currency, available_locations, currency_used, average_location_cost = travel_planner_tools
-    system_travel_planner = rc.llm.SystemMessage(
-        "You are a travel planner that will plan a trip. you have access to AvailableLocations, ConvertCurrency, CurrencyUsed and AverageLocationCost tools. Use them when you need to."
-    )
+    system_travel_planner = "You are a travel planner that will plan a trip. you have access to AvailableLocations, ConvertCurrency, CurrencyUsed and AverageLocationCost tools. Use them when you need to."
     tool_nodes = {
         rc.library.from_function(convert_currency),
         rc.library.from_function(available_locations),
@@ -174,15 +178,11 @@ def travel_planner_node(request, model, travel_planner_tools, travel_planner_out
 
 @pytest.fixture
 def math_node(request, model, math_output_model):
-    system_math_genius = rc.llm.SystemMessage(
-        "You are a math genius that calls the RNG tool to generate 5 random numbers between 1 and 100 and gives the sum of those numbers."
-    )
+    system_math_genius = "You are a math genius that calls the RNG tool to generate 5 random numbers between 1 and 100 and gives the sum of those numbers."
     rng_node = rc.library.terminal_llm(
         pretty_name="RNG Tool",
-        system_message=rc.llm.SystemMessage(
-            "You are a helful assistant that can generate 5 random numbers between 1 and 100."
-        ),
-        model=model,
+        system_message= "You are a helful assistant that can generate 5 random numbers between 1 and 100.",
+        llm_model=model,
         tool_details="A tool used to generate 5 random integers between 1 and 100.",
         tool_params=None,
     )
@@ -192,9 +192,8 @@ def math_node(request, model, math_output_model):
 
 @pytest.fixture
 def complex_node(request, model, person_output_model):
-    system_complex = rc.llm.SystemMessage(
-        "You are an all knowing sentient being. You can answer any question asked to you. You may make up any answer you want. Just provide all info asked for."
-    )
+    system_complex = "You are an all knowing sentient being. You can answer any question asked to you. You may make up any answer you want. Just provide all info asked for."
+
     fixture_name = request.param
     tool_nodes = {rc.library.from_function(random.random)}
     return _make_node(fixture_name, system_complex, model, person_output_model, tool_nodes)
@@ -203,24 +202,22 @@ def complex_node(request, model, person_output_model):
 
 @pytest.fixture
 def simple_function_taking_node(model, simple_tools, simple_output_model):
-    system_mes = rc.llm.SystemMessage(
-        "You are a helpful assistant that uses the random number tool to generate a random number between 1 and 100"
-    )
-    return rc.library.tool_call_llm(
+    system_mes = "You are a helpful assistant that uses the random number tool to generate a random number between 1 and 100"
+
+    return rc.library.structured_tool_call_llm(
         connected_nodes={simple_tools},
         pretty_name="Random Number Provider Node",
         system_message=system_mes,
-        model=model,
+        llm_model=model,
         output_model=simple_output_model,
     )
 
 @pytest.fixture
 def some_function_taking_travel_planner_node(model, travel_planner_tools, travel_planner_output_model):
     convert_currency, available_locations, currency_used, average_location_cost = travel_planner_tools
-    system_travel_planner = rc.llm.SystemMessage(
-        "You are a travel planner that will plan a trip. you have access to AvailableLocations, ConvertCurrency, CurrencyUsed and AverageLocationCost tools. Use them when you need to."
-    )
-    return rc.library.tool_call_llm(
+    system_travel_planner = "You are a travel planner that will plan a trip. you have access to AvailableLocations, ConvertCurrency, CurrencyUsed and AverageLocationCost tools. Use them when you need to."
+
+    return rc.library.structured_tool_call_llm(
         connected_nodes={
             convert_currency,
             rc.library.from_function(available_locations),
@@ -229,17 +226,15 @@ def some_function_taking_travel_planner_node(model, travel_planner_tools, travel
         },
         pretty_name="Travel Planner Node",
         system_message=system_travel_planner,
-        model=model,
+        llm_model=model,
         output_model=travel_planner_output_model,
     )
 
 @pytest.fixture
 def only_function_taking_travel_planner_node(model, travel_planner_tools, travel_planner_output_model):
     convert_currency, available_locations, currency_used, average_location_cost = travel_planner_tools
-    system_travel_planner = rc.llm.SystemMessage(
-        "You are a travel planner that will plan a trip. you have access to AvailableLocations, ConvertCurrency, CurrencyUsed and AverageLocationCost tools. Use them when you need to."
-    )
-    return rc.library.tool_call_llm(
+    system_travel_planner = "You are a travel planner that will plan a trip. you have access to AvailableLocations, ConvertCurrency, CurrencyUsed and AverageLocationCost tools. Use them when you need to."
+    return rc.library.structured_tool_call_llm(
         connected_nodes={
             convert_currency,
             available_locations,
@@ -248,7 +243,7 @@ def only_function_taking_travel_planner_node(model, travel_planner_tools, travel
         },
         pretty_name="Travel Planner Node",
         system_message=system_travel_planner,
-        model=model,
+        llm_model=model,
         output_model=travel_planner_output_model,
     )
 
@@ -264,22 +259,20 @@ def travel_message_history():
 def limited_tool_call_node_factory(model, travel_planner_tools):
     def _factory(max_tool_calls=1, system_message=None, tools=None, class_based=False):
         tools = tools or set([rc.library.from_function(tool) for tool in travel_planner_tools])
-        sys_msg = system_message or rc.llm.SystemMessage(
-            "You are a travel planner that will plan a trip. you have access to AvailableLocations, CurrencyUsed and AverageLocationCost tools. Use them when you need to."
-        )
+        sys_msg = system_message or SystemMessage("You are a travel planner that will plan a trip. you have access to AvailableLocations, CurrencyUsed and AverageLocationCost tools. Use them when you need to.")
         tool_nodes = tools
         if not class_based:
             return rc.library.tool_call_llm(
                 connected_nodes=tool_nodes,
                 pretty_name="Limited Tool Call Test Node",
                 system_message=sys_msg,
-                model=model,
+                llm_model=model,
                 max_tool_calls=max_tool_calls,
             )
         else:
             class LimitedToolCallTestNode(ToolCallLLM):
                 def __init__(self, message_history, model=model):
-                    message_history.insert(0, sys_msg)
+                    message_history.insert(0, SystemMessage(sys_msg) if isinstance(sys_msg, str) else sys_msg)
                     super().__init__(message_history, model, max_tool_calls=max_tool_calls)
                 @classmethod
                 def connected_nodes(cls):

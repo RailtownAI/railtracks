@@ -2,7 +2,7 @@ import pytest
 import requestcompletion as rc
 from typing import List, Callable
 from pydantic import BaseModel, Field
-import random
+from requestcompletion.llm import SystemMessage
 
 
 # ============ Model ===========
@@ -14,16 +14,12 @@ def model():
 # ============ System Messages ===========
 @pytest.fixture
 def encoder_system_message():
-    return rc.llm.SystemMessage(
-        "You are a text encoder. Encode the input string into bytes and do a random operation on them. You can use the following operations: reverse the byte order, or repeat each byte twice, or jumble the bytes."
-    )
+    return SystemMessage("You are a text encoder. Encode the input string into bytes and do a random operation on them. You can use the following operations: reverse the byte order, or repeat each byte twice, or jumble the bytes.")
 
 
 @pytest.fixture
 def decoder_system_message():
-    return rc.llm.SystemMessage(
-        "You are a text decoder. Decode the bytes into a string."
-    )
+    return SystemMessage("You are a text decoder. Decode the bytes into a string.")
 
 
 # ============ Helper function for test_function.py ===========
@@ -47,16 +43,16 @@ def create_top_level_node():
 
         class TopLevelNode(rc.library.ToolCallLLM):
             def __init__(self, message_history: rc.llm.MessageHistory):
-                message_history.insert(0, rc.llm.SystemMessage(self.system_message()))
+                message_history.insert(0, self.system_message())
 
                 super().__init__(
                     message_history=message_history,
-                    model=self.create_model(),
+                    llm_model=self.create_model(),
                 )
 
             @classmethod
             def system_message(cls) -> str:
-                return "You are a helpful assistant that can call the tools available to you to answer user queries"
+                return SystemMessage("You are a helpful assistant that can call the tools available to you to answer user queries")
 
             @classmethod
             def create_model(cls):
