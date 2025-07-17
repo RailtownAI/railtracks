@@ -3,15 +3,14 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from functools import reduce
-from typing import Optional, Dict, List, Tuple, Iterable, Any
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-
-from .forest import (
-    Forest,
-    AbstractLinkedObject,
-)
 from ..utils.profiling import Stamp
 from ..utils.serialization.graph import Edge
+from .forest import (
+    AbstractLinkedObject,
+    Forest,
+)
 
 
 class Cancelled:

@@ -9,9 +9,32 @@ on:
       - main
 
 jobs:
+  ruff-lint:
+    name: Check Code with Ruff
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10" # Specify the Python version you are using
+
+      - name: Install Ruff
+        run: pip install ruff
+
+      - name: Run Ruff Check
+        run: ruff check . --no-fix
+
+      - name: Run Ruff Format
+        run: ruff format --check .
+
   build:
     name: Build and Test
     runs-on: windows-latest
+    needs: ruff-lint
     steps:
       - name: Print System Architecture
         run: uname -m

@@ -1,8 +1,10 @@
 import string
+
 import requestcompletion as rc
 from requestcompletion.exceptions import ContextError
+
 from ..context.central import get_local_config
-from ..llm import MessageHistory, Message
+from ..llm import Message, MessageHistory
 
 
 class KeyOnlyFormatter(string.Formatter):

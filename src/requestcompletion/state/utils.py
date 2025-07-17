@@ -1,9 +1,8 @@
 from collections import namedtuple
+from typing import Dict, List, Tuple
 
-from requestcompletion.state.node import NodeForest, LinkedNode
+from requestcompletion.state.node import LinkedNode, NodeForest
 from requestcompletion.state.request import RequestForest, RequestTemplate
-
-from typing import List, Tuple, Dict
 
 NodeRequestForestTuple = namedtuple(
     "NodeRequestForestTuple", ["node_forest", "request_forest"]

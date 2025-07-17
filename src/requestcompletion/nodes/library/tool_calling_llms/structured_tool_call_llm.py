@@ -1,22 +1,21 @@
-from ._base import OutputLessToolCallLLM
-from requestcompletion.llm import MessageHistory, ModelBase, SystemMessage
-from ..easy_usage_wrappers.structured_llm import structured_llm
+from abc import ABC, abstractmethod
+from typing import Type, TypeVar
+
 from pydantic import BaseModel
-from typing import Type
-from abc import ABC
+
+from ....llm.message import AssistantMessage
+from ..easy_usage_wrappers.structured_llm import structured_llm
+from ._base import OutputLessToolCallLLM
+
+_TOutput = TypeVar("_TOutput", bound=BaseModel)
 
 
 class StructuredToolCallLLM(OutputLessToolCallLLM[str], ABC):
-    def __init__(
-        self,
-        message_history: MessageHistory,
-        llm_model: ModelBase,
-        output_model: Type[BaseModel],
-        tool_details: str | None = None,
-        tool_params: dict | None = None,
-    ):
-        super().__init__(message_history, llm_model)
-        system_structured = SystemMessage(
+    structured_message = False
+
+    def __init_subclass__(cls):
+        super().__init_subclass__()
+        system_structured = (
             "You are a structured LLM tasked with extracting structured information from the conversation history of another LLM.\n"
             "The input will be the full message history (including system, user, tool, and assistant messages) from a prior LLM interaction."
             "Your job is to analyze this history and produce a structured response according to a specified format.\n"
@@ -25,17 +24,24 @@ class StructuredToolCallLLM(OutputLessToolCallLLM[str], ABC):
             "Do not summarize, speculate, or reinterpret the original intent—only extract information that is directly supported by the conversation content.\n"
             "Respond only with the structured output in the specified format."
         )
-        self.structured_resp_node = structured_llm(
-            output_model,
+
+        cls.structured_resp_node = structured_llm(
+            cls.schema(),
             system_message=system_structured,
-            model=self.model,
-            tool_details=tool_details,
-            tool_params=tool_params,
-            pretty_name=self.pretty_name(),
+            llm_model=cls.get_llm_model,
         )
+
+    @classmethod
+    @abstractmethod
+    def schema(cls) -> Type[_TOutput]: ...
 
     def return_output(self) -> BaseModel:
         # Return the structured output or raise the exception if it was an error
         if isinstance(self.structured_output, Exception):
             raise self.structured_output from self.structured_output
+        if self.structured_message:
+            # Might need to change the logic so that you keep the unstructured message
+            self.message_hist.pop()
+            self.message_hist.append(AssistantMessage(content=self.structured_output))
+            return self.message_hist
         return self.structured_output

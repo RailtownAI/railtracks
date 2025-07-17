@@ -1,17 +1,15 @@
 import time
+from typing import Dict, List, Literal, get_args
 
-
-from typing import Literal, Dict, get_args, List
-
-from .execution_strategy import TaskExecutionStrategy
 from ..pubsub.messages import (
+    ExecutionConfigurations,
     RequestCompletionMessage,
+    RequestCreationFailure,
     RequestFinishedBase,
     RequestSuccess,
-    ExecutionConfigurations,
-    RequestCreationFailure,
 )
 from ..pubsub.publisher import RCPublisher
+from .execution_strategy import TaskExecutionStrategy
 from .task import Task
 
 

@@ -1,5 +1,7 @@
+from pathlib import Path
+
 import pytest
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch, call, PropertyMock
 import asyncio
 from requestcompletion.run import Runner, RunnerCreationError, RunnerNotFoundError
 
@@ -193,4 +195,53 @@ def test_cancel_is_not_implemented(mock_dependencies):
         asyncio.run(runner.cancel("some-node-id"))
 
 
-# ================ END Runner: cancel ===============
+# ================ END Runner: cancel & from_state ===============
+
+
+# ================= START Runner: Check saved data ===============
+def test_runner_saves_data(mock_dependencies):
+    config = MagicMock()
+
+    run_id = "hello world"
+    config.run_identifier = run_id
+    config.save_state = True
+
+    serialization_mock = '{"Key": "Value"}'
+    info = MagicMock()
+    info.graph_serialization.return_value = serialization_mock
+
+    with patch.object(Runner, 'info', new_callable=PropertyMock) as mock_runner:
+        mock_runner.return_value.graph_serialization.return_value = serialization_mock
+
+        r = Runner(executor_config=config)
+        r.__exit__(None, None, None)
+
+
+
+
+    path = Path(".covailence") / f"{run_id}.json"
+    assert path.read_text() == serialization_mock
+
+
+def test_runner_not_saves_data(mock_dependencies):
+    config = MagicMock()
+
+    run_id = "Run 2"
+    config.run_identifier = run_id
+    config.save_state = False
+
+    serialization_mock = '{"Key": "Value"}'
+    info = MagicMock()
+    info.graph_serialization.return_value = serialization_mock
+
+    with patch.object(Runner, 'info', new_callable=PropertyMock) as mock_runner:
+        mock_runner.return_value.graph_serialization.return_value = serialization_mock
+
+        r = Runner(executor_config=config)
+        r.__exit__(None, None, None)
+
+
+
+
+    path = Path(".covailence") / f"{run_id}.json"
+    assert not path.is_file()

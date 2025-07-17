@@ -1,33 +1,32 @@
 from __future__ import annotations
 
 import asyncio
-
-from typing_extensions import Self
-
-from ...llm.tools import Tool
+import inspect
 import types
 from typing import (
     Any,
-    TypeVar,
     Callable,
-    List,
-    Type,
-    Dict,
-    Tuple,
-    Union,
-    get_origin,
-    get_args,
     Coroutine,
-    ParamSpec,
+    Dict,
     Generic,
+    List,
+    ParamSpec,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    get_args,
+    get_origin,
 )
 
-from ..nodes import Node
-import inspect
 from pydantic import BaseModel
+from typing_extensions import Self
+
 from ...exceptions import NodeCreationError
 from ...exceptions.node_creation.validation import validate_function
+from ...llm.tools import Tool
 from ...llm.tools.parameter_handlers import UnsupportedParameterError
+from ..nodes import Node
 
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
@@ -232,39 +231,3 @@ def from_function(  # noqa: C901
             return cls(**converted_params)
 
     return DynamicFunctionNode
-
-
-class FunctionNode(Node[_TOutput]):
-    """
-    A class for ease of creating a function node for the user
-    """
-
-    def __init__(
-        self,
-        func: Callable[[_P], Coroutine[None, None, _TOutput] | _TOutput],
-        *args: _P.args,
-        **kwargs: _P.kwargs,
-    ):
-        super().__init__()
-        self.func = func
-        self.args = args
-        self.kwargs = kwargs
-
-    async def invoke(self) -> _TOutput:
-        result = self.func(*self.args, **self.kwargs)
-        if asyncio.iscoroutine(self.func):
-            await result
-
-        return result
-
-    @classmethod
-    def pretty_name(cls) -> str:
-        return f"Function Node - {cls.__class__.__name__}"
-
-    @classmethod
-    def tool_info(cls) -> Tool:
-        return Tool.from_function(cls.func)
-
-    @classmethod
-    def prepare_tool(cls, tool_parameters):
-        return cls(**tool_parameters)

@@ -7,22 +7,22 @@ parameters and descriptions.
 
 import inspect
 import warnings
-from typing import Callable, Optional, Union, Type, Set, Dict, Any, List
+from typing import Any, Callable, Dict, List, Optional, Set, Type, Union
 
-from typing_extensions import Self
 from pydantic import BaseModel
+from typing_extensions import Self
+
+from ...exceptions import NodeCreationError
+from .docstring_parser import extract_main_description, parse_docstring_args
 from .parameter import Parameter
-from .schema_parser import convert_params_to_model_recursive
-from .docstring_parser import parse_docstring_args, extract_main_description
 from .parameter_handlers import (
+    DefaultParameterHandler,
+    DictParameterHandler,
     ParameterHandler,
     PydanticModelHandler,
     SequenceParameterHandler,
-    DictParameterHandler,
-    DefaultParameterHandler,
 )
-
-from ...exceptions import NodeCreationError
+from .schema_parser import convert_params_to_model_recursive
 
 
 class Tool:

@@ -19,13 +19,14 @@ slack_env = {
     "SLACK_CHANNEL_IDS": os.environ['SLACK_CHANNEL_IDS'],
 }
 
-tools = from_mcp_server(
+server = from_mcp_server(
     StdioServerParameters(
         command=MCP_COMMAND,
         args=MCP_ARGS,
         env=slack_env,
     )
 )
+tools = server.tools
 ```
 
 At this point, the tools can be used the same as any other RC tool. See the following code as a simple example.

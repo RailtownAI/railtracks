@@ -4,6 +4,8 @@ import yaml
 import os
 from enum import Enum
 
+import yaml
+
 
 class ExceptionMessageKey(Enum):
     CLASSMETHOD_REQUIRED_MSG = "CLASSMETHOD_REQUIRED_MSG"

@@ -27,6 +27,9 @@ class MockNode(Node):
     def pretty_name(cls):
         return "Mock Node"
     
+    def invoke(cls):
+        return ""
+    
     def __init__(self, value: Any):
         self.uuid = 123
         self.value = value
