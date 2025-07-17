@@ -19,7 +19,7 @@ The key abilities of the agent include:
 
 #  🧠  LLMs have changed the game
 
-Reinforcement Learning and other AI techniques which train specific agents to operate in its environment 
+Reinforcement Learning and other AI techniques which train specific agents to operate in their environment 
 for a while now, but LLMs have changed the game and made it much easier to use their generalized intelligence to
 accomplish complex tasks and goals. LLMs have the unique ability to understand instructions and reason about how they
 want to accomplish the given task. This ability makes them uniquely suited to operate as the **brain** for your agentic 
