@@ -228,7 +228,8 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                 )
 
         if (key := self.return_into()) is not None:
-            context.put(key, self.format_for_context(self.return_output()))
-            return self.format_for_return(self.return_output())
+            output = self.return_output()
+            context.put(key, self.format_for_context(output))
+            return self.format_for_return(output)
 
         return self.return_output()
