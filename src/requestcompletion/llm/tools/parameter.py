@@ -5,9 +5,9 @@ This module contains the base Parameter class and its extensions for representin
 tool parameters with various type information and nested structures.
 """
 
-from enum import Enum
 from copy import deepcopy
-from typing import Dict, Any, Optional, Literal
+from enum import Enum
+from typing import Any, Dict, Literal, Optional
 
 
 class ParameterType(str, Enum):

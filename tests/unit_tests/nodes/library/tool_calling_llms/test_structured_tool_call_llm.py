@@ -1,7 +1,7 @@
 import pytest
 import requestcompletion as rc
 from pydantic import BaseModel, Field
-from requestcompletion.nodes.library import tool_call_llm, StructuredToolCallLLM
+from requestcompletion.nodes.library import tool_call_llm, StructuredToolCallLLM, structured_tool_call_llm
 from requestcompletion.exceptions import NodeCreationError
 from requestcompletion.llm import MessageHistory, SystemMessage, UserMessage
 # =========================== Basic functionality ==========================
@@ -23,9 +23,6 @@ def test_structured_tool_call_llm_init(mock_llm, output_model, mock_tool):
     node = MockStructuredToolCallLLM(
         message_history=mh,
         llm_model=mock_llm(),
-        output_model=output_model,
-        tool_details="Extracts a value.",
-        tool_params=None,
     )
     assert hasattr(node, "structured_resp_node")
 
@@ -46,41 +43,38 @@ def test_structured_tool_call_llm_return_output_success(mock_tool, mock_llm, out
     node = MockStructuredToolCallLLM(
         message_history=mh,
         llm_model=mock_llm(),
-        output_model=output_model,
-        tool_details="Extracts a value.",
-        tool_params=None,
     )
     node.structured_output = output_model(value=123)
     assert node.return_output().value == 123
 
 def test_structured_tool_call_llm_return_output_exception(mock_llm, output_model, mock_tool):
-    node = tool_call_llm(
-        system_message=SystemMessage("system prompt"),
+    node = structured_tool_call_llm(
+        system_message="system prompt",
         connected_nodes={mock_tool},
-        model=mock_llm(),
+        llm_model=mock_llm(),
         output_model=output_model,
         tool_details="Extracts a value.",
         tool_params=None,
         pretty_name="Mock Structured ToolCallLLM",
     )
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("extract value")])
-    node = node(mh)
+    node = node(mh, mock_llm())
     node.structured_output = ValueError("fail")
     with pytest.raises(ValueError):
         node.return_output()
 
 def test_structured_llm_easy_usage_wrapper(mock_llm, output_model, mock_tool):
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("extract value")])
-    node = tool_call_llm(
-        system_message=SystemMessage("system prompt"),
+    node = structured_tool_call_llm(
+        system_message="system prompt",
         connected_nodes={mock_tool},
-        model=mock_llm(),
+        llm_model=mock_llm(),
         output_model=output_model,
         tool_details="Extracts a value.",
         tool_params=None,
         pretty_name="Mock Structured ToolCallLLM",
     )
-    node = node(mh)
+    node = node(mh, mock_llm())
     assert hasattr(node, "structured_resp_node")
 
 
@@ -93,7 +87,7 @@ class SimpleOutput(BaseModel):
 @pytest.mark.parametrize(
     "llm_function, connected_nodes",
     [
-        (rc.library.tool_call_llm, {rc.library.from_function(lambda: "test")}),
+        (rc.library.structured_tool_call_llm, {rc.library.from_function(lambda: "test")}),
         (rc.library.structured_llm, None),
     ],
     ids=["tool_call_llm", "structured_llm"],
@@ -160,10 +154,8 @@ async def test_structured_tool_call_with_output_model_and_output_type(
     """Tool call llm init with output model and output_type = message_history should raise an error."""
     rng_node = rc.library.terminal_llm(
         pretty_name="RNG Tool",
-        system_message=rc.llm.SystemMessage(
-            "You are a helful assistant that can generate 5 random numbers between 1 and 100."
-        ),
-        model=mock_llm(),
+        system_message="You are a helful assistant that can generate 5 random numbers between 1 and 100.",
+        llm_model=mock_llm(),
         tool_details="A tool used to generate 5 random integers between 1 and 100.",
         tool_params=None,
     )
@@ -172,13 +164,11 @@ async def test_structured_tool_call_with_output_model_and_output_type(
         NotImplementedError,
         match="MessageHistory output type is not supported with output_model at the moment.",
     ):
-        _ = rc.library.tool_call_llm(
+        _ = rc.library.structured_tool_call_llm(
             connected_nodes={rng_node},
             pretty_name="Math Node",
-            system_message=rc.llm.SystemMessage(
-                "You are a math genius that calls the RNG tool to generate 5 random numbers between 1 and 100 and gives the sum of those numbers."
-            ),
-            model=mock_llm(),
+            system_message="You are a math genius that calls the RNG tool to generate 5 random numbers between 1 and 100 and gives the sum of those numbers.",
+            llm_model=mock_llm(),
             output_type="MessageHistory",
             output_model=math_output_model,
         )

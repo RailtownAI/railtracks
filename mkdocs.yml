@@ -8,7 +8,6 @@ theme:
     - navigation.instant
     - navigation.prefetch
     - search.suggest
-    - navigation.top
     - content.code.copy
 # TODO: add other features
 
@@ -56,6 +55,9 @@ nav:
 
   - Examples:
       - examples/index.md
+
+  - API Reference:
+      - api_reference/index.md
 
 
 plugins:

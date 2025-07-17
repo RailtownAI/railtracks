@@ -1,6 +1,6 @@
 from mcp import ClientSession
 
-from ...rc_mcp.main import MCPStdioParams, MCPHttpParams, MCPServer
+from ...rc_mcp.main import MCPHttpParams, MCPServer, MCPStdioParams
 
 
 def from_mcp_server(

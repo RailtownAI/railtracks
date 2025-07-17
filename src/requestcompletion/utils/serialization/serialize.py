@@ -1,15 +1,15 @@
 from __future__ import annotations
+
 import json
 from typing import Any
+
 from pydantic import BaseModel
 
-
-from requestcompletion.llm import Message, ToolResponse, ToolCall
+from requestcompletion.llm import Message, ToolCall, ToolResponse
 from requestcompletion.nodes.library._llm_base import RequestDetails
 from requestcompletion.nodes.nodes import LatencyDetails
 from requestcompletion.utils.profiling import Stamp
 from requestcompletion.utils.serialization.graph import Edge, Vertex
-
 
 supported_types = (
     Message,

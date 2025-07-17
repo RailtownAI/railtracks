@@ -1,5 +1,6 @@
-import requestcompletion as rc
 import time
+
+import requestcompletion as rc
 
 
 def sync_blocking(timeout: float):

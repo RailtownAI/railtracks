@@ -1,6 +1,7 @@
-from .rag_core import RAG
-from requestcompletion import Node
 import requestcompletion as rc
+from requestcompletion import Node
+
+from .rag_core import RAG
 
 
 def get_rag_node(

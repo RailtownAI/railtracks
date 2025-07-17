@@ -1,33 +1,27 @@
 import asyncio
-
-
-from .interaction.call import call
-
-from typing import TypeVar, ParamSpec, Callable, Dict, Any
-
+from pathlib import Path
+from typing import Any, Callable, Dict, ParamSpec, TypeVar
 
 from .config import ExecutorConfig
 from .context.central import (
-    register_globals,
     delete_globals,
     get_global_config,
+    register_globals,
 )
 from .execution.coordinator import Coordinator
 from .execution.execution_strategy import AsyncioExecutionStrategy
-from .pubsub.messages import (
-    RequestCompletionMessage,
-)
-
-from .pubsub.publisher import RCPublisher
-from .pubsub.subscriber import stream_subscriber
-from .nodes.nodes import Node
-from .utils.logging.config import prepare_logger, detach_logging_handlers
-
-
 from .info import (
     ExecutionInfo,
 )
+from .interaction.call import call
+from .nodes.nodes import Node
+from .pubsub.messages import (
+    RequestCompletionMessage,
+)
+from .pubsub.publisher import RCPublisher
+from .pubsub.subscriber import stream_subscriber
 from .state.state import RCState
+from .utils.logging.config import detach_logging_handlers, prepare_logger
 from .utils.logging.create import get_rc_logger
 
 logger = get_rc_logger("Runner")
@@ -113,6 +107,28 @@ class Runner:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.executor_config.save_state:
+            try:
+                covailence_dir = Path(".covailence")
+                covailence_dir.mkdir(
+                    exist_ok=True
+                )  # Creates if doesn't exist, skips otherwise.
+
+                file_path = (
+                    covailence_dir / f"{self.executor_config.run_identifier}.json"
+                )
+                if file_path.exists():
+                    logger.warning("File %s already exists, overwriting..." % file_path)
+
+                logger.info("Saving execution info to %s" % file_path)
+
+                file_path.write_text(self.info.graph_serialization())
+            except Exception as e:
+                logger.error(
+                    "Error while saving to execution info to file",
+                    exc_info=e,
+                )
+
         self._close()
 
     def setup_subscriber(self):

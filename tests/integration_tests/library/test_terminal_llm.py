@@ -8,7 +8,7 @@ async def test_terminal_llm_easy_usage_run(model , encoder_system_message):
     encoder_agent = rc.library.terminal_llm(
         pretty_name="Encoder",
         system_message=encoder_system_message,
-        model=model,
+        llm_model=model,
     )
 
     response = await rc.call(encoder_agent, message_history=rc.llm.MessageHistory([rc.llm.UserMessage("hello world")]))
@@ -20,13 +20,13 @@ def test_terminal_llm_class_based_run(model , encoder_system_message):
         def __init__(
                 self,
                 message_history: rc.llm.MessageHistory,
-                model: rc.llm.ModelBase = model,
+                llm_model: rc.llm.ModelBase = model,
             ):
                 message_history = [x for x in message_history if x.role != "system"]
                 message_history.insert(0, encoder_system_message)
                 super().__init__(
                     message_history=message_history,
-                    model=model,
+                    llm_model=model,
                 )
         @classmethod
         def pretty_name(cls) -> str:
@@ -49,9 +49,7 @@ async def test_terminal_llm_as_tool_correct_initialization(
     model, encoder_system_message, decoder_system_message
 ):
     # We can use them as tools by creating a TerminalLLM node and passing it to the tool_call_llm node
-    system_randomizer = rc.llm.SystemMessage(
-        "You are a machine that takes in string from the user and uses the encoder tool that you have on that string. Then you use the decoder tool on the output of the encoder tool. You then return the decoded string to the user."
-    )
+    system_randomizer = "You are a machine that takes in string from the user and uses the encoder tool that you have on that string. Then you use the decoder tool on the output of the encoder tool. You then return the decoded string to the user."
 
     # Using Terminal LLMs as tools by easy_usage wrappers
     encoder_tool_details = "A tool used to encode text into bytes."
@@ -65,7 +63,7 @@ async def test_terminal_llm_as_tool_correct_initialization(
     encoder = rc.library.terminal_llm(
         pretty_name="Encoder",
         system_message=encoder_system_message,
-        model=model,
+        llm_model=model,
         # tool_details and tool_parameters are required if you want to use the terminal_llm as a tool
         tool_details=encoder_tool_details,
         tool_params=encoder_tool_params,
@@ -73,7 +71,7 @@ async def test_terminal_llm_as_tool_correct_initialization(
     decoder = rc.library.terminal_llm(
         pretty_name="Decoder",
         system_message=decoder_system_message,
-        model=model,
+        llm_model=model,
         # tool_details and tool_parameters are required if you want to use the terminal_llm as a tool
         tool_details=decoder_tool_details,
         tool_params=decoder_tool_params,
@@ -91,11 +89,10 @@ async def test_terminal_llm_as_tool_correct_initialization(
         decoder.tool_info().parameters, BaseModel
     )
 
-    randomizer = rc.library.tool_call_llm(
+    randomizer = rc.library.message_hist_tool_call_llm(
         connected_nodes={encoder, decoder},
-        model=model,
+        llm_model=model,
         pretty_name="Randomizer",
-        output_type="MessageHistory",
         system_message=system_randomizer,
     )
 
@@ -118,10 +115,8 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(model):
 
     rng_node = rc.library.terminal_llm(
         pretty_name="RNG Tool",
-        system_message=rc.llm.SystemMessage(
-            "You are a helful assistant that can generate 5 random numbers between 1 and 100."
-        ),
-        model=model,
+        system_message="You are a helful assistant that can generate 5 random numbers between 1 and 100.",
+        llm_model=model,
         tool_details=rng_tool_details,
         tool_params=None,
     )
@@ -130,15 +125,13 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(model):
     assert rng_node.tool_info().detail == rng_tool_details
     assert rng_node.tool_info().parameters is None
 
-    system_message = rc.llm.SystemMessage(
-        "You are a math genius that calls the RNG tool to generate 5 random numbers between 1 and 100 and gives the sum of those numbers."
-    )
-    math_node = rc.library.tool_call_llm(
+    system_message = "You are a math genius that calls the RNG tool to generate 5 random numbers between 1 and 100 and gives the sum of those numbers."
+
+    math_node = rc.library.message_hist_tool_call_llm(
         connected_nodes={rng_node},
         pretty_name="Math Node",
         system_message=system_message,
-        model=rc.llm.OpenAILLM("gpt-4o"),
-        output_type="MessageHistory",
+        llm_model=rc.llm.OpenAILLM("gpt-4o"),
     )
 
     with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as runner:
@@ -164,19 +157,16 @@ async def test_terminal_llm_tool_with_invalid_parameters_easy_usage(model, encod
     encoder = rc.library.terminal_llm(
         pretty_name="Encoder",
         system_message=encoder_system_message,
-        model=model,
+        llm_model=model,
         tool_details=encoder_tool_details,
         tool_params=encoder_tool_params,
     )
 
-    system_message = rc.llm.SystemMessage(
-        "You are a helful assitant. Use the encoder tool with invalid parameters (invoke the tool with invalid parameters) once and then invoke it again with valid parameters."
-    )
-    tool_call_llm = rc.library.tool_call_llm(
+    system_message = "You are a helful assitant. Use the encoder tool with invalid parameters (invoke the tool with invalid parameters) once and then invoke it again with valid parameters."
+    tool_call_llm = rc.library.message_hist_tool_call_llm(
         connected_nodes={encoder},
-        model=model,
+        llm_model=model,
         pretty_name="InvalidToolCaller",
-        output_type="MessageHistory",
         system_message=system_message,
     )
 

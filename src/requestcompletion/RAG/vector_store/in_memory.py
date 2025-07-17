@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pickle
 from pathlib import Path
-from typing import Any, Dict, List, Sequence, Union, Optional
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from ..embedding_service import BaseEmbeddingService
 from .base import AbstractVectorStore, Metric, SearchResult, VectorRecord
