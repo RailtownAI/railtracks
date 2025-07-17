@@ -9,8 +9,15 @@ theme:
     - navigation.prefetch
     - search.suggest
     - content.code.copy
+    - content.code.highlight
 # TODO: add other features
-
+markdown_extensions:
+  - codehilite
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
 
 
 nav:
@@ -58,6 +65,9 @@ nav:
 
   - API Reference:
       - api_reference/index.md
+  
+  - System Overview:
+      - outline.md
 
 
 plugins:
