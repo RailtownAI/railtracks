@@ -89,7 +89,7 @@ def test_convert_value_dict_error():
 
 def test_builtin_function_raises_runtime_error():
     with pytest.raises(RuntimeError):
-        TypeMapper(time.sleep)  # len is a builtin
+        TypeMapper(time.sleep)  # time.sleep is a builtin
 
 
 def test_invalid_conversion_returns_error_message():
