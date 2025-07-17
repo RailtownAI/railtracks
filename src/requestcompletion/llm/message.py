@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Literal, Generic, TypeVar
+from typing import Generic, Literal, TypeVar
 
 from .content import Content, ToolResponse
 

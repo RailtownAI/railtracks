@@ -1,10 +1,10 @@
 from ..pubsub.messages import (
+    FatalFailure,
     RequestCompletionMessage,
+    RequestCreationFailure,
+    RequestFailure,
     RequestFinishedBase,
     RequestSuccess,
-    RequestFailure,
-    FatalFailure,
-    RequestCreationFailure,
 )
 
 

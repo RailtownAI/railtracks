@@ -1,4 +1,5 @@
 import sys
+
 from tomlkit import parse
 
 with open("pyproject.toml", "r") as f:

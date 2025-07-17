@@ -1,5 +1,6 @@
-from .base import RCError
 from typing import TYPE_CHECKING
+
+from ._base import RCError
 
 if TYPE_CHECKING:
     from ..llm.history import MessageHistory
@@ -99,6 +100,7 @@ class GlobalTimeOutError(RCError):
 
     def __init__(self, timeout: float):
         self.message = f"Execution timed out after {timeout} seconds"
+        self.timeout = timeout
         super().__init__(self.message)
 
     def __str__(self):

@@ -1,40 +1,38 @@
-from ._llm_base import LLMBase
-from ... import context
-from ...llm import MessageHistory, ModelBase
 from abc import ABC
+
 from ...exceptions import LLMError
+from ...llm import MessageHistory, ModelBase
+from ._llm_base import LLMBase
 
 
 class TerminalLLM(LLMBase[str], ABC):
     """A simple LLM nodes that takes in a message and returns a response. It is the simplest of all llms."""
 
     def __init__(
-        self,
-        message_history: MessageHistory,
-        model: ModelBase,
-        *,
-        return_into: str | None = None,
+        self, message_history: MessageHistory, llm_model: ModelBase | None = None
     ):
         """Creates a new instance of the TerminalLLM class
 
         Args:
 
         """
-        super().__init__(
-            model=model, message_history=message_history, return_into=return_into
-        )
+        super().__init__(llm_model=llm_model, message_history=message_history)
+
+    @classmethod
+    def pretty_name(cls) -> str:
+        return "TerminalLLM"
 
     async def invoke(self) -> str | None:
-        """Makes a call containing the inputted message and system prompt to the model and returns the response
+        """Makes a call containing the inputted message and system prompt to the llm model and returns the response
 
         Returns:
-            (TerminalLLM.Output): The response message from the model
+            (TerminalLLM.Output): The response message from the llm model
         """
         try:
-            returned_mess = self.model.chat(self.message_hist)
+            returned_mess = await self.llm_model.achat(self.message_hist)
         except Exception as e:
             raise LLMError(
-                reason=f"Exception during model chat: {str(e)}",
+                reason=f"Exception during llm model chat: {str(e)}",
                 message_history=self.message_hist,
             )
 
@@ -46,9 +44,6 @@ class TerminalLLM(LLMBase[str], ABC):
                     reason="ModelLLM returned None content",
                     message_history=self.message_hist,
                 )
-            if self.return_into is not None:
-                context.put(self.return_into, self.format_for_context(cont))
-                return self.format_for_return(cont)
             return cont
 
         raise LLMError(

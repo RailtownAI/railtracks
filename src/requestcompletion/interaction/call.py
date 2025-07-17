@@ -1,25 +1,24 @@
 import asyncio
 from types import FunctionType
-from typing import Callable, Union, Coroutine, ParamSpec, TypeVar
+from typing import Callable, Coroutine, ParamSpec, TypeVar, Union
 from uuid import uuid4
 
-from requestcompletion.nodes.nodes import Node
 from requestcompletion.context.central import (
-    is_context_present,
-    is_context_active,
     activate_publisher,
-    shutdown_publisher,
-    get_publisher,
-    get_parent_id,
     get_local_config,
+    get_parent_id,
+    get_publisher,
+    is_context_active,
+    is_context_present,
+    shutdown_publisher,
 )
 from requestcompletion.exceptions import GlobalTimeOutError
-
+from requestcompletion.nodes.nodes import Node
 from requestcompletion.pubsub.messages import (
-    RequestCompletionMessage,
-    RequestFinishedBase,
     FatalFailure,
+    RequestCompletionMessage,
     RequestCreation,
+    RequestFinishedBase,
 )
 from requestcompletion.pubsub.utils import output_mapping
 
@@ -205,17 +204,20 @@ def call_sync(
         *args: The arguments to pass to the node
         **kwargs: The keyword arguments to pass to the node
     """
+    loop_found = False
     try:
         loop = asyncio.get_running_loop()
+        loop_found = True
         # if we made it here then we already have a running loop. We will create a new thread and execute the call in there
         raise RuntimeError(
             "You cannot call `call_sync` from within an already running event loop. "
             "Use `call` instead to run the node asynchronously."
         )
-
     except RuntimeError:
         # If there is no running loop, we need to create one
-        pass
+        if loop_found:
+            raise
+
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:

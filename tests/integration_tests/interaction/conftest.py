@@ -1,11 +1,10 @@
-import random
 import asyncio
 
 import pytest
 from typing import List
 from pydantic import BaseModel, Field
 import requestcompletion as rc
-
+from requestcompletion.llm import SystemMessage
 
 @pytest.fixture
 def model():
@@ -15,39 +14,25 @@ def model():
 # ====================================== System Messages ======================================
 @pytest.fixture
 def terminal_llms_system_messages():
-    system_rng = rc.llm.SystemMessage(
-        "You are a random integer generator that will return a random list of integers between 0 and 100. Do not return more than 10 integers."
-    )
-    system_rng_operation = rc.llm.SystemMessage(
-        "You are a random mathematical operation calculator that will apply a random operation to the list of integers that will be provided by the user and return the result. The answer should be only a single integer."
-    )
-    system_math_genius = rc.llm.SystemMessage(
-        "You are a math genius that will get a list of integers(loi) and another interger(x), your task is to predict what operation must be appled to the list of integers to get the result of x."
-    )
+    system_rng = "You are a random integer generator that will return a random list of integers between 0 and 100. Do not return more than 10 integers."
+    system_rng_operation = "You are a random mathematical operation calculator that will apply a random operation to the list of integers that will be provided by the user and return the result. The answer should be only a single integer."
+    system_math_genius = "You are a math genius that will get a list of integers(loi) and another interger(x), your task is to predict what operation must be appled to the list of integers to get the result of x."
 
     return system_rng, system_rng_operation, system_math_genius
 
 
 @pytest.fixture
 def structured_llms_system_messages():
-    system_undergrad_student = rc.llm.SystemMessage(
-        "You are an undergraduate university student. You are taking a math class where you need to write proofs. Be concise and to the point."
-    )
-    system_professor = rc.llm.SystemMessage(
-        "You are a senior Math professor at a university. You need to grade the students work (scale of 0 to 100) and give a reasoning for the grading."
-    )
+    system_undergrad_student = "You are an undergraduate university student. You are taking a math class where you need to write proofs. Be concise and to the point."
+    system_professor = "You are a senior Math professor at a university. You need to grade the students work (scale of 0 to 100) and give a reasoning for the grading."
 
     return system_undergrad_student, system_professor
 
 
 @pytest.fixture
 def tool_call_llm_system_messages():
-    system_currency_converter = rc.llm.SystemMessage(
-        "You are a currency converter that will convert currencies. you have access to AvailabelCurrencies and ConvertCurrency tools. Use them when you need to."
-    )
-    system_travel_planner = rc.llm.SystemMessage(
-        "You are a travel planner that will plan a trip. you have access to AvailableLocations, CurrencyUsed and AverageLocationCost tools. Use them when you need to."
-    )
+    system_currency_converter = "You are a currency converter that will convert currencies. you have access to AvailabelCurrencies and ConvertCurrency tools. Use them when you need to."
+    system_travel_planner = "You are a travel planner that will plan a trip. you have access to AvailableLocations, CurrencyUsed and AverageLocationCost tools. Use them when you need to."
     return system_currency_converter, system_travel_planner
 
 
@@ -183,17 +168,17 @@ def terminal_nodes(request, model, terminal_llms_system_messages):
 
     if fixture_name == "easy_wrapper":
         rng_node = rc.library.terminal_llm(
-            pretty_name="RNG Node", system_message=system_rng, model=model
+            pretty_name="RNG Node", system_message=system_rng, llm_model=model
         )
         rng_operation_node = rc.library.terminal_llm(
             pretty_name="RNG Operation Node",
             system_message=system_rng_operation,
-            model=model,
+            llm_model=model,
         )
         math_detective_node = rc.library.terminal_llm(
             pretty_name="Math Detective Node",
             system_message=system_math_genius,
-            model=model,
+            llm_model=model,
         )
 
         return rng_node, rng_operation_node, math_detective_node
@@ -201,7 +186,7 @@ def terminal_nodes(request, model, terminal_llms_system_messages):
     elif fixture_name == "class_based":
 
         def make_terminal_llm_class_version(
-            pretty_name: str, system_message: rc.llm.SystemMessage
+            pretty_name: str, system_message: str
         ):
             class TerminalLLMNode(rc.library.TerminalLLM):
                 def __init__(
@@ -210,8 +195,8 @@ def terminal_nodes(request, model, terminal_llms_system_messages):
                     llm_model: rc.llm.ModelBase,
                 ):
                     message_history = [x for x in message_history if x.role != "system"]
-                    message_history.insert(0, system_message)
-                    super().__init__(message_history=message_history, model=llm_model)
+                    message_history.insert(0, SystemMessage(system_message))
+                    super().__init__(message_history=message_history, llm_model=llm_model)
 
                 @classmethod
                 def pretty_name(cls) -> str:
@@ -259,13 +244,13 @@ def structured_nodes(request, model, structured_llms_system_messages):
             pretty_name="Math Undergraduate Student Node",
             output_model=ProofModel,
             system_message=system_undergrad_student,
-            model=model,
+            llm_model=model,
         )
         math_professor_node = rc.library.structured_llm(
             pretty_name="Math Professor Node",
             output_model=GradingSchema,
             system_message=system_professor,
-            model=model,
+            llm_model=model,
         )
 
         return math_undergrad_student_node, math_professor_node
@@ -274,7 +259,7 @@ def structured_nodes(request, model, structured_llms_system_messages):
 
         def make_structured_llm_class_version(
             pretty_name: str,
-            system_message: rc.llm.SystemMessage,
+            system_message: str,
             output_model: BaseModel,
         ):
             class StructuredLLMNode(rc.library.StructuredLLM):
@@ -284,8 +269,8 @@ def structured_nodes(request, model, structured_llms_system_messages):
                     llm_model: rc.llm.ModelBase,
                 ):
                     message_history = [x for x in message_history if x.role != "system"]
-                    message_history.insert(0, system_message)
-                    super().__init__(message_history=message_history, model=llm_model)
+                    message_history.insert(0, SystemMessage(system_message))
+                    super().__init__(message_history=message_history, llm_model=llm_model)
 
                 @classmethod
                 def output_model(cls) -> BaseModel:
@@ -341,13 +326,13 @@ def tool_calling_nodes(
             connected_nodes={AvailableCurrencies, ConvertCurrency},
             pretty_name="Currency Converter Node",
             system_message=system_currency_converter,
-            model=model,
+            llm_model=model,
         )
         travel_planner_node = rc.library.tool_call_llm(
             connected_nodes={AvailableLocations, CurrencyUsed, AverageLocationCost},
             pretty_name="Travel Planner Node",
             system_message=system_travel_planner,
-            model=model,
+            llm_model=model,
         )
 
         return currency_converter_node, travel_planner_node
@@ -355,7 +340,7 @@ def tool_calling_nodes(
 
         def make_tool_call_llm_class_version(
             pretty_name: str,
-            system_message: rc.llm.SystemMessage,
+            system_message: str,
             connected_nodes: List[rc.Node],
         ):
             class ToolCallLLMNode(rc.library.ToolCallLLM):
@@ -365,8 +350,8 @@ def tool_calling_nodes(
                     llm_model: rc.llm.ModelBase,
                 ):
                     message_history = [x for x in message_history if x.role != "system"]
-                    message_history.insert(0, system_message)
-                    super().__init__(message_history=message_history, model=llm_model)
+                    message_history.insert(0, SystemMessage(system_message))
+                    super().__init__(message_history=message_history, llm_model=llm_model)
 
                 def connected_nodes(self):
                     return connected_nodes

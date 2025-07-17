@@ -1,15 +1,14 @@
 import asyncio
-
 from typing import (
+    Any,
+    Callable,
     Iterable,
     ParamSpec,
-    Callable,
-    Any,
     TypeVar,
 )
 
-from .call import call
 from ..nodes.nodes import Node
+from .call import call
 
 _P = ParamSpec("_P")
 _TOutput = TypeVar("_TOutput")

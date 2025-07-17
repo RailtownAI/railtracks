@@ -1,4 +1,4 @@
-from typing import TypeVar, Generic
+from typing import Generic, TypeVar
 
 from ..context.central import update_parent_id
 from ..nodes.nodes import Node

@@ -1,0 +1,70 @@
+site_name: Request Completion Docs
+site_url: https://something
+theme:
+  name: material
+  features:
+    - navigation.indexes
+    - navigation.sections
+    - navigation.instant
+    - navigation.prefetch
+    - search.suggest
+    - content.code.copy
+# TODO: add other features
+
+
+
+nav:
+  - Home: index.md
+
+  - Getting Started:
+      - get_started/index.md
+
+
+  - Guides:
+        - guides/index.md
+
+
+
+  - Tools:
+      - tools/index.md
+      - Create Your Own Tool: tools/create_your_own.md
+
+      - Integrations:
+        - Notion: tools/guides/notion.md
+        - Github: tools/guides/github.md
+        - Python Sandbox: tools/guides/python_sandbox.md
+        - Shell Bash: tools/guides/shell_bash.md
+        - Slack: tools/guides/slack.md
+        - Web Search: tools/guides/websearch_integration.md
+
+  - MCP:
+        - mcp/index.md
+
+  - Visualization:
+        - visualization/index.md
+
+
+  - LLM Support:
+      - llm_support/index.md
+
+  - Deploy:
+        - deploy/index.md
+
+  - Streaming:
+    - streaming/index.md
+
+  - Examples:
+      - examples/index.md
+
+  - API Reference:
+      - api_reference/index.md
+
+
+plugins:
+  - search
+  - mkdocstrings
+#  - mkdocs-mermaid2-plugin
+#  - awesome-pages
+
+
+

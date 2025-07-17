@@ -1,5 +1,6 @@
-from .message import Message
 from typing import Generator
+
+from .message import Message
 
 
 class MessageInfo:
