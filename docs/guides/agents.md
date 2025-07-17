@@ -15,7 +15,7 @@ The key abilities of the agent include:
 
 - **Interaction**: Agents can communicate with other agents or systems to gather information or perform actions
 
-- **Stateful**: Agent's maintain context and history and use it to inform their decisions
+- **Stateful**: Agents maintain context and history and use it to inform their decisions
 
 #  🧠  LLMs have changed the game
 
