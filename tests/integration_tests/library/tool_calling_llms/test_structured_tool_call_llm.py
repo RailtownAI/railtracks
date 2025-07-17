@@ -159,7 +159,7 @@ def test_return_into_structured():
     """Test that a node can return its structured result into context instead of returning it directly."""
     from requestcompletion.llm import Message, MessageHistory
     from requestcompletion.llm.response import Response
-    from tests.rc_tests.llm.conftest import MockLLM
+    from tests.unit_tests.llm.conftest import MockLLM
     import requestcompletion as rc
 
     class StructuredModel(BaseModel):
@@ -171,7 +171,7 @@ def test_return_into_structured():
 
     node = rc.library.structured_llm(
         system_message="Hello",
-        model=MockLLM(structured=return_structured_message),
+        llm_model=MockLLM(structured=return_structured_message),
         return_into="structured_greeting",  # Store result in context
         output_model=StructuredModel,
     )

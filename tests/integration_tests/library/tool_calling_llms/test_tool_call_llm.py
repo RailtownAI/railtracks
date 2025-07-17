@@ -12,7 +12,7 @@ from requestcompletion.llm.response import Response
 
 from requestcompletion.nodes.library import from_function
 from requestcompletion.nodes.library.easy_usage_wrappers.tool_call_llm import tool_call_llm
-from tests.rc_tests.llm.conftest import MockLLM
+from tests.unit_tests.llm.conftest import MockLLM
 
 NODE_INIT_METHODS = ["easy_wrapper", "class_based"]
 
@@ -403,14 +403,14 @@ def test_return_into():
     node = tool_call_llm(
         system_message="Hello",
         connected_nodes={return_message},
-        model=MockLLM(chat_with_tools=return_message),
+        llm_model=MockLLM(chat_with_tools=return_message),
         return_into="greeting"  # Specify that the result should be stored in context under the key "greeting"
     )
 
     with rc.Runner() as run:
         result = run.run_sync(node, message_history=MessageHistory()).answer
         assert result is None  # The result should be None since it was stored in context
-        assert rc.context.get("greeting") == "Hello"
+        assert rc.context.get("greeting").content == "Hello"
 
 
 def test_return_into_custom_fn():
@@ -426,9 +426,9 @@ def test_return_into_custom_fn():
     node = tool_call_llm(
         system_message="Hello",
         connected_nodes={return_message},
-        model=MockLLM(chat_with_tools=return_message),
+        llm_model=MockLLM(chat_with_tools=return_message),
         return_into="greeting",  # Specify that the result should be stored in context under the key "greeting"
-        format_for_return_fn=format_function  # Use the custom formatting function
+        format_for_return=format_function  # Use the custom formatting function
     )
 
     with rc.Runner() as run:

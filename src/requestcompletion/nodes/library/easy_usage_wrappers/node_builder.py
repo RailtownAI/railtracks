@@ -13,7 +13,6 @@ from typing import (
     cast,
 )
 
-from mcp import StdioServerParameters
 from pydantic import BaseModel
 
 from requestcompletion.exceptions.node_creation.validation import (
@@ -28,6 +27,7 @@ from requestcompletion.nodes.library.mcp_tool import from_mcp_server
 
 from ....llm import MessageHistory, ModelBase, SystemMessage, Tool, UserMessage
 from ....nodes.nodes import Node
+from ....rc_mcp import MCPStdioParams
 from ...library._llm_base import LLMBase
 from ...library.function import from_function
 from ...library.tool_calling_llms._base import OutputLessToolCallLLM
@@ -73,6 +73,9 @@ class NodeBuilder(Generic[_TNode]):
         class_name: str | None = None,
         tool_details: str | None = None,
         tool_params: set[Parameter] | None = None,
+        return_into: str | None = None,
+        format_for_return: Callable[[Any], Any] | None = None,
+        format_for_context: Callable[[Any], Any] | None = None,
     ):
         _check_tool_params_and_details(tool_params, tool_details)
         self._node_class = node_class
@@ -81,6 +84,18 @@ class NodeBuilder(Generic[_TNode]):
         if pretty_name is not None:
             self._with_override(
                 "pretty_name", classmethod(lambda cls: pretty_name or cls.__name__)
+            )
+        if return_into is not None:
+            self._with_override("return_into", classmethod(lambda cls: return_into))
+        if format_for_context is not None:
+            self._with_override(
+                "format_for_context",
+                classmethod(lambda cls, x: format_for_context(x)),
+            )
+        if format_for_return is not None:
+            self._with_override(
+                "format_for_return",
+                classmethod(lambda cls, x: format_for_return(x)),
             )
 
     def llm_base(
@@ -208,7 +223,7 @@ class NodeBuilder(Generic[_TNode]):
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         )
         tools = from_mcp_server(
-            StdioServerParameters(
+            MCPStdioParams(
                 command=mcp_command,
                 args=mcp_args,
                 env=mcp_env if mcp_env is not None else None,

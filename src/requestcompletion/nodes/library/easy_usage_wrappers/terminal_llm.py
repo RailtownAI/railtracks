@@ -1,4 +1,4 @@
-from typing import Type
+from typing import Any, Callable, Type
 
 from requestcompletion.nodes.library.easy_usage_wrappers.node_builder import NodeBuilder
 
@@ -14,6 +14,9 @@ def terminal_llm(  # noqa: C901
     llm_model: ModelBase | None = None,
     tool_details: str | None = None,
     tool_params: set[Parameter] | None = None,
+    return_into: str | None = None,
+    format_for_return: Callable[[Any], Any] | None = None,
+    format_for_context: Callable[[Any], Any] | None = None,
 ) -> Type[TerminalLLM]:
     """
     Dynamically create a TerminalLLM node class with custom configuration.
@@ -34,6 +37,14 @@ def terminal_llm(  # noqa: C901
         Description of the node subclass for other LLMs to know how to use this as a tool.
     tool_params : dict or None, optional
         Parameters that must be passed if other LLMs want to use this as a tool.
+    return_into : str, optional
+        The key to store the result of the tool call into context. If not specified, the result will not be put into context.
+    format_for_return : Callable[[Any], Any] | None, optional
+        A function to format the result before returning it, only if return_into is provided.
+        If not specified when while return_into is provided, None will be returned.
+    format_for_context : Callable[[Any], Any] | None, optional
+        A function to format the result before putting it into context, only if return_into is provided.
+        If not provided, the response will be put into context as is.
 
     Returns
     -------
@@ -47,6 +58,9 @@ def terminal_llm(  # noqa: C901
         class_name="EasyTerminalLLM",
         tool_details=tool_details,
         tool_params=tool_params,
+        return_into=return_into,
+        format_for_return=format_for_return,
+        format_for_context=format_for_context,
     )
     builder.llm_base(llm_model, system_message)
     if tool_details is not None:

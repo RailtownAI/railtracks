@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from requestcompletion.llm import MessageHistory, Message
 from requestcompletion.llm.response import Response
 from requestcompletion.nodes.library.easy_usage_wrappers.terminal_llm import terminal_llm
-from tests.rc_tests.llm.conftest import MockLLM
+from tests.unit_tests.llm.conftest import MockLLM
 
 
 # ================================================ START terminal_llm basic functionality =========================================================
@@ -53,7 +53,7 @@ def test_return_into():
 
     node = terminal_llm(
         system_message="Hello",
-        model=MockLLM(chat=return_message),
+        llm_model=MockLLM(chat=return_message),
         return_into="greeting"  # Specify that the result should be stored in context under the key "greeting"
     )
 

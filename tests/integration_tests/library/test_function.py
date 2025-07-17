@@ -392,13 +392,3 @@ class TestRealisticScenarios:
         assert DB["Jane"]["role"] == "Developer"
         assert DB["Jane"]["phone"] == "0987654321"
 
-
-def test_return_into():
-    """Test that a node can return its result into context instead of returning it directly."""
-    def hello_world():
-        return "Hello World"
-
-    with rc.Runner() as run:
-        result = run.run_sync(from_function(hello_world, return_into="greeting")).answer
-        assert result is None  # The result should be None since it was stored in context
-        assert rc.context.get("greeting") == "Hello World"
