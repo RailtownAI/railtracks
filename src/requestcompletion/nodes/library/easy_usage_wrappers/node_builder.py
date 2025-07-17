@@ -124,21 +124,24 @@ class NodeBuilder(Generic[_TNode]):
 
     def structured(
         self,
-        output_model: Type[BaseModel],
+        schema: Type[BaseModel],
     ):
         """
-        Configure the node subclass to have a output_model method.
+        Configure the node subclass to have a schema method.
 
         This method creates a class wide method which returns the output model for the node,
         which in turn is used for validation and serialization of structured outputs.
 
         Parameters
         ----------
-        output_model : Type[BaseModel]
+        schema : Type[BaseModel]
             The pydantic model class to use for the node's output.
         """
 
-        self._with_override("output_model", classmethod(lambda cls: output_model))
+        self._with_override("schema", classmethod(lambda cls: schema))
+
+    def struct_mess(self):
+        self._with_override("structured_message", True)
 
     def tool_calling_llm(
         self, connected_nodes: Set[Union[Type[Node], Callable]], max_tool_calls: int
