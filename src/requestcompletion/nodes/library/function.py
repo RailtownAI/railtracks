@@ -55,18 +55,16 @@ def from_function(
         func, BuiltinFunctionType
     ):  # we don't require dict validation for builtin functions, that is handled separately.
         validate_function(func)  # checks for dict or Dict parameters
-    else:
-        raise RuntimeError(
-            "Cannot convert kwargs for builtin functions. Please use a custom function."
-        )
 
     if asyncio.iscoroutinefunction(func):
         type_ = AsyncDynamicFunctionNode
     elif inspect.isfunction(func):
         type_ = SyncDynamicFunctionNode
+    elif inspect.isbuiltin(func):
+        type_ = SyncDynamicFunctionNode
     else:
         raise NodeCreationError(
-            message="The provided function is not a valid coroutine or sync function.",
+            message=f"The provided function is not a valid coroutine or sync function it is {type(func)}.",
             notes=[
                 "You must provide a valid function or coroutine function to make a node.",
             ],
