@@ -9,13 +9,9 @@ from typing import (
     Set,
 )
 
-import typing_extensions
-
 from ...exceptions import NodeCreationError
 from ...exceptions.node_creation.validation import validate_function
 from ...llm import Parameter
-from ...llm.tools import Tool
-from ..nodes import Node
 from .easy_usage_wrappers.node_builder import NodeBuilder
 from .function_base import (
     _P,
@@ -82,4 +78,3 @@ def from_function(
     )
 
     return builder.build()
-
