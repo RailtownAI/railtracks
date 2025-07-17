@@ -42,7 +42,7 @@ def from_function(
     Creates a new Node type from a function that can be used in `rc.call()`.
 
     By default, it will parse the function's parameters and turn them into tool details and parameters. However, if
-    you pro
+    you provide custom tool details or parameters, they will override the defaults.
 
     Args:
         func (Callable): The function to convert into a Node.

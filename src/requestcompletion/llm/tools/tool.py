@@ -104,7 +104,7 @@ class Tool:
         Creates a Tool from a Python callable.
         Uses the function's docstring and type annotations to extract details and parameter info.
 
-        KEY NOTE: No checking is done to ensure that the inserted params match the function signature=
+        KEY NOTE: No checking is done to ensure that the inserted params match the function signature
 
         Args:
             func: The function to create a tool from.
