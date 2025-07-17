@@ -1,5 +1,3 @@
-from abc import ABC
-
 from ... import context
 from ...exceptions import LLMError
 from ...llm import MessageHistory, ModelBase
