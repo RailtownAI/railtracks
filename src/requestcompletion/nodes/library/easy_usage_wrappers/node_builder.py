@@ -267,8 +267,9 @@ class NodeBuilder(Generic[_TNode]):
             "func", classmethod(lambda cls, *args, **kwargs: func(*args, **kwargs))
         )
 
-        self.override_tool_info(tool=Tool.from_function(func, details=tool_details, params=tool_params))
-
+        self.override_tool_info(
+            tool=Tool.from_function(func, details=tool_details, params=tool_params)
+        )
 
     def tool_callable_llm(
         self,

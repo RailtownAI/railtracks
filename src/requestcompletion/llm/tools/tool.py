@@ -139,8 +139,6 @@ class Tool:
 
         docstring = func.__doc__.strip() if func.__doc__ else ""
 
-
-
         if params is not None:
             parameters = params
         else:
@@ -176,12 +174,10 @@ class Tool:
 
                 parameters.add(param_obj)
 
-
         if details is not None:
             main_description = details
         else:
             main_description = extract_main_description(docstring)
-
 
         tool_info = Tool(
             name=function_name,
