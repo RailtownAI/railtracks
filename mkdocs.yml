@@ -39,6 +39,8 @@ nav:
 
   - MCP:
         - mcp/index.md
+        - mcp/MCP_tools_in_RC.md
+        - mcp/RCtoMCP.md
 
   - Visualization:
         - visualization/index.md

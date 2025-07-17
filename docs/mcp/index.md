@@ -7,7 +7,9 @@ The Model Context Protocol (MCP) is an open standard designed to standardize how
 MCP follows a client-server architecture, defining how data (resources), interactive templates (prompts), and actionable functions (tools) are exposed by an MCP server and consumed by an MCP client (which could be an LLM host application or an AI agent).
 
 ## Using MCP tools in RC
-RC allows you to covert MCP tools into Tools that can be used by RC agents just like any other Tool.
+RC allows you to covert MCP tools into Tools that can be used by RC agents just like any other Tool. We handle the conversion and server setup for you, so you can focus on building your agents without worrying about the underlying complexities of MCP.
+Refer to the [Using MCP tools in RC](MCP_tools_in_RC.md) page for a guide and examples.
 
 ## RC to MCP
 We also provide a way to convert RC Tools into MCP tools using FastMCP, allowing you to use your existing RC tools in any MCP-compatible environment.
+See the [RC to MCP](RCtoMCP.md) page for more details on how to set this up.
