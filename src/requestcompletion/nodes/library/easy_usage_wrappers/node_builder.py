@@ -27,15 +27,15 @@ from requestcompletion.exceptions.node_creation.validation import (
     check_connected_nodes,
 )
 from requestcompletion.llm import Parameter
+from requestcompletion.llm.type_mapping import TypeMapper
 from requestcompletion.nodes.library.mcp_tool import from_mcp_server
-from ..function_base import DynamicFunctionNode
 
 from ....llm import MessageHistory, ModelBase, SystemMessage, Tool, UserMessage
 from ....nodes.nodes import Node
-from ....utils.type_mapping import TypeMapper
 from ...library._llm_base import LLMBase
 from ...library.tool_calling_llms._base import OutputLessToolCallLLM
 from ...library.tool_calling_llms.tool_call_llm import ToolCallLLM
+from ..function_base import DynamicFunctionNode
 
 _TNode = TypeVar("_TNode", bound=Node)
 _P = ParamSpec("_P")

@@ -4,7 +4,7 @@ import pytest
 from typing import List, Tuple, Dict, Any
 from pydantic import BaseModel
 from requestcompletion.llm.tools.parameter_handlers import UnsupportedParameterError
-from requestcompletion.utils.type_mapping import TypeMapper
+from requestcompletion.llm.type_mapping import TypeMapper
 
 
 class DummyModel(BaseModel):

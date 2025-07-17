@@ -15,8 +15,8 @@ from typing_extensions import Self
 
 from requestcompletion.exceptions import NodeCreationError
 from requestcompletion.llm import Tool
+from requestcompletion.llm.type_mapping import TypeMapper
 from requestcompletion.nodes.nodes import Node
-from requestcompletion.utils.type_mapping import TypeMapper
 
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
