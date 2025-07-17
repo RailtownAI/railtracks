@@ -1,6 +1,9 @@
 import pytest
 import requestcompletion as rc
 
+from requestcompletion.llm import Message, MessageHistory
+from requestcompletion.llm.response import Response
+
 from pydantic import BaseModel
 
 NODE_INIT_METHODS = ["easy_wrapper", "class_based"]
@@ -155,12 +158,8 @@ async def test_structured_with_tool_calls(
         assert isinstance(response.answer.Currency, str)
 
 
-def test_return_into_structured():
+def test_return_into_structured(mock_llm):
     """Test that a node can return its structured result into context instead of returning it directly."""
-    from requestcompletion.llm import Message, MessageHistory
-    from requestcompletion.llm.response import Response
-    from tests.unit_tests.llm.conftest import MockLLM
-    import requestcompletion as rc
 
     class StructuredModel(BaseModel):
         text: str
@@ -171,9 +170,9 @@ def test_return_into_structured():
 
     node = rc.library.structured_llm(
         system_message="Hello",
-        llm_model=MockLLM(structured=return_structured_message),
+        llm_model=mock_llm(structured=return_structured_message),
         return_into="structured_greeting",  # Store result in context
-        output_model=StructuredModel,
+        schema=StructuredModel,
     )
 
     with rc.Runner() as run:

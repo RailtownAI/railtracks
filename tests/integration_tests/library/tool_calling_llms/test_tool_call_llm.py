@@ -12,7 +12,6 @@ from requestcompletion.llm.response import Response
 
 from requestcompletion.nodes.library import from_function
 from requestcompletion.nodes.library.easy_usage_wrappers.tool_call_llm import tool_call_llm
-from tests.unit_tests.llm.conftest import MockLLM
 
 NODE_INIT_METHODS = ["easy_wrapper", "class_based"]
 
@@ -394,7 +393,7 @@ async def test_tool_with_llm_tool_as_input_class_tools():
     assert response.answer.content == "2 foxes and a dog"
 
 
-def test_return_into():
+def test_return_into(mock_llm):
     """Test that a node can return its result into context instead of returning it directly."""
 
     def return_message(messages: MessageHistory, list) -> Response:
@@ -403,7 +402,7 @@ def test_return_into():
     node = tool_call_llm(
         system_message="Hello",
         connected_nodes={return_message},
-        llm_model=MockLLM(chat_with_tools=return_message),
+        llm_model=mock_llm(chat_with_tools=return_message),
         return_into="greeting"  # Specify that the result should be stored in context under the key "greeting"
     )
 
@@ -413,7 +412,7 @@ def test_return_into():
         assert rc.context.get("greeting").content == "Hello"
 
 
-def test_return_into_custom_fn():
+def test_return_into_custom_fn(mock_llm):
     """Test that a node can return its result into context instead of returning it directly."""
     def format_function(value: Any) -> str:
         """Custom function to format the value before storing it in context."""
@@ -426,7 +425,7 @@ def test_return_into_custom_fn():
     node = tool_call_llm(
         system_message="Hello",
         connected_nodes={return_message},
-        llm_model=MockLLM(chat_with_tools=return_message),
+        llm_model=mock_llm(chat_with_tools=return_message),
         return_into="greeting",  # Specify that the result should be stored in context under the key "greeting"
         format_for_return=format_function  # Use the custom formatting function
     )

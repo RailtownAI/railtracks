@@ -131,18 +131,6 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
         """
         pass
 
-    def format_for_context(self, result: Any) -> Any:
-        """
-        A method used to format the Node's result to be put into the context when return_into is not None.
-        """
-        pass
-
-    def format_for_return(self, result: Any) -> Any:
-        """
-        A method used to format the Node's result to be returned when return_into is not None.
-        """
-        pass
-
     async def tracked_invoke(self) -> _TOutput:
         """
         A special method that will track and save the latency of the running of this invoke method.

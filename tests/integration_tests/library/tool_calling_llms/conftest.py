@@ -6,7 +6,12 @@ import random
 from requestcompletion.nodes.library import ToolCallLLM
 from requestcompletion.llm import SystemMessage
 
+from tests.unit_tests.llm.conftest import MockLLM
 # ============ Model ===========
+
+@pytest.fixture
+def mock_llm():
+    return MockLLM
 
 @pytest.fixture
 def model():

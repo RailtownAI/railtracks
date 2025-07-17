@@ -188,7 +188,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         """
         return None
 
-    def format_for_return(self, result: Any) -> Any:
+    def format_for_return(self, result: _T) -> Any:
         """
         Format the result for return when return_into is provided. This method can be overridden by subclasses to
         customize the return format. By default, it returns None.
@@ -205,7 +205,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         """
         return None
 
-    def format_for_context(self, result: Any) -> Any:
+    def format_for_context(self, result: _T) -> Any:
         """
         Format the result for context when return_into is provided. This method can be overridden by subclasses to
         customize the context format. By default, it returns the result as is.
