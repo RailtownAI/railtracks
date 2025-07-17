@@ -180,10 +180,10 @@ class NodeBuilder(Generic[_TNode]):
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         )
 
-        for elem in connected_nodes:
-            if isfunction(elem):
-                connected_nodes.remove(elem)
-                connected_nodes.add(from_function(elem))
+        connected_nodes = {
+            from_function(elem) if isfunction(elem) else elem
+            for elem in connected_nodes
+        }
 
         if not isinstance(connected_nodes, set):
             connected_nodes = set(connected_nodes)
