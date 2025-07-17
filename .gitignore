@@ -9,6 +9,7 @@ dist
 package-lock.json
 package.json
 test-results.xml
+.covailence
 .coverage
 # jupyter notebook
 .ipynb_checkpoints
