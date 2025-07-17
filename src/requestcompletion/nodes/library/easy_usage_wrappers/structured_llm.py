@@ -54,7 +54,7 @@ def structured_llm(  # noqa: C901
     )
     builder.llm_base(llm_model, system_message)
     builder.structured(output_model)
-    if tool_details is not None:
+    if tool_details is not None or tool_params is not None:
         builder.tool_callable_llm(tool_details, tool_params)
 
     return builder.build()

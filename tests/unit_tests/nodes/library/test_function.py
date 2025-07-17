@@ -206,4 +206,5 @@ class TestRaiseErrors:
         """Test that passing a dict for a kwarg raises an error since we don't support dicts as kwargs yet"""
         with pytest.raises(UnsupportedParameterError):
             test_node = from_function(func_kwarg_error_pydantic)
-            test_node.prepare_tool({"pydantic_model" : ("name", 5)})
+            result = test_node.prepare_tool({"pydantic_model" : ("name", 5)})
+

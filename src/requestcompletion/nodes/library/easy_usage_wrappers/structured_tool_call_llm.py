@@ -20,7 +20,7 @@ def structured_tool_call_llm(  # noqa: C901
     max_tool_calls: int | None = 30,
     system_message: SystemMessage | str | None = None,
     output_type: Literal["MessageHistory", "LastMessage"] = "LastMessage",
-    output_model: BaseModel,
+    output_model: Type[BaseModel],
     tool_details: str | None = None,
     tool_params: dict | None = None,
 ) -> Type[StructuredToolCallLLM]:
@@ -72,7 +72,7 @@ def structured_tool_call_llm(  # noqa: C901
     )
     builder.llm_base(llm_model, system_message)
     builder.tool_calling_llm(connected_nodes, max_tool_calls)
-    if tool_details is not None:
+    if tool_details is not None or tool_params is not None:
         builder.tool_callable_llm(tool_details, tool_params)
     builder.structured(output_model)
 
