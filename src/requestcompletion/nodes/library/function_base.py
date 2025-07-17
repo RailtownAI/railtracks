@@ -1,18 +1,21 @@
 from __future__ import annotations
 
 import asyncio
-import inspect
 from abc import ABC, abstractmethod
+from typing import (
+    Any,
+    Coroutine,
+    Dict,
+    Generic,
+    ParamSpec,
+    TypeVar,
+)
 
-from typing import TypeVar, ParamSpec, Generic, Dict, Any, get_origin, get_args, Type, Tuple, Union, List, Coroutine
-
-from pydantic import BaseModel
 from typing_extensions import Self
 
-from requestcompletion.nodes.nodes import Node
 from requestcompletion.exceptions import NodeCreationError
 from requestcompletion.llm import Tool
-from requestcompletion.llm.tools.parameter_handlers import UnsupportedParameterError
+from requestcompletion.nodes.nodes import Node
 from requestcompletion.utils.type_mapping import TypeMapper
 
 _TOutput = TypeVar("_TOutput")
@@ -34,7 +37,6 @@ class DynamicFunctionNode(Node[_TOutput], ABC, Generic[_TOutput]):
         self.args = args
         self.kwargs = kwargs
 
-
     @classmethod
     @abstractmethod
     def func(
@@ -47,8 +49,9 @@ class DynamicFunctionNode(Node[_TOutput], ABC, Generic[_TOutput]):
         return f"{cls.func.__name__} Node"
 
     @classmethod
+    @abstractmethod
     def tool_info(cls) -> Tool:
-        return Tool.from_function(cls.func)
+        pass
 
     @classmethod
     @abstractmethod
@@ -57,13 +60,13 @@ class DynamicFunctionNode(Node[_TOutput], ABC, Generic[_TOutput]):
 
     @classmethod
     def prepare_tool(cls, tool_parameters: Dict[str, Any]) -> Self:
-        converted_params = cls.type_mapper().convert_kwargs_to_appropriate_types(tool_parameters)
+        converted_params = cls.type_mapper().convert_kwargs_to_appropriate_types(
+            tool_parameters
+        )
         return cls(**converted_params)
 
 
-class SyncDynamicFunctionNode(
-    DynamicFunctionNode[_TOutput], ABC, Generic[_TOutput]
-):
+class SyncDynamicFunctionNode(DynamicFunctionNode[_TOutput], ABC, Generic[_TOutput]):
     """
     A nearly complete class that expects a synchronous function to be provided in the `func` method.
 
@@ -107,7 +110,9 @@ class SyncDynamicFunctionNode(
 
 
 class AsyncDynamicFunctionNode(
-    DynamicFunctionNode[_TOutput], ABC, Generic[_TOutput],
+    DynamicFunctionNode[_TOutput],
+    ABC,
+    Generic[_TOutput],
 ):
     """
     A nearly complete class that expects an async function to be provided in the `func` method.

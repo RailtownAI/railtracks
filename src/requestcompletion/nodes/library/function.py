@@ -6,16 +6,23 @@ from types import BuiltinFunctionType
 from typing import (
     Callable,
     Coroutine,
+    Set,
 )
 
 import typing_extensions
 
-from .easy_usage_wrappers.node_builder import NodeBuilder
-from .function_base import _TOutput, _P, SyncDynamicFunctionNode, AsyncDynamicFunctionNode
 from ...exceptions import NodeCreationError
 from ...exceptions.node_creation.validation import validate_function
+from ...llm import Parameter
 from ...llm.tools import Tool
 from ..nodes import Node
+from .easy_usage_wrappers.node_builder import NodeBuilder
+from .function_base import (
+    _P,
+    AsyncDynamicFunctionNode,
+    SyncDynamicFunctionNode,
+    _TOutput,
+)
 
 
 def to_node(func):
@@ -28,9 +35,20 @@ def from_function(
     /,
     *,
     pretty_name: str | None = None,
+    tool_details: str | None = None,
+    tool_params: dict | Set[Parameter] | None = None,
 ):
     """
     Creates a new Node type from a function that can be used in `rc.call()`.
+
+    By default, it will parse the function's parameters and turn them into tool details and parameters. However, if
+    you pro
+
+    Args:
+        func (Callable): The function to convert into a Node.
+        pretty_name (str, optional): Human-readable name for the node/tool.
+        tool_details (str, optional): Description of the node subclass for other LLMs to know how to use this as a tool.
+        tool_params (dict or Set[Parameter], optional): Parameters that must be passed if other LLMs want to use this as a tool.
     """
 
     if not isinstance(
@@ -39,8 +57,7 @@ def from_function(
         validate_function(func)  # checks for dict or Dict parameters
     else:
         raise RuntimeError(
-            "Cannot convert kwargs for builtin functions. "
-            "Please use a custom function."
+            "Cannot convert kwargs for builtin functions. Please use a custom function."
         )
 
     if asyncio.iscoroutinefunction(func):
@@ -60,7 +77,11 @@ def from_function(
         pretty_name=pretty_name if pretty_name is not None else f"{func.__name__} Node",
     )
 
-    builder.setup_function_node(func)
+    builder.setup_function_node(
+        func,
+        tool_details=tool_details,
+        tool_params=tool_params,
+    )
 
     return builder.build()
 
