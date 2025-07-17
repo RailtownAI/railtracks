@@ -1,8 +1,6 @@
-from typing import List
-
-import yaml
 import os
 from enum import Enum
+from typing import List
 
 import yaml
 
