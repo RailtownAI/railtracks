@@ -16,7 +16,6 @@ from typing import (
     overload,
 )
 
-from mcp import StdioServerParameters
 from pydantic import BaseModel
 
 from requestcompletion.exceptions.node_creation.validation import (
@@ -32,6 +31,7 @@ from requestcompletion.nodes.library.mcp_tool import from_mcp_server
 
 from ....llm import MessageHistory, ModelBase, SystemMessage, Tool, UserMessage
 from ....nodes.nodes import Node
+from ....rc_mcp import MCPStdioParams
 from ...library._llm_base import LLMBase
 from ...library.tool_calling_llms._base import OutputLessToolCallLLM
 from ...library.tool_calling_llms.tool_call_llm import ToolCallLLM
@@ -72,6 +72,9 @@ class NodeBuilder(Generic[_TNode]):
         *,
         pretty_name: str | None = None,
         class_name: str | None = None,
+        return_into: str | None = None,
+        format_for_return: Callable[[Any], Any] | None = None,
+        format_for_context: Callable[[Any], Any] | None = None,
     ):
         self._node_class = node_class
         self._name = class_name or f"Dynamic{node_class.__qualname__}"
@@ -79,6 +82,18 @@ class NodeBuilder(Generic[_TNode]):
         if pretty_name is not None:
             self._with_override(
                 "pretty_name", classmethod(lambda cls: pretty_name or cls.__name__)
+            )
+        if return_into is not None:
+            self._with_override("return_into", classmethod(lambda cls: return_into))
+        if format_for_context is not None:
+            self._with_override(
+                "format_for_context",
+                classmethod(lambda cls, x: format_for_context(x)),
+            )
+        if format_for_return is not None:
+            self._with_override(
+                "format_for_return",
+                classmethod(lambda cls, x: format_for_return(x)),
             )
 
     def llm_base(
@@ -167,13 +182,12 @@ class NodeBuilder(Generic[_TNode]):
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         )
 
-        for elem in connected_nodes:
-            if isfunction(elem):
-                # we have to use lazy imports here to avoid circular imports
-                from ..function import from_function
+        from ..function import from_function
 
-                connected_nodes.remove(elem)
-                connected_nodes.add(from_function(elem))
+        connected_nodes = {
+            from_function(elem) if isfunction(elem) else elem
+            for elem in connected_nodes
+        }
 
         if not isinstance(connected_nodes, set):
             connected_nodes = set(connected_nodes)
@@ -213,7 +227,7 @@ class NodeBuilder(Generic[_TNode]):
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         )
         tools = from_mcp_server(
-            StdioServerParameters(
+            MCPStdioParams(
                 command=mcp_command,
                 args=mcp_args,
                 env=mcp_env if mcp_env is not None else None,

@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from abc import ABC
 from copy import deepcopy
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 from typing_extensions import Self
 
@@ -175,6 +175,52 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
             )
         )
         raise exception
+
+    def return_into(self) -> str | None:
+        """
+        Return the name of the variable to return the result into. This method can be overridden by subclasses to
+        customize the return variable name. By default, it returns None.
+
+        Returns
+        -------
+        str
+            The name of the variable to return the result into.
+        """
+        return None
+
+    def format_for_return(self, result: _T) -> Any:
+        """
+        Format the result for return when return_into is provided. This method can be overridden by subclasses to
+        customize the return format. By default, it returns None.
+
+        Parameters
+        ----------
+        result : Any
+            The result to format.
+
+        Returns
+        -------
+        Any
+            The formatted result.
+        """
+        return None
+
+    def format_for_context(self, result: _T) -> Any:
+        """
+        Format the result for context when return_into is provided. This method can be overridden by subclasses to
+        customize the context format. By default, it returns the result as is.
+
+        Parameters
+        ----------
+        result : Any
+            The result to format.
+
+        Returns
+        -------
+        Any
+            The formatted result.
+        """
+        return result
 
     def safe_copy(self) -> Self:
         new_instance: LLMBase = super().safe_copy()  # noqa: Type checking broken.

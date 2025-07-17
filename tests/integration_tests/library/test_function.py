@@ -12,6 +12,7 @@ from typing import Tuple, List, Dict
 from pydantic import BaseModel, Field
 import time
 
+from requestcompletion.nodes.library import from_function
 from requestcompletion.state.request import Failure
 import requestcompletion as rc
 
@@ -390,3 +391,4 @@ class TestRealisticScenarios:
         assert DB["John"]["phone"] == "5555"
         assert DB["Jane"]["role"] == "Developer"
         assert DB["Jane"]["phone"] == "0987654321"
+

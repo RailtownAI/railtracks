@@ -2,6 +2,12 @@ import pytest
 import requestcompletion as rc
 from pydantic import BaseModel
 
+from requestcompletion.llm import MessageHistory, Message
+from requestcompletion.llm.response import Response
+from requestcompletion.nodes.library.easy_usage_wrappers.terminal_llm import terminal_llm
+from tests.unit_tests.llm.conftest import MockLLM
+
+
 # ================================================ START terminal_llm basic functionality =========================================================
 @pytest.mark.asyncio
 async def test_terminal_llm_easy_usage_run(model , encoder_system_message):
@@ -39,6 +45,22 @@ def test_terminal_llm_class_based_run(model , encoder_system_message):
         response = runner.run_sync(Encoder, message_history=message_history)
         assert isinstance(response.answer, str)
 
+def test_return_into():
+    """Test that a node can return its result into context instead of returning it directly."""
+
+    def return_message(messages: MessageHistory) -> Response:
+        return Response(message=Message(role="assistant", content=messages[-1].content))
+
+    node = terminal_llm(
+        system_message="Hello",
+        llm_model=MockLLM(chat=return_message),
+        return_into="greeting"  # Specify that the result should be stored in context under the key "greeting"
+    )
+
+    with rc.Runner() as run:
+        result = run.run_sync(node, message_history=MessageHistory()).answer
+        assert result is None  # The result should be None since it was stored in context
+        assert rc.context.get("greeting") == "Hello"
 
 # ================================================ END terminal_llm basic functionality ===========================================================
 
