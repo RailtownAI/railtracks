@@ -17,7 +17,7 @@ def structured_mess_hist_tool_call_llm(  # noqa: C901
     *,
     pretty_name: str | None = None,
     llm_model: ModelBase | None = None,
-    max_tool_calls: int | None = 30,
+    max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
     schema: BaseModel,
     tool_details: str | None = None,
@@ -40,7 +40,7 @@ def structured_mess_hist_tool_call_llm(  # noqa: C901
     llm_model : ModelBase or None, optional
         The LLM model instance to use for this node.
     max_tool_calls : int, optional
-        Maximum number of tool calls allowed per invocation (default: 30).
+        Maximum number of tool calls allowed per invocation (default: unlimited).
     system_message : SystemMessage or str or None, optional
         The system prompt/message for the node. If not passed here it can be passed at runtime in message history.
     schema : BaseModel
