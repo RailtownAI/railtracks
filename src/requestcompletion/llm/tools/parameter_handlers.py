@@ -7,14 +7,14 @@ and creating the appropriate Parameter object.
 """
 
 import inspect
+import types
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Tuple
+from typing import Dict, Any, List, Tuple, Union
 
 from pydantic import BaseModel
 
-from .parameter import Parameter, PydanticParameter
+from .parameter import Parameter, PydanticParameter, ParameterType
 from .schema_parser import parse_model_properties
-
 
 class ParameterHandler(ABC):
     """Base abstract class for parameter handlers."""
@@ -50,6 +50,42 @@ class ParameterHandler(ABC):
         """
         pass
 
+class UnionParameterHandler(ParameterHandler):
+    """Handler for Union parameters. Since Optional[x] = Union[x, None]."""
+
+    def can_handle(self, param_annotation):
+        # this is the Check for Union / Optional
+        if hasattr(param_annotation, "__origin__") and param_annotation.__origin__ is Union:
+            return True
+        if isinstance(param_annotation, types.UnionType):   # this handles typing.Union and the new Python 3.10+ UnionType (str | int)
+            return True
+        return False
+        
+    def create_parameter(
+        self, param_name: str, param_annotation: Any, description: str, required: bool
+    ) -> Parameter:
+        """Create a Parameter for a Union parameter (including Optional)."""
+        union_args = getattr(param_annotation, "__args__", [])
+        type_names = []
+        is_optional = False
+
+        for t in union_args:
+            if t is type(None):
+                is_optional = True
+            else:
+                type_names.append(
+                    t.__name__ if hasattr(t, "__name__") else str(t)
+                )
+
+        # param_type can be a list of type names
+        param_type = type_names if len(type_names) > 1 else type_names[0] if type_names else "string"
+
+        return Parameter(
+            name=param_name,
+            param_type=param_type,
+            description=description,
+            required=required and not is_optional,
+        )
 
 class PydanticModelHandler(ParameterHandler):
     """Handler for Pydantic model parameters."""
@@ -185,50 +221,36 @@ class SequenceParameterHandler(ParameterHandler):
 class DictParameterHandler(ParameterHandler):
     """Handler for dictionary parameters that raises an exception."""
 
+    # TODO: Prvide support for dictionary parameters in functions later. 
+    def __init__(self):
+        raise NotImplementedError("DictParameterHandler is not supported yet.")
+
     def can_handle(self, param_annotation: Any) -> bool:
-        """Check if the annotation is a dictionary type."""
-        return hasattr(
-            param_annotation, "__origin__"
-        ) and param_annotation.__origin__ in (dict, Dict)
+        pass
 
     def create_parameter(
         self, param_name: str, param_annotation: Any, description: str, required: bool
     ) -> Parameter:
-        """Raise an exception for dictionary parameters."""
-        # Get the key and value types if available for better error message
-        dict_args = getattr(param_annotation, "__args__", [])
-        key_type = dict_args[0] if len(dict_args) > 0 else "unknown"
-        value_type = dict_args[1] if len(dict_args) > 1 else "unknown"
-
-        key_type_name = (
-            key_type.__name__ if hasattr(key_type, "__name__") else str(key_type)
-        )
-        value_type_name = (
-            value_type.__name__ if hasattr(value_type, "__name__") else str(value_type)
-        )
-
-        param_type = f"Dict[{key_type_name}, {value_type_name}]"
-
-        # Raise an exception for dictionary parameters
-        raise UnsupportedParameterError(param_name, param_type)
+       pass
 
 
 class DefaultParameterHandler(ParameterHandler):
     """Default handler for primitive types and unknown types."""
 
     def __init__(self):
-        """Initialize with type mapping."""
+        """Initialize with type mapping using ParameterType enum."""
         self.type_mapping = {
-            str: "string",
-            int: "integer",
-            float: "float",
-            bool: "boolean",
-            list: "array",
-            List: "array",
-            tuple: "array",
-            Tuple: "array",
-            dict: "object",
-            Dict: "object",
+            str: ParameterType.STRING,
+            int: ParameterType.INTEGER,
+            float: ParameterType.FLOAT,
+            bool: ParameterType.BOOLEAN,
+            list: ParameterType.ARRAY,
+            List: ParameterType.ARRAY,
+            tuple: ParameterType.ARRAY,
+            Tuple: ParameterType.ARRAY,            
+            set: ParameterType.ARRAY,
+            dict: ParameterType.OBJECT,
+            Dict: ParameterType.OBJECT,
         }
 
     def can_handle(self, param_annotation: Any) -> bool:
@@ -239,12 +261,8 @@ class DefaultParameterHandler(ParameterHandler):
         self, param_name: str, param_annotation: Any, description: str, required: bool
     ) -> Parameter:
         """Create a Parameter for a primitive or unknown type."""
-        # Check if it's a dictionary type that wasn't caught by DictParameterHandler
-        if param_annotation in (dict, Dict):
-            raise UnsupportedParameterError(param_name, str(param_annotation))
-
-        # Default to object if type not found in mapping
-        mapped_type = self.type_mapping.get(param_annotation, "object")
+        # Default to obj if type not found in mapping
+        mapped_type = self.type_mapping.get(param_annotation, ParameterType.OBJECT)
         return Parameter(
             name=param_name,
             param_type=mapped_type,

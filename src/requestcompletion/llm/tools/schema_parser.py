@@ -5,9 +5,7 @@ This module contains functions for parsing JSON schemas into Parameter objects
 and converting Parameter objects into Pydantic models.
 """
 
-from typing import Dict, List, Set, Type
-
-from pydantic import BaseModel, ConfigDict, Field, create_model
+from typing import Dict
 
 from .parameter import Parameter, PydanticParameter
 
@@ -28,26 +26,72 @@ def parse_json_schema_to_parameter(
         A Parameter or PydanticParameter object representing the schema.
     """
 
-    param_type = prop_schema.get("type", "object")
+    # Handle type as list (union/optional)
+    param_type = prop_schema.get("type", None)
+    if param_type is None:
+        # If no type, try to infer from other keys
+        if "properties" in prop_schema:
+            param_type = "object"
+        elif "items" in prop_schema:
+            param_type = "array"
+        else:
+            param_type = "string"  # fallback
 
     # Handle special case for number type
-    if "type" in prop_schema and prop_schema["type"] == "number":
+    if param_type == "number":
         param_type = "float"
 
+    # Handle type as list (union)
+    if isinstance(param_type, list):
+        # Convert to python types, e.g. ["string", "null"]
+        param_type = [t if t != "null" else "none" for t in param_type]
+
     description = prop_schema.get("description", "")
+    enum = prop_schema.get("enum")
+    default = prop_schema.get("default")
+    additional_properties = prop_schema.get("additionalProperties", False)
 
     # Handle references to other schemas
     if "$ref" in prop_schema:
-        # This is a reference to another schema, likely a nested model
         return PydanticParameter(
             name=name,
             param_type="object",
             description=description,
             required=required,
-            properties={},  # Empty properties for now, will be filled later
+            properties={},
+            additional_properties=additional_properties,
         )
 
-    # Handle nested objects.
+    # Handle allOf (merge schemas)
+    if "allOf" in prop_schema:
+        # Only handle simple case: allOf with $ref or type
+        for item in prop_schema["allOf"]:
+            if "$ref" in item:
+                # Reference to another schema
+                return PydanticParameter(
+                    name=name,
+                    param_type="object",
+                    description=description,
+                    required=required,
+                    properties={},
+                    additional_properties=additional_properties,
+                )
+            elif "type" in item:
+                # Merge type info
+                param_type = item["type"]
+
+    # Handle anyOf (union types)
+    if "anyOf" in prop_schema:
+        # Only handle simple case: anyOf with types
+        types_list = []
+        for item in prop_schema["anyOf"]:
+            t = item.get("type")
+            if t:
+                types_list.append(t if t != "null" else "none")
+        if types_list:
+            param_type = types_list
+
+    # Handle nested objects
     if param_type == "object" and "properties" in prop_schema:
         inner_required = prop_schema.get("required", [])
         inner_props = {}
@@ -61,9 +105,10 @@ def parse_json_schema_to_parameter(
             description=description,
             required=required,
             properties=inner_props,
+            additional_properties=additional_properties,
         )
 
-    # Handle arrays, potentially with nested objects.
+    # Handle arrays, potentially with nested objects
     elif param_type == "array" and "items" in prop_schema:
         items_schema = prop_schema["items"]
         if items_schema.get("type") == "object" and "properties" in items_schema:
@@ -79,6 +124,7 @@ def parse_json_schema_to_parameter(
                 description=description,
                 required=required,
                 properties=inner_props,
+                additional_properties=additional_properties,
             )
         else:
             return Parameter(
@@ -86,10 +132,19 @@ def parse_json_schema_to_parameter(
                 param_type="array",
                 description=description,
                 required=required,
+                enum=enum,
+                default=default,
+                additional_properties=additional_properties,
             )
     else:
         return Parameter(
-            name=name, param_type=param_type, description=description, required=required
+            name=name,
+            param_type=param_type,
+            description=description,
+            required=required,
+            enum=enum,
+            default=default,
+            additional_properties=additional_properties,
         )
 
 
@@ -191,70 +246,3 @@ def parse_model_properties(schema: dict) -> Dict[str, Parameter]:  # noqa: C901
                 )
 
     return result
-
-
-def convert_params_to_model_recursive(  # noqa: C901
-    model_name: str, parameters: Set[Parameter]
-) -> Type[BaseModel]:
-    """
-    Converts a set of Parameter (or PydanticParameter) objects into a nested Pydantic model.
-    Recursively builds submodels if a parameter has nested properties.
-
-    Args:
-        model_name: The name to give the generated model.
-        parameters: A set of Parameter objects to convert.
-
-    Returns:
-        A Pydantic BaseModel class.
-    """
-    field_definitions = {}
-
-    for param in parameters:
-        if isinstance(param, PydanticParameter) and param.properties:
-            if param.param_type.lower() == "object":
-                nested_model = convert_params_to_model_recursive(
-                    f"{model_name}_{param.name}", set(param.properties.values())
-                )
-                python_type = nested_model
-            elif param.param_type.lower() == "array":
-                nested_model = convert_params_to_model_recursive(
-                    f"{model_name}_{param.name}", set(param.properties.values())
-                )
-                python_type = List[nested_model]
-            else:
-                python_type = Parameter.type_mapping().get(param.param_type.lower())
-        else:
-            # Map parameter type to Python type
-            if param.param_type.lower() == "float":
-                python_type = float
-            elif param.param_type.lower() == "integer":
-                python_type = int
-            elif param.param_type.lower() == "boolean":
-                python_type = bool
-            elif param.param_type.lower() == "array":
-                python_type = list
-            elif param.param_type.lower() == "object":
-                python_type = dict
-            else:
-                python_type = str  # Default to string for unknown types
-
-        # Handle optional parameters
-        if not param.required:
-            from typing import Optional as OptionalType
-
-            python_type = OptionalType[python_type]
-
-        field_definitions[param.name] = (
-            python_type,
-            Field(
-                description=param.description,
-                default=None if not param.required else ...,
-            ),
-        )
-
-    # Create a model with model_config that sets extra="forbid" to ensure additionalProperties=False in the schema
-    # TODO: This is a requirement by OpenAI's API, need to keep an eye out for other LLMs that may not have this requirement
-    config = ConfigDict(extra="forbid")
-
-    model = create_model(model_name, __config__=config, **field_definitions)
-    return model

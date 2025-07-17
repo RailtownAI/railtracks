@@ -29,22 +29,9 @@ from ..response import MessageInfo, Response
 from ..tools import Parameter, Tool
 
 
-def _handle_dict_parameters(parameters: Dict[str, Any]) -> Dict[str, Any]:
-    """Handle the case where parameters are already a dictionary."""
-    if "required" not in parameters and "properties" in parameters:
-        warnings.warn(
-            "The 'required' key is not present in the parameters dictionary. Parsing Properties parameters to check for required fields."
-        )
-        required: list[str] = []
-        for key, value in parameters["properties"].items():
-            if value.get("required", True):
-                required.append(key)
-        parameters["required"] = required
-    return parameters
-
-
 def _handle_set_of_parameters(parameters: Set[Parameter]) -> Dict[str, Any]:
     """Handle the case where parameters are a set of Parameter instances."""
+    # TODO: double check the conversion 
     props: Dict[str, Any] = {}
     required: list[str] = []
     for p in parameters:
@@ -67,23 +54,15 @@ def _handle_set_of_parameters(parameters: Set[Parameter]) -> Dict[str, Any]:
 
 
 def _parameters_to_json_schema(
-    parameters: Union[Type[BaseModel], Set[Parameter], Dict[str, Any]],
+    parameters: Set[Parameter] | None,
 ) -> Dict[str, Any]:
     """
-    Turn one of:
-      - a Pydantic model class (subclass of BaseModel)
-      - a set of Parameter instances
-      - an already-built dict
-    into a JSON Schema dict.
+    Turn a set of Parameter instances
+    into a JSON Schema dict accepted by litellm.completion.
     """
-    if isinstance(parameters, dict):
-        return _handle_dict_parameters(parameters)
-    if isinstance(parameters, type) and issubclass(parameters, BaseModel):
-        dump = getattr(parameters, "model_json_schema", None)
-        if callable(dump):
-            return dump()
-        raise RuntimeError(f"Cannot get schema from Pydantic model {parameters!r}")
-    if isinstance(parameters, set):
+    if parameters is None:
+        return {}
+    elif isinstance(parameters, set) and all(isinstance(x, Parameter) for x in parameters):
         return _handle_set_of_parameters(parameters)
 
     raise NodeInvocationError(
@@ -103,8 +82,7 @@ def _to_litellm_tool(tool: Tool) -> Dict[str, Any]:
     Convert your Tool object into the dict format for litellm.completion.
     """
     # parameters may be None
-    raw_params = tool.parameters or {}
-    json_schema = _parameters_to_json_schema(raw_params)
+    json_schema = _parameters_to_json_schema(tool.parameters)
 
     return {
         "type": "function",

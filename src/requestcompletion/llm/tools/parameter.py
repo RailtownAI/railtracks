@@ -19,6 +19,7 @@ class ParameterType(str, Enum):
     BOOLEAN = "boolean"
     ARRAY = "array"
     OBJECT = "object"
+    NONE = "none"
 
 
 class Parameter:
@@ -27,7 +28,7 @@ class Parameter:
     def __init__(
         self,
         name: str,
-        param_type: ParameterType | list,
+        param_type: ParameterType | list[ParameterType],
         description: str = "",
         required: bool = True,
         additional_properties: bool = False,
@@ -104,7 +105,7 @@ class PydanticParameter(Parameter):
     def __init__(
         self,
         name: str,
-        param_type: Literal["string", "integer", "float", "boolean", "array", "object"],
+        param_type: ParameterType | list[ParameterType],
         description: str = "",
         required: bool = True,
         properties: Optional[Dict[str, Parameter]] = None,

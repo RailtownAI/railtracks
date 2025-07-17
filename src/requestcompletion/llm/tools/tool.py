@@ -8,11 +8,10 @@ parameters and descriptions.
 import inspect
 import warnings
 from typing import Any, Callable, Dict, List, Optional, Set, Type, Union
-
+from requestcompletion.exceptions import NodeCreationError
 from pydantic import BaseModel
 from typing_extensions import Self
-
-from ...exceptions import NodeCreationError
+from .schema_parser import parse_json_schema_to_parameter
 from .docstring_parser import extract_main_description, parse_docstring_args
 from .parameter import Parameter
 from .parameter_handlers import (
@@ -21,8 +20,10 @@ from .parameter_handlers import (
     ParameterHandler,
     PydanticModelHandler,
     SequenceParameterHandler,
+    DictParameterHandler,
+    DefaultParameterHandler,
+    UnionParameterHandler,
 )
-from .schema_parser import convert_params_to_model_recursive
 
 
 class Tool:
@@ -35,9 +36,7 @@ class Tool:
         self,
         name: str,
         detail: str,
-        parameters: Optional[
-            Union[Type[BaseModel], Set[Parameter], Dict[str, Any]]
-        ] = None,
+        parameters: Set[Parameter] | Dict[str, Any] | None = None,
     ):
         """
         Creates a new Tool instance.
@@ -45,25 +44,60 @@ class Tool:
         Args:
             name: The name of the tool.
             detail: A detailed description of the tool.
-            parameters: Parameters attached to this tool; either a Pydantic model, a set of Parameter objects, or a dict.
+            parameters: Parameters attached to this tool; a set of Parameter objects, or a dict.
         """
-        # Store original parameters for debugging
-        self._original_parameters = parameters if isinstance(parameters, set) else None
-
-        if isinstance(parameters, set):
-            self._parameters = convert_params_to_model_recursive(name, parameters)
-        elif isinstance(parameters, dict):
-            # If parameters is already a dict, ensure it has the required structure
-            if "type" not in parameters:
-                parameters["type"] = "object"
-            if "additionalProperties" not in parameters:
-                parameters["additionalProperties"] = False
-            self._parameters = parameters
-        else:
-            self._parameters = parameters
+        # TODO Shift the errors into exception_messages.py
+        if not (isinstance(parameters, (set, dict)) or parameters is None):
+            raise NodeCreationError(
+                message="Parameters must be a set of Parameter objects, a dict, or None.",
+                notes=[
+                    "If the tool expects no parameters, use None.",
+                    "If you are having issues with passing in a JSON-schema, try to provide a set of Parameter objects instead.",
+                    "You can make a Tool object from a custom function (test_tool). \nEg.-\n"\
+                    "def test_tool():\n    ...\nsample_tool = rc.llm.Tool.from_function(test_tool)"
+                ],
+            )
+        if isinstance(parameters, dict):
+            # If parameters is a JSON-schema, convert into out internal Parameter objects
+            try:  # only for the users, all internal systems should provide a set of Parameter objects
+                assert "type" in parameters
+                assert parameters["type"] == "object"
+                assert parameters["additionalProperties"] == False
+                props = parameters.get("properties", {})
+                required_fields = set(parameters.get("required", []))
+                param_objs: Set[Parameter] = set()
+                for name, prop in props.items():
+                    param_objs.add(
+                        parse_json_schema_to_parameter(
+                            name, prop, name in required_fields
+                        )
+                    )
+                parameters = param_objs
+            except Exception as e:
+                raise NodeCreationError(
+                    message="Cannot convert the provided JSON-schema into Parameter objects.",
+                    notes=[
+                        "Please make sure the JSON-schema is a valid object with a 'type' of 'object' and 'additionalProperties' set to False.",
+                        "'properties' and 'required' keys are required.",
+                        "If you are still having issues, try to provide a set of Parameter objects instead or use a custom function (test_tool). Eg.-\n"\
+                        "def test_tool():\n    ...\nsample_tool = rc.llm.Tool.from_function(test_tool))"
+                    ],
+                ) from e
+        elif isinstance(parameters, set):
+            if len(parameters) == 0:
+                raise NodeCreationError(
+                    message="Parameters set cannot be empty",
+                    notes="If the tool expects no parameters, use None instead.",
+                )
+            if not all(isinstance(x, Parameter) for x in parameters):
+                raise NodeCreationError(
+                    message="Parameters set must be a set of Parameter objects",
+                    notes="If the tool expects no parameters, use None instead.",
+                )
 
         self._name = name
         self._detail = detail
+        self._parameters = parameters
 
     @property
     def name(self) -> str:
@@ -76,19 +110,15 @@ class Tool:
         return self._detail
 
     @property
-    def parameters(self) -> Optional[Union[Type[BaseModel], Dict[str, Any]]]:
+    def parameters(self) -> Set[Parameter] | None:
         """Gets the parameters attached to this tool (if any)."""
         return self._parameters
 
     def __str__(self) -> str:
         """String representation of the tool."""
-        if self._parameters and hasattr(self._parameters, "model_json_schema"):
-            params_schema = self._parameters.model_json_schema()
-        elif isinstance(self._parameters, dict):
-            params_schema = self._parameters
-        else:
-            params_schema = "None"
-        return f"Tool(name={self._name}, detail={self._detail}, parameters={params_schema})"
+        if self._parameters:
+            params_str = "{" + ", ".join(str(p) for p in self._parameters) + "}"
+        return f"Tool(name={self._name}, detail={self._detail}, parameters={params_str if self._parameters else ''})"
 
     @classmethod
     def from_function(cls, func: Callable) -> Self:
@@ -113,7 +143,7 @@ class Tool:
             signature = inspect.signature(func)
         except ValueError:
             raise NodeCreationError(
-                message="Cannot convert kwargs for builtin functions. ",
+                message="Cannot convert kwargs for builtin functions.",
                 notes=["Please use a custom function."],
             )
 
@@ -121,7 +151,7 @@ class Tool:
         handlers: List[ParameterHandler] = [
             PydanticModelHandler(),
             SequenceParameterHandler(),
-            DictParameterHandler(),
+            UnionParameterHandler(),
             DefaultParameterHandler(),
         ]
 
@@ -172,7 +202,7 @@ class Tool:
         """
         input_schema = getattr(tool, "inputSchema", None)
         if not input_schema or input_schema["type"] != "object":
-            from ...exceptions.errors import NodeCreationError
+
             raise NodeCreationError(
                 message="The inputSchema for an MCP Tool must be 'object'. ",
                 notes=[
@@ -180,28 +210,15 @@ class Tool:
                 ],
             )
 
-        def parse_param(name, prop, required):
-            param_type = prop.get("type", "string")
-            description = prop.get("description", "")
-            enum = prop.get("enum")
-            default = prop.get("default")
-            additional_properties = prop.get("additionalProperties", False)
-
-            return Parameter(
-                name=name,
-                param_type=param_type,
-                description=description,
-                required=required,
-                additional_properties=additional_properties,
-                enum=enum,
-                default=default,
-            )
-
         properties = input_schema.get("properties", {})
         required_fields = set(input_schema.get("required", []))
         param_objs = set()
         for name, prop in properties.items():
             required = name in required_fields
-            param_objs.add(parse_param(name, prop, required))
+            param_objs.add(
+                parse_json_schema_to_parameter(
+                    name, prop, required
+                )
+            )
 
         return cls(name=tool.name, detail=tool.description, parameters=param_objs)

@@ -226,7 +226,7 @@ class NodeBuilder(Generic[_TNode]):
     def tool_callable_llm(
         self,
         tool_details: str | None,
-        tool_params: Iterable[Parameter] | None = None,
+        tool_params: dict[str, Any] | Set[Parameter] | None = None,
     ):
         """
         Configure the node subclass to have tool_info and prepare_tool method
@@ -257,7 +257,7 @@ class NodeBuilder(Generic[_TNode]):
         self.override_prepare_tool(tool_params)
 
     def override_tool_info(
-        self, tool_details: str, tool_params: dict[str, Any] | Iterable[Parameter]
+        self, tool_details: str, tool_params: dict[str, Any] | Set[Parameter]
     ):
         """
         Override the tool_info function for the node.
