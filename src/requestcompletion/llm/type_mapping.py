@@ -8,10 +8,10 @@ from requestcompletion.llm.tools.parameter_handlers import UnsupportedParameterE
 
 class TypeMapper:
     """
-    A simple type that allow you to attach a function which will signature will be stored.
+    A simple type that will provide functionality to convert a dictionary representation of kwargs into the appropriate
+    types based on the function signature
 
-    By calling convert_kwargs_to_appropriate_types with a dictionary of kwargs, it will convert the values into the
-    expected value types based on the function signature.
+    Use the method `convert_kwargs_to_appropriate_types` to convert the kwargs dictionary.
     """
 
     def __init__(self, function: Callable):
