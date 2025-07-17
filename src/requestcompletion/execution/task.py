@@ -11,7 +11,7 @@ class Task(Generic[_TOutput]):
     A simple class used to represent a task to be completed.
     """
 
-    # Note this class is a simple abtraction of a task that cna be executed (see `Command` design pattern).
+    # Note this class is a simple abstraction of a task that can be executed (see `Command` design pattern).
 
     def __init__(
         self,
