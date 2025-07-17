@@ -86,7 +86,7 @@ class SyncDynamicFunctionNode(DynamicFunctionNode[_TOutput], ABC, Generic[_TOutp
         """
         pass
 
-    async def invoke(self):
+    def invoke(self):
         result = self.func(*self.args, **self.kwargs)
 
         # This is overly safe check to make sure the returned function isn't also a coroutine.
