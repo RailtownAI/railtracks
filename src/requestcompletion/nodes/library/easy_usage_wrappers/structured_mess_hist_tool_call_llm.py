@@ -12,7 +12,7 @@ from ...library.tool_calling_llms.structured_tool_call_llm import StructuredTool
 from ..easy_usage_wrappers.node_builder import NodeBuilder
 
 
-def structured_tool_call_llm(  # noqa: C901
+def structured_mess_hist_tool_call_llm(  # noqa: C901
     connected_nodes: Set[Union[Type[Node], Callable]],
     *,
     pretty_name: str | None = None,
@@ -27,8 +27,9 @@ def structured_tool_call_llm(  # noqa: C901
     Dynamically create a StructuredToolCallLLM node class with custom configuration for tool calling.
 
     This easy-usage wrapper dynamically builds a node class that supports LLM tool calling where it will return
-    a structured output. This allows you to specify connected tools, llm model, schema, system message, tool metadata,
-    and parameters. The returned class can be instantiated and used in the requestcompletion framework on runtime.
+    the whole message history with a structured output as the last message. This allows you to specify connected
+    tools, llm model, schema, system message, tool metadata, and parameters. The returned class can be
+    instantiated and used in the requestcompletion framework on runtime.
 
     Parameters
     ----------
@@ -59,12 +60,13 @@ def structured_tool_call_llm(  # noqa: C901
     builder = NodeBuilder(
         StructuredToolCallLLM,
         pretty_name=pretty_name,
-        class_name="EasyStructuredToolCallLLM",
+        class_name="EasyStructuredMessageHistToolCallLLM",
         tool_details=tool_details,
         tool_params=tool_params,
     )
     builder.llm_base(llm_model, system_message)
     builder.tool_calling_llm(connected_nodes, max_tool_calls)
+    builder.struct_mess()
     if tool_details is not None:
         builder.tool_callable_llm(tool_details, tool_params)
     builder.structured(schema)

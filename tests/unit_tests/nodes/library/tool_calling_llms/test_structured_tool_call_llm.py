@@ -145,30 +145,3 @@ def test_structured_llm_tool_errors(
 
     with pytest.raises(expected_exception, match=match):
         llm_function(**kwargs)
-
-
-@pytest.mark.asyncio  # can remove this test once we have support for schema with output_type = MessageHistory. See Line 30 in src/requestcompletion/nodes/library/easy_usage_wrappers/tool_call_llm.py
-async def test_structured_tool_call_with_output_model_and_output_type(
-    mock_llm, math_output_model
-):
-    """Tool call llm init with output model and output_type = message_history should raise an error."""
-    rng_node = rc.library.terminal_llm(
-        pretty_name="RNG Tool",
-        system_message="You are a helful assistant that can generate 5 random numbers between 1 and 100.",
-        llm_model=mock_llm(),
-        tool_details="A tool used to generate 5 random integers between 1 and 100.",
-        tool_params=None,
-    )
-
-    with pytest.raises(
-        NotImplementedError,
-        match="MessageHistory output type is not supported with schema at the moment.",
-    ):
-        _ = rc.library.structured_tool_call_llm(
-            connected_nodes={rng_node},
-            pretty_name="Math Node",
-            system_message="You are a math genius that calls the RNG tool to generate 5 random numbers between 1 and 100 and gives the sum of those numbers.",
-            llm_model=mock_llm(),
-            output_type="MessageHistory",
-            schema=math_output_model,
-        )
