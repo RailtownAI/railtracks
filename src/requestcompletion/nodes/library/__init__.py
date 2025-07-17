@@ -1,5 +1,4 @@
 __all__ = [
-    "FunctionNode",
     "from_function",
     "TerminalLLM",
     "ToolCallLLM",
@@ -20,7 +19,7 @@ from .easy_usage_wrappers.structured_llm import structured_llm
 from .easy_usage_wrappers.structured_tool_call_llm import structured_tool_call_llm
 from .easy_usage_wrappers.terminal_llm import terminal_llm
 from .easy_usage_wrappers.tool_call_llm import tool_call_llm
-from .function import FunctionNode, from_function
+from .function import from_function
 from .mcp_tool import from_mcp_server
 from .structured_llm import StructuredLLM
 from .terminal_llm import TerminalLLM

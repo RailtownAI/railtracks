@@ -1,11 +1,9 @@
-from abc import ABC
-
 from ...exceptions import LLMError
 from ...llm import MessageHistory, ModelBase
 from ._llm_base import LLMBase
 
 
-class TerminalLLM(LLMBase[str], ABC):
+class TerminalLLM(LLMBase[str]):
     """A simple LLM nodes that takes in a message and returns a response. It is the simplest of all llms."""
 
     def __init__(
