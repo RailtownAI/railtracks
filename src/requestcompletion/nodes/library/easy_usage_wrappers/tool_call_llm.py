@@ -59,7 +59,7 @@ def tool_call_llm(  # noqa: C901
     )
     builder.llm_base(llm_model, system_message)
     builder.tool_calling_llm(connected_nodes, max_tool_calls)
-    if tool_details is not None:
+    if tool_details is not None or tool_params is not None:
         builder.tool_callable_llm(tool_details, tool_params)
 
     return builder.build()
