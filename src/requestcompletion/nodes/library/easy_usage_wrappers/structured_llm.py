@@ -9,6 +9,8 @@ from requestcompletion.llm import (
 from requestcompletion.nodes.library.easy_usage_wrappers.node_builder import NodeBuilder
 from requestcompletion.nodes.library.structured_llm import StructuredLLM
 
+from ....llm.tools import Parameter
+
 
 def structured_llm(  # noqa: C901
     output_model: Type[BaseModel],
@@ -17,7 +19,7 @@ def structured_llm(  # noqa: C901
     llm_model: ModelBase | None = None,
     pretty_name: str | None = None,
     tool_details: str | None = None,
-    tool_params: dict | None = None,
+    tool_params: set[Parameter] | None = None,
 ) -> Type[StructuredLLM]:
     """
     Dynamically reate a StructuredLLM node class with custom configuration for output type.
@@ -38,7 +40,7 @@ def structured_llm(  # noqa: C901
         The system prompt/message for the node. If not passed here it can be passed at runtime in message history.
     tool_details : str or None, optional
         Description of the node subclass for other LLMs to know how to use this as a tool.
-    tool_params : dict or None, optional
+    tool_params : set of params or None, optional
         Parameters that must be passed if other LLMs want to use this as a tool.
 
     Returns
