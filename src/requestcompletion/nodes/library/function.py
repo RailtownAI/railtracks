@@ -231,4 +231,3 @@ def from_function(  # noqa: C901
             return cls(**converted_params)
 
     return DynamicFunctionNode
-
