@@ -156,7 +156,7 @@ class Coordinator:
 
     def handle_item(self, item: RequestCompletionMessage):
         """
-        The basic handler for to attach to the RequestCompletionPublisher.
+        The basic handler to attach to the RequestCompletionPublisher.
         """
         if isinstance(item, RequestFinishedBase):
             # we ignore requests that were never created.
