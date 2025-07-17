@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from requestcompletion.exceptions.node_creation.validation import (
     check_classmethod,
-    check_output_model,
+    check_schema,
 )
 
 from ... import context
@@ -21,16 +21,14 @@ class StructuredLLM(LLMBase[_TOutput], ABC):
 
     def __init_subclass__(cls):
         super().__init_subclass__()
-        if "output_model" in cls.__dict__ and not getattr(
-            cls, "__abstractmethods__", False
-        ):
-            method = cls.__dict__["output_model"]
-            check_classmethod(method, "output_model")
-            check_output_model(method, cls)
+        if "schema" in cls.__dict__ and not getattr(cls, "__abstractmethods__", False):
+            method = cls.__dict__["schema"]
+            check_classmethod(method, "schema")
+            check_schema(method, cls)
 
     @classmethod
     @abstractmethod
-    def output_model(cls) -> Type[_TOutput]: ...
+    def schema(cls) -> Type[_TOutput]: ...
 
     def __init__(
         self, message_history: MessageHistory, llm_model: ModelBase | None = None
@@ -46,7 +44,7 @@ class StructuredLLM(LLMBase[_TOutput], ABC):
 
     @classmethod
     def pretty_name(cls) -> str:
-        return cls.output_model().__name__
+        return cls.schema().__name__
 
     async def invoke(self) -> _TOutput:
         """Makes a call containing the inputted message and system prompt to the llm model and returns the response
@@ -56,7 +54,7 @@ class StructuredLLM(LLMBase[_TOutput], ABC):
         """
 
         returned_mess = await self.llm_model.astructured(
-            self.message_hist, schema=self.output_model()
+            self.message_hist, schema=self.schema()
         )
 
         self.message_hist.append(returned_mess.message)
@@ -68,7 +66,7 @@ class StructuredLLM(LLMBase[_TOutput], ABC):
                     reason="ModelLLM returned None content",
                     message_history=self.message_hist,
                 )
-            if isinstance(cont, self.output_model()):
+            if isinstance(cont, self.schema()):
                 if (key := self.return_into()) is not None:
                     context.put(key, self.format_for_context(cont))
                     return self.format_for_return(cont)

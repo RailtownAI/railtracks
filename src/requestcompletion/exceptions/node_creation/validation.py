@@ -106,31 +106,31 @@ def check_connected_nodes(node_set, node: type) -> None:
         )
 
 
-def check_output_model(method: classmethod, cls: type) -> None:
+def check_schema(method: classmethod, cls: type) -> None:
     """
-    Validate the output model returned by a classmethod.
+    Validate the schema returned by a classmethod.
 
     Args:
         method: The classmethod to call.
         cls: The class to pass to the method.
 
     Raises:
-        NodeCreationError: If the output model is missing, invalid, or empty.
+        NodeCreationError: If the schema is missing, invalid, or empty.
     """
-    output_model = method.__func__(cls)
-    if not output_model:
+    schema = method.__func__(cls)
+    if not schema:
         raise NodeCreationError(
             message=get_message(ExceptionMessageKey.OUTPUT_MODEL_REQUIRED_MSG),
             notes=get_notes(ExceptionMessageKey.OUTPUT_MODEL_REQUIRED_NOTES),
         )
-    elif not issubclass(output_model, BaseModel):
+    elif not issubclass(schema, BaseModel):
         raise NodeCreationError(
             message=get_message(ExceptionMessageKey.OUTPUT_MODEL_TYPE_MSG).format(
-                actual_type=type(output_model)
+                actual_type=type(schema)
             ),
             notes=get_notes(ExceptionMessageKey.OUTPUT_MODEL_TYPE_NOTES),
         )
-    elif len(output_model.model_fields) == 0:
+    elif len(schema.model_fields) == 0:
         raise NodeCreationError(
             message=get_message(ExceptionMessageKey.OUTPUT_MODEL_EMPTY_MSG),
             notes=get_notes(ExceptionMessageKey.OUTPUT_MODEL_EMPTY_NOTES),
