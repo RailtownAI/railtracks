@@ -16,7 +16,7 @@ def test_prompt_injection():
 
     node = terminal_llm(
         system_message=prompt,
-        model=MockLLM(chat=return_message)
+        llm_model=MockLLM(chat=return_message)
     )
 
     with rc.Runner(context={"secret": "tomato"}) as runner:
@@ -33,7 +33,7 @@ def test_prompt_injection_bypass():
 
     node = terminal_llm(
         system_message=prompt,
-        model=MockLLM(chat=return_message)
+        llm_model=MockLLM(chat=return_message)
     )
 
     with rc.Runner(context={"secret_value": "tomato"}) as runner:
@@ -50,7 +50,7 @@ def test_prompt_numerical():
 
     node = terminal_llm(
         system_message=prompt,
-        model=MockLLM(chat=return_message)
+        llm_model=MockLLM(chat=return_message)
     )
 
     with rc.Runner(context={"1": "tomato"}) as runner:
@@ -67,7 +67,7 @@ def test_prompt_not_in_context():
 
     node = terminal_llm(
         system_message=prompt,
-        model=MockLLM(chat=return_message)
+        llm_model=MockLLM(chat=return_message)
     )
 
     with rc.Runner() as runner:
@@ -85,7 +85,7 @@ def test_prompt_injection_global_config_bypass():
 
     node = terminal_llm(
         system_message=prompt,
-        model=MockLLM(chat=return_message)
+        llm_model=MockLLM(chat=return_message)
     )
 
     with rc.Runner(

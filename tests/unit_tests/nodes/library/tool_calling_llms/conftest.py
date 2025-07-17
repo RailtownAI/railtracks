@@ -46,7 +46,7 @@ def mock_tool():
 
 # ============ Output Models ===========
 @pytest.fixture
-def output_model():
+def schema():
     class OutputModel(BaseModel):
         value: int = Field(description="A value to extract")
     return OutputModel

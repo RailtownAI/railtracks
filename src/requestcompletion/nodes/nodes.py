@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
-from abc import ABC, ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import (
     Any,
@@ -15,67 +15,16 @@ from typing import (
 
 from typing_extensions import Self
 
+from requestcompletion.nodes.tool_callable import ToolCallable
+
 from ..exceptions.node_creation.validation import (
     check_classmethod,
-    check_connected_nodes,
-    check_output_model,
 )
-from ..llm import Tool
 
 _TOutput = TypeVar("_TOutput")
 
 _TNode = TypeVar("_TNode", bound="Node")
 _P = ParamSpec("_P")
-
-
-class NodeCreationMeta(ABCMeta):
-    def __init__(cls, name, bases, dct):
-        super().__init__(name, bases, dct)
-
-        # now we need to make sure the invoke method is a coroutine, if not we should automatically switch it here.
-        method_name = "invoke"
-
-        if method_name in dct and callable(dct[method_name]):
-            method = dct[method_name]
-
-            # a simple wrapper to convert any async function to a non async one.
-            async def async_wrapper(self, *args, **kwargs):
-                if asyncio.iscoroutinefunction(
-                    method
-                ):  # check if the method is a coroutine
-                    return await method(self, *args, **kwargs)
-                else:
-                    return await asyncio.to_thread(method, self, *args, **kwargs)
-
-            setattr(cls, method_name, async_wrapper)
-
-        # ================= Checks for Creation ================
-        # 1. Check if the class methods are all classmethods, else raise an exception
-        class_method_checklist = ["tool_info", "prepare_tool", "pretty_name"]
-        for method_name in class_method_checklist:
-            if method_name in dct and callable(dct[method_name]):
-                method = dct[method_name]
-                check_classmethod(method, method_name)
-
-        # 2. special case for output_model for structured_llm node
-        if "output_model" in dct and not getattr(cls, "__abstractmethods__", False):
-            method = dct["output_model"]
-            check_classmethod(method, "output_model")
-            check_output_model(method, cls)
-
-        # 3. Check if the connected_nodes is not empty, special case for ToolCallLLM
-        if "connected_nodes" in dct and not getattr(cls, "__abstractmethods__", False):
-            method = dct["connected_nodes"]
-            try:
-                # Try to call the method as a classmethod (typical case)
-                node_set = method.__func__(cls)
-            except AttributeError:
-                # If that fails, call it as an instance method (for easy_wrapper init)
-                dummy = object.__new__(cls)
-                node_set = method(dummy)
-            # Validate that the returned node_set is correct and contains only Node/function instances
-            check_connected_nodes(node_set, Node)
-        # ================= End Creation Exceptions ================
 
 
 class NodeState(Generic[_TNode]):
@@ -121,8 +70,34 @@ class LatencyDetails:
         self.total_time = total_time
 
 
-class Node(ABC, Generic[_TOutput], metaclass=NodeCreationMeta):
+class Node(ABC, ToolCallable, Generic[_TOutput]):
     """An abstract base class which defines some the functionality of a node"""
+
+    def __init_subclass__(cls):
+        # now we need to make sure the invoke method is a coroutine, if not we should automatically switch it here.
+        method_name = "invoke"
+
+        if method_name in cls.__dict__ and callable(cls.__dict__[method_name]):
+            method = cls.__dict__[method_name]
+
+            # a simple wrapper to convert any async function to a non async one.
+            async def async_wrapper(self, *args, **kwargs):
+                if asyncio.iscoroutinefunction(
+                    method
+                ):  # check if the method is a coroutine
+                    return await method(self, *args, **kwargs)
+                else:
+                    return await asyncio.to_thread(method, self, *args, **kwargs)
+
+            setattr(cls, method_name, async_wrapper)
+
+        # ================= Checks for Creation ================
+        # 1. Check if the class methods are all classmethods, else raise an exception
+        class_method_checklist = ["tool_info", "prepare_tool", "pretty_name"]
+        for method_name in class_method_checklist:
+            if method_name in cls.__dict__ and callable(cls.__dict__[method_name]):
+                method = cls.__dict__[method_name]
+                check_classmethod(method, method_name)
 
     def __init__(
         self,
@@ -175,26 +150,6 @@ class Node(ABC, Generic[_TOutput], metaclass=NodeCreationMeta):
         """
         di = {k: str(v) for k, v in self.__dict__.items()}
         return di
-
-    @classmethod
-    def tool_info(cls) -> Tool:
-        """
-        A method used to provide information about the node in the form of a tool definition.
-        This is commonly used with LLMs Tool Calling tooling.
-        """
-        # TODO: finish implementing this method
-        raise NotImplementedError(
-            "You must implement the tool_info method in your node"
-        )
-
-    @classmethod
-    def prepare_tool(cls, tool_parameters: Dict[str, Any]) -> Self:
-        """
-        This method creates a new instance of the node by unpacking the tool parameters.
-
-        If you would like any custom behavior please override this method.
-        """
-        return cls(**tool_parameters)  # noqa
 
     def safe_copy(self) -> Self:
         """

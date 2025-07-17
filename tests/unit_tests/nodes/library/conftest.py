@@ -26,15 +26,12 @@ def mock_structured_function(simple_output_model):
 # ============ System Messages ===========
 @pytest.fixture
 def encoder_system_message():
-    return rc.llm.SystemMessage(
-        "You are a text encoder. Encode the input string into bytes and do a random operation on them. You can use the following operations: reverse the byte order, or repeat each byte twice, or jumble the bytes."
-    )
+    return "You are a text encoder. Encode the input string into bytes and do a random operation on them. You can use the following operations: reverse the byte order, or repeat each byte twice, or jumble the bytes."
 
 @pytest.fixture
 def decoder_system_message():
-    return rc.llm.SystemMessage(
-        "You are a text decoder. Decode the bytes into a string."
-    )
+    return "You are a text decoder. Decode the bytes into a string."
+
 
 
 # ============ Helper function for test_function.py ===========

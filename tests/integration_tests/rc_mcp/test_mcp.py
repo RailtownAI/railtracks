@@ -60,11 +60,11 @@ def test_from_mcp_server_with_llm():
     parent_tool = rc.library.tool_call_llm(
         connected_nodes={*time_server.tools},
         pretty_name="Parent Tool",
-        system_message=rc.llm.SystemMessage(
+        system_message=(
             "Provide a response using the tool when asked. If the tool doesn't work,"
             " respond with 'It didn't work!'"
         ),
-        model=rc.llm.OpenAILLM("gpt-4o"),
+        llm_model=rc.llm.OpenAILLM("gpt-4o"),
     )
 
     # Run the parent tool
@@ -85,11 +85,11 @@ def test_from_mcp_server_with_http():
     parent_tool = rc.library.tool_call_llm(
         connected_nodes={*time_server.tools},
         pretty_name="Parent Tool",
-        system_message=rc.llm.SystemMessage(
+        system_message=(
             "Provide a response using the tool when asked. If the tool doesn't work,"
             " respond with 'It didn't work!'"
         ),
-        model=rc.llm.OpenAILLM("gpt-4o"),
+        llm_model=rc.llm.OpenAILLM("gpt-4o"),
     )
 
     # Run the parent tool

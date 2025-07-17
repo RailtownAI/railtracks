@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from abc import ABC
 from copy import deepcopy
 from typing import Generic, TypeVar
@@ -8,11 +9,15 @@ from typing_extensions import Self
 
 import requestcompletion.llm as llm
 from requestcompletion.exceptions.node_invocation.validation import (
+    check_llm_model,
     check_message_history,
 )
+from requestcompletion.llm.message import SystemMessage
 from requestcompletion.llm.response import Response
 from requestcompletion.nodes.nodes import Node
 
+from ...exceptions.errors import NodeInvocationError
+from ...exceptions.messages.exception_messages import get_message
 from ...prompts.prompt import inject_context
 
 _T = TypeVar("_T")
@@ -56,43 +61,98 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
 
     """
 
-    def __init__(self, model: llm.ModelBase, message_history: llm.MessageHistory):
+    @classmethod
+    def _verify_message_history(cls, message_history: llm.MessageHistory):
+        """Verify the message history is valid for this LLM."""
+        check_message_history(message_history, cls.system_message())
+
+    @classmethod
+    def _verify_llm_model(cls, llm_model: llm.ModelBase):
+        """Verify the llm model is valid for this LLM."""
+        check_llm_model(llm_model)
+
+    @classmethod
+    def get_llm_model(cls) -> llm.ModelBase | None:
+        return None
+
+    @classmethod
+    def system_message(cls) -> SystemMessage | str | None:
+        return None
+
+    def __init__(
+        self,
+        message_history: llm.MessageHistory,
+        llm_model: llm.ModelBase | None = None,
+    ):
         super().__init__()
-        self.model = model
-        check_message_history(
+
+        message_history_copy = deepcopy(
             message_history
-        )  # raises NodeInvocationError if any of the checks fail
-        self.message_hist = deepcopy(message_history)
+        )  # Ensure we don't modify the original message history
+        self._verify_message_history(message_history_copy)
+
+        if self.system_message() is not None:
+            if not isinstance(self.system_message(), (SystemMessage, str)):
+                raise NodeInvocationError(
+                    message=get_message("INVALID_SYSTEM_MESSAGE_MSG"),
+                    fatal=True,
+                )
+            if len([x for x in message_history_copy if x.role == "system"]) > 0:
+                warnings.warn(
+                    "System message was passed in message history and defined as a method. We will use the method definition."
+                )
+                message_history_copy = [
+                    x for x in message_history_copy if x.role != "system"
+                ]
+            message_history_copy.insert(
+                0,
+                SystemMessage(self.system_message())
+                if isinstance(self.system_message(), str)
+                else self.system_message(),
+            )
+
+        if self.get_llm_model() is not None:
+            if llm_model is not None:
+                warnings.warn(
+                    "You have provided an llm model as a parameter and as a class variable. We will use the parameter."
+                )
+            else:
+                llm_model = self.get_llm_model()
+
+        self._verify_llm_model(llm_model)
+        self.llm_model = llm_model
+
+        self.message_hist = message_history_copy
 
         self._details["llm_details"] = []
 
         self._attach_llm_hooks()
 
     def _attach_llm_hooks(self):
-        """Attach pre and post hooks to the model."""
-        self.model.add_pre_hook(self._pre_llm_hook)
-        self.model.add_post_hook(self._post_llm_hook)
-        self.model.add_exception_hook(self._exception_llm_hook)
+        """Attach pre and post hooks to the llm model."""
+        self.llm_model.add_pre_hook(self._pre_llm_hook)
+        self.llm_model.add_post_hook(self._post_llm_hook)
+        self.llm_model.add_exception_hook(self._exception_llm_hook)
 
     def _detach_llm_hooks(self):
-        """Detach pre and post hooks from the model."""
-        self.model.remove_pre_hooks()
-        self.model.remove_post_hooks()
+        """Detach pre and post hooks from the llm model."""
+        self.llm_model.remove_pre_hooks()
+        self.llm_model.remove_post_hooks()
 
     def _pre_llm_hook(self, message_history: llm.MessageHistory) -> llm.MessageHistory:
-        """Hook to modify messages before sending them to the model."""
+        """Hook to modify messages before sending them to the llm model."""
         return inject_context(message_history)
 
     def _post_llm_hook(self, message_history: llm.MessageHistory, response: Response):
-        """Hook to store the response details after invoking the model."""
+        """Hook to store the response details after invoking the llm model."""
         self._details["llm_details"].append(
             RequestDetails(
                 message_input=deepcopy(message_history),
                 output=deepcopy(response.message),
                 model_name=response.message_info.model_name
                 if response.message_info.model_name is not None
-                else self.model.model_name(),
-                model_provider=self.model.model_type(),
+                else self.llm_model.model_name(),
+                model_provider=self.llm_model.model_type(),
                 input_tokens=response.message_info.input_tokens,
                 output_tokens=response.message_info.output_tokens,
                 total_cost=response.message_info.total_cost,
@@ -105,13 +165,13 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
     def _exception_llm_hook(
         self, message_history: llm.MessageHistory, exception: Exception
     ):
-        """Hook to store the response details after exception was thrown during model invocation"""
+        """Hook to store the response details after exception was thrown during llm model invocation"""
         self._details["llm_details"].append(
             RequestDetails(
                 message_input=deepcopy(message_history),
                 output=None,
-                model_name=self.model.model_name(),
-                model_provider=self.model.model_type(),
+                model_name=self.llm_model.model_name(),
+                model_provider=self.llm_model.model_type(),
             )
         )
         raise exception

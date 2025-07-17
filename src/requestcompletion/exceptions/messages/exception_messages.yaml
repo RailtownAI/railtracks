@@ -25,7 +25,7 @@ DUPLICATE_PARAMETER_NAMES_MSG: "Duplicate parameter names are not allowed."
 DUPLICATE_PARAMETER_NAMES_NOTES:
   - "Parameter names in tool_params must be unique."
 
-INVALID_SYSTEM_MESSAGE_MSG: "system_message must be a SystemMessage object or a string, not any other type."
+INVALID_SYSTEM_MESSAGE_MSG: "system_message must be of type string or SystemMessage, not any other type."
 
 MAX_TOOL_CALLS_NEGATIVE_MSG: "max_tool_calls must be a non-negative integer."
 MAX_TOOL_CALLS_NEGATIVE_NOTES:
