@@ -260,7 +260,7 @@ class NodeBuilder(Generic[_TNode]):
         self.override_prepare_tool(tool_params)
 
     def override_tool_info(
-        self, tool_details: str, tool_params: dict[str, Any] | Set[Parameter]
+        self, tool_details: str, tool_params: dict[str, Any] | Set[Parameter] | None
     ):
         """
         Override the tool_info function for the node.

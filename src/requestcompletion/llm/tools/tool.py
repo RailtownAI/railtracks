@@ -83,17 +83,11 @@ class Tool:
                         "def test_tool():\n    ...\nsample_tool = rc.llm.Tool.from_function(test_tool))"
                     ],
                 ) from e
-        elif isinstance(parameters, set):
-            if len(parameters) == 0:
-                raise NodeCreationError(
-                    message="Parameters set cannot be empty",
-                    notes="If the tool expects no parameters, use None instead.",
-                )
-            if not all(isinstance(x, Parameter) for x in parameters):
-                raise NodeCreationError(
-                    message="Parameters set must be a set of Parameter objects",
-                    notes="If the tool expects no parameters, use None instead.",
-                )
+        elif isinstance(parameters, set) and not all(isinstance(x, Parameter) for x in parameters):
+            raise NodeCreationError(
+                message="Parameters set must be a set of Parameter objects",
+                notes="If the tool expects no parameters, use None instead.",
+            )
 
         self._name = name
         self._detail = detail

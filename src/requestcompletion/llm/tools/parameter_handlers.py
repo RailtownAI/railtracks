@@ -237,22 +237,6 @@ class DictParameterHandler(ParameterHandler):
 class DefaultParameterHandler(ParameterHandler):
     """Default handler for primitive types and unknown types."""
 
-    def __init__(self):
-        """Initialize with type mapping using ParameterType enum."""
-        self.type_mapping = {
-            str: ParameterType.STRING,
-            int: ParameterType.INTEGER,
-            float: ParameterType.FLOAT,
-            bool: ParameterType.BOOLEAN,
-            list: ParameterType.ARRAY,
-            List: ParameterType.ARRAY,
-            tuple: ParameterType.ARRAY,
-            Tuple: ParameterType.ARRAY,            
-            set: ParameterType.ARRAY,
-            dict: ParameterType.OBJECT,
-            Dict: ParameterType.OBJECT,
-        }
-
     def can_handle(self, param_annotation: Any) -> bool:
         """This handler can handle any parameter type as a fallback."""
         return True
@@ -261,8 +245,7 @@ class DefaultParameterHandler(ParameterHandler):
         self, param_name: str, param_annotation: Any, description: str, required: bool
     ) -> Parameter:
         """Create a Parameter for a primitive or unknown type."""
-        # Default to obj if type not found in mapping
-        mapped_type = self.type_mapping.get(param_annotation, ParameterType.OBJECT)
+        mapped_type = ParameterType.from_python_type(param_annotation).value
         return Parameter(
             name=param_name,
             param_type=mapped_type,

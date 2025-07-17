@@ -7,7 +7,7 @@ tool parameters with various type information and nested structures.
 
 from copy import deepcopy
 from enum import Enum
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, Optional
 
 
 class ParameterType(str, Enum):
@@ -15,11 +15,25 @@ class ParameterType(str, Enum):
 
     STRING = "string"
     INTEGER = "integer"
-    FLOAT = "float"
+    FLOAT = "number"
     BOOLEAN = "boolean"
     ARRAY = "array"
     OBJECT = "object"
     NONE = "none"
+
+    @classmethod
+    def from_python_type(cls, py_type):
+        mapping = {
+            str: cls.STRING,
+            int: cls.INTEGER,
+            float: cls.FLOAT,
+            bool: cls.BOOLEAN,
+            list: cls.ARRAY,
+            tuple: cls.ARRAY,
+            set: cls.ARRAY,
+            dict: cls.OBJECT,
+        }
+        return mapping.get(py_type, cls.OBJECT)
 
 
 class Parameter:
