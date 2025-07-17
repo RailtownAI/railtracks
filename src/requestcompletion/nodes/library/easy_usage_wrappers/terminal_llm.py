@@ -32,7 +32,7 @@ def terminal_llm(  # noqa: C901
         The system prompt/message for the node. If not passed here it can be passed at runtime in message history.
     tool_details : str or None, optional
         Description of the node subclass for other LLMs to know how to use this as a tool.
-    tool_params : dict or None, optional
+    tool_params : set of params or None, optional
         Parameters that must be passed if other LLMs want to use this as a tool.
 
     Returns
