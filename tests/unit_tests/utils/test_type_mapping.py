@@ -93,7 +93,7 @@ def test_builtin_function_raises_runtime_error():
 
 
 def test_invalid_conversion_returns_error_message():
-    # float can't be converted to int by `int("abc")`
+    # string can't be converted to int by `int("abc")`
     assert TypeMapper._convert_value("abc", int) == "Tool call parameter type conversion failed."
 
 
