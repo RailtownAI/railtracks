@@ -354,15 +354,12 @@ class NodeBuilder(Generic[_TNode]):
 
         else:
 
-
-
             def tool_info(cls: Type[_TNode]) -> Tool:
                 if name is None:
                     prettied_name = cls.pretty_name()
                     prettied_name = prettied_name.replace(" ", "_")
                 else:
                     prettied_name = name
-
 
                 return Tool(
                     name=prettied_name,
