@@ -25,6 +25,7 @@ class StructuredToolCallLLM(OutputLessToolCallLLM[str], ABC):
             "Respond only with the structured output in the specified format."
         )
 
+        # TODO use () here
         cls.structured_resp_node = structured_llm(
             cls.schema(),
             system_message=system_structured,

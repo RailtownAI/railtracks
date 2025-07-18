@@ -2,7 +2,7 @@ import asyncio
 import time
 
 import requestcompletion as rc
-from requestcompletion.nodes.library.mcp_tool import from_mcp_server
+from requestcompletion.nodes.library.easy_usage_wrappers.mcp_tool import from_mcp_server
 from requestcompletion.nodes.nodes import Node
 
 import pytest

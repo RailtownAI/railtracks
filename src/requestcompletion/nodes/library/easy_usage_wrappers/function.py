@@ -9,11 +9,11 @@ from typing import (
     Set,
 )
 
-from ...exceptions import NodeCreationError
-from ...exceptions.node_creation.validation import validate_function
-from ...llm import Parameter
-from .easy_usage_wrappers.node_builder import NodeBuilder
-from .function_base import (
+from requestcompletion.exceptions import NodeCreationError
+from requestcompletion.exceptions.node_creation.validation import validate_function
+from requestcompletion.llm import Parameter
+from requestcompletion.nodes.library.easy_usage_wrappers.node_builder import NodeBuilder
+from requestcompletion.nodes.library.function_base import (
     _P,
     AsyncDynamicFunctionNode,
     SyncDynamicFunctionNode,

@@ -27,7 +27,7 @@ from requestcompletion.exceptions.node_creation.validation import (
 )
 from requestcompletion.llm import Parameter
 from requestcompletion.llm.type_mapping import TypeMapper
-from requestcompletion.nodes.library.mcp_tool import from_mcp_server
+from requestcompletion.nodes.library.easy_usage_wrappers.mcp_tool import from_mcp_server
 
 from ....llm import MessageHistory, ModelBase, SystemMessage, Tool, UserMessage
 from ....nodes.nodes import Node
@@ -182,7 +182,7 @@ class NodeBuilder(Generic[_TNode]):
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         )
 
-        from ..function import from_function
+        from requestcompletion.nodes.library.easy_usage_wrappers.function import from_function
 
         connected_nodes = {
             from_function(elem) if isfunction(elem) else elem
