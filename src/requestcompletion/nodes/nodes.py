@@ -162,4 +162,4 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
         return result
 
     def __repr__(self):
-        return f"{hex(id(self))}: {self.pretty_name()}: {self.state_details()}"
+        return f"{self.pretty_name()} <{hex(id(self))}>"

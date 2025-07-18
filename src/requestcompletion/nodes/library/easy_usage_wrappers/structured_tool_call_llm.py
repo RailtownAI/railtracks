@@ -10,7 +10,7 @@ from requestcompletion.llm import (
 from ....llm.tools import Parameter
 from ....nodes.nodes import Node
 from ...library.tool_calling_llms.structured_tool_call_llm import StructuredToolCallLLM
-from ..easy_usage_wrappers.node_builder import NodeBuilder
+from requestcompletion.nodes.node_builder import NodeBuilder
 
 
 def structured_tool_call_llm(  # noqa: C901

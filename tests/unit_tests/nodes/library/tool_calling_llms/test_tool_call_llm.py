@@ -178,7 +178,7 @@ def test_tool_call_llm_pretty_name_default(mock_llm, mock_tool):
         connected_nodes={mock_tool},
         llm_model=mock_llm()
     )
-    assert "ToolCallLLM" in ToolCallLLM.pretty_name()
+    assert "Tool Call LLM" == ToolCallLLM.pretty_name()
 
 def test_tool_call_llm_with_output_type_message_history(mock_llm, mock_tool):
     ToolCallLLM = message_hist_tool_call_llm(
@@ -189,6 +189,8 @@ def test_tool_call_llm_with_output_type_message_history(mock_llm, mock_tool):
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("hello")])
     node = ToolCallLLM(mh)
     assert isinstance(node.return_output(), MessageHistory)
+
+    assert ToolCallLLM.pretty_name() == "Test ToolCallLLM"
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("class_based", [True, False], ids=["class_based", "easy_usage_wrapper"])
