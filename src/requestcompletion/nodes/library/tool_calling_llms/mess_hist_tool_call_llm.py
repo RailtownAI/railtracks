@@ -7,4 +7,6 @@ from ._base import OutputLessToolCallLLM
 
 class MessageHistoryToolCallLLM(OutputLessToolCallLLM[MessageHistory], ABC):
     def return_output(self) -> MessageHistory:
-        return MessageHistory([x for x in self.message_hist if x.role is not SystemMessage])
+        return MessageHistory(
+            [x for x in self.message_hist if x.role is not SystemMessage]
+        )

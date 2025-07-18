@@ -3,7 +3,8 @@ from typing import Type, TypeVar
 
 from pydantic import BaseModel
 
-from requestcompletion.llm import AssistantMessage, SystemMessage, MessageHistory
+from requestcompletion.llm import AssistantMessage, MessageHistory, SystemMessage
+
 from ..easy_usage_wrappers.structured_llm import structured_llm
 from ._base import OutputLessToolCallLLM
 
@@ -11,7 +12,7 @@ _TOutput = TypeVar("_TOutput", bound=BaseModel)
 
 
 class StructuredToolCallLLM(OutputLessToolCallLLM[str], ABC):
-    structured_message = False
+    struct_mess_hist = False
 
     def __init_subclass__(cls):
         super().__init_subclass__()
@@ -39,9 +40,11 @@ class StructuredToolCallLLM(OutputLessToolCallLLM[str], ABC):
         # Return the structured output or raise the exception if it was an error
         if isinstance(self.structured_output, Exception):
             raise self.structured_output from self.structured_output
-        if self.structured_message:
+        if self.struct_mess_hist:
             # Might need to change the logic so that you keep the unstructured message
             self.message_hist.pop()
             self.message_hist.append(AssistantMessage(content=self.structured_output))
-            return MessageHistory([x for x in self.message_hist if x.role is not SystemMessage])
+            return MessageHistory(
+                [x for x in self.message_hist if x.role is not SystemMessage]
+            )
         return self.structured_output

@@ -66,7 +66,7 @@ def structured_mess_hist_tool_call_llm(  # noqa: C901
     )
     builder.llm_base(llm_model, system_message)
     builder.tool_calling_llm(connected_nodes, max_tool_calls)
-    builder.struct_mess()
+    builder.struct_mess_hist()
     if tool_details is not None:
         builder.tool_callable_llm(tool_details, tool_params)
     builder.structured(schema)

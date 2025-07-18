@@ -1,7 +1,7 @@
 import pytest
 import requestcompletion as rc
 from requestcompletion import Node
-from requestcompletion.nodes.library import tool_call_llm, ToolCallLLM, message_hist_tool_call_llm
+from requestcompletion.nodes.library import tool_call_llm, ToolCallLLM, message_hist_tool_call_llm, structured_mess_hist_tool_call_llm
 from requestcompletion.nodes.library.tool_calling_llms._base import OutputLessToolCallLLM
 from requestcompletion.exceptions import LLMError, NodeCreationError, NodeInvocationError
 from requestcompletion.llm import MessageHistory, ToolMessage, SystemMessage, UserMessage, AssistantMessage, ToolCall, ToolResponse, Tool
@@ -189,6 +189,7 @@ def test_tool_call_llm_with_output_type_message_history(mock_llm, mock_tool):
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("hello")])
     node = ToolCallLLM(mh)
     assert isinstance(node.return_output(), MessageHistory)
+    assert all(not isinstance(x.role, SystemMessage) for x in node.return_output())
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("class_based", [True, False], ids=["class_based", "easy_usage_wrapper"])

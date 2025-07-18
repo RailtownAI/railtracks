@@ -140,8 +140,8 @@ class NodeBuilder(Generic[_TNode]):
 
         self._with_override("schema", classmethod(lambda cls: schema))
 
-    def struct_mess(self):
-        self._with_override("structured_message", True)
+    def struct_mess_hist(self):
+        self._with_override("struct_mess_hist", True)
 
     def tool_calling_llm(
         self, connected_nodes: Set[Union[Type[Node], Callable]], max_tool_calls: int
