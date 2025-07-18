@@ -84,9 +84,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
 
     @classmethod
     def pretty_name(cls) -> str:
-        return (
-            "Tool Call LLM"
-        )
+        return "Tool Call LLM"
 
     @classmethod
     @abstractmethod

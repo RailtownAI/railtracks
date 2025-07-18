@@ -26,17 +26,24 @@ from requestcompletion.exceptions.node_creation.validation import (
     _check_tool_params_and_details,
     check_connected_nodes,
 )
-from requestcompletion.llm import Parameter
+from requestcompletion.llm import (
+    MessageHistory,
+    ModelBase,
+    Parameter,
+    SystemMessage,
+    Tool,
+    UserMessage,
+)
 from requestcompletion.llm.type_mapping import TypeMapper
+from requestcompletion.nodes.library._llm_base import LLMBase
 from requestcompletion.nodes.library.easy_usage_wrappers.mcp_tool import from_mcp_server
-
-from requestcompletion.llm import MessageHistory, ModelBase, SystemMessage, Tool, UserMessage
+from requestcompletion.nodes.library.function_base import DynamicFunctionNode
+from requestcompletion.nodes.library.tool_calling_llms._base import (
+    OutputLessToolCallLLM,
+)
+from requestcompletion.nodes.library.tool_calling_llms.tool_call_llm import ToolCallLLM
 from requestcompletion.nodes.nodes import Node
 from requestcompletion.rc_mcp import MCPStdioParams
-from requestcompletion.nodes.library._llm_base import LLMBase
-from requestcompletion.nodes.library.tool_calling_llms._base import OutputLessToolCallLLM
-from requestcompletion.nodes.library.tool_calling_llms.tool_call_llm import ToolCallLLM
-from requestcompletion.nodes.library.function_base import DynamicFunctionNode
 
 _TNode = TypeVar("_TNode", bound=Node)
 _P = ParamSpec("_P")
@@ -183,7 +190,9 @@ class NodeBuilder(Generic[_TNode]):
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         )
 
-        from requestcompletion.nodes.library.easy_usage_wrappers.function import from_function
+        from requestcompletion.nodes.library.easy_usage_wrappers.function import (
+            from_function,
+        )
 
         connected_nodes = {
             from_function(elem) if isfunction(elem) else elem
@@ -281,9 +290,7 @@ class NodeBuilder(Generic[_TNode]):
 
         self._with_override("type_mapper", classmethod(lambda cls: type_mapper))
 
-        self._with_override(
-            "func", classmethod_preserving_function_meta(func)
-        )
+        self._with_override("func", classmethod_preserving_function_meta(func))
 
         self.override_tool_info(
             tool=Tool.from_function(func, details=tool_details, params=tool_params)
@@ -447,4 +454,5 @@ def classmethod_preserving_function_meta(func):
     @functools.wraps(func)
     def wrapper(cls, *args, **kwargs):
         return func(*args, **kwargs)
+
     return classmethod(wrapper)

@@ -6,11 +6,11 @@ from requestcompletion.llm import (
     ModelBase,
     SystemMessage,
 )
+from requestcompletion.nodes._node_builder import NodeBuilder
 
 from ....llm.tools import Parameter
 from ....nodes.nodes import Node
 from ...library.tool_calling_llms.structured_tool_call_llm import StructuredToolCallLLM
-from requestcompletion.nodes._node_builder import NodeBuilder
 
 
 def structured_tool_call_llm(  # noqa: C901
