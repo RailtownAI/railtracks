@@ -47,6 +47,29 @@ def test_structured_tool_call_llm_return_output_success(mock_tool, mock_llm, sch
     node.structured_output = schema(value=123)
     assert node.return_output().value == 123
 
+def test_structured_message_hist_tool_call_llm_return_output_success(mock_tool, mock_llm, schema):
+    class MockStructuredMessHistToolCallLLM(StructuredToolCallLLM):
+        struct_mess_hist = True
+        @classmethod
+        def schema(cls):
+            return schema
+        
+        @classmethod
+        def pretty_name(cls):
+            return "Mock Structured ToolCallLLM"
+        
+        def connected_nodes(self):
+            return {mock_tool}
+    
+    mh = MessageHistory([SystemMessage("system prompt"), UserMessage("extract value")])
+    node = MockStructuredMessHistToolCallLLM(
+        message_history=mh,
+        llm_model=mock_llm(),
+    )
+    node.structured_output = schema(value=123)
+    assert node.return_output()[-1].content.value == 123
+    assert any(x.role is not SystemMessage for x in node.return_output())
+
 def test_structured_tool_call_llm_return_output_exception(mock_llm, schema, mock_tool):
     node = structured_tool_call_llm(
         system_message="system prompt",
