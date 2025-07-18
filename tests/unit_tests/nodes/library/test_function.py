@@ -207,3 +207,4 @@ class TestRaiseErrors:
         with pytest.raises(UnsupportedParameterError):
             test_node = from_function(func_kwarg_error_pydantic)
             test_node.prepare_tool({"pydantic_model" : ("name", 5)})
+

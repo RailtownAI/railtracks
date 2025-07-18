@@ -242,13 +242,13 @@ def structured_nodes(request, model, structured_llms_system_messages):
     if fixture_name == "easy_wrapper":
         math_undergrad_student_node = rc.library.structured_llm(
             pretty_name="Math Undergraduate Student Node",
-            output_model=ProofModel,
+            schema=ProofModel,
             system_message=system_undergrad_student,
             llm_model=model,
         )
         math_professor_node = rc.library.structured_llm(
             pretty_name="Math Professor Node",
-            output_model=GradingSchema,
+            schema=GradingSchema,
             system_message=system_professor,
             llm_model=model,
         )
@@ -260,7 +260,7 @@ def structured_nodes(request, model, structured_llms_system_messages):
         def make_structured_llm_class_version(
             pretty_name: str,
             system_message: str,
-            output_model: BaseModel,
+            schema: BaseModel,
         ):
             class StructuredLLMNode(rc.library.StructuredLLM):
                 def __init__(
@@ -273,8 +273,8 @@ def structured_nodes(request, model, structured_llms_system_messages):
                     super().__init__(message_history=message_history, llm_model=llm_model)
 
                 @classmethod
-                def output_model(cls) -> BaseModel:
-                    return output_model
+                def schema(cls) -> BaseModel:
+                    return schema
 
                 @classmethod
                 def pretty_name(cls) -> str:
@@ -284,12 +284,12 @@ def structured_nodes(request, model, structured_llms_system_messages):
 
         math_undergrad_student_node = make_structured_llm_class_version(
             "Math Undergraduate Student Node",
-            output_model=ProofModel,
+            schema=ProofModel,
             system_message=system_undergrad_student,
         )
         math_professor_node = make_structured_llm_class_version(
             "Math Professor Node",
-            output_model=GradingSchema,
+            schema=GradingSchema,
             system_message=system_professor,
         )
 

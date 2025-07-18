@@ -1,11 +1,10 @@
-from abc import ABC
-
+from ... import context
 from ...exceptions import LLMError
 from ...llm import MessageHistory, ModelBase
 from ._llm_base import LLMBase
 
 
-class TerminalLLM(LLMBase[str], ABC):
+class TerminalLLM(LLMBase[str]):
     """A simple LLM nodes that takes in a message and returns a response. It is the simplest of all llms."""
 
     def __init__(
@@ -44,6 +43,9 @@ class TerminalLLM(LLMBase[str], ABC):
                     reason="ModelLLM returned None content",
                     message_history=self.message_hist,
                 )
+            if (key := self.return_into()) is not None:
+                context.put(key, self.format_for_context(cont))
+                return self.format_for_return(cont)
             return cont
 
         raise LLMError(
