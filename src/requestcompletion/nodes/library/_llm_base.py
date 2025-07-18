@@ -193,15 +193,11 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         Format the result for return when return_into is provided. This method can be overridden by subclasses to
         customize the return format. By default, it returns None.
 
-        Parameters
-        ----------
-        result : Any
-            The result to format.
+        Args:
+            result (Any): The result to format.
 
-        Returns
-        -------
-        Any
-            The formatted result.
+        Returns:
+            Any: The formatted result.
         """
         return None
 
@@ -210,15 +206,11 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         Format the result for context when return_into is provided. This method can be overridden by subclasses to
         customize the context format. By default, it returns the result as is.
 
-        Parameters
-        ----------
-        result : Any
-            The result to format.
+        Args:
+            result (Any): The result to format.
 
-        Returns
-        -------
-        Any
-            The formatted result.
+        Returns:
+            Any: The formatted result.
         """
         return result
 

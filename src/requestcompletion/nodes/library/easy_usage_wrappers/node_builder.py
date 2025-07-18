@@ -50,19 +50,13 @@ class NodeBuilder(Generic[_TNode]):
     This is useful for classes that need small changes to existing classes like ToolCalling, Structured, or Terminal LLMs.
     See EasyUsageWrappers for examples of how to use this builder.
 
-    Parameters
-    ----------
-    node_class : type[_TNode]
-        The base node class to extend (must be a subclass of Node).
-    pretty_name : str, optional
-        Human-readable name for the node/tool (used for debugging and tool metadata).
-    class_name : str, optional
-        The name of the generated class (defaults to 'Dynamic{node_class.__qualname__}').
+    Args:
+        node_class (type[_TNode]): The base node class to extend (must be a subclass of Node).
+        pretty_name (str, optional): Human-readable name for the node/tool (used for debugging and tool metadata).
+        class_name (str, optional): The name of the generated class (defaults to 'Dynamic{node_class.__qualname__}').
 
-    Returns
-    -------
-    Type[_TNode]
-        The node subclass with the specified overrides and configurations.
+    Returns:
+        Type[_TNode]: The node subclass with the specified overrides and configurations.
     """
 
     def __init__(
@@ -104,18 +98,12 @@ class NodeBuilder(Generic[_TNode]):
         """
         Configure the node subclass to use a specific LLM model and system message.
 
-        Parameters
-        ----------
-        llm_model : ModelBase or None
-            The LLM model instance or to use for this node. If callable, it will be called to get the model.
-        system_message : SystemMessage or str or None, optional
-            The system prompt/message for the node. If not passed here, a system message can be passed at runtime.
+        Args:
+            llm_model (ModelBase or None): The LLM model instance or to use for this node. If callable, it will be called to get the model.
+            system_message (SystemMessage or str or None, optional): The system prompt/message for the node. If not passed here, a system message can be passed at runtime.
 
-        Raises
-        ------
-        AssertionError
-            If the node class is not a subclass of LLMBase.
-
+        Raises:
+            AssertionError: If the node class is not a subclass of LLMBase.
         """
         assert issubclass(self._node_class, LLMBase), (
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
@@ -146,10 +134,8 @@ class NodeBuilder(Generic[_TNode]):
         This method creates a class wide method which returns the output model for the node,
         which in turn is used for validation and serialization of structured outputs.
 
-        Parameters
-        ----------
-        schema : Type[BaseModel]
-            The pydantic model class to use for the node's output.
+        Args:
+            schema (Type[BaseModel]): The pydantic model class to use for the node's output.
         """
 
         self._with_override("schema", classmethod(lambda cls: schema))
@@ -166,17 +152,12 @@ class NodeBuilder(Generic[_TNode]):
         This method creates methods that are helpful for tool calling llms with their tools
         stored in connected_nodes and with a limit on the number of tool calls they can make.
 
-        Parameters
-        ----------
-        connected_nodes : Set[Union[Type[Node], Callable]]
-            The nodes/tools/functions that this node can call.
-        max_tool_calls : int
-            The maximum number of tool calls allowed during a single invocation.
+        Args:
+            connected_nodes (Set[Union[Type[Node], Callable]]): The nodes/tools/functions that this node can call.
+            max_tool_calls (int): The maximum number of tool calls allowed during a single invocation.
 
-        Raises
-        ------
-        AssertionError
-            If the node class is not a subclass of a ToolCallingLLM in the RC framework.
+        Raises:
+            AssertionError: If the node class is not a subclass of a ToolCallingLLM in the RC framework.
         """
         assert issubclass(self._node_class, OutputLessToolCallLLM), (
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
@@ -205,22 +186,14 @@ class NodeBuilder(Generic[_TNode]):
         This method sets up the node to call tools via an MCP server, specifying the command, arguments,
         environment, and maximum tool calls.
 
-        Parameters
-        ----------
-        mcp_command : str
-            The command to run the MCP server (e.g., 'npx').
-        mcp_args : list
-            Arguments to pass to the MCP server command.
-        mcp_env : dict or None
-            Environment variables for the MCP server process.
-        max_tool_calls : int
-            Maximum number of tool calls allowed per invocation.
+        Args:
+            mcp_command (str): The command to run the MCP server (e.g., 'npx').
+            mcp_args (list): Arguments to pass to the MCP server command.
+            mcp_env (dict or None): Environment variables for the MCP server process.
+            max_tool_calls (int): Maximum number of tool calls allowed per invocation.
 
-        Raises
-        ------
-        AssertionError
-            If the node class is not a subclass of ToolCallLLM.
-
+        Raises:
+            AssertionError: If the node class is not a subclass of ToolCallLLM.
         """
 
         assert issubclass(self._node_class, ToolCallLLM), (
@@ -299,18 +272,12 @@ class NodeBuilder(Generic[_TNode]):
         This method creates methods that are used if the node was going to be used as a tool itself.
         This will allow other nodes to know how to call and use this node as a tool.
 
-        Parameters
-        ----------
-        tool_details : str or None
-            Description of the tool for LLM tool calling (used in metadata and UI).
-        tool_params : Iterable[Parameter] or None
-            Parameters for the tool, used for input validation and metadata.
+        Args:
+            tool_details (str or None): Description of the tool for LLM tool calling (used in metadata and UI).
+            tool_params (Iterable[Parameter] or None): Parameters for the tool, used for input validation and metadata.
 
-        Raises
-        ------
-        AssertionError
-            If the node class is not a subclass of an RC LLM node.
-
+        Raises:
+            AssertionError: If the node class is not a subclass of an RC LLM node.
         """
         assert issubclass(self._node_class, LLMBase), (
             f"You tried to add tool calling details to a non LLM Node of {type(self._node_class)}."
