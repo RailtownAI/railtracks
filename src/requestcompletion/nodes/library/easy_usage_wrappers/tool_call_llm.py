@@ -8,7 +8,7 @@ from requestcompletion.llm import (
 from ....llm.tools import Parameter
 from ....nodes.nodes import Node
 from ...library.tool_calling_llms.tool_call_llm import ToolCallLLM
-from requestcompletion.nodes.node_builder import NodeBuilder
+from requestcompletion.nodes._node_builder import NodeBuilder
 
 
 def tool_call_llm(  # noqa: C901

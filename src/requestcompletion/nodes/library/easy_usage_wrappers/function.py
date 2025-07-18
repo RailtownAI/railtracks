@@ -12,7 +12,7 @@ from typing import (
 from requestcompletion.exceptions import NodeCreationError
 from requestcompletion.exceptions.node_creation.validation import validate_function
 from requestcompletion.llm import Parameter
-from requestcompletion.nodes.node_builder import NodeBuilder
+from requestcompletion.nodes._node_builder import NodeBuilder
 from requestcompletion.nodes.library.function_base import (
     _P,
     AsyncDynamicFunctionNode,

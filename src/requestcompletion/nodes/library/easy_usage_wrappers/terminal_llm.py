@@ -1,6 +1,6 @@
 from typing import Any, Callable, Type
 
-from requestcompletion.nodes.node_builder import NodeBuilder
+from requestcompletion.nodes._node_builder import NodeBuilder
 
 from ....llm import ModelBase, SystemMessage
 from ....llm.tools import Parameter

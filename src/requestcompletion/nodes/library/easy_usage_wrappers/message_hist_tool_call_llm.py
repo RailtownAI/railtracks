@@ -10,7 +10,7 @@ from ....nodes.nodes import Node
 from ...library.tool_calling_llms.mess_hist_tool_call_llm import (
     MessageHistoryToolCallLLM,
 )
-from requestcompletion.nodes.node_builder import NodeBuilder
+from requestcompletion.nodes._node_builder import NodeBuilder
 
 
 def message_hist_tool_call_llm(  # noqa: C901

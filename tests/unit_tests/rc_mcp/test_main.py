@@ -120,7 +120,7 @@ def test_from_mcp_returns_node_class(fake_tool, mcp_http_params):
 
         node = result_class(bar=1)
         # must have custom pretty_name
-        assert result_class.pretty_name() == f"MCPToolNode({fake_tool.name})"
+        assert result_class.pretty_name() == f"{fake_tool.name}"
         # must have correct tool_info
         with patch.object(result_class, 'tool_info', wraps=result_class.tool_info) as ti:
             Tool = type("Tool", (), {"from_mcp": staticmethod(lambda tool: "X")})
