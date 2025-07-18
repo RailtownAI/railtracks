@@ -191,13 +191,12 @@ class TestClassMethodParameters:
                 return value.upper()
 
         tool = Tool.from_function(TestClass.instance_method)
-        params = tool.parameters.model_json_schema().get("properties", {})
+        params = tool.parameters
 
         # Verify self is not in parameters
-        assert "self" not in params
+        assert all(param.name != "self" for param in params)
         # Verify value parameter is present
-        assert "value" in params
-        assert params["value"]["type"] == "string"
+        assert any(param.name == "value" and param.param_type == "string" for param in params)
 
     def test_class_method_cls_parameter(self):
         """Test that cls parameter is excluded from class methods."""
@@ -214,10 +213,9 @@ class TestClassMethodParameters:
                 return value.upper()
 
         tool = Tool.from_function(TestClass.class_method)
-        params = tool.parameters.model_json_schema().get("properties", {})
+        params = tool.parameters
 
         # Verify cls is not in parameters
-        assert "cls" not in params
+        assert all(param.name != "cls" for param in params)
         # Verify value parameter is present
-        assert "value" in params
-        assert params["value"]["type"] == "string"
+        assert any(param.name == "value" and param.param_type == "string" for param in params)

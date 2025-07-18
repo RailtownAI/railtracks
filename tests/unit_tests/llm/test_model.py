@@ -152,11 +152,11 @@ def test_tool_call(mock_llm):
     tool_description = "Call this tool sometime"
     response = model.chat_with_tools(
         MessageHistory(),
-        [Tool(tool_name, tool_description, [])],
+        [Tool(tool_name, tool_description, None)],
     )
 
     assert (
-        str(Tool(tool_name, tool_description, []))
+        str(Tool(tool_name, tool_description, None))
         == "Tool(name=tool1, detail=Call this tool sometime, parameters=None)"
     )
     assert response.message.content[0].identifier == identifier
@@ -185,7 +185,7 @@ def test_multiple_tool_calls(mock_llm):
         response = model.chat_with_tools(
             MessageHistory(),
             [
-                Tool(name, description, [])
+                Tool(name, description, {})
                 for name, description in zip(tool_names, tool_descriptions)
             ],
         )
@@ -218,7 +218,7 @@ def test_many_calls_in_parallel(mock_llm):
             response = model.chat_with_tools(
                 MessageHistory(),
                 [
-                    Tool(name, description, [])
+                    Tool(name, description, {})
                     for name, description in zip(tool_names, tool_descriptions)
                 ],
             )

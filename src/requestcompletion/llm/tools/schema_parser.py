@@ -35,7 +35,7 @@ def parse_json_schema_to_parameter(
         elif "items" in prop_schema:
             param_type = "array"
         else:
-            param_type = "string"  # fallback
+            param_type = "object"  # fallback
 
     # Handle special case for number type
     if param_type == "number":

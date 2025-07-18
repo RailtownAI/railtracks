@@ -57,7 +57,8 @@ class Tool:
                     "def test_tool():\n    ...\nsample_tool = rc.llm.Tool.from_function(test_tool)"
                 ],
             )
-        if isinstance(parameters, dict):
+        if isinstance(parameters, dict) and len(parameters) > 0:
+            
             # If parameters is a JSON-schema, convert into out internal Parameter objects
             try:  # only for the users, all internal systems should provide a set of Parameter objects
                 assert "type" in parameters
@@ -112,7 +113,7 @@ class Tool:
         """String representation of the tool."""
         if self._parameters:
             params_str = "{" + ", ".join(str(p) for p in self._parameters) + "}"
-        return f"Tool(name={self._name}, detail={self._detail}, parameters={params_str if self._parameters else ''})"
+        return f"Tool(name={self._name}, detail={self._detail}, parameters={params_str if self._parameters else 'None'})"
 
     @classmethod
     def from_function(cls, func: Callable) -> Self:
