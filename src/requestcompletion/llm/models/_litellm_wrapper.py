@@ -28,19 +28,25 @@ from ..model import ModelBase
 from ..response import MessageInfo, Response
 from ..tools import Parameter, Tool
 
-
 def _handle_set_of_parameters(parameters: Set[Parameter]) -> Dict[str, Any]:
     """Handle the case where parameters are a set of Parameter instances."""
-    # TODO: double check the conversion 
     props: Dict[str, Any] = {}
     required: list[str] = []
     for p in parameters:
-        props[p.name] = {
+        prop_dict = {
             "type": p.param_type,
             "description": p.description,
         }
+
+        if p.param_type == "array":             # fr array and tuples
+            element_type = p.default or "string"  # Default to 'string' if no element type is provided
+            prop_dict["items"] = {"type": element_type}
+
         if p.param_type == "object":
-            props[p.name]["additionalProperties"] = p.additional_properties
+            prop_dict["additionalProperties"] = p.additional_properties
+
+        props[p.name] = prop_dict
+
         if p.required:
             required.append(p.name)
 
