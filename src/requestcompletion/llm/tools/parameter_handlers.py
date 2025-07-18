@@ -61,24 +61,20 @@ class UnionParameterHandler(ParameterHandler):
             return True
         return False
         
+
     def create_parameter(
         self, param_name: str, param_annotation: Any, description: str, required: bool
     ) -> Parameter:
         """Create a Parameter for a Union parameter (including Optional)."""
         union_args = getattr(param_annotation, "__args__", [])
-        type_names = []
+        param_type = []
         is_optional = False
 
         for t in union_args:
             if t is type(None):
                 is_optional = True
             else:
-                type_names.append(
-                    t.__name__ if hasattr(t, "__name__") else str(t)
-                )
-
-        # param_type can be a list of type names
-        param_type = type_names if len(type_names) > 1 else type_names[0] if type_names else "string"
+                param_type.append(ParameterType.from_python_type(t).value)
 
         return Parameter(
             name=param_name,
@@ -205,17 +201,6 @@ class SequenceParameterHandler(ParameterHandler):
             description=description,
             required=required,
         )
-
-    def _get_param_type_for_annotation(self, annotation: Any) -> str:
-        """Get the parameter type string for a type annotation."""
-        if issubclass(annotation, int):
-            return "integer"
-        elif issubclass(annotation, float):
-            return "float"
-        elif issubclass(annotation, bool):
-            return "boolean"
-        else:
-            return "string"  # Default to string for other types
 
 
 class DictParameterHandler(ParameterHandler):

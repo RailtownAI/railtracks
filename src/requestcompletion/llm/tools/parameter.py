@@ -58,6 +58,8 @@ class Parameter:
             description: A description of the parameter.
             required: Whether the parameter is required. Defaults to True.
             additional_properties: Whether to allow additional properties for object types. Defaults to False.
+            enum: The enum values for the parameter.
+            default: The default value for the parameter.
         """
         self._name = name
         self._param_type = param_type
