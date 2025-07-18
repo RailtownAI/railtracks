@@ -68,7 +68,7 @@ def from_function(
 
     builder = NodeBuilder(
         type_,
-        pretty_name=pretty_name if pretty_name is not None else f"{func.__name__} Node",
+        pretty_name=pretty_name,
     )
 
     builder.setup_function_node(

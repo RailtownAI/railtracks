@@ -1,3 +1,4 @@
+import functools
 import warnings
 from inspect import isfunction
 from typing import (
@@ -281,7 +282,7 @@ class NodeBuilder(Generic[_TNode]):
         self._with_override("type_mapper", classmethod(lambda cls: type_mapper))
 
         self._with_override(
-            "func", classmethod(lambda cls, *args, **kwargs: func(*args, **kwargs))
+            "func", classmethod_preserving_function_meta(func)
         )
 
         self.override_tool_info(
@@ -440,3 +441,10 @@ class NodeBuilder(Generic[_TNode]):
         )
 
         return cast(type[_TNode], klass)
+
+
+def classmethod_preserving_function_meta(func):
+    @functools.wraps(func)
+    def wrapper(cls, *args, **kwargs):
+        return func(*args, **kwargs)
+    return classmethod(wrapper)
