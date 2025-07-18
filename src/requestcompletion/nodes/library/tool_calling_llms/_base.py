@@ -3,6 +3,7 @@ import warnings
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, Generic, ParamSpec, Set, Type, TypeVar, Union
 
+from requestcompletion import context
 from requestcompletion.exceptions import LLMError, NodeCreationError
 from requestcompletion.exceptions.node_creation.validation import check_connected_nodes
 from requestcompletion.exceptions.node_invocation.validation import check_max_tool_calls
@@ -89,8 +90,9 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
             + ")"
         )
 
+    @classmethod
     @abstractmethod
-    def connected_nodes(self) -> Set[Union[Type[Node], Callable]]: ...
+    def connected_nodes(cls) -> Set[Union[Type[Node], Callable]]: ...
 
     def create_node(self, tool_name: str, arguments: Dict[str, Any]) -> Node:
         """
@@ -124,7 +126,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
         )
         self.message_hist.append(returned_mess.message)
 
-    async def invoke(self) -> _T:
+    async def _handle_tool_calls(self):
         while True:
             current_tool_calls = len(
                 [m for m in self.message_hist if isinstance(m, ToolMessage)]
@@ -208,6 +210,9 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                     message_history=self.message_hist,
                 )
 
+    async def invoke(self) -> _T:
+        await self._handle_tool_calls()
+
         if self.structured_resp_node:
             try:
                 self.structured_output = await call(
@@ -222,5 +227,10 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                     reason="Failed to parse assistant response into structured output.",
                     message_history=self.message_hist,
                 )
+
+        if (key := self.return_into()) is not None:
+            output = self.return_output()
+            context.put(key, self.format_for_context(output))
+            return self.format_for_return(output)
 
         return self.return_output()

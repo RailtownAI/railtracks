@@ -20,4 +20,5 @@ class Task(Generic[_TOutput]):
     async def invoke(self):
         """The callable that this task is representing."""
         update_parent_id(self.node.uuid)
+
         return await self.node.tracked_invoke()

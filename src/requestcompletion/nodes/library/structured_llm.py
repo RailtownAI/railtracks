@@ -8,6 +8,7 @@ from requestcompletion.exceptions.node_creation.validation import (
     check_schema,
 )
 
+from ... import context
 from ...exceptions import LLMError
 from ...llm import MessageHistory, ModelBase
 from ._llm_base import LLMBase
@@ -66,6 +67,9 @@ class StructuredLLM(LLMBase[_TOutput], ABC):
                     message_history=self.message_hist,
                 )
             if isinstance(cont, self.schema()):
+                if (key := self.return_into()) is not None:
+                    context.put(key, self.format_for_context(cont))
+                    return self.format_for_return(cont)
                 return cont
             raise LLMError(
                 reason="The LLM returned content does not match the expected return type",
