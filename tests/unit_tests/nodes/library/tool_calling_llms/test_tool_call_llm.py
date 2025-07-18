@@ -1,7 +1,7 @@
 import pytest
 import requestcompletion as rc
 from requestcompletion import Node
-from requestcompletion.nodes.library import tool_call_llm, ToolCallLLM, message_hist_tool_call_llm, structured_mess_hist_tool_call_llm
+from requestcompletion.nodes.library import tool_call_llm, ToolCallLLM, message_hist_tool_call_llm
 from requestcompletion.nodes.library.tool_calling_llms._base import OutputLessToolCallLLM
 from requestcompletion.exceptions import LLMError, NodeCreationError, NodeInvocationError
 from requestcompletion.llm import MessageHistory, ToolMessage, SystemMessage, UserMessage, AssistantMessage, ToolCall, ToolResponse, Tool
