@@ -3,14 +3,17 @@ from inspect import isfunction
 from typing import (
     Any,
     Callable,
+    Coroutine,
     Dict,
     Generic,
     Iterable,
+    ParamSpec,
     Set,
     Type,
     TypeVar,
     Union,
     cast,
+    overload,
 )
 
 from pydantic import BaseModel
@@ -23,17 +26,19 @@ from requestcompletion.exceptions.node_creation.validation import (
     check_connected_nodes,
 )
 from requestcompletion.llm import Parameter
+from requestcompletion.llm.type_mapping import TypeMapper
 from requestcompletion.nodes.library.mcp_tool import from_mcp_server
 
 from ....llm import MessageHistory, ModelBase, SystemMessage, Tool, UserMessage
 from ....nodes.nodes import Node
 from ....rc_mcp import MCPStdioParams
 from ...library._llm_base import LLMBase
-from ...library.function import from_function
 from ...library.tool_calling_llms._base import OutputLessToolCallLLM
 from ...library.tool_calling_llms.tool_call_llm import ToolCallLLM
+from ..function_base import DynamicFunctionNode
 
 _TNode = TypeVar("_TNode", bound=Node)
+_P = ParamSpec("_P")
 
 
 class NodeBuilder(Generic[_TNode]):
@@ -53,10 +58,6 @@ class NodeBuilder(Generic[_TNode]):
         Human-readable name for the node/tool (used for debugging and tool metadata).
     class_name : str, optional
         The name of the generated class (defaults to 'Dynamic{node_class.__qualname__}').
-    tool_details : str, optional
-        Description of the tool for LLM tool calling.
-    tool_params : set[Parameter], optional
-        Parameters for the tool, used in tool metadata and input validation.
 
     Returns
     -------
@@ -71,13 +72,10 @@ class NodeBuilder(Generic[_TNode]):
         *,
         pretty_name: str | None = None,
         class_name: str | None = None,
-        tool_details: str | None = None,
-        tool_params: set[Parameter] | None = None,
         return_into: str | None = None,
         format_for_return: Callable[[Any], Any] | None = None,
         format_for_context: Callable[[Any], Any] | None = None,
     ):
-        _check_tool_params_and_details(tool_params, tool_details)
         self._node_class = node_class
         self._name = class_name or f"Dynamic{node_class.__qualname__}"
         self._methods = {}
@@ -123,6 +121,7 @@ class NodeBuilder(Generic[_TNode]):
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         )
         if llm_model is not None:
+            # TODO fix whatever this is.
             if callable(llm_model):
                 self._with_override(
                     "get_llm_model", classmethod(lambda cls: llm_model())
@@ -183,6 +182,8 @@ class NodeBuilder(Generic[_TNode]):
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         )
 
+        from ..function import from_function
+
         connected_nodes = {
             from_function(elem) if isfunction(elem) else elem
             for elem in connected_nodes
@@ -241,6 +242,52 @@ class NodeBuilder(Generic[_TNode]):
         self._with_override("connected_nodes", classmethod(lambda cls: connected_nodes))
         self._with_override("max_tool_calls", max_tool_calls)
 
+    @overload
+    def setup_function_node(
+        self,
+        func: Callable[_P, Coroutine[Any, Any, Any] | Any],
+    ):
+        pass
+
+    @overload
+    def setup_function_node(
+        self,
+        func: Callable[_P, Coroutine[Any, Any, Any] | Any],
+        tool_details: str,
+        tool_params: Iterable[Parameter] | None = None,
+    ):
+        pass
+
+    def setup_function_node(
+        self,
+        func: Callable[_P, Coroutine[Any, Any, Any] | Any],
+        tool_details: str | None = None,
+        tool_params: Set[Parameter] | None = None,
+    ):
+        """
+        Setups a function node with the provided details:
+
+        Specifically that means the following:
+        - Creates a type mapper which will convert dictionary parameters to the correct types
+        - Sets up the function to be called when the node is invoked
+        - If tool_details is provided, it will override the tool_info method to provide the tool details and parameters.
+        - If not it will use the default Tool.from_function(func) to create the tool info. (this will use the docstring)
+        """
+
+        assert issubclass(self._node_class, DynamicFunctionNode)
+
+        type_mapper = TypeMapper(func)
+
+        self._with_override("type_mapper", classmethod(lambda cls: type_mapper))
+
+        self._with_override(
+            "func", classmethod(lambda cls, *args, **kwargs: func(*args, **kwargs))
+        )
+
+        self.override_tool_info(
+            tool=Tool.from_function(func, details=tool_details, params=tool_params)
+        )
+
     def tool_callable_llm(
         self,
         tool_details: str | None,
@@ -271,29 +318,82 @@ class NodeBuilder(Generic[_TNode]):
 
         _check_tool_params_and_details(tool_params, tool_details)
         _check_duplicate_param_names(tool_params or [])
-        self.override_tool_info(tool_details, tool_params)
-        self.override_prepare_tool(tool_params)
+        self.override_tool_info(tool_details=tool_details, tool_params=tool_params)
+        self._override_prepare_tool_llm(tool_params)
+
+    @overload
+    def override_tool_info(
+        self,
+        *,
+        name: str = None,
+        tool_details: str = "",
+        tool_params: Iterable[Parameter] | None = None,
+    ):
+        pass
+
+    @overload
+    def override_tool_info(
+        self,
+        *,
+        tool: Tool,
+    ):
+        pass
 
     def override_tool_info(
-        self, tool_details: str, tool_params: dict[str, Any] | Iterable[Parameter]
+        self,
+        *,
+        tool: Tool = None,
+        name: str = None,
+        tool_details: str = "",
+        tool_params: dict[str, Any] | Iterable[Parameter] = None,
     ):
         """
         Override the tool_info function for the node.
+
+        You can either provide the tool information directly as a Tool object or you can present it as a component of
+        its construction parameters (name, tool details, tool_params).
+
+        Args:
+            tool (Tool, optional): A Tool object containing the tool information.
+            --------------------------------------------------------------
+            name (str, optional): The name of the tool.
+            tool_details (str, optional): A description of the tool for LLMs.
+            tool_params (Iterable[Parameter] or dict[str, Any], optional): Parameters for the tool.
+
+
         """
 
-        def tool_info(cls: Type[_TNode]) -> Tool:
-            return Tool(
-                name=cls.pretty_name().replace(" ", "_"),
-                detail=tool_details,
-                parameters=tool_params,
+        if tool is not None:
+            assert name is None and tool_details == "" and tool_params is None, (
+                "If you pass a Tool object to override_tool_info, you cannot pass name, tool_details or tool_params."
             )
+            self._with_override("tool_info", classmethod(lambda cls: tool))
 
-        self._with_override("tool_info", classmethod(tool_info))
+        else:
 
-    def override_prepare_tool(self, tool_params: dict[str, Any]):
+            def tool_info(cls: Type[_TNode]) -> Tool:
+                if name is None:
+                    prettied_name = cls.pretty_name()
+                    prettied_name = prettied_name.replace(" ", "_")
+                else:
+                    prettied_name = name
+
+                return Tool(
+                    name=prettied_name,
+                    detail=tool_details,
+                    parameters=tool_params,
+                )
+
+            self._with_override("tool_info", classmethod(tool_info))
+
+    def _override_prepare_tool_llm(self, tool_params: dict[str, Any]):
         """
-        Override the prepare_tool function for the node.
+        Override the prepare_tool function specifically for LLM nodes.
         """
+
+        assert issubclass(self._node_class, LLMBase), (
+            f"You tried to add prepare_tool_llm to a non LLM Node of {type(self._node_class)}."
+        )
 
         def prepare_tool(cls, tool_parameters: Dict[str, Any]):
             message_hist = MessageHistory(
@@ -339,4 +439,4 @@ class NodeBuilder(Generic[_TNode]):
             class_dict,
         )
 
-        return cast(Type[_TNode], klass)
+        return cast(type[_TNode], klass)

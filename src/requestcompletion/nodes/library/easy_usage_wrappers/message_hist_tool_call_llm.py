@@ -68,8 +68,6 @@ def message_hist_tool_call_llm(  # noqa: C901
         MessageHistoryToolCallLLM,
         pretty_name=pretty_name,
         class_name="EasyMessageHistoryToolCallLLM",
-        tool_details=tool_details,
-        tool_params=tool_params,
         return_into=return_into,
         format_for_return=format_for_return,
         format_for_context=format_for_context,

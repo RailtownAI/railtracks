@@ -90,8 +90,9 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
             + ")"
         )
 
+    @classmethod
     @abstractmethod
-    def connected_nodes(self) -> Set[Union[Type[Node], Callable]]: ...
+    def connected_nodes(cls) -> Set[Union[Type[Node], Callable]]: ...
 
     def create_node(self, tool_name: str, arguments: Dict[str, Any]) -> Node:
         """

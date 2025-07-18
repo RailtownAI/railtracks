@@ -20,7 +20,7 @@ def structured_tool_call_llm(  # noqa: C901
     llm_model: ModelBase | None = None,
     max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
-    schema: BaseModel,
+    schema: Type[BaseModel],
     tool_details: str | None = None,
     tool_params: set[Parameter] | None = None,
     return_into: str | None = None,
@@ -72,15 +72,13 @@ def structured_tool_call_llm(  # noqa: C901
         StructuredToolCallLLM,
         pretty_name=pretty_name,
         class_name="EasyStructuredToolCallLLM",
-        tool_details=tool_details,
-        tool_params=tool_params,
         return_into=return_into,
         format_for_return=format_for_return,
         format_for_context=format_for_context,
     )
     builder.llm_base(llm_model, system_message)
     builder.tool_calling_llm(connected_nodes, max_tool_calls)
-    if tool_details is not None:
+    if tool_details is not None or tool_params is not None:
         builder.tool_callable_llm(tool_details, tool_params)
     builder.structured(schema)
 

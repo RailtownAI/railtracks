@@ -64,15 +64,13 @@ def structured_llm(  # noqa: C901
         StructuredLLM,
         pretty_name=pretty_name,
         class_name="EasyStructuredLLM",
-        tool_details=tool_details,
-        tool_params=tool_params,
         return_into=return_into,
         format_for_return=format_for_return,
         format_for_context=format_for_context,
     )
     builder.llm_base(llm_model, system_message)
     builder.structured(schema)
-    if tool_details is not None:
+    if tool_details is not None or tool_params is not None:
         builder.tool_callable_llm(tool_details, tool_params)
 
     return builder.build()

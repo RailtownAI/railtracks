@@ -82,6 +82,7 @@ async def test_terminal_llm_as_tool_correct_initialization(
     decoder_tool_params = {
         rc.llm.Parameter("bytes_input", "string", "The bytes you would like to decode")
     }
+
     encoder = rc.library.terminal_llm(
         pretty_name="Encoder",
         system_message=encoder_system_message,
