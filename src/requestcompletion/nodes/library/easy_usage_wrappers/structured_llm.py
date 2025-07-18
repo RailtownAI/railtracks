@@ -12,7 +12,7 @@ from requestcompletion.nodes.library.structured_llm import StructuredLLM
 from ....llm.tools import Parameter
 
 
-def structured_llm(  # noqa: C901
+def structured_llm(
     schema: Type[BaseModel],
     *,
     system_message: SystemMessage | str | None = None,

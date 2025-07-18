@@ -7,7 +7,7 @@ from ....llm.tools import Parameter
 from ..terminal_llm import TerminalLLM
 
 
-def terminal_llm(  # noqa: C901
+def terminal_llm(
     pretty_name: str | None = None,
     *,
     system_message: SystemMessage | str | None = None,

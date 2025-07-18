@@ -1,4 +1,4 @@
-from typing import Callable, Set, Type, Union
+from typing import Callable, Set, Type, Union, Iterable
 
 from pydantic import BaseModel
 
@@ -12,14 +12,14 @@ from ...library.tool_calling_llms.structured_tool_call_llm import StructuredTool
 from ..easy_usage_wrappers.node_builder import NodeBuilder
 
 
-def structured_mess_hist_tool_call_llm(  # noqa: C901
-    connected_nodes: Set[Union[Type[Node], Callable]],
+def structured_mess_hist_tool_call_llm(
+    connected_nodes: Iterable[Union[Type[Node], Callable]],
     *,
     pretty_name: str | None = None,
     llm_model: ModelBase | None = None,
     max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
-    schema: BaseModel,
+    schema: Type[BaseModel],
     tool_details: str | None = None,
     tool_params: dict | None = None,
 ) -> Type[StructuredToolCallLLM]:
@@ -32,7 +32,7 @@ def structured_mess_hist_tool_call_llm(  # noqa: C901
     instantiated and used in the requestcompletion framework on runtime.
 
     Args:
-        connected_nodes (Set[Union[Type[Node], Callable]]): The set of node classes or callables that this node can call as tools.
+        connected_nodes (Iterable[Union[Type[Node], Callable]]): The set of node classes or callables that this node can call as tools.
         pretty_name (str, optional): Human-readable name for the node/tool.
         llm_model (ModelBase or None, optional): The LLM model instance to use for this node.
         max_tool_calls (int, optional): Maximum number of tool calls allowed per invocation (default: unlimited).
@@ -49,13 +49,11 @@ def structured_mess_hist_tool_call_llm(  # noqa: C901
         StructuredToolCallLLM,
         pretty_name=pretty_name,
         class_name="EasyStructuredMessageHistToolCallLLM",
-        tool_details=tool_details,
-        tool_params=tool_params,
     )
     builder.llm_base(llm_model, system_message)
-    builder.tool_calling_llm(connected_nodes, max_tool_calls)
+    builder.tool_calling_llm(set(connected_nodes), max_tool_calls)
     builder.struct_mess()
-    if tool_details is not None:
+    if tool_details is not None or tool_params is not None:
         builder.tool_callable_llm(tool_details, tool_params)
     builder.structured(schema)
 

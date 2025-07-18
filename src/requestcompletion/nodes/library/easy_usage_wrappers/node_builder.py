@@ -384,7 +384,7 @@ class NodeBuilder(Generic[_TNode]):
             )
         self._methods[name] = method
 
-    def build(self):
+    def build(self) -> Type[_TNode]:
         """
         Construct and return the configured node subclass.
 
@@ -406,4 +406,4 @@ class NodeBuilder(Generic[_TNode]):
             class_dict,
         )
 
-        return cast(type[_TNode], klass)
+        return klass
