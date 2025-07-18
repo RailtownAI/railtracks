@@ -7,7 +7,11 @@ _TOutput = TypeVar("_TOutput")
 
 
 class Task(Generic[_TOutput]):
-    """A simple class used to represent a task to be completed by the executor of choice."""
+    """
+    A simple class used to represent a task to be completed.
+    """
+
+    # Note this class is a simple abstraction of a task that can be executed (see `Command` design pattern).
 
     def __init__(
         self,

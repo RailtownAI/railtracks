@@ -47,7 +47,7 @@ class AsyncioExecutionStrategy(TaskExecutionStrategy):
         invoke_func = task.invoke
 
         publisher = get_publisher()
-
+        response = None
         try:
             result = await invoke_func()
             response = RequestSuccess(
@@ -60,7 +60,8 @@ class AsyncioExecutionStrategy(TaskExecutionStrategy):
                 request_id=task.request_id, node_state=NodeState(task.node), error=e
             )
         finally:
-            await publisher.publish(response)
+            if response is not None:
+                await publisher.publish(response)
 
         return response
 

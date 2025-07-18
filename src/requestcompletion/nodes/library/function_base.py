@@ -46,7 +46,7 @@ class DynamicFunctionNode(Node[_TOutput], ABC, Generic[_TOutput]):
 
     @classmethod
     def pretty_name(cls) -> str:
-        return f"{cls.func.__name__} Node"
+        return f"{cls.func.__name__}"
 
     @classmethod
     @abstractmethod

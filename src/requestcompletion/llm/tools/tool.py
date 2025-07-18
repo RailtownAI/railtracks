@@ -81,7 +81,6 @@ class Tool:
         return self._parameters
 
     def __str__(self) -> str:
-        """String representation of the tool."""
         if self._parameters and hasattr(self._parameters, "model_json_schema"):
             params_schema = self._parameters.model_json_schema()
         elif isinstance(self._parameters, dict):

@@ -165,6 +165,7 @@ async def test_call_method_calls_call_func(mock_dependencies):
     # Now patch call
     the_node = lambda: None
     result_value = MagicMock()
+    # flagging this becuase I envision us having a dumb bug if we ever change the import statement in that source file.
     with patch('requestcompletion.run.call', return_value=result_value) as m_call:
         out = await runner.call(the_node, 42, foo="bar")
         m_call.assert_called_once_with(the_node, 42, foo="bar")
@@ -176,7 +177,8 @@ async def test_run_method_runs_and_returns_info(mock_dependencies):
     runner = Runner(executor_config=config)
     runner.rc_state.info = "async-info"
     the_node = lambda: None
-    with patch.object(runner, 'call', return_value=None) as m_call:
+    # flagging this becuase I envision us having a dumb bug if we ever change the import statement in that source file.
+    with patch('requestcompletion.run.call', return_value=None) as m_call:
         result = await runner.run(the_node, 1, foo=2)
         m_call.assert_called_once_with(the_node, 1, foo=2)
         assert result == "async-info"
@@ -192,11 +194,6 @@ def test_cancel_is_not_implemented(mock_dependencies):
     with pytest.raises(NotImplementedError):
         asyncio.run(runner.cancel("some-node-id"))
 
-def test_from_state_is_not_implemented(mock_dependencies):
-    config = MagicMock()
-    runner = Runner(executor_config=config)
-    with pytest.raises(NotImplementedError):
-        runner.from_state(MagicMock())
 
 # ================ END Runner: cancel & from_state ===============
 

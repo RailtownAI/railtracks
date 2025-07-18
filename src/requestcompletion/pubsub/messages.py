@@ -22,6 +22,7 @@ class RequestCompletionMessage(ABC):
     """
 
     def log_message(self) -> str:
+        """Converts the message to a string ready to be logged."""
         return repr(self)
 
 

@@ -44,7 +44,7 @@ class StructuredLLM(LLMBase[_TOutput], ABC):
 
     @classmethod
     def pretty_name(cls) -> str:
-        return cls.schema().__name__
+        return f"Structured LLM ({cls.schema().__name__})"
 
     async def invoke(self) -> _TOutput:
         """Makes a call containing the inputted message and system prompt to the llm model and returns the response

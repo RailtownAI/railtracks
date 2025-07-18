@@ -9,6 +9,7 @@ dist
 package-lock.json
 package.json
 test-results.xml
+.covailence
 .coverage
 .covailence
 # jupyter notebook

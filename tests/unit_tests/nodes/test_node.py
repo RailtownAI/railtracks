@@ -87,7 +87,7 @@ def test_uuid_generated(cap_node):
 def test_repr(cap_node):
     rep = repr(cap_node)
     assert "Capitalize Text" in rep
-    assert cap_node.uuid in str(rep)
+    assert hex(id(cap_node)) in rep
 
 def test_abstract_node_instantiation_raises():
     # Because invoke is implemented, should be instantiable

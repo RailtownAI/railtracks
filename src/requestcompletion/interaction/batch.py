@@ -24,13 +24,13 @@ async def batch(
 
     Note the results will be returned in the order of the iterables, not the order of completion.
 
-    If one of the nodes returns an exception, the thrown exception will included as a response.
+    If one of the nodes returns an exception, the thrown exception will be included as a response.
 
     Args:
         node: The node type to create.
         *iterables: The iterables to map the node over.
         return_exceptions: If True, exceptions will be returned as part of the results.
-            If False, exceptions will be raised immediately and you will lose access to the results.
+            If False, exceptions will be raised immediately, and you will lose access to the results.
             Defaults to true.
 
     Returns:

@@ -5,7 +5,7 @@
 import os
 
 from requestcompletion.rc_mcp import MCPHttpParams
-from requestcompletion.nodes.library.mcp_tool import from_mcp_server
+from requestcompletion.nodes.library.easy_usage_wrappers.mcp_tool import from_mcp_server
 
 from requestcompletion.nodes.library.easy_usage_wrappers.tool_call_llm import tool_call_llm
 import requestcompletion as rc

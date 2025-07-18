@@ -66,4 +66,8 @@ class MutableExternalContext(ExternalContext):
         key: str,
         value: Any,
     ):
+        """
+        Puts the value in the context under the provided key. If another value already exists under that key, it
+        will be overwritten.
+        """
         self._context_var_store[key] = value
