@@ -1,7 +1,7 @@
 import pytest
 import requestcompletion as rc
 from requestcompletion.llm import MessageHistory, SystemMessage, UserMessage
-from requestcompletion.nodes.library import TerminalLLM, terminal_llm_base
+from requestcompletion.nodes.library import TerminalLLM, terminal_llm
 from requestcompletion.exceptions import NodeCreationError, NodeInvocationError
 
 
@@ -21,7 +21,7 @@ async def test_terminal_llm_instantiate_and_invoke(mock_llm, mock_chat_function)
 
 @pytest.mark.asyncio
 async def test_terminal_llm_easy_usage_wrapper_invoke(mock_llm, mock_chat_function):
-    node = terminal_llm_base(
+    node = terminal_llm(
         pretty_name="Mock LLM",
         system_message="system prompt",
         llm_model=mock_llm(chat=mock_chat_function),
@@ -31,7 +31,7 @@ async def test_terminal_llm_easy_usage_wrapper_invoke(mock_llm, mock_chat_functi
     assert result == "dummy content"
 
 def test_terminal_llm_easy_usage_wrapper_classmethods(mock_llm):
-    NodeClass = terminal_llm_base(
+    NodeClass = terminal_llm(
         pretty_name="Mock LLM",
         system_message="system prompt",
         llm_model=mock_llm(),
@@ -40,7 +40,7 @@ def test_terminal_llm_easy_usage_wrapper_classmethods(mock_llm):
 
 @pytest.mark.asyncio
 async def test_terminal_llm_system_message_string_inserts_system_message(mock_llm):
-    NodeClass = terminal_llm_base(
+    NodeClass = terminal_llm(
         pretty_name="TestTerminalNode",
         system_message="system prompt",
         llm_model=mock_llm(),
@@ -64,7 +64,7 @@ async def test_terminal_llm_missing_tool_details_easy_usage(mock_llm, encoder_sy
     with pytest.raises(
         NodeCreationError, match="Tool parameters are provided, but tool details are missing."
     ):
-        encoder_wo_tool_details = rc.library.terminal_llm_base(
+        encoder_wo_tool_details = rc.library.terminal_llm(
             pretty_name="Encoder",
             system_message=encoder_system_message,
             llm_model=mock_llm(),
@@ -86,7 +86,7 @@ async def test_terminal_llm_tool_duplicate_parameter_names_easy_usage(
     with pytest.raises(
         NodeCreationError, match="Duplicate parameter names are not allowed."
     ):
-       encoder_w_duplicate_param = rc.library.terminal_llm_base(
+       encoder_w_duplicate_param = rc.library.terminal_llm(
             pretty_name="Encoder",
             system_message=encoder_system_message,
             llm_model=mock_llm(),
@@ -136,7 +136,7 @@ async def test_tool_info_not_classmethod(mock_llm, encoder_system_message):
 # =================== START invocation exceptions =====================
 @pytest.mark.asyncio
 async def test_no_message_history_easy_usage(mock_llm):
-    simple_agent = rc.library.terminal_llm_base(
+    simple_agent = rc.library.terminal_llm(
             pretty_name="Encoder",
             llm_model=mock_llm(),
         )

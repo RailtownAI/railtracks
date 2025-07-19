@@ -105,6 +105,8 @@ class NodeBuilder(Generic[_TNode]):
         Raises:
             AssertionError: If the node class is not a subclass of LLMBase.
         """
+        print(LLMBase)
+        print(type(self._node_class))
         assert issubclass(self._node_class, LLMBase), (
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         )

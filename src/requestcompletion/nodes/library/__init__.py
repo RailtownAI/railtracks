@@ -11,6 +11,7 @@ __all__ = [
     "from_mcp_server",
     "structured_tool_call_llm",
     "message_hist_tool_call_llm",
+    "structured_llm",
 ]
 
 

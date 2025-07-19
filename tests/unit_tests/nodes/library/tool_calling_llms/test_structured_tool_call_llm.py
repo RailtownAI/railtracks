@@ -88,7 +88,7 @@ class SimpleOutput(BaseModel):
     "llm_function, connected_nodes",
     [
         (rc.library.structured_tool_call_llm, {rc.library.from_function(lambda: "test")}),
-        (rc.library.structured_llm_base, None),
+        (rc.library.structured_llm, None),
     ],
     ids=["tool_call_llm", "structured_llm"],
 )

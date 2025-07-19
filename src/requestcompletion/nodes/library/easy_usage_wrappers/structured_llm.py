@@ -11,10 +11,10 @@ from requestcompletion.nodes.library.structured_llm_base import StructuredLLM
 
 from ....llm.tools import Parameter
 
-_T = TypeVar("_T", bound=BaseModel)
+_TOutput = TypeVar("_TOutput", bound=BaseModel)
 
 def structured_llm(
-    schema: Type[_T],
+    schema: Type[_TOutput],
     *,
     system_message: SystemMessage | str | None = None,
     llm_model: ModelBase | None = None,
@@ -24,7 +24,7 @@ def structured_llm(
     return_into: str | None = None,
     format_for_return: Callable[[Any], Any] | None = None,
     format_for_context: Callable[[Any], Any] | None = None,
-) -> Type[StructuredLLM[_T]]:
+):
     """
     Dynamically reate a StructuredLLM node class with custom configuration for schema.
 
@@ -46,8 +46,8 @@ def structured_llm(
     Returns:
         Type[StructuredLLM]: The dynamically generated node class with the specified configuration.
     """
-    builder = NodeBuilder(
-        StructuredLLM[_T],
+    builder = NodeBuilder[StructuredLLM[_TOutput]](
+        StructuredLLM,
         pretty_name=pretty_name,
         class_name="EasyStructuredLLM",
         return_into=return_into,
