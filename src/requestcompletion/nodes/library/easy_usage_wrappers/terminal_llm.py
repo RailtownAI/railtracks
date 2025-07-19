@@ -2,9 +2,9 @@ from typing import Any, Callable, Type
 
 from requestcompletion.nodes.library.easy_usage_wrappers.node_builder import NodeBuilder
 
-from ....llm import ModelBase, SystemMessage
+from ....llm import ModelBase, SystemMessage, AssistantMessage
 from ....llm.tools import Parameter
-from ..terminal_llm import TerminalLLM
+from ..terminal_llm_base import TerminalLLM
 
 
 def terminal_llm(
@@ -17,7 +17,7 @@ def terminal_llm(
     return_into: str | None = None,
     format_for_return: Callable[[Any], Any] | None = None,
     format_for_context: Callable[[Any], Any] | None = None,
-) -> Type[TerminalLLM]:
+):
     """
     Dynamically create a TerminalLLM node class with custom configuration.
 

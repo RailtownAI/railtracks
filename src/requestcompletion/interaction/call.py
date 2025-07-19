@@ -1,6 +1,6 @@
 import asyncio
 from types import FunctionType
-from typing import Callable, Coroutine, ParamSpec, TypeVar, Union
+from typing import Callable, Coroutine, ParamSpec, TypeVar, Union, overload, Type
 from uuid import uuid4
 
 from requestcompletion.context.central import (
@@ -24,6 +24,22 @@ from requestcompletion.pubsub.utils import output_mapping
 
 _P = ParamSpec("_P")
 _TOutput = TypeVar("_TOutput")
+
+@overload
+async def call(
+    node: Callable[_P, Node[_TOutput]],
+    *args: _P.args,
+    **kwargs: _P.kwargs,
+) -> _TOutput:
+    pass
+
+@overload
+async def call(
+    node: Callable[_P, _TOutput],
+    *args: _P.args,
+    **kwargs: _P.kwargs,
+) -> _TOutput:
+    pass
 
 
 async def call(

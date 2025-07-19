@@ -23,7 +23,7 @@ def tool_call_llm(
     return_into: str | None = None,
     format_for_return: Callable[[Any], Any] | None = None,
     format_for_context: Callable[[Any], Any] | None = None,
-) -> Type[ToolCallLLM]:
+):
     """
     Dynamically create a ToolCallLLM node class with custom configuration for tool calling.
 

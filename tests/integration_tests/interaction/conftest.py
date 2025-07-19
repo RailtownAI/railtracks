@@ -167,15 +167,15 @@ def terminal_nodes(request, model, terminal_llms_system_messages):
     system_rng, system_rng_operation, system_math_genius = terminal_llms_system_messages
 
     if fixture_name == "easy_wrapper":
-        rng_node = rc.library.terminal_llm(
+        rng_node = rc.library.terminal_llm_base(
             pretty_name="RNG Node", system_message=system_rng, llm_model=model
         )
-        rng_operation_node = rc.library.terminal_llm(
+        rng_operation_node = rc.library.terminal_llm_base(
             pretty_name="RNG Operation Node",
             system_message=system_rng_operation,
             llm_model=model,
         )
-        math_detective_node = rc.library.terminal_llm(
+        math_detective_node = rc.library.terminal_llm_base(
             pretty_name="Math Detective Node",
             system_message=system_math_genius,
             llm_model=model,
@@ -240,13 +240,13 @@ def structured_nodes(request, model, structured_llms_system_messages):
         )
 
     if fixture_name == "easy_wrapper":
-        math_undergrad_student_node = rc.library.structured_llm(
+        math_undergrad_student_node = rc.library.structured_llm_base(
             pretty_name="Math Undergraduate Student Node",
             schema=ProofModel,
             system_message=system_undergrad_student,
             llm_model=model,
         )
-        math_professor_node = rc.library.structured_llm(
+        math_professor_node = rc.library.structured_llm_base(
             pretty_name="Math Professor Node",
             schema=GradingSchema,
             system_message=system_professor,

@@ -38,7 +38,7 @@ async def test_tool_with_structured_output_child_tool():
         success: bool
 
     # Define the child tool with structured output
-    child_tool = rc.library.structured_llm(
+    child_tool = rc.library.structured_llm_base(
         output_model=ChildResponse,
         system_message="You are a word counting tool that counts the number of words in the request provided by the user.",
         llm_model=rc.llm.OpenAILLM("gpt-4o"),
@@ -168,7 +168,7 @@ def test_return_into_structured(mock_llm):
     def return_structured_message(messages: MessageHistory, basemodel) -> Response:
         return Response(message=Message(role="assistant", content=basemodel(text="Hello", number=42)))
 
-    node = rc.library.structured_llm(
+    node = rc.library.structured_llm_base(
         system_message="Hello",
         llm_model=mock_llm(structured=return_structured_message),
         return_into="structured_greeting",  # Store result in context

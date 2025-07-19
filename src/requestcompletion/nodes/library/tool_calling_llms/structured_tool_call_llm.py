@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Type, TypeVar
+from typing import Generic, Type, TypeVar
 
 from pydantic import BaseModel
 
@@ -10,7 +10,7 @@ from ._base import OutputLessToolCallLLM
 _TOutput = TypeVar("_TOutput", bound=BaseModel)
 
 
-class StructuredToolCallLLM(OutputLessToolCallLLM[str], ABC):
+class StructuredToolCallLLM(OutputLessToolCallLLM[_TOutput], ABC, Generic[_TOutput]):
     structured_message = False
 
     def __init_subclass__(cls):

@@ -11,7 +11,7 @@ from tests.unit_tests.llm.conftest import MockLLM
 # ================================================ START terminal_llm basic functionality =========================================================
 @pytest.mark.asyncio
 async def test_terminal_llm_easy_usage_run(model , encoder_system_message):
-    encoder_agent = rc.library.terminal_llm(
+    encoder_agent = rc.library.terminal_llm_base(
         pretty_name="Encoder",
         system_message=encoder_system_message,
         llm_model=model,
@@ -83,7 +83,7 @@ async def test_terminal_llm_as_tool_correct_initialization(
         rc.llm.Parameter("bytes_input", "string", "The bytes you would like to decode")
     }
 
-    encoder = rc.library.terminal_llm(
+    encoder = rc.library.terminal_llm_base(
         pretty_name="Encoder",
         system_message=encoder_system_message,
         llm_model=model,
@@ -91,7 +91,7 @@ async def test_terminal_llm_as_tool_correct_initialization(
         tool_details=encoder_tool_details,
         tool_params=encoder_tool_params,
     )
-    decoder = rc.library.terminal_llm(
+    decoder = rc.library.terminal_llm_base(
         pretty_name="Decoder",
         system_message=decoder_system_message,
         llm_model=model,
@@ -136,7 +136,7 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(model):
 
     rng_tool_details = "A tool that generates 5 random integers between 1 and 100."
 
-    rng_node = rc.library.terminal_llm(
+    rng_node = rc.library.terminal_llm_base(
         pretty_name="RNG Tool",
         system_message="You are a helful assistant that can generate 5 random numbers between 1 and 100.",
         llm_model=model,
@@ -177,7 +177,7 @@ async def test_terminal_llm_tool_with_invalid_parameters_easy_usage(model, encod
         rc.llm.Parameter("text_input", "string", "The string to encode.")
     }
 
-    encoder = rc.library.terminal_llm(
+    encoder = rc.library.terminal_llm_base(
         pretty_name="Encoder",
         system_message=encoder_system_message,
         llm_model=model,

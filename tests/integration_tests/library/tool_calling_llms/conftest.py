@@ -184,7 +184,7 @@ def travel_planner_node(request, model, travel_planner_tools, travel_planner_out
 @pytest.fixture
 def math_node(request, model, math_output_model):
     system_math_genius = "You are a math genius that calls the RNG tool to generate 5 random numbers between 1 and 100 and gives the sum of those numbers."
-    rng_node = rc.library.terminal_llm(
+    rng_node = rc.library.terminal_llm_base(
         pretty_name="RNG Tool",
         system_message= "You are a helful assistant that can generate 5 random numbers between 1 and 100.",
         llm_model=model,
