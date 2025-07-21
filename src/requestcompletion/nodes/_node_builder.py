@@ -374,9 +374,12 @@ class NodeBuilder(Generic[_TNode]):
             # If no parameters, return empty message history
             if not tool_params:
                 return cls(MessageHistory([]))
-            
+
             # Create a single, coherent instruction instead of multiple separate messages
-            instruction_parts = ["You are being called as a tool with the following parameters:", ""]
+            instruction_parts = [
+                "You are being called as a tool with the following parameters:",
+                "",
+            ]
 
             for param in tool_params:
                 value = tool_parameters.get(param.name, None)
@@ -391,8 +394,10 @@ class NodeBuilder(Generic[_TNode]):
                 else:
                     instruction_parts.append(f"• {param.name}: {value}")
 
-            instruction_parts.extend(["", "Please execute your function based on these parameters."])
-            
+            instruction_parts.extend(
+                ["", "Please execute your function based on these parameters."]
+            )
+
             # Create a single UserMessage with the complete instruction
             message_hist = MessageHistory([UserMessage("\n".join(instruction_parts))])
             return cls(message_hist)
