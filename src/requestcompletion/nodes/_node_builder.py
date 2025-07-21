@@ -361,7 +361,7 @@ class NodeBuilder(Generic[_TNode]):
 
             self._with_override("tool_info", classmethod(tool_info))
 
-    def _override_prepare_tool_llm(self, tool_params: dict[str, Any]):
+    def _override_prepare_tool_llm(self, tool_params: Iterable[Parameter]):
         """
         Override the prepare_tool function specifically for LLM nodes.
         """
@@ -376,9 +376,8 @@ class NodeBuilder(Generic[_TNode]):
                 return cls(MessageHistory([]))
             
             # Create a single, coherent instruction instead of multiple separate messages
-            instruction_parts = ["You are being called as a tool with the following parameters:"]
-            instruction_parts.append("")  # Empty line for readability
-            
+            instruction_parts = ["You are being called as a tool with the following parameters:", ""]
+
             for param in tool_params:
                 value = tool_parameters.get(param.name, None)
                 # Format the parameter appropriately based on its type
@@ -391,9 +390,8 @@ class NodeBuilder(Generic[_TNode]):
                     instruction_parts.append(f"• {param.name}: {formatted_value}")
                 else:
                     instruction_parts.append(f"• {param.name}: {value}")
-            
-            instruction_parts.append("")  # Empty line
-            instruction_parts.append("Please execute your function based on these parameters.")
+
+            instruction_parts.extend(["", "Please execute your function based on these parameters."])
             
             # Create a single UserMessage with the complete instruction
             message_hist = MessageHistory([UserMessage("\n".join(instruction_parts))])
