@@ -1,18 +1,17 @@
 from __future__ import annotations
 
-
 from dataclasses import dataclass
-from typing import Optional, ParamSpec, Dict, Type
+from typing import Dict, Optional, ParamSpec, Type
 
+from ..nodes.nodes import (
+    Node,
+)
+from ..utils.profiling import Stamp
+from ..utils.serialization.graph import Vertex
 from .forest import (
     AbstractLinkedObject,
     Forest,
 )
-from ..utils.profiling import Stamp
-from ..nodes.nodes import (
-    Node,
-)
-from ..utils.serialization.graph import Vertex
 
 _P = ParamSpec("_P")
 
@@ -39,6 +38,8 @@ class LinkedNode(AbstractLinkedObject):
     def node(self):
         """
         A passed by value copy of a node contained in this object.
+
+        IMPORTANT: This method will run the `safe_copy` method of the node when accessing it.
         """
         try:
             # special handling for
@@ -94,7 +95,7 @@ class NodeForest(Forest[LinkedNode]):
 
         Args:
             new_node (Node): The node to update the heap with (it could have the same id as one already in the heap)
-            stamp (Stamp): The stamp you would like to attatch the this node update.
+            stamp (Stamp): The stamp you would like to attach to this node update.
 
         Raises:
 
@@ -112,25 +113,7 @@ class NodeForest(Forest[LinkedNode]):
             self.id_type_mapping[str(new_node.uuid)] = type(new_node)
 
     def get_node_type(self, identifier: str):
+        """
+        Gets the type of the node with the provided identifier.
+        """
         return self.id_type_mapping.get(identifier, None)
-
-
-class ConcurrentNodeUpdatesError(Exception):
-    """A special exception used to signify when you are trying to update a node which is already being updated"""
-
-    pass
-
-
-class NodeUpdatePasscodeError(Exception):
-    """A special exception used to signify when you are trying to update a node with the wrong passcode"""
-
-    pass
-
-
-class IllegalNodeAccessError(Exception):
-    """
-    A special exception used to signify when you are trying to access a node in the heap without using the
-     concurrency protection
-    """
-
-    pass

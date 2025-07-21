@@ -3,18 +3,16 @@ from __future__ import annotations
 import asyncio
 import concurrent.futures
 import inspect
-
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-from ..pubsub.messages import RequestSuccess, RequestFailure
-
-from ..context.internal import InternalContext
 from ..context.central import (
     get_publisher,
     update_parent_id,
 )
+from ..context.internal import InternalContext
 from ..nodes.nodes import NodeState
+from ..pubsub.messages import RequestFailure, RequestSuccess
 
 if TYPE_CHECKING:
     from .task import Task
@@ -49,7 +47,7 @@ class AsyncioExecutionStrategy(TaskExecutionStrategy):
         invoke_func = task.invoke
 
         publisher = get_publisher()
-
+        response = None
         try:
             result = await invoke_func()
             response = RequestSuccess(
@@ -62,7 +60,8 @@ class AsyncioExecutionStrategy(TaskExecutionStrategy):
                 request_id=task.request_id, node_state=NodeState(task.node), error=e
             )
         finally:
-            await publisher.publish(response)
+            if response is not None:
+                await publisher.publish(response)
 
         return response
 

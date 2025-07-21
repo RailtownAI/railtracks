@@ -2,12 +2,16 @@ from copy import deepcopy
 from typing import Dict, Any
 
 import pytest
+
+import requestcompletion
 import requestcompletion as rc
 
 from requestcompletion.exceptions import NodeCreationError
-from requestcompletion.llm import MessageHistory, UserMessage
+from requestcompletion.llm import MessageHistory, UserMessage, Message
+from requestcompletion.llm.response import Response
 
 from requestcompletion.nodes.library import from_function
+from requestcompletion.nodes.library.easy_usage_wrappers.tool_call_llm import tool_call_llm
 
 NODE_INIT_METHODS = ["easy_wrapper", "class_based"]
 
@@ -19,10 +23,8 @@ async def test_empty_connected_nodes_easy_wrapper(model):
     with pytest.raises(NodeCreationError, match="connected_nodes must not return an empty set."):
         _ = rc.library.tool_call_llm(
             connected_nodes=set(),
-            system_message=rc.llm.SystemMessage(
-                "You are a helpful assistant that can strucure the response into a structured output."
-            ),
-            model=model,
+            system_message="You are a helpful assistant that can strucure the response into a structured output.",
+            llm_model=model,
             pretty_name="ToolCallLLM",
         )
 
@@ -33,9 +35,7 @@ async def test_empty_connected_nodes_class_based(model):
 
     with pytest.raises(NodeCreationError, match="connected_nodes must not return an empty set."):
 
-        system_simple = rc.llm.SystemMessage(
-            "Return a simple text and number. Don't use any tools."
-        )
+        system_simple ="Return a simple text and number. Don't use any tools."
         class SimpleNode(rc.library.ToolCallLLM):
             def __init__(
                 self,
@@ -392,6 +392,52 @@ async def test_tool_with_llm_tool_as_input_class_tools():
     assert response.answer is not None
     assert response.answer.content == "2 foxes and a dog"
 
+
+def test_return_into(mock_llm):
+    """Test that a node can return its result into context instead of returning it directly."""
+
+    def return_message(messages: MessageHistory, list) -> Response:
+        return Response(message=Message(role="assistant", content="Hello"))
+
+    node = tool_call_llm(
+        system_message="Hello",
+        connected_nodes={return_message},
+        llm_model=mock_llm(chat_with_tools=return_message),
+        return_into="greeting"  # Specify that the result should be stored in context under the key "greeting"
+    )
+
+    with rc.Runner() as run:
+        result = run.run_sync(node, message_history=MessageHistory()).answer
+        assert result is None  # The result should be None since it was stored in context
+        assert rc.context.get("greeting").content == "Hello"
+
+
+def test_return_into_custom_fn(mock_llm):
+    """Test that a node can return its result into context instead of returning it directly."""
+    def format_function(value: Any) -> str:
+        """Custom function to format the value before storing it in context."""
+        requestcompletion.context.put("greeting", value.content.upper())
+        return "Success!"
+
+    def return_message(messages: MessageHistory, list) -> Response:
+        return Response(message=Message(role="assistant", content="Hello"))
+
+    node = tool_call_llm(
+        system_message="Hello",
+        connected_nodes={return_message},
+        llm_model=mock_llm(chat_with_tools=return_message),
+        return_into="greeting",  # Specify that the result should be stored in context under the key "greeting"
+        format_for_return=format_function  # Use the custom formatting function
+    )
+
+    with rc.Runner() as run:
+        result = run.run_sync(node, message_history=MessageHistory()).answer
+        assert result == "Success!"  # The result should be None since it was stored in context
+        assert rc.context.get("greeting") == "HELLO"
+
+
+
+
 # =========================================== END BASE FUNCTIONALITY TESTS ===========================================
 
 # =========================================== START TESTS FOR MAX TOOL CALLS ===========================================
@@ -403,10 +449,7 @@ async def test_allows_only_one_toolcall(limited_tool_call_node_factory, travel_m
     with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as runner:
         reset_tools_called()
         response = await rc.call(node, message_history=message_history)
-        if class_based:
-            assert isinstance(response, str)
-        else:
-            assert isinstance(response.content, str)
+        assert isinstance(response.content, str)
         assert rc.context.get("tools_called") == 1
 
 @pytest.mark.asyncio
@@ -417,10 +460,7 @@ async def test_zero_tool_calls_forces_final_answer(limited_tool_call_node_factor
     with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as runner:
         reset_tools_called()
         response = await rc.call(node, message_history=message_history)
-        if class_based:
-            assert isinstance(response, str)
-        else:
-            assert isinstance(response.content, str)
+        assert isinstance(response.content, str)
         assert rc.context.get("tools_called") == 0
 
 @pytest.mark.asyncio
@@ -431,10 +471,7 @@ async def test_multiple_tool_calls_limit(limited_tool_call_node_factory, travel_
     with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as runner:
         reset_tools_called()
         response = await rc.call(node, message_history=message_history)
-        if class_based:
-            assert isinstance(response, str)
-        else:
-            assert isinstance(response.content, str)
+        assert isinstance(response.content, str)
         assert rc.context.get("tools_called") <= 5
 
 @pytest.mark.asyncio

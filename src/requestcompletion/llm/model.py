@@ -2,16 +2,14 @@
 # In the following document, we will use the interface types defined in this module to interact with the llama index to
 # route to a given model.
 ###
-from typing import List, Callable
+from abc import ABC, abstractmethod
+from typing import Callable, List
 
 from pydantic import BaseModel
-
 
 from .history import MessageHistory
 from .response import Response
 from .tools import Tool
-
-from abc import ABC, abstractmethod
 
 
 class ModelBase(ABC):
@@ -72,19 +70,19 @@ class ModelBase(ABC):
         self._exception_hook = []
 
     @abstractmethod
-    def model_name(self) -> str | None:
+    def model_name(self) -> str:
         """
         Returns the name of the model being used.
 
         It can be treated as unique identifier for the model when paired with the `model_type`.
         """
-        return None
+        pass
 
     @classmethod
     @abstractmethod
-    def model_type(cls) -> str | None:
+    def model_type(cls) -> str:
         """The name of the provider of this model or the model type."""
-        return None
+        pass
 
     def _run_pre_hooks(self, message_history: MessageHistory) -> MessageHistory:
         """Runs all pre-hooks on the provided message history."""

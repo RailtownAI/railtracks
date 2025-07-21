@@ -1,33 +1,29 @@
 import asyncio
+from pathlib import Path
+from typing import Any, Callable, Dict, ParamSpec, TypeVar
 
-
-from .interaction.call import call
-
-from typing import TypeVar, ParamSpec, Callable, Dict, Any
-
+from typing_extensions import deprecated
 
 from .config import ExecutorConfig
 from .context.central import (
-    register_globals,
     delete_globals,
     get_global_config,
+    register_globals,
 )
 from .execution.coordinator import Coordinator
 from .execution.execution_strategy import AsyncioExecutionStrategy
-from .pubsub.messages import (
-    RequestCompletionMessage,
-)
-
-from .pubsub.publisher import RCPublisher
-from .pubsub.subscriber import stream_subscriber
-from .nodes.nodes import Node
-from .utils.logging.config import prepare_logger, detach_logging_handlers
-
-
 from .info import (
     ExecutionInfo,
 )
+from .interaction.call import call
+from .nodes.nodes import Node
+from .pubsub.messages import (
+    RequestCompletionMessage,
+)
+from .pubsub.publisher import RCPublisher
+from .pubsub.subscriber import stream_subscriber
 from .state.state import RCState
+from .utils.logging.config import detach_logging_handlers, prepare_logger
 from .utils.logging.create import get_rc_logger
 
 logger = get_rc_logger("Runner")
@@ -65,9 +61,6 @@ class Runner:
     ```
     """
 
-    # singleton pattern
-    _instance = None
-
     def __init__(
         self, executor_config: ExecutorConfig = None, context: Dict[str, Any] = None
     ):
@@ -80,7 +73,6 @@ class Runner:
         if context is None:
             context = {}
 
-        # TODO see issue about logger
         prepare_logger(
             setting=executor_config.logging_setting,
             path=executor_config.log_file,
@@ -113,6 +105,28 @@ class Runner:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.executor_config.save_state:
+            try:
+                covailence_dir = Path(".covailence")
+                covailence_dir.mkdir(
+                    exist_ok=True
+                )  # Creates if doesn't exist, skips otherwise.
+
+                file_path = (
+                    covailence_dir / f"{self.executor_config.run_identifier}.json"
+                )
+                if file_path.exists():
+                    logger.warning("File %s already exists, overwriting..." % file_path)
+
+                logger.info("Saving execution info to %s" % file_path)
+
+                file_path.write_text(self.info.graph_serialization())
+            except Exception as e:
+                logger.error(
+                    "Error while saving to execution info to file",
+                    exc_info=e,
+                )
+
         self._close()
 
     def setup_subscriber(self):
@@ -139,6 +153,13 @@ class Runner:
         return self.rc_state.info
 
     def _close(self):
+        """
+        Closes the runner and cleans up all resources.
+
+        - Shuts down the state object
+        - Detaches logging handlers so they aren't duplicated
+        - Deletes all the global variables that were registered in the context
+        """
         # the publisher should have already been closed in `_run_base`
         self.rc_state.shutdown()
         detach_logging_handlers()
@@ -154,6 +175,9 @@ class Runner:
         """
         return self.rc_state.info
 
+    @deprecated(
+        "`call` is deprecated, use `runner.run` or access the global function `rc.call`"
+    )
     async def call(
         self,
         node: Callable[_P, Node[_TOutput]],
@@ -163,7 +187,6 @@ class Runner:
     ):
         return await call(node, *args, **kwargs)
 
-    # @warnings.deprecated("run_sync is deprecated, use `rc.call_sync`")
     async def run(
         self,
         start_node: Callable[_P, Node] | None = None,
@@ -172,20 +195,11 @@ class Runner:
     ):
         """Runs the rc framework with the given start node and provided arguments."""
 
-        await self.call(start_node, *args, **kwargs)
+        await call(start_node, *args, **kwargs)
 
         return self.rc_state.info
 
     async def cancel(self, node_id: str):
-        raise NotImplementedError(
-            "Currently we do not support cancelling nodes. Please contact Logan to add this feature."
-        )
+        raise NotImplementedError("This feature remains to be implemented. ")
         # collects the parent id of the current node that is running that is gonna get cancelled
         await self.rc_state.cancel(node_id)
-
-    # TODO implement this method and any additional logic in rc_state that is required.
-    def from_state(self, executor_info: ExecutionInfo):
-        raise NotImplementedError(
-            "Currently we do not support running from a state object. Please contact Logan to add this feature."
-        )
-        # self.rc_state = RCState(executor_info)

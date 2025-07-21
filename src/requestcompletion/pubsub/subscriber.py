@@ -1,7 +1,7 @@
 import asyncio
-from typing import Union, Coroutine, Callable, Any
+from typing import Any, Callable, Coroutine, Union
 
-from .messages import Streaming, RequestCompletionMessage
+from .messages import RequestCompletionMessage, Streaming
 
 
 def stream_subscriber(

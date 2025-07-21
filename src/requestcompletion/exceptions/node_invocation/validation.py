@@ -1,11 +1,12 @@
-from ..messages.exception_messages import ExceptionMessageKey, get_message, get_notes
-from ..errors import NodeInvocationError
-from ...llm import Message, MessageHistory, ModelBase, SystemMessage
 import warnings
+
+from ...llm import Message, MessageHistory, ModelBase
+from ..errors import NodeInvocationError
+from ..messages.exception_messages import ExceptionMessageKey, get_message, get_notes
 
 
 def check_message_history(
-    message_history: MessageHistory, system_message: SystemMessage = None
+    message_history: MessageHistory, system_message: str = None
 ) -> None:
     if any(not isinstance(m, Message) for m in message_history):
         raise NodeInvocationError(
@@ -31,8 +32,8 @@ def check_message_history(
         warnings.warn(get_message("ONLY_SYSTEM_MESSAGE_WARN"))
 
 
-def check_model(model: ModelBase):
-    if model is None:
+def check_llm_model(llm_model: ModelBase):
+    if llm_model is None:
         raise NodeInvocationError(
             message=get_message("MODEL_REQUIRED_MSG"),
             notes=get_notes("MODEL_REQUIRED_NOTES"),

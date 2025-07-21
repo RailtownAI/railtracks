@@ -5,9 +5,9 @@ This module contains functions for parsing JSON schemas into Parameter objects
 and converting Parameter objects into Pydantic models.
 """
 
-from typing import Dict, Set, Type, List
+from typing import Dict, List, Set, Type
 
-from pydantic import BaseModel, Field, create_model, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, create_model
 
 from .parameter import Parameter, PydanticParameter
 

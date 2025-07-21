@@ -12,19 +12,20 @@ import requestcompletion as rc
 MCP_COMMAND = "npx"
 MCP_ARGS = ["-y", "@modelcontextprotocol/server-slack"]
 
-notion_env = {
+slack_env = {
     "SLACK_BOT_TOKEN": os.environ['SLACK_BOT_TOKEN'],
     "SLACK_TEAM_ID": os.environ['SLACK_TEAM_ID'],
     "SLACK_CHANNEL_IDS": os.environ['SLACK_CHANNEL_IDS'],
 }
 
-tools = from_mcp_server(
+server = from_mcp_server(
     StdioServerParameters(
         command=MCP_COMMAND,
         args=MCP_ARGS,
-        env=notion_env,
+        env=slack_env,
     )
 )
+tools = server.tools
 
 ##################################################################
 # Example using the tools with an agent

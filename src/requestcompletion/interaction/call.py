@@ -1,25 +1,24 @@
 import asyncio
 from types import FunctionType
-from typing import Callable, Union, Coroutine, ParamSpec, TypeVar
+from typing import Callable, Coroutine, ParamSpec, TypeVar, Union
 from uuid import uuid4
 
-from requestcompletion.nodes.nodes import Node
 from requestcompletion.context.central import (
-    is_context_present,
-    is_context_active,
     activate_publisher,
-    shutdown_publisher,
-    get_publisher,
-    get_parent_id,
     get_local_config,
+    get_parent_id,
+    get_publisher,
+    is_context_active,
+    is_context_present,
+    shutdown_publisher,
 )
 from requestcompletion.exceptions import GlobalTimeOutError
-
+from requestcompletion.nodes.nodes import Node
 from requestcompletion.pubsub.messages import (
-    RequestCompletionMessage,
-    RequestFinishedBase,
     FatalFailure,
+    RequestCompletionMessage,
     RequestCreation,
+    RequestFinishedBase,
 )
 from requestcompletion.pubsub.utils import output_mapping
 
@@ -34,7 +33,7 @@ async def call(
 ):
     """
     Call a node from within a node inside the framework. This will return a coroutine that you can interact with
-    in whatever way using the `asyncio` framework.
+    in whatever way using async/await logic.
 
     Usage:
     ```python
@@ -53,7 +52,10 @@ async def call(
     """
     if isinstance(node, FunctionType):
         # If a function is passed, we will convert it to a node
-        from ..nodes.library.function import from_function
+        # we have to use lazy import here to prevent a circular import issue. Bad design I know :(
+        from requestcompletion.nodes.library.easy_usage_wrappers.function import (
+            from_function,
+        )
 
         node = from_function(node)
 
@@ -61,6 +63,7 @@ async def call(
 
     # if the context is none then we will need to create a wrapper for the state object to work with.
     if not is_context_present():
+        # we have to use lazy import here to prevent a circular import issue. Bad design I know :(
         from requestcompletion.run import Runner
 
         with Runner():
@@ -151,6 +154,9 @@ async def _run(
     args: _P.args,
     kwargs: _P.kwargs,
 ):
+    """
+    Executes the given Node set up using the provided arguments and keyword arguments.
+    """
     return await _execute(
         node, args=args, kwargs=kwargs, message_filter=_regular_message_filter
     )

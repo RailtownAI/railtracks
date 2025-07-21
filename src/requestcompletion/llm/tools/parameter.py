@@ -5,9 +5,9 @@ This module contains the base Parameter class and its extensions for representin
 tool parameters with various type information and nested structures.
 """
 
-from enum import Enum
 from copy import deepcopy
-from typing import Dict, Any, Optional, Literal
+from enum import Enum
+from typing import Any, Dict, Literal, Optional
 
 
 class ParameterType(str, Enum):
@@ -128,7 +128,6 @@ class PydanticParameter(Parameter):
         return self._properties
 
     def __str__(self) -> str:
-        """String representation of the parameter with properties."""
         return (
             f"PydanticParameter(name={self._name}, type={self._param_type}, "
             f"description={self._description}, required={self._required}, "

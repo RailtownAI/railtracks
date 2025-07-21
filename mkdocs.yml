@@ -8,7 +8,6 @@ theme:
     - navigation.instant
     - navigation.prefetch
     - search.suggest
-    - navigation.top
     - content.code.copy
 # TODO: add other features
 
@@ -23,6 +22,7 @@ nav:
 
   - Guides:
         - guides/index.md
+        - guides/agents.md
 
 
 
@@ -30,11 +30,18 @@ nav:
       - tools/index.md
       - Create Your Own Tool: tools/create_your_own.md
 
-      - Guides:
+      - Integrations:
         - Notion: tools/guides/notion.md
+        - Github: tools/guides/github.md
+        - Python Sandbox: tools/guides/python_sandbox.md
+        - Shell Bash: tools/guides/shell_bash.md
+        - Slack: tools/guides/slack.md
+        - Web Search: tools/guides/websearch_integration.md
 
   - MCP:
         - mcp/index.md
+        - mcp/MCP_tools_in_RC.md
+        - mcp/RCtoMCP.md
 
   - Visualization:
         - visualization/index.md
@@ -52,12 +59,19 @@ nav:
   - Examples:
       - examples/index.md
 
+  - API Reference:
+      - api_reference/index.md
+
 
 plugins:
   - search
   - mkdocstrings
 #  - mkdocs-mermaid2-plugin
 #  - awesome-pages
+
+markdown_extensions:
+  - pymdownx.emoji:
+      emoji_generator: !!python/name:pymdownx.emoji.to_svg
 
 
 

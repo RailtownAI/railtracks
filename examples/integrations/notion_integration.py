@@ -8,7 +8,7 @@ import json
 import os
 
 from mcp import StdioServerParameters
-from requestcompletion.nodes.library.mcp_tool import from_mcp_server
+from requestcompletion.nodes.library.easy_usage_wrappers.mcp_tool import from_mcp_server
 
 from requestcompletion.nodes.library.easy_usage_wrappers.tool_call_llm import tool_call_llm
 import requestcompletion as rc
@@ -27,13 +27,14 @@ notion_env = {
     "OPENAPI_MCP_HEADERS": json.dumps(headers)
 }
 
-tools = from_mcp_server(
+server = from_mcp_server(
     StdioServerParameters(
         command=MCP_COMMAND,
         args=MCP_ARGS,
         env=notion_env,
     )
 )
+tools = server.tools
 
 ##################################################################
 # Example using the tools with an agent

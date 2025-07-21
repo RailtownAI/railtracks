@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from typing import List, TypeVar, Tuple
+import json
+from typing import List, Tuple, TypeVar
 
+from requestcompletion.utils.serialization import RCJSONEncoder
+
+from .state.node import NodeForest
+from .state.request import RequestForest
 from .state.utils import create_sub_state_info
 from .utils.profiling import Stamp, StampManager
-from .state.request import RequestForest
-from .state.node import NodeForest
 from .utils.serialization.graph import Edge, Vertex
-
-import json
-from requestcompletion.utils.serialization import RCJSONEncoder
 
 _TOutput = TypeVar("_TOutput")
 
@@ -57,7 +57,7 @@ class ExecutionInfo:
         )
 
     @property
-    def answer(self) -> _TOutput:
+    def answer(self):
         """Convenience method to access the answer of the run."""
         return self.request_heap.answer
 

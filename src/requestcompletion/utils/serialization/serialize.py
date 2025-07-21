@@ -1,15 +1,15 @@
 from __future__ import annotations
+
 import json
 from typing import Any
+
 from pydantic import BaseModel
 
-
-from requestcompletion.llm import Message, ToolResponse, ToolCall
+from requestcompletion.llm import Message, ToolCall, ToolResponse
 from requestcompletion.nodes.library._llm_base import RequestDetails
 from requestcompletion.nodes.nodes import LatencyDetails
 from requestcompletion.utils.profiling import Stamp
 from requestcompletion.utils.serialization.graph import Edge, Vertex
-
 
 supported_types = (
     Message,
@@ -24,6 +24,7 @@ supported_types = (
 )
 
 
+# Consider refactoring this function to use a mapping of types to encoding functions for better scalability and maintainability.
 def encoder_extender(o) -> dict[str, Any]:
     """
     Extends the encoding of supported types to their dictionary representation.
@@ -37,6 +38,7 @@ def encoder_extender(o) -> dict[str, Any]:
     - ToolResponse
     - ToolCall
     - LatencyDetails
+    - BaseModel (Pydantic models)
     """
     if isinstance(o, Edge):
         return encode_edge(o)

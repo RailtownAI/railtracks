@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC
-
-from typing import Type, ParamSpec, Literal, TypeVar, Any
+from typing import Any, Literal, ParamSpec, Type, TypeVar
 
 from ..nodes.nodes import Node, NodeState
-
 
 # RC specific imports
 
@@ -24,6 +22,7 @@ class RequestCompletionMessage(ABC):
     """
 
     def log_message(self) -> str:
+        """Converts the message to a string ready to be logged."""
         return repr(self)
 
 

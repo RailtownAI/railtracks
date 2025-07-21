@@ -1,20 +1,25 @@
 import asyncio
-from typing import TypeVar, ParamSpec, Generic, Set, Type, Dict, Any, Union, Callable
-from ...nodes import Node
+import warnings
+from abc import ABC, abstractmethod
+from typing import Any, Callable, Dict, Generic, ParamSpec, Set, Type, TypeVar, Union
+
+from requestcompletion import context
+from requestcompletion.exceptions import LLMError, NodeCreationError
+from requestcompletion.exceptions.node_creation.validation import check_connected_nodes
+from requestcompletion.exceptions.node_invocation.validation import check_max_tool_calls
+from requestcompletion.interaction.call import call
 from requestcompletion.llm import (
+    AssistantMessage,
     MessageHistory,
     ModelBase,
     ToolCall,
-    ToolResponse,
     ToolMessage,
+    ToolResponse,
     UserMessage,
-    AssistantMessage,
 )
+
+from ...nodes import Node
 from .._llm_base import LLMBase
-from requestcompletion.run import call
-from abc import ABC, abstractmethod
-from requestcompletion.exceptions import NodeCreationError, LLMError
-from requestcompletion.exceptions.node_invocation.validation import check_max_tool_calls
 
 _T = TypeVar("_T")
 _P = ParamSpec("_P")
@@ -25,19 +30,65 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
      an LLm that can make tool calls. The tool calls will be returned
     as calls or if there is a response, the response will be returned as an output"""
 
+    # Set structured response node to None by default
+    structured_resp_node = None
+
+    def __init_subclass__(cls):
+        super().__init_subclass__()
+        # 3. Check if the connected_nodes is not empty, special case for ToolCallLLM
+        # We will not check for abstract classes
+        has_abstract_methods = any(
+            getattr(getattr(cls, name, None), "__isabstractmethod__", False)
+            for name in dir(cls)
+        )
+        if not has_abstract_methods:
+            if "connected_nodes" in cls.__dict__ and not has_abstract_methods:
+                method = cls.__dict__["connected_nodes"]
+                try:
+                    # Try to call the method as a classmethod (typical case)
+                    node_set = method.__func__(cls)
+                except AttributeError:
+                    # If that fails, call it as an instance method (for easy_wrapper init)
+                    dummy = object.__new__(cls)
+                    node_set = method(dummy)
+                # Validate that the returned node_set is correct and contains only Node/function instances
+                check_connected_nodes(node_set, Node)
+
     def __init__(
         self,
         message_history: MessageHistory,
-        model: ModelBase,
-        max_tool_calls: int | None = 30,
+        llm_model: ModelBase | None = None,
+        max_tool_calls: int | None = None,
     ):
-        super().__init__(model=model, message_history=message_history)
-        check_max_tool_calls(max_tool_calls)
-        self.structured_resp_node = None  # The structured LLM node
-        self.max_tool_calls = max_tool_calls
+        super().__init__(llm_model=llm_model, message_history=message_history)
+        # Set max_tool_calls for non easy usage wrappers
+        if not hasattr(self, "max_tool_calls"):
+            # Check if max_tool_calls was passed
+            if max_tool_calls is not None:
+                check_max_tool_calls(max_tool_calls)
+                self.max_tool_calls = max_tool_calls
+            # Default to unlimited if not passed
+            else:
+                self.max_tool_calls = None
 
+        # Warn user that two max_tool_calls are set and we will use the parameter
+        else:
+            if max_tool_calls is not None:
+                warnings.warn(
+                    "You have provided max_tool_calls as a parameter and as a class variable. We will use the parameter."
+                )
+                check_max_tool_calls(max_tool_calls)
+                self.max_tool_calls = max_tool_calls
+            else:
+                check_max_tool_calls(self.max_tool_calls)
+
+    @classmethod
+    def pretty_name(cls) -> str:
+        return "Tool Call LLM"
+
+    @classmethod
     @abstractmethod
-    def connected_nodes(self) -> Set[Union[Type[Node], Callable]]: ...
+    def connected_nodes(cls) -> Set[Union[Type[Node], Callable]]: ...
 
     def create_node(self, tool_name: str, arguments: Dict[str, Any]) -> Node:
         """
@@ -66,10 +117,12 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
 
     async def _on_max_tool_calls_exceeded(self):
         """force a final response"""
-        returned_mess = await self.model.achat_with_tools(self.message_hist, tools=[])
+        returned_mess = await self.llm_model.achat_with_tools(
+            self.message_hist, tools=[]
+        )
         self.message_hist.append(returned_mess.message)
 
-    async def invoke(self) -> _T:
+    async def _handle_tool_calls(self):
         while True:
             current_tool_calls = len(
                 [m for m in self.message_hist if isinstance(m, ToolMessage)]
@@ -83,8 +136,8 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                 await self._on_max_tool_calls_exceeded()
                 break
 
-            # collect the response from the model
-            returned_mess = await self.model.achat_with_tools(
+            # collect the response from the llm model
+            returned_mess = await self.llm_model.achat_with_tools(
                 self.message_hist, tools=self.tools()
             )
 
@@ -147,11 +200,14 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                     )
                     break
             else:
-                # the message is malformed from the model
+                # the message is malformed from the llm model
                 raise LLMError(
                     reason="ModelLLM returned an unexpected message type.",
                     message_history=self.message_hist,
                 )
+
+    async def invoke(self) -> _T:
+        await self._handle_tool_calls()
 
         if self.structured_resp_node:
             try:
@@ -167,5 +223,10 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                     reason="Failed to parse assistant response into structured output.",
                     message_history=self.message_hist,
                 )
+
+        if (key := self.return_into()) is not None:
+            output = self.return_output()
+            context.put(key, self.format_for_context(output))
+            return self.format_for_return(output)
 
         return self.return_output()

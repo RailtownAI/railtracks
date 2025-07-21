@@ -12,4 +12,5 @@ class RCError(Exception):
 
     @classmethod
     def _color(cls, text, color_code):
+        """A simple helper method to colorize text for output."""
         return f"{color_code}{text}{cls.RESET}"

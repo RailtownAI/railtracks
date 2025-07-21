@@ -4,9 +4,10 @@ Text processing module for LORAG.
 This module provides functionality for processing text, including chunking and summarization.
 """
 
-from typing import List, Any, Optional, Callable
-from .utils import Tokenizer
 from logging import getLogger
+from typing import Any, Callable, List, Optional
+
+from .utils import Tokenizer
 
 logger = getLogger(__name__)
 

@@ -4,12 +4,10 @@ import contextvars
 import warnings
 from typing import Any, Callable
 
-
-from requestcompletion.context.external import MutableExternalContext, ExternalContext
-from requestcompletion.exceptions import ContextError
-
 from requestcompletion.config import ExecutorConfig
+from requestcompletion.context.external import ExternalContext, MutableExternalContext
 from requestcompletion.context.internal import InternalContext
+from requestcompletion.exceptions import ContextError
 from requestcompletion.pubsub.publisher import RCPublisher
 
 
@@ -73,6 +71,7 @@ def safe_get_runner_context() -> RunnerContextVars:
 
 
 def is_context_present():
+    """Returns true if a context exists."""
     t_c = runner_context.get()
     return t_c is not None
 
@@ -252,6 +251,7 @@ def update_parent_id(new_parent_id: str):
 
 
 def delete_globals():
+    """Resets the globals to None."""
     runner_context.set(None)
 
 
@@ -306,7 +306,7 @@ def set_config(executor_config: ExecutorConfig):
 
 def set_streamer(subscriber: Callable[[str], None]):
     """
-    Sets the data streamer globally.
+    Sets the streamer globally. This will be propagated to all new runners created after this call.
     """
 
     if is_context_active():

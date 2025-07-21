@@ -1,9 +1,8 @@
 from collections import namedtuple
+from typing import Dict, List, Tuple
 
-from requestcompletion.state.node import NodeForest, LinkedNode
+from requestcompletion.state.node import LinkedNode, NodeForest
 from requestcompletion.state.request import RequestForest, RequestTemplate
-
-from typing import List, Tuple, Dict
 
 NodeRequestForestTuple = namedtuple(
     "NodeRequestForestTuple", ["node_forest", "request_forest"]
@@ -15,6 +14,14 @@ def create_sub_state_info(
     request_heap: Dict[str, RequestTemplate],
     parent_ids: str | List[str],
 ) -> Tuple[NodeForest, RequestForest]:
+    """
+    Creates a subset of the original heaps to include only the nodes and requests.
+
+    The parent_ids will identify how the filtering should occur.
+    - If a single ID is provided, it will be used as the root to find all downstream requests.
+    - If a list of IDs is provided, it will find all requests downstream of each ID in the list.
+    - If you provide multiple IDs on the same chain the behavior is undetermined.
+    """
     valid_requests = {}
     node_ids = []
     for parent_id in parent_ids if isinstance(parent_ids, list) else [parent_ids]:

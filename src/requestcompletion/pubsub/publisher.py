@@ -2,13 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-
-from .messages import RequestCompletionMessage, RequestCreationFailure, RequestFailure
-
-from typing import List, Callable, TypeVar, Generic, Coroutine
-
+from typing import Callable, Coroutine, Generic, List, TypeVar
 
 from ..utils.logging.create import get_rc_logger
+from .messages import RequestCompletionMessage, RequestCreationFailure, RequestFailure
 
 _T = TypeVar("_T")
 _TOutput = TypeVar("_TOutput")
@@ -108,11 +105,14 @@ class Publisher(Generic[_T]):
 
                     await asyncio.gather(*contracts)
 
+                # we need a broad exception clause to catch any errors that might occur in the subs.
                 except Exception:
                     pass
 
                 # will only reach this section after all the messages have been handled
 
+            # this exception is raised when the queue is empty for `self.timeout` seconds.
+            # we do this so we can check is the self._running flag.
             except asyncio.TimeoutError:
                 continue
 
@@ -235,13 +235,21 @@ class Publisher(Generic[_T]):
 
 
 class RCPublisher(Publisher[RequestCompletionMessage]):
+    """
+    A specialized Publisher class designed to handle RequestCompletionMessage objects.
+    """
+
     def __init__(self):
         super().__init__()
         self.subscribe(self.logging_sub)
 
     @classmethod
     async def logging_sub(cls, message: RequestCompletionMessage):
-        """Logs the provided message as a debug message."""
+        """
+        Logs the provided message as a debug message.
+
+        In the case that we see an error that is also logged.
+        """
         if isinstance(message, (RequestCreationFailure, RequestFailure)):
             logger.debug(message.log_message(), exc_info=message.error)
         else:

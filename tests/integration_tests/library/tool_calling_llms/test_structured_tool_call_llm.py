@@ -1,6 +1,9 @@
 import pytest
 import requestcompletion as rc
 
+from requestcompletion.llm import Message, MessageHistory
+from requestcompletion.llm.response import Response
+
 from pydantic import BaseModel
 
 NODE_INIT_METHODS = ["easy_wrapper", "class_based"]
@@ -37,10 +40,8 @@ async def test_tool_with_structured_output_child_tool():
     # Define the child tool with structured output
     child_tool = rc.library.structured_llm(
         output_model=ChildResponse,
-        system_message=rc.llm.SystemMessage(
-            "You are a word counting tool that counts the number of words in the request provided by the user."
-        ),
-        model=rc.llm.OpenAILLM("gpt-4o"),
+        system_message="You are a word counting tool that counts the number of words in the request provided by the user.",
+        llm_model=rc.llm.OpenAILLM("gpt-4o"),
         pretty_name="Structured Child Tool",
         tool_details="A tool that generates a structured response that includes word count.",
         tool_params={
@@ -57,10 +58,8 @@ async def test_tool_with_structured_output_child_tool():
         output_model=ParentResponse,
         connected_nodes={child_tool},
         pretty_name="Parent Tool",
-        system_message=rc.llm.SystemMessage(
-            "Use the child tool to generate a structured response. Respond with the output from the child tool only. No additional text."
-        ),
-        model=rc.llm.OpenAILLM("gpt-4o"),
+        system_message="Use the child tool to generate a structured response. Respond with the output from the child tool only. No additional text.",
+        llm_model=rc.llm.OpenAILLM("gpt-4o"),
     )
 
     # Run the parent tool
@@ -157,3 +156,29 @@ async def test_structured_with_tool_calls(
         assert isinstance(response.answer.travel_plan, str)
         assert isinstance(response.answer.Total_cost, float)
         assert isinstance(response.answer.Currency, str)
+
+
+def test_return_into_structured(mock_llm):
+    """Test that a node can return its structured result into context instead of returning it directly."""
+
+    class StructuredModel(BaseModel):
+        text: str
+        number: int
+
+    def return_structured_message(messages: MessageHistory, basemodel) -> Response:
+        return Response(message=Message(role="assistant", content=basemodel(text="Hello", number=42)))
+
+    node = rc.library.structured_llm(
+        system_message="Hello",
+        llm_model=mock_llm(structured=return_structured_message),
+        return_into="structured_greeting",  # Store result in context
+        schema=StructuredModel,
+    )
+
+    with rc.Runner() as run:
+        result = run.run_sync(node, message_history=MessageHistory()).answer
+        assert result is None  # The result should be None since it was stored in context
+        stored = rc.context.get("structured_greeting")
+        assert stored is not None
+        assert stored.text == "Hello"
+        assert stored.number == 42
