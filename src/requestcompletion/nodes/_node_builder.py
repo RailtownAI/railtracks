@@ -381,6 +381,33 @@ class NodeBuilder(Generic[_TNode]):
 
         self._with_override("prepare_tool", classmethod(prepare_tool))
 
+    def add_attribute(self, name: str, attribute, make_function: bool, *args, **kwargs):
+        """
+        Add or override an attribute or method on the dynamically built node class.
+
+        Args:
+            name (str): The name of the attribute or method to add/override.
+            attribute: The value or function to set.
+            make_function (bool): If True, will make the attribute a class method that can be called.
+            *args: positional parameters if you are passing a function to be called
+            **kwargs: keyword arguments if you are passing a function to be called
+
+        Example:
+            builder.add_attribute("my_attr", 42, make_function=False)
+            builder.add_attribute("my_attr", 42, make_function=True)
+            builder.add_attribute("my_method", lambda cls: ..., make_function=True)
+        """
+        if make_function:
+            if callable(attribute):
+                self._with_override(name, classmethod(attribute))
+            else:
+                self._with_override(name, classmethod(lambda cls: attribute))
+        else:
+            if callable(attribute):
+                self._with_override(name, attribute(*args, **kwargs))
+            else:
+                self._with_override(name, attribute)
+
     def _with_override(self, name: str, method):
         """
         Add an override method for the node.
