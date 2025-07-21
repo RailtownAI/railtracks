@@ -72,6 +72,8 @@ async def call(
         from ..nodes.library.function import from_function
 
         node = from_function(node_)
+    else:
+        node = node_
 
     node: Callable[_P, Node[_TOutput]]
 
@@ -183,7 +185,6 @@ async def _execute(
     message_filter: Callable[[str], Callable[[RequestCompletionMessage], bool]],
 ) -> _TOutput:
     
-    assert issubclass(node, Node), "Node must be a callable"
     publisher = get_publisher()
 
     # generate a unique request ID for this request. We need to hold this reference here because we will use it to

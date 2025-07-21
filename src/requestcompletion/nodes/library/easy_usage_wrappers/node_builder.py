@@ -61,7 +61,7 @@ class NodeBuilder(Generic[_TNode]):
 
     def __init__(
         self,
-        node_class: type[_TNode],
+        node_class: Type[_TNode],
         /,
         *,
         pretty_name: str | None = None,
@@ -73,17 +73,21 @@ class NodeBuilder(Generic[_TNode]):
         self._node_class = node_class
         self._name = class_name or f"Dynamic{node_class.__qualname__}"
         self._methods = {}
+
         if pretty_name is not None:
             self._with_override(
                 "pretty_name", classmethod(lambda cls: pretty_name or cls.__name__)
             )
+
         if return_into is not None:
             self._with_override("return_into", classmethod(lambda cls: return_into))
+
         if format_for_context is not None:
             self._with_override(
                 "format_for_context",
                 classmethod(lambda cls, x: format_for_context(x)),
             )
+
         if format_for_return is not None:
             self._with_override(
                 "format_for_return",
@@ -105,8 +109,6 @@ class NodeBuilder(Generic[_TNode]):
         Raises:
             AssertionError: If the node class is not a subclass of LLMBase.
         """
-        print(LLMBase)
-        print(type(self._node_class))
         assert issubclass(self._node_class, LLMBase), (
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         )
@@ -248,6 +250,9 @@ class NodeBuilder(Generic[_TNode]):
         - If tool_details is provided, it will override the tool_info method to provide the tool details and parameters.
         - If not it will use the default Tool.from_function(func) to create the tool info. (this will use the docstring)
         """
+
+        print(self._node_class)
+        print(type(self._node_class))
 
         assert issubclass(self._node_class, DynamicFunctionNode)
 

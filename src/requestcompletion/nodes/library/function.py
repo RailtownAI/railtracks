@@ -25,10 +25,39 @@ from .function_base import (
 _P = ParamSpec("_P")
 _TOutput = TypeVar("_TOutput")
 
+@overload
+def to_node(
+    func: Callable[_P, Coroutine[None, None, _TOutput]],
+    /,
+    *,
+    pretty_name: str | None = None,
+    tool_details: str | None = None,
+    tool_params: set[Parameter] | None = None,
+) -> Type[AsyncDynamicFunctionNode[_P, _TOutput]]:
+    pass
 
-def to_node(func):
+@overload
+def to_node(
+    func: Callable[_P, _TOutput],
+    /,
+    *,
+    pretty_name: str | None = None,
+    tool_details: str | None = None,
+    tool_params: set[Parameter] | None = None,
+) -> Type[SyncDynamicFunctionNode[_P, _TOutput]]:
+    pass
+
+
+def to_node(
+        func: Callable[_P, _TOutput | Coroutine[None, None, _TOutput]],
+        /,
+        *,
+        pretty_name: str | None = None,
+        tool_details: str | None = None,
+        tool_params: set[Parameter] | None = None,
+):
     """Decorator to convert a function into a Node using from_function."""
-    return from_function(func)
+    return from_function(func, pretty_name=pretty_name, tool_details=tool_details, tool_params=tool_params)
 
 
 @overload 
@@ -93,6 +122,9 @@ def from_function(
                 "You must provide a valid function or coroutine function to make a node.",
             ],
         )
+    
+    print(node_class)
+    print(type(node_class))
 
     builder = NodeBuilder(
         node_class,
