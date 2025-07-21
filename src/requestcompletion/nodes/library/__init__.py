@@ -7,7 +7,6 @@ __all__ = [
     "StructuredLLM",
     "tool_call_llm",
     "terminal_llm",
-    "structured_llm_base",
     "from_mcp_server",
     "structured_tool_call_llm",
     "message_hist_tool_call_llm",

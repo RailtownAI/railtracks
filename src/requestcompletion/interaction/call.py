@@ -43,7 +43,7 @@ async def call(
 
 
 async def call(
-    node: Callable[_P, Union[Node[_TOutput], _TOutput]],
+    node_: Callable[_P, Union[Node[_TOutput], _TOutput]],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ):
@@ -66,12 +66,12 @@ async def call(
         *args: The arguments to pass to the node
         **kwargs: The keyword arguments to pass to the node
     """
-    if isinstance(node, FunctionType):
+    if isinstance(node_, FunctionType):
         # If a function is passed, we will convert it to a node
         # we have to use lazy import here to prevent a circular import issue. Bad design I know :(
         from ..nodes.library.function import from_function
 
-        node = from_function(node)
+        node = from_function(node_)
 
     node: Callable[_P, Node[_TOutput]]
 
@@ -165,8 +165,8 @@ async def _start(
 
 async def _run(
     node: Callable[_P, Node[_TOutput]],
-    args: _P.args,
-    kwargs: _P.kwargs,
+    args,
+    kwargs,
 ):
     """
     Executes the given Node set up using the provided arguments and keyword arguments.
@@ -181,7 +181,9 @@ async def _execute(
     args,
     kwargs,
     message_filter: Callable[[str], Callable[[RequestCompletionMessage], bool]],
-):
+) -> _TOutput:
+    
+    assert issubclass(node, Node), "Node must be a callable"
     publisher = get_publisher()
 
     # generate a unique request ID for this request. We need to hold this reference here because we will use it to
@@ -206,11 +208,27 @@ async def _execute(
     return await f
 
 
+@overload
+def call_sync(
+    node: Callable[_P, Node[_TOutput]],
+    *args: _P.args,
+    **kwargs: _P.kwargs,
+) -> _TOutput:
+    pass
+
+@overload
+def call_sync(
+    node: Callable[_P, _TOutput],
+    *args: _P.args,
+    **kwargs: _P.kwargs,
+) -> _TOutput:
+    pass
+
 def call_sync(
     node: Callable[_P, Union[Node[_TOutput], _TOutput]],
     *args: _P.args,
     **kwargs: _P.kwargs,
-):
+) -> _TOutput:
     """
     Call a node from within a node inside the framework synchronously. This will block until the node is completed
     and return the result.

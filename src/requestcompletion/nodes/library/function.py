@@ -6,7 +6,11 @@ from types import BuiltinFunctionType
 from typing import (
     Callable,
     Coroutine,
+    ParamSpec,
     Set,
+    Type,
+    TypeVar,
+    overload,
 )
 
 from ...exceptions import NodeCreationError
@@ -14,11 +18,12 @@ from ...exceptions.node_creation.validation import validate_function
 from ...llm import Parameter
 from .easy_usage_wrappers.node_builder import NodeBuilder
 from .function_base import (
-    _P,
     AsyncDynamicFunctionNode,
     SyncDynamicFunctionNode,
-    _TOutput,
 )
+
+_P = ParamSpec("_P")
+_TOutput = TypeVar("_TOutput")
 
 
 def to_node(func):
@@ -26,8 +31,31 @@ def to_node(func):
     return from_function(func)
 
 
+@overload 
 def from_function(
-    func: Callable[[_P], Coroutine[None, None, _TOutput] | _TOutput],
+    func: Callable[_P, Coroutine[None, None, _TOutput]],
+    /,
+    *,
+    pretty_name: str | None = None,
+    tool_details: str | None = None,
+    tool_params: set[Parameter] | None = None,
+) -> Type[AsyncDynamicFunctionNode[_P, _TOutput]]:
+    pass
+
+@overload
+def from_function(
+    func: Callable[_P, _TOutput],
+    /,
+    *,
+    pretty_name: str | None = None,
+    tool_details: str | None = None,
+    tool_params: set[Parameter] | None = None,
+) -> Type[SyncDynamicFunctionNode[_P, _TOutput]]:
+    pass
+                   
+
+def from_function(
+    func: Callable[_P, Coroutine[None, None, _TOutput] | _TOutput],
     /,
     *,
     pretty_name: str | None = None,
@@ -53,11 +81,11 @@ def from_function(
         validate_function(func)  # checks for dict or Dict parameters
 
     if asyncio.iscoroutinefunction(func):
-        type_ = AsyncDynamicFunctionNode
+        node_class = AsyncDynamicFunctionNode
     elif inspect.isfunction(func):
-        type_ = SyncDynamicFunctionNode
+        node_class = SyncDynamicFunctionNode
     elif inspect.isbuiltin(func):
-        type_ = SyncDynamicFunctionNode
+        node_class = SyncDynamicFunctionNode
     else:
         raise NodeCreationError(
             message=f"The provided function is not a valid coroutine or sync function it is {type(func)}.",
@@ -67,7 +95,7 @@ def from_function(
         )
 
     builder = NodeBuilder(
-        type_,
+        node_class,
         pretty_name=pretty_name if pretty_name is not None else f"{func.__name__} Node",
     )
 
