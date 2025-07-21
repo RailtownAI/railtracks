@@ -230,6 +230,15 @@ class NodeBuilder(Generic[_TNode]):
         self,
         chat_ui: ChatUI,
     ):
+        """
+        Configure a chat UI for the node.
+
+        Starts the chat UI server asynchronously and sets it as an override
+        for the node being built.
+
+        Args:
+            chat_ui (ChatUI): The chat UI instance to configure for this node.
+        """
         chat_ui.start_server_async()
         self._with_override("chat_ui", chat_ui)
 
