@@ -371,12 +371,32 @@ class NodeBuilder(Generic[_TNode]):
         )
 
         def prepare_tool(cls, tool_parameters: Dict[str, Any]):
-            message_hist = MessageHistory(
-                [
-                    UserMessage(f"{param.name}: '{tool_parameters[param.name]}'")
-                    for param in (tool_params if tool_params else [])
-                ]
-            )
+            # If no parameters, return empty message history
+            if not tool_params:
+                return cls(MessageHistory([]))
+            
+            # Create a single, coherent instruction instead of multiple separate messages
+            instruction_parts = ["You are being called as a tool with the following parameters:"]
+            instruction_parts.append("")  # Empty line for readability
+            
+            for param in tool_params:
+                value = tool_parameters.get(param.name, None)
+                # Format the parameter appropriately based on its type
+                if param.param_type == "array" and isinstance(value, list):
+                    formatted_value = ", ".join(str(v) for v in value)
+                    instruction_parts.append(f"• {param.name}: {formatted_value}")
+                elif param.param_type == "object" and isinstance(value, dict):
+                    # For objects, show key-value pairs
+                    formatted_value = "; ".join(f"{k}={v}" for k, v in value.items())
+                    instruction_parts.append(f"• {param.name}: {formatted_value}")
+                else:
+                    instruction_parts.append(f"• {param.name}: {value}")
+            
+            instruction_parts.append("")  # Empty line
+            instruction_parts.append("Please execute your function based on these parameters.")
+            
+            # Create a single UserMessage with the complete instruction
+            message_hist = MessageHistory([UserMessage("\n".join(instruction_parts))])
             return cls(message_hist)
 
         self._with_override("prepare_tool", classmethod(prepare_tool))
