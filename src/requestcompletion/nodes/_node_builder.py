@@ -383,7 +383,8 @@ class NodeBuilder(Generic[_TNode]):
 
     def add_attribute(self, name: str, attribute, make_function: bool, *args, **kwargs):
         """
-        Add or override an attribute or method on the dynamically built node class.
+        Add or override an attribute or method on the dynamically built node class. 
+        This takes functions or values and can make them class methods or class fields
 
         Args:
             name (str): The name of the attribute or method to add/override.
