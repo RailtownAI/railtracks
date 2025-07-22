@@ -10,11 +10,6 @@ class TerminalLLM(LLMBase[str]):
     def __init__(
         self, message_history: MessageHistory, llm_model: ModelBase | None = None
     ):
-        """Creates a new instance of the TerminalLLM class
-
-        Args:
-
-        """
         super().__init__(llm_model=llm_model, message_history=message_history)
 
     @classmethod

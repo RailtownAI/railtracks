@@ -34,14 +34,6 @@ class TerminalLLM(LLMBase[str]):
         user_input: MessageHistory | UserMessage | str,
         llm_model: ModelBase | None = None,
     ):
-        """Creates a new instance of the TerminalLLM class.
-
-        Args:
-            user_input: The message history to use. Can be a MessageHistory object, a UserMessage object, or a string.
-                If a string is provided, it will be converted to a MessageHistory with a UserMessage.
-                If a UserMessage is provided, it will be converted to a MessageHistory.
-            llm_model: The LLM model to use. If None, the default model will be used.
-        """
         super().__init__(llm_model=llm_model, user_input=user_input)
 
     @classmethod

@@ -60,7 +60,74 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
     The main functionality of the class is contained within the attachment of pre and post hooks to the model so we can
     store debugging details that will allow us to determine token usage.
 
+    Args:
+        user_input: The message history to use. Can be a MessageHistory object, a UserMessage object, or a string.
+            If a string is provided, it will be converted to a MessageHistory with a UserMessage.
+            If a UserMessage is provided, it will be converted to a MessageHistory.
+            llm_model: The LLM model to use. If None, the default model will be used.
     """
+
+    def __init__(
+        self,
+        user_input: llm.MessageHistory | UserMessage | str,
+        llm_model: llm.ModelBase | None = None,
+    ):
+        super().__init__()
+
+        # Convert str or UserMessage to MessageHistory if needed
+        if isinstance(user_input, str):
+            user_input = llm.MessageHistory([UserMessage(user_input)])
+        elif isinstance(user_input, UserMessage):
+            user_input = llm.MessageHistory([user_input])
+
+        self._verify_message_history(user_input)
+        message_history_copy = deepcopy(
+            user_input
+        )  # Ensure we don't modify the original message history
+
+        # If there is a system_message method we add it to message history
+        if self.system_message() is not None:
+            if not isinstance(self.system_message(), (SystemMessage, str)):
+                raise NodeInvocationError(
+                    message=get_message("INVALID_SYSTEM_MESSAGE_MSG"),
+                    fatal=True,
+                )
+            # If there is already a SystemMessage in MessageHistory we will tell user both are being used
+            if len([x for x in message_history_copy if x.role == "system"]) > 0:
+                warnings.warn(
+                    "System message was passed in message history and defined as a method. We will use both and add model method to message history."
+                )
+            message_history_copy.insert(
+                0,
+                SystemMessage(self.system_message())
+                if isinstance(self.system_message(), str)
+                else self.system_message(),
+            )
+
+        instance_injected_llm_model = self.get_llm_model()
+
+        if instance_injected_llm_model is not None:
+            if llm_model is not None:
+                warnings.warn(
+                    "You have provided an llm model as a parameter and as a class variable. We will use the parameter."
+                )
+                unwrapped_llm_model = llm_model
+            else:
+                unwrapped_llm_model = instance_injected_llm_model
+        else:
+            unwrapped_llm_model = llm_model
+
+        self._verify_llm_model(unwrapped_llm_model)
+        assert isinstance(unwrapped_llm_model, llm.ModelBase), (
+            "unwrapped_llm_model must be an instance of llm.ModelBase"
+        )
+        self.llm_model = unwrapped_llm_model
+
+        self.message_hist = message_history_copy
+
+        self._details["llm_details"] = []
+
+        self._attach_llm_hooks()
 
     @classmethod
     def prepare_tool_message_history(
@@ -126,76 +193,6 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
     @classmethod
     def system_message(cls) -> SystemMessage | str | None:
         return None
-
-    def __init__(
-        self,
-        user_input: llm.MessageHistory | UserMessage | str,
-        llm_model: llm.ModelBase | None = None,
-    ):
-        """Initialize a new LLMBase instance.
-
-        Args:
-            user_input: The message history to use. Can be a MessageHistory object, a UserMessage object, or a string.
-                If a string is provided, it will be converted to a MessageHistory with a UserMessage.
-                If a UserMessage is provided, it will be converted to a MessageHistory.
-            llm_model: The LLM model to use. If None, the default model will be used.
-        """
-        super().__init__()
-
-        # Convert str or UserMessage to MessageHistory if needed
-        if isinstance(user_input, str):
-            user_input = llm.MessageHistory([UserMessage(user_input)])
-        elif isinstance(user_input, UserMessage):
-            user_input = llm.MessageHistory([user_input])
-
-        self._verify_message_history(user_input)
-        message_history_copy = deepcopy(
-            user_input
-        )  # Ensure we don't modify the original message history
-
-        # If there is a system_message method we add it to message history
-        if self.system_message() is not None:
-            if not isinstance(self.system_message(), (SystemMessage, str)):
-                raise NodeInvocationError(
-                    message=get_message("INVALID_SYSTEM_MESSAGE_MSG"),
-                    fatal=True,
-                )
-            # If there is already a SystemMessage in MessageHistory we will tell user both are being used
-            if len([x for x in message_history_copy if x.role == "system"]) > 0:
-                warnings.warn(
-                    "System message was passed in message history and defined as a method. We will use both and add model method to message history."
-                )
-            message_history_copy.insert(
-                0,
-                SystemMessage(self.system_message())
-                if isinstance(self.system_message(), str)
-                else self.system_message(),
-            )
-
-        instance_injected_llm_model = self.get_llm_model()
-
-        if instance_injected_llm_model is not None:
-            if llm_model is not None:
-                warnings.warn(
-                    "You have provided an llm model as a parameter and as a class variable. We will use the parameter."
-                )
-                unwrapped_llm_model = llm_model
-            else:
-                unwrapped_llm_model = instance_injected_llm_model
-        else:
-            unwrapped_llm_model = llm_model
-
-        self._verify_llm_model(unwrapped_llm_model)
-        assert isinstance(unwrapped_llm_model, llm.ModelBase), (
-            "unwrapped_llm_model must be an instance of llm.ModelBase"
-        )
-        self.llm_model = unwrapped_llm_model
-
-        self.message_hist = message_history_copy
-
-        self._details["llm_details"] = []
-
-        self._attach_llm_hooks()
 
     def _attach_llm_hooks(self):
         """Attach pre and post hooks to the llm model."""
