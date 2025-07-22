@@ -121,7 +121,6 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
             else:
                 unwrapped_llm_model = instance_injected_llm_model
         else:
-
             unwrapped_llm_model = llm_model
 
         self._verify_llm_model(unwrapped_llm_model)
