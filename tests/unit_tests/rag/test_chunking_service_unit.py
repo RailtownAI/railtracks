@@ -1,5 +1,5 @@
 import pytest
-from requestcompletion.RAG.chunking_service import (
+from railtracks.RAG.chunking_service import (
     BaseChunkingService,
     TextChunkingService,
 )
@@ -7,7 +7,7 @@ from requestcompletion.RAG.chunking_service import (
 # -- Import module and patch DummyTokenizer using monkeypatch fixture --
 @pytest.fixture(autouse=True)
 def patch_tokenizer(monkeypatch):
-    from requestcompletion.RAG import chunking_service as chunking_mod
+    from railtracks.RAG import chunking_service as chunking_mod
 
     class DummyTokenizer:
         def __init__(self, model):

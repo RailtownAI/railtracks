@@ -2,10 +2,10 @@ from uuid import uuid4
 import pytest
 from dataclasses import dataclass
 from copy import deepcopy
-from requestcompletion.utils.profiling import Stamp
-from requestcompletion.state.forest import Forest, AbstractLinkedObject
-from requestcompletion.state.node import LinkedNode, NodeForest
-from requestcompletion.state.request import RequestTemplate, RequestForest
+from railtracks.utils.profiling import Stamp
+from railtracks.state.forest import Forest, AbstractLinkedObject
+from railtracks.state.node import LinkedNode, NodeForest
+from railtracks.state.request import RequestTemplate, RequestForest
 from unittest.mock import patch, MagicMock, AsyncMock
 
 # ================= START fixtures for forest.py ====================
@@ -188,7 +188,7 @@ def dummy_stamper():
         def __init__(self): self.stamps = []
         def create_stamp(self, msg): self.stamps.append(msg); return self.DummyStamp(msg)
         def stamp_creator(self): return lambda msg="": self.create_stamp(msg)
-    # Use .stamp_creator() to match the interface in RCState
+    # Use .stamp_creator() to match the interface in RTState
     return DummyStamper()
 
 # ---- ExecutionInfo + ExecutorConfig dummy ----
@@ -208,11 +208,11 @@ def dummy_executor_config():
             self.end_on_error = end_on_error
     return DummyExecutorConfig()
 
-# ---- Patch RC logger everywhere ----
+# ---- Patch RT logger everywhere ----
 @pytest.fixture(autouse=True)
-def patch_rc_logger(monkeypatch):
-    # Patch get_rc_logger to return a MagicMock logger for every RCState
+def patch_rt_logger(monkeypatch):
+    # Patch get_rt_logger to return a MagicMock logger for every RTState
     monkeypatch.setattr(
-        "requestcompletion.state.state.get_rc_logger", lambda: MagicMock()
+        "railtracks.state.state.get_rt_logger", lambda: MagicMock()
     )
 # ================ END fixtures for state.py ====================

@@ -1,7 +1,7 @@
 import pytest
-from requestcompletion.llm import AnthropicLLM
-from requestcompletion.llm.history import MessageHistory
-from requestcompletion.exceptions import LLMError
+from railtracks.llm import AnthropicLLM
+from railtracks.llm.history import MessageHistory
+from railtracks.exceptions import LLMError
 
 def test_llm_correct_init():
     """

@@ -1,14 +1,14 @@
 import pytest
-import requestcompletion as rc
+import railtracks as rt
 from typing import List, Callable
 from pydantic import BaseModel, Field
-from requestcompletion.llm import SystemMessage
+from railtracks.llm import SystemMessage
 
 
 # ============ Model ===========
 @pytest.fixture
 def model():
-    return rc.llm.OpenAILLM("gpt-4o")
+    return rt.llm.OpenAILLM("gpt-4o")
 
 
 # ============ System Messages ===========
@@ -41,8 +41,8 @@ def create_top_level_node():
             A ToolCallLLM node that can be used to test the function.
         """
 
-        class TopLevelNode(rc.library.ToolCallLLM):
-            def __init__(self, message_history: rc.llm.MessageHistory):
+        class TopLevelNode(rt.library.ToolCallLLM):
+            def __init__(self, message_history: rt.llm.MessageHistory):
                 message_history.insert(0, self.system_message())
 
                 super().__init__(
@@ -57,15 +57,15 @@ def create_top_level_node():
             @classmethod
             def create_model(cls):
                 if model_provider == "openai":
-                    return rc.llm.OpenAILLM("gpt-4o")
+                    return rt.llm.OpenAILLM("gpt-4o")
                 elif model_provider == "anthropic":
-                    return rc.llm.AnthropicLLM("claude-3-5-sonnet-20241022")
+                    return rt.llm.AnthropicLLM("claude-3-5-sonnet-20241022")
                 else:
                     raise ValueError(f"Invalid model provider: {model_provider}")
 
             @classmethod
             def connected_nodes(cls):
-                return {rc.library.from_function(test_function)}
+                return {rt.library.from_function(test_function)}
 
             @classmethod
             def pretty_name(cls) -> str:

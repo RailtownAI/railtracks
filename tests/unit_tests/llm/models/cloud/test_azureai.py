@@ -2,12 +2,12 @@ import pytest
 import litellm
 from unittest.mock import patch
 
-from requestcompletion.llm.models import AzureAILLM
-from requestcompletion.llm.models.cloud.azureai import AzureAIError
-from requestcompletion.llm.models._litellm_wrapper import LiteLLMWrapper
+from railtracks.llm.models import AzureAILLM
+from railtracks.llm.models.cloud.azureai import AzureAIError
+from railtracks.llm.models._litellm_wrapper import LiteLLMWrapper
 
-from requestcompletion.llm.response import Response
-from requestcompletion.llm.message import AssistantMessage
+from railtracks.llm.response import Response
+from railtracks.llm.message import AssistantMessage
 
 
 MODEL_NAME = "deepseek-r1"

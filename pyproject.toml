@@ -4,11 +4,14 @@ build-backend = "flit_core.buildapi"
 
 
 [project]
-name = "requestcompletion"
+name = "railtracks"
 authors = [
     { name = "Logan Underwood", email = "logan@railtown.ai" },
     { name = "Levi Varsanyi", email = "levi@railtownn.ai" },
     { name = "Jaime Bueza", email = "jaime@railtown.ai" },
+    { name = "Amir Refaee", email = "amir@railtown.ai" },
+    { name = "Aryan Ballani", email = "aryan@railtown.ai" },
+    { name = "Tristan Brown", email = "tristan@railtown.ai" }
 ]
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -31,7 +34,7 @@ Home = "https://railtown.ai"
 
 
 [tool.flit.module]
-name = "requestcompletion"
+name = "railtracks"
 
 [tool.ruff]
 target-version = "py310"
@@ -60,7 +63,7 @@ lint.ignore = [
 fix = true
 lint.fixable = ["F401", "F841", "I001"]
 
-exclude = [".git", "examples", "docs", ".venv", ".conda", "tests", "src/requestcompletion/visuals"]
+exclude = [".git", "examples", "docs", ".venv", ".conda", "tests", "src/railtracks/visuals"]
 
 
 

@@ -2,16 +2,16 @@
 Tests for the schema_parser module.
 
 This module contains tests for the JSON schema parsing utilities in the
-requestcompletion.llm.tools.schema_parser module.
+railtracks.llm.tools.schema_parser module.
 """
 
 import re
 
-from requestcompletion.llm.tools.schema_parser import (
+from railtracks.llm.tools.schema_parser import (
     parse_json_schema_to_parameter,
     parse_model_properties,
 )
-from requestcompletion.llm.tools.parameter import Parameter, PydanticParameter, ArrayParameter
+from railtracks.llm.tools.parameter import Parameter, PydanticParameter, ArrayParameter
 
 
 class TestParseJsonSchemaToParameter:

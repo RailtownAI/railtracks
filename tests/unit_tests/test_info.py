@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
 
-from requestcompletion.info import ExecutionInfo
+from railtracks.info import ExecutionInfo
 
 # ================= START ExecutionInfo: Fixtures and helpers ============
 
@@ -54,18 +54,18 @@ def confirm_empty(info: ExecutionInfo):
 
 def test_empty_starter():
     # Uses the true classes but everything's empty
-    with patch("requestcompletion.info.RequestForest", return_value=MagicMock(
+    with patch("railtracks.info.RequestForest", return_value=MagicMock(
             answer=None, insertion_request=[], __contains__=lambda self, x: False, heap=lambda: [], to_edges=lambda: [])), \
-         patch("requestcompletion.info.NodeForest", return_value=MagicMock(heap=lambda: [], to_vertices=lambda: [])), \
-         patch("requestcompletion.info.StampManager", return_value=MagicMock(_step=0, all_stamps=[])):
+         patch("railtracks.info.NodeForest", return_value=MagicMock(heap=lambda: [], to_vertices=lambda: [])), \
+         patch("railtracks.info.StampManager", return_value=MagicMock(_step=0, all_stamps=[])):
         info = ExecutionInfo.create_new()
         confirm_empty(info)
 
 def test_default():
-    with patch("requestcompletion.info.RequestForest", return_value=MagicMock(
+    with patch("railtracks.info.RequestForest", return_value=MagicMock(
             answer=None, insertion_request=[], __contains__=lambda self, x: False, heap=lambda: [], to_edges=lambda: [])), \
-         patch("requestcompletion.info.NodeForest", return_value=MagicMock(heap=lambda: [], to_vertices=lambda: [])), \
-         patch("requestcompletion.info.StampManager", return_value=MagicMock(_step=0, all_stamps=[])):
+         patch("railtracks.info.NodeForest", return_value=MagicMock(heap=lambda: [], to_vertices=lambda: [])), \
+         patch("railtracks.info.StampManager", return_value=MagicMock(_step=0, all_stamps=[])):
         info = ExecutionInfo.default()
         confirm_empty(info)
 
@@ -95,7 +95,7 @@ def test_get_info_with_string_id_valid(monkeypatch, empty_info):
     # Patch create_sub_state_info to return new minimal forests
     mock_new_rf = MagicMock()
     mock_new_nf = MagicMock()
-    with patch("requestcompletion.info.create_sub_state_info", return_value=(mock_new_nf, mock_new_rf)):
+    with patch("railtracks.info.create_sub_state_info", return_value=(mock_new_nf, mock_new_rf)):
         result = empty_info.get_info(ids=id_)
     assert isinstance(result, ExecutionInfo)
     assert result.node_heap is mock_new_nf
@@ -106,7 +106,7 @@ def test_get_info_with_list_id_valid(monkeypatch, empty_info):
     # Simulate presence of multiple ids
     ids = ["id1", "id2"]
     empty_info.request_heap.__contains__.side_effect = lambda key: key in ids
-    with patch("requestcompletion.info.create_sub_state_info", return_value=(MagicMock(), MagicMock())):
+    with patch("railtracks.info.create_sub_state_info", return_value=(MagicMock(), MagicMock())):
         result = empty_info.get_info(ids=ids)
     # instance, and property propagation as above
     assert isinstance(result, ExecutionInfo)
@@ -138,8 +138,8 @@ def test_graph_serialization_serializes_json(empty_info):
     empty_info.node_heap.to_vertices.return_value = verts
     empty_info.request_heap.to_edges.return_value = edgs
     empty_info.stamper.all_stamps = steps
-    # patch RCJSONEncoder to just call default json
-    with patch("requestcompletion.info.RCJSONEncoder", None):
+    # patch RTJSONEncoder to just call default json
+    with patch("railtracks.info.RTJSONEncoder", None):
         json_str = empty_info.graph_serialization()
         # quit test via presence of keywords (structure)
         assert '"nodes":' in json_str

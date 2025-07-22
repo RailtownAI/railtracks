@@ -19,7 +19,7 @@ Before implementing this integration, you'll need:
 
 3. **Required packages**: <br>
    ```
-   pip install requestcompletion python-dotenv aiohttp
+   pip install railtracks python-dotenv aiohttp
    ```
 
 ## Implementation
@@ -29,9 +29,9 @@ Before implementing this integration, you'll need:
 ```python
 from dotenv import load_dotenv
 import os
-from requestcompletion.nodes.library import from_mcp_server, tool_call_llm
-import requestcompletion as rc
-from requestcompletion.rc_mcp import MCPHttpParams
+from railtracks.nodes.library import from_mcp_server, tool_call_llm
+import railtracks as rt
+from railtracks.rt_mcp import MCPHttpParams
 import aiohttp
 from typing import Dict, Any
 
@@ -56,7 +56,7 @@ This connects to a [remote MCP server](https://remote-mcp-servers.com/servers/ec
 def _format_results(data: Dict[str, Any]) -> Dict[str, Any]:
     ...
 
-@rc.to_node
+@rt.to_node
 async def google_search(query: str, num_results: int = 3) -> Dict[str, Any]:
     """
     Tool for searching using Google Custom Search API
@@ -98,15 +98,15 @@ tools = fetch_mcp_tools + [google_search]
 agent = tool_call_llm(
     connected_nodes={*tools},
     system_message="""You are an information gathering agent that can search the web.""",
-    model=rc.llm.OpenAILLM("gpt-4o"),
+    model=rt.llm.OpenAILLM("gpt-4o"),
 )
 
 # Example usage
 user_prompt = """Tell me about Railtown AI."""
-message_history = rc.llm.MessageHistory()
-message_history.append(rc.llm.UserMessage(user_prompt))
+message_history = rt.llm.MessageHistory()
+message_history.append(rt.llm.UserMessage(user_prompt))
 
-result = rc.call_sync(agent, message_history)
+result = rt.call_sync(agent, message_history)
 print(result)
 ```
 
