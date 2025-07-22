@@ -488,10 +488,10 @@ async def test_context_reset_between_runs(limited_tool_call_node_factory, travel
     message_history = travel_message_history("Get the magic number and divide it by 2.")
     with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as runner:
         reset_tools_called()
-        response = await rc.call(node, message_history=message_history)
+        response = await rc.call(node, user_input=message_history)
         assert rc.context.get("tools_called") == 1
         reset_tools_called()
-        response2 = await rc.call(node, message_history=message_history)
+        response2 = await rc.call(node, user_input=message_history)
         assert rc.context.get("tools_called") == 1
 
 # =========================================== END TESTS FOR MAX TOOL CALLS ===========================================
