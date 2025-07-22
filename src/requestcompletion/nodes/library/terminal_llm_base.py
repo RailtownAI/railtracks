@@ -23,7 +23,9 @@ class TerminalLLM(LLMBase[str]):
         result = await rc.call(TerminalLLM, user_input=user_msg)
 
         # Using string
-        result = await rc.call(TerminalLLM, user_input="Tell me about the world around us")
+        result = await rc.call(
+            TerminalLLM, user_input="Tell me about the world around us"
+        )
         ```
     """
 
