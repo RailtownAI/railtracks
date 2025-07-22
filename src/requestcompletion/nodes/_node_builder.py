@@ -40,9 +40,7 @@ from requestcompletion.nodes.library.function_base import DynamicFunctionNode
 from requestcompletion.nodes.library.tool_calling_llms._base import (
     OutputLessToolCallLLM,
 )
-from requestcompletion.nodes.library.tool_calling_llms.tool_call_llm import ToolCallLLM
 from requestcompletion.nodes.nodes import Node
-from requestcompletion.rc_mcp import MCPStdioParams
 from requestcompletion.visuals.browser.chat_ui import ChatUI
 
 _TNode = TypeVar("_TNode", bound=Node)
@@ -190,41 +188,21 @@ class NodeBuilder(Generic[_TNode]):
         self._with_override("connected_nodes", classmethod(lambda cls: connected_nodes))
         self._with_override("max_tool_calls", max_tool_calls)
 
-    def mcp_llm(self, mcp_command, mcp_args, mcp_env, max_tool_calls):
+    def chat_ui(
+        self,
+        chat_ui: ChatUI,
+    ):
         """
-        Configure the node subclass to use MCP (Model Context Protocol) tool calling.
+        Configure a chat UI for the node.
 
-        This method sets up the node to call tools via an MCP server, specifying the command, arguments,
-        environment, and maximum tool calls.
+        Starts the chat UI server asynchronously and sets it as an override
+        for the node being built.
 
         Args:
-            mcp_command (str): The command to run the MCP server (e.g., 'npx').
-            mcp_args (list): Arguments to pass to the MCP server command.
-            mcp_env (dict or None): Environment variables for the MCP server process.
-            max_tool_calls (int): Maximum number of tool calls allowed per invocation.
-
-        Raises:
-            AssertionError: If the node class is not a subclass of ToolCallLLM.
+            chat_ui (ChatUI): The chat UI instance to configure for this node.
         """
-
-        assert issubclass(self._node_class, ToolCallLLM), (
-            f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
-        )
-        tools = from_mcp_server(
-            MCPStdioParams(
-                command=mcp_command,
-                args=mcp_args,
-                env=mcp_env if mcp_env is not None else None,
-            )
-        )
-
-        connected_nodes = {*tools}
-
-        _check_max_tool_calls(max_tool_calls)
-        check_connected_nodes(connected_nodes, self._node_class)
-
-        self._with_override("connected_nodes", classmethod(lambda cls: connected_nodes))
-        self._with_override("max_tool_calls", max_tool_calls)
+        chat_ui.start_server_async()
+        self._with_override("chat_ui", chat_ui)
 
     @overload
     def setup_function_node(

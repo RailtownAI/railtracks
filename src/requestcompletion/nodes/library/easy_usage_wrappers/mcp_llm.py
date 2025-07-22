@@ -1,4 +1,5 @@
 from typing import Any, Callable, Type
+
 from pydantic import BaseModel
 
 from requestcompletion.llm import (
@@ -6,30 +7,33 @@ from requestcompletion.llm import (
     SystemMessage,
 )
 from requestcompletion.nodes._node_builder import NodeBuilder
-
-from ....llm.tools import Parameter
-from ....nodes.nodes import Node
-from ...library.tool_calling_llms.tool_call_llm import ToolCallLLM
 from requestcompletion.nodes.library.easy_usage_wrappers.mcp_tool import from_mcp_server
 from requestcompletion.rc_mcp.main import MCPStdioParams
 
-def tool_call_llm(  # noqa: 
+from ....llm.tools import Parameter
+from ...library.tool_calling_llms.mess_hist_tool_call_llm import MessageHistoryToolCallLLM,
+from ...library.tool_calling_llms.structured_mess_hist_tool_call_llm import StructuredMessageHistoryToolCallLLM,
+from ...library.tool_calling_llms.structured_tool_call_llm import StructuredToolCallLLM
+from ...library.tool_calling_llms.tool_call_llm import ToolCallLLM
+
+
+def tool_call_llm(  # noqa:
     pretty_name: str | None = None,
-    mcp_command : str | None = None, 
-    mcp_args : list[str] | None = None, 
-    mcp_env : dict[str, str] | None = None,
+    mcp_command: str | None = None,
+    mcp_args: list[str] | None = None,
+    mcp_env: dict[str, str] | None = None,
     *,
     llm_model: ModelBase | None = None,
     max_tool_calls: int | None = None,
-    last_message : bool | None = True,
-    schema : BaseModel | None = None, 
+    last_message: bool = True,
+    schema: BaseModel | None = None,
     system_message: SystemMessage | str | None = None,
     tool_details: str | None = None,
     tool_params: set[Parameter] | None = None,
     return_into: str | None = None,
     format_for_return: Callable[[Any], Any] | None = None,
     format_for_context: Callable[[Any], Any] | None = None,
-) -> Type[ToolCallLLM]:
+) -> Type[]:
     """
     Dynamically create an MCPToolCallLLM node class with custom configuration for tool calling and output.
 
@@ -55,7 +59,7 @@ def tool_call_llm(  # noqa:
         format_for_context (Callable[[Any], Any] | None, optional): A function to format the result before putting it into context, only if return_into is provided. If not provided, the response will be put into context as is.
 
     Returns:
-        Type[ToolCallLLM]: The dynamically generated node class with the specified configuration.
+        Type[]: The dynamically generated node class with the specified configuration.
     """
     if schema:
         if last_message:
@@ -67,26 +71,28 @@ def tool_call_llm(  # noqa:
             tool_call_type = ToolCallLLM
         else:
             tool_call_type = MessageHistoryToolCallLLM
-    
+
     builder = NodeBuilder(
-    tool_call_type,
-    pretty_name=pretty_name,
-    class_name="MCPToolCallLLM",
-    return_into=return_into,
-    format_for_return=format_for_return,
-    format_for_context=format_for_context,
+        tool_call_type,
+        pretty_name=pretty_name,
+        class_name="MCPToolCallLLM",
+        return_into=return_into,
+        format_for_return=format_for_return,
+        format_for_context=format_for_context,
     )
+    if schema:
+        builder.structured(schema)
 
     builder.llm_base(llm_model, system_message)
     tools = from_mcp_server(
-            MCPStdioParams(
-                command=mcp_command,
-                args=mcp_args,
-                env=mcp_env,
-            )
+        MCPStdioParams(
+            command=mcp_command,
+            args=mcp_args,
+            env=mcp_env,
         )
+    )
     connected_nodes = {*tools}
-    
+
     builder.tool_calling_llm(connected_nodes, max_tool_calls)
     if tool_details is not None or tool_params is not None:
         builder.tool_callable_llm(tool_details, tool_params)
