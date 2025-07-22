@@ -30,7 +30,6 @@ class OutputLessStructuredToolCallLLM(
     """
 
     def __init_subclass__(cls):
-        
         system_structured = (
             "You are a structured LLM tasked with extracting structured information from the conversation history of another LLM.\n"
             "The input will be the full message history (including system, user, tool, and assistant messages) from a prior LLM interaction."
@@ -45,7 +44,7 @@ class OutputLessStructuredToolCallLLM(
             getattr(getattr(cls, name, None), "__isabstractmethod__", False)
             for name in dir(cls)
         )
-        
+
         # we only want to verify the schema is the class is not abstract
         if not has_abstract_methods:
             cls.structured_resp_node = structured_llm(
