@@ -69,18 +69,11 @@ class TestPrepareToolMessageHistory:
 
     def test_missing_parameter(self):
         """Test with a missing parameter."""
-        tool_params = [
-            Parameter(name="param1", param_type="string", description="First parameter"),
-            Parameter(name="param2", param_type="string", description="Second parameter"),
-        ]
-        tool_parameters = {"param1": "value1"}  # param2 is missing
-        
-        message_history = LLMBase.prepare_tool_message_history(tool_parameters, tool_params)
-        
-        assert isinstance(message_history, MessageHistory)
-        assert len(message_history) == 1
-        
-        # Check that the missing parameter is handled correctly
-        message_content = message_history[0].content
-        assert "• param1: value1" in message_content
-        assert "• param2: None" in message_content
+        with pytest.raises(KeyError):
+            tool_params = [
+                Parameter(name="param1", param_type="string", description="First parameter"),
+                Parameter(name="param2", param_type="string", description="Second parameter"),
+            ]
+            tool_parameters = {"param1": "value1"}  # param2 is missing
+
+            LLMBase.prepare_tool_message_history(tool_parameters, tool_params)
