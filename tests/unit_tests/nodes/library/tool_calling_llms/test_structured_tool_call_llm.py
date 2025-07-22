@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from requestcompletion.nodes.library import tool_call_llm, StructuredToolCallLLM, structured_tool_call_llm
 from requestcompletion.exceptions import NodeCreationError
 from requestcompletion.llm import MessageHistory, SystemMessage, UserMessage
+from requestcompletion.nodes.library.tool_calling_llms.structured_mess_hist_tool_call_llm import StructuredMessageHistoryToolCallLLM
 # =========================== Basic functionality ==========================
 
 def test_structured_tool_call_llm_init(mock_llm, schema, mock_tool):
@@ -48,8 +49,8 @@ def test_structured_tool_call_llm_return_output_success(mock_tool, mock_llm, sch
     assert node.return_output().value == 123
 
 def test_structured_message_hist_tool_call_llm_return_output_success(mock_tool, mock_llm, schema):
-    class MockStructuredMessHistToolCallLLM(StructuredToolCallLLM):
-        struct_mess_hist = True
+    class MockStructuredMessHistToolCallLLM(StructuredMessageHistoryToolCallLLM):
+    
         @classmethod
         def schema(cls):
             return schema
@@ -58,7 +59,8 @@ def test_structured_message_hist_tool_call_llm_return_output_success(mock_tool, 
         def pretty_name(cls):
             return "Mock Structured ToolCallLLM"
         
-        def connected_nodes(self):
+        @classmethod
+        def connected_nodes(cls):
             return {mock_tool}
     
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("extract value")])

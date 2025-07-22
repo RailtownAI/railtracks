@@ -275,9 +275,6 @@ class NodeBuilder(Generic[_TNode]):
         - If not it will use the default Tool.from_function(func) to create the tool info. (this will use the docstring)
         """
 
-        print(self._node_class)
-        print(type(self._node_class))
-
         assert issubclass(self._node_class, DynamicFunctionNode)
 
         type_mapper = TypeMapper(func)

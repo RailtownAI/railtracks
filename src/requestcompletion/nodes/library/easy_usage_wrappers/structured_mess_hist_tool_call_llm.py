@@ -49,8 +49,8 @@ def structured_mess_hist_tool_call_llm(
         Type[StructuredToolCallLLM]: The dynamically generated node class with the specified configuration.
     """
 
-    builder = NodeBuilder(
-        StructuredMessageHistoryToolCallLLM[_TOutput],
+    builder = NodeBuilder[StructuredMessageHistoryToolCallLLM[_TOutput]](
+        StructuredMessageHistoryToolCallLLM,
         pretty_name=pretty_name,
         class_name="EasyStructuredMessageHistToolCallLLM",
     )

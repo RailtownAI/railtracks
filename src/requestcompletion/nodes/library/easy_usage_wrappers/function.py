@@ -131,12 +131,9 @@ def from_function(
             ],
         )
 
-    print(node_class)
-    print(type(node_class))
-
     builder = NodeBuilder(
         node_class,
-        pretty_name=pretty_name if pretty_name is not None else f"{func.__name__} Node",
+        pretty_name=pretty_name if pretty_name is not None else f"{func.__name__}",
     )
 
     builder.setup_function_node(
