@@ -20,7 +20,7 @@ async def test_structured_llm_instantiate_and_invoke(simple_output_model, mock_l
         def pretty_name(cls):
             return "Mock LLM"
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("hello")])
-    result = await rc.call(MyLLM, message_history=mh, llm_model=mock_llm(structured=mock_structured_function))
+    result = await rc.call(MyLLM, user_input=mh, llm_model=mock_llm(structured=mock_structured_function))
     assert isinstance(result, simple_output_model)
     assert result.text == "dummy content"
     assert result.number == 42
@@ -41,7 +41,7 @@ async def test_structured_llm_easy_usage_wrapper_invoke(simple_output_model, moc
         pretty_name="TestNode"
     )
     mh = MessageHistory([UserMessage("hello")])
-    result = await rc.call(node, message_history=mh)
+    result = await rc.call(node, user_input=mh)
     assert isinstance(result, simple_output_model)
     assert result.text == "dummy content"
     assert result.number == 42
@@ -135,7 +135,7 @@ async def test_easy_usage_system_message_as_a_string(simple_output_model):
         pretty_name="Structured ToolCallLLM",
     )
 
-    node = Node_Class(message_history=rc.llm.MessageHistory([]))
+    node = Node_Class(user_input=rc.llm.MessageHistory([]))
     assert all(isinstance(m, rc.llm.Message) for m in node.message_hist)
     assert node.message_hist[0].role == "system"
 
@@ -158,13 +158,13 @@ async def test_class_based_empty_output_model(empty_output_model):
         class Structurer(rc.library.StructuredLLM):
             def __init__(
                 self,
-                message_history: rc.llm.MessageHistory,
+                user_input: rc.llm.MessageHistory,
                 llm_model: rc.llm.ModelBase = None,
             ):
-                message_history = [x for x in message_history if x.role != "system"]
-                message_history.insert(0, rc.llm.SystemMessage("You are a helpful assistant."))
+                user_input = [x for x in user_input if x.role != "system"]
+                user_input.insert(0, rc.llm.SystemMessage("You are a helpful assistant."))
                 super().__init__(
-                    message_history=message_history,
+                    user_input=user_input,
                     llm_model=llm_model,
                 )
 
@@ -182,13 +182,13 @@ async def test_class_based_output_model_not_class_based(simple_output_model):
         class Structurer(rc.library.StructuredLLM):
             def __init__(
                 self,
-                message_history: rc.llm.MessageHistory,
+                user_input: rc.llm.MessageHistory,
                 llm_model: rc.llm.ModelBase = None,
             ):
-                message_history = [x for x in message_history if x.role != "system"]
-                message_history.insert(0, rc.llm.SystemMessage("You are a helpful assistant."))
+                user_input = [x for x in user_input if x.role != "system"]
+                user_input.insert(0, rc.llm.SystemMessage("You are a helpful assistant."))
                 super().__init__(
-                    message_history=message_history,
+                    user_input=user_input,
                     llm_model=llm_model,
                 )
 
@@ -205,13 +205,13 @@ async def test_class_based_output_model_not_pydantic():
         class Structurer(rc.library.StructuredLLM):
             def __init__(
                 self,
-                message_history: rc.llm.MessageHistory,
+                user_input: rc.llm.MessageHistory,
                 llm_model: rc.llm.ModelBase = None,
             ):
-                message_history = [x for x in message_history if x.role != "system"]
-                message_history.insert(0, rc.llm.SystemMessage("You are a helpful assistant."))
+                user_input = [x for x in user_input if x.role != "system"]
+                user_input.insert(0, rc.llm.SystemMessage("You are a helpful assistant."))
                 super().__init__(
-                    message_history=message_history,
+                    user_input=user_input,
                     llm_model=llm_model,
                 )
 
@@ -240,12 +240,12 @@ async def test_system_message_in_message_history_class_based(simple_output_model
     class Structurer(rc.library.StructuredLLM):
         def __init__(
             self,
-            message_history: rc.llm.MessageHistory,
+            user_input: rc.llm.MessageHistory,
             llm_model: rc.llm.ModelBase = None,
         ):
-            message_history.insert(0, "You are a helpful assistant.")
+            user_input.insert(0, "You are a helpful assistant.")
             super().__init__(
-                message_history=message_history,
+                user_input=user_input,
                 llm_model=llm_model,
             )
 
@@ -258,6 +258,6 @@ async def test_system_message_in_message_history_class_based(simple_output_model
             return "Structurer"
         
     with pytest.raises(NodeInvocationError, match="Message history must be a list of Message objects."):
-        await rc.call(Structurer, message_history=rc.llm.MessageHistory(["hello world"]))
+        await rc.call(Structurer, user_input=rc.llm.MessageHistory(["hello world"]))
 # =================== END invocation exceptions =====================
 # ================================================ END Exception testing =============================================================

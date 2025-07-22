@@ -55,11 +55,11 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
 
     def __init__(
         self,
-        message_history: MessageHistory,
+        user_input: MessageHistory,
         llm_model: ModelBase | None = None,
         max_tool_calls: int | None = None,
     ):
-        super().__init__(llm_model=llm_model, message_history=message_history)
+        super().__init__(llm_model=llm_model, user_input=user_input)
         # Set max_tool_calls for non easy usage wrappers
         if not hasattr(self, "max_tool_calls"):
             # Check if max_tool_calls was passed

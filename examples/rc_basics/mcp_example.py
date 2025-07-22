@@ -39,6 +39,6 @@ with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="QUIET", timeou
             )
         ]
     )
-    response = asyncio.run(runner.run(parent_tool, message_history=message_history))
+    response = asyncio.run(runner.run(parent_tool, user_input=message_history))
 
     print("Response:", response.answer)

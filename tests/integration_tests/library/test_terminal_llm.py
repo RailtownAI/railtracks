@@ -17,7 +17,7 @@ async def test_terminal_llm_easy_usage_run(model , encoder_system_message):
         llm_model=model,
     )
 
-    response = await rc.call(encoder_agent, message_history=rc.llm.MessageHistory([rc.llm.UserMessage("hello world")]))
+    response = await rc.call(encoder_agent, user_input=rc.llm.MessageHistory([rc.llm.UserMessage("hello world")]))
 
     assert isinstance(response, str)
 
@@ -25,13 +25,13 @@ def test_terminal_llm_class_based_run(model , encoder_system_message):
     class Encoder(rc.library.TerminalLLM): 
         def __init__(
                 self,
-                message_history: rc.llm.MessageHistory,
+                user_input: rc.llm.MessageHistory,
                 llm_model: rc.llm.ModelBase = model,
             ):
-                message_history = [x for x in message_history if x.role != "system"]
-                message_history.insert(0, encoder_system_message)
+                user_input = [x for x in user_input if x.role != "system"]
+                user_input.insert(0, encoder_system_message)
                 super().__init__(
-                    message_history=message_history,
+                    user_input=user_input,
                     llm_model=model,
                 )
         @classmethod
@@ -42,7 +42,7 @@ def test_terminal_llm_class_based_run(model , encoder_system_message):
         message_history = rc.llm.MessageHistory(
             [rc.llm.UserMessage("The input string is 'hello world'")]
         )
-        response = runner.run_sync(Encoder, message_history=message_history)
+        response = runner.run_sync(Encoder, user_input=message_history)
         assert isinstance(response.answer, str)
 
 def test_return_into():
@@ -58,9 +58,38 @@ def test_return_into():
     )
 
     with rc.Runner() as run:
-        result = run.run_sync(node, message_history=MessageHistory()).answer
+        result = run.run_sync(node, user_input=MessageHistory()).answer
         assert result is None  # The result should be None since it was stored in context
         assert rc.context.get("greeting") == "Hello"
+
+@pytest.mark.asyncio
+async def test_terminal_llm_easy_usage_with_string(model, encoder_system_message):
+    """Test that the easy usage wrapper can be called with a string input."""
+    encoder_agent = rc.library.terminal_llm(
+        pretty_name="Encoder",
+        system_message=encoder_system_message,
+        llm_model=model,
+    )
+
+    # Call with a string instead of MessageHistory
+    response = await rc.call(encoder_agent, user_input="hello world")
+
+    assert isinstance(response, str)
+
+@pytest.mark.asyncio
+async def test_terminal_llm_easy_usage_with_user_message(model, encoder_system_message):
+    """Test that the easy usage wrapper can be called with a UserMessage input."""
+    encoder_agent = rc.library.terminal_llm(
+        pretty_name="Encoder",
+        system_message=encoder_system_message,
+        llm_model=model,
+    )
+
+    # Call with a UserMessage instead of MessageHistory
+    user_msg = rc.llm.UserMessage("hello world")
+    response = await rc.call(encoder_agent, user_input=user_msg)
+
+    assert isinstance(response, str)
 
 # ================================================ END terminal_llm basic functionality ===========================================================
 
@@ -123,7 +152,7 @@ async def test_terminal_llm_as_tool_correct_initialization(
         message_history = rc.llm.MessageHistory(
             [rc.llm.UserMessage("The input string is 'hello world'")]
         )
-        response = await runner.run(randomizer, message_history=message_history)
+        response = await runner.run(randomizer, user_input=message_history)
         assert any(
             message.role == "tool"
             and "There was an error running the tool" not in message.content
@@ -161,7 +190,7 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(model):
         message_history = rc.llm.MessageHistory(
             [rc.llm.UserMessage("Start the Math node.")]
         )
-        response = await runner.run(math_node, message_history=message_history)
+        response = await runner.run(math_node, user_input=message_history)
         assert any(
             message.role == "tool"
             and "There was an error running the tool" not in message.content
@@ -199,7 +228,7 @@ async def test_terminal_llm_tool_with_invalid_parameters_easy_usage(model, encod
         message_history = rc.llm.MessageHistory(
             [rc.llm.UserMessage("Encode this text but use an invalid parameter name.")]
         )
-        response = await runner.run(tool_call_llm, message_history=message_history)
+        response = await runner.run(tool_call_llm, user_input=message_history)
         # Check that there was an error running the tool
         assert any(
             message.role == "tool" and "There was an error running the tool" in message.content.result

@@ -57,11 +57,11 @@ class OutputLessStructuredToolCallLLM(
 
     def __init__(
         self,
-        message_history: MessageHistory,
+        user_input: MessageHistory | UserMessage | str,
         llm_model: ModelBase | None = None,
         max_tool_calls: int | None = None,
     ):
-        super().__init__(message_history, llm_model, max_tool_calls)
+        super().__init__(user_input, llm_model, max_tool_calls)
         self.structured_output: _TOutput | Exception | None = None
 
     @classmethod

@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from abc import ABC
 from copy import deepcopy
-from typing import Any, Dict, Generic, Iterable, TypeVar
+from typing import Any, Dict, Generic, Iterable, TypeVar, Union
 
 from typing_extensions import Self
 
@@ -12,7 +12,7 @@ from requestcompletion.exceptions.node_invocation.validation import (
     check_llm_model,
     check_message_history,
 )
-from requestcompletion.llm.message import SystemMessage
+from requestcompletion.llm.message import SystemMessage, UserMessage
 from requestcompletion.llm.response import Response
 from requestcompletion.nodes.nodes import Node
 
@@ -129,14 +129,28 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
 
     def __init__(
         self,
-        message_history: llm.MessageHistory,
+        user_input: Union[llm.MessageHistory, UserMessage, str],
         llm_model: llm.ModelBase | None = None,
     ):
+        """Initialize a new LLMBase instance.
+
+        Args:
+            user_input: The message history to use. Can be a MessageHistory object, a UserMessage object, or a string.
+                If a string is provided, it will be converted to a MessageHistory with a UserMessage.
+                If a UserMessage is provided, it will be converted to a MessageHistory.
+            llm_model: The LLM model to use. If None, the default model will be used.
+        """
         super().__init__()
 
-        self._verify_message_history(message_history)
+        # Convert str or UserMessage to MessageHistory if needed
+        if isinstance(user_input, str):
+            user_input = llm.MessageHistory([UserMessage(user_input)])
+        elif isinstance(user_input, UserMessage):
+            user_input = llm.MessageHistory([user_input])
+        
+        self._verify_message_history(user_input)
         message_history_copy = deepcopy(
-            message_history
+            user_input
         )  # Ensure we don't modify the original message history
 
         # If there is a system_message method we add it to message history

@@ -1,21 +1,45 @@
 from ... import context
 from ...exceptions import LLMError
-from ...llm import MessageHistory, ModelBase
+from ...llm import MessageHistory, ModelBase, UserMessage
+from typing import Union
 from ._llm_base import LLMBase
 
 
 class TerminalLLM(LLMBase[str]):
-    """A simple LLM nodes that takes in a message and returns a response. It is the simplest of all llms."""
+    """A simple LLM node that takes in a message and returns a response. It is the simplest of all LLMs.
+    
+    This node accepts message_history in the following formats:
+    - MessageHistory: A list of Message objects
+    - UserMessage: A single UserMessage object
+    - str: A string that will be converted to a UserMessage
+    
+    Examples:
+        ```python
+        # Using MessageHistory
+        mh = MessageHistory([UserMessage("Tell me about the world around us")])
+        result = await rc.call(TerminalLLM, message_history=mh)
+        
+        # Using UserMessage
+        user_msg = UserMessage("Tell me about the world around us")
+        result = await rc.call(TerminalLLM, message_history=user_msg)
+        
+        # Using string
+        result = await rc.call(TerminalLLM, "Tell me about the world around us")
+        ```
+    """
 
     def __init__(
-        self, message_history: MessageHistory, llm_model: ModelBase | None = None
+        self, user_input: Union[MessageHistory, UserMessage, str], llm_model: ModelBase | None = None
     ):
-        """Creates a new instance of the TerminalLLM class
+        """Creates a new instance of the TerminalLLM class.
 
         Args:
-
+            user_input: The message history to use. Can be a MessageHistory object, a UserMessage object, or a string.
+                If a string is provided, it will be converted to a MessageHistory with a UserMessage.
+                If a UserMessage is provided, it will be converted to a MessageHistory.
+            llm_model: The LLM model to use. If None, the default model will be used.
         """
-        super().__init__(llm_model=llm_model, message_history=message_history)
+        super().__init__(llm_model=llm_model, user_input=user_input)
 
     @classmethod
     def pretty_name(cls) -> str:

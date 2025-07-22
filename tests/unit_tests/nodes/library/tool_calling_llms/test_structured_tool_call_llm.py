@@ -22,7 +22,7 @@ def test_structured_tool_call_llm_init(mock_llm, schema, mock_tool):
     
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("extract value")])
     node = MockStructuredToolCallLLM(
-        message_history=mh,
+        user_input=mh,
         llm_model=mock_llm(),
     )
     assert hasattr(node, "structured_resp_node")
@@ -42,7 +42,7 @@ def test_structured_tool_call_llm_return_output_success(mock_tool, mock_llm, sch
     
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("extract value")])
     node = MockStructuredToolCallLLM(
-        message_history=mh,
+        user_input=mh,
         llm_model=mock_llm(),
     )
     node.structured_output = schema(value=123)
@@ -65,7 +65,7 @@ def test_structured_message_hist_tool_call_llm_return_output_success(mock_tool, 
     
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("extract value")])
     node = MockStructuredMessHistToolCallLLM(
-        message_history=mh,
+        user_input=mh,
         llm_model=mock_llm(),
     )
     node.structured_output = schema(value=123)
@@ -101,6 +101,102 @@ def test_structured_llm_easy_usage_wrapper(mock_llm, schema, mock_tool):
     )
     node = node(mh, mock_llm())
     assert hasattr(node, "structured_resp_node")
+
+def test_structured_tool_call_llm_instantiate_with_string(mock_llm, schema, mock_tool):
+    """Test that StructuredToolCallLLM can be instantiated with a string input."""
+    class MockStructuredToolCallLLM(StructuredToolCallLLM):
+        @classmethod
+        def schema(cls):
+            return schema
+        
+        @classmethod
+        def pretty_name(cls):
+            return "Mock Structured ToolCallLLM"
+        
+        @classmethod
+        def system_message(cls):
+            return "system prompt"
+        
+        @classmethod
+        def connected_nodes(cls):
+            return {mock_tool}
+        
+    node = MockStructuredToolCallLLM(user_input="extract value", llm_model=mock_llm())
+    # Verify that the string was converted to a MessageHistory with a UserMessage
+    assert len(node.message_hist) == 2  # System message + UserMessage
+    assert node.message_hist[0].role == "system"
+    assert node.message_hist[0].content == "system prompt"
+    assert node.message_hist[1].role == "user"
+    assert node.message_hist[1].content == "extract value"
+
+def test_structured_tool_call_llm_instantiate_with_user_message(mock_llm, schema, mock_tool):
+    """Test that StructuredToolCallLLM can be instantiated with a UserMessage input."""
+    class MockStructuredToolCallLLM(StructuredToolCallLLM):
+        @classmethod
+        def schema(cls):
+            return schema
+        
+        @classmethod
+        def pretty_name(cls):
+            return "Mock Structured ToolCallLLM"
+        
+        @classmethod
+        def system_message(cls):
+            return "system prompt"
+        
+        @classmethod
+        def connected_nodes(cls):
+            return {mock_tool}
+        
+    user_msg = UserMessage("extract value")
+    node = MockStructuredToolCallLLM(user_input=user_msg, llm_model=mock_llm())
+    # Verify that the UserMessage was converted to a MessageHistory
+    assert len(node.message_hist) == 2  # System message + UserMessage
+    assert node.message_hist[0].role == "system"
+    assert node.message_hist[0].content == "system prompt"
+    assert node.message_hist[1].role == "user"
+    assert node.message_hist[1].content == "extract value"
+
+def test_structured_tool_call_llm_easy_usage_with_string(mock_llm, schema, mock_tool):
+    """Test that the easy usage wrapper can be instantiated with a string input."""
+    node_class = structured_tool_call_llm(
+        system_message="system prompt",
+        connected_nodes={mock_tool},
+        llm_model=mock_llm(),
+        schema=schema,
+        tool_details="Extracts a value.",
+        tool_params=None,
+        pretty_name="Mock Structured ToolCallLLM",
+    )
+    
+    node = node_class(user_input="extract value")
+    # Verify that the string was converted to a MessageHistory with a UserMessage
+    assert len(node.message_hist) == 2  # System message + UserMessage
+    assert node.message_hist[0].role == "system"
+    assert node.message_hist[0].content == "system prompt"
+    assert node.message_hist[1].role == "user"
+    assert node.message_hist[1].content == "extract value"
+
+def test_structured_tool_call_llm_easy_usage_with_user_message(mock_llm, schema, mock_tool):
+    """Test that the easy usage wrapper can be instantiated with a UserMessage input."""
+    node_class = structured_tool_call_llm(
+        system_message="system prompt",
+        connected_nodes={mock_tool},
+        llm_model=mock_llm(),
+        schema=schema,
+        tool_details="Extracts a value.",
+        tool_params=None,
+        pretty_name="Mock Structured ToolCallLLM",
+    )
+    
+    user_msg = UserMessage("extract value")
+    node = node_class(user_input=user_msg)
+    # Verify that the UserMessage was converted to a MessageHistory
+    assert len(node.message_hist) == 2  # System message + UserMessage
+    assert node.message_hist[0].role == "system"
+    assert node.message_hist[0].content == "system prompt"
+    assert node.message_hist[1].role == "user"
+    assert node.message_hist[1].content == "extract value"
 
 
 # =========================== Exception testing ============================
