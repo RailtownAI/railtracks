@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from abc import ABC
 from copy import deepcopy
-from typing import Any, Generic, TypeVar
+from typing import Any, Dict, Generic, Iterable, TypeVar
 
 from typing_extensions import Self
 
@@ -18,6 +18,7 @@ from requestcompletion.nodes.nodes import Node
 
 from ...exceptions.errors import NodeInvocationError
 from ...exceptions.messages.exception_messages import get_message
+from ...llm import Parameter
 from ...prompts.prompt import inject_context
 
 _T = TypeVar("_T")
