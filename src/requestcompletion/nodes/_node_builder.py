@@ -43,6 +43,7 @@ from requestcompletion.nodes.library.tool_calling_llms._base import (
 from requestcompletion.nodes.library.tool_calling_llms.tool_call_llm import ToolCallLLM
 from requestcompletion.nodes.nodes import Node
 from requestcompletion.rc_mcp import MCPStdioParams
+from requestcompletion.visuals.browser.chat_ui import ChatUI
 
 _TNode = TypeVar("_TNode", bound=Node)
 _P = ParamSpec("_P")
@@ -68,7 +69,7 @@ class NodeBuilder(Generic[_TNode]):
 
     def __init__(
         self,
-        node_class: type[_TNode],
+        node_class: Type[_TNode],
         /,
         *,
         pretty_name: str | None = None,
@@ -80,17 +81,21 @@ class NodeBuilder(Generic[_TNode]):
         self._node_class = node_class
         self._name = class_name or f"Dynamic{node_class.__qualname__}"
         self._methods = {}
+
         if pretty_name is not None:
             self._with_override(
                 "pretty_name", classmethod(lambda cls: pretty_name or cls.__name__)
             )
+
         if return_into is not None:
             self._with_override("return_into", classmethod(lambda cls: return_into))
+
         if format_for_context is not None:
             self._with_override(
                 "format_for_context",
                 classmethod(lambda cls, x: format_for_context(x)),
             )
+
         if format_for_return is not None:
             self._with_override(
                 "format_for_return",
@@ -147,9 +152,6 @@ class NodeBuilder(Generic[_TNode]):
 
         self._with_override("schema", classmethod(lambda cls: schema))
 
-    def struct_mess_hist(self):
-        self._with_override("struct_mess_hist", True)
-
     def tool_calling_llm(
         self, connected_nodes: Set[Union[Type[Node], Callable]], max_tool_calls: int
     ):
@@ -184,6 +186,42 @@ class NodeBuilder(Generic[_TNode]):
 
         _check_max_tool_calls(max_tool_calls)
         check_connected_nodes(connected_nodes, Node)
+
+        self._with_override("connected_nodes", classmethod(lambda cls: connected_nodes))
+        self._with_override("max_tool_calls", max_tool_calls)
+
+    def mcp_llm(self, mcp_command, mcp_args, mcp_env, max_tool_calls):
+        """
+        Configure the node subclass to use MCP (Model Context Protocol) tool calling.
+
+        This method sets up the node to call tools via an MCP server, specifying the command, arguments,
+        environment, and maximum tool calls.
+
+        Args:
+            mcp_command (str): The command to run the MCP server (e.g., 'npx').
+            mcp_args (list): Arguments to pass to the MCP server command.
+            mcp_env (dict or None): Environment variables for the MCP server process.
+            max_tool_calls (int): Maximum number of tool calls allowed per invocation.
+
+        Raises:
+            AssertionError: If the node class is not a subclass of ToolCallLLM.
+        """
+
+        assert issubclass(self._node_class, ToolCallLLM), (
+            f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
+        )
+        tools = from_mcp_server(
+            MCPStdioParams(
+                command=mcp_command,
+                args=mcp_args,
+                env=mcp_env if mcp_env is not None else None,
+            )
+        )
+
+        connected_nodes = {*tools}
+
+        _check_max_tool_calls(max_tool_calls)
+        check_connected_nodes(connected_nodes, self._node_class)
 
         self._with_override("connected_nodes", classmethod(lambda cls: connected_nodes))
         self._with_override("max_tool_calls", max_tool_calls)
@@ -344,6 +382,34 @@ class NodeBuilder(Generic[_TNode]):
 
         self._with_override("prepare_tool", classmethod(prepare_tool))
 
+    def add_attribute(self, name: str, attribute, make_function: bool, *args, **kwargs):
+        """
+        Add or override an attribute or method on the dynamically built node class.
+        This takes functions or values and can make them class methods or class fields
+
+        Args:
+            name (str): The name of the attribute or method to add/override.
+            attribute: The value or function to set.
+            make_function (bool): If True, will make the attribute a class method that can be called.
+            *args: positional parameters if you are passing a function to be called
+            **kwargs: keyword arguments if you are passing a function to be called
+
+        Example:
+            builder.add_attribute("my_attr", 42, make_function=False)
+            builder.add_attribute("my_attr", 42, make_function=True)
+            builder.add_attribute("my_method", lambda cls: ..., make_function=True)
+        """
+        if make_function:
+            if callable(attribute):
+                self._with_override(name, classmethod(attribute))
+            else:
+                self._with_override(name, classmethod(lambda cls: attribute))
+        else:
+            if callable(attribute):
+                self._with_override(name, attribute(*args, **kwargs))
+            else:
+                self._with_override(name, attribute)
+
     def _with_override(self, name: str, method):
         """
         Add an override method for the node.
@@ -377,7 +443,9 @@ class NodeBuilder(Generic[_TNode]):
             class_dict,
         )
 
-        return cast(type[_TNode], klass)
+        casted_klass = cast(Type[_TNode], klass)  # Ensure type consistency
+
+        return casted_klass
 
 
 def classmethod_preserving_function_meta(func):

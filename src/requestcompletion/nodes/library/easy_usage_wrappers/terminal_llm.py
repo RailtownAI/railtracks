@@ -1,13 +1,13 @@
-from typing import Any, Callable, Type
+from typing import Any, Callable
 
 from requestcompletion.nodes._node_builder import NodeBuilder
 
 from ....llm import ModelBase, SystemMessage
 from ....llm.tools import Parameter
-from ..terminal_llm import TerminalLLM
+from ..terminal_llm_base import TerminalLLM
 
 
-def terminal_llm(  # noqa: C901
+def terminal_llm(
     pretty_name: str | None = None,
     *,
     system_message: SystemMessage | str | None = None,
@@ -17,7 +17,7 @@ def terminal_llm(  # noqa: C901
     return_into: str | None = None,
     format_for_return: Callable[[Any], Any] | None = None,
     format_for_context: Callable[[Any], Any] | None = None,
-) -> Type[TerminalLLM]:
+):
     """
     Dynamically create a TerminalLLM node class with custom configuration.
 

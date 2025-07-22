@@ -174,7 +174,7 @@ class Publisher(Generic[_T]):
         """
 
         async def single_listener():
-            returnable_result: RequestCompletionMessage | None = None
+            returnable_result: asyncio.Future[_T] = asyncio.Future()
             # we are gonna use the asyncio.event system instead of threading
             listener_event = asyncio.Event()
 
@@ -182,7 +182,7 @@ class Publisher(Generic[_T]):
                 nonlocal returnable_result
                 if message_filter(message):
                     # this will trigger the end of the listener loop
-                    returnable_result = message
+                    returnable_result.set_result(message)
                     listener_event.set()
                     return
 
@@ -203,11 +203,9 @@ class Publisher(Generic[_T]):
                         "Listener has been killed before receiving the correct message."
                     )
 
-            assert returnable_result is not None, (
-                "Listener should have received a message before returning."
-            )
+            unwrapped_returned_result: _T = returnable_result.result()
             self.unsubscribe(sub_id)
-            return result_mapping(returnable_result)
+            return result_mapping(unwrapped_returned_result)
 
         return await single_listener()
 

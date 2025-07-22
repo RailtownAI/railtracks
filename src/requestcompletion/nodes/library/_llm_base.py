@@ -67,7 +67,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         check_message_history(message_history, cls.system_message())
 
     @classmethod
-    def _verify_llm_model(cls, llm_model: llm.ModelBase):
+    def _verify_llm_model(cls, llm_model: llm.ModelBase | None):
         """Verify the llm model is valid for this LLM."""
         check_llm_model(llm_model)
 
@@ -110,16 +110,24 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
                 else self.system_message(),
             )
 
-        if self.get_llm_model() is not None:
+        instance_injected_llm_model = self.get_llm_model()
+
+        if instance_injected_llm_model is not None:
             if llm_model is not None:
                 warnings.warn(
                     "You have provided an llm model as a parameter and as a class variable. We will use the parameter."
                 )
+                unwrapped_llm_model = llm_model
             else:
-                llm_model = self.get_llm_model()
+                unwrapped_llm_model = instance_injected_llm_model
+        else:
+            unwrapped_llm_model = llm_model
 
-        self._verify_llm_model(llm_model)
-        self.llm_model = llm_model
+        self._verify_llm_model(unwrapped_llm_model)
+        assert isinstance(unwrapped_llm_model, llm.ModelBase), (
+            "unwrapped_llm_model must be an instance of llm.ModelBase"
+        )
+        self.llm_model = unwrapped_llm_model
 
         self.message_hist = message_history_copy
 

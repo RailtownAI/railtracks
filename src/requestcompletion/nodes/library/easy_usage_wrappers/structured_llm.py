@@ -1,4 +1,4 @@
-from typing import Any, Callable, Type
+from typing import Any, Callable, Type, TypeVar
 
 from pydantic import BaseModel
 
@@ -7,13 +7,15 @@ from requestcompletion.llm import (
     SystemMessage,
 )
 from requestcompletion.nodes._node_builder import NodeBuilder
-from requestcompletion.nodes.library.structured_llm import StructuredLLM
+from requestcompletion.nodes.library.structured_llm_base import StructuredLLM
 
 from ....llm.tools import Parameter
 
+_TOutput = TypeVar("_TOutput", bound=BaseModel)
 
-def structured_llm(  # noqa: C901
-    schema: Type[BaseModel],
+
+def structured_llm(
+    schema: Type[_TOutput],
     *,
     system_message: SystemMessage | str | None = None,
     llm_model: ModelBase | None = None,
@@ -23,7 +25,7 @@ def structured_llm(  # noqa: C901
     return_into: str | None = None,
     format_for_return: Callable[[Any], Any] | None = None,
     format_for_context: Callable[[Any], Any] | None = None,
-) -> Type[StructuredLLM]:
+):
     """
     Dynamically reate a StructuredLLM node class with custom configuration for schema.
 
@@ -45,7 +47,7 @@ def structured_llm(  # noqa: C901
     Returns:
         Type[StructuredLLM]: The dynamically generated node class with the specified configuration.
     """
-    builder = NodeBuilder(
+    builder = NodeBuilder[StructuredLLM[_TOutput]](
         StructuredLLM,
         pretty_name=pretty_name,
         class_name="EasyStructuredLLM",

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Type, TypeVar
+from typing import Generic, Type, TypeVar
 
 from pydantic import BaseModel
 
@@ -16,7 +16,7 @@ from ._llm_base import LLMBase
 _TOutput = TypeVar("_TOutput", bound=BaseModel)
 
 
-class StructuredLLM(LLMBase[_TOutput], ABC):
+class StructuredLLM(LLMBase[_TOutput], ABC, Generic[_TOutput]):
     # TODO: allow for more general (non-pydantic) outputs
 
     def __init_subclass__(cls):

@@ -15,7 +15,6 @@ from requestcompletion.llm import (
     ToolCall,
     ToolMessage,
     ToolResponse,
-    UserMessage,
 )
 
 from ...nodes import Node
@@ -208,21 +207,6 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
 
     async def invoke(self) -> _T:
         await self._handle_tool_calls()
-
-        if self.structured_resp_node:
-            try:
-                self.structured_output = await call(
-                    self.structured_resp_node,
-                    message_history=MessageHistory(
-                        [UserMessage(str(self.message_hist), inject_prompt=False)]
-                    ),
-                )
-            except Exception:
-                # will be raised in the return_output method in StructuredToolCallLLM
-                self.structured_output = LLMError(
-                    reason="Failed to parse assistant response into structured output.",
-                    message_history=self.message_hist,
-                )
 
         if (key := self.return_into()) is not None:
             output = self.return_output()

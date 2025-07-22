@@ -1,4 +1,4 @@
-from typing import Any, Callable, Set, Type, Union
+from typing import Any, Callable, Iterable, Type, Union
 
 from requestcompletion.llm import (
     ModelBase,
@@ -11,8 +11,8 @@ from ....nodes.nodes import Node
 from ...library.tool_calling_llms.tool_call_llm import ToolCallLLM
 
 
-def tool_call_llm(  # noqa: C901
-    connected_nodes: Set[Union[Type[Node], Callable]],
+def tool_call_llm(
+    connected_nodes: Iterable[Union[Type[Node], Callable]],
     *,
     pretty_name: str | None = None,
     llm_model: ModelBase | None = None,
@@ -23,7 +23,7 @@ def tool_call_llm(  # noqa: C901
     return_into: str | None = None,
     format_for_return: Callable[[Any], Any] | None = None,
     format_for_context: Callable[[Any], Any] | None = None,
-) -> Type[ToolCallLLM]:
+):
     """
     Dynamically create a ToolCallLLM node class with custom configuration for tool calling.
 
@@ -33,7 +33,7 @@ def tool_call_llm(  # noqa: C901
     framework on runtime.
 
     Args:
-        connected_nodes (Set[Union[Type[Node], Callable]]): The set of node classes or callables that this node can call as tools.
+        connected_nodes (Iterable[Union[Type[Node], Callable]]): The set of node classes or callables that this node can call as tools.
         pretty_name (str, optional): Human-readable name for the node/tool.
         llm_model (ModelBase or None, optional): The LLM model instance to use for this node.
         max_tool_calls (int, optional): Maximum number of tool calls allowed per invocation (default: unlimited).

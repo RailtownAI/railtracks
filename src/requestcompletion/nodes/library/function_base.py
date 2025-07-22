@@ -22,7 +22,7 @@ _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
 
 
-class DynamicFunctionNode(Node[_TOutput], ABC, Generic[_TOutput]):
+class DynamicFunctionNode(Node[_TOutput], ABC, Generic[_P, _TOutput]):
     """
     A base class which contains logic around converting function parameters to the required value given by the function.
     It also contains the framework for functionality of function nodes that can be built using the `from_function`
@@ -66,7 +66,7 @@ class DynamicFunctionNode(Node[_TOutput], ABC, Generic[_TOutput]):
         return cls(**converted_params)
 
 
-class SyncDynamicFunctionNode(DynamicFunctionNode[_TOutput], ABC, Generic[_TOutput]):
+class SyncDynamicFunctionNode(DynamicFunctionNode[_P, _TOutput], ABC):
     """
     A nearly complete class that expects a synchronous function to be provided in the `func` method.
 
@@ -86,8 +86,8 @@ class SyncDynamicFunctionNode(DynamicFunctionNode[_TOutput], ABC, Generic[_TOutp
         """
         pass
 
-    def invoke(self):
-        result = self.func(*self.args, **self.kwargs)
+    async def invoke(self):
+        result = await asyncio.to_thread(self.func, *self.args, **self.kwargs)
 
         # This is overly safe check to make sure the returned function isn't also a coroutine.
 
@@ -110,9 +110,8 @@ class SyncDynamicFunctionNode(DynamicFunctionNode[_TOutput], ABC, Generic[_TOutp
 
 
 class AsyncDynamicFunctionNode(
-    DynamicFunctionNode[_TOutput],
+    DynamicFunctionNode[_P, _TOutput],
     ABC,
-    Generic[_TOutput],
 ):
     """
     A nearly complete class that expects an async function to be provided in the `func` method.
