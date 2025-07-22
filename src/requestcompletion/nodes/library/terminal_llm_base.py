@@ -1,35 +1,38 @@
+from typing import Union
+
 from ... import context
 from ...exceptions import LLMError
 from ...llm import MessageHistory, ModelBase, UserMessage
-from typing import Union
 from ._llm_base import LLMBase
 
 
 class TerminalLLM(LLMBase[str]):
     """A simple LLM node that takes in a message and returns a response. It is the simplest of all LLMs.
-    
+
     This node accepts message_history in the following formats:
     - MessageHistory: A list of Message objects
     - UserMessage: A single UserMessage object
     - str: A string that will be converted to a UserMessage
-    
+
     Examples:
         ```python
         # Using MessageHistory
         mh = MessageHistory([UserMessage("Tell me about the world around us")])
         result = await rc.call(TerminalLLM, message_history=mh)
-        
+
         # Using UserMessage
         user_msg = UserMessage("Tell me about the world around us")
         result = await rc.call(TerminalLLM, message_history=user_msg)
-        
+
         # Using string
         result = await rc.call(TerminalLLM, "Tell me about the world around us")
         ```
     """
 
     def __init__(
-        self, user_input: Union[MessageHistory, UserMessage, str], llm_model: ModelBase | None = None
+        self,
+        user_input: Union[MessageHistory, UserMessage, str],
+        llm_model: ModelBase | None = None,
     ):
         """Creates a new instance of the TerminalLLM class.
 

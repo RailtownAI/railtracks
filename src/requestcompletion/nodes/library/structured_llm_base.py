@@ -31,7 +31,9 @@ class StructuredLLM(LLMBase[_TOutput], ABC, Generic[_TOutput]):
     def schema(cls) -> Type[_TOutput]: ...
 
     def __init__(
-        self, user_input: MessageHistory | UserMessage | str, llm_model: ModelBase | None = None
+        self,
+        user_input: MessageHistory | UserMessage | str,
+        llm_model: ModelBase | None = None,
     ):
         """Creates a new instance of the StructuredlLLM class
 

@@ -147,7 +147,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
             user_input = llm.MessageHistory([UserMessage(user_input)])
         elif isinstance(user_input, UserMessage):
             user_input = llm.MessageHistory([user_input])
-        
+
         self._verify_message_history(user_input)
         message_history_copy = deepcopy(
             user_input
