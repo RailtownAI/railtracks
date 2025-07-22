@@ -62,6 +62,51 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
     """
 
     @classmethod
+    def prepare_tool_message_history(cls, tool_parameters: Dict[str, Any], tool_params: Iterable[Parameter] = None) -> llm.MessageHistory:
+        """
+        Prepare a message history for a tool call with the given parameters.
+
+        This method creates a coherent instruction message from tool parameters instead of
+        multiple separate messages.
+
+        Args:
+            tool_parameters: Dictionary of parameter names to values
+            tool_params: Iterable of Parameter objects defining the tool parameters
+
+        Returns:
+            MessageHistory object with a single UserMessage containing the formatted parameters
+        """
+        # If no parameters, return empty message history
+        if not tool_params:
+            return llm.MessageHistory([])
+
+        # Create a single, coherent instruction instead of multiple separate messages
+        instruction_parts = [
+            "You are being called as a tool with the following parameters:",
+            "",
+        ]
+
+        for param in tool_params:
+            value = tool_parameters.get(param.name, None)
+            # Format the parameter appropriately based on its type
+            if param.param_type == "array" and isinstance(value, list):
+                formatted_value = ", ".join(str(v) for v in value)
+                instruction_parts.append(f"• {param.name}: {formatted_value}")
+            elif param.param_type == "object" and isinstance(value, dict):
+                # For objects, show key-value pairs
+                formatted_value = "; ".join(f"{k}={v}" for k, v in value.items())
+                instruction_parts.append(f"• {param.name}: {formatted_value}")
+            else:
+                instruction_parts.append(f"• {param.name}: {value}")
+
+        instruction_parts.extend(
+            ["", "Please execute your function based on these parameters."]
+        )
+
+        # Create a single UserMessage with the complete instruction
+        return llm.MessageHistory([llm.UserMessage("\n".join(instruction_parts))])
+
+    @classmethod
     def _verify_message_history(cls, message_history: llm.MessageHistory):
         """Verify the message history is valid for this LLM."""
         check_message_history(message_history, cls.system_message())
