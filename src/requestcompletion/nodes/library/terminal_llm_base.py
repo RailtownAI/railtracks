@@ -16,14 +16,14 @@ class TerminalLLM(LLMBase[str]):
         ```python
         # Using MessageHistory
         mh = MessageHistory([UserMessage("Tell me about the world around us")])
-        result = await rc.call(TerminalLLM, message_history=mh)
+        result = await rc.call(TerminalLLM, user_input=mh)
 
         # Using UserMessage
         user_msg = UserMessage("Tell me about the world around us")
-        result = await rc.call(TerminalLLM, message_history=user_msg)
+        result = await rc.call(TerminalLLM, user_input=user_msg)
 
         # Using string
-        result = await rc.call(TerminalLLM, "Tell me about the world around us")
+        result = await rc.call(TerminalLLM, user_input="Tell me about the world around us")
         ```
     """
 
