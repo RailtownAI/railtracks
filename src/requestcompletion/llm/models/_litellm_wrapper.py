@@ -55,14 +55,29 @@ def _handle_set_of_parameters(parameters: Set[Parameter | PydanticParameter | Ar
                 sub_required_params = [p.name for p in p.properties if p.required]
                 if sub_required_params:
                     prop_dict["required"] = sub_required_params
+        if isinstance(p.param_type, list):
+            any_of_list = []
+            for t in p.param_type:
+                type_item = {"type": t}
+                if t == "object":       # override type_item if object
+                    type_item["properties"] = _handle_set_of_parameters(p.properties, True)
+                    type_item["description"] = p.description
+                    type_item["additionalProperties"] = p.additional_properties
+                any_of_list.append(type_item)
+            prop_dict["anyOf"] = any_of_list
+            prop_dict.pop("type")
         # ============================================
         # ========= objects inside array support ==========
         if isinstance(p, ArrayParameter):
             items_scema = {
-                "type": "array",
-                "maxItems": p.max_items,
-                "items": prop_dict
+                "type": "array"
             }
+            if p.description:
+                items_scema["description"] = p.description
+                prop_dict.pop("description")
+            items_scema["items"] = prop_dict
+            if p.max_items:
+                items_scema["maxItems"] = p.max_items
             props[p.name] = items_scema
         else:
             props[p.name] = prop_dict

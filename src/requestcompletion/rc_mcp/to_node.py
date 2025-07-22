@@ -4,7 +4,7 @@ from typing import List
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.tools import Tool as MCPTool
 from mcp.server.fastmcp.utilities.func_metadata import func_metadata
-
+from requestcompletion.llm.models._litellm_wrapper import _parameters_to_json_schema
 from ..config import ExecutorConfig
 from ..nodes.nodes import Node
 from ..run import Runner
@@ -29,7 +29,7 @@ def create_tool_function(
     params = []
     args_doc = []
     params_schema = (
-        node_info.parameters.model_json_schema()
+        _parameters_to_json_schema(node_info.parameters)
         if node_info.parameters is not None
         else {}
     )
@@ -103,7 +103,7 @@ def create_mcp_server(
             name=node_info.name,
             description=node_info.detail,
             parameters=(
-                node_info.parameters.model_json_schema()
+                _parameters_to_json_schema(node_info.parameters)
                 if node_info.parameters is not None
                 else {}
             ),

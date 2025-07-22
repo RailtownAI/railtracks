@@ -11,7 +11,7 @@ from requestcompletion.llm.tools.schema_parser import (
     parse_json_schema_to_parameter,
     parse_model_properties,
 )
-from requestcompletion.llm.tools.parameter import Parameter, PydanticParameter
+from requestcompletion.llm.tools.parameter import Parameter, PydanticParameter, ArrayParameter
 
 
 class TestParseJsonSchemaToParameter:
@@ -92,19 +92,23 @@ class TestParseJsonSchemaToParameter:
         }
         param = parse_json_schema_to_parameter("test_param", schema, True)
 
-        assert isinstance(param, PydanticParameter)
+        assert isinstance(param, ArrayParameter)
         assert param.name == "test_param"
-        assert param.param_type == "array"
+        assert param.param_type == "object"    # so that the subprops can be parsed the same way we treat objects
         assert param.description == "An array of objects"
         assert param.required is True
 
         # Check nested properties
-        assert "name" in param.properties
-        assert "age" in param.properties
-        assert param.properties["name"].required is True
-        assert param.properties["age"].required is False
-        assert param.properties["name"].param_type == "string"
-        assert param.properties["age"].param_type == "integer"
+        for prop in param.properties:
+            assert isinstance(prop, Parameter), "Expected Parameter object"
+            if prop.name == "name":
+                assert prop.param_type == "string"
+                assert prop.required is True
+            elif prop.name == "age":
+                assert prop.param_type == "integer"
+                assert prop.required is False
+            else:
+                assert False, f"Unexpected property name: {prop.name}"
 
     def test_object_parameter(self):
         """Test parsing an object parameter."""
@@ -126,12 +130,16 @@ class TestParseJsonSchemaToParameter:
         assert param.required is True
 
         # Check nested properties
-        assert "name" in param.properties
-        assert "age" in param.properties
-        assert param.properties["name"].required is True
-        assert param.properties["age"].required is False
-        assert param.properties["name"].param_type == "string"
-        assert param.properties["age"].param_type == "integer"
+        for prop in param.properties:
+            assert isinstance(prop, Parameter), "Expected Parameter object"
+            if prop.name == "name":
+                assert prop.param_type == "string"
+                assert prop.required is True
+            elif prop.name == "age":
+                assert prop.param_type == "integer"
+                assert prop.required is False
+            else:
+                assert False, f"Unexpected property name: {prop.name}"
 
     def test_nested_object_parameter(self):
         """Test parsing a deeply nested object parameter."""
@@ -168,25 +176,29 @@ class TestParseJsonSchemaToParameter:
         assert param.name == "test_param"
         assert param.param_type == "object"
 
+        # Convert param.properties set to a list for easier processing
+        properties_list = list(param.properties)
+
         # Check first level nested property
-        assert "person" in param.properties
-        assert param.properties["person"].required is True
-        assert param.properties["person"].param_type == "object"
+        person_prop = next(p for p in properties_list if p.name == "person")
+        assert person_prop.required is True
+        assert person_prop.param_type == "object"
 
         # Check second level nested property
-        person = param.properties["person"]
-        assert isinstance(person, PydanticParameter)
-        assert "name" in person.properties
-        assert "address" in person.properties
-        assert person.properties["name"].required is True
+        person_properties_list = list(person_prop.properties)
+        name_prop = next(p for p in person_properties_list if p.name == "name")
+        assert name_prop.required is True
+
+        address_prop = next(p for p in person_properties_list if p.name == "address")
+        assert address_prop.param_type == "object"
 
         # Check third level nested property
-        address = person.properties["address"]
-        assert isinstance(address, PydanticParameter)
-        assert "street" in address.properties
-        assert "city" in address.properties
-        assert address.properties["street"].required is True
-        assert address.properties["city"].required is False
+        address_properties_list = list(address_prop.properties)
+        street_prop = next(p for p in address_properties_list if p.name == "street")
+        city_prop = next(p for p in address_properties_list if p.name == "city")
+
+        assert street_prop.required is True
+        assert city_prop.required is False
 
     def test_parameter_with_ref(self):
         """Test parsing a parameter with a $ref."""

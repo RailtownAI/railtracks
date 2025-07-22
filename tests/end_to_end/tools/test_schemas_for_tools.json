@@ -820,9 +820,13 @@
         "type": "object",
         "properties": {
             "disputed_transaction_id": {
-                "type": [
-                    "string",
-                    "null"
+                "anyOf": [
+                    {
+                        "type": "string"
+                    },
+                    {
+                        "type": "none"
+                    }
                 ],
                 "default": null
             },
