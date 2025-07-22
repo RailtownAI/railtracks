@@ -38,7 +38,7 @@ class StructuredLLM(LLMBase[_TOutput], ABC, Generic[_TOutput]):
         """Creates a new instance of the StructuredlLLM class
 
         Args:
-            user_input (MessageHistory): The message history to use for the LLM.
+            user_input (MessageHistory | UserMessage | str): The input to use for the LLM. This can be a message history, a single user message, or a string.
             llm_model (ModelBase | None, optional): The LLM model to use. Defaults to None.
 
         """
