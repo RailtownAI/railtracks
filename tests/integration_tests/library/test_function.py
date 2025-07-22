@@ -12,9 +12,9 @@ from typing import Tuple, List, Dict
 from pydantic import BaseModel, Field
 import time
 
-from requestcompletion.nodes.library import from_function
-from requestcompletion.state.request import Failure
-import requestcompletion as rc
+from railtracks.nodes.library import from_function
+from railtracks.state.request import Failure
+import railtracks as rt
 
 # ===== Test Models =====
 
@@ -41,12 +41,12 @@ class TestPrimitiveInputTypes:
             secret_phrase,
             model_provider=model_provider,
         )
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
             response = run.run_sync(
                 agent,
-                rc.llm.MessageHistory(
+                rt.llm.MessageHistory(
                     [
-                        rc.llm.UserMessage(
+                        rt.llm.UserMessage(
                             "What is the secret phrase? Only return the secret phrase, no other text."
                         )
                     ]
@@ -72,12 +72,12 @@ class TestPrimitiveInputTypes:
             magic_number,
             model_provider=model_provider,
         )
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
             response = run.run_sync(
                 agent,
-                rc.llm.MessageHistory(
+                rt.llm.MessageHistory(
                     [
-                        rc.llm.UserMessage(
+                        rt.llm.UserMessage(
                             "Find what the magic function output is for 6? Only return the magic number, no other text."
                         )
                     ]
@@ -104,12 +104,12 @@ class TestPrimitiveInputTypes:
             magic_phrase,
             model_provider=model_provider,
         )
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
             response = run.run_sync(
                 agent,
-                rc.llm.MessageHistory(
+                rt.llm.MessageHistory(
                     [
-                        rc.llm.UserMessage(
+                        rt.llm.UserMessage(
                             "What is the magic phrase for the word 'hello'? Only return the magic phrase, no other text."
                         )
                     ]
@@ -136,12 +136,12 @@ class TestPrimitiveInputTypes:
             magic_test,
             model_provider=model_provider,
         )
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
             response = run.run_sync(
                 agent,
-                rc.llm.MessageHistory(
+                rt.llm.MessageHistory(
                     [
-                        rc.llm.UserMessage(
+                        rt.llm.UserMessage(
                             "Does 5 pass the magic test? Only return the result, no other text."
                         )
                     ]
@@ -168,12 +168,12 @@ class TestPrimitiveInputTypes:
             magic_test,
             model_provider=model_provider,
         )
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
             response = run.run_sync(
                 agent,
-                rc.llm.MessageHistory(
+                rt.llm.MessageHistory(
                     [
-                        rc.llm.UserMessage(
+                        rt.llm.UserMessage(
                             "Is the magic test true? Only return the result, no other text."
                         )
                     ]
@@ -199,12 +199,12 @@ class TestPrimitiveInputTypes:
             error_function,
             model_provider=model_provider,
         )
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
             output = run.run_sync(
                 agent,
-                rc.llm.MessageHistory(
+                rt.llm.MessageHistory(
                     [
-                        rc.llm.UserMessage(
+                        rt.llm.UserMessage(
                             "What does the tool return for an input of 0? Only return the result, no other text."
                         )
                     ]
@@ -238,12 +238,12 @@ class TestSequenceInputTypes:
             magic_list,
             model_provider=model_provider,
         )
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
             response = run.run_sync(
                 agent,
-                rc.llm.MessageHistory(
+                rt.llm.MessageHistory(
                     [
-                        rc.llm.UserMessage(
+                        rt.llm.UserMessage(
                             "What is the magic list for ['1', '2', '3']? Only return the result, no other text."
                         )
                     ]
@@ -270,12 +270,12 @@ class TestSequenceInputTypes:
             model_provider=model_provider,
         )
 
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
             response = run.run_sync(
                 agent,
-                rc.llm.MessageHistory(
+                rt.llm.MessageHistory(
                     [
-                        rc.llm.UserMessage(
+                        rt.llm.UserMessage(
                             "What is the magic tuple for ('1', '2', '3')? Only return the result, no other text."
                         )
                     ]
@@ -304,12 +304,12 @@ class TestSequenceInputTypes:
             magic_result,
             model_provider=model_provider,
         )
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
             response = run.run_sync(
                 agent,
-                rc.llm.MessageHistory(
+                rt.llm.MessageHistory(
                     [
-                        rc.llm.UserMessage(
+                        rt.llm.UserMessage(
                             "What is the magic result for [1, 2] and [5.5, 10]? Only return the result, no other text."
                         )
                     ]
@@ -338,11 +338,11 @@ class TestDictionaryInputTypes:
 
         with pytest.raises(Exception):
             agent = create_top_level_node(dict_func, model_provider=model_provider)
-            with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
+            with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
                 response = run.run_sync(
                     agent,
-                    rc.llm.MessageHistory(
-                        [rc.llm.UserMessage("What is the result for {'key': 'value'}?")]
+                    rt.llm.MessageHistory(
+                        [rt.llm.UserMessage("What is the result for {'key': 'value'}?")]
                     ),
                 )
 
@@ -382,9 +382,9 @@ class TestRealisticScenarios:
             update_staff_directory, model_provider=model_provider
         )
 
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
             response = run.run_sync(
-                agent, rc.llm.MessageHistory([rc.llm.UserMessage(usr_prompt)])
+                agent, rt.llm.MessageHistory([rt.llm.UserMessage(usr_prompt)])
             )
 
         assert DB["John"]["role"] == "Senior Manager"

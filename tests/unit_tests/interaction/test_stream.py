@@ -1,13 +1,13 @@
 import pytest
 from unittest.mock import AsyncMock, patch
-from requestcompletion.interaction.stream import stream
-from requestcompletion.pubsub.messages import Streaming
+from railtracks.interaction.stream import stream
+from railtracks.pubsub.messages import Streaming
 
 
 @pytest.mark.asyncio
 async def test_stream_publishes_streaming_message():
-    with patch("requestcompletion.interaction.stream.get_publisher") as mock_get_publisher, \
-         patch("requestcompletion.interaction.stream.get_parent_id") as mock_get_parent_id:
+    with patch("railtracks.interaction.stream.get_publisher") as mock_get_publisher, \
+         patch("railtracks.interaction.stream.get_parent_id") as mock_get_parent_id:
         
         # Setup mocks
         mock_publisher = AsyncMock()

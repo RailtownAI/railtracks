@@ -1,15 +1,15 @@
-import requestcompletion as rc
+import railtracks as rt
 import random
 import pytest
 import time
 import asyncio
 import concurrent.futures
 
-import requestcompletion.context.central
-import requestcompletion.interaction.stream
-from requestcompletion import ExecutorConfig
+import railtracks.context.central
+import railtracks.interaction.stream
+from railtracks import ExecutorConfig
 
-RNGNode = rc.library.from_function(random.random)
+RNGNode = rt.library.from_function(random.random)
 
 
 def sleep(timeout_len: float):
@@ -21,21 +21,21 @@ def exception_node():
     raise Exception()
 
 
-TimeoutNode = rc.library.from_function(sleep)
-ExceptionNode = rc.library.from_function(exception_node)
+TimeoutNode = rt.library.from_function(sleep)
+ExceptionNode = rt.library.from_function(exception_node)
 
 
 @pytest.mark.asyncio
 async def test_runner_call_basic():
-    response = await rc.call(RNGNode)
+    response = await rt.call(RNGNode)
 
     assert isinstance(response, float), "Expected a float result from RNGNode"
 
 
 @pytest.mark.skip(reason="Skipping test for now, will be fixed in future release")
 async def test_runner_call_with_context():
-    with rc.Runner() as run:
-        response = await rc.call(RNGNode)
+    with rt.Runner() as run:
+        response = await rt.call(RNGNode)
         assert isinstance(response, float), "Expected a float result from RNGNode"
         info = run.info
         assert (
@@ -45,18 +45,18 @@ async def test_runner_call_with_context():
 
 async def logging_config_test_async():
     async def run_with_logging_config(log_setting):
-        requestcompletion.context.central.set_config(
-            rc.ExecutorConfig(end_on_error=True)
+        railtracks.context.central.set_config(
+            rt.ExecutorConfig(end_on_error=True)
         )
         with pytest.raises(Exception):
-            resp = await rc.call(ExceptionNode)
+            resp = await rt.call(ExceptionNode)
             print(resp)
 
     async def run_with_logging_config_w_context(log_setting):
-        requestcompletion.context.central.set_config(
-            rc.ExecutorConfig(logging_setting=log_setting)
+        railtracks.context.central.set_config(
+            rt.ExecutorConfig(logging_setting=log_setting)
         )
-        with rc.Runner() as run:
+        with rt.Runner() as run:
             info = await run.run(RNGNode)
             runner = run
             assert run == runner
@@ -71,11 +71,11 @@ async def logging_config_test_async():
         ), "Expected the answer to be the same as the response"
 
     async def run_with_logging_config_w_context_w_call(log_setting):
-        requestcompletion.context.central.set_config(
-            rc.ExecutorConfig(logging_setting=log_setting)
+        railtracks.context.central.set_config(
+            rt.ExecutorConfig(logging_setting=log_setting)
         )
-        with rc.Runner() as run:
-            resp = await rc.call(RNGNode)
+        with rt.Runner() as run:
+            resp = await rt.call(RNGNode)
             info = run.info
             runner = run
             assert run == runner
@@ -104,7 +104,7 @@ async def logging_config_test_async():
 
 
 async def test_different_config_global_set_async():
-    requestcompletion.context.central.set_config(rc.ExecutorConfig(end_on_error=False))
+    railtracks.context.central.set_config(rt.ExecutorConfig(end_on_error=False))
     await logging_config_test_async()
 
 
@@ -114,10 +114,10 @@ async def test_different_config_local_set_async():
 
 def logging_config_test_threads():
     def run_with_logging_config_w_context(log_setting):
-        requestcompletion.context.central.set_config(
-            rc.ExecutorConfig(logging_setting=log_setting)
+        railtracks.context.central.set_config(
+            rt.ExecutorConfig(logging_setting=log_setting)
         )
-        with rc.Runner() as run:
+        with rt.Runner() as run:
             info = run.run_sync(RNGNode)
             runner = run
             assert runner.rc_state.executor_config.logging_setting == log_setting
@@ -141,12 +141,12 @@ def test_threads_config():
 
 
 def test_sequence_of_changes():
-    requestcompletion.context.central.set_config(rc.ExecutorConfig(end_on_error=True))
-    requestcompletion.context.central.set_config(rc.ExecutorConfig(end_on_error=False))
-    requestcompletion.context.central.set_config(
-        rc.ExecutorConfig(end_on_error=True, logging_setting="NONE")
+    railtracks.context.central.set_config(rt.ExecutorConfig(end_on_error=True))
+    railtracks.context.central.set_config(rt.ExecutorConfig(end_on_error=False))
+    railtracks.context.central.set_config(
+        rt.ExecutorConfig(end_on_error=True, logging_setting="NONE")
     )
-    with rc.Runner() as run:
+    with rt.Runner() as run:
         info = run.run_sync(RNGNode)
         assert run.rc_state.executor_config.end_on_error
         assert run.rc_state.executor_config.logging_setting == "NONE"
@@ -154,10 +154,10 @@ def test_sequence_of_changes():
 
 
 def test_sequence_of_changes_overwrite():
-    requestcompletion.context.central.set_config(rc.ExecutorConfig(end_on_error=True))
-    requestcompletion.context.central.set_config(rc.ExecutorConfig(end_on_error=False))
-    with rc.Runner(
-        executor_config=rc.ExecutorConfig(end_on_error=True, logging_setting="NONE")
+    railtracks.context.central.set_config(rt.ExecutorConfig(end_on_error=True))
+    railtracks.context.central.set_config(rt.ExecutorConfig(end_on_error=False))
+    with rt.Runner(
+        executor_config=rt.ExecutorConfig(end_on_error=True, logging_setting="NONE")
     ) as run:
         info = run.run_sync(RNGNode)
         assert run.rc_state.executor_config.end_on_error
@@ -165,14 +165,14 @@ def test_sequence_of_changes_overwrite():
         assert info.answer == run.info.answer
 
 def test_back_to_defaults():
-    rc.set_config(ExecutorConfig(end_on_error=True, logging_setting="REGULAR"))
-    with rc.Runner(
-        executor_config=rc.ExecutorConfig(end_on_error=True, logging_setting="NONE")
+    rt.set_config(ExecutorConfig(end_on_error=True, logging_setting="REGULAR"))
+    with rt.Runner(
+        executor_config=rt.ExecutorConfig(end_on_error=True, logging_setting="NONE")
     ) as run:
         assert run.rc_state.executor_config.end_on_error
         assert run.rc_state.executor_config.logging_setting == "NONE"
 
-    with rc.Runner() as run:
+    with rt.Runner() as run:
         assert run.rc_state.executor_config.end_on_error
         assert run.rc_state.executor_config.logging_setting == "REGULAR"
 
@@ -183,7 +183,7 @@ message = "Hello, World!"
 
 
 async def streaming_func():
-    await requestcompletion.interaction.stream.stream(message)
+    await railtracks.interaction.stream.stream(message)
     return
 
 
@@ -195,14 +195,14 @@ class StreamHandler:
         self.message.append(item)
 
 
-StreamingNode = rc.library.from_function(streaming_func)
+StreamingNode = rt.library.from_function(streaming_func)
 
 
 def test_streaming_inserted_globally():
     handler = StreamHandler()
 
-    requestcompletion.context.central.set_streamer(handler.handle)
-    with rc.Runner() as run:
+    railtracks.context.central.set_streamer(handler.handle)
+    with rt.Runner() as run:
         result = run.run_sync(StreamingNode)
         assert result.answer == None
 
@@ -214,7 +214,7 @@ def test_streaming_inserted_globally():
 def test_streaming_inserted_locally():
     handler = StreamHandler()
 
-    with rc.Runner(rc.ExecutorConfig(subscriber=handler.handle)) as run:
+    with rt.Runner(rt.ExecutorConfig(subscriber=handler.handle)) as run:
         result = run.run_sync(StreamingNode)
         assert result.answer == None
 
@@ -230,8 +230,8 @@ def fake_handler(item: str) -> None:
 def test_streaming_overwrite():
     handler = StreamHandler()
 
-    requestcompletion.context.central.set_streamer(fake_handler)
-    with rc.Runner(rc.ExecutorConfig(subscriber=handler.handle)) as run:
+    railtracks.context.central.set_streamer(fake_handler)
+    with rt.Runner(rt.ExecutorConfig(subscriber=handler.handle)) as run:
         result = run.run_sync(StreamingNode)
         assert result.answer == None
 

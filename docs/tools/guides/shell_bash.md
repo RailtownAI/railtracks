@@ -4,7 +4,7 @@ To allow for usage of shell as a tool, we can create a simple tool using `from_f
 
 ```python
 import subprocess
-from requestcompletion.nodes.library import from_function
+from railtracks.nodes.library import from_function
 
 def run_shell(command: str) -> str:
     """Run a bash command and return its output or error."""
@@ -20,26 +20,26 @@ def run_shell(command: str) -> str:
 bash_tool = from_function(run_shell)
 ```
 
-At this point, the tool can be used the same as any other RC tool. See the following code as a simple example.
+At this point, the tool can be used the same as any other RT tool. See the following code as a simple example.
 
 ```python
 import platform
 
-import requestcompletion as rc
-from requestcompletion.nodes.library.easy_usage_wrappers.tool_call_llm import tool_call_llm
+import railtracks as rt
+from railtracks.nodes.library.easy_usage_wrappers.tool_call_llm import tool_call_llm
 
 agent = tool_call_llm(
     connected_nodes={bash_tool},
     system_message=f"You are a useful helper that can run local shell commands. "
                    f"You are on a {platform.system()} machine. Use appropriate shell commands to answer the user's questions.",
-    model=rc.llm.OpenAILLM("gpt-4o"),
+    model=rt.llm.OpenAILLM("gpt-4o"),
 )
 
 user_prompt = """What directories are in the current directory?"""
-message_history = rc.llm.MessageHistory()
-message_history.append(rc.llm.UserMessage(user_prompt))
+message_history = rt.llm.MessageHistory()
+message_history.append(rt.llm.UserMessage(user_prompt))
 
-with rc.Runner(rc.ExecutorConfig(logging_setting="VERBOSE")) as run:
+with rt.Runner(rt.ExecutorConfig(logging_setting="VERBOSE")) as run:
     result = run.run_sync(agent, message_history)
 
 print(result.answer.content)

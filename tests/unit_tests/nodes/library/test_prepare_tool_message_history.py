@@ -1,8 +1,8 @@
 import pytest
 from typing import Dict, Any
 
-from requestcompletion.llm import MessageHistory, Parameter, UserMessage
-from requestcompletion.nodes.library._llm_base import LLMBase
+from railtracks.llm import MessageHistory, Parameter, UserMessage
+from railtracks.nodes.library._llm_base import LLMBase
 
 
 class TestPrepareToolMessageHistory:

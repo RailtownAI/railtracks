@@ -1,4 +1,4 @@
-from requestcompletion.utils.logging.action import RequestSuccessAction, RequestCreationAction, RequestFailureAction
+from railtracks.utils.logging.action import RequestSuccessAction, RequestCreationAction, RequestFailureAction
 
 
 def test_request_success_action():

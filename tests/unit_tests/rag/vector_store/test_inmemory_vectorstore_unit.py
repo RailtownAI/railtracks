@@ -4,7 +4,7 @@ from conftest import DummyEmbeddingService, DummyRecord, DummySearchResult, Dumm
 # -------------- Auto-patch module dependencies (pytest-style) --------------
 @pytest.fixture(autouse=True)
 def patch_vectorstore_deps(monkeypatch):
-    import requestcompletion.RAG.vector_store.in_memory as vsmem
+    import railtracks.RAG.vector_store.in_memory as vsmem
     # Patch all dependencies in the *module under test's namespace*:
     monkeypatch.setattr(vsmem, "uuid_str", dummy_uuid_str)
     monkeypatch.setattr(vsmem, "BaseEmbeddingService", DummyEmbeddingService)
@@ -13,7 +13,7 @@ def patch_vectorstore_deps(monkeypatch):
     monkeypatch.setattr(vsmem, "Metric", DummyMetric)
     # No need to patch AbstractVectorStore if real base is abstract and not used directly
 
-from requestcompletion.RAG.vector_store.in_memory import InMemoryVectorStore
+from railtracks.RAG.vector_store.in_memory import InMemoryVectorStore
 import math
 
 # --------------------------- TESTS -----------------------------

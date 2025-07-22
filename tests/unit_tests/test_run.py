@@ -3,38 +3,38 @@ from pathlib import Path
 import pytest
 from unittest.mock import MagicMock, patch, call, PropertyMock
 import asyncio
-from requestcompletion.run import Runner, RunnerCreationError, RunnerNotFoundError
+from railtracks.run import Runner, RunnerCreationError, RunnerNotFoundError
 
 # ================= START Mock Fixture ============
 @pytest.fixture
 def mock_dependencies(monkeypatch):
     m_prepare_logger = MagicMock()
     m_get_global_config = MagicMock()
-    m_RCPublisher = MagicMock()
+    m_RTPublisher = MagicMock()
     m_ExecutionInfo = MagicMock(create_new=MagicMock())
     m_Coordinator = MagicMock()
-    m_RCState = MagicMock()
+    m_RTState = MagicMock()
     m_register_globals = MagicMock()
     m_delete_globals = MagicMock()
     m_detach_logging_handlers = MagicMock()
 
-    monkeypatch.setattr('requestcompletion.run.prepare_logger', m_prepare_logger)
-    monkeypatch.setattr('requestcompletion.run.get_global_config', m_get_global_config)
-    monkeypatch.setattr('requestcompletion.run.RCPublisher', m_RCPublisher)
-    monkeypatch.setattr('requestcompletion.run.ExecutionInfo', m_ExecutionInfo)
-    monkeypatch.setattr('requestcompletion.run.Coordinator', m_Coordinator)
-    monkeypatch.setattr('requestcompletion.run.RCState', m_RCState)
-    monkeypatch.setattr('requestcompletion.run.register_globals', m_register_globals)
-    monkeypatch.setattr('requestcompletion.run.delete_globals', m_delete_globals)
-    monkeypatch.setattr('requestcompletion.run.detach_logging_handlers', m_detach_logging_handlers)
+    monkeypatch.setattr('railtracks.run.prepare_logger', m_prepare_logger)
+    monkeypatch.setattr('railtracks.run.get_global_config', m_get_global_config)
+    monkeypatch.setattr('railtracks.run.RTPublisher', m_RTPublisher)
+    monkeypatch.setattr('railtracks.run.ExecutionInfo', m_ExecutionInfo)
+    monkeypatch.setattr('railtracks.run.Coordinator', m_Coordinator)
+    monkeypatch.setattr('railtracks.run.RTState', m_RTState)
+    monkeypatch.setattr('railtracks.run.register_globals', m_register_globals)
+    monkeypatch.setattr('railtracks.run.delete_globals', m_delete_globals)
+    monkeypatch.setattr('railtracks.run.detach_logging_handlers', m_detach_logging_handlers)
 
     return {
         'prepare_logger': m_prepare_logger,
         'get_global_config': m_get_global_config,
-        'RCPublisher': m_RCPublisher,
+        'RTPublisher': m_RTPublisher,
         'ExecutionInfo': m_ExecutionInfo,
         'Coordinator': m_Coordinator,
-        'RCState': m_RCState,
+        'RTState': m_RTState,
         'register_globals': m_register_globals,
         'delete_globals': m_delete_globals,
         'detach_logging_handlers': m_detach_logging_handlers,
@@ -46,8 +46,8 @@ def test_runner_construction_with_explicit_config_and_context(mock_dependencies)
     config = MagicMock()
     context = {'foo': 'bar'}
     # Setup mocks with needed API
-    pub_mock = mock_dependencies['RCPublisher'].return_value
-    state_mock = mock_dependencies['RCState'].return_value
+    pub_mock = mock_dependencies['RTPublisher'].return_value
+    state_mock = mock_dependencies['RTState'].return_value
     info_mock = MagicMock()
     state_mock.info = info_mock
 
@@ -94,7 +94,7 @@ def test_setup_subscriber_adds_subscriber_if_present(mock_dependencies):
     config.subscriber = lambda s: None
     runner = Runner(executor_config=config)
     runner.publisher = MagicMock()
-    with patch('requestcompletion.run.stream_subscriber', return_value="fake_stream_sub") as m_stream:
+    with patch('railtracks.run.stream_subscriber', return_value="fake_stream_sub") as m_stream:
         runner.setup_subscriber()
         runner.publisher.subscribe.assert_called_once_with(
             "fake_stream_sub", name="Streaming Subscriber"
@@ -106,7 +106,7 @@ def test_setup_subscriber_noop_if_no_subscriber(mock_dependencies):
     config.subscriber = None
     runner = Runner(executor_config=config)
     runner.publisher = MagicMock()
-    with patch('requestcompletion.run.stream_subscriber') as m_stream:
+    with patch('railtracks.run.stream_subscriber') as m_stream:
         runner.setup_subscriber()
         runner.publisher.subscribe.assert_not_called()
         m_stream.assert_not_called()
@@ -133,21 +133,21 @@ def test_close_calls_shutdown_detach_delete(mock_dependencies):
 def test_info_property_returns_rc_state_info(mock_dependencies):
     config = MagicMock()
     runner = Runner(executor_config=config)
-    rc_info = MagicMock()
-    runner.rc_state.info = rc_info
-    assert runner.info is rc_info
+    rt_info = MagicMock()
+    runner.rc_state.info = rt_info
+    assert runner.info is rt_info
 
 # ================ END Runner: info property ===============
 
 
-# ================= START Runner: run_sync ===============
+# ================ START Runner: run_sync ===============
 
 def test_run_sync_calls_asyncio_run_and_returns_info(mock_dependencies):
     config = MagicMock()
     runner = Runner(executor_config=config)
     runner.rc_state.info = "the-info"
-    with patch('requestcompletion.run.asyncio.run', return_value=None) as m_async_run, \
-         patch('requestcompletion.run.call', return_value=None) as m_call:
+    with patch('railtracks.run.asyncio.run', return_value=None) as m_async_run, \
+         patch('railtracks.run.call', return_value=None) as m_call:
         result = runner.run_sync(lambda: "a")
         m_async_run.assert_called_once()
         m_call.assert_called_once()
@@ -166,7 +166,7 @@ async def test_call_method_calls_call_func(mock_dependencies):
     the_node = lambda: None
     result_value = MagicMock()
     # flagging this becuase I envision us having a dumb bug if we ever change the import statement in that source file.
-    with patch('requestcompletion.run.call', return_value=result_value) as m_call:
+    with patch('railtracks.run.call', return_value=result_value) as m_call:
         out = await runner.call(the_node, 42, foo="bar")
         m_call.assert_called_once_with(the_node, 42, foo="bar")
         assert out == result_value
@@ -178,7 +178,7 @@ async def test_run_method_runs_and_returns_info(mock_dependencies):
     runner.rc_state.info = "async-info"
     the_node = lambda: None
     # flagging this becuase I envision us having a dumb bug if we ever change the import statement in that source file.
-    with patch('requestcompletion.run.call', return_value=None) as m_call:
+    with patch('railtracks.run.call', return_value=None) as m_call:
         result = await runner.run(the_node, 1, foo=2)
         m_call.assert_called_once_with(the_node, 1, foo=2)
         assert result == "async-info"

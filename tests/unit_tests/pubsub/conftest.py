@@ -1,8 +1,8 @@
 import pytest
 import asyncio
 from unittest.mock import patch
-from requestcompletion.pubsub.publisher import Publisher, RCPublisher
-from requestcompletion.pubsub.messages import Streaming
+from railtracks.pubsub.publisher import Publisher, RTPublisher
+from railtracks.pubsub.messages import Streaming
 
 # ================================== Pub Sub Fixtures ==================================
 @pytest.fixture
@@ -53,12 +53,12 @@ def streaming_message(streamed_object):
 
 @pytest.fixture
 def dummy_publisher():
-    pub = RCPublisher()
+    pub = RTPublisher()
     return pub
 
 @pytest.fixture
 def logger_patch():
-    with patch("requestcompletion.pubsub.publisher.logger") as mock_logger:
+    with patch("railtracks.pubsub.publisher.logger") as mock_logger:
         yield mock_logger
 
 # ================================== Message Fixtures ==================================

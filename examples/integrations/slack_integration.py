@@ -6,8 +6,8 @@
 import os
 
 from mcp import StdioServerParameters
-from requestcompletion.nodes.library import from_mcp_server, tool_call_llm
-import requestcompletion as rc
+from railtracks.nodes.library import from_mcp_server, tool_call_llm
+import railtracks as rt
 
 MCP_COMMAND = "npx"
 MCP_ARGS = ["-y", "@modelcontextprotocol/server-slack"]
@@ -33,14 +33,14 @@ tools = server.tools
 agent = tool_call_llm(
     connected_nodes={*tools},
     system_message="""You are a Slack agent that can interact with Slack channels.""",
-    model=rc.llm.OpenAILLM("gpt-4o"),
+    model=rt.llm.OpenAILLM("gpt-4o"),
 )
 
-user_prompt = """Send a message to the rc-maintainer slack channel saying "Hello from your new overlord"."""
-message_history = rc.llm.MessageHistory()
-message_history.append(rc.llm.UserMessage(user_prompt))
+user_prompt = """Send a message to thert-maintainer slack channel saying "Hello from your new overlord"."""
+message_history = rt.llm.MessageHistory()
+message_history.append(rt.llm.UserMessage(user_prompt))
 
-with rc.Runner(rc.ExecutorConfig(logging_setting="VERBOSE")) as run:
+with rt.Runner(rt.ExecutorConfig(logging_setting="VERBOSE")) as run:
     result = run.run_sync(agent, message_history)
 
 print(result.answer.content)

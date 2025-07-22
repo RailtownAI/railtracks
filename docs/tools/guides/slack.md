@@ -1,6 +1,6 @@
-# Adding Slack integration with RC
+# Adding Slack integration with RT
 
-To allow for Slack integration with RC, you need to first create a Slack app and at it to your Slack workspace - https://api.slack.com/apps. 
+To allow for Slack integration with RT, you need to first create a Slack app and at it to your Slack workspace - https://api.slack.com/apps. 
 Next, get the Slack team ID (It starts with T, such as "T12345678". You can also optionally specify the Slack channel IDs you want to restrict interaction to (ex. "C87654321, C87654322").
 Finally, use the `from_mcp_server` utility to load tools directly from the MCP server. 
 
@@ -8,7 +8,7 @@ Finally, use the `from_mcp_server` utility to load tools directly from the MCP s
 import os
 
 from mcp import StdioServerParameters
-from requestcompletion.nodes.library import from_mcp_server
+from railtracks.nodes.library import from_mcp_server
 
 MCP_COMMAND = "npx"
 MCP_ARGS = ["-y", "@modelcontextprotocol/server-slack"]
@@ -29,23 +29,23 @@ server = from_mcp_server(
 tools = server.tools
 ```
 
-At this point, the tools can be used the same as any other RC tool. See the following code as a simple example.
+At this point, the tools can be used the same as any other RT tool. See the following code as a simple example.
 
 ```python
-from requestcompletion.nodes.library import tool_call_llm
-import requestcompletion as rc
+from railtracks.nodes.library import tool_call_llm
+import railtracks as rt
 
 agent = tool_call_llm(
     connected_nodes={*tools},
     system_message="""You are a Slack agent that can interact with Slack channels.""",
-    model=rc.llm.OpenAILLM("gpt-4o"),
+    model=rt.llm.OpenAILLM("gpt-4o"),
 )
 
 user_prompt = """Send a message to general saying "Hello!"."""
-message_history = rc.llm.MessageHistory()
-message_history.append(rc.llm.UserMessage(user_prompt))
+message_history = rt.llm.MessageHistory()
+message_history.append(rt.llm.UserMessage(user_prompt))
 
-with rc.Runner(rc.ExecutorConfig(logging_setting="VERBOSE")) as run:
+with rt.Runner(rt.ExecutorConfig(logging_setting="VERBOSE")) as run:
     result = run.run_sync(agent, message_history)
 
 print(result.answer.content)

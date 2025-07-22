@@ -3,8 +3,8 @@ import time
 import pytest
 from typing import List, Tuple, Dict, Any
 from pydantic import BaseModel
-from requestcompletion.llm.tools.parameter_handlers import UnsupportedParameterError
-from requestcompletion.llm.type_mapping import TypeMapper
+from railtracks.llm.tools.parameter_handlers import UnsupportedParameterError
+from railtracks.llm.type_mapping import TypeMapper
 
 
 class DummyModel(BaseModel):

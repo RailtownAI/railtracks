@@ -2,7 +2,7 @@ import asyncio
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
 from typing import Any
-from requestcompletion.interaction.call import (
+from railtracks.interaction.call import (
     call,
     call_sync,
     _start,
@@ -11,9 +11,9 @@ from requestcompletion.interaction.call import (
     _regular_message_filter,
     _top_level_message_filter,
 )
-from requestcompletion.nodes.nodes import Node
-from requestcompletion.exceptions import GlobalTimeOutError
-from requestcompletion.pubsub.messages import (
+from railtracks.nodes.nodes import Node
+from railtracks.exceptions import GlobalTimeOutError
+from railtracks.pubsub.messages import (
     RequestCompletionMessage,
     RequestFinishedBase,
     FatalFailure,
@@ -278,7 +278,7 @@ def test_call_sync_with_no_running_loop():
     with patch('asyncio.get_running_loop', side_effect=RuntimeError("No running loop")), \
          patch('asyncio.new_event_loop') as mock_new_loop, \
          patch('asyncio.set_event_loop') as mock_set_loop, \
-         patch('requestcompletion.interaction.call.call') as mock_call:
+         patch('railtracks.interaction.call.call') as mock_call:
         
         mock_loop = Mock()
         mock_task = Mock()

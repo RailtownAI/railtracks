@@ -2,20 +2,20 @@ import random
 import time
 import asyncio
 
-import requestcompletion as rc
+import railtracks as rt
 
 
-from requestcompletion import ExecutorConfig
+from railtracks import ExecutorConfig
 
 
 async def streaming_rng():
     number = random.random()
-    await rc.stream(str(number))
+    await rt.stream(str(number))
 
     return number
 
 
-StreamingRNGNode = rc.library.from_function(streaming_rng)
+StreamingRNGNode = rt.library.from_function(streaming_rng)
 
 
 def test_simple_streamer():
@@ -27,8 +27,8 @@ def test_simple_streamer():
             self.finished_message = item
 
     sub = SubObject()
-    with rc.Runner(
-        executor_config=rc.ExecutorConfig(
+    with rt.Runner(
+        executor_config=rt.ExecutorConfig(
             logging_setting="NONE", subscriber=sub.handle
         ),
     ) as runner:
@@ -54,7 +54,7 @@ def test_slow_streamer():
             self.finished_message = item
 
     sub = Sub()
-    with rc.Runner(executor_config=ExecutorConfig(subscriber=sub.handle)) as runner:
+    with rt.Runner(executor_config=ExecutorConfig(subscriber=sub.handle)) as runner:
         finished_result = runner.run_sync(StreamingRNGNode)
 
     assert isinstance(finished_result.answer, float)
@@ -64,18 +64,18 @@ def test_slow_streamer():
 async def rng_tree_streamer(num_calls: int, parallel_call_nums: int, multiplier: int):
     data = []
     for _ in range(num_calls):
-        contracts = [rc.call(StreamingRNGNode) for _ in range(parallel_call_nums)]
+        contracts = [rt.call(StreamingRNGNode) for _ in range(parallel_call_nums)]
         responses = await asyncio.gather(*contracts)
         responses = [r * multiplier for r in responses]
         for r in responses:
-            await rc.stream(str(r))
+            await rt.stream(str(r))
 
         data.extend(responses)
 
     return data
 
 
-RNGTreeStreamer = rc.library.from_function(rng_tree_streamer)
+RNGTreeStreamer = rt.library.from_function(rng_tree_streamer)
 
 
 def rng_stream_tester(
@@ -93,7 +93,7 @@ def rng_stream_tester(
                 self.total_streams.append(item)
 
     sub = Sub()
-    with rc.Runner(
+    with rt.Runner(
         executor_config=ExecutorConfig(logging_setting="NONE", subscriber=sub.handle)
     ) as run:
         finished_result = run.run_sync(

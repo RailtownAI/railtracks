@@ -15,7 +15,7 @@ to another modular component.
 
 ## Key Features
 
-- **Automatic Parallelism** - The backend of the RC system will automatically parallelize the execution of the modular
+- **Automatic Parallelism** - The backend of the RT system will automatically parallelize the execution of the modular
   components. You don't need to worry about it.
 - **Streaming Capability** - By defining what you want to stream and attaching a handler you can stream updates to the
   system via a callback mechanism.
@@ -25,7 +25,7 @@ to another modular component.
 - **Visuals** - The system has built in visualization tools that will allow you to see the flow of your system and how
   the
   requests are being processed.
-- **Definitions of Complex Flows** - RCs natural programmatic definitions of flows makes the design of complicated flows
+- **Definitions of Complex Flows** - RTs natural programmatic definitions of flows makes the design of complicated flows
   a breeze.
 - **Configurable** - The system is designed to be configurable and extensible. You maintain full control of a variety of
   parameters that can be used to control the behavior of the system.
@@ -38,13 +38,13 @@ creating a simple Agentic system using the Request Completion framework.
 ### Step 1: Install the Library
 
 ```bash
-pip install requestcompletion
+pip install railtracks
 ```
 
 ### Step 2: Define your Modular Components
 
 ```python
-import requestcompletion as rc
+import railtracks as rt
 
 
 def number_of_chars(text: str) -> int:
@@ -78,18 +78,18 @@ def number_of_characters(text: str, character_of_interest) -> int:
     return len(text)
 
 
-TotalNumberChars = rc.library.from_function(number_of_chars)
-TotalNumberWords = rc.library.from_function(number_of_words)
-CharacterCount = rc.library.from_function(number_of_characters)
+TotalNumberChars = rt.library.from_function(number_of_chars)
+TotalNumberWords = rt.library.from_function(number_of_words)
+CharacterCount = rt.library.from_function(number_of_characters)
 
-TextAnalyzer = rc.library.tool_call_llm(
+TextAnalyzer = rt.library.tool_call_llm(
     connected_nodes={
         TotalNumberChars,
         TotalNumberWords,
         CharacterCount,
     },
-    model=rc.llm.OpenAILLM("gpt-4o"),
-    system_message=rc.llm.SystemMessage(
+    model=rt.llm.OpenAILLM("gpt-4o"),
+    system_message=rt.llm.SystemMessage(
         "You are a text analyzer. You will be given a text and you will return the number of characters, "
         "the number of words, and the number of occurrences of a specific character in the text."
     ),
@@ -99,16 +99,16 @@ TextAnalyzer = rc.library.tool_call_llm(
 ### Step 3: Run your Application
 
 ```python
-import requestcompletion as rc
+import railtracks as rt
 
-result = await rc.call(
+result = await rt.call(
     TextAnalyzer,
-    rc.llm.MessageHistory([rc.llm.UserMessage("Hello world! This is a test of the Request Completion framework.")])
+    rt.llm.MessageHistory([rt.llm.UserMessage("Hello world! This is a test of the Request Completion framework.")])
 )
 print(result)
 ```
 
-Getting started with RC is as simple as that!. View the docs for more examples. The possibilities are truly endless.
+Getting started with RT is as simple as that!. View the docs for more examples. The possibilities are truly endless.
 
 ## Contributing
 

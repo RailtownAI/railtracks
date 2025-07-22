@@ -2,7 +2,7 @@ import pytest
 import asyncio
 from unittest.mock import Mock, MagicMock, patch
 from datetime import datetime
-from requestcompletion.visuals.browser.chat_ui import ChatUI, UIUserMessage, ToolInvocation
+from railtracks.visuals.browser.chat_ui import ChatUI, UIUserMessage, ToolInvocation
 
 @pytest.fixture
 def chat_ui():
@@ -51,7 +51,7 @@ def test_chat_ui_initialization_custom_port():
     assert chat_ui.port == custom_port
 
 
-@patch('requestcompletion.visuals.browser.chat_ui.files')
+@patch('railtracks.visuals.browser.chat_ui.files')
 def test_get_static_file_content_success(mock_files, chat_ui):
     """Test successful static file content retrieval."""
     mock_package = MagicMock()
@@ -63,11 +63,11 @@ def test_get_static_file_content_success(mock_files, chat_ui):
     content = chat_ui._get_static_file_content("test.html")
     
     assert content == "test content"
-    mock_files.assert_called_once_with('requestcompletion.visuals.browser')
+    mock_files.assert_called_once_with('railtracks.visuals.browser')
     mock_package.__truediv__.assert_called_once_with("test.html")
     mock_file.read_text.assert_called_once_with(encoding='utf-8')
 
-@patch('requestcompletion.visuals.browser.chat_ui.files')
+@patch('railtracks.visuals.browser.chat_ui.files')
 def test_get_static_file_content_exception(mock_files, chat_ui):
     """Test static file content retrieval handles exceptions."""
     mock_files.side_effect = FileNotFoundError("File not found")
@@ -172,8 +172,8 @@ async def test_create_app_routes_exist(chat_ui):
     assert "/chat.js" in route_paths
 
 
-@patch('requestcompletion.visuals.browser.chat_ui.uvicorn')
-@patch('requestcompletion.visuals.browser.chat_ui.threading')
+@patch('railtracks.visuals.browser.chat_ui.uvicorn')
+@patch('railtracks.visuals.browser.chat_ui.threading')
 def test_start_server_async_creates_thread(mock_threading, mock_uvicorn, chat_ui):
     """Test that start_server_async creates and starts a thread."""
     mock_thread = Mock()
@@ -186,8 +186,8 @@ def test_start_server_async_creates_thread(mock_threading, mock_uvicorn, chat_ui
     mock_thread.start.assert_called_once()
     assert chat_ui.server_thread == mock_thread
 
-@patch('requestcompletion.visuals.browser.chat_ui.uvicorn')
-@patch('requestcompletion.visuals.browser.chat_ui.threading')
+@patch('railtracks.visuals.browser.chat_ui.uvicorn')
+@patch('railtracks.visuals.browser.chat_ui.threading')
 def test_start_server_async_reuses_existing_thread(mock_threading, mock_uvicorn, chat_ui):
     """Test that start_server_async doesn't create new thread if one exists."""
     existing_thread = Mock()
@@ -199,7 +199,7 @@ def test_start_server_async_reuses_existing_thread(mock_threading, mock_uvicorn,
     mock_threading.Thread.assert_not_called()
     assert chat_ui.server_thread == existing_thread
 
-@patch('requestcompletion.visuals.browser.chat_ui.uvicorn')
+@patch('railtracks.visuals.browser.chat_ui.uvicorn')
 def test_run_server_calls_uvicorn(mock_uvicorn, chat_ui):
     """Test that run_server calls uvicorn with correct parameters."""
     chat_ui.run_server()

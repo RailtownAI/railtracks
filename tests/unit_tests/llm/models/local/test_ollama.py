@@ -5,10 +5,10 @@ from unittest.mock import patch, MagicMock
 
 import litellm
 
-from requestcompletion.llm.models.local.ollama import OllamaLLM, OllamaError
-from requestcompletion.exceptions import LLMError
-from requestcompletion.llm.history import MessageHistory
-from requestcompletion.llm.message import UserMessage
+from railtracks.llm.models.local.ollama import OllamaLLM, OllamaError
+from railtracks.exceptions import LLMError
+from railtracks.llm.history import MessageHistory
+from railtracks.llm.message import UserMessage
 
 @pytest.fixture
 def mock_response():

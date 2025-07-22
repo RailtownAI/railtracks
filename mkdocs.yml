@@ -40,7 +40,7 @@ nav:
 
   - MCP:
         - mcp/index.md
-        - mcp/MCP_tools_in_RC.md
+        - mcp/MCP_tools_in_rt.md
         - mcp/RCtoMCP.md
 
   - Visualization:

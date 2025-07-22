@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch
 
-from requestcompletion.interaction.batch import batch
+from railtracks.interaction.batch import batch
 
 
 @pytest.mark.asyncio
@@ -9,7 +9,7 @@ async def test_batch_single_iterable_returns_results_in_order():
     async def mock_call(node, *args):
         return f"result_{args[0]}"
 
-    with patch("requestcompletion.interaction.batch.call", new=mock_call):
+    with patch("railtracks.interaction.batch.call", new=mock_call):
         node = lambda x: x  # Dummy node
         inputs = [1, 2, 3]
 
@@ -23,7 +23,7 @@ async def test_batch_multiple_iterables_passes_all_args():
     async def mock_call(node, *args):
         return f"sum_{sum(args)}"
 
-    with patch("requestcompletion.interaction.batch.call", new=mock_call):
+    with patch("railtracks.interaction.batch.call", new=mock_call):
         node = lambda x, y: x + y  # Dummy node
         inputs1 = [1, 2, 3]
         inputs2 = [10, 20, 30]
@@ -40,7 +40,7 @@ async def test_batch_with_exceptions_returned():
             raise ValueError("Bad input")
         return f"good_{args[0]}"
 
-    with patch("requestcompletion.interaction.batch.call", new=mock_call):
+    with patch("railtracks.interaction.batch.call", new=mock_call):
         node = lambda x: x
         inputs = ["good", "bad", "good"]
 
@@ -58,7 +58,7 @@ async def test_batch_with_exceptions_raised():
             raise RuntimeError("Fail!")
         return f"ok_{args[0]}"
 
-    with patch("requestcompletion.interaction.batch.call", new=mock_call):
+    with patch("railtracks.interaction.batch.call", new=mock_call):
         node = lambda x: x
         inputs = ["ok", "fail", "ok"]
 
