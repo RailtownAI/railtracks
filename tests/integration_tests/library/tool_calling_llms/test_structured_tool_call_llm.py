@@ -168,7 +168,7 @@ def test_return_into_structured(mock_llm):
     def return_structured_message(messages: MessageHistory, basemodel) -> Response:
         return Response(message=Message(role="assistant", content=basemodel(text="Hello", number=42)))
 
-    node = rc.library.structured_llm_base(
+    node = rc.library.structured_llm(
         system_message="Hello",
         llm_model=mock_llm(structured=return_structured_message),
         return_into="structured_greeting",  # Store result in context
