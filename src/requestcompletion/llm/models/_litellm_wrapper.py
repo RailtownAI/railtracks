@@ -26,37 +26,69 @@ from ..history import MessageHistory
 from ..message import AssistantMessage, Message, ToolMessage
 from ..model import ModelBase
 from ..response import MessageInfo, Response
-from ..tools import Parameter, Tool
+from ..tools import Parameter, Tool, PydanticParameter, ArrayParameter
 
-def _handle_set_of_parameters(parameters: Set[Parameter]) -> Dict[str, Any]:
+def _handle_set_of_parameters(parameters: Set[Parameter | PydanticParameter | ArrayParameter], sub_property: bool = False) -> Dict[str, Any]:
     """Handle the case where parameters are a set of Parameter instances."""
     props: Dict[str, Any] = {}
     required: list[str] = []
     for p in parameters:
         prop_dict = {
             "type": p.param_type,
-            "description": p.description,
         }
 
-        if p.param_type == "array":             # fr array and tuples
+        if p.description:
+            prop_dict["description"] = p.description
+
+        # ================ Type cases ================
+        if p.param_type == "array":             # for array and tuples
             element_type = p.default or "string"  # Default to 'string' if no element type is provided
             prop_dict["items"] = {"type": element_type}
 
         if p.param_type == "object":
-            prop_dict["additionalProperties"] = p.additional_properties
-
-        props[p.name] = prop_dict
+            if isinstance(p, PydanticParameter) and p.ref_path:      # special case for $ref: we only need description and $ref
+                prop_dict["$ref"] = p.ref_path
+                prop_dict.pop("type")
+            else:
+                prop_dict["additionalProperties"] = p.additional_properties
+                prop_dict["properties"] = _handle_set_of_parameters(p.properties, True)
+                sub_required_params = [p.name for p in p.properties if p.required]
+                if sub_required_params:
+                    prop_dict["required"] = sub_required_params
+        # ============================================
+        # ========= objects inside array support ==========
+        if isinstance(p, ArrayParameter):
+            items_scema = {
+                "type": "array",
+                "maxItems": p.max_items,
+                "items": prop_dict
+            }
+            props[p.name] = items_scema
+        else:
+            props[p.name] = prop_dict
+        # ============================================
 
         if p.required:
             required.append(p.name)
 
-    model_schema: Dict[str, Any] = {
-        "type": "object",
-        "properties": props,
-    }
-    if required:
-        model_schema["required"] = required
-    return model_schema
+        if p.default is not None:   # default can be 0 or False, if deafult value is supposed to be None, the param will be treated as optional
+            prop_dict["default"] = p.default
+        elif isinstance(p.param_type, list) and 'none' in p.param_type:   # if param_type is list and none is in it, the param is optional and default is None
+            prop_dict["default"] = None
+
+        if p.enum:
+            prop_dict["enum"] = p.enum
+
+    if sub_property:
+        return props
+    else:
+        model_schema: Dict[str, Any] = {
+            "type": "object",
+            "properties": props,
+        }
+        if required:
+            model_schema["required"] = required
+        return model_schema
 
 
 def _parameters_to_json_schema(
