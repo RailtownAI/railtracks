@@ -4,13 +4,13 @@ import asyncio
 import uuid
 from typing import Callable, Coroutine, Generic, List, TypeVar
 
-from ..utils.logging.create import get_rc_logger
+from ..utils.logging.create import get_rt_logger
 from .messages import RequestCompletionMessage, RequestCreationFailure, RequestFailure
 
 _T = TypeVar("_T")
 _TOutput = TypeVar("_TOutput")
 
-logger = get_rc_logger("Publisher")
+logger = get_rt_logger("Publisher")
 
 
 class Subscriber(Generic[_T]):

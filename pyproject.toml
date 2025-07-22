@@ -9,6 +9,9 @@ authors = [
     { name = "Logan Underwood", email = "logan@railtown.ai" },
     { name = "Levi Varsanyi", email = "levi@railtownn.ai" },
     { name = "Jaime Bueza", email = "jaime@railtown.ai" },
+    { name = "Amir Refaee", email = "amir@railtown.ai" },
+    { name = "Aryan Ballani", email = "aryan@railtown.ai" },
+    { name = "Tristan Brown", email = "tristan@railtown.ai" }
 ]
 readme = "README.md"
 license = { file = "LICENSE" }

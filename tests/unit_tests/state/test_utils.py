@@ -28,9 +28,9 @@ def test_multiple_parents_duplicate_id_assertion(req_template_factory, linked_no
     # Overlapping branches: both parents include a node/request "C"
     r1 = req_template_factory(identifier="r1", source_id=None, sink_id="A", step=1)
     r2 = req_template_factory(identifier="r2", source_id=None, sink_id="B", step=1)
-   rt1 = req_template_factory(identifier="rc1", source_id="A", sink_id="C", step=2)
-   rt2 = req_template_factory(identifier="rc2", source_id="B", sink_id="C", step=3)
-    heap = {x.identifier: x for x in [r1, r2,rt1,rt2]}
+    rt1 = req_template_factory(identifier="rc1", source_id="A", sink_id="C", step=2)
+    rt2 = req_template_factory(identifier="rc2", source_id="B", sink_id="C", step=3)
+    heap = {x.identifier: x for x in [r1, r2, rt1,rt2]}
     nodes = {
         "A": linked_node_factory("A", r1.stamp),
         "B": linked_node_factory("B", r2.stamp),

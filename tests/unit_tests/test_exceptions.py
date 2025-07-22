@@ -16,8 +16,8 @@ from railtracks.exceptions._base import RTError
 @pytest.mark.parametrize(
     "text,color_code,expected",
     [
-        ("hello", RTError.RED, f"{RCError.RED}hello{RCError.RESET}"),
-        ("world", RTError.GREEN, f"{RCError.GREEN}world{RCError.RESET}"),
+        ("hello", RTError.RED, f"{RTError.RED}hello{RTError.RESET}"),
+        ("world", RTError.GREEN, f"{RTError.GREEN}world{RTError.RESET}"),
     ]
 )
 def test_rcerror_color_helper(text, color_code, expected):

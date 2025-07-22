@@ -1,5 +1,5 @@
-from .create import get_rc_logger
+from .create import get_rt_logger
 
 __all__ = [
-    "get_rc_logger",
+    "get_rt_logger",
 ]

@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 from ..exceptions import FatalError, NodeInvocationError
 from ..info import ExecutionInfo
 from ..nodes.nodes import Node
-from ..utils.logging.create import get_rc_logger
+from ..utils.logging.create import get_rt_logger
 from ..utils.profiling import Stamp
 
 _TOutput = TypeVar("_TOutput")
@@ -71,7 +71,7 @@ class RTState:
         self.rc_coordinator = coordinator
 
         # each new instance of a state object should have its own logger.
-        self.logger = get_rc_logger()
+        self.logger = get_rt_logger()
 
         publisher.subscribe(self.handle, "State Object Handler")
         self.publisher = publisher

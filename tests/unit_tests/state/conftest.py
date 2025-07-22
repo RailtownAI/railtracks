@@ -210,9 +210,9 @@ def dummy_executor_config():
 
 # ---- Patch RT logger everywhere ----
 @pytest.fixture(autouse=True)
-def patch_rc_logger(monkeypatch):
-    # Patch get_rc_logger to return a MagicMock logger for every RTState
+def patch_rt_logger(monkeypatch):
+    # Patch get_rt_logger to return a MagicMock logger for every RTState
     monkeypatch.setattr(
-        "requestcompletion.state.state.get_rc_logger", lambda: MagicMock()
+        "requestcompletion.state.state.get_rt_logger", lambda: MagicMock()
     )
 # ================ END fixtures for state.py ====================

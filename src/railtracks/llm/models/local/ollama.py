@@ -5,7 +5,7 @@ import litellm
 import requests
 
 from ....exceptions.errors import LLMError
-from ....utils.logging.create import get_rc_logger
+from ....utils.logging.create import get_rt_logger
 from .._litellm_wrapper import LiteLLMWrapper
 
 LOGGER_NAME = "OLLAMA"
@@ -63,7 +63,7 @@ class OllamaLLM(LiteLLMWrapper):
                     )
                 self.domain = custom_domain
 
-        self.logger = get_rc_logger(LOGGER_NAME)
+        self.logger = get_rt_logger(LOGGER_NAME)
 
         self._run_check(
             "api/tags"

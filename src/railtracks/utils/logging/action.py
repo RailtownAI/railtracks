@@ -9,7 +9,7 @@ class RTAction(ABC):
         pass
 
 
-class RequestCreationAction(RCAction):
+class RequestCreationAction(RTAction):
     def __init__(
         self,
         parent_node_name: str,
@@ -35,7 +35,7 @@ class RequestCreationAction(RCAction):
         return f"{self.parent_node_name} CREATED {self.child_node_name}"
 
 
-class RequestCompletionBase(RCAction, ABC):
+class RequestCompletionBase(RTAction, ABC):
     def __init__(self, node_name: str):
         """
         A base class for when a request is completed.

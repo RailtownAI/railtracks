@@ -1,9 +1,9 @@
 import logging
 
-from .config importrt_logger_name
+from .config import rt_logger_name
 
 
-def get_rc_logger(name: str | None = None):
+def get_rt_logger(name: str | None = None):
     """
     A method used to get a logger of the provided name.
 
@@ -13,8 +13,8 @@ def get_rc_logger(name: str | None = None):
     If the name is not provided it returns the root RT logger.
     """
     if name is None:
-        return logging.getLogger(rc_logger_name)
+        return logging.getLogger(rt_logger_name)
 
-    logger = logging.getLogger(f"{rc_logger_name}.{name}")
+    logger = logging.getLogger(f"{rt_logger_name}.{name}")
 
     return logger

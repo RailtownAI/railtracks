@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from ..llm.history import MessageHistory
 
 
-class NodeInvocationError(RCError):
+class NodeInvocationError(RTError):
     """
     Raised during node for execution problems in graph, including node or orchestration failures.
     For example, bad config, missing required parameters, or structural errors.
@@ -31,7 +31,7 @@ class NodeInvocationError(RCError):
         return self._color(base, self.RED)
 
 
-class NodeCreationError(RCError):
+class NodeCreationError(RTError):
     """
     Raised during node creation/validation before any execution begins.
     For example, bad config, missing required parameters, or structural errors.
@@ -55,7 +55,7 @@ class NodeCreationError(RCError):
         return self._color(base, self.RED)
 
 
-class LLMError(RCError):
+class LLMError(RTError):
     """
     Raised when an error occurs during LLM invocation or completion.
     """
@@ -93,7 +93,7 @@ class LLMError(RCError):
         return self._color(base, self.RED)
 
 
-class GlobalTimeOutError(RCError):
+class GlobalTimeOutError(RTError):
     """
     Raised on global timeout for whole execution.
     """
@@ -107,7 +107,7 @@ class GlobalTimeOutError(RCError):
         return self._color(self.message, self.RED)
 
 
-class ContextError(RCError):
+class ContextError(RTError):
     """
     Raised when there is an error with the context.
     """
@@ -129,5 +129,5 @@ class ContextError(RCError):
         return self._color(base, self.RED)
 
 
-class FatalError(RCError):
+class FatalError(RTError):
     pass

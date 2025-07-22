@@ -7,9 +7,9 @@ from colorama import Fore, init
 
 allowable_log_levels = Literal["VERBOSE", "REGULAR", "QUIET", "NONE"]
 # the temporary name for the logger that RT will use.
-rc_logger_name = "RC"
-rc_logger = logging.getLogger(rc_logger_name)
-rc_logger.setLevel(logging.INFO)
+rt_logger_name = "RT"
+rt_logger = logging.getLogger(rt_logger_name)
+rt_logger.setLevel(logging.INFO)
 
 _default_format_string = "%(timestamp_color)s[+%(relative_seconds)-7ss] %(level_color)s%(name)-12s: %(levelname)-8s - %(message)s%(default_color)s"
 
@@ -92,7 +92,7 @@ def setup_verbose_logger_config():
 
     console_handler.setFormatter(verbose_formatter)
 
-    logger = logging.getLogger(rc_logger_name)
+    logger = logging.getLogger(rt_logger_name)
     logger.addHandler(console_handler)
     # only in verbose do we want to handle the debugging logs
     logger.setLevel(logging.DEBUG)
@@ -111,7 +111,7 @@ def setup_regular_logger_config():
 
     console_handler.setFormatter(regular_formatter)
 
-    logger = logging.getLogger(rc_logger_name)
+    logger = logging.getLogger(rt_logger_name)
     logger.addHandler(console_handler)
 
 
@@ -126,7 +126,7 @@ def setup_quiet_logger_config():
 
     console_handler.setFormatter(quiet_formatter)
 
-    logger = logging.getLogger(rc_logger_name)
+    logger = logging.getLogger(rt_logger_name)
     logger.addHandler(console_handler)
 
 
@@ -135,7 +135,7 @@ def setup_none_logger_config():
     Set up the logger to print nothing. This can be a useful optimization technique.
     """
     # set up a logger which does not do anything.
-    logger = logging.getLogger(rc_logger_name)
+    logger = logging.getLogger(rt_logger_name)
     # a slightly hacky way to get it so nothing makes it through
     logger.addFilter(lambda x: False)
     logger.addHandler(logging.NullHandler())
@@ -166,7 +166,7 @@ def setup_file_handler(
     file_handler.setFormatter(default_formatter)
 
     # we want to add this file handler to the root logger is it is propagated
-    logger = logging.getLogger(rc_logger_name)
+    logger = logging.getLogger(rt_logger_name)
     logger.addHandler(file_handler)
 
 
@@ -199,4 +199,4 @@ def detach_logging_handlers():
     Shuts down the logging system and detaches all logging handlers.
     """
     # Get the root logger
-   rt_logger.handlers.clear()
+    rt_logger.handlers.clear()

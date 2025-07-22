@@ -24,9 +24,9 @@ from .pubsub.publisher import RTPublisher
 from .pubsub.subscriber import stream_subscriber
 from .state.state import RTState
 from .utils.logging.config import detach_logging_handlers, prepare_logger
-from .utils.logging.create import get_rc_logger
+from .utils.logging.create import get_rt_logger
 
-logger = get_rc_logger("Runner")
+logger = get_rt_logger("Runner")
 
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")

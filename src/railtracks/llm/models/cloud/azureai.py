@@ -2,7 +2,7 @@ import litellm
 
 # litellm.drop_params=True
 from ....exceptions.errors import LLMError
-from ....utils.logging.create import get_rc_logger
+from ....utils.logging.create import get_rt_logger
 from .._litellm_wrapper import LiteLLMWrapper
 
 LOGGER_NAME = "AZURE_AI"
@@ -37,7 +37,7 @@ class AzureAILLM(LiteLLMWrapper):
         self._available_models = [model.lower() for model in litellm.azure_ai_models]
         self._is_model_available()
 
-        self.logger = get_rc_logger(LOGGER_NAME)
+        self.logger = get_rt_logger(LOGGER_NAME)
 
     def chat(self, messages, **kwargs):
         try:
