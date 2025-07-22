@@ -90,7 +90,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         ]
 
         for param in tool_params:
-            value = tool_parameters.get(param.name, None)
+            value = tool_parameters[param.name]
             # Format the parameter appropriately based on its type
             if param.param_type == "array" and isinstance(value, list):
                 formatted_value = ", ".join(str(v) for v in value)
