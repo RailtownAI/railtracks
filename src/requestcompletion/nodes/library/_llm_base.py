@@ -124,7 +124,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
             unwrapped_llm_model = llm_model
 
         self._verify_llm_model(unwrapped_llm_model)
-        unwrapped_llm_model: llm.ModelBase
+        assert isinstance(unwrapped_llm_model, llm.ModelBase), "unwrapped_llm_model must be an instance of llm.ModelBase"
         self.llm_model = unwrapped_llm_model
 
         self.message_hist = message_history_copy
