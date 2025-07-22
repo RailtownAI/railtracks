@@ -9,7 +9,6 @@ from typing import (
     Any,
     Dict,
     Generic,
-    ParamSpec,
     TypeVar,
 )
 
@@ -24,7 +23,6 @@ from ..exceptions.node_creation.validation import (
 _TOutput = TypeVar("_TOutput")
 
 _TNode = TypeVar("_TNode", bound="Node")
-_P = ParamSpec("_P")
 
 
 class NodeState(Generic[_TNode]):
@@ -98,6 +96,9 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
             if method_name in cls.__dict__ and callable(cls.__dict__[method_name]):
                 method = cls.__dict__[method_name]
                 check_classmethod(method, method_name)
+
+        # without this direct call to the parent __init_subclass__ method the generic resolutions will not work correctly
+        super().__init_subclass__()
 
     def __init__(
         self,

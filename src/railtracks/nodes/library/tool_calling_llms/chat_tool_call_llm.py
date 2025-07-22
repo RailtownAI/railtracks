@@ -1,5 +1,6 @@
 import asyncio
 
+from railtracks.llm.history import MessageHistory
 from railtracks.run import call
 
 from ....exceptions import LLMError
@@ -14,7 +15,7 @@ from ....llm.message import Role
 from ._base import OutputLessToolCallLLM
 
 
-class ChatToolCallLLM(OutputLessToolCallLLM[str]):
+class ChatToolCallLLM(OutputLessToolCallLLM[MessageHistory]):
     chat_ui = None
 
     async def invoke(self):  # noqa: C901

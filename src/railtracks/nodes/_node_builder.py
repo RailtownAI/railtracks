@@ -27,12 +27,10 @@ from railtracks.exceptions.node_creation.validation import (
     check_connected_nodes,
 )
 from railtracks.llm import (
-    MessageHistory,
     ModelBase,
     Parameter,
     SystemMessage,
     Tool,
-    UserMessage,
 )
 from railtracks.llm.type_mapping import TypeMapper
 from railtracks.nodes.library._llm_base import LLMBase
@@ -70,7 +68,7 @@ class NodeBuilder(Generic[_TNode]):
 
     def __init__(
         self,
-        node_class: type[_TNode],
+        node_class: Type[_TNode],
         /,
         *,
         pretty_name: str | None = None,
@@ -82,17 +80,21 @@ class NodeBuilder(Generic[_TNode]):
         self._node_class = node_class
         self._name = class_name or f"Dynamic{node_class.__qualname__}"
         self._methods = {}
+
         if pretty_name is not None:
             self._with_override(
                 "pretty_name", classmethod(lambda cls: pretty_name or cls.__name__)
             )
+
         if return_into is not None:
             self._with_override("return_into", classmethod(lambda cls: return_into))
+
         if format_for_context is not None:
             self._with_override(
                 "format_for_context",
                 classmethod(lambda cls, x: format_for_context(x)),
             )
+
         if format_for_return is not None:
             self._with_override(
                 "format_for_return",
@@ -148,9 +150,6 @@ class NodeBuilder(Generic[_TNode]):
         """
 
         self._with_override("schema", classmethod(lambda cls: schema))
-
-    def struct_mess_hist(self):
-        self._with_override("struct_mess_hist", True)
 
     def tool_calling_llm(
         self, connected_nodes: Set[Union[Type[Node], Callable]], max_tool_calls: int
@@ -378,9 +377,12 @@ class NodeBuilder(Generic[_TNode]):
 
             self._with_override("tool_info", classmethod(tool_info))
 
-    def _override_prepare_tool_llm(self, tool_params: dict[str, Any]):
+    def _override_prepare_tool_llm(self, tool_params: Iterable[Parameter]):
         """
         Override the prepare_tool function specifically for LLM nodes.
+
+        This uses the prepare_tool_message_history method from LLMBase to create a coherent
+        instruction message from tool parameters.
         """
 
         assert issubclass(self._node_class, LLMBase), (
@@ -388,11 +390,9 @@ class NodeBuilder(Generic[_TNode]):
         )
 
         def prepare_tool(cls, tool_parameters: Dict[str, Any]):
-            message_hist = MessageHistory(
-                [
-                    UserMessage(f"{param.name}: '{tool_parameters[param.name]}'")
-                    for param in (tool_params if tool_params else [])
-                ]
+            # Use the shared implementation in LLMBase
+            message_hist = cls.prepare_tool_message_history(
+                tool_parameters, tool_params
             )
             return cls(message_hist)
 
@@ -459,7 +459,9 @@ class NodeBuilder(Generic[_TNode]):
             class_dict,
         )
 
-        return cast(type[_TNode], klass)
+        casted_klass = cast(Type[_TNode], klass)  # Ensure type consistency
+
+        return casted_klass
 
 
 def classmethod_preserving_function_meta(func):

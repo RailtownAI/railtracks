@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from abc import ABC
 from copy import deepcopy
-from typing import Any, Generic, TypeVar
+from typing import Any, Dict, Generic, Iterable, TypeVar
 
 from typing_extensions import Self
 
@@ -18,6 +18,7 @@ from railtracks.nodes.nodes import Node
 
 from ...exceptions.errors import NodeInvocationError
 from ...exceptions.messages.exception_messages import get_message
+from ...llm import Parameter
 from ...prompts.prompt import inject_context
 
 _T = TypeVar("_T")
@@ -62,12 +63,59 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
     """
 
     @classmethod
+    def prepare_tool_message_history(
+        cls, tool_parameters: Dict[str, Any], tool_params: Iterable[Parameter] = None
+    ) -> llm.MessageHistory:
+        """
+        Prepare a message history for a tool call with the given parameters.
+
+        This method creates a coherent instruction message from tool parameters instead of
+        multiple separate messages.
+
+        Args:
+            tool_parameters: Dictionary of parameter names to values
+            tool_params: Iterable of Parameter objects defining the tool parameters
+
+        Returns:
+            MessageHistory object with a single UserMessage containing the formatted parameters
+        """
+        # If no parameters, return empty message history
+        if not tool_params:
+            return llm.MessageHistory([])
+
+        # Create a single, coherent instruction instead of multiple separate messages
+        instruction_parts = [
+            "You are being called as a tool with the following parameters:",
+            "",
+        ]
+
+        for param in tool_params:
+            value = tool_parameters[param.name]
+            # Format the parameter appropriately based on its type
+            if param.param_type == "array" and isinstance(value, list):
+                formatted_value = ", ".join(str(v) for v in value)
+                instruction_parts.append(f"• {param.name}: {formatted_value}")
+            elif param.param_type == "object" and isinstance(value, dict):
+                # For objects, show key-value pairs
+                formatted_value = "; ".join(f"{k}={v}" for k, v in value.items())
+                instruction_parts.append(f"• {param.name}: {formatted_value}")
+            else:
+                instruction_parts.append(f"• {param.name}: {value}")
+
+        instruction_parts.extend(
+            ["", "Please execute your function based on these parameters."]
+        )
+
+        # Create a single UserMessage with the complete instruction
+        return llm.MessageHistory([llm.UserMessage("\n".join(instruction_parts))])
+
+    @classmethod
     def _verify_message_history(cls, message_history: llm.MessageHistory):
         """Verify the message history is valid for this LLM."""
         check_message_history(message_history, cls.system_message())
 
     @classmethod
-    def _verify_llm_model(cls, llm_model: llm.ModelBase):
+    def _verify_llm_model(cls, llm_model: llm.ModelBase | None):
         """Verify the llm model is valid for this LLM."""
         check_llm_model(llm_model)
 
@@ -110,16 +158,24 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
                 else self.system_message(),
             )
 
-        if self.get_llm_model() is not None:
+        instance_injected_llm_model = self.get_llm_model()
+
+        if instance_injected_llm_model is not None:
             if llm_model is not None:
                 warnings.warn(
                     "You have provided an llm model as a parameter and as a class variable. We will use the parameter."
                 )
+                unwrapped_llm_model = llm_model
             else:
-                llm_model = self.get_llm_model()
+                unwrapped_llm_model = instance_injected_llm_model
+        else:
+            unwrapped_llm_model = llm_model
 
-        self._verify_llm_model(llm_model)
-        self.llm_model = llm_model
+        self._verify_llm_model(unwrapped_llm_model)
+        assert isinstance(unwrapped_llm_model, llm.ModelBase), (
+            "unwrapped_llm_model must be an instance of llm.ModelBase"
+        )
+        self.llm_model = unwrapped_llm_model
 
         self.message_hist = message_history_copy
 
