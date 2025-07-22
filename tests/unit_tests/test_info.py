@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
 
-from requestcompletion.info import ExecutionInfo
+from railtracks.info import ExecutionInfo
 
 # ================= START ExecutionInfo: Fixtures and helpers ============
 
@@ -138,7 +138,7 @@ def test_graph_serialization_serializes_json(empty_info):
     empty_info.node_heap.to_vertices.return_value = verts
     empty_info.request_heap.to_edges.return_value = edgs
     empty_info.stamper.all_stamps = steps
-    # patch RCJSONEncoder to just call default json
+    # patch RTJSONEncoder to just call default json
     with patch("requestcompletion.info.RCJSONEncoder", None):
         json_str = empty_info.graph_serialization()
         # quit test via presence of keywords (structure)

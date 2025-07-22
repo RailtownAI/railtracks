@@ -1,8 +1,8 @@
 import pytest
-import requestcompletion as rc
-from requestcompletion.llm import MessageHistory, SystemMessage, UserMessage
-from requestcompletion.nodes.library import TerminalLLM, terminal_llm
-from requestcompletion.exceptions import NodeCreationError, NodeInvocationError
+import railtracks as rt
+from railtracks.llm import MessageHistory, SystemMessage, UserMessage
+from railtracks.nodes.library import TerminalLLM, terminal_llm
+from railtracks.exceptions import NodeCreationError, NodeInvocationError
 
 
 # ================================================ START terminal_llm basic functionality =========================================================
@@ -15,7 +15,7 @@ async def test_terminal_llm_instantiate_and_invoke(mock_llm, mock_chat_function)
         
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("hello")])
     node = MockLLM(message_history=mh, llm_model=mock_llm(chat=mock_chat_function))
-    # with rc.Runner() as runner:
+    # with rt.Runner() as runner:
     result = await node.invoke()
     assert result == "dummy content"
 
@@ -27,7 +27,7 @@ async def test_terminal_llm_easy_usage_wrapper_invoke(mock_llm, mock_chat_functi
         llm_model=mock_llm(chat=mock_chat_function),
     )
     mh = MessageHistory([UserMessage("hello")])
-    result = await rc.call(node, message_history=mh)
+    result = await rt.call(node, message_history=mh)
     assert result == "dummy content"
 
 def test_terminal_llm_easy_usage_wrapper_classmethods(mock_llm):
@@ -58,13 +58,13 @@ async def test_terminal_llm_system_message_string_inserts_system_message(mock_ll
 async def test_terminal_llm_missing_tool_details_easy_usage(mock_llm, encoder_system_message):
     # Test case where tool_params is given but tool_details is not
     encoder_tool_params = {
-        rc.llm.Parameter("text_input", "string", "The string to encode.")
+        rt.llm.Parameter("text_input", "string", "The string to encode.")
     }
 
     with pytest.raises(
         NodeCreationError, match="Tool parameters are provided, but tool details are missing."
     ):
-        encoder_wo_tool_details = rc.library.terminal_llm(
+        encoder_wo_tool_details = rt.library.terminal_llm(
             pretty_name="Encoder",
             system_message=encoder_system_message,
             llm_model=mock_llm(),
@@ -79,14 +79,14 @@ async def test_terminal_llm_tool_duplicate_parameter_names_easy_usage(
     # Test with duplicate parameter names
     encoder_tool_details = "A tool with duplicate parameter names."
     encoder_tool_params = {
-        rc.llm.Parameter("text_input", "string", "The string to encode."),
-        rc.llm.Parameter("text_input", "string", "Duplicate parameter name."),
+        rt.llm.Parameter("text_input", "string", "The string to encode."),
+        rt.llm.Parameter("text_input", "string", "Duplicate parameter name."),
     }
 
     with pytest.raises(
         NodeCreationError, match="Duplicate parameter names are not allowed."
     ):
-       encoder_w_duplicate_param = rc.library.terminal_llm(
+       encoder_w_duplicate_param = rt.library.terminal_llm(
             pretty_name="Encoder",
             system_message=encoder_system_message,
             llm_model=mock_llm(),
@@ -102,11 +102,11 @@ async def test_tool_info_not_classmethod(mock_llm, encoder_system_message):
     with pytest.raises(
         NodeCreationError, match="The 'tool_info' method must be a @classmethod."
     ):
-        class Encoder(rc.library.TerminalLLM): 
+        class Encoder(rt.library.TerminalLLM): 
             def __init__(
                     self,
-                    message_history: rc.llm.MessageHistory,
-                    llm_model: rc.llm.ModelBase = mock_llm(),
+                    message_history: rt.llm.MessageHistory,
+                    llm_model: rt.llm.ModelBase = mock_llm(),
                 ):
                     message_history = [x for x in message_history if x.role != "system"]
                     message_history.insert(0, encoder_system_message)
@@ -119,12 +119,12 @@ async def test_tool_info_not_classmethod(mock_llm, encoder_system_message):
             def pretty_name(self) -> str:
                 return "Encoder Node"
             
-            def tool_info(self) -> rc.llm.Tool:
-                return rc.llm.Tool(
+            def tool_info(self) -> rt.llm.Tool:
+                return rt.llm.Tool(
                     name="Encoder",
                     detail="A tool used to encode text into bytes.",
                     parameters={
-                        rc.llm.Parameter(
+                        rt.llm.Parameter(
                             name="text_input",
                             param_type="string",
                             description="The string to encode.",
@@ -136,18 +136,18 @@ async def test_tool_info_not_classmethod(mock_llm, encoder_system_message):
 # =================== START invocation exceptions =====================
 @pytest.mark.asyncio
 async def test_no_message_history_easy_usage(mock_llm):
-    simple_agent = rc.library.terminal_llm(
+    simple_agent = rt.library.terminal_llm(
             pretty_name="Encoder",
             llm_model=mock_llm(),
         )
     
     with pytest.raises(NodeInvocationError, match="Message history must contain at least one message"):
-        await rc.call(simple_agent, message_history=rc.llm.MessageHistory([]))
+        await rt.call(simple_agent, message_history=rt.llm.MessageHistory([]))
 
 @pytest.mark.asyncio
 async def test_no_message_history_class_based():
-    class Encoder(rc.library.TerminalLLM):
-        def __init__(self, message_history: rc.llm.MessageHistory, llm_model: rc.llm.ModelBase = None):
+    class Encoder(rt.library.TerminalLLM):
+        def __init__(self, message_history: rt.llm.MessageHistory, llm_model: rt.llm.ModelBase = None):
             super().__init__(message_history=message_history, llm_model=llm_model)
 
         @classmethod 
@@ -155,16 +155,16 @@ async def test_no_message_history_class_based():
             return "Encoder"
 
     with pytest.raises(NodeInvocationError, match="Message history must contain at least one message"):
-        _ = await rc.call(Encoder, message_history=rc.llm.MessageHistory([]))
+        _ = await rt.call(Encoder, message_history=rt.llm.MessageHistory([]))
     
 @pytest.mark.asyncio
 async def test_system_message_as_a_string_class_based(mock_llm):
     # if a string is provided as system_message in a class based initialization, we are throwing an error
-    class Encoder(rc.library.TerminalLLM): 
+    class Encoder(rt.library.TerminalLLM): 
         def __init__(
                 self,
-                message_history: rc.llm.MessageHistory,
-                llm_model: rc.llm.ModelBase = mock_llm(),
+                message_history: rt.llm.MessageHistory,
+                llm_model: rt.llm.ModelBase = mock_llm(),
             ):
                 message_history = [x for x in message_history if x.role != "system"]
                 message_history.insert(0, "You are a helpful assistant that can encode text into bytes.")
@@ -177,6 +177,6 @@ async def test_system_message_as_a_string_class_based(mock_llm):
             return "Simple Node"
 
     with pytest.raises(NodeInvocationError, match="Message history must be a list of Message objects."):
-        response = await rc.call(Encoder, message_history=rc.llm.MessageHistory([rc.llm.UserMessage("hello world")]))
+        response = await rt.call(Encoder, message_history=rt.llm.MessageHistory([rt.llm.UserMessage("hello world")]))
 # =================== END invocation exceptions =====================
 # ================================================ END terminal_llm Exception testing ===========================================================

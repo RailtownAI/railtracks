@@ -2,7 +2,7 @@ import pytest
 import asyncio
 from unittest.mock import Mock, MagicMock, patch
 from datetime import datetime
-from requestcompletion.visuals.browser.chat_ui import ChatUI, UIUserMessage, ToolInvocation
+from railtracks.visuals.browser.chat_ui import ChatUI, UIUserMessage, ToolInvocation
 
 @pytest.fixture
 def chat_ui():

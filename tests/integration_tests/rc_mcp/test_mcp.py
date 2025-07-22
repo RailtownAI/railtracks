@@ -1,15 +1,15 @@
 import asyncio
 import time
 
-import requestcompletion as rc
-from requestcompletion.nodes.library.easy_usage_wrappers.mcp_tool import from_mcp_server
-from requestcompletion.nodes.nodes import Node
+import railtracks as rt
+from railtracks.nodes.library.easy_usage_wrappers.mcp_tool import from_mcp_server
+from railtracks.nodes.nodes import Node
 
 import pytest
 import subprocess
 import sys
 
-from requestcompletion.rc_mcp.main import MCPHttpParams, MCPStdioParams
+from railtracks.rt_mcp.main import MCPHttpParams, MCPStdioParams
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -57,22 +57,22 @@ def test_from_mcp_server_with_llm():
             args=["-m", "mcp_server_time", "--local-timezone=America/Vancouver"],
         )
     )
-    parent_tool = rc.library.tool_call_llm(
+    parent_tool = rt.library.tool_call_llm(
         connected_nodes={*time_server.tools},
         pretty_name="Parent Tool",
         system_message=(
             "Provide a response using the tool when asked. If the tool doesn't work,"
             " respond with 'It didn't work!'"
         ),
-        llm_model=rc.llm.OpenAILLM("gpt-4o"),
+        llm_model=rt.llm.OpenAILLM("gpt-4o"),
     )
 
     # Run the parent tool
-    with rc.Runner(
-        executor_config=rc.ExecutorConfig(logging_setting="QUIET", timeout=1000)
+    with rt.Runner(
+        executor_config=rt.ExecutorConfig(logging_setting="QUIET", timeout=1000)
     ) as runner:
-        message_history = rc.llm.MessageHistory(
-            [rc.llm.UserMessage("What time is it?")]
+        message_history = rt.llm.MessageHistory(
+            [rt.llm.UserMessage("What time is it?")]
         )
         response = asyncio.run(runner.run(parent_tool, message_history=message_history))
 
@@ -82,22 +82,22 @@ def test_from_mcp_server_with_llm():
 
 def test_from_mcp_server_with_http():
     time_server = from_mcp_server(MCPHttpParams(url="https://mcp.deepwiki.com/sse"))
-    parent_tool = rc.library.tool_call_llm(
+    parent_tool = rt.library.tool_call_llm(
         connected_nodes={*time_server.tools},
         pretty_name="Parent Tool",
         system_message=(
             "Provide a response using the tool when asked. If the tool doesn't work,"
             " respond with 'It didn't work!'"
         ),
-        llm_model=rc.llm.OpenAILLM("gpt-4o"),
+        llm_model=rt.llm.OpenAILLM("gpt-4o"),
     )
 
     # Run the parent tool
-    with rc.Runner(
-        executor_config=rc.ExecutorConfig(logging_setting="NONE", timeout=1000)
+    with rt.Runner(
+        executor_config=rt.ExecutorConfig(logging_setting="NONE", timeout=1000)
     ) as runner:
-        message_history = rc.llm.MessageHistory(
-            [rc.llm.UserMessage("Tell me about the website conductr.ai")]
+        message_history = rt.llm.MessageHistory(
+            [rt.llm.UserMessage("Tell me about the website conductr.ai")]
         )
         response = asyncio.run(runner.run(parent_tool, message_history=message_history))
 
@@ -143,7 +143,7 @@ async def test_parallel_mcp_servers():
     node2 = from_mcp_server(MCPHttpParams(url=""), client2).tools[1]
 
     start = time.perf_counter()
-    results = await asyncio.gather(rc.call(node1), rc.call(node2))
+    results = await asyncio.gather(rt.call(node1), rt.call(node2))
     elapsed = time.perf_counter() - start
 
     assert all("done" in r for r in results)

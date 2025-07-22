@@ -3,15 +3,15 @@ from typing import Dict, Any
 
 import pytest
 
-import requestcompletion
-import requestcompletion as rc
+import railtracks
+import railtracks as rt
 
-from requestcompletion.exceptions import NodeCreationError
-from requestcompletion.llm import MessageHistory, UserMessage, Message
-from requestcompletion.llm.response import Response
+from railtracks.exceptions import NodeCreationError
+from railtracks.llm import MessageHistory, UserMessage, Message
+from railtracks.llm.response import Response
 
-from requestcompletion.nodes.library import from_function
-from requestcompletion.nodes.library.easy_usage_wrappers.tool_call_llm import tool_call_llm
+from railtracks.nodes.library import from_function
+from railtracks.nodes.library.easy_usage_wrappers.tool_call_llm import tool_call_llm
 
 NODE_INIT_METHODS = ["easy_wrapper", "class_based"]
 
@@ -21,7 +21,7 @@ NODE_INIT_METHODS = ["easy_wrapper", "class_based"]
 async def test_empty_connected_nodes_easy_wrapper(model):
     """Test when the output model is empty while making a node with easy wrapper."""
     with pytest.raises(NodeCreationError, match="connected_nodes must not return an empty set."):
-        _ = rc.library.tool_call_llm(
+        _ = rt.library.tool_call_llm(
             connected_nodes=set(),
             system_message="You are a helpful assistant that can strucure the response into a structured output.",
             llm_model=model,
@@ -36,11 +36,11 @@ async def test_empty_connected_nodes_class_based(model):
     with pytest.raises(NodeCreationError, match="connected_nodes must not return an empty set."):
 
         system_simple ="Return a simple text and number. Don't use any tools."
-        class SimpleNode(rc.library.ToolCallLLM):
+        class SimpleNode(rt.library.ToolCallLLM):
             def __init__(
                 self,
-                message_history: rc.llm.MessageHistory,
-                llm_model: rc.llm.ModelBase = model,
+                message_history: rt.llm.MessageHistory,
+                llm_model: rt.llm.ModelBase = model,
             ):
                 message_history = [x for x in message_history if x.role != "system"]
                 message_history.insert(0, system_simple)
@@ -61,10 +61,10 @@ async def test_empty_connected_nodes_class_based(model):
 @pytest.mark.asyncio
 async def test_simple_function_passed_tool_call(simple_function_taking_node, simple_output_model):
     """Test the functionality of a ToolCallLLM node (using actual tools) with a structured output model."""
-    with rc.Runner(executor_config=rc.ExecutorConfig(timeout=50, logging_setting="QUIET")) as runner:
-        message_history = rc.llm.MessageHistory(
+    with rt.Runner(executor_config=rt.ExecutorConfig(timeout=50, logging_setting="QUIET")) as runner:
+        message_history = rt.llm.MessageHistory(
             [
-                rc.llm.UserMessage(
+                rt.llm.UserMessage(
                     "give me a number between 1 and 100 please as well"
                 )
             ]
@@ -76,12 +76,12 @@ async def test_simple_function_passed_tool_call(simple_function_taking_node, sim
 
 @pytest.mark.asyncio
 async def test_some_functions_passed_tool_calls(some_function_taking_travel_planner_node, travel_planner_output_model):
-    with rc.Runner(
-        executor_config=rc.ExecutorConfig(timeout=50, logging_setting="NONE")
+    with rt.Runner(
+        executor_config=rt.ExecutorConfig(timeout=50, logging_setting="NONE")
         ) as runner:
-        message_history = rc.llm.MessageHistory(
+        message_history = rt.llm.MessageHistory(
             [
-                rc.llm.UserMessage(
+                rt.llm.UserMessage(
                     "I live in Delhi. I am going to travel to Denmark for 3 days, followed by Germany for 2 days and finally New York for 4 days. Please provide me with a budget summary for the trip in INR."
                 )
             ]
@@ -102,16 +102,16 @@ async def test_tool_with_llm_tool_as_input_easy_tools():
         return "2 foxes and a dog"
 
     # Define the child tool
-    child_tool = rc.library.tool_call_llm(
+    child_tool = rt.library.tool_call_llm(
         connected_nodes={from_function(secret_phrase)},
         pretty_name="Child Tool",
-        system_message=rc.llm.SystemMessage(
+        system_message=rt.llm.SystemMessage(
             "When asked for a response, provide the output of the tool."
         ),
-        model=rc.llm.OpenAILLM("gpt-4o"),
+        model=rt.llm.OpenAILLM("gpt-4o"),
         tool_details="A tool that generates a simple response.",
         tool_params={
-            rc.llm.Parameter(
+            rt.llm.Parameter(
                 name="response_request",
                 param_type="string",
                 description="A sentence that requests a response.",
@@ -120,21 +120,21 @@ async def test_tool_with_llm_tool_as_input_easy_tools():
     )
 
     # Define the parent tool that uses the child tool
-    parent_tool = rc.library.tool_call_llm(
+    parent_tool = rt.library.tool_call_llm(
         connected_nodes={child_tool},
         pretty_name="Parent Tool",
-        system_message=rc.llm.SystemMessage(
+        system_message=rt.llm.SystemMessage(
             "Provide a response using the tool avaliable to you. Provide only the response, no additional text."
         ),
-        model=rc.llm.OpenAILLM("gpt-4o"),
+        model=rt.llm.OpenAILLM("gpt-4o"),
     )
 
     # Run the parent tool
-    with rc.Runner(
-        executor_config=rc.ExecutorConfig(logging_setting="NONE", timeout=1000)
+    with rt.Runner(
+        executor_config=rt.ExecutorConfig(logging_setting="NONE", timeout=1000)
     ) as runner:
-        message_history = rc.llm.MessageHistory(
-            [rc.llm.UserMessage("Give me a response.")]
+        message_history = rt.llm.MessageHistory(
+            [rt.llm.UserMessage("Give me a response.")]
         )
         response = await runner.run(parent_tool, message_history=message_history)
 
@@ -151,34 +151,34 @@ async def test_tool_with_llm_tool_as_input_class_easy():
         return "2 foxes and a dog"
 
     # Define the child tool
-    class ChildTool(rc.library.ToolCallLLM):
+    class ChildTool(rt.library.ToolCallLLM):
         def __init__(
             self,
-            message_history: rc.llm.MessageHistory,
+            message_history: rt.llm.MessageHistory,
         ):
             message_history_copy = deepcopy(message_history)
             message_history_copy.insert(
                 0,
-                rc.llm.SystemMessage(
+                rt.llm.SystemMessage(
                     "When asked for a response, provide the output of the tool."
                 ),
             )
 
             super().__init__(
-                message_history=message_history_copy, model=rc.llm.OpenAILLM("gpt-4o")
+                message_history=message_history_copy, model=rt.llm.OpenAILLM("gpt-4o")
             )
 
         @classmethod
         def connected_nodes(cls):
-            return {rc.library.from_function(secret_phrase)}
+            return {rt.library.from_function(secret_phrase)}
 
         @classmethod
-        def tool_info(cls) -> rc.llm.Tool:
-            return rc.llm.Tool(
+        def tool_info(cls) -> rt.llm.Tool:
+            return rt.llm.Tool(
                 name="Child_Tool",
                 detail="A tool that generates a simple response.",
                 parameters={
-                    rc.llm.Parameter(
+                    rt.llm.Parameter(
                         name="response_request",
                         param_type="string",
                         description="A sentence that requests a response.",
@@ -202,21 +202,21 @@ async def test_tool_with_llm_tool_as_input_class_easy():
             return "Child Tool"
 
     # Define the parent tool that uses the child tool
-    parent_tool = rc.library.tool_call_llm(
+    parent_tool = rt.library.tool_call_llm(
         connected_nodes={ChildTool},
         pretty_name="Parent_Tool",
-        system_message=rc.llm.SystemMessage(
+        system_message=rt.llm.SystemMessage(
             "Provide a response using the tool avaliable to you. Provide only the response, no additional text."
         ),
-        model=rc.llm.OpenAILLM("gpt-4o"),
+        model=rt.llm.OpenAILLM("gpt-4o"),
     )
 
     # Run the parent tool
-    with rc.Runner(
-        executor_config=rc.ExecutorConfig(logging_setting="NONE", timeout=1000)
+    with rt.Runner(
+        executor_config=rt.ExecutorConfig(logging_setting="NONE", timeout=1000)
     ) as runner:
-        message_history = rc.llm.MessageHistory(
-            [rc.llm.UserMessage("Give me a response.")]
+        message_history = rt.llm.MessageHistory(
+            [rt.llm.UserMessage("Give me a response.")]
         )
         response = await runner.run(parent_tool, message_history=message_history)
 
@@ -233,16 +233,16 @@ async def test_tool_with_llm_tool_as_input_easy_class():
         return "2 foxes and a dog"
 
     # Define the child tool
-    child_tool = rc.library.tool_call_llm(
+    child_tool = rt.library.tool_call_llm(
         connected_nodes={from_function(secret_phrase)},
         pretty_name="Child_Tool",
-        system_message=rc.llm.SystemMessage(
+        system_message=rt.llm.SystemMessage(
             "When asked for a response, provide the output of the tool."
         ),
-        model=rc.llm.OpenAILLM("gpt-4o"),
+        model=rt.llm.OpenAILLM("gpt-4o"),
         tool_details="A tool that generates a simple response.",
         tool_params={
-            rc.llm.Parameter(
+            rt.llm.Parameter(
                 name="response_request",
                 param_type="string",
                 description="A sentence that requests a response.",
@@ -251,24 +251,24 @@ async def test_tool_with_llm_tool_as_input_easy_class():
     )
 
     # Define the parent tool that uses the child tool
-    class ParentTool(rc.library.ToolCallLLM):
+    class ParentTool(rt.library.ToolCallLLM):
         def return_output(self):
             return self.message_hist[-1]
 
         def __init__(
             self,
-            message_history: rc.llm.MessageHistory,
+            message_history: rt.llm.MessageHistory,
         ):
             message_history_copy = deepcopy(message_history)
             message_history_copy.insert(
                 0,
-                rc.llm.SystemMessage(
+                rt.llm.SystemMessage(
                     "Provide a response using the tool avaliable to you. Provide only the response, no additional text."
                 ),
             )
 
             super().__init__(
-                message_history=message_history_copy, model=rc.llm.OpenAILLM("gpt-4o")
+                message_history=message_history_copy, model=rt.llm.OpenAILLM("gpt-4o")
             )
 
         @classmethod
@@ -280,11 +280,11 @@ async def test_tool_with_llm_tool_as_input_easy_class():
             return "Parent Tool"
 
     # Run the parent tool
-    with rc.Runner(
-        executor_config=rc.ExecutorConfig(logging_setting="NONE", timeout=1000)
+    with rt.Runner(
+        executor_config=rt.ExecutorConfig(logging_setting="NONE", timeout=1000)
     ) as runner:
-        message_history = rc.llm.MessageHistory(
-            [rc.llm.UserMessage("Give me a response.")]
+        message_history = rt.llm.MessageHistory(
+            [rt.llm.UserMessage("Give me a response.")]
         )
         response = await runner.run(ParentTool, message_history=message_history)
 
@@ -301,34 +301,34 @@ async def test_tool_with_llm_tool_as_input_class_tools():
         return "2 foxes and a dog"
 
     # Define the child tool
-    class ChildTool(rc.library.ToolCallLLM):
+    class ChildTool(rt.library.ToolCallLLM):
         def __init__(
             self,
-            message_history: rc.llm.MessageHistory,
+            message_history: rt.llm.MessageHistory,
         ):
             message_history_copy = deepcopy(message_history)
             message_history_copy.insert(
                 0,
-                rc.llm.SystemMessage(
+                rt.llm.SystemMessage(
                     "When asked for a response, provide the output of the tool."
                 ),
             )
 
             super().__init__(
-                message_history=message_history_copy, model=rc.llm.OpenAILLM("gpt-4o")
+                message_history=message_history_copy, model=rt.llm.OpenAILLM("gpt-4o")
             )
 
         @classmethod
         def connected_nodes(cls):
-            return {rc.library.from_function(secret_phrase)}
+            return {rt.library.from_function(secret_phrase)}
 
         @classmethod
-        def tool_info(cls) -> rc.llm.Tool:
-            return rc.llm.Tool(
+        def tool_info(cls) -> rt.llm.Tool:
+            return rt.llm.Tool(
                 name="Child_Tool",
                 detail="A tool that generates a simple response.",
                 parameters={
-                    rc.llm.Parameter(
+                    rt.llm.Parameter(
                         name="response_request",
                         param_type="string",
                         description="A sentence that requests a response.",
@@ -352,24 +352,24 @@ async def test_tool_with_llm_tool_as_input_class_tools():
             return "Child Tool"
 
     # Define the parent tool that uses the child tool
-    class ParentTool(rc.library.ToolCallLLM):
+    class ParentTool(rt.library.ToolCallLLM):
         def return_output(self):
             return self.message_hist[-1]
 
         def __init__(
             self,
-            message_history: rc.llm.MessageHistory,
+            message_history: rt.llm.MessageHistory,
         ):
             message_history_copy = deepcopy(message_history)
             message_history_copy.insert(
                 0,
-                rc.llm.SystemMessage(
+                rt.llm.SystemMessage(
                     "Provide a response using the tool avalaible to you. Provide only the response, no additional text."
                 ),
             )
 
             super().__init__(
-                message_history=message_history_copy, model=rc.llm.OpenAILLM("gpt-4o")
+                message_history=message_history_copy, model=rt.llm.OpenAILLM("gpt-4o")
             )
 
         @classmethod
@@ -381,11 +381,11 @@ async def test_tool_with_llm_tool_as_input_class_tools():
             return "Parent Tool"
 
     # Run the parent tool
-    with rc.Runner(
-        executor_config=rc.ExecutorConfig(logging_setting="NONE", timeout=1000)
+    with rt.Runner(
+        executor_config=rt.ExecutorConfig(logging_setting="NONE", timeout=1000)
     ) as runner:
-        message_history = rc.llm.MessageHistory(
-            [rc.llm.UserMessage("Give me a response.")]
+        message_history = rt.llm.MessageHistory(
+            [rt.llm.UserMessage("Give me a response.")]
         )
         response = await runner.run(ParentTool, message_history=message_history)
 
@@ -406,17 +406,17 @@ def test_return_into(mock_llm):
         return_into="greeting"  # Specify that the result should be stored in context under the key "greeting"
     )
 
-    with rc.Runner() as run:
+    with rt.Runner() as run:
         result = run.run_sync(node, message_history=MessageHistory()).answer
         assert result is None  # The result should be None since it was stored in context
-        assert rc.context.get("greeting").content == "Hello"
+        assert rt.context.get("greeting").content == "Hello"
 
 
 def test_return_into_custom_fn(mock_llm):
     """Test that a node can return its result into context instead of returning it directly."""
     def format_function(value: Any) -> str:
         """Custom function to format the value before storing it in context."""
-        requestcompletion.context.put("greeting", value.content.upper())
+        railtracks.context.put("greeting", value.content.upper())
         return "Success!"
 
     def return_message(messages: MessageHistory, list) -> Response:
@@ -430,10 +430,10 @@ def test_return_into_custom_fn(mock_llm):
         format_for_return=format_function  # Use the custom formatting function
     )
 
-    with rc.Runner() as run:
+    with rt.Runner() as run:
         result = run.run_sync(node, message_history=MessageHistory()).answer
         assert result == "Success!"  # The result should be None since it was stored in context
-        assert rc.context.get("greeting") == "HELLO"
+        assert rt.context.get("greeting") == "HELLO"
 
 
 
@@ -446,52 +446,52 @@ def test_return_into_custom_fn(mock_llm):
 async def test_allows_only_one_toolcall(limited_tool_call_node_factory, travel_message_history, reset_tools_called, class_based):
     node = limited_tool_call_node_factory(max_tool_calls=1, class_based=class_based)
     message_history = travel_message_history()
-    with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as runner:
+    with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="NONE")) as runner:
         reset_tools_called()
-        response = await rc.call(node, message_history=message_history)
+        response = await rt.call(node, message_history=message_history)
         assert isinstance(response.content, str)
-        assert rc.context.get("tools_called") == 1
+        assert rt.context.get("tools_called") == 1
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("class_based", [True, False], ids=["class_based", "easy_usage_wrapper"])
 async def test_zero_tool_calls_forces_final_answer(limited_tool_call_node_factory, travel_message_history, reset_tools_called, class_based):
     node = limited_tool_call_node_factory(max_tool_calls=0, class_based=class_based)
     message_history = travel_message_history("Plan a trip to Paris for 2 days.")
-    with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as runner:
+    with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="NONE")) as runner:
         reset_tools_called()
-        response = await rc.call(node, message_history=message_history)
+        response = await rt.call(node, message_history=message_history)
         assert isinstance(response.content, str)
-        assert rc.context.get("tools_called") == 0
+        assert rt.context.get("tools_called") == 0
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("class_based", [True, False], ids=["class_based", "easy_usage_wrapper"])
 async def test_multiple_tool_calls_limit(limited_tool_call_node_factory, travel_message_history, reset_tools_called, class_based):
     node = limited_tool_call_node_factory(max_tool_calls=5, class_based=class_based)
     message_history = travel_message_history("Plan a trip to Paris, Berlin, and New York for 2 days each.")
-    with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as runner:
+    with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="NONE")) as runner:
         reset_tools_called()
-        response = await rc.call(node, message_history=message_history)
+        response = await rt.call(node, message_history=message_history)
         assert isinstance(response.content, str)
-        assert rc.context.get("tools_called") <= 5
+        assert rt.context.get("tools_called") <= 5
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("class_based", [True, False], ids=["class_based", "easy_usage_wrapper"])
 async def test_context_reset_between_runs(limited_tool_call_node_factory, travel_message_history, reset_tools_called, class_based):
-    @rc.to_node
+    @rt.to_node
     def magic_number():
         #  incrementing count for testing purposes
-        count = rc.context.get("tools_called", -1)
-        rc.context.put("tools_called", count + 1)
+        count = rt.context.get("tools_called", -1)
+        rt.context.put("tools_called", count + 1)
         return 42
     
     node = limited_tool_call_node_factory(max_tool_calls=1, class_based=class_based, tools=[magic_number])
     message_history = travel_message_history("Get the magic number and divide it by 2.")
-    with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as runner:
+    with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="NONE")) as runner:
         reset_tools_called()
-        response = await rc.call(node, message_history=message_history)
-        assert rc.context.get("tools_called") == 1
+        response = await rt.call(node, message_history=message_history)
+        assert rt.context.get("tools_called") == 1
         reset_tools_called()
-        response2 = await rc.call(node, message_history=message_history)
-        assert rc.context.get("tools_called") == 1
+        response2 = await rt.call(node, message_history=message_history)
+        assert rt.context.get("tools_called") == 1
 
 # =========================================== END TESTS FOR MAX TOOL CALLS ===========================================

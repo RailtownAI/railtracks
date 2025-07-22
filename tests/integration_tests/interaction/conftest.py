@@ -3,12 +3,12 @@ import asyncio
 import pytest
 from typing import List
 from pydantic import BaseModel, Field
-import requestcompletion as rc
-from requestcompletion.llm import SystemMessage
+import railtracks as rt
+from railtracks.llm import SystemMessage
 
 @pytest.fixture
 def model():
-    return rc.llm.OpenAILLM("gpt-4o")
+    return rt.llm.OpenAILLM("gpt-4o")
 
 
 # ====================================== System Messages ======================================
@@ -167,15 +167,15 @@ def terminal_nodes(request, model, terminal_llms_system_messages):
     system_rng, system_rng_operation, system_math_genius = terminal_llms_system_messages
 
     if fixture_name == "easy_wrapper":
-        rng_node = rc.library.terminal_llm(
+        rng_node = rt.library.terminal_llm(
             pretty_name="RNG Node", system_message=system_rng, llm_model=model
         )
-        rng_operation_node = rc.library.terminal_llm(
+        rng_operation_node = rt.library.terminal_llm(
             pretty_name="RNG Operation Node",
             system_message=system_rng_operation,
             llm_model=model,
         )
-        math_detective_node = rc.library.terminal_llm(
+        math_detective_node = rt.library.terminal_llm(
             pretty_name="Math Detective Node",
             system_message=system_math_genius,
             llm_model=model,
@@ -188,11 +188,11 @@ def terminal_nodes(request, model, terminal_llms_system_messages):
         def make_terminal_llm_class_version(
             pretty_name: str, system_message: str
         ):
-            class TerminalLLMNode(rc.library.TerminalLLM):
+            class TerminalLLMNode(rt.library.TerminalLLM):
                 def __init__(
                     self,
-                    message_history: rc.llm.MessageHistory,
-                    llm_model: rc.llm.ModelBase,
+                    message_history: rt.llm.MessageHistory,
+                    llm_model: rt.llm.ModelBase,
                 ):
                     message_history = [x for x in message_history if x.role != "system"]
                     message_history.insert(0, SystemMessage(system_message))
@@ -240,13 +240,13 @@ def structured_nodes(request, model, structured_llms_system_messages):
         )
 
     if fixture_name == "easy_wrapper":
-        math_undergrad_student_node = rc.library.structured_llm(
+        math_undergrad_student_node = rt.library.structured_llm(
             pretty_name="Math Undergraduate Student Node",
             schema=ProofModel,
             system_message=system_undergrad_student,
             llm_model=model,
         )
-        math_professor_node = rc.library.structured_llm(
+        math_professor_node = rt.library.structured_llm(
             pretty_name="Math Professor Node",
             schema=GradingSchema,
             system_message=system_professor,
@@ -262,11 +262,11 @@ def structured_nodes(request, model, structured_llms_system_messages):
             system_message: str,
             schema: BaseModel,
         ):
-            class StructuredLLMNode(rc.library.StructuredLLM):
+            class StructuredLLMNode(rt.library.StructuredLLM):
                 def __init__(
                     self,
-                    message_history: rc.llm.MessageHistory,
-                    llm_model: rc.llm.ModelBase,
+                    message_history: rt.llm.MessageHistory,
+                    llm_model: rt.llm.ModelBase,
                 ):
                     message_history = [x for x in message_history if x.role != "system"]
                     message_history.insert(0, SystemMessage(system_message))
@@ -315,20 +315,20 @@ def tool_calling_nodes(
     available_locations, currency_used, average_location_cost = travel_planner_tools
     system_currency_converter, system_travel_planner = tool_call_llm_system_messages
 
-    AvailableCurrencies = rc.library.from_function(available_currencies)
-    ConvertCurrency = rc.library.from_function(convert_currency)
-    AvailableLocations = rc.library.from_function(available_locations)
-    CurrencyUsed = rc.library.from_function(currency_used)
-    AverageLocationCost = rc.library.from_function(average_location_cost)
+    AvailableCurrencies = rt.library.from_function(available_currencies)
+    ConvertCurrency = rt.library.from_function(convert_currency)
+    AvailableLocations = rt.library.from_function(available_locations)
+    CurrencyUsed = rt.library.from_function(currency_used)
+    AverageLocationCost = rt.library.from_function(average_location_cost)
 
     if fixture_name == "easy_wrapper":
-        currency_converter_node = rc.library.tool_call_llm(
+        currency_converter_node = rt.library.tool_call_llm(
             connected_nodes={AvailableCurrencies, ConvertCurrency},
             pretty_name="Currency Converter Node",
             system_message=system_currency_converter,
             llm_model=model,
         )
-        travel_planner_node = rc.library.tool_call_llm(
+        travel_planner_node = rt.library.tool_call_llm(
             connected_nodes={AvailableLocations, CurrencyUsed, AverageLocationCost},
             pretty_name="Travel Planner Node",
             system_message=system_travel_planner,
@@ -341,13 +341,13 @@ def tool_calling_nodes(
         def make_tool_call_llm_class_version(
             pretty_name: str,
             system_message: str,
-            connected_nodes: List[rc.Node],
+            connected_nodes: List[rt.Node],
         ):
-            class ToolCallLLMNode(rc.library.ToolCallLLM):
+            class ToolCallLLMNode(rt.library.ToolCallLLM):
                 def __init__(
                     self,
-                    message_history: rc.llm.MessageHistory,
-                    llm_model: rc.llm.ModelBase,
+                    message_history: rt.llm.MessageHistory,
+                    llm_model: rt.llm.ModelBase,
                 ):
                     message_history = [x for x in message_history if x.role != "system"]
                     message_history.insert(0, SystemMessage(system_message))
@@ -390,12 +390,12 @@ def parallel_node():
         await asyncio.sleep(timeout_len)
         return timeout_len
 
-    TimeoutNode = rc.library.from_function(sleep)
+    TimeoutNode = rt.library.from_function(sleep)
 
     async def parallel_function(timeout_config: List[float]):
-        return await rc.batch(TimeoutNode, timeout_config)
+        return await rt.batch(TimeoutNode, timeout_config)
 
-    return rc.library.from_function(parallel_function)
+    return rt.library.from_function(parallel_function)
 
 
 # ====================================== End Nodes ======================================

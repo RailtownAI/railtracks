@@ -5,10 +5,10 @@ import time
 
 import pytest
 
-import requestcompletion as rc
-from requestcompletion.rc_mcp import MCPHttpParams
-from requestcompletion.rc_mcp.to_node import create_mcp_server
-from requestcompletion.nodes import library as rc_library
+import railtracks as rt
+from railtracks.rt_mcp import MCPHttpParams
+from railtracks.rt_mcp.to_node import create_mcp_server
+from railtracks.nodes import library asrt_library
 
 from mcp.server import FastMCP
 
@@ -49,7 +49,7 @@ def add_nums(num1: int, num2: int, print_s: str):
     return num1 + num2 + 10
 
 
-node = rc_library.from_function(add_nums)
+node =rt_library.from_function(add_nums)
 
 FAST_MCP_PORT = get_free_port(8000)
 
@@ -82,15 +82,15 @@ def mcp_server():
 #                                    Tests                                    #
 # --------------------------------------------------------------------------- #
 def test_add_nums_tool(mcp_server):
-    server = rc_library.from_mcp_server(
+    server =rt_library.from_mcp_server(
         MCPHttpParams(url=f"http://127.0.0.1:{FAST_MCP_PORT}/mcp")
     )
     assert len(server.tools) == 1
 
-    with rc.Runner(
-        executor_config=rc.ExecutorConfig(logging_setting="QUIET", timeout=1000)
+    with rt.Runner(
+        executor_config=rt.ExecutorConfig(logging_setting="QUIET", timeout=1000)
     ) as runner:
-        response = rc.call_sync(server.tools[0], num1=1, num2=3, print_s="Hello")
+        response = rt.call_sync(server.tools[0], num1=1, num2=3, print_s="Hello")
 
     assert (
         response.content[0].text == "14"

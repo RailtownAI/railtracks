@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch
 
-from requestcompletion.interaction.batch import batch
+from railtracks.interaction.batch import batch
 
 
 @pytest.mark.asyncio

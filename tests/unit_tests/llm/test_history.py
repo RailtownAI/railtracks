@@ -1,5 +1,5 @@
-import requestcompletion as rc
-from requestcompletion.llm.message import Message
+import railtracks as rt
+from railtracks.llm.message import Message
 
 
 def test_message_history_str(message_history):
@@ -17,18 +17,18 @@ def test_message_history_str(message_history):
 
 
 def test_message_hist_string():
-    message_hist = rc.llm.MessageHistory(
-        [rc.llm.UserMessage("What is going on in this beautiful world?")]
+    message_hist = rt.llm.MessageHistory(
+        [rt.llm.UserMessage("What is going on in this beautiful world?")]
     )
 
     assert str(message_hist) == "user: What is going on in this beautiful world?"
 
 
 def test_multiline_hist_string():
-    message_hist = rc.llm.MessageHistory(
+    message_hist = rt.llm.MessageHistory(
         [
-            rc.llm.UserMessage("What is going on in this beautiful world?"),
-            rc.llm.AssistantMessage("Nothing much as of now"),
+            rt.llm.UserMessage("What is going on in this beautiful world?"),
+            rt.llm.AssistantMessage("Nothing much as of now"),
         ]
     )
 

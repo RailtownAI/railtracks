@@ -1,6 +1,6 @@
 import json
 import pytest
-from requestcompletion.utils.serialization import serialize
+from railtracks.utils.serialization import serialize
 
 # ================= START encoder_extender tests ==================
 
@@ -31,7 +31,7 @@ def test_encoder_extender_raises_on_unknown():
 
 # =============== END encoder_extender tests ======================
 
-# =============== START RCJSONEncoder tests =======================
+# =============== START RTJSONEncoder tests =======================
 
 @pytest.mark.parametrize(
     "fixture_name",
@@ -60,4 +60,4 @@ def test_rcjsonencoder_fallback_on_unknown_type():
     val = enc.default(to_enc)
     assert "ERROR:" in str(val)
 
-# =============== END RCJSONEncoder tests =========================
+# =============== END RTJSONEncoder tests =========================

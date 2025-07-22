@@ -1,10 +1,10 @@
 import pytest
-import requestcompletion as rc
-from requestcompletion import Node
-from requestcompletion.nodes.library import tool_call_llm, ToolCallLLM, message_hist_tool_call_llm
-from requestcompletion.nodes.library.tool_calling_llms._base import OutputLessToolCallLLM
-from requestcompletion.exceptions import LLMError, NodeCreationError, NodeInvocationError
-from requestcompletion.llm import MessageHistory, ToolMessage, SystemMessage, UserMessage, AssistantMessage, ToolCall, ToolResponse, Tool
+import railtracks as rt
+from railtracks import Node
+from railtracks.nodes.library import tool_call_llm, ToolCallLLM, message_hist_tool_call_llm
+from railtracks.nodes.library.tool_calling_llms._base import OutputLessToolCallLLM
+from railtracks.exceptions import LLMError, NodeCreationError, NodeInvocationError
+from railtracks.llm import MessageHistory, ToolMessage, SystemMessage, UserMessage, AssistantMessage, ToolCall, ToolResponse, Tool
 # ---- ToolCallLLM tests ----
 
 def test_tool_call_llm_return_output_returns_last_message_content(mock_llm, mock_tool):
@@ -103,7 +103,7 @@ async def test_unlimited_tool_call_gives_warning_at_runtime(mock_llm, mock_tool,
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("hello")])
     mock_model = mock_llm(chat_with_tools=mock_chat_with_tools_function)
     with pytest.warns(RuntimeWarning, match="unlimited tool calls"):    # param injection at runtime
-        resp = await rc.call(MockLimitedToolCallLLM, message_history=mh, model=mock_model, max_tool_calls=None)
+        resp = await rt.call(MockLimitedToolCallLLM, message_history=mh, model=mock_model, max_tool_calls=None)
         
 def test_limited_tool_call_llm_return_output(mock_tool, mock_llm, mock_chat_with_tools_function):
     class MockLimitedToolCallLLM(ToolCallLLM):
@@ -199,7 +199,7 @@ async def test_negative_tool_calls_raises(class_based, mock_llm, mock_tool):
     neg_max_tool_calls = -1
     if not class_based:
         with pytest.raises(NodeCreationError, match="max_tool_calls must be a non-negative integer."):
-            _ = rc.library.tool_call_llm(
+            _ = rt.library.tool_call_llm(
                 connected_nodes={mock_tool},
                 pretty_name="Limited Tool Call Test Node",
                 system_message=SystemMessage("system prompt"),
@@ -218,4 +218,4 @@ async def test_negative_tool_calls_raises(class_based, mock_llm, mock_tool):
                 return "Limited Tool Call Test Node"
         mh = MessageHistory([SystemMessage("system prompt"), UserMessage("hello")])
         with pytest.raises(NodeInvocationError, match="max_tool_calls must be a non-negative integer."):
-            await rc.call(LimitedToolCallTestNode, message_history=mh)
+            await rt.call(LimitedToolCallTestNode, message_history=mh)

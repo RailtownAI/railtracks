@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from unittest.mock import MagicMock, patch, call, PropertyMock
 import asyncio
-from requestcompletion.run import Runner, RunnerCreationError, RunnerNotFoundError
+from railtracks.run import Runner, RunnerCreationError, RunnerNotFoundError
 
 # ================= START Mock Fixture ============
 @pytest.fixture
@@ -133,9 +133,9 @@ def test_close_calls_shutdown_detach_delete(mock_dependencies):
 def test_info_property_returns_rc_state_info(mock_dependencies):
     config = MagicMock()
     runner = Runner(executor_config=config)
-    rc_info = MagicMock()
-    runner.rc_state.info = rc_info
-    assert runner.info is rc_info
+   rt_info = MagicMock()
+    runner.rc_state.info =rt_info
+    assert runner.info isrt_info
 
 # ================ END Runner: info property ===============
 

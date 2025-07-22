@@ -1,5 +1,5 @@
 import pytest
-from requestcompletion.utils.serialization.graph import Edge, Vertex
+from railtracks.utils.serialization.graph import Edge, Vertex
 
 # ================= START Edge tests =====================
 

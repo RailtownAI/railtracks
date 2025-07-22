@@ -2,8 +2,8 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import timedelta
 from mcp import ClientSession, StdioServerParameters
-from requestcompletion.rc_mcp.main import MCPHttpParams
-from requestcompletion import Node
+from railtracks.rt_mcp.main import MCPHttpParams
+from railtracks import Node
 
 # ================= START patch fixtures ================
 

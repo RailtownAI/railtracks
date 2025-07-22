@@ -1,9 +1,9 @@
 import pytest
-import requestcompletion as rc
+import railtracks as rt
 from pydantic import BaseModel, Field
-from requestcompletion.nodes.library import tool_call_llm, StructuredToolCallLLM, structured_tool_call_llm
-from requestcompletion.exceptions import NodeCreationError
-from requestcompletion.llm import MessageHistory, SystemMessage, UserMessage
+from railtracks.nodes.library import tool_call_llm, StructuredToolCallLLM, structured_tool_call_llm
+from railtracks.exceptions import NodeCreationError
+from railtracks.llm import MessageHistory, SystemMessage, UserMessage
 # =========================== Basic functionality ==========================
 
 def test_structured_tool_call_llm_init(mock_llm, schema, mock_tool):
@@ -110,8 +110,8 @@ class SimpleOutput(BaseModel):
 @pytest.mark.parametrize(
     "llm_function, connected_nodes",
     [
-        (rc.library.structured_tool_call_llm, {rc.library.from_function(lambda: "test")}),
-        (rc.library.structured_llm, None),
+        (rt.library.structured_tool_call_llm, {rt.library.from_function(lambda: "test")}),
+        (rt.library.structured_llm, None),
     ],
     ids=["tool_call_llm", "structured_llm"],
 )
@@ -123,7 +123,7 @@ class SimpleOutput(BaseModel):
             SimpleOutput,
             None,
             [
-                rc.llm.Parameter(
+                rt.llm.Parameter(
                     name="param1", param_type="string", description="A test parameter."
                 )
             ],
@@ -135,10 +135,10 @@ class SimpleOutput(BaseModel):
             SimpleOutput,
             "A test tool",
             [
-                rc.llm.Parameter(
+                rt.llm.Parameter(
                     name="param1", param_type="string", description="A test parameter."
                 ),
-                rc.llm.Parameter(
+                rt.llm.Parameter(
                     name="param1",
                     param_type="string",
                     description="A duplicate parameter.",

@@ -1,7 +1,7 @@
 import pytest
-import requestcompletion as rc
-from requestcompletion.llm import AssistantMessage, ToolMessage, ToolResponse, ToolCall
-from requestcompletion.llm.response import Response
+import railtracks as rt
+from railtracks.llm import AssistantMessage, ToolMessage, ToolResponse, ToolCall
+from railtracks.llm.response import Response
 from pydantic import BaseModel, Field
 from ....llm.conftest import MockLLM
 from typing import Type
@@ -38,7 +38,7 @@ def mock_chat_with_tools_function():    # !!! TODO: this goes on forever, modify
 # ============ Tools ===========
 @pytest.fixture
 def mock_tool():
-    @rc.to_node
+    @rt.to_node
     def magic_number() -> int:
         return 42
     

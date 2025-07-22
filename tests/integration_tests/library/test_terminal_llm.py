@@ -1,32 +1,32 @@
 import pytest
-import requestcompletion as rc
+import railtracks as rt
 from pydantic import BaseModel
 
-from requestcompletion.llm import MessageHistory, Message
-from requestcompletion.llm.response import Response
-from requestcompletion.nodes.library.easy_usage_wrappers.terminal_llm import terminal_llm
+from railtracks.llm import MessageHistory, Message
+from railtracks.llm.response import Response
+from railtracks.nodes.library.easy_usage_wrappers.terminal_llm import terminal_llm
 from tests.unit_tests.llm.conftest import MockLLM
 
 
 # ================================================ START terminal_llm basic functionality =========================================================
 @pytest.mark.asyncio
 async def test_terminal_llm_easy_usage_run(model , encoder_system_message):
-    encoder_agent = rc.library.terminal_llm(
+    encoder_agent = rt.library.terminal_llm(
         pretty_name="Encoder",
         system_message=encoder_system_message,
         llm_model=model,
     )
 
-    response = await rc.call(encoder_agent, message_history=rc.llm.MessageHistory([rc.llm.UserMessage("hello world")]))
+    response = await rt.call(encoder_agent, message_history=rt.llm.MessageHistory([rt.llm.UserMessage("hello world")]))
 
     assert isinstance(response, str)
 
 def test_terminal_llm_class_based_run(model , encoder_system_message):
-    class Encoder(rc.library.TerminalLLM): 
+    class Encoder(rt.library.TerminalLLM): 
         def __init__(
                 self,
-                message_history: rc.llm.MessageHistory,
-                llm_model: rc.llm.ModelBase = model,
+                message_history: rt.llm.MessageHistory,
+                llm_model: rt.llm.ModelBase = model,
             ):
                 message_history = [x for x in message_history if x.role != "system"]
                 message_history.insert(0, encoder_system_message)
@@ -38,9 +38,9 @@ def test_terminal_llm_class_based_run(model , encoder_system_message):
         def pretty_name(cls) -> str:
             return "Simple Node"
         
-    with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as runner:
-        message_history = rc.llm.MessageHistory(
-            [rc.llm.UserMessage("The input string is 'hello world'")]
+    with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="NONE")) as runner:
+        message_history = rt.llm.MessageHistory(
+            [rt.llm.UserMessage("The input string is 'hello world'")]
         )
         response = runner.run_sync(Encoder, message_history=message_history)
         assert isinstance(response.answer, str)
@@ -57,10 +57,10 @@ def test_return_into():
         return_into="greeting"  # Specify that the result should be stored in context under the key "greeting"
     )
 
-    with rc.Runner() as run:
+    with rt.Runner() as run:
         result = run.run_sync(node, message_history=MessageHistory()).answer
         assert result is None  # The result should be None since it was stored in context
-        assert rc.context.get("greeting") == "Hello"
+        assert rt.context.get("greeting") == "Hello"
 
 # ================================================ END terminal_llm basic functionality ===========================================================
 
@@ -77,13 +77,13 @@ async def test_terminal_llm_as_tool_correct_initialization(
     encoder_tool_details = "A tool used to encode text into bytes."
     decoder_tool_details = "A tool used to decode bytes into text."
     encoder_tool_params = {
-        rc.llm.Parameter("text_input", "string", "The string to encode.")
+        rt.llm.Parameter("text_input", "string", "The string to encode.")
     }
     decoder_tool_params = {
-        rc.llm.Parameter("bytes_input", "string", "The bytes you would like to decode")
+        rt.llm.Parameter("bytes_input", "string", "The bytes you would like to decode")
     }
 
-    encoder = rc.library.terminal_llm(
+    encoder = rt.library.terminal_llm(
         pretty_name="Encoder",
         system_message=encoder_system_message,
         llm_model=model,
@@ -91,7 +91,7 @@ async def test_terminal_llm_as_tool_correct_initialization(
         tool_details=encoder_tool_details,
         tool_params=encoder_tool_params,
     )
-    decoder = rc.library.terminal_llm(
+    decoder = rt.library.terminal_llm(
         pretty_name="Decoder",
         system_message=decoder_system_message,
         llm_model=model,
@@ -112,16 +112,16 @@ async def test_terminal_llm_as_tool_correct_initialization(
         decoder.tool_info().parameters, BaseModel
     )
 
-    randomizer = rc.library.message_hist_tool_call_llm(
+    randomizer = rt.library.message_hist_tool_call_llm(
         connected_nodes={encoder, decoder},
         llm_model=model,
         pretty_name="Randomizer",
         system_message=system_randomizer,
     )
 
-    with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as runner:
-        message_history = rc.llm.MessageHistory(
-            [rc.llm.UserMessage("The input string is 'hello world'")]
+    with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="NONE")) as runner:
+        message_history = rt.llm.MessageHistory(
+            [rt.llm.UserMessage("The input string is 'hello world'")]
         )
         response = await runner.run(randomizer, message_history=message_history)
         assert any(
@@ -136,7 +136,7 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(model):
 
     rng_tool_details = "A tool that generates 5 random integers between 1 and 100."
 
-    rng_node = rc.library.terminal_llm(
+    rng_node = rt.library.terminal_llm(
         pretty_name="RNG Tool",
         system_message="You are a helful assistant that can generate 5 random numbers between 1 and 100.",
         llm_model=model,
@@ -150,16 +150,16 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(model):
 
     system_message = "You are a math genius that calls the RNG tool to generate 5 random numbers between 1 and 100 and gives the sum of those numbers."
 
-    math_node = rc.library.message_hist_tool_call_llm(
+    math_node = rt.library.message_hist_tool_call_llm(
         connected_nodes={rng_node},
         pretty_name="Math Node",
         system_message=system_message,
-        llm_model=rc.llm.OpenAILLM("gpt-4o"),
+        llm_model=rt.llm.OpenAILLM("gpt-4o"),
     )
 
-    with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as runner:
-        message_history = rc.llm.MessageHistory(
-            [rc.llm.UserMessage("Start the Math node.")]
+    with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="NONE")) as runner:
+        message_history = rt.llm.MessageHistory(
+            [rt.llm.UserMessage("Start the Math node.")]
         )
         response = await runner.run(math_node, message_history=message_history)
         assert any(
@@ -174,10 +174,10 @@ async def test_terminal_llm_tool_with_invalid_parameters_easy_usage(model, encod
     # Test case where tool is invoked with incorrect parameters
     encoder_tool_details = "A tool used to encode text into bytes."
     encoder_tool_params = {
-        rc.llm.Parameter("text_input", "string", "The string to encode.")
+        rt.llm.Parameter("text_input", "string", "The string to encode.")
     }
 
-    encoder = rc.library.terminal_llm(
+    encoder = rt.library.terminal_llm(
         pretty_name="Encoder",
         system_message=encoder_system_message,
         llm_model=model,
@@ -186,18 +186,18 @@ async def test_terminal_llm_tool_with_invalid_parameters_easy_usage(model, encod
     )
 
     system_message = "You are a helful assitant. Use the encoder tool with invalid parameters (invoke the tool with invalid parameters) once and then invoke it again with valid parameters."
-    tool_call_llm = rc.library.message_hist_tool_call_llm(
+    tool_call_llm = rt.library.message_hist_tool_call_llm(
         connected_nodes={encoder},
         llm_model=model,
         pretty_name="InvalidToolCaller",
         system_message=system_message,
     )
 
-    with rc.Runner(
-        executor_config=rc.ExecutorConfig(logging_setting="VERBOSE")
+    with rt.Runner(
+        executor_config=rt.ExecutorConfig(logging_setting="VERBOSE")
     ) as runner:
-        message_history = rc.llm.MessageHistory(
-            [rc.llm.UserMessage("Encode this text but use an invalid parameter name.")]
+        message_history = rt.llm.MessageHistory(
+            [rt.llm.UserMessage("Encode this text but use an invalid parameter name.")]
         )
         response = await runner.run(tool_call_llm, message_history=message_history)
         # Check that there was an error running the tool

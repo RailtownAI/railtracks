@@ -1,4 +1,4 @@
-from requestcompletion.utils.logging.create import get_rc_logger
+from railtracks.utils.logging.create import get_rc_logger
 
 
 def test_create_default():
@@ -9,4 +9,4 @@ def test_create_default():
 def test_name_insertion():
     logger = get_rc_logger("TestLogger")
 
-    assert logger.name == "RC.TestLogger"
+    assert logger.name == "rt.TestLogger"

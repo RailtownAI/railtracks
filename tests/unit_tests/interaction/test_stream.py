@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, patch
-from requestcompletion.interaction.stream import stream
-from requestcompletion.pubsub.messages import Streaming
+from railtracks.interaction.stream import stream
+from railtracks.pubsub.messages import Streaming
 
 
 @pytest.mark.asyncio

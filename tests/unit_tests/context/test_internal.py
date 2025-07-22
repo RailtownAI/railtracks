@@ -1,7 +1,7 @@
 
 import pytest
 from unittest import mock
-from requestcompletion.context.internal import InternalContext
+from railtracks.context.internal import InternalContext
 
 # ============ START DummyPublisher Helper ===============
 class DummyPublisher:

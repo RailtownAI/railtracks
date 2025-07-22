@@ -1,10 +1,10 @@
 # =================== START fixtures for node.py ====================
 import pytest
 import uuid
-from requestcompletion.state.node import (
+from railtracks.state.node import (
     LinkedNode, NodeCopyError,
 )
-from requestcompletion.utils.profiling import Stamp
+from railtracks.utils.profiling import Stamp
 
 # =============== START LinkedNode basic/tests =====================
 

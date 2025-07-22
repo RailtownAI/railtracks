@@ -1,8 +1,8 @@
 import subprocess
 import platform
 
-from requestcompletion.nodes.library.easy_usage_wrappers.tool_call_llm import tool_call_llm
-import requestcompletion as rc
+from railtracks.nodes.library.easy_usage_wrappers.tool_call_llm import tool_call_llm
+import railtracks as rt
 
 
 def run_shell(command: str) -> str:
@@ -17,7 +17,7 @@ def run_shell(command: str) -> str:
         return f"Exception: {str(e)}"
 
 
-bash_tool = rc.library.from_function(run_shell)
+bash_tool = rt.library.from_function(run_shell)
 
 ##################################################################
 # Example using the tools with an agent
@@ -26,14 +26,14 @@ agent = tool_call_llm(
     connected_nodes={bash_tool},
     system_message=f"You are a useful helper that can run local shell commands. "
                    f"You are on a {platform.system()} machine. Use appropriate shell commands to answer the user's questions.",
-    model=rc.llm.OpenAILLM("gpt-4o"),
+    model=rt.llm.OpenAILLM("gpt-4o"),
 )
 
 user_prompt = """What directories are in the current directory?"""
-message_history = rc.llm.MessageHistory()
-message_history.append(rc.llm.UserMessage(user_prompt))
+message_history = rt.llm.MessageHistory()
+message_history.append(rt.llm.UserMessage(user_prompt))
 
-with rc.Runner(rc.ExecutorConfig(logging_setting="VERBOSE")) as run:
+with rt.Runner(rt.ExecutorConfig(logging_setting="VERBOSE")) as run:
     result = run.run_sync(agent, message_history)
 
 print(result.answer.content)
