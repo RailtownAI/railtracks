@@ -1,4 +1,5 @@
-from typing import Callable, Set, Type, Union, Iterable
+
+from typing import Callable, Set, Type, Union, Iterable, TypeVar
 
 from pydantic import BaseModel
 
@@ -7,9 +8,12 @@ from requestcompletion.llm import (
     SystemMessage,
 )
 from requestcompletion.nodes._node_builder import NodeBuilder
+from requestcompletion.nodes.library.tool_calling_llms.structured_mess_hist_tool_call_llm import StructuredMessageHistoryToolCallLLM
 
 from ....nodes.nodes import Node
 from ...library.tool_calling_llms.structured_tool_call_llm import StructuredToolCallLLM
+
+_TOutput = TypeVar("_TOutput", bound=BaseModel)
 
 
 def structured_mess_hist_tool_call_llm(
@@ -19,10 +23,10 @@ def structured_mess_hist_tool_call_llm(
     llm_model: ModelBase | None = None,
     max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
-    schema: Type[BaseModel],
+    schema: Type[_TOutput],
     tool_details: str | None = None,
     tool_params: dict | None = None,
-) -> Type[StructuredToolCallLLM]:
+):
     """
     Dynamically create a StructuredToolCallLLM node class with custom configuration for tool calling.
 
@@ -46,13 +50,13 @@ def structured_mess_hist_tool_call_llm(
     """
 
     builder = NodeBuilder(
-        StructuredToolCallLLM,
+        StructuredMessageHistoryToolCallLLM[_TOutput],
         pretty_name=pretty_name,
         class_name="EasyStructuredMessageHistToolCallLLM",
     )
     builder.llm_base(llm_model, system_message)
     builder.tool_calling_llm(set(connected_nodes), max_tool_calls)
-    builder.struct_mess_hist()
+
     if tool_details is not None or tool_params is not None:
         builder.tool_callable_llm(tool_details, tool_params)
     builder.structured(schema)

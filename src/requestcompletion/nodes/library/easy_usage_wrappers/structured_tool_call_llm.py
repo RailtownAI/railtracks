@@ -52,16 +52,18 @@ def structured_tool_call_llm(
         Type[StructuredToolCallLLM]: The dynamically generated node class with the specified configuration.
     """
 
-    builder = NodeBuilder[StructuredToolCallLLM[_TOutput]](
-        StructuredToolCallLLM,
+    builder = NodeBuilder(
+        StructuredToolCallLLM[_TOutput],
         pretty_name=pretty_name,
         class_name="EasyStructuredToolCallLLM",
         return_into=return_into,
         format_for_return=format_for_return,
         format_for_context=format_for_context,
     )
+
     builder.llm_base(llm_model, system_message)
     builder.tool_calling_llm(set(connected_nodes), max_tool_calls)
+    
     if tool_details is not None or tool_params is not None:
         builder.tool_callable_llm(tool_details, tool_params)
     builder.structured(schema)

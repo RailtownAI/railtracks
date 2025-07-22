@@ -1,5 +1,6 @@
 import asyncio
 
+from requestcompletion.llm.history import MessageHistory
 from requestcompletion.run import call
 
 from ....exceptions import LLMError
@@ -14,7 +15,7 @@ from ....llm.message import Role
 from ._base import OutputLessToolCallLLM
 
 
-class ChatToolCallLLM(OutputLessToolCallLLM[str]):
+class ChatToolCallLLM(OutputLessToolCallLLM[MessageHistory]):
     chat_ui = None
 
     async def invoke(self):  # noqa: C901
@@ -139,3 +140,5 @@ class ChatToolCallLLM(OutputLessToolCallLLM[str]):
     def return_output(self):
         """Returns the message history"""
         return self.message_hist
+
+
