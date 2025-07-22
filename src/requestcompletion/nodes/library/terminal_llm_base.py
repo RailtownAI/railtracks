@@ -1,3 +1,4 @@
+from ... import context
 from ...exceptions import LLMError
 from ...llm import MessageHistory, ModelBase
 from ._llm_base import LLMBase
@@ -18,7 +19,7 @@ class TerminalLLM(LLMBase[str]):
 
     @classmethod
     def pretty_name(cls) -> str:
-        return "TerminalLLM"
+        return "Terminal LLM"
 
     async def invoke(self) -> str | None:
         """Makes a call containing the inputted message and system prompt to the llm model and returns the response
@@ -42,6 +43,9 @@ class TerminalLLM(LLMBase[str]):
                     reason="ModelLLM returned None content",
                     message_history=self.message_hist,
                 )
+            if (key := self.return_into()) is not None:
+                context.put(key, self.format_for_context(cont))
+                return self.format_for_return(cont)
             return cont
 
         raise LLMError(

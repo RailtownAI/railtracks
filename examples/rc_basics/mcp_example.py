@@ -1,7 +1,7 @@
 #%%
 import asyncio
 import requestcompletion as rc
-from requestcompletion.nodes.library.mcp_tool import from_mcp_server
+from requestcompletion.nodes.library.easy_usage_wrappers.mcp_tool import from_mcp_server
 from requestcompletion.rc_mcp import MCPHttpParams, MCPStdioParams
 
 

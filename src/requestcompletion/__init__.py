@@ -28,6 +28,8 @@ __all__ = [
 ]
 
 
+from requestcompletion.nodes.library.easy_usage_wrappers.function import to_node
+
 from . import context, llm, rc_mcp
 from .config import ExecutorConfig
 from .context.central import set_config, set_streamer
@@ -35,7 +37,6 @@ from .interaction.batch import batch
 from .interaction.call import call, call_sync
 from .interaction.stream import stream
 from .nodes import library
-from .nodes.library.function import to_node
 from .nodes.nodes import Node
 from .run import ExecutionInfo, Runner
 

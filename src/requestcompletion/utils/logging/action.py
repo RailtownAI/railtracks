@@ -17,6 +17,15 @@ class RequestCreationAction(RCAction):
         input_args: Tuple[Any, ...],
         input_kwargs: Dict[str, Any],
     ):
+        """
+        A simple object that encapsulates a Request Creation.
+
+        Args:
+            parent_node_name (str): The name of the parent node that created this request.
+            child_node_name (str): The name of the child node that is being created.
+            input_args (Tuple[Any, ...]): The input arguments passed to the child node.
+            input_kwargs (Dict[str, Any]): The input keyword arguments passed to the child node.
+        """
         self.parent_node_name = parent_node_name
         self.child_node_name = child_node_name
         self.args = input_args
@@ -26,26 +35,51 @@ class RequestCreationAction(RCAction):
         return f"{self.parent_node_name} CREATED {self.child_node_name}"
 
 
-class RequestSuccessAction(RCAction):
+class RequestCompletionBase(RCAction, ABC):
+    def __init__(self, node_name: str):
+        """
+        A base class for when a request is completed.
+
+        Args:
+            node_name (str): The name of the child node that is being completed.
+        """
+        self.node_name = node_name
+
+
+class RequestSuccessAction(RequestCompletionBase):
     def __init__(
         self,
-        child_node_name: str,
+        node_name: str,
         output: Any,
     ):
-        self.child_node_name = child_node_name
+        """ "
+        A simple abstraction of a message when a request is successfully completed.
+
+        Args:
+            node_name (str): The name of the child node that completed successfully.
+            output (Any): The output produced by the child node.
+        """
+        super().__init__(node_name)
         self.output = output
 
     def to_logging_msg(self) -> str:
-        return f"{self.child_node_name} DONE"
+        return f"{self.node_name} DONE"
 
 
-class RequestFailureAction(RCAction):
+class RequestFailureAction(RequestCompletionBase):
     def __init__(
         self,
         node_name: str,
         exception: Exception,
     ):
-        self.node_name = node_name
+        """
+        A simple abstraction of a message when a request fails.
+        \
+        Args:
+            node_name (str): The name of the child node that failed.
+            exception (Exception): The exception that was raised during the request.
+        """
+        super().__init__(node_name)
         self.exception = exception
 
     def to_logging_msg(self) -> str:

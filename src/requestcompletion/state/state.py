@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Callable, Dict, List, ParamSpec, Tuple, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, ParamSpec, Tuple, TypeVar
 
 from ..context.central import update_parent_id
 from ..execution.coordinator import Coordinator
@@ -23,6 +23,7 @@ from ..utils.logging.action import (
 )
 
 # all the things we need to import from RC directly.
+# all the things we need to import from RC directly.
 from .request import Cancelled, Failure
 from .utils import create_sub_state_info
 
@@ -43,6 +44,7 @@ class RCState:
     RCState is an internal RC object used to manage state of the request completion system. This object has a couple of
     major functions:
     1. It allows you to create a new state object every time you want to run the system.
+    2. The state object will connect to the provided publisher and will handle all the messages that are sent to it.
     2. It allows you to invoke the graph at a given node and will handle the execution of the graph.
     3. It will handle all the exceptions that are thrown during the execution of the graph.
     4. It will handle the creation of new requests and the management of the state of the nodes.
@@ -54,7 +56,6 @@ class RCState:
     allow for retrospective analysis of the system.
     """
 
-    # TODO seperate the logic in the executor config and the state object.
     def __init__(
         self,
         execution_info: ExecutionInfo,
@@ -67,10 +68,7 @@ class RCState:
         self._stamper = execution_info.stamper
 
         self.executor_config = executor_config
-        # TODO add config connections to the RC work manager
         self.rc_coordinator = coordinator
-
-        ## These are the elements which need to be created as new objects every time. They should not serialized.
 
         # each new instance of a state object should have its own logger.
         self.logger = get_rc_logger()
@@ -78,8 +76,14 @@ class RCState:
         publisher.subscribe(self.handle, "State Object Handler")
         self.publisher = publisher
 
-    # TODO: fix up these abstractions so it consistent that we are mapping the request type into its proper type.
     async def handle(self, item: RequestCompletionMessage) -> None:
+        """
+        A simpler handler function designed to handle the messages from the publisher object by the state object.
+
+        Args:
+            item: The item that was sent to the publisher. It can be any of the RequestCompletionMessage types.
+        """
+        # TODO: fix up these abstractions so it consistent that we are mapping the request type into its proper type.
         if isinstance(item, RequestFinishedBase):
             await self.handle_result(item)
         if isinstance(item, RequestCreation):
@@ -96,10 +100,16 @@ class RCState:
             )
 
     def shutdown(self):
+        """
+        Shutdown the state object and all of its references.
+        """
         self.rc_coordinator.shutdown()
 
     @property
     def is_empty(self):
+        """
+        Determines if the state object is currently empty (i.e. no nodes or requests are present).
+        """
         return len(self._node_heap.heap()) == 0 and len(self._request_heap.heap()) == 0
 
     def add_stamp(self, message: str):
@@ -109,12 +119,15 @@ class RCState:
         Args:
             message: The message you would like to attach to the stamp
 
-        Returns:
-            None
         """
         self._stamper.create_stamp(message)
 
     async def cancel(self, node_id: str):
+        """
+        Cancels the running process of the node with the given identifier.
+
+        It will update the state, but it will not kill the process running the node.
+        """
         if node_id not in self._node_heap.heap():
             assert False
 
@@ -133,19 +146,17 @@ class RCState:
         kwargs: _P.kwargs,
     ) -> str:
         """
-        Creates a node using the creator and then registers it with the registry. This will allow the register method to
-        act on the node.
+        Creates a node using the creator function (node).
 
-        Note this is the only way you can add node to the system.
+        ASIDE: This function is the only way you should create nodes in the system. If you create them elsehwere they
+        will not be tracked in the system.
 
-        Side Effects:
-        It will set the parent_id context manager variable to the new node id.
 
         Args:
             parent_node_id: The parent node id of the node you are creating (used for tracking of requests)
             node: The Node you would like to create
-            *args: The arguments to pass to the node
-            **kwargs: The keyword arguments to pass to the node
+            args: The arguments to pass to the node
+            kwargs: The keyword arguments to pass to the node
 
         Returns:
             The request id of the request created between parent and child.
@@ -154,8 +165,6 @@ class RCState:
         # 1. Create the node here
 
         node = node(*args, **kwargs)
-
-        # This is a critical registration step so other elements are aware that we have officially created the node.
 
         # 2. Add it to the node heap.
         sc = self._stamper.stamp_creator()
@@ -206,7 +215,10 @@ class RCState:
 
         Args:
             parent_node_id: The parent node id of the node you are calling. None if it has no parent.
-            node: The node you would like to call.
+            request_id: The request id of the request you are creating. If None, a new request id will be created.
+            node: The node you would like to create.
+            args: The arguments to pass to the node.
+            kwargs: The keyword arguments to pass to the node.
 
         Returns:
             The output of the node that was run. It will match the output type of the child node that was run.
@@ -254,14 +266,18 @@ class RCState:
         """
         Creates a new set of requests from the provided details. Essentially we will be creating a new request from the
         parent node to each of the children nodes. They will all share the stamp and will have a descriptive message
-        attached to each of them
+        attached to each of them.
 
-        Note that all the identifiers for the
+        Note that you are supposed to provide a list of items. It is assumed that all the lists are the same length.
+        Each index in the lists corresponds to the same child node.
 
         Args:
             parent_node: The identifier of the parent node which is calling the children. If none is provided we assume there is no parent.
             children: The list of node_ids that you would like to call.
-            stamp_gen: A function that will create a new stamp of the same number.
+            input_args: The list of arguments to pass to each of the children nodes.
+            input_kwargs: The list of keyword arguments to pass to each of the children nodes.
+            request_ids: The list of request ids to use for each of the children nodes. I
+            stamp: The stamp you would like to attach to each of the requests.
         """
 
         # note it is assumed that all of the children id are valid and have already been created.
@@ -292,17 +308,13 @@ class RCState:
         Runs the request for the given request id.
 
         1. It will use the request to collect the identifier of the child node and then run the node.
-        2. It will then handle any errors thrown during execution.
-        3. It will save the new state to the state objects
-        4. It will return the result of the request. (or if any error was raised during execution it will throw the error)
+        2. It will submit the task to the coordinator to run the node.
+        3. It will return once the request has been placed.
 
-        Important: If an exception was thrown during the execution of the request, it will be be raised here.
 
         Args:
-            request_id: The request you would like to run
+            request_id: The identifier for the request you would like to run
 
-        Returns:
-            The result of the request. It will match the output type of the child node that was run.
 
         """
         child_node_id = self._request_heap[request_id].sink_id
@@ -316,24 +328,22 @@ class RCState:
         self, failed_node_name: str, request_id: str, exception: Exception
     ):
         """
-        Handles the provided exception for the given request identifier.
+        Handles the provided exception for the given request identifier. It will publish a message to the publisher if
+        deemed necessary and will return a Failure object containing the exception.
 
-        If the given exception is a `FatalException` or if the config flag for `end_on_error` is set to be true, then
-        the function will return a `ExecutionException` object wrapped in a `Failure` object.
-
-        Otherwise, it will return a `Failure` object containing the exception that was thrown.
+        This function will handle the following tasks:
+        1. logs the exception
+        2. Determines if the error is fatal and whether it should kill the system. If so it will publish a FatalFailure
+            message to the publisher
+        3. Returns a Failure object.
 
         Args:
+            failed_node_name: The name of the node that failed. This is used for logging and debugging.
             request_id: The request in which this error occurred
             exception: The exception thrown during this request.
 
         Returns:
             An object containing the error thrown during the request wrapped in a Failure object.
-
-        Raises:
-            ExecutionException: If the exception was a `FatalException`, or if the config flag for `end_on_error` is set
-            to be true.
-
         """
         # before doing any handling we must make sure our exception history object is up to date.
 
@@ -373,31 +383,64 @@ class RCState:
         )
 
     def get_info(self, ids: List[str] | str) -> ExecutionInfo:
+        """
+        Gets the info object for the current state but filtered to include on the children of the provided ids.
+
+        You should provide minimal ids to this function (i.e. you should not provide the list of children instead just
+        the parent node id). If you provide a parent and its children behavior is undefined.
+        """
         filtered_nodes, filtered_requests = create_sub_state_info(
             self._node_heap.heap(), self._request_heap.heap(), ids
         )
+        # TODO: deal with the weirdness around double representation in the stamper.
+        #  specifically we need to make sure that the data in the stamper is only for the subset and not for the global state.
         return ExecutionInfo(
             node_heap=filtered_nodes,
             request_heap=filtered_requests,
             stamper=self._stamper,
         )
 
+    async def _handle_successful_request(
+        self,
+        node_name: str,
+        result: Any,
+    ):
+        """
+        Handles the successful completion of a request. It will log the success and return the result.
+        """
+        request_completion_obj = RequestSuccessAction(
+            node_name=node_name,
+            output=result,
+        )
+
+        self.logger.info(request_completion_obj.to_logging_msg())
+        return result
+
     async def handle_result(self, result: RequestFinishedBase):
+        """
+        Handles the given request completion.
+
+        If it is a Failure it will log and post any relevant items to the publisher and return the error.
+
+        This function will also handle successful requests in the same way.
+
+        Raises:
+            TypeError: If the provided result does not match any of the expected types.
+        """
         if isinstance(result, RequestFailure):
             # if the node state is None, it means the node was never created so we don't need to handle it
             output = await self._handle_failed_request(
                 result.node.pretty_name(), result.request_id, result.error
             )
             returnable_result = result.error
-        elif isinstance(result, RequestSuccess):
-            output = result.result
-            request_completion_obj = RequestSuccessAction(
-                child_node_name=result.node.pretty_name(),
-                output=result.result,
-            )
 
-            self.logger.info(request_completion_obj.to_logging_msg())
-            returnable_result = output
+        elif isinstance(result, RequestSuccess):
+            output = await self._handle_successful_request(
+                node_name=result.node.pretty_name(),
+                result=result.result,
+            )
+            returnable_result = result.result
+
         elif isinstance(result, RequestCreationFailure):
             # we do not need to both handling this.
             return

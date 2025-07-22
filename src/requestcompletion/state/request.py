@@ -24,6 +24,10 @@ class Failure:
 
 @dataclass(frozen=True)
 class RequestTemplate(AbstractLinkedObject):
+    """
+    A simple object containing details about a request in the system.
+    """
+
     source_id: Optional[str]
     sink_id: str
     input: Tuple[Tuple, Dict]
@@ -215,6 +219,17 @@ class RequestForest(Forest[RequestTemplate]):
         """
         Creates a new instance of a request from the provided details and places it into the heap.
 
+        Args:
+            identifier (str): The identifier of the request
+            source_id (Optional[str]): The node id of the source, None if it is an insertion request.
+            sink_id (str): The node id in the sink.
+            input_args (Tuple): The input arguments for the request
+            input_kwargs (Dict): The input keyword arguments for the request
+            stamp (Stamp): The stamp that you would like this request to be tied to.
+
+        Returns:
+            str: The identifier of the request that was created.
+
         """
         # note we just need t be careful of any sort of race condition so we will be extra safe with our locking mechanism.
         with self._lock:
@@ -241,26 +256,22 @@ class RequestForest(Forest[RequestTemplate]):
         identifier: str,
         output: Optional[Any],
         stamp: Stamp,
-    ):
+    ) -> None:
         """
         Updates the heap with the provided request details. Note you must call this function on a request that exist in the heap.
 
         The function will replace the old request with a new updated one with the provided output attached to the provided stamp.
 
         I will outline the special cases for this function:
-        1. If the request you are trying to update has already been killed, then nothing will happen.
-        2. If you have provided a request id that does not exist in the heap, it will raise `RequestDoesNotExistError`
+        1. If you have provided a request id that does not exist in the heap, it will raise `RequestDoesNotExistError`
 
         Args:
             identifier (str): The identifier of the request
             output (Optional[RequestOutput]): The output of the request, None if the request is not completed.
             stamp (Stamp): The stamp that you would like this request addition to be tied to.
 
-        Returns:
-            Optional[str]: The identifier of the next request to be completed. If None then there is no request that is
-            ready to be completed.
-
         Raises:
+            RequestDoesNotExistError: If the request with the provided identifier does not exist in the heap.
 
         """
         with self._lock:
@@ -295,7 +306,7 @@ class RequestForest(Forest[RequestTemplate]):
         cls, heap: Dict[str, RequestTemplate]
     ) -> Dict[str, List[Tuple[str, str]]]:
         """
-        Generates a dictionary representation containg the edges in the graph. The key of the dictionary is the source
+        Generates a dictionary representation contain the edges in the graph. The key of the dictionary is the source
         and the value is a list of tuples where the first element is the sink_id and the second element is the request\
         id.
         Complexity: O(n) where n is the number of identifiers in the heap.
@@ -324,6 +335,11 @@ class RequestForest(Forest[RequestTemplate]):
         return graph
 
     def get_request_from_child_id(self, child_id: str):
+        """
+        Gets the request where this child_id is the sink_id of the request.
+
+        Via the invariants of the system. There must only be 1 request that satisfies the above requirement.
+        """
         with self._lock:
             upstreams = RequestTemplate.upstream(list(self._heap.values()), child_id)
             if len(upstreams) == 0:
@@ -346,7 +362,7 @@ class RequestForest(Forest[RequestTemplate]):
 
     def children_requests_complete(self, parent_node_id: str):
         """
-        Checks if all the downstream requests (one level down) of the given parent node are complete. If they are
+        Checks if all the downstream requests (one level down) if the given parent node are complete. If they are
          then it will return the request id of the parent node. Otherwise, it will return None.
 
         Note that you are providing the node_id of the parent node and downstream requests of that node is defined
@@ -374,12 +390,29 @@ class RequestForest(Forest[RequestTemplate]):
 
     @property
     def insertion_request(self):
+        """
+        Collects a list of all the insertion requests in the heap.
+
+        They will be returned in the order that they were created.
+        """
         insertions = [v for v in self._heap.values() if v.source_id is None]
 
         return insertions
 
     @property
     def answer(self):
+        """
+        Collects the answer to the insertion request.
+
+        The behavior of the function can be split into two cases:
+
+        1. There is either 1 or 0 insertion requests present:
+         - In this case, it will return the output of the insertion request if it exists, otherwise None
+
+        2. There is more than 1 insertion request:
+         - Returns an ordered list of outputs of all the insertion requests. If one has not yet completed, it will
+           return None in that index.
+        """
         # first we must find the insertion request
 
         if len(self.insertion_request) == 0:

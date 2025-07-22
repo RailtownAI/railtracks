@@ -22,6 +22,7 @@ class RequestCompletionMessage(ABC):
     """
 
     def log_message(self) -> str:
+        """Converts the message to a string ready to be logged."""
         return repr(self)
 
 
@@ -136,7 +137,7 @@ class RequestCreation(RequestCompletionMessage):
         current_node_id: str | None,
         new_request_id: str,
         running_mode: ExecutionConfigurations,
-        new_node_type: Type[_TNode[_TOutput]],
+        new_node_type: Type[Node],
         args,
         kwargs,
     ):

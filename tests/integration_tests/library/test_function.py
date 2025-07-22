@@ -12,6 +12,7 @@ from typing import Tuple, List, Dict, Union, Optional
 from pydantic import BaseModel, Field
 import time
 
+from requestcompletion.nodes.library import from_function
 from requestcompletion.state.request import Failure
 import requestcompletion as rc
 

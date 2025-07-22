@@ -24,6 +24,7 @@ supported_types = (
 )
 
 
+# Consider refactoring this function to use a mapping of types to encoding functions for better scalability and maintainability.
 def encoder_extender(o) -> dict[str, Any]:
     """
     Extends the encoding of supported types to their dictionary representation.
@@ -37,6 +38,7 @@ def encoder_extender(o) -> dict[str, Any]:
     - ToolResponse
     - ToolCall
     - LatencyDetails
+    - BaseModel (Pydantic models)
     """
     if isinstance(o, Edge):
         return encode_edge(o)

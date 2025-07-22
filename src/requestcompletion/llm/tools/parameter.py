@@ -154,7 +154,6 @@ class PydanticParameter(Parameter):
         return self._ref_path
 
     def __str__(self) -> str:
-        """String representation of the parameter with properties."""
         return (
             f"PydanticParameter(name={self._name}, type={self._param_type}, "
             f"description={self._description}, required={self._required}, "

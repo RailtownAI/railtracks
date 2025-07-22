@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Type, TypeVar
+from typing import Generic, Type, TypeVar
 
 from pydantic import BaseModel
 
@@ -8,6 +8,7 @@ from requestcompletion.exceptions.node_creation.validation import (
     check_schema,
 )
 
+from ... import context
 from ...exceptions import LLMError
 from ...llm import MessageHistory, ModelBase
 from ._llm_base import LLMBase
@@ -15,7 +16,7 @@ from ._llm_base import LLMBase
 _TOutput = TypeVar("_TOutput", bound=BaseModel)
 
 
-class StructuredLLM(LLMBase[_TOutput], ABC):
+class StructuredLLM(LLMBase[_TOutput], ABC, Generic[_TOutput]):
     # TODO: allow for more general (non-pydantic) outputs
 
     def __init_subclass__(cls):
@@ -43,7 +44,7 @@ class StructuredLLM(LLMBase[_TOutput], ABC):
 
     @classmethod
     def pretty_name(cls) -> str:
-        return cls.schema().__name__
+        return f"Structured LLM ({cls.schema().__name__})"
 
     async def invoke(self) -> _TOutput:
         """Makes a call containing the inputted message and system prompt to the llm model and returns the response
@@ -66,6 +67,9 @@ class StructuredLLM(LLMBase[_TOutput], ABC):
                     message_history=self.message_hist,
                 )
             if isinstance(cont, self.schema()):
+                if (key := self.return_into()) is not None:
+                    context.put(key, self.format_for_context(cont))
+                    return self.format_for_return(cont)
                 return cont
             raise LLMError(
                 reason="The LLM returned content does not match the expected return type",

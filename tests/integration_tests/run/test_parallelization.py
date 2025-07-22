@@ -4,14 +4,14 @@ import asyncio
 import time
 
 
-def timeout_node(_t: float):
-    time.sleep(_t)
-    return _t
+def timeout_node(t_: float):
+    time.sleep(t_)
+    return t_
 
 
-async def timeout_node_async(_t: float):
-    await asyncio.sleep(_t)
-    return _t
+async def timeout_node_async(t_: float):
+    await asyncio.sleep(t_)
+    return t_
 
 
 TimeoutNode = rc.library.from_function(timeout_node)
