@@ -51,7 +51,7 @@ def test_create_tool_function_with_no_params(
 
 # ======= START create_mcp_server tests ==============
 def test_create_mcp_server_new_server_registers_tools(
-    mock_FastMCP, mock_MCPTool, mock_func_metadata, mock_node_cls, mock_node_info, mock_executor_config
+    mock_FastMCP, mock_MCPTool, mock_func_metadata, mock_node_cls, mock_node_info, mock_executor_config, mock_params_schema
 ):
     # Setup
     mcp_instance = MagicMock()
@@ -79,7 +79,7 @@ def test_create_mcp_server_new_server_registers_tools(
     # MCPTool is called with correct fields
     assert tool_args["name"] == mock_node_info.name
     assert tool_args["description"] == mock_node_info.detail
-    assert tool_args["parameters"] == mock_node_info.parameters.model_json_schema()
+    assert tool_args["parameters"] == mock_params_schema
     assert tool_args["fn_metadata"] == "meta"
     assert tool_args["fn"]
     assert result == mcp_instance

@@ -9,6 +9,7 @@ import inspect
 import warnings
 from typing import Any, Callable, Dict, List, Optional, Set, Type, Union
 from requestcompletion.exceptions import NodeCreationError
+from requestcompletion.exceptions.node_creation.validation import validate_tool_params
 from pydantic import BaseModel
 from typing_extensions import Self
 from .schema_parser import parse_json_schema_to_parameter
@@ -46,49 +47,18 @@ class Tool:
             detail: A detailed description of the tool.
             parameters: Parameters attached to this tool; a set of Parameter objects, or a dict.
         """
-        # TODO Shift the errors into exception_messages.py
-        if not (isinstance(parameters, (set, dict)) or parameters is None):
-            raise NodeCreationError(
-                message="Parameters must be a set of Parameter objects, a dict, or None.",
-                notes=[
-                    "If the tool expects no parameters, use None.",
-                    "If you are having issues with passing in a JSON-schema, try to provide a set of Parameter objects instead.",
-                    "You can make a Tool object from a custom function (test_tool). \nEg.-\n"\
-                    "def test_tool():\n    ...\nsample_tool = rc.llm.Tool.from_function(test_tool)"
-                ],
-            )
-        if isinstance(parameters, dict) and len(parameters) > 0:
-            
-            # If parameters is a JSON-schema, convert into out internal Parameter objects
-            try:  # only for the users, all internal systems should provide a set of Parameter objects
-                assert "type" in parameters
-                assert parameters["type"] == "object"
-                assert parameters["additionalProperties"] == False
-                props = parameters.get("properties", {})
-                required_fields = set(parameters.get("required", []))
-                param_objs: Set[Parameter] = set()
-                for name, prop in props.items():
-                    param_objs.add(
-                        parse_json_schema_to_parameter(
-                            name, prop, name in required_fields
-                        )
+        params_valid = validate_tool_params(parameters, Parameter)
+        if params_valid and isinstance(parameters, dict) and len(parameters) > 0:   # if parameters is a JSON-schema, convert into Parameter objects (Checks should be done in validate_tool_params)
+            props = parameters.get("properties")
+            required_fields = set(parameters.get("required", []))
+            param_objs: Set[Parameter] = set()
+            for name, prop in props.items():
+                param_objs.add(
+                    parse_json_schema_to_parameter(
+                        name, prop, name in required_fields
                     )
-                parameters = param_objs
-            except Exception as e:
-                raise NodeCreationError(
-                    message="Cannot convert the provided JSON-schema into Parameter objects.",
-                    notes=[
-                        "Please make sure the JSON-schema is a valid object with a 'type' of 'object' and 'additionalProperties' set to False.",
-                        "'properties' and 'required' keys are required.",
-                        "If you are still having issues, try to provide a set of Parameter objects instead or use a custom function (test_tool). Eg.-\n"\
-                        "def test_tool():\n    ...\nsample_tool = rc.llm.Tool.from_function(test_tool))"
-                    ],
-                ) from e
-        elif isinstance(parameters, set) and not all(isinstance(x, Parameter) for x in parameters):
-            raise NodeCreationError(
-                message="Parameters set must be a set of Parameter objects",
-                notes="If the tool expects no parameters, use None instead.",
-            )
+                )
+            parameters = param_objs
 
         self._name = name
         self._detail = detail

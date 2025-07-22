@@ -122,10 +122,7 @@ def _parameters_to_json_schema(
         message="Unable to parse Tool.parameters. Please check the documentation for Tool.parameters.",
         fatal=True,
         notes=[
-            "Tool.parameters must be either:",
-            "  • a dict,",
-            "  • a subclass of pydantic.BaseModel, or",
-            "  • a set of Parameter instances",
+            "Tool.parameters must be a set of Parameter objects",
         ],
     )
 
