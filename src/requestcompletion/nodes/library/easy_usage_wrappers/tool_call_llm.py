@@ -1,4 +1,4 @@
-from typing import Any, Callable, Set, Type, Union, Iterable
+from typing import Any, Callable, Iterable, Type, Union
 
 from requestcompletion.llm import (
     ModelBase,

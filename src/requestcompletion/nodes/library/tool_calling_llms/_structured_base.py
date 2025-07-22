@@ -1,22 +1,28 @@
 from abc import ABC, abstractmethod
-import requestcompletion.context as context
-from requestcompletion.exceptions.errors import LLMError
-from requestcompletion.llm.history import MessageHistory
-from requestcompletion.llm.message import UserMessage
-from requestcompletion.llm.model import ModelBase
-from requestcompletion.nodes.library.easy_usage_wrappers.structured_llm import structured_llm
-from requestcompletion.nodes.library.tool_calling_llms._base import OutputLessToolCallLLM
-from requestcompletion.interaction.call import call
-
 from typing import Generic, Type, TypeVar
 
 from pydantic import BaseModel
+
+import requestcompletion.context as context
+from requestcompletion.exceptions.errors import LLMError
+from requestcompletion.interaction.call import call
+from requestcompletion.llm.history import MessageHistory
+from requestcompletion.llm.message import UserMessage
+from requestcompletion.llm.model import ModelBase
+from requestcompletion.nodes.library.easy_usage_wrappers.structured_llm import (
+    structured_llm,
+)
+from requestcompletion.nodes.library.tool_calling_llms._base import (
+    OutputLessToolCallLLM,
+)
 
 _TReturn = TypeVar("_TReturn")
 _TOutput = TypeVar("_TOutput", bound=BaseModel)
 
 
-class OutputLessStructuredToolCallLLM(OutputLessToolCallLLM[_TReturn], ABC, Generic[_TReturn, _TOutput]):
+class OutputLessStructuredToolCallLLM(
+    OutputLessToolCallLLM[_TReturn], ABC, Generic[_TReturn, _TOutput]
+):
     """
     A base class for structured tool call LLMs that do not return an output.
     This class is used to define the structure of the tool call and handle the
@@ -35,14 +41,18 @@ class OutputLessStructuredToolCallLLM(OutputLessToolCallLLM[_TReturn], ABC, Gene
             "Respond only with the structured output in the specified format."
         )
 
-        
         cls.structured_resp_node = structured_llm(
             cls.schema(),
             system_message=system_structured,
             llm_model=cls.get_llm_model,
         )
 
-    def __init__(self, message_history: MessageHistory, llm_model: ModelBase | None = None, max_tool_calls: int | None = None):
+    def __init__(
+        self,
+        message_history: MessageHistory,
+        llm_model: ModelBase | None = None,
+        max_tool_calls: int | None = None,
+    ):
         super().__init__(message_history, llm_model, max_tool_calls)
         self.structured_output: _TOutput | Exception | None = None
 
@@ -51,28 +61,25 @@ class OutputLessStructuredToolCallLLM(OutputLessToolCallLLM[_TReturn], ABC, Gene
     def schema(cls) -> Type[_TOutput]: ...
 
     async def invoke(self):
-            await self._handle_tool_calls()
+        await self._handle_tool_calls()
 
-            try:
-                self.structured_output = await call(
-                    self.structured_resp_node,
-                    message_history=MessageHistory(
-                        [UserMessage(str(self.message_hist), inject_prompt=False)]
-                    ),
-                )
-            except Exception:
-                # will be raised in the return_output method in StructuredToolCallLLM
-                self.structured_output = LLMError(
-                    reason="Failed to parse assistant response into structured output.",
-                    message_history=self.message_hist,
-                )
+        try:
+            self.structured_output = await call(
+                self.structured_resp_node,
+                message_history=MessageHistory(
+                    [UserMessage(str(self.message_hist), inject_prompt=False)]
+                ),
+            )
+        except Exception:
+            # will be raised in the return_output method in StructuredToolCallLLM
+            self.structured_output = LLMError(
+                reason="Failed to parse assistant response into structured output.",
+                message_history=self.message_hist,
+            )
 
-            if (key := self.return_into()) is not None:
-                output = self.return_output()
-                context.put(key, self.format_for_context(output))
-                return self.format_for_return(output)
+        if (key := self.return_into()) is not None:
+            output = self.return_output()
+            context.put(key, self.format_for_context(output))
+            return self.format_for_return(output)
 
-            return self.return_output()
-
-            
-
+        return self.return_output()

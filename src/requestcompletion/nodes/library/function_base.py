@@ -22,8 +22,6 @@ _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
 
 
-
-
 class DynamicFunctionNode(Node[_TOutput], ABC, Generic[_P, _TOutput]):
     """
     A base class which contains logic around converting function parameters to the required value given by the function.
@@ -135,6 +133,3 @@ class AsyncDynamicFunctionNode(
 
     async def invoke(self) -> _TOutput:
         return await self.func(*self.args, **self.kwargs)
-
-
-

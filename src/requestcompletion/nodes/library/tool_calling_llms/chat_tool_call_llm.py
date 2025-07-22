@@ -140,5 +140,3 @@ class ChatToolCallLLM(OutputLessToolCallLLM[MessageHistory]):
     def return_output(self):
         """Returns the message history"""
         return self.message_hist
-
-

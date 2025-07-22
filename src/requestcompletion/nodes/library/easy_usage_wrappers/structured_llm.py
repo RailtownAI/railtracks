@@ -6,14 +6,13 @@ from requestcompletion.llm import (
     ModelBase,
     SystemMessage,
 )
-
-from requestcompletion.nodes.library.structured_llm_base import StructuredLLM
 from requestcompletion.nodes._node_builder import NodeBuilder
-
+from requestcompletion.nodes.library.structured_llm_base import StructuredLLM
 
 from ....llm.tools import Parameter
 
 _TOutput = TypeVar("_TOutput", bound=BaseModel)
+
 
 def structured_llm(
     schema: Type[_TOutput],

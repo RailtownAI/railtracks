@@ -1,8 +1,8 @@
-from typing import Any, Callable, Type
+from typing import Any, Callable
 
 from requestcompletion.nodes._node_builder import NodeBuilder
 
-from ....llm import ModelBase, SystemMessage, AssistantMessage
+from ....llm import ModelBase, SystemMessage
 from ....llm.tools import Parameter
 from ..terminal_llm_base import TerminalLLM
 

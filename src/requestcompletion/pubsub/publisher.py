@@ -202,7 +202,7 @@ class Publisher(Generic[_T]):
                     raise ValueError(
                         "Listener has been killed before receiving the correct message."
                     )
-            
+
             unwrapped_returned_result: _T = returnable_result.result()
             self.unsubscribe(sub_id)
             return result_mapping(unwrapped_returned_result)

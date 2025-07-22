@@ -1,6 +1,6 @@
 import asyncio
 from types import FunctionType
-from typing import Callable, Coroutine, ParamSpec, TypeVar, Union, overload, Type
+from typing import Callable, Coroutine, ParamSpec, TypeVar, Union, overload
 from uuid import uuid4
 
 from requestcompletion.context.central import (
@@ -25,6 +25,7 @@ from requestcompletion.pubsub.utils import output_mapping
 _P = ParamSpec("_P")
 _TOutput = TypeVar("_TOutput")
 
+
 @overload
 async def call(
     node: Callable[_P, Node[_TOutput]],
@@ -32,6 +33,7 @@ async def call(
     **kwargs: _P.kwargs,
 ) -> _TOutput:
     pass
+
 
 @overload
 async def call(
@@ -186,7 +188,6 @@ async def _execute(
     kwargs,
     message_filter: Callable[[str], Callable[[RequestCompletionMessage], bool]],
 ) -> _TOutput:
-    
     publisher = get_publisher()
 
     # generate a unique request ID for this request. We need to hold this reference here because we will use it to
@@ -219,6 +220,7 @@ def call_sync(
 ) -> _TOutput:
     pass
 
+
 @overload
 def call_sync(
     node: Callable[_P, _TOutput],
@@ -226,6 +228,7 @@ def call_sync(
     **kwargs: _P.kwargs,
 ) -> _TOutput:
     pass
+
 
 def call_sync(
     node: Callable[_P, Union[Node[_TOutput], _TOutput]],

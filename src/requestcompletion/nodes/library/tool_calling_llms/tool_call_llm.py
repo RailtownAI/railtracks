@@ -1,8 +1,8 @@
 from abc import ABC
 
-from ._base import OutputLessToolCallLLM
-
 from requestcompletion.llm.message import AssistantMessage
+
+from ._base import OutputLessToolCallLLM
 
 
 class ToolCallLLM(OutputLessToolCallLLM[AssistantMessage], ABC):

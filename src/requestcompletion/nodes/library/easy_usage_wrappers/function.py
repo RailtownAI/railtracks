@@ -25,6 +25,7 @@ from requestcompletion.nodes.library.function_base import (
 _P = ParamSpec("_P")
 _TOutput = TypeVar("_TOutput")
 
+
 @overload
 def to_node(
     func: Callable[_P, Coroutine[None, None, _TOutput]],
@@ -35,6 +36,7 @@ def to_node(
     tool_params: set[Parameter] | None = None,
 ) -> Type[AsyncDynamicFunctionNode[_P, _TOutput]]:
     pass
+
 
 @overload
 def to_node(
@@ -49,15 +51,20 @@ def to_node(
 
 
 def to_node(
-        func: Callable[_P, _TOutput | Coroutine[None, None, _TOutput]],
-        /,
-        *,
-        pretty_name: str | None = None,
-        tool_details: str | None = None,
-        tool_params: set[Parameter] | None = None,
+    func: Callable[_P, _TOutput | Coroutine[None, None, _TOutput]],
+    /,
+    *,
+    pretty_name: str | None = None,
+    tool_details: str | None = None,
+    tool_params: set[Parameter] | None = None,
 ):
     """Decorator to convert a function into a Node using from_function."""
-    return from_function(func, pretty_name=pretty_name, tool_details=tool_details, tool_params=tool_params)
+    return from_function(
+        func,
+        pretty_name=pretty_name,
+        tool_details=tool_details,
+        tool_params=tool_params,
+    )
 
 
 @overload
@@ -70,6 +77,7 @@ def from_function(
     tool_params: set[Parameter] | None = None,
 ) -> Type[AsyncDynamicFunctionNode[_P, _TOutput]]:
     pass
+
 
 @overload
 def from_function(

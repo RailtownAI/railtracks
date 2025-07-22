@@ -15,7 +15,6 @@ from requestcompletion.llm import (
     ToolCall,
     ToolMessage,
     ToolResponse,
-    UserMessage,
 )
 
 from ...nodes import Node

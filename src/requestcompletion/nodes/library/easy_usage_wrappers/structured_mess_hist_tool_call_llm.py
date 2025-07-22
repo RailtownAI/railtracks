@@ -1,5 +1,4 @@
-
-from typing import Callable, Set, Type, Union, Iterable, TypeVar
+from typing import Callable, Iterable, Type, TypeVar, Union
 
 from pydantic import BaseModel
 
@@ -8,10 +7,11 @@ from requestcompletion.llm import (
     SystemMessage,
 )
 from requestcompletion.nodes._node_builder import NodeBuilder
-from requestcompletion.nodes.library.tool_calling_llms.structured_mess_hist_tool_call_llm import StructuredMessageHistoryToolCallLLM
+from requestcompletion.nodes.library.tool_calling_llms.structured_mess_hist_tool_call_llm import (
+    StructuredMessageHistoryToolCallLLM,
+)
 
 from ....nodes.nodes import Node
-from ...library.tool_calling_llms.structured_tool_call_llm import StructuredToolCallLLM
 
 _TOutput = TypeVar("_TOutput", bound=BaseModel)
 
