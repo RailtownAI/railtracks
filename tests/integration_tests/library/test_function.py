@@ -41,7 +41,7 @@ class TestPrimitiveInputTypes:
             secret_phrase,
             model_provider=model_provider,
         )
-        with rc.Runner(rc.ExecutorConfig(logging_setting="VERBOSE")) as run:
+        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
             response = run.run_sync(
                 agent,
                 rc.llm.MessageHistory(
