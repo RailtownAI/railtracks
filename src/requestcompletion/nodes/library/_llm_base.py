@@ -62,7 +62,9 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
     """
 
     @classmethod
-    def prepare_tool_message_history(cls, tool_parameters: Dict[str, Any], tool_params: Iterable[Parameter] = None) -> llm.MessageHistory:
+    def prepare_tool_message_history(
+        cls, tool_parameters: Dict[str, Any], tool_params: Iterable[Parameter] = None
+    ) -> llm.MessageHistory:
         """
         Prepare a message history for a tool call with the given parameters.
 

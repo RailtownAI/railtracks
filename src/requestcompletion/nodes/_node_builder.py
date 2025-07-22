@@ -27,12 +27,10 @@ from requestcompletion.exceptions.node_creation.validation import (
     check_connected_nodes,
 )
 from requestcompletion.llm import (
-    MessageHistory,
     ModelBase,
     Parameter,
     SystemMessage,
     Tool,
-    UserMessage,
 )
 from requestcompletion.llm.type_mapping import TypeMapper
 from requestcompletion.nodes.library._llm_base import LLMBase
@@ -375,7 +373,9 @@ class NodeBuilder(Generic[_TNode]):
 
         def prepare_tool(cls, tool_parameters: Dict[str, Any]):
             # Use the shared implementation in LLMBase
-            message_hist = cls.prepare_tool_message_history(tool_parameters, tool_params)
+            message_hist = cls.prepare_tool_message_history(
+                tool_parameters, tool_params
+            )
             return cls(message_hist)
 
         self._with_override("prepare_tool", classmethod(prepare_tool))
