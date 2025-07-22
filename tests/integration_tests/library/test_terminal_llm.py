@@ -65,29 +65,29 @@ def test_return_into():
 @pytest.mark.asyncio
 async def test_terminal_llm_easy_usage_with_string(model, encoder_system_message):
     """Test that the easy usage wrapper can be called with a string input."""
-    encoder_agent = rc.library.terminal_llm(
+    encoder_agent = rt.library.terminal_llm(
         pretty_name="Encoder",
         system_message=encoder_system_message,
         llm_model=model,
     )
 
     # Call with a string instead of MessageHistory
-    response = await rc.call(encoder_agent, user_input="hello world")
+    response = await rt.call(encoder_agent, user_input="hello world")
 
     assert isinstance(response, str)
 
 @pytest.mark.asyncio
 async def test_terminal_llm_easy_usage_with_user_message(model, encoder_system_message):
     """Test that the easy usage wrapper can be called with a UserMessage input."""
-    encoder_agent = rc.library.terminal_llm(
+    encoder_agent = rt.library.terminal_llm(
         pretty_name="Encoder",
         system_message=encoder_system_message,
         llm_model=model,
     )
 
     # Call with a UserMessage instead of MessageHistory
-    user_msg = rc.llm.UserMessage("hello world")
-    response = await rc.call(encoder_agent, user_input=user_msg)
+    user_msg = rt.llm.UserMessage("hello world")
+    response = await rt.call(encoder_agent, user_input=user_msg)
 
     assert isinstance(response, str)
 
