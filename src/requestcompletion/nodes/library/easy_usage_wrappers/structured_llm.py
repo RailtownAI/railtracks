@@ -6,8 +6,10 @@ from requestcompletion.llm import (
     ModelBase,
     SystemMessage,
 )
-from requestcompletion.nodes.library.easy_usage_wrappers.node_builder import NodeBuilder
+
 from requestcompletion.nodes.library.structured_llm_base import StructuredLLM
+from requestcompletion.nodes._node_builder import NodeBuilder
+
 
 from ....llm.tools import Parameter
 

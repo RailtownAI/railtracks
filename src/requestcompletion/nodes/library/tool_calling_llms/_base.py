@@ -84,11 +84,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
 
     @classmethod
     def pretty_name(cls) -> str:
-        return (
-            "ToolCallLLM("
-            + ", ".join([x.pretty_name() for x in cls.connected_nodes()])
-            + ")"
-        )
+        return "Tool Call LLM"
 
     @classmethod
     @abstractmethod

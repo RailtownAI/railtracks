@@ -6,10 +6,10 @@ from requestcompletion.llm import (
     ModelBase,
     SystemMessage,
 )
+from requestcompletion.nodes._node_builder import NodeBuilder
 
 from ....nodes.nodes import Node
 from ...library.tool_calling_llms.structured_tool_call_llm import StructuredToolCallLLM
-from ..easy_usage_wrappers.node_builder import NodeBuilder
 
 
 def structured_mess_hist_tool_call_llm(
@@ -52,7 +52,7 @@ def structured_mess_hist_tool_call_llm(
     )
     builder.llm_base(llm_model, system_message)
     builder.tool_calling_llm(set(connected_nodes), max_tool_calls)
-    builder.struct_mess()
+    builder.struct_mess_hist()
     if tool_details is not None or tool_params is not None:
         builder.tool_callable_llm(tool_details, tool_params)
     builder.structured(schema)

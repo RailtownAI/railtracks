@@ -86,24 +86,23 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
     ):
         super().__init__()
 
+        self._verify_message_history(message_history)
         message_history_copy = deepcopy(
             message_history
         )  # Ensure we don't modify the original message history
-        self._verify_message_history(message_history_copy)
 
+        # If there is a system_message method we add it to message history
         if self.system_message() is not None:
             if not isinstance(self.system_message(), (SystemMessage, str)):
                 raise NodeInvocationError(
                     message=get_message("INVALID_SYSTEM_MESSAGE_MSG"),
                     fatal=True,
                 )
+            # If there is already a SystemMessage in MessageHistory we will tell user both are being used
             if len([x for x in message_history_copy if x.role == "system"]) > 0:
                 warnings.warn(
-                    "System message was passed in message history and defined as a method. We will use the method definition."
+                    "System message was passed in message history and defined as a method. We will use both and add model method to message history."
                 )
-                message_history_copy = [
-                    x for x in message_history_copy if x.role != "system"
-                ]
             message_history_copy.insert(
                 0,
                 SystemMessage(self.system_message())

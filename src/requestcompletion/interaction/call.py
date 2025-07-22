@@ -69,7 +69,9 @@ async def call(
     if isinstance(node_, FunctionType):
         # If a function is passed, we will convert it to a node
         # we have to use lazy import here to prevent a circular import issue. Bad design I know :(
-        from ..nodes.library.function import from_function
+        from requestcompletion.nodes.library.easy_usage_wrappers.function import (
+            from_function,
+        )
 
         node = from_function(node_)
     else:

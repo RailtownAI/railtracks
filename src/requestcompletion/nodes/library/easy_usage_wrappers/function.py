@@ -13,11 +13,11 @@ from typing import (
     overload,
 )
 
-from ...exceptions import NodeCreationError
-from ...exceptions.node_creation.validation import validate_function
-from ...llm import Parameter
-from .easy_usage_wrappers.node_builder import NodeBuilder
-from .function_base import (
+from requestcompletion.exceptions import NodeCreationError
+from requestcompletion.exceptions.node_creation.validation import validate_function
+from requestcompletion.llm import Parameter
+from requestcompletion.nodes._node_builder import NodeBuilder
+from requestcompletion.nodes.library.function_base import (
     AsyncDynamicFunctionNode,
     SyncDynamicFunctionNode,
 )
@@ -60,7 +60,7 @@ def to_node(
     return from_function(func, pretty_name=pretty_name, tool_details=tool_details, tool_params=tool_params)
 
 
-@overload 
+@overload
 def from_function(
     func: Callable[_P, Coroutine[None, None, _TOutput]],
     /,
@@ -81,7 +81,7 @@ def from_function(
     tool_params: set[Parameter] | None = None,
 ) -> Type[SyncDynamicFunctionNode[_P, _TOutput]]:
     pass
-                   
+
 
 def from_function(
     func: Callable[_P, Coroutine[None, None, _TOutput] | _TOutput],
@@ -122,7 +122,7 @@ def from_function(
                 "You must provide a valid function or coroutine function to make a node.",
             ],
         )
-    
+
     print(node_class)
     print(type(node_class))
 

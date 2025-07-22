@@ -12,7 +12,7 @@ class ToolCallable:
         A method used to provide information about the node in the form of a tool definition.
         This is commonly used with LLMs Tool Calling tooling.
         """
-        # TODO: finish implementing this method
+        # TODO: this should default to interfacing within the init method of the class
         raise NotImplementedError(
             "You must implement the tool_info method in your node"
         )

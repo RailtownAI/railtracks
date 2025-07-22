@@ -19,7 +19,7 @@ class TerminalLLM(LLMBase[str]):
 
     @classmethod
     def pretty_name(cls) -> str:
-        return "TerminalLLM"
+        return "Terminal LLM"
 
     async def invoke(self) -> str | None:
         """Makes a call containing the inputted message and system prompt to the llm model and returns the response

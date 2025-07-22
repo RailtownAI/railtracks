@@ -226,7 +226,7 @@ def from_mcp(
 
         @classmethod
         def pretty_name(cls):
-            return f"MCPToolNode({tool.name})"
+            return tool.name
 
         @classmethod
         def tool_info(cls) -> Tool:

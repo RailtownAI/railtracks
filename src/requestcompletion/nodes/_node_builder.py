@@ -1,3 +1,4 @@
+import functools
 import warnings
 from inspect import isfunction
 from typing import (
@@ -25,17 +26,25 @@ from requestcompletion.exceptions.node_creation.validation import (
     _check_tool_params_and_details,
     check_connected_nodes,
 )
-from requestcompletion.llm import Parameter
+from requestcompletion.llm import (
+    MessageHistory,
+    ModelBase,
+    Parameter,
+    SystemMessage,
+    Tool,
+    UserMessage,
+)
 from requestcompletion.llm.type_mapping import TypeMapper
-from requestcompletion.nodes.library.mcp_tool import from_mcp_server
-
-from ....llm import MessageHistory, ModelBase, SystemMessage, Tool, UserMessage
-from ....nodes.nodes import Node
-from ....rc_mcp import MCPStdioParams
-from ...library._llm_base import LLMBase
-from ...library.tool_calling_llms._base import OutputLessToolCallLLM
-from ...library.tool_calling_llms.tool_call_llm import ToolCallLLM
-from ..function_base import DynamicFunctionNode
+from requestcompletion.nodes.library._llm_base import LLMBase
+from requestcompletion.nodes.library.easy_usage_wrappers.mcp_tool import from_mcp_server
+from requestcompletion.nodes.library.function_base import DynamicFunctionNode
+from requestcompletion.nodes.library.tool_calling_llms._base import (
+    OutputLessToolCallLLM,
+)
+from requestcompletion.nodes.library.tool_calling_llms.tool_call_llm import ToolCallLLM
+from requestcompletion.nodes.nodes import Node
+from requestcompletion.rc_mcp import MCPStdioParams
+from requestcompletion.visuals.browser.chat_ui import ChatUI
 
 _TNode = TypeVar("_TNode", bound=Node)
 _P = ParamSpec("_P")
@@ -144,8 +153,8 @@ class NodeBuilder(Generic[_TNode]):
 
         self._with_override("schema", classmethod(lambda cls: schema))
 
-    def struct_mess(self):
-        self._with_override("structured_message", True)
+    def struct_mess_hist(self):
+        self._with_override("struct_mess_hist", True)
 
     def tool_calling_llm(
         self, connected_nodes: Set[Union[Type[Node], Callable]], max_tool_calls: int
@@ -167,7 +176,9 @@ class NodeBuilder(Generic[_TNode]):
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         )
 
-        from ..function import from_function
+        from requestcompletion.nodes.library.easy_usage_wrappers.function import (
+            from_function,
+        )
 
         connected_nodes = {
             from_function(elem) if isfunction(elem) else elem
@@ -219,6 +230,22 @@ class NodeBuilder(Generic[_TNode]):
         self._with_override("connected_nodes", classmethod(lambda cls: connected_nodes))
         self._with_override("max_tool_calls", max_tool_calls)
 
+    def chat_ui(
+        self,
+        chat_ui: ChatUI,
+    ):
+        """
+        Configure a chat UI for the node.
+
+        Starts the chat UI server asynchronously and sets it as an override
+        for the node being built.
+
+        Args:
+            chat_ui (ChatUI): The chat UI instance to configure for this node.
+        """
+        chat_ui.start_server_async()
+        self._with_override("chat_ui", chat_ui)
+
     @overload
     def setup_function_node(
         self,
@@ -260,9 +287,7 @@ class NodeBuilder(Generic[_TNode]):
 
         self._with_override("type_mapper", classmethod(lambda cls: type_mapper))
 
-        self._with_override(
-            "func", classmethod(lambda cls, *args, **kwargs: func(*args, **kwargs))
-        )
+        self._with_override("func", classmethod_preserving_function_meta(func))
 
         self.override_tool_info(
             tool=Tool.from_function(func, details=tool_details, params=tool_params)
@@ -380,6 +405,34 @@ class NodeBuilder(Generic[_TNode]):
 
         self._with_override("prepare_tool", classmethod(prepare_tool))
 
+    def add_attribute(self, name: str, attribute, make_function: bool, *args, **kwargs):
+        """
+        Add or override an attribute or method on the dynamically built node class.
+        This takes functions or values and can make them class methods or class fields
+
+        Args:
+            name (str): The name of the attribute or method to add/override.
+            attribute: The value or function to set.
+            make_function (bool): If True, will make the attribute a class method that can be called.
+            *args: positional parameters if you are passing a function to be called
+            **kwargs: keyword arguments if you are passing a function to be called
+
+        Example:
+            builder.add_attribute("my_attr", 42, make_function=False)
+            builder.add_attribute("my_attr", 42, make_function=True)
+            builder.add_attribute("my_method", lambda cls: ..., make_function=True)
+        """
+        if make_function:
+            if callable(attribute):
+                self._with_override(name, classmethod(attribute))
+            else:
+                self._with_override(name, classmethod(lambda cls: attribute))
+        else:
+            if callable(attribute):
+                self._with_override(name, attribute(*args, **kwargs))
+            else:
+                self._with_override(name, attribute)
+
     def _with_override(self, name: str, method):
         """
         Add an override method for the node.
@@ -416,3 +469,11 @@ class NodeBuilder(Generic[_TNode]):
         casted_klass = cast(Type[_TNode], klass)  # Ensure type consistency
 
         return casted_klass
+
+
+def classmethod_preserving_function_meta(func):
+    @functools.wraps(func)
+    def wrapper(cls, *args, **kwargs):
+        return func(*args, **kwargs)
+
+    return classmethod(wrapper)
