@@ -318,7 +318,7 @@ class NodeBuilder(Generic[_TNode]):
         *,
         name: str = None,
         tool_details: str = "",
-        tool_params: Iterable[Parameter] | None = None,
+        tool_params: dict[str, Any] | Iterable[Parameter] | None = None,
     ):
         pass
 
@@ -377,7 +377,7 @@ class NodeBuilder(Generic[_TNode]):
 
             self._with_override("tool_info", classmethod(tool_info))
 
-    def _override_prepare_tool_llm(self, tool_params: Iterable[Parameter]):
+    def _override_prepare_tool_llm(self, tool_params: dict[str, Any] | Set[Parameter] | None = None):
         """
         Override the prepare_tool function specifically for LLM nodes.
 

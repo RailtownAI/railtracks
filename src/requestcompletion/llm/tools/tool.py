@@ -9,7 +9,6 @@ import inspect
 import warnings
 from typing import Any, Callable, Dict, List, Optional, Set, Type, Union
 from requestcompletion.exceptions import NodeCreationError
-from requestcompletion.exceptions.node_creation.validation import validate_tool_params
 from pydantic import BaseModel
 from typing_extensions import Self
 from .schema_parser import parse_json_schema_to_parameter
@@ -17,11 +16,9 @@ from .docstring_parser import extract_main_description, parse_docstring_args
 from .parameter import Parameter
 from .parameter_handlers import (
     DefaultParameterHandler,
-    DictParameterHandler,
     ParameterHandler,
     PydanticModelHandler,
     SequenceParameterHandler,
-    DictParameterHandler,
     DefaultParameterHandler,
     UnionParameterHandler,
 )
@@ -47,6 +44,7 @@ class Tool:
             detail: A detailed description of the tool.
             parameters: Parameters attached to this tool; a set of Parameter objects, or a dict.
         """
+        from requestcompletion.exceptions.node_creation.validation import validate_tool_params
         params_valid = validate_tool_params(parameters, Parameter)
         if params_valid and isinstance(parameters, dict) and len(parameters) > 0:   # if parameters is a JSON-schema, convert into Parameter objects (Checks should be done in validate_tool_params)
             props = parameters.get("properties")
@@ -145,7 +143,7 @@ class Tool:
             handlers: List[ParameterHandler] = [
                 PydanticModelHandler(),
                 SequenceParameterHandler(),
-                DictParameterHandler(),
+                UnionParameterHandler(),
                 DefaultParameterHandler(),
             ]
 
