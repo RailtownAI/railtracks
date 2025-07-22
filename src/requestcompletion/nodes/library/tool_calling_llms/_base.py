@@ -15,6 +15,7 @@ from requestcompletion.llm import (
     ToolCall,
     ToolMessage,
     ToolResponse,
+    UserMessage,
 )
 
 from ...nodes import Node
@@ -55,7 +56,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
 
     def __init__(
         self,
-        user_input: MessageHistory,
+        user_input: MessageHistory | UserMessage | str,
         llm_model: ModelBase | None = None,
         max_tool_calls: int | None = None,
     ):

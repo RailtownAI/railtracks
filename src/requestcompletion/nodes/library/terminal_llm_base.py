@@ -1,5 +1,3 @@
-from typing import Union
-
 from ... import context
 from ...exceptions import LLMError
 from ...llm import MessageHistory, ModelBase, UserMessage
@@ -31,7 +29,7 @@ class TerminalLLM(LLMBase[str]):
 
     def __init__(
         self,
-        user_input: Union[MessageHistory, UserMessage, str],
+        user_input: MessageHistory | UserMessage | str,
         llm_model: ModelBase | None = None,
     ):
         """Creates a new instance of the TerminalLLM class.

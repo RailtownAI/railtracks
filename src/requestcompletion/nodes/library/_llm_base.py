@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from abc import ABC
 from copy import deepcopy
-from typing import Any, Dict, Generic, Iterable, TypeVar, Union
+from typing import Any, Dict, Generic, Iterable, TypeVar
 
 from typing_extensions import Self
 
@@ -129,7 +129,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
 
     def __init__(
         self,
-        user_input: Union[llm.MessageHistory, UserMessage, str],
+        user_input: llm.MessageHistory | UserMessage | str,
         llm_model: llm.ModelBase | None = None,
     ):
         """Initialize a new LLMBase instance.
