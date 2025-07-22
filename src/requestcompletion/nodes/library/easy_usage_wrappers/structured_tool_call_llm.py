@@ -17,12 +17,12 @@ _TOutput = TypeVar("_TOutput", bound=BaseModel)
 
 def structured_tool_call_llm(
     connected_nodes: Iterable[Union[Type[Node], Callable]],
+    schema: Type[_TOutput],
     *,
     pretty_name: str | None = None,
     llm_model: ModelBase | None = None,
     max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
-    schema: Type[_TOutput],
     tool_details: str | None = None,
     tool_params: set[Parameter] | None = None,
     return_into: str | None = None,
