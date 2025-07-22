@@ -8,7 +8,7 @@ import pytest
 import railtracks as rt
 from railtracks.rt_mcp import MCPHttpParams
 from railtracks.rt_mcp.to_node import create_mcp_server
-from railtracks.nodes import library asrt_library
+from railtracks.nodes import library as rt_library
 
 from mcp.server import FastMCP
 
@@ -49,7 +49,7 @@ def add_nums(num1: int, num2: int, print_s: str):
     return num1 + num2 + 10
 
 
-node =rt_library.from_function(add_nums)
+node = rt_library.from_function(add_nums)
 
 FAST_MCP_PORT = get_free_port(8000)
 
@@ -82,7 +82,7 @@ def mcp_server():
 #                                    Tests                                    #
 # --------------------------------------------------------------------------- #
 def test_add_nums_tool(mcp_server):
-    server =rt_library.from_mcp_server(
+    server = rt_library.from_mcp_server(
         MCPHttpParams(url=f"http://127.0.0.1:{FAST_MCP_PORT}/mcp")
     )
     assert len(server.tools) == 1

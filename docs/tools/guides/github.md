@@ -4,8 +4,8 @@ To use the GitHub MCP server with RT, use the `from_mcp_server` utility to load 
 
 ```python
 import os
-from requestcompletion.rc_mcp import MCPHttpParams
-from requestcompletion.nodes.library.easy_usage_wrappers.mcp_tool import from_mcp_server
+from railtracks.rt_mcp import MCPHttpParams
+from railtracks.nodes.library.easy_usage_wrappers.mcp_tool import from_mcp_server
 
 server = from_mcp_server(
     MCPHttpParams(
@@ -21,7 +21,7 @@ tools = server.tools
 At this point, the tools can be used the same as any other RT tool. See the following code as a simple example.
 
 ```python
-from requestcompletion.nodes.library.easy_usage_wrappers.tool_call_llm import tool_call_llm
+from railtracks.nodes.library.easy_usage_wrappers.tool_call_llm import tool_call_llm
 import railtracks as rt
 
 agent = tool_call_llm(

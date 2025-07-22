@@ -278,7 +278,7 @@ def test_call_sync_with_no_running_loop():
     with patch('asyncio.get_running_loop', side_effect=RuntimeError("No running loop")), \
          patch('asyncio.new_event_loop') as mock_new_loop, \
          patch('asyncio.set_event_loop') as mock_set_loop, \
-         patch('requestcompletion.interaction.call.call') as mock_call:
+         patch('railtracks.interaction.call.call') as mock_call:
         
         mock_loop = Mock()
         mock_task = Mock()

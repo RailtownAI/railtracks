@@ -5,7 +5,7 @@ import railtracks as rt
 from railtracks.execution.task import Task
 
 
-@patch("requestcompletion.execution.task.update_parent_id")
+@patch("railtracks.execution.task.update_parent_id")
 @pytest.mark.asyncio
 async def test_invoke_calls_update_and_node_invoke(mock_update_parent_id, mock_node):
     task = Task(request_id="req-1", node=mock_node)
@@ -15,7 +15,7 @@ async def test_invoke_calls_update_and_node_invoke(mock_update_parent_id, mock_n
     assert result == "result"
 
 
-@patch("requestcompletion.execution.task.update_parent_id")
+@patch("railtracks.execution.task.update_parent_id")
 @pytest.mark.asyncio
 async def test_invoke_propagates_exception(mock_update_parent_id, mock_node):
     mock_node.tracked_invoke.side_effect = RuntimeError("fail!")

@@ -19,7 +19,7 @@ Before implementing this integration, you'll need:
 
 3. **Required packages**: <br>
    ```
-   pip install requestcompletion python-dotenv aiohttp
+   pip install railtracks python-dotenv aiohttp
    ```
 
 ## Implementation
@@ -29,9 +29,9 @@ Before implementing this integration, you'll need:
 ```python
 from dotenv import load_dotenv
 import os
-from requestcompletion.nodes.library import from_mcp_server, tool_call_llm
+from railtracks.nodes.library import from_mcp_server, tool_call_llm
 import railtracks as rt
-from requestcompletion.rc_mcp import MCPHttpParams
+from railtracks.rt_mcp import MCPHttpParams
 import aiohttp
 from typing import Dict, Any
 

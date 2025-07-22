@@ -54,7 +54,7 @@ class NodeBuilder(Generic[_TNode]):
     """
     A flexible builder for dynamically creating Node subclasses with custom configuration.
 
-    NodeBuilder allows you to programmatically construct new node classes through the requestcompletion framework,
+    NodeBuilder allows you to programmatically construct new node classes through the railtracks framework,
     overriding methods and attributes such as pretty name, tool details, parameters, and LLM configuration.
     This is useful for classes that need small changes to existing classes like ToolCalling, Structured, or Terminal LLMs.
     See EasyUsageWrappers for examples of how to use this builder.

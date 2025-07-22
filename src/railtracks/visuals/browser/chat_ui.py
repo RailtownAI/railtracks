@@ -74,7 +74,7 @@ class ChatUI:
             FileNotFoundError: If the static file cannot be found
         """
         try:
-            package_files = files('requestcompletion.visuals.browser')
+            package_files = files('railtracks.visuals.browser')
             return (package_files / filename).read_text(encoding='utf-8')
         except Exception as e:
             raise Exception(f"Exception occurred loading static '{filename}' for Chat UI") from e

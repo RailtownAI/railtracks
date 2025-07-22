@@ -29,7 +29,7 @@ def structured_llm(  # noqa: C901
 
     This easy-usage wrapper dynamically builds a node class that supports structured LLM output.
     This allows you to specify the schema, llm model, system message, tool metadata,
-    and parameters. The returned class can be instantiated and used in the requestcompletion framework on runtime.
+    and parameters. The returned class can be instantiated and used in the railtracks framework on runtime.
 
     Args:
         schema (Type[BaseModel]): The Pydantic model that defines the structure of the output.

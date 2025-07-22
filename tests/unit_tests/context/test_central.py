@@ -11,7 +11,7 @@ def test_safe_get_runner_context_raises_when_none():
 
 def test_is_context_present_and_active(monkeypatch, make_runner_context_vars):
     rt = make_runner_context_vars()
-    monkeypatch.setattr(central, "runner_context", mock.Mock(get=mock.Mock(return_value=rc)))
+    monkeypatch.setattr(central, "runner_context", mock.Mock(get=mock.Mock(return_value=rt)))
     assert central.is_context_present()
     assert central.is_context_active()
 # ============ END Runner Context Tests ===============
@@ -63,7 +63,7 @@ def test_register_globals_sets_context(monkeypatch):
     monkeypatch.setattr(central, "RunnerContextVars", mock.Mock())
     central.register_globals(
         runner_id="r1",
-       rt_publisher=None,
+        rt_publisher=None,
         parent_id=None,
         executor_config=mock.Mock(),
         global_context_vars={"foo": "bar"},

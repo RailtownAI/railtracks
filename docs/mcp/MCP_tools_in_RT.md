@@ -15,14 +15,14 @@ RC supports seamless integration with [Model Context Protocol (MCP)](index.md), 
 ### 1. Set up MCP Tools in R C
 
 R C supports both remote and local MCP servers. For remote servers, you will need the server URL, and for local servers, you need the command and the args. Pass these parameters into the `MCPHttpParams` or `MCPStdioParams` classes, respectively.
-To turn MCP tools into RT Tools, you can use the `from_mcp_server` function from the `requestcompletion.nodes.library` module. `from_mcp_server` returns a server object that contains all the MCP tools as RT Tool Nodes. You can get the list of tools using the `tools` property of the server object.
+To turn MCP tools into RT Tools, you can use the `from_mcp_server` function from the `railtracks.nodes.library` module. `from_mcp_server` returns a server object that contains all the MCP tools as RT Tool Nodes. You can get the list of tools using the `tools` property of the server object.
 At this point, you can use the tools in your RT agents just like any other RT Tool!
 
 #### Example
 ```python
 import railtracks as rt
-from requestcompletion.nodes.library import from_mcp_server
-from requestcompletion.rc_mcp import MCPHttpParams
+from railtracks.nodes.library import from_mcp_server
+from railtracks.rt_mcp import MCPHttpParams
 
 # Connect to an MCP server
 server = from_mcp_server(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))

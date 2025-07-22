@@ -2,7 +2,7 @@
 Tests for the parameter module.
 
 This module contains tests for the Parameter classes and related functionality
-in the requestcompletion.llm.tools.parameter module.
+in the railtracks.llm.tools.parameter module.
 """
 
 from railtracks.llm.tools.parameter import (

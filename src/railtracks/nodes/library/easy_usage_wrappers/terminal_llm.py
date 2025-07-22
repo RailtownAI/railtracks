@@ -23,7 +23,7 @@ def terminal_llm(  # noqa: C901
 
     This easy-usage wrapper dynamically builds a node class that supports a basic LLM.
     This allows you to specify the llm model, system message, tool metadata, and parameters.
-    The returned class can be instantiated and used in the requestcompletion framework on runtime.
+    The returned class can be instantiated and used in the railtracks framework on runtime.
 
     Args:
         pretty_name (str, optional): Human-readable name for the node/tool.

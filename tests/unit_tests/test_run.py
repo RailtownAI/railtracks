@@ -10,20 +10,20 @@ from railtracks.run import Runner, RunnerCreationError, RunnerNotFoundError
 def mock_dependencies(monkeypatch):
     m_prepare_logger = MagicMock()
     m_get_global_config = MagicMock()
-    m_RCPublisher = MagicMock()
+    m_RTPublisher = MagicMock()
     m_ExecutionInfo = MagicMock(create_new=MagicMock())
     m_Coordinator = MagicMock()
-    m_RCState = MagicMock()
+    m_RTState = MagicMock()
     m_register_globals = MagicMock()
     m_delete_globals = MagicMock()
     m_detach_logging_handlers = MagicMock()
 
     monkeypatch.setattr('railtracks.run.prepare_logger', m_prepare_logger)
     monkeypatch.setattr('railtracks.run.get_global_config', m_get_global_config)
-    monkeypatch.setattr('railtracks.run.RCPublisher', m_RCPublisher)
+    monkeypatch.setattr('railtracks.run.RTPublisher', m_RTPublisher)
     monkeypatch.setattr('railtracks.run.ExecutionInfo', m_ExecutionInfo)
     monkeypatch.setattr('railtracks.run.Coordinator', m_Coordinator)
-    monkeypatch.setattr('railtracks.run.RCState', m_RCState)
+    monkeypatch.setattr('railtracks.run.RTState', m_RTState)
     monkeypatch.setattr('railtracks.run.register_globals', m_register_globals)
     monkeypatch.setattr('railtracks.run.delete_globals', m_delete_globals)
     monkeypatch.setattr('railtracks.run.detach_logging_handlers', m_detach_logging_handlers)
@@ -31,10 +31,10 @@ def mock_dependencies(monkeypatch):
     return {
         'prepare_logger': m_prepare_logger,
         'get_global_config': m_get_global_config,
-        'RCPublisher': m_RCPublisher,
+        'RTPublisher': m_RTPublisher,
         'ExecutionInfo': m_ExecutionInfo,
         'Coordinator': m_Coordinator,
-        'RCState': m_RCState,
+        'RTState': m_RTState,
         'register_globals': m_register_globals,
         'delete_globals': m_delete_globals,
         'detach_logging_handlers': m_detach_logging_handlers,
@@ -46,8 +46,8 @@ def test_runner_construction_with_explicit_config_and_context(mock_dependencies)
     config = MagicMock()
     context = {'foo': 'bar'}
     # Setup mocks with needed API
-    pub_mock = mock_dependencies['RCPublisher'].return_value
-    state_mock = mock_dependencies['RCState'].return_value
+    pub_mock = mock_dependencies['RTPublisher'].return_value
+    state_mock = mock_dependencies['RTState'].return_value
     info_mock = MagicMock()
     state_mock.info = info_mock
 

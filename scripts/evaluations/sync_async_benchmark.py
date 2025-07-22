@@ -6,6 +6,7 @@ import railtracks as rt
 def sync_blocking(timeout: float):
     time.sleep(timeout)
 
+
 Blocking = rt.library.from_function(sync_blocking)
 
 lengths = [1, 2, 2, 2, 1]

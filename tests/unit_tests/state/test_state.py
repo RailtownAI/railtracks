@@ -85,7 +85,7 @@ def test_info_and_get_info_filters_and_returns(dummy_execution_info, dummy_execu
     dummy_execution_info.node_heap._heap["x"] = MagicMock()
     dummy_execution_info.request_heap._heap["req"] = MagicMock()
     monkeypatch.setattr(
-        "requestcompletion.state.state.create_sub_state_info",
+        "railtracks.state.state.create_sub_state_info",
         lambda n, r, ids: (MagicMock(), MagicMock()),
     )
     r = state.get_info(["x"])

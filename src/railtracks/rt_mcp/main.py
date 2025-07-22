@@ -196,7 +196,7 @@ def from_mcp(
     loop: asyncio.AbstractEventLoop,
 ) -> Type[Node]:
     """
-    Wrap an MCP tool as a Node class for use in the requestcompletion framework.
+    Wrap an MCP tool as a Node class for use in the railtracks framework.
 
     Args:
         tool: The MCP tool object.

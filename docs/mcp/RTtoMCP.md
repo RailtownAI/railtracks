@@ -8,7 +8,7 @@ RC provides utilities to convert your Nodes into MCP tools and run a FastMCP ser
 
 ## Prerequisites
 
-- **RC Framework** installed (`pip install requestcompletion`)
+- **RC Framework** installed (`pip install railtracks`)
 
 ## Basic Usage
 
@@ -17,8 +17,8 @@ RC provides utilities to convert your Nodes into MCP tools and run a FastMCP ser
 Use the `create_mcp_server` utility to expose your RT nodes as MCP tools:
 
 ```python
-from requestcompletion.nodes.library import from_function
-from requestcompletion.rc_mcp.to_node import create_mcp_server
+from railtracks.nodes.library import from_function
+from railtracks.rt_mcp.to_node import create_mcp_server
 
 def add_nums_plus_ten(num1: int, num2: int):
     """Simple tool example."""
@@ -38,8 +38,8 @@ This exposes your RT tool at `http://127.0.0.1:8000/mcp` for any MCP client.
 Any MCP-compatible client or LLM agent can now discover and invoke your tool. As an example, you can use R C itself to try your tool:
 
 ```python
-from requestcompletion.nodes.library.mcp_tool import from_mcp_server
-from requestcompletion.rc_mcp.main import MCPHttpParams
+from railtracks.nodes.library.mcp_tool import from_mcp_server
+from railtracks.rt_mcp.main import MCPHttpParams
 
 server = from_mcp_server(MCPHttpParams(url="http://127.0.0.1:8000/mcp"))
 tools = server.tools

@@ -32,7 +32,7 @@ def structured_tool_call_llm(  # noqa: C901
 
     This easy-usage wrapper dynamically builds a node class that supports LLM tool calling where it will return
     a structured output. This allows you to specify connected tools, llm model, schema, system message, tool metadata,
-    and parameters. The returned class can be instantiated and used in the requestcompletion framework on runtime.
+    and parameters. The returned class can be instantiated and used in the railtracks framework on runtime.
 
     Args:
         connected_nodes (Set[Union[Type[Node], Callable]]): The set of node classes or callables that this node can call as tools.

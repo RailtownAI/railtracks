@@ -9,8 +9,8 @@ from railtracks.pubsub.messages import RequestSuccess, RequestFailure
 # ============ START AsyncioExecutionStrategy Tests ===============
 
 @pytest.mark.asyncio
-@patch("requestcompletion.execution.execution_strategy.NodeState")
-@patch("requestcompletion.execution.execution_strategy.get_publisher")
+@patch("railtracks.execution.execution_strategy.NodeState")
+@patch("railtracks.execution.execution_strategy.get_publisher")
 async def test_asyncio_execute_success(
     mock_get_publisher, mock_node_state, mock_task, mock_publisher
 ):
@@ -31,8 +31,8 @@ async def test_asyncio_execute_success(
     mock_publisher.publish.assert_awaited_once_with(response)
 
 @pytest.mark.asyncio
-@patch("requestcompletion.execution.execution_strategy.NodeState")
-@patch("requestcompletion.execution.execution_strategy.get_publisher")
+@patch("railtracks.execution.execution_strategy.NodeState")
+@patch("railtracks.execution.execution_strategy.get_publisher")
 async def test_asyncio_execute_failure(
     mock_get_publisher, mock_node_state, mock_task, mock_publisher
 ):

@@ -93,7 +93,7 @@ class Runner:
         self.setup_subscriber()
         register_globals(
             runner_id=self._identifier,
-           rt_publisher=self.publisher,
+            rt_publisher=self.publisher,
             parent_id=None,
             executor_config=executor_config,
             global_context_vars=context,

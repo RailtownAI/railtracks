@@ -2,7 +2,7 @@
 Tests for the schema_parser module.
 
 This module contains tests for the JSON schema parsing utilities in the
-requestcompletion.llm.tools.schema_parser module.
+railtracks.llm.tools.schema_parser module.
 """
 
 import re

@@ -38,7 +38,7 @@ creating a simple Agentic system using the Request Completion framework.
 ### Step 1: Install the Library
 
 ```bash
-pip install requestcompletion
+pip install railtracks
 ```
 
 ### Step 2: Define your Modular Components

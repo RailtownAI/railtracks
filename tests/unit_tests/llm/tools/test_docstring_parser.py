@@ -2,7 +2,7 @@
 Tests for the docstring_parser module.
 
 This module contains tests for the docstring parsing utilities in the
-requestcompletion.llm.tools.docstring_parser module.
+railtracks.llm.tools.docstring_parser module.
 """
 
 from railtracks.llm.tools.docstring_parser import (

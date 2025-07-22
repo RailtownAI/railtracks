@@ -8,7 +8,7 @@ Finally, use the `from_mcp_server` utility to load tools directly from the MCP s
 import os
 
 from mcp import StdioServerParameters
-from requestcompletion.nodes.library import from_mcp_server
+from railtracks.nodes.library import from_mcp_server
 
 MCP_COMMAND = "npx"
 MCP_ARGS = ["-y", "@modelcontextprotocol/server-slack"]
@@ -32,7 +32,7 @@ tools = server.tools
 At this point, the tools can be used the same as any other RT tool. See the following code as a simple example.
 
 ```python
-from requestcompletion.nodes.library import tool_call_llm
+from railtracks.nodes.library import tool_call_llm
 import railtracks as rt
 
 agent = tool_call_llm(

@@ -186,5 +186,5 @@ class ExecutionInfo:
                 "edges": self.request_heap.to_edges(),
                 "steps": self.all_stamps,
             },
-            cls=RCJSONEncoder,
+            cls=RTJSONEncoder,
         )

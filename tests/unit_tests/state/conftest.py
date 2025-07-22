@@ -213,6 +213,6 @@ def dummy_executor_config():
 def patch_rt_logger(monkeypatch):
     # Patch get_rt_logger to return a MagicMock logger for every RTState
     monkeypatch.setattr(
-        "requestcompletion.state.state.get_rt_logger", lambda: MagicMock()
+        "railtracks.state.state.get_rt_logger", lambda: MagicMock()
     )
 # ================ END fixtures for state.py ====================

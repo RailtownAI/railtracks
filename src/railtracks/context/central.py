@@ -132,7 +132,7 @@ def get_parent_id() -> str | None:
 def register_globals(
     *,
     runner_id: str,
-   rt_publisher: RTPublisher | None,
+    rt_publisher: RTPublisher | None,
     parent_id: str | None,
     executor_config: ExecutorConfig,
     global_context_vars: dict[str, Any],
@@ -141,7 +141,7 @@ def register_globals(
     Register the global variables for the current thread.
     """
     i_c = InternalContext(
-        publisher=rc_publisher,
+        publisher=rt_publisher,
         parent_id=parent_id,
         runner_id=runner_id,
         executor_config=executor_config,
