@@ -19,6 +19,10 @@ init(autoreset=True)
 
 
 class ColorfulFormatter(logging.Formatter):
+    """
+    A simple formatter that can be used to format log messages with colours based on the log level and specific keywords.
+    """
+
     def __init__(self, fmt=None, datefmt=None):
         super().__init__(fmt, datefmt)
         self.level_colors = {
@@ -61,6 +65,10 @@ class ColorfulFormatter(logging.Formatter):
 
 
 def level_filter(value: int):
+    """
+    A helper function to create a filter function that filters log records based on their level.
+    """
+
     def filter_func(record: logging.LogRecord):
         return record.levelno >= value
 
@@ -68,6 +76,12 @@ def level_filter(value: int):
 
 
 def setup_verbose_logger_config():
+    """
+    Sets up the logger configuration in verbose mode.
+
+    Specifically that means:
+    - The console will log all messages (including debug)
+    """
     console_handler = logging.StreamHandler()
     # in the verbose case we would like to use the debug level.
     console_handler.setLevel(logging.DEBUG)
@@ -85,6 +99,9 @@ def setup_verbose_logger_config():
 
 
 def setup_regular_logger_config():
+    """
+    Setups the logger in the regular mode. This mode will print all messages except debug messages to the console.
+    """
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
 
@@ -99,6 +116,9 @@ def setup_regular_logger_config():
 
 
 def setup_quiet_logger_config():
+    """
+    Set up the logger to only log warning and above messages.
+    """
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.WARNING)
 
@@ -112,7 +132,7 @@ def setup_quiet_logger_config():
 
 def setup_none_logger_config():
     """
-    Set up the logger to do nothing.
+    Set up the logger to print nothing. This can be a useful optimization technique.
     """
     # set up a logger which does not do anything.
     logger = logging.getLogger(rc_logger_name)
@@ -131,6 +151,9 @@ def setup_file_handler(
     | logging.ERROR
     | logging.CRITICAL = logging.INFO,
 ):
+    """
+    Setups a logger file handler that will log messages to a file with the given name and logging level.
+    """
     file_handler = logging.FileHandler(file_name)
     file_handler.setLevel(file_logging_level)
 
@@ -147,12 +170,14 @@ def setup_file_handler(
     logger.addHandler(file_handler)
 
 
-# TODO fill out the rest of the logic
 def prepare_logger(
     *,
     setting: allowable_log_levels,
     path: str | os.PathLike | None = None,
 ):
+    """
+    Prepares the logger based on the setting and optionally sets up the file handler if a path is provided.
+    """
     if path is not None:
         setup_file_handler(file_name=path, file_logging_level=logging.INFO)
 

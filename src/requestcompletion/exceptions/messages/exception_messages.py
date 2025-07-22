@@ -1,5 +1,6 @@
 import os
 from enum import Enum
+from typing import List
 
 import yaml
 
@@ -43,13 +44,18 @@ with open(_yaml_path, "r", encoding="utf-8") as f:
     _messages = yaml.safe_load(f)
 
 
-def get_message(key: str) -> str:
-    if isinstance(key, Enum):
+def get_message(key: str | ExceptionMessageKey) -> str:
+    if isinstance(key, ExceptionMessageKey):
         key = key.value
     return _messages[key]
 
 
-def get_notes(key: str) -> str:
-    if isinstance(key, Enum):
+def get_notes(key: str | ExceptionMessageKey) -> str | List[str]:
+    """
+    Gets the notes for a given message key.
+
+    The return type can either be a single string or a list of string
+    """
+    if isinstance(key, ExceptionMessageKey):
         key = key.value
     return _messages[key]

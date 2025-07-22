@@ -70,19 +70,19 @@ class ModelBase(ABC):
         self._exception_hook = []
 
     @abstractmethod
-    def model_name(self) -> str | None:
+    def model_name(self) -> str:
         """
         Returns the name of the model being used.
 
         It can be treated as unique identifier for the model when paired with the `model_type`.
         """
-        return None
+        pass
 
     @classmethod
     @abstractmethod
-    def model_type(cls) -> str | None:
+    def model_type(cls) -> str:
         """The name of the provider of this model or the model type."""
-        return None
+        pass
 
     def _run_pre_hooks(self, message_history: MessageHistory) -> MessageHistory:
         """Runs all pre-hooks on the provided message history."""

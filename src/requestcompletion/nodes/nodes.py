@@ -9,7 +9,6 @@ from typing import (
     Any,
     Dict,
     Generic,
-    ParamSpec,
     TypeVar,
 )
 
@@ -24,7 +23,6 @@ from ..exceptions.node_creation.validation import (
 _TOutput = TypeVar("_TOutput")
 
 _TNode = TypeVar("_TNode", bound="Node")
-_P = ParamSpec("_P")
 
 
 class NodeState(Generic[_TNode]):
@@ -99,6 +97,9 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
                 method = cls.__dict__[method_name]
                 check_classmethod(method, method_name)
 
+        # without this direct call to the parent __init_subclass__ method the generic resolutions will not work correctly
+        super().__init_subclass__()
+
     def __init__(
         self,
         *,
@@ -153,7 +154,7 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
 
     def safe_copy(self) -> Self:
         """
-        A method used to create a new pass by value copy of every element of the node except for the backend connections.
+        A method used to create a new pass by value copy of every element of the node.
         """
         cls = self.__class__
         result = cls.__new__(cls)
@@ -162,4 +163,4 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
         return result
 
     def __repr__(self):
-        return f"{hex(id(self))}: {self.pretty_name()}: {self.state_details()}"
+        return f"{self.pretty_name()} <{hex(id(self))}>"

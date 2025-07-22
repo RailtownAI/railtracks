@@ -40,6 +40,7 @@ nav:
 
   - Guides:
         - guides/index.md
+        - guides/agents.md
 
 
 
@@ -57,6 +58,8 @@ nav:
 
   - MCP:
         - mcp/index.md
+        - mcp/MCP_tools_in_RC.md
+        - mcp/RCtoMCP.md
 
   - Visualization:
         - visualization/index.md
@@ -88,6 +91,10 @@ plugins:
   - mkdocstrings
 #  - mkdocs-mermaid2-plugin
 #  - awesome-pages
+
+markdown_extensions:
+  - pymdownx.emoji:
+      emoji_generator: !!python/name:pymdownx.emoji.to_svg
 
 
 

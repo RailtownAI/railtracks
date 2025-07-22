@@ -353,7 +353,7 @@ class LiteLLMWrapper(ModelBase, ABC):
             return f"LiteLLMWrapper(provider={parts[0]}, name={parts[1]})"
         return f"LiteLLMWrapper(name={self._model_name})"
 
-    def model_name(self) -> str | None:
+    def model_name(self) -> str:
         """
         Returns the model name.
         """

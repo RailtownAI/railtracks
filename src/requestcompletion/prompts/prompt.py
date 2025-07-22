@@ -8,6 +8,10 @@ from ..llm import Message, MessageHistory
 
 
 class KeyOnlyFormatter(string.Formatter):
+    """
+    A simple formatter which will only use keyword arguments to fill placeholders.
+    """
+
     def get_value(self, key, args, kwargs):
         try:
             return kwargs[str(key)]
@@ -24,6 +28,9 @@ class _ContextDict(dict):
 
 
 def fill_prompt(prompt: str) -> str:
+    """
+    Fills a prompt using the rc context object as its source of truth
+    """
     return KeyOnlyFormatter().vformat(prompt, (), _ContextDict())
 
 
@@ -37,6 +44,7 @@ def inject_context(message_history: MessageHistory):
     """
     # we need to be able to handle the case where the user is not running this within the context of a `rc.Runner()`
     try:
+        # if the context is not set (Runner is not active), the `ContextError` will be raised.
         local_config = get_local_config()
         is_prompt_inject = local_config.prompt_injection
     except ContextError:

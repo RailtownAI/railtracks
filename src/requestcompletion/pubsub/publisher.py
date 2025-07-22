@@ -105,11 +105,14 @@ class Publisher(Generic[_T]):
 
                     await asyncio.gather(*contracts)
 
+                # we need a broad exception clause to catch any errors that might occur in the subs.
                 except Exception:
                     pass
 
                 # will only reach this section after all the messages have been handled
 
+            # this exception is raised when the queue is empty for `self.timeout` seconds.
+            # we do this so we can check is the self._running flag.
             except asyncio.TimeoutError:
                 continue
 
@@ -171,7 +174,7 @@ class Publisher(Generic[_T]):
         """
 
         async def single_listener():
-            returnable_result: RequestCompletionMessage | None = None
+            returnable_result: asyncio.Future[_T] = asyncio.Future()
             # we are gonna use the asyncio.event system instead of threading
             listener_event = asyncio.Event()
 
@@ -179,7 +182,7 @@ class Publisher(Generic[_T]):
                 nonlocal returnable_result
                 if message_filter(message):
                     # this will trigger the end of the listener loop
-                    returnable_result = message
+                    returnable_result.set_result(message)
                     listener_event.set()
                     return
 
@@ -200,11 +203,9 @@ class Publisher(Generic[_T]):
                         "Listener has been killed before receiving the correct message."
                     )
 
-            assert returnable_result is not None, (
-                "Listener should have received a message before returning."
-            )
+            unwrapped_returned_result: _T = returnable_result.result()
             self.unsubscribe(sub_id)
-            return result_mapping(returnable_result)
+            return result_mapping(unwrapped_returned_result)
 
         return await single_listener()
 
@@ -232,13 +233,21 @@ class Publisher(Generic[_T]):
 
 
 class RCPublisher(Publisher[RequestCompletionMessage]):
+    """
+    A specialized Publisher class designed to handle RequestCompletionMessage objects.
+    """
+
     def __init__(self):
         super().__init__()
         self.subscribe(self.logging_sub)
 
     @classmethod
     async def logging_sub(cls, message: RequestCompletionMessage):
-        """Logs the provided message as a debug message."""
+        """
+        Logs the provided message as a debug message.
+
+        In the case that we see an error that is also logged.
+        """
         if isinstance(message, (RequestCreationFailure, RequestFailure)):
             logger.debug(message.log_message(), exc_info=message.error)
         else:
