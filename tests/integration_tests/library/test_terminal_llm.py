@@ -111,11 +111,11 @@ async def test_terminal_llm_as_tool_correct_initialization(
     encoder_params = encoder.tool_info().parameters
     decoder_params = decoder.tool_info().parameters
     
-    assert all(isinstance(param, rc.llm.Parameter) for param in encoder_params), (
+    assert all(isinstance(param, rt.llm.Parameter) for param in encoder_params), (
         f"Encoder parameters {encoder_params} should be instances of rc.llm.Parameter"
     )
     
-    assert all(isinstance(param, rc.llm.Parameter) for param in decoder_params), (
+    assert all(isinstance(param, rt.llm.Parameter) for param in decoder_params), (
         f"Decoder parameters {decoder_params} should be instances of rc.llm.Parameter"
     )
 

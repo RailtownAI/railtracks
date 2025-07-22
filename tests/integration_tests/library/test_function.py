@@ -363,11 +363,11 @@ class TestUnionAndOptionalParameter:
         agent = create_top_level_node(
             magic_number, model_provider="openai"
         )
-        with rc.Runner(rc.ExecutorConfig(logging_setting="QUIET")) as run:
+        with rt.Runner(rt.ExecutorConfig(logging_setting="QUIET")) as run:
             response = run.run_sync(
                 agent,
-                rc.llm.MessageHistory(
-                    [rc.llm.UserMessage("Calculate the magic number for 5. Then calculate the magic number for 'fox'. Add them and return the result only.")]
+                rt.llm.MessageHistory(
+                    [rt.llm.UserMessage("Calculate the magic number for 5. Then calculate the magic number for 'fox'. Add them and return the result only.")]
                 ),
             )
 
@@ -390,11 +390,11 @@ class TestUnionAndOptionalParameter:
         agent = create_top_level_node(
             magic_number, model_provider="openai"
         )
-        with rc.Runner(rc.ExecutorConfig(logging_setting="QUIET")) as run:
+        with rt.Runner(rt.ExecutorConfig(logging_setting="QUIET")) as run:
             response = run.run_sync(
                 agent,
-                rc.llm.MessageHistory(
-                    [rc.llm.UserMessage("Calculate the magic number for 21. Then calculate the magic number with no args. Add them and return the result only.")]
+                rt.llm.MessageHistory(
+                    [rt.llm.UserMessage("Calculate the magic number for 21. Then calculate the magic number with no args. Add them and return the result only.")]
                 ),
             )
 

@@ -1,7 +1,7 @@
 import pytest
 import copy
-from requestcompletion.llm.models._litellm_wrapper import _parameters_to_json_schema
-from requestcompletion.llm.tools.schema_parser import parse_json_schema_to_parameter
+from railtracks.llm.models._litellm_wrapper import _parameters_to_json_schema
+from railtracks.llm.tools.schema_parser import parse_json_schema_to_parameter
 import json
 from .conftest import load_json_schemas, deep_equal
 
