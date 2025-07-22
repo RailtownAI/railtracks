@@ -6,7 +6,7 @@ RC supports seamless integration with [Model Context Protocol (MCP)](index.md), 
 
 ## Prerequisites
 
-- **R C Framework** installed (`pip install R C`)
+- **R C Framework** installed (`pip install railtracks`).
 - **MCP package set up.** Every MCP tool has different requirements, so refer to the specific tool documentation for installation instructions.
 - **OAuth**: Some MCP tools may require OAuth authentication. R C supports passing authorization headers into the server, but you will have to handle the OAuth flow separately.
 
@@ -38,12 +38,12 @@ parent_tool = rt.library.tool_call_llm(
 ```
 
 ## More Examples
-- [GitHub Tool Guide](../tools/guides/github.md)
-- [Notion Tool Guide](../tools/guides/notion.md)
-- [Slack Tool Guide](../tools/guides/slack.md)
-- [Web Search Integration Guide](../tools/guides/websearch_integration.md)
+- [GitHub Tool Guide](../guides/github.md)
+- [Notion Tool Guide](../guides/notion.md)
+- [Slack Tool Guide](../guides/slack.md)
+- [Web Search Integration Guide](../guides/websearch_integration.md)
 
 ## Related Topics
 
 - [What is MCP?](index.md)
-- [RC to MCP: Exposing RT Tools as MCP Tools](RCtoMCP.md)
+- [RC to MCP: Exposing RT Tools as MCP Tools](RTtoMCP.md)
