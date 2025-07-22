@@ -1,6 +1,6 @@
 import subprocess
-import requestcompletion as rc
-from requestcompletion.nodes.library import tool_call_llm
+import railtracks as rt
+from railtracks.nodes.library import tool_call_llm
 
 
 def create_sandbox_container():
@@ -30,14 +30,14 @@ agent = tool_call_llm(
     You can execute code in it using run_in_sandbox.
     You can only see the output of the code if it is printed to stdout or stderr, so anything you want to see must be printed.
     You can install packages with code like 'import os; os.system('pip install numpy')'""",
-    model=rc.llm.OpenAILLM("gpt-4o"),
+    model=rt.llm.OpenAILLM("gpt-4o"),
 )
 
 user_prompt = """Create a 3x3 array of random numbers using numpy, and print the array and its mean"""
-message_history = rc.llm.MessageHistory()
-message_history.append(rc.llm.UserMessage(user_prompt))
+message_history = rt.llm.MessageHistory()
+message_history.append(rt.llm.UserMessage(user_prompt))
 
-with rc.Runner(rc.ExecutorConfig(logging_setting="VERBOSE")) as run:
+with rt.Runner(rt.ExecutorConfig(logging_setting="VERBOSE")) as run:
     create_sandbox_container()
     try:
         result = run.run_sync(agent, message_history)

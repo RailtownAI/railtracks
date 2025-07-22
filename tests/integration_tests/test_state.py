@@ -7,13 +7,13 @@ import pytest
 
 from collections import Counter
 
-import requestcompletion as rc
-from requestcompletion import Node
-from requestcompletion.state.forest import AbstractLinkedObject
-from requestcompletion.state.node import LinkedNode, NodeForest
-from requestcompletion.state.request import RequestTemplate
-from requestcompletion.utils.profiling import Stamp
-from requestcompletion.state.utils import create_sub_state_info
+import railtracks as rt
+from railtracks import Node
+from railtracks.state.forest import AbstractLinkedObject
+from railtracks.state.node import LinkedNode, NodeForest
+from railtracks.state.request import RequestTemplate
+from railtracks.utils.profiling import Stamp
+from railtracks.state.utils import create_sub_state_info
 
 def generate_ids(): return RequestTemplate.generate_id()
 
@@ -28,7 +28,7 @@ def create_linked_request(identifier, source, sink):
     stamp=Stamp(identifier="test", time=time.time(), step=1)
 )
 
-def create_node(): return rc.library.from_function(random.random)()
+def create_node(): return rt.library.from_function(random.random)()
 
 def create_linked_node(node: Node): return LinkedNode(
     identifier=node.uuid,

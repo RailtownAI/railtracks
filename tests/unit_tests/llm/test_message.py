@@ -1,7 +1,7 @@
 import pytest
 from typing import List
-from requestcompletion.llm import UserMessage, SystemMessage, AssistantMessage, ToolMessage
-from requestcompletion.llm.content import ToolResponse, ToolCall
+from railtracks.llm import UserMessage, SystemMessage, AssistantMessage, ToolMessage
+from railtracks.llm.content import ToolResponse, ToolCall
 
 
 # =================================== START Message Structure Tests ==================================

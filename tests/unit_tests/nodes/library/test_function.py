@@ -12,11 +12,11 @@ from typing import Tuple, List, Dict, Union
 from pydantic import BaseModel, Field
 import time
 import asyncio
-from requestcompletion.llm.tools.parameter_handlers import UnsupportedParameterError
-from requestcompletion.exceptions.errors import NodeCreationError
-import requestcompletion as rc
-from requestcompletion.exceptions import NodeCreationError
-from requestcompletion.nodes.library import from_function
+from railtracks.llm.tools.parameter_handlers import UnsupportedParameterError
+from railtracks.exceptions.errors import NodeCreationError
+import railtracks as rt
+from railtracks.exceptions import NodeCreationError
+from railtracks.nodes.library import from_function
 
 class PydanticModel(BaseModel):
     """A simple Pydantic model for testing."""
@@ -73,7 +73,7 @@ def func_buggy():
 # ===== Unit Tests =====
 def test_to_node():
     """Test that to_node decorator works correctly."""
-    @rc.to_node
+    @rt.to_node
     def secret_phrase() -> str:
         """
         Function that returns a secret phrase.
@@ -83,7 +83,7 @@ def test_to_node():
         """
         return "Constantinople"
 
-    assert issubclass(secret_phrase, rc.Node)
+    assert issubclass(secret_phrase, rt.Node)
     assert secret_phrase.pretty_name() == "secret_phrase"
 
 # ===== Test Classes =====
@@ -97,7 +97,7 @@ class TestPrimitiveInputTypes:
             """
             return "This is an empty function."
         test_node = from_function(empty_function)
-        with rc.Runner() as run:
+        with rt.Runner() as run:
             result = run.run_sync(test_node).answer
 
         assert "This is an empty function." == result
@@ -107,7 +107,7 @@ class TestPrimitiveInputTypes:
     def test_single_int_input(self, input, expected_output):
         """Test that a function with a single int parameter works correctly."""
         test_node = from_function(func_type)
-        with rc.Runner() as run:
+        with rt.Runner() as run:
             assert run.run_sync(test_node, input).answer == expected_output
 
 class TestSequenceInputTypes:
@@ -115,14 +115,14 @@ class TestSequenceInputTypes:
     def test_multi_arg_input(self, input, expected_output):
         """Test that a function with multiple arg parameters works correctly."""
         test_node = from_function(func_multiple_types)
-        with rc.Runner() as run:
+        with rt.Runner() as run:
             assert run.run_sync(test_node, *input).answer == expected_output
 
     @pytest.mark.parametrize("input, expected_output", kwarg_test_inputs)
     def test_multi_kwarg_input(self, input, expected_output):
         """Test that a function with multiple kwarg parameters works correctly."""
         test_node = from_function(func_multiple_ktypes_coroutine)
-        with rc.Runner() as run:
+        with rt.Runner() as run:
             assert run.run_sync(test_node, **input).answer == expected_output
 
 class TestfunctionMethods:
@@ -154,7 +154,7 @@ class TestRaiseErrors:
         """Test edge case where a function that returns a coroutine raises an error."""
         test_node = from_function(func_buggy)
         with pytest.raises(NodeCreationError):
-            with rc.Runner() as run:
+            with rt.Runner() as run:
                 run.run_sync(test_node)
 
     def test_dict_parameter(self):
@@ -163,13 +163,13 @@ class TestRaiseErrors:
             return fruits.get("secret", "")
 
         with pytest.raises(NodeCreationError, match=self.DICT_ERROR_FROM_FUNCTION_MSG):
-            _ = rc.library.from_function(secret_function)
+            _ = rt.library.from_function(secret_function)
 
 
     def test_nested_dict_parameter(self):
         """Test that a function with a nested dict parameter raises an error."""
         with pytest.raises(NodeCreationError, match=self.DICT_ERROR_FROM_FUNCTION_MSG):
-            @rc.to_node
+            @rt.to_node
             def secret_function(fruits: list[Union[str, list[dict[str, str]]]]) -> str:
                 return "test"
 
@@ -185,7 +185,7 @@ class TestRaiseErrors:
             pass
 
         with pytest.raises(NodeCreationError, match=self.DICT_ERROR_FROM_FUNCTION_MSG):
-            _ = rc.library.from_function(secret_function)
+            _ = rt.library.from_function(secret_function)
 
 
     def test_bmodel_with_nested_dict_param(self):
@@ -197,7 +197,7 @@ class TestRaiseErrors:
             inner: InnerModel
 
         with pytest.raises(NodeCreationError, match=self.DICT_ERROR_FROM_FUNCTION_MSG):
-            @rc.to_node
+            @rt.to_node
             def secret_function(model: OuterModel) -> str:
                 pass
 

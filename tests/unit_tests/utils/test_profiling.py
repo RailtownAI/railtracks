@@ -3,7 +3,7 @@ import threading
 import pickle
 import pytest
 
-from requestcompletion.utils.profiling import Stamp, StampManager
+from railtracks.utils.profiling import Stamp, StampManager
 
 # ================= START Fixtures & Helpers ==================
 @pytest.fixture

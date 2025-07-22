@@ -1,11 +1,11 @@
 import pytest
-import requestcompletion as rc
+import railtracks as rt
 import uuid
 import asyncio
-from requestcompletion.nodes.nodes import DebugDetails, NodeState
-from requestcompletion.exceptions import NodeCreationError
+from railtracks.nodes.nodes import DebugDetails, NodeState
+from railtracks.exceptions import NodeCreationError
 # ========== DUMMY NODES ==========
-class CapitalizeText(rc.Node[str]):
+class CapitalizeText(rt.Node[str]):
     def __init__(self, string: str, debug_details=None):
         self.string = string
         super().__init__(debug_details=debug_details)
@@ -15,7 +15,7 @@ class CapitalizeText(rc.Node[str]):
     def pretty_name(cls) -> str:
         return "Capitalize Text"
 
-class AbstractNode(rc.Node[int]):
+class AbstractNode(rt.Node[int]):
     @classmethod
     def pretty_name(cls) -> str:
         return "Abstract"
@@ -124,13 +124,13 @@ def test_node_creation_meta_checks(monkeypatch):
     # NodeCreationMeta checks: Try making a class with wrong classmethod, breaks
     # Pretty name is NOT classmethod, should error on creation
     with pytest.raises(NodeCreationError):
-        class BadNode(rc.Node[str]):
+        class BadNode(rt.Node[str]):
             def pretty_name(cls): return "nope"
             async def invoke(self): return "x"
 
     # tool_info is NOT classmethod, should error on creation
     with pytest.raises(NodeCreationError):
-        class BadNode2(rc.Node[str]):
+        class BadNode2(rt.Node[str]):
             @classmethod
             def pretty_name(cls): return "Good"
             def tool_info(): pass

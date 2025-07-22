@@ -37,7 +37,7 @@ jobs:
 
       - name: Update version in __init__.py
         run: |
-          sed -i -E 's/__version__ = ".+"/__version__ = "'"$VERSION_CLEANED"'"/' src/requestcompletion/__init__.py
+          sed -i -E 's/__version__ = ".+"/__version__ = "'"$VERSION_CLEANED"'"/' src/railtracks/__init__.py
           echo "Updated __init__.py to version $VERSION_CLEANED"
 
       - name: Build and Publish with Flit
