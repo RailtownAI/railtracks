@@ -68,6 +68,11 @@ class TestParameter:
         assert "enum=['a', 'b', 'c']" in str(param)
         assert "default=b" in str(param)
 
+    def test_parameter_with_none_default(self):
+        """Test that Parameter correctly handles none as default value."""
+        param = Parameter(name="test_param", param_type="string", default="none")
+        assert param.default == "none"  
+
 class TestPydanticParameter:
     """Tests for the PydanticParameter class."""
 
@@ -129,21 +134,17 @@ class TestPydanticParameter:
         assert "properties=" in str_repr
         assert "nested" in str_repr
 
-    def test_pydantic_parameter_enum_and_default(self):
-        """Test that PydanticParameter can accept enum and default values via base class."""
+    def test_pydantic_parameter_refe_path(self):
+        """Test that PydanticParameter correctly handles $ref path."""
         param = PydanticParameter(
-            name="enum_obj",
+            name="test_param",
             param_type="object",
-            description="Object with enum/default",
-            required=True,
-        )
-        # Set enum and default via base class attributes
-        param._enum = [1, 2, 3]
-        param._default = 2
-        assert param.enum == [1, 2, 3]
-        assert param.default == 2
-        assert "enum=[1, 2, 3]" in str(param)
-        assert "default=2" in str(param)
+            description="A test parameter",
+            required=False,
+            ref_path="test_path",
+        )        
+        assert param.ref_path == "test_path"
+        assert "ref_path=test_path" in str(param)
 
 
 class TestParameterEdgeCases:

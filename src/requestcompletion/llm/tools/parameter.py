@@ -19,7 +19,7 @@ class ParameterType(str, Enum):
     BOOLEAN = "boolean"
     ARRAY = "array"
     OBJECT = "object"
-    NONE = "none"
+    NONE = "null"
 
     @classmethod
     def from_python_type(cls, py_type):
@@ -124,8 +124,9 @@ class PydanticParameter(Parameter):
         param_type: ParameterType | list[ParameterType],
         description: str = "",
         required: bool = True,
-        properties: Optional[Dict[str, Parameter]] = None,
+        properties: Optional[set[str, Parameter]] = None,
         additional_properties: bool = False,
+        ref_path: Optional[str] = None,
     ):
         """
         Creates a new instance of a PydanticParameter object.
@@ -140,16 +141,58 @@ class PydanticParameter(Parameter):
         """
         super().__init__(name, param_type, description, required, additional_properties)
         self._properties = properties or {}
+        self._ref_path = ref_path or None
 
     @property
-    def properties(self) -> Dict[str, Parameter]:
+    def properties(self) -> set[str, Parameter]:
         """Get the nested properties of this parameter."""
         return self._properties
+    
+    @property
+    def ref_path(self) -> Optional[str]:
+        """Get the ref_path of this parameter."""
+        return self._ref_path
 
     def __str__(self) -> str:
         """String representation of the parameter with properties."""
         return (
             f"PydanticParameter(name={self._name}, type={self._param_type}, "
             f"description={self._description}, required={self._required}, "
-            f"additional_properties={self._additional_properties}, properties={self._properties})"
+            f"additional_properties={self._additional_properties}, properties={self._properties}), "
+            f"ref_path={self._ref_path})"
+        )
+
+class ArrayParameter(Parameter):
+    """Parameter that represents an array of objects (can be nested)."""
+    def __init__(
+        self,
+        name: str,
+        param_type: ParameterType | list[ParameterType],
+        max_items: int,
+        description: str = "",
+        required: bool = True,
+        properties: Optional[set[str, Parameter]] = None,
+        additional_properties: bool = False,
+    ):
+        super().__init__(name, param_type, description, required, additional_properties)
+        self._properties = properties or {}
+        self._max_items = max_items
+
+    @property
+    def properties(self) -> set[str, Parameter]:
+        """Get the nested properties of this parameter."""
+        return self._properties
+    
+    @property
+    def max_items(self) -> int:
+        """Get the maximum number of items in the array."""
+        return self._max_items
+    
+    def __str__(self) -> str:
+        """String representation of the parameter with properties."""
+        return (
+            f"ArrayParameter(name={self._name}, type={self._param_type}, "
+            f"description={self._description}, required={self._required}, "
+            f"additional_properties={self._additional_properties}, properties={self._properties}), "
+            f"max_items={self._max_items})"
         )

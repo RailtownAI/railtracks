@@ -46,7 +46,7 @@ class TestParseJsonSchemaToParameter:
 
         assert isinstance(param, Parameter)
         assert param.name == "test_param"
-        assert param.param_type == "float"  # Should be converted to "float"
+        assert param.param_type == "number"
         assert param.description == "A number parameter"
         assert param.required is True
 
@@ -299,7 +299,7 @@ class TestParseModelProperties:
         result = parse_model_properties(schema)
 
         assert "amount" in result
-        assert result["amount"].param_type == "float"  # Should be converted to float
+        assert result["amount"].param_type == "number"
 
     def test_schema_with_defs_and_refs(self):
         """Test parsing a schema with $defs and $ref."""

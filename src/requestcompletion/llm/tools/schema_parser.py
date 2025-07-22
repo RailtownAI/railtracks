@@ -7,7 +7,7 @@ and converting Parameter objects into Pydantic models.
 
 from typing import Dict
 
-from .parameter import Parameter, PydanticParameter
+from .parameter import Parameter, PydanticParameter, ArrayParameter
 
 
 def parse_json_schema_to_parameter(
@@ -37,10 +37,6 @@ def parse_json_schema_to_parameter(
         else:
             param_type = "object"  # fallback
 
-    # Handle special case for number type
-    if param_type == "number":
-        param_type = "float"
-
     # Handle type as list (union)
     if isinstance(param_type, list):
         # Convert to python types, e.g. ["string", "null"]
@@ -51,15 +47,14 @@ def parse_json_schema_to_parameter(
     default = prop_schema.get("default")
     additional_properties = prop_schema.get("additionalProperties", False)
 
-    # Handle references to other schemas
+    # Handle references to other schemas, you just need $ref path and description
     if "$ref" in prop_schema:
         return PydanticParameter(
             name=name,
+            required=required,
             param_type="object",
             description=description,
-            required=required,
-            properties={},
-            additional_properties=additional_properties,
+            ref_path=prop_schema["$ref"],
         )
 
     # Handle allOf (merge schemas)
@@ -84,20 +79,49 @@ def parse_json_schema_to_parameter(
     if "anyOf" in prop_schema:
         # Only handle simple case: anyOf with types
         types_list = []
+        inner_props = set()
         for item in prop_schema["anyOf"]:
             t = item.get("type")
-            if t:
-                types_list.append(t if t != "null" else "none")
-        if types_list:
-            param_type = types_list
+            types_list.append(t if t != "null" else "none")
+            if t == "object":
+                inner_required = item.get("required", [])
+                for inner_name, inner_schema in item["properties"].items():
+                    inner_props.add(
+                        parse_json_schema_to_parameter(
+                            inner_name, inner_schema, inner_name in inner_required
+                        )
+                    )
+        param_type = types_list
+        if inner_props:
+            return PydanticParameter(
+                name=name,
+                param_type=param_type,
+                description=description,
+                required=required,
+                additional_properties=additional_properties,
+                properties=inner_props,
+            )
+        else:
+            return Parameter(
+                name=name,
+                param_type=param_type,
+                description=description,
+                required=required,
+                enum=enum,
+                default=default,
+                additional_properties=additional_properties,
+            )
+
 
     # Handle nested objects
     if param_type == "object" and "properties" in prop_schema:
         inner_required = prop_schema.get("required", [])
-        inner_props = {}
+        inner_props = set()
         for inner_name, inner_schema in prop_schema["properties"].items():
-            inner_props[inner_name] = parse_json_schema_to_parameter(
-                inner_name, inner_schema, inner_name in inner_required
+            inner_props.add(
+                parse_json_schema_to_parameter(
+                    inner_name, inner_schema, inner_name in inner_required
+                )
             )
         return PydanticParameter(
             name=name,
@@ -111,17 +135,22 @@ def parse_json_schema_to_parameter(
     # Handle arrays, potentially with nested objects
     elif param_type == "array" and "items" in prop_schema:
         items_schema = prop_schema["items"]
+        max_items = prop_schema.get("maxItems")
         if items_schema.get("type") == "object" and "properties" in items_schema:
             inner_required = items_schema.get("required", [])
-            inner_props = {}
+            
+            inner_props = set()
             for inner_name, inner_schema in items_schema["properties"].items():
-                inner_props[inner_name] = parse_json_schema_to_parameter(
-                    inner_name, inner_schema, inner_name in inner_required
+                inner_props.add(
+                    parse_json_schema_to_parameter(
+                        inner_name, inner_schema, inner_name in inner_required
+                    )
                 )
-            return PydanticParameter(
+            return ArrayParameter(
                 name=name,
-                param_type="array",
+                param_type="object",    # so that the subprops can be parsed
                 description=description,
+                max_items=max_items,
                 required=required,
                 properties=inner_props,
                 additional_properties=additional_properties,
