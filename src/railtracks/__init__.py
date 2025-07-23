@@ -2,7 +2,7 @@
 #   Copyright (c) Railtown AI. All rights reserved.
 #   Licensed under the MIT License. See LICENSE in project root for information.
 #   -------------------------------------------------------------
-"""Railtown AI Request Completion Framework for building resilient agentic systems"""
+"""Railtown AI RailTracks Framework for building resilient agentic systems"""
 
 from __future__ import annotations
 

@@ -36,7 +36,7 @@ You don't need to be a rocket scientist to build your own agent. With just a sim
 already well on your way to building your first agent.
 applications.
 <div style="text-align:center;">
-    <a href="guides/build" class="md-button" style="margin:3px">Start Building with Request Completion</a>
+    <a href="guides/build" class="md-button" style="margin:3px">Start Building with RailTracks</a>
 </div>
 
 

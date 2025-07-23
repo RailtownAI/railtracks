@@ -50,7 +50,7 @@ class RunnerNotFoundError(Exception):
 
 class Runner:
     """
-    The main class used to run flows in the Request Completion framework.
+    The main class used to run flows in the RailTracks framework.
 
     Example Usage:
     ```python
