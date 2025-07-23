@@ -21,6 +21,8 @@ for a while now, but LLMs have changed the game and made it much easier to use t
 accomplish complex tasks and goals. This ability makes them uniquely suited to operate as the **brain** for your agentic
 system.
 
+(TODO diagram here.)
+
 # 🌍 Real World Applications
 
 Agents are already being used in real world applications such as:

@@ -24,7 +24,8 @@ nav:
 
   - Guides:
         - guides/index.md
-        - guides/agents.md
+        - Agent?: guides/agents.md
+        - Tool?: guides/tools.md
 
   - Tutorials:
         - tutorials/index.md
@@ -75,20 +76,25 @@ nav:
 plugins:
   - search
   - mkdocstrings
-#  - mkdocs-mermaid2-plugin
-#  - awesome-pages
+  - mermaid2
+
 
 markdown_extensions:
   - pymdownx.emoji:
       emoji_generator: !!python/name:pymdownx.emoji.to_svg
   - admonition
   - pymdownx.details
-  - pymdownx.superfences
+  - pymdownx.superfences:
+#    custom_fences:
+#        - name: mermaid
+#          class: mermaid
+#          format: !!python/name:mermaid2.fence_mermaid_custom
   - pymdownx.highlight
   - pymdownx.inlinehilite
   - pymdownx.snippets
   - pymdownx.tabbed:
         alternate_style: true
+
 
 
 
