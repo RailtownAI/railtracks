@@ -103,7 +103,7 @@ async def test_unlimited_tool_call_gives_warning_at_runtime(mock_llm, mock_tool,
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("hello")])
     mock_model = mock_llm(chat_with_tools=mock_chat_with_tools_function)
     with pytest.warns(RuntimeWarning, match="unlimited tool calls"):    # param injection at runtime
-        resp = await rt.call(MockLimitedToolCallLLM, message_history=mh, model=mock_model, max_tool_calls=None)
+        resp = await rt.call(MockLimitedToolCallLLM, user_input=mh, model=mock_model, max_tool_calls=None)
         
 def test_limited_tool_call_llm_return_output(mock_tool, mock_llm, mock_chat_with_tools_function):
     class MockLimitedToolCallLLM(ToolCallLLM):
@@ -180,6 +180,88 @@ def test_tool_call_llm_pretty_name_default(mock_llm, mock_tool):
     )
     assert "Tool Call LLM" == ToolCallLLM.pretty_name()
 
+def test_tool_call_llm_instantiate_with_string(mock_llm, mock_tool):
+    """Test that ToolCallLLM can be instantiated with a string input."""
+    class MockToolCallLLM(ToolCallLLM):
+        @classmethod
+        def pretty_name(cls):
+            return "Mock Tool Call LLM"
+
+        @classmethod
+        def system_message(cls):
+            return "system prompt"
+
+        @classmethod
+        def connected_nodes(cls):
+            return {mock_tool}
+
+    node = MockToolCallLLM(user_input="hello", llm_model=mock_llm())
+    # Verify that the string was converted to a MessageHistory with a UserMessage
+    assert len(node.message_hist) == 2  # System message + UserMessage
+    assert node.message_hist[0].role == "system"
+    assert node.message_hist[0].content == "system prompt"
+    assert node.message_hist[1].role == "user"
+    assert node.message_hist[1].content == "hello"
+
+def test_tool_call_llm_instantiate_with_user_message(mock_llm, mock_tool):
+    """Test that ToolCallLLM can be instantiated with a UserMessage input."""
+    class MockToolCallLLM(ToolCallLLM):
+        @classmethod
+        def pretty_name(cls):
+            return "Mock Tool Call LLM"
+
+        @classmethod
+        def system_message(cls):
+            return "system prompt"
+
+        @classmethod
+        def connected_nodes(cls):
+            return {mock_tool}
+
+    user_msg = UserMessage("hello")
+    node = MockToolCallLLM(user_input=user_msg, llm_model=mock_llm())
+    # Verify that the UserMessage was converted to a MessageHistory
+    assert len(node.message_hist) == 2  # System message + UserMessage
+    assert node.message_hist[0].role == "system"
+    assert node.message_hist[0].content == "system prompt"
+    assert node.message_hist[1].role == "user"
+    assert node.message_hist[1].content == "hello"
+
+def test_tool_call_llm_easy_usage_with_string(mock_llm, mock_tool):
+    """Test that the easy usage wrapper can be instantiated with a string input."""
+    ToolCallLLM = tool_call_llm(
+        connected_nodes={mock_tool},
+        pretty_name="Test ToolCallLLM",
+        system_message="system prompt",
+        llm_model=mock_llm(),
+    )
+
+    node = ToolCallLLM(user_input="hello")
+    # Verify that the string was converted to a MessageHistory with a UserMessage
+    assert len(node.message_hist) == 2  # System message + UserMessage
+    assert node.message_hist[0].role == "system"
+    assert node.message_hist[0].content == "system prompt"
+    assert node.message_hist[1].role == "user"
+    assert node.message_hist[1].content == "hello"
+
+def test_tool_call_llm_easy_usage_with_user_message(mock_llm, mock_tool):
+    """Test that the easy usage wrapper can be instantiated with a UserMessage input."""
+    ToolCallLLM = tool_call_llm(
+        connected_nodes={mock_tool},
+        pretty_name="Test ToolCallLLM",
+        system_message="system prompt",
+        llm_model=mock_llm(),
+    )
+
+    user_msg = UserMessage("hello")
+    node = ToolCallLLM(user_input=user_msg)
+    # Verify that the UserMessage was converted to a MessageHistory
+    assert len(node.message_hist) == 2  # System message + UserMessage
+    assert node.message_hist[0].role == "system"
+    assert node.message_hist[0].content == "system prompt"
+    assert node.message_hist[1].role == "user"
+    assert node.message_hist[1].content == "hello"
+
 def test_tool_call_llm_with_output_type_message_history(mock_llm, mock_tool):
     ToolCallLLM = message_hist_tool_call_llm(
         connected_nodes={mock_tool},
@@ -208,8 +290,8 @@ async def test_negative_tool_calls_raises(class_based, mock_llm, mock_tool):
             )
     else:
         class LimitedToolCallTestNode(ToolCallLLM):
-            def __init__(self, message_history, llm_model=mock_llm()):
-                super().__init__(message_history, llm_model, max_tool_calls=neg_max_tool_calls)
+            def __init__(self, user_input, llm_model=mock_llm()):
+                super().__init__(user_input, llm_model, max_tool_calls=neg_max_tool_calls)
             @classmethod
             def connected_nodes(cls):
                 return {mock_tool}
@@ -218,4 +300,4 @@ async def test_negative_tool_calls_raises(class_based, mock_llm, mock_tool):
                 return "Limited Tool Call Test Node"
         mh = MessageHistory([SystemMessage("system prompt"), UserMessage("hello")])
         with pytest.raises(NodeInvocationError, match="max_tool_calls must be a non-negative integer."):
-            await rt.call(LimitedToolCallTestNode, message_history=mh)
+            await rt.call(LimitedToolCallTestNode, user_input=mh)

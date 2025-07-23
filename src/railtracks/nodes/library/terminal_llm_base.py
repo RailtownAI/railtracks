@@ -7,15 +7,8 @@ from ._llm_base import LLMBase
 class TerminalLLM(LLMBase[str]):
     """A simple LLM nodes that takes in a message and returns a response. It is the simplest of all llms."""
 
-    def __init__(
-        self, message_history: MessageHistory, llm_model: ModelBase | None = None
-    ):
-        """Creates a new instance of the TerminalLLM class
-
-        Args:
-
-        """
-        super().__init__(llm_model=llm_model, message_history=message_history)
+    def __init__(self, user_input: MessageHistory, llm_model: ModelBase | None = None):
+        super().__init__(llm_model=llm_model, user_input=user_input)
 
     @classmethod
     def pretty_name(cls) -> str:
