@@ -20,7 +20,7 @@ def test_prompt_injection():
     )
 
     with rt.Runner(context={"secret": "tomato"}) as runner:
-        response = runner.run_sync(node, message_history=MessageHistory())
+        response = runner.run_sync(node, user_input=MessageHistory())
 
     assert response.answer == "tomato"
 
@@ -37,7 +37,7 @@ def test_prompt_injection_bypass():
     )
 
     with rt.Runner(context={"secret_value": "tomato"}) as runner:
-        response = runner.run_sync(node, message_history=MessageHistory())
+        response = runner.run_sync(node, user_input=MessageHistory())
 
     assert response.answer == "{secret_value}"
 
@@ -54,7 +54,7 @@ def test_prompt_numerical():
     )
 
     with rt.Runner(context={"1": "tomato"}) as runner:
-        response = runner.run_sync(node, message_history=MessageHistory())
+        response = runner.run_sync(node, user_input=MessageHistory())
 
     assert response.answer == "tomato"
 
@@ -71,7 +71,7 @@ def test_prompt_not_in_context():
     )
 
     with rt.Runner() as runner:
-        response = runner.run_sync(node, message_history=MessageHistory())
+        response = runner.run_sync(node, user_input=MessageHistory())
 
     assert response.answer == "{secret2}"
 
@@ -92,6 +92,6 @@ def test_prompt_injection_global_config_bypass():
             context={"secret_value": "tomato"},
             executor_config=ExecutorConfig(prompt_injection=False)
     ) as runner:
-        response = runner.run_sync(node, message_history=MessageHistory())
+        response = runner.run_sync(node, user_input=MessageHistory())
 
     assert response.answer == "{secret_value}"

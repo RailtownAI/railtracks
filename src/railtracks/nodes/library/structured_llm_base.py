@@ -10,7 +10,7 @@ from railtracks.exceptions.node_creation.validation import (
 
 from ... import context
 from ...exceptions import LLMError
-from ...llm import MessageHistory, ModelBase
+from ...llm import MessageHistory, ModelBase, UserMessage
 from ._llm_base import LLMBase
 
 _TOutput = TypeVar("_TOutput", bound=BaseModel)
@@ -31,16 +31,18 @@ class StructuredLLM(LLMBase[_TOutput], ABC, Generic[_TOutput]):
     def schema(cls) -> Type[_TOutput]: ...
 
     def __init__(
-        self, message_history: MessageHistory, llm_model: ModelBase | None = None
+        self,
+        user_input: MessageHistory | UserMessage | str,
+        llm_model: ModelBase | None = None,
     ):
         """Creates a new instance of the StructuredlLLM class
 
         Args:
-            message_history (MessageHistory): The message history to use for the LLM.
+            user_input (MessageHistory | UserMessage | str): The input to use for the LLM. This can be a message history, a single user message, or a string.
             llm_model (ModelBase | None, optional): The LLM model to use. Defaults to None.
 
         """
-        super().__init__(llm_model=llm_model, message_history=message_history)
+        super().__init__(llm_model=llm_model, user_input=user_input)
 
     @classmethod
     def pretty_name(cls) -> str:
