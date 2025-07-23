@@ -22,7 +22,7 @@ async def test_hooks(mock_llm):
     llm_model = mock_llm(chat=lambda x: Response(llm.AssistantMessage(response)))
     node = MockModelNode(
         llm_model=llm_model,
-        message_history=example_message_history,
+        user_input=example_message_history,
 
     )
 
@@ -60,7 +60,7 @@ async def test_error_hooks(mock_llm):
     llm_model = mock_llm(chat=exception_raiser)
     node = MockModelNode(
         llm_model=llm_model,
-        message_history=example_message_history,
+        user_input=example_message_history,
     )
 
     with pytest.raises(Exception):

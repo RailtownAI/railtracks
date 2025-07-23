@@ -54,11 +54,11 @@ def create_top_level_node():
         """
 
         class TopLevelNode(rt.library.ToolCallLLM):
-            def __init__(self, message_history: rt.llm.MessageHistory):
-                message_history.insert(0, rt.llm.SystemMessage(self.system_message()))
+            def __init__(self, user_input: rt.llm.MessageHistory):
+                user_input.insert(0, rt.llm.SystemMessage(self.system_message()))
 
                 super().__init__(
-                    message_history=message_history,
+                    user_input=user_input,
                     model=self.create_model(),
                 )
 

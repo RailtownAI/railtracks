@@ -138,11 +138,11 @@ def _make_node(fixture_name, system_message, model, schema, tool_nodes, class_ty
         )
     elif fixture_name == "class_based":
         class CustomNode(rt.library.StructuredToolCallLLM if class_type is None else class_type):
-            def __init__(self, message_history, model=model):
-                message_history = [x for x in message_history if x.role != "system"]
-                message_history.insert(0, SystemMessage(system_message) if isinstance(system_message, str) else system_message)
+            def __init__(self, user_input, model=model):
+                user_input = [x for x in user_input if x.role != "system"]
+                user_input.insert(0, SystemMessage(system_message) if isinstance(system_message, str) else system_message)
                 super().__init__(
-                    message_history=message_history,
+                    user_input=user_input,
                     llm_model=model,
                 )
             @classmethod
@@ -276,9 +276,9 @@ def limited_tool_call_node_factory(model, travel_planner_tools):
             )
         else:
             class LimitedToolCallTestNode(ToolCallLLM):
-                def __init__(self, message_history, model=model):
-                    message_history.insert(0, SystemMessage(sys_msg) if isinstance(sys_msg, str) else sys_msg)
-                    super().__init__(message_history, model, max_tool_calls=max_tool_calls)
+                def __init__(self, user_input, model=model):
+                    user_input.insert(0, SystemMessage(sys_msg) if isinstance(sys_msg, str) else sys_msg)
+                    super().__init__(user_input, model, max_tool_calls=max_tool_calls)
                 @classmethod
                 def connected_nodes(cls):
                     return tool_nodes
