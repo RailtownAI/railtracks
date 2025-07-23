@@ -24,11 +24,11 @@ assignees: ""
 # Example of how the feature would be used
 ```
 
-## Impact Assessment
+## Impact Assessment (optional)
 <!-- Help us prioritize this request -->
 - **User Impact**: [e.g. Many users would benefit, Specific use case, Nice-to-have]
 - **Complexity**: [e.g. Simple addition, Moderate effort, Major undertaking]
-- **Breaking Changes** (optional): [e.g. None, Minor, Major - explain if any]
+- **Breaking Changes**: [e.g. None, Minor, Major - explain if any]
 
 ## Additional Context
 <!-- Add any other context, screenshots, links to related discussions, etc. -->
