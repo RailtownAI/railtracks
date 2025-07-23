@@ -82,3 +82,14 @@ jobs:
       - name: Publish to PyPI
         run: |
           flit publish --repository-url https://pypi.org/pypi
+
+  publish_ui:
+    name: Publish UI Subpackage
+    runs-on: ubuntu-latest
+    # Do not publish the UI package if the core package is not successfully published
+    needs: publish
+    steps:
+      - name: Dummy UI Publish Step
+        run: |
+          echo "UI publishing is not implemented yet - this is a placeholder job"
+          echo "Future implementation will handle UI package publishing"
