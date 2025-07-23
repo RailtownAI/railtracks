@@ -7,7 +7,7 @@ and converting Parameter objects into Pydantic models.
 
 from typing import Dict
 
-from .parameter import Parameter, PydanticParameter, ArrayParameter
+from .parameter import ArrayParameter, Parameter, PydanticParameter
 
 
 def parse_json_schema_to_parameter(

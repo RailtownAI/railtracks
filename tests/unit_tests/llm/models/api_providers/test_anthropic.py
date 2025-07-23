@@ -7,7 +7,7 @@ def test_llm_correct_init():
     """
     Test that AnthropicLLM initializes correctly with a valid model name.
     """
-    model = AnthropicLLM("claude-3-sonnet-20240229")
+    model = AnthropicLLM("claude-sonnet-4-20250514")
     assert model is not None
 
 def test_llm_no_function_calling():

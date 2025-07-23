@@ -26,7 +26,8 @@ from ..history import MessageHistory
 from ..message import AssistantMessage, Message, ToolMessage
 from ..model import ModelBase
 from ..response import MessageInfo, Response
-from ..tools import Parameter, Tool, PydanticParameter, ArrayParameter
+from ..tools import ArrayParameter, Parameter, PydanticParameter, Tool
+
 
 def _handle_set_of_parameters(parameters: Set[Parameter | PydanticParameter | ArrayParameter], sub_property: bool = False) -> Dict[str, Any]:
     """Handle the case where parameters are a set of Parameter instances."""
@@ -134,17 +135,15 @@ def _to_litellm_tool(tool: Tool) -> Dict[str, Any]:
     """
     # parameters may be None
     json_schema = _parameters_to_json_schema(tool.parameters)
-    x = {
+    litellm_tool = {
         "type": "function",
         "function": {
             "name": tool.name,
             "description": tool.detail,
-            "parameters": json.loads(json.dumps(json_schema)),
+            "parameters": json_schema,  
         },
     }
-    with open("paypal.json", "a") as f:
-        f.write(json.dumps(x, indent=2) + "\n")
-    return x
+    return litellm_tool
 
 
 def _to_litellm_message(msg: Message) -> Dict[str, Any]:

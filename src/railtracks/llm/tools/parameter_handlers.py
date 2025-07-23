@@ -9,12 +9,13 @@ and creating the appropriate Parameter object.
 import inspect
 import types
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Tuple, Union
+from typing import Any, List, Tuple, Union
 
 from pydantic import BaseModel
 
-from .parameter import Parameter, PydanticParameter, ParameterType
+from .parameter import Parameter, ParameterType, PydanticParameter
 from .schema_parser import parse_model_properties
+
 
 class ParameterHandler(ABC):
     """Base abstract class for parameter handlers."""

@@ -7,11 +7,13 @@ parameters and descriptions.
 
 import inspect
 import warnings
-from typing import Any, Callable, Dict, List, Optional, Set, Type, Union
-from railtracks.exceptions import NodeCreationError
+from typing import Any, Callable, Dict, List, Set, Type
+
 from pydantic import BaseModel
 from typing_extensions import Self
-from .schema_parser import parse_json_schema_to_parameter
+
+from railtracks.exceptions import NodeCreationError
+
 from .docstring_parser import extract_main_description, parse_docstring_args
 from .parameter import Parameter
 from .parameter_handlers import (
@@ -19,9 +21,9 @@ from .parameter_handlers import (
     ParameterHandler,
     PydanticModelHandler,
     SequenceParameterHandler,
-    DefaultParameterHandler,
     UnionParameterHandler,
 )
+from .schema_parser import parse_json_schema_to_parameter
 
 
 class Tool:

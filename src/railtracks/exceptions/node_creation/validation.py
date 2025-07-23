@@ -3,6 +3,7 @@ import warnings
 from typing import Any, Callable, Dict, Iterable, get_origin
 
 from pydantic import BaseModel
+
 from ...llm import SystemMessage
 from ..errors import NodeCreationError
 from ..messages.exception_messages import ExceptionMessageKey, get_message, get_notes
@@ -268,7 +269,7 @@ def validate_tool_params(parameters: Any, param_type) -> bool:
             assert "type" in parameters, "A 'type' key must be provided in the JSON-schema."
             assert parameters["type"] == "object", "The outer-most 'type' must be 'object' in the JSON-schema."
             assert "additionalProperties" in parameters, "The 'additionalProperties' key must be present and set to False."
-            assert parameters["additionalProperties"] == False, "The 'additionalProperties' must be set to False in the JSON-schema."
+            assert not parameters["additionalProperties"], "The 'additionalProperties' must be set to False in the JSON-schema."
             assert "properties" in parameters, "A 'properties' key must be provided in the JSON-schema."
         except AssertionError as e:
             raise NodeCreationError(
