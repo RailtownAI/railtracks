@@ -83,9 +83,10 @@ nav:
       - api_reference/index.md
   
   - System Overview:
-      - system_overview/index.md
-      - Runner: system_overview/Runner.md
-      - PubSub: system_overview/PubSub.md
+      - system_internals/index.md
+      - Coordinator: system_internals/Coordinator.md
+      - Runner: system_internals/Runner.md
+      - PubSub: system_internals/PubSub.md
 
 
 plugins:
