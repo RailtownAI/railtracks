@@ -161,7 +161,7 @@ class FileChangeHandler(FileSystemEventHandler):
             last_time = self.last_modified.get(str(file_path), 0)
 
             # Debounce rapid file changes
-            if current_time - last_time > 0.1:
+            if current_time - last_time > DEBOUNCE_INTERVAL:
                 self.last_modified[str(file_path)] = current_time
                 print_status(f"JSON file modified: {file_path.name}")
 
