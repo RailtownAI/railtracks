@@ -70,8 +70,8 @@ OUTPUT_MODEL_TYPE_NOTES:
   - "Check to see if the output_model is a pydantic model."
   - "The model fields must be defined in the output_model. Eg.-\n class MyModel(BaseModel): \n    field1: str = Field(description='field1 description')"
 
-PARAMETER_SET_CONTAINS_INVALID_TYPE_MSG: "Parameters set must be a set of Parameter objects."
-PARAMETER_SET_CONTAINS_INVALID_TYPE_NOTES: "If the tool expects no parameters, use None instead."
+PARAMETER_SET_CONTAINS_INVALID_TYPE_MSG: "Parameters set must be a set of Parameter objects or None."
+PARAMETER_SET_CONTAINS_INVALID_TYPE_NOTES: "If the tool expects no parameters, use None or pass in an empty set instead."
 
 TOOL_PARAMETERS_FROM_SCHEMA_FAILED_MSG: "Cannot convert the provided JSON-schema into Parameter objects. Reason: '{reason}'"
 TOOL_PARAMETERS_TYPE_MSG: "Tool parameters must be a set of Parameter objects, a dict, or None."
