@@ -64,46 +64,6 @@ your-project/
 └── your-source-files/   # Your actual project files
 ```
 
-## API Endpoints
-
-The development server provides these REST endpoints:
-
-### GET `/api/files`
-
-Lists all JSON files in the `.railtracks` directory.
-
-**Response:**
-
-```json
-[
-  {
-    "name": "example.json",
-    "size": 1024,
-    "modified": 1640995200.0
-  }
-]
-```
-
-### GET `/api/json/{filename}`
-
-Loads and validates a specific JSON file.
-
-**Example:** `GET /api/json/example.json`
-
-**Response:** The JSON content of the file
-
-### POST `/api/refresh`
-
-Triggers a frontend refresh (useful for development).
-
-**Response:**
-
-```json
-{
-  "status": "refresh_triggered"
-}
-```
-
 ## File Watching
 
 The CLI automatically watches the `.railtracks` directory for JSON file changes:
@@ -111,57 +71,6 @@ The CLI automatically watches the `.railtracks` directory for JSON file changes:
 - **Real-time Detection**: Monitors file modifications with debouncing
 - **JSON Validation**: Validates JSON syntax when files are accessed
 - **Console Logging**: Reports file changes in the terminal
-
-## Development Workflow
-
-### 1. Setup Your Project
-
-```bash
-# Navigate to your project directory
-cd your-railtracks-project
-
-# Initialize railtracks environment
-railtracks init
-```
-
-### 2. Generate JSON Files
-
-Create JSON files in the `.railtracks` directory that represent your project state:
-
-```json
-// .railtracks/project-state.json
-{
-  "nodes": [
-    {
-      "id": "node-1",
-      "type": "llm",
-      "status": "completed",
-      "data": { ... }
-    }
-  ],
-  "connections": [
-    {
-      "from": "node-1",
-      "to": "node-2"
-    }
-  ]
-}
-```
-
-### 3. Visualize Your Project
-
-```bash
-# Start the development server
-railtracks viz
-```
-
-Open `http://localhost:3000` in your browser to see the visualizer.
-
-### 4. Monitor Changes
-
-The server will automatically detect when you modify JSON files and update the interface accordingly.
-
-## Troubleshooting
 
 ## License
 
