@@ -47,7 +47,7 @@ The MCP server provides tools that can fetch and process content from URLs:
 fetch_mcp_server = from_mcp_server(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))
 fetch_mcp_tools = fetch_mcp_server.tools
 ```
-Read more about the `from_mcp_server` utility [TODO: change this link](../../mcp/index.md). <br>
+Read more about the `from_mcp_server` utility [TODO: change this link](../mcp/index.md). <br>
 This connects to a [remote MCP server](https://remote-mcp-servers.com/servers/ecc7629a-9f3a-487d-86fb-039f46016621) that provides URL fetching capabilities.
 
 ### Step 3: Create Custom Google Search Tool

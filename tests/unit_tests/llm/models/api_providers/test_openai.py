@@ -25,4 +25,4 @@ def test_llm_invalid_model_name():
     Test that OpenAI raises an error for an invalid model name.
     """
     with pytest.raises(LLMError, match="Invalid model name"):
-        _ = OpenAILLM("claude-3-sonnet-20240229")
+        _ = OpenAILLM("claude-3-5-sonnet-20240620")
