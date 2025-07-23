@@ -21,6 +21,7 @@ assignees: ""
 - [ ] Missing documentation
 - [ ] Incorrect or outdated information
 - [ ] Unclear or confusing explanation
+- [ ] Overly verbose or complex explanation
 - [ ] Broken links or formatting
 - [ ] Missing code examples
 - [ ] Typos or grammar issues

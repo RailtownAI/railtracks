@@ -18,10 +18,6 @@ assignees: ""
 <!-- Describe how you envision this feature working -->
 <!-- Include any specific API design, configuration options, or implementation ideas -->
 
-## Alternatives Considered
-<!-- Describe any alternative solutions or features you've considered -->
-<!-- Are there existing workarounds that could be improved? -->
-
 ## Example Usage
 <!-- If applicable, provide a code example of how this feature would be used -->
 ```python
@@ -32,7 +28,7 @@ assignees: ""
 <!-- Help us prioritize this request -->
 - **User Impact**: [e.g. Many users would benefit, Specific use case, Nice-to-have]
 - **Complexity**: [e.g. Simple addition, Moderate effort, Major undertaking]
-- **Breaking Changes**: [e.g. None, Minor, Major - explain if any]
+- **Breaking Changes** (optional): [e.g. None, Minor, Major - explain if any]
 
 ## Additional Context
 <!-- Add any other context, screenshots, links to related discussions, etc. -->

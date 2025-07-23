@@ -36,7 +36,6 @@ assignees: ""
 <!-- Please check the following before submitting your question -->
 - [ ] I have read the README and documentation
 - [ ] I have searched existing issues for similar questions
-- [ ] This is not a bug report (if it is, please use the Bug Report template instead)
-- [ ] This is not a feature request (if it is, please use the Feature Request template instead)
+- [ ] I have confirmed this is a question and not a bug report or feature request
 
 **Note**: For general usage questions, you may also find help in our documentation or by checking existing issues. This issue tracker is primarily for bugs, features, and documentation improvements.
