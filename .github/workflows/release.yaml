@@ -63,6 +63,7 @@ jobs:
   publish_cli:
     name: Publish CLI Subpackage
     runs-on: ubuntu-latest
+    # Do not publish the CLI package if the core package is not successfully published
     needs: publish
     steps:
       - name: Checkout repository
