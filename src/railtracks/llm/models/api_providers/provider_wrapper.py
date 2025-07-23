@@ -14,8 +14,8 @@ class ProviderLLMWrapper(LiteLLMWrapper, ABC):
         # Check if the model name is valid
         if provider_info[1] != provider_name:
             raise LLMError(
-                    reason=f"Invalid model name: {model_name}. Model name must be a part of {provider_name}'s model list.",
-                )
+                reason=f"Invalid model name: {model_name}. Model name must be a part of {provider_name}'s model list.",
+            )
         super().__init__(model_name=model_name, **kwargs)
 
     def chat_with_tools(self, messages, tools, **kwargs):
