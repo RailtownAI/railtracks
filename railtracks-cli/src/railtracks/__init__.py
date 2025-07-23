@@ -390,7 +390,7 @@ def main():
         print(f"Usage: {cli_name} [command]")
         print("")
         print("Commands:")
-        print(f"  init    Initialize {cli_name} environment (setup directories, download UI)")
+        print(f"  init    Initialize {cli_name} environment (setup directories, download portable UI)")
         print(f"  viz     Start the {cli_name} development server")
         print("")
         print("Examples:")
