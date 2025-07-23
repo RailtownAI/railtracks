@@ -13,7 +13,7 @@ env:
 
 jobs:
   publish:
-    name: Publish Core
+    name: Publish Railtracks
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
