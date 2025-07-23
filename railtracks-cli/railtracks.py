@@ -32,6 +32,7 @@ from urllib.parse import urlparse
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
+# TODO: Once we are releasing to PyPi change this to the release asset instead
 latest_ui_url = "https://railtownazureb2c.blob.core.windows.net/cdn/rc-viz/latest.zip"
 
 cli_name = "railtracks"
