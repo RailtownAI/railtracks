@@ -315,7 +315,7 @@ class RailtracksHTTPHandler(BaseHTTPRequestHandler):
 class RailtracksServer:
     """Main server class"""
 
-    def __init__(self, port=3000):
+    def __init__(self, port=DEFAULT_PORT):
         self.port = port
         self.server = None
         self.observer = None
