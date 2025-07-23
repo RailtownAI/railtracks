@@ -58,6 +58,7 @@ def _handle_set_of_parameters(parameters: Set[Parameter | PydanticParameter | Ar
         if isinstance(p.param_type, list):
             any_of_list = []
             for t in p.param_type:
+                t = "null" if t == "none" else t    # none can only be found as a type for union/optional and we will convert it to null
                 type_item = {"type": t}
                 if t == "object":       # override type_item if object
                     type_item["properties"] = _handle_set_of_parameters(p.properties, True)
@@ -133,15 +134,17 @@ def _to_litellm_tool(tool: Tool) -> Dict[str, Any]:
     """
     # parameters may be None
     json_schema = _parameters_to_json_schema(tool.parameters)
-
-    return {
+    x = {
         "type": "function",
         "function": {
             "name": tool.name,
             "description": tool.detail,
-            "parameters": json_schema,
+            "parameters": json.loads(json.dumps(json_schema)),
         },
     }
+    with open("paypal.json", "a") as f:
+        f.write(json.dumps(x, indent=2) + "\n")
+    return x
 
 
 def _to_litellm_message(msg: Message) -> Dict[str, Any]:

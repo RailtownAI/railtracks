@@ -77,11 +77,10 @@ def parse_json_schema_to_parameter(
 
     # Handle anyOf (union types)
     if "anyOf" in prop_schema:
-        # Only handle simple case: anyOf with types
         types_list = []
         inner_props = set()
         for item in prop_schema["anyOf"]:
-            t = item.get("type")
+            t = item.get("type", "string")
             types_list.append(t if t != "null" else "none")
             if t == "object":
                 inner_required = item.get("required", [])
