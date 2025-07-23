@@ -109,3 +109,6 @@ system_msg = Message(role="system", content="You are a {role}.", inject_prompt=T
 # This message will not have context injection applied
 user_msg = Message(role="user", content="Tell me about {topic}.", inject_prompt=False)
 ```
+
+This can be useful when you want to control which messages should have context injected and which should not. 
+As an example, in a Math Assistant, you might want to inject context into the system message, but not the user message that may contain latex that has `{}` characters. To prevent formatting issues, you can set `inject_prompt=False` for the user message.
