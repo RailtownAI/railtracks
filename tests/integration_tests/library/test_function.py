@@ -428,7 +428,7 @@ class TestRealisticScenarios:
                 DB[person.name] = {"role": person.role, "phone": person.phone}
 
         usr_prompt = (
-            "Update the staff directory with the following information: John is now a Senior Manager and his phone number is changed to 5555"
+            "Update the staff directory with the following information: John is now a 'Senior Manager' and his phone number is changed to 5555"
             " and Jane is new a Developer and her phone number is 0987654321."
         )
 
@@ -440,6 +440,7 @@ class TestRealisticScenarios:
             response = run.run_sync(
                 agent, rt.llm.MessageHistory([rt.llm.UserMessage(usr_prompt)])
             )
+            print(response)
 
         assert DB["John"]["role"] == "Senior Manager"
         assert DB["John"]["phone"] == "5555"
