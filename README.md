@@ -1,8 +1,8 @@
-# Request Completion Agentic Framework (RC)
+# RailTracks Agentic Framework (RC)
 
 ## Overview
 
-The Request Completion framework is a system designed to allow you to build simple Agentic systems that can be used to
+The RailTracks framework is a system designed to allow you to build simple Agentic systems that can be used to
 accomplish complicated tasks. By building "agents" with specialized abilities you can accomplish much more complicated
 tasks that single module could accomplish. Although the system is designed from the standpoint of LLMs being those
 agents,
@@ -33,7 +33,7 @@ to another modular component.
 ## Quick Start
 
 Let's get started with building your first Agentic system. The following steps will guide you through the process of
-creating a simple Agentic system using the Request Completion framework.
+creating a simple Agentic system using the RailTracks framework.
 
 ### Step 1: Install the Library
 
@@ -103,7 +103,7 @@ import railtracks as rt
 
 result = await rt.call(
     TextAnalyzer,
-    rt.llm.MessageHistory([rt.llm.UserMessage("Hello world! This is a test of the Request Completion framework.")])
+    rt.llm.MessageHistory([rt.llm.UserMessage("Hello world! This is a test of the RailTracks framework.")])
 )
 print(result)
 ```

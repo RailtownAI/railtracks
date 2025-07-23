@@ -219,7 +219,7 @@ def test_runner_saves_data(mock_dependencies):
 
 
 
-    path = Path(".covailence") / f"{run_id}.json"
+    path = Path(".railtracks") / f"{run_id}.json"
     assert path.read_text() == serialization_mock
 
 
@@ -243,5 +243,5 @@ def test_runner_not_saves_data(mock_dependencies):
 
 
 
-    path = Path(".covailence") / f"{run_id}.json"
+    path = Path(".railtracks") / f"{run_id}.json"
     assert not path.is_file()
