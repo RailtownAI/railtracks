@@ -16,48 +16,50 @@ theme:
 nav:
   - Home: index.md
 
-  - Getting Started:
-      - get_started/index.md
-
 
   - Guides:
         - guides/index.md
         - guides/agents.md
 
+  - Tutorials:
+        - tutorials/index.md
 
 
-  - Tools:
-      - tools/index.md
-      - Create Your Own Tool: tools/create_your_own.md
+
+
+  - Tools + MCP:
+      - tools_mcp/index.md
+      - Create Your Own Tool: tools_mcp/create_your_own.md
+      - MCP:
+          - tools_mcp/mcp/index.md
+          - Using MCP: tools_mcp/mcp/MCP_tools_in_RT.md
+          - Creating an MCP: tools_mcp/mcp/RTtoMCP.md
 
       - Integrations:
-        - Notion: tools/guides/notion.md
-        - Github: tools/guides/github.md
-        - Python Sandbox: tools/guides/python_sandbox.md
-        - Shell Bash: tools/guides/shell_bash.md
-        - Slack: tools/guides/slack.md
-        - Web Search: tools/guides/websearch_integration.md
+        - Notion: tools_mcp/guides/notion.md
+        - Github: tools_mcp/guides/github.md
+        - Python Sandbox: tools_mcp/guides/python_sandbox.md
+        - Shell Bash: tools_mcp/guides/shell_bash.md
+        - Slack: tools_mcp/guides/slack.md
+        - Web Search: tools_mcp/guides/websearch_integration.md
 
-  - MCP:
-        - mcp/index.md
-        - mcp/MCP_tools_in_rt.md
-        - mcp/RCtoMCP.md
-
-  - Visualization:
-        - visualization/index.md
-
+  - Observability:
+        - observability/index.md
 
   - LLM Support:
       - llm_support/index.md
 
-  - Deploy:
-        - deploy/index.md
+  - Deployments:
+        - deployments/index.md
 
-  - Streaming:
-    - streaming/index.md
+  - Advanced Usage:
+        - advanced_usage/index.md
 
-  - Examples:
-      - examples/index.md
+  - Samples:
+      - samples/index.md
+
+  - System Internals:
+        - system_internals/index.md
 
   - API Reference:
       - api_reference/index.md

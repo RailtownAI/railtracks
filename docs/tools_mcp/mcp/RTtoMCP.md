@@ -53,4 +53,4 @@ tools = server.tools
 ## Related Topics
 
 - [What is MCP?](index.md)
-- [Using MCP Tools in RT](MCP_tools_in_rt.md)
+- [Using MCP Tools in RT](MCP_tools_in_RT.md)
