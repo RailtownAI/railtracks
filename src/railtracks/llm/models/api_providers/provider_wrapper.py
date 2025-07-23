@@ -10,10 +10,7 @@ from .._litellm_wrapper import LiteLLMWrapper
 class ProviderLLMWrapper(LiteLLMWrapper, ABC):
     def __init__(self, model_name: str, **kwargs):
         provider_name = self.model_type().lower()
-        try:
-            provider_info = get_llm_provider(model_name)
-        except Exception as e:
-            raise e
+        provider_info = get_llm_provider(model_name)
         # Check if the model name is valid
         if provider_info[1] != provider_name:
             raise LLMError(
