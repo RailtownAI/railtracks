@@ -15,7 +15,7 @@ class ProviderLLMWrapper(LiteLLMWrapper, ABC):
             # Check if the model name is valid
             if provider_info[1] != provider_name:
                 raise Exception("Provide name does not match")
-        except Exception as e:
+        except Exception:
             raise LLMError(
                 reason=f"Invalid model name: {model_name}. Model name must be a part of {provider_name}'s model list.",
             )

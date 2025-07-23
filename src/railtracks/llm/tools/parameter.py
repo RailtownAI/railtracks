@@ -146,7 +146,7 @@ class PydanticParameter(Parameter):
     def properties(self) -> set[str, Parameter]:
         """Get the nested properties of this parameter."""
         return self._properties
-    
+
     @property
     def ref_path(self) -> Optional[str]:
         """Get the ref_path of this parameter."""
@@ -160,8 +160,10 @@ class PydanticParameter(Parameter):
             f"ref_path={self._ref_path})"
         )
 
+
 class ArrayParameter(Parameter):
     """Parameter that represents an array of objects (can be nested)."""
+
     def __init__(
         self,
         name: str,
@@ -180,12 +182,12 @@ class ArrayParameter(Parameter):
     def properties(self) -> set[str, Parameter]:
         """Get the nested properties of this parameter."""
         return self._properties
-    
+
     @property
     def max_items(self) -> int:
         """Get the maximum number of items in the array."""
         return self._max_items
-    
+
     def __str__(self) -> str:
         """String representation of the parameter with properties."""
         return (

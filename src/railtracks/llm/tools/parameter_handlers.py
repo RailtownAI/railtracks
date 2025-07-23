@@ -51,17 +51,22 @@ class ParameterHandler(ABC):
         """
         pass
 
+
 class UnionParameterHandler(ParameterHandler):
     """Handler for Union parameters. Since Optional[x] = Union[x, None]."""
 
     def can_handle(self, param_annotation):
         # this is the Check for Union / Optional
-        if hasattr(param_annotation, "__origin__") and param_annotation.__origin__ is Union:
+        if (
+            hasattr(param_annotation, "__origin__")
+            and param_annotation.__origin__ is Union
+        ):
             return True
-        if isinstance(param_annotation, types.UnionType):   # this handles typing.Union and the new Python 3.10+ UnionType (str | int)
+        if isinstance(
+            param_annotation, types.UnionType
+        ):  # this handles typing.Union and the new Python 3.10+ UnionType (str | int)
             return True
         return False
-        
 
     def create_parameter(
         self, param_name: str, param_annotation: Any, description: str, required: bool
@@ -83,6 +88,7 @@ class UnionParameterHandler(ParameterHandler):
             description=description,
             required=required and not is_optional,
         )
+
 
 class PydanticModelHandler(ParameterHandler):
     """Handler for Pydantic model parameters."""
@@ -207,7 +213,7 @@ class SequenceParameterHandler(ParameterHandler):
 class DictParameterHandler(ParameterHandler):
     """Handler for dictionary parameters that raises an exception."""
 
-    # TODO: Prvide support for dictionary parameters in functions later. 
+    # TODO: Prvide support for dictionary parameters in functions later.
     def __init__(self):
         raise NotImplementedError("DictParameterHandler is not supported yet.")
 
@@ -217,7 +223,7 @@ class DictParameterHandler(ParameterHandler):
     def create_parameter(
         self, param_name: str, param_annotation: Any, description: str, required: bool
     ) -> Parameter:
-       pass
+        pass
 
 
 class DefaultParameterHandler(ParameterHandler):

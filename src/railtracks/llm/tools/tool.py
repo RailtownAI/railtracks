@@ -47,16 +47,17 @@ class Tool:
             parameters: Parameters attached to this tool; a set of Parameter objects, or a dict.
         """
         from railtracks.exceptions.node_creation.validation import validate_tool_params
+
         params_valid = validate_tool_params(parameters, Parameter)
-        if params_valid and isinstance(parameters, dict) and len(parameters) > 0:   # if parameters is a JSON-schema, convert into Parameter objects (Checks should be done in validate_tool_params)
+        if (
+            params_valid and isinstance(parameters, dict) and len(parameters) > 0
+        ):  # if parameters is a JSON-schema, convert into Parameter objects (Checks should be done in validate_tool_params)
             props = parameters.get("properties")
             required_fields = set(parameters.get("required", []))
             param_objs: Set[Parameter] = set()
             for name, prop in props.items():
                 param_objs.add(
-                    parse_json_schema_to_parameter(
-                        name, prop, name in required_fields
-                    )
+                    parse_json_schema_to_parameter(name, prop, name in required_fields)
                 )
             parameters = param_objs
 
@@ -194,7 +195,6 @@ class Tool:
         """
         input_schema = getattr(tool, "inputSchema", None)
         if not input_schema or input_schema["type"] != "object":
-
             raise NodeCreationError(
                 message="The inputSchema for an MCP Tool must be 'object'. ",
                 notes=[
@@ -207,10 +207,6 @@ class Tool:
         param_objs = set()
         for name, prop in properties.items():
             required = name in required_fields
-            param_objs.add(
-                parse_json_schema_to_parameter(
-                    name, prop, required
-                )
-            )
+            param_objs.add(parse_json_schema_to_parameter(name, prop, required))
 
         return cls(name=tool.name, detail=tool.description, parameters=param_objs)
