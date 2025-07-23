@@ -43,7 +43,7 @@ This starts the development server at `http://localhost:3000` with:
 
 - File watching for JSON changes
 - API endpoints for data access
-- Web-based visualizer interface
+- Portable Web-based visualizer interface that can be opened in any web environment (web, mobile, vs extension, chrome extension, etc)
 
 ## Project Structure
 
