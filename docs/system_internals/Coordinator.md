@@ -81,28 +81,23 @@ This diagram shows the sequence of interactions when a task is submitted and pro
 
 ```mermaid
 sequenceDiagram
-    participant Actor
-    participant Coordinator
-    participant Job
-    participant CoordinatorState
-    participant TaskExecutionStrategy
-    participant Publisher
+    participant A as Actor
+    participant C as Coordinator
+    participant J as Job
+    participant CS as CoordinatorState
+    participant TES as TaskExecutionStrategy
+    participant P as Publisher
 
-    Actor->>Coordinator: submit(task)
-    Coordinator->>Job: create_new(task)
-    activate Job
-    Job-->>Coordinator: new_job
-    deactivate Job
-    Coordinator->>CoordinatorState: add_job(new_job)
-    Coordinator->>TaskExecutionStrategy: execute(task)
+    A->>C: submit(task)
+    C->>J: create_new(task)
+    J-->>C: new_job
+    C->>CS: add_job(new_job)
+    C->>TES: execute(task)
     
-    Note right of TaskExecutionStrategy: Task runs asynchronously
+    Note over TES: Task runs asynchronously
     
-    TaskExecutionStrategy->>Publisher: publish(RequestCompletionMessage)
-    Publisher->>Coordinator: handle_item(message)
-    
-    Coordinator->>CoordinatorState: end_job(message.request_id, result)
-    activate CoordinatorState
-    CoordinatorState-->>Coordinator: 
-    deactivate CoordinatorState
+    TES->>P: publish(RequestCompletionMessage)
+    P->>C: handle_item(message)
+    C->>CS: end_job(request_id, result)
+    CS-->>C: confirmation
 ```
