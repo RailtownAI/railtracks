@@ -39,7 +39,7 @@ This command will:
 railtracks viz
 ```
 
-This starts the development server at `http://localhost:3000` with:
+This starts the development server at `http://localhost:3030` with:
 
 - File watching for JSON changes
 - API endpoints for data access
