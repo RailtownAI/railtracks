@@ -41,14 +41,6 @@ jobs:
           sed -i -E 's/__version__ = ".+"/__version__ = "'"$VERSION_CLEANED"'"/' src/railtracks/__init__.py
           echo "Updated __init__.py to version $VERSION_CLEANED"
 
-      - name: Build and Publish with Flit
-        env:
-          FLIT_INDEX_URL: 'https://pkgs.dev.azure.com/railtownai/ML/_packaging/railtownai_rc/pypi/upload/' # Private Package URL
-          FLIT_USERNAME: 'AZURE'
-          FLIT_PASSWORD: ${{ secrets.AZURE_ARTIFACTS_PAT }}
-        run: |
-          flit publish
-
       # For now, we want to continue publishing to Azure Artifacts for the Core package
       # and then also publish to PyPi for open source
       - name: Publish to PyPI
@@ -58,40 +50,3 @@ jobs:
           FLIT_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
         run: |
           flit publish
-
-  # The CLI is in the monorepo but published as a separate package railtracks[cli]
-  publish_cli:
-    name: Publish CLI Subpackage
-    runs-on: ubuntu-latest
-    # Do not publish the CLI package if the core package is not successfully published
-    needs: publish
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install flit
-
-      - name: Publish to PyPI
-        run: |
-          flit publish --repository-url https://pypi.org/pypi
-
-  # The UI is in the monorepo but published as a separate package railtracks[ui]
-  # ui should automatically include [cli] as a dependency
-  publish_ui:
-    name: Publish UI Subpackage
-    runs-on: ubuntu-latest
-    # Do not publish the UI package if the core package is not successfully published
-    needs: publish
-    steps:
-      - name: Dummy UI Publish Step
-        run: |
-          echo "UI publishing is not implemented yet - this is a placeholder job"
-          echo "Future implementation will handle UI package publishing"
