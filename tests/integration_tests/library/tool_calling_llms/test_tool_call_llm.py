@@ -39,13 +39,13 @@ async def test_empty_connected_nodes_class_based(model):
         class SimpleNode(rt.library.ToolCallLLM):
             def __init__(
                 self,
-                message_history: rt.llm.MessageHistory,
+                user_input: rt.llm.MessageHistory,
                 llm_model: rt.llm.ModelBase = model,
             ):
-                message_history = [x for x in message_history if x.role != "system"]
-                message_history.insert(0, system_simple)
+                user_input = [x for x in user_input if x.role != "system"]
+                user_input.insert(0, system_simple)
                 super().__init__(
-                    message_history=message_history,
+                    user_input=user_input,
                     model=llm_model,
                 )
 
@@ -69,7 +69,7 @@ async def test_simple_function_passed_tool_call(simple_function_taking_node, sim
                 )
             ]
         )
-        response = await runner.run(simple_function_taking_node, message_history=message_history)
+        response = await runner.run(simple_function_taking_node, user_input=message_history)
         assert isinstance(response.answer, simple_output_model)
         assert isinstance(response.answer.text, str)
         assert isinstance(response.answer.number, int)
@@ -86,7 +86,7 @@ async def test_some_functions_passed_tool_calls(some_function_taking_travel_plan
                 )
             ]
         )
-        response = await runner.run(some_function_taking_travel_planner_node, message_history=message_history)
+        response = await runner.run(some_function_taking_travel_planner_node, user_input=message_history)
         assert isinstance(response.answer, travel_planner_output_model)
         assert isinstance(response.answer.travel_plan, str)
         assert isinstance(response.answer.Total_cost, float)
@@ -136,7 +136,7 @@ async def test_tool_with_llm_tool_as_input_easy_tools():
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Give me a response.")]
         )
-        response = await runner.run(parent_tool, message_history=message_history)
+        response = await runner.run(parent_tool, user_input=message_history)
 
     assert response.answer is not None
     assert response.answer.content == "2 foxes and a dog"
@@ -154,9 +154,9 @@ async def test_tool_with_llm_tool_as_input_class_easy():
     class ChildTool(rt.library.ToolCallLLM):
         def __init__(
             self,
-            message_history: rt.llm.MessageHistory,
+            user_input: rt.llm.MessageHistory,
         ):
-            message_history_copy = deepcopy(message_history)
+            message_history_copy = deepcopy(user_input)
             message_history_copy.insert(
                 0,
                 rt.llm.SystemMessage(
@@ -165,7 +165,7 @@ async def test_tool_with_llm_tool_as_input_class_easy():
             )
 
             super().__init__(
-                message_history=message_history_copy, model=rt.llm.OpenAILLM("gpt-4o")
+                user_input=message_history_copy, model=rt.llm.OpenAILLM("gpt-4o")
             )
 
         @classmethod
@@ -218,7 +218,7 @@ async def test_tool_with_llm_tool_as_input_class_easy():
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Give me a response.")]
         )
-        response = await runner.run(parent_tool, message_history=message_history)
+        response = await runner.run(parent_tool, user_input=message_history)
 
     assert response.answer is not None
     assert "2 foxes and a dog" in response.answer.content
@@ -257,9 +257,9 @@ async def test_tool_with_llm_tool_as_input_easy_class():
 
         def __init__(
             self,
-            message_history: rt.llm.MessageHistory,
+            user_input: rt.llm.MessageHistory,
         ):
-            message_history_copy = deepcopy(message_history)
+            message_history_copy = deepcopy(user_input)
             message_history_copy.insert(
                 0,
                 rt.llm.SystemMessage(
@@ -268,7 +268,7 @@ async def test_tool_with_llm_tool_as_input_easy_class():
             )
 
             super().__init__(
-                message_history=message_history_copy, model=rt.llm.OpenAILLM("gpt-4o")
+                user_input=message_history_copy, model=rt.llm.OpenAILLM("gpt-4o")
             )
 
         @classmethod
@@ -286,7 +286,7 @@ async def test_tool_with_llm_tool_as_input_easy_class():
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Give me a response.")]
         )
-        response = await runner.run(ParentTool, message_history=message_history)
+        response = await runner.run(ParentTool, user_input=message_history)
 
     assert response.answer is not None
     assert response.answer.content == "2 foxes and a dog"
@@ -304,9 +304,9 @@ async def test_tool_with_llm_tool_as_input_class_tools():
     class ChildTool(rt.library.ToolCallLLM):
         def __init__(
             self,
-            message_history: rt.llm.MessageHistory,
+            user_input: rt.llm.MessageHistory,
         ):
-            message_history_copy = deepcopy(message_history)
+            message_history_copy = deepcopy(user_input)
             message_history_copy.insert(
                 0,
                 rt.llm.SystemMessage(
@@ -315,7 +315,7 @@ async def test_tool_with_llm_tool_as_input_class_tools():
             )
 
             super().__init__(
-                message_history=message_history_copy, model=rt.llm.OpenAILLM("gpt-4o")
+                user_input=message_history_copy, model=rt.llm.OpenAILLM("gpt-4o")
             )
 
         @classmethod
@@ -358,9 +358,9 @@ async def test_tool_with_llm_tool_as_input_class_tools():
 
         def __init__(
             self,
-            message_history: rt.llm.MessageHistory,
+            user_input: rt.llm.MessageHistory,
         ):
-            message_history_copy = deepcopy(message_history)
+            message_history_copy = deepcopy(user_input)
             message_history_copy.insert(
                 0,
                 rt.llm.SystemMessage(
@@ -369,7 +369,7 @@ async def test_tool_with_llm_tool_as_input_class_tools():
             )
 
             super().__init__(
-                message_history=message_history_copy, model=rt.llm.OpenAILLM("gpt-4o")
+                user_input=message_history_copy, model=rt.llm.OpenAILLM("gpt-4o")
             )
 
         @classmethod
@@ -387,7 +387,7 @@ async def test_tool_with_llm_tool_as_input_class_tools():
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Give me a response.")]
         )
-        response = await runner.run(ParentTool, message_history=message_history)
+        response = await runner.run(ParentTool, user_input=message_history)
 
     assert response.answer is not None
     assert response.answer.content == "2 foxes and a dog"
@@ -407,7 +407,7 @@ def test_return_into(mock_llm):
     )
 
     with rt.Runner() as run:
-        result = run.run_sync(node, message_history=MessageHistory()).answer
+        result = run.run_sync(node, user_input=MessageHistory()).answer
         assert result is None  # The result should be None since it was stored in context
         assert rt.context.get("greeting").content == "Hello"
 
@@ -431,7 +431,7 @@ def test_return_into_custom_fn(mock_llm):
     )
 
     with rt.Runner() as run:
-        result = run.run_sync(node, message_history=MessageHistory()).answer
+        result = run.run_sync(node, user_input=MessageHistory()).answer
         assert result == "Success!"  # The result should be None since it was stored in context
         assert rt.context.get("greeting") == "HELLO"
 
@@ -448,7 +448,7 @@ async def test_allows_only_one_toolcall(limited_tool_call_node_factory, travel_m
     message_history = travel_message_history()
     with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="NONE")) as runner:
         reset_tools_called()
-        response = await rt.call(node, message_history=message_history)
+        response = await rt.call(node, user_input=message_history)
         assert isinstance(response.content, str)
         assert rt.context.get("tools_called") == 1
 
@@ -459,7 +459,7 @@ async def test_zero_tool_calls_forces_final_answer(limited_tool_call_node_factor
     message_history = travel_message_history("Plan a trip to Paris for 2 days.")
     with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="NONE")) as runner:
         reset_tools_called()
-        response = await rt.call(node, message_history=message_history)
+        response = await rt.call(node, user_input=message_history)
         assert isinstance(response.content, str)
         assert rt.context.get("tools_called") == 0
 
@@ -470,7 +470,7 @@ async def test_multiple_tool_calls_limit(limited_tool_call_node_factory, travel_
     message_history = travel_message_history("Plan a trip to Paris, Berlin, and New York for 2 days each.")
     with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="NONE")) as runner:
         reset_tools_called()
-        response = await rt.call(node, message_history=message_history)
+        response = await rt.call(node, user_input=message_history)
         assert isinstance(response.content, str)
         assert rt.context.get("tools_called") <= 5
 
@@ -488,10 +488,10 @@ async def test_context_reset_between_runs(limited_tool_call_node_factory, travel
     message_history = travel_message_history("Get the magic number and divide it by 2.")
     with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="NONE")) as runner:
         reset_tools_called()
-        response = await rt.call(node, message_history=message_history)
+        response = await rt.call(node, user_input=message_history)
         assert rt.context.get("tools_called") == 1
         reset_tools_called()
-        response2 = await rt.call(node, message_history=message_history)
+        response2 = await rt.call(node, user_input=message_history)
         assert rt.context.get("tools_called") == 1
 
 # =========================================== END TESTS FOR MAX TOOL CALLS ===========================================

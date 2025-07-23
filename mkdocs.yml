@@ -9,7 +9,12 @@ theme:
     - navigation.prefetch
     - search.suggest
     - content.code.copy
-# TODO: add other features
+  palette:
+    scheme: slate
+  code:
+    highlight_theme:
+      light: github
+      dark: dracula
 
 
 
@@ -45,6 +50,7 @@ nav:
 
   - Observability:
         - observability/index.md
+        - Logging: observability/logging.md
 
   - LLM Support:
       - llm_support/index.md
@@ -74,6 +80,16 @@ plugins:
 markdown_extensions:
   - pymdownx.emoji:
       emoji_generator: !!python/name:pymdownx.emoji.to_svg
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+        alternate_style: true
+
+
 
 
 

@@ -17,7 +17,7 @@ async def test_structured_with_no_tool_calls(simple_node, simple_output_model):
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Generate a simple text and number.")]
         )
-        response = await runner.run(simple_node, message_history=message_history)
+        response = await runner.run(simple_node, user_input=message_history)
         assert isinstance(response.answer, simple_output_model)
         assert isinstance(response.answer.text, str)
         assert isinstance(response.answer.number, int)
@@ -69,7 +69,7 @@ async def test_tool_with_structured_output_child_tool():
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Generate a structured response for 'Hello World'.")]
         )
-        response = await runner.run(parent_tool, message_history=message_history)
+        response = await runner.run(parent_tool, user_input=message_history)
 
     # Assertions
     assert response.answer is not None
@@ -89,7 +89,7 @@ async def test_functions_passed_tool_calls(only_function_taking_travel_planner_n
                 )
             ]
         )
-        response = await runner.run(only_function_taking_travel_planner_node, message_history=message_history)
+        response = await runner.run(only_function_taking_travel_planner_node, user_input=message_history)
         assert isinstance(response.answer, travel_planner_output_model)
         assert isinstance(response.answer.travel_plan, str)
         assert isinstance(response.answer.Total_cost, float)
@@ -103,7 +103,7 @@ async def test_structured_with_terminal_llm_as_tool(math_node, math_output_model
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Start the Math node.")]
         )
-        response = await runner.run(math_node, message_history=message_history)
+        response = await runner.run(math_node, user_input=message_history)
         assert isinstance(response.answer, math_output_model)
         assert isinstance(response.answer.sum, float)
         assert isinstance(response.answer.random_numbers, list)
@@ -123,7 +123,7 @@ async def test_structured_with_complex_output_model(
                 )
             ]
         )
-        response = await runner.run(complex_node, message_history=message_history)
+        response = await runner.run(complex_node, user_input=message_history)
         assert isinstance(response.answer, person_output_model)
         assert isinstance(response.answer.name, str)
         assert isinstance(response.answer.age, int)
@@ -150,7 +150,7 @@ async def test_structured_with_tool_calls(
         )
 
         response = await runner.run(
-            travel_planner_node, message_history=message_history
+            travel_planner_node, user_input=message_history
         )
         assert isinstance(response.answer, travel_planner_output_model)
         assert isinstance(response.answer.travel_plan, str)
@@ -176,7 +176,7 @@ def test_return_into_structured(mock_llm):
     )
 
     with rt.Runner() as run:
-        result = run.run_sync(node, message_history=MessageHistory()).answer
+        result = run.run_sync(node, user_input=MessageHistory()).answer
         assert result is None  # The result should be None since it was stored in context
         stored = rt.context.get("structured_greeting")
         assert stored is not None

@@ -191,12 +191,12 @@ def terminal_nodes(request, model, terminal_llms_system_messages):
             class TerminalLLMNode(rt.library.TerminalLLM):
                 def __init__(
                     self,
-                    message_history: rt.llm.MessageHistory,
+                    user_input: rt.llm.MessageHistory,
                     llm_model: rt.llm.ModelBase,
                 ):
-                    message_history = [x for x in message_history if x.role != "system"]
-                    message_history.insert(0, SystemMessage(system_message))
-                    super().__init__(message_history=message_history, llm_model=llm_model)
+                    user_input = [x for x in user_input if x.role != "system"]
+                    user_input.insert(0, SystemMessage(system_message))
+                    super().__init__(user_input=user_input, llm_model=llm_model)
 
                 @classmethod
                 def pretty_name(cls) -> str:
@@ -265,12 +265,12 @@ def structured_nodes(request, model, structured_llms_system_messages):
             class StructuredLLMNode(rt.library.StructuredLLM):
                 def __init__(
                     self,
-                    message_history: rt.llm.MessageHistory,
+                    user_input: rt.llm.MessageHistory,
                     llm_model: rt.llm.ModelBase,
                 ):
-                    message_history = [x for x in message_history if x.role != "system"]
-                    message_history.insert(0, SystemMessage(system_message))
-                    super().__init__(message_history=message_history, llm_model=llm_model)
+                    user_input = [x for x in user_input if x.role != "system"]
+                    user_input.insert(0, SystemMessage(system_message))
+                    super().__init__(user_input=user_input, llm_model=llm_model)
 
                 @classmethod
                 def schema(cls) -> BaseModel:
@@ -346,12 +346,12 @@ def tool_calling_nodes(
             class ToolCallLLMNode(rt.library.ToolCallLLM):
                 def __init__(
                     self,
-                    message_history: rt.llm.MessageHistory,
+                    user_input: rt.llm.MessageHistory,
                     llm_model: rt.llm.ModelBase,
                 ):
-                    message_history = [x for x in message_history if x.role != "system"]
-                    message_history.insert(0, SystemMessage(system_message))
-                    super().__init__(message_history=message_history, llm_model=llm_model)
+                    user_input = [x for x in user_input if x.role != "system"]
+                    user_input.insert(0, SystemMessage(system_message))
+                    super().__init__(user_input=user_input, llm_model=llm_model)
 
                 def connected_nodes(self):
                     return connected_nodes

@@ -31,7 +31,7 @@ async def test_message_history_not_mutated_terminal_llm(model, terminal_nodes):
         original_message_history = deepcopy(message_history)
 
         # Common parameters for node calls
-        call_params = {"message_history": message_history}
+        call_params = {"user_input": message_history}
         if needs_model:
             call_params["llm_model"] = model
 
@@ -110,7 +110,7 @@ async def test_message_history_not_mutated_structured_llm(model, structured_node
         original_message_history = deepcopy(message_history)
 
         # Common parameters for node calls
-        call_params = {"message_history": message_history}
+        call_params = {"user_input": message_history}
         if needs_model:
             call_params["llm_model"] = model
 
@@ -189,7 +189,7 @@ async def test_message_history_not_mutated_tool_call_llm(model, tool_calling_nod
         original_message_history = deepcopy(message_history)
 
         # Common parameters for node calls
-        call_params = {"message_history": message_history}
+        call_params = {"user_input": message_history}
         if needs_model:
             call_params["llm_model"] = model
 
