@@ -1,0 +1,61 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+
+[project]
+name = "railtracks"
+authors = [
+    { name = "Logan Underwood", email = "logan@railtown.ai" },
+    { name = "Amir Refaee", email="amir@railtown.ai" },
+    { name = "Aryan Ballani", email="aryan@railtown.ai" },
+    { name = "Levi Varsanyi", email="levi@railtown.ai" },
+    { name = "Tristan Brower", email = "tristan@railtown.ai" },
+    { name = "Guan Zheng Huang", email = "guan@railtown.ai" },
+    { name = "Jaime Bueza", email = "jaime@railtown.ai" },
+]
+readme = "README.md"
+license = { file = "LICENSE" }
+dynamic = ["version", "description"]
+classifiers = ["License :: OSI Approved :: MIT License"]
+dependencies = []
+
+[project.scripts]
+railtracks = "railtracks:main"
+
+[project.urls]
+Home = "https://railtown.ai"
+
+
+[tool.flit.module]
+name = "railtracks"
+
+[tool.black]
+line-length = 120
+fast = true
+
+reportMissingImports = true
+reportMissingTypeStubs = false
+
+pythonVersion = "3.10"
+pythonPlatform = "Linux"
+
+executionEnvironments = [{ root = "src" }]
+
+[project.optional-dependencies]
+test = ["pytest >=7.1.2"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "B", "C4", "UP"]
+ignore = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["railtracks"]
