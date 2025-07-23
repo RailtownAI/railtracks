@@ -165,12 +165,12 @@ sentry_sdk.init(
     | Initial Request  | `RT          : INFO     - START CREATED <NODE_NAME>` |
     | Invoking Nodes   | `RT          : INFO     - <PARENT_NODE_NAME> CREATED <CHILD_NODE_NAME>` |
     | Node Completed   | `RT          : INFO     - <NODE_NAME> DONE` |
-    | Run Data Saved   | `RT.Runner   : INFO     - Saving execution info to .covailence\<RUNNER_ID>.json` |
+    | Run Data Saved   | `RT.Runner   : INFO     - Saving execution info to .railtracks\<RUNNER_ID>.json` |
 
 ??? note "⚠️ WARNING Messages"
     | Type              | Example |
     |-------------------|---------|
-    | Overwriting File  | `RT.Runner   : WARNING  - File .covailence\<RUNNER_ID>.json already exists, overwriting...` |
+    | Overwriting File  | `RT.Runner   : WARNING  - File .railtracks\<RUNNER_ID>.json already exists, overwriting...` |
 
 ??? note "❌ ERROR Messages"
     | Type        | Example |
