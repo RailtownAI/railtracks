@@ -172,7 +172,7 @@ class RailtracksHTTPHandler(BaseHTTPRequestHandler):
         self.railtracks_dir = Path(cli_directory)
         super().__init__(*args, **kwargs)
 
-    def do_api_get(self):
+    def do_GET(self):  # noqa: N802
         """Handle GET requests"""
         parsed_url = urlparse(self.path)
         path = parsed_url.path
@@ -186,7 +186,7 @@ class RailtracksHTTPHandler(BaseHTTPRequestHandler):
             # Serve static files from build directory
             self.serve_static_file(path)
 
-    def do_api_options(self):
+    def do_OPTIONS(self):  # noqa: N802
         """Handle OPTIONS requests for CORS preflight"""
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -194,7 +194,7 @@ class RailtracksHTTPHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
-    def do_api_post(self):
+    def do_POST(self):  # noqa: N802
         """Handle POST requests"""
         parsed_url = urlparse(self.path)
         path = parsed_url.path
