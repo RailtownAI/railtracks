@@ -40,7 +40,7 @@ latest_ui_url = "https://railtownazureb2c.blob.core.windows.net/cdn/rc-viz/lates
 cli_name = "railtracks"
 cli_directory = ".railtracks"
 DEFAULT_PORT = 3030
-DEBOUNCE_INTERVAL = 0.1  # seconds
+DEBOUNCE_INTERVAL = 0.5  # seconds
 
 
 def get_script_directory():
