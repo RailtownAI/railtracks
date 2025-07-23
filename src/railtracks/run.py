@@ -107,13 +107,13 @@ class Runner:
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.executor_config.save_state:
             try:
-                covailence_dir = Path(".covailence")
-                covailence_dir.mkdir(
+                railtracks_dir = Path(".railtracks")
+                railtracks_dir.mkdir(
                     exist_ok=True
                 )  # Creates if doesn't exist, skips otherwise.
 
                 file_path = (
-                    covailence_dir / f"{self.executor_config.run_identifier}.json"
+                    railtracks_dir / f"{self.executor_config.run_identifier}.json"
                 )
                 if file_path.exists():
                     logger.warning("File %s already exists, overwriting..." % file_path)

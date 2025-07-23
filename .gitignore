@@ -9,7 +9,7 @@ dist
 package-lock.json
 package.json
 test-results.xml
-**/.covailence
+**/.railtracks
 .coverage
 
 # jupyter notebook
