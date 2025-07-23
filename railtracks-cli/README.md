@@ -173,7 +173,7 @@ server = RailtracksServer(port=8080)  # Change port number
 
 ### UI Source
 
-The frontend UI is downloaded from a CDN. To use a different source, update the `latest_ui_url` variable:
+The frontend UI is a portable React UI that works on any web platform (web, mobile, visual studio extension, chrome extension, etc) and is downloaded from a CDN. To use a different source, update the `latest_ui_url` variable:
 
 ```python
 latest_ui_url = "https://your-cdn.com/railtracks-ui/latest.zip"
