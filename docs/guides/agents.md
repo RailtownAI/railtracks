@@ -1,7 +1,7 @@
 # 🤖 What is an Agent?
 
 The buzz around AI terms can be pretty overwhelming and sound more like a buzzword than something useful. Before we dive
-deep into how you can build agents in **Covailence**, let's first understand what an agent is.
+deep into how you can build agents in **RailTracks**, let's first understand what an agent is.
 
 An agent is a self-contained unit that can perform a specific task or set of tasks autonomously. It has the ability to
 make decisions, take actions, and act within its environment to achieve its goals.
