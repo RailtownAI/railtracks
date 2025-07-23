@@ -1,6 +1,6 @@
 # Railtracks CLI
 
-A powerful Python development server with file watching and JSON API for visualizing and debugging your railtracks projects.
+A simple CLI to help developers visualize and debug their agents.
 
 ## What is Railtracks CLI?
 
@@ -15,14 +15,8 @@ Railtracks CLI is a development tool that provides:
 
 ### 1. Installation
 
-The railtracks CLI is included with the railtracks framework. You can run it directly:
-
 ```bash
-# From the railtracks-cli directory
-python railtracks.py [command]
-
-# Or create an alias for easier access
-alias railtracks="python /path/to/railtracks-cli/railtracks.py"
+pip install railtracks[cli]
 ```
 
 ### 2. Initialize Your Project
