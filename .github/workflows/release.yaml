@@ -83,6 +83,8 @@ jobs:
         run: |
           flit publish --repository-url https://pypi.org/pypi
 
+  # The UI is in the monorepo but published as a separate package railtracks[ui]
+  # ui should automatically include [cli] as a dependency
   publish_ui:
     name: Publish UI Subpackage
     runs-on: ubuntu-latest
