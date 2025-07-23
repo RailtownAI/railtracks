@@ -39,7 +39,6 @@ def deep_equal(a, b, parent_key=None):
             return True
 
     else:
-        a = "none" if a == "null" else a    # convert null to none
         if a != b:
             print(f"[Value mismatch] at {parent_key}: {a} != {b}")
         return a == b

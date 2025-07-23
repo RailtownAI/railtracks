@@ -825,7 +825,7 @@
                         "type": "string"
                     },
                     {
-                        "type": "none"
+                        "type": "null"
                     }
                 ],
                 "default": null
