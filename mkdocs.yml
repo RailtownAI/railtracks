@@ -9,9 +9,27 @@ theme:
     - navigation.prefetch
     - search.suggest
     - content.code.copy
-# TODO: add other features
+    - content.code.highlight
+
+markdown_extensions:
+  - codehilite
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+        custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
 
 
+extra_javascript:
+  - https://unpkg.com/mermaid@10.6.1/dist/mermaid.min.js
+  - js/mermaid-config.js
+
+extra_css:
+  - css/extra.css
 
 nav:
   - Home: index.md
@@ -63,6 +81,11 @@ nav:
 
   - API Reference:
       - api_reference/index.md
+  
+  - System Overview:
+      - system_overview/index.md
+      - Runner: system_overview/Runner.md
+      - PubSub: system_overview/PubSub.md
 
 
 plugins:
