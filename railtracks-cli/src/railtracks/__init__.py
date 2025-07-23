@@ -32,6 +32,8 @@ from urllib.parse import urlparse
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
+__version__ = "0.1.0"
+
 # TODO: Once we are releasing to PyPi change this to the release asset instead
 latest_ui_url = "https://railtownazureb2c.blob.core.windows.net/cdn/rc-viz/latest.zip"
 
@@ -390,7 +392,9 @@ def main():
         print(f"Usage: {cli_name} [command]")
         print("")
         print("Commands:")
-        print(f"  init    Initialize {cli_name} environment (setup directories, download portable UI)")
+        print(
+            f"  init    Initialize {cli_name} environment (setup directories, download portable UI)"
+        )
         print(f"  viz     Start the {cli_name} development server")
         print("")
         print("Examples:")
