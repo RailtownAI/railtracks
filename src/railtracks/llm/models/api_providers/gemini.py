@@ -1,9 +1,6 @@
 from ._provider_wrapper import ProviderLLMWrapper
-
-
 class GeminiLLM(ProviderLLMWrapper):
     def __init__(self, model_name: str, **kwargs):
-        provider_name = self.model_type().lower()
         # for gemini models through litellm, we need 'gemini/{model_name}' format, but we do this after the checks in ProiLLMWrapper init
         if not model_name.startswith("gemini/"):
             model_name = f"gemini/{model_name}"
@@ -13,4 +10,4 @@ class GeminiLLM(ProviderLLMWrapper):
     
     @classmethod
     def model_type(cls) -> str:
-        return "Vertex_AI"          # litellm uses this for the provider
+        return "Vertex_AI"          # litellm uses this for the provider for Gemini

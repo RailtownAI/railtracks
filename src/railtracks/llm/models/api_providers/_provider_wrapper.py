@@ -11,8 +11,8 @@ class ProviderLLMWrapper(LiteLLMWrapper, ABC):
     def __init__(self, model_name: str, **kwargs):
         provider_name = self.model_type().lower()
         try:
-            _model_name = model_name.split("/")[-1]          # incase the model name is in the format of provider/model_name
-            provider_info = get_llm_provider(_model_name)
+            provider_info = get_llm_provider(model_name)            # this function is a little hacky, we are tracking this in issue #379
+            assert provider_info[1] == provider_name, f"Provider mismatch. Expected {provider_name}, got {provider_info[1]}"
         except Exception as e:
             raise ModelNotFoundError(
                 reason=f"Please check the model name: {model_name}.",
@@ -22,11 +22,6 @@ class ProviderLLMWrapper(LiteLLMWrapper, ABC):
                     "Provider List: https://docs.litellm.ai/docs/providers",
                 ],
             ) from e    
-        # Check if the model name is valid
-        if provider_info[1] != provider_name:
-            raise LLMError(
-                reason=f"Invalid model name: {model_name}. Model name must be a part of {provider_name}'s model list.",
-            )
         super().__init__(model_name=model_name, **kwargs)
 
     def chat_with_tools(self, messages, tools, **kwargs):
