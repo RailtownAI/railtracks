@@ -3,14 +3,14 @@ import railtracks as rt
 from pydantic import BaseModel
 from railtracks.llm import MessageHistory, SystemMessage, ModelBase, UserMessage, AssistantMessage, ToolMessage, ToolResponse
 from railtracks.llm.response import Response
-from railtracks.nodes.library import StructuredLLM, structured_llm
+from railtracks.nodes.library import StructuredLastMessageLLM, structured_llm
 from railtracks.exceptions import NodeCreationError, NodeInvocationError
 from typing import Type
 
 # ===================================================== START Unit Testing =========================================================
 @pytest.mark.asyncio
 async def test_structured_llm_instantiate_and_invoke(simple_output_model, mock_llm, mock_structured_function):
-    class MyLLM(StructuredLLM):
+    class MyLLM(StructuredLastMessageLLM):
 
         @classmethod
         def schema(cls) -> Type[BaseModel]:
@@ -26,7 +26,7 @@ async def test_structured_llm_instantiate_and_invoke(simple_output_model, mock_l
     assert result.number == 42
 
 def test_structured_llm_output_model_classmethod(simple_output_model):
-    class MyLLM(StructuredLLM):
+    class MyLLM(StructuredLastMessageLLM):
         @classmethod
         def schema(cls) -> Type[BaseModel]:
             return simple_output_model
@@ -237,7 +237,7 @@ async def test_system_message_in_message_history_easy_usage(simple_output_model)
 
 @pytest.mark.asyncio
 async def test_system_message_in_message_history_class_based(simple_output_model):
-    class Structurer(rt.library.StructuredLLM):
+    class Structurer(rt.library.StructuredLastMessageLLM):
         def __init__(
             self,
             user_input: rt.llm.MessageHistory,

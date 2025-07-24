@@ -5,8 +5,12 @@ __all__ = [
     "MessageHistoryToolCallLLM",
     "StructuredToolCallLLM",
     "StructuredLLM",
+    "StructuredMessageHistLLM",
+    "StructuredLastMessageLLM",
     "tool_call_llm",
     "terminal_llm",
+    "MessageHistoryTerminalLLM",
+    "LastMessageTerminalLLM",
     "from_mcp_server",
     "structured_tool_call_llm",
     "message_hist_tool_call_llm",
@@ -22,7 +26,11 @@ from .easy_usage_wrappers.tool_calling_llms.structured_tool_call_llm import stru
 from .easy_usage_wrappers.terminal_llms.terminal_llm import terminal_llm
 from .easy_usage_wrappers.tool_calling_llms.tool_call_llm import tool_call_llm
 from .structured_llm_base import StructuredLLM
+from .structured_message_hist_llm import StructuredMessageHistLLM
+from .structured_last_message_llm import StructuredLastMessageLLM
 from .terminal_llm_base import TerminalLLM
+from .message_hist_terminal_llm import MessageHistoryTerminalLLM
+from .last_message_terminal_llm import LastMessageTerminalLLM
 from .tool_calling_llms.mess_hist_tool_call_llm import MessageHistoryToolCallLLM
 from .tool_calling_llms.structured_tool_call_llm import StructuredToolCallLLM
 from .tool_calling_llms.tool_call_llm import ToolCallLLM
