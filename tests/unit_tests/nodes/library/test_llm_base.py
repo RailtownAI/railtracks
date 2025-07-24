@@ -1,8 +1,8 @@
 import pytest
 
-from requestcompletion.llm.response import Response
-from requestcompletion.nodes.library._llm_base import LLMBase, RequestDetails
-import requestcompletion.llm as llm
+from railtracks.llm.response import Response
+from railtracks.nodes.library._llm_base import LLMBase, RequestDetails
+import railtracks.llm as llm
 
 class MockModelNode(LLMBase):
 
@@ -11,7 +11,7 @@ class MockModelNode(LLMBase):
         return "Mock Node"
 
     async def invoke(self) -> llm.Message:
-        return self.model.chat(self.message_hist).message
+        return self.llm_model.chat(self.message_hist).message
 
 @pytest.mark.asyncio
 async def test_hooks(mock_llm):
@@ -19,10 +19,10 @@ async def test_hooks(mock_llm):
         llm.UserMessage(content="What is the meaning of life?"),
     ])
     response = "There is none."
-    model = mock_llm(chat=lambda x: Response(llm.AssistantMessage(response)))
+    llm_model = mock_llm(chat=lambda x: Response(llm.AssistantMessage(response)))
     node = MockModelNode(
-        model=model,
-        message_history=example_message_history,
+        llm_model=llm_model,
+        user_input=example_message_history,
 
     )
 
@@ -34,7 +34,7 @@ async def test_hooks(mock_llm):
     compare_request = RequestDetails(
             message_input=example_message_history,
             output=node_completion,
-            model_name=model.model_name(),
+            model_name=llm_model.model_name(),
             model_provider=mock_llm.model_type(),
         )
     for i in zip(r_d.input, compare_request.input):
@@ -57,10 +57,10 @@ async def test_error_hooks(mock_llm):
     def exception_raiser(x):
         raise exception
 
-    model = mock_llm(chat=exception_raiser)
+    llm_model = mock_llm(chat=exception_raiser)
     node = MockModelNode(
-        model=model,
-        message_history=example_message_history,
+        llm_model=llm_model,
+        user_input=example_message_history,
     )
 
     with pytest.raises(Exception):
@@ -71,7 +71,7 @@ async def test_error_hooks(mock_llm):
     compare_request = RequestDetails(
             message_input=example_message_history,
             output=None,
-            model_name=model.model_name(),
+            model_name=llm_model.model_name(),
             model_provider=mock_llm.model_type(),
         )
 

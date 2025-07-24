@@ -1,11 +1,11 @@
 import pytest
 
-from requestcompletion import ExecutorConfig
-from requestcompletion.llm import MessageHistory, Message
-from requestcompletion.llm.response import Response
-from requestcompletion.nodes.library.easy_usage_wrappers.terminal_llm import terminal_llm
+from railtracks import ExecutorConfig
+from railtracks.llm import MessageHistory, Message
+from railtracks.llm.response import Response
+from railtracks.nodes.library.easy_usage_wrappers.terminal_llm import terminal_llm
 from tests.unit_tests.llm.conftest import MockLLM
-import requestcompletion as rc
+import railtracks as rt
 
 
 def test_prompt_injection():
@@ -16,11 +16,11 @@ def test_prompt_injection():
 
     node = terminal_llm(
         system_message=prompt,
-        model=MockLLM(chat=return_message)
+        llm_model=MockLLM(chat=return_message)
     )
 
-    with rc.Runner(context={"secret": "tomato"}) as runner:
-        response = runner.run_sync(node, message_history=MessageHistory())
+    with rt.Runner(context={"secret": "tomato"}) as runner:
+        response = runner.run_sync(node, user_input=MessageHistory())
 
     assert response.answer == "tomato"
 
@@ -33,11 +33,11 @@ def test_prompt_injection_bypass():
 
     node = terminal_llm(
         system_message=prompt,
-        model=MockLLM(chat=return_message)
+        llm_model=MockLLM(chat=return_message)
     )
 
-    with rc.Runner(context={"secret_value": "tomato"}) as runner:
-        response = runner.run_sync(node, message_history=MessageHistory())
+    with rt.Runner(context={"secret_value": "tomato"}) as runner:
+        response = runner.run_sync(node, user_input=MessageHistory())
 
     assert response.answer == "{secret_value}"
 
@@ -50,11 +50,11 @@ def test_prompt_numerical():
 
     node = terminal_llm(
         system_message=prompt,
-        model=MockLLM(chat=return_message)
+        llm_model=MockLLM(chat=return_message)
     )
 
-    with rc.Runner(context={"1": "tomato"}) as runner:
-        response = runner.run_sync(node, message_history=MessageHistory())
+    with rt.Runner(context={"1": "tomato"}) as runner:
+        response = runner.run_sync(node, user_input=MessageHistory())
 
     assert response.answer == "tomato"
 
@@ -67,11 +67,11 @@ def test_prompt_not_in_context():
 
     node = terminal_llm(
         system_message=prompt,
-        model=MockLLM(chat=return_message)
+        llm_model=MockLLM(chat=return_message)
     )
 
-    with rc.Runner() as runner:
-        response = runner.run_sync(node, message_history=MessageHistory())
+    with rt.Runner() as runner:
+        response = runner.run_sync(node, user_input=MessageHistory())
 
     assert response.answer == "{secret2}"
 
@@ -85,13 +85,13 @@ def test_prompt_injection_global_config_bypass():
 
     node = terminal_llm(
         system_message=prompt,
-        model=MockLLM(chat=return_message)
+        llm_model=MockLLM(chat=return_message)
     )
 
-    with rc.Runner(
+    with rt.Runner(
             context={"secret_value": "tomato"},
             executor_config=ExecutorConfig(prompt_injection=False)
     ) as runner:
-        response = runner.run_sync(node, message_history=MessageHistory())
+        response = runner.run_sync(node, user_input=MessageHistory())
 
     assert response.answer == "{secret_value}"

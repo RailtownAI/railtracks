@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time AI Chat - Async/Await Demo</title>
+    <link rel="stylesheet" href="chat.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div class="main-container">
+        <div class="app-header">
+            <div class="connection-status" id="connectionStatus">Connecting...</div>
+            <button class="end-session-button" id="endSessionButton" onclick="endSession()">
+                End Session
+            </button>
+            <h1>🤖 <span class="code-accent glow">Real-time AI Chat</span></h1>
+        </div>
+        
+        <div class="tab-container">
+            <button class="tab active" onclick="switchTab('chat')">Chat Interface</button>
+            <button class="tab" onclick="switchTab('tools')">Invoked Tools</button>
+        </div>
+        
+        <!-- Chat Tab Content -->
+        <div class="tab-content active" id="chatTab">
+            <div class="chat-messages" id="chatMessages">
+            </div>
+            
+            <div class="status" id="statusBar"></div>
+            
+            <div class="chat-input">
+                <input 
+                    type="text" 
+                    class="message-input" 
+                    id="messageInput" 
+                    placeholder="Type your message here..." 
+                    maxlength="500"
+                    onkeypress="handleKeyPress(event)"
+                >
+                <button class="send-button" id="sendButton" onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+        
+        <!-- Invoked Tools Tab Content -->
+        <div class="tab-content" id="toolsTab">
+            <div class="tools-container">
+                <div class="tools-header">
+                    <h2>🧰 Invoked Tools</h2>
+                    <button class="clear-tools-button" onclick="clearTools()">Clear Tools</button>
+                </div>
+                <div class="tools-list" id="toolsList">
+                    <div class="no-tools-message">No tools have been invoked yet.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="chat.js"></script>
+</body>
+</html>

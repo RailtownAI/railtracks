@@ -1,7 +1,7 @@
 import pytest
-import requestcompletion as rc
-from requestcompletion.llm.response import Response
-from requestcompletion.llm import AssistantMessage
+import railtracks as rt
+from railtracks.llm.response import Response
+from railtracks.llm import AssistantMessage
 from typing import List, Callable, Type
 from pydantic import BaseModel, Field
 
@@ -26,15 +26,12 @@ def mock_structured_function(simple_output_model):
 # ============ System Messages ===========
 @pytest.fixture
 def encoder_system_message():
-    return rc.llm.SystemMessage(
-        "You are a text encoder. Encode the input string into bytes and do a random operation on them. You can use the following operations: reverse the byte order, or repeat each byte twice, or jumble the bytes."
-    )
+    return "You are a text encoder. Encode the input string into bytes and do a random operation on them. You can use the following operations: reverse the byte order, or repeat each byte twice, or jumble the bytes."
 
 @pytest.fixture
 def decoder_system_message():
-    return rc.llm.SystemMessage(
-        "You are a text decoder. Decode the bytes into a string."
-    )
+    return "You are a text decoder. Decode the bytes into a string."
+
 
 
 # ============ Helper function for test_function.py ===========
@@ -56,12 +53,12 @@ def create_top_level_node():
             A ToolCallLLM node that can be used to test the function.
         """
 
-        class TopLevelNode(rc.library.ToolCallLLM):
-            def __init__(self, message_history: rc.llm.MessageHistory):
-                message_history.insert(0, rc.llm.SystemMessage(self.system_message()))
+        class TopLevelNode(rt.library.ToolCallLLM):
+            def __init__(self, user_input: rt.llm.MessageHistory):
+                user_input.insert(0, rt.llm.SystemMessage(self.system_message()))
 
                 super().__init__(
-                    message_history=message_history,
+                    user_input=user_input,
                     model=self.create_model(),
                 )
 
@@ -72,15 +69,15 @@ def create_top_level_node():
             @classmethod
             def create_model(cls):
                 if model_provider == "openai":
-                    return rc.llm.OpenAILLM("gpt-4o")
+                    return rt.llm.OpenAILLM("gpt-4o")
                 elif model_provider == "anthropic":
-                    return rc.llm.AnthropicLLM("claude-3-5-sonnet-20241022")
+                    return rt.llm.AnthropicLLM("claude-3-5-sonnet-20241022")
                 else:
                     raise ValueError(f"Invalid model provider: {model_provider}")
 
             @classmethod
             def connected_nodes(cls):
-                return {rc.library.from_function(test_function)}
+                return {rt.library.from_function(test_function)}
 
             @classmethod
             def pretty_name(cls) -> str:

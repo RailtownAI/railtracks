@@ -1,5 +1,5 @@
 import pytest
-from requestcompletion.exceptions.errors import (
+from railtracks.exceptions.errors import (
     NodeInvocationError,
     NodeCreationError,
     LLMError,
@@ -7,22 +7,22 @@ from requestcompletion.exceptions.errors import (
     ContextError,
     FatalError,
 )
-from requestcompletion.exceptions._base import RCError
+from railtracks.exceptions._base import RTError
 
 # NOTE: This file contains very basic tests to ensure that the exception classes are working as expected.
 
 
-# =========== START RCError utility tests ===========
+# =========== START RTError utility tests ===========
 @pytest.mark.parametrize(
     "text,color_code,expected",
     [
-        ("hello", RCError.RED, f"{RCError.RED}hello{RCError.RESET}"),
-        ("world", RCError.GREEN, f"{RCError.GREEN}world{RCError.RESET}"),
+        ("hello", RTError.RED, f"{RTError.RED}hello{RTError.RESET}"),
+        ("world", RTError.GREEN, f"{RTError.GREEN}world{RTError.RESET}"),
     ]
 )
 def test_rcerror_color_helper(text, color_code, expected):
-    assert RCError._color(text, color_code) == expected
-# ========== END RCError utility tests ==============
+    assert RTError._color(text, color_code) == expected
+# ========== END RTError utility tests ==============
 
 
 # =========== START NodeInvocationError tests =======
@@ -106,6 +106,6 @@ def test_contexterror_with_notes():
 # =========== START FatalError tests ===============
 def test_fatalerror_is_rcerror():
     err = FatalError("boom")
-    assert isinstance(err, RCError)
+    assert isinstance(err, RTError)
     assert str(err) == "boom" or "boom" in str(err)
 # =========== END FatalError tests =================

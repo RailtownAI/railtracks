@@ -8,12 +8,13 @@ This module tests the ability to create nodes from functions with various parame
 """
 
 import pytest
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Union, Optional
 from pydantic import BaseModel, Field
 import time
 
-from requestcompletion.state.request import Failure
-import requestcompletion as rc
+from railtracks.nodes.library import from_function
+from railtracks.state.request import Failure
+import railtracks as rt
 
 # ===== Test Models =====
 
@@ -40,18 +41,18 @@ class TestPrimitiveInputTypes:
             secret_phrase,
             model_provider=model_provider,
         )
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
             response = run.run_sync(
                 agent,
-                rc.llm.MessageHistory(
+                rt.llm.MessageHistory(
                     [
-                        rc.llm.UserMessage(
+                        rt.llm.UserMessage(
                             "What is the secret phrase? Only return the secret phrase, no other text."
                         )
                     ]
                 ),
             )
-        assert response.answer == "Constantinople"
+        assert response.answer.content == "Constantinople"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
     def test_single_int_input(self, model_provider, create_top_level_node):
@@ -71,19 +72,19 @@ class TestPrimitiveInputTypes:
             magic_number,
             model_provider=model_provider,
         )
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
             response = run.run_sync(
                 agent,
-                rc.llm.MessageHistory(
+                rt.llm.MessageHistory(
                     [
-                        rc.llm.UserMessage(
+                        rt.llm.UserMessage(
                             "Find what the magic function output is for 6? Only return the magic number, no other text."
                         )
                     ]
                 ),
             )
 
-        assert response.answer == "666666"
+        assert response.answer.content == "666666"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
     def test_single_str_input(self, model_provider, create_top_level_node):
@@ -103,19 +104,19 @@ class TestPrimitiveInputTypes:
             magic_phrase,
             model_provider=model_provider,
         )
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
             response = run.run_sync(
                 agent,
-                rc.llm.MessageHistory(
+                rt.llm.MessageHistory(
                     [
-                        rc.llm.UserMessage(
+                        rt.llm.UserMessage(
                             "What is the magic phrase for the word 'hello'? Only return the magic phrase, no other text."
                         )
                     ]
                 ),
             )
 
-        assert response.answer == "h$e$l$l$o"
+        assert response.answer.content == "h$e$l$l$o"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
     def test_single_float_input(self, model_provider, create_top_level_node):
@@ -135,19 +136,19 @@ class TestPrimitiveInputTypes:
             magic_test,
             model_provider=model_provider,
         )
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
             response = run.run_sync(
                 agent,
-                rc.llm.MessageHistory(
+                rt.llm.MessageHistory(
                     [
-                        rc.llm.UserMessage(
+                        rt.llm.UserMessage(
                             "Does 5 pass the magic test? Only return the result, no other text."
                         )
                     ]
                 ),
             )
 
-        assert response.answer == "True"
+        assert response.answer.content == "True"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
     def test_single_bool_input(self, model_provider, create_top_level_node):
@@ -167,18 +168,18 @@ class TestPrimitiveInputTypes:
             magic_test,
             model_provider=model_provider,
         )
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
             response = run.run_sync(
                 agent,
-                rc.llm.MessageHistory(
+                rt.llm.MessageHistory(
                     [
-                        rc.llm.UserMessage(
+                        rt.llm.UserMessage(
                             "Is the magic test true? Only return the result, no other text."
                         )
                     ]
                 ),
             )
-        assert response.answer == "Wish Granted"
+        assert response.answer.content == "Wish Granted"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
     def test_function_error_handling(self, model_provider, create_top_level_node):
@@ -198,12 +199,12 @@ class TestPrimitiveInputTypes:
             error_function,
             model_provider=model_provider,
         )
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
             output = run.run_sync(
                 agent,
-                rc.llm.MessageHistory(
+                rt.llm.MessageHistory(
                     [
-                        rc.llm.UserMessage(
+                        rt.llm.UserMessage(
                             "What does the tool return for an input of 0? Only return the result, no other text."
                         )
                     ]
@@ -237,18 +238,18 @@ class TestSequenceInputTypes:
             magic_list,
             model_provider=model_provider,
         )
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
             response = run.run_sync(
                 agent,
-                rc.llm.MessageHistory(
+                rt.llm.MessageHistory(
                     [
-                        rc.llm.UserMessage(
+                        rt.llm.UserMessage(
                             "What is the magic list for ['1', '2', '3']? Only return the result, no other text."
                         )
                     ]
                 ),
             )
-        assert response.answer == "3 2 1"
+        assert response.answer.content == "3 2 1"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
     def test_single_tuple_input(self, model_provider, create_top_level_node):
@@ -269,19 +270,19 @@ class TestSequenceInputTypes:
             model_provider=model_provider,
         )
 
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
             response = run.run_sync(
                 agent,
-                rc.llm.MessageHistory(
+                rt.llm.MessageHistory(
                     [
-                        rc.llm.UserMessage(
+                        rt.llm.UserMessage(
                             "What is the magic tuple for ('1', '2', '3')? Only return the result, no other text."
                         )
                     ]
                 ),
             )
 
-        assert response.answer == "3 2 1"
+        assert response.answer.content == "3 2 1"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
     def test_lists(self, model_provider, create_top_level_node):
@@ -303,19 +304,19 @@ class TestSequenceInputTypes:
             magic_result,
             model_provider=model_provider,
         )
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
             response = run.run_sync(
                 agent,
-                rc.llm.MessageHistory(
+                rt.llm.MessageHistory(
                     [
-                        rc.llm.UserMessage(
+                        rt.llm.UserMessage(
                             "What is the magic result for [1, 2] and [5.5, 10]? Only return the result, no other text."
                         )
                     ]
                 ),
             )
 
-        assert response.answer == "25.5"
+        assert response.answer.content == "25.5"
 
 
 class TestDictionaryInputTypes:
@@ -337,13 +338,67 @@ class TestDictionaryInputTypes:
 
         with pytest.raises(Exception):
             agent = create_top_level_node(dict_func, model_provider=model_provider)
-            with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
+            with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
                 response = run.run_sync(
                     agent,
-                    rc.llm.MessageHistory(
-                        [rc.llm.UserMessage("What is the result for {'key': 'value'}?")]
+                    rt.llm.MessageHistory(
+                        [rt.llm.UserMessage("What is the result for {'key': 'value'}?")]
                     ),
                 )
+
+class TestUnionAndOptionalParameter:
+    @pytest.mark.parametrize("type_annotation", [Union[int, str], int|str], ids=["union", "or notation union"])
+    def test_union_parameter(self, type_annotation, create_top_level_node):
+        """Test that a function with a union parameter works correctly."""
+        def magic_number(x: type_annotation) -> int:
+            """
+            Args:
+                x: The input parameter
+                
+            Returns:
+                int: The result of the function
+            """
+            return 21
+
+        agent = create_top_level_node(
+            magic_number, model_provider="openai"
+        )
+        with rt.Runner(rt.ExecutorConfig(logging_setting="QUIET")) as run:
+            response = run.run_sync(
+                agent,
+                rt.llm.MessageHistory(
+                    [rt.llm.UserMessage("Calculate the magic number for 5. Then calculate the magic number for 'fox'. Add them and return the result only.")]
+                ),
+            )
+
+        assert response.answer.content == "42"
+
+    @pytest.mark.parametrize("deafult_value", [(None, 42), (5, 26)], ids=["default value", "non default value"])
+    def test_optional_parameter(self, create_top_level_node, deafult_value):
+        """Test that a function with an optional parameter works correctly."""
+        deafult, answer = deafult_value
+        def magic_number(x: Optional[int] = deafult) -> int:
+            """
+            Args:
+                x: The input parameter
+                
+            Returns:
+                int: The result of the function
+            """
+            return 21 if x is None else x
+
+        agent = create_top_level_node(
+            magic_number, model_provider="openai"
+        )
+        with rt.Runner(rt.ExecutorConfig(logging_setting="QUIET")) as run:
+            response = run.run_sync(
+                agent,
+                rt.llm.MessageHistory(
+                    [rt.llm.UserMessage("Calculate the magic number for 21. Then calculate the magic number with no args. Add them and return the result only.")]
+                ),
+            )
+
+        assert response.answer.content == str(answer)
 
 
 class TestRealisticScenarios:
@@ -373,7 +428,7 @@ class TestRealisticScenarios:
                 DB[person.name] = {"role": person.role, "phone": person.phone}
 
         usr_prompt = (
-            "Update the staff directory with the following information: John is now a Senior Manager and his phone number is changed to 5555"
+            "Update the staff directory with the following information: John is now a 'Senior Manager' and his phone number is changed to 5555"
             " and Jane is new a Developer and her phone number is 0987654321."
         )
 
@@ -381,12 +436,14 @@ class TestRealisticScenarios:
             update_staff_directory, model_provider=model_provider
         )
 
-        with rc.Runner(rc.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
             response = run.run_sync(
-                agent, rc.llm.MessageHistory([rc.llm.UserMessage(usr_prompt)])
+                agent, rt.llm.MessageHistory([rt.llm.UserMessage(usr_prompt)])
             )
+            print(response)
 
         assert DB["John"]["role"] == "Senior Manager"
         assert DB["John"]["phone"] == "5555"
         assert DB["Jane"]["role"] == "Developer"
         assert DB["Jane"]["phone"] == "0987654321"
+

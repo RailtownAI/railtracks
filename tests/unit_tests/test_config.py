@@ -3,7 +3,7 @@ import uuid
 import types
 import pytest
 
-from requestcompletion.config import ExecutorConfig
+from railtracks.config import ExecutorConfig
 
 # ================= START ExecutorConfig: Fixtures ============
 @pytest.fixture(params=["REGULAR", "DEBUG", "ERROR"])
@@ -16,7 +16,7 @@ def log_level(request):
 def test_instantiation_with_all_defaults():
     config = ExecutorConfig()
     assert isinstance(config.timeout, float)
-    assert config.timeout == 50.0
+    assert config.timeout == 150.0
     assert config.end_on_error is False
     assert config.logging_setting == "REGULAR"
     assert config.log_file is None

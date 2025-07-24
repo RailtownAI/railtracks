@@ -1,7 +1,7 @@
 import pytest
-from requestcompletion.llm import OpenAILLM
-from requestcompletion.llm.history import MessageHistory
-from requestcompletion.exceptions import LLMError
+from railtracks.llm import OpenAILLM
+from railtracks.llm.history import MessageHistory
+from railtracks.exceptions import LLMError
 
 
 def test_llm_correct_init():
@@ -25,4 +25,4 @@ def test_llm_invalid_model_name():
     Test that OpenAI raises an error for an invalid model name.
     """
     with pytest.raises(LLMError, match="Invalid model name"):
-        _ = OpenAILLM("claude-3-sonnet-20240229")
+        _ = OpenAILLM("claude-3-5-sonnet-20240620")

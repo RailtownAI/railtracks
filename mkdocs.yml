@@ -1,4 +1,4 @@
-site_name: Request Completion Docs
+site_name: RailTracks Docs
 site_url: https://something
 theme:
   name: material
@@ -8,49 +8,69 @@ theme:
     - navigation.instant
     - navigation.prefetch
     - search.suggest
-    - navigation.top
     - content.code.copy
-# TODO: add other features
+  palette:
+    scheme: slate
+  code:
+    highlight_theme:
+      light: github
+      dark: dracula
 
 
 
 nav:
   - Home: index.md
 
-  - Getting Started:
-      - get_started/index.md
-
 
   - Guides:
         - guides/index.md
+        - guides/agents.md
+
+  - Tutorials:
+        - tutorials/index.md
 
 
 
-  - Tools:
-      - tools/index.md
-      - Create Your Own Tool: tools/create_your_own.md
 
-      - Guides:
-        - Notion: tools/guides/notion.md
+  - Tools + MCP:
+      - tools_mcp/index.md
+      - Create Your Own Tool: tools_mcp/create_your_own.md
+      - MCP:
+          - tools_mcp/mcp/index.md
+          - Using MCP: tools_mcp/mcp/MCP_tools_in_RT.md
+          - Creating an MCP: tools_mcp/mcp/RTtoMCP.md
 
-  - MCP:
-        - mcp/index.md
+      - Integrations:
+        - Notion: tools_mcp/guides/notion.md
+        - Github: tools_mcp/guides/github.md
+        - Python Sandbox: tools_mcp/guides/python_sandbox.md
+        - Shell Bash: tools_mcp/guides/shell_bash.md
+        - Slack: tools_mcp/guides/slack.md
+        - Web Search: tools_mcp/guides/websearch_integration.md
 
-  - Visualization:
-        - visualization/index.md
-
+  - Observability:
+        - observability/index.md
+        - Logging: observability/logging.md
+        - Streaming: observability/streaming.md
 
   - LLM Support:
       - llm_support/index.md
+      - Prompts and Context Injection: llm_support/prompts.md
 
-  - Deploy:
-        - deploy/index.md
+  - Deployments:
+        - deployments/index.md
 
-  - Streaming:
-    - streaming/index.md
+  - Advanced Usage:
+        - advanced_usage/index.md
 
-  - Examples:
-      - examples/index.md
+  - Samples:
+      - samples/index.md
+
+  - System Internals:
+        - system_internals/index.md
+
+  - API Reference:
+      - api_reference/index.md
 
 
 plugins:
@@ -58,6 +78,20 @@ plugins:
   - mkdocstrings
 #  - mkdocs-mermaid2-plugin
 #  - awesome-pages
+
+markdown_extensions:
+  - pymdownx.emoji:
+      emoji_generator: !!python/name:pymdownx.emoji.to_svg
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+        alternate_style: true
+
+
 
 
 

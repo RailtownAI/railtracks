@@ -1,53 +1,38 @@
-import random
 import asyncio
 
 import pytest
 from typing import List
 from pydantic import BaseModel, Field
-import requestcompletion as rc
-
+import railtracks as rt
+from railtracks.llm import SystemMessage
 
 @pytest.fixture
 def model():
-    return rc.llm.OpenAILLM("gpt-4o")
+    return rt.llm.OpenAILLM("gpt-4o")
 
 
 # ====================================== System Messages ======================================
 @pytest.fixture
 def terminal_llms_system_messages():
-    system_rng = rc.llm.SystemMessage(
-        "You are a random integer generator that will return a random list of integers between 0 and 100. Do not return more than 10 integers."
-    )
-    system_rng_operation = rc.llm.SystemMessage(
-        "You are a random mathematical operation calculator that will apply a random operation to the list of integers that will be provided by the user and return the result. The answer should be only a single integer."
-    )
-    system_math_genius = rc.llm.SystemMessage(
-        "You are a math genius that will get a list of integers(loi) and another interger(x), your task is to predict what operation must be appled to the list of integers to get the result of x."
-    )
+    system_rng = "You are a random integer generator that will return a random list of integers between 0 and 100. Do not return more than 10 integers."
+    system_rng_operation = "You are a random mathematical operation calculator that will apply a random operation to the list of integers that will be provided by the user and return the result. The answer should be only a single integer."
+    system_math_genius = "You are a math genius that will get a list of integers(loi) and another interger(x), your task is to predict what operation must be appled to the list of integers to get the result of x."
 
     return system_rng, system_rng_operation, system_math_genius
 
 
 @pytest.fixture
 def structured_llms_system_messages():
-    system_undergrad_student = rc.llm.SystemMessage(
-        "You are an undergraduate university student. You are taking a math class where you need to write proofs. Be concise and to the point."
-    )
-    system_professor = rc.llm.SystemMessage(
-        "You are a senior Math professor at a university. You need to grade the students work (scale of 0 to 100) and give a reasoning for the grading."
-    )
+    system_undergrad_student = "You are an undergraduate university student. You are taking a math class where you need to write proofs. Be concise and to the point."
+    system_professor = "You are a senior Math professor at a university. You need to grade the students work (scale of 0 to 100) and give a reasoning for the grading."
 
     return system_undergrad_student, system_professor
 
 
 @pytest.fixture
 def tool_call_llm_system_messages():
-    system_currency_converter = rc.llm.SystemMessage(
-        "You are a currency converter that will convert currencies. you have access to AvailabelCurrencies and ConvertCurrency tools. Use them when you need to."
-    )
-    system_travel_planner = rc.llm.SystemMessage(
-        "You are a travel planner that will plan a trip. you have access to AvailableLocations, CurrencyUsed and AverageLocationCost tools. Use them when you need to."
-    )
+    system_currency_converter = "You are a currency converter that will convert currencies. you have access to AvailabelCurrencies and ConvertCurrency tools. Use them when you need to."
+    system_travel_planner = "You are a travel planner that will plan a trip. you have access to AvailableLocations, CurrencyUsed and AverageLocationCost tools. Use them when you need to."
     return system_currency_converter, system_travel_planner
 
 
@@ -182,18 +167,18 @@ def terminal_nodes(request, model, terminal_llms_system_messages):
     system_rng, system_rng_operation, system_math_genius = terminal_llms_system_messages
 
     if fixture_name == "easy_wrapper":
-        rng_node = rc.library.terminal_llm(
-            pretty_name="RNG Node", system_message=system_rng, model=model
+        rng_node = rt.library.terminal_llm(
+            pretty_name="RNG Node", system_message=system_rng, llm_model=model
         )
-        rng_operation_node = rc.library.terminal_llm(
+        rng_operation_node = rt.library.terminal_llm(
             pretty_name="RNG Operation Node",
             system_message=system_rng_operation,
-            model=model,
+            llm_model=model,
         )
-        math_detective_node = rc.library.terminal_llm(
+        math_detective_node = rt.library.terminal_llm(
             pretty_name="Math Detective Node",
             system_message=system_math_genius,
-            model=model,
+            llm_model=model,
         )
 
         return rng_node, rng_operation_node, math_detective_node
@@ -201,17 +186,17 @@ def terminal_nodes(request, model, terminal_llms_system_messages):
     elif fixture_name == "class_based":
 
         def make_terminal_llm_class_version(
-            pretty_name: str, system_message: rc.llm.SystemMessage
+            pretty_name: str, system_message: str
         ):
-            class TerminalLLMNode(rc.library.TerminalLLM):
+            class TerminalLLMNode(rt.library.TerminalLLM):
                 def __init__(
                     self,
-                    message_history: rc.llm.MessageHistory,
-                    llm_model: rc.llm.ModelBase,
+                    user_input: rt.llm.MessageHistory,
+                    llm_model: rt.llm.ModelBase,
                 ):
-                    message_history = [x for x in message_history if x.role != "system"]
-                    message_history.insert(0, system_message)
-                    super().__init__(message_history=message_history, model=llm_model)
+                    user_input = [x for x in user_input if x.role != "system"]
+                    user_input.insert(0, SystemMessage(system_message))
+                    super().__init__(user_input=user_input, llm_model=llm_model)
 
                 @classmethod
                 def pretty_name(cls) -> str:
@@ -255,17 +240,17 @@ def structured_nodes(request, model, structured_llms_system_messages):
         )
 
     if fixture_name == "easy_wrapper":
-        math_undergrad_student_node = rc.library.structured_llm(
+        math_undergrad_student_node = rt.library.structured_llm(
             pretty_name="Math Undergraduate Student Node",
-            output_model=ProofModel,
+            schema=ProofModel,
             system_message=system_undergrad_student,
-            model=model,
+            llm_model=model,
         )
-        math_professor_node = rc.library.structured_llm(
+        math_professor_node = rt.library.structured_llm(
             pretty_name="Math Professor Node",
-            output_model=GradingSchema,
+            schema=GradingSchema,
             system_message=system_professor,
-            model=model,
+            llm_model=model,
         )
 
         return math_undergrad_student_node, math_professor_node
@@ -274,22 +259,22 @@ def structured_nodes(request, model, structured_llms_system_messages):
 
         def make_structured_llm_class_version(
             pretty_name: str,
-            system_message: rc.llm.SystemMessage,
-            output_model: BaseModel,
+            system_message: str,
+            schema: BaseModel,
         ):
-            class StructuredLLMNode(rc.library.StructuredLLM):
+            class StructuredLLMNode(rt.library.StructuredLLM):
                 def __init__(
                     self,
-                    message_history: rc.llm.MessageHistory,
-                    llm_model: rc.llm.ModelBase,
+                    user_input: rt.llm.MessageHistory,
+                    llm_model: rt.llm.ModelBase,
                 ):
-                    message_history = [x for x in message_history if x.role != "system"]
-                    message_history.insert(0, system_message)
-                    super().__init__(message_history=message_history, model=llm_model)
+                    user_input = [x for x in user_input if x.role != "system"]
+                    user_input.insert(0, SystemMessage(system_message))
+                    super().__init__(user_input=user_input, llm_model=llm_model)
 
                 @classmethod
-                def output_model(cls) -> BaseModel:
-                    return output_model
+                def schema(cls) -> BaseModel:
+                    return schema
 
                 @classmethod
                 def pretty_name(cls) -> str:
@@ -299,12 +284,12 @@ def structured_nodes(request, model, structured_llms_system_messages):
 
         math_undergrad_student_node = make_structured_llm_class_version(
             "Math Undergraduate Student Node",
-            output_model=ProofModel,
+            schema=ProofModel,
             system_message=system_undergrad_student,
         )
         math_professor_node = make_structured_llm_class_version(
             "Math Professor Node",
-            output_model=GradingSchema,
+            schema=GradingSchema,
             system_message=system_professor,
         )
 
@@ -330,24 +315,24 @@ def tool_calling_nodes(
     available_locations, currency_used, average_location_cost = travel_planner_tools
     system_currency_converter, system_travel_planner = tool_call_llm_system_messages
 
-    AvailableCurrencies = rc.library.from_function(available_currencies)
-    ConvertCurrency = rc.library.from_function(convert_currency)
-    AvailableLocations = rc.library.from_function(available_locations)
-    CurrencyUsed = rc.library.from_function(currency_used)
-    AverageLocationCost = rc.library.from_function(average_location_cost)
+    AvailableCurrencies = rt.library.from_function(available_currencies)
+    ConvertCurrency = rt.library.from_function(convert_currency)
+    AvailableLocations = rt.library.from_function(available_locations)
+    CurrencyUsed = rt.library.from_function(currency_used)
+    AverageLocationCost = rt.library.from_function(average_location_cost)
 
     if fixture_name == "easy_wrapper":
-        currency_converter_node = rc.library.tool_call_llm(
+        currency_converter_node = rt.library.tool_call_llm(
             connected_nodes={AvailableCurrencies, ConvertCurrency},
             pretty_name="Currency Converter Node",
             system_message=system_currency_converter,
-            model=model,
+            llm_model=model,
         )
-        travel_planner_node = rc.library.tool_call_llm(
+        travel_planner_node = rt.library.tool_call_llm(
             connected_nodes={AvailableLocations, CurrencyUsed, AverageLocationCost},
             pretty_name="Travel Planner Node",
             system_message=system_travel_planner,
-            model=model,
+            llm_model=model,
         )
 
         return currency_converter_node, travel_planner_node
@@ -355,18 +340,18 @@ def tool_calling_nodes(
 
         def make_tool_call_llm_class_version(
             pretty_name: str,
-            system_message: rc.llm.SystemMessage,
-            connected_nodes: List[rc.Node],
+            system_message: str,
+            connected_nodes: List[rt.Node],
         ):
-            class ToolCallLLMNode(rc.library.ToolCallLLM):
+            class ToolCallLLMNode(rt.library.ToolCallLLM):
                 def __init__(
                     self,
-                    message_history: rc.llm.MessageHistory,
-                    llm_model: rc.llm.ModelBase,
+                    user_input: rt.llm.MessageHistory,
+                    llm_model: rt.llm.ModelBase,
                 ):
-                    message_history = [x for x in message_history if x.role != "system"]
-                    message_history.insert(0, system_message)
-                    super().__init__(message_history=message_history, model=llm_model)
+                    user_input = [x for x in user_input if x.role != "system"]
+                    user_input.insert(0, SystemMessage(system_message))
+                    super().__init__(user_input=user_input, llm_model=llm_model)
 
                 def connected_nodes(self):
                     return connected_nodes
@@ -405,12 +390,12 @@ def parallel_node():
         await asyncio.sleep(timeout_len)
         return timeout_len
 
-    TimeoutNode = rc.library.from_function(sleep)
+    TimeoutNode = rt.library.from_function(sleep)
 
     async def parallel_function(timeout_config: List[float]):
-        return await rc.batch(TimeoutNode, timeout_config)
+        return await rt.batch(TimeoutNode, timeout_config)
 
-    return rc.library.from_function(parallel_function)
+    return rt.library.from_function(parallel_function)
 
 
 # ====================================== End Nodes ======================================

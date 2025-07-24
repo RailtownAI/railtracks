@@ -5,15 +5,15 @@ import asyncio
 import pytest
 import random
 
-import requestcompletion as rc
-from requestcompletion.state.request import Failure
+import railtracks as rt
+from railtracks.state.request import Failure
 
-RNGNode = rc.library.from_function(random.random)
+RNGNode = rt.library.from_function(random.random)
 
 
 @pytest.mark.timeout(1)
 def test_simple_request():
-    with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as run:
+    with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="NONE")) as run:
         result = run.run_sync(RNGNode)
 
     assert isinstance(result.answer, float)
@@ -28,36 +28,36 @@ async def error_thrower():
     raise ErrorforTest("This is a test error")
 
 
-ErrorThrower = rc.library.from_function(error_thrower)
+ErrorThrower = rt.library.from_function(error_thrower)
 
 
 def test_error():
-    with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as run:
+    with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="NONE")) as run:
         with pytest.raises(ErrorforTest):
             run.run_sync(ErrorThrower)
 
 
 async def error_handler():
     try:
-        answer = await rc.call(ErrorThrower)
+        answer = await rt.call(ErrorThrower)
     except ErrorforTest as e:
         return "Caught the error"
 
 
-ErrorHandler = rc.library.from_function(error_handler)
+ErrorHandler = rt.library.from_function(error_handler)
 
 
 @pytest.mark.timeout(1)
 def test_error_handler():
-    with rc.Runner(executor_config=rc.ExecutorConfig(logging_setting="NONE")) as run:
+    with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="NONE")) as run:
         result = run.run_sync(ErrorHandler)
     assert result.answer == "Caught the error"
 
 
 def test_error_handler_wo_retry():
     with pytest.raises(ErrorforTest):
-        with rc.Runner(
-            executor_config=rc.ExecutorConfig(
+        with rt.Runner(
+            executor_config=rt.ExecutorConfig(
                 end_on_error=True, logging_setting="NONE"
             ),
         ) as run:
@@ -67,21 +67,21 @@ def test_error_handler_wo_retry():
 async def error_handler_with_retry(retries: int):
     for _ in range(retries):
         try:
-            return await rc.call(ErrorThrower)
+            return await rt.call(ErrorThrower)
         except ErrorforTest as e:
             continue
 
     return "Caught the error"
 
 
-ErrorHandlerWithRetry = rc.library.from_function(error_handler_with_retry)
+ErrorHandlerWithRetry = rt.library.from_function(error_handler_with_retry)
 
 
 @pytest.mark.timeout(5)
 def test_error_handler_with_retry():
     for num_retries in range(5, 15):
-        with rc.Runner(
-            executor_config=rc.ExecutorConfig(logging_setting="NONE")
+        with rt.Runner(
+            executor_config=rt.ExecutorConfig(logging_setting="NONE")
         ) as run:
             result = run.run_sync(ErrorHandlerWithRetry, num_retries)
 
@@ -98,7 +98,7 @@ def test_error_handler_with_retry():
 async def parallel_error_handler(num_calls: int, parallel_calls: int):
     data = []
     for _ in range(num_calls):
-        contracts = [rc.call(ErrorThrower) for _ in range(parallel_calls)]
+        contracts = [rt.call(ErrorThrower) for _ in range(parallel_calls)]
 
         results = await asyncio.gather(*contracts, return_exceptions=True)
 
@@ -107,14 +107,14 @@ async def parallel_error_handler(num_calls: int, parallel_calls: int):
     return data
 
 
-ParallelErrorHandler = rc.library.from_function(parallel_error_handler)
+ParallelErrorHandler = rt.library.from_function(parallel_error_handler)
 
 
 def test_parallel_error_tester():
 
     for n_c, p_c in [(10, 10), (3, 20), (1, 10), (60, 10)]:
-        with rc.Runner(
-            executor_config=rc.ExecutorConfig(logging_setting="NONE")
+        with rt.Runner(
+            executor_config=rt.ExecutorConfig(logging_setting="NONE")
         ) as run:
             result = run.run_sync(ParallelErrorHandler, n_c, p_c)
 
@@ -126,18 +126,18 @@ def test_parallel_error_tester():
 # wraps the above error handler in a top level function
 async def error_handler_wrapper(num_calls: int, parallel_calls: int):
     try:
-        return await rc.call(ParallelErrorHandler, num_calls, parallel_calls)
+        return await rt.call(ParallelErrorHandler, num_calls, parallel_calls)
     except ErrorforTest as e:
         return "Caught the error"
 
 
-ErrorHandlerWrapper = rc.library.from_function(error_handler_wrapper)
+ErrorHandlerWrapper = rt.library.from_function(error_handler_wrapper)
 
 
 def test_parallel_error_wrapper():
     for n_c, p_c in [(10, 10), (3, 20), (1, 10), (60, 10)]:
-        with rc.Runner(
-            executor_config=rc.ExecutorConfig(logging_setting="NONE")
+        with rt.Runner(
+            executor_config=rt.ExecutorConfig(logging_setting="NONE")
         ) as run:
             result = run.run_sync(ErrorHandlerWrapper, n_c, p_c)
 
