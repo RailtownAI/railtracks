@@ -21,42 +21,32 @@ Please check the type of change your PR introduces:
 
 <!-- Provide context if not already covered in a linked issue. If you have detailed context in the issue, a brief summary here is sufficient. -->
 
-**Related Issues:** 
-<!-- Issues are auto-linked when PR is created -->
-
-**Dependencies:** 
-<!-- List any new dependencies or changes to existing dependencies -->
 
 ## Checklist for Author
 <!-- Skip sections not relevant to your change type (e.g., skip Testing for docs-only changes) -->
 
 ### Code Quality
 - [ ] Code follows the project's style guidelines (run `ruff check .` and `ruff format .`)
-- [ ] Self-review of the code has been performed
 - [ ] Code is commented, particularly in hard-to-understand areas
 
 ### Testing
 - [ ] Tests added/updated and pass locally (`pytest tests`)
-- [ ] Test coverage maintained (benchmarks will be available on release)
+- [ ] Test coverage maintained
 
 ### Documentation
 - [ ] Documentation updated if needed (bot will verify)
 
 ### Git & PR Management
 - [ ] PR title clearly describes the change
-- [ ] Commit messages are clear and descriptive
 
 ### Breaking Changes
 - [ ] Breaking changes are documented
-- [ ] Migration guide provided (step-by-step instructions for users to update their code/config)
+- [ ] Migration guide provided in documentation (step-by-step instructions for users to update their code/config)
 
 ---
 
-## Screenshots or Videos
-<!-- Include before/after screenshots for UI changes or terminal output for CLI changes -->
-
-## Testing Instructions
-<!-- For new features: provide usage examples and test scenarios. Not required for simple changes. -->
+## Final Product
+<!-- For new features: provide usage examples. This could include screenshots/code samples/etc. -->
 
 ## Additional Notes
 
