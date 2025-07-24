@@ -59,7 +59,7 @@ def create_top_level_node():
                 if model_provider == "openai":
                     return rt.llm.OpenAILLM("gpt-4o")
                 elif model_provider == "anthropic":
-                    return rt.llm.AnthropicLLM("claude-3-5-sonnet-20241022")
+                    return rt.llm.AnthropicLLM("claude-sonnet-4-20250514")
                 else:
                     raise ValueError(f"Invalid model provider: {model_provider}")
 

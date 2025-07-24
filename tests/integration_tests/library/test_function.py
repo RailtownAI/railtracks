@@ -413,7 +413,7 @@ class TestRealisticScenarios:
 
         # Define DB at class level so it's accessible for assertions
         DB = {
-            "John": {"role": "Manager", "phone": "1234567890"},
+            "John": {"role": "Supervisor", "phone": "1234567890"},
         }
 
         def update_staff_directory(staff: List[StaffDirectory]) -> None:
@@ -421,16 +421,18 @@ class TestRealisticScenarios:
             For a given list of staff, updates the staff directory with new members or updates existing members.
 
             Args:
-                staff (List[StaffDirectory]): The list of staff to to gather information about.
+                staff (List[StaffDirectory]): The list of staff information to update.
 
             """
             for person in staff:
                 DB[person.name] = {"role": person.role, "phone": person.phone}
 
         usr_prompt = (
-            "Update the staff directory with the following information: John is now a 'Senior Manager' and his phone number is changed to 5555"
-            " and Jane is new a Developer and her phone number is 0987654321."
+            "Update the staff directory with the following information: 'John' is now a 'Manager' and his phone number is changed to '5555'"
+            " 'Jane' is a new 'Developer' and her phone number is '0987654321'. Use the tool to do so."
         )
+
+        print(model_provider)
 
         agent = create_top_level_node(
             update_staff_directory, model_provider=model_provider
@@ -442,7 +444,7 @@ class TestRealisticScenarios:
             )
             print(response)
 
-        assert DB["John"]["role"] == "Senior Manager"
+        assert DB["John"]["role"] == "Manager"
         assert DB["John"]["phone"] == "5555"
         assert DB["Jane"]["role"] == "Developer"
         assert DB["Jane"]["phone"] == "0987654321"
