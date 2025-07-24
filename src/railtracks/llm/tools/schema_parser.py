@@ -65,14 +65,17 @@ def _handle_all_of_schema(
     for item in prop_schema["allOf"]:
         if "$ref" in item:
             # Reference to another schema
-            return PydanticParameter(
-                name=name,
-                param_type="object",
-                description=description,
-                required=required,
-                properties={},
-                additional_properties=additional_properties,
-            ), None
+            return (
+                PydanticParameter(
+                    name=name,
+                    param_type="object",
+                    description=description,
+                    required=required,
+                    properties={},
+                    additional_properties=additional_properties,
+                ),
+                None,
+            )
         elif "type" in item:
             # Merge type info
             param_type = item["type"]
@@ -195,7 +198,7 @@ def _handle_array_schema(
 
 def parse_json_schema_to_parameter(
     name: str, prop_schema: dict, required: bool
-) -> "Parameter":
+) -> Parameter:
     """
     Given a JSON-schema for a property, returns a Parameter or PydanticParameter.
     If prop_schema defines nested properties, this is done recursively.
@@ -279,7 +282,7 @@ def parse_model_properties(schema: dict) -> Dict[str, Parameter]:  # noqa: C901
     Returns:
         A dictionary mapping property names to Parameter objects.
     """
-    result = {}
+    result = set()
     required_fields = schema.get("required", [])
 
     # First, process any $defs (nested model definitions)
@@ -310,12 +313,14 @@ def parse_model_properties(schema: dict) -> Dict[str, Parameter]:  # noqa: C901
                 model_name = ref[len("#/$defs/") :]
                 if model_name in nested_models:
                     # Create a PydanticParameter with the nested model's properties
-                    result[prop_name] = PydanticParameter(
-                        name=prop_name,
-                        param_type="object",
-                        description=prop_schema.get("description", ""),
-                        required=prop_name in required_fields,
-                        properties=nested_models[model_name]["properties"],
+                    result.add(
+                        PydanticParameter(
+                            name=prop_name,
+                            param_type="object",
+                            description=prop_schema.get("description", ""),
+                            required=prop_name in required_fields,
+                            properties=nested_models[model_name]["properties"],
+                        )
                     )
                     continue
         elif "allOf" in prop_schema:
@@ -327,12 +332,14 @@ def parse_model_properties(schema: dict) -> Dict[str, Parameter]:  # noqa: C901
                         model_name = ref[len("#/$defs/") :]
                         if model_name in nested_models:
                             # Create a PydanticParameter with the nested model's properties
-                            result[prop_name] = PydanticParameter(
-                                name=prop_name,
-                                param_type="object",
-                                description=prop_schema.get("description", ""),
-                                required=prop_name in required_fields,
-                                properties=nested_models[model_name]["properties"],
+                            result.add(
+                                PydanticParameter(
+                                    name=prop_name,
+                                    param_type="object",
+                                    description=prop_schema.get("description", ""),
+                                    required=prop_name in required_fields,
+                                    properties=nested_models[model_name]["properties"],
+                                )
                             )
                             break
 
@@ -353,16 +360,20 @@ def parse_model_properties(schema: dict) -> Dict[str, Parameter]:  # noqa: C901
                     inner_props[inner_name] = parse_json_schema_to_parameter(
                         inner_name, inner_schema, inner_name in inner_required
                     )
-                result[prop_name] = PydanticParameter(
-                    name=prop_name,
-                    param_type=param_type,
-                    description=prop_schema.get("description", ""),
-                    required=prop_name in required_fields,
-                    properties=inner_props,
+                result.add(
+                    PydanticParameter(
+                        name=prop_name,
+                        param_type=param_type,
+                        description=prop_schema.get("description", ""),
+                        required=prop_name in required_fields,
+                        properties=inner_props,
+                    )
                 )
             else:
-                result[prop_name] = parse_json_schema_to_parameter(
-                    prop_name, prop_schema, prop_name in required_fields
+                result.add(
+                    parse_json_schema_to_parameter(
+                        prop_name, prop_schema, prop_name in required_fields
+                    )
                 )
 
     return result
