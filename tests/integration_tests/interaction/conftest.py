@@ -188,7 +188,7 @@ def terminal_nodes(request, model, terminal_llms_system_messages):
         def make_terminal_llm_class_version(
             pretty_name: str, system_message: str
         ):
-            class TerminalLLMNode(rt.library.TerminalLLM):
+            class TerminalLLMNode(rt.library.LastMessageTerminalLLM):
                 def __init__(
                     self,
                     user_input: rt.llm.MessageHistory,
@@ -262,7 +262,7 @@ def structured_nodes(request, model, structured_llms_system_messages):
             system_message: str,
             schema: BaseModel,
         ):
-            class StructuredLLMNode(rt.library.StructuredLLM):
+            class StructuredLLMNode(rt.library.StructuredLastMessageLLM):
                 def __init__(
                     self,
                     user_input: rt.llm.MessageHistory,
