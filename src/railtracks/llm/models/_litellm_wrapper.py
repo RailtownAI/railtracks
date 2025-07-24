@@ -26,74 +26,172 @@ from ..history import MessageHistory
 from ..message import AssistantMessage, Message, ToolMessage
 from ..model import ModelBase
 from ..response import MessageInfo, Response
-from ..tools import Parameter, Tool
+from ..tools import ArrayParameter, Parameter, PydanticParameter, Tool
 
 
-def _handle_dict_parameters(parameters: Dict[str, Any]) -> Dict[str, Any]:
-    """Handle the case where parameters are already a dictionary."""
-    if "required" not in parameters and "properties" in parameters:
-        warnings.warn(
-            "The 'required' key is not present in the parameters dictionary. Parsing Properties parameters to check for required fields."
-        )
-        required: list[str] = []
-        for key, value in parameters["properties"].items():
-            if value.get("required", True):
-                required.append(key)
-        parameters["required"] = required
-    return parameters
+# ================ START Parameter to JSON Schema parsing ===============
+# TODO: when we come back to refactor this, move all this logic to a separate file under ../tools
+def _create_base_prop_dict(p: "Parameter") -> Dict[str, Any]:
+    """Create base property dictionary with type and description."""
+    prop_dict = {
+        "type": p.param_type,
+    }
+
+    if p.description:
+        prop_dict["description"] = p.description
+
+    return prop_dict
 
 
-def _handle_set_of_parameters(parameters: Set[Parameter]) -> Dict[str, Any]:
+def _handle_array_type(prop_dict: Dict[str, Any], p: "Parameter") -> None:
+    """Handle array type parameters."""
+    element_type = (
+        p.default or "string"
+    )  # Default to 'string' if no element type is provided
+    prop_dict["items"] = {"type": element_type}
+
+
+def _handle_object_type(prop_dict: Dict[str, Any], p: "Parameter") -> None:
+    """Handle object type parameters."""
+    if (
+        isinstance(p, PydanticParameter) and p.ref_path
+    ):  # special case for $ref: we only need description and $ref
+        prop_dict["$ref"] = p.ref_path
+        prop_dict.pop("type")
+    else:
+        prop_dict["additionalProperties"] = p.additional_properties
+        prop_dict["properties"] = _handle_set_of_parameters(p.properties, True)
+        sub_required_params = [p.name for p in p.properties if p.required]
+        if sub_required_params:
+            prop_dict["required"] = sub_required_params
+
+
+def _handle_union_type(prop_dict: Dict[str, Any], p: "Parameter") -> None:
+    """Handle union/list type parameters."""
+    any_of_list = []
+    for t in p.param_type:
+        t = (
+            "null" if t == "none" else t
+        )  # none can only be found as a type for union/optional and we will convert it to null
+        type_item = {"type": t}
+        if t == "object":  # override type_item if object
+            type_item["properties"] = _handle_set_of_parameters(p.properties, True)
+            type_item["description"] = p.description
+            type_item["additionalProperties"] = p.additional_properties
+        any_of_list.append(type_item)
+    prop_dict["anyOf"] = any_of_list
+    prop_dict.pop("type")
+
+
+def _handle_array_parameter(
+    p: "ArrayParameter", prop_dict: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Handle ArrayParameter instances with special array wrapping."""
+    items_schema = {"type": "array"}
+    if p.description:
+        items_schema["description"] = p.description
+        prop_dict.pop("description")
+    items_schema["items"] = prop_dict
+    if p.max_items:
+        items_schema["maxItems"] = p.max_items
+    return items_schema
+
+
+def _set_parameter_defaults(prop_dict: Dict[str, Any], p: "Parameter") -> None:
+    """Set default values and enum for parameters."""
+    if (
+        p.default is not None
+    ):  # default can be 0 or False, if default value is supposed to be None, the param will be treated as optional
+        prop_dict["default"] = p.default
+    elif (
+        isinstance(p.param_type, list) and "none" in p.param_type
+    ):  # if param_type is list and none is in it, the param is optional and default is None
+        prop_dict["default"] = None
+
+    if p.enum:
+        prop_dict["enum"] = p.enum
+
+
+def _process_single_parameter(p: "Parameter") -> tuple[str, Dict[str, Any], bool]:
+    """Process a single parameter and return (name, prop_dict, is_required)."""
+    prop_dict = _create_base_prop_dict(p)
+
+    # Handle different parameter types
+    if p.param_type == "array":
+        _handle_array_type(prop_dict, p)
+
+    if p.param_type == "object":
+        _handle_object_type(prop_dict, p)
+
+    if isinstance(p.param_type, list):
+        _handle_union_type(prop_dict, p)
+
+    # Handle ArrayParameter wrapper
+    if isinstance(p, ArrayParameter):
+        prop_dict = _handle_array_parameter(p, prop_dict)
+
+    # Set defaults and enum
+    _set_parameter_defaults(prop_dict, p)
+
+    return p.name, prop_dict, p.required
+
+
+def _build_final_schema(
+    props: Dict[str, Any], required: list[str], sub_property: bool
+) -> Dict[str, Any]:
+    """Build the final schema dictionary."""
+    if sub_property:
+        return props
+    else:
+        model_schema: Dict[str, Any] = {
+            "type": "object",
+            "properties": props,
+        }
+        if required:
+            model_schema["required"] = required
+        return model_schema
+
+
+def _handle_set_of_parameters(
+    parameters: Set[Parameter | PydanticParameter | ArrayParameter],
+    sub_property: bool = False,
+) -> Dict[str, Any]:
     """Handle the case where parameters are a set of Parameter instances."""
     props: Dict[str, Any] = {}
     required: list[str] = []
-    for p in parameters:
-        props[p.name] = {
-            "type": p.param_type,
-            "description": p.description,
-        }
-        if p.param_type == "object":
-            props[p.name]["additionalProperties"] = p.additional_properties
-        if p.required:
-            required.append(p.name)
 
-    model_schema: Dict[str, Any] = {
-        "type": "object",
-        "properties": props,
-    }
-    if required:
-        model_schema["required"] = required
-    return model_schema
+    for p in parameters:
+        name, prop_dict, is_required = _process_single_parameter(p)
+        props[name] = prop_dict
+
+        if is_required:
+            required.append(name)
+
+    return _build_final_schema(props, required, sub_property)
+
+
+# ================================= END Parameter to JSON Schema parsing ===================================
 
 
 def _parameters_to_json_schema(
-    parameters: Union[Type[BaseModel], Set[Parameter], Dict[str, Any]],
+    parameters: Set[Parameter] | None,
 ) -> Dict[str, Any]:
     """
-    Turn one of:
-      - a Pydantic model class (subclass of BaseModel)
-      - a set of Parameter instances
-      - an already-built dict
-    into a JSON Schema dict.
+    Turn a set of Parameter instances
+    into a JSON Schema dict accepted by litellm.completion.
     """
-    if isinstance(parameters, dict):
-        return _handle_dict_parameters(parameters)
-    if isinstance(parameters, type) and issubclass(parameters, BaseModel):
-        dump = getattr(parameters, "model_json_schema", None)
-        if callable(dump):
-            return dump()
-        raise RuntimeError(f"Cannot get schema from Pydantic model {parameters!r}")
-    if isinstance(parameters, set):
+    if parameters is None:
+        return {}
+    elif isinstance(parameters, set) and all(
+        isinstance(x, Parameter) for x in parameters
+    ):
         return _handle_set_of_parameters(parameters)
 
     raise NodeInvocationError(
         message="Unable to parse Tool.parameters. Please check the documentation for Tool.parameters.",
         fatal=True,
         notes=[
-            "Tool.parameters must be either:",
-            "  • a dict,",
-            "  • a subclass of pydantic.BaseModel, or",
-            "  • a set of Parameter instances",
+            "Tool.parameters must be a set of Parameter objects",
         ],
     )
 
@@ -103,10 +201,8 @@ def _to_litellm_tool(tool: Tool) -> Dict[str, Any]:
     Convert your Tool object into the dict format for litellm.completion.
     """
     # parameters may be None
-    raw_params = tool.parameters or {}
-    json_schema = _parameters_to_json_schema(raw_params)
-
-    return {
+    json_schema = _parameters_to_json_schema(tool.parameters)
+    litellm_tool = {
         "type": "function",
         "function": {
             "name": tool.name,
@@ -114,6 +210,7 @@ def _to_litellm_tool(tool: Tool) -> Dict[str, Any]:
             "parameters": json_schema,
         },
     }
+    return litellm_tool
 
 
 def _to_litellm_message(msg: Message) -> Dict[str, Any]:

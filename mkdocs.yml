@@ -1,15 +1,17 @@
-site_name: Request Completion Docs
+site_name: RailTracks Docs
 site_url: https://something
 theme:
   name: material
   features:
     - navigation.indexes
-    - navigation.sections
-    - navigation.instant
+
     - navigation.prefetch
     - search.suggest
     - content.code.copy
-# TODO: add other features
+  code:
+    highlight_theme:
+      light: github
+      dark: dracula
 
 
 
@@ -19,7 +21,8 @@ nav:
 
   - Guides:
         - guides/index.md
-        - guides/agents.md
+        - Agents: guides/agents.md
+        - Tools: guides/tools.md
 
   - Tutorials:
         - tutorials/index.md
@@ -45,21 +48,27 @@ nav:
 
   - Observability:
         - observability/index.md
+        - Logging: observability/logging.md
+        - Streaming: observability/streaming.md
 
   - LLM Support:
       - llm_support/index.md
+      - Prompts and Context Injection: llm_support/prompts.md
 
   - Deployments:
         - deployments/index.md
 
   - Advanced Usage:
         - advanced_usage/index.md
+        - Context: advanced_usage/context.md
+        - Prompt Injection: advanced_usage/prompt_injection.md
 
   - Samples:
       - samples/index.md
 
   - System Internals:
         - system_internals/index.md
+        - Coordinator: system_internals/Coordinator.md
 
   - API Reference:
       - api_reference/index.md
@@ -68,12 +77,34 @@ nav:
 plugins:
   - search
   - mkdocstrings
-#  - mkdocs-mermaid2-plugin
-#  - awesome-pages
+  - mermaid2
+
 
 markdown_extensions:
   - pymdownx.emoji:
       emoji_generator: !!python/name:pymdownx.emoji.to_svg
+  - admonition
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:mermaid2.fence_mermaid_custom
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - codehilite
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - attr_list
+
+
+extra_css:
+  - css/extra.css
+
+
+
 
 
 

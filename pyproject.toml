@@ -53,9 +53,9 @@ lint.select = [
 ]
 
 lint.ignore = [
-    "E501", "W191", "E114", "E117", 
-    "D206", "D300", 
-    "Q000", "Q002", "Q003", 
+    "E501", "W191", "E114", "E117",
+    "D206", "D300",
+    "Q000", "Q002", "Q003",
     "COM812", "COM819",
     "W291", "W292", "W293"
 ]
@@ -79,6 +79,9 @@ test = [
     "flit",
     "tomlkit==0.11.8",
     "pytest-timeout"
+]
+cli = [
+    "railtracks-cli"
 ]
 
 [tool.pytest.ini_options]

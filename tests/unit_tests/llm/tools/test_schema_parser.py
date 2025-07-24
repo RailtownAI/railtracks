@@ -10,9 +10,8 @@ import re
 from railtracks.llm.tools.schema_parser import (
     parse_json_schema_to_parameter,
     parse_model_properties,
-    convert_params_to_model_recursive,
 )
-from railtracks.llm.tools.parameter import Parameter, PydanticParameter
+from railtracks.llm.tools.parameter import Parameter, PydanticParameter, ArrayParameter
 
 
 class TestParseJsonSchemaToParameter:
@@ -47,7 +46,7 @@ class TestParseJsonSchemaToParameter:
 
         assert isinstance(param, Parameter)
         assert param.name == "test_param"
-        assert param.param_type == "float"  # Should be converted to "float"
+        assert param.param_type == "number"
         assert param.description == "A number parameter"
         assert param.required is True
 
@@ -93,19 +92,23 @@ class TestParseJsonSchemaToParameter:
         }
         param = parse_json_schema_to_parameter("test_param", schema, True)
 
-        assert isinstance(param, PydanticParameter)
+        assert isinstance(param, ArrayParameter)
         assert param.name == "test_param"
-        assert param.param_type == "array"
+        assert param.param_type == "object"    # so that the subprops can be parsed the same way we treat objects
         assert param.description == "An array of objects"
         assert param.required is True
 
         # Check nested properties
-        assert "name" in param.properties
-        assert "age" in param.properties
-        assert param.properties["name"].required is True
-        assert param.properties["age"].required is False
-        assert param.properties["name"].param_type == "string"
-        assert param.properties["age"].param_type == "integer"
+        for prop in param.properties:
+            assert isinstance(prop, Parameter), "Expected Parameter object"
+            if prop.name == "name":
+                assert prop.param_type == "string"
+                assert prop.required is True
+            elif prop.name == "age":
+                assert prop.param_type == "integer"
+                assert prop.required is False
+            else:
+                assert False, f"Unexpected property name: {prop.name}"
 
     def test_object_parameter(self):
         """Test parsing an object parameter."""
@@ -127,12 +130,16 @@ class TestParseJsonSchemaToParameter:
         assert param.required is True
 
         # Check nested properties
-        assert "name" in param.properties
-        assert "age" in param.properties
-        assert param.properties["name"].required is True
-        assert param.properties["age"].required is False
-        assert param.properties["name"].param_type == "string"
-        assert param.properties["age"].param_type == "integer"
+        for prop in param.properties:
+            assert isinstance(prop, Parameter), "Expected Parameter object"
+            if prop.name == "name":
+                assert prop.param_type == "string"
+                assert prop.required is True
+            elif prop.name == "age":
+                assert prop.param_type == "integer"
+                assert prop.required is False
+            else:
+                assert False, f"Unexpected property name: {prop.name}"
 
     def test_nested_object_parameter(self):
         """Test parsing a deeply nested object parameter."""
@@ -169,25 +176,29 @@ class TestParseJsonSchemaToParameter:
         assert param.name == "test_param"
         assert param.param_type == "object"
 
+        # Convert param.properties set to a list for easier processing
+        properties_list = list(param.properties)
+
         # Check first level nested property
-        assert "person" in param.properties
-        assert param.properties["person"].required is True
-        assert param.properties["person"].param_type == "object"
+        person_prop = next(p for p in properties_list if p.name == "person")
+        assert person_prop.required is True
+        assert person_prop.param_type == "object"
 
         # Check second level nested property
-        person = param.properties["person"]
-        assert isinstance(person, PydanticParameter)
-        assert "name" in person.properties
-        assert "address" in person.properties
-        assert person.properties["name"].required is True
+        person_properties_list = list(person_prop.properties)
+        name_prop = next(p for p in person_properties_list if p.name == "name")
+        assert name_prop.required is True
+
+        address_prop = next(p for p in person_properties_list if p.name == "address")
+        assert address_prop.param_type == "object"
 
         # Check third level nested property
-        address = person.properties["address"]
-        assert isinstance(address, PydanticParameter)
-        assert "street" in address.properties
-        assert "city" in address.properties
-        assert address.properties["street"].required is True
-        assert address.properties["city"].required is False
+        address_properties_list = list(address_prop.properties)
+        street_prop = next(p for p in address_properties_list if p.name == "street")
+        city_prop = next(p for p in address_properties_list if p.name == "city")
+
+        assert street_prop.required is True
+        assert city_prop.required is False
 
     def test_parameter_with_ref(self):
         """Test parsing a parameter with a $ref."""
@@ -300,7 +311,7 @@ class TestParseModelProperties:
         result = parse_model_properties(schema)
 
         assert "amount" in result
-        assert result["amount"].param_type == "float"  # Should be converted to float
+        assert result["amount"].param_type == "number"
 
     def test_schema_with_defs_and_refs(self):
         """Test parsing a schema with $defs and $ref."""
@@ -390,264 +401,3 @@ class TestParseModelProperties:
         result = parse_model_properties(schema)
 
         assert result == {}
-
-
-class TestConvertParamsToModelRecursive:
-    """Tests for the convert_params_to_model_recursive function."""
-
-    def test_basic_parameter_conversion(self):
-        """Test converting basic parameters to a Pydantic model."""
-        parameters = {
-            "name": Parameter(
-                name="name", param_type="string", description="The name", required=True
-            ),
-            "age": Parameter(
-                name="age", param_type="integer", description="The age", required=True
-            ),
-            "is_active": Parameter(
-                name="is_active",
-                param_type="boolean",
-                description="Active status",
-                required=False,
-            ),
-        }
-
-        model = convert_params_to_model_recursive("TestModel", set(parameters.values()))
-
-        # Check model properties
-        assert hasattr(model, "model_fields")
-
-        # Check field types
-        assert model.model_fields["name"].annotation == str
-        assert model.model_fields["age"].annotation == int
-        assert "Optional" in str(model.model_fields["is_active"].annotation)
-        assert "bool" in str(model.model_fields["is_active"].annotation)
-
-        # Check field descriptions
-        assert model.model_fields["name"].description == "The name"
-        assert model.model_fields["age"].description == "The age"
-        assert model.model_fields["is_active"].description == "Active status"
-
-        # Check required status
-        assert model.model_fields["name"].is_required() is True
-        assert model.model_fields["age"].is_required() is True
-        assert model.model_fields["is_active"].is_required() is False
-
-    def test_nested_object_conversion(self):
-        """Test converting nested object parameters to a Pydantic model."""
-        address_props = {
-            "street": Parameter(
-                name="street",
-                param_type="string",
-                description="The street",
-                required=True,
-            ),
-            "city": Parameter(
-                name="city", param_type="string", description="The city", required=False
-            ),
-        }
-
-        parameters = {
-            "name": Parameter(
-                name="name", param_type="string", description="The name", required=True
-            ),
-            "address": PydanticParameter(
-                name="address",
-                param_type="object",
-                description="The address",
-                required=True,
-                properties=address_props,
-            ),
-        }
-
-        model = convert_params_to_model_recursive("TestModel", set(parameters.values()))
-
-        # Check model properties
-        assert hasattr(model, "model_fields")
-
-        # Check field types
-        assert model.model_fields["name"].annotation == str
-
-        # The address field should be a nested model
-        address_field_type = model.model_fields["address"].annotation
-        assert "TestModel_address" in str(address_field_type)
-
-        # Create an instance to check nested model structure
-        address_model = address_field_type
-        assert hasattr(address_model, "model_fields")
-        assert "street" in address_model.model_fields
-        assert "city" in address_model.model_fields
-        assert address_model.model_fields["street"].annotation == str
-        assert "Optional" in str(address_model.model_fields["city"].annotation)
-
-    def test_array_conversion(self):
-        """Test converting array parameters to a Pydantic model."""
-        parameters = {
-            "name": Parameter(
-                name="name", param_type="string", description="The name", required=True
-            ),
-            "tags": Parameter(
-                name="tags", param_type="array", description="The tags", required=False
-            ),
-        }
-
-        model = convert_params_to_model_recursive("TestModel", set(parameters.values()))
-
-        # Check model properties
-        assert hasattr(model, "model_fields")
-
-        # Check field types
-        assert model.model_fields["name"].annotation == str
-        assert "Optional" in str(model.model_fields["tags"].annotation)
-        assert "list" in str(model.model_fields["tags"].annotation).lower()
-
-    def test_array_with_nested_objects(self):
-        """Test converting array parameters with nested objects to a Pydantic model."""
-        item_props = {
-            "id": Parameter(
-                name="id", param_type="integer", description="The ID", required=True
-            ),
-            "value": Parameter(
-                name="value",
-                param_type="string",
-                description="The value",
-                required=True,
-            ),
-        }
-
-        parameters = {
-            "name": Parameter(
-                name="name", param_type="string", description="The name", required=True
-            ),
-            "items": PydanticParameter(
-                name="items",
-                param_type="array",
-                description="The items",
-                required=True,
-                properties=item_props,
-            ),
-        }
-
-        model = convert_params_to_model_recursive("TestModel", set(parameters.values()))
-
-        # Check model properties
-        assert hasattr(model, "model_fields")
-
-        # Check field types
-        assert model.model_fields["name"].annotation == str
-
-        # The items field should be a list of a nested model
-        items_field_type = model.model_fields["items"].annotation
-        assert "List" in str(items_field_type)
-
-        # Extract the nested model type from List[...]
-        nested_model_match = re.search(r"List\[(.*?)\]", str(items_field_type))
-        assert nested_model_match
-
-        # The nested model should have the expected fields
-        nested_model_name = nested_model_match.group(1).strip()
-        assert "TestModel_items" in nested_model_name
-
-    def test_all_parameter_types(self):
-        """Test converting all parameter types to a Pydantic model."""
-        parameters = {
-            "string_param": Parameter(
-                name="string_param",
-                param_type="string",
-                description="String param",
-                required=True,
-            ),
-            "integer_param": Parameter(
-                name="integer_param",
-                param_type="integer",
-                description="Integer param",
-                required=True,
-            ),
-            "float_param": Parameter(
-                name="float_param",
-                param_type="float",
-                description="Float param",
-                required=True,
-            ),
-            "boolean_param": Parameter(
-                name="boolean_param",
-                param_type="boolean",
-                description="Boolean param",
-                required=True,
-            ),
-            "array_param": Parameter(
-                name="array_param",
-                param_type="array",
-                description="Array param",
-                required=True,
-            ),
-            "object_param": Parameter(
-                name="object_param",
-                param_type="object",
-                description="Object param",
-                required=True,
-            ),
-        }
-
-        model = convert_params_to_model_recursive("TestModel", set(parameters.values()))
-
-        # Check model properties
-        assert hasattr(model, "model_fields")
-
-        # Check field types
-        assert model.model_fields["string_param"].annotation == str
-        assert model.model_fields["integer_param"].annotation == int
-        assert model.model_fields["float_param"].annotation == float
-        assert model.model_fields["boolean_param"].annotation == bool
-        assert "list" in str(model.model_fields["array_param"].annotation).lower()
-        assert model.model_fields["object_param"].annotation == dict
-
-    def test_optional_parameters(self):
-        """Test converting optional parameters to a Pydantic model."""
-        parameters = {
-            "required_param": Parameter(
-                name="required_param",
-                param_type="string",
-                description="Required param",
-                required=True,
-            ),
-            "optional_param": Parameter(
-                name="optional_param",
-                param_type="string",
-                description="Optional param",
-                required=False,
-            ),
-        }
-
-        model = convert_params_to_model_recursive("TestModel", set(parameters.values()))
-
-        # Check model properties
-        assert hasattr(model, "model_fields")
-
-        # Check field types and required status
-        assert model.model_fields["required_param"].annotation == str
-        assert "Optional" in str(model.model_fields["optional_param"].annotation)
-        assert model.model_fields["required_param"].is_required() is True
-        assert model.model_fields["optional_param"].is_required() is False
-
-    def test_empty_parameters(self):
-        """Test converting an empty set of parameters."""
-        model = convert_params_to_model_recursive("TestModel", set())
-
-        # The model should exist but have no fields
-        assert hasattr(model, "model_fields")
-        assert len(model.model_fields) == 0
-
-    def test_model_config(self):
-        """Test that the generated model has the correct configuration."""
-        parameters = {
-            "name": Parameter(
-                name="name", param_type="string", description="The name", required=True
-            )
-        }
-
-        model = convert_params_to_model_recursive("TestModel", set(parameters.values()))
-
-        # Check that the model has extra="forbid" to ensure additionalProperties=False
-        assert hasattr(model, "model_config")
-        assert model.model_config.get("extra") == "forbid"

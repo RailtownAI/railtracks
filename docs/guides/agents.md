@@ -1,7 +1,7 @@
 # 🤖 What is an Agent?
 
 The buzz around AI terms can be pretty overwhelming and sound more like a buzzword than something useful. Before we dive
-deep into how you can build agents in **Covailence**, let's first understand what an agent is.
+deep into how you can build agents in **RailTracks**, let's first understand what an agent is.
 
 An agent is a self-contained unit that can perform a specific task or set of tasks autonomously. It has the ability to
 make decisions, take actions, and act within its environment to achieve its goals.
@@ -21,6 +21,8 @@ for a while now, but LLMs have changed the game and made it much easier to use t
 accomplish complex tasks and goals. This ability makes them uniquely suited to operate as the **brain** for your agentic
 system.
 
+(TODO diagram here.)
+
 # 🌍 Real World Applications
 
 Agents are already being used in real world applications such as:
@@ -36,7 +38,7 @@ You don't need to be a rocket scientist to build your own agent. With just a sim
 already well on your way to building your first agent.
 applications.
 <div style="text-align:center;">
-    <a href="guides/build" class="md-button" style="margin:3px">Start Building with Request Completion</a>
+    <a href="guides/build" class="md-button" style="margin:3px">Start Building with RailTracks</a>
 </div>
 
 

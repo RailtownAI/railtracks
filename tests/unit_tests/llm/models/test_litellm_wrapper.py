@@ -13,35 +13,7 @@ from typing import Generator
 
 
 # =================================== START _parameters_to_json_schema Tests ==================================
-def test_parameters_to_json_schema_with_dict():
-    """
-    Test _parameters_to_json_schema with a dictionary input.
-    """
-    parameters = {
-        "properties": {
-            "param1": {"type": "string", "description": "A string parameter."},
-            "param2": {"type": "integer", "description": "An integer parameter."},
-        },
-    }
-    schema = _parameters_to_json_schema(parameters)
-    assert schema == parameters
-
-
-def test_parameters_to_json_schema_with_pydantic_model():
-    """
-    Test _parameters_to_json_schema with a Pydantic model input.
-    """
-
-    class ExampleModel(BaseModel):
-        param1: str
-        param2: int
-
-    schema = _parameters_to_json_schema(ExampleModel)
-    assert schema["type"] == "object"
-    assert "properties" in schema
-    assert "param1" in schema["properties"]
-    assert "param2" in schema["properties"]
-
+# parameters_to_json_schema is guaranteed to get only a set of Parameter objects
 
 def test_parameters_to_json_schema_with_parameters_set(tool_with_parameters_set):
     """
@@ -57,46 +29,9 @@ def test_parameters_to_json_schema_with_parameters_set(tool_with_parameters_set)
     assert "param1" in schema["required"]
 
 
-def test_parameters_to_json_schema_with_parameters_set(tool_with_parameters_basemodel):
-    """
-    Test _parameters_to_json_schema with a set of Parameter objects.
-    """
-    schema = _parameters_to_json_schema(tool_with_parameters_basemodel.parameters)
-    assert schema["type"] == "object"
-    assert "properties" in schema
-    assert "param1" in schema["properties"]
-    assert schema["properties"]["param1"]["type"] == "string"
-    assert schema["properties"]["param1"]["description"] == "A string parameter."
-    assert "required" in schema
-    assert "param1" in schema["required"]
-
-
-def test_parameters_to_json_schema_with_parameters_dictionary(tool_with_parameters_dictionary):
-    """
-    Test _parameters_to_json_schema with a dictionary of Parameter objects.
-    """
-    schema = _parameters_to_json_schema(tool_with_parameters_dictionary.parameters)
-    assert schema["type"] == "object"
-    assert "properties" in schema
-    assert "param1" in schema["properties"]
-    assert schema["properties"]["param1"]["type"] == "string"
-    assert schema["properties"]["param1"]["description"] == "A string parameter."
-    assert "required" in schema
-    assert "param1" in schema["required"]
-    assert "additionalProperties" in schema
-    assert schema["additionalProperties"] is False
-
-
 def test_parameters_to_json_schema_with_empty_set():
     schema = _parameters_to_json_schema(set())
     assert schema == {"type": "object", "properties": {}}
-
-
-def test_parameters_to_json_schema_with_minimal_props():
-    schema = _parameters_to_json_schema({"properties": {}})
-    assert schema["properties"] == {}
-    # should have auto-added an empty list for required
-    assert schema["required"] == []
 
 
 def test_parameters_to_json_schema_invalid_input():

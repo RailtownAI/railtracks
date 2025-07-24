@@ -1,8 +1,8 @@
-# Request Completion Agentic Framework (RC)
+# RailTracks Agentic Framework (RC)
 
 ## Overview
 
-The Request Completion framework is a system designed to allow you to build simple Agentic systems that can be used to
+The RailTracks framework is a system designed to allow you to build simple Agentic systems that can be used to
 accomplish complicated tasks. By building "agents" with specialized abilities you can accomplish much more complicated
 tasks that single module could accomplish. Although the system is designed from the standpoint of LLMs being those
 agents,
@@ -33,12 +33,16 @@ to another modular component.
 ## Quick Start
 
 Let's get started with building your first Agentic system. The following steps will guide you through the process of
-creating a simple Agentic system using the Request Completion framework.
+creating a simple Agentic system using the RailTracks framework.
 
 ### Step 1: Install the Library
 
 ```bash
+# Install the core library
 pip install railtracks
+
+# Install with CLI support for development and visualization
+pip install railtracks[cli]
 ```
 
 ### Step 2: Define your Modular Components
@@ -50,7 +54,7 @@ import railtracks as rt
 def number_of_chars(text: str) -> int:
     """
     Counts the number of characters in the text.
-    
+
     Args:
         text (str): The text to count characters in.
     """
@@ -60,7 +64,7 @@ def number_of_chars(text: str) -> int:
 def number_of_words(text: str) -> int:
     """
     Counts the number of words in the text.
-    
+
     Args:
         text (str): The text to count words in.
     """
@@ -70,7 +74,7 @@ def number_of_words(text: str) -> int:
 def number_of_characters(text: str, character_of_interest) -> int:
     """
     Counts the number of characters in the text.
-    
+
     Args:
         text (str): The text to count characters in.
         character_of_interest (str): The character to count.
@@ -103,7 +107,7 @@ import railtracks as rt
 
 result = await rt.call(
     TextAnalyzer,
-    rt.llm.MessageHistory([rt.llm.UserMessage("Hello world! This is a test of the Request Completion framework.")])
+    rt.llm.MessageHistory([rt.llm.UserMessage("Hello world! This is a test of the RailTracks framework.")])
 )
 print(result)
 ```

@@ -50,21 +50,28 @@ class TestParameter:
         expected_str = (
             "Parameter(name=test_param, type=boolean, "
             "description=A test parameter, required=False, "
-            "additional_properties=False)"
+            "additional_properties=False, "
+            "enum=None, default=None)"
         )
         assert str(param) == expected_str
 
-    def test_type_mapping(self):
-        """Test that type_mapping returns the expected mapping."""
-        mapping = Parameter.type_mapping()
+    def test_parameter_enum_and_default(self):
+        """Test that Parameter correctly stores and returns enum and default values."""
+        param = Parameter(
+            name="enum_param",
+            param_type="string",
+            enum=["a", "b", "c"],
+            default="b",
+        )
+        assert param.enum == ["a", "b", "c"]
+        assert param.default == "b"
+        assert "enum=['a', 'b', 'c']" in str(param)
+        assert "default=b" in str(param)
 
-        assert mapping["string"] is str
-        assert mapping["integer"] is int
-        assert mapping["float"] is float
-        assert mapping["boolean"] is bool
-        assert mapping["array"] is list
-        assert mapping["object"] is dict
-
+    def test_parameter_with_none_default(self):
+        """Test that Parameter correctly handles none as default value."""
+        param = Parameter(name="test_param", param_type="string", default="none")
+        assert param.default == "none"  
 
 class TestPydanticParameter:
     """Tests for the PydanticParameter class."""
@@ -127,6 +134,18 @@ class TestPydanticParameter:
         assert "properties=" in str_repr
         assert "nested" in str_repr
 
+    def test_pydantic_parameter_refe_path(self):
+        """Test that PydanticParameter correctly handles $ref path."""
+        param = PydanticParameter(
+            name="test_param",
+            param_type="object",
+            description="A test parameter",
+            required=False,
+            ref_path="test_path",
+        )        
+        assert param.ref_path == "test_path"
+        assert "ref_path=test_path" in str(param)
+
 
 class TestParameterEdgeCases:
     """Tests for edge cases and validation in Parameter classes."""
@@ -173,13 +192,12 @@ class TestClassMethodParameters:
                 return value.upper()
 
         tool = Tool.from_function(TestClass.instance_method)
-        params = tool.parameters.model_json_schema().get("properties", {})
+        params = tool.parameters
 
         # Verify self is not in parameters
-        assert "self" not in params
+        assert all(param.name != "self" for param in params)
         # Verify value parameter is present
-        assert "value" in params
-        assert params["value"]["type"] == "string"
+        assert any(param.name == "value" and param.param_type == "string" for param in params)
 
     def test_class_method_cls_parameter(self):
         """Test that cls parameter is excluded from class methods."""
@@ -196,10 +214,9 @@ class TestClassMethodParameters:
                 return value.upper()
 
         tool = Tool.from_function(TestClass.class_method)
-        params = tool.parameters.model_json_schema().get("properties", {})
+        params = tool.parameters
 
         # Verify cls is not in parameters
-        assert "cls" not in params
+        assert all(param.name != "cls" for param in params)
         # Verify value parameter is present
-        assert "value" in params
-        assert params["value"]["type"] == "string"
+        assert any(param.name == "value" and param.param_type == "string" for param in params)
