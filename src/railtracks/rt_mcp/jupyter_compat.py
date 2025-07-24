@@ -41,6 +41,8 @@ def is_jupyter() -> bool:
 
         # Check the shell type
         ipython = get_ipython()
+        if ipython is None:
+            return False
         shell = ipython.__class__.__name__
 
         # Check for various Jupyter environments
