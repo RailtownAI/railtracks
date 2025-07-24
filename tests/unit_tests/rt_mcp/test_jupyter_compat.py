@@ -6,6 +6,8 @@ in non-Jupyter environments and don't interfere with normal operation.
 """
 
 import io
+import sys
+
 import pytest
 from unittest.mock import patch, MagicMock
 
@@ -28,6 +30,7 @@ def test_apply_patches_normal_env(reset_patched_flag):
     assert not jupyter_compat._patched
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only test")
 def test_apply_patches_jupyter_env(reset_patched_flag):
     """Test that apply_patches applies patches in a Jupyter environment."""
     # Mock is_jupyter to return True to simulate Jupyter environment
@@ -50,6 +53,7 @@ def test_apply_patches_jupyter_env(reset_patched_flag):
             assert original_create_windows_fallback_process != mcp.os.win32.utilities._create_windows_fallback_process
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only test")
 @pytest.mark.parametrize("patch_function", [
     "create_windows_process",
     "_create_windows_fallback_process"

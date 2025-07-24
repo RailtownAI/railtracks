@@ -12,10 +12,12 @@ import sys
 from pathlib import Path
 from typing import Any, Optional, TextIO, TypeVar
 
-# Import the functions we need to patch
-from mcp.os.win32.utilities import (
-    create_windows_process as original_create_windows_process,
-)
+try:
+    from mcp.os.win32.utilities import (
+        create_windows_process as original_create_windows_process,
+    )
+except ImportError:
+    original_create_windows_process = None
 
 # Type variables for function signatures
 T = TypeVar("T")
