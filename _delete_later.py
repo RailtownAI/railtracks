@@ -1,13 +1,13 @@
-import requestcompletion as rc
+import railtracks as rt
 import litellm
 
-model = rc.llm.GeminiLLM(model_name="gemini-pro")
+model = rt.llm.GeminiLLM(model_name="gemini-pro")
 
 
-mh = rc.llm.MessageHistory(
+mh = rt.llm.MessageHistory(
     [
-        rc.llm.SystemMessage("You are a helpful AI writing assistant."),
-        rc.llm.UserMessage("Hello, how are you?"),
+        rt.llm.SystemMessage("You are a helpful AI writing assistant."),
+        rt.llm.UserMessage("Hello, how are you?"),
     ]
 )
 
@@ -15,7 +15,5 @@ mh = rc.llm.MessageHistory(
 response = litellm.completion(
     model="gemini/gemini-2.5-flash",
     messages=[{"role": "user", "content": "Hey"}],
-    api_key="AIzaSyBRCR746N82nZPPHW-3NUD2QiiV4aNUONU",
-    api_base=f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash",
 )
 print(response)
