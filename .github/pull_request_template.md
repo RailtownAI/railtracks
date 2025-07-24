@@ -19,60 +19,44 @@ Please check the type of change your PR introduces:
 
 ## Background context
 
-<!-- Provide additional context, motivation, and relevant information that reviewers should know. Include: -->
-<!-- - Why is this change needed? -->
-<!-- - What problem does it solve? -->
-<!-- - How does it relate to existing functionality? -->
-<!-- - Any design decisions or trade-offs made? -->
+<!-- Provide context if not already covered in a linked issue. If you have detailed context in the issue, a brief summary here is sufficient. -->
 
 **Related Issues:** 
-<!-- Link any related issues using "Fixes #issue_number" or "Closes #issue_number" -->
+<!-- Issues are auto-linked when PR is created -->
 
 **Dependencies:** 
 <!-- List any new dependencies or changes to existing dependencies -->
 
 ## Checklist for Author
+<!-- Skip sections not relevant to your change type (e.g., skip Testing for docs-only changes) -->
 
 ### Code Quality
 - [ ] Code follows the project's style guidelines (run `ruff check .` and `ruff format .`)
 - [ ] Self-review of the code has been performed
 - [ ] Code is commented, particularly in hard-to-understand areas
-- [ ] No unused imports or dead code remains
 
 ### Testing
-- [ ] Tests have been added/updated for the changes made
-- [ ] All existing tests pass locally (`pytest tests`)
-- [ ] New tests pass locally
-- [ ] Test coverage is maintained or improved
+- [ ] Tests added/updated and pass locally (`pytest tests`)
+- [ ] Test coverage maintained (benchmarks will be available on release)
 
 ### Documentation
-- [ ] Documentation has been updated if needed
-- [ ] Code changes are reflected in relevant documentation
-- [ ] API changes are documented (if applicable)
+- [ ] Documentation updated if needed (bot will verify)
 
 ### Git & PR Management
-- [ ] Linked relevant issues to this pull request
 - [ ] PR title clearly describes the change
 - [ ] Commit messages are clear and descriptive
-- [ ] Branch is up to date with the target branch
 
 ### Breaking Changes
-- [ ] Breaking changes are clearly documented
-- [ ] Migration guide provided (if applicable)
-- [ ] Deprecation warnings added for removed functionality (if applicable)
+- [ ] Breaking changes are documented
+- [ ] Migration guide provided (step-by-step instructions for users to update their code/config)
 
 ---
 
 ## Screenshots or Videos
-
-<!-- Drag and drop your images (.png, .jpg) or videos (.mp4) here to show what was implemented -->
-<!-- Include before/after screenshots for UI changes -->
-<!-- Include terminal output for CLI changes -->
+<!-- Include before/after screenshots for UI changes or terminal output for CLI changes -->
 
 ## Testing Instructions
-
-<!-- Provide step-by-step instructions for reviewers to test your changes -->
-<!-- Include any specific test cases or scenarios to verify -->
+<!-- For new features: provide usage examples and test scenarios. Not required for simple changes. -->
 
 ## Additional Notes
 
