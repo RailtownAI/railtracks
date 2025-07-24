@@ -112,9 +112,6 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
     def tools(self):
         return [x.tool_info() for x in self.connected_nodes()]
 
-    @abstractmethod
-    def return_output(self) -> _T: ...
-
     async def _on_max_tool_calls_exceeded(self):
         """force a final response"""
         returned_mess = await self.llm_model.achat_with_tools(

@@ -31,14 +31,12 @@ class StructuredLLM(LLMBase[_TOutput], ABC, Generic[_TOutput]):
     def schema(cls) -> Type[_TOutput]: ...
 
     def __init__(
-        self,
-        user_input: MessageHistory | UserMessage | str,
-        llm_model: ModelBase | None = None,
+        self, user_input: MessageHistory, llm_model: ModelBase | None = None
     ):
         """Creates a new instance of the StructuredlLLM class
 
         Args:
-            user_input (MessageHistory | UserMessage | str): The input to use for the LLM. This can be a message history, a single user message, or a string.
+            message_history (MessageHistory): The message history to use for the LLM.
             llm_model (ModelBase | None, optional): The LLM model to use. Defaults to None.
 
         """
@@ -72,7 +70,7 @@ class StructuredLLM(LLMBase[_TOutput], ABC, Generic[_TOutput]):
                 if (key := self.return_into()) is not None:
                     context.put(key, self.format_for_context(cont))
                     return self.format_for_return(cont)
-                return cont
+                return self.return_output()
             raise LLMError(
                 reason="The LLM returned content does not match the expected return type",
                 message_history=self.message_hist,

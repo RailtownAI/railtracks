@@ -1,13 +1,42 @@
 from ... import context
 from ...exceptions import LLMError
-from ...llm import MessageHistory, ModelBase
+from ...llm import MessageHistory, ModelBase, UserMessage
 from ._llm_base import LLMBase
 
+from typing import TypeVar
 
-class TerminalLLM(LLMBase[str]):
-    """A simple LLM nodes that takes in a message and returns a response. It is the simplest of all llms."""
+_T = TypeVar("_T")
 
-    def __init__(self, user_input: MessageHistory, llm_model: ModelBase | None = None):
+class TerminalLLM(LLMBase[_T]):
+    """A simple LLM node that takes in a message and returns a response. It is the simplest of all LLMs.
+
+    This node accepts message_history in the following formats:
+    - MessageHistory: A list of Message objects
+    - UserMessage: A single UserMessage object
+    - str: A string that will be converted to a UserMessage
+
+    Examples:
+        ```python
+        # Using MessageHistory
+        mh = MessageHistory([UserMessage("Tell me about the world around us")])
+        result = await rc.call(TerminalLLM, user_input=mh)
+
+        # Using UserMessage
+        user_msg = UserMessage("Tell me about the world around us")
+        result = await rc.call(TerminalLLM, user_input=user_msg)
+
+        # Using string
+        result = await rc.call(
+            TerminalLLM, user_input="Tell me about the world around us"
+        )
+        ```
+    """
+
+    def __init__(
+        self,
+        user_input: MessageHistory | UserMessage | str,
+        llm_model: ModelBase | None = None,
+    ):
         super().__init__(llm_model=llm_model, user_input=user_input)
 
     @classmethod
@@ -39,7 +68,7 @@ class TerminalLLM(LLMBase[str]):
             if (key := self.return_into()) is not None:
                 context.put(key, self.format_for_context(cont))
                 return self.format_for_return(cont)
-            return cont
+            return self.return_output()
 
         raise LLMError(
             reason="ModelLLM returned an unexpected message type.",
