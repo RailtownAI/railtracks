@@ -9,8 +9,6 @@ import io
 import pytest
 from unittest.mock import patch, MagicMock
 
-from railtracks.nodes.library.easy_usage_wrappers.mcp_tool import from_mcp_server
-from railtracks.rt_mcp import MCPHttpParams, MCPStdioParams
 from railtracks.rt_mcp.jupyter_compat import apply_patches, is_jupyter
 from railtracks.rt_mcp import jupyter_compat
 
