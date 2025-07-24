@@ -119,26 +119,23 @@ The execution of a task follows a well-defined sequence of events, ensuring reli
 ## Diagrams
 
 This diagram shows the sequence of interactions when a task is submitted and processed.
-
 ```mermaid
 sequenceDiagram
     participant A as Actor
     participant C as Coordinator
-    participant J as Job
     participant CS as CoordinatorState
+    participant J as Job
     participant TES as TaskExecutionStrategy
-    participant P as Publisher
 
+    A->>C: start(publisher)
     A->>C: submit(task)
-    C->>J: create_new(task)
-    J-->>C: new_job
-    C->>CS: add_job(new_job)
-    C->>TES: execute(task)
-    
-    Note over TES: Task runs asynchronously
-    
-    TES->>P: publish(RequestCompletionMessage)
-    P->>C: handle_item(message)
-    C->>CS: end_job(request_id, result)
-    CS-->>C: confirmation
+    C->>RTPublisher: subscribe(callback)
+    C->>CS: add_job(task)
+    CS->>J: create_new(task)
+    J->>CS: Job
+    C->>TaskExecutionStrategy: execute(task)
+    TaskExecutionStrategy->>C: RequestSuccess/Failure
+    TaskExecutionStrategy->>RTPublisher: publish(respone)
+
+    Note over RTPublisher: Coordinator is subscribed to RTPublisher and gets notified of the response
 ```
