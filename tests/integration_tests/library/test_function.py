@@ -8,7 +8,7 @@ This module tests the ability to create nodes from functions with various parame
 """
 
 import pytest
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Union, Optional
 from pydantic import BaseModel, Field
 import time
 
@@ -346,6 +346,60 @@ class TestDictionaryInputTypes:
                     ),
                 )
 
+class TestUnionAndOptionalParameter:
+    @pytest.mark.parametrize("type_annotation", [Union[int, str], int|str], ids=["union", "or notation union"])
+    def test_union_parameter(self, type_annotation, create_top_level_node):
+        """Test that a function with a union parameter works correctly."""
+        def magic_number(x: type_annotation) -> int:
+            """
+            Args:
+                x: The input parameter
+                
+            Returns:
+                int: The result of the function
+            """
+            return 21
+
+        agent = create_top_level_node(
+            magic_number, model_provider="openai"
+        )
+        with rt.Runner(rt.ExecutorConfig(logging_setting="QUIET")) as run:
+            response = run.run_sync(
+                agent,
+                rt.llm.MessageHistory(
+                    [rt.llm.UserMessage("Calculate the magic number for 5. Then calculate the magic number for 'fox'. Add them and return the result only.")]
+                ),
+            )
+
+        assert response.answer.content == "42"
+
+    @pytest.mark.parametrize("deafult_value", [(None, 42), (5, 26)], ids=["default value", "non default value"])
+    def test_optional_parameter(self, create_top_level_node, deafult_value):
+        """Test that a function with an optional parameter works correctly."""
+        deafult, answer = deafult_value
+        def magic_number(x: Optional[int] = deafult) -> int:
+            """
+            Args:
+                x: The input parameter
+                
+            Returns:
+                int: The result of the function
+            """
+            return 21 if x is None else x
+
+        agent = create_top_level_node(
+            magic_number, model_provider="openai"
+        )
+        with rt.Runner(rt.ExecutorConfig(logging_setting="QUIET")) as run:
+            response = run.run_sync(
+                agent,
+                rt.llm.MessageHistory(
+                    [rt.llm.UserMessage("Calculate the magic number for 21. Then calculate the magic number with no args. Add them and return the result only.")]
+                ),
+            )
+
+        assert response.answer.content == str(answer)
+
 
 class TestRealisticScenarios:
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
@@ -374,7 +428,7 @@ class TestRealisticScenarios:
                 DB[person.name] = {"role": person.role, "phone": person.phone}
 
         usr_prompt = (
-            "Update the staff directory with the following information: John is now a Senior Manager and his phone number is changed to 5555"
+            "Update the staff directory with the following information: John is now a 'Senior Manager' and his phone number is changed to 5555"
             " and Jane is new a Developer and her phone number is 0987654321."
         )
 
@@ -386,6 +440,7 @@ class TestRealisticScenarios:
             response = run.run_sync(
                 agent, rt.llm.MessageHistory([rt.llm.UserMessage(usr_prompt)])
             )
+            print(response)
 
         assert DB["John"]["role"] == "Senior Manager"
         assert DB["John"]["phone"] == "5555"

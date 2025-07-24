@@ -38,7 +38,11 @@ creating a simple Agentic system using the RailTracks framework.
 ### Step 1: Install the Library
 
 ```bash
+# Install the core library
 pip install railtracks
+
+# Install with CLI support for development and visualization
+pip install railtracks[cli]
 ```
 
 ### Step 2: Define your Modular Components
@@ -50,7 +54,7 @@ import railtracks as rt
 def number_of_chars(text: str) -> int:
     """
     Counts the number of characters in the text.
-    
+
     Args:
         text (str): The text to count characters in.
     """
@@ -60,7 +64,7 @@ def number_of_chars(text: str) -> int:
 def number_of_words(text: str) -> int:
     """
     Counts the number of words in the text.
-    
+
     Args:
         text (str): The text to count words in.
     """
@@ -70,7 +74,7 @@ def number_of_words(text: str) -> int:
 def number_of_characters(text: str, character_of_interest) -> int:
     """
     Counts the number of characters in the text.
-    
+
     Args:
         text (str): The text to count characters in.
         character_of_interest (str): The character to count.
