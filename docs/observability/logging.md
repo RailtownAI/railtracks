@@ -115,38 +115,38 @@ You can forward logs to services like [Loggly](https://www.loggly.com/), [Sentry
 
 === "Conductr"
 
-```python
-import logging
-# Example integration TBD
-
-logger = logging.getLogger("RT")
-```
+    ```python
+    import logging
+    # Example integration TBD
+    
+    logger = logging.getLogger("RT")
+    ```
 
 === "Loggly"
 
-```python
-import logging
-from loggly.handlers import HTTPSHandler
-
-LOGGLY_TOKEN = 'YOUR_LOGGLY_TOKEN'
-https_handler = HTTPSHandler(
-    url=f'https://logs-01.loggly.com/inputs/{LOGGLY_TOKEN}/tag/python'
-)
-
-logger = logging.getLogger()
-logger.addHandler(https_handler)
-```
+    ```python
+    import logging
+    from loggly.handlers import HTTPSHandler
+    
+    LOGGLY_TOKEN = 'YOUR_LOGGLY_TOKEN'
+    https_handler = HTTPSHandler(
+        url=f'https://logs-01.loggly.com/inputs/{LOGGLY_TOKEN}/tag/python'
+    )
+    
+    logger = logging.getLogger()
+    logger.addHandler(https_handler)
+    ```
 
 === "Sentry"
 
-```python
-import sentry_sdk
-
-sentry_sdk.init(
-    dsn="https://examplePublicKey@o0.ingest.sentry.io/0",
-    send_default_pii=True,  # Collects additional metadata
-)
-```
+    ```python
+    import sentry_sdk
+    
+    sentry_sdk.init(
+        dsn="https://examplePublicKey@o0.ingest.sentry.io/0",
+        send_default_pii=True,  # Collects additional metadata
+    )
+    ```
 
 ---
 
