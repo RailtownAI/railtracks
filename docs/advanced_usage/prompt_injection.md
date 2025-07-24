@@ -1,4 +1,4 @@
-# 🧠 Prompt Injection
+# ✏️ Prompt Injection
 
 Passing prompt details up the chain can be expensive in both **tokens** and **latency**. In many cases, it’s more efficient to **inject values directly** into a prompt using our [context system](../context).
 
