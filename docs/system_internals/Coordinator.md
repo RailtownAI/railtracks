@@ -126,16 +126,17 @@ sequenceDiagram
     participant CS as CoordinatorState
     participant J as Job
     participant TES as TaskExecutionStrategy
+    participant RT as RTPublisher
 
     A->>C: start(publisher)
     A->>C: submit(task)
-    C->>RTPublisher: subscribe(callback)
+    C->>RT: subscribe(callback)
     C->>CS: add_job(task)
     CS->>J: create_new(task)
     J->>CS: Job
-    C->>TaskExecutionStrategy: execute(task)
-    TaskExecutionStrategy->>C: RequestSuccess/Failure
-    TaskExecutionStrategy->>RTPublisher: publish(respone)
+    C->>TES: execute(task)
+    TES->>C: RequestSuccess/Failure
+    TES->>RT: publish(respone)
 
-    Note over RTPublisher: Coordinator is subscribed to RTPublisher and gets notified of the response
+    Note over RT: Coordinator is subscribed to RTPublisher and gets notified of the response
 ```
