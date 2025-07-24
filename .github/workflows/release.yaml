@@ -2,7 +2,7 @@ name: Publish to Azure Artifacts on Release
 
 on:
   release:
-    types: [ published ]
+    types: [published]
 
 permissions:
   contents: read
@@ -13,6 +13,7 @@ env:
 
 jobs:
   publish:
+    name: Publish Railtracks
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -35,15 +36,29 @@ jobs:
           echo "VERSION_CLEANED=$VERSION_CLEANED" >> $GITHUB_ENV
           echo "Publishing version: $VERSION_CLEANED"
 
-      - name: Update version in __init__.py
+      - name: Update version in __init__.py files
         run: |
           sed -i -E 's/__version__ = ".+"/__version__ = "'"$VERSION_CLEANED"'"/' src/railtracks/__init__.py
-          echo "Updated __init__.py to version $VERSION_CLEANED"
+          sed -i -E 's/__version__ = ".+"/__version__ = "'"$VERSION_CLEANED"'"/' railtracks-cli/src/railtracks/__init__.py
+          echo "Updated __init__.py files to version $VERSION_CLEANED"
 
-      - name: Build and Publish with Flit
+      # Publish CLI package first (required dependency for railtracks[cli])
+      - name: Publish railtracks-cli to PyPI
         env:
-          FLIT_INDEX_URL: 'https://pkgs.dev.azure.com/railtownai/ML/_packaging/railtownai_rc/pypi/upload/' # Private Package URL
-          FLIT_USERNAME: 'AZURE'
-          FLIT_PASSWORD: ${{ secrets.AZURE_ARTIFACTS_PAT }}
+          FLIT_INDEX_URL: 'https://pypi.org/pypi'
+          FLIT_USERNAME: '__token__'
+          FLIT_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          cd railtracks-cli
+          flit publish
+          echo "Published railtracks-cli to PyPI"
+
+      # Then publish main package (which references railtracks-cli in optional dependencies)
+      - name: Publish railtracks to PyPI
+        env:
+          FLIT_INDEX_URL: 'https://pypi.org/pypi'
+          FLIT_USERNAME: '__token__'
+          FLIT_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
         run: |
           flit publish
+          echo "Published railtracks to PyPI"

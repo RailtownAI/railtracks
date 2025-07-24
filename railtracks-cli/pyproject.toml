@@ -1,0 +1,31 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "railtracks-cli"
+authors = [
+    { name = "Logan Underwood", email = "logan@railtown.ai" },
+    { name = "Levi Varsanyi", email = "levi@railtown.ai" },
+    { name = "Jaime Bueza", email = "jaime@railtown.ai" },
+    { name = "Amir Refaee", email = "amir@railtown.ai" },
+    { name = "Aryan Ballani", email = "aryan@railtown.ai" },
+    { name = "Tristan Brown", email = "tristan@railtown.ai" }
+]
+readme = "README.md"
+license = { text = "MIT" }
+classifiers = ["License :: OSI Approved :: MIT License"]
+dynamic = ["version", "description"]
+dependencies = [
+    "railtracks",
+    "watchdog >= 3.0.0"
+]
+
+[project.urls]
+Home = "https://railtown.ai"
+
+[tool.flit.module]
+name = "railtracks"
+
+[project.scripts]
+railtracks = "railtracks:main"

@@ -198,7 +198,7 @@ def _handle_array_schema(
 
 def parse_json_schema_to_parameter(
     name: str, prop_schema: dict, required: bool
-) -> Parameter:
+) -> "Parameter":
     """
     Given a JSON-schema for a property, returns a Parameter or PydanticParameter.
     If prop_schema defines nested properties, this is done recursively.
