@@ -22,7 +22,7 @@ async def test_terminal_llm_easy_usage_run(model , encoder_system_message):
     assert isinstance(response, str)
 
 def test_terminal_llm_class_based_run(model , encoder_system_message):
-    class Encoder(rt.library.TerminalLLM):
+    class Encoder(rt.library.LastMessageTerminalLLM):
         def __init__(
                 self,
                 user_input: rt.llm.MessageHistory,

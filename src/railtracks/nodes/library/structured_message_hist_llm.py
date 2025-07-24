@@ -1,9 +1,10 @@
-from .structured_llm_base import StructuredLLM
 from ...llm import MessageHistory
+from .structured_llm_base import StructuredLLM
+
 
 class StructuredMessageHistLLM(StructuredLLM[MessageHistory]):
     """A simple LLM node that takes in a message and schema and returns the total
-       message history with the addition of the most recent message being 
+       message history with the addition of the most recent message being
        structured with the schema specified.
 
     This node accepts message_history in the following formats:

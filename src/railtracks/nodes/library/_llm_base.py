@@ -175,7 +175,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
 
         # Create a single UserMessage with the complete instruction
         return llm.MessageHistory([llm.UserMessage("\n".join(instruction_parts))])
-    
+
     @abstractmethod
     def return_output(self) -> _T: ...
 

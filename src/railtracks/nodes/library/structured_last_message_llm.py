@@ -1,12 +1,14 @@
-from .structured_llm_base import StructuredLLM
+from typing import TypeVar
 
 from pydantic import BaseModel
-from typing import TypeVar
+
+from .structured_llm_base import StructuredLLM
 
 _TOutput = TypeVar("_TOutput", bound=BaseModel)
 
+
 class StructuredLastMessageLLM(StructuredLLM[_TOutput]):
-    """A simple LLM node that takes in a message and schema and returns a 
+    """A simple LLM node that takes in a message and schema and returns a
        structured response.
 
     This node accepts message_history in the following formats:

@@ -20,17 +20,21 @@ __all__ = [
 
 from .easy_usage_wrappers.function import from_function
 from .easy_usage_wrappers.mcp_tool import from_mcp_server
-from .easy_usage_wrappers.tool_calling_llms.message_hist_tool_call_llm import message_hist_tool_call_llm
 from .easy_usage_wrappers.structured_llms.structured_llm import structured_llm
-from .easy_usage_wrappers.tool_calling_llms.structured_tool_call_llm import structured_tool_call_llm
 from .easy_usage_wrappers.terminal_llms.terminal_llm import terminal_llm
+from .easy_usage_wrappers.tool_calling_llms.message_hist_tool_call_llm import (
+    message_hist_tool_call_llm,
+)
+from .easy_usage_wrappers.tool_calling_llms.structured_tool_call_llm import (
+    structured_tool_call_llm,
+)
 from .easy_usage_wrappers.tool_calling_llms.tool_call_llm import tool_call_llm
+from .last_message_terminal_llm import LastMessageTerminalLLM
+from .message_hist_terminal_llm import MessageHistoryTerminalLLM
+from .structured_last_message_llm import StructuredLastMessageLLM
 from .structured_llm_base import StructuredLLM
 from .structured_message_hist_llm import StructuredMessageHistLLM
-from .structured_last_message_llm import StructuredLastMessageLLM
 from .terminal_llm_base import TerminalLLM
-from .message_hist_terminal_llm import MessageHistoryTerminalLLM
-from .last_message_terminal_llm import LastMessageTerminalLLM
 from .tool_calling_llms.mess_hist_tool_call_llm import MessageHistoryToolCallLLM
 from .tool_calling_llms.structured_tool_call_llm import StructuredToolCallLLM
 from .tool_calling_llms.tool_call_llm import ToolCallLLM

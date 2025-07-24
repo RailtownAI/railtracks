@@ -1,5 +1,6 @@
 from .terminal_llm_base import TerminalLLM
 
+
 class LastMessageTerminalLLM(TerminalLLM[str]):
     """A simple LLM node that takes in a message and returns a response. It is the simplest of all LLMs.
 

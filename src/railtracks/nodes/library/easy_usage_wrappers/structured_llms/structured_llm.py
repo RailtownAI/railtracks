@@ -7,7 +7,9 @@ from railtracks.llm import (
     SystemMessage,
 )
 from railtracks.nodes._node_builder import NodeBuilder
-from railtracks.nodes.library.structured_last_message_llm import StructuredLastMessageLLM
+from railtracks.nodes.library.structured_last_message_llm import (
+    StructuredLastMessageLLM,
+)
 
 from .....llm.tools import Parameter
 

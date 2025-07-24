@@ -1,11 +1,12 @@
+from typing import TypeVar
+
 from ... import context
 from ...exceptions import LLMError
 from ...llm import MessageHistory, ModelBase, UserMessage
 from ._llm_base import LLMBase
 
-from typing import TypeVar
-
 _T = TypeVar("_T")
+
 
 class TerminalLLM(LLMBase[_T]):
     """A simple LLM node that takes in a message and returns a response. It is the simplest of all LLMs.

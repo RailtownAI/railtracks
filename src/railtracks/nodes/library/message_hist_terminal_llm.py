@@ -1,5 +1,6 @@
-from .terminal_llm_base import TerminalLLM
 from ...llm import MessageHistory
+from .terminal_llm_base import TerminalLLM
+
 
 class MessageHistoryTerminalLLM(TerminalLLM[MessageHistory]):
     """A simple LLM node that takes in a message and returns the total message history.
