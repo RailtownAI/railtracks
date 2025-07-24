@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import timedelta
 from mcp import ClientSession, StdioServerParameters
+from railtracks.llm import Parameter
 from railtracks.rt_mcp.main import MCPHttpParams
 from railtracks import Node
 
@@ -99,20 +100,42 @@ def mock_executor_config():
     # You can use a namedtuple, dataclass or a plain MagicMock if not relied on
     return MagicMock(logging_setting="QUIET", timeout=123)
 
-@pytest.fixture
-def mock_node_info():
-    m = MagicMock()
-    m.name = "test-tool"
-    m.detail = "Docstring here."
-    # Simulate a Pydantic schema
-    m.parameters = MagicMock()
-    m.parameters.model_json_schema.return_value = {
+@ pytest.fixture
+def mock_params_schema():
+    return {
+        "type": "object",
         "properties": {
             "foo": {"type": "integer", "description": "A foo parameter"},
             "bar": {"type": "string", "description": "A bar parameter"},
         },
         "required": ["foo"]
     }
+
+@pytest.fixture
+def mock_node_info():
+    m = MagicMock()
+    m.name = "test-tool"
+    m.detail = "Docstring here."
+    
+    ############# ensure they are in sync with mock_params_schema ##########
+    foo_param = MagicMock(spec=Parameter)
+    foo_param.name = "foo"
+    foo_param.param_type = "integer"  # Set actual string value
+    foo_param.description = "A foo parameter" 
+    foo_param.required = True
+    foo_param.default = None
+    foo_param.enum = None
+    
+    bar_param = MagicMock(spec=Parameter)
+    bar_param.name = "bar"
+    bar_param.param_type = "string"   # Set actual string value
+    bar_param.description = "A bar parameter"
+    bar_param.required = False  
+    bar_param.default = None
+    bar_param.enum = None
+    #########################################################################
+
+    m.parameters = set([foo_param, bar_param])
     return m
 
 @pytest.fixture

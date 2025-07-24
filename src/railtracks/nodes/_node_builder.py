@@ -7,7 +7,6 @@ from typing import (
     Coroutine,
     Dict,
     Generic,
-    Iterable,
     ParamSpec,
     Set,
     Type,
@@ -253,7 +252,7 @@ class NodeBuilder(Generic[_TNode]):
         self,
         func: Callable[_P, Coroutine[Any, Any, Any] | Any],
         tool_details: str,
-        tool_params: Iterable[Parameter] | None = None,
+        tool_params: Set[Parameter] | None = None,
     ):
         pass
 
@@ -288,7 +287,7 @@ class NodeBuilder(Generic[_TNode]):
     def tool_callable_llm(
         self,
         tool_details: str | None,
-        tool_params: Iterable[Parameter] | None = None,
+        tool_params: Set[Parameter] | None = None,
     ):
         """
         Configure the node subclass to have tool_info and prepare_tool method
@@ -298,7 +297,7 @@ class NodeBuilder(Generic[_TNode]):
 
         Args:
             tool_details (str or None): Description of the tool for LLM tool calling (used in metadata and UI).
-            tool_params (Iterable[Parameter] or None): Parameters for the tool, used for input validation and metadata.
+            tool_params (Set[Parameter] or None): Parameters for the tool, used for input validation and metadata.
 
         Raises:
             AssertionError: If the node class is not a subclass of an RT LLM node.
@@ -318,7 +317,7 @@ class NodeBuilder(Generic[_TNode]):
         *,
         name: str = None,
         tool_details: str = "",
-        tool_params: Iterable[Parameter] | None = None,
+        tool_params: dict[str, Any] | Set[Parameter] | None = None,
     ):
         pass
 
@@ -336,7 +335,7 @@ class NodeBuilder(Generic[_TNode]):
         tool: Tool = None,
         name: str = None,
         tool_details: str = "",
-        tool_params: dict[str, Any] | Iterable[Parameter] = None,
+        tool_params: dict[str, Any] | Set[Parameter] = None,
     ):
         """
         Override the tool_info function for the node.
@@ -349,7 +348,7 @@ class NodeBuilder(Generic[_TNode]):
             --------------------------------------------------------------
             name (str, optional): The name of the tool.
             tool_details (str, optional): A description of the tool for LLMs.
-            tool_params (Iterable[Parameter] or dict[str, Any], optional): Parameters for the tool.
+            tool_params (Set[Parameter] or dict[str, Any], optional): Parameters for the tool.
 
 
         """
@@ -377,7 +376,9 @@ class NodeBuilder(Generic[_TNode]):
 
             self._with_override("tool_info", classmethod(tool_info))
 
-    def _override_prepare_tool_llm(self, tool_params: Iterable[Parameter]):
+    def _override_prepare_tool_llm(
+        self, tool_params: dict[str, Any] | Set[Parameter] | None = None
+    ):
         """
         Override the prepare_tool function specifically for LLM nodes.
 

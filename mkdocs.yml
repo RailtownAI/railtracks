@@ -53,6 +53,7 @@ nav:
 
   - LLM Support:
       - llm_support/index.md
+      - Prompts and Context Injection: llm_support/prompts.md
 
   - Deployments:
         - deployments/index.md

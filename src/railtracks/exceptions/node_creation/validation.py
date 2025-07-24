@@ -4,7 +4,7 @@ from typing import Any, Callable, Dict, Iterable, get_origin
 
 from pydantic import BaseModel
 
-from ...llm.message import SystemMessage
+from ...llm import SystemMessage
 from ..errors import NodeCreationError
 from ..messages.exception_messages import ExceptionMessageKey, get_message, get_notes
 
@@ -255,3 +255,49 @@ def validate_tool_metadata(
 
 
 # ================================================ END Common Validation accross easy_usage_wrappers ===========================================================
+
+
+# ================================================================= START Tool init error ===========================================================
+def validate_tool_params(parameters: Any, param_type) -> bool:
+    if not (isinstance(parameters, (set, dict)) or parameters is None):
+        raise NodeCreationError(
+            message=get_message(ExceptionMessageKey.TOOL_PARAMETERS_TYPE_MSG),
+            notes=get_notes(ExceptionMessageKey.TOOL_PARAMETERS_TYPE_NOTES),
+        )
+
+    if isinstance(parameters, dict) and len(parameters) > 0:
+        try:
+            assert "type" in parameters, (
+                "A 'type' key must be provided in the JSON-schema."
+            )
+            assert parameters["type"] == "object", (
+                "The outer-most 'type' must be 'object' in the JSON-schema."
+            )
+            assert "additionalProperties" in parameters, (
+                "The 'additionalProperties' key must be present and set to False."
+            )
+            assert not parameters["additionalProperties"], (
+                "The 'additionalProperties' must be set to False in the JSON-schema."
+            )
+            assert "properties" in parameters, (
+                "A 'properties' key must be provided in the JSON-schema."
+            )
+        except AssertionError as e:
+            raise NodeCreationError(
+                message=get_message(
+                    ExceptionMessageKey.TOOL_PARAMETERS_FROM_SCHEMA_FAILED_MSG
+                ).format(reason=str(e)),
+                notes=get_notes(ExceptionMessageKey.TOOL_PARAMETERS_TYPE_NOTES),
+            ) from e
+
+    elif isinstance(parameters, set):
+        if not all(isinstance(x, param_type) for x in parameters):
+            raise NodeCreationError(
+                message=ExceptionMessageKey.PARAMETER_SET_CONTAINS_INVALID_TYPE_MSG,
+                notes=ExceptionMessageKey.PARAMETER_SET_CONTAINS_INVALID_TYPE_NOTES,
+            )
+
+    return True
+
+
+# ================================================================== END Tool init error ===========================================================

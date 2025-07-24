@@ -5,6 +5,8 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.tools import Tool as MCPTool
 from mcp.server.fastmcp.utilities.func_metadata import func_metadata
 
+from railtracks.llm.models._litellm_wrapper import _parameters_to_json_schema
+
 from ..config import ExecutorConfig
 from ..nodes.nodes import Node
 from ..run import Runner
@@ -29,14 +31,28 @@ def create_tool_function(
     params = []
     args_doc = []
     params_schema = (
-        node_info.parameters.model_json_schema()
+        _parameters_to_json_schema(node_info.parameters)
         if node_info.parameters is not None
         else {}
     )
+
+    # Get all parameters and sort them: required first, then optional
+    all_params = []
+    required_params = set(params_schema.get("required", []))
+
     for param_name, param_info in params_schema.get("properties", {}).items():
-        required = param_name in params_schema.get("required", [])
+        required = param_name in required_params
         param_type = param_info.get("type", "any")
         annotation = type_map.get(param_type, str)
+        param_desc = param_info.get("description", "")
+
+        all_params.append((param_name, param_info, required, annotation, param_desc))
+
+    # Sort: required parameters first (True sorts before False when reversed)
+    all_params.sort(key=lambda x: not x[2])  # not required = False sorts after True
+
+    # Create parameters in the correct order
+    for param_name, param_info, required, annotation, param_desc in all_params:
         if required:
             params.append(
                 inspect.Parameter(
@@ -55,7 +71,6 @@ def create_tool_function(
                 )
             )
 
-        param_desc = param_info.get("description", "")
         args_doc.append(f"    {param_name}: {param_desc}")
 
     async def tool_function(**kwargs):
@@ -103,7 +118,7 @@ def create_mcp_server(
             name=node_info.name,
             description=node_info.detail,
             parameters=(
-                node_info.parameters.model_json_schema()
+                _parameters_to_json_schema(node_info.parameters)
                 if node_info.parameters is not None
                 else {}
             ),

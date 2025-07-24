@@ -137,8 +137,15 @@ async def test_terminal_llm_as_tool_correct_initialization(
         encoder.tool_info().detail == encoder_tool_details
         and decoder.tool_info().detail == decoder_tool_details
     )
-    assert issubclass(encoder.tool_info().parameters, BaseModel) and issubclass(
-        decoder.tool_info().parameters, BaseModel
+    encoder_params = encoder.tool_info().parameters
+    decoder_params = decoder.tool_info().parameters
+    
+    assert all(isinstance(param, rt.llm.Parameter) for param in encoder_params), (
+        f"Encoder parameters {encoder_params} should be instances of rc.llm.Parameter"
+    )
+    
+    assert all(isinstance(param, rt.llm.Parameter) for param in decoder_params), (
+        f"Decoder parameters {decoder_params} should be instances of rc.llm.Parameter"
     )
 
     randomizer = rt.library.message_hist_tool_call_llm(
