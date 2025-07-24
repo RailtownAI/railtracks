@@ -65,7 +65,3 @@ The CLI automatically watches the `.railtracks` directory for JSON file changes:
 - **Real-time Detection**: Monitors file modifications with debouncing
 - **JSON Validation**: Validates JSON syntax when files are accessed
 - **Console Logging**: Reports file changes in the terminal
-
-## License
-
-See LICENSE in the root directory.
