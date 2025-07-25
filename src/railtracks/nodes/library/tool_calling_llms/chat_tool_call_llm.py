@@ -1,6 +1,6 @@
 import asyncio
+from abc import ABC
 
-from railtracks.llm.history import MessageHistory
 from railtracks.run import call
 
 from ....exceptions import LLMError
@@ -12,10 +12,12 @@ from ....llm import (
     UserMessage,
 )
 from ....llm.message import Role
+from .._llm_base import StringOutputMixIn
+from ..response import StringResponse
 from ._base import OutputLessToolCallLLM
 
 
-class ChatToolCallLLM(OutputLessToolCallLLM[MessageHistory]):
+class ChatToolCallLLM(StringOutputMixIn, OutputLessToolCallLLM[StringResponse], ABC):
     chat_ui = None
 
     async def invoke(self):  # noqa: C901
@@ -136,7 +138,3 @@ class ChatToolCallLLM(OutputLessToolCallLLM[MessageHistory]):
                 )
 
         return self.return_output()
-
-    def return_output(self):
-        """Returns the message history"""
-        return self.message_hist

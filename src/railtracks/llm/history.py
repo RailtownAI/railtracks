@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 from typing import List
 
-from .message import Message
+from .message import Message, Role
 
 
 class MessageHistory(List[Message]):
@@ -11,3 +13,9 @@ class MessageHistory(List[Message]):
 
     def __str__(self):
         return "\n".join([str(message) for message in self])
+
+    def removed_system_messages(self) -> MessageHistory:
+        """
+        Returns a new MessageHistory object with all SystemMessages removed.
+        """
+        return MessageHistory([msg for msg in self if msg.role != Role.system])

@@ -1,5 +1,5 @@
-from abc import ABC, abstractmethod
-from typing import Generic, Type, TypeVar
+from abc import ABC
+from typing import Generic, TypeVar
 
 from pydantic import BaseModel
 
@@ -11,12 +11,16 @@ from railtracks.exceptions.node_creation.validation import (
 from ... import context
 from ...exceptions import LLMError
 from ...llm import MessageHistory, ModelBase
-from ._llm_base import LLMBase
+from ._llm_base import LLMBase, StructuredOutputMixIn
+from .response import StructuredResponse
 
 _TOutput = TypeVar("_TOutput", bound=BaseModel)
 
 
-class StructuredLLM(LLMBase[_TOutput], ABC, Generic[_TOutput]):
+# note the ordering here does matter, the t
+class StructuredLLM(
+    StructuredOutputMixIn[_TOutput], LLMBase[_TOutput], ABC, Generic[_TOutput]
+):
     # TODO: allow for more general (non-pydantic) outputs
 
     def __init_subclass__(cls):
@@ -25,10 +29,6 @@ class StructuredLLM(LLMBase[_TOutput], ABC, Generic[_TOutput]):
             method = cls.__dict__["schema"]
             check_classmethod(method, "schema")
             check_schema(method, cls)
-
-    @classmethod
-    @abstractmethod
-    def schema(cls) -> Type[_TOutput]: ...
 
     def __init__(self, user_input: MessageHistory, llm_model: ModelBase | None = None):
         """Creates a new instance of the StructuredlLLM class
@@ -44,7 +44,7 @@ class StructuredLLM(LLMBase[_TOutput], ABC, Generic[_TOutput]):
     def pretty_name(cls) -> str:
         return f"Structured LLM ({cls.schema().__name__})"
 
-    async def invoke(self) -> _TOutput:
+    async def invoke(self) -> StructuredResponse[_TOutput]:
         """Makes a call containing the inputted message and system prompt to the llm model and returns the response
 
         Returns:

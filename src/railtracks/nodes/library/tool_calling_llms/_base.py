@@ -30,9 +30,6 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
      an LLm that can make tool calls. The tool calls will be returned
     as calls or if there is a response, the response will be returned as an output"""
 
-    # Set structured response node to None by default
-    structured_resp_node = None
-
     def __init_subclass__(cls):
         super().__init_subclass__()
         # 3. Check if the connected_nodes is not empty, special case for ToolCallLLM
