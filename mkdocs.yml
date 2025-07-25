@@ -77,7 +77,7 @@ nav:
   - System Overviews:
       - system_internals/index.md
       - Node: system_internals/node.md
-      - Runner: system_internals/runner.md
+      - Runner: system_internals/runner_new.md
       - PubSub: system_internals/pubsub.md
       - Coordinator: system_internals/coordinator.md
 
