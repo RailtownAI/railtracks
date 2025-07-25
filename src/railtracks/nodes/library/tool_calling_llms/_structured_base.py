@@ -9,7 +9,7 @@ from railtracks.interaction.call import call
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import UserMessage
 from railtracks.llm.model import ModelBase
-from railtracks.nodes.library.easy_usage_wrappers.structured_llm import (
+from railtracks.nodes.library.easy_usage_wrappers.structured_llms.structured_llm import (
     structured_llm,
 )
 from railtracks.nodes.library.tool_calling_llms._base import (

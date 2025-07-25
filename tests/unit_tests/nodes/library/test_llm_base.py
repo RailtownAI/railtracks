@@ -12,6 +12,9 @@ class MockModelNode(LLMBase):
 
     async def invoke(self) -> llm.Message:
         return self.llm_model.chat(self.message_hist).message
+    
+    def return_output(self):
+        return
 
 @pytest.mark.asyncio
 async def test_hooks(mock_llm):

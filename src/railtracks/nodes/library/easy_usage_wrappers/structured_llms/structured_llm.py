@@ -1,25 +1,27 @@
-from typing import Any, Callable, Iterable, Type, Union
+from typing import Any, Callable, Type, TypeVar
+
+from pydantic import BaseModel
 
 from railtracks.llm import (
     ModelBase,
     SystemMessage,
 )
 from railtracks.nodes._node_builder import NodeBuilder
-
-from ....llm.tools import Parameter
-from ....nodes.nodes import Node
-from ...library.tool_calling_llms.mess_hist_tool_call_llm import (
-    MessageHistoryToolCallLLM,
+from railtracks.nodes.library.structured_last_message_llm import (
+    StructuredLastMessageLLM,
 )
 
+from .....llm.tools import Parameter
 
-def message_hist_tool_call_llm(
-    connected_nodes: Iterable[Union[Type[Node], Callable]],
+_TOutput = TypeVar("_TOutput", bound=BaseModel)
+
+
+def structured_llm(
+    schema: Type[_TOutput],
     *,
-    pretty_name: str | None = None,
-    llm_model: ModelBase | None = None,
-    max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
+    llm_model: ModelBase | None = None,
+    pretty_name: str | None = None,
     tool_details: str | None = None,
     tool_params: set[Parameter] | None = None,
     return_into: str | None = None,
@@ -27,17 +29,16 @@ def message_hist_tool_call_llm(
     format_for_context: Callable[[Any], Any] | None = None,
 ):
     """
-    Dynamically create a MessageHistoryToolCallLLM node class with custom configuration for tool calling.
+    Dynamically create a StructuredLastMessageLLM node class with custom configuration for schema.
 
-    This easy-usage wrapper dynamically builds a node class that supports LLM tool calling where it will return
-    the message history. This allows you to specify connected tools, llm model, system message, tool metadata,
+    This easy-usage wrapper dynamically builds a node class that supports structured LLM output.
+    This allows you to specify the schema, llm model, system message, tool metadata,
     and parameters. The returned class can be instantiated and used in the railtracks framework on runtime.
 
     Args:
-        connected_nodes (Iterable[Union[Type[Node], Callable]]): The set of node classes or callables that this node can call as tools.
+        schema (Type[BaseModel]): The Pydantic model that defines the structure of the output.
         pretty_name (str, optional): Human-readable name for the node/tool.
         llm_model (ModelBase or None, optional): The LLM model instance to use for this node.
-        max_tool_calls (int, optional): Maximum number of tool calls allowed per invocation (default: unlimited).
         system_message (SystemMessage or str or None, optional): The system prompt/message for the node. If not passed here it can be passed at runtime in message history.
         tool_details (str or None, optional): Description of the node subclass for other LLMs to know how to use this as a tool.
         tool_params (set of params or None, optional): Parameters that must be passed if other LLMs want to use this as a tool.
@@ -46,19 +47,19 @@ def message_hist_tool_call_llm(
         format_for_context (Callable[[Any], Any] | None, optional): A function to format the result before putting it into context, only if return_into is provided. If not provided, the response will be put into context as is.
 
     Returns:
-        Type[MessageHistoryToolCallLLM]: The dynamically generated node class with the specified configuration.
+        Type[StructuredLLM]: The dynamically generated node class with the specified configuration.
     """
-    builder = NodeBuilder(
-        MessageHistoryToolCallLLM,
+    builder = NodeBuilder[StructuredLastMessageLLM[_TOutput]](
+        StructuredLastMessageLLM,
         pretty_name=pretty_name,
-        class_name="EasyMessageHistoryToolCallLLM",
+        class_name="EasyStructuredLastMessageLLM",
         return_into=return_into,
         format_for_return=format_for_return,
         format_for_context=format_for_context,
     )
     builder.llm_base(llm_model, system_message)
-    builder.tool_calling_llm(set(connected_nodes), max_tool_calls)
-    if tool_details is not None:
+    builder.structured(schema)
+    if tool_details is not None or tool_params is not None:
         builder.tool_callable_llm(tool_details, tool_params)
 
     return builder.build()
