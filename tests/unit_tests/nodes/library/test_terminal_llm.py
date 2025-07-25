@@ -1,14 +1,14 @@
 import pytest
 import railtracks as rt
 from railtracks.llm import MessageHistory, SystemMessage, UserMessage
-from railtracks.nodes.library import TerminalLLM, terminal_llm
+from railtracks.nodes.library import LastMessageTerminalLLM, terminal_llm
 from railtracks.exceptions import NodeCreationError, NodeInvocationError
 
 
 # ================================================ START terminal_llm basic functionality =========================================================
 @pytest.mark.asyncio
 async def test_terminal_llm_instantiate_and_invoke(mock_llm, mock_chat_function):
-    class MockLLM(TerminalLLM):
+    class MockLLM(LastMessageTerminalLLM):
         @classmethod
         def pretty_name(cls):
             return "Mock LLM"
@@ -22,7 +22,7 @@ async def test_terminal_llm_instantiate_and_invoke(mock_llm, mock_chat_function)
 @pytest.mark.asyncio
 async def test_terminal_llm_instantiate_with_string(mock_llm, mock_chat_function):
     """Test that TerminalLLM can be instantiated with a string input."""
-    class MockLLM(TerminalLLM):
+    class MockLLM(LastMessageTerminalLLM):
         @classmethod
         def pretty_name(cls):
             return "Mock LLM"
@@ -45,7 +45,7 @@ async def test_terminal_llm_instantiate_with_string(mock_llm, mock_chat_function
 @pytest.mark.asyncio
 async def test_terminal_llm_instantiate_with_user_message(mock_llm, mock_chat_function):
     """Test that TerminalLLM can be instantiated with a UserMessage input."""
-    class MockLLM(TerminalLLM):
+    class MockLLM(LastMessageTerminalLLM):
         @classmethod
         def pretty_name(cls):
             return "Mock LLM"
@@ -193,7 +193,7 @@ async def test_no_message_history_easy_usage(mock_llm):
 
 @pytest.mark.asyncio
 async def test_no_message_history_class_based():
-    class Encoder(rt.library.TerminalLLM):
+    class Encoder(rt.library.LastMessageTerminalLLM):
         def __init__(self, user_input: rt.llm.MessageHistory, llm_model: rt.llm.ModelBase = None):
             super().__init__(user_input=user_input, llm_model=llm_model)
 
@@ -207,7 +207,7 @@ async def test_no_message_history_class_based():
 @pytest.mark.asyncio
 async def test_system_message_as_a_string_class_based(mock_llm):
     # if a string is provided as system_message in a class based initialization, we are throwing an error
-    class Encoder(rt.library.TerminalLLM):
+    class Encoder(rt.library.LastMessageTerminalLLM):
         def __init__(
                 self,
                 user_input: rt.llm.MessageHistory,

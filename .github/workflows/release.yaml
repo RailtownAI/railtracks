@@ -42,23 +42,10 @@ jobs:
           sed -i -E 's/__version__ = ".+"/__version__ = "'"$VERSION_CLEANED"'"/' railtracks-cli/src/railtracks/__init__.py
           echo "Updated __init__.py files to version $VERSION_CLEANED"
 
-      # Publish CLI package first (required dependency for railtracks[cli])
-      - name: Publish railtracks-cli to PyPI
+      - name: Build and Publish with Flit
         env:
-          FLIT_INDEX_URL: 'https://pypi.org/pypi'
-          FLIT_USERNAME: '__token__'
-          FLIT_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-        run: |
-          cd railtracks-cli
-          flit publish
-          echo "Published railtracks-cli to PyPI"
-
-      # Then publish main package (which references railtracks-cli in optional dependencies)
-      - name: Publish railtracks to PyPI
-        env:
-          FLIT_INDEX_URL: 'https://pypi.org/pypi'
-          FLIT_USERNAME: '__token__'
-          FLIT_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+          FLIT_INDEX_URL: 'https://pkgs.dev.azure.com/railtownai/ML/_packaging/railtownai_rc/pypi/upload/' # Private Package URL
+          FLIT_USERNAME: 'AZURE'
+          FLIT_PASSWORD: ${{ secrets.AZURE_ARTIFACTS_PAT }}
         run: |
           flit publish
-          echo "Published railtracks to PyPI"

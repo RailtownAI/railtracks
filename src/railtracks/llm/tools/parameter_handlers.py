@@ -13,7 +13,7 @@ from typing import Any, List, Tuple, Union
 
 from pydantic import BaseModel
 
-from .parameter import Parameter, ParameterType, PydanticParameter
+from .parameter import ArrayParameter, Parameter, ParameterType, PydanticParameter
 from .schema_parser import parse_model_properties
 
 
@@ -186,9 +186,10 @@ class SequenceParameterHandler(ParameterHandler):
                     else:
                         description = f"Expected format: {type_desc}"
 
-                    return PydanticParameter(
+                    return ArrayParameter(
                         name=param_name,
-                        param_type="array",
+                        param_type="object",
+                        max_items=None,
                         description=description,
                         required=required,
                         properties=inner_params,

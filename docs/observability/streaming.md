@@ -31,7 +31,7 @@ def example_node(data: list[str]):
     rt.stream(f"Handling {len(data)} items")
 ```
 
-!!! tip "💡 Note"
+!!! warning
     Currently, only string messages can be streamed.
 
 

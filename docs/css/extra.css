@@ -1,0 +1,39 @@
+:root {
+  --color-card-bg: var(--md-default-bg-color);
+  --color-card-border: var(--md-accent-fg-color);
+  --color-card-text: var(--md-typeset-color);
+  --color-card-hover: var(--md-primary-fg-color);
+  --radius-card: 12px;
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+
+.card-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-evenly;
+  margin-bottom: 2rem;
+}
+
+.card {
+  display: block;
+  text-decoration: none;
+  background-color: var(--md-default-bg-color);
+  border: 2px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.5rem;
+  transition: border-color 0.25s ease, background-color 0.25s ease, box-shadow 0.25s ease;
+  color: inherit;
+  padding: 1rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    border-color: var(--md-primary-fg-color);
+}
+
+.card:hover {
+  background-color: color-mix(in srgb, var(--md-primary-fg-color) 19%, transparent);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+
+
+
+

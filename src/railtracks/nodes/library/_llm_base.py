@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from abc import ABC
+from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import Any, Dict, Generic, Iterable, TypeVar
 
@@ -175,6 +175,9 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
 
         # Create a single UserMessage with the complete instruction
         return llm.MessageHistory([llm.UserMessage("\n".join(instruction_parts))])
+
+    @abstractmethod
+    def return_output(self) -> _T: ...
 
     @classmethod
     def _verify_message_history(cls, message_history: llm.MessageHistory):

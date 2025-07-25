@@ -65,14 +65,17 @@ def _handle_all_of_schema(
     for item in prop_schema["allOf"]:
         if "$ref" in item:
             # Reference to another schema
-            return PydanticParameter(
-                name=name,
-                param_type="object",
-                description=description,
-                required=required,
-                properties={},
-                additional_properties=additional_properties,
-            ), None
+            return (
+                PydanticParameter(
+                    name=name,
+                    param_type="object",
+                    description=description,
+                    required=required,
+                    properties={},
+                    additional_properties=additional_properties,
+                ),
+                None,
+            )
         elif "type" in item:
             # Merge type info
             param_type = item["type"]
@@ -279,7 +282,7 @@ def parse_model_properties(schema: dict) -> Dict[str, Parameter]:  # noqa: C901
     Returns:
         A dictionary mapping property names to Parameter objects.
     """
-    result = {}
+    result = set()
     required_fields = schema.get("required", [])
 
     # First, process any $defs (nested model definitions)
@@ -288,14 +291,15 @@ def parse_model_properties(schema: dict) -> Dict[str, Parameter]:  # noqa: C901
 
     for def_name, def_schema in defs.items():
         # Parse each nested model definition
-        nested_props = {}
+        nested_props = set()
         nested_required = def_schema.get("required", [])
 
         for prop_name, prop_schema in def_schema.get("properties", {}).items():
-            nested_props[prop_name] = parse_json_schema_to_parameter(
-                prop_name, prop_schema, prop_name in nested_required
+            nested_props.add(
+                parse_json_schema_to_parameter(
+                    prop_name, prop_schema, prop_name in nested_required
+                )
             )
-
         nested_models[def_name] = {
             "properties": nested_props,
             "required": nested_required,
@@ -310,12 +314,14 @@ def parse_model_properties(schema: dict) -> Dict[str, Parameter]:  # noqa: C901
                 model_name = ref[len("#/$defs/") :]
                 if model_name in nested_models:
                     # Create a PydanticParameter with the nested model's properties
-                    result[prop_name] = PydanticParameter(
-                        name=prop_name,
-                        param_type="object",
-                        description=prop_schema.get("description", ""),
-                        required=prop_name in required_fields,
-                        properties=nested_models[model_name]["properties"],
+                    result.add(
+                        PydanticParameter(
+                            name=prop_name,
+                            param_type="object",
+                            description=prop_schema.get("description", ""),
+                            required=prop_name in required_fields,
+                            properties=nested_models[model_name]["properties"],
+                        )
                     )
                     continue
         elif "allOf" in prop_schema:
@@ -327,17 +333,19 @@ def parse_model_properties(schema: dict) -> Dict[str, Parameter]:  # noqa: C901
                         model_name = ref[len("#/$defs/") :]
                         if model_name in nested_models:
                             # Create a PydanticParameter with the nested model's properties
-                            result[prop_name] = PydanticParameter(
-                                name=prop_name,
-                                param_type="object",
-                                description=prop_schema.get("description", ""),
-                                required=prop_name in required_fields,
-                                properties=nested_models[model_name]["properties"],
+                            result.add(
+                                PydanticParameter(
+                                    name=prop_name,
+                                    param_type="object",
+                                    description=prop_schema.get("description", ""),
+                                    required=prop_name in required_fields,
+                                    properties=nested_models[model_name]["properties"],
+                                )
                             )
                             break
 
         # If not already processed as a reference
-        if prop_name not in result:
+        if prop_name not in [p.name for p in result]:
             # Get the correct type from the schema
             param_type = prop_schema.get("type", "object")
 
@@ -353,16 +361,20 @@ def parse_model_properties(schema: dict) -> Dict[str, Parameter]:  # noqa: C901
                     inner_props[inner_name] = parse_json_schema_to_parameter(
                         inner_name, inner_schema, inner_name in inner_required
                     )
-                result[prop_name] = PydanticParameter(
-                    name=prop_name,
-                    param_type=param_type,
-                    description=prop_schema.get("description", ""),
-                    required=prop_name in required_fields,
-                    properties=inner_props,
+                result.add(
+                    PydanticParameter(
+                        name=prop_name,
+                        param_type=param_type,
+                        description=prop_schema.get("description", ""),
+                        required=prop_name in required_fields,
+                        properties=inner_props,
+                    )
                 )
             else:
-                result[prop_name] = parse_json_schema_to_parameter(
-                    prop_name, prop_schema, prop_name in required_fields
+                result.add(
+                    parse_json_schema_to_parameter(
+                        prop_name, prop_schema, prop_name in required_fields
+                    )
                 )
 
     return result
