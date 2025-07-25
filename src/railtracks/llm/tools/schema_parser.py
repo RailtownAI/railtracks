@@ -291,17 +291,18 @@ def parse_model_properties(schema: dict) -> Dict[str, Parameter]:  # noqa: C901
 
     for def_name, def_schema in defs.items():
         # Parse each nested model definition
-        nested_props = {}
+        nested_props = set()
         nested_required = def_schema.get("required", [])
 
         for prop_name, prop_schema in def_schema.get("properties", {}).items():
-            nested_props[prop_name] = parse_json_schema_to_parameter(
-                prop_name, prop_schema, prop_name in nested_required
+            nested_props.add(
+                parse_json_schema_to_parameter(
+                    prop_name, prop_schema, prop_name in nested_required
+                )
             )
-
         nested_models[def_name] = {
             "properties": nested_props,
-            "required": nested_required,
+            "required": nested_required
         }
 
     # Process main properties
@@ -344,7 +345,7 @@ def parse_model_properties(schema: dict) -> Dict[str, Parameter]:  # noqa: C901
                             break
 
         # If not already processed as a reference
-        if prop_name not in result:
+        if prop_name not in [p.name for p in result]:
             # Get the correct type from the schema
             param_type = prop_schema.get("type", "object")
 
