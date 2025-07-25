@@ -94,7 +94,9 @@ class TestParseJsonSchemaToParameter:
 
         assert isinstance(param, ArrayParameter)
         assert param.name == "test_param"
-        assert param.param_type == "object"    # so that the subprops can be parsed the same way we treat objects
+        assert (
+            param.param_type == "object"
+        )  # so that the subprops can be parsed the same way we treat objects
         assert param.description == "An array of objects"
         assert param.required is True
 
@@ -258,6 +260,12 @@ class TestParseModelProperties:
         result = parse_model_properties(schema)
 
         assert len(result) == 3
+        assert all(isinstance(param, Parameter) for param in result)
+
+        # Convert result set to a list for easier processing
+        params_list = list(result)
+        result = {param.name: param for param in params_list}
+
         assert "name" in result
         assert "age" in result
         assert "is_active" in result
@@ -291,6 +299,12 @@ class TestParseModelProperties:
         result = parse_model_properties(schema)
 
         assert len(result) == 2
+        assert all(isinstance(param, Parameter) for param in result)
+
+        # Convert result set to a list for easier processing
+        params_list = list(result)
+        result = {param.name: param for param in params_list}
+
         assert "name" in result
         assert "address" in result
 
@@ -309,7 +323,9 @@ class TestParseModelProperties:
         }
 
         result = parse_model_properties(schema)
-
+        assert all(isinstance(param, Parameter) for param in result)
+        params_list = list(result)
+        result = {param.name: param for param in params_list}
         assert "amount" in result
         assert result["amount"].param_type == "number"
 
@@ -335,16 +351,22 @@ class TestParseModelProperties:
         result = parse_model_properties(schema)
 
         assert len(result) == 2
+        assert all(isinstance(param, Parameter) for param in result)
+        params_list = list(result)
+        result = {param.name: param for param in params_list}
         assert "name" in result
         assert "address" in result
 
         # Check that address is a PydanticParameter with properties from the $ref
-        assert isinstance(result["address"], PydanticParameter)
-        assert result["address"].param_type == "object"
-        assert "street" in result["address"].properties
-        assert "city" in result["address"].properties
-        assert result["address"].properties["street"].required is True
-        assert result["address"].properties["city"].required is False
+        address_param = result["address"]
+        assert isinstance(address_param, PydanticParameter)
+        assert address_param.param_type == "object"
+        address_properties = address_param.properties
+        address_properties = {p.name: p for p in list(address_properties)}
+        assert "street" in address_properties
+        assert "city" in address_properties
+        assert address_properties["street"].required is True
+        assert address_properties["city"].required is False
 
     def test_schema_with_allof_and_refs(self):
         """Test parsing a schema with allOf and $ref."""
@@ -373,15 +395,20 @@ class TestParseModelProperties:
         result = parse_model_properties(schema)
 
         assert len(result) == 1
+        assert all(isinstance(param, Parameter) for param in result)
+        params_list = list(result)
+        result = {param.name: param for param in params_list}
         assert "user" in result
 
         # Check that user is a PydanticParameter with properties from the $ref
         assert isinstance(result["user"], PydanticParameter)
         assert result["user"].param_type == "object"
-        assert "name" in result["user"].properties
-        assert "age" in result["user"].properties
-        assert result["user"].properties["name"].required is True
-        assert result["user"].properties["age"].required is False
+        sub_params = list(result["user"].properties)
+        sub_params = {p.name: p for p in sub_params}
+        assert "name" in sub_params
+        assert "age" in sub_params
+        assert sub_params["name"].required is True
+        assert sub_params["age"].required is False
 
     def test_empty_schema(self):
         """Test parsing an empty schema."""
@@ -389,7 +416,7 @@ class TestParseModelProperties:
 
         result = parse_model_properties(schema)
 
-        assert result == {}
+        assert result == set()
 
     def test_schema_without_properties(self):
         """Test parsing a schema without properties."""
@@ -400,4 +427,4 @@ class TestParseModelProperties:
 
         result = parse_model_properties(schema)
 
-        assert result == {}
+        assert result == set()
