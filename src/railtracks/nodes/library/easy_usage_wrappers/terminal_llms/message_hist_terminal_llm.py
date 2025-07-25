@@ -2,12 +2,12 @@ from typing import Any, Callable
 
 from railtracks.nodes._node_builder import NodeBuilder
 
-from ....llm import ModelBase, SystemMessage
-from ....llm.tools import Parameter
-from ..terminal_llm_base import TerminalLLM
+from .....llm import ModelBase, SystemMessage
+from .....llm.tools import Parameter
+from ...message_hist_terminal_llm import MessageHistoryTerminalLLM
 
 
-def terminal_llm(
+def message_hist_terminal_llm(
     pretty_name: str | None = None,
     *,
     system_message: SystemMessage | str | None = None,
@@ -19,7 +19,7 @@ def terminal_llm(
     format_for_context: Callable[[Any], Any] | None = None,
 ):
     """
-    Dynamically create a TerminalLLM node class with custom configuration.
+    Dynamically create a MessageHistoryTerminal node class with custom configuration.
 
     This easy-usage wrapper dynamically builds a node class that supports a basic LLM.
     This allows you to specify the llm model, system message, tool metadata, and parameters.
@@ -36,12 +36,12 @@ def terminal_llm(
         format_for_context (Callable[[Any], Any] | None, optional): A function to format the result before putting it into context, only if return_into is provided. If not provided, the response will be put into context as is.
 
     Returns:
-        Type[TerminalLLM]: The dynamically generated node class with the specified configuration.
+        Type[MessageHistTerminalLLM]: The dynamically generated node class with the specified configuration.
     """
     builder = NodeBuilder(
-        TerminalLLM,
+        MessageHistoryTerminalLLM,
         pretty_name=pretty_name,
-        class_name="EasyTerminalLLM",
+        class_name="EasyMessageHistoryTerminalLLM",
         return_into=return_into,
         format_for_return=format_for_return,
         format_for_context=format_for_context,

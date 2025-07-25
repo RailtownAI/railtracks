@@ -38,7 +38,7 @@ async def test_tool_with_structured_output_child_tool():
         success: bool
 
     # Define the child tool with structured output
-    child_tool = rt.library.structured_llm_base(
+    child_tool = rt.library.structured_last_message_llm(
         output_model=ChildResponse,
         system_message="You are a word counting tool that counts the number of words in the request provided by the user.",
         llm_model=rt.llm.OpenAILLM("gpt-4o"),

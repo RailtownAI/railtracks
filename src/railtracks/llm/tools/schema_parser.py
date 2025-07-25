@@ -302,7 +302,7 @@ def parse_model_properties(schema: dict) -> Dict[str, Parameter]:  # noqa: C901
             )
         nested_models[def_name] = {
             "properties": nested_props,
-            "required": nested_required
+            "required": nested_required,
         }
 
     # Process main properties
