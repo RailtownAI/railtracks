@@ -27,7 +27,7 @@ _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 
 
 @overload
-def get_agent(
+def new_agent(
     pretty_name: str | None = None,
     *,
     connected_nodes: Iterable[Type[Node] | Callable],
@@ -45,7 +45,7 @@ def get_agent(
 
 
 @overload
-def get_agent(
+def new_agent(
     pretty_name: str | None = None,
     *,
     schema: Type[_TBaseModel],
@@ -62,7 +62,7 @@ def get_agent(
 
 
 @overload
-def get_agent(
+def new_agent(
     pretty_name: str | None = None,
     *,
     llm_model: ModelBase | None = None,
@@ -78,7 +78,7 @@ def get_agent(
 
 
 @overload
-def get_agent(
+def new_agent(
     pretty_name: str | None = None,
     *,
     connected_nodes: set[Type[Node] | Callable],
@@ -94,7 +94,7 @@ def get_agent(
     pass
 
 
-def get_agent(
+def new_agent(
     pretty_name: str | None = None,
     *,
     connected_nodes: set[Type[Node] | Callable] | None = None,

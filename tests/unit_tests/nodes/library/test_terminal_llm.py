@@ -1,14 +1,14 @@
 import pytest
 import railtracks as rt
 from railtracks.llm import MessageHistory, SystemMessage, UserMessage
-from railtracks.nodes.library import LastMessageTerminalLLM, terminal_llm
+from railtracks.nodes.library import TerminalLLM, terminal_llm
 from railtracks.exceptions import NodeCreationError, NodeInvocationError
 
 
 # ================================================ START terminal_llm basic functionality =========================================================
 @pytest.mark.asyncio
 async def test_terminal_llm_instantiate_and_invoke(mock_llm, mock_chat_function):
-    class MockLLM(LastMessageTerminalLLM):
+    class MockLLM(TerminalLLM):
         @classmethod
         def pretty_name(cls):
             return "Mock LLM"
@@ -17,12 +17,12 @@ async def test_terminal_llm_instantiate_and_invoke(mock_llm, mock_chat_function)
     node = MockLLM(user_input=mh, llm_model=mock_llm(chat=mock_chat_function))
     # with rt.Runner() as runner:
     result = await node.invoke()
-    assert result == "dummy content"
+    assert result.text == "dummy content"
 
 @pytest.mark.asyncio
 async def test_terminal_llm_instantiate_with_string(mock_llm, mock_chat_function):
     """Test that TerminalLLM can be instantiated with a string input."""
-    class MockLLM(LastMessageTerminalLLM):
+    class MockLLM(TerminalLLM):
         @classmethod
         def pretty_name(cls):
             return "Mock LLM"
@@ -40,12 +40,12 @@ async def test_terminal_llm_instantiate_with_string(mock_llm, mock_chat_function
     assert node.message_hist[1].content == "hello"
 
     result = await node.invoke()
-    assert result == "dummy content"
+    assert result.text == "dummy content"
 
 @pytest.mark.asyncio
 async def test_terminal_llm_instantiate_with_user_message(mock_llm, mock_chat_function):
     """Test that TerminalLLM can be instantiated with a UserMessage input."""
-    class MockLLM(LastMessageTerminalLLM):
+    class MockLLM(TerminalLLM):
         @classmethod
         def pretty_name(cls):
             return "Mock LLM"
@@ -64,7 +64,7 @@ async def test_terminal_llm_instantiate_with_user_message(mock_llm, mock_chat_fu
     assert node.message_hist[1].content == "hello"
 
     result = await node.invoke()
-    assert result == "dummy content"
+    assert result.text == "dummy content"
 
 @pytest.mark.asyncio
 async def test_terminal_llm_easy_usage_wrapper_invoke(mock_llm, mock_chat_function):
@@ -75,7 +75,7 @@ async def test_terminal_llm_easy_usage_wrapper_invoke(mock_llm, mock_chat_functi
     )
     mh = MessageHistory([UserMessage("hello")])
     result = await rt.call(node, user_input=mh)
-    assert result == "dummy content"
+    assert result.text == "dummy content"
 
 def test_terminal_llm_easy_usage_wrapper_classmethods(mock_llm):
     NodeClass = terminal_llm(
@@ -193,7 +193,7 @@ async def test_no_message_history_easy_usage(mock_llm):
 
 @pytest.mark.asyncio
 async def test_no_message_history_class_based():
-    class Encoder(rt.library.LastMessageTerminalLLM):
+    class Encoder(rt.library.TerminalLLM):
         def __init__(self, user_input: rt.llm.MessageHistory, llm_model: rt.llm.ModelBase = None):
             super().__init__(user_input=user_input, llm_model=llm_model)
 
@@ -207,7 +207,7 @@ async def test_no_message_history_class_based():
 @pytest.mark.asyncio
 async def test_system_message_as_a_string_class_based(mock_llm):
     # if a string is provided as system_message in a class based initialization, we are throwing an error
-    class Encoder(rt.library.LastMessageTerminalLLM):
+    class Encoder(rt.library.TerminalLLM):
         def __init__(
                 self,
                 user_input: rt.llm.MessageHistory,
@@ -216,7 +216,7 @@ async def test_system_message_as_a_string_class_based(mock_llm):
                 user_input = [x for x in user_input if x.role != "system"]
                 user_input.insert(0, "You are a helpful assistant that can encode text into bytes.")
                 super().__init__(
-                    user_input=user_input,
+                    user_input=MessageHistory(user_input),
                     llm_model=llm_model,
                 )
         @classmethod

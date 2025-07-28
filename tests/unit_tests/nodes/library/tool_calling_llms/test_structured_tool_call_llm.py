@@ -1,14 +1,17 @@
 import pytest
 import railtracks as rt
 from pydantic import BaseModel, Field
-from railtracks.nodes.library import tool_call_llm, StructuredToolCallLLM, structured_tool_call_llm
+from railtracks.nodes.library import structured_tool_call_llm
 from railtracks.exceptions import NodeCreationError
 from railtracks.llm import MessageHistory, SystemMessage, UserMessage
-from railtracks.nodes.library.tool_calling_llms.structured_mess_hist_tool_call_llm import StructuredMessageHistoryToolCallLLM
+
+from railtracks.nodes.library.tool_calling_llms.structured_tool_call_llm_base import StructuredToolCallLLM
+
+
 # =========================== Basic functionality ==========================
 
 def test_structured_tool_call_llm_init(mock_llm, schema, mock_tool):
-    class MockStructuredToolCallLLM(StructuredToolCallLLM):
+    class MockStructuredToolCallLLM(StructuredToolCallLLM[schema]):
         @classmethod
         def schema(cls):
             return schema
@@ -46,10 +49,10 @@ def test_structured_tool_call_llm_return_output_success(mock_tool, mock_llm, sch
         llm_model=mock_llm(),
     )
     node.structured_output = schema(value=123)
-    assert node.return_output().value == 123
+    assert node.return_output().structured.value == 123
 
 def test_structured_message_hist_tool_call_llm_return_output_success(mock_tool, mock_llm, schema):
-    class MockStructuredMessHistToolCallLLM(StructuredMessageHistoryToolCallLLM):
+    class MockStructuredMessHistToolCallLLM(StructuredToolCallLLM):
     
         @classmethod
         def schema(cls):
@@ -69,8 +72,8 @@ def test_structured_message_hist_tool_call_llm_return_output_success(mock_tool, 
         llm_model=mock_llm(),
     )
     node.structured_output = schema(value=123)
-    assert node.return_output()[-1].content.value == 123
-    assert any(x.role is not SystemMessage for x in node.return_output())
+    assert node.return_output().content.value == 123
+    assert any(x.role is not SystemMessage for x in node.return_output().message_history)
 
 def test_structured_tool_call_llm_return_output_exception(mock_llm, schema, mock_tool):
     node = structured_tool_call_llm(

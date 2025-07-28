@@ -45,7 +45,7 @@ class TerminalLLM(StringOutputMixIn, LLMBase[StringResponse]):
     def pretty_name(cls) -> str:
         return "Terminal LLM"
 
-    async def invoke(self):
+    async def invoke(self) -> StringResponse:
         """Makes a call containing the inputted message and system prompt to the llm model and returns the response
 
         Returns:
