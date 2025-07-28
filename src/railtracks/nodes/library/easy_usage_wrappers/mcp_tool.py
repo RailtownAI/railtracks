@@ -1,5 +1,6 @@
 from mcp import ClientSession
 
+from railtracks.rt_mcp.jupyter_compat import apply_patches
 from railtracks.rt_mcp.main import MCPHttpParams, MCPServer, MCPStdioParams
 
 
@@ -17,4 +18,7 @@ def from_mcp_server(
     Returns:
         MCPServer: An instance of the MCPServer class.
     """
+    # Apply Jupyter compatibility patches if needed
+    apply_patches()
+
     return MCPServer(config=config, client_session=client_session)

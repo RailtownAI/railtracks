@@ -9,6 +9,16 @@ from railtracks import Node
 # ================= START patch fixtures ================
 
 @pytest.fixture
+def reset_patched_flag():
+    """Reset the _patched flag to simulate a fresh import."""
+    import railtracks.rt_mcp.jupyter_compat
+    original_value = railtracks.rt_mcp.jupyter_compat._patched
+    railtracks.rt_mcp.jupyter_compat._patched = False
+    yield
+    # Reset back to original state after test
+    railtracks.rt_mcp.jupyter_compat._patched = original_value
+
+@pytest.fixture
 def patch_stdio_client():
     cm_mock = AsyncMock()
     cm_mock.__aenter__.return_value = (AsyncMock(), AsyncMock())

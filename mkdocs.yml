@@ -4,16 +4,22 @@ theme:
   name: material
   features:
     - navigation.indexes
-
+    - navigation.sections
     - navigation.prefetch
     - search.suggest
     - content.code.copy
+    - content.code.highlight
   code:
     highlight_theme:
       light: github
       dark: dracula
 
 
+
+
+
+extra_css:
+  - css/extra.css
 
 nav:
   - Home: index.md
@@ -25,7 +31,7 @@ nav:
         - Tools: guides/tools.md
 
   - Tutorials:
-        - tutorials/index.md
+        - tutorials/byfa.md
 
 
 
@@ -72,12 +78,20 @@ nav:
 
   - API Reference:
       - api_reference/index.md
+  
+  - System Overviews:
+      - system_internals/index.md
+      - Node: system_internals/node.md
+      - Runner: system_internals/runner.md
+      - PubSub: system_internals/pubsub.md
+      - Coordinator: system_internals/coordinator.md
 
 
 plugins:
   - search
   - mkdocstrings
   - mermaid2
+
 
 
 markdown_extensions:
@@ -102,9 +116,4 @@ markdown_extensions:
 
 extra_css:
   - css/extra.css
-
-
-
-
-
 

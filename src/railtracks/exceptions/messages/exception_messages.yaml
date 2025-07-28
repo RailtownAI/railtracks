@@ -78,8 +78,7 @@ TOOL_PARAMETERS_TYPE_MSG: "Tool parameters must be a set of Parameter objects, a
 TOOL_PARAMETERS_TYPE_NOTES:
   - "If the tool expects no parameters, use None."
   - "If you are having issues with passing in a JSON-schema, try to provide a set of Parameter objects instead."
-  - "You can make a Tool object from a custom function. \nEg.-\n"
-  - "def my_function():\n    ...\nsample_tool = rc.llm.Tool.from_function(my_function)"
+  - "You can make a Tool object from a custom function. \nEg.-\ndef my_function():\n    ...\nsample_tool = rc.llm.Tool.from_function(my_function)"
 
 # ----------------------------------- Warnings ------------------------------------
 
