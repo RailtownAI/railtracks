@@ -72,12 +72,14 @@ class StructuredToolCallLLM(
         await self._handle_tool_calls()
 
         try:
-            self.structured_output = await call(
+            response = await call(
                 self.structured_resp_node,
                 user_input=MessageHistory(
                     [UserMessage(str(self.message_hist), inject_prompt=False)]
                 ),
             )
+
+            structured_output = response.structured
         except Exception as e:
             # the original exception will be presented with our wrapped one.
             raise LLMError(
@@ -85,16 +87,13 @@ class StructuredToolCallLLM(
                 message_history=self.message_hist,
             ) from e
 
-        if self.structured_output is None:
-            raise LLMError("Structured output is None, an unknown error occurred.")
-
         # Might need to change the logic so that you keep the unstructured message
         self.message_hist.pop()
-        self.message_hist.append(AssistantMessage(content=self.structured_output))
+        self.message_hist.append(AssistantMessage(content=structured_output))
 
         if (key := self.return_into()) is not None:
             output = self.return_output()
-            context.put(key, self.format_for_context(output))
-            return self.format_for_return(output)
+            context.put(key, self.format_for_context(output.structured))
+            return self.format_for_return(output.structured)
 
         return self.return_output()

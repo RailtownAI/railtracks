@@ -9,7 +9,7 @@ from typing import (
     Set,
     Type,
     TypeVar,
-    overload,
+    overload, ParamSpec,
 )
 
 from railtracks.exceptions import NodeCreationError
@@ -17,12 +17,12 @@ from railtracks.exceptions.node_creation.validation import validate_function
 from railtracks.llm import Parameter
 from railtracks.nodes._node_builder import NodeBuilder
 from railtracks.nodes.library.function_base import (
-    _P,
     AsyncDynamicFunctionNode,
     SyncDynamicFunctionNode,
 )
 
 _TOutput = TypeVar("_TOutput")
+_P = ParamSpec("_P")
 
 
 @overload

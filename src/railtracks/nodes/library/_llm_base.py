@@ -71,7 +71,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
 
     def __init__(
         self,
-        user_input: llm.MessageHistory | UserMessage | str,
+        user_input: llm.MessageHistory | UserMessage | str | list[llm.Message],
         llm_model: llm.ModelBase | None = None,
     ):
         super().__init__()
@@ -81,6 +81,8 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
             user_input = llm.MessageHistory([UserMessage(user_input)])
         elif isinstance(user_input, UserMessage):
             user_input = llm.MessageHistory([user_input])
+        elif isinstance(user_input, list) and not isinstance(user_input, llm.MessageHistory):
+            user_input = llm.MessageHistory(user_input)
 
         self._verify_message_history(user_input)
         message_history_copy = deepcopy(
@@ -313,7 +315,7 @@ class StructuredOutputMixIn(Generic[_TBaseModel]):
         structured_output = self.message_hist[-1].content
 
         assert isinstance(structured_output, self.schema()), (
-            f"The final output must be a pydantic {self.schema} instance"
+            f"The final output must be a pydantic {self.schema()} instance. Instead it was {type(structured_output)}"
         )
 
         return StructuredResponse(
