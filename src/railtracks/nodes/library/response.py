@@ -16,6 +16,7 @@ class LLMResponse(Generic[_T]):
         content: The content of the response, which can be any content of a message
         message_history: The history of messages exchanged during the interaction.
     """
+
     def __init__(self, content: _T, message_history: MessageHistory):
         self.content = content
         self.message_history = message_history
@@ -35,6 +36,7 @@ class StructuredResponse(LLMResponse[_TBaseModel]):
         model: The structured model that defines the content of the response.
         message_history: The history of messages exchanged during the interaction.
     """
+
     def __init__(self, model: _TBaseModel, message_history: MessageHistory):
         super().__init__(model, message_history)
 
@@ -52,6 +54,7 @@ class StringResponse(LLMResponse[str]):
         content: The string content of the response.
         message_history: The history of messages exchanged during the interaction.
     """
+
     def __init__(self, content: str, message_history: MessageHistory):
         super().__init__(content, message_history)
 
