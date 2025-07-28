@@ -122,10 +122,10 @@ async def test_message_history_not_mutated_structured_llm(model, structured_node
         ), "Message history modified after rt.call 1"
 
         message_history.append(
-            rt.llm.AssistantMessage("The proof: " + student_proof.proof)
+            rt.llm.AssistantMessage("The proof: " + student_proof.structured.proof)
         )
         original_message_history.append(
-            rt.llm.AssistantMessage("The proof: " + student_proof.proof)
+            rt.llm.AssistantMessage("The proof: " + student_proof.structured.proof)
         )
 
         # Second node call (math professor node)
@@ -136,16 +136,16 @@ async def test_message_history_not_mutated_structured_llm(model, structured_node
         ), "Message history modified after rt.call 2"
 
         message_history.append(
-            rt.llm.AssistantMessage("The grade: " + str(prof_grade.overall_score))
+            rt.llm.AssistantMessage("The grade: " + str(prof_grade.structured.overall_score))
         )
         message_history.append(
-            rt.llm.AssistantMessage("The feedback: " + prof_grade.feedback)
+            rt.llm.AssistantMessage("The feedback: " + prof_grade.structured.feedback)
         )
         original_message_history.append(
-            rt.llm.AssistantMessage("The grade: " + str(prof_grade.overall_score))
+            rt.llm.AssistantMessage("The grade: " + str(prof_grade.structured.overall_score))
         )
         original_message_history.append(
-            rt.llm.AssistantMessage("The feedback: " + prof_grade.feedback)
+            rt.llm.AssistantMessage("The feedback: " + prof_grade.structured.feedback)
         )
 
         return prof_grade
