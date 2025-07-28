@@ -104,7 +104,7 @@ async def test_structured_with_terminal_llm_as_tool(math_node, math_output_model
             [rt.llm.UserMessage("Start the Math node.")]
         )
         response = await runner.run(math_node, user_input=message_history)
-        assert isinstance(response.answer.structured.structured, math_output_model)
+        assert isinstance(response.answer.structured, math_output_model)
         assert isinstance(response.answer.structured.sum, float)
         assert isinstance(response.answer.structured.random_numbers, list)
 

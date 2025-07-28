@@ -6,10 +6,11 @@ from types import BuiltinFunctionType
 from typing import (
     Callable,
     Coroutine,
+    ParamSpec,
     Set,
     Type,
     TypeVar,
-    overload, ParamSpec,
+    overload,
 )
 
 from railtracks.exceptions import NodeCreationError
