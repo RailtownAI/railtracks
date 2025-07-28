@@ -107,7 +107,20 @@ def new_agent(
     format_for_context: Callable[[Any], Any] | None = None,
 ):
     """
-    Dynamically creates an agent of your choosing.
+    Dynamically creates an agent based on the provided parameters.
+
+    Args:
+        pretty_name (str | None): The name of the agent. If none the default will be used.
+        connected_nodes (set[Type[Node] | Callable] | None): If your agent is a LLM with access to tools, what does it have access to?
+        schema (Type[_TBaseModel] | None): If your agent should return a structured output, what is the schema?
+        llm_model (ModelBase | None): The LLM model to use. If None it will need to be passed in at instance time.
+        max_tool_calls (int | None): Maximum number of tool calls allowed (if it is a ToolCall Agent).
+        system_message (SystemMessage | str | None): System message for the agent.
+        tool_details (str | None): If you are planning to use this as a tool, Details about the tool.
+        tool_params (set[Parameter] | None): If you are planning to use this as a tool, Parameters for the tool.
+        return_into (str | None): If you would like to return into context what is the key.
+        format_for_return (Callable[[Any], Any] | None): Formats the value for return.
+        format_for_context (Callable[[Any], Any] | None): Formats the value for the return to context.
     """
 
     if connected_nodes is not None and len(connected_nodes) > 0:
