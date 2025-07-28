@@ -1,8 +1,8 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 
 import litellm
 from litellm.litellm_core_utils.get_llm_provider_logic import get_llm_provider
-from abc import ABC, abstractmethod
+
 from ....exceptions.errors import LLMError
 from .._litellm_wrapper import LiteLLMWrapper
 
@@ -11,12 +11,20 @@ class ProviderLLMWrapper(LiteLLMWrapper, ABC):
     def __init__(self, model_name: str, **kwargs):
         provider_name = self.model_type().lower()
         try:
-            # NOTE: Incase of a valid model for gemini, `get_llm_provider` returns provider = vertex_ai. 
+            # NOTE: Incase of a valid model for gemini, `get_llm_provider` returns provider = vertex_ai.
             model_name = model_name.split("/")[-1]
-            provider_info = get_llm_provider(model_name)            # this function is a little hacky, we are tracking this in issue #379
-            assert provider_info[1] == provider_name, f"Provider mismatch. Expected {provider_name}, got {provider_info[1]}"
+            provider_info = get_llm_provider(
+                model_name
+            )  # this function is a little hacky, we are tracking this in issue #379
+            assert provider_info[1] == provider_name, (
+                f"Provider mismatch. Expected {provider_name}, got {provider_info[1]}"
+            )
         except Exception as e:
-            reason_str = e.args[0] if isinstance(e, AssertionError) else f"Please check the model name: {model_name}."
+            reason_str = (
+                e.args[0]
+                if isinstance(e, AssertionError)
+                else f"Please check the model name: {model_name}."
+            )
             raise ModelNotFoundError(
                 reason=reason_str,
                 notes=[
@@ -24,20 +32,19 @@ class ProviderLLMWrapper(LiteLLMWrapper, ABC):
                     "Check the model list for the provider you are using.",
                     "Provider List: https://docs.litellm.ai/docs/providers",
                 ],
-            ) from e 
-   
+            ) from e
+
         super().__init__(model_name=self.full_model_name(model_name), **kwargs)
 
-
-    def full_model_name(cls, model_name: str) -> str:
-        """ After the provider is checked, this method is called to get the full model name """
+    def full_model_name(self, model_name: str) -> str:
+        """After the provider is checked, this method is called to get the full model name"""
         # for anthropic/openai models the full model name is {provider}/{model_name}
-        return f"{cls.model_type().lower()}/{model_name}"
-    
+        return f"{self.model_type().lower()}/{model_name}"
+
     @classmethod
     @abstractmethod
     def model_type(cls) -> str:
-        """ Returns the name of the provider """
+        """Returns the name of the provider"""
         pass
 
     def chat_with_tools(self, messages, tools, **kwargs):
