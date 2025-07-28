@@ -269,8 +269,6 @@ def call_sync(
         task = loop.create_task(call(node, *args, **kwargs))
         result = loop.run_until_complete(task)
     finally:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            loop.close()
+        loop.close()
 
     return result

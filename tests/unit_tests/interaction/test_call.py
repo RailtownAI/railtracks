@@ -297,6 +297,7 @@ def test_call_sync_with_no_running_loop():
         mock_set_loop.assert_called_once_with(mock_loop)
         mock_loop.create_task.assert_called_once()
         mock_loop.run_until_complete.assert_called_once_with(mock_task)
+        mock_loop.close.assert_called_once()
 
 def test_call_sync_with_running_loop_raises_error():
     """Test that call_sync raises RuntimeError when called from within a running loop."""
@@ -350,5 +351,6 @@ def test_call_sync_loop_cleanup_on_exception():
             call_sync(mock_node)
         
         assert str(exc_info.value) == "Task creation failed"
+        mock_loop.close.assert_called_once()  # Ensure cleanup happened
 
 # ============================ END Edge Case Tests ==============================
