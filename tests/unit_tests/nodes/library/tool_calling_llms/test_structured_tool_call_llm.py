@@ -1,9 +1,11 @@
 import pytest
 import railtracks as rt
 from pydantic import BaseModel, Field
+
+from railtracks.llm.response import Response
 from railtracks.nodes.library import structured_tool_call_llm
-from railtracks.exceptions import NodeCreationError
-from railtracks.llm import MessageHistory, SystemMessage, UserMessage
+from railtracks.exceptions import NodeCreationError, LLMError
+from railtracks.llm import MessageHistory, SystemMessage, UserMessage, AssistantMessage
 
 from railtracks.nodes.library.tool_calling_llms.structured_tool_call_llm_base import StructuredToolCallLLM
 
@@ -48,7 +50,7 @@ def test_structured_tool_call_llm_return_output_success(mock_tool, mock_llm, sch
         user_input=mh,
         llm_model=mock_llm(),
     )
-    node.structured_output = schema(value=123)
+    node.message_hist.append(AssistantMessage(schema(value=123)))
     assert node.return_output().structured.value == 123
 
 def test_structured_message_hist_tool_call_llm_return_output_success(mock_tool, mock_llm, schema):
@@ -71,25 +73,32 @@ def test_structured_message_hist_tool_call_llm_return_output_success(mock_tool, 
         user_input=mh,
         llm_model=mock_llm(),
     )
-    node.structured_output = schema(value=123)
+    node.message_hist.append(AssistantMessage(schema(value=123)))
     assert node.return_output().content.value == 123
     assert any(x.role is not SystemMessage for x in node.return_output().message_history)
 
-def test_structured_tool_call_llm_return_output_exception(mock_llm, schema, mock_tool):
+@pytest.mark.asyncio
+async def test_structured_tool_call_llm_return_output_exception(mock_llm, schema, mock_tool):
+    def mock_structured(message_history, base_model):
+        raise ValueError("fail")
+
     node = structured_tool_call_llm(
         system_message="system prompt",
         connected_nodes={mock_tool},
-        llm_model=mock_llm(),
+        llm_model=mock_llm(structured=mock_structured,
+             chat_with_tools=lambda x, tools: Response(message=AssistantMessage("Hello world"))),
         schema=schema,
         tool_details="Extracts a value.",
         tool_params=None,
         pretty_name="Mock Structured ToolCallLLM",
     )
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("extract value")])
-    node = node(mh, mock_llm())
-    node.structured_output = ValueError("fail")
-    with pytest.raises(ValueError):
-        node.return_output()
+
+    node = node(mh)
+
+    with pytest.raises(LLMError):
+        await node.invoke()
+
 
 def test_structured_llm_easy_usage_wrapper(mock_llm, schema, mock_tool):
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("extract value")])
