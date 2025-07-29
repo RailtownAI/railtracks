@@ -39,37 +39,14 @@ railtracks/
    cd railtracks
    ```
 
-2. **Install local packages in development mode**
-
-    Make sure to download them in this order to avoid the railtracks-cli package referencing the PyPi package instead of the local one.
-   ```bash
-   pip install -e packages/railtracks
-   pip install -e packages/railtracks-cli
-   ```
-
-3. **Install development dependencies**
+2**Install development dependencies**
 
     Dev dependencies are not required, but will be useful for devs working with the project.
    ```bash
-   # Using uv
-   uv sync --group dev
 
    # Or using pip
-   pip install -e ".[dev]"
+   pip install -r "requirements/dev.txt"
    ```
-
-### Available Dependency Groups
-
-- `lint` - Code linting with ruff
-- `docs` - Documentation tools (mkdocs, material theme, etc.)  
-- `test` - Testing tools (pytest, coverage, etc.)
-- `dev` - All development tools (includes lint, docs, test)
-
-Install specific groups:
-```bash
-uv sync --group docs    # Just documentation tools
-uv sync --group test    # Just testing tools  
-uv sync --group dev     # Everything for development
 ```
 
 ## Development Workflow

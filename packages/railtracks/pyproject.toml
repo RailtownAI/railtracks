@@ -23,7 +23,7 @@ dependencies = [
 
 [project.optional-dependencies]
 llm = [
-    "lite-llm >= 1.70.2"
+    "litellm >= 1.70.2"
 ]
 mcp = [
     "mcp >= 1.9.0",
@@ -36,6 +36,9 @@ integrations = [
 ]
 all = [
     "railtracks[llm,mcp,chat,integrations]"
+]
+core = [
+    "railtracks[llm,mcp]"
 ]
 
 [project.urls]

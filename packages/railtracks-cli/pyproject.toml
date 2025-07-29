@@ -27,7 +27,7 @@ dependencies = [
 Home = "https://railtown.ai"
 
 [tool.flit.module]
-name = "railtracks-cli"
+name = "railtracks_cli"
 
 [project.scripts]
 railtracks = "railtracks_cli:main"
