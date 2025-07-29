@@ -16,7 +16,7 @@ Railtracks CLI is a development tool that provides:
 ### 1. Installation
 
 ```bash
-pip install railtracks[cli]
+pip install railtracks-cli
 ```
 
 ### 2. Initialize Your Project

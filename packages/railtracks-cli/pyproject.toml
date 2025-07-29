@@ -16,6 +16,8 @@ readme = "README.md"
 license = { text = "MIT" }
 classifiers = ["License :: OSI Approved :: MIT License"]
 dynamic = ["version", "description"]
+
+# TODO add in RailTracks as a dependency
 dependencies = [
     "railtracks",
     "watchdog >= 3.0.0"
@@ -25,7 +27,7 @@ dependencies = [
 Home = "https://railtown.ai"
 
 [tool.flit.module]
-name = "railtracks"
+name = "railtracks-cli"
 
 [project.scripts]
-railtracks = "railtracks:main"
+railtracks = "railtracks_cli:main"
