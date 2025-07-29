@@ -3,12 +3,13 @@ from typing import TypeVar
 from ... import context
 from ...exceptions import LLMError
 from ...llm import MessageHistory, ModelBase, UserMessage
-from ._llm_base import LLMBase
+from ._llm_base import LLMBase, StringOutputMixIn
+from .response import StringResponse
 
 _T = TypeVar("_T")
 
 
-class TerminalLLM(LLMBase[_T]):
+class TerminalLLM(StringOutputMixIn, LLMBase[StringResponse]):
     """A simple LLM node that takes in a message and returns a response. It is the simplest of all LLMs.
 
     This node accepts message_history in the following formats:
@@ -44,7 +45,7 @@ class TerminalLLM(LLMBase[_T]):
     def pretty_name(cls) -> str:
         return "Terminal LLM"
 
-    async def invoke(self) -> str | None:
+    async def invoke(self) -> StringResponse:
         """Makes a call containing the inputted message and system prompt to the llm model and returns the response
 
         Returns:

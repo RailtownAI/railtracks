@@ -1,5 +1,5 @@
-from abc import ABC, abstractmethod
-from typing import Generic, Type, TypeVar
+from abc import ABC
+from typing import Generic, TypeVar
 
 from pydantic import BaseModel
 
@@ -7,9 +7,10 @@ import railtracks.context as context
 from railtracks.exceptions.errors import LLMError
 from railtracks.interaction.call import call
 from railtracks.llm.history import MessageHistory
-from railtracks.llm.message import UserMessage
+from railtracks.llm.message import AssistantMessage, UserMessage
 from railtracks.llm.model import ModelBase
-from railtracks.nodes.library.easy_usage_wrappers.structured_llms.structured_llm import (
+from railtracks.nodes.library._llm_base import StructuredOutputMixIn
+from railtracks.nodes.library.easy_usage_wrappers.structured_llm import (
     structured_llm,
 )
 from railtracks.nodes.library.tool_calling_llms._base import (
@@ -17,11 +18,14 @@ from railtracks.nodes.library.tool_calling_llms._base import (
 )
 
 _TReturn = TypeVar("_TReturn")
-_TOutput = TypeVar("_TOutput", bound=BaseModel)
+_TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 
 
-class OutputLessStructuredToolCallLLM(
-    OutputLessToolCallLLM[_TReturn], ABC, Generic[_TReturn, _TOutput]
+class StructuredToolCallLLM(
+    StructuredOutputMixIn[_TBaseModel],
+    OutputLessToolCallLLM[_TBaseModel],
+    ABC,
+    Generic[_TBaseModel],
 ):
     """
     A base class for structured tool call LLMs that do not return an output.
@@ -50,7 +54,7 @@ class OutputLessStructuredToolCallLLM(
             cls.structured_resp_node = structured_llm(
                 cls.schema(),
                 system_message=system_structured,
-                llm_model=cls.get_llm_model,
+                llm_model=cls.get_llm_model(),
             )
 
         super().__init_subclass__()
@@ -62,32 +66,34 @@ class OutputLessStructuredToolCallLLM(
         max_tool_calls: int | None = None,
     ):
         super().__init__(user_input, llm_model, max_tool_calls)
-        self.structured_output: _TOutput | Exception | None = None
-
-    @classmethod
-    @abstractmethod
-    def schema(cls) -> Type[_TOutput]: ...
+        self.structured_output: _TBaseModel | Exception | None = None
 
     async def invoke(self):
         await self._handle_tool_calls()
 
         try:
-            self.structured_output = await call(
+            response = await call(
                 self.structured_resp_node,
                 user_input=MessageHistory(
                     [UserMessage(str(self.message_hist), inject_prompt=False)]
                 ),
             )
-        except Exception:
-            # will be raised in the return_output method in StructuredToolCallLLM
-            self.structured_output = LLMError(
+
+            structured_output = response.structured
+        except Exception as e:
+            # the original exception will be presented with our wrapped one.
+            raise LLMError(
                 reason="Failed to parse assistant response into structured output.",
                 message_history=self.message_hist,
-            )
+            ) from e
+
+        # Might need to change the logic so that you keep the unstructured message
+        self.message_hist.pop()
+        self.message_hist.append(AssistantMessage(content=structured_output))
 
         if (key := self.return_into()) is not None:
             output = self.return_output()
-            context.put(key, self.format_for_context(output))
-            return self.format_for_return(output)
+            context.put(key, self.format_for_context(output.structured))
+            return self.format_for_return(output.structured)
 
         return self.return_output()

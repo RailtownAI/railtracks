@@ -3,33 +3,36 @@ import railtracks as rt
 from pydantic import BaseModel
 from railtracks.llm import MessageHistory, SystemMessage, ModelBase, UserMessage, AssistantMessage, ToolMessage, ToolResponse
 from railtracks.llm.response import Response
-from railtracks.nodes.library import StructuredLastMessageLLM, structured_llm
+from railtracks.nodes.library import structured_llm, StructuredLLM
 from railtracks.exceptions import NodeCreationError, NodeInvocationError
 from typing import Type
 
 # ===================================================== START Unit Testing =========================================================
 @pytest.mark.asyncio
 async def test_structured_llm_instantiate_and_invoke(simple_output_model, mock_llm, mock_structured_function):
-    class MyLLM(StructuredLastMessageLLM):
+    class MyLLM(StructuredLLM[simple_output_model]):
 
         @classmethod
-        def schema(cls) -> Type[BaseModel]:
+        def schema(cls):
             return simple_output_model
         
         @classmethod
         def pretty_name(cls):
             return "Mock LLM"
+
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("hello")])
     result = await rt.call(MyLLM, user_input=mh, llm_model=mock_llm(structured=mock_structured_function))
-    assert isinstance(result, simple_output_model)
-    assert result.text == "dummy content"
-    assert result.number == 42
+
+    assert isinstance(result.structured, simple_output_model)
+    assert result.structured.text == "dummy content"
+    assert result.structured.number == 42
 
 def test_structured_llm_output_model_classmethod(simple_output_model):
-    class MyLLM(StructuredLastMessageLLM):
+    class MyLLM(StructuredLLM):
         @classmethod
         def schema(cls) -> Type[BaseModel]:
             return simple_output_model
+
     assert MyLLM.schema() is simple_output_model
 
 @pytest.mark.asyncio
@@ -42,9 +45,9 @@ async def test_structured_llm_easy_usage_wrapper_invoke(simple_output_model, moc
     )
     mh = MessageHistory([UserMessage("hello")])
     result = await rt.call(node, user_input=mh)
-    assert isinstance(result, simple_output_model)
-    assert result.text == "dummy content"
-    assert result.number == 42
+    assert isinstance(result.structured, simple_output_model)
+    assert result.structured.text == "dummy content"
+    assert result.structured.number == 42
 
 def test_structured_llm_easy_usage_wrapper_classmethods(simple_output_model, mock_llm):
     node = structured_llm(
@@ -237,7 +240,7 @@ async def test_system_message_in_message_history_easy_usage(simple_output_model)
 
 @pytest.mark.asyncio
 async def test_system_message_in_message_history_class_based(simple_output_model):
-    class Structurer(rt.library.StructuredLastMessageLLM):
+    class Structurer(rt.library.StructuredLLM):
         def __init__(
             self,
             user_input: rt.llm.MessageHistory,

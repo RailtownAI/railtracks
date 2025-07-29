@@ -1,10 +1,9 @@
 import pytest
 import railtracks as rt
-from pydantic import BaseModel
 
 from railtracks.llm import MessageHistory, Message
 from railtracks.llm.response import Response
-from railtracks.nodes.library.easy_usage_wrappers.terminal_llms.terminal_llm import terminal_llm
+from railtracks.nodes.library.easy_usage_wrappers.terminal_llm import terminal_llm
 from tests.unit_tests.llm.conftest import MockLLM
 
 
@@ -19,10 +18,10 @@ async def test_terminal_llm_easy_usage_run(model , encoder_system_message):
 
     response = await rt.call(encoder_agent, user_input=rt.llm.MessageHistory([rt.llm.UserMessage("hello world")]))
 
-    assert isinstance(response, str)
+    assert isinstance(response.text, str)
 
 def test_terminal_llm_class_based_run(model , encoder_system_message):
-    class Encoder(rt.library.LastMessageTerminalLLM):
+    class Encoder(rt.library.TerminalLLM):
         def __init__(
                 self,
                 user_input: rt.llm.MessageHistory,
@@ -43,7 +42,7 @@ def test_terminal_llm_class_based_run(model , encoder_system_message):
             [rt.llm.UserMessage("The input string is 'hello world'")]
         )
         response = runner.run_sync(Encoder, user_input=message_history)
-        assert isinstance(response.answer, str)
+        assert isinstance(response.answer.text, str)
 
 def test_return_into():
     """Test that a node can return its result into context instead of returning it directly."""
@@ -74,7 +73,7 @@ async def test_terminal_llm_easy_usage_with_string(model, encoder_system_message
     # Call with a string instead of MessageHistory
     response = await rt.call(encoder_agent, user_input="hello world")
 
-    assert isinstance(response, str)
+    assert isinstance(response.text, str)
 
 @pytest.mark.asyncio
 async def test_terminal_llm_easy_usage_with_user_message(model, encoder_system_message):
@@ -89,7 +88,7 @@ async def test_terminal_llm_easy_usage_with_user_message(model, encoder_system_m
     user_msg = rt.llm.UserMessage("hello world")
     response = await rt.call(encoder_agent, user_input=user_msg)
 
-    assert isinstance(response, str)
+    assert isinstance(response.text, str)
 
 # ================================================ END terminal_llm basic functionality ===========================================================
 
@@ -148,7 +147,7 @@ async def test_terminal_llm_as_tool_correct_initialization(
         f"Decoder parameters {decoder_params} should be instances of rc.llm.Parameter"
     )
 
-    randomizer = rt.library.message_hist_tool_call_llm(
+    randomizer = rt.library.tool_call_llm(
         connected_nodes={encoder, decoder},
         llm_model=model,
         pretty_name="Randomizer",
@@ -163,7 +162,7 @@ async def test_terminal_llm_as_tool_correct_initialization(
         assert any(
             message.role == "tool"
             and "There was an error running the tool" not in message.content
-            for message in response.answer
+            for message in response.answer.message_history
         )  # inside tool_call_llm's invoke function is this exact string in case of error
 
 
@@ -186,7 +185,7 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(model):
 
     system_message = "You are a math genius that calls the RNG tool to generate 5 random numbers between 1 and 100 and gives the sum of those numbers."
 
-    math_node = rt.library.message_hist_tool_call_llm(
+    math_node = rt.library.tool_call_llm(
         connected_nodes={rng_node},
         pretty_name="Math Node",
         system_message=system_message,
@@ -201,7 +200,7 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(model):
         assert any(
             message.role == "tool"
             and "There was an error running the tool" not in message.content
-            for message in response.answer
+            for message in response.answer.message_history
         )
 
 @pytest.mark.timeout(30)
@@ -222,7 +221,7 @@ async def test_terminal_llm_tool_with_invalid_parameters_easy_usage(model, encod
     )
 
     system_message = "You are a helful assitant. Use the encoder tool with invalid parameters (invoke the tool with invalid parameters) once and then invoke it again with valid parameters."
-    tool_call_llm = rt.library.message_hist_tool_call_llm(
+    tool_call_llm = rt.library.tool_call_llm(
         connected_nodes={encoder},
         llm_model=model,
         pretty_name="InvalidToolCaller",
@@ -239,7 +238,7 @@ async def test_terminal_llm_tool_with_invalid_parameters_easy_usage(model, encod
         # Check that there was an error running the tool
         assert any(
             message.role == "tool" and "There was an error running the tool" in message.content.result
-            for message in response.answer
+            for message in response.answer.message_history
         )
 
 

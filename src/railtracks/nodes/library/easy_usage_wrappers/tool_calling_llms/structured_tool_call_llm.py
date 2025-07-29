@@ -10,7 +10,7 @@ from railtracks.nodes._node_builder import NodeBuilder
 
 from .....llm.tools import Parameter
 from ....nodes import Node
-from ...tool_calling_llms.structured_tool_call_llm import StructuredToolCallLLM
+from ...tool_calling_llms.structured_tool_call_llm_base import StructuredToolCallLLM
 
 _TOutput = TypeVar("_TOutput", bound=BaseModel)
 
@@ -28,7 +28,7 @@ def structured_tool_call_llm(
     return_into: str | None = None,
     format_for_return: Callable[[Any], Any] | None = None,
     format_for_context: Callable[[Any], Any] | None = None,
-):
+) -> Type[StructuredToolCallLLM[_TOutput]]:
     """
     Dynamically create a StructuredToolCallLLM node class with custom configuration for tool calling.
 

@@ -38,7 +38,7 @@ from railtracks.nodes.library.function_base import DynamicFunctionNode
 from railtracks.nodes.library.tool_calling_llms._base import (
     OutputLessToolCallLLM,
 )
-from railtracks.nodes.library.tool_calling_llms.tool_call_llm import ToolCallLLM
+from railtracks.nodes.library.tool_calling_llms.tool_call_llm_base import ToolCallLLM
 from railtracks.nodes.nodes import Node
 from railtracks.rt_mcp import MCPStdioParams
 from railtracks.visuals.browser.chat_ui import ChatUI
@@ -119,13 +119,7 @@ class NodeBuilder(Generic[_TNode]):
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         )
         if llm_model is not None:
-            # TODO fix whatever this is.
-            if callable(llm_model):
-                self._with_override(
-                    "get_llm_model", classmethod(lambda cls: llm_model())
-                )
-            else:
-                self._with_override("get_llm_model", classmethod(lambda cls: llm_model))
+            self._with_override("get_llm_model", classmethod(lambda cls: llm_model))
 
         # Handle system message being passed as a string
         if isinstance(system_message, str):

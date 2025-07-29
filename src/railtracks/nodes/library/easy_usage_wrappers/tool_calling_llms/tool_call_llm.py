@@ -8,7 +8,7 @@ from railtracks.nodes._node_builder import NodeBuilder
 
 from .....llm.tools import Parameter
 from ....nodes import Node
-from ...tool_calling_llms.tool_call_llm import ToolCallLLM
+from ...tool_calling_llms.tool_call_llm_base import ToolCallLLM
 
 
 def tool_call_llm(
@@ -23,7 +23,7 @@ def tool_call_llm(
     return_into: str | None = None,
     format_for_return: Callable[[Any], Any] | None = None,
     format_for_context: Callable[[Any], Any] | None = None,
-):
+) -> Type[ToolCallLLM]:
     """
     Dynamically create a ToolCallLLM node class with custom configuration for tool calling.
 

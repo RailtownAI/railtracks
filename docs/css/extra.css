@@ -1,3 +1,4 @@
+
 :root {
   --color-card-bg: var(--md-default-bg-color);
   --color-card-border: var(--md-accent-fg-color);
@@ -36,4 +37,23 @@
 
 
 
+
+/* Extra CSS for MkDocs */
+
+/* Mermaid diagram styling */
+.mermaid {
+    text-align: center;
+    margin: 20px 0;
+}
+
+/* Ensure diagrams are responsive */
+.mermaid svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Better spacing for code blocks */
+.codehilite {
+    margin: 1em 0;
+}
 

@@ -1,7 +1,9 @@
 import pytest
 import railtracks as rt
 from railtracks import Node
-from railtracks.nodes.library import tool_call_llm, ToolCallLLM, message_hist_tool_call_llm
+from railtracks.nodes.library import tool_call_llm, ToolCallLLM
+from railtracks.nodes.library.easy_usage_wrappers.one_wrapper import new_agent
+from railtracks.nodes.library.response import LLMResponse
 from railtracks.nodes.library.tool_calling_llms._base import OutputLessToolCallLLM
 from railtracks.exceptions import LLMError, NodeCreationError, NodeInvocationError
 from railtracks.llm import MessageHistory, ToolMessage, SystemMessage, UserMessage, AssistantMessage, ToolCall, ToolResponse, Tool
@@ -263,15 +265,16 @@ def test_tool_call_llm_easy_usage_with_user_message(mock_llm, mock_tool):
     assert node.message_hist[1].content == "hello"
 
 def test_tool_call_llm_with_output_type_message_history(mock_llm, mock_tool):
-    ToolCallLLM = message_hist_tool_call_llm(
+    ToolCallLLM = new_agent(
         connected_nodes={mock_tool},
         pretty_name="Test ToolCallLLM",
         llm_model=mock_llm(),
     )
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("hello")])
     node = ToolCallLLM(mh)
-    assert isinstance(node.return_output(), MessageHistory)
-    assert all(not isinstance(x.role, SystemMessage) for x in node.return_output())
+    assert isinstance(node.return_output(), LLMResponse)
+    assert all(not isinstance(x.role, SystemMessage) for x in node.return_output().message_history)
+    assert node.return_output().content == "hello"
 
     assert ToolCallLLM.pretty_name() == "Test ToolCallLLM"
 

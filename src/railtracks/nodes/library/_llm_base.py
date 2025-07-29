@@ -3,8 +3,9 @@ from __future__ import annotations
 import warnings
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Dict, Generic, Iterable, TypeVar
+from typing import Any, Dict, Generic, Iterable, Type, TypeVar
 
+from pydantic import BaseModel
 from typing_extensions import Self
 
 import railtracks.llm as llm
@@ -18,8 +19,9 @@ from railtracks.nodes.nodes import Node
 
 from ...exceptions.errors import NodeInvocationError
 from ...exceptions.messages.exception_messages import get_message
-from ...llm import Parameter
+from ...llm import MessageHistory, Parameter
 from ...prompts.prompt import inject_context
+from .response import StringResponse, StructuredResponse
 
 _T = TypeVar("_T")
 
@@ -69,7 +71,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
 
     def __init__(
         self,
-        user_input: llm.MessageHistory | UserMessage | str,
+        user_input: llm.MessageHistory | UserMessage | str | list[llm.Message],
         llm_model: llm.ModelBase | None = None,
     ):
         super().__init__()
@@ -79,6 +81,10 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
             user_input = llm.MessageHistory([UserMessage(user_input)])
         elif isinstance(user_input, UserMessage):
             user_input = llm.MessageHistory([user_input])
+        elif isinstance(user_input, list) and not isinstance(
+            user_input, llm.MessageHistory
+        ):
+            user_input = llm.MessageHistory(user_input)
 
         self._verify_message_history(user_input)
         message_history_copy = deepcopy(
@@ -294,3 +300,43 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         # now that we have reattached the correct memory address to the llm the hooks will update properly.
 
         return new_instance
+
+
+_TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
+
+
+class StructuredOutputMixIn(Generic[_TBaseModel]):
+    message_hist: MessageHistory
+
+    @classmethod
+    @abstractmethod
+    def schema(cls) -> Type[_TBaseModel]:
+        pass
+
+    def return_output(self) -> StructuredResponse[_TBaseModel]:
+        structured_output = self.message_hist[-1].content
+
+        assert isinstance(structured_output, self.schema()), (
+            f"The final output must be a pydantic {self.schema()} instance. Instead it was {type(structured_output)}"
+        )
+
+        return StructuredResponse(
+            model=structured_output,
+            message_history=self.message_hist.removed_system_messages(),
+        )
+
+
+class StringOutputMixIn:
+    message_hist: MessageHistory
+
+    def return_output(self) -> StringResponse:
+        """Returns the last message content as a string."""
+        last_message = self.message_hist[-1]
+        assert isinstance(last_message.content, str), (
+            "The final output must be a string"
+        )
+
+        return StringResponse(
+            content=last_message.content,
+            message_history=self.message_hist.removed_system_messages(),
+        )

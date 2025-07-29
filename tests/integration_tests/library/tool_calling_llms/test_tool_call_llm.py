@@ -45,8 +45,8 @@ async def test_empty_connected_nodes_class_based(model):
                 user_input = [x for x in user_input if x.role != "system"]
                 user_input.insert(0, system_simple)
                 super().__init__(
-                    user_input=user_input,
-                    model=llm_model,
+                    user_input=MessageHistory(user_input),
+                    llm_model=llm_model,
                 )
 
             @classmethod
@@ -70,9 +70,9 @@ async def test_simple_function_passed_tool_call(simple_function_taking_node, sim
             ]
         )
         response = await runner.run(simple_function_taking_node, user_input=message_history)
-        assert isinstance(response.answer, simple_output_model)
-        assert isinstance(response.answer.text, str)
-        assert isinstance(response.answer.number, int)
+        assert isinstance(response.answer.structured, simple_output_model)
+        assert isinstance(response.answer.structured.text, str)
+        assert isinstance(response.answer.structured.number, int)
 
 @pytest.mark.asyncio
 async def test_some_functions_passed_tool_calls(some_function_taking_travel_planner_node, travel_planner_output_model):
@@ -87,10 +87,10 @@ async def test_some_functions_passed_tool_calls(some_function_taking_travel_plan
             ]
         )
         response = await runner.run(some_function_taking_travel_planner_node, user_input=message_history)
-        assert isinstance(response.answer, travel_planner_output_model)
-        assert isinstance(response.answer.travel_plan, str)
-        assert isinstance(response.answer.Total_cost, float)
-        assert isinstance(response.answer.Currency, str)
+        assert isinstance(response.answer.structured, travel_planner_output_model)
+        assert isinstance(response.answer.structured.travel_plan, str)
+        assert isinstance(response.answer.structured.Total_cost, float)
+        assert isinstance(response.answer.structured.Currency, str)
 
 
 @pytest.mark.asyncio
@@ -126,7 +126,7 @@ async def test_tool_with_llm_tool_as_input_easy_tools():
         system_message=rt.llm.SystemMessage(
             "Provide a response using the tool avaliable to you. Provide only the response, no additional text."
         ),
-        model=rt.llm.OpenAILLM("gpt-4o"),
+        llm_model=rt.llm.OpenAILLM("gpt-4o"),
     )
 
     # Run the parent tool

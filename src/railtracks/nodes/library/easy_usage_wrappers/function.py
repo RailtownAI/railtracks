@@ -6,6 +6,7 @@ from types import BuiltinFunctionType
 from typing import (
     Callable,
     Coroutine,
+    ParamSpec,
     Set,
     Type,
     TypeVar,
@@ -17,12 +18,12 @@ from railtracks.exceptions.node_creation.validation import validate_function
 from railtracks.llm import Parameter
 from railtracks.nodes._node_builder import NodeBuilder
 from railtracks.nodes.library.function_base import (
-    _P,
     AsyncDynamicFunctionNode,
     SyncDynamicFunctionNode,
 )
 
 _TOutput = TypeVar("_TOutput")
+_P = ParamSpec("_P")
 
 
 @overload
