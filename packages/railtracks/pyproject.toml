@@ -50,3 +50,4 @@ railtown = "https://railtown.ai"
 name = "railtracks"
 
 [tool.pytest.ini_options]
+asyncio_mode = "auto"
