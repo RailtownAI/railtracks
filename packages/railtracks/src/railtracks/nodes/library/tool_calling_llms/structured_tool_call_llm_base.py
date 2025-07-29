@@ -1,9 +1,8 @@
 from abc import ABC
 from typing import Generic, TypeVar
 
-from pydantic import BaseModel
-
 import railtracks.context as context
+from pydantic import BaseModel
 from railtracks.exceptions.errors import LLMError
 from railtracks.interaction.call import call
 from railtracks.llm.history import MessageHistory

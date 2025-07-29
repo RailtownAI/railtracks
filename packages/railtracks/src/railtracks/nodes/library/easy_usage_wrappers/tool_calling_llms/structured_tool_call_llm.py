@@ -1,7 +1,6 @@
 from typing import Any, Callable, Iterable, Type, TypeVar, Union
 
 from pydantic import BaseModel
-
 from railtracks.llm import (
     ModelBase,
     SystemMessage,
