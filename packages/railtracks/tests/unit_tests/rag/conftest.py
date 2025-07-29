@@ -5,7 +5,7 @@ import itertools
 
 _uuid_counter = itertools.count()
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def dummy_uuid_str():
     # Returns a new uuid string every time
     return f"uuid{next(_uuid_counter)}"

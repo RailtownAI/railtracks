@@ -39,13 +39,13 @@ railtracks/
    cd railtracks
    ```
 
-2**Install development dependencies**
+2. **Install development dependencies**
 
     Dev dependencies are not required, but will be useful for devs working with the project.
    ```bash
 
    # Or using pip
-   pip install -r "requirements/dev.txt"
+   pip install -r "requirements-dev.txt"
    ```
 ```
 
