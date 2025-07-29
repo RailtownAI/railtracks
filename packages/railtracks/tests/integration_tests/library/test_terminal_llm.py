@@ -4,7 +4,7 @@ import railtracks as rt
 from railtracks.llm import MessageHistory, Message
 from railtracks.llm.response import Response
 from railtracks.nodes.library.easy_usage_wrappers.terminal_llm import terminal_llm
-from tests.unit_tests.llm.conftest import MockLLM
+from ...unit_tests.llm.conftest import MockLLM
 
 
 # ================================================ START terminal_llm basic functionality =========================================================

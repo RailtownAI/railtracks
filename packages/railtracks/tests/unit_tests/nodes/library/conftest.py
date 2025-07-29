@@ -5,12 +5,9 @@ from railtracks.llm import AssistantMessage
 from typing import List, Callable, Type
 from pydantic import BaseModel, Field
 
-from ...llm.conftest import MockLLM
+
 
 # =========== Mock model and functions ===========
-@pytest.fixture
-def mock_llm() -> Type[MockLLM]:
-    return MockLLM
 
 @pytest.fixture
 def mock_chat_function():

@@ -3,13 +3,9 @@ import railtracks as rt
 from railtracks.llm import AssistantMessage, ToolMessage, ToolResponse, ToolCall
 from railtracks.llm.response import Response
 from pydantic import BaseModel, Field
-from ....llm.conftest import MockLLM
 from typing import Type
 
 # ============ Mock Model and Functions ===========
-@pytest.fixture
-def mock_llm() -> Type[MockLLM]:
-    return MockLLM
 
 @pytest.fixture
 def mock_chat_function():

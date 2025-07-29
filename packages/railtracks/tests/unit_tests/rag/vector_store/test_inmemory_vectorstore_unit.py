@@ -1,16 +1,18 @@
 import pytest
-from conftest import DummyEmbeddingService, DummyRecord, DummySearchResult, DummyMetric, dummy_uuid_str
+
+from packages.railtracks.tests.unit_tests.rag.conftest import dummy_embedding_service
+
 
 # -------------- Auto-patch module dependencies (pytest-style) --------------
 @pytest.fixture(autouse=True)
-def patch_vectorstore_deps(monkeypatch):
+def patch_vectorstore_deps(monkeypatch, dummy_uuid_str, dummy_embedding_service, dummy_record, dummy_search_result, dummy_metric):
     import railtracks.RAG.vector_store.in_memory as vsmem
     # Patch all dependencies in the *module under test's namespace*:
     monkeypatch.setattr(vsmem, "uuid_str", dummy_uuid_str)
-    monkeypatch.setattr(vsmem, "BaseEmbeddingService", DummyEmbeddingService)
-    monkeypatch.setattr(vsmem, "VectorRecord", DummyRecord)
-    monkeypatch.setattr(vsmem, "SearchResult", DummySearchResult)
-    monkeypatch.setattr(vsmem, "Metric", DummyMetric)
+    monkeypatch.setattr(vsmem, "BaseEmbeddingService", dummy_embedding_service)
+    monkeypatch.setattr(vsmem, "VectorRecord", dummy_record)
+    monkeypatch.setattr(vsmem, "SearchResult", dummy_search_result)
+    monkeypatch.setattr(vsmem, "Metric", dummy_metric)
     # No need to patch AbstractVectorStore if real base is abstract and not used directly
 
 from railtracks.RAG.vector_store.in_memory import InMemoryVectorStore
@@ -19,19 +21,19 @@ import math
 # --------------------------- TESTS -----------------------------
 
 @pytest.fixture
-def store():
+def store(dummy_embedding_service):
     return InMemoryVectorStore(
-        embedding_service=DummyEmbeddingService(),
+        embedding_service=dummy_embedding_service(),
         metric="cosine",
         dim=3,
     )
 
-def test_add_and_count(store):
+def test_add_and_count(store, dummy_record):
     n = store.count()
     ids = store.add(["hello", "world"])
     assert len(ids) == 2
     assert store.count() == n + 2
-    vr = DummyRecord(id="rec1", vector=[1,2,3], text="hi")
+    vr = dummy_record(id="rec1", vector=[1,2,3], text="hi")
     ids2 = store.add([vr], embed=False)
     assert len(ids2) == 1
     assert store.count() == n + 3

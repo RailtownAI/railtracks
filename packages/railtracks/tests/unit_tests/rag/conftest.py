@@ -4,6 +4,8 @@ import pytest
 import itertools
 
 _uuid_counter = itertools.count()
+
+@pytest.fixture(autouse=True)
 def dummy_uuid_str():
     # Returns a new uuid string every time
     return f"uuid{next(_uuid_counter)}"
@@ -63,3 +65,31 @@ class DummyTextObject:
         self.embeddings = embeddings
     def get_metadata(self):
         return {"meta": "info", "source": self.path or "memory"}
+
+@pytest.fixture
+def dummy_embedding_service():
+    return DummyEmbeddingService
+
+@pytest.fixture
+def dummy_record():
+    return DummyRecord
+
+@pytest.fixture
+def dummy_search_result():
+    return DummySearchResult
+
+@pytest.fixture
+def dummy_metric():
+    return DummyMetric
+
+@pytest.fixture
+def dummy_text_chunking_service():
+    return DummyTextChunkingService
+
+@pytest.fixture
+def dummy_vector_record():
+    return DummyVectorRecord
+
+@pytest.fixture
+def dummy_text_object():
+    return DummyTextObject

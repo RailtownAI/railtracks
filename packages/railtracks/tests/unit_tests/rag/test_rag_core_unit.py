@@ -1,16 +1,15 @@
 import pytest
 
-from conftest import DummyEmbeddingService, DummyTextChunkingService, DummyVectorRecord, DummyTextObject
 from railtracks.RAG.rag_core import RAG, textobject_to_vectorrecords
 
 
 # Patch all dependencies using monkeypatch fixture
 @pytest.fixture(autouse=True)
-def patch_all(monkeypatch):
+def patch_all(monkeypatch, dummy_text_chunking_service, dummy_embedding_service, dummy_text_object):
     import railtracks.RAG.rag_core as ragmod
-    monkeypatch.setattr(ragmod, "TextObject", DummyTextObject)
-    monkeypatch.setattr(ragmod, "EmbeddingService", DummyEmbeddingService)
-    monkeypatch.setattr(ragmod, "TextChunkingService", DummyTextChunkingService)
+    monkeypatch.setattr(ragmod, "TextObject", dummy_text_object)
+    monkeypatch.setattr(ragmod, "EmbeddingService", dummy_embedding_service)
+    monkeypatch.setattr(ragmod, "TextChunkingService", dummy_text_chunking_service)
 
     # Dummy vector store
     def dummy_create_store(**kwargs):
@@ -33,9 +32,9 @@ def patch_all(monkeypatch):
 
     # Patch all symbols in rag module at appropriate locations
     import railtracks.RAG.rag_core as ragmod
-    monkeypatch.setattr(ragmod, "TextObject", DummyTextObject)
-    monkeypatch.setattr(ragmod, "EmbeddingService", DummyEmbeddingService)
-    monkeypatch.setattr(ragmod, "TextChunkingService", DummyTextChunkingService)
+    monkeypatch.setattr(ragmod, "TextObject", dummy_text_object)
+    monkeypatch.setattr(ragmod, "EmbeddingService", dummy_embedding_service)
+    monkeypatch.setattr(ragmod, "TextChunkingService", dummy_text_chunking_service)
     monkeypatch.setattr(ragmod, "create_store", dummy_create_store)
 
     # Patch VectorRecord for textobject_to_vectorrecords
