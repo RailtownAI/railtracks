@@ -34,9 +34,6 @@ nav:
   - Tutorials:
         - tutorials/index.md
 
-
-
-
   - Tools + MCP:
       - tools_mcp/index.md
       - Create Your Own Tool: tools_mcp/create_your_own.md
@@ -55,6 +52,7 @@ nav:
 
   - Observability:
         - observability/index.md
+        - Local Chat Interface: observability/chat.md
 
   - LLM Support:
       - llm_support/index.md
@@ -80,14 +78,10 @@ nav:
       - Runner: system_internals/runner_new.md
       - PubSub: system_internals/pubsub.md
       - Coordinator: system_internals/coordinator.md
-
+      - RTState: system_internals/rtstate.md
 
 plugins:
   - search
   - mkdocstrings
   - mermaid2
   # - awesome-pages
-
-markdown_extensions:
-  - pymdownx.emoji:
-      emoji_generator: !!python/name:pymdownx.emoji.to_svg
