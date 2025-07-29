@@ -4,7 +4,7 @@ import railtracks as rt
 from railtracks.llm import MessageHistory, Message
 from railtracks.llm.response import Response
 from railtracks.nodes.library.easy_usage_wrappers.terminal_llm import terminal_llm
-from ...unit_tests.llm.conftest import MockLLM
+
 
 
 # ================================================ START terminal_llm basic functionality =========================================================
@@ -44,7 +44,7 @@ def test_terminal_llm_class_based_run(model , encoder_system_message):
         response = runner.run_sync(Encoder, user_input=message_history)
         assert isinstance(response.answer.text, str)
 
-def test_return_into():
+def test_return_into(mock_llm):
     """Test that a node can return its result into context instead of returning it directly."""
 
     def return_message(messages: MessageHistory) -> Response:
@@ -52,7 +52,7 @@ def test_return_into():
 
     node = terminal_llm(
         system_message="Hello",
-        llm_model=MockLLM(chat=return_message),
+        llm_model=mock_llm(chat=return_message),
         return_into="greeting"  # Specify that the result should be stored in context under the key "greeting"
     )
 

@@ -6,12 +6,8 @@ import random
 from railtracks.nodes.library import ToolCallLLM
 from railtracks.llm import SystemMessage
 
-from ....unit_tests.llm.conftest import MockLLM
-# ============ Model ===========
 
-@pytest.fixture
-def mock_llm():
-    return MockLLM
+# ============ Model ===========
 
 @pytest.fixture
 def model():
