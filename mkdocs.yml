@@ -26,6 +26,8 @@ nav:
 
   - Tutorials:
         - tutorials/byfa.md
+        - tutorials/ryfa.md
+        - tutorials/node_builder.md
 
 
 

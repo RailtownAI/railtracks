@@ -1,26 +1,7 @@
-# How to Build Your First Agent
+# How to Customize Class Building
 
-RailTracks allows you to easily create custom agents using the `define_agent` function by configuring a few simple parameters in any combination!
+RailTracks `define_agent` allows user to configure agent classes with set parameters you can choose from. These parameters suffice for most cases but what if you want to make an agent with just slightly more functionality? RailTracks has you covered again! Using our NodeBuilder class you can create your own agent class with many of the same functionalities provided in `define_agent` but the option to add . 
 
-Start by specifying:
-
-- `llm_model`: Choose which LLM the agent will use.
-- `system_message`: Define the agent’s behavior. This guides the agent and often improves output quality.  
-  *(See also: [Prompt Engineering](https://en.wikipedia.org/wiki/Prompt_engineering))*
-
-Then, configure your agent class by selecting which functionalities to enable:
-
-- `tools`: If you pass this parameter, the agent gains access to the specified [tools](../guides/tools.md). If you don't it will act as a conversational agent instead.
-- `schema`: Given a schema, the agents responses will follow that schema. Otherwise it will return output as it sees fit.
-
-Optionally, you can define attributes for using the agent as a tool itself and debugging:
-
-- `agent_name`: The identifier used when referencing the agent while debugging.
-- `agent_params`: [Parameters](../tools) required when the agent is called as a tool.
-- `agent_doc`: A short explanation of what the agent does — this helps other LLMs decide when and how to use it.
-
-
-For advanced users you can see [context](../advanced_usage/context.md), for further configurability.
 
 ###Example
 ```python
