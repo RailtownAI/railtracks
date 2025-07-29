@@ -1,24 +1,15 @@
 # 🔧 Using MCP Tools in RailTracks
 
-## Overview
+## 📝 Overview
 
 !!! tip "Quick Summary"
     RailTracks makes it easy to use any MCP-compatible tool with your agents. Just connect to an MCP server, get the tools, and start using them!
 
 RailTracks supports seamless integration with [Model Context Protocol (MCP)](index.md), allowing you to use any MCP-compatible tool as a native RailTracks Tool. This means you can connect your agents to a wide variety of external tools and data sources—without having to implement the tool logic yourself. 
 
-RailTracks handles the discovery, conversion, and invocation of MCP tools, so you can focus on building intelligent agents.
+RailTracks handles the discovery and invocation of MCP tools, so you can focus on building intelligent agents.
 
-```mermaid
-graph TD
-    A[RailTracks Agent] -->|Uses| B[MCP Server Connection]
-    B -->|Provides| C[MCP Tools as RT Nodes]
-    C -->|Used by| A
-    style A fill:#f9f,stroke:#333,stroke-width:2px
-    style C fill:#bbf,stroke:#333,stroke-width:1px
-```
-
-## Prerequisites
+## ✅ Prerequisites
 
 !!! note "Before You Begin"
     Make sure you have the following set up before using MCP tools:
@@ -27,11 +18,11 @@ graph TD
 - **MCP package set up** - Every MCP tool has different requirements (see specific tool documentation)
 - **Authentication credentials** - Many MCP tools require API keys or OAuth tokens
 
-## Connecting to MCP Servers
+## 🔌 Connecting to MCP Servers
 
 RailTracks supports two types of MCP servers:
 
-### 1. Remote HTTP Servers
+### 🌐 1. Remote HTTP Servers
 
 Use `MCPHttpParams` for connecting to remote MCP servers:
 
@@ -50,7 +41,7 @@ fetch_server = from_mcp_server(
 )
 ```
 
-### 2. Local Command-Line Servers
+### 💻 2. Local Command-Line Servers
 
 Use `MCPStdioParams` for running local MCP servers:
 
@@ -67,7 +58,7 @@ time_server = from_mcp_server(
 )
 ```
 
-## Using MCP Tools with RailTracks Agents
+## 🤖 Using MCP Tools with RailTracks Agents
 
 Once you've connected to an MCP server, you can use the tools with your RailTracks agents:
 
@@ -84,22 +75,22 @@ tools = fetch_server.tools  # List of RailTracks Tool Nodes
 agent = rt.library.tool_call_llm(
     connected_nodes=set(tools),
     pretty_name="Web Research Agent",
-    system_message=rt.llm.SystemMessage("Use the tools to research information online."),
-    model=rt.llm.OpenAILLM("gpt-4o"),
+    system_message="Use the tools to research information online.",
+    llm_model=rt.llm.OpenAILLM("gpt-4o"),
 )
 
 # Use the agent
-with rt.Runner() as runner:
-    result = runner.run_sync(
+with rt.Runner():
+    result = rt.call_sync(
         agent, 
-        rt.llm.MessageHistory([rt.llm.UserMessage("Find information about RailTracks")])
+        "Find information about RailTracks"
     )
-    print(result.answer.content)
+    print(result.content)
 ```
 
-## Common MCP Server Examples
+## 🧪 Common MCP Server Examples
 
-### Fetch Server (URL Content Retrieval)
+### 🌐 Fetch Server (URL Content Retrieval)
 
 ```python
 import railtracks as rt
@@ -111,7 +102,7 @@ fetch_server = from_mcp_server(MCPHttpParams(url="https://remote.mcpservers.org/
 fetch_tools = fetch_server.tools
 ```
 
-### GitHub Server
+### 🐙 GitHub Server
 
 ```python
 import os
@@ -131,7 +122,7 @@ github_server = from_mcp_server(
 github_tools = github_server.tools
 ```
 
-### Notion Server
+### 📘 Notion Server
 
 ```python
 import json
@@ -156,7 +147,7 @@ notion_server = from_mcp_server(
 notion_tools = notion_server.tools
 ```
 
-## Combining Multiple MCP Tools
+## 🧩 Combining Multiple MCP Tools
 
 You can combine tools from different MCP servers to create powerful agents:
 
@@ -198,14 +189,14 @@ all_tools = fetch_tools + github_tools + notion_tools
 
 # Create an agent that can use all tools
 super_agent = rt.library.tool_call_llm(
-    connected_nodes=set(all_tools),
+    connected_nodes=all_tools,
     pretty_name="Multi-Tool Agent",
     system_message=rt.llm.SystemMessage("Use the appropriate tools to complete tasks."),
-    model=rt.llm.OpenAILLM("gpt-4o"),
+    llm_model=rt.llm.OpenAILLM("gpt-4o"),
 )
 ```
 
-## Tool-Specific Guides
+## 📚 Tool-Specific Guides
 
 For detailed setup and usage instructions for specific MCP tools:
 
@@ -214,7 +205,7 @@ For detailed setup and usage instructions for specific MCP tools:
 - [Slack Tool Guide](../guides/slack.md)
 - [Web Search Integration Guide](../guides/websearch_integration.md)
 
-## Related Topics
+## 🔗 Related Topics
 
 - [What is MCP?](index.md)
 - [RailTracks to MCP: Exposing RT Tools as MCP Tools](RTtoMCP.md)
