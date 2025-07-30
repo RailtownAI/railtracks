@@ -216,6 +216,9 @@ def parse_json_schema_to_parameter(
         prop_schema
     )
 
+    if isinstance(additional_properties, dict):
+        prop_schema.update(additional_properties)
+
     # Handle references to other schemas, you just need $ref path and description
     if "$ref" in prop_schema:
         return _handle_ref_schema(name, prop_schema, required, description)
@@ -243,7 +246,7 @@ def parse_json_schema_to_parameter(
         )
 
     # Handle nested objects
-    if param_type == "object" and "properties" in prop_schema:
+    if "object" in param_type and "properties" in prop_schema:
         return _handle_object_schema(
             name, prop_schema, required, description, additional_properties
         )

@@ -60,8 +60,11 @@ def _handle_object_type(prop_dict: Dict[str, Any], p: "Parameter") -> None:
         prop_dict.pop("type")
     else:
         prop_dict["additionalProperties"] = p.additional_properties
-        prop_dict["properties"] = _handle_set_of_parameters(p.properties, True)
-        sub_required_params = [p.name for p in p.properties if p.required]
+        inner_props = getattr(
+            p, "properties", set()
+        )  # incase props are not present in the schema
+        prop_dict["properties"] = _handle_set_of_parameters(inner_props, True)
+        sub_required_params = [p.name for p in inner_props if p.required]
         if sub_required_params:
             prop_dict["required"] = sub_required_params
 
@@ -75,7 +78,10 @@ def _handle_union_type(prop_dict: Dict[str, Any], p: "Parameter") -> None:
         )  # none can only be found as a type for union/optional and we will convert it to null
         type_item = {"type": t}
         if t == "object":  # override type_item if object
-            type_item["properties"] = _handle_set_of_parameters(p.properties, True)
+            inner_props = getattr(
+                p, "properties", set()
+            )  # incase props are not present in the schema
+            type_item["properties"] = _handle_set_of_parameters(inner_props, True)
             type_item["description"] = p.description
             type_item["additionalProperties"] = p.additional_properties
         any_of_list.append(type_item)
