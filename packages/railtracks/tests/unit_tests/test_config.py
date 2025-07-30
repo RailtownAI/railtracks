@@ -130,3 +130,43 @@ def test_prompt_injection_false_when_overridden():
     assert config.prompt_injection is False
 
 # ================ END ExecutorConfig: prompt_injection tests ===============
+
+# ================= START Precedence Overwritten Tests ============
+@pytest.fixture
+def base_config():
+    return ExecutorConfig(
+        timeout=100.0,
+        end_on_error=True,
+        logging_setting="REGULAR",
+        run_identifier="base-id",
+        prompt_injection=True,
+        save_state=True
+    )
+
+def test_updated_timeout(base_config):
+    updated_config = base_config.precedence_overwritten(timeout=200.0)
+    assert updated_config.timeout == 200.0
+    assert updated_config.end_on_error == base_config.end_on_error
+    assert updated_config.logging_setting == base_config.logging_setting
+    assert updated_config.log_file == base_config.log_file
+    assert updated_config.run_identifier == base_config.run_identifier
+    assert updated_config.prompt_injection == base_config.prompt_injection
+
+def test_multiple_updated(base_config):
+    updated_config = base_config.precedence_overwritten(
+        timeout=200.0,
+        end_on_error=False,
+        logging_setting="QUIET",
+        log_file="new_log.txt",
+        run_identifier="new-id",
+        prompt_injection=False
+    )
+    assert updated_config.timeout == 200.0
+    assert updated_config.end_on_error is False
+    assert updated_config.logging_setting == "QUIET"
+    assert updated_config.log_file == "new_log.txt"
+    assert updated_config.run_identifier == "new-id"
+    assert updated_config.prompt_injection is False
+
+    assert base_config.timeout == 100.0
+    assert base_config.log_file is None

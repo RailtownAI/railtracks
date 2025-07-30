@@ -110,7 +110,6 @@ class Session:
         if context is None:
             context = {}
 
-        print(self.executor_config.logging_setting)
 
         prepare_logger(
             setting=self.executor_config.logging_setting,
@@ -162,50 +161,15 @@ class Session:
         """
         global_executor_config = get_global_config()
 
-        timeout_input = (
-            timeout if timeout is not None else global_executor_config.timeout
-        )
-        end_on_error_input = (
-            end_on_error
-            if end_on_error is not None
-            else global_executor_config.end_on_error
-        )
-        logging_setting_input = (
-            logging_setting
-            if logging_setting is not None
-            else global_executor_config.logging_setting
-        )
-        log_file_input = (
-            log_file if log_file is not None else global_executor_config.log_file
-        )
-        broadcast_callback_input = (
-            broadcast_callback
-            if broadcast_callback is not None
-            else global_executor_config.subscriber
-        )
-        run_identifier_input = (
-            run_identifier
-            if run_identifier is not None
-            else global_executor_config.run_identifier
-        )
-        prompt_injection_input = (
-            prompt_injection
-            if prompt_injection is not None
-            else global_executor_config.prompt_injection
-        )
-        save_state_input = (
-            save_state if save_state is not None else global_executor_config.save_state
-        )
-
-        return ExecutorConfig(
-            timeout=timeout_input,
-            end_on_error=end_on_error_input,
-            logging_setting=logging_setting_input,
-            log_file=log_file_input,
-            subscriber=broadcast_callback_input,
-            run_identifier=run_identifier_input,
-            prompt_injection=prompt_injection_input,
-            save_state=save_state_input,
+        return global_executor_config.precedence_overwritten(
+            timeout=timeout,
+            end_on_error=end_on_error,
+            logging_setting=logging_setting,
+            log_file=log_file,
+            subscriber=broadcast_callback,
+            run_identifier=run_identifier,
+            prompt_injection=prompt_injection,
+            save_state=save_state,
         )
 
     def __enter__(self):

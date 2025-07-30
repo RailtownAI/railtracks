@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import uuid
+from copy import deepcopy
 from typing import Callable, Coroutine
 
 from .utils.logging.config import allowable_log_levels
@@ -43,3 +44,31 @@ class ExecutorConfig:
         self.log_file = log_file
         self.prompt_injection = prompt_injection
         self.save_state = save_state
+
+    def precedence_overwritten(
+            self,
+            *,
+            timeout: float | None = None,
+            end_on_error: bool | None = None,
+            logging_setting: allowable_log_levels | None = None,
+            log_file: str | os.PathLike | None = None,
+            subscriber: (
+                Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
+            ) = None,
+            run_identifier: str | None = None,
+            prompt_injection: bool | None = None,
+            save_state: bool | None = None,
+    ):
+        """
+        If any of the parameters are provided (not None), it will create a new update the current instance with the new values and return a deep copied reference to it.
+        """
+        return ExecutorConfig(
+            timeout=timeout if timeout is not None else self.timeout,
+            end_on_error=end_on_error if end_on_error is not None else self.end_on_error,
+            logging_setting=logging_setting if logging_setting is not None else self.logging_setting,
+            log_file=log_file if log_file is not None else self.log_file,
+            subscriber=subscriber if subscriber is not None else self.subscriber,
+            run_identifier=run_identifier if run_identifier is not None else self.run_identifier,
+            prompt_injection=prompt_injection if prompt_injection is not None else self.prompt_injection,
+            save_state=save_state if save_state is not None else self.save_state,
+        )

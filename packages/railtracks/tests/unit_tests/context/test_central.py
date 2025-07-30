@@ -100,18 +100,10 @@ def test_set_config_warns(monkeypatch):
     monkeypatch.setattr(central, "is_context_active", mock.Mock(return_value=True))
     monkeypatch.setattr(central, "global_executor_config", mock.Mock(set=mock.Mock()))
     with pytest.warns(UserWarning):
-        central.set_config(config)
-    central.global_executor_config.set.assert_called_with(config)
+        central.set_config()
+    central.global_executor_config.set.assert_called_once()
 
-def test_set_streamer_warns(monkeypatch):
-    config = mock.Mock()
-    monkeypatch.setattr(central, "is_context_active", mock.Mock(return_value=True))
-    monkeypatch.setattr(central, "global_executor_config", mock.Mock(get=mock.Mock(return_value=config), set=mock.Mock()))
-    def dummy_subscriber(x): pass
-    with pytest.warns(UserWarning):
-        central.set_streamer(dummy_subscriber)
-    assert config.subscriber == dummy_subscriber
-    central.global_executor_config.set.assert_called_with(config)
+
 # ============ END Config Tests ===============
 
 # ============ START Parent/Context Update Tests ===============

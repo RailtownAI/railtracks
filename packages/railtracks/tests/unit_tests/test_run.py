@@ -76,7 +76,7 @@ def test_runner_context_manager_closes_on_exit(mock_dependencies):
 
 # ================= START Session: Singleton/Instance Id Behavior ============
 
-def test_runner_identifier_is_taken_from_executor_config(mock_dependencies):
+def test_runner_identifier_is_taken_from_executor_config():
     run_id = "abc123"
 
     r = Session(run_identifier=run_id)
@@ -87,7 +87,7 @@ def test_runner_identifier_is_taken_from_executor_config(mock_dependencies):
 
 # ================= START Session: setup_subscriber ===============
 
-def test_setup_subscriber_adds_subscriber_if_present(mock_dependencies):
+def test_setup_subscriber_adds_subscriber_if_present():
     sub_subscriber = Mock()
     runner = Session(broadcast_callback=sub_subscriber)
     runner.publisher = MagicMock()
@@ -182,12 +182,13 @@ async def test_run_method_runs_and_returns_info(mock_dependencies):
 
 
 # ================= START Session: Check saved data ===============
-def test_runner_saves_data(mock_dependencies):
-    run_id = "Hellow world"
+def test_runner_saves_data():
+    run_id = "abs53562j12h267"
 
     serialization_mock = '{"Key": "Value"}'
     info = MagicMock()
     info.graph_serialization.return_value = serialization_mock
+
 
     with patch.object(Session, 'info', new_callable=PropertyMock) as mock_runner:
         mock_runner.return_value.graph_serialization.return_value = serialization_mock
@@ -195,7 +196,6 @@ def test_runner_saves_data(mock_dependencies):
         r = Session(
             run_identifier=run_id,
             save_state=True,
-
         )
         r.__exit__(None, None, None)
 
@@ -204,7 +204,7 @@ def test_runner_saves_data(mock_dependencies):
     assert path.read_text() == serialization_mock
 
 
-def test_runner_not_saves_data(mock_dependencies):
+def test_runner_not_saves_data():
     config = MagicMock()
 
     run_id = "Run 2"

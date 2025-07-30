@@ -46,7 +46,7 @@ async def test_runner_call_with_context():
 async def logging_config_test_async():
     async def run_with_logging_config(log_setting):
         railtracks.context.central.set_config(
-            rt.ExecutorConfig(end_on_error=True)
+            end_on_error=True
         )
         with pytest.raises(Exception):
             resp = await rt.call(ExceptionNode)
@@ -54,7 +54,7 @@ async def logging_config_test_async():
 
     async def run_with_logging_config_w_context(log_setting):
         railtracks.context.central.set_config(
-            rt.ExecutorConfig(logging_setting=log_setting)
+            logging_setting=log_setting
         )
         with rt.Session() as run:
             info = await run.run(RNGNode)
@@ -72,7 +72,7 @@ async def logging_config_test_async():
 
     async def run_with_logging_config_w_context_w_call(log_setting):
         railtracks.context.central.set_config(
-            rt.ExecutorConfig(logging_setting=log_setting)
+            logging_setting=log_setting
         )
         with rt.Session() as run:
             resp = await rt.call(RNGNode)
@@ -104,7 +104,7 @@ async def logging_config_test_async():
 
 
 async def test_different_config_global_set_async():
-    railtracks.context.central.set_config(rt.ExecutorConfig(end_on_error=False))
+    railtracks.context.central.set_config(end_on_error=False)
     await logging_config_test_async()
 
 
@@ -115,7 +115,7 @@ async def test_different_config_local_set_async():
 def logging_config_test_threads():
     def run_with_logging_config_w_context(log_setting):
         railtracks.context.central.set_config(
-            rt.ExecutorConfig(logging_setting=log_setting)
+            logging_setting=log_setting
         )
         with rt.Session() as run:
             info = run.run_sync(RNGNode)
@@ -141,10 +141,10 @@ def test_threads_config():
 
 
 def test_sequence_of_changes():
-    railtracks.context.central.set_config(rt.ExecutorConfig(end_on_error=True))
-    railtracks.context.central.set_config(rt.ExecutorConfig(end_on_error=False))
+    railtracks.context.central.set_config(end_on_error=True)
+    railtracks.context.central.set_config(end_on_error=False)
     railtracks.context.central.set_config(
-        rt.ExecutorConfig(end_on_error=True, logging_setting="NONE")
+        end_on_error=True, logging_setting="NONE"
     )
     with rt.Session() as run:
         info = run.run_sync(RNGNode)
@@ -154,8 +154,8 @@ def test_sequence_of_changes():
 
 
 def test_sequence_of_changes_overwrite():
-    railtracks.context.central.set_config(rt.ExecutorConfig(end_on_error=True))
-    railtracks.context.central.set_config(rt.ExecutorConfig(end_on_error=False))
+    railtracks.context.central.set_config(end_on_error=True)
+    railtracks.context.central.set_config(end_on_error=False)
     with rt.Session(
         end_on_error=True, logging_setting="NONE"
     ) as run:
@@ -165,7 +165,7 @@ def test_sequence_of_changes_overwrite():
         assert info.answer == run.info.answer
 
 def test_back_to_defaults():
-    rt.set_config(ExecutorConfig(end_on_error=True, logging_setting="REGULAR"))
+    rt.set_config(end_on_error=True, logging_setting="REGULAR")
     with rt.Session(
         end_on_error=True, logging_setting="NONE"
     ) as run:
@@ -201,7 +201,7 @@ StreamingNode = rt.library.from_function(streaming_func)
 def test_streaming_inserted_globally():
     handler = StreamHandler()
 
-    railtracks.context.central.set_streamer(handler.handle)
+    railtracks.context.central.set_config(broadcast_callback=handler.handle)
     with rt.Session() as run:
         result = run.run_sync(StreamingNode)
         assert result.answer == None
@@ -230,7 +230,7 @@ def fake_handler(item: str) -> None:
 def test_streaming_overwrite():
     handler = StreamHandler()
 
-    railtracks.context.central.set_streamer(fake_handler)
+    railtracks.context.central.set_config(broadcast_callback=fake_handler)
     with rt.Session(broadcast_callback=handler.handle) as run:
         result = run.run_sync(StreamingNode)
         assert result.answer == None

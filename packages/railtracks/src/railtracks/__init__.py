@@ -22,7 +22,6 @@ __all__ = [
     "llm",
     "context",
     "set_config",
-    "set_streamer",
     "context",
     "to_node",
 ]
@@ -32,7 +31,7 @@ from railtracks.nodes.library.easy_usage_wrappers.function import to_node
 
 from . import context, llm, rt_mcp
 from .config import ExecutorConfig
-from .context.central import set_config, set_streamer
+from .context.central import set_config
 from .interaction.batch import call_batch
 from .interaction.call import call, call_sync
 from .interaction.stream import broadcast
