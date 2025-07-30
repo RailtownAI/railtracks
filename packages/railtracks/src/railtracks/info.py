@@ -133,7 +133,7 @@ class ExecutionInfo:
                 - However, both will carry an addition param called "stamp" which is a timestamp style object.
                 - They also will carry a "parent" param which is a recursive structure that allows you to traverse the graph in time.
 
-                The current schema looks something like the following.
+                The current output_schema looks something like the following.
                 ```json
         {
           "nodes": [

@@ -25,9 +25,9 @@ class StructuredLLM(
 
     def __init_subclass__(cls):
         super().__init_subclass__()
-        if "schema" in cls.__dict__ and not getattr(cls, "__abstractmethods__", False):
-            method = cls.__dict__["schema"]
-            check_classmethod(method, "schema")
+        if "output_schema" in cls.__dict__ and not getattr(cls, "__abstractmethods__", False):
+            method = cls.__dict__["output_schema"]
+            check_classmethod(method, "output_schema")
             check_schema(method, cls)
 
     def __init__(self, user_input: MessageHistory, llm_model: ModelBase | None = None):
@@ -42,7 +42,7 @@ class StructuredLLM(
 
     @classmethod
     def name(cls) -> str:
-        return f"Structured LLM ({cls.schema().__name__})"
+        return f"Structured LLM ({cls.output_schema().__name__})"
 
     async def invoke(self) -> StructuredResponse[_TOutput]:
         """Makes a call containing the inputted message and system prompt to the llm model and returns the response
@@ -52,7 +52,7 @@ class StructuredLLM(
         """
 
         returned_mess = await self.llm_model.astructured(
-            self.message_hist, schema=self.schema()
+            self.message_hist, schema=self.output_schema()
         )
 
         self.message_hist.append(returned_mess.message)
@@ -64,7 +64,7 @@ class StructuredLLM(
                     reason="ModelLLM returned None content",
                     message_history=self.message_hist,
                 )
-            if isinstance(cont, self.schema()):
+            if isinstance(cont, self.output_schema()):
                 if (key := self.return_into()) is not None:
                     context.put(key, self.format_for_context(cont))
                     return self.format_for_return(cont)

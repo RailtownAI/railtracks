@@ -14,7 +14,7 @@ async def test_create_tool_function_signature_and_doc(
         node_cls=mock_node_cls,
         node_info=mock_node_info,
     )
-    # The function signature should match the schema
+    # The function signature should match the output_schema
     sig = tool_fn.__signature__
     assert [p.name for p in sig.parameters.values()] == ["foo", "bar"]
     assert sig.parameters["foo"].default is sig.empty         # Required param
@@ -33,7 +33,7 @@ async def test_create_tool_function_signature_and_doc(
 def test_create_tool_function_with_no_params(
     mock_node_cls, mock_executor_config, mock_call
 ):
-    # Set .parameters to None, so schema is empty
+    # Set .parameters to None, so output_schema is empty
     mock_node_info = MagicMock()
     mock_node_info.parameters = None
     mock_node_info.name = "basic"

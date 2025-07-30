@@ -44,17 +44,17 @@ class TempModel(BaseModel):
     field2: int
 
 def test_create_new_agent_structured():
-    StructuredAgent = new_agent(schema=TempModel)
+    StructuredAgent = new_agent(output_schema=TempModel)
 
     assert issubclass(StructuredAgent, StructuredLLM)
-    assert issubclass(StructuredAgent.schema(), TempModel)
+    assert issubclass(StructuredAgent.output_schema(), TempModel)
 
 
 def test_create_new_agent_structured_tool_call():
     connected_nodes = {TempNode}
-    StructuredToolCallAgent = new_agent(schema=TempModel, tool_nodes=connected_nodes)
+    StructuredToolCallAgent = new_agent(output_schema=TempModel, tool_nodes=connected_nodes)
 
     assert issubclass(StructuredToolCallAgent, StructuredToolCallLLM)
-    assert issubclass(StructuredToolCallAgent.schema(), TempModel)
+    assert issubclass(StructuredToolCallAgent.output_schema(), TempModel)
     assert StructuredToolCallAgent.tool_nodes() == connected_nodes
 

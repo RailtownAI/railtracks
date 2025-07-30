@@ -15,7 +15,7 @@ from railtracks.nodes.library.tool_calling_llms.structured_tool_call_llm_base im
 def test_structured_tool_call_llm_init(mock_llm, schema, mock_tool):
     class MockStructuredToolCallLLM(StructuredToolCallLLM[schema]):
         @classmethod
-        def schema(cls):
+        def output_schema(cls):
             return schema
         
         @classmethod
@@ -35,7 +35,7 @@ def test_structured_tool_call_llm_init(mock_llm, schema, mock_tool):
 def test_structured_tool_call_llm_return_output_success(mock_tool, mock_llm, schema):
     class MockStructuredToolCallLLM(StructuredToolCallLLM):
         @classmethod
-        def schema(cls):
+        def output_schema(cls):
             return schema
         
         @classmethod
@@ -57,7 +57,7 @@ def test_structured_message_hist_tool_call_llm_return_output_success(mock_tool, 
     class MockStructuredMessHistToolCallLLM(StructuredToolCallLLM):
     
         @classmethod
-        def schema(cls):
+        def output_schema(cls):
             return schema
         
         @classmethod
@@ -87,7 +87,7 @@ async def test_structured_tool_call_llm_return_output_exception(mock_llm, schema
         tool_nodes={mock_tool},
         llm_model=mock_llm(structured=mock_structured,
              chat_with_tools=lambda x, tools: Response(message=AssistantMessage("Hello world"))),
-        schema=schema,
+        output_schema=schema,
         tool_details="Extracts a value.",
         tool_params=None,
         name="Mock Structured ToolCallLLM",
@@ -106,7 +106,7 @@ def test_structured_llm_easy_usage_wrapper(mock_llm, schema, mock_tool):
         system_message="system prompt",
         tool_nodes={mock_tool},
         llm_model=mock_llm(),
-        schema=schema,
+        output_schema=schema,
         tool_details="Extracts a value.",
         tool_params=None,
         name="Mock Structured ToolCallLLM",
@@ -118,7 +118,7 @@ def test_structured_tool_call_llm_instantiate_with_string(mock_llm, schema, mock
     """Test that StructuredToolCallLLM can be instantiated with a string input."""
     class MockStructuredToolCallLLM(StructuredToolCallLLM):
         @classmethod
-        def schema(cls):
+        def output_schema(cls):
             return schema
         
         @classmethod
@@ -145,7 +145,7 @@ def test_structured_tool_call_llm_instantiate_with_user_message(mock_llm, schema
     """Test that StructuredToolCallLLM can be instantiated with a UserMessage input."""
     class MockStructuredToolCallLLM(StructuredToolCallLLM):
         @classmethod
-        def schema(cls):
+        def output_schema(cls):
             return schema
         
         @classmethod
@@ -175,7 +175,7 @@ def test_structured_tool_call_llm_easy_usage_with_string(mock_llm, schema, mock_
         system_message="system prompt",
         tool_nodes={mock_tool},
         llm_model=mock_llm(),
-        schema=schema,
+        output_schema=schema,
         tool_details="Extracts a value.",
         tool_params=None,
         name="Mock Structured ToolCallLLM",
@@ -195,7 +195,7 @@ def test_structured_tool_call_llm_easy_usage_with_user_message(mock_llm, schema,
         system_message="system prompt",
         tool_nodes={mock_tool},
         llm_model=mock_llm(),
-        schema=schema,
+        output_schema=schema,
         tool_details="Extracts a value.",
         tool_params=None,
         name="Mock Structured ToolCallLLM",
@@ -226,7 +226,7 @@ class SimpleOutput(BaseModel):
     ids=["tool_call_llm", "structured_llm"],
 )
 @pytest.mark.parametrize(
-    "schema, tool_details, tool_params, expected_exception, match",
+    "output_schema, tool_details, tool_params, expected_exception, match",
     [
         # Test: tool_params provided but tool_details is missing
         (
@@ -261,7 +261,7 @@ class SimpleOutput(BaseModel):
 )
 
 def test_structured_llm_tool_errors(
-    schema,
+    output_schema,
     tool_details,
     tool_params,
     llm_function,
@@ -270,7 +270,7 @@ def test_structured_llm_tool_errors(
     match,
 ):
     kwargs = {
-        "schema": schema,
+        "output_schema": output_schema,
         "tool_details": tool_details,
         "tool_params": tool_params,
     }

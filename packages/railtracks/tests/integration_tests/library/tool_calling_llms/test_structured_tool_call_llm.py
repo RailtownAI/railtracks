@@ -39,7 +39,7 @@ async def test_tool_with_structured_output_child_tool():
 
     # Define the child tool with structured output
     child_tool = rt.library.structured_llm(
-        schema=ChildResponse,
+        output_schema=ChildResponse,
         system_message="You are a word counting tool that counts the number of words in the request provided by the user.",
         llm_model=rt.llm.OpenAILLM("gpt-4o"),
         name="Structured Child Tool",
@@ -172,7 +172,7 @@ def test_return_into_structured(mock_llm):
         system_message="Hello",
         llm_model=mock_llm(structured=return_structured_message),
         return_into="structured_greeting",  # Store result in context
-        schema=StructuredModel,
+        output_schema=StructuredModel,
     )
 
     with rt.Session() as run:

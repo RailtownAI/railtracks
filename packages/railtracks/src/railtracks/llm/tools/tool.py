@@ -51,7 +51,7 @@ class Tool:
         params_valid = validate_tool_params(parameters, Parameter)
         if (
             params_valid and isinstance(parameters, dict) and len(parameters) > 0
-        ):  # if parameters is a JSON-schema, convert into Parameter objects (Checks should be done in validate_tool_params)
+        ):  # if parameters is a JSON-output_schema, convert into Parameter objects (Checks should be done in validate_tool_params)
             props = parameters.get("properties")
             required_fields = set(parameters.get("required", []))
             param_objs: Set[Parameter] = set()
@@ -198,7 +198,7 @@ class Tool:
             raise NodeCreationError(
                 message="The inputSchema for an MCP Tool must be 'object'. ",
                 notes=[
-                    "If an MCP tool has a different schema, create a GitHub issue and support will be added."
+                    "If an MCP tool has a different output_schema, create a GitHub issue and support will be added."
                 ],
             )
 

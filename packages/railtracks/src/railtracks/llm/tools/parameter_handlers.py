@@ -103,10 +103,10 @@ class PydanticModelHandler(ParameterHandler):
         self, param_name: str, param_annotation: Any, description: str, required: bool
     ) -> Parameter:
         """Create a PydanticParameter for a Pydantic model."""
-        # Get the JSON schema for the Pydantic model
+        # Get the JSON output_schema for the Pydantic model
         schema = param_annotation.model_json_schema()
 
-        # Process the schema to extract parameter information
+        # Process the output_schema to extract parameter information
         inner_params = parse_model_properties(schema)
 
         # Create a PydanticParameter with the extracted information
@@ -174,10 +174,10 @@ class SequenceParameterHandler(ParameterHandler):
                 if inspect.isclass(element_type) and issubclass(
                     element_type, BaseModel
                 ):
-                    # Get the JSON schema for the Pydantic model
+                    # Get the JSON output_schema for the Pydantic model
                     schema = element_type.model_json_schema()
 
-                    # Process the schema to extract parameter information
+                    # Process the output_schema to extract parameter information
                     inner_params = parse_model_properties(schema)
 
                     # Create a PydanticParameter with the extracted information

@@ -16,7 +16,7 @@ _TOutput = TypeVar("_TOutput", bound=BaseModel)
 
 def structured_tool_call_llm(
     tool_nodes: Iterable[Union[Type[Node], Callable]],
-    schema: Type[_TOutput],
+    output_schema: Type[_TOutput],
     *,
     name: str | None = None,
     llm_model: ModelBase | None = None,
@@ -32,7 +32,7 @@ def structured_tool_call_llm(
     Dynamically create a StructuredToolCallLLM node class with custom configuration for tool calling.
 
     This easy-usage wrapper dynamically builds a node class that supports LLM tool calling where it will return
-    a structured output. This allows you to specify connected tools, llm model, schema, system message, tool metadata,
+    a structured output. This allows you to specify connected tools, llm model, output_schema, system message, tool metadata,
     and parameters. The returned class can be instantiated and used in the railtracks framework on runtime.
 
     Args:
@@ -41,7 +41,7 @@ def structured_tool_call_llm(
         llm_model (ModelBase or None, optional): The LLM model instance to use for this node.
         max_tool_calls (int, optional): Maximum number of tool calls allowed per invocation (default: unlimited).
         system_message (SystemMessage or str or None, optional): The system prompt/message for the node. If not passed here it can be passed at runtime in message history.
-        schema (BaseModel): The Pydantic model that defines the structure of the output.
+        output_schema (BaseModel): The Pydantic model that defines the structure of the output.
         tool_details (str or None, optional): Description of the node subclass for other LLMs to know how to use this as a tool.
         tool_params (set of params or None, optional): Parameters that must be passed if other LLMs want to use this as a tool.
         return_into (str, optional): The key to store the result of the tool call into context. If not specified, the result will not be put into context.
@@ -66,6 +66,6 @@ def structured_tool_call_llm(
 
     if tool_details is not None or tool_params is not None:
         builder.tool_callable_llm(tool_details, tool_params)
-    builder.structured(schema)
+    builder.structured(output_schema)
 
     return builder.build()

@@ -242,13 +242,13 @@ def structured_nodes(request, model, structured_llms_system_messages):
     if fixture_name == "easy_wrapper":
         math_undergrad_student_node = rt.library.structured_llm(
             name="Math Undergraduate Student Node",
-            schema=ProofModel,
+            output_schema=ProofModel,
             system_message=system_undergrad_student,
             llm_model=model,
         )
         math_professor_node = rt.library.structured_llm(
             name="Math Professor Node",
-            schema=GradingSchema,
+            output_schema=GradingSchema,
             system_message=system_professor,
             llm_model=model,
         )
@@ -273,7 +273,7 @@ def structured_nodes(request, model, structured_llms_system_messages):
                     super().__init__(user_input=user_input, llm_model=llm_model)
 
                 @classmethod
-                def schema(cls) -> BaseModel:
+                def output_schema(cls) -> BaseModel:
                     return schema
 
                 @classmethod

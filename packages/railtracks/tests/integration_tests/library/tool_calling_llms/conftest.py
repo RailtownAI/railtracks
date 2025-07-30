@@ -130,7 +130,7 @@ def _make_node(fixture_name, system_message, model, schema, tool_nodes, class_ty
             name=schema.__name__ + " Node",
             system_message=system_message,
             llm_model=model,
-            schema=schema,
+            output_schema=schema,
         )
     elif fixture_name == "class_based":
         class CustomNode(rt.library.StructuredLLM if class_type is None else class_type):
@@ -142,10 +142,10 @@ def _make_node(fixture_name, system_message, model, schema, tool_nodes, class_ty
                     llm_model=model,
                 )
             @classmethod
-            def schema(cls):
+            def output_schema(cls):
                 return schema
             @classmethod
-            def connected_nodes(cls):
+            def tool_nodes(cls):
                 return tool_nodes
             @classmethod
             def pretty_name(cls):
@@ -210,7 +210,7 @@ def simple_function_taking_node(model, simple_tools, simple_output_model):
         name="Random Number Provider Node",
         system_message=system_mes,
         llm_model=model,
-        schema=simple_output_model,
+        output_schema=simple_output_model,
     )
 
 @pytest.fixture
@@ -228,7 +228,7 @@ def some_function_taking_travel_planner_node(model, travel_planner_tools, travel
         name="Travel Planner Node",
         system_message=system_travel_planner,
         llm_model=model,
-        schema=travel_planner_output_model,
+        output_schema=travel_planner_output_model,
     )
 
 @pytest.fixture
@@ -245,7 +245,7 @@ def only_function_taking_travel_planner_node(model, travel_planner_tools, travel
         name="Travel Planner Node",
         system_message=system_travel_planner,
         llm_model=model,
-        schema=travel_planner_output_model,
+        output_schema=travel_planner_output_model,
     )
 
 # ============ Tool Calling LLM Fixtures (max tool calls) ===========

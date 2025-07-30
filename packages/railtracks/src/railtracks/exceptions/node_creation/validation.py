@@ -108,14 +108,14 @@ def check_connected_nodes(node_set, node: type) -> None:
 
 def check_schema(method: classmethod, cls: type) -> None:
     """
-    Validate the schema returned by a classmethod.
+    Validate the output_schema returned by a classmethod.
 
     Args:
         method: The classmethod to call.
         cls: The class to pass to the method.
 
     Raises:
-        NodeCreationError: If the schema is missing, invalid, or empty.
+        NodeCreationError: If the output_schema is missing, invalid, or empty.
     """
     schema = method.__func__(cls)
     if not schema:
@@ -268,19 +268,19 @@ def validate_tool_params(parameters: Any, param_type) -> bool:
     if isinstance(parameters, dict) and len(parameters) > 0:
         try:
             assert "type" in parameters, (
-                "A 'type' key must be provided in the JSON-schema."
+                "A 'type' key must be provided in the JSON-output_schema."
             )
             assert parameters["type"] == "object", (
-                "The outer-most 'type' must be 'object' in the JSON-schema."
+                "The outer-most 'type' must be 'object' in the JSON-output_schema."
             )
             assert "additionalProperties" in parameters, (
                 "The 'additionalProperties' key must be present and set to False."
             )
             assert not parameters["additionalProperties"], (
-                "The 'additionalProperties' must be set to False in the JSON-schema."
+                "The 'additionalProperties' must be set to False in the JSON-output_schema."
             )
             assert "properties" in parameters, (
-                "A 'properties' key must be provided in the JSON-schema."
+                "A 'properties' key must be provided in the JSON-output_schema."
             )
         except AssertionError as e:
             raise NodeCreationError(

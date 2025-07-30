@@ -310,14 +310,14 @@ class StructuredOutputMixIn(Generic[_TBaseModel]):
 
     @classmethod
     @abstractmethod
-    def schema(cls) -> Type[_TBaseModel]:
+    def output_schema(cls) -> Type[_TBaseModel]:
         pass
 
     def return_output(self) -> StructuredResponse[_TBaseModel]:
         structured_output = self.message_hist[-1].content
 
-        assert isinstance(structured_output, self.schema()), (
-            f"The final output must be a pydantic {self.schema()} instance. Instead it was {type(structured_output)}"
+        assert isinstance(structured_output, self.output_schema()), (
+            f"The final output must be a pydantic {self.output_schema()} instance. Instead it was {type(structured_output)}"
         )
 
         return StructuredResponse(

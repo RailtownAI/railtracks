@@ -31,7 +31,7 @@ def new_agent(
     name: str | None = None,
     *,
     tool_nodes: Iterable[Type[Node] | Callable],
-    schema: Type[_TBaseModel],
+    output_schema: Type[_TBaseModel],
     llm_model: ModelBase | None = None,
     max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
@@ -48,7 +48,7 @@ def new_agent(
 def new_agent(
     name: str | None = None,
     *,
-    schema: Type[_TBaseModel],
+    output_schema: Type[_TBaseModel],
     llm_model: ModelBase | None = None,
     system_message: SystemMessage | str | None = None,
     tool_details: str | None = None,
@@ -79,7 +79,7 @@ def new_agent(
 def new_agent(
     name: str | None = None,
     *,
-    tool_nodes: set[Type[Node] | Callable],
+    tool_nodes: Iterable[Type[Node] | Callable],
     llm_model: ModelBase | None = None,
     max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
@@ -95,8 +95,8 @@ def new_agent(
 def new_agent(
     name: str | None = None,
     *,
-    tool_nodes: set[Type[Node] | Callable] | None = None,
-    schema: Type[_TBaseModel] | None = None,
+    tool_nodes: Iterable[Type[Node] | Callable] | None = None,
+    output_schema: Type[_TBaseModel] | None = None,
     llm_model: ModelBase | None = None,
     max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
@@ -112,7 +112,7 @@ def new_agent(
     Args:
         name (str | None): The name of the agent. If none the default will be used.
         tool_nodes (set[Type[Node] | Callable] | None): If your agent is a LLM with access to tools, what does it have access to?
-        schema (Type[_TBaseModel] | None): If your agent should return a structured output, what is the schema?
+        output_schema (Type[_TBaseModel] | None): If your agent should return a structured output, what is the output_schema?
         llm_model (ModelBase | None): The LLM model to use. If None it will need to be passed in at instance time.
         max_tool_calls (int | None): Maximum number of tool calls allowed (if it is a ToolCall Agent).
         system_message (SystemMessage | str | None): System message for the agent.
@@ -122,12 +122,16 @@ def new_agent(
         format_for_return (Callable[[Any], Any] | None): Formats the value for return.
         format_for_context (Callable[[Any], Any] | None): Formats the value for the return to context.
     """
+    unpacked_tool_nodes: set[Type[Node] | Callable] | None = None
+    if tool_nodes is not None:
+        unpacked_tool_nodes = set(tool_nodes)
 
-    if tool_nodes is not None and len(tool_nodes) > 0:
-        if schema is not None:
+
+    if unpacked_tool_nodes is not None and len(unpacked_tool_nodes) > 0:
+        if output_schema is not None:
             return structured_tool_call_llm(
-                tool_nodes=tool_nodes,
-                schema=schema,
+                tool_nodes=unpacked_tool_nodes,
+                output_schema=output_schema,
                 name=name,
                 llm_model=llm_model,
                 max_tool_calls=max_tool_calls,
@@ -140,7 +144,7 @@ def new_agent(
             )
         else:
             return tool_call_llm(
-                tool_nodes=tool_nodes,
+                tool_nodes=unpacked_tool_nodes,
                 name=name,
                 llm_model=llm_model,
                 max_tool_calls=max_tool_calls,
@@ -152,9 +156,9 @@ def new_agent(
                 format_for_context=format_for_context,
             )
     else:
-        if schema is not None:
+        if output_schema is not None:
             return structured_llm(
-                schema=schema,
+                output_schema=output_schema,
                 name=name,
                 llm_model=llm_model,
                 system_message=system_message,

@@ -14,7 +14,7 @@ _TOutput = TypeVar("_TOutput", bound=BaseModel)
 
 
 def structured_llm(
-    schema: Type[_TOutput],
+    output_schema: Type[_TOutput],
     *,
     system_message: SystemMessage | str | None = None,
     llm_model: ModelBase | None = None,
@@ -26,14 +26,14 @@ def structured_llm(
     format_for_context: Callable[[Any], Any] | None = None,
 ) -> Type[StructuredLLM[_TOutput]]:
     """
-    Dynamically create a StructuredLastMessageLLM node class with custom configuration for schema.
+    Dynamically create a StructuredLastMessageLLM node class with custom configuration for output_schema.
 
     This easy-usage wrapper dynamically builds a node class that supports structured LLM output.
-    This allows you to specify the schema, llm model, system message, tool metadata,
+    This allows you to specify the output_schema, llm model, system message, tool metadata,
     and parameters. The returned class can be instantiated and used in the railtracks framework on runtime.
 
     Args:
-        schema (Type[BaseModel]): The Pydantic model that defines the structure of the output.
+        output_schema (Type[BaseModel]): The Pydantic model that defines the structure of the output.
         name (str, optional): Human-readable name for the node/tool.
         llm_model (ModelBase or None, optional): The LLM model instance to use for this node.
         system_message (SystemMessage or str or None, optional): The system prompt/message for the node. If not passed here it can be passed at runtime in message history.
@@ -55,7 +55,7 @@ def structured_llm(
         format_for_context=format_for_context,
     )
     builder.llm_base(llm_model, system_message)
-    builder.structured(schema)
+    builder.structured(output_schema)
     if tool_details is not None or tool_params is not None:
         builder.tool_callable_llm(tool_details, tool_params)
 

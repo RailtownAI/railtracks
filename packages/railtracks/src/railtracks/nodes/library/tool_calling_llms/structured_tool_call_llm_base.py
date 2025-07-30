@@ -37,7 +37,7 @@ class StructuredToolCallLLM(
             "You are a structured LLM tasked with extracting structured information from the conversation history of another LLM.\n"
             "The input will be the full message history (including system, user, tool, and assistant messages) from a prior LLM interaction."
             "Your job is to analyze this history and produce a structured response according to a specified format.\n"
-            "Ensure the output is clean, valid, and matches the structure and schema defined. If certain fields cannot be confidently filled based on the conversation"
+            "Ensure the output is clean, valid, and matches the structure and output_schema defined. If certain fields cannot be confidently filled based on the conversation"
             "return None\n"
             "Do not summarize, speculate, or reinterpret the original intent—only extract information that is directly supported by the conversation content.\n"
             "Respond only with the structured output in the specified format."
@@ -48,10 +48,10 @@ class StructuredToolCallLLM(
             for name in dir(cls)
         )
 
-        # we only want to verify the schema is the class is not abstract
+        # we only want to verify the output_schema is the class is not abstract
         if not has_abstract_methods:
             cls.structured_resp_node = structured_llm(
-                cls.schema(),
+                cls.output_schema(),
                 system_message=system_structured,
                 llm_model=cls.get_llm_model(),
             )
