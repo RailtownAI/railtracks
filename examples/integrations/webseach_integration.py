@@ -77,7 +77,7 @@ async def google_search(query: str, num_results: int = 3) -> Dict[str, Any]:
 # Example using the tools with an agent
 tools = fetch_mcp_tools + [google_search]
 agent = tool_call_llm(
-    connected_nodes={*tools},
+    tool_nodes={*tools},
     system_message="""You are an infomation gathering agent that can search the web.""",
     model=rt.llm.OpenAILLM("gpt-4o"),
 )

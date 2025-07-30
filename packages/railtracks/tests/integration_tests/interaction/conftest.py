@@ -323,13 +323,13 @@ def tool_calling_nodes(
 
     if fixture_name == "easy_wrapper":
         currency_converter_node = rt.library.tool_call_llm(
-            connected_nodes={AvailableCurrencies, ConvertCurrency},
+            tool_nodes={AvailableCurrencies, ConvertCurrency},
             pretty_name="Currency Converter Node",
             system_message=system_currency_converter,
             llm_model=model,
         )
         travel_planner_node = rt.library.tool_call_llm(
-            connected_nodes={AvailableLocations, CurrencyUsed, AverageLocationCost},
+            tool_nodes={AvailableLocations, CurrencyUsed, AverageLocationCost},
             pretty_name="Travel Planner Node",
             system_message=system_travel_planner,
             llm_model=model,
@@ -353,7 +353,7 @@ def tool_calling_nodes(
                     user_input.insert(0, SystemMessage(system_message))
                     super().__init__(user_input=user_input, llm_model=llm_model)
 
-                def connected_nodes(self):
+                def tool_nodes(self):
                     return connected_nodes
 
                 @classmethod

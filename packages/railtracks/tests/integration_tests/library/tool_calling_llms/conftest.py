@@ -126,7 +126,7 @@ def travel_planner_tools():
 def _make_node(fixture_name, system_message, model, schema, tool_nodes, class_type=None):
     if fixture_name == "easy_wrapper":
         return rt.library.structured_tool_call_llm(
-            connected_nodes=tool_nodes,
+            tool_nodes=tool_nodes,
             pretty_name=schema.__name__ + " Node",
             system_message=system_message,
             llm_model=model,
@@ -206,7 +206,7 @@ def simple_function_taking_node(model, simple_tools, simple_output_model):
     system_mes = "You are a helpful assistant that uses the random number tool to generate a random number between 1 and 100"
 
     return rt.library.structured_tool_call_llm(
-        connected_nodes={simple_tools},
+        tool_nodes={simple_tools},
         pretty_name="Random Number Provider Node",
         system_message=system_mes,
         llm_model=model,
@@ -219,7 +219,7 @@ def some_function_taking_travel_planner_node(model, travel_planner_tools, travel
     system_travel_planner = "You are a travel planner that will plan a trip. you have access to AvailableLocations, ConvertCurrency, CurrencyUsed and AverageLocationCost tools. Use them when you need to."
 
     return rt.library.structured_tool_call_llm(
-        connected_nodes={
+        tool_nodes={
             convert_currency,
             rt.library.from_function(available_locations),
             currency_used,
@@ -236,7 +236,7 @@ def only_function_taking_travel_planner_node(model, travel_planner_tools, travel
     convert_currency, available_locations, currency_used, average_location_cost = travel_planner_tools
     system_travel_planner = "You are a travel planner that will plan a trip. you have access to AvailableLocations, ConvertCurrency, CurrencyUsed and AverageLocationCost tools. Use them when you need to."
     return rt.library.structured_tool_call_llm(
-        connected_nodes={
+        tool_nodes={
             convert_currency,
             available_locations,
             currency_used,
@@ -264,7 +264,7 @@ def limited_tool_call_node_factory(model, travel_planner_tools):
         tool_nodes = tools
         if not class_based:
             return rt.library.tool_call_llm(
-                connected_nodes=tool_nodes,
+                tool_nodes=tool_nodes,
                 pretty_name="Limited Tool Call Test Node",
                 system_message=sys_msg,
                 llm_model=model,
@@ -276,7 +276,7 @@ def limited_tool_call_node_factory(model, travel_planner_tools):
                     user_input.insert(0, SystemMessage(sys_msg) if isinstance(sys_msg, str) else sys_msg)
                     super().__init__(user_input, model, max_tool_calls=max_tool_calls)
                 @classmethod
-                def connected_nodes(cls):
+                def tool_nodes(cls):
                     return tool_nodes
                 @classmethod
                 def pretty_name(cls):

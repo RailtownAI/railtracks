@@ -24,7 +24,7 @@ tools = server.tools
 
 
 agent = tool_call_llm(
-    connected_nodes={*tools},
+    tool_nodes={*tools},
     system_message="""You are a GitHub Copilot agent that can interact with GitHub repositories.""",
     model=rt.llm.OpenAILLM("gpt-4o"),
 )

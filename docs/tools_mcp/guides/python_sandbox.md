@@ -30,7 +30,7 @@ def execute_code(code: str) -> str:
 
 
 agent = tool_call_llm(
-    connected_nodes={execute_code},
+    tool_nodes={execute_code},
     system_message="""You are a master python programmer. To execute code, you have access to a sandboxed Python environment.
     You can execute code in it using run_in_sandbox.
     You can only see the output of the code if it is printed to stdout or stderr, so anything you want to see must be printed.

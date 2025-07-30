@@ -33,11 +33,11 @@ class TempNode(Node[str]):
 
 def test_create_new_agent_tool_call():
     connected_nodes = {TempNode}
-    ToolCallAgent = new_agent(connected_nodes=connected_nodes)
+    ToolCallAgent = new_agent(tool_nodes=connected_nodes)
 
     assert issubclass(ToolCallAgent, ToolCallLLM)
     assert ToolCallAgent.pretty_name() == "Tool Call LLM"
-    assert ToolCallAgent.connected_nodes() == connected_nodes
+    assert ToolCallAgent.tool_nodes() == connected_nodes
 
 class TempModel(BaseModel):
     field1: str
@@ -52,9 +52,9 @@ def test_create_new_agent_structured():
 
 def test_create_new_agent_structured_tool_call():
     connected_nodes = {TempNode}
-    StructuredToolCallAgent = new_agent(schema=TempModel, connected_nodes=connected_nodes)
+    StructuredToolCallAgent = new_agent(schema=TempModel, tool_nodes=connected_nodes)
 
     assert issubclass(StructuredToolCallAgent, StructuredToolCallLLM)
     assert issubclass(StructuredToolCallAgent.schema(), TempModel)
-    assert StructuredToolCallAgent.connected_nodes() == connected_nodes
+    assert StructuredToolCallAgent.tool_nodes() == connected_nodes
 

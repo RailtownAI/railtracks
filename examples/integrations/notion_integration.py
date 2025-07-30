@@ -41,7 +41,7 @@ tools = server.tools
 
 
 agent = tool_call_llm(
-    connected_nodes={*tools},
+    tool_nodes={*tools},
     system_message="""You are a master Notion page designer. You love creating beautiful
      and well-structured Notion pages and make sure that everything is correctly formatted.""",
     model=rt.llm.OpenAILLM("gpt-4o"),

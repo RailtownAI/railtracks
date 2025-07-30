@@ -15,7 +15,7 @@ _TOutput = TypeVar("_TOutput", bound=BaseModel)
 
 
 def structured_tool_call_llm(
-    connected_nodes: Iterable[Union[Type[Node], Callable]],
+    tool_nodes: Iterable[Union[Type[Node], Callable]],
     schema: Type[_TOutput],
     *,
     pretty_name: str | None = None,
@@ -36,7 +36,7 @@ def structured_tool_call_llm(
     and parameters. The returned class can be instantiated and used in the railtracks framework on runtime.
 
     Args:
-        connected_nodes (Iterable): The set of node classes or callables that this node can call as tools.
+        tool_nodes (Iterable): The set of node classes or callables that this node can call as tools.
         pretty_name (str, optional): Human-readable name for the node/tool.
         llm_model (ModelBase or None, optional): The LLM model instance to use for this node.
         max_tool_calls (int, optional): Maximum number of tool calls allowed per invocation (default: unlimited).
@@ -62,7 +62,7 @@ def structured_tool_call_llm(
     )
 
     builder.llm_base(llm_model, system_message)
-    builder.tool_calling_llm(set(connected_nodes), max_tool_calls)
+    builder.tool_calling_llm(set(tool_nodes), max_tool_calls)
 
     if tool_details is not None or tool_params is not None:
         builder.tool_callable_llm(tool_details, tool_params)

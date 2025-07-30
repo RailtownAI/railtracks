@@ -4,13 +4,13 @@ CLASSMETHOD_REQUIRED_NOTES:
   - "Add @classmethod decorator to '{method_name}'."
   - "Signature should be: \n@classmethod\ndef {method_name}(cls): ..."
 
-CONNECTED_NODES_EMPTY_MSG: "connected_nodes must not return an empty set."
+CONNECTED_NODES_EMPTY_MSG: "tool_nodes must not return an empty set."
 CONNECTED_NODES_EMPTY_NOTES:
   - "Please provide a set nodes that can be used as tools by the ToolCallLLM node."
 
-CONNECTED_NODES_TYPE_MSG: "connected_nodes must return a set of Nodes."
+CONNECTED_NODES_TYPE_MSG: "tool_nodes must return a set of Nodes."
 CONNECTED_NODES_TYPE_NOTES:
-  - "Ensure all the nodes provided as connected_nodes are of type Node."
+  - "Ensure all the nodes provided as tool_nodes are of type Node."
   - "You can use the from_function function to convert a function to a Node."
   - "You can use the @rt.to_node decorator to convert a function to a Node. eg.-\n@rt.to_node\ndef my_function(): ..."
 

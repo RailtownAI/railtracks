@@ -148,7 +148,7 @@ async def test_terminal_llm_as_tool_correct_initialization(
     )
 
     randomizer = rt.library.tool_call_llm(
-        connected_nodes={encoder, decoder},
+        tool_nodes={encoder, decoder},
         llm_model=model,
         pretty_name="Randomizer",
         system_message=system_randomizer,
@@ -186,7 +186,7 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(model):
     system_message = "You are a math genius that calls the RNG tool to generate 5 random numbers between 1 and 100 and gives the sum of those numbers."
 
     math_node = rt.library.tool_call_llm(
-        connected_nodes={rng_node},
+        tool_nodes={rng_node},
         pretty_name="Math Node",
         system_message=system_message,
         llm_model=rt.llm.OpenAILLM("gpt-4o"),
@@ -222,7 +222,7 @@ async def test_terminal_llm_tool_with_invalid_parameters_easy_usage(model, encod
 
     system_message = "You are a helful assitant. Use the encoder tool with invalid parameters (invoke the tool with invalid parameters) once and then invoke it again with valid parameters."
     tool_call_llm = rt.library.tool_call_llm(
-        connected_nodes={encoder},
+        tool_nodes={encoder},
         llm_model=model,
         pretty_name="InvalidToolCaller",
         system_message=system_message,

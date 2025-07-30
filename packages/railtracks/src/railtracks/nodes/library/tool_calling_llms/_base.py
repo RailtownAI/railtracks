@@ -32,15 +32,15 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
 
     def __init_subclass__(cls):
         super().__init_subclass__()
-        # 3. Check if the connected_nodes is not empty, special case for ToolCallLLM
+        # 3. Check if the tool_nodes is not empty, special case for ToolCallLLM
         # We will not check for abstract classes
         has_abstract_methods = any(
             getattr(getattr(cls, name, None), "__isabstractmethod__", False)
             for name in dir(cls)
         )
         if not has_abstract_methods:
-            if "connected_nodes" in cls.__dict__ and not has_abstract_methods:
-                method = cls.__dict__["connected_nodes"]
+            if "tool_nodes" in cls.__dict__ and not has_abstract_methods:
+                method = cls.__dict__["tool_nodes"]
                 try:
                     # Try to call the method as a classmethod (typical case)
                     node_set = method.__func__(cls)
@@ -85,7 +85,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
 
     @classmethod
     @abstractmethod
-    def connected_nodes(cls) -> Set[Union[Type[Node], Callable]]: ...
+    def tool_nodes(cls) -> Set[Union[Type[Node], Callable]]: ...
 
     def create_node(self, tool_name: str, arguments: Dict[str, Any]) -> Node:
         """
@@ -93,7 +93,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
 
         This function may be overwritten to fit the needs of the given node as needed.
         """
-        node = [x for x in self.connected_nodes() if x.tool_info().name == tool_name]
+        node = [x for x in self.tool_nodes() if x.tool_info().name == tool_name]
         if node == []:
             raise LLMError(
                 reason=f" Error creating a node from tool {tool_name}. The tool_name given by the LLM doesn't match any of the tool names in the connected nodes.",
@@ -101,13 +101,13 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
             )
         if len(node) > 1:
             raise NodeCreationError(
-                message=f"Tool {tool_name} has multiple nodes, this is not allowed. Current Node include {[x.tool_info().name for x in self.connected_nodes()]}",
+                message=f"Tool {tool_name} has multiple nodes, this is not allowed. Current Node include {[x.tool_info().name for x in self.tool_nodes()]}",
                 notes=["Please check the tool names in the connected nodes."],
             )
         return node[0].prepare_tool(arguments)
 
     def tools(self):
-        return [x.tool_info() for x in self.connected_nodes()]
+        return [x.tool_info() for x in self.tool_nodes()]
 
     async def _on_max_tool_calls_exceeded(self):
         """force a final response"""

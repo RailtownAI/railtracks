@@ -64,7 +64,7 @@ def create_top_level_node():
                     raise ValueError(f"Invalid model provider: {model_provider}")
 
             @classmethod
-            def connected_nodes(cls):
+            def tool_nodes(cls):
                 return {rt.library.from_function(test_function)}
 
             @classmethod

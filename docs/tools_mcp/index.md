@@ -52,7 +52,7 @@ tools = server.tools
 
 # Create an agent with access to these tools
 agent = rt.library.tool_call_llm(
-    connected_nodes=tools,
+    tool_nodes=tools,
     pretty_name="Research Agent",
     system_message="Use the tools to find information.",
     llm_model=rt.llm.OpenAILLM("gpt-4o"),

@@ -31,7 +31,7 @@ tools = server.tools
 # Example using the tools with an agent
 
 agent = tool_call_llm(
-    connected_nodes={*tools},
+    tool_nodes={*tools},
     system_message="""You are a Slack agent that can interact with Slack channels.""",
     model=rt.llm.OpenAILLM("gpt-4o"),
 )

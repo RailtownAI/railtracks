@@ -148,10 +148,10 @@ class NodeBuilder(Generic[_TNode]):
         self, connected_nodes: Set[Union[Type[Node], Callable]], max_tool_calls: int
     ):
         """
-        Configure the node subclass to have a connected_nodes method and max_tool_calls method.
+        Configure the node subclass to have a tool_nodes method and max_tool_calls method.
 
         This method creates methods that are helpful for tool calling llms with their tools
-        stored in connected_nodes and with a limit on the number of tool calls they can make.
+        stored in tool_nodes and with a limit on the number of tool calls they can make.
 
         Args:
             connected_nodes (Set[Union[Type[Node], Callable]]): The nodes/tools/functions that this node can call.
@@ -179,7 +179,7 @@ class NodeBuilder(Generic[_TNode]):
         _check_max_tool_calls(max_tool_calls)
         check_connected_nodes(connected_nodes, Node)
 
-        self._with_override("connected_nodes", classmethod(lambda cls: connected_nodes))
+        self._with_override("tool_nodes", classmethod(lambda cls: connected_nodes))
         self._with_override("max_tool_calls", max_tool_calls)
 
     def mcp_llm(self, mcp_command, mcp_args, mcp_env, max_tool_calls):
@@ -215,7 +215,7 @@ class NodeBuilder(Generic[_TNode]):
         _check_max_tool_calls(max_tool_calls)
         check_connected_nodes(connected_nodes, self._node_class)
 
-        self._with_override("connected_nodes", classmethod(lambda cls: connected_nodes))
+        self._with_override("tool_nodes", classmethod(lambda cls: connected_nodes))
         self._with_override("max_tool_calls", max_tool_calls)
 
     def chat_ui(

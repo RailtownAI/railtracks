@@ -56,7 +56,7 @@ async def test_tool_with_structured_output_child_tool():
     # Define the parent tool that uses the child tool
     parent_tool = rt.library.tool_call_llm(
         schema=ParentResponse,
-        connected_nodes={child_tool},
+        tool_nodes={child_tool},
         pretty_name="Parent Tool",
         system_message="Use the child tool to generate a structured response. Respond with the output from the child tool only. No additional text.",
         llm_model=rt.llm.OpenAILLM("gpt-4o"),

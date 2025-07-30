@@ -15,7 +15,7 @@ def test_tool_call_llm_return_output_returns_last_message_content(mock_llm, mock
         def pretty_name(cls):
             return "Dummy"
         
-        def connected_nodes(self):
+        def tool_nodes(self):
             return {mock_tool}
         
     mh = MessageHistory([SystemMessage("sys"), UserMessage("hi"), AssistantMessage("final answer")])
@@ -29,7 +29,7 @@ def test_outputless_tool_call_llm_create_node_success(mock_llm, mock_tool):
         @classmethod
         def pretty_name(cls):
             return "Dummy"
-        def connected_nodes(self):
+        def tool_nodes(self):
             return {mock_tool}
         def return_output(self):
             return None
@@ -44,7 +44,7 @@ def test_outputless_tool_call_llm_create_node_no_match(mock_llm, mock_tool):
         @classmethod
         def pretty_name(cls):
             return "Dummy"
-        def connected_nodes(self):
+        def tool_nodes(self):
             return {mock_tool}
         def return_output(self):
             return None
@@ -74,7 +74,7 @@ def test_outputless_tool_call_llm_create_node_multiple_match(mock_llm, mock_tool
         @classmethod
         def pretty_name(cls):
             return "Dummy"
-        def connected_nodes(self):
+        def tool_nodes(self):
             return {node1, node2}
         def return_output(self):
             return None
@@ -87,7 +87,7 @@ def test_outputless_tool_call_llm_create_node_multiple_match(mock_llm, mock_tool
 def test_unlimited_tool_call_gives_warning_on_creation(mock_llm, mock_tool):
     with pytest.warns(UserWarning, match="unlimited tool calls"):
         _ = tool_call_llm(
-            connected_nodes={mock_tool},
+            tool_nodes={mock_tool},
             pretty_name="Test ToolCallLLM",
             llm_model=mock_llm(),
             max_tool_calls=None,    # None means unlimited
@@ -100,7 +100,7 @@ async def test_unlimited_tool_call_gives_warning_at_runtime(mock_llm, mock_tool,
         def pretty_name(cls):
             return "Mock Limited Tool Call LLM"
         
-        def connected_nodes(self):
+        def tool_nodes(self):
             return {mock_tool}
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("hello")])
     mock_model = mock_llm(chat_with_tools=mock_chat_with_tools_function)
@@ -113,7 +113,7 @@ def test_limited_tool_call_llm_return_output(mock_tool, mock_llm, mock_chat_with
        def pretty_name(cls):
            return "Mock Limited Tool Call LLM"
        
-       def connected_nodes(self):
+       def tool_nodes(self):
            return {mock_tool}
     
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("hello")])
@@ -128,7 +128,7 @@ async def test_tool_call_llm_on_max_tool_calls_exceeded_appends_final_answer(moc
        def pretty_name(cls):
            return "Mock Limited Tool Call LLM"
        
-       def connected_nodes(self):
+       def tool_nodes(self):
            return {mock_tool}
     
     mh = MessageHistory([SystemMessage("system prompt"), 
@@ -144,7 +144,7 @@ async def test_tool_call_llm_on_max_tool_calls_exceeded_appends_final_answer(moc
 
 def test_tool_call_llm_init_appends_system_message(mock_llm, mock_tool):
     ToolCallLLM = tool_call_llm(
-        connected_nodes={mock_tool},
+        tool_nodes={mock_tool},
         pretty_name="Test ToolCallLLM",
         llm_model=mock_llm(),
         max_tool_calls=2,
@@ -156,7 +156,7 @@ def test_tool_call_llm_init_appends_system_message(mock_llm, mock_tool):
 
 def test_tool_call_llm_return_output_last_message(mock_llm, mock_tool):
     ToolCallLLM = tool_call_llm(
-        connected_nodes={mock_tool},
+        tool_nodes={mock_tool},
         pretty_name="Test ToolCallLLM",
         llm_model=mock_llm(),
     )
@@ -167,17 +167,17 @@ def test_tool_call_llm_return_output_last_message(mock_llm, mock_tool):
 
 def test_tool_call_llm_connected_nodes(mock_llm, mock_tool):
     ToolCallLLM = tool_call_llm(
-        connected_nodes={mock_tool},
+        tool_nodes={mock_tool},
         pretty_name="Test ToolCallLLM",
         llm_model=mock_llm()
     )
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("hello")])
     node = ToolCallLLM(mh)
-    assert mock_tool in node.connected_nodes()
+    assert mock_tool in node.tool_nodes()
 
 def test_tool_call_llm_pretty_name_default(mock_llm, mock_tool):
     ToolCallLLM = tool_call_llm(
-        connected_nodes={mock_tool},
+        tool_nodes={mock_tool},
         llm_model=mock_llm()
     )
     assert "Tool Call LLM" == ToolCallLLM.pretty_name()
@@ -194,7 +194,7 @@ def test_tool_call_llm_instantiate_with_string(mock_llm, mock_tool):
             return "system prompt"
 
         @classmethod
-        def connected_nodes(cls):
+        def tool_nodes(cls):
             return {mock_tool}
 
     node = MockToolCallLLM(user_input="hello", llm_model=mock_llm())
@@ -217,7 +217,7 @@ def test_tool_call_llm_instantiate_with_user_message(mock_llm, mock_tool):
             return "system prompt"
 
         @classmethod
-        def connected_nodes(cls):
+        def tool_nodes(cls):
             return {mock_tool}
 
     user_msg = UserMessage("hello")
@@ -232,7 +232,7 @@ def test_tool_call_llm_instantiate_with_user_message(mock_llm, mock_tool):
 def test_tool_call_llm_easy_usage_with_string(mock_llm, mock_tool):
     """Test that the easy usage wrapper can be instantiated with a string input."""
     ToolCallLLM = tool_call_llm(
-        connected_nodes={mock_tool},
+        tool_nodes={mock_tool},
         pretty_name="Test ToolCallLLM",
         system_message="system prompt",
         llm_model=mock_llm(),
@@ -249,7 +249,7 @@ def test_tool_call_llm_easy_usage_with_string(mock_llm, mock_tool):
 def test_tool_call_llm_easy_usage_with_user_message(mock_llm, mock_tool):
     """Test that the easy usage wrapper can be instantiated with a UserMessage input."""
     ToolCallLLM = tool_call_llm(
-        connected_nodes={mock_tool},
+        tool_nodes={mock_tool},
         pretty_name="Test ToolCallLLM",
         system_message="system prompt",
         llm_model=mock_llm(),
@@ -266,7 +266,7 @@ def test_tool_call_llm_easy_usage_with_user_message(mock_llm, mock_tool):
 
 def test_tool_call_llm_with_output_type_message_history(mock_llm, mock_tool):
     ToolCallLLM = new_agent(
-        connected_nodes={mock_tool},
+        tool_nodes={mock_tool},
         pretty_name="Test ToolCallLLM",
         llm_model=mock_llm(),
     )
@@ -285,7 +285,7 @@ async def test_negative_tool_calls_raises(class_based, mock_llm, mock_tool):
     if not class_based:
         with pytest.raises(NodeCreationError, match="max_tool_calls must be a non-negative integer."):
             _ = rt.library.tool_call_llm(
-                connected_nodes={mock_tool},
+                tool_nodes={mock_tool},
                 pretty_name="Limited Tool Call Test Node",
                 system_message=SystemMessage("system prompt"),
                 llm_model=mock_llm(),
@@ -296,7 +296,7 @@ async def test_negative_tool_calls_raises(class_based, mock_llm, mock_tool):
             def __init__(self, user_input, llm_model=mock_llm()):
                 super().__init__(user_input, llm_model, max_tool_calls=neg_max_tool_calls)
             @classmethod
-            def connected_nodes(cls):
+            def tool_nodes(cls):
                 return {mock_tool}
             @classmethod
             def pretty_name(cls):

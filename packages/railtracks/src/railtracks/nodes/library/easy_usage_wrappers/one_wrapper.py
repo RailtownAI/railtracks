@@ -95,7 +95,7 @@ def new_agent(
 def new_agent(
     pretty_name: str | None = None,
     *,
-    connected_nodes: set[Type[Node] | Callable] | None = None,
+    tool_nodes: set[Type[Node] | Callable] | None = None,
     schema: Type[_TBaseModel] | None = None,
     llm_model: ModelBase | None = None,
     max_tool_calls: int | None = None,
@@ -111,7 +111,7 @@ def new_agent(
 
     Args:
         pretty_name (str | None): The name of the agent. If none the default will be used.
-        connected_nodes (set[Type[Node] | Callable] | None): If your agent is a LLM with access to tools, what does it have access to?
+        tool_nodes (set[Type[Node] | Callable] | None): If your agent is a LLM with access to tools, what does it have access to?
         schema (Type[_TBaseModel] | None): If your agent should return a structured output, what is the schema?
         llm_model (ModelBase | None): The LLM model to use. If None it will need to be passed in at instance time.
         max_tool_calls (int | None): Maximum number of tool calls allowed (if it is a ToolCall Agent).
@@ -123,10 +123,10 @@ def new_agent(
         format_for_context (Callable[[Any], Any] | None): Formats the value for the return to context.
     """
 
-    if connected_nodes is not None and len(connected_nodes) > 0:
+    if tool_nodes is not None and len(tool_nodes) > 0:
         if schema is not None:
             return structured_tool_call_llm(
-                connected_nodes=connected_nodes,
+                tool_nodes=tool_nodes,
                 schema=schema,
                 pretty_name=pretty_name,
                 llm_model=llm_model,
@@ -140,7 +140,7 @@ def new_agent(
             )
         else:
             return tool_call_llm(
-                connected_nodes=connected_nodes,
+                tool_nodes=tool_nodes,
                 pretty_name=pretty_name,
                 llm_model=llm_model,
                 max_tool_calls=max_tool_calls,
