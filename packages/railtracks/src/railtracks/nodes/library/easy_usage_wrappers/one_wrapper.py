@@ -98,9 +98,6 @@ def agent_node(
     max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
-    return_into: str | None = None,
-    format_for_return: Callable[[Any], Any] | None = None,
-    format_for_context: Callable[[Any], Any] | None = None,
 ):
     """
     Dynamically creates an agent based on the provided parameters.
@@ -113,9 +110,6 @@ def agent_node(
         max_tool_calls (int | None): Maximum number of tool calls allowed (if it is a ToolCall Agent).
         system_message (SystemMessage | str | None): System message for the agent.
         manifest (ToolManifest | None): If you want to use this as a tool in other agents you can pass in a ToolManifest.
-        return_into (str | None): If you would like to return into context what is the key.
-        format_for_return (Callable[[Any], Any] | None): Formats the value for return.
-        format_for_context (Callable[[Any], Any] | None): Formats the value for the return to context.
     """
     unpacked_tool_nodes: set[Type[Node] | Callable] | None = None
     if tool_nodes is not None:
@@ -142,9 +136,6 @@ def agent_node(
                 system_message=system_message,
                 tool_details=tool_details,
                 tool_params=tool_params,
-                return_into=return_into,
-                format_for_return=format_for_return,
-                format_for_context=format_for_context,
             )
         else:
             return tool_call_llm(
@@ -155,9 +146,6 @@ def agent_node(
                 system_message=system_message,
                 tool_details=tool_details,
                 tool_params=tool_params,
-                return_into=return_into,
-                format_for_return=format_for_return,
-                format_for_context=format_for_context,
             )
     else:
         if output_schema is not None:
@@ -168,9 +156,6 @@ def agent_node(
                 system_message=system_message,
                 tool_details=tool_details,
                 tool_params=tool_params,
-                return_into=return_into,
-                format_for_return=format_for_return,
-                format_for_context=format_for_context,
             )
         else:
             return terminal_llm(
@@ -179,7 +164,4 @@ def agent_node(
                 system_message=system_message,
                 tool_details=tool_details,
                 tool_params=tool_params,
-                return_into=return_into,
-                format_for_return=format_for_return,
-                format_for_context=format_for_context,
             )
