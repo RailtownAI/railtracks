@@ -23,7 +23,7 @@ from railtracks.exceptions.node_creation.validation import (
     _check_max_tool_calls,
     _check_system_message,
     _check_tool_params_and_details,
-    check_connected_nodes,
+    check_connected_nodes, validate_tool_params,
 )
 from railtracks.llm import (
     ModelBase,

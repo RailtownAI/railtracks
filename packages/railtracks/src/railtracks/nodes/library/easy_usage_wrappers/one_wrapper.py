@@ -21,6 +21,7 @@ from railtracks.nodes.library.tool_calling_llms.structured_tool_call_llm_base im
     StructuredToolCallLLM,
 )
 from railtracks.nodes.library.tool_calling_llms.tool_call_llm_base import ToolCallLLM
+from railtracks.nodes.manifest import ToolManifest
 from railtracks.nodes.nodes import Node
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
@@ -35,8 +36,7 @@ def agent_node(
     llm_model: ModelBase | None = None,
     max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
-    tool_details: str | None = None,
-    tool_params: set[Parameter] | None = None,
+    manifest: ToolManifest | None = None,
     return_into: str | None = None,
     format_for_return: Callable[[Any], Any] | None = None,
     format_for_context: Callable[[Any], Any] | None = None,
@@ -51,8 +51,7 @@ def agent_node(
     output_schema: Type[_TBaseModel],
     llm_model: ModelBase | None = None,
     system_message: SystemMessage | str | None = None,
-    tool_details: str | None = None,
-    tool_params: set[Parameter] | None = None,
+    manifest: ToolManifest | None = None,
     return_into: str | None = None,
     format_for_return: Callable[[Any], Any] | None = None,
     format_for_context: Callable[[Any], Any] | None = None,
@@ -66,8 +65,7 @@ def agent_node(
     *,
     llm_model: ModelBase | None = None,
     system_message: SystemMessage | str | None = None,
-    tool_details: str | None = None,
-    tool_params: set[Parameter] | None = None,
+    manifest: ToolManifest | None = None,
     return_into: str | None = None,
     format_for_return: Callable[[Any], Any] | None = None,
     format_for_context: Callable[[Any], Any] | None = None,
@@ -83,8 +81,7 @@ def agent_node(
     llm_model: ModelBase | None = None,
     max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
-    tool_details: str | None = None,
-    tool_params: set[Parameter] | None = None,
+    manifest: ToolManifest | None = None,
     return_into: str | None = None,
     format_for_return: Callable[[Any], Any] | None = None,
     format_for_context: Callable[[Any], Any] | None = None,
@@ -100,8 +97,7 @@ def agent_node(
     llm_model: ModelBase | None = None,
     max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
-    tool_details: str | None = None,
-    tool_params: set[Parameter] | None = None,
+    manifest: ToolManifest | None = None,
     return_into: str | None = None,
     format_for_return: Callable[[Any], Any] | None = None,
     format_for_context: Callable[[Any], Any] | None = None,
@@ -116,8 +112,7 @@ def agent_node(
         llm_model (ModelBase | None): The LLM model to use. If None it will need to be passed in at instance time.
         max_tool_calls (int | None): Maximum number of tool calls allowed (if it is a ToolCall Agent).
         system_message (SystemMessage | str | None): System message for the agent.
-        tool_details (str | None): If you are planning to use this as a tool, Details about the tool.
-        tool_params (set[Parameter] | None): If you are planning to use this as a tool, Parameters for the tool.
+        manifest (ToolManifest | None): If you want to use this as a tool in other agents you can pass in a ToolManifest.
         return_into (str | None): If you would like to return into context what is the key.
         format_for_return (Callable[[Any], Any] | None): Formats the value for return.
         format_for_context (Callable[[Any], Any] | None): Formats the value for the return to context.
@@ -125,6 +120,15 @@ def agent_node(
     unpacked_tool_nodes: set[Type[Node] | Callable] | None = None
     if tool_nodes is not None:
         unpacked_tool_nodes = set(tool_nodes)
+
+    # See issue (___) this logic should be migrated soon.
+    if manifest is not None:
+        tool_details = manifest.description
+        tool_params = manifest.parameters
+    else:
+        tool_details = None
+        tool_params = None
+
 
 
     if unpacked_tool_nodes is not None and len(unpacked_tool_nodes) > 0:
