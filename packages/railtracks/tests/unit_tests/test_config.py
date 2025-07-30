@@ -32,7 +32,7 @@ def test_instantiation_with_custom_values(tmp_path, log_level):
         end_on_error=True,
         logging_setting=log_level,       
         log_file=tmp_path / "logfile.txt",
-        subscriber=test_subscriber,
+        broadcast_callback=test_subscriber,
         run_identifier=custom_run_identifier,
         prompt_injection=False
     )
@@ -62,17 +62,17 @@ def test_run_identifier_is_used_when_given():
 # ================ END ExecutorConfig: run_identifier logic tests ===============
 
 
-# ================= START ExecutorConfig: subscriber handling tests ============
+# ================= START ExecutorConfig: broadcast_callback handling tests ============
 
 def test_subscriber_accepts_callable():
-    config = ExecutorConfig(subscriber=lambda s: s)
+    config = ExecutorConfig(broadcast_callback=lambda s: s)
     assert callable(config.subscriber)
 
 @pytest.mark.asyncio
 async def test_subscriber_accepts_coroutine_function():
     async def async_sub_fn(text):
         return text
-    config = ExecutorConfig(subscriber=async_sub_fn)
+    config = ExecutorConfig(broadcast_callback=async_sub_fn)
     # (not invoked/executed here, just type accepted)
     assert callable(config.subscriber)
     assert isinstance(config.subscriber, types.FunctionType)
@@ -81,7 +81,7 @@ def test_subscriber_is_none_by_default():
     config = ExecutorConfig()
     assert config.subscriber is None
 
-# ================ END ExecutorConfig: subscriber handling tests ===============
+# ================ END ExecutorConfig: broadcast_callback handling tests ===============
 
 
 # ================= START ExecutorConfig: logging_setting options tests ============

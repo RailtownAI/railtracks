@@ -178,7 +178,7 @@ class Publisher(Generic[_T]):
     
     Features:
     - Messages handled in order (FIFO)
-    - Dynamic subscriber registration during operation
+    - Dynamic broadcast_callback registration during operation
     - Async and sync callback support
     """
 ```

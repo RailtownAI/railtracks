@@ -202,7 +202,7 @@ class Session:
 
     def _setup_subscriber(self):
         """
-        Prepares and attaches the saved subscriber to the publisher attached to this runner.
+        Prepares and attaches the saved broadcast_callback to the publisher attached to this runner.
         """
 
         if self.executor_config.subscriber is not None:

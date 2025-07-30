@@ -8,7 +8,7 @@ def stream_subscriber(
     sub_callback: Callable[[Any], Union[None, Coroutine[None, None, None]]],
 ) -> Callable[[RequestCompletionMessage], Coroutine[None, None, None]]:
     """
-    Converts the basic streamer callback into a subscriber handler designed to take in `RequestCompletionMessage`
+    Converts the basic streamer callback into a broadcast_callback handler designed to take in `RequestCompletionMessage`
     """
 
     async def subscriber_handler(item: RequestCompletionMessage):

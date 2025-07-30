@@ -6,7 +6,7 @@ async def broadcast(item: str):
     """
     Streams the given message
 
-    This will trigger the subscriber callback you have already provided.
+    This will trigger the broadcast_callback callback you have already provided.
 
     Args:
         item (str): The item you want to stream.

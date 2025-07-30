@@ -27,7 +27,7 @@ class Subscriber(Generic[_T]):
         self.id = str(uuid.uuid4())
 
     async def trigger(self, message: _T):
-        """Trigger this subscriber with the given message."""
+        """Trigger this broadcast_callback with the given message."""
         try:
             result = self.callback(message)
             if asyncio.iscoroutine(result):
@@ -42,7 +42,7 @@ class Publisher(Generic[_T]):
 
     Note a couple of things:
     - Message will be handled in the order they came in (no jumping the line)
-    - If you add a subscriber during the operation it will handle any new messages that come in after the subscription
+    - If you add a broadcast_callback during the operation it will handle any new messages that come in after the subscription
         took place
     - Calling the shutdown method will kill the publisher forever. You will have to make a new one after.
     """
@@ -126,10 +126,10 @@ class Publisher(Generic[_T]):
 
         Args:
             callback: The callback function that will be triggered when a message is published.
-            name: Optional name for the subscriber, mainly used for debugging.
+            name: Optional name for the broadcast_callback, mainly used for debugging.
 
         Returns:
-            str: A unique identifier for the subscriber. You can use this key to unsubscribe later.
+            str: A unique identifier for the broadcast_callback. You can use this key to unsubscribe later.
 
         """
         sub = Subscriber(callback, name)
@@ -138,19 +138,19 @@ class Publisher(Generic[_T]):
 
     def unsubscribe(self, identifier: str):
         """
-        Unsubscribe the publisher so the given subscriber will no longer receive messages.
+        Unsubscribe the publisher so the given broadcast_callback will no longer receive messages.
 
         Args:
-            identifier: The unique identifier of the subscriber to remove.
+            identifier: The unique identifier of the broadcast_callback to remove.
 
         Raises:
-            KeyError: If no subscriber with the given identifier exists.
+            KeyError: If no broadcast_callback with the given identifier exists.
         """
         index_to_remove = [
             index for index, sub in enumerate(self._subscribers) if sub.id == identifier
         ]
         if not index_to_remove:
-            raise KeyError(f"No subscriber with identifier {identifier} found.")
+            raise KeyError(f"No broadcast_callback with identifier {identifier} found.")
 
         index_to_remove = index_to_remove[0]
         self._subscribers.pop(index_to_remove)
@@ -165,7 +165,7 @@ class Publisher(Generic[_T]):
         Creates a special listener object that will wait for the first message that matches the given filter.
 
         After receiving the message it will run the result_mapping function on the message and return the result, and
-        kill the subscriber.
+        kill the broadcast_callback.
 
         Args:
             message_filter: A function that takes a message and returns True if the message should be returned.
