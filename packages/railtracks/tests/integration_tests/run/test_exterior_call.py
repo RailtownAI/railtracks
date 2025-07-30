@@ -50,9 +50,10 @@ async def logging_config_test_async():
         )
         with pytest.raises(Exception):
             resp = await rt.call(ExceptionNode)
-            print(resp)
+
 
     async def run_with_logging_config_w_context(log_setting):
+        railtracks.context.central.set_config(end_on_error=False)
         railtracks.context.central.set_config(
             logging_setting=log_setting
         )

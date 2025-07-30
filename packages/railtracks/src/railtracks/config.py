@@ -72,3 +72,11 @@ class ExecutorConfig:
             prompt_injection=prompt_injection if prompt_injection is not None else self.prompt_injection,
             save_state=save_state if save_state is not None else self.save_state,
         )
+
+    def __repr__(self):
+        return (
+            f"ExecutorConfig(timeout={self.timeout}, end_on_error={self.end_on_error}, "
+            f"logging_setting={self.logging_setting}, log_file={self.log_file}, "
+            f"run_identifier={self.run_identifier}, prompt_injection={self.prompt_injection}, "
+            f"save_state={self.save_state})"
+        )
