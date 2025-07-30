@@ -42,7 +42,7 @@ MESSAGE_HISTORY_TYPE_NOTES:
   - "System messages must be of type rt.llm.SystemMessage (not string)."
   - "User messages must be of type rt.llm.UserMessage (not string)."
 
-MISSING_PRETTY_NAME_MSG: "You must provide a pretty_name when using this node as a tool, as this is used to identify the tool."
+MISSING_PRETTY_NAME_MSG: "You must provide a name when using this node as a tool, as this is used to identify the tool."
 
 MISSING_TOOL_DETAILS_MSG: "Tool parameters are provided, but tool details are missing."
 MISSING_TOOL_DETAILS_NOTES:

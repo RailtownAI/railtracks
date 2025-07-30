@@ -74,7 +74,7 @@ tools = fetch_server.tools  # List of RailTracks Tool Nodes
 # Create an agent that can use these tools
 agent = rt.library.tool_call_llm(
     tool_nodes=tools,
-    pretty_name="Web Research Agent",
+    name="Web Research Agent",
     system_message="Use the tools to research information online.",
     llm_model=rt.llm.OpenAILLM("gpt-4o"),
 )
@@ -190,7 +190,7 @@ all_tools = fetch_tools + github_tools + notion_tools
 # Create an agent that can use all tools
 super_agent = rt.library.tool_call_llm(
     tool_nodes=all_tools,
-    pretty_name="Multi-Tool Agent",
+    name="Multi-Tool Agent",
     system_message="Use the appropriate tools to complete tasks.",
     llm_model=rt.llm.OpenAILLM("gpt-4o"),
 )

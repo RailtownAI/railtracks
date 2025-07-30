@@ -84,7 +84,7 @@ def test_to_node():
         return "Constantinople"
 
     assert issubclass(secret_phrase, rt.Node)
-    assert secret_phrase.pretty_name() == "secret_phrase"
+    assert secret_phrase.name() == "secret_phrase"
 
 # ===== Test Classes =====
 class TestPrimitiveInputTypes:

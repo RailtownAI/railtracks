@@ -42,7 +42,7 @@ async def test_tool_with_structured_output_child_tool():
         schema=ChildResponse,
         system_message="You are a word counting tool that counts the number of words in the request provided by the user.",
         llm_model=rt.llm.OpenAILLM("gpt-4o"),
-        pretty_name="Structured Child Tool",
+        name="Structured Child Tool",
         tool_details="A tool that generates a structured response that includes word count.",
         tool_params={
             rt.llm.Parameter(
@@ -57,7 +57,7 @@ async def test_tool_with_structured_output_child_tool():
     parent_tool = rt.library.tool_call_llm(
         schema=ParentResponse,
         tool_nodes={child_tool},
-        pretty_name="Parent Tool",
+        name="Parent Tool",
         system_message="Use the child tool to generate a structured response. Respond with the output from the child tool only. No additional text.",
         llm_model=rt.llm.OpenAILLM("gpt-4o"),
     )

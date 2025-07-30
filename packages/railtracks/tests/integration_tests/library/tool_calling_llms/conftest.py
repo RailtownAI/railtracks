@@ -127,7 +127,7 @@ def _make_node(fixture_name, system_message, model, schema, tool_nodes, class_ty
     if fixture_name == "easy_wrapper":
         return rt.library.structured_tool_call_llm(
             tool_nodes=tool_nodes,
-            pretty_name=schema.__name__ + " Node",
+            name=schema.__name__ + " Node",
             system_message=system_message,
             llm_model=model,
             schema=schema,
@@ -181,7 +181,7 @@ def travel_planner_node(request, model, travel_planner_tools, travel_planner_out
 def math_node(request, model, math_output_model):
     system_math_genius = "You are a math genius that calls the RNG tool to generate 5 random numbers between 1 and 100 and gives the sum of those numbers."
     rng_node = rt.library.terminal_llm(
-        pretty_name="RNG Tool",
+        name="RNG Tool",
         system_message= "You are a helful assistant that can generate 5 random numbers between 1 and 100.",
         llm_model=model,
         tool_details="A tool used to generate 5 random integers between 1 and 100.",
@@ -207,7 +207,7 @@ def simple_function_taking_node(model, simple_tools, simple_output_model):
 
     return rt.library.structured_tool_call_llm(
         tool_nodes={simple_tools},
-        pretty_name="Random Number Provider Node",
+        name="Random Number Provider Node",
         system_message=system_mes,
         llm_model=model,
         schema=simple_output_model,
@@ -225,7 +225,7 @@ def some_function_taking_travel_planner_node(model, travel_planner_tools, travel
             currency_used,
             rt.library.from_function(average_location_cost),
         },
-        pretty_name="Travel Planner Node",
+        name="Travel Planner Node",
         system_message=system_travel_planner,
         llm_model=model,
         schema=travel_planner_output_model,
@@ -242,7 +242,7 @@ def only_function_taking_travel_planner_node(model, travel_planner_tools, travel
             currency_used,
             average_location_cost,
         },
-        pretty_name="Travel Planner Node",
+        name="Travel Planner Node",
         system_message=system_travel_planner,
         llm_model=model,
         schema=travel_planner_output_model,
@@ -265,7 +265,7 @@ def limited_tool_call_node_factory(model, travel_planner_tools):
         if not class_based:
             return rt.library.tool_call_llm(
                 tool_nodes=tool_nodes,
-                pretty_name="Limited Tool Call Test Node",
+                name="Limited Tool Call Test Node",
                 system_message=sys_msg,
                 llm_model=model,
                 max_tool_calls=max_tool_calls,
@@ -279,7 +279,7 @@ def limited_tool_call_node_factory(model, travel_planner_tools):
                 def tool_nodes(cls):
                     return tool_nodes
                 @classmethod
-                def pretty_name(cls):
+                def name(cls):
                     return "Limited Tool Call Test Node"
             return LimitedToolCallTestNode
     return _factory

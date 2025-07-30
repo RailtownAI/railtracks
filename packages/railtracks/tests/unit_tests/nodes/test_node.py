@@ -12,12 +12,12 @@ class CapitalizeText(rt.Node[str]):
     async def invoke(self) -> str:
         return self.string.capitalize()
     @classmethod
-    def pretty_name(cls) -> str:
+    def name(cls) -> str:
         return "Capitalize Text"
 
 class AbstractNode(rt.Node[int]):
     @classmethod
-    def pretty_name(cls) -> str:
+    def name(cls) -> str:
         return "Abstract"
     async def invoke(self) -> int:
         raise NotImplementedError
@@ -45,12 +45,12 @@ def debug_details():
 @pytest.mark.asyncio
 async def test_capitalize_text_invoke(cap_node, sample_string):
     assert await cap_node.invoke() == sample_string.capitalize()
-    assert cap_node.pretty_name() == "Capitalize Text"
+    assert cap_node.name() == "Capitalize Text"
 
 @pytest.mark.asyncio
 async def test_capitalize_empty(empty_string_node):
     assert await empty_string_node.invoke() == ""
-    assert empty_string_node.pretty_name() == "Capitalize Text"
+    assert empty_string_node.name() == "Capitalize Text"
 
 def test_node_details_and_debug(debug_details):
     node = CapitalizeText("something", debug_details=debug_details)
@@ -125,14 +125,14 @@ def test_node_creation_meta_checks(monkeypatch):
     # Pretty name is NOT classmethod, should error on creation
     with pytest.raises(NodeCreationError):
         class BadNode(rt.Node[str]):
-            def pretty_name(cls): return "nope"
+            def name(cls): return "nope"
             async def invoke(self): return "x"
 
     # tool_info is NOT classmethod, should error on creation
     with pytest.raises(NodeCreationError):
         class BadNode2(rt.Node[str]):
             @classmethod
-            def pretty_name(cls): return "Good"
+            def name(cls): return "Good"
             def tool_info(): pass
             async def invoke(self): return "y"
 

@@ -80,7 +80,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                 check_max_tool_calls(self.max_tool_calls)
 
     @classmethod
-    def pretty_name(cls) -> str:
+    def name(cls) -> str:
         return "Tool Call LLM"
 
     @classmethod

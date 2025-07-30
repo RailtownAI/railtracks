@@ -225,7 +225,7 @@ def from_mcp(
                 ) from e
 
         @classmethod
-        def pretty_name(cls):
+        def name(cls):
             return tool.name
 
         @classmethod

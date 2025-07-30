@@ -12,7 +12,7 @@ from ...library.tool_calling_llms.chat_tool_call_llm import ChatToolCallLLM
 
 
 def chat_tool_call_llm(  # noqa: C901
-    connected_nodes: Set[Union[Type[Node], Callable]],
+    tool_nodes: Set[Union[Type[Node], Callable]],
     *,
     port: int | None = None,
     host: str | None = None,
@@ -30,7 +30,7 @@ def chat_tool_call_llm(  # noqa: C901
     through a web interface, making it ideal for interactive demonstrations and testing.
 
     Args:
-        connected_nodes (Set[Union[Type[Node], Callable]]): The set of node classes or callables
+        tool_nodes (Set[Union[Type[Node], Callable]]): The set of node classes or callables
             that this LLM can call as tools during conversations.
         port (int, optional): Port number for the web chat interface. If None, a default port
             will be used.
@@ -64,11 +64,11 @@ def chat_tool_call_llm(  # noqa: C901
 
     builder = NodeBuilder(
         ChatToolCallLLM,
-        pretty_name=pretty_name,
+        name=pretty_name,
         class_name="LocalChattoolCallLLM",
     )
     builder.llm_base(llm_model, system_message)
-    builder.tool_calling_llm(connected_nodes, max_tool_calls)
+    builder.tool_calling_llm(tool_nodes, max_tool_calls)
     builder.chat_ui(chat_ui)
 
     return builder.build()

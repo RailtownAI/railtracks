@@ -401,7 +401,7 @@ class NestedManyCalls(rt.Node):
         return data
 
     @classmethod
-    def pretty_name(cls) -> str:
+    def name(cls) -> str:
         return "NestedManyCalls"
 
 

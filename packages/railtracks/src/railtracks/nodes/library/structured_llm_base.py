@@ -41,7 +41,7 @@ class StructuredLLM(
         super().__init__(llm_model=llm_model, user_input=user_input)
 
     @classmethod
-    def pretty_name(cls) -> str:
+    def name(cls) -> str:
         return f"Structured LLM ({cls.schema().__name__})"
 
     async def invoke(self) -> StructuredResponse[_TOutput]:

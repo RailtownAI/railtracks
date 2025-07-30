@@ -159,14 +159,14 @@ def _check_duplicate_param_names(tool_params: Iterable[Any]) -> None:
 
 def _check_pretty_name(pretty_name: str | None, tool_details: Any) -> None:
     """
-    Ensure a pretty_name is provided if tool_details exist.
+    Ensure a name is provided if tool_details exist.
 
     Args:
         pretty_name: The pretty name to check.
         tool_details: The tool details object.
 
     Raises:
-        NodeCreationError: If pretty_name is missing when tool_details are present.
+        NodeCreationError: If name is missing when tool_details are present.
     """
     if pretty_name is None and tool_details:
         raise NodeCreationError(

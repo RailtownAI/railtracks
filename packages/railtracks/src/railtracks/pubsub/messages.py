@@ -79,7 +79,7 @@ class RequestSuccess(RequestFinishedBase):
         return f"{self.__class__.__name__}(request_id={self.request_id}, node_state={self.node_state}, result={self.result})"
 
     def log_message(self) -> str:
-        return f"{self.node_state.node.pretty_name()} DONE with result {self.result}"
+        return f"{self.node_state.node.name()} DONE with result {self.result}"
 
 
 class RequestFailure(RequestFinishedBase):
@@ -104,7 +104,7 @@ class RequestFailure(RequestFinishedBase):
         )
 
     def log_message(self) -> str:
-        return f"{self.node_state.node.pretty_name()} FAILED with error {self.error}"
+        return f"{self.node_state.node.name()} FAILED with error {self.error}"
 
 
 class RequestCreationFailure(RequestFinishedBase):

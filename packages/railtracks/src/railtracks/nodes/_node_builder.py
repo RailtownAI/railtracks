@@ -58,7 +58,7 @@ class NodeBuilder(Generic[_TNode]):
 
     Args:
         node_class (type[_TNode]): The base node class to extend (must be a subclass of Node).
-        pretty_name (str, optional): Human-readable name for the node/tool (used for debugging and tool metadata).
+        name (str, optional): Human-readable name for the node/tool (used for debugging and tool metadata).
         class_name (str, optional): The name of the generated class (defaults to 'Dynamic{node_class.__qualname__}').
 
     Returns:
@@ -70,7 +70,7 @@ class NodeBuilder(Generic[_TNode]):
         node_class: Type[_TNode],
         /,
         *,
-        pretty_name: str | None = None,
+        name: str | None = None,
         class_name: str | None = None,
         return_into: str | None = None,
         format_for_return: Callable[[Any], Any] | None = None,
@@ -80,9 +80,9 @@ class NodeBuilder(Generic[_TNode]):
         self._name = class_name or f"Dynamic{node_class.__qualname__}"
         self._methods = {}
 
-        if pretty_name is not None:
+        if name is not None:
             self._with_override(
-                "pretty_name", classmethod(lambda cls: pretty_name or cls.__name__)
+                "name", classmethod(lambda cls: name or cls.__name__)
             )
 
         if return_into is not None:
@@ -357,7 +357,7 @@ class NodeBuilder(Generic[_TNode]):
 
             def tool_info(cls: Type[_TNode]) -> Tool:
                 if name is None:
-                    prettied_name = cls.pretty_name()
+                    prettied_name = cls.name()
                     prettied_name = prettied_name.replace(" ", "_")
                 else:
                     prettied_name = name

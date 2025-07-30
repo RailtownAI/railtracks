@@ -42,7 +42,7 @@ class TerminalLLM(StringOutputMixIn, LLMBase[StringResponse]):
         super().__init__(llm_model=llm_model, user_input=user_input)
 
     @classmethod
-    def pretty_name(cls) -> str:
+    def name(cls) -> str:
         return "Terminal LLM"
 
     async def invoke(self) -> StringResponse:

@@ -31,7 +31,7 @@ def to_node(
     func: Callable[_P, Coroutine[None, None, _TOutput]],
     /,
     *,
-    pretty_name: str | None = None,
+    name: str | None = None,
     tool_details: str | None = None,
     tool_params: set[Parameter] | None = None,
 ) -> Type[AsyncDynamicFunctionNode[_P, _TOutput]]:
@@ -61,7 +61,7 @@ def to_node(
     """Decorator to convert a function into a Node using from_function."""
     return from_function(
         func,
-        pretty_name=pretty_name,
+        name=pretty_name,
         tool_details=tool_details,
         tool_params=tool_params,
     )
@@ -72,7 +72,7 @@ def from_function(
     func: Callable[_P, Coroutine[None, None, _TOutput]],
     /,
     *,
-    pretty_name: str | None = None,
+    name: str | None = None,
     tool_details: str | None = None,
     tool_params: set[Parameter] | None = None,
 ) -> Type[AsyncDynamicFunctionNode[_P, _TOutput]]:
@@ -84,7 +84,7 @@ def from_function(
     func: Callable[_P, _TOutput],
     /,
     *,
-    pretty_name: str | None = None,
+    name: str | None = None,
     tool_details: str | None = None,
     tool_params: set[Parameter] | None = None,
 ) -> Type[SyncDynamicFunctionNode[_P, _TOutput]]:
@@ -95,7 +95,7 @@ def from_function(
     func: Callable[_P, Coroutine[None, None, _TOutput] | _TOutput],
     /,
     *,
-    pretty_name: str | None = None,
+    name: str | None = None,
     tool_details: str | None = None,
     tool_params: dict | Set[Parameter] | None = None,
 ):
@@ -107,7 +107,7 @@ def from_function(
 
     Args:
         func (Callable): The function to convert into a Node.
-        pretty_name (str, optional): Human-readable name for the node/tool.
+        name (str, optional): Human-readable name for the node/tool.
         tool_details (str, optional): Description of the node subclass for other LLMs to know how to use this as a tool.
         tool_params (dict or Set[Parameter], optional): Parameters that must be passed if other LLMs want to use this as a tool.
     """
@@ -133,7 +133,7 @@ def from_function(
 
     builder = NodeBuilder(
         node_class,
-        pretty_name=pretty_name if pretty_name is not None else f"{func.__name__}",
+        name=name if name is not None else f"{func.__name__}",
     )
 
     builder.setup_function_node(

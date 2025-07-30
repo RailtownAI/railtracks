@@ -23,7 +23,7 @@ time_tools = time_server.tools
 #%%
 parent_tool = rt.library.tool_call_llm(
     tool_nodes={*fetch_tools, *time_tools},
-    pretty_name="Parent Tool",
+    name="Parent Tool",
     system_message=rt.llm.SystemMessage("Provide a response using the tool when asked."),
     model=rt.llm.OpenAILLM("gpt-4o"),
 )

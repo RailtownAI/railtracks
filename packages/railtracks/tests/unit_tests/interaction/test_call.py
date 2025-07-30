@@ -24,7 +24,7 @@ from railtracks.pubsub.messages import (
 
 class MockNode(Node):
     @classmethod
-    def pretty_name(cls):
+    def name(cls):
         return "Mock Node"
     
     def invoke(cls):

@@ -18,7 +18,7 @@ def structured_llm(
     *,
     system_message: SystemMessage | str | None = None,
     llm_model: ModelBase | None = None,
-    pretty_name: str | None = None,
+    name: str | None = None,
     tool_details: str | None = None,
     tool_params: set[Parameter] | None = None,
     return_into: str | None = None,
@@ -34,7 +34,7 @@ def structured_llm(
 
     Args:
         schema (Type[BaseModel]): The Pydantic model that defines the structure of the output.
-        pretty_name (str, optional): Human-readable name for the node/tool.
+        name (str, optional): Human-readable name for the node/tool.
         llm_model (ModelBase or None, optional): The LLM model instance to use for this node.
         system_message (SystemMessage or str or None, optional): The system prompt/message for the node. If not passed here it can be passed at runtime in message history.
         tool_details (str or None, optional): Description of the node subclass for other LLMs to know how to use this as a tool.
@@ -48,7 +48,7 @@ def structured_llm(
     """
     builder = NodeBuilder[StructuredLLM[_TOutput]](
         StructuredLLM,
-        pretty_name=pretty_name,
+        name=name,
         class_name="EasyStructuredLastMessageLLM",
         return_into=return_into,
         format_for_return=format_for_return,

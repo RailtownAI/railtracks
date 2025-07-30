@@ -170,12 +170,12 @@ class RTState:
         sc = self._stamper.stamp_creator()
         parent_node_type = self._node_heap.get_node_type(parent_node_id)
         parent_node_name = (
-            parent_node_type.pretty_name() if parent_node_type else "START"
+            parent_node_type.name() if parent_node_type else "START"
         )
 
         request_creation_obj = RequestCreationAction(
             parent_node_name=parent_node_name,
-            child_node_name=node.pretty_name(),
+            child_node_name=node.name(),
             input_args=args,
             input_kwargs=kwargs,
         )
@@ -235,8 +235,8 @@ class RTState:
         except Exception as e:
             # TODO improve this so we know the name of the node trying to be created in the case of a tool call llm.
             rfa = RequestFailureAction(
-                node_name=node.pretty_name()
-                if hasattr(node, "pretty_name")
+                node_name=node.name()
+                if hasattr(node, "name")
                 else node.__name__,
                 exception=e,
             )
@@ -430,13 +430,13 @@ class RTState:
         if isinstance(result, RequestFailure):
             # if the node state is None, it means the node was never created so we don't need to handle it
             output = await self._handle_failed_request(
-                result.node.pretty_name(), result.request_id, result.error
+                result.node.name(), result.request_id, result.error
             )
             returnable_result = result.error
 
         elif isinstance(result, RequestSuccess):
             output = await self._handle_successful_request(
-                node_name=result.node.pretty_name(),
+                node_name=result.node.name(),
                 result=result.result,
             )
             returnable_result = result.result
@@ -448,7 +448,7 @@ class RTState:
             raise TypeError(f"Unknown result type: {type(result)}")
 
         stamp = self._stamper.create_stamp(
-            f"Finished executing {result.node.pretty_name()}"
+            f"Finished executing {result.node.name()}"
         )
 
         self._request_heap.update(result.request_id, output, stamp)

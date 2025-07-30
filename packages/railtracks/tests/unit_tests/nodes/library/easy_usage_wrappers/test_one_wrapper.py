@@ -17,14 +17,14 @@ def test_create_new_agent_terminal():
     assert issubclass(TerminalAgent, TerminalLLM)
     assert TerminalAgent.get_llm_model() == model
     assert TerminalAgent.system_message().content == system_message_text
-    assert TerminalAgent.pretty_name() == "Terminal_LLM"
+    assert TerminalAgent.name() == "Terminal_LLM"
 
 
 
 class TempNode(Node[str]):
 
     @classmethod
-    def pretty_name(cls) -> str:
+    def name(cls) -> str:
         return "Temp Node"
 
     async def invoke(self) -> str:
@@ -36,7 +36,7 @@ def test_create_new_agent_tool_call():
     ToolCallAgent = new_agent(tool_nodes=connected_nodes)
 
     assert issubclass(ToolCallAgent, ToolCallLLM)
-    assert ToolCallAgent.pretty_name() == "Tool Call LLM"
+    assert ToolCallAgent.name() == "Tool Call LLM"
     assert ToolCallAgent.tool_nodes() == connected_nodes
 
 class TempModel(BaseModel):

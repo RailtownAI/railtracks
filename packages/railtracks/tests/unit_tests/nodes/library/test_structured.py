@@ -17,7 +17,7 @@ async def test_structured_llm_instantiate_and_invoke(simple_output_model, mock_l
             return simple_output_model
         
         @classmethod
-        def pretty_name(cls):
+        def name(cls):
             return "Mock LLM"
 
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("hello")])
@@ -41,7 +41,7 @@ async def test_structured_llm_easy_usage_wrapper_invoke(simple_output_model, moc
         schema=simple_output_model,
         system_message="system prompt",
         llm_model=mock_llm(structured=mock_structured_function),
-        pretty_name="TestNode"
+        name="TestNode"
     )
     mh = MessageHistory([UserMessage("hello")])
     result = await rt.call(node, user_input=mh)
@@ -54,10 +54,10 @@ def test_structured_llm_easy_usage_wrapper_classmethods(simple_output_model, moc
         schema=simple_output_model,
         system_message="system prompt",
         llm_model=mock_llm(),
-        pretty_name="TestNode"
+        name="TestNode"
     )
     assert node.schema() is simple_output_model
-    assert node.pretty_name() == "TestNode"
+    assert node.name() == "TestNode"
 # ===================================================== END Unit Testing ===========================================================
 
 # ================================================ START Exception testing ===========================================================
@@ -69,7 +69,7 @@ async def test_easy_usage_no_output_model():
             schema=None,
             system_message="You are a helpful assistant that can strucure the response into a structured output.",
             llm_model=rt.llm.OpenAILLM("gpt-4o"),
-            pretty_name="Structured ToolCallLLM",
+            name="Structured ToolCallLLM",
         )
 
 @pytest.mark.asyncio
@@ -79,7 +79,7 @@ async def test_easy_usage_empty_output_model(empty_output_model):
             schema=empty_output_model,
             system_message="You are a helpful assistant that can strucure the response into a structured output.",
             llm_model=rt.llm.OpenAILLM("gpt-4o"),
-            pretty_name="Structured ToolCallLLM",
+            name="Structured ToolCallLLM",
         )
 
 @pytest.mark.asyncio
@@ -92,7 +92,7 @@ async def test_easy_usage_tool_details_not_provided(simple_output_model):
             schema=simple_output_model,
             system_message="You are a helpful assistant that can strucure the response into a structured output.",
             llm_model=rt.llm.OpenAILLM("gpt-4o"),
-            pretty_name="Structured ToolCallLLM",
+            name="Structured ToolCallLLM",
             tool_params={
                 rt.llm.Parameter(
                     name="text_input",
@@ -112,7 +112,7 @@ async def test_easy_usage_duplicate_parameter_names(simple_output_model):
             schema=simple_output_model,
             system_message="You are a helpful assistant that can strucure the response into a structured output.",
             llm_model=rt.llm.OpenAILLM("gpt-4o"),
-            pretty_name="Structured ToolCallLLM",
+            name="Structured ToolCallLLM",
             tool_details="A tool that generates a structured response that includes word count.",
             tool_params={
                 rt.llm.Parameter(
@@ -135,7 +135,7 @@ async def test_easy_usage_system_message_as_a_string(simple_output_model):
         schema=simple_output_model,
         system_message="You are a helpful assistant that can structure the response into a structured output.",
         llm_model=rt.llm.OpenAILLM("gpt-4o"),
-        pretty_name="Structured ToolCallLLM",
+        name="Structured ToolCallLLM",
     )
 
     node = Node_Class(user_input=rt.llm.MessageHistory([]))
@@ -150,7 +150,7 @@ async def test_system_message_as_a_user_message(simple_output_model):
             schema=simple_output_model,
             system_message=rt.llm.UserMessage("You are a helpful assistant that can structure the response into a structured output."),
             llm_model=rt.llm.OpenAILLM("gpt-4o"),
-            pretty_name="Structured ToolCallLLM",
+            name="Structured ToolCallLLM",
         )
 # =================== END Easy Usage Node Creation ===================
 
@@ -176,7 +176,7 @@ async def test_class_based_empty_output_model(empty_output_model):
                 return empty_output_model
             
             @classmethod
-            def pretty_name(cls) -> str:
+            def name(cls) -> str:
                 return "Structurer"
 
 @pytest.mark.asyncio
@@ -199,7 +199,7 @@ async def test_class_based_output_model_not_class_based(simple_output_model):
                 return simple_output_model
             
             @classmethod
-            def pretty_name(cls) -> str:
+            def name(cls) -> str:
                 return "Structurer"
             
 @pytest.mark.asyncio
@@ -223,7 +223,7 @@ async def test_class_based_output_model_not_pydantic():
                 return {"text": "hello world"}
             
             @classmethod
-            def pretty_name(cls) -> str:
+            def name(cls) -> str:
                 return "Structurer"
 # =================== END Class Based Node Creation =====================
 
@@ -235,7 +235,7 @@ async def test_system_message_in_message_history_easy_usage(simple_output_model)
             schema=simple_output_model,
             system_message=rt.llm.UserMessage("You are a helpful assistant that can structure the response into a structured output."),
             llm_model=rt.llm.OpenAILLM("gpt-4o"),
-            pretty_name="Structured ToolCallLLM",
+            name="Structured ToolCallLLM",
         )
 
 @pytest.mark.asyncio
@@ -257,10 +257,13 @@ async def test_system_message_in_message_history_class_based(simple_output_model
             return simple_output_model
         
         @classmethod
-        def pretty_name(cls) -> str:
+        def name(cls) -> str:
             return "Structurer"
+
+    print("made agent")
         
     with pytest.raises(NodeInvocationError, match="Message history must be a list of Message objects."):
         await rt.call(Structurer, user_input=rt.llm.MessageHistory(["hello world"]))
+
 # =================== END invocation exceptions =====================
 # ================================================ END Exception testing =============================================================

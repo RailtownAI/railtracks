@@ -45,7 +45,7 @@ class DynamicFunctionNode(Node[_TOutput], ABC, Generic[_P, _TOutput]):
         pass
 
     @classmethod
-    def pretty_name(cls) -> str:
+    def name(cls) -> str:
         return f"{cls.func.__name__}"
 
     @classmethod
@@ -72,7 +72,7 @@ class SyncDynamicFunctionNode(DynamicFunctionNode[_P, _TOutput], ABC):
 
     The class' internals will handle the creation of the rest of the internals required for a node to operate.
 
-    You can override methods like pretty_name and tool_info to provide custom names and tool information. However,
+    You can override methods like name and tool_info to provide custom names and tool information. However,
     do note that these overrides can cause unexpected behavior if not done according to what is expected in the parent
     class as it uses a lot of the structures in its implementation of other functions.
     """
@@ -118,7 +118,7 @@ class AsyncDynamicFunctionNode(
 
     The class' internals will handle the creation of the rest of the internals required for a node to operate.
 
-    You can override methods like pretty_name and tool_info to provide custom names and tool information. However,
+    You can override methods like name and tool_info to provide custom names and tool information. However,
     do note that these overrides can cause unexpected behavior if not done according to what is expected in the parent
     class as it uses a lot of the structures in its implementation of other functions.
     """

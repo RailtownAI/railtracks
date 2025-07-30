@@ -95,7 +95,7 @@ def fake_tool():
 
 class DummyNode(Node):
     @classmethod
-    def pretty_name(cls):
+    def name(cls):
         return "DummyNode"
 
 @pytest.fixture

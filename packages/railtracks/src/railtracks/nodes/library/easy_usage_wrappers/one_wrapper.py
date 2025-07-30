@@ -28,9 +28,9 @@ _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 
 @overload
 def new_agent(
-    pretty_name: str | None = None,
+    name: str | None = None,
     *,
-    connected_nodes: Iterable[Type[Node] | Callable],
+    tool_nodes: Iterable[Type[Node] | Callable],
     schema: Type[_TBaseModel],
     llm_model: ModelBase | None = None,
     max_tool_calls: int | None = None,
@@ -46,7 +46,7 @@ def new_agent(
 
 @overload
 def new_agent(
-    pretty_name: str | None = None,
+    name: str | None = None,
     *,
     schema: Type[_TBaseModel],
     llm_model: ModelBase | None = None,
@@ -62,7 +62,7 @@ def new_agent(
 
 @overload
 def new_agent(
-    pretty_name: str | None = None,
+    name: str | None = None,
     *,
     llm_model: ModelBase | None = None,
     system_message: SystemMessage | str | None = None,
@@ -77,9 +77,9 @@ def new_agent(
 
 @overload
 def new_agent(
-    pretty_name: str | None = None,
+    name: str | None = None,
     *,
-    connected_nodes: set[Type[Node] | Callable],
+    tool_nodes: set[Type[Node] | Callable],
     llm_model: ModelBase | None = None,
     max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
@@ -93,7 +93,7 @@ def new_agent(
 
 
 def new_agent(
-    pretty_name: str | None = None,
+    name: str | None = None,
     *,
     tool_nodes: set[Type[Node] | Callable] | None = None,
     schema: Type[_TBaseModel] | None = None,
@@ -110,7 +110,7 @@ def new_agent(
     Dynamically creates an agent based on the provided parameters.
 
     Args:
-        pretty_name (str | None): The name of the agent. If none the default will be used.
+        name (str | None): The name of the agent. If none the default will be used.
         tool_nodes (set[Type[Node] | Callable] | None): If your agent is a LLM with access to tools, what does it have access to?
         schema (Type[_TBaseModel] | None): If your agent should return a structured output, what is the schema?
         llm_model (ModelBase | None): The LLM model to use. If None it will need to be passed in at instance time.
@@ -128,7 +128,7 @@ def new_agent(
             return structured_tool_call_llm(
                 tool_nodes=tool_nodes,
                 schema=schema,
-                pretty_name=pretty_name,
+                name=name,
                 llm_model=llm_model,
                 max_tool_calls=max_tool_calls,
                 system_message=system_message,
@@ -141,7 +141,7 @@ def new_agent(
         else:
             return tool_call_llm(
                 tool_nodes=tool_nodes,
-                pretty_name=pretty_name,
+                name=name,
                 llm_model=llm_model,
                 max_tool_calls=max_tool_calls,
                 system_message=system_message,
@@ -155,7 +155,7 @@ def new_agent(
         if schema is not None:
             return structured_llm(
                 schema=schema,
-                pretty_name=pretty_name,
+                name=name,
                 llm_model=llm_model,
                 system_message=system_message,
                 tool_details=tool_details,
@@ -166,7 +166,7 @@ def new_agent(
             )
         else:
             return terminal_llm(
-                pretty_name=pretty_name,
+                name=name,
                 llm_model=llm_model,
                 system_message=system_message,
                 tool_details=tool_details,

@@ -14,7 +14,7 @@ from ...tool_calling_llms.tool_call_llm_base import ToolCallLLM
 def tool_call_llm(
     tool_nodes: Iterable[Union[Type[Node], Callable]],
     *,
-    pretty_name: str | None = None,
+    name: str | None = None,
     llm_model: ModelBase | None = None,
     max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
@@ -34,7 +34,7 @@ def tool_call_llm(
 
     Args:
         tool_nodes (Iterable[Union[Type[Node], Callable]]): The set of node classes or callables that this node can call as tools.
-        pretty_name (str, optional): Human-readable name for the node/tool.
+        name (str, optional): Human-readable name for the node/tool.
         llm_model (ModelBase or None, optional): The LLM model instance to use for this node.
         max_tool_calls (int, optional): Maximum number of tool calls allowed per invocation (default: unlimited).
         system_message (SystemMessage or str or None, optional): The system prompt/message for the node. If not passed here it can be passed at runtime in message history.
@@ -49,7 +49,7 @@ def tool_call_llm(
     """
     builder = NodeBuilder(
         ToolCallLLM,
-        pretty_name=pretty_name,
+        name=name,
         class_name="EasyToolCallLLM",
         return_into=return_into,
         format_for_return=format_for_return,

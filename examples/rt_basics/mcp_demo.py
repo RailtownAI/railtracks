@@ -19,7 +19,7 @@ if "node" not in st.session_state:
 
         return rt.library.tool_call_llm(
             tool_nodes=all_tools,
-            pretty_name="Parent Tool",
+            name="Parent Tool",
             system_message=rt.llm.SystemMessage("Provide a response using the tool when asked."),
             model=rt.llm.OpenAILLM("gpt-4o"),
         )

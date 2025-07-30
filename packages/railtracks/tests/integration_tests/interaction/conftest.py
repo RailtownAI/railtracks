@@ -168,15 +168,15 @@ def terminal_nodes(request, model, terminal_llms_system_messages):
 
     if fixture_name == "easy_wrapper":
         rng_node = rt.library.terminal_llm(
-            pretty_name="RNG Node", system_message=system_rng, llm_model=model
+            name="RNG Node", system_message=system_rng, llm_model=model
         )
         rng_operation_node = rt.library.terminal_llm(
-            pretty_name="RNG Operation Node",
+            name="RNG Operation Node",
             system_message=system_rng_operation,
             llm_model=model,
         )
         math_detective_node = rt.library.terminal_llm(
-            pretty_name="Math Detective Node",
+            name="Math Detective Node",
             system_message=system_math_genius,
             llm_model=model,
         )
@@ -199,7 +199,7 @@ def terminal_nodes(request, model, terminal_llms_system_messages):
                     super().__init__(user_input=rt.llm.MessageHistory(user_input), llm_model=llm_model)
 
                 @classmethod
-                def pretty_name(cls) -> str:
+                def name(cls) -> str:
                     return pretty_name
 
             return TerminalLLMNode
@@ -241,13 +241,13 @@ def structured_nodes(request, model, structured_llms_system_messages):
 
     if fixture_name == "easy_wrapper":
         math_undergrad_student_node = rt.library.structured_llm(
-            pretty_name="Math Undergraduate Student Node",
+            name="Math Undergraduate Student Node",
             schema=ProofModel,
             system_message=system_undergrad_student,
             llm_model=model,
         )
         math_professor_node = rt.library.structured_llm(
-            pretty_name="Math Professor Node",
+            name="Math Professor Node",
             schema=GradingSchema,
             system_message=system_professor,
             llm_model=model,
@@ -277,7 +277,7 @@ def structured_nodes(request, model, structured_llms_system_messages):
                     return schema
 
                 @classmethod
-                def pretty_name(cls) -> str:
+                def name(cls) -> str:
                     return pretty_name
 
             return StructuredLLMNode
@@ -324,13 +324,13 @@ def tool_calling_nodes(
     if fixture_name == "easy_wrapper":
         currency_converter_node = rt.library.tool_call_llm(
             tool_nodes={AvailableCurrencies, ConvertCurrency},
-            pretty_name="Currency Converter Node",
+            name="Currency Converter Node",
             system_message=system_currency_converter,
             llm_model=model,
         )
         travel_planner_node = rt.library.tool_call_llm(
             tool_nodes={AvailableLocations, CurrencyUsed, AverageLocationCost},
-            pretty_name="Travel Planner Node",
+            name="Travel Planner Node",
             system_message=system_travel_planner,
             llm_model=model,
         )
@@ -357,7 +357,7 @@ def tool_calling_nodes(
                     return connected_nodes
 
                 @classmethod
-                def pretty_name(cls) -> str:
+                def name(cls) -> str:
                     return pretty_name
 
             return ToolCallLLMNode

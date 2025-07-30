@@ -68,7 +68,7 @@ def create_top_level_node():
                 return {rt.library.from_function(test_function)}
 
             @classmethod
-            def pretty_name(cls) -> str:
+            def name(cls) -> str:
                 return "Top Level Node"
 
         return TopLevelNode

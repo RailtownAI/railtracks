@@ -28,7 +28,7 @@ class LinkedNode(AbstractLinkedObject):
     def to_vertex(self):
         return Vertex(
             identifier=self.identifier,
-            node_type=self.node.pretty_name(),
+            node_type=self.node.name(),
             stamp=self.stamp,
             details={"internals": self.node.details},
             parent=self.parent.to_vertex() if self.parent else None,

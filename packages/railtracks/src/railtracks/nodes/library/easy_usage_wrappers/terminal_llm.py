@@ -7,7 +7,7 @@ from railtracks.nodes.library.terminal_llm_base import TerminalLLM
 
 
 def terminal_llm(
-    pretty_name: str | None = None,
+    name: str | None = None,
     *,
     system_message: SystemMessage | str | None = None,
     llm_model: ModelBase | None = None,
@@ -25,7 +25,7 @@ def terminal_llm(
     The returned class can be instantiated and used in the railtracks framework on runtime.
 
     Args:
-        pretty_name (str, optional): Human-readable name for the node/tool.
+        name (str, optional): Human-readable name for the node/tool.
         llm_model (ModelBase or None, optional): The LLM model instance to use for this node.
         system_message (SystemMessage or str or None, optional): The system prompt/message for the node. If not passed here it can be passed at runtime in message history.
         tool_details (str or None, optional): Description of the node subclass for other LLMs to know how to use this as a tool.
@@ -39,7 +39,7 @@ def terminal_llm(
     """
     builder = NodeBuilder[TerminalLLM](
         TerminalLLM,
-        pretty_name=pretty_name,
+        name=name,
         class_name="EasyLastMessageTerminalLLM",
         return_into=return_into,
         format_for_return=format_for_return,

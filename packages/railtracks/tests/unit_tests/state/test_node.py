@@ -29,7 +29,7 @@ def test_linkednode_to_vertex_includes_hierarchy(dummy_node_factory, linked_node
 
     vertex = child_ln.to_vertex()
     assert vertex.identifier == child_ln.identifier
-    assert vertex.node_type == child_ln.node.pretty_name()
+    assert vertex.node_type == child_ln.node.name()
     assert vertex.stamp == child_ln.stamp
     assert vertex.parent.identifier == parent_ln.identifier
 

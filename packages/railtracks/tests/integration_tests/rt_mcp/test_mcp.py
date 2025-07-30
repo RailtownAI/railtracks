@@ -59,7 +59,7 @@ def test_from_mcp_server_with_llm():
     )
     parent_tool = rt.library.tool_call_llm(
         tool_nodes={*time_server.tools},
-        pretty_name="Parent Tool",
+        name="Parent Tool",
         system_message=(
             "Provide a response using the tool when asked. If the tool doesn't work,"
             " respond with 'It didn't work!'"
@@ -84,7 +84,7 @@ def test_from_mcp_server_with_http():
     time_server = from_mcp_server(MCPHttpParams(url="https://mcp.deepwiki.com/sse"))
     parent_tool = rt.library.tool_call_llm(
         tool_nodes={*time_server.tools},
-        pretty_name="Parent Tool",
+        name="Parent Tool",
         system_message=(
             "Provide a response using the tool when asked. If the tool doesn't work,"
             " respond with 'It didn't work!'"

@@ -25,7 +25,7 @@ async def test_empty_connected_nodes_easy_wrapper(model):
             tool_nodes=set(),
             system_message="You are a helpful assistant that can strucure the response into a structured output.",
             llm_model=model,
-            pretty_name="ToolCallLLM",
+            name="ToolCallLLM",
         )
 
 
@@ -54,7 +54,7 @@ async def test_empty_connected_nodes_class_based(model):
                 return {}
 
             @classmethod
-            def pretty_name(cls) -> str:
+            def name(cls) -> str:
                 return "Simple Node"
 
 
@@ -104,7 +104,7 @@ async def test_tool_with_llm_tool_as_input_easy_tools():
     # Define the child tool
     child_tool = rt.library.tool_call_llm(
         tool_nodes={from_function(secret_phrase)},
-        pretty_name="Child Tool",
+        name="Child Tool",
         system_message=rt.llm.SystemMessage(
             "When asked for a response, provide the output of the tool."
         ),
@@ -122,7 +122,7 @@ async def test_tool_with_llm_tool_as_input_easy_tools():
     # Define the parent tool that uses the child tool
     parent_tool = rt.library.tool_call_llm(
         tool_nodes={child_tool},
-        pretty_name="Parent Tool",
+        name="Parent Tool",
         system_message=rt.llm.SystemMessage(
             "Provide a response using the tool avaliable to you. Provide only the response, no additional text."
         ),
@@ -198,13 +198,13 @@ async def test_tool_with_llm_tool_as_input_class_easy():
             return cls(message_hist)
 
         @classmethod
-        def pretty_name(cls) -> str:
+        def name(cls) -> str:
             return "Child Tool"
 
     # Define the parent tool that uses the child tool
     parent_tool = rt.library.tool_call_llm(
         tool_nodes={ChildTool},
-        pretty_name="Parent_Tool",
+        name="Parent_Tool",
         system_message=rt.llm.SystemMessage(
             "Provide a response using the tool avaliable to you. Provide only the response, no additional text."
         ),
@@ -235,7 +235,7 @@ async def test_tool_with_llm_tool_as_input_easy_class():
     # Define the child tool
     child_tool = rt.library.tool_call_llm(
         tool_nodes={from_function(secret_phrase)},
-        pretty_name="Child_Tool",
+        name="Child_Tool",
         system_message=rt.llm.SystemMessage(
             "When asked for a response, provide the output of the tool."
         ),
@@ -276,7 +276,7 @@ async def test_tool_with_llm_tool_as_input_easy_class():
             return {child_tool}
 
         @classmethod
-        def pretty_name(cls) -> str:
+        def name(cls) -> str:
             return "Parent Tool"
 
     # Run the parent tool
@@ -348,7 +348,7 @@ async def test_tool_with_llm_tool_as_input_class_tools():
             return cls(message_hist)
 
         @classmethod
-        def pretty_name(cls) -> str:
+        def name(cls) -> str:
             return "Child Tool"
 
     # Define the parent tool that uses the child tool
@@ -377,7 +377,7 @@ async def test_tool_with_llm_tool_as_input_class_tools():
             return {ChildTool}
 
         @classmethod
-        def pretty_name(cls) -> str:
+        def name(cls) -> str:
             return "Parent Tool"
 
     # Run the parent tool

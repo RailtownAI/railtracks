@@ -65,7 +65,7 @@ def logger_patch():
 @pytest.fixture
 def dummy_node_class():
     class Node:
-        def pretty_name(self):
+        def name(self):
             return "MockNode"
     return Node
 
