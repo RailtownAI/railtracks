@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch, Mock
 from datetime import timedelta
 from mcp import ClientSession, StdioServerParameters
 from railtracks.llm import Parameter
@@ -157,15 +157,11 @@ def mock_node_cls(mock_node_info):
     return cls
 
 @pytest.fixture
-def mock_runner(monkeypatch):
+def mock_call(monkeypatch):
     # Replace Session with an object that acts as a context manager and supports .run
-    runner_mock = MagicMock()
-    runner_obj = runner_mock.return_value
-    runner_obj.__enter__.return_value = runner_obj
-    runner_obj.__exit__.return_value = None
-    runner_obj.run = AsyncMock(return_value=MagicMock(answer="answer123"))
-    monkeypatch.setattr("railtracks.rt_mcp.to_node.Session", runner_mock)
-    return runner_mock
+    call_mock = AsyncMock(return_value=MagicMock(answer="answer123"))
+    monkeypatch.setattr("railtracks.interaction.call.call", call_mock)
+    return call_mock
 
 @pytest.fixture
 def mock_FastMCP():

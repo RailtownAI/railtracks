@@ -1,7 +1,7 @@
 import asyncio
 import os
 from pathlib import Path
-from typing import Any, Callable, Dict, ParamSpec, TypeVar, Coroutine
+from typing import Any, Callable, Coroutine, Dict, ParamSpec, TypeVar
 
 from typing_extensions import deprecated
 
@@ -24,14 +24,18 @@ from .pubsub.messages import (
 from .pubsub.publisher import RTPublisher
 from .pubsub.subscriber import stream_subscriber
 from .state.state import RTState
-from .utils.logging.config import detach_logging_handlers, prepare_logger
+from .utils.logging.config import (
+    allowable_log_levels,
+    detach_logging_handlers,
+    prepare_logger,
+)
 from .utils.logging.create import get_rt_logger
-from .utils.logging.config import allowable_log_levels
 
 logger = get_rt_logger("Session")
 
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
+
 
 class Session:
     """
@@ -90,12 +94,6 @@ class Session:
         prompt_injection: bool | None = None,
         save_state: bool | None = None,
     ):
-
-
-
-
-
-
         # first lets read from defaults if nessecary for the provided input config
 
         self.executor_config = self.global_config_precedence(
@@ -144,17 +142,17 @@ class Session:
 
     @classmethod
     def global_config_precedence(
-            cls,
-            timeout: float | None,
-            end_on_error: bool | None,
-            logging_setting: allowable_log_levels | None,
-            log_file: str | os.PathLike | None,
-            broadcast_callback: (
-                Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
-            ),
-            run_identifier: str | None,
-            prompt_injection: bool | None,
-            save_state: bool | None,
+        cls,
+        timeout: float | None,
+        end_on_error: bool | None,
+        logging_setting: allowable_log_levels | None,
+        log_file: str | os.PathLike | None,
+        broadcast_callback: (
+            Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
+        ),
+        run_identifier: str | None,
+        prompt_injection: bool | None,
+        save_state: bool | None,
     ) -> ExecutorConfig:
         """
         Uses the following precedence order to determine the configuration parameters:
@@ -164,9 +162,13 @@ class Session:
         """
         global_executor_config = get_global_config()
 
-        timeout_input = timeout if timeout is not None else global_executor_config.timeout
+        timeout_input = (
+            timeout if timeout is not None else global_executor_config.timeout
+        )
         end_on_error_input = (
-            end_on_error if end_on_error is not None else global_executor_config.end_on_error
+            end_on_error
+            if end_on_error is not None
+            else global_executor_config.end_on_error
         )
         logging_setting_input = (
             logging_setting
@@ -182,7 +184,9 @@ class Session:
             else global_executor_config.subscriber
         )
         run_identifier_input = (
-            run_identifier if run_identifier is not None else global_executor_config.run_identifier
+            run_identifier
+            if run_identifier is not None
+            else global_executor_config.run_identifier
         )
         prompt_injection_input = (
             prompt_injection
@@ -203,9 +207,6 @@ class Session:
             prompt_injection=prompt_injection_input,
             save_state=save_state_input,
         )
-
-
-
 
     def __enter__(self):
         return self
@@ -304,4 +305,3 @@ class Session:
         await call(start_node, *args, **kwargs)
 
         return self.rc_state.info
-

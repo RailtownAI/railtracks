@@ -152,7 +152,7 @@ async def test_message_history_not_mutated_structured_llm(model, structured_node
 
     MathProofNode = rt.library.from_function(math_proof_node)
 
-    with rt.Session(rt.ExecutorConfig(logging_setting="NONE")) as runner:
+    with rt.Session(logging_setting="NONE") as runner:
         message_history = rt.llm.MessageHistory(
             [
                 rt.llm.UserMessage(
@@ -217,7 +217,7 @@ async def test_message_history_not_mutated_tool_call_llm(model, tool_calling_nod
         return response
 
     TravelSummarizerNode = rt.library.from_function(travel_summarizer_node)
-    with rt.Session(rt.ExecutorConfig(logging_setting="NONE")) as runner:
+    with rt.Session(logging_setting="NONE") as runner:
         message_history = rt.llm.MessageHistory(
             [
                 rt.llm.UserMessage(

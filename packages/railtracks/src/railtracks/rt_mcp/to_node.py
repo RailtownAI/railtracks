@@ -5,8 +5,9 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.tools import Tool as MCPTool
 from mcp.server.fastmcp.utilities.func_metadata import func_metadata
 
-from railtracks.llm.models._litellm_wrapper import _parameters_to_json_schema
 from railtracks.interaction.call import call
+from railtracks.llm.models._litellm_wrapper import _parameters_to_json_schema
+
 from ..nodes.nodes import Node
 
 
@@ -70,7 +71,6 @@ def create_tool_function(
 
     async def tool_function(**kwargs):
         return await call(node_cls.prepare_tool, kwargs)
-
 
     tool_function.__signature__ = inspect.Signature(params)
     return tool_function
