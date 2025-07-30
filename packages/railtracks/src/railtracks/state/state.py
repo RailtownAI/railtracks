@@ -63,8 +63,8 @@ class RTState:
         coordinator: Coordinator,
         publisher: RTPublisher[RequestCompletionMessage],
     ):
-        self._node_heap = execution_info.node_heap
-        self._request_heap = execution_info.request_heap
+        self._node_heap = execution_info.node_forest
+        self._request_heap = execution_info.request_forest
         self._stamper = execution_info.stamper
 
         self.executor_config = executor_config
@@ -377,8 +377,8 @@ class RTState:
     def info(self):
         """Returns the current state as an ExecutionInfo object."""
         return ExecutionInfo(
-            node_heap=self._node_heap,
-            request_heap=self._request_heap,
+            node_forest=self._node_heap,
+            request_forest=self._request_heap,
             stamper=self._stamper,
         )
 
@@ -395,8 +395,8 @@ class RTState:
         # TODO: deal with the weirdness around double representation in the stamper.
         #  specifically we need to make sure that the data in the stamper is only for the subset and not for the global state.
         return ExecutionInfo(
-            node_heap=filtered_nodes,
-            request_heap=filtered_requests,
+            node_forest=filtered_nodes,
+            request_forest=filtered_requests,
             stamper=self._stamper,
         )
 

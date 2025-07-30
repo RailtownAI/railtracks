@@ -211,8 +211,8 @@ class TestPrimitiveInputTypes:
                 ),
             )
 
-            i_r = output.request_heap.insertion_request[0]
-            children = output.request_heap.children(i_r.sink_id)[0]
+            i_r = output.request_forest.insertion_request[0]
+            children = output.request_forest.children(i_r.sink_id)[0]
 
             assert isinstance(children.output, Failure)
 

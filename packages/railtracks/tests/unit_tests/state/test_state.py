@@ -55,8 +55,8 @@ def test_create_node_and_request(dummy_execution_info, dummy_executor_config, mo
 @pytest.mark.asyncio
 async def test_cancel_updates_request(dummy_execution_info, dummy_executor_config, mock_coordinator, mock_publisher, req_forest, node_forest, req_template_factory):
     # Setup state with one node and one request
-    dummy_execution_info.node_heap = node_forest
-    dummy_execution_info.request_heap = req_forest
+    dummy_execution_info.node_forest = node_forest
+    dummy_execution_info.request_forest = req_forest
     req = req_template_factory(identifier="rid", sink_id="sid")
     node_forest._heap["sid"] = MagicMock()
     req_forest._heap["rid"] = req
@@ -80,16 +80,16 @@ async def test_cancel_asserts_if_node_id_is_missing(dummy_execution_info, dummy_
 def test_info_and_get_info_filters_and_returns(dummy_execution_info, dummy_executor_config, mock_coordinator, mock_publisher, monkeypatch):
     state = RTState(dummy_execution_info, dummy_executor_config, mock_coordinator, mock_publisher)
     # .info returns execution info referencing live data
-    assert state.info.node_heap is dummy_execution_info.node_heap
+    assert state.info.node_forest is dummy_execution_info.node_forest
     # .get_info invokes create_sub_state_info
-    dummy_execution_info.node_heap._heap["x"] = MagicMock()
-    dummy_execution_info.request_heap._heap["req"] = MagicMock()
+    dummy_execution_info.node_forest._heap["x"] = MagicMock()
+    dummy_execution_info.request_forest._heap["req"] = MagicMock()
     monkeypatch.setattr(
         "railtracks.state.state.create_sub_state_info",
         lambda n, r, ids: (MagicMock(), MagicMock()),
     )
     r = state.get_info(["x"])
-    assert hasattr(r, "node_heap") and hasattr(r, "request_heap")
+    assert hasattr(r, "node_forest") and hasattr(r, "request_forest")
 # ============= END RTState: Cancel/Info =====================
 
 # ================== START RTState: Exception Handling/Run ======================

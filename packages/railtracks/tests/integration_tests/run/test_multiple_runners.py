@@ -41,7 +41,7 @@ async def test_async_runners_w_async():
 
     for c in collected_data:
         assert isinstance(c.answer, float), "Expected a float result from RNGNode"
-        assert len(c.node_heap.heap()) == 1
+        assert len(c.node_forest.heap()) == 1
 
 
 @pytest.mark.asyncio

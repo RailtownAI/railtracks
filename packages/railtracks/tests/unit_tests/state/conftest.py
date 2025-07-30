@@ -195,9 +195,9 @@ def dummy_stamper():
 @pytest.fixture
 def dummy_execution_info(node_forest, req_forest, dummy_stamper):
     class DummyExecutionInfo:
-        def __init__(self, node_heap, request_heap, stamper):
-            self.node_heap = node_heap
-            self.request_heap = request_heap
+        def __init__(self, node_forest, request_forest, stamper):
+            self.node_forest = node_forest
+            self.request_forest = request_forest
             self.stamper = stamper
     return DummyExecutionInfo(node_forest, req_forest, dummy_stamper)
 

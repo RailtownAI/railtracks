@@ -417,7 +417,7 @@ def nested_many_calls_tester(num_calls: int, parallel_calls: int, depth: int):
     assert len(ans) == (parallel_calls * num_calls) ** (depth + 1)
     assert all([0 < x < 1 for x in ans])
 
-    r_h = finished_result.request_heap
+    r_h = finished_result.request_forest
     assert len(r_h.insertion_request) ==  1
     child_requests = r_h.children(r_h.insertion_request[0].sink_id)
 
@@ -466,16 +466,16 @@ def test_multiple_runs():
         assert 0 < info.answer[0] < 1
         assert 0 < info.answer[1] < 1
 
-        insertion_requests = info.request_heap.insertion_request
+        insertion_requests = info.request_forest.insertion_request
 
         assert isinstance(insertion_requests, List)
         assert len(insertion_requests) == 2
         for i_r in insertion_requests:
             i_r_id = i_r.identifier
 
-            subset_info = info.get_info(i_r_id)
+            subset_info = info._get_info(i_r_id)
             assert 0 < subset_info.answer < 1
-            assert len(subset_info.node_heap.heap()) == 1
+            assert len(subset_info.node_forest.heap()) == 1
 
 @pytest.mark.asyncio
 async def test_multiple_runs_async():
@@ -490,16 +490,16 @@ async def test_multiple_runs_async():
 
         info = run.info
 
-        insertion_requests = info.request_heap.insertion_request
+        insertion_requests = info.request_forest.insertion_request
 
         assert isinstance(insertion_requests, List)
         assert len(insertion_requests) == 2
         for i_r in insertion_requests:
             i_r_id = i_r.identifier
 
-            subset_info = info.get_info(i_r_id)
+            subset_info = info._get_info(i_r_id)
             assert 0 < subset_info.answer < 1
-            assert len(subset_info.node_heap.heap()) == 1
+            assert len(subset_info.node_forest.heap()) == 1
 
 def level_3(message: str):
     return message

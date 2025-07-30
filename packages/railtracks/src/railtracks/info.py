@@ -25,12 +25,12 @@ class ExecutionInfo:
 
     def __init__(
         self,
-        request_heap: RequestForest,
-        node_heap: NodeForest,
+        request_forest: RequestForest,
+        node_forest: NodeForest,
         stamper: StampManager,
     ):
-        self.request_heap = request_heap
-        self.node_heap = node_heap
+        self.request_forest = request_forest
+        self.node_forest = node_forest
         self.stamper = stamper
 
     @classmethod
@@ -51,15 +51,15 @@ class ExecutionInfo:
         stamper = StampManager()
 
         return ExecutionInfo(
-            request_heap=request_heap,
-            node_heap=node_heap,
+            request_forest=request_heap,
+            node_forest=node_heap,
             stamper=stamper,
         )
 
     @property
     def answer(self):
         """Convenience method to access the answer of the run."""
-        return self.request_heap.answer
+        return self.request_forest.answer
 
     @property
     def all_stamps(self) -> List[Stamp]:
@@ -69,9 +69,9 @@ class ExecutionInfo:
     @property
     def insertion_requests(self):
         """A convenience method to access all the insertion requests of the run."""
-        return self.request_heap.insertion_request
+        return self.request_forest.insertion_request
 
-    def get_info(self, ids: List[str] | str | None = None) -> ExecutionInfo:
+    def _get_info(self, ids: List[str] | str | None = None) -> ExecutionInfo:
         """
         Gets a subset of the current state based on the provided node ids. It will contain all the children of the provided node ids
 
@@ -93,23 +93,23 @@ class ExecutionInfo:
 
             # we need to quickly check to make sure these ids are valid
             for identifier in ids:
-                if identifier not in self.request_heap:
+                if identifier not in self.request_forest:
                     raise ValueError(
                         f"Identifier '{identifier}' not found in the current state."
                     )
 
             new_node_forest, new_request_forest = create_sub_state_info(
-                self.node_heap.heap(),
-                self.request_heap.heap(),
+                self.node_forest.heap(),
+                self.request_forest.heap(),
                 ids,
             )
             return ExecutionInfo(
-                node_heap=new_node_forest,
-                request_heap=new_request_forest,
+                node_forest=new_node_forest,
+                request_forest=new_request_forest,
                 stamper=self.stamper,
             )
 
-    def to_graph(self) -> Tuple[List[Vertex], List[Edge]]:
+    def _to_graph(self) -> Tuple[List[Vertex], List[Edge]]:
         """
         Converts the current state into its graph representation.
 
@@ -117,7 +117,7 @@ class ExecutionInfo:
             List[Node]: An iterable of nodes in the graph.
             List[Edge]: An iterable of edges in the graph.
         """
-        return self.node_heap.to_vertices(), self.request_heap.to_edges()
+        return self.node_forest.to_vertices(), self.request_forest.to_edges()
 
     def graph_serialization(self) -> str:
         """
@@ -182,8 +182,8 @@ class ExecutionInfo:
         """
         return json.dumps(
             {
-                "nodes": self.node_heap.to_vertices(),
-                "edges": self.request_heap.to_edges(),
+                "nodes": self.node_forest.to_vertices(),
+                "edges": self.request_forest.to_edges(),
                 "steps": self.all_stamps,
             },
             cls=RTJSONEncoder,

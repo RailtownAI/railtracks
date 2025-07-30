@@ -86,9 +86,9 @@ def test_error_handler_with_retry():
             result = run.run_sync(ErrorHandlerWithRetry, num_retries)
 
         assert result.answer == "Caught the error"
-        i_r = result.request_heap.insertion_request[0]
+        i_r = result.request_forest.insertion_request[0]
 
-        children = result.request_heap.children(i_r.sink_id)
+        children = result.request_forest.children(i_r.sink_id)
         assert len(children) == num_retries
 
         for r in children:
@@ -144,11 +144,11 @@ def test_parallel_error_wrapper():
         assert len(result.answer) == n_c * p_c
         assert all([isinstance(x, ErrorforTest) for x in result.answer])
 
-        i_r = result.request_heap.insertion_request[0]
+        i_r = result.request_forest.insertion_request[0]
 
-        children = result.request_heap.children(i_r.sink_id)
+        children = result.request_forest.children(i_r.sink_id)
         assert len(children) == 1
-        full_children = result.request_heap.children(children[0].sink_id)
+        full_children = result.request_forest.children(children[0].sink_id)
 
         for r in children:
             assert r.output == result.answer
