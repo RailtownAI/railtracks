@@ -34,3 +34,7 @@ exclude = [".git", "examples", "docs", ".venv", ".conda", "tests"]
 lint.mccabe.max-complexity = 10
 
 
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+
