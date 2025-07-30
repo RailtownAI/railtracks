@@ -44,7 +44,7 @@ assistant = rt.library.terminal_llm(
 )
 
 # Run with context values
-with rt.Runner(context={"role": "technical", "domain": "Python programming"}) as runner:
+with rt.Session(context={"role": "technical", "domain": "Python programming"}) as runner:
     response = runner.run_sync(assistant, user_input="Help me understand decorators.")
 ```
 
@@ -66,9 +66,9 @@ my_node = rt.library.terminal_llm(
 )
 
 # Disable context injection for a specific run
-with rt.Runner(
-    context={"variable": "value"},
-    executor_config=rt.ExecutorConfig(prompt_injection=False)
+with rt.Session(
+        context={"variable": "value"},
+        executor_config=rt.ExecutorConfig(prompt_injection=False)
 ) as runner:
     # Context injection will not occur in this run
     user_message = MessageHistory([UserMessage("Hello")])

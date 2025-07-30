@@ -97,7 +97,7 @@ class TestPrimitiveInputTypes:
             """
             return "This is an empty function."
         test_node = from_function(empty_function)
-        with rt.Runner() as run:
+        with rt.Session() as run:
             result = run.run_sync(test_node).answer
 
         assert "This is an empty function." == result
@@ -107,7 +107,7 @@ class TestPrimitiveInputTypes:
     def test_single_int_input(self, input, expected_output):
         """Test that a function with a single int parameter works correctly."""
         test_node = from_function(func_type)
-        with rt.Runner() as run:
+        with rt.Session() as run:
             assert run.run_sync(test_node, input).answer == expected_output
 
 class TestSequenceInputTypes:
@@ -115,14 +115,14 @@ class TestSequenceInputTypes:
     def test_multi_arg_input(self, input, expected_output):
         """Test that a function with multiple arg parameters works correctly."""
         test_node = from_function(func_multiple_types)
-        with rt.Runner() as run:
+        with rt.Session() as run:
             assert run.run_sync(test_node, *input).answer == expected_output
 
     @pytest.mark.parametrize("input, expected_output", kwarg_test_inputs)
     def test_multi_kwarg_input(self, input, expected_output):
         """Test that a function with multiple kwarg parameters works correctly."""
         test_node = from_function(func_multiple_ktypes_coroutine)
-        with rt.Runner() as run:
+        with rt.Session() as run:
             assert run.run_sync(test_node, **input).answer == expected_output
 
 class TestfunctionMethods:
@@ -154,7 +154,7 @@ class TestRaiseErrors:
         """Test edge case where a function that returns a coroutine raises an error."""
         test_node = from_function(func_buggy)
         with pytest.raises(NodeCreationError):
-            with rt.Runner() as run:
+            with rt.Session() as run:
                 run.run_sync(test_node)
 
     def test_dict_parameter(self):

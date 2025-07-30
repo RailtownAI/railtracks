@@ -13,7 +13,7 @@ USER_PROMPT = """Would you be able to create a new page for me in Notion labeled
 
 notion_agent = notion_agent(model=rt.llm.OpenAILLM("gpt-4o"))
 
-with rt.Runner() as run:
+with rt.Session() as run:
     result = asyncio.run(
         run.run(
             notion_agent,

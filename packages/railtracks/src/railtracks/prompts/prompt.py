@@ -42,9 +42,9 @@ def inject_context(message_history: MessageHistory):
         message_history (MessageHistory): The prompts to inject context into.
 
     """
-    # we need to be able to handle the case where the user is not running this within the context of a `rt.Runner()`
+    # we need to be able to handle the case where the user is not running this within the context of a `rt.Session()`
     try:
-        # if the context is not set (Runner is not active), the `ContextError` will be raised.
+        # if the context is not set (Session is not active), the `ContextError` will be raised.
         local_config = get_local_config()
         is_prompt_inject = local_config.prompt_injection
     except ContextError:

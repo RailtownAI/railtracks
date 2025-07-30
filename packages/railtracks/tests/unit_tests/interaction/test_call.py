@@ -98,7 +98,7 @@ def test_top_level_message_filter_matches_request_id_and_fatal_failure():
 
 @pytest.mark.asyncio
 async def test_call_with_no_context_creates_runner(mock_context_functions, mock_runner, mock_start):
-    """Test that call creates a Runner when no context is present."""
+    """Test that call creates a Session when no context is present."""
     mock_node = Mock(return_value=MockNode("test_result"))
     
     # Configure the context to simulate no context present

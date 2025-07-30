@@ -1,6 +1,7 @@
 import asyncio
+import os
 from pathlib import Path
-from typing import Any, Callable, Dict, ParamSpec, TypeVar
+from typing import Any, Callable, Dict, ParamSpec, TypeVar, Coroutine
 
 from typing_extensions import deprecated
 
@@ -25,81 +26,186 @@ from .pubsub.subscriber import stream_subscriber
 from .state.state import RTState
 from .utils.logging.config import detach_logging_handlers, prepare_logger
 from .utils.logging.create import get_rt_logger
+from .utils.logging.config import allowable_log_levels
 
-logger = get_rt_logger("Runner")
+logger = get_rt_logger("Session")
 
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
 
-
-class RunnerCreationError(Exception):
+class Session:
     """
-    A basic exception to representing when a runner is created when one already exists.
-    """
+    The main class for managing an execution session.
 
-    pass
+    This class is responsible for setting up all the necessary components for running a Railtracks execution, including the coordinator, publisher, and state management.
+
+    For the configuration parameters of the setting. It will follow this precedence:
+    1. The parameters in the `Session` constructor.
+    2. The parameters in global context variables.
+    3. The default values.
+
+    Default Values:
+    - `timeout`: 150.0 seconds
+    - `end_on_error`: False
+    - `logging_setting`: "REGULAR"
+    - `log_file`: None (logs will not be written to a file)
+    - `broadcast_callback`: None (no callback for broadcast messages)
+    - `run_identifier`: None (a random identifier will be generated)
+    - `prompt_injection`: True (the prompt will be automatically injected from context variables)
+    - `save_state`: True (the state of the execution will be saved to a file at the end of the run in the `.railtracks` directory)
 
 
-class RunnerNotFoundError(Exception):
-    """
-    A basic exception to representing when no runner can be found
-    """
-
-    pass
-
-
-class Runner:
-    """
-    The main class used to run flows in the RailTracks framework.
+    Args:
+        context (Dict[str, Any], optional): A dictionary of global context variables to be used during the execution.
+        timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
+        end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
+        logging_setting (allowable_log_levels, optional): The setting for the level of logging you would like to have.
+        log_file (str | os.PathLike | None, optional): The file to which the logs will be written.
+        broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
+        run_identifier (str | None, optional): A unique identifier for the run.
+        prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
+        save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks` directory.
 
     Example Usage:
     ```python
     import railtracks as rt
 
-    with rt.Runner() as run:
-        result = run.run_sync(RNGNode)
+    with rt.Session() as run:
+        result = rt.call_sync(rt.nodes.NodeA, "Hello World")
     ```
     """
 
     def __init__(
-        self, executor_config: ExecutorConfig = None, context: Dict[str, Any] = None
+        self,
+        context: Dict[str, Any] | None = None,
+        *,
+        timeout: float | None = None,
+        end_on_error: bool | None = None,
+        logging_setting: allowable_log_levels | None = None,
+        log_file: str | os.PathLike | None = None,
+        broadcast_callback: (
+            Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
+        ) = None,
+        run_identifier: str | None = None,
+        prompt_injection: bool | None = None,
+        save_state: bool | None = None,
     ):
-        # first lets read from defaults if nessecary for the provided input config
-        if executor_config is None:
-            executor_config = get_global_config()
 
-        self.executor_config = executor_config
+
+
+
+
+
+        # first lets read from defaults if nessecary for the provided input config
+
+        self.executor_config = self.global_config_precedence(
+            timeout=timeout,
+            end_on_error=end_on_error,
+            logging_setting=logging_setting,
+            log_file=log_file,
+            broadcast_callback=broadcast_callback,
+            run_identifier=run_identifier,
+            prompt_injection=prompt_injection,
+            save_state=save_state,
+        )
 
         if context is None:
             context = {}
 
+        print(self.executor_config.logging_setting)
+
         prepare_logger(
-            setting=executor_config.logging_setting,
-            path=executor_config.log_file,
+            setting=self.executor_config.logging_setting,
+            path=self.executor_config.log_file,
         )
         self.publisher: RTPublisher[RequestCompletionMessage] = RTPublisher()
 
-        self._identifier = executor_config.run_identifier
+        self._identifier = self.executor_config.run_identifier
 
         executor_info = ExecutionInfo.create_new()
         self.coordinator = Coordinator(
             execution_modes={"async": AsyncioExecutionStrategy()}
         )
         self.rc_state = RTState(
-            executor_info, executor_config, self.coordinator, self.publisher
+            executor_info, self.executor_config, self.coordinator, self.publisher
         )
 
         self.coordinator.start(self.publisher)
-        self.setup_subscriber()
+        self._setup_subscriber()
         register_globals(
             runner_id=self._identifier,
             rt_publisher=self.publisher,
             parent_id=None,
-            executor_config=executor_config,
+            executor_config=self.executor_config,
             global_context_vars=context,
         )
 
-        logger.debug("Runner %s is initialized" % self._identifier)
+        logger.debug("Session %s is initialized" % self._identifier)
+
+    @classmethod
+    def global_config_precedence(
+            cls,
+            timeout: float | None,
+            end_on_error: bool | None,
+            logging_setting: allowable_log_levels | None,
+            log_file: str | os.PathLike | None,
+            broadcast_callback: (
+                Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
+            ),
+            run_identifier: str | None,
+            prompt_injection: bool | None,
+            save_state: bool | None,
+    ) -> ExecutorConfig:
+        """
+        Uses the following precedence order to determine the configuration parameters:
+        1. The parameters in the method parameters.
+        2. The parameters in global context variables.
+        3. The default values.
+        """
+        global_executor_config = get_global_config()
+
+        timeout_input = timeout if timeout is not None else global_executor_config.timeout
+        end_on_error_input = (
+            end_on_error if end_on_error is not None else global_executor_config.end_on_error
+        )
+        logging_setting_input = (
+            logging_setting
+            if logging_setting is not None
+            else global_executor_config.logging_setting
+        )
+        log_file_input = (
+            log_file if log_file is not None else global_executor_config.log_file
+        )
+        broadcast_callback_input = (
+            broadcast_callback
+            if broadcast_callback is not None
+            else global_executor_config.subscriber
+        )
+        run_identifier_input = (
+            run_identifier if run_identifier is not None else global_executor_config.run_identifier
+        )
+        prompt_injection_input = (
+            prompt_injection
+            if prompt_injection is not None
+            else global_executor_config.prompt_injection
+        )
+        save_state_input = (
+            save_state if save_state is not None else global_executor_config.save_state
+        )
+
+        return ExecutorConfig(
+            timeout=timeout_input,
+            end_on_error=end_on_error_input,
+            logging_setting=logging_setting_input,
+            log_file=log_file_input,
+            subscriber=broadcast_callback_input,
+            run_identifier=run_identifier_input,
+            prompt_injection=prompt_injection_input,
+            save_state=save_state_input,
+        )
+
+
+
 
     def __enter__(self):
         return self
@@ -129,7 +235,7 @@ class Runner:
 
         self._close()
 
-    def setup_subscriber(self):
+    def _setup_subscriber(self):
         """
         Prepares and attaches the saved subscriber to the publisher attached to this runner.
         """
@@ -199,7 +305,3 @@ class Runner:
 
         return self.rc_state.info
 
-    async def cancel(self, node_id: str):
-        raise NotImplementedError("This feature remains to be implemented. ")
-        # collects the parent id of the current node that is running that is gonna get cancelled
-        await self.rc_state.cancel(node_id)

@@ -2,7 +2,7 @@ from ..context.central import get_parent_id, get_publisher
 from ..pubsub.messages import Streaming
 
 
-async def stream(item: str):
+async def broadcast(item: str):
     """
     Streams the given message
 

@@ -40,7 +40,7 @@ user_prompt = """Send a message to thert-maintainer slack channel saying "Hello 
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
-with rt.Runner(rt.ExecutorConfig(logging_setting="VERBOSE")) as run:
+with rt.Session(rt.ExecutorConfig(logging_setting="VERBOSE")) as run:
     result = run.run_sync(agent, message_history)
 
 print(result.answer.content)

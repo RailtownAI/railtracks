@@ -14,7 +14,7 @@ _P = ParamSpec("_P")
 _TOutput = TypeVar("_TOutput")
 
 
-async def batch(
+async def call_batch(
     node: Callable[..., Node[_TOutput]],
     *iterables: Iterable[Any],
     return_exceptions: bool = True,

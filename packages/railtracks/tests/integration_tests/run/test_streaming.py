@@ -10,7 +10,7 @@ from railtracks import ExecutorConfig
 
 async def streaming_rng():
     number = random.random()
-    await rt.stream(str(number))
+    await rt.broadcast(str(number))
 
     return number
 
@@ -27,10 +27,10 @@ def test_simple_streamer():
             self.finished_message = item
 
     sub = SubObject()
-    with rt.Runner(
-        executor_config=rt.ExecutorConfig(
-            logging_setting="NONE", subscriber=sub.handle
-        ),
+    with rt.Session(
+
+            logging_setting="NONE", broadcast_callback=sub.handle
+        ,
     ) as runner:
         finished_result = runner.run_sync(StreamingRNGNode)
 
@@ -54,7 +54,7 @@ def test_slow_streamer():
             self.finished_message = item
 
     sub = Sub()
-    with rt.Runner(executor_config=ExecutorConfig(subscriber=sub.handle)) as runner:
+    with rt.Session(broadcast_callback=sub.handle) as runner:
         finished_result = runner.run_sync(StreamingRNGNode)
 
     assert isinstance(finished_result.answer, float)
@@ -68,7 +68,7 @@ async def rng_tree_streamer(num_calls: int, parallel_call_nums: int, multiplier:
         responses = await asyncio.gather(*contracts)
         responses = [r * multiplier for r in responses]
         for r in responses:
-            await rt.stream(str(r))
+            await rt.broadcast(str(r))
 
         data.extend(responses)
 
@@ -93,8 +93,8 @@ def rng_stream_tester(
                 self.total_streams.append(item)
 
     sub = Sub()
-    with rt.Runner(
-        executor_config=ExecutorConfig(logging_setting="NONE", subscriber=sub.handle)
+    with rt.Session(
+        logging_setting="NONE", broadcast_callback=sub.handle
     ) as run:
         finished_result = run.run_sync(
             RNGTreeStreamer, num_calls, parallel_call_nums, multiplier

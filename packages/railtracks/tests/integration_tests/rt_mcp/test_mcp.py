@@ -68,8 +68,8 @@ def test_from_mcp_server_with_llm():
     )
 
     # Run the parent tool
-    with rt.Runner(
-        executor_config=rt.ExecutorConfig(logging_setting="QUIET", timeout=1000)
+    with rt.Session(
+        logging_setting="NONE", timeout=1000
     ) as runner:
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("What time is it?")]
@@ -93,8 +93,8 @@ def test_from_mcp_server_with_http():
     )
 
     # Run the parent tool
-    with rt.Runner(
-        executor_config=rt.ExecutorConfig(logging_setting="NONE", timeout=1000)
+    with rt.Session(
+        logging_setting="NONE", timeout=1000
     ) as runner:
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Tell me about the website conductr.ai")]

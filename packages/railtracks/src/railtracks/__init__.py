@@ -11,11 +11,11 @@ from dotenv import load_dotenv
 __all__ = [
     "Node",
     "library",
-    "Runner",
+    "Session",
     "call",
     "call_sync",
-    "stream",
-    "batch",
+    "broadcast",
+    "call_batch",
     "rt_mcp",
     "ExecutionInfo",
     "ExecutorConfig",
@@ -33,12 +33,12 @@ from railtracks.nodes.library.easy_usage_wrappers.function import to_node
 from . import context, llm, rt_mcp
 from .config import ExecutorConfig
 from .context.central import set_config, set_streamer
-from .interaction.batch import batch
+from .interaction.batch import call_batch
 from .interaction.call import call, call_sync
-from .interaction.stream import stream
+from .interaction.stream import broadcast
 from .nodes import library
 from .nodes.nodes import Node
-from .run import ExecutionInfo, Runner
+from .run import ExecutionInfo, Session
 
 load_dotenv()
 # Only change the MAJOR.MINOR if you need to. Do not change the PATCH. (vMAJOR.MINOR.PATCH).

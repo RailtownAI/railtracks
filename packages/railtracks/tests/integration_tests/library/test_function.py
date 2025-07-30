@@ -41,7 +41,7 @@ class TestPrimitiveInputTypes:
             secret_phrase,
             model_provider=model_provider,
         )
-        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Session(logging_setting="NONE") as run:
             response = run.run_sync(
                 agent,
                 rt.llm.MessageHistory(
@@ -72,7 +72,7 @@ class TestPrimitiveInputTypes:
             magic_number,
             model_provider=model_provider,
         )
-        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Session(logging_setting="NONE") as run:
             response = run.run_sync(
                 agent,
                 rt.llm.MessageHistory(
@@ -104,7 +104,7 @@ class TestPrimitiveInputTypes:
             magic_phrase,
             model_provider=model_provider,
         )
-        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Session(logging_setting="NONE") as run:
             response = run.run_sync(
                 agent,
                 rt.llm.MessageHistory(
@@ -136,7 +136,7 @@ class TestPrimitiveInputTypes:
             magic_test,
             model_provider=model_provider,
         )
-        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Session(logging_setting="NONE") as run:
             response = run.run_sync(
                 agent,
                 rt.llm.MessageHistory(
@@ -168,7 +168,7 @@ class TestPrimitiveInputTypes:
             magic_test,
             model_provider=model_provider,
         )
-        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Session(rt.ExecutorConfig(logging_setting="NONE")) as run:
             response = run.run_sync(
                 agent,
                 rt.llm.MessageHistory(
@@ -199,7 +199,7 @@ class TestPrimitiveInputTypes:
             error_function,
             model_provider=model_provider,
         )
-        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Session(logging_setting="NONE") as run:
             output = run.run_sync(
                 agent,
                 rt.llm.MessageHistory(
@@ -238,7 +238,7 @@ class TestSequenceInputTypes:
             magic_list,
             model_provider=model_provider,
         )
-        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Session(logging_setting="NONE") as run:
             response = run.run_sync(
                 agent,
                 rt.llm.MessageHistory(
@@ -270,7 +270,7 @@ class TestSequenceInputTypes:
             model_provider=model_provider,
         )
 
-        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Session(logging_setting="NONE") as run:
             response = run.run_sync(
                 agent,
                 rt.llm.MessageHistory(
@@ -304,7 +304,7 @@ class TestSequenceInputTypes:
             magic_result,
             model_provider=model_provider,
         )
-        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Session(logging_setting="NONE") as run:
             response = run.run_sync(
                 agent,
                 rt.llm.MessageHistory(
@@ -338,7 +338,7 @@ class TestDictionaryInputTypes:
 
         with pytest.raises(Exception):
             agent = create_top_level_node(dict_func, model_provider=model_provider)
-            with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
+            with rt.Session(logging_setting="NONE") as run:
                 response = run.run_sync(
                     agent,
                     rt.llm.MessageHistory(
@@ -363,7 +363,7 @@ class TestUnionAndOptionalParameter:
         agent = create_top_level_node(
             magic_number, model_provider="openai"
         )
-        with rt.Runner(rt.ExecutorConfig(logging_setting="QUIET")) as run:
+        with rt.Session(logging_setting="QUIET") as run:
             response = run.run_sync(
                 agent,
                 rt.llm.MessageHistory(
@@ -390,7 +390,7 @@ class TestUnionAndOptionalParameter:
         agent = create_top_level_node(
             magic_number, model_provider="openai"
         )
-        with rt.Runner(rt.ExecutorConfig(logging_setting="QUIET")) as run:
+        with rt.Session(logging_setting="QUIET") as run:
             response = run.run_sync(
                 agent,
                 rt.llm.MessageHistory(
@@ -436,7 +436,7 @@ class TestRealisticScenarios:
             update_staff_directory, model_provider=model_provider
         )
 
-        with rt.Runner(rt.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Session(logging_setting="NONE") as run:
             response = run.run_sync(
                 agent, rt.llm.MessageHistory([rt.llm.UserMessage(usr_prompt)])
             )

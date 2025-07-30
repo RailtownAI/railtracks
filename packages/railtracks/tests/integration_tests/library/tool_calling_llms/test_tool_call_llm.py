@@ -61,7 +61,7 @@ async def test_empty_connected_nodes_class_based(model):
 @pytest.mark.asyncio
 async def test_simple_function_passed_tool_call(simple_function_taking_node, simple_output_model):
     """Test the functionality of a ToolCallLLM node (using actual tools) with a structured output model."""
-    with rt.Runner(executor_config=rt.ExecutorConfig(timeout=50, logging_setting="QUIET")) as runner:
+    with rt.Session(timeout=50, logging_setting="QUIET") as runner:
         message_history = rt.llm.MessageHistory(
             [
                 rt.llm.UserMessage(
@@ -76,8 +76,8 @@ async def test_simple_function_passed_tool_call(simple_function_taking_node, sim
 
 @pytest.mark.asyncio
 async def test_some_functions_passed_tool_calls(some_function_taking_travel_planner_node, travel_planner_output_model):
-    with rt.Runner(
-        executor_config=rt.ExecutorConfig(timeout=50, logging_setting="NONE")
+    with rt.Session(
+        timeout=50, logging_setting="NONE"
         ) as runner:
         message_history = rt.llm.MessageHistory(
             [
@@ -130,7 +130,7 @@ async def test_tool_with_llm_tool_as_input_easy_tools():
     )
 
     # Run the parent tool
-    with rt.Runner(
+    with rt.Session(
         executor_config=rt.ExecutorConfig(logging_setting="NONE", timeout=1000)
     ) as runner:
         message_history = rt.llm.MessageHistory(
@@ -212,7 +212,7 @@ async def test_tool_with_llm_tool_as_input_class_easy():
     )
 
     # Run the parent tool
-    with rt.Runner(
+    with rt.Session(
         executor_config=rt.ExecutorConfig(logging_setting="NONE", timeout=1000)
     ) as runner:
         message_history = rt.llm.MessageHistory(
@@ -280,7 +280,7 @@ async def test_tool_with_llm_tool_as_input_easy_class():
             return "Parent Tool"
 
     # Run the parent tool
-    with rt.Runner(
+    with rt.Session(
         executor_config=rt.ExecutorConfig(logging_setting="NONE", timeout=1000)
     ) as runner:
         message_history = rt.llm.MessageHistory(
@@ -381,7 +381,7 @@ async def test_tool_with_llm_tool_as_input_class_tools():
             return "Parent Tool"
 
     # Run the parent tool
-    with rt.Runner(
+    with rt.Session(
         executor_config=rt.ExecutorConfig(logging_setting="NONE", timeout=1000)
     ) as runner:
         message_history = rt.llm.MessageHistory(
@@ -406,7 +406,7 @@ def test_return_into(mock_llm):
         return_into="greeting"  # Specify that the result should be stored in context under the key "greeting"
     )
 
-    with rt.Runner() as run:
+    with rt.Session() as run:
         result = run.run_sync(node, user_input=MessageHistory()).answer
         assert result is None  # The result should be None since it was stored in context
         assert rt.context.get("greeting").content == "Hello"
@@ -430,7 +430,7 @@ def test_return_into_custom_fn(mock_llm):
         format_for_return=format_function  # Use the custom formatting function
     )
 
-    with rt.Runner() as run:
+    with rt.Session() as run:
         result = run.run_sync(node, user_input=MessageHistory()).answer
         assert result == "Success!"  # The result should be None since it was stored in context
         assert rt.context.get("greeting") == "HELLO"
@@ -446,7 +446,7 @@ def test_return_into_custom_fn(mock_llm):
 async def test_allows_only_one_toolcall(limited_tool_call_node_factory, travel_message_history, reset_tools_called, class_based):
     node = limited_tool_call_node_factory(max_tool_calls=1, class_based=class_based)
     message_history = travel_message_history()
-    with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="NONE")) as runner:
+    with rt.Session(logging_setting="NONE") as runner:
         reset_tools_called()
         response = await rt.call(node, user_input=message_history)
         assert isinstance(response.content, str)
@@ -457,7 +457,7 @@ async def test_allows_only_one_toolcall(limited_tool_call_node_factory, travel_m
 async def test_zero_tool_calls_forces_final_answer(limited_tool_call_node_factory, travel_message_history, reset_tools_called, class_based):
     node = limited_tool_call_node_factory(max_tool_calls=0, class_based=class_based)
     message_history = travel_message_history("Plan a trip to Paris for 2 days.")
-    with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="NONE")) as runner:
+    with rt.Session(logging_setting="NONE") as runner:
         reset_tools_called()
         response = await rt.call(node, user_input=message_history)
         assert isinstance(response.content, str)
@@ -468,7 +468,7 @@ async def test_zero_tool_calls_forces_final_answer(limited_tool_call_node_factor
 async def test_multiple_tool_calls_limit(limited_tool_call_node_factory, travel_message_history, reset_tools_called, class_based):
     node = limited_tool_call_node_factory(max_tool_calls=5, class_based=class_based)
     message_history = travel_message_history("Plan a trip to Paris, Berlin, and New York for 2 days each.")
-    with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="NONE")) as runner:
+    with rt.Session(logging_setting="NONE") as runner:
         reset_tools_called()
         response = await rt.call(node, user_input=message_history)
         assert isinstance(response.content, str)
@@ -486,7 +486,7 @@ async def test_context_reset_between_runs(limited_tool_call_node_factory, travel
     
     node = limited_tool_call_node_factory(max_tool_calls=1, class_based=class_based, tools=[magic_number])
     message_history = travel_message_history("Get the magic number and divide it by 2.")
-    with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="NONE")) as runner:
+    with rt.Session(logging_setting="NONE") as runner:
         reset_tools_called()
         response = await rt.call(node, user_input=message_history)
         assert rt.context.get("tools_called") == 1

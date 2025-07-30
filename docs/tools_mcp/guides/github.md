@@ -34,7 +34,7 @@ user_prompt = """Tell me about the RailtownAI/rc repository on GitHub."""
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
-with rt.Runner() as run:
+with rt.Session() as run:
     result = run.run_sync(agent, message_history)
 
 print(result.answer.content)

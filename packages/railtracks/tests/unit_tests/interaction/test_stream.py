@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock, patch
-from railtracks.interaction.stream import stream
+from railtracks.interaction.stream import broadcast
 from railtracks.pubsub.messages import Streaming
 
 
@@ -15,7 +15,7 @@ async def test_stream_publishes_streaming_message():
         mock_get_parent_id.return_value = "mock_node_id"
         
         # Call the function
-        await stream("test_message")
+        await broadcast("test_message")
 
         mock_publisher.publish.assert_awaited_once()
         

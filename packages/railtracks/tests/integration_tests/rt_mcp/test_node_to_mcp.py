@@ -87,8 +87,8 @@ def test_add_nums_tool(mcp_server):
     )
     assert len(server.tools) == 1
 
-    with rt.Runner(
-        executor_config=rt.ExecutorConfig(logging_setting="QUIET", timeout=1000)
+    with rt.Session(
+        logging_setting="QUIET", timeout=1000
     ) as runner:
         response = rt.call_sync(server.tools[0], num1=1, num2=3, print_s="Hello")
 

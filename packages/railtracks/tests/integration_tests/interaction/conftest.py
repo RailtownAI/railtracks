@@ -393,7 +393,7 @@ def parallel_node():
     TimeoutNode = rt.library.from_function(sleep)
 
     async def parallel_function(timeout_config: List[float]):
-        return await rt.batch(TimeoutNode, timeout_config)
+        return await rt.call_batch(TimeoutNode, timeout_config)
 
     return rt.library.from_function(parallel_function)
 

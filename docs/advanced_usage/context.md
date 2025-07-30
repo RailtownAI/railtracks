@@ -23,12 +23,12 @@ import railtracks as rt
 # Set up some context data
 data = {"var_1": "value_1"}
 
-with rt.Runner(context=data):
+with rt.Session(context=data):
     rt.context.get("var_1")  # ➡️ Outputs: value_1
     rt.context.get("var_2", "default_value")  # ➡️ Outputs: default_value
 
-    rt.context.put("var_2", "value_2") # Sets var_2 to value_2
-    rt.context.put("var_1", "new_value_1") # Replaces var_1 with new_value_1
+    rt.context.put("var_2", "value_2")  # Sets var_2 to value_2
+    rt.context.put("var_1", "new_value_1")  # Replaces var_1 with new_value_1
 ```
 
 !!! tip
@@ -58,15 +58,18 @@ import os
 
 api_key = os.environ["API_KEY"]
 
+
 def api_call_1():
     key = rt.context.get("api_key")
     # Use the key...
+
 
 def api_call_2():
     key = rt.context.get("api_key")
     # Use the key...
 
-with rt.Runner(context={"api_key": api_key}):
+
+with rt.Session(context={"api_key": api_key}):
     rt.call_sync(api_call_1)
     rt.call_sync(api_call_2)
 ```

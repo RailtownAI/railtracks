@@ -15,7 +15,7 @@ async def test_terminal_llm_instantiate_and_invoke(mock_llm, mock_chat_function)
         
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("hello")])
     node = MockLLM(user_input=mh, llm_model=mock_llm(chat=mock_chat_function))
-    # with rt.Runner() as runner:
+    # with rt.Session() as runner:
     result = await node.invoke()
     assert result.text == "dummy content"
 

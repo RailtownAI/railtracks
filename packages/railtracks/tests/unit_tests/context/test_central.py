@@ -3,7 +3,7 @@ from unittest import mock
 
 import railtracks.context.central as central
 
-# ============ START Runner Context Tests ===============
+# ============ START Session Context Tests ===============
 def test_safe_get_runner_context_raises_when_none():
     central.delete_globals()
     with pytest.raises(central.ContextError):
@@ -14,7 +14,7 @@ def test_is_context_present_and_active(monkeypatch, make_runner_context_vars):
     monkeypatch.setattr(central, "runner_context", mock.Mock(get=mock.Mock(return_value=rt)))
     assert central.is_context_present()
     assert central.is_context_active()
-# ============ END Runner Context Tests ===============
+# ============ END Session Context Tests ===============
 
 # ============ START Publisher Tests ===============
 def test_get_publisher_returns_publisher(monkeypatch, make_internal_context_mock, make_runner_context_vars):

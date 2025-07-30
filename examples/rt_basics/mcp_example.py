@@ -31,7 +31,7 @@ parent_tool = rt.library.tool_call_llm(
 #%%
 user_message = ("Tell me about conductr.ai. Then, tell me what time it is.")
 
-with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="QUIET", timeout=1000)) as runner:
+with rt.Session(executor_config=rt.ExecutorConfig(logging_setting="QUIET", timeout=1000)) as runner:
     message_history = rt.llm.MessageHistory(
        [
             rt.llm.UserMessage(

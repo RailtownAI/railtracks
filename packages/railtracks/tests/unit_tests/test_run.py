@@ -1,9 +1,9 @@
 from pathlib import Path
 
 import pytest
-from unittest.mock import MagicMock, patch, call, PropertyMock
+from unittest.mock import MagicMock, patch, call, PropertyMock, Mock
 import asyncio
-from railtracks.run import Runner, RunnerCreationError, RunnerNotFoundError
+from railtracks.run import Session
 
 # ================= START Mock Fixture ============
 @pytest.fixture
@@ -41,9 +41,8 @@ def mock_dependencies(monkeypatch):
     }
 # ================ END Mock Fixture ===============
 
-# ================= START Runner: Construction & Context Manager ============
+# ================= START Session: Construction & Context Manager ============
 def test_runner_construction_with_explicit_config_and_context(mock_dependencies):
-    config = MagicMock()
     context = {'foo': 'bar'}
     # Setup mocks with needed API
     pub_mock = mock_dependencies['RTPublisher'].return_value
@@ -52,8 +51,7 @@ def test_runner_construction_with_explicit_config_and_context(mock_dependencies)
     state_mock.info = info_mock
 
     # Should not raise
-    r = Runner(executor_config=config, context=context)
-    assert r.executor_config == config
+    r = Session(context=context)
     assert hasattr(r, 'publisher')
     assert hasattr(r, 'rc_state')
     assert hasattr(r, 'coordinator')
@@ -61,90 +59,87 @@ def test_runner_construction_with_explicit_config_and_context(mock_dependencies)
 
 def test_runner_construction_with_defaults(mock_dependencies):
     # Should call get_global_config()
-    Runner()
+    Session()
     assert mock_dependencies['get_global_config'].called
 
 def test_runner_context_manager_closes_on_exit(mock_dependencies):
-    config = MagicMock()
+
     context = {}
-    runner = Runner(executor_config=config, context=context)
+    runner = Session(context=context)
     with patch.object(runner, "_close") as mock_close:
         with runner:
             pass
         mock_close.assert_called_once()
 
-# ================ END Runner: Construction & Context Manager ===============
+# ================ END Session: Construction & Context Manager ===============
 
 
-# ================= START Runner: Singleton/Instance Id Behavior ============
+# ================= START Session: Singleton/Instance Id Behavior ============
 
 def test_runner_identifier_is_taken_from_executor_config(mock_dependencies):
-    config = MagicMock()
-    config.run_identifier = "abc123"
-    r = Runner(executor_config=config)
-    assert r._identifier == "abc123"
+    run_id = "abc123"
 
-# ================ END Runner: Singleton/Instance Id Behavior ===============
+    r = Session(run_identifier=run_id)
+    assert r._identifier == run_id
+
+# ================ END Session: Singleton/Instance Id Behavior ===============
 
 
-# ================= START Runner: setup_subscriber ===============
+# ================= START Session: setup_subscriber ===============
 
 def test_setup_subscriber_adds_subscriber_if_present(mock_dependencies):
-    config = MagicMock()
-    config.subscriber = lambda s: None
-    runner = Runner(executor_config=config)
+    sub_subscriber = Mock()
+    runner = Session(broadcast_callback=sub_subscriber)
     runner.publisher = MagicMock()
     with patch('railtracks.run.stream_subscriber', return_value="fake_stream_sub") as m_stream:
-        runner.setup_subscriber()
+        runner._setup_subscriber()
         runner.publisher.subscribe.assert_called_once_with(
             "fake_stream_sub", name="Streaming Subscriber"
         )
-        m_stream.assert_called_once_with(config.subscriber)
+        m_stream.assert_called_once_with(sub_subscriber)
 
 def test_setup_subscriber_noop_if_no_subscriber(mock_dependencies):
-    config = MagicMock()
-    config.subscriber = None
-    runner = Runner(executor_config=config)
+    runner = Session()
+    runner.executor_config.subscriber = None
     runner.publisher = MagicMock()
     with patch('railtracks.run.stream_subscriber') as m_stream:
-        runner.setup_subscriber()
+        runner._setup_subscriber()
         runner.publisher.subscribe.assert_not_called()
         m_stream.assert_not_called()
 
-# ================ END Runner: setup_subscriber ===============
+# ================ END Session: setup_subscriber ===============
 
 
-# ================= START Runner: _close & __exit__ ===============
+# ================= START Session: _close & __exit__ ===============
 
 def test_close_calls_shutdown_detach_delete(mock_dependencies):
-    config = MagicMock()
-    runner = Runner(executor_config=config)
+
+    runner = Session()
     runner.rc_state = MagicMock()
     runner._close()
     assert runner.rc_state.shutdown.called
     assert mock_dependencies['detach_logging_handlers'].called
     assert mock_dependencies['delete_globals'].called
 
-# ================ END Runner: _close & __exit__ ===============
+# ================ END Session: _close & __exit__ ===============
 
 
-# ================= START Runner: info property ===============
+# ================= START Session: info property ===============
 
 def test_info_property_returns_rc_state_info(mock_dependencies):
-    config = MagicMock()
-    runner = Runner(executor_config=config)
+    runner = Session()
     rt_info = MagicMock()
     runner.rc_state.info = rt_info
     assert runner.info is rt_info
 
-# ================ END Runner: info property ===============
+# ================ END Session: info property ===============
 
 
-# ================ START Runner: run_sync ===============
+# ================ START Session: run_sync ===============
 
 def test_run_sync_calls_asyncio_run_and_returns_info(mock_dependencies):
-    config = MagicMock()
-    runner = Runner(executor_config=config)
+
+    runner = Session()
     runner.rc_state.info = "the-info"
     with patch('railtracks.run.asyncio.run', return_value=None) as m_async_run, \
          patch('railtracks.run.call', return_value=None) as m_call:
@@ -153,15 +148,14 @@ def test_run_sync_calls_asyncio_run_and_returns_info(mock_dependencies):
         m_call.assert_called_once()
         assert result == "the-info"
 
-# ================ END Runner: run_sync ===============
+# ================ END Session: run_sync ===============
 
 
-# ================= START Runner: call and run async ===============
+# ================= START Session: call and run async ===============
 
 @pytest.mark.asyncio
 async def test_call_method_calls_call_func(mock_dependencies):
-    config = MagicMock()
-    runner = Runner(executor_config=config)
+    runner = Session()
     # Now patch call
     the_node = lambda: None
     result_value = MagicMock()
@@ -173,8 +167,7 @@ async def test_call_method_calls_call_func(mock_dependencies):
 
 @pytest.mark.asyncio
 async def test_run_method_runs_and_returns_info(mock_dependencies):
-    config = MagicMock()
-    runner = Runner(executor_config=config)
+    runner = Session()
     runner.rc_state.info = "async-info"
     the_node = lambda: None
     # flagging this becuase I envision us having a dumb bug if we ever change the import statement in that source file.
@@ -183,40 +176,28 @@ async def test_run_method_runs_and_returns_info(mock_dependencies):
         m_call.assert_called_once_with(the_node, 1, foo=2)
         assert result == "async-info"
 
-# ================ END Runner: call and run async ===============
+# ================ END Session: call and run async ===============
 
 
-# ================= START Runner: cancel & from_state ===============
-
-def test_cancel_is_not_implemented(mock_dependencies):
-    config = MagicMock()
-    runner = Runner(executor_config=config)
-    with pytest.raises(NotImplementedError):
-        asyncio.run(runner.cancel("some-node-id"))
 
 
-# ================ END Runner: cancel & from_state ===============
-
-
-# ================= START Runner: Check saved data ===============
+# ================= START Session: Check saved data ===============
 def test_runner_saves_data(mock_dependencies):
-    config = MagicMock()
-
-    run_id = "hello world"
-    config.run_identifier = run_id
-    config.save_state = True
+    run_id = "Hellow world"
 
     serialization_mock = '{"Key": "Value"}'
     info = MagicMock()
     info.graph_serialization.return_value = serialization_mock
 
-    with patch.object(Runner, 'info', new_callable=PropertyMock) as mock_runner:
+    with patch.object(Session, 'info', new_callable=PropertyMock) as mock_runner:
         mock_runner.return_value.graph_serialization.return_value = serialization_mock
 
-        r = Runner(executor_config=config)
+        r = Session(
+            run_identifier=run_id,
+            save_state=True,
+
+        )
         r.__exit__(None, None, None)
-
-
 
 
     path = Path(".railtracks") / f"{run_id}.json"
@@ -234,10 +215,10 @@ def test_runner_not_saves_data(mock_dependencies):
     info = MagicMock()
     info.graph_serialization.return_value = serialization_mock
 
-    with patch.object(Runner, 'info', new_callable=PropertyMock) as mock_runner:
+    with patch.object(Session, 'info', new_callable=PropertyMock) as mock_runner:
         mock_runner.return_value.graph_serialization.return_value = serialization_mock
 
-        r = Runner(executor_config=config)
+        r = Session(run_identifier=run_id, save_state=False)
         r.__exit__(None, None, None)
 
 

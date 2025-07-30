@@ -64,7 +64,7 @@ def safe_get_runner_context() -> RunnerContextVars:
             message="Context is not available. But some function tried to access it.",
             notes=[
                 "You need to have an active runner to access context.",
-                "Eg.-\n with rt.Runner():\n    _ = rt.call(node)",
+                "Eg.-\n with rt.Session():\n    _ = rt.call(node)",
             ],
         )
     return context

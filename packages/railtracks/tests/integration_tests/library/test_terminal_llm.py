@@ -37,7 +37,7 @@ def test_terminal_llm_class_based_run(model , encoder_system_message):
         def pretty_name(cls) -> str:
             return "Simple Node"
         
-    with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="NONE")) as runner:
+    with rt.Session(logging_setting="NONE") as runner:
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("The input string is 'hello world'")]
         )
@@ -56,7 +56,7 @@ def test_return_into(mock_llm):
         return_into="greeting"  # Specify that the result should be stored in context under the key "greeting"
     )
 
-    with rt.Runner() as run:
+    with rt.Session() as run:
         result = run.run_sync(node, user_input=MessageHistory()).answer
         assert result is None  # The result should be None since it was stored in context
         assert rt.context.get("greeting") == "Hello"
@@ -154,7 +154,7 @@ async def test_terminal_llm_as_tool_correct_initialization(
         system_message=system_randomizer,
     )
 
-    with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="NONE")) as runner:
+    with rt.Session(logging_setting="NONE") as runner:
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("The input string is 'hello world'")]
         )
@@ -192,7 +192,7 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(model):
         llm_model=rt.llm.OpenAILLM("gpt-4o"),
     )
 
-    with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="NONE")) as runner:
+    with rt.Session(logging_setting="NONE") as runner:
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Start the Math node.")]
         )
@@ -228,8 +228,8 @@ async def test_terminal_llm_tool_with_invalid_parameters_easy_usage(model, encod
         system_message=system_message,
     )
 
-    with rt.Runner(
-        executor_config=rt.ExecutorConfig(logging_setting="VERBOSE")
+    with rt.Session(
+        logging_setting="VERBOSE"
     ) as runner:
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Encode this text but use an invalid parameter name.")]

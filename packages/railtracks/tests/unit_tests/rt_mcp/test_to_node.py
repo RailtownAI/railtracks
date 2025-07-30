@@ -69,7 +69,6 @@ def test_create_mcp_server_new_server_registers_tools(
         nodes=[mock_node_cls],
         server_name="Srv",
         fastmcp=None,
-        executor_config=mock_executor_config
     )
 
     # Should create new FastMCP and register a tool
@@ -89,7 +88,7 @@ def test_create_mcp_rasies_error_if_wrong_type(
         mock_node_cls, mock_executor_config
 ):
     with pytest.raises(ValueError, match="must be an instance of FastMCP"):
-        create_mcp_server([mock_node_cls], fastmcp="notafastmcp", executor_config=mock_executor_config)
+        create_mcp_server([mock_node_cls], fastmcp="notafastmcp")
 
 
 def test_create_mcp_server_existing_instance(
@@ -99,13 +98,13 @@ def test_create_mcp_server_existing_instance(
     fake_mcp = FastMCP("test")
     fake_mcp._tool_manager._tools = {}  # Prepare storage
     # Should use provided instance, not create
-    out = create_mcp_server([mock_node_cls], fastmcp=fake_mcp, executor_config=mock_executor_config)
+    out = create_mcp_server([mock_node_cls], fastmcp=fake_mcp)
     assert out is fake_mcp
 
 def test_create_mcp_server_raises_if_wrong_type(
     mock_node_cls, mock_executor_config
 ):
     with pytest.raises(ValueError, match="must be an instance of FastMCP"):
-        create_mcp_server([mock_node_cls], fastmcp="notafastmcp", executor_config=mock_executor_config)
+        create_mcp_server([mock_node_cls], fastmcp="notafastmcp")
 
 # ======= END create_mcp_server tests =================
