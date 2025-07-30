@@ -29,4 +29,4 @@ def get_rag_node(
         result = rag_core.search(query, top_k=2)
         return result
 
-    return rt.library.from_function(query)
+    return rt.library.function_node(query)

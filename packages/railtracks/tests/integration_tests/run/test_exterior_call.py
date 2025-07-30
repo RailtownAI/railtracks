@@ -9,7 +9,7 @@ import railtracks.context.central
 import railtracks.interaction.stream
 from railtracks import ExecutorConfig
 
-RNGNode = rt.library.from_function(random.random)
+RNGNode = rt.library.function_node(random.random)
 
 
 def sleep(timeout_len: float):
@@ -21,8 +21,8 @@ def exception_node():
     raise Exception()
 
 
-TimeoutNode = rt.library.from_function(sleep)
-ExceptionNode = rt.library.from_function(exception_node)
+TimeoutNode = rt.library.function_node(sleep)
+ExceptionNode = rt.library.function_node(exception_node)
 
 
 @pytest.mark.asyncio
@@ -196,7 +196,7 @@ class StreamHandler:
         self.message.append(item)
 
 
-StreamingNode = rt.library.from_function(streaming_func)
+StreamingNode = rt.library.function_node(streaming_func)
 
 
 def test_streaming_inserted_globally():

@@ -315,11 +315,11 @@ def tool_calling_nodes(
     available_locations, currency_used, average_location_cost = travel_planner_tools
     system_currency_converter, system_travel_planner = tool_call_llm_system_messages
 
-    AvailableCurrencies = rt.library.from_function(available_currencies)
-    ConvertCurrency = rt.library.from_function(convert_currency)
-    AvailableLocations = rt.library.from_function(available_locations)
-    CurrencyUsed = rt.library.from_function(currency_used)
-    AverageLocationCost = rt.library.from_function(average_location_cost)
+    AvailableCurrencies = rt.library.function_node(available_currencies)
+    ConvertCurrency = rt.library.function_node(convert_currency)
+    AvailableLocations = rt.library.function_node(available_locations)
+    CurrencyUsed = rt.library.function_node(currency_used)
+    AverageLocationCost = rt.library.function_node(average_location_cost)
 
     if fixture_name == "easy_wrapper":
         currency_converter_node = rt.library.tool_call_llm(
@@ -390,12 +390,12 @@ def parallel_node():
         await asyncio.sleep(timeout_len)
         return timeout_len
 
-    TimeoutNode = rt.library.from_function(sleep)
+    TimeoutNode = rt.library.function_node(sleep)
 
     async def parallel_function(timeout_config: List[float]):
         return await rt.call_batch(TimeoutNode, timeout_config)
 
-    return rt.library.from_function(parallel_function)
+    return rt.library.function_node(parallel_function)
 
 
 # ====================================== End Nodes ======================================

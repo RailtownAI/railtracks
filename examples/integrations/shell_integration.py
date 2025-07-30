@@ -17,7 +17,7 @@ def run_shell(command: str) -> str:
         return f"Exception: {str(e)}"
 
 
-bash_tool = rt.library.from_function(run_shell)
+bash_tool = rt.library.function_node(run_shell)
 
 ##################################################################
 # Example using the tools with an agent

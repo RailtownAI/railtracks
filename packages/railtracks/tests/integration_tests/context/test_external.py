@@ -1,7 +1,7 @@
 import pytest
 import railtracks as rt
 from railtracks.context import put, get
-from railtracks.nodes.library import from_function
+from railtracks.nodes.library import function_node
 from railtracks.interaction.call import call
 
 
@@ -14,12 +14,12 @@ def retrieve_context():
 
 
 async def context_flow():
-    await call(from_function(set_context))
-    return await call(from_function(retrieve_context))
+    await call(function_node(set_context))
+    return await call(function_node(retrieve_context))
 
 
 def test_put_context():
-    context_node = from_function(context_flow)
+    context_node = function_node(context_flow)
     with rt.Session() as runner:
         result = runner.run_sync(context_node)
 

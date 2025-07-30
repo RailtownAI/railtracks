@@ -28,7 +28,7 @@ def create_linked_request(identifier, source, sink):
     stamp=Stamp(identifier="test", time=time.time(), step=1)
 )
 
-def create_node(): return rt.library.from_function(random.random)()
+def create_node(): return rt.library.function_node(random.random)()
 
 def create_linked_node(node: Node): return LinkedNode(
     identifier=node.uuid,

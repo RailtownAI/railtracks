@@ -161,7 +161,7 @@ def _make_node(fixture_name, system_message, model, schema, tool_nodes, class_ty
 def simple_node(request, model, simple_output_model):
     system_simple = "Return a simple text and number. Don't use any tools."
     fixture_name = request.param
-    tool_nodes = {rt.library.from_function(random.random)}
+    tool_nodes = {rt.library.function_node(random.random)}
     return _make_node(fixture_name, system_simple, model, simple_output_model, tool_nodes)
 
 @pytest.fixture
@@ -170,10 +170,10 @@ def travel_planner_node(request, model, travel_planner_tools, travel_planner_out
     convert_currency, available_locations, currency_used, average_location_cost = travel_planner_tools
     system_travel_planner = "You are a travel planner that will plan a trip. you have access to AvailableLocations, ConvertCurrency, CurrencyUsed and AverageLocationCost tools. Use them when you need to."
     tool_nodes = {
-        rt.library.from_function(convert_currency),
-        rt.library.from_function(available_locations),
-        rt.library.from_function(currency_used),
-        rt.library.from_function(average_location_cost),
+        rt.library.function_node(convert_currency),
+        rt.library.function_node(available_locations),
+        rt.library.function_node(currency_used),
+        rt.library.function_node(average_location_cost),
     }
     return _make_node(fixture_name, system_travel_planner, model, travel_planner_output_model, tool_nodes)
 
@@ -196,7 +196,7 @@ def complex_node(request, model, person_output_model):
     system_complex = "You are an all knowing sentient being. You can answer any question asked to you. You may make up any answer you want. Just provide all info asked for."
 
     fixture_name = request.param
-    tool_nodes = {rt.library.from_function(random.random)}
+    tool_nodes = {rt.library.function_node(random.random)}
     return _make_node(fixture_name, system_complex, model, person_output_model, tool_nodes)
 
 # ============ Function-based Node Fixtures ===========
@@ -221,9 +221,9 @@ def some_function_taking_travel_planner_node(model, travel_planner_tools, travel
     return rt.library.structured_tool_call_llm(
         tool_nodes={
             convert_currency,
-            rt.library.from_function(available_locations),
+            rt.library.function_node(available_locations),
             currency_used,
-            rt.library.from_function(average_location_cost),
+            rt.library.function_node(average_location_cost),
         },
         name="Travel Planner Node",
         system_message=system_travel_planner,
@@ -259,7 +259,7 @@ def travel_message_history():
 @pytest.fixture
 def limited_tool_call_node_factory(model, travel_planner_tools):
     def _factory(max_tool_calls=1, system_message=None, tools=None, class_based=False):
-        tools = tools or set([rt.library.from_function(tool) for tool in travel_planner_tools])
+        tools = tools or set([rt.library.function_node(tool) for tool in travel_planner_tools])
         sys_msg = system_message or SystemMessage("You are a travel planner that will plan a trip. you have access to AvailableLocations, CurrencyUsed and AverageLocationCost tools. Use them when you need to.")
         tool_nodes = tools
         if not class_based:

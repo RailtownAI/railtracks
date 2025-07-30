@@ -59,7 +59,7 @@ def to_node(
     tool_params: set[Parameter] | None = None,
 ):
     """Decorator to convert a function into a Node using from_function."""
-    return from_function(
+    return function_node(
         func,
         name=pretty_name,
         tool_details=tool_details,
@@ -68,7 +68,7 @@ def to_node(
 
 
 @overload
-def from_function(
+def function_node(
     func: Callable[_P, Coroutine[None, None, _TOutput]],
     /,
     *,
@@ -80,7 +80,7 @@ def from_function(
 
 
 @overload
-def from_function(
+def function_node(
     func: Callable[_P, _TOutput],
     /,
     *,
@@ -91,7 +91,7 @@ def from_function(
     pass
 
 
-def from_function(
+def function_node(
     func: Callable[_P, Coroutine[None, None, _TOutput] | _TOutput],
     /,
     *,

@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 from railtracks.nodes.nodes import Node, _TOutput
 from railtracks.nodes.library import TerminalLLM, StructuredLLM
-from railtracks.nodes.library.easy_usage_wrappers.one_wrapper import new_agent
+from railtracks.nodes.library.easy_usage_wrappers.one_wrapper import agent_node
 from railtracks.nodes.library.tool_calling_llms.structured_tool_call_llm_base import StructuredToolCallLLM
 from railtracks.nodes.library.tool_calling_llms.tool_call_llm_base import ToolCallLLM
 
@@ -12,7 +12,7 @@ from railtracks.nodes.library.tool_calling_llms.tool_call_llm_base import ToolCa
 def test_create_new_agent_terminal():
     system_message_text = "hello world"
     model = MagicMock()
-    TerminalAgent = new_agent("Terminal_LLM", llm_model=model, system_message=system_message_text)
+    TerminalAgent = agent_node("Terminal_LLM", llm_model=model, system_message=system_message_text)
 
     assert issubclass(TerminalAgent, TerminalLLM)
     assert TerminalAgent.get_llm_model() == model
@@ -33,7 +33,7 @@ class TempNode(Node[str]):
 
 def test_create_new_agent_tool_call():
     connected_nodes = {TempNode}
-    ToolCallAgent = new_agent(tool_nodes=connected_nodes)
+    ToolCallAgent = agent_node(tool_nodes=connected_nodes)
 
     assert issubclass(ToolCallAgent, ToolCallLLM)
     assert ToolCallAgent.name() == "Tool Call LLM"
@@ -44,7 +44,7 @@ class TempModel(BaseModel):
     field2: int
 
 def test_create_new_agent_structured():
-    StructuredAgent = new_agent(output_schema=TempModel)
+    StructuredAgent = agent_node(output_schema=TempModel)
 
     assert issubclass(StructuredAgent, StructuredLLM)
     assert issubclass(StructuredAgent.output_schema(), TempModel)
@@ -52,7 +52,7 @@ def test_create_new_agent_structured():
 
 def test_create_new_agent_structured_tool_call():
     connected_nodes = {TempNode}
-    StructuredToolCallAgent = new_agent(output_schema=TempModel, tool_nodes=connected_nodes)
+    StructuredToolCallAgent = agent_node(output_schema=TempModel, tool_nodes=connected_nodes)
 
     assert issubclass(StructuredToolCallAgent, StructuredToolCallLLM)
     assert issubclass(StructuredToolCallAgent.output_schema(), TempModel)

@@ -1,5 +1,5 @@
 __all__ = [
-    "from_function",
+    "function_node",
     "TerminalLLM",
     "ToolCallLLM",
     "StructuredLLM",
@@ -14,7 +14,7 @@ __all__ = [
 from railtracks.nodes.library.easy_usage_wrappers.structured_llm import structured_llm
 from railtracks.nodes.library.easy_usage_wrappers.terminal_llm import terminal_llm
 
-from .easy_usage_wrappers.function import from_function
+from .easy_usage_wrappers.function import function_node
 from .easy_usage_wrappers.mcp_tool import from_mcp_server
 from .easy_usage_wrappers.tool_calling_llms.structured_tool_call_llm import (
     structured_tool_call_llm,

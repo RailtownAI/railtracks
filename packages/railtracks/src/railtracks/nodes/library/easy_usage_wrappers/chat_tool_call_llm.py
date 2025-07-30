@@ -11,7 +11,7 @@ from ....visuals.browser.chat_ui import ChatUI
 from ...library.tool_calling_llms.chat_tool_call_llm import ChatToolCallLLM
 
 
-def chat_tool_call_llm(  # noqa: C901
+def chatui_node(
     tool_nodes: Set[Union[Type[Node], Callable]],
     *,
     port: int | None = None,

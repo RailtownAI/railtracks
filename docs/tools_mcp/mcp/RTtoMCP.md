@@ -17,14 +17,16 @@ RC provides utilities to convert your Nodes into MCP tools and run a FastMCP ser
 Use the `create_mcp_server` utility to expose your RT nodes as MCP tools:
 
 ```python
-from railtracks.nodes.library import from_function
+from railtracks.nodes.library import function_node
 from railtracks.rt_mcp.to_node import create_mcp_server
+
 
 def add_nums_plus_ten(num1: int, num2: int):
     """Simple tool example."""
     return num1 + num2 + 10
 
-node = from_function(add_nums_plus_ten)
+
+node = function_node(add_nums_plus_ten)
 
 # Create and run the MCP server
 mcp = create_mcp_server([node], server_name="My MCP Server")

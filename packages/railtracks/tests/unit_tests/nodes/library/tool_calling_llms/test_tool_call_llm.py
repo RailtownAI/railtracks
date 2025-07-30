@@ -2,7 +2,7 @@ import pytest
 import railtracks as rt
 from railtracks import Node
 from railtracks.nodes.library import tool_call_llm, ToolCallLLM
-from railtracks.nodes.library.easy_usage_wrappers.one_wrapper import new_agent
+from railtracks.nodes.library.easy_usage_wrappers.one_wrapper import agent_node
 from railtracks.nodes.library.response import LLMResponse
 from railtracks.nodes.library.tool_calling_llms._base import OutputLessToolCallLLM
 from railtracks.exceptions import LLMError, NodeCreationError, NodeInvocationError
@@ -265,7 +265,7 @@ def test_tool_call_llm_easy_usage_with_user_message(mock_llm, mock_tool):
     assert node.message_hist[1].content == "hello"
 
 def test_tool_call_llm_with_output_type_message_history(mock_llm, mock_tool):
-    ToolCallLLM = new_agent(
+    ToolCallLLM = agent_node(
         tool_nodes={mock_tool},
         name="Test ToolCallLLM",
         llm_model=mock_llm(),

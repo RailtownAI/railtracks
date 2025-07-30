@@ -220,7 +220,7 @@ class SimpleOutput(BaseModel):
 @pytest.mark.parametrize(
     "llm_function, tool_nodes",
     [
-        (rt.library.structured_tool_call_llm, {rt.library.from_function(lambda: "test")}),
+        (rt.library.structured_tool_call_llm, {rt.library.function_node(lambda: "test")}),
         (rt.library.structured_llm, None),
     ],
     ids=["tool_call_llm", "structured_llm"],

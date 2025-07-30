@@ -72,10 +72,10 @@ async def call(
         # If a function is passed, we will convert it to a node
         # we have to use lazy import here to prevent a circular import issue. Bad design I know :(
         from railtracks.nodes.library.easy_usage_wrappers.function import (
-            from_function,
+            function_node,
         )
 
-        node = from_function(node_)
+        node = function_node(node_)
     else:
         node = node_
 

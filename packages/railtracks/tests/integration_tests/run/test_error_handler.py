@@ -8,7 +8,7 @@ import random
 import railtracks as rt
 from railtracks.state.request import Failure
 
-RNGNode = rt.library.from_function(random.random)
+RNGNode = rt.library.function_node(random.random)
 
 
 @pytest.mark.timeout(1)
@@ -28,7 +28,7 @@ async def error_thrower():
     raise ErrorforTest("This is a test error")
 
 
-ErrorThrower = rt.library.from_function(error_thrower)
+ErrorThrower = rt.library.function_node(error_thrower)
 
 
 def test_error():
@@ -44,7 +44,7 @@ async def error_handler():
         return "Caught the error"
 
 
-ErrorHandler = rt.library.from_function(error_handler)
+ErrorHandler = rt.library.function_node(error_handler)
 
 
 @pytest.mark.timeout(1)
@@ -74,7 +74,7 @@ async def error_handler_with_retry(retries: int):
     return "Caught the error"
 
 
-ErrorHandlerWithRetry = rt.library.from_function(error_handler_with_retry)
+ErrorHandlerWithRetry = rt.library.function_node(error_handler_with_retry)
 
 
 @pytest.mark.timeout(5)
@@ -107,7 +107,7 @@ async def parallel_error_handler(num_calls: int, parallel_calls: int):
     return data
 
 
-ParallelErrorHandler = rt.library.from_function(parallel_error_handler)
+ParallelErrorHandler = rt.library.function_node(parallel_error_handler)
 
 
 def test_parallel_error_tester():
@@ -131,7 +131,7 @@ async def error_handler_wrapper(num_calls: int, parallel_calls: int):
         return "Caught the error"
 
 
-ErrorHandlerWrapper = rt.library.from_function(error_handler_wrapper)
+ErrorHandlerWrapper = rt.library.function_node(error_handler_wrapper)
 
 
 def test_parallel_error_wrapper():

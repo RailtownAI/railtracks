@@ -82,9 +82,9 @@ def number_of_characters(text: str, character_of_interest) -> int:
   return len(text)
 
 
-TotalNumberChars = rt.library.from_function(number_of_chars)
-TotalNumberWords = rt.library.from_function(number_of_words)
-CharacterCount = rt.library.from_function(number_of_characters)
+TotalNumberChars = rt.library.function_node(number_of_chars)
+TotalNumberWords = rt.library.function_node(number_of_words)
+CharacterCount = rt.library.function_node(number_of_characters)
 
 TextAnalyzer = rt.library.tool_call_llm(
   tool_nodes={

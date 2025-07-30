@@ -49,7 +49,7 @@ def add_nums(num1: int, num2: int, print_s: str):
     return num1 + num2 + 10
 
 
-node = rt_library.from_function(add_nums)
+node = rt_library.function_node(add_nums)
 
 FAST_MCP_PORT = get_free_port(8000)
 

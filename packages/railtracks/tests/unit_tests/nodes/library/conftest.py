@@ -74,7 +74,7 @@ def create_top_level_node():
 
             @classmethod
             def tool_nodes(cls):
-                return {rt.library.from_function(test_function)}
+                return {rt.library.function_node(test_function)}
 
             @classmethod
             def name(cls) -> str:

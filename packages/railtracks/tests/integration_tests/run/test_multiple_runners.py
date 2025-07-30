@@ -13,7 +13,7 @@ def slow_rng(timeout_len: float):
     return random.random()
 
 
-SlowRNG = rt.library.from_function(slow_rng)
+SlowRNG = rt.library.function_node(slow_rng)
 
 
 def test_sync_runners_w_executor():
@@ -65,4 +65,4 @@ def nested_runner_call():
         return result.answer
 
 
-NestedRunner = rt.library.from_function(nested_runner_call)
+NestedRunner = rt.library.function_node(nested_runner_call)

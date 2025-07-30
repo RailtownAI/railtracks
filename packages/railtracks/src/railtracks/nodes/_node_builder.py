@@ -165,11 +165,11 @@ class NodeBuilder(Generic[_TNode]):
         )
 
         from railtracks.nodes.library.easy_usage_wrappers.function import (
-            from_function,
+            function_node,
         )
 
         connected_nodes = {
-            from_function(elem) if isfunction(elem) else elem
+            function_node(elem) if isfunction(elem) else elem
             for elem in connected_nodes
         }
 
