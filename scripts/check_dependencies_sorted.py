@@ -2,7 +2,7 @@ import sys
 
 from tomlkit import parse
 
-with open("pyproject.toml", "r") as f:
+with open("packages/railtracks/pyproject.toml", "r") as f:
     doc = parse(f.read())
 
 try:

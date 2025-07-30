@@ -1,0 +1,53 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "railtracks"
+authors = [
+    { name = "Logan Underwood", email = "logan@railtown.ai" },
+    { name = "Levi Varsanyi", email = "levi@railtown.ai" },
+    { name = "Jaime Bueza", email = "jaime@railtown.ai" },
+    { name = "Amir Refaee", email = "amir@railtown.ai" },
+    { name = "Aryan Ballani", email = "aryan@railtown.ai" },
+    { name = "Tristan Brown", email = "tristan@railtown.ai" }
+]
+readme = "README.md"
+license = { file = "LICENSE" }
+dynamic = ["version", "description"]
+dependencies = [
+    "colorama >= 0.4.6",
+    "pydantic >= 2.5.3, <3",
+    "python-dotenv >= 1.0.0",
+]
+
+[project.optional-dependencies]
+llm = [
+    "litellm >= 1.70.2"
+]
+mcp = [
+    "mcp >= 1.9.0",
+]
+chat = [
+    "fastapi >= 0.104.0"
+]
+integrations = [
+
+]
+all = [
+    "railtracks[llm,mcp,chat,integrations]"
+]
+core = [
+    "railtracks[llm,mcp]"
+]
+
+[project.urls]
+repository = "https://github.com/RailtownAI/railtracks"
+ui-repository = "https://github.com/RailtownAI/railtracks-visualizer"
+railtown = "https://railtown.ai"
+
+[tool.flit.module]
+name = "railtracks"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
