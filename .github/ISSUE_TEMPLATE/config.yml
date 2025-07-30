@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Documentation
+    url: https://github.com/RailtownAI/railtracks/blob/main/README.md
+    about: Read the documentation and examples for railtracks
+  - name: 🌐 RailtownAI Website
+    url: https://railtown.ai
+    about: Learn more about RailtownAI and our other products
