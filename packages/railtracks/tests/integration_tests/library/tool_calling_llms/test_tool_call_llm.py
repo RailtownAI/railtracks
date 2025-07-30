@@ -477,7 +477,7 @@ async def test_multiple_tool_calls_limit(limited_tool_call_node_factory, travel_
 @pytest.mark.asyncio
 @pytest.mark.parametrize("class_based", [True, False], ids=["class_based", "easy_usage_wrapper"])
 async def test_context_reset_between_runs(limited_tool_call_node_factory, travel_message_history, reset_tools_called, class_based):
-    @rt.to_node
+    @rt.function_node
     def magic_number():
         #  incrementing count for testing purposes
         count = rt.context.get("tools_called", -1)

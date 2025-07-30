@@ -41,7 +41,7 @@ def _format_results(data: Dict[str, Any]) -> Dict[str, Any]:
         'totalResults': data.get('searchInformation', {}).get('totalResults', '0')
     }
 
-@rt.to_node
+@rt.function_node
 async def google_search(query: str, num_results: int = 3) -> Dict[str, Any]:
     """
     Tool for searching using Google Custom Search API

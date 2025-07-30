@@ -23,11 +23,11 @@ __all__ = [
     "context",
     "set_config",
     "context",
-    "to_node",
+    "function_node",
 ]
 
 
-from railtracks.nodes.library.easy_usage_wrappers.function import to_node
+from railtracks.nodes.library.easy_usage_wrappers.function import function_node
 
 from . import context, llm, rt_mcp
 from .config import ExecutorConfig

@@ -26,46 +26,6 @@ _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
 
 
-@overload
-def to_node(
-    func: Callable[_P, Coroutine[None, None, _TOutput]],
-    /,
-    *,
-    name: str | None = None,
-    tool_details: str | None = None,
-    tool_params: set[Parameter] | None = None,
-) -> Type[AsyncDynamicFunctionNode[_P, _TOutput]]:
-    pass
-
-
-@overload
-def to_node(
-    func: Callable[_P, _TOutput],
-    /,
-    *,
-    pretty_name: str | None = None,
-    tool_details: str | None = None,
-    tool_params: set[Parameter] | None = None,
-) -> Type[SyncDynamicFunctionNode[_P, _TOutput]]:
-    pass
-
-
-def to_node(
-    func: Callable[_P, _TOutput | Coroutine[None, None, _TOutput]],
-    /,
-    *,
-    pretty_name: str | None = None,
-    tool_details: str | None = None,
-    tool_params: set[Parameter] | None = None,
-):
-    """Decorator to convert a function into a Node using from_function."""
-    return function_node(
-        func,
-        name=pretty_name,
-        tool_details=tool_details,
-        tool_params=tool_params,
-    )
-
 
 @overload
 def function_node(

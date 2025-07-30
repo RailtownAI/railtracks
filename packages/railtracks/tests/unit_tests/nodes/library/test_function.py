@@ -73,7 +73,7 @@ def func_buggy():
 # ===== Unit Tests =====
 def test_to_node():
     """Test that to_node decorator works correctly."""
-    @rt.to_node
+    @rt.function_node
     def secret_phrase() -> str:
         """
         Function that returns a secret phrase.
@@ -169,7 +169,7 @@ class TestRaiseErrors:
     def test_nested_dict_parameter(self):
         """Test that a function with a nested dict parameter raises an error."""
         with pytest.raises(NodeCreationError, match=self.DICT_ERROR_FROM_FUNCTION_MSG):
-            @rt.to_node
+            @rt.function_node
             def secret_function(fruits: list[Union[str, list[dict[str, str]]]]) -> str:
                 return "test"
 
@@ -197,7 +197,7 @@ class TestRaiseErrors:
             inner: InnerModel
 
         with pytest.raises(NodeCreationError, match=self.DICT_ERROR_FROM_FUNCTION_MSG):
-            @rt.to_node
+            @rt.function_node
             def secret_function(model: OuterModel) -> str:
                 pass
 

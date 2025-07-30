@@ -36,7 +36,8 @@ Alternatively, you can use a decorator to register the function directly:
 ```python
 import railtracks as rt
 
-@rt.to_node
+
+@rt.function_node
 def solve_expression(equation: str, solving_for: str):
     ...
 ```

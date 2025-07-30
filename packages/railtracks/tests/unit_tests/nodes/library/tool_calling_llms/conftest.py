@@ -34,7 +34,7 @@ def mock_chat_with_tools_function():    # !!! TODO: this goes on forever, modify
 # ============ Tools ===========
 @pytest.fixture
 def mock_tool():
-    @rt.to_node
+    @rt.function_node
     def magic_number() -> int:
         return 42
     

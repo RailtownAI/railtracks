@@ -29,7 +29,7 @@ With streaming enabled, call `rt.stream(...)` inside any function decorated with
 import railtracks as rt
 
 
-@rt.to_node
+@rt.function_node
 def example_node(data: list[str]):
     rt.broadcast(f"Handling {len(data)} items")
 ```
