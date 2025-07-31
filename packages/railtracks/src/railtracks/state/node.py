@@ -3,11 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, Optional, ParamSpec, Type
 
-from ..nodes.nodes import (
+from railtracks.nodes.nodes import (
     Node,
 )
-from ..utils.profiling import Stamp
-from ..utils.serialization.graph import Vertex
+from railtracks.utils.profiling import Stamp
+from railtracks.utils.serialization.graph import Vertex
+
 from .forest import (
     AbstractLinkedObject,
     Forest,
@@ -28,7 +29,7 @@ class LinkedNode(AbstractLinkedObject):
     def to_vertex(self):
         return Vertex(
             identifier=self.identifier,
-            node_type=self.node.pretty_name(),
+            node_type=self.node.name(),
             stamp=self.stamp,
             details={"internals": self.node.details},
             parent=self.parent.to_vertex() if self.parent else None,

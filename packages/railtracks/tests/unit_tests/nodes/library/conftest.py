@@ -56,7 +56,7 @@ def create_top_level_node():
 
                 super().__init__(
                     user_input=user_input,
-                    model=self.create_model(),
+                    llm_model=self.create_model(),
                 )
 
             @classmethod
@@ -73,11 +73,11 @@ def create_top_level_node():
                     raise ValueError(f"Invalid model provider: {model_provider}")
 
             @classmethod
-            def connected_nodes(cls):
-                return {rt.library.from_function(test_function)}
+            def tool_nodes(cls):
+                return {rt.library.function_node(test_function)}
 
             @classmethod
-            def pretty_name(cls) -> str:
+            def name(cls) -> str:
                 return "Top Level Node"
 
         return TopLevelNode

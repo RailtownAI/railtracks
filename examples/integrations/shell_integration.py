@@ -17,13 +17,13 @@ def run_shell(command: str) -> str:
         return f"Exception: {str(e)}"
 
 
-bash_tool = rt.library.from_function(run_shell)
+bash_tool = rt.library.function_node(run_shell)
 
 ##################################################################
 # Example using the tools with an agent
 
 agent = tool_call_llm(
-    connected_nodes={bash_tool},
+    tool_nodes={bash_tool},
     system_message=f"You are a useful helper that can run local shell commands. "
                    f"You are on a {platform.system()} machine. Use appropriate shell commands to answer the user's questions.",
     model=rt.llm.OpenAILLM("gpt-4o"),
@@ -33,7 +33,7 @@ user_prompt = """What directories are in the current directory?"""
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
-with rt.Runner(rt.ExecutorConfig(logging_setting="VERBOSE")) as run:
+with rt.Session(rt.ExecutorConfig(logging_setting="VERBOSE")) as run:
     result = run.run_sync(agent, message_history)
 
 print(result.answer.content)

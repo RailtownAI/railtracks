@@ -18,10 +18,8 @@ import railtracks as rt
 )
 async def test_parallel_calls(parallel_node, timeout_config, expected, buffer):
 
-    with rt.Runner(
-        executor_config=rt.ExecutorConfig(
-            logging_setting="NONE",
-        ),
+    with rt.Session(
+        logging_setting="NONE",
     ) as runner:
         start_time = time.time()
         results = await runner.run(parallel_node, timeout_config)
@@ -40,10 +38,10 @@ async def test_parallel_calls(parallel_node, timeout_config, expected, buffer):
     ],
 )
 def test_parallel_calls_sync(parallel_node, timeout_config, expected, buffer):
-    with rt.Runner(
-        executor_config=rt.ExecutorConfig(
-            logging_setting="NONE",
-        )
+    with rt.Session(
+
+        logging_setting="NONE",
+
     ) as runner:
         start_time = time.time()
         results = runner.run_sync(parallel_node, timeout_config)
@@ -61,14 +59,14 @@ async def error_thrower(exception: Exception, is_throw):
     return None
 
 
-ErrorThrower = rt.library.from_function(error_thrower)
+ErrorThrower = rt.function_node(error_thrower)
 
 
 async def error_thrower_top_level(
     num_times: int, return_exceptions: bool | None = None
 ):
     if return_exceptions is None:
-        results = await rt.batch(
+        results = await rt.call_batch(
             ErrorThrower,
             [exc] * num_times,
             [
@@ -78,7 +76,7 @@ async def error_thrower_top_level(
             + [True],  # Last one should throw an error,
         )
     else:
-        results = await rt.batch(
+        results = await rt.call_batch(
             ErrorThrower,
             [exc] * num_times,
             [
@@ -103,7 +101,7 @@ async def error_thrower_top_level(
         pass
 
 
-ErrorThrowerTopLevel = rt.library.from_function(error_thrower_top_level)
+ErrorThrowerTopLevel = rt.function_node(error_thrower_top_level)
 
 
 @pytest.mark.parametrize(
@@ -114,10 +112,9 @@ async def test_batch_error_handling_default_error_prop(num_times):
     """
     Test that batch execution handles errors correctly.
     """
-    with rt.Runner(
-        executor_config=rt.ExecutorConfig(
+    with rt.Session(
             logging_setting="NONE",
-        )
+
     ) as runner:
         await runner.run(ErrorThrowerTopLevel, num_times=num_times)
 
@@ -130,10 +127,10 @@ async def test_batch_error_handling_true_error_prop(num_times):
     """
     Test that batch execution handles errors correctly.
     """
-    with rt.Runner(
-        executor_config=rt.ExecutorConfig(
+    with rt.Session(
+
             logging_setting="NONE",
-        )
+
     ) as runner:
         await runner.run(
             ErrorThrowerTopLevel, num_times=num_times, return_exceptions=True
@@ -148,10 +145,10 @@ async def test_batch_error_handling_false_error_prop(num_times):
     """
     Test that batch execution handles errors correctly.
     """
-    with rt.Runner(
-        executor_config=rt.ExecutorConfig(
+    with rt.Session(
+
             logging_setting="NONE",
-        )
+
     ) as runner:
         with pytest.raises(type(exc)):
             await runner.run(

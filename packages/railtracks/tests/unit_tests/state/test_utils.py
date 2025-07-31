@@ -70,7 +70,7 @@ def test_empty_parent_or_heap(linked_node_factory):
     assert not res.node_forest._heap
     assert not res.request_forest._heap
 
-    # valid request_heap but missing parent id
+    # valid request_forest but missing parent id
     r = {}
     n = {}
     assert not create_sub_state_info(n, r, []).node_forest._heap

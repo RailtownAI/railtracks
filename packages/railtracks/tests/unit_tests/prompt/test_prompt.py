@@ -3,7 +3,7 @@ import pytest
 from railtracks import ExecutorConfig
 from railtracks.llm import MessageHistory, Message
 from railtracks.llm.response import Response
-from railtracks.nodes.library.easy_usage_wrappers.terminal_llm import terminal_llm
+from railtracks.nodes.easy_usage_wrappers.helpers import terminal_llm
 import railtracks as rt
 
 
@@ -18,7 +18,7 @@ def test_prompt_injection(mock_llm):
         llm_model=mock_llm(chat=return_message)
     )
 
-    with rt.Runner(context={"secret": "tomato"}) as runner:
+    with rt.Session(context={"secret": "tomato"}) as runner:
         response = runner.run_sync(node, user_input=MessageHistory())
 
     assert response.answer.content == "tomato"
@@ -35,7 +35,7 @@ def test_prompt_injection_bypass(mock_llm):
         llm_model=mock_llm(chat=return_message)
     )
 
-    with rt.Runner(context={"secret_value": "tomato"}) as runner:
+    with rt.Session(context={"secret_value": "tomato"}) as runner:
         response = runner.run_sync(node, user_input=MessageHistory())
 
     assert response.answer.content == "{secret_value}"
@@ -52,7 +52,7 @@ def test_prompt_numerical(mock_llm):
         llm_model=mock_llm(chat=return_message)
     )
 
-    with rt.Runner(context={"1": "tomato"}) as runner:
+    with rt.Session(context={"1": "tomato"}) as runner:
         response = runner.run_sync(node, user_input=MessageHistory())
 
     assert response.answer.content == "tomato"
@@ -69,7 +69,7 @@ def test_prompt_not_in_context(mock_llm):
         llm_model=mock_llm(chat=return_message)
     )
 
-    with rt.Runner() as runner:
+    with rt.Session() as runner:
         response = runner.run_sync(node, user_input=MessageHistory())
 
     assert response.answer.content == "{secret2}"
@@ -87,9 +87,9 @@ def test_prompt_injection_global_config_bypass(mock_llm):
         llm_model=mock_llm(chat=return_message)
     )
 
-    with rt.Runner(
+    with rt.Session(
             context={"secret_value": "tomato"},
-            executor_config=ExecutorConfig(prompt_injection=False)
+            prompt_injection=False
     ) as runner:
         response = runner.run_sync(node, user_input=MessageHistory())
 

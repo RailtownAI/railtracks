@@ -3,6 +3,7 @@ import railtracks as rt
 from typing import List, Callable
 from pydantic import BaseModel, Field
 from railtracks.llm import SystemMessage
+from railtracks.nodes.concrete import ToolCallLLM
 
 
 # ============ Model ===========
@@ -41,7 +42,7 @@ def create_top_level_node():
             A ToolCallLLM node that can be used to test the function.
         """
 
-        class TopLevelNode(rt.library.ToolCallLLM):
+        class TopLevelNode(ToolCallLLM):
             def __init__(self, user_input: rt.llm.MessageHistory):
                 user_input.insert(0, self.system_message())
 
@@ -64,11 +65,11 @@ def create_top_level_node():
                     raise ValueError(f"Invalid model provider: {model_provider}")
 
             @classmethod
-            def connected_nodes(cls):
-                return {rt.library.from_function(test_function)}
+            def tool_nodes(cls):
+                return {rt.function_node(test_function)}
 
             @classmethod
-            def pretty_name(cls) -> str:
+            def name(cls) -> str:
                 return "Top Level Node"
 
         return TopLevelNode

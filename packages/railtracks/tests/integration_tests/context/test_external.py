@@ -1,7 +1,7 @@
 import pytest
 import railtracks as rt
 from railtracks.context import put, get
-from railtracks.nodes.library import from_function
+from railtracks import function_node
 from railtracks.interaction.call import call
 
 
@@ -14,26 +14,26 @@ def retrieve_context():
 
 
 async def context_flow():
-    await call(from_function(set_context))
-    return await call(from_function(retrieve_context))
+    await call(function_node(set_context))
+    return await call(function_node(retrieve_context))
 
 
 def test_put_context():
-    context_node = from_function(context_flow)
-    with rt.Runner() as runner:
+    context_node = function_node(context_flow)
+    with rt.Session() as runner:
         result = runner.run_sync(context_node)
 
     assert result.answer == "test_value"
 
 
 def test_context_addition():
-    with rt.Runner(context={"hello world": "test_value"}):
+    with rt.Session(context={"hello world": "test_value"}):
         rt.context.put("test_key", "duo")
         assert rt.context.get("test_key") == "duo"
         assert rt.context.get("hello world") == "test_value"
 
 def test_context_replacement():
-    with rt.Runner(context={"hello world": "test_value"}):
+    with rt.Session(context={"hello world": "test_value"}):
         rt.context.put("hello world", "new_value")
         assert rt.context.get("hello world") == "new_value"
 
@@ -41,7 +41,7 @@ def test_context_replacement():
             rt.context.get("non_existent_key")
 
 def test_multiple_runners():
-    with rt.Runner(context={"key1": "value1"}):
+    with rt.Session(context={"key1": "value1"}):
         assert rt.context.get("key1") == "value1"
         rt.context.put("key2", "updated_value1")
         rt.context.put("key3", "value3")
@@ -49,7 +49,7 @@ def test_multiple_runners():
         assert rt.context.get("key3") == "value3"
 
 
-    with rt.Runner(context={"key2": "value2"}):
+    with rt.Session(context={"key2": "value2"}):
 
         assert rt.context.get("key2") == "value2"
 
@@ -60,7 +60,7 @@ def test_multiple_runners():
         with pytest.raises(KeyError):
             rt.context.get("key3")
 
-    with rt.Runner():
+    with rt.Session():
         # Ensure that the context is empty in a new runner
         with pytest.raises(KeyError):
             rt.context.get("key1")

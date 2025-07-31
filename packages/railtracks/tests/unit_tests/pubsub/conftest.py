@@ -58,14 +58,14 @@ def dummy_publisher():
 
 @pytest.fixture
 def logger_patch():
-    with patch("railtracks.pubsub.publisher.logger") as mock_logger:
+    with patch("railtracks.utils.publisher.logger") as mock_logger:
         yield mock_logger
 
 # ================================== Message Fixtures ==================================
 @pytest.fixture
 def dummy_node_class():
     class Node:
-        def pretty_name(self):
+        def name(self):
             return "MockNode"
     return Node
 

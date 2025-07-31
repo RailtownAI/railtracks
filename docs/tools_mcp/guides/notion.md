@@ -6,7 +6,7 @@ To use Notion tools with RT, use the `from_mcp_server` utility to load tools dir
 import json
 import os
 from mcp import StdioServerParameters
-from railtracks.nodes.library.easy_usage_wrappers.mcp_tool import from_mcp_server
+from railtracks.nodes.library.easy_usage_wrappers.mcp_tool import connect_mcp
 
 MCP_COMMAND = "npx"
 MCP_ARGS = ["-y", "@notionhq/notion-mcp-server"]
@@ -21,7 +21,7 @@ notion_env = {
     "OPENAPI_MCP_HEADERS": json.dumps(headers)
 }
 
-server = from_mcp_server(
+server = connect_mcp(
     StdioServerParameters(
         command=MCP_COMMAND,
         args=MCP_ARGS,
@@ -48,7 +48,7 @@ user_prompt = """Create a new page in Notion called 'Jokes' under the parent pag
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
-with rt.Runner() as run:
+with rt.Session() as run:
     result = run.run_sync(agent, message_history)
 
 print(result.answer.content)

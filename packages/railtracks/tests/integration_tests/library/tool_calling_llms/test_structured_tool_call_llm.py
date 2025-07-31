@@ -6,6 +6,8 @@ from railtracks.llm.response import Response
 
 from pydantic import BaseModel
 
+from railtracks.nodes.easy_usage_wrappers.helpers import structured_llm
+
 NODE_INIT_METHODS = ["easy_wrapper", "class_based"]
 
 
@@ -13,7 +15,7 @@ NODE_INIT_METHODS = ["easy_wrapper", "class_based"]
 @pytest.mark.parametrize("simple_node", NODE_INIT_METHODS, indirect=True)
 async def test_structured_with_no_tool_calls(simple_node, simple_output_model):
     """Test basic functionality of returning a structured output."""
-    with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="NONE")) as runner:
+    with rt.Session(logging_setting="NONE") as runner:
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Generate a simple text and number.")]
         )
@@ -39,10 +41,10 @@ async def test_tool_with_structured_output_child_tool():
 
     # Define the child tool with structured output
     child_tool = rt.library.structured_llm(
-        schema=ChildResponse,
+        output_schema=ChildResponse,
         system_message="You are a word counting tool that counts the number of words in the request provided by the user.",
         llm_model=rt.llm.OpenAILLM("gpt-4o"),
-        pretty_name="Structured Child Tool",
+        name="Structured Child Tool",
         tool_details="A tool that generates a structured response that includes word count.",
         tool_params={
             rt.llm.Parameter(
@@ -56,15 +58,15 @@ async def test_tool_with_structured_output_child_tool():
     # Define the parent tool that uses the child tool
     parent_tool = rt.library.tool_call_llm(
         schema=ParentResponse,
-        connected_nodes={child_tool},
-        pretty_name="Parent Tool",
+        tool_nodes={child_tool},
+        name="Parent Tool",
         system_message="Use the child tool to generate a structured response. Respond with the output from the child tool only. No additional text.",
         llm_model=rt.llm.OpenAILLM("gpt-4o"),
     )
 
     # Run the parent tool
-    with rt.Runner(
-        executor_config=rt.ExecutorConfig(logging_setting="NONE", timeout=1000)
+    with rt.Session(
+       logging_setting="NONE", timeout=1000
     ) as runner:
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Generate a structured response for 'Hello World'.")]
@@ -81,7 +83,7 @@ async def test_tool_with_structured_output_child_tool():
 @pytest.mark.asyncio
 async def test_functions_passed_tool_calls(only_function_taking_travel_planner_node, travel_planner_output_model):
     """Test the functionality of a ToolCallLLM node (using actual tools) with a structured output model."""
-    with rt.Runner(executor_config=rt.ExecutorConfig(timeout=50, logging_setting="QUIET")) as runner:
+    with rt.Session(timeout=50, logging_setting="QUIET") as runner:
         message_history = rt.llm.MessageHistory(
             [
                 rt.llm.UserMessage(
@@ -99,7 +101,7 @@ async def test_functions_passed_tool_calls(only_function_taking_travel_planner_n
 @pytest.mark.parametrize("math_node", NODE_INIT_METHODS, indirect=True)
 async def test_structured_with_terminal_llm_as_tool(math_node, math_output_model):
     """Test the functionality of a ToolCallLLM node (using terminalLLM as tool) with a structured output model."""
-    with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="NONE")) as runner:
+    with rt.Session(logging_setting="NONE") as runner:
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Start the Math node.")]
         )
@@ -115,7 +117,7 @@ async def test_structured_with_complex_output_model(
     complex_node, person_output_model, simple_output_model
 ):
     """Test the functionality of structured output model with complex output model."""
-    with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="NONE")) as runner:
+    with rt.Session(logging_setting="NONE") as runner:
         message_history = rt.llm.MessageHistory(
             [
                 rt.llm.UserMessage(
@@ -138,8 +140,8 @@ async def test_structured_with_tool_calls(
     travel_planner_node, travel_planner_output_model
 ):
     """Test the functionality of a ToolCallLLM node (using actual tools) with a structured output model."""
-    with rt.Runner(
-        executor_config=rt.ExecutorConfig(timeout=50, logging_setting="NONE")
+    with rt.Session(
+       timeout=50, logging_setting="NONE"
     ) as runner:
         message_history = rt.llm.MessageHistory(
             [
@@ -168,14 +170,14 @@ def test_return_into_structured(mock_llm):
     def return_structured_message(messages: MessageHistory, basemodel) -> Response:
         return Response(message=Message(role="assistant", content=basemodel(text="Hello", number=42)))
 
-    node = rt.library.structured_llm(
+    node = structured_llm(
         system_message="Hello",
         llm_model=mock_llm(structured=return_structured_message),
         return_into="structured_greeting",  # Store result in context
-        schema=StructuredModel,
+        output_schema=StructuredModel,
     )
 
-    with rt.Runner() as run:
+    with rt.Session() as run:
         result = run.run_sync(node, user_input=MessageHistory()).answer
         assert result is None  # The result should be None since it was stored in context
         stored = rt.context.get("structured_greeting")

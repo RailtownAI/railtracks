@@ -30,7 +30,7 @@ def hello_world():
     print("Hello, World!")
 
 
-HelloWorldNode = rt.library.from_function(hello_world)
+HelloWorldNode = rt.function_node(hello_world)
 
 
 def test_task_invoke():

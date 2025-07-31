@@ -8,12 +8,12 @@ import random
 import railtracks as rt
 from railtracks.state.request import Failure
 
-RNGNode = rt.library.from_function(random.random)
+RNGNode = rt.function_node(random.random)
 
 
 @pytest.mark.timeout(1)
 def test_simple_request():
-    with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="NONE")) as run:
+    with rt.Session(logging_setting="NONE") as run:
         result = run.run_sync(RNGNode)
 
     assert isinstance(result.answer, float)
@@ -28,11 +28,11 @@ async def error_thrower():
     raise ErrorforTest("This is a test error")
 
 
-ErrorThrower = rt.library.from_function(error_thrower)
+ErrorThrower = rt.function_node(error_thrower)
 
 
 def test_error():
-    with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="NONE")) as run:
+    with rt.Session(logging_setting="NONE") as run:
         with pytest.raises(ErrorforTest):
             run.run_sync(ErrorThrower)
 
@@ -44,22 +44,22 @@ async def error_handler():
         return "Caught the error"
 
 
-ErrorHandler = rt.library.from_function(error_handler)
+ErrorHandler = rt.function_node(error_handler)
 
 
 @pytest.mark.timeout(1)
 def test_error_handler():
-    with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="NONE")) as run:
+    with rt.Session(logging_setting="NONE") as run:
         result = run.run_sync(ErrorHandler)
     assert result.answer == "Caught the error"
 
 
 def test_error_handler_wo_retry():
     with pytest.raises(ErrorforTest):
-        with rt.Runner(
-            executor_config=rt.ExecutorConfig(
+        with rt.Session(
+
                 end_on_error=True, logging_setting="NONE"
-            ),
+
         ) as run:
             result = run.run_sync(ErrorHandler)
 
@@ -74,21 +74,21 @@ async def error_handler_with_retry(retries: int):
     return "Caught the error"
 
 
-ErrorHandlerWithRetry = rt.library.from_function(error_handler_with_retry)
+ErrorHandlerWithRetry = rt.function_node(error_handler_with_retry)
 
 
 @pytest.mark.timeout(5)
 def test_error_handler_with_retry():
     for num_retries in range(5, 15):
-        with rt.Runner(
-            executor_config=rt.ExecutorConfig(logging_setting="NONE")
+        with rt.Session(
+            logging_setting="NONE"
         ) as run:
             result = run.run_sync(ErrorHandlerWithRetry, num_retries)
 
         assert result.answer == "Caught the error"
-        i_r = result.request_heap.insertion_request[0]
+        i_r = result.request_forest.insertion_request[0]
 
-        children = result.request_heap.children(i_r.sink_id)
+        children = result.request_forest.children(i_r.sink_id)
         assert len(children) == num_retries
 
         for r in children:
@@ -107,14 +107,14 @@ async def parallel_error_handler(num_calls: int, parallel_calls: int):
     return data
 
 
-ParallelErrorHandler = rt.library.from_function(parallel_error_handler)
+ParallelErrorHandler = rt.function_node(parallel_error_handler)
 
 
 def test_parallel_error_tester():
 
     for n_c, p_c in [(10, 10), (3, 20), (1, 10), (60, 10)]:
-        with rt.Runner(
-            executor_config=rt.ExecutorConfig(logging_setting="NONE")
+        with rt.Session(
+            logging_setting="NONE"
         ) as run:
             result = run.run_sync(ParallelErrorHandler, n_c, p_c)
 
@@ -131,24 +131,24 @@ async def error_handler_wrapper(num_calls: int, parallel_calls: int):
         return "Caught the error"
 
 
-ErrorHandlerWrapper = rt.library.from_function(error_handler_wrapper)
+ErrorHandlerWrapper = rt.function_node(error_handler_wrapper)
 
 
 def test_parallel_error_wrapper():
     for n_c, p_c in [(10, 10), (3, 20), (1, 10), (60, 10)]:
-        with rt.Runner(
-            executor_config=rt.ExecutorConfig(logging_setting="NONE")
+        with rt.Session(
+            logging_setting="NONE"
         ) as run:
             result = run.run_sync(ErrorHandlerWrapper, n_c, p_c)
 
         assert len(result.answer) == n_c * p_c
         assert all([isinstance(x, ErrorforTest) for x in result.answer])
 
-        i_r = result.request_heap.insertion_request[0]
+        i_r = result.request_forest.insertion_request[0]
 
-        children = result.request_heap.children(i_r.sink_id)
+        children = result.request_forest.children(i_r.sink_id)
         assert len(children) == 1
-        full_children = result.request_heap.children(children[0].sink_id)
+        full_children = result.request_forest.children(children[0].sink_id)
 
         for r in children:
             assert r.output == result.answer

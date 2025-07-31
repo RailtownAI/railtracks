@@ -84,25 +84,29 @@ sequenceDiagram
 ## Usage Patterns
 
 ### Basic Synchronous Execution
+
 ```python
 import requestcompletion as rc
 
-with rc.Runner() as runner:
+with rc.Session() as runner:
     result = runner.run_sync(MyNode)
     print(result.answer)
 ```
 
 ### Asynchronous Execution
+
 ```python
 import requestcompletion as rc
 
+
 async def main():
-    with rc.Runner() as runner:
+    with rc.Session() as runner:
         result = await runner.run(MyNode)
         return result.answer
 ```
 
 ### Custom Configuration
+
 ```python
 import requestcompletion as rc
 
@@ -113,7 +117,7 @@ config = rc.ExecutorConfig(
     timeout=30.0
 )
 
-with rc.Runner(executor_config=config) as runner:
+with rc.Session(executor_config=config) as runner:
     result = await runner.run(MyNode)
 ```
 

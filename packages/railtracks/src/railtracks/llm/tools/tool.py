@@ -7,12 +7,10 @@ parameters and descriptions.
 
 import inspect
 import warnings
-from typing import Any, Callable, Dict, List, Set, Type
+from typing import Any, Callable, Dict, Iterable, List, Set, Type
 
 from pydantic import BaseModel
 from typing_extensions import Self
-
-from railtracks.exceptions import NodeCreationError
 
 from .docstring_parser import extract_main_description, parse_docstring_args
 from .parameter import Parameter
@@ -36,7 +34,7 @@ class Tool:
         self,
         name: str,
         detail: str,
-        parameters: Set[Parameter] | Dict[str, Any] | None = None,
+        parameters: Iterable[Parameter] | Dict[str, Any] | None = None,
     ):
         """
         Creates a new Tool instance.
@@ -46,12 +44,10 @@ class Tool:
             detail: A detailed description of the tool.
             parameters: Parameters attached to this tool; a set of Parameter objects, or a dict.
         """
-        from railtracks.exceptions.node_creation.validation import validate_tool_params
 
-        params_valid = validate_tool_params(parameters, Parameter)
         if (
-            params_valid and isinstance(parameters, dict) and len(parameters) > 0
-        ):  # if parameters is a JSON-schema, convert into Parameter objects (Checks should be done in validate_tool_params)
+            isinstance(parameters, dict) and len(parameters) > 0
+        ):  # if parameters is a JSON-output_schema, convert into Parameter objects (Checks should be done in validate_tool_params)
             props = parameters.get("properties")
             required_fields = set(parameters.get("required", []))
             param_objs: Set[Parameter] = set()
@@ -122,10 +118,12 @@ class Tool:
             # Get the function signature
             signature = inspect.signature(func)
         except ValueError:
-            raise NodeCreationError(
-                message="Cannot convert kwargs for builtin functions.",
-                notes=["Please use a custom function."],
+            re = RuntimeError(
+                "Cannot convert kwargs for builtin functions.",
             )
+
+            re.add_note("Please use a function of your own")
+            raise re
 
         if name is not None:
             # TODO: add some checking here to ensure that the name is valid snake case.
@@ -195,11 +193,12 @@ class Tool:
         """
         input_schema = getattr(tool, "inputSchema", None)
         if not input_schema or input_schema["type"] != "object":
-            raise NodeCreationError(
-                message="The inputSchema for an MCP Tool must be 'object'. ",
-                notes=[
-                    "If an MCP tool has a different schema, create a GitHub issue and support will be added."
-                ],
+            re = RuntimeError(
+                "The inputSchema for an MCP Tool must be 'object'. ",
+            )
+
+            re.add_note(
+                "If an MCP tool has a different output_schema, create a GitHub issue and support will be added."
             )
 
         properties = input_schema.get("properties", {})

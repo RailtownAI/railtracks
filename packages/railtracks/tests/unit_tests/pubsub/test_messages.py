@@ -35,7 +35,7 @@ def test_request_success_repr_and_log_message(dummy_node_state):
     m = RequestSuccess(request_id="r", node_state=dummy_node_state, result=42)
     # '__repr__' should contain result
     assert repr(m).endswith("result=42)")
-    # log_message should use pretty_name() and the result value
+    # log_message should use name() and the result value
     assert "DONE" in m.log_message()
     assert "MockNode" in m.log_message()
     assert "42" in m.log_message()

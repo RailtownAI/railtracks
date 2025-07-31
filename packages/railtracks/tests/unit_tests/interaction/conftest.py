@@ -45,8 +45,8 @@ def mock_context_functions():
 
 @pytest.fixture
 def mock_runner():
-    """Fixture providing a mock Runner context manager."""
-    with patch('railtracks.run.Runner') as runner_class:
+    """Fixture providing a mock Session context manager."""
+    with patch('railtracks.run.Session') as runner_class:
         runner_instance = Mock()
         runner_class.return_value.__enter__ = Mock(return_value=runner_instance)
         runner_class.return_value.__exit__ = Mock(return_value=None)

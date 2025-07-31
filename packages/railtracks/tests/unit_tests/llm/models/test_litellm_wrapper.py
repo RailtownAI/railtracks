@@ -133,7 +133,7 @@ def test_litellm_wrapper_structured_schema_mismatch(mock_litellm_wrapper, messag
     class ExampleSchema(BaseModel):
         required_value: int
 
-    # Force a response that won't match the schema (string instead of int)
+    # Force a response that won't match the output_schema (string instead of int)
     def _invoke_override(*args, **kwargs):
         return ({
             "choices": [

@@ -25,20 +25,30 @@ dependencies = [
 llm = [
     "litellm >= 1.70.2"
 ]
-mcp = [
-    "mcp >= 1.9.0",
-]
+
 chat = [
     "fastapi >= 0.104.0"
 ]
-integrations = [
 
+
+# For each Integration package depenedcies go here.
+mcp = [
+    "mcp >= 1.9.0",
 ]
+rag = [
+    # currently no dependcies
+]
+# the integrations submodule will be list a of the above deps
+integrations = [
+    "railtracks[mcp, rag]",
+]
+
 all = [
-    "railtracks[llm,mcp,chat,integrations]"
+    "railtracks[llm,chat,integrations]"
 ]
+
 core = [
-    "railtracks[llm,mcp]"
+    "railtracks[llm,mcp,chat]"
 ]
 
 [project.urls]

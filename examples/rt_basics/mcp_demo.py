@@ -1,8 +1,8 @@
 import streamlit as st
 import asyncio
 import railtracks as rt
-from railtracks.nodes.library.easy_usage_wrappers.mcp_tool import from_mcp_server
-from railtracks.rt_mcp.main import MCPHttpParams
+from railtracks.nodes.library.easy_usage_wrappers.mcp_tool import connect_mcp
+from railtracks.integrations.rt_mcp.main import MCPHttpParams
 
 # MCP server URL
 urls = [
@@ -14,12 +14,12 @@ if "node" not in st.session_state:
 
     # Initialize tools in session state
     async def get_node():
-        servers = [from_mcp_server(MCPHttpParams(url=url)) for url in urls]
+        servers = [connect_mcp(MCPHttpParams(url=url)) for url in urls]
         all_tools = set(*[server.tools for server in servers])
 
         return rt.library.tool_call_llm(
-            connected_nodes=all_tools,
-            pretty_name="Parent Tool",
+            tool_nodes=all_tools,
+            name="Parent Tool",
             system_message=rt.llm.SystemMessage("Provide a response using the tool when asked."),
             model=rt.llm.OpenAILLM("gpt-4o"),
         )
@@ -49,7 +49,7 @@ if prompt := st.chat_input("Type your message..."):
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage(m["content"]) if m["role"] == "user" else rt.llm.SystemMessage(m["content"]) for m in history if m["role"] != "assistant"]
         )
-        with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="QUIET", timeout=1000)) as runner:
+        with rt.Session(executor_config=rt.ExecutorConfig(logging_setting="QUIET", timeout=1000)) as runner:
             response = await runner.run(st.session_state.node, user_input=message_history)
             return response.answer
 

@@ -1,7 +1,7 @@
 #%%
 import asyncio
 import railtracks as rt
-from railtracks.nodes.library.easy_usage_wrappers.mcp_tool import from_mcp_server
+from railtracks.nodes.library.easy_usage_wrappers.mcp_tool import connect_mcp
 from railtracks.rt_mcp import MCPHttpParams, MCPStdioParams
 
 
@@ -14,16 +14,16 @@ MCP_ARGS = ["mcp-server-time"]
 # 
 #%%
 # Discover all tools
-fetch_server = from_mcp_server(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))
-time_server = from_mcp_server(MCPStdioParams(command=MCP_COMMAND, args=MCP_ARGS))
+fetch_server = connect_mcp(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))
+time_server = connect_mcp(MCPStdioParams(command=MCP_COMMAND, args=MCP_ARGS))
 
 fetch_tools = fetch_server.tools
 time_tools = time_server.tools
 
 #%%
 parent_tool = rt.library.tool_call_llm(
-    connected_nodes={*fetch_tools, *time_tools},
-    pretty_name="Parent Tool",
+    tool_nodes={*fetch_tools, *time_tools},
+    name="Parent Tool",
     system_message=rt.llm.SystemMessage("Provide a response using the tool when asked."),
     model=rt.llm.OpenAILLM("gpt-4o"),
 )
@@ -31,7 +31,7 @@ parent_tool = rt.library.tool_call_llm(
 #%%
 user_message = ("Tell me about conductr.ai. Then, tell me what time it is.")
 
-with rt.Runner(executor_config=rt.ExecutorConfig(logging_setting="QUIET", timeout=1000)) as runner:
+with rt.Session(executor_config=rt.ExecutorConfig(logging_setting="QUIET", timeout=1000)) as runner:
     message_history = rt.llm.MessageHistory(
        [
             rt.llm.UserMessage(

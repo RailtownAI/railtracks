@@ -5,7 +5,7 @@
 ##################################################################
 from dotenv import load_dotenv
 import os
-from railtracks.nodes.library import from_mcp_server, tool_call_llm
+from railtracks.nodes.library import connect_mcp, tool_call_llm
 import railtracks as rt
 from railtracks.rt_mcp import MCPHttpParams
 import aiohttp
@@ -14,7 +14,7 @@ from typing import Dict, Any
 load_dotenv()
 
 # ============================== MCP Tools that can seach URLs ==============================
-fetch_mcp_server = from_mcp_server(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))
+fetch_mcp_server = connect_mcp(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))
 fetch_mcp_tools = fetch_mcp_server.tools
 # ===========================================================================================
 
@@ -41,7 +41,7 @@ def _format_results(data: Dict[str, Any]) -> Dict[str, Any]:
         'totalResults': data.get('searchInformation', {}).get('totalResults', '0')
     }
 
-@rt.to_node
+@rt.function_node
 async def google_search(query: str, num_results: int = 3) -> Dict[str, Any]:
     """
     Tool for searching using Google Custom Search API
@@ -77,7 +77,7 @@ async def google_search(query: str, num_results: int = 3) -> Dict[str, Any]:
 # Example using the tools with an agent
 tools = fetch_mcp_tools + [google_search]
 agent = tool_call_llm(
-    connected_nodes={*tools},
+    tool_nodes={*tools},
     system_message="""You are an infomation gathering agent that can search the web.""",
     model=rt.llm.OpenAILLM("gpt-4o"),
 )

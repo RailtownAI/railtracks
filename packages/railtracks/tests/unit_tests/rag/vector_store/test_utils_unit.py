@@ -1,7 +1,7 @@
 import re
 import pytest
 
-from railtracks.RAG.vector_store.utils import (
+from railtracks.integrations.rag.vector_store.utils import (
     uuid_str,
     normalize_vector,
     distance,

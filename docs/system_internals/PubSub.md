@@ -88,7 +88,7 @@ subscriber_id = publisher.subscribe(my_callback, name="my_subscriber")
 
 **Unsubscribing:**
 ```python
-publisher.unsubscribe(subscriber_id)  # Remove a specific subscriber
+publisher.unsubscribe(subscriber_id)  # Remove a specific broadcast_callback
 ```
 
 #### Advanced Features

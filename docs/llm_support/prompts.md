@@ -11,7 +11,7 @@ import railtracks as rt
 from railtracks.llm import OpenAILLM
 
 encoder_agent = rt.library.terminal_llm(
-    pretty_name="Encoder",
+    name="Encoder",
     system_message="You are an encoder that converts text to base64 encoding.",
     llm_model=OpenAILLM("gpt-4o"),
 )
@@ -38,13 +38,13 @@ system_message = "You are a {role} assistant specialized in {domain}."
 
 # Create an LLM node with this prompt
 assistant = rt.library.terminal_llm(
-    pretty_name="Assistant",
+    name="Assistant",
     system_message=system_message,
     llm_model=OpenAILLM("gpt-4o"),
 )
 
 # Run with context values
-with rt.Runner(context={"role": "technical", "domain": "Python programming"}) as runner:
+with rt.Session(context={"role": "technical", "domain": "Python programming"}) as runner:
     response = runner.run_sync(assistant, user_input="Help me understand decorators.")
 ```
 
@@ -60,15 +60,15 @@ from railtracks.llm import MessageHistory, UserMessage
 
 # Create a node with a prompt containing placeholders
 my_node = rt.library.terminal_llm(
-    pretty_name="Example",
+    name="Example",
     system_message="You are a {variable} assistant.",
     llm_model=rt.llm.OpenAILLM("gpt-4o"),
 )
 
 # Disable context injection for a specific run
-with rt.Runner(
-    context={"variable": "value"},
-    executor_config=rt.ExecutorConfig(prompt_injection=False)
+with rt.Session(
+        context={"variable": "value"},
+        executor_config=rt.ExecutorConfig(prompt_injection=False)
 ) as runner:
     # Context injection will not occur in this run
     user_message = MessageHistory([UserMessage("Hello")])

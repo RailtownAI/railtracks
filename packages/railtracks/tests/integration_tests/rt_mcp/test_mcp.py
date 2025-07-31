@@ -2,14 +2,15 @@ import asyncio
 import time
 
 import railtracks as rt
-from railtracks.nodes.library.easy_usage_wrappers.mcp_tool import from_mcp_server
+from railtracks.integrations.rt_mcp import connect_mcp
+from railtracks.nodes.easy_usage_wrappers.helpers import tool_call_llm
 from railtracks.nodes.nodes import Node
 
 import pytest
 import subprocess
 import sys
 
-from railtracks.rt_mcp.main import MCPHttpParams, MCPStdioParams
+from railtracks.integrations.rt_mcp.main import MCPHttpParams, MCPStdioParams
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -40,7 +41,7 @@ def install_mcp_server_time():
 
 
 def test_from_mcp_server_basic():
-    time_server = from_mcp_server(
+    time_server = connect_mcp(
         MCPStdioParams(
             command=sys.executable,
             args=["-m", "mcp_server_time", "--local-timezone=America/Vancouver"],
@@ -51,15 +52,15 @@ def test_from_mcp_server_basic():
 
 
 def test_from_mcp_server_with_llm():
-    time_server = from_mcp_server(
+    time_server = connect_mcp(
         MCPStdioParams(
             command=sys.executable,
             args=["-m", "mcp_server_time", "--local-timezone=America/Vancouver"],
         )
     )
-    parent_tool = rt.library.tool_call_llm(
-        connected_nodes={*time_server.tools},
-        pretty_name="Parent Tool",
+    parent_tool = tool_call_llm(
+        tool_nodes={*time_server.tools},
+        name="Parent Tool",
         system_message=(
             "Provide a response using the tool when asked. If the tool doesn't work,"
             " respond with 'It didn't work!'"
@@ -68,8 +69,8 @@ def test_from_mcp_server_with_llm():
     )
 
     # Run the parent tool
-    with rt.Runner(
-        executor_config=rt.ExecutorConfig(logging_setting="QUIET", timeout=1000)
+    with rt.Session(
+        logging_setting="NONE", timeout=1000
     ) as runner:
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("What time is it?")]
@@ -81,10 +82,10 @@ def test_from_mcp_server_with_llm():
 
 
 def test_from_mcp_server_with_http():
-    time_server = from_mcp_server(MCPHttpParams(url="https://mcp.deepwiki.com/sse"))
-    parent_tool = rt.library.tool_call_llm(
-        connected_nodes={*time_server.tools},
-        pretty_name="Parent Tool",
+    time_server = connect_mcp(MCPHttpParams(url="https://mcp.deepwiki.com/sse"))
+    parent_tool = tool_call_llm(
+        tool_nodes={*time_server.tools},
+        name="Parent Tool",
         system_message=(
             "Provide a response using the tool when asked. If the tool doesn't work,"
             " respond with 'It didn't work!'"
@@ -93,8 +94,8 @@ def test_from_mcp_server_with_http():
     )
 
     # Run the parent tool
-    with rt.Runner(
-        executor_config=rt.ExecutorConfig(logging_setting="NONE", timeout=1000)
+    with rt.Session(
+        logging_setting="NONE", timeout=1000
     ) as runner:
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Tell me about the website conductr.ai")]
@@ -139,8 +140,8 @@ class MockClient:
 async def test_parallel_mcp_servers():
     client = MockClient()
     client2 = MockClient()
-    node1 = from_mcp_server(MCPHttpParams(url=""), client).tools[0]
-    node2 = from_mcp_server(MCPHttpParams(url=""), client2).tools[1]
+    node1 = connect_mcp(MCPHttpParams(url=""), client).tools[0]
+    node2 = connect_mcp(MCPHttpParams(url=""), client2).tools[1]
 
     start = time.perf_counter()
     results = await asyncio.gather(rt.call(node1), rt.call(node2))

@@ -12,11 +12,11 @@ from typing import Tuple, List, Dict, Union
 from pydantic import BaseModel, Field
 import time
 import asyncio
-from railtracks.llm.tools.parameter_handlers import UnsupportedParameterError
-from railtracks.exceptions.errors import NodeCreationError
+
 import railtracks as rt
 from railtracks.exceptions import NodeCreationError
-from railtracks.nodes.library import from_function
+from railtracks import function_node
+from railtracks.nodes.nodes import Node
 
 class PydanticModel(BaseModel):
     """A simple Pydantic model for testing."""
@@ -73,7 +73,7 @@ def func_buggy():
 # ===== Unit Tests =====
 def test_to_node():
     """Test that to_node decorator works correctly."""
-    @rt.to_node
+    @rt.function_node
     def secret_phrase() -> str:
         """
         Function that returns a secret phrase.
@@ -83,8 +83,8 @@ def test_to_node():
         """
         return "Constantinople"
 
-    assert issubclass(secret_phrase, rt.Node)
-    assert secret_phrase.pretty_name() == "secret_phrase"
+    assert issubclass(secret_phrase, Node)
+    assert secret_phrase.name() == "secret_phrase"
 
 # ===== Test Classes =====
 class TestPrimitiveInputTypes:
@@ -96,8 +96,8 @@ class TestPrimitiveInputTypes:
                 str: A simple string indicating the function was called.
             """
             return "This is an empty function."
-        test_node = from_function(empty_function)
-        with rt.Runner() as run:
+        test_node = function_node(empty_function)
+        with rt.Session() as run:
             result = run.run_sync(test_node).answer
 
         assert "This is an empty function." == result
@@ -106,31 +106,31 @@ class TestPrimitiveInputTypes:
     @pytest.mark.parametrize("input, expected_output", simple_test_inputs)
     def test_single_int_input(self, input, expected_output):
         """Test that a function with a single int parameter works correctly."""
-        test_node = from_function(func_type)
-        with rt.Runner() as run:
+        test_node = function_node(func_type)
+        with rt.Session() as run:
             assert run.run_sync(test_node, input).answer == expected_output
 
 class TestSequenceInputTypes:
     @pytest.mark.parametrize("input, expected_output", arg_test_inputs)
     def test_multi_arg_input(self, input, expected_output):
         """Test that a function with multiple arg parameters works correctly."""
-        test_node = from_function(func_multiple_types)
-        with rt.Runner() as run:
+        test_node = function_node(func_multiple_types)
+        with rt.Session() as run:
             assert run.run_sync(test_node, *input).answer == expected_output
 
     @pytest.mark.parametrize("input, expected_output", kwarg_test_inputs)
     def test_multi_kwarg_input(self, input, expected_output):
         """Test that a function with multiple kwarg parameters works correctly."""
-        test_node = from_function(func_multiple_ktypes_coroutine)
-        with rt.Runner() as run:
+        test_node = function_node(func_multiple_ktypes_coroutine)
+        with rt.Session() as run:
             assert run.run_sync(test_node, **input).answer == expected_output
 
 class TestfunctionMethods:
     def test_prepare_tools(self):
         """Test that tools are prepared properly when called."""
-        test_nodea = from_function(func_kwarg_auto)
-        test_nodeb = from_function(func_kwarg_auto)
-        test_parent_node = from_function(func_multiple_types)
+        test_nodea = function_node(func_kwarg_auto)
+        test_nodeb = function_node(func_kwarg_auto)
+        test_parent_node = function_node(func_multiple_types)
         child_toola = test_nodea.prepare_tool({"zeroth" : None, "first" : 5,"second": {"name": "name", "value" : 5}, "third" : [1,2,3]})
         child_toolb = test_nodea.prepare_tool({ "third" : (1,2,3,4), "fourth" : "[1,2]"})
         child_toolc = test_nodea.prepare_tool({ "third" : "1,2,3,4"})
@@ -147,14 +147,14 @@ class TestRaiseErrors:
     def test_builtin_function_raises_error(self):
         """Test that a builtin function raises error"""
         with pytest.raises(RuntimeError):
-            test_node = from_function(time.sleep)
+            test_node = function_node(time.sleep)
             test_node.prepare_tool({"seconds": 5})
 
     def test_nested_async_func_raises_error(self):
         """Test edge case where a function that returns a coroutine raises an error."""
-        test_node = from_function(func_buggy)
+        test_node = function_node(func_buggy)
         with pytest.raises(NodeCreationError):
-            with rt.Runner() as run:
+            with rt.Session() as run:
                 run.run_sync(test_node)
 
     def test_dict_parameter(self):
@@ -163,13 +163,13 @@ class TestRaiseErrors:
             return fruits.get("secret", "")
 
         with pytest.raises(NodeCreationError, match=self.DICT_ERROR_FROM_FUNCTION_MSG):
-            _ = rt.library.from_function(secret_function)
+            _ = rt.function_node(secret_function)
 
 
     def test_nested_dict_parameter(self):
         """Test that a function with a nested dict parameter raises an error."""
         with pytest.raises(NodeCreationError, match=self.DICT_ERROR_FROM_FUNCTION_MSG):
-            @rt.to_node
+            @rt.function_node
             def secret_function(fruits: list[Union[str, list[dict[str, str]]]]) -> str:
                 return "test"
 
@@ -185,7 +185,7 @@ class TestRaiseErrors:
             pass
 
         with pytest.raises(NodeCreationError, match=self.DICT_ERROR_FROM_FUNCTION_MSG):
-            _ = rt.library.from_function(secret_function)
+            _ = rt.function_node(secret_function)
 
 
     def test_bmodel_with_nested_dict_param(self):
@@ -197,14 +197,14 @@ class TestRaiseErrors:
             inner: InnerModel
 
         with pytest.raises(NodeCreationError, match=self.DICT_ERROR_FROM_FUNCTION_MSG):
-            @rt.to_node
+            @rt.function_node
             def secret_function(model: OuterModel) -> str:
                 pass
 
 
     def test_pydantic_for_kwarg_raises_error(self):
         """Test that passing a dict for a kwarg raises an error since we don't support dicts as kwargs yet"""
-        with pytest.raises(UnsupportedParameterError):
-            test_node = from_function(func_kwarg_error_pydantic)
+        with pytest.raises(RuntimeError):
+            test_node = function_node(func_kwarg_error_pydantic)
             test_node.prepare_tool({"pydantic_model" : ("name", 5)})
 

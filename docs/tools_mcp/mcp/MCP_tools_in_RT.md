@@ -28,11 +28,11 @@ Use `MCPHttpParams` for connecting to remote MCP servers:
 
 ```python
 import os
-from railtracks.nodes.library import from_mcp_server
+from railtracks.nodes.library import connect_mcp
 from railtracks.rt_mcp import MCPHttpParams
 
 # Connect to a remote MCP server
-fetch_server = from_mcp_server(
+fetch_server = connect_mcp(
     MCPHttpParams(
         url="https://remote.mcpservers.org/fetch/mcp",
         # Optional: Add authentication headers if needed
@@ -46,11 +46,11 @@ fetch_server = from_mcp_server(
 Use `MCPStdioParams` for running local MCP servers:
 
 ```python
-from railtracks.nodes.library import from_mcp_server
+from railtracks.nodes.library import connect_mcp
 from railtracks.rt_mcp import MCPStdioParams
 
 # Run a local MCP server (Time server example)
-time_server = from_mcp_server(
+time_server = connect_mcp(
     MCPStdioParams(
         command="npx",  # or other command to run the server
         args=["mcp-server-time"]
@@ -64,25 +64,25 @@ Once you've connected to an MCP server, you can use the tools with your RailTrac
 
 ```python
 import railtracks as rt
-from railtracks.nodes.library import from_mcp_server
+from railtracks.nodes.library import connect_mcp
 from railtracks.rt_mcp import MCPHttpParams
 
 # Connect to an MCP server (example with Fetch server)
-fetch_server = from_mcp_server(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))
+fetch_server = connect_mcp(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))
 tools = fetch_server.tools  # List of RailTracks Tool Nodes
 
 # Create an agent that can use these tools
 agent = rt.library.tool_call_llm(
-    connected_nodes=tools,
-    pretty_name="Web Research Agent",
+    tool_nodes=tools,
+    name="Web Research Agent",
     system_message="Use the tools to research information online.",
     llm_model=rt.llm.OpenAILLM("gpt-4o"),
 )
 
 # Use the agent
-with rt.Runner():
+with rt.Session():
     result = rt.call_sync(
-        agent, 
+        agent,
         "Find information about RailTracks"
     )
     print(result.content)
@@ -94,11 +94,11 @@ with rt.Runner():
 
 ```python
 import railtracks as rt
-from railtracks.nodes.library import from_mcp_server
+from railtracks.nodes.library import connect_mcp
 from railtracks.rt_mcp import MCPHttpParams
 
 # Connect to the Fetch MCP server
-fetch_server = from_mcp_server(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))
+fetch_server = connect_mcp(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))
 fetch_tools = fetch_server.tools
 ```
 
@@ -107,11 +107,11 @@ fetch_tools = fetch_server.tools
 ```python
 import os
 import railtracks as rt
-from railtracks.nodes.library import from_mcp_server
+from railtracks.nodes.library import connect_mcp
 from railtracks.rt_mcp import MCPHttpParams
 
 # Connect to the GitHub MCP server
-github_server = from_mcp_server(
+github_server = connect_mcp(
     MCPHttpParams(
         url="https://api.githubcopilot.com/mcp/",
         headers={
@@ -128,11 +128,11 @@ github_tools = github_server.tools
 import json
 import os
 import railtracks as rt
-from railtracks.nodes.library import from_mcp_server
+from railtracks.nodes.library import connect_mcp
 from railtracks.rt_mcp import MCPStdioParams
 
 # Connect to the Notion MCP server
-notion_server = from_mcp_server(
+notion_server = connect_mcp(
     MCPStdioParams(
         command="npx",
         args=["-y", "@notionhq/notion-mcp-server"],
@@ -153,16 +153,16 @@ You can combine tools from different MCP servers to create powerful agents:
 
 ```python
 import railtracks as rt
-from railtracks.nodes.library import from_mcp_server
+from railtracks.nodes.library import connect_mcp
 from railtracks.rt_mcp import MCPHttpParams, MCPStdioParams
 import os
 import json
 
 # Set up servers and get tools
-fetch_server = from_mcp_server(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))
+fetch_server = connect_mcp(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))
 fetch_tools = fetch_server.tools
 
-github_server = from_mcp_server(
+github_server = connect_mcp(
     MCPHttpParams(
         url="https://api.githubcopilot.com/mcp/",
         headers={"Authorization": f"Bearer {os.getenv('GITHUB_PAT_TOKEN')}"},
@@ -170,7 +170,7 @@ github_server = from_mcp_server(
 )
 github_tools = github_server.tools
 
-notion_server = from_mcp_server(
+notion_server = connect_mcp(
     MCPStdioParams(
         command="npx",
         args=["-y", "@notionhq/notion-mcp-server"],
@@ -189,8 +189,8 @@ all_tools = fetch_tools + github_tools + notion_tools
 
 # Create an agent that can use all tools
 super_agent = rt.library.tool_call_llm(
-    connected_nodes=all_tools,
-    pretty_name="Multi-Tool Agent",
+    tool_nodes=all_tools,
+    name="Multi-Tool Agent",
     system_message="Use the appropriate tools to complete tasks.",
     llm_model=rt.llm.OpenAILLM("gpt-4o"),
 )

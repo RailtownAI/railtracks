@@ -3,27 +3,27 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import timedelta
 from mcp import ClientSession, StdioServerParameters
 from railtracks.llm import Parameter
-from railtracks.rt_mcp.main import MCPHttpParams
-from railtracks import Node
+from railtracks.integrations.rt_mcp.main import MCPHttpParams
+from railtracks.nodes.nodes import Node
 
 # ================= START patch fixtures ================
 
 @pytest.fixture
 def reset_patched_flag():
     """Reset the _patched flag to simulate a fresh import."""
-    import railtracks.rt_mcp.jupyter_compat
-    original_value = railtracks.rt_mcp.jupyter_compat._patched
-    railtracks.rt_mcp.jupyter_compat._patched = False
+    import railtracks.integrations.rt_mcp.jupyter_compat
+    original_value = railtracks.integrations.rt_mcp.jupyter_compat._patched
+    railtracks.integrations.rt_mcp.jupyter_compat._patched = False
     yield
     # Reset back to original state after test
-    railtracks.rt_mcp.jupyter_compat._patched = original_value
+    railtracks.integrations.rt_mcp.jupyter_compat._patched = original_value
 
 @pytest.fixture
 def patch_stdio_client():
     cm_mock = AsyncMock()
     cm_mock.__aenter__.return_value = (AsyncMock(), AsyncMock())
     cm_mock.__aexit__.return_value = None
-    with patch("railtracks.rt_mcp.main.stdio_client", return_value=cm_mock) as p:
+    with patch("railtracks.integrations.rt_mcp.main.stdio_client", return_value=cm_mock) as p:
         yield p
 
 @pytest.fixture
@@ -39,7 +39,7 @@ def patch_ClientSession(mock_client_session):
     cm_mock = AsyncMock()
     cm_mock.__aenter__.return_value = mock_client_session
     cm_mock.__aexit__.return_value = None
-    with patch("railtracks.rt_mcp.main.ClientSession", return_value=cm_mock) as p:
+    with patch("railtracks.integrations.rt_mcp.main.ClientSession", return_value=cm_mock) as p:
         yield p
 
 @pytest.fixture
@@ -47,7 +47,7 @@ def patch_streamablehttp_client():
     cm_mock = AsyncMock()
     cm_mock.__aenter__.return_value = (AsyncMock(), AsyncMock())
     cm_mock.__aexit__.return_value = None
-    with patch("railtracks.rt_mcp.main.streamablehttp_client", return_value=cm_mock) as p:
+    with patch("railtracks.integrations.rt_mcp.main.streamablehttp_client", return_value=cm_mock) as p:
         yield p
 
 @pytest.fixture
@@ -55,17 +55,17 @@ def patch_sse_client():
     cm_mock = AsyncMock()
     cm_mock.__aenter__.return_value = (AsyncMock(), AsyncMock())
     cm_mock.__aexit__.return_value = None
-    with patch("railtracks.rt_mcp.main.sse_client", return_value=cm_mock) as p:
+    with patch("railtracks.integrations.rt_mcp.main.sse_client", return_value=cm_mock) as p:
         yield p
 
 @pytest.fixture
 def patch_CallbackServer():
-    with patch("railtracks.rt_mcp.main.CallbackServer") as p:
+    with patch("railtracks.integrations.rt_mcp.main.CallbackServer") as p:
         yield p
 
 @pytest.fixture
 def patch_OAuthClientProvider():
-    with patch("railtracks.rt_mcp.main.OAuthClientProvider") as p:
+    with patch("railtracks.integrations.rt_mcp.main.OAuthClientProvider") as p:
         yield p
 
 # ================= END patch fixtures =================
@@ -95,7 +95,7 @@ def fake_tool():
 
 class DummyNode(Node):
     @classmethod
-    def pretty_name(cls):
+    def name(cls):
         return "DummyNode"
 
 @pytest.fixture
@@ -157,29 +157,25 @@ def mock_node_cls(mock_node_info):
     return cls
 
 @pytest.fixture
-def mock_runner(monkeypatch):
-    # Replace Runner with an object that acts as a context manager and supports .run
-    runner_mock = MagicMock()
-    runner_obj = runner_mock.return_value
-    runner_obj.__enter__.return_value = runner_obj
-    runner_obj.__exit__.return_value = None
-    runner_obj.run = AsyncMock(return_value=MagicMock(answer="answer123"))
-    monkeypatch.setattr("railtracks.rt_mcp.to_node.Runner", runner_mock)
-    return runner_mock
+def mock_call(monkeypatch):
+    # Replace Session with an object that acts as a context manager and supports .run
+    call_mock = AsyncMock(return_value=MagicMock(answer="answer123"))
+    monkeypatch.setattr("railtracks.interaction.call.call", call_mock)
+    return call_mock
 
 @pytest.fixture
 def mock_FastMCP():
-    with patch("railtracks.rt_mcp.to_node.FastMCP") as p:
+    with patch("railtracks.integrations.rt_mcp.node_to_mcp.FastMCP") as p:
         yield p
 
 @pytest.fixture
 def mock_MCPTool():
-    with patch("railtracks.rt_mcp.to_node.MCPTool") as p:
+    with patch("railtracks.integrations.rt_mcp.node_to_mcp.MCPTool") as p:
         yield p
 
 @pytest.fixture
 def mock_func_metadata():
-    with patch("railtracks.rt_mcp.to_node.func_metadata") as p:
+    with patch("railtracks.integrations.rt_mcp.node_to_mcp.func_metadata") as p:
         yield p
 
 # ========== END to_node.py fixtures ===============
@@ -196,17 +192,17 @@ def mock_OAuthClientInformationFull():
 
 @pytest.fixture
 def patch_HTTPServer():
-    with patch("railtracks.rt_mcp.oauth.HTTPServer") as p:
+    with patch("railtracks.integrations.rt_mcp.oauth.HTTPServer") as p:
         yield p
 
 @pytest.fixture
 def patch_threading_Thread():
-    with patch("railtracks.rt_mcp.oauth.threading.Thread") as p:
+    with patch("railtracks.integrations.rt_mcp.oauth.threading.Thread") as p:
         yield p
 
 @pytest.fixture
 def patch_time_sleep():
-    with patch("railtracks.rt_mcp.oauth.time.sleep", return_value=None) as p:
+    with patch("railtracks.integrations.rt_mcp.oauth.time.sleep", return_value=None) as p:
         yield p
 
 @pytest.fixture
@@ -216,7 +212,7 @@ def patch_time_time(monkeypatch):
     def fake_time():
         t[0] += 1
         return t[0]
-    monkeypatch.setattr("railtracks.rt_mcp.oauth.time.time", fake_time)
+    monkeypatch.setattr("railtracks.integrations.rt_mcp.oauth.time.time", fake_time)
     return fake_time
 
 # ========== END oauth.py fixtures =============

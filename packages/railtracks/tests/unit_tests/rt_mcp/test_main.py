@@ -1,8 +1,6 @@
-import asyncio
-
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
-from railtracks.rt_mcp.main import MCPHttpParams, MCPAsyncClient, from_mcp, MCPServer
+from railtracks.integrations.rt_mcp.main import MCPHttpParams, MCPAsyncClient, from_mcp, MCPServer
 
 
 # ============= START MCPHttpParams tests =============
@@ -119,8 +117,8 @@ def test_from_mcp_returns_node_class(fake_tool, mcp_http_params):
         result_class = from_mcp(fake_tool, mock_client, mock_loop)
 
         node = result_class(bar=1)
-        # must have custom pretty_name
-        assert result_class.pretty_name() == f"{fake_tool.name}"
+        # must have custom name
+        assert result_class.name() == f"{fake_tool.name}"
         # must have correct tool_info
         with patch.object(result_class, 'tool_info', wraps=result_class.tool_info) as ti:
             Tool = type("Tool", (), {"from_mcp": staticmethod(lambda tool: "X")})

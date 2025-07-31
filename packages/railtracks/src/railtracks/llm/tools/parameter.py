@@ -6,7 +6,7 @@ tool parameters with various type information and nested structures.
 """
 
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 
 class ParameterType(str, Enum):
@@ -41,7 +41,9 @@ class Parameter:
     def __init__(
         self,
         name: str,
-        param_type: ParameterType | list[ParameterType],
+        param_type: ParameterType
+        | list[ParameterType]
+        | Literal["string", "integer", "number", "boolean", "array", "object", "null"],
         description: str = "",
         required: bool = True,
         additional_properties: bool = False,
@@ -60,6 +62,10 @@ class Parameter:
             enum: The enum values for the parameter.
             default: The default value for the parameter.
         """
+        # catch any input strings here.
+        if isinstance(param_type, str):
+            param_type = ParameterType(param_type)
+
         self._name = name
         self._param_type = param_type
         self._description = description

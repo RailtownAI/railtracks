@@ -8,7 +8,7 @@ import pytest
 from collections import Counter
 
 import railtracks as rt
-from railtracks import Node
+from railtracks.nodes.nodes import Node
 from railtracks.state.forest import AbstractLinkedObject
 from railtracks.state.node import LinkedNode, NodeForest
 from railtracks.state.request import RequestTemplate
@@ -28,7 +28,7 @@ def create_linked_request(identifier, source, sink):
     stamp=Stamp(identifier="test", time=time.time(), step=1)
 )
 
-def create_node(): return rt.library.from_function(random.random)()
+def create_node(): return rt.function_node(random.random)()
 
 def create_linked_node(node: Node): return LinkedNode(
     identifier=node.uuid,

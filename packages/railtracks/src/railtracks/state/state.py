@@ -28,12 +28,14 @@ from .request import Cancelled, Failure
 from .utils import create_sub_state_info
 
 if TYPE_CHECKING:
-    from .. import ExecutorConfig
-from ..exceptions import FatalError, NodeInvocationError
-from ..info import ExecutionInfo
-from ..nodes.nodes import Node
-from ..utils.logging.create import get_rt_logger
-from ..utils.profiling import Stamp
+    from railtracks.utils.config import ExecutorConfig
+
+from railtracks.exceptions import FatalError, NodeInvocationError
+from railtracks.nodes.nodes import Node
+from railtracks.utils.logging.create import get_rt_logger
+from railtracks.utils.profiling import Stamp
+
+from .info import ExecutionInfo
 
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
@@ -63,8 +65,8 @@ class RTState:
         coordinator: Coordinator,
         publisher: RTPublisher[RequestCompletionMessage],
     ):
-        self._node_heap = execution_info.node_heap
-        self._request_heap = execution_info.request_heap
+        self._node_heap = execution_info.node_forest
+        self._request_heap = execution_info.request_forest
         self._stamper = execution_info.stamper
 
         self.executor_config = executor_config
@@ -169,13 +171,11 @@ class RTState:
         # 2. Add it to the node heap.
         sc = self._stamper.stamp_creator()
         parent_node_type = self._node_heap.get_node_type(parent_node_id)
-        parent_node_name = (
-            parent_node_type.pretty_name() if parent_node_type else "START"
-        )
+        parent_node_name = parent_node_type.name() if parent_node_type else "START"
 
         request_creation_obj = RequestCreationAction(
             parent_node_name=parent_node_name,
-            child_node_name=node.pretty_name(),
+            child_node_name=node.name(),
             input_args=args,
             input_kwargs=kwargs,
         )
@@ -235,9 +235,7 @@ class RTState:
         except Exception as e:
             # TODO improve this so we know the name of the node trying to be created in the case of a tool call llm.
             rfa = RequestFailureAction(
-                node_name=node.pretty_name()
-                if hasattr(node, "pretty_name")
-                else node.__name__,
+                node_name=node.name() if hasattr(node, "name") else node.__name__,
                 exception=e,
             )
             await self.publisher.publish(
@@ -377,8 +375,8 @@ class RTState:
     def info(self):
         """Returns the current state as an ExecutionInfo object."""
         return ExecutionInfo(
-            node_heap=self._node_heap,
-            request_heap=self._request_heap,
+            node_forest=self._node_heap,
+            request_forest=self._request_heap,
             stamper=self._stamper,
         )
 
@@ -395,8 +393,8 @@ class RTState:
         # TODO: deal with the weirdness around double representation in the stamper.
         #  specifically we need to make sure that the data in the stamper is only for the subset and not for the global state.
         return ExecutionInfo(
-            node_heap=filtered_nodes,
-            request_heap=filtered_requests,
+            node_forest=filtered_nodes,
+            request_forest=filtered_requests,
             stamper=self._stamper,
         )
 
@@ -430,13 +428,13 @@ class RTState:
         if isinstance(result, RequestFailure):
             # if the node state is None, it means the node was never created so we don't need to handle it
             output = await self._handle_failed_request(
-                result.node.pretty_name(), result.request_id, result.error
+                result.node.name(), result.request_id, result.error
             )
             returnable_result = result.error
 
         elif isinstance(result, RequestSuccess):
             output = await self._handle_successful_request(
-                node_name=result.node.pretty_name(),
+                node_name=result.node.name(),
                 result=result.result,
             )
             returnable_result = result.result
@@ -447,9 +445,7 @@ class RTState:
         else:
             raise TypeError(f"Unknown result type: {type(result)}")
 
-        stamp = self._stamper.create_stamp(
-            f"Finished executing {result.node.pretty_name()}"
-        )
+        stamp = self._stamper.create_stamp(f"Finished executing {result.node.name()}")
 
         self._request_heap.update(result.request_id, output, stamp)
         self._node_heap.update(result.node, stamp)

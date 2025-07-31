@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from railtracks.config import ExecutorConfig
+from railtracks.utils.config import ExecutorConfig
 
 if TYPE_CHECKING:
     from railtracks.pubsub.publisher import RTPublisher

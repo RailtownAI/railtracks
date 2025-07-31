@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import contextvars
+import os
 import warnings
-from typing import Any, Callable
+from typing import Any, Callable, Coroutine
 
-from railtracks.config import ExecutorConfig
-from railtracks.context.external import ExternalContext, MutableExternalContext
-from railtracks.context.internal import InternalContext
 from railtracks.exceptions import ContextError
 from railtracks.pubsub.publisher import RTPublisher
+from railtracks.utils.config import ExecutorConfig
+from railtracks.utils.logging.config import allowable_log_levels
+
+from .external import ExternalContext, MutableExternalContext
+from .internal import InternalContext
 
 
 class RunnerContextVars:
@@ -64,7 +67,7 @@ def safe_get_runner_context() -> RunnerContextVars:
             message="Context is not available. But some function tried to access it.",
             notes=[
                 "You need to have an active runner to access context.",
-                "Eg.-\n with rt.Runner():\n    _ = rt.call(node)",
+                "Eg.-\n with rt.Session():\n    _ = rt.call(node)",
             ],
         )
     return context
@@ -290,31 +293,43 @@ def put(
     context.external_context.put(key, value)
 
 
-def set_config(executor_config: ExecutorConfig):
+def set_config(
+    *,
+    timeout: float | None = None,
+    end_on_error: bool | None = None,
+    logging_setting: allowable_log_levels | None = None,
+    log_file: str | os.PathLike | None = None,
+    broadcast_callback: (
+        Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
+    ) = None,
+    run_identifier: str | None = None,
+    prompt_injection: bool | None = None,
+    save_state: bool | None = None,
+):
     """
     Sets the global configuration for the executor. This will be propagated to all new runners created after this call.
+
+    - If you call this function after the runner has been created, it will not affect the current runner.
+    - This function will only overwrite the values that are provided, leaving the rest unchanged.
+
+
     """
 
     if is_context_active():
         warnings.warn(
             "The executor config is being set after the runner has been created, this is not recomended"
         )
-        # TODO figure out what happens when you do this.
 
-    global_executor_config.set(executor_config)
+    config = global_executor_config.get()
+    new_config = config.precedence_overwritten(
+        timeout=timeout,
+        end_on_error=end_on_error,
+        logging_setting=logging_setting,
+        log_file=log_file,
+        subscriber=broadcast_callback,
+        run_identifier=run_identifier,
+        prompt_injection=prompt_injection,
+        save_state=save_state,
+    )
 
-
-def set_streamer(subscriber: Callable[[str], None]):
-    """
-    Sets the streamer globally. This will be propagated to all new runners created after this call.
-    """
-
-    if is_context_active():
-        warnings.warn(
-            "The data streamer is being set after the runner has been created, this is not recomended"
-        )
-        # TODO figure out what happens when you do this.
-
-    executor_config = global_executor_config.get()
-    executor_config.subscriber = subscriber
-    global_executor_config.set(executor_config)
+    global_executor_config.set(new_config)

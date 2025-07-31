@@ -3,7 +3,7 @@ import uuid
 import types
 import pytest
 
-from railtracks.config import ExecutorConfig
+from railtracks.utils.config import ExecutorConfig
 
 # ================= START ExecutorConfig: Fixtures ============
 @pytest.fixture(params=["REGULAR", "DEBUG", "ERROR"])
@@ -32,7 +32,7 @@ def test_instantiation_with_custom_values(tmp_path, log_level):
         end_on_error=True,
         logging_setting=log_level,       
         log_file=tmp_path / "logfile.txt",
-        subscriber=test_subscriber,
+        broadcast_callback=test_subscriber,
         run_identifier=custom_run_identifier,
         prompt_injection=False
     )
@@ -62,17 +62,17 @@ def test_run_identifier_is_used_when_given():
 # ================ END ExecutorConfig: run_identifier logic tests ===============
 
 
-# ================= START ExecutorConfig: subscriber handling tests ============
+# ================= START ExecutorConfig: broadcast_callback handling tests ============
 
 def test_subscriber_accepts_callable():
-    config = ExecutorConfig(subscriber=lambda s: s)
+    config = ExecutorConfig(broadcast_callback=lambda s: s)
     assert callable(config.subscriber)
 
 @pytest.mark.asyncio
 async def test_subscriber_accepts_coroutine_function():
     async def async_sub_fn(text):
         return text
-    config = ExecutorConfig(subscriber=async_sub_fn)
+    config = ExecutorConfig(broadcast_callback=async_sub_fn)
     # (not invoked/executed here, just type accepted)
     assert callable(config.subscriber)
     assert isinstance(config.subscriber, types.FunctionType)
@@ -81,7 +81,7 @@ def test_subscriber_is_none_by_default():
     config = ExecutorConfig()
     assert config.subscriber is None
 
-# ================ END ExecutorConfig: subscriber handling tests ===============
+# ================ END ExecutorConfig: broadcast_callback handling tests ===============
 
 
 # ================= START ExecutorConfig: logging_setting options tests ============
@@ -130,3 +130,43 @@ def test_prompt_injection_false_when_overridden():
     assert config.prompt_injection is False
 
 # ================ END ExecutorConfig: prompt_injection tests ===============
+
+# ================= START Precedence Overwritten Tests ============
+@pytest.fixture
+def base_config():
+    return ExecutorConfig(
+        timeout=100.0,
+        end_on_error=True,
+        logging_setting="REGULAR",
+        run_identifier="base-id",
+        prompt_injection=True,
+        save_state=True
+    )
+
+def test_updated_timeout(base_config):
+    updated_config = base_config.precedence_overwritten(timeout=200.0)
+    assert updated_config.timeout == 200.0
+    assert updated_config.end_on_error == base_config.end_on_error
+    assert updated_config.logging_setting == base_config.logging_setting
+    assert updated_config.log_file == base_config.log_file
+    assert updated_config.run_identifier == base_config.run_identifier
+    assert updated_config.prompt_injection == base_config.prompt_injection
+
+def test_multiple_updated(base_config):
+    updated_config = base_config.precedence_overwritten(
+        timeout=200.0,
+        end_on_error=False,
+        logging_setting="QUIET",
+        log_file="new_log.txt",
+        run_identifier="new-id",
+        prompt_injection=False
+    )
+    assert updated_config.timeout == 200.0
+    assert updated_config.end_on_error is False
+    assert updated_config.logging_setting == "QUIET"
+    assert updated_config.log_file == "new_log.txt"
+    assert updated_config.run_identifier == "new-id"
+    assert updated_config.prompt_injection is False
+
+    assert base_config.timeout == 100.0
+    assert base_config.log_file is None

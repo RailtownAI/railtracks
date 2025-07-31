@@ -3,11 +3,11 @@ import railtracks as rt
 from pydantic import BaseModel, Field
 
 from railtracks.llm.response import Response
-from railtracks.nodes.library import structured_tool_call_llm
+from railtracks.nodes.easy_usage_wrappers.helpers import structured_tool_call_llm, structured_llm
 from railtracks.exceptions import NodeCreationError, LLMError
 from railtracks.llm import MessageHistory, SystemMessage, UserMessage, AssistantMessage
 
-from railtracks.nodes.library.tool_calling_llms.structured_tool_call_llm_base import StructuredToolCallLLM
+from railtracks.nodes.concrete import StructuredToolCallLLM
 
 
 # =========================== Basic functionality ==========================
@@ -15,14 +15,14 @@ from railtracks.nodes.library.tool_calling_llms.structured_tool_call_llm_base im
 def test_structured_tool_call_llm_init(mock_llm, schema, mock_tool):
     class MockStructuredToolCallLLM(StructuredToolCallLLM[schema]):
         @classmethod
-        def schema(cls):
+        def output_schema(cls):
             return schema
         
         @classmethod
-        def pretty_name(cls):
+        def name(cls):
             return "Mock Structured ToolCallLLM"
         
-        def connected_nodes(self):
+        def tool_nodes(self):
             return {mock_tool}
     
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("extract value")])
@@ -35,14 +35,14 @@ def test_structured_tool_call_llm_init(mock_llm, schema, mock_tool):
 def test_structured_tool_call_llm_return_output_success(mock_tool, mock_llm, schema):
     class MockStructuredToolCallLLM(StructuredToolCallLLM):
         @classmethod
-        def schema(cls):
+        def output_schema(cls):
             return schema
         
         @classmethod
-        def pretty_name(cls):
+        def name(cls):
             return "Mock Structured ToolCallLLM"
         
-        def connected_nodes(self):
+        def tool_nodes(self):
             return {mock_tool}
     
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("extract value")])
@@ -57,15 +57,15 @@ def test_structured_message_hist_tool_call_llm_return_output_success(mock_tool, 
     class MockStructuredMessHistToolCallLLM(StructuredToolCallLLM):
     
         @classmethod
-        def schema(cls):
+        def output_schema(cls):
             return schema
         
         @classmethod
-        def pretty_name(cls):
+        def name(cls):
             return "Mock Structured ToolCallLLM"
         
         @classmethod
-        def connected_nodes(cls):
+        def tool_nodes(cls):
             return {mock_tool}
     
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("extract value")])
@@ -84,13 +84,13 @@ async def test_structured_tool_call_llm_return_output_exception(mock_llm, schema
 
     node = structured_tool_call_llm(
         system_message="system prompt",
-        connected_nodes={mock_tool},
+        tool_nodes={mock_tool},
         llm_model=mock_llm(structured=mock_structured,
              chat_with_tools=lambda x, tools: Response(message=AssistantMessage("Hello world"))),
-        schema=schema,
+        output_schema=schema,
         tool_details="Extracts a value.",
         tool_params=None,
-        pretty_name="Mock Structured ToolCallLLM",
+        name="Mock Structured ToolCallLLM",
     )
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("extract value")])
 
@@ -104,12 +104,12 @@ def test_structured_llm_easy_usage_wrapper(mock_llm, schema, mock_tool):
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("extract value")])
     node = structured_tool_call_llm(
         system_message="system prompt",
-        connected_nodes={mock_tool},
+        tool_nodes={mock_tool},
         llm_model=mock_llm(),
-        schema=schema,
+        output_schema=schema,
         tool_details="Extracts a value.",
         tool_params=None,
-        pretty_name="Mock Structured ToolCallLLM",
+        name="Mock Structured ToolCallLLM",
     )
     node = node(mh, mock_llm())
     assert hasattr(node, "structured_resp_node")
@@ -118,11 +118,11 @@ def test_structured_tool_call_llm_instantiate_with_string(mock_llm, schema, mock
     """Test that StructuredToolCallLLM can be instantiated with a string input."""
     class MockStructuredToolCallLLM(StructuredToolCallLLM):
         @classmethod
-        def schema(cls):
+        def output_schema(cls):
             return schema
         
         @classmethod
-        def pretty_name(cls):
+        def name(cls):
             return "Mock Structured ToolCallLLM"
         
         @classmethod
@@ -130,7 +130,7 @@ def test_structured_tool_call_llm_instantiate_with_string(mock_llm, schema, mock
             return "system prompt"
         
         @classmethod
-        def connected_nodes(cls):
+        def tool_nodes(cls):
             return {mock_tool}
         
     node = MockStructuredToolCallLLM(user_input="extract value", llm_model=mock_llm())
@@ -145,11 +145,11 @@ def test_structured_tool_call_llm_instantiate_with_user_message(mock_llm, schema
     """Test that StructuredToolCallLLM can be instantiated with a UserMessage input."""
     class MockStructuredToolCallLLM(StructuredToolCallLLM):
         @classmethod
-        def schema(cls):
+        def output_schema(cls):
             return schema
         
         @classmethod
-        def pretty_name(cls):
+        def name(cls):
             return "Mock Structured ToolCallLLM"
         
         @classmethod
@@ -157,7 +157,7 @@ def test_structured_tool_call_llm_instantiate_with_user_message(mock_llm, schema
             return "system prompt"
         
         @classmethod
-        def connected_nodes(cls):
+        def tool_nodes(cls):
             return {mock_tool}
         
     user_msg = UserMessage("extract value")
@@ -173,12 +173,12 @@ def test_structured_tool_call_llm_easy_usage_with_string(mock_llm, schema, mock_
     """Test that the easy usage wrapper can be instantiated with a string input."""
     node_class = structured_tool_call_llm(
         system_message="system prompt",
-        connected_nodes={mock_tool},
+        tool_nodes={mock_tool},
         llm_model=mock_llm(),
-        schema=schema,
+        output_schema=schema,
         tool_details="Extracts a value.",
         tool_params=None,
-        pretty_name="Mock Structured ToolCallLLM",
+        name="Mock Structured ToolCallLLM",
     )
     
     node = node_class(user_input="extract value")
@@ -193,12 +193,12 @@ def test_structured_tool_call_llm_easy_usage_with_user_message(mock_llm, schema,
     """Test that the easy usage wrapper can be instantiated with a UserMessage input."""
     node_class = structured_tool_call_llm(
         system_message="system prompt",
-        connected_nodes={mock_tool},
+        tool_nodes={mock_tool},
         llm_model=mock_llm(),
-        schema=schema,
+        output_schema=schema,
         tool_details="Extracts a value.",
         tool_params=None,
-        pretty_name="Mock Structured ToolCallLLM",
+        name="Mock Structured ToolCallLLM",
     )
     
     user_msg = UserMessage("extract value")
@@ -218,15 +218,15 @@ class SimpleOutput(BaseModel):
 
 
 @pytest.mark.parametrize(
-    "llm_function, connected_nodes",
+    "llm_function, tool_nodes",
     [
-        (rt.library.structured_tool_call_llm, {rt.library.from_function(lambda: "test")}),
-        (rt.library.structured_llm, None),
+        (structured_tool_call_llm, {rt.function_node(lambda: "test")}),
+        (structured_llm, None),
     ],
     ids=["tool_call_llm", "structured_llm"],
 )
 @pytest.mark.parametrize(
-    "schema, tool_details, tool_params, expected_exception, match",
+    "output_schema, tool_details, tool_params, expected_exception, match",
     [
         # Test: tool_params provided but tool_details is missing
         (
@@ -259,22 +259,23 @@ class SimpleOutput(BaseModel):
         ),
     ],
 )
+
 def test_structured_llm_tool_errors(
-    schema,
+    output_schema,
     tool_details,
     tool_params,
     llm_function,
-    connected_nodes,
+    tool_nodes,
     expected_exception,
     match,
 ):
     kwargs = {
-        "schema": schema,
+        "output_schema": output_schema,
         "tool_details": tool_details,
         "tool_params": tool_params,
     }
-    if connected_nodes is not None:
-        kwargs["connected_nodes"] = connected_nodes
+    if tool_nodes is not None:
+        kwargs["tool_nodes"] = tool_nodes
 
     with pytest.raises(expected_exception, match=match):
         llm_function(**kwargs)

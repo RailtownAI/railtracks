@@ -43,25 +43,25 @@ To use tools in your RailTracks agents, you'll typically follow these steps:
 
 ```python
 import railtracks as rt
-from railtracks.nodes.library import from_mcp_server
+from railtracks.nodes.library import connect_mcp
 from railtracks.rt_mcp import MCPHttpParams
 
 # Get tools from an MCP server
-server = from_mcp_server(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))
+server = connect_mcp(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))
 tools = server.tools
 
 # Create an agent with access to these tools
 agent = rt.library.tool_call_llm(
-    connected_nodes=tools,
-    pretty_name="Research Agent",
+    tool_nodes=tools,
+    name="Research Agent",
     system_message="Use the tools to find information.",
     llm_model=rt.llm.OpenAILLM("gpt-4o"),
 )
 
 # Run the agent
-with rt.Runner():
+with rt.Session():
     result = rt.call_sync(
-        agent, 
+        agent,
         "Find information about RailTracks"
     )
 ```

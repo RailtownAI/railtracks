@@ -66,17 +66,19 @@ The `Runner` class is the main entry point for executing workflows in **Request 
 ### Example Usage
 
 #### Synchronous
+
 ```python
 import requestcompletion as rc
 
-with rc.Runner() as runner:
+with rc.Session() as runner:
     result = runner.run_sync(SomeNode)
 ```
 #### Asynchronous
+
 ```python
 import requestcompletion as rc
 
-with rc.Runner() as runner:
+with rc.Session() as runner:
     result = await runner.run(SomeNode)
 ```
 
@@ -176,7 +178,7 @@ class Publisher(Generic[_T]):
     
     Features:
     - Messages handled in order (FIFO)
-    - Dynamic subscriber registration during operation
+    - Dynamic broadcast_callback registration during operation
     - Async and sync callback support
     """
 ```
@@ -323,7 +325,7 @@ class FatalError(Exception):
 class NodeCreationError(Exception):
     """Errors during node instantiation and validation"""
 
-# Runner-specific exceptions  
+# Session-specific exceptions  
 class RunnerCreationError(Exception):
     """Errors when creating multiple runner instances"""
 

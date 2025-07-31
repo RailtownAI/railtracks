@@ -1,7 +1,7 @@
 """
 Tests for the schema_parser module.
 
-This module contains tests for the JSON schema parsing utilities in the
+This module contains tests for the JSON output_schema parsing utilities in the
 railtracks.llm.tools.schema_parser module.
 """
 
@@ -206,14 +206,14 @@ class TestParseJsonSchemaToParameter:
         """Test parsing a parameter with a $ref."""
         schema = {
             "$ref": "#/components/schemas/Person",
-            "description": "A reference to Person schema",
+            "description": "A reference to Person output_schema",
         }
         param = parse_json_schema_to_parameter("test_param", schema, True)
 
         assert isinstance(param, PydanticParameter)
         assert param.name == "test_param"
         assert param.param_type == "object"
-        assert param.description == "A reference to Person schema"
+        assert param.description == "A reference to Person output_schema"
         assert param.required is True
         assert param.properties == {}  # Empty properties for now
 
@@ -229,7 +229,7 @@ class TestParseJsonSchemaToParameter:
         assert param.required is True
 
     def test_empty_schema(self):
-        """Test parsing an empty schema."""
+        """Test parsing an empty output_schema."""
         schema = {}
         param = parse_json_schema_to_parameter("test_param", schema, True)
 
@@ -244,7 +244,7 @@ class TestParseModelProperties:
     """Tests for the parse_model_properties function."""
 
     def test_simple_schema(self):
-        """Test parsing a simple schema with basic properties."""
+        """Test parsing a simple output_schema with basic properties."""
         schema = {
             "properties": {
                 "name": {"type": "string", "description": "The name"},
@@ -279,7 +279,7 @@ class TestParseModelProperties:
         assert result["is_active"].required is False
 
     def test_schema_with_nested_object(self):
-        """Test parsing a schema with a nested object property."""
+        """Test parsing a output_schema with a nested object property."""
         schema = {
             "properties": {
                 "name": {"type": "string", "description": "The name"},
@@ -317,7 +317,7 @@ class TestParseModelProperties:
         assert result["address"].properties["city"].required is False
 
     def test_schema_with_number_type(self):
-        """Test parsing a schema with number type that should convert to float."""
+        """Test parsing a output_schema with number type that should convert to float."""
         schema = {
             "properties": {"amount": {"type": "number", "description": "The amount"}}
         }
@@ -330,7 +330,7 @@ class TestParseModelProperties:
         assert result["amount"].param_type == "number"
 
     def test_schema_with_defs_and_refs(self):
-        """Test parsing a schema with $defs and $ref."""
+        """Test parsing a output_schema with $defs and $ref."""
         schema = {
             "$defs": {
                 "Address": {
@@ -369,7 +369,7 @@ class TestParseModelProperties:
         assert address_properties["city"].required is False
 
     def test_schema_with_allof_and_refs(self):
-        """Test parsing a schema with allOf and $ref."""
+        """Test parsing a output_schema with allOf and $ref."""
         schema = {
             "$defs": {
                 "Person": {
@@ -411,7 +411,7 @@ class TestParseModelProperties:
         assert sub_params["age"].required is False
 
     def test_empty_schema(self):
-        """Test parsing an empty schema."""
+        """Test parsing an empty output_schema."""
         schema = {}
 
         result = parse_model_properties(schema)
@@ -419,10 +419,10 @@ class TestParseModelProperties:
         assert result == set()
 
     def test_schema_without_properties(self):
-        """Test parsing a schema without properties."""
+        """Test parsing a output_schema without properties."""
         schema = {
             "title": "Test Schema",
-            "description": "A test schema without properties",
+            "description": "A test output_schema without properties",
         }
 
         result = parse_model_properties(schema)

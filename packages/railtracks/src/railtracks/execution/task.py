@@ -1,7 +1,7 @@
 from typing import Generic, TypeVar
 
-from ..context.central import update_parent_id
-from ..nodes.nodes import Node
+from railtracks.context.central import update_parent_id
+from railtracks.nodes.nodes import Node
 
 _TOutput = TypeVar("_TOutput")
 

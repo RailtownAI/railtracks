@@ -18,13 +18,6 @@ from typing import (
 
 from pydantic import BaseModel
 
-from railtracks.exceptions.node_creation.validation import (
-    _check_duplicate_param_names,
-    _check_max_tool_calls,
-    _check_system_message,
-    _check_tool_params_and_details,
-    check_connected_nodes,
-)
 from railtracks.llm import (
     ModelBase,
     Parameter,
@@ -32,16 +25,17 @@ from railtracks.llm import (
     Tool,
 )
 from railtracks.llm.type_mapping import TypeMapper
-from railtracks.nodes.library._llm_base import LLMBase
-from railtracks.nodes.library.easy_usage_wrappers.mcp_tool import from_mcp_server
-from railtracks.nodes.library.function_base import DynamicFunctionNode
-from railtracks.nodes.library.tool_calling_llms._base import (
-    OutputLessToolCallLLM,
+from railtracks.utils.visuals.browser.chat_ui import ChatUI
+from railtracks.validation.node_creation.validation import (
+    _check_duplicate_param_names,
+    _check_max_tool_calls,
+    _check_system_message,
+    _check_tool_params_and_details,
+    check_connected_nodes,
 )
-from railtracks.nodes.library.tool_calling_llms.tool_call_llm_base import ToolCallLLM
-from railtracks.nodes.nodes import Node
-from railtracks.rt_mcp import MCPStdioParams
-from railtracks.visuals.browser.chat_ui import ChatUI
+
+from .concrete import DynamicFunctionNode, LLMBase, OutputLessToolCallLLM
+from .nodes import Node
 
 _TNode = TypeVar("_TNode", bound=Node)
 _P = ParamSpec("_P")
@@ -58,7 +52,7 @@ class NodeBuilder(Generic[_TNode]):
 
     Args:
         node_class (type[_TNode]): The base node class to extend (must be a subclass of Node).
-        pretty_name (str, optional): Human-readable name for the node/tool (used for debugging and tool metadata).
+        name (str, optional): Human-readable name for the node/tool (used for debugging and tool metadata).
         class_name (str, optional): The name of the generated class (defaults to 'Dynamic{node_class.__qualname__}').
 
     Returns:
@@ -70,7 +64,7 @@ class NodeBuilder(Generic[_TNode]):
         node_class: Type[_TNode],
         /,
         *,
-        pretty_name: str | None = None,
+        name: str | None = None,
         class_name: str | None = None,
         return_into: str | None = None,
         format_for_return: Callable[[Any], Any] | None = None,
@@ -80,10 +74,8 @@ class NodeBuilder(Generic[_TNode]):
         self._name = class_name or f"Dynamic{node_class.__qualname__}"
         self._methods = {}
 
-        if pretty_name is not None:
-            self._with_override(
-                "pretty_name", classmethod(lambda cls: pretty_name or cls.__name__)
-            )
+        if name is not None:
+            self._with_override("name", classmethod(lambda cls: name or cls.__name__))
 
         if return_into is not None:
             self._with_override("return_into", classmethod(lambda cls: return_into))
@@ -133,7 +125,7 @@ class NodeBuilder(Generic[_TNode]):
         schema: Type[BaseModel],
     ):
         """
-        Configure the node subclass to have a schema method.
+        Configure the node subclass to have a output_schema method.
 
         This method creates a class wide method which returns the output model for the node,
         which in turn is used for validation and serialization of structured outputs.
@@ -142,16 +134,16 @@ class NodeBuilder(Generic[_TNode]):
             schema (Type[BaseModel]): The pydantic model class to use for the node's output.
         """
 
-        self._with_override("schema", classmethod(lambda cls: schema))
+        self._with_override("output_schema", classmethod(lambda cls: schema))
 
     def tool_calling_llm(
         self, connected_nodes: Set[Union[Type[Node], Callable]], max_tool_calls: int
     ):
         """
-        Configure the node subclass to have a connected_nodes method and max_tool_calls method.
+        Configure the node subclass to have a tool_nodes method and max_tool_calls method.
 
         This method creates methods that are helpful for tool calling llms with their tools
-        stored in connected_nodes and with a limit on the number of tool calls they can make.
+        stored in tool_nodes and with a limit on the number of tool calls they can make.
 
         Args:
             connected_nodes (Set[Union[Type[Node], Callable]]): The nodes/tools/functions that this node can call.
@@ -164,12 +156,12 @@ class NodeBuilder(Generic[_TNode]):
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         )
 
-        from railtracks.nodes.library.easy_usage_wrappers.function import (
-            from_function,
+        from railtracks import (
+            function_node,
         )
 
         connected_nodes = {
-            from_function(elem) if isfunction(elem) else elem
+            function_node(elem) if isfunction(elem) else elem
             for elem in connected_nodes
         }
 
@@ -179,43 +171,7 @@ class NodeBuilder(Generic[_TNode]):
         _check_max_tool_calls(max_tool_calls)
         check_connected_nodes(connected_nodes, Node)
 
-        self._with_override("connected_nodes", classmethod(lambda cls: connected_nodes))
-        self._with_override("max_tool_calls", max_tool_calls)
-
-    def mcp_llm(self, mcp_command, mcp_args, mcp_env, max_tool_calls):
-        """
-        Configure the node subclass to use MCP (Model Context Protocol) tool calling.
-
-        This method sets up the node to call tools via an MCP server, specifying the command, arguments,
-        environment, and maximum tool calls.
-
-        Args:
-            mcp_command (str): The command to run the MCP server (e.g., 'npx').
-            mcp_args (list): Arguments to pass to the MCP server command.
-            mcp_env (dict or None): Environment variables for the MCP server process.
-            max_tool_calls (int): Maximum number of tool calls allowed per invocation.
-
-        Raises:
-            AssertionError: If the node class is not a subclass of ToolCallLLM.
-        """
-
-        assert issubclass(self._node_class, ToolCallLLM), (
-            f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
-        )
-        tools = from_mcp_server(
-            MCPStdioParams(
-                command=mcp_command,
-                args=mcp_args,
-                env=mcp_env if mcp_env is not None else None,
-            )
-        )
-
-        connected_nodes = {*tools}
-
-        _check_max_tool_calls(max_tool_calls)
-        check_connected_nodes(connected_nodes, self._node_class)
-
-        self._with_override("connected_nodes", classmethod(lambda cls: connected_nodes))
+        self._with_override("tool_nodes", classmethod(lambda cls: connected_nodes))
         self._with_override("max_tool_calls", max_tool_calls)
 
     def chat_ui(
@@ -357,7 +313,7 @@ class NodeBuilder(Generic[_TNode]):
 
             def tool_info(cls: Type[_TNode]) -> Tool:
                 if name is None:
-                    prettied_name = cls.pretty_name()
+                    prettied_name = cls.name()
                     prettied_name = prettied_name.replace(" ", "_")
                 else:
                     prettied_name = name

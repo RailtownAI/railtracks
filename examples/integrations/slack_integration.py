@@ -6,7 +6,7 @@
 import os
 
 from mcp import StdioServerParameters
-from railtracks.nodes.library import from_mcp_server, tool_call_llm
+from railtracks.nodes.library import connect_mcp, tool_call_llm
 import railtracks as rt
 
 MCP_COMMAND = "npx"
@@ -18,7 +18,7 @@ slack_env = {
     "SLACK_CHANNEL_IDS": os.environ['SLACK_CHANNEL_IDS'],
 }
 
-server = from_mcp_server(
+server = connect_mcp(
     StdioServerParameters(
         command=MCP_COMMAND,
         args=MCP_ARGS,
@@ -31,7 +31,7 @@ tools = server.tools
 # Example using the tools with an agent
 
 agent = tool_call_llm(
-    connected_nodes={*tools},
+    tool_nodes={*tools},
     system_message="""You are a Slack agent that can interact with Slack channels.""",
     model=rt.llm.OpenAILLM("gpt-4o"),
 )
@@ -40,7 +40,7 @@ user_prompt = """Send a message to thert-maintainer slack channel saying "Hello 
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
-with rt.Runner(rt.ExecutorConfig(logging_setting="VERBOSE")) as run:
+with rt.Session(rt.ExecutorConfig(logging_setting="VERBOSE")) as run:
     result = run.run_sync(agent, message_history)
 
 print(result.answer.content)

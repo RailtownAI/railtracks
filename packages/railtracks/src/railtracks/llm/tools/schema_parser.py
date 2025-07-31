@@ -1,5 +1,5 @@
 """
-JSON schema parsing utilities.
+JSON output_schema parsing utilities.
 
 This module contains functions for parsing JSON schemas into Parameter objects
 and converting Parameter objects into Pydantic models.
@@ -11,7 +11,7 @@ from .parameter import ArrayParameter, Parameter, PydanticParameter
 
 
 def _extract_param_type(prop_schema: dict) -> str | list:
-    """Extract parameter type from JSON schema, handling various formats."""
+    """Extract parameter type from JSON output_schema, handling various formats."""
     param_type = prop_schema.get("type", None)
     if param_type is None:
         # If no type, try to infer from other keys
@@ -31,7 +31,7 @@ def _extract_param_type(prop_schema: dict) -> str | list:
 
 
 def _extract_basic_properties(prop_schema: dict) -> tuple:
-    """Extract basic properties from JSON schema."""
+    """Extract basic properties from JSON output_schema."""
     description = prop_schema.get("description", "")
     enum = prop_schema.get("enum")
     default = prop_schema.get("default")
@@ -64,7 +64,7 @@ def _handle_all_of_schema(
     # Only handle simple case: allOf with $ref or type
     for item in prop_schema["allOf"]:
         if "$ref" in item:
-            # Reference to another schema
+            # Reference to another output_schema
             return (
                 PydanticParameter(
                     name=name,
@@ -200,16 +200,16 @@ def parse_json_schema_to_parameter(
     name: str, prop_schema: dict, required: bool
 ) -> "Parameter":
     """
-    Given a JSON-schema for a property, returns a Parameter or PydanticParameter.
+    Given a JSON-output_schema for a property, returns a Parameter or PydanticParameter.
     If prop_schema defines nested properties, this is done recursively.
 
     Args:
         name: The name of the parameter.
-        prop_schema: The JSON schema definition for the property.
+        prop_schema: The JSON output_schema definition for the property.
         required: Whether the parameter is required.
 
     Returns:
-        A Parameter or PydanticParameter object representing the schema.
+        A Parameter or PydanticParameter object representing the output_schema.
     """
     param_type = _extract_param_type(prop_schema)
     description, enum, default, additional_properties = _extract_basic_properties(
@@ -276,11 +276,11 @@ def parse_json_schema_to_parameter(
 
 def parse_model_properties(schema: dict) -> Dict[str, Parameter]:  # noqa: C901
     """
-    Given a JSON schema (usually from BaseModel.model_json_schema()),
+    Given a JSON output_schema (usually from BaseModel.model_json_schema()),
     returns a dictionary mapping property names to Parameter objects.
 
     Args:
-        schema: The JSON schema to parse.
+        schema: The JSON output_schema to parse.
 
     Returns:
         A dictionary mapping property names to Parameter objects.
@@ -349,7 +349,7 @@ def parse_model_properties(schema: dict) -> Dict[str, Parameter]:  # noqa: C901
 
         # If not already processed as a reference
         if prop_name not in [p.name for p in result]:
-            # Get the correct type from the schema
+            # Get the correct type from the output_schema
             param_type = prop_schema.get("type", "object")
 
             # Handle special case for number type

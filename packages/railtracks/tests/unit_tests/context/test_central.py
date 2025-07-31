@@ -3,7 +3,7 @@ from unittest import mock
 
 import railtracks.context.central as central
 
-# ============ START Runner Context Tests ===============
+# ============ START Session Context Tests ===============
 def test_safe_get_runner_context_raises_when_none():
     central.delete_globals()
     with pytest.raises(central.ContextError):
@@ -14,7 +14,7 @@ def test_is_context_present_and_active(monkeypatch, make_runner_context_vars):
     monkeypatch.setattr(central, "runner_context", mock.Mock(get=mock.Mock(return_value=rt)))
     assert central.is_context_present()
     assert central.is_context_active()
-# ============ END Runner Context Tests ===============
+# ============ END Session Context Tests ===============
 
 # ============ START Publisher Tests ===============
 def test_get_publisher_returns_publisher(monkeypatch, make_internal_context_mock, make_runner_context_vars):
@@ -100,18 +100,10 @@ def test_set_config_warns(monkeypatch):
     monkeypatch.setattr(central, "is_context_active", mock.Mock(return_value=True))
     monkeypatch.setattr(central, "global_executor_config", mock.Mock(set=mock.Mock()))
     with pytest.warns(UserWarning):
-        central.set_config(config)
-    central.global_executor_config.set.assert_called_with(config)
+        central.set_config()
+    central.global_executor_config.set.assert_called_once()
 
-def test_set_streamer_warns(monkeypatch):
-    config = mock.Mock()
-    monkeypatch.setattr(central, "is_context_active", mock.Mock(return_value=True))
-    monkeypatch.setattr(central, "global_executor_config", mock.Mock(get=mock.Mock(return_value=config), set=mock.Mock()))
-    def dummy_subscriber(x): pass
-    with pytest.warns(UserWarning):
-        central.set_streamer(dummy_subscriber)
-    assert config.subscriber == dummy_subscriber
-    central.global_executor_config.set.assert_called_with(config)
+
 # ============ END Config Tests ===============
 
 # ============ START Parent/Context Update Tests ===============

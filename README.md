@@ -52,51 +52,51 @@ import railtracks as rt
 
 
 def number_of_chars(text: str) -> int:
-    """
-    Counts the number of characters in the text.
+  """
+  Counts the number of characters in the text.
 
-    Args:
-        text (str): The text to count characters in.
-    """
-    return len(text)
+  Args:
+      text (str): The text to count characters in.
+  """
+  return len(text)
 
 
 def number_of_words(text: str) -> int:
-    """
-    Counts the number of words in the text.
+  """
+  Counts the number of words in the text.
 
-    Args:
-        text (str): The text to count words in.
-    """
-    return len(text.split())
+  Args:
+      text (str): The text to count words in.
+  """
+  return len(text.split())
 
 
 def number_of_characters(text: str, character_of_interest) -> int:
-    """
-    Counts the number of characters in the text.
+  """
+  Counts the number of characters in the text.
 
-    Args:
-        text (str): The text to count characters in.
-        character_of_interest (str): The character to count.
-    """
-    return len(text)
+  Args:
+      text (str): The text to count characters in.
+      character_of_interest (str): The character to count.
+  """
+  return len(text)
 
 
-TotalNumberChars = rt.library.from_function(number_of_chars)
-TotalNumberWords = rt.library.from_function(number_of_words)
-CharacterCount = rt.library.from_function(number_of_characters)
+TotalNumberChars = rt.library.function_node(number_of_chars)
+TotalNumberWords = rt.library.function_node(number_of_words)
+CharacterCount = rt.library.function_node(number_of_characters)
 
 TextAnalyzer = rt.library.tool_call_llm(
-    connected_nodes={
-        TotalNumberChars,
-        TotalNumberWords,
-        CharacterCount,
-    },
-    model=rt.llm.OpenAILLM("gpt-4o"),
-    system_message=rt.llm.SystemMessage(
-        "You are a text analyzer. You will be given a text and you will return the number of characters, "
-        "the number of words, and the number of occurrences of a specific character in the text."
-    ),
+  tool_nodes={
+    TotalNumberChars,
+    TotalNumberWords,
+    CharacterCount,
+  },
+  model=rt.llm.OpenAILLM("gpt-4o"),
+  system_message=rt.llm.SystemMessage(
+    "You are a text analyzer. You will be given a text and you will return the number of characters, "
+    "the number of words, and the number of occurrences of a specific character in the text."
+  ),
 )
 ```
 

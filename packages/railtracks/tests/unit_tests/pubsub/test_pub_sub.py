@@ -1,8 +1,9 @@
 import pytest
 import asyncio
 import time
-from railtracks.pubsub.publisher import Subscriber, Publisher
-from railtracks.pubsub.subscriber import stream_subscriber
+from railtracks.utils.publisher import Publisher, Subscriber
+
+from railtracks.pubsub._subscriber import stream_subscriber
 from railtracks.pubsub.messages import RequestCompletionMessage
 
 # ================= START Subscriber class tests ============
@@ -231,13 +232,13 @@ class TestSubscriberList:
 
         time.sleep(0.1)  # Give some time to process the message
 
-        assert _message is None, "Unsubscribed subscriber should not receive messages."
+        assert _message is None, "Unsubscribed broadcast_callback should not receive messages."
 
 
     @pytest.mark.asyncio
     async def test_bad_unsubscribe(self, started_publisher):
         with pytest.raises(KeyError):
-            # Attempting to unsubscribe a non-existent subscriber should raise KeyError
+            # Attempting to unsubscribe a non-existent broadcast_callback should raise KeyError
             started_publisher.unsubscribe("nonexistent_id")
 
 
@@ -387,7 +388,7 @@ class TestPublisherException:
         await asyncio.sleep(0.1)
         assert (
             _message == "another message"
-        ), "Callback should still receive messages even if one subscriber throws an exception"
+        ), "Callback should still receive messages even if one broadcast_callback throws an exception"
 
     @pytest.mark.asyncio
     async def test_stream_subscriber_callback_exception(self, streaming_message):
@@ -508,7 +509,7 @@ class TestPublisherSanity:
 
     @pytest.mark.asyncio
     async def test_rcpublisher_logging_sub(self, dummy_publisher):
-        # Should have one default subscriber (logging_sub)
+        # Should have one default broadcast_callback (logging_sub)
         assert len(dummy_publisher._subscribers) >= 1
         msg = RequestCompletionMessage()
         dummy_publisher._running = True

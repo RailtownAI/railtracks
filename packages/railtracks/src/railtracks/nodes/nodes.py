@@ -14,11 +14,11 @@ from typing import (
 
 from typing_extensions import Self
 
-from railtracks.nodes.tool_callable import ToolCallable
-
-from ..exceptions.node_creation.validation import (
+from railtracks.validation.node_creation.validation import (
     check_classmethod,
 )
+
+from .tool_callable import ToolCallable
 
 _TOutput = TypeVar("_TOutput")
 
@@ -91,7 +91,7 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
 
         # ================= Checks for Creation ================
         # 1. Check if the class methods are all classmethods, else raise an exception
-        class_method_checklist = ["tool_info", "prepare_tool", "pretty_name"]
+        class_method_checklist = ["tool_info", "prepare_tool", "name"]
         for method_name in class_method_checklist:
             if method_name in cls.__dict__ and callable(cls.__dict__[method_name]):
                 method = cls.__dict__[method_name]
@@ -119,7 +119,7 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
 
     @classmethod
     @abstractmethod
-    def pretty_name(cls) -> str:
+    def name(cls) -> str:
         """
         Returns a pretty name for the node. This name is used to identify the node type of the system.
         """
@@ -163,4 +163,4 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
         return result
 
     def __repr__(self):
-        return f"{self.pretty_name()} <{hex(id(self))}>"
+        return f"{self.name()} <{hex(id(self))}>"

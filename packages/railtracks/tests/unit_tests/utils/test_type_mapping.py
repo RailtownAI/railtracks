@@ -77,13 +77,13 @@ def test_convert_to_pydantic_model_success():
 
 
 def test_convert_to_pydantic_model_failure():
-    with pytest.raises(UnsupportedParameterError):
+    with pytest.raises(RuntimeError):
         TypeMapper._convert_to_pydantic_model("invalid", DummyModel)
 
 
 def test_convert_value_dict_error():
     tm = TypeMapper(dummy_func_with_dict)
-    with pytest.raises(UnsupportedParameterError):
+    with pytest.raises(RuntimeError):
         tm.convert_kwargs_to_appropriate_types({"a": {"key": "value"}})
 
 

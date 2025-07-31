@@ -7,14 +7,15 @@ from typing import (
     TypeVar,
 )
 
-from ..nodes.nodes import Node
+from railtracks.nodes.nodes import Node
+
 from .call import call
 
 _P = ParamSpec("_P")
 _TOutput = TypeVar("_TOutput")
 
 
-async def batch(
+async def call_batch(
     node: Callable[..., Node[_TOutput]],
     *iterables: Iterable[Any],
     return_exceptions: bool = True,

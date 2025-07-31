@@ -145,7 +145,7 @@ def _process_single_parameter(p: "Parameter") -> tuple[str, Dict[str, Any], bool
 def _build_final_schema(
     props: Dict[str, Any], required: list[str], sub_property: bool
 ) -> Dict[str, Any]:
-    """Build the final schema dictionary."""
+    """Build the final output_schema dictionary."""
     if sub_property:
         return props
     else:

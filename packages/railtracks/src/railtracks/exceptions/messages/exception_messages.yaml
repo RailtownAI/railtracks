@@ -4,13 +4,13 @@ CLASSMETHOD_REQUIRED_NOTES:
   - "Add @classmethod decorator to '{method_name}'."
   - "Signature should be: \n@classmethod\ndef {method_name}(cls): ..."
 
-CONNECTED_NODES_EMPTY_MSG: "connected_nodes must not return an empty set."
+CONNECTED_NODES_EMPTY_MSG: "tool_nodes must not return an empty set."
 CONNECTED_NODES_EMPTY_NOTES:
   - "Please provide a set nodes that can be used as tools by the ToolCallLLM node."
 
-CONNECTED_NODES_TYPE_MSG: "connected_nodes must return a set of Nodes."
+CONNECTED_NODES_TYPE_MSG: "tool_nodes must return a set of Nodes."
 CONNECTED_NODES_TYPE_NOTES:
-  - "Ensure all the nodes provided as connected_nodes are of type Node."
+  - "Ensure all the nodes provided as tool_nodes are of type Node."
   - "You can use the from_function function to convert a function to a Node."
   - "You can use the @rt.to_node decorator to convert a function to a Node. eg.-\n@rt.to_node\ndef my_function(): ..."
 
@@ -42,7 +42,7 @@ MESSAGE_HISTORY_TYPE_NOTES:
   - "System messages must be of type rt.llm.SystemMessage (not string)."
   - "User messages must be of type rt.llm.UserMessage (not string)."
 
-MISSING_PRETTY_NAME_MSG: "You must provide a pretty_name when using this node as a tool, as this is used to identify the tool."
+MISSING_PRETTY_NAME_MSG: "You must provide a name when using this node as a tool, as this is used to identify the tool."
 
 MISSING_TOOL_DETAILS_MSG: "Tool parameters are provided, but tool details are missing."
 MISSING_TOOL_DETAILS_NOTES:
@@ -73,11 +73,11 @@ OUTPUT_MODEL_TYPE_NOTES:
 PARAMETER_SET_CONTAINS_INVALID_TYPE_MSG: "Parameters set must be a set of Parameter objects or None."
 PARAMETER_SET_CONTAINS_INVALID_TYPE_NOTES: "If the tool expects no parameters, use None or pass in an empty set instead."
 
-TOOL_PARAMETERS_FROM_SCHEMA_FAILED_MSG: "Cannot convert the provided JSON-schema into Parameter objects. Reason: '{reason}'"
+TOOL_PARAMETERS_FROM_SCHEMA_FAILED_MSG: "Cannot convert the provided JSON-output_schema into Parameter objects. Reason: '{reason}'"
 TOOL_PARAMETERS_TYPE_MSG: "Tool parameters must be a set of Parameter objects, a dict, or None."
 TOOL_PARAMETERS_TYPE_NOTES:
   - "If the tool expects no parameters, use None."
-  - "If you are having issues with passing in a JSON-schema, try to provide a set of Parameter objects instead."
+  - "If you are having issues with passing in a JSON-output_schema, try to provide a set of Parameter objects instead."
   - "You can make a Tool object from a custom function. \nEg.-\ndef my_function():\n    ...\nsample_tool = rc.llm.Tool.from_function(my_function)"
 
 # ----------------------------------- Warnings ------------------------------------
