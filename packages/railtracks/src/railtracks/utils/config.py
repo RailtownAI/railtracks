@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import uuid
-
 from typing import Callable, Coroutine
 
 from railtracks.utils.logging.config import allowable_log_levels

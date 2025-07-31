@@ -8,6 +8,7 @@ from typing import (
 )
 
 from railtracks.nodes.nodes import Node
+
 from .call import call
 
 _P = ParamSpec("_P")

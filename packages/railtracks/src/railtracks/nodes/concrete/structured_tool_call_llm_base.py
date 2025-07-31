@@ -1,16 +1,14 @@
 from abc import ABC
 from typing import Generic, TypeVar
 
-import railtracks.context as context
 from pydantic import BaseModel
+
+import railtracks.context as context
 from railtracks.exceptions.errors import LLMError
 from railtracks.interaction import call
-from railtracks.llm import MessageHistory
-from railtracks.llm import AssistantMessage, UserMessage
-from railtracks.llm import ModelBase
+from railtracks.llm import AssistantMessage, MessageHistory, ModelBase, UserMessage
+
 from ._llm_base import StructuredOutputMixIn
-
-
 from ._tool_call_base import (
     OutputLessToolCallLLM,
 )

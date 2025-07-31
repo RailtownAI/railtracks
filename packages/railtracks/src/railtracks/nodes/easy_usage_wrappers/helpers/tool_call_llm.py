@@ -4,11 +4,11 @@ from railtracks.llm import (
     ModelBase,
     SystemMessage,
 )
-from ..._node_builder import NodeBuilder
-
 from railtracks.llm.tools import Parameter
-from ...nodes import Node
+
+from ..._node_builder import NodeBuilder
 from ...concrete import ToolCallLLM
+from ...nodes import Node
 
 
 def tool_call_llm(

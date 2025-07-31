@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from .messages import RequestCompletionMessage, RequestCreationFailure, RequestFailure
-from railtracks.utils.publisher import Publisher
 from railtracks.utils.logging import get_rt_logger
+from railtracks.utils.publisher import Publisher
+
+from .messages import RequestCompletionMessage, RequestCreationFailure, RequestFailure
 
 logger = get_rt_logger("Publisher")
 

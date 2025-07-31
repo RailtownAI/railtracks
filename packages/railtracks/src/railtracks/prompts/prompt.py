@@ -1,10 +1,6 @@
-import string
-
-
-from railtracks.exceptions import ContextError
-
 import railtracks.context as context
 from railtracks.context.central import get_local_config
+from railtracks.exceptions import ContextError
 from railtracks.llm import MessageHistory
 from railtracks.utils.prompt_injection import ValueDict, inject_values
 
@@ -12,8 +8,6 @@ from railtracks.utils.prompt_injection import ValueDict, inject_values
 class _ContextDict(ValueDict):
     def __getitem__(self, key):
         return context.get(key)
-
-
 
 
 def inject_context(message_history: MessageHistory):

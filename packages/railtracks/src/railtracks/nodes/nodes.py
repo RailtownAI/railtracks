@@ -14,11 +14,11 @@ from typing import (
 
 from typing_extensions import Self
 
-from .tool_callable import ToolCallable
-
 from railtracks.validation.node_creation.validation import (
     check_classmethod,
 )
+
+from .tool_callable import ToolCallable
 
 _TOutput = TypeVar("_TOutput")
 

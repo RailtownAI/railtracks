@@ -1,30 +1,24 @@
-from typing import Any, Callable, Iterable, Type, TypeVar, overload, TYPE_CHECKING
+from typing import Callable, Iterable, Type, TypeVar, overload
 
 from pydantic import BaseModel
 
+from railtracks.llm.message import SystemMessage
+from railtracks.llm.model import ModelBase
+from railtracks.nodes.manifest import ToolManifest
+from railtracks.nodes.nodes import Node
 
+from ..concrete import (
+    StructuredLLM,
+    StructuredToolCallLLM,
+    TerminalLLM,
+    ToolCallLLM,
+)
 from .helpers import (
     structured_llm,
     structured_tool_call_llm,
-    tool_call_llm,
     terminal_llm,
+    tool_call_llm,
 )
-
-from ..concrete import (
-        StructuredToolCallLLM,
-        ToolCallLLM,
-        StructuredLLM,
-        TerminalLLM,
-    )
-
-
-
-
-from railtracks.llm.model import ModelBase
-from railtracks.llm.message import SystemMessage
-
-from railtracks.nodes.manifest import ToolManifest
-from railtracks.nodes.nodes import Node
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 

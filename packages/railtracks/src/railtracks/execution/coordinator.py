@@ -9,6 +9,7 @@ from railtracks.pubsub.messages import (
     RequestSuccess,
 )
 from railtracks.pubsub.publisher import RTPublisher
+
 from .execution_strategy import TaskExecutionStrategy
 from .task import Task
 

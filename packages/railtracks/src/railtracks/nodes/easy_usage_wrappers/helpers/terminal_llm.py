@@ -2,6 +2,7 @@ from typing import Any, Callable, Type
 
 from railtracks.llm import ModelBase, SystemMessage
 from railtracks.llm.tools import Parameter
+
 from ..._node_builder import NodeBuilder
 from ...concrete import TerminalLLM
 

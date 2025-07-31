@@ -5,12 +5,13 @@ import os
 import warnings
 from typing import Any, Callable, Coroutine
 
-from railtracks.utils.config import ExecutorConfig
-from .external import ExternalContext, MutableExternalContext
-from .internal import InternalContext
 from railtracks.exceptions import ContextError
 from railtracks.pubsub.publisher import RTPublisher
+from railtracks.utils.config import ExecutorConfig
 from railtracks.utils.logging.config import allowable_log_levels
+
+from .external import ExternalContext, MutableExternalContext
+from .internal import InternalContext
 
 
 class RunnerContextVars:

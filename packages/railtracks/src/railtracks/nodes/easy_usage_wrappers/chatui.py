@@ -4,11 +4,11 @@ from railtracks.llm import (
     ModelBase,
     SystemMessage,
 )
-from .._node_builder import NodeBuilder
-
-from ..nodes import Node
-from railtracks.utils.visuals.browser.chat_ui import ChatUI
 from railtracks.nodes.concrete import ChatToolCallLLM
+from railtracks.utils.visuals.browser.chat_ui import ChatUI
+
+from .._node_builder import NodeBuilder
+from ..nodes import Node
 
 
 def chatui_node(

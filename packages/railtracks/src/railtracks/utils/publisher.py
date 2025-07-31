@@ -229,5 +229,3 @@ class Publisher(Generic[_T]):
             bool: True if the publisher is running, False otherwise.
         """
         return self._running
-
-

@@ -31,10 +31,11 @@ if TYPE_CHECKING:
     from railtracks.utils.config import ExecutorConfig
 
 from railtracks.exceptions import FatalError, NodeInvocationError
-from .info import ExecutionInfo
 from railtracks.nodes.nodes import Node
 from railtracks.utils.logging.create import get_rt_logger
 from railtracks.utils.profiling import Stamp
+
+from .info import ExecutionInfo
 
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")

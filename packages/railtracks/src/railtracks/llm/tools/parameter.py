@@ -6,7 +6,7 @@ tool parameters with various type information and nested structures.
 """
 
 from enum import Enum
-from typing import Any, Optional, Literal
+from typing import Any, Literal, Optional
 
 
 class ParameterType(str, Enum):

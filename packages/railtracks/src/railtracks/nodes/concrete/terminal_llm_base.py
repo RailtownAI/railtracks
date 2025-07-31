@@ -3,6 +3,7 @@ from typing import TypeVar
 import railtracks.context as context
 from railtracks.exceptions import LLMError
 from railtracks.llm import MessageHistory, ModelBase, UserMessage
+
 from ._llm_base import LLMBase, StringOutputMixIn
 from .response import StringResponse
 

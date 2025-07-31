@@ -9,18 +9,17 @@ from pydantic import BaseModel
 from typing_extensions import Self
 
 import railtracks.llm as llm
+from railtracks.exceptions.errors import NodeInvocationError
+from railtracks.exceptions.messages.exception_messages import get_message
+from railtracks.llm import MessageHistory, Parameter, SystemMessage, UserMessage
+from railtracks.llm.response import Response
+from railtracks.prompts.prompt import inject_context
 from railtracks.validation.node_invocation.validation import (
     check_llm_model,
     check_message_history,
 )
-from railtracks.llm import SystemMessage, UserMessage
-from railtracks.llm.response import Response
-from ..nodes import Node
 
-from railtracks.exceptions.errors import NodeInvocationError
-from railtracks.exceptions.messages.exception_messages import get_message
-from railtracks.llm import MessageHistory, Parameter
-from railtracks.prompts.prompt import inject_context
+from ..nodes import Node
 from .response import StringResponse, StructuredResponse
 
 _T = TypeVar("_T")

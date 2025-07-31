@@ -1,9 +1,5 @@
 import string
 
-
-from railtracks.exceptions import ContextError
-
-from ..context.central import get_local_config
 from railtracks.llm import Message, MessageHistory
 
 
@@ -17,8 +13,6 @@ class KeyOnlyFormatter(string.Formatter):
             return kwargs[str(key)]
         except KeyError:
             return f"{{{key}}}"
-
-
 
 
 class ValueDict(dict):
@@ -44,14 +38,14 @@ def inject_values(message_history: MessageHistory, value_dict: ValueDict):
     """
 
     for i, message in enumerate(message_history):
-            if message.inject_prompt and isinstance(message.content, str):
-                try:
-                    message_history[i] = Message(
-                        role=message.role.value,
-                        content=fill_prompt(message.content, value_dict),
-                        inject_prompt=False,
-                    )
-                except ValueError:
-                    pass
+        if message.inject_prompt and isinstance(message.content, str):
+            try:
+                message_history[i] = Message(
+                    role=message.role.value,
+                    content=fill_prompt(message.content, value_dict),
+                    inject_prompt=False,
+                )
+            except ValueError:
+                pass
 
     return message_history

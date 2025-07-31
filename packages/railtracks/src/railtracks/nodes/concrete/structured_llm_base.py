@@ -3,14 +3,14 @@ from typing import Generic, TypeVar
 
 from pydantic import BaseModel
 
+import railtracks.context as context
+from railtracks.exceptions import LLMError
+from railtracks.llm import MessageHistory, ModelBase
 from railtracks.validation.node_creation.validation import (
     check_classmethod,
     check_schema,
 )
 
-import railtracks.context as context
-from railtracks.exceptions import LLMError
-from railtracks.llm import MessageHistory, ModelBase
 from ._llm_base import LLMBase, StructuredOutputMixIn
 from .response import StructuredResponse
 

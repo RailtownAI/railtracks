@@ -7,6 +7,7 @@ from railtracks.llm import (
     SystemMessage,
 )
 from railtracks.llm.tools import Parameter
+
 from ..._node_builder import NodeBuilder
 from ...concrete import StructuredLLM
 

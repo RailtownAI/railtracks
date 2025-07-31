@@ -5,7 +5,6 @@ from typing import Any, Callable, Coroutine, Dict, ParamSpec, TypeVar
 
 from typing_extensions import deprecated
 
-from .utils.config import ExecutorConfig
 from .context.central import (
     delete_globals,
     get_global_config,
@@ -13,16 +12,17 @@ from .context.central import (
 )
 from .execution.coordinator import Coordinator
 from .execution.execution_strategy import AsyncioExecutionStrategy
-from .state.info import (
-    ExecutionInfo,
-)
 from .interaction.call import call
 from .nodes.nodes import Node
+from .pubsub import RTPublisher, stream_subscriber
 from .pubsub.messages import (
     RequestCompletionMessage,
 )
-from .pubsub import RTPublisher, stream_subscriber
+from .state.info import (
+    ExecutionInfo,
+)
 from .state.state import RTState
+from .utils.config import ExecutorConfig
 from .utils.logging.config import (
     allowable_log_levels,
     detach_logging_handlers,

@@ -1,14 +1,12 @@
 from .messages import (
+    FatalFailure,
     RequestCompletionMessage,
+    RequestCreation,
     RequestCreationFailure,
     RequestFailure,
-    RequestCreation,
+    RequestFinishedBase,
     RequestSuccess,
-RequestFinishedBase,
-FatalFailure,
-Streaming,
-
-
+    Streaming,
 )
 
 __all__ = [
@@ -25,6 +23,6 @@ __all__ = [
     "stream_subscriber",
 ]
 
-from .utils import output_mapping
-from .publisher import RTPublisher
 from ._subscriber import stream_subscriber
+from .publisher import RTPublisher
+from .utils import output_mapping

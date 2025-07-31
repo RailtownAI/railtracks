@@ -3,14 +3,13 @@ from __future__ import annotations
 import json
 from typing import List, Tuple, TypeVar
 
-from .serialize import RTJSONEncoder
+from railtracks.utils.profiling import Stamp, StampManager
+from railtracks.utils.serialization.graph import Edge, Vertex
 
 from .node import NodeForest
 from .request import RequestForest
+from .serialize import RTJSONEncoder
 from .utils import create_sub_state_info
-
-from railtracks.utils.profiling import Stamp, StampManager
-from railtracks.utils.serialization.graph import Edge, Vertex
 
 _TOutput = TypeVar("_TOutput")
 

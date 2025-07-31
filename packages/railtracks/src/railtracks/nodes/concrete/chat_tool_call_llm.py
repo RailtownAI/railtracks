@@ -1,9 +1,8 @@
 import asyncio
 from abc import ABC
 
-
-from railtracks.interaction import call
 from railtracks.exceptions import LLMError
+from railtracks.interaction import call
 from railtracks.llm import (
     AssistantMessage,
     ToolCall,
@@ -12,9 +11,10 @@ from railtracks.llm import (
     UserMessage,
 )
 from railtracks.llm.message import Role
+
 from ._llm_base import StringOutputMixIn
-from .response import StringResponse
 from ._tool_call_base import OutputLessToolCallLLM
+from .response import StringResponse
 
 
 class ChatToolCallLLM(StringOutputMixIn, OutputLessToolCallLLM[StringResponse], ABC):

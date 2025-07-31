@@ -7,6 +7,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from railtracks.utils.profiling import Stamp
 from railtracks.utils.serialization.graph import Edge
+
 from .forest import (
     AbstractLinkedObject,
     Forest,

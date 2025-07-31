@@ -8,6 +8,7 @@ from railtracks.nodes.nodes import (
 )
 from railtracks.utils.profiling import Stamp
 from railtracks.utils.serialization.graph import Vertex
+
 from .forest import (
     AbstractLinkedObject,
     Forest,
