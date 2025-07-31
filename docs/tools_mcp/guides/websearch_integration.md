@@ -1,117 +1,193 @@
-# Web Search Integration with RequestCompletion
+# Web Search Integration
 
-This guide demonstrates how to create a web search integration for RequestCompletion (RC) using both MCP (Model Context Protocol) servers and custom Google API tools. This setup allows your AI agent to search the web and fetch content from URLs.
+Enable your Railtracks agents to search the web, fetch content from URLs, and answer questions with up-to-date information from the internet.
 
-## Prerequisites
+**Version:** 0.0.1
 
-Before implementing this integration, you'll need:
+## Table of Contents
 
-1. **Google Custom Search API credentials**:
-   - Visit the [Google Cloud Console](https://console.cloud.google.com/apis/api/customsearch.googleapis.com/)
-   - Enable the Custom Search API
-   - Create API credentials and a Custom Search Engine ID
+- [1. What You Can Do](#1-what-you-can-do)
+- [2. Quick Start](#2-quick-start)
+- [3. Setup Requirements](#3-setup-requirements)
+- [4. Usage Examples](#4-usage-examples)
+- [5. Common Use Cases](#5-common-use-cases)
+- [6. Troubleshooting](#6-troubleshooting)
 
-2. **Environment variables**: <br>
-   ```
-   GOOGLE_SEARCH_API_KEY=your_api_key_here
-   GOOGLE_SEARCH_ENGINE_ID=your_search_engine_id_here
-   ```
+---
 
-3. **Required packages**: <br>
-   ```
-   pip install railtracks python-dotenv aiohttp
-   ```
+## 1. What You Can Do
 
-## Implementation
+The Web Search integration combines two powerful capabilities:
 
-### Step 1: Import Dependencies and Load Environment
+- **Web Search**: Perform real-time web searches using Google's Custom Search API to find relevant information.
+- **URL Fetching**: Extract and process the full content from any web page using a remote MCP server.
+
+This allows your agents to go beyond their training data and access current information to answer questions, conduct research, and analyze online content.
+
+## 2. Quick Start
+
+Get started with web search in a few simple steps:
+
+### Step 1: Get Google API Credentials
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/apis/api/customsearch.googleapis.com/).
+2. Enable the **Custom Search API**.
+3. Create an **API Key** and a **Search Engine ID**.
+
+### Step 2: Set Environment Variables
+
+```bash
+export GOOGLE_SEARCH_API_KEY="your_api_key_here"
+export GOOGLE_SEARCH_ENGINE_ID="your_search_engine_id_here"
+```
+
+### Step 3: Create an Agent with Web Search
 
 ```python
 from dotenv import load_dotenv
 import os
-from railtracks.nodes.library import from_mcp_server, tool_call_llm
 import railtracks as rt
 from railtracks.rt_mcp import MCPHttpParams
+from railtracks.nodes.library import from_mcp_server, tool_call_llm
 import aiohttp
 from typing import Dict, Any
 
 load_dotenv()
-```
 
-### Step 2: Set Up MCP Tools for URL Fetching
-
-The MCP server provides tools that can fetch and process content from URLs:
-
-```python
-# MCP Tools that can fetch data from URLs
+# Tool 1: MCP server for fetching content from URLs
 fetch_mcp_server = from_mcp_server(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))
-fetch_mcp_tools = fetch_mcp_server.tools
-```
-Read more about the `from_mcp_server` utility [TODO: change this link](../mcp/index.md). <br>
-This connects to a [remote MCP server](https://remote-mcp-servers.com/servers/ecc7629a-9f3a-487d-86fb-039f46016621) that provides URL fetching capabilities.
 
-### Step 3: Create Custom Google Search Tool
-
-```python
-def _format_results(data: Dict[str, Any]) -> Dict[str, Any]:
-    ...
-
+# Tool 2: Custom tool for Google Search
 @rt.to_node
 async def google_search(query: str, num_results: int = 3) -> Dict[str, Any]:
-    """
-    Tool for searching using Google Custom Search API
-    
-    Args:
-        query (str): The search query
-        num_results (int): The number of results to return (max 5)
-    
-    Returns:
-        Dict[str, Any]: Formatted search results
-    """
+    # ... (implementation from example file) ...
     params = {
-        'key': os.environ['GOOGLE_SEARCH_API_KEY'],
-        'cx': os.environ['GOOGLE_SEARCH_ENGINE_ID'],
-        'q': query,
-        'num': min(num_results, 5)  # Google API maximum is 5
+        'key': os.environ['GOOGLE_SEARCH_API_KEY'], 'cx': os.environ['GOOGLE_SEARCH_ENGINE_ID'],
+        'q': query, 'num': min(num_results, 5)
     }
-    
     async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get("https://www.googleapis.com/customsearch/v1", params=params) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    return _format_results(data)
-                else:
-                    error_text = await response.text()
-                    raise Exception(f"Google API error {response.status}: {error_text}")
-        except Exception as e:
-            raise Exception(f"Search failed: {str(e)}")
-```
+        async with session.get("https://www.googleapis.com/customsearch/v1", params=params) as response:
+            if response.status == 200: return await response.json()
+            raise Exception(f"Google API error {response.status}: {await response.text()}")
 
-### Step 4: Create and Use the Search Agent
-
-```python
-# Combine all tools
-tools = fetch_mcp_tools + [google_search]
-
-# Create the agent with search capabilities
+# Combine tools and create the agent
+tools = fetch_mcp_server.tools + [google_search]
 agent = tool_call_llm(
     connected_nodes={*tools},
-    system_message="""You are an information gathering agent that can search the web.""",
+    system_message="You are an information gathering agent that can search the web and read URLs.",
     model=rt.llm.OpenAILLM("gpt-4o"),
 )
+```
 
-# Example usage
-user_prompt = """Tell me about Railtown AI."""
+### Step 4: Use the Agent
+
+```python
+# Ask the agent a question
+user_prompt = "What are the latest developments in AI-powered code generation?"
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
 result = rt.call_sync(agent, message_history)
-print(result)
+print(result.answer.content)
 ```
 
-## How It Works
+## 3. Setup Requirements
 
-1. **Google Search Tool**: Uses the Google Custom Search API to find relevant web pages based on user queries
-2. **MCP Fetch Tools**: Retrieves and processes content from the URLs found in search results
-3. **Agent Integration**: Combines both tools to create a comprehensive web search and content analysis system
+### API Credentials
+
+- **Google API Key**: For authenticating with the Google Custom Search API.
+- **Google Search Engine ID**: To specify which configured search engine to use.
+
+### Environment Variables
+
+| Variable | Required | Description |
+|---------------------------|----------|---------------------------------|
+| `GOOGLE_SEARCH_API_KEY` | Yes | Your Google Cloud API Key. |
+| `GOOGLE_SEARCH_ENGINE_ID` | Yes | Your Custom Search Engine ID. |
+
+### Python Packages
+
+Ensure you have the necessary packages installed:
+```bash
+pip install railtracks python-dotenv aiohttp
+```
+
+## 4. Usage Examples
+
+### General Research
+
+```python
+# Ask a broad question to get an overview
+user_prompt = "Explain the concept of Retrieval-Augmented Generation (RAG) and its benefits."
+```
+
+### Fact-Checking
+
+```python
+# Verify a specific piece of information
+user_prompt = "Who won the Nobel Prize in Physics in 2023 and for what discovery?"
+```
+
+### Product Comparison
+
+```python
+# Compare different products or technologies
+user_prompt = "Compare the features and pricing of GitHub Copilot and Amazon CodeWhisperer."
+```
+
+## 5. Common Use Cases
+
+### Research Assistant
+
+Create an agent to perform in-depth research on any topic.
+
+```python
+agent = tool_call_llm(
+    connected_nodes={*tools},
+    system_message="""You are a meticulous research assistant. 
+    Use web search to find multiple sources, synthesize the information, 
+    and provide a comprehensive summary with citations.""",
+    model=rt.llm.OpenAILLM("gpt-4o"),
+)
+```
+
+### News and Trend Analyst
+
+Build an agent that stays up-to-date with the latest news and trends.
+
+```python
+agent = tool_call_llm(
+    connected_nodes={*tools},
+    system_message="""You are a news analyst. Find the latest articles and reports on a given topic 
+    and summarize the key developments and future outlook.""",
+    model=rt.llm.OpenAILLM("gpt-4o"),
+)
+```
+
+## 6. Troubleshooting
+
+### Common Issues
+
+**"API key not valid" or "Permission denied" errors**
+- Ensure your `GOOGLE_SEARCH_API_KEY` is correct.
+- Verify that the Custom Search API is enabled in your Google Cloud project.
+- Check that your API key is not restricted (e.g., by IP address).
+
+**No search results returned**
+- Confirm your `GOOGLE_SEARCH_ENGINE_ID` is correct.
+- Make sure your custom search engine is configured to search the entire web.
+
+**URL fetching fails**
+- The target website might be blocking automated requests.
+- The URL may be incorrect or the page may no longer exist.
+- The remote MCP server at `https://remote.mcpservers.org/fetch/mcp` might be temporarily unavailable.
+
+### Getting Help
+
+- **Examples**: See the complete working code in `examples/integrations/websearch_integration.py`.
+- **MCP Documentation**: Learn more about MCP tools in the [MCP integration guide](../mcp/index.md).
+- **Google API Docs**: Refer to the [Custom Search API documentation](https://developers.google.com/custom-search/v1/overview) for more details.
+
+---
+
+*Last updated: July

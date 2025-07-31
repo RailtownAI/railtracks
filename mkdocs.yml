@@ -49,6 +49,7 @@ nav:
         - Shell Bash: tools_mcp/guides/shell_bash.md
         - Slack: tools_mcp/guides/slack.md
         - Web Search: tools_mcp/guides/websearch_integration.md
+      - RAG: tools_mcp/RAG.md
 
   - Observability:
         - observability/index.md
