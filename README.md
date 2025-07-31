@@ -52,7 +52,7 @@ def number_of_words(text: str) -> int:
     return len(text.split())
 
 def number_of_characters(text: str, character_of_interest: str) -> int:
-    return len([t for t in text if t == character_of_interest])
+    return text.count(character_of_interest)
 
 TotalNumberChars = rt.function_node(number_of_chars)
 TotalNumberWords = rt.function_node(number_of_words)
