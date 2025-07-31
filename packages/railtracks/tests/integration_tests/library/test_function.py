@@ -168,7 +168,7 @@ class TestPrimitiveInputTypes:
             magic_test,
             model_provider=model_provider,
         )
-        with rt.Session(rt.ExecutorConfig(logging_setting="NONE")) as run:
+        with rt.Session(logging_setting="NONE") as run:
             response = run.run_sync(
                 agent,
                 rt.llm.MessageHistory(
