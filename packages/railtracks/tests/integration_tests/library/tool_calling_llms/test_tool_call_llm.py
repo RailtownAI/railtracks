@@ -214,7 +214,8 @@ async def test_tool_with_llm_tool_as_input_class_easy():
 
     # Run the parent tool
     with rt.Session(
-        executor_config=rt.ExecutorConfig(logging_setting="NONE", timeout=1000)
+        logging_setting="NONE",
+        timeout=1000,
     ) as runner:
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Give me a response.")]
