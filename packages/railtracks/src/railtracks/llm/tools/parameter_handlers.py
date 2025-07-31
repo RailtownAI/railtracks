@@ -211,22 +211,6 @@ class SequenceParameterHandler(ParameterHandler):
         )
 
 
-class DictParameterHandler(ParameterHandler):
-    """Handler for dictionary parameters that raises an exception."""
-
-    # TODO: Prvide support for dictionary parameters in functions later.
-    def __init__(self):
-        raise NotImplementedError("DictParameterHandler is not supported yet.")
-
-    def can_handle(self, param_annotation: Any) -> bool:
-        pass
-
-    def create_parameter(
-        self, param_name: str, param_annotation: Any, description: str, required: bool
-    ) -> Parameter:
-        pass
-
-
 class DefaultParameterHandler(ParameterHandler):
     """Default handler for primitive types and unknown types."""
 
@@ -245,13 +229,3 @@ class DefaultParameterHandler(ParameterHandler):
             description=description,
             required=required,
         )
-
-
-class UnsupportedParameterError(Exception):
-    """Exception raised when a parameter type is not supported."""
-
-    def __init__(self, param_name: str, param_type: str):
-        self.message = (
-            f"Unsupported parameter type: {param_type} for parameter: {param_name}"
-        )
-        super().__init__(self.message)
