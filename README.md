@@ -4,7 +4,7 @@
 
 **RailTracks** is a lightweight framework for building agentic systems; modular, intelligent agents that can be composed to solve complex tasks more effectively than any single module could.
 
-The framework supports the entire lifecycle of agentic development: building, testing, debugging, and deploying. Its core principle is composability, your systems are constructed from reusable, modular components.
+The framework supports the entire lifecycle of agentic development: building, testing, debugging, and deploying. Its core principle is modularity, your systems are constructed from reusable, modular components.
 
 ---
 
@@ -14,7 +14,7 @@ Many frameworks for building LLM-powered applications focus on pipelines, chains
 
 **RailTracks was designed from the ground up with the developer in mind to support real-world agentic systems**, with an emphasis on:
 
-* **Programmatic structure without rigidity** – Unlike declarative workflows (e.g., LangChain), RailTracks encourages clean Pythonic control flow and composability.
+* **Programmatic structure without rigidity** – Unlike declarative workflows (e.g., LangChain), RailTracks encourages clean Pythonic control flow.
 * **Agent-first abstraction** – Inspired by real-world coordination, RailTracks focuses on defining smart agents that collaborate via tools—not just chaining LLM calls.
 * **Automatic Parallelism** – All executions are automatically parallelized where possible, freeing you from managing threading or async manually.
 * **Transparent Execution** – Includes integrated logging, history tracing, and built-in visualizations to show exactly how your system behaves.
