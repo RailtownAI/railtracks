@@ -9,8 +9,10 @@ dist
 package-lock.json
 package.json
 test-results.xml
-**/.covailence
+**/.railtracks
 .coverage
+.mypy_cache
+.pytest_cache
 
 # jupyter notebook
 .ipynb_checkpoints

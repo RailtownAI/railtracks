@@ -1,23 +1,21 @@
-site_name: Request Completion Docs
+site_name: RailTracks Docs
 site_url: https://something
 theme:
   name: material
   features:
     - navigation.indexes
     - navigation.sections
-    # - navigation.instant  # Disabled due to conflict with mermaid2 plugin
     - navigation.prefetch
     - search.suggest
     - content.code.copy
     - content.code.highlight
+  code:
+    highlight_theme:
+      light: github
+      dark: dracula
 
-markdown_extensions:
-  - codehilite
-  - pymdownx.highlight:
-      anchor_linenums: true
-  - pymdownx.inlinehilite
-  - pymdownx.snippets
-  - pymdownx.superfences
+
+
 
 
 extra_css:
@@ -29,10 +27,14 @@ nav:
 
   - Guides:
         - guides/index.md
-        - guides/agents.md
+        - Agents: guides/agents.md
+        - Tools: guides/tools.md
 
   - Tutorials:
         - tutorials/index.md
+
+
+
 
   - Tools + MCP:
       - tools_mcp/index.md
@@ -53,36 +55,65 @@ nav:
 
   - Observability:
         - observability/index.md
+        - Logging: observability/logging.md
+        - Streaming: observability/streaming.md
         - Local Chat Interface: observability/chat.md
 
   - LLM Support:
       - llm_support/index.md
+      - Prompts and Context Injection: llm_support/prompts.md
 
   - Deployments:
         - deployments/index.md
 
   - Advanced Usage:
         - advanced_usage/index.md
+        - Context: advanced_usage/context.md
+        - Prompt Injection: advanced_usage/prompt_injection.md
 
   - Samples:
       - samples/index.md
 
-  - System Internals:
-        - system_internals/index.md
-
   - API Reference:
       - api_reference/index.md
   
-  - System Overviews:
+  - System Internals:
       - system_internals/index.md
-      - Node: system_internals/node.md
-      - Runner: system_internals/runner_new.md
-      - PubSub: system_internals/pubsub.md
-      - Coordinator: system_internals/coordinator.md
-      - RTState: system_internals/rtstate.md
+      - A Node's Journey: system_internals/journey.md
+      - Components: 
+        - Node: system_internals/node.md
+        - Runner: system_internals/runner_new.md
+        - PubSub: system_internals/pubsub.md
+        - Coordinator: system_internals/coordinator.md
+        - RTState: system_internals/rtstate.md
 
 plugins:
   - search
   - mkdocstrings
   - mermaid2
-  # - awesome-pages
+
+
+
+markdown_extensions:
+  - pymdownx.emoji:
+      emoji_generator: !!python/name:pymdownx.emoji.to_svg
+  - admonition
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:mermaid2.fence_mermaid_custom
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - codehilite
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - attr_list
+
+
+extra_css:
+  - css/extra.css
+

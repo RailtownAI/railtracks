@@ -1,0 +1,51 @@
+#rt-architecture-diagram {
+    margin: 2rem 0;
+    text-align: center;
+    position: relative;
+}
+
+#rt-architecture-diagram svg {
+    max-width: 100%;
+    height: auto;
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+}
+
+.node rect {
+    transition: all 0.3s ease;
+}
+
+.node:hover rect {
+    filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.15));
+}
+
+.link {
+    transition: all 0.3s ease;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    #rt-architecture-diagram svg {
+        width: 100%;
+        height: 300px;
+    }
+}
+
+/* Add some visual flair */
+#rt-architecture-diagram::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    right: -10px;
+    bottom: -10px;
+    background: linear-gradient(45deg, #6366f1, #8b5cf6, #06b6d4, #10b981, #f59e0b);
+    border-radius: 16px;
+    opacity: 0.1;
+    z-index: -1;
+    animation: pulse 4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.1; }
+    50% { opacity: 0.2; }
+}

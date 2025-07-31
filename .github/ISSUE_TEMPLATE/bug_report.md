@@ -1,23 +1,52 @@
 ---
 name: Bug Report
-about: Report an issue with the system
-title: "[Bug]"
+about: Report a bug or issue with railtracks
+title: "[Bug] "
 labels: bug
-assignees: soulFood5632
+assignees: ""
 
 ---
-### Describe the bug
-Tell me in some words what is going on?
 
-### Expected behavior
-What behavior were you expecting?
+## Bug Description
+<!-- A clear and concise description of what the bug is -->
 
-### To Reproduce
-Steps to reproduce the behavior: (the more detail the better)
+## Expected Behavior
+<!-- A clear and concise description of what you expected to happen -->
 
+## Actual Behavior
+<!-- A clear and concise description of what actually happened -->
 
+## Steps to Reproduce
+<!-- Steps to reproduce the behavior: -->
+1. 
+2. 
+3. 
+4. 
 
-### Other Info
-- OS: [e.g. Windows, Linux, macOS]
-- Version: [e.g. 1.0.0]
+## Code Example
+<!-- If applicable, add a minimal code example that reproduces the issue -->
+```python
+# Your code example here
+```
+
+## Error Output
+<!-- If applicable, add the full error message/traceback -->
+```
+# Error output here
+```
+
+## Environment
+<!-- Please complete the following information -->
+- **OS**: [e.g. Windows 11, macOS 14, Ubuntu 22.04]
+- **Python Version**: [e.g. 3.10.8]
+- **railtracks Version**: [e.g. 0.1.0]
+- **Installation Method**: [e.g. pip install railtracks, pip install -e .]
+
+## Additional Context
+<!-- Add any other context about the problem here, such as:
+- Screenshots (if applicable)
+- Configuration files
+- Related issues
+- Workarounds you've tried
+-->
 
