@@ -1,6 +1,7 @@
 from .._exception_base import RTLLMError
 from ..history import MessageHistory
 
+
 class ModelError(RTLLMError):
     """
     Any Large Language Model (LLM) error.
@@ -37,10 +38,11 @@ class ModelError(RTLLMError):
             )
             return f"\n{self._color(base, self.RED)}{notes_str}"
         return self._color(base, self.RED)
-    
+
 
 class FunctionCallingNotSupportedError(ModelError):
-    """ Error raised when a model does not support function calling. """
+    """Error raised when a model does not support function calling."""
+
     def __init__(self, model_name: str):
         super().__init__(
             reason=f"Model {model_name} does not support function calling. Chat with tools is not supported."

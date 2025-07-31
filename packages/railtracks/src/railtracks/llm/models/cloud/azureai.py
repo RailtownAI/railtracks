@@ -1,9 +1,10 @@
 import litellm
 
-# litellm.drop_params=True
-from .._model_exception_base import ModelError, FunctionCallingNotSupportedError
 from ....utils.logging.create import get_rt_logger
 from .._litellm_wrapper import LiteLLMWrapper
+
+# litellm.drop_params=True
+from .._model_exception_base import FunctionCallingNotSupportedError, ModelError
 
 LOGGER_NAME = "AZURE_AI"
 

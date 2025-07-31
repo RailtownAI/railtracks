@@ -8,8 +8,10 @@ parameters and descriptions.
 import inspect
 import warnings
 from typing import Any, Callable, Dict, Iterable, List, Set, Type
+
 from pydantic import BaseModel
 from typing_extensions import Self
+
 from .._exception_base import RTLLMError
 from .docstring_parser import extract_main_description, parse_docstring_args
 from .parameter import Parameter
@@ -119,8 +121,10 @@ class Tool:
         except ValueError:
             raise ToolCreationError(
                 message="Cannot convert kwargs for builtin functions.",
-                notes=["Please use a cutom made function.",
-                       "Eg.- \ndef my_custom_function(a: int, b: str):\n    pass"],
+                notes=[
+                    "Please use a cutom made function.",
+                    "Eg.- \ndef my_custom_function(a: int, b: str):\n    pass",
+                ],
             )
 
         if name is not None:

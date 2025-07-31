@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 import litellm
 from litellm.litellm_core_utils.get_llm_provider_logic import get_llm_provider
 
-from .._model_exception_base import ModelError, FunctionCallingNotSupportedError
 from .._litellm_wrapper import LiteLLMWrapper
+from .._model_exception_base import FunctionCallingNotSupportedError, ModelError
 
 
 class ProviderLLMWrapper(LiteLLMWrapper, ABC):

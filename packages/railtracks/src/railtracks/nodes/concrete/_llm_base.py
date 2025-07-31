@@ -10,7 +10,14 @@ from typing_extensions import Self
 
 from railtracks.exceptions.errors import NodeInvocationError
 from railtracks.exceptions.messages.exception_messages import get_message
-from railtracks.llm import MessageHistory, Parameter, SystemMessage, UserMessage, Message, ModelBase
+from railtracks.llm import (
+    Message,
+    MessageHistory,
+    ModelBase,
+    Parameter,
+    SystemMessage,
+    UserMessage,
+)
 from railtracks.llm.response import Response
 from railtracks.prompts.prompt import inject_context
 from railtracks.validation.node_invocation.validation import (
