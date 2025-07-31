@@ -1,74 +1,84 @@
 # How to Customize Class Building
 
-RailTracks `define_agent` allows user to configure agent classes with set parameters you can choose from. These parameters suffice for most cases but what if you want to make an agent with just slightly more functionality? RailTracks has you covered again! Using our NodeBuilder class you can create your own agent class with many of the same functionalities provided in `define_agent` but the option to add . 
-
-
-###Example
-```python
-
-weather_agent_class = rt.define_agent(
-    agent_name="Weather Agent",
-    llm_model="gpt-4o",
-    system_message="You are a helpful assistant that answers weather-related questions.",
-    tools={weather_tool},
-    schema=weather_schema,
-    agent_params=weather_param,
-    agent_doc="This is an agent that will give you the current weather and answer weather related questions you have"    
-)
-```
-
+RailTracks `define_agent` allows user to configure agent classes with set parameters you can choose from. These parameters suffice for most cases but what if you want to make an agent with just slightly more functionality? RailTracks has you covered again! Using our NodeBuilder class you can create your own agent class with many of the same functionalities provided in `define_agent` but the option to add class methods and attributes of your choice. 
 
 ---
 
-## Tool-Calling Agents
 
-Tool-calling agents can invoke one or more tools during a conversation. This allows them to take actions that conventional LLM's cannot.
-
-When making a Tool-Calling Agent you can also specify `max_tool_calls` to have a safety net for your agents calls. If you don't specify `max_tool_calls`, your agent will be able to make as many tool calls as it sees fit.
-
-###Example
 ```python
 
-weather_agent_class = rt.define_agent(
-    agent_name="Weather Agent",
-    llm_model="gpt-4o",
-    system_message="You are a helpful assistant that answers weather-related questions.",
-    tools=weather_tool_set,
-    maximum_tool_calls=10
-)
+#This is the add_attribute method we would have in NodeBuilder
+def add_attribute(self, **kwargs):
+
+        for key, val in kwargs.items():
+            if callable(val):
+                self._with_override(key, classmethod(val))
+            else:
+                self._with_override(key, val)
 ```
 
-Additionally, we have an MCP agent if you would like integrate API functionalities as tools your agent can use directly. See [Using MCP](../tools_mcp/mcp/MCP_tools_in_RT.md) for more details.
 
-###Example
 ```python
 
-notion_agent_class = rt.define_agent(
-    agent_name="Notion Agent",
-    mcp_command: notion_command,
-    mcp_args: notion_args,
-    mcp_env: notion_env,
-    llm_model="gpt-4o",
-    system_message="You are a helpful assistant that help edit users Notion pages",
-    
-)
+#What our easywrapper classes would look like now
+def anything_LLM_Base_Wrapper(
+    name,
+    ...
+    return_onto_into_and_possibly_nearby_context,
+    **kwargs
+):
+    builder = NodeBuilder(...)
+    ...
+    add_attribute(**kwargs) #We add this one line to all classes. Maybe put in build() to help DRY
+    builder.build()
 ```
 
----
+```python
 
-## Structured Agents
+#What using this would look like with one_wrapper
+def chat_ui(
+        self,
+        chat_ui: ChatUI,
+    ):
+       
+        chat_ui.start_server_async()
+        self._with_override("chat_ui", chat_ui)
 
-Structured agents are built to return output that conforms to a consistent schema (Currently we only support Pydantic models). This is especially useful for:
 
-- Parsing responses programmatically
-- Integrating with downstream processes
-- Enforcing predictable structure for evaluation or validation
+async def new_invoke(self):  # noqa: C901
+        # If there's no last user message, we need to wait for user input
+        if self.message_hist[-1].role != Role.user:
+            msg = await self.chat_ui.wait_for_user_input()
+            if msg == "EXIT":
+                return self.return_output()
+            self.message_hist.append(
+                UserMessage(
+                    msg,
+                )
+            )
 
-Define the schema or expected structure when initializing the agent so the model can reliably adhere to it.
+        ...
+            
+            else:
+                # the message is malformed from the model
+                raise LLMError(
+                    reason="ModelLLM returned an unexpected message type.",
+                    message_history=self.message_hist,
+                )
 
----
+        return self.return_output()
 
-<p style="text-align:center;">
-  <a href="../tools_mcp/create_your_own" class="md-button" style="margin:3px">Create Your Own Agent</a>
-  <a href="../advanced_usage/context" class="md-button" style="margin:3px">Using Context</a>
-</p>
+def new_return_output(self):
+    """Returns the message history"""
+    return self.message_hist
+
+
+agent_chat = agent_node(
+    name="cool_agent"
+    ...
+    chat_ui=chat_ui,
+    return_ouput=new_return_output,
+    invoke=new_invoke
+)
+
+```
