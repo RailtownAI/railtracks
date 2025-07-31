@@ -56,6 +56,7 @@ nav:
         - observability/index.md
         - Logging: observability/logging.md
         - Streaming: observability/streaming.md
+        - Error Handling: observability/error_handling.md
 
   - LLM Support:
       - llm_support/index.md
