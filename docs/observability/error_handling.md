@@ -18,145 +18,21 @@ RTError (base)
 
 ## 🎯 Error Types
 
-### 🔧 RTError (Base Class)
+### 🔧 Internally Raised Errors
 
-The foundation of all RailTracks errors. Provides colored terminal output and consistent error formatting.
+These errors are automatically raised by RailTracks when issues occur during execution. All inherit from `RTError` and provide colored terminal output with debugging information.
 
-**Features:**
-- Colored error messages for better visibility
-- Consistent formatting across all error types
-- Base functionality for error categorization
+- **`NodeCreationError`** ⚙️ - Raised during node setup and validation
+- **`NodeInvocationError`** ⚡ - Raised during node execution (has `fatal` flag)
+- **`LLMError`** 🤖 - Raised during LLM operations (includes `message_history`)
+- **`GlobalTimeOutError`** ⏰ - Raised when execution exceeds timeout
+- **`ContextError`** 🌐 - Raised for context-related issues
 
-### ⚙️ NodeCreationError
+All internal errors include helpful debugging notes and formatted error messages to guide troubleshooting.
 
-Raised during node creation and validation, before any execution begins.
+### ⚠️ User-Raised Errors
 
-**Common Scenarios:**
-- Invalid node configuration
-- Missing required parameters
-- Structural errors in node definition
-- Invalid node types or incompatible settings
-
-**Example:**
-```python
-import railtracks as rt
-from rt.exceptions import NodeCreationError
-
-try:
-    node = rt.agent_node(
-        llm_model=rt.llm.OpenAI("gpt-4o"),
-        system_message="You are a helpful assistant",
-    )
-except NodeCreationError as e:
-    print(e)  # Shows error with debugging tips
-    raise
-```
-
-**Features:**
-- Includes debugging notes and tips
-- Catches configuration issues early
-- Prevents invalid nodes from entering execution
-
-### ⚡ NodeInvocationError
-
-Raised during node execution when runtime problems occur.
-
-**Common Scenarios:**
-- Node execution failures
-- Orchestration problems
-- Runtime parameter issues
-- Resource unavailability
-- Processing errors within nodes
-
-**Properties:**
-- `fatal`: Boolean indicating if the error should stop all execution
-- `notes`: List of debugging tips and suggestions
-
-**Example:**
-```python
-import railtracks as rt
-from rt.exceptions import NodeInvocationError
-
-try:
-    response = await rt.call(node, user_input="give me a recipe for a chocolate cake.")
-except NodeInvocationError as e:
-    if e.fatal:
-        # Stop execution completely
-        raise
-    else:
-        # Handle gracefully, maybe retry or skip
-        logger.warning(f"Node failed: {e}")
-```
-
-### 🤖 LLMError
-
-Raised when errors occur during LLM operations.
-
-**Common Scenarios:**
-- API failures or timeouts
-- Invalid structured response objects
-- Model completion errors
-- Rate limiting issues
-- Malformed prompts or responses
-
-**Properties:**
-- `reason`: Detailed description of what went wrong
-- `message_history`: The conversation history when the error occurred
-
-**Example:**
-```python
-import railtracks as rt
-from rt.exceptions import LLMError
-
-try:
-    # Using various LLM methods
-    response = await rt.llm.achat(model, messages)
-    # or rt.llm.structured(), rt.llm.chat_with_tools(), rt.llm.stream()
-except LLMError as e:
-    print(f"LLM failed: {e.reason}")
-    if e.message_history:
-        # Access conversation context for debugging
-        print("Conversation history available for analysis")
-```
-
-### ⏰ GlobalTimeOutError
-
-Raised when the entire execution exceeds the configured timeout.
-
-**Properties:**
-- `timeout`: The timeout value that was exceeded
-
-**Example:**
-```python
-import railtracks as rt
-
-# Set timeout in config
-rt.config(timeout=30.0)
-
-try:
-    result = rt.call_sync(node, "hello")
-except GlobalTimeOutError as e:
-    print(f"Execution timed out after {e.timeout} seconds")
-```
-
-### 🌐 ContextError
-
-Raised when there are issues with the global execution context.
-
-**Common Scenarios:**
-- Context corruption
-- Missing required context data
-- Context access violations
-- State management issues
-
-**Features:**
-- Includes debugging notes
-- Helps identify context-related issues
-- Provides tips for resolution
-
-### 💀 FatalError
-
-A user-exposed error that developers can raise to indicate unrecoverable situations.
+**`FatalError`** 💀 - The only error type designed for developers to raise manually when encountering unrecoverable situations.
 
 **Usage:**
 ```python
