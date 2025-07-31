@@ -318,7 +318,7 @@ async def call_with_fallback(primary_node, fallback_node, user_input):
 - Log appropriately for debugging
 
 ### 4. 📈 Monitor and Alert
-For detailed logging and monitoring strategies, see [Observability/Logging](observability/logging.md).
+For detailed logging and monitoring strategies, see [Logging](logging.md).
 
 ### 5. 🧪 Testing Error Scenarios
 ```python
