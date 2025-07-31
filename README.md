@@ -37,7 +37,7 @@ Build your first agentic system in just a few steps.
 pip install railtracks
 
 # [Optional] CLI support for development and visualization
-pip install railtracks_cli
+pip install railtracks-cli
 ```
 
 ### Step 2: Define Your Modular Components
