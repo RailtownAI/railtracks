@@ -22,9 +22,9 @@ async def test_parallel_calls(parallel_node, timeout_config, expected, buffer):
         logging_setting="NONE",
     ) as runner:
         start_time = time.time()
-        results = await runner.run(parallel_node, timeout_config)
+        results = await rt.call(parallel_node, timeout_config)
         assert abs(time.time() - start_time - expected) < buffer
-        assert results.answer == timeout_config
+        assert results == timeout_config
 
 
 @pytest.mark.parametrize(
@@ -44,9 +44,9 @@ def test_parallel_calls_sync(parallel_node, timeout_config, expected, buffer):
 
     ) as runner:
         start_time = time.time()
-        results = runner.run_sync(parallel_node, timeout_config)
+        results = rt.call_sync(parallel_node, timeout_config)
         assert abs(time.time() - start_time - expected) < buffer
-        assert results.answer == timeout_config
+        assert results == timeout_config
 
 
 exc = ValueError("This is a test exception")
@@ -116,7 +116,7 @@ async def test_batch_error_handling_default_error_prop(num_times):
             logging_setting="NONE",
 
     ) as runner:
-        await runner.run(ErrorThrowerTopLevel, num_times=num_times)
+        await rt.call(ErrorThrowerTopLevel, num_times=num_times)
 
 
 @pytest.mark.parametrize(
@@ -132,7 +132,7 @@ async def test_batch_error_handling_true_error_prop(num_times):
             logging_setting="NONE",
 
     ) as runner:
-        await runner.run(
+        await rt.call(
             ErrorThrowerTopLevel, num_times=num_times, return_exceptions=True
         )
 
@@ -151,6 +151,6 @@ async def test_batch_error_handling_false_error_prop(num_times):
 
     ) as runner:
         with pytest.raises(type(exc)):
-            await runner.run(
+            await rt.call(
                 ErrorThrowerTopLevel, num_times=num_times, return_exceptions=False
             )

@@ -44,8 +44,8 @@ assistant = rt.library.terminal_llm(
 )
 
 # Run with context values
-with rt.Session(context={"role": "technical", "domain": "Python programming"}) as runner:
-    response = runner.run_sync(assistant, user_input="Help me understand decorators.")
+with rt.Session(context={"role": "technical", "domain": "Python programming"}):
+    response = rt.call_sync(assistant, user_input="Help me understand decorators.")
 ```
 
 In this example, the system message will be expanded to: "You are a technical assistant specialized in Python programming."
@@ -59,7 +59,7 @@ import railtracks as rt
 from railtracks.llm import MessageHistory, UserMessage
 
 # Create a node with a prompt containing placeholders
-my_node = rt.library.terminal_llm(
+my_node = rt.agent_node(
     name="Example",
     system_message="You are a {variable} assistant.",
     llm_model=rt.llm.OpenAILLM("gpt-4o"),
@@ -68,11 +68,11 @@ my_node = rt.library.terminal_llm(
 # Disable context injection for a specific run
 with rt.Session(
         context={"variable": "value"},
-        executor_config=rt.ExecutorConfig(prompt_injection=False)
-) as runner:
+        prompt_injection=False
+):
     # Context injection will not occur in this run
     user_message = MessageHistory([UserMessage("Hello")])
-    response = runner.run_sync(my_node, user_input=user_message)
+    response = rt.call_sync(my_node, user_input=user_message)
 ```
 
 This may be useful when formatting prompts that should not change based on the context.

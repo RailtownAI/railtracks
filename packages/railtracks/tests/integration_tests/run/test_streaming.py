@@ -32,14 +32,14 @@ def test_simple_streamer():
             logging_setting="NONE", broadcast_callback=sub.handle
         ,
     ) as runner:
-        finished_result = runner.run_sync(StreamingRNGNode)
+        finished_result = rt.call_sync(StreamingRNGNode)
 
     # force close streams flag must be set to false to allow the slow streaming to finish.
 
-    assert isinstance(finished_result.answer, float)
-    assert sub.finished_message == str(finished_result.answer)
+    assert isinstance(finished_result, float)
+    assert sub.finished_message == str(finished_result)
 
-    assert 0 < finished_result.answer < 1
+    assert 0 < finished_result < 1
 
 
 # rather annoyingly this test could fail but it should be good nearly all of the time
@@ -55,9 +55,9 @@ def test_slow_streamer():
 
     sub = Sub()
     with rt.Session(broadcast_callback=sub.handle) as runner:
-        finished_result = runner.run_sync(StreamingRNGNode)
+        finished_result = rt.call_sync(StreamingRNGNode)
 
-    assert isinstance(finished_result.answer, float)
+    assert isinstance(finished_result, float)
     assert sub.finished_message is not None
 
 
@@ -96,17 +96,17 @@ def rng_stream_tester(
     with rt.Session(
         logging_setting="NONE", broadcast_callback=sub.handle
     ) as run:
-        finished_result = run.run_sync(
+        finished_result = rt.call_sync(
             RNGTreeStreamer, num_calls, parallel_call_nums, multiplier
         )
 
-    assert isinstance(finished_result.answer, list)
-    assert len(finished_result.answer) == num_calls * parallel_call_nums
+    assert isinstance(finished_result, list)
+    assert len(finished_result) == num_calls * parallel_call_nums
 
-    assert all([0 < x < 1 * multiplier for x in finished_result.answer])
+    assert all([0 < x < 1 * multiplier for x in finished_result])
 
     assert len(sub.total_streams) == num_calls * parallel_call_nums * 2
-    assert set(sub.total_streams) == set([str(x) for x in finished_result.answer])
+    assert set(sub.total_streams) == set([str(x) for x in finished_result])
 
 
 def test_rng_streamer():

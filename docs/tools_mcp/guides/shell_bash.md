@@ -28,21 +28,20 @@ At this point, the tool can be used the same as any other RT tool. See the follo
 import platform
 
 import railtracks as rt
-from railtracks.nodes.library.easy_usage_wrappers.tool_call_llm import tool_call_llm
 
-agent = tool_call_llm(
-    connected_nodes={bash_tool},
+agent = rt.agent_node(
+    tool_nodes={bash_tool},
     system_message=f"You are a useful helper that can run local shell commands. "
                    f"You are on a {platform.system()} machine. Use appropriate shell commands to answer the user's questions.",
-    model=rt.llm.OpenAILLM("gpt-4o"),
+    llm_model=rt.llm.OpenAILLM("gpt-4o"),
 )
 
 user_prompt = """What directories are in the current directory?"""
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
-with rt.Session(rt.ExecutorConfig(logging_setting="VERBOSE")) as run:
-    result = run.run_sync(agent, message_history)
+with rt.Session(logging_setting="VERBOSE"):
+    result = rt.call_sync(agent, message_history)
 
 print(result.answer.content)
 ```

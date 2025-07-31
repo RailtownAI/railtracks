@@ -243,27 +243,3 @@ class Session:
         This is useful for debugging and viewing the current state of the run.
         """
         return self.rc_state.info
-
-    @deprecated(
-        "`call` is deprecated, use `runner.run` or access the global function `rt.call`"
-    )
-    async def call(
-        self,
-        node: Callable[_P, Node[_TOutput]],
-        /,
-        *args: _P.args,
-        **kwargs: _P.kwargs,
-    ):
-        return await call(node, *args, **kwargs)
-
-    async def run(
-        self,
-        start_node: Callable[_P, Node] | None = None,
-        *args: _P.args,
-        **kwargs: _P.kwargs,
-    ):
-        """Runs thert framework with the given start node and provided arguments."""
-
-        await call(start_node, *args, **kwargs)
-
-        return self.rc_state.info

@@ -15,7 +15,7 @@ notion_agent = notion_agent(model=rt.llm.OpenAILLM("gpt-4o"))
 
 with rt.Session() as run:
     result = asyncio.run(
-        run.run(
+        rt.call(
             notion_agent,
             instructions=USER_PROMPT,
         )

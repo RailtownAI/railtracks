@@ -41,8 +41,8 @@ class TestPrimitiveInputTypes:
             secret_phrase,
             model_provider=model_provider,
         )
-        with rt.Session(logging_setting="NONE") as run:
-            response = run.run_sync(
+        with rt.Session(logging_setting="NONE"):
+            response = rt.call_sync(
                 agent,
                 rt.llm.MessageHistory(
                     [
@@ -52,7 +52,7 @@ class TestPrimitiveInputTypes:
                     ]
                 ),
             )
-        assert response.answer.content == "Constantinople"
+        assert response.content == "Constantinople"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
     def test_single_int_input(self, model_provider, create_top_level_node):
@@ -73,7 +73,7 @@ class TestPrimitiveInputTypes:
             model_provider=model_provider,
         )
         with rt.Session(logging_setting="NONE") as run:
-            response = run.run_sync(
+            response = rt.call_sync(
                 agent,
                 rt.llm.MessageHistory(
                     [
@@ -84,7 +84,7 @@ class TestPrimitiveInputTypes:
                 ),
             )
 
-        assert response.answer.content == "666666"
+        assert response.content == "666666"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
     def test_single_str_input(self, model_provider, create_top_level_node):
@@ -105,7 +105,7 @@ class TestPrimitiveInputTypes:
             model_provider=model_provider,
         )
         with rt.Session(logging_setting="NONE") as run:
-            response = run.run_sync(
+            response = rt.call_sync(
                 agent,
                 rt.llm.MessageHistory(
                     [
@@ -116,7 +116,7 @@ class TestPrimitiveInputTypes:
                 ),
             )
 
-        assert response.answer.content == "h$e$l$l$o"
+        assert response.content == "h$e$l$l$o"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
     def test_single_float_input(self, model_provider, create_top_level_node):
@@ -137,7 +137,7 @@ class TestPrimitiveInputTypes:
             model_provider=model_provider,
         )
         with rt.Session(logging_setting="NONE") as run:
-            response = run.run_sync(
+            response = rt.call_sync(
                 agent,
                 rt.llm.MessageHistory(
                     [
@@ -148,7 +148,7 @@ class TestPrimitiveInputTypes:
                 ),
             )
 
-        assert response.answer.content == "True"
+        assert response.content == "True"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
     def test_single_bool_input(self, model_provider, create_top_level_node):
@@ -169,7 +169,7 @@ class TestPrimitiveInputTypes:
             model_provider=model_provider,
         )
         with rt.Session(logging_setting="NONE") as run:
-            response = run.run_sync(
+            response = rt.call_sync(
                 agent,
                 rt.llm.MessageHistory(
                     [
@@ -179,7 +179,7 @@ class TestPrimitiveInputTypes:
                     ]
                 ),
             )
-        assert response.answer.content == "Wish Granted"
+        assert response.content == "Wish Granted"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
     def test_function_error_handling(self, model_provider, create_top_level_node):
@@ -200,7 +200,7 @@ class TestPrimitiveInputTypes:
             model_provider=model_provider,
         )
         with rt.Session(logging_setting="NONE") as run:
-            output = run.run_sync(
+            output = rt.call_sync(
                 agent,
                 rt.llm.MessageHistory(
                     [
@@ -210,6 +210,7 @@ class TestPrimitiveInputTypes:
                     ]
                 ),
             )
+            output = run.info
 
             i_r = output.request_forest.insertion_request[0]
             children = output.request_forest.children(i_r.sink_id)[0]
@@ -239,7 +240,7 @@ class TestSequenceInputTypes:
             model_provider=model_provider,
         )
         with rt.Session(logging_setting="NONE") as run:
-            response = run.run_sync(
+            response = rt.call_sync(
                 agent,
                 rt.llm.MessageHistory(
                     [
@@ -249,7 +250,7 @@ class TestSequenceInputTypes:
                     ]
                 ),
             )
-        assert response.answer.content == "3 2 1"
+        assert response.content == "3 2 1"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
     def test_single_tuple_input(self, model_provider, create_top_level_node):
@@ -271,7 +272,7 @@ class TestSequenceInputTypes:
         )
 
         with rt.Session(logging_setting="NONE") as run:
-            response = run.run_sync(
+            response = rt.call_sync(
                 agent,
                 rt.llm.MessageHistory(
                     [
@@ -282,7 +283,7 @@ class TestSequenceInputTypes:
                 ),
             )
 
-        assert response.answer.content == "3 2 1"
+        assert response.content == "3 2 1"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
     def test_lists(self, model_provider, create_top_level_node):
@@ -305,7 +306,7 @@ class TestSequenceInputTypes:
             model_provider=model_provider,
         )
         with rt.Session(logging_setting="NONE") as run:
-            response = run.run_sync(
+            response = rt.call_sync(
                 agent,
                 rt.llm.MessageHistory(
                     [
@@ -316,7 +317,7 @@ class TestSequenceInputTypes:
                 ),
             )
 
-        assert response.answer.content == "25.5"
+        assert response.content == "25.5"
 
 
 class TestDictionaryInputTypes:
@@ -339,7 +340,7 @@ class TestDictionaryInputTypes:
         with pytest.raises(Exception):
             agent = create_top_level_node(dict_func, model_provider=model_provider)
             with rt.Session(logging_setting="NONE") as run:
-                response = run.run_sync(
+                response = rt.call_sync(
                     agent,
                     rt.llm.MessageHistory(
                         [rt.llm.UserMessage("What is the result for {'key': 'value'}?")]
@@ -364,14 +365,14 @@ class TestUnionAndOptionalParameter:
             magic_number, model_provider="openai"
         )
         with rt.Session(logging_setting="QUIET") as run:
-            response = run.run_sync(
+            response = rt.call_sync(
                 agent,
                 rt.llm.MessageHistory(
                     [rt.llm.UserMessage("Calculate the magic number for 5. Then calculate the magic number for 'fox'. Add them and return the result only.")]
                 ),
             )
 
-        assert response.answer.content == "42"
+        assert response.content == "42"
 
     @pytest.mark.parametrize("deafult_value", [(None, 42), (5, 26)], ids=["default value", "non default value"])
     def test_optional_parameter(self, create_top_level_node, deafult_value):
@@ -391,14 +392,14 @@ class TestUnionAndOptionalParameter:
             magic_number, model_provider="openai"
         )
         with rt.Session(logging_setting="QUIET") as run:
-            response = run.run_sync(
+            response = rt.call_sync(
                 agent,
                 rt.llm.MessageHistory(
                     [rt.llm.UserMessage("Calculate the magic number for 21. Then calculate the magic number with no args. Add them and return the result only.")]
                 ),
             )
 
-        assert response.answer.content == str(answer)
+        assert response.content == str(answer)
 
 
 class TestRealisticScenarios:
@@ -437,10 +438,10 @@ class TestRealisticScenarios:
         )
 
         with rt.Session(logging_setting="NONE") as run:
-            response = run.run_sync(
+            response = rt.call_sync(
                 agent, rt.llm.MessageHistory([rt.llm.UserMessage(usr_prompt)])
             )
-            print(response)
+
 
         assert DB["John"]["role"] == "Senior Manager"
         assert DB["John"]["phone"] == "5555"

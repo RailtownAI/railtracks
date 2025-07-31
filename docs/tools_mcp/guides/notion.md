@@ -5,8 +5,7 @@ To use Notion tools with RT, use the `from_mcp_server` utility to load tools dir
 ```python
 import json
 import os
-from mcp import StdioServerParameters
-from railtracks.nodes.library.easy_usage_wrappers.mcp_tool import connect_mcp
+from railtracks.integrations.rt_mcp import MCPStdioParams, connect_mcp
 
 MCP_COMMAND = "npx"
 MCP_ARGS = ["-y", "@notionhq/notion-mcp-server"]
@@ -22,7 +21,7 @@ notion_env = {
 }
 
 server = connect_mcp(
-    StdioServerParameters(
+    MCPStdioParams(
         command=MCP_COMMAND,
         args=MCP_ARGS,
         env=notion_env,
@@ -34,22 +33,21 @@ tools = server.tools
 At this point, the tools can be used the same as any other RT tool. See the following code as a simple example.
 
 ```python
-from railtracks.nodes.library.easy_usage_wrappers.tool_call_llm import tool_call_llm
 import railtracks as rt
 
-agent = tool_call_llm(
-    connected_nodes={*tools},
+agent = rt.agent_node(
+    tool_nodes={*tools},
     system_message="""You are a master Notion page designer. You love creating beautiful
      and well-structured Notion pages and make sure that everything is correctly formatted.""",
-    model=rt.llm.OpenAILLM("gpt-4o"),
+    llm_model=rt.llm.OpenAILLM("gpt-4o"),
 )
 
 user_prompt = """Create a new page in Notion called 'Jokes' under the parent page "Welcome to Notion!" with a small joke at the top of the page."""
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
-with rt.Session() as run:
-    result = run.run_sync(agent, message_history)
+with rt.Session():
+    result = rt.call_sync(agent, message_history)
 
 print(result.answer.content)
 ```

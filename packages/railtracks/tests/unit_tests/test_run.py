@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 from unittest.mock import MagicMock, patch, call, PropertyMock, Mock
 import asyncio
+import railtracks as rt
 from railtracks.session import Session
 
 # ================= START Mock Fixture ============
@@ -133,52 +134,6 @@ def test_info_property_returns_rc_state_info(mock_dependencies):
     assert runner.info is rt_info
 
 # ================ END Session: info property ===============
-
-
-# ================ START Session: run_sync ===============
-
-def test_run_sync_calls_asyncio_run_and_returns_info(mock_dependencies):
-
-    runner = Session()
-    runner.rc_state.info = "the-info"
-    with patch('railtracks.session.asyncio.run', return_value=None) as m_async_run, \
-         patch('railtracks.session.call', return_value=None) as m_call:
-        result = runner.run_sync(lambda: "a")
-        m_async_run.assert_called_once()
-        m_call.assert_called_once()
-        assert result == "the-info"
-
-# ================ END Session: run_sync ===============
-
-
-# ================= START Session: call and run async ===============
-
-@pytest.mark.asyncio
-async def test_call_method_calls_call_func(mock_dependencies):
-    runner = Session()
-    # Now patch call
-    the_node = lambda: None
-    result_value = MagicMock()
-    # flagging this becuase I envision us having a dumb bug if we ever change the import statement in that source file.
-    with patch('railtracks.session.call', return_value=result_value) as m_call:
-        out = await runner.call(the_node, 42, foo="bar")
-        m_call.assert_called_once_with(the_node, 42, foo="bar")
-        assert out == result_value
-
-@pytest.mark.asyncio
-async def test_run_method_runs_and_returns_info(mock_dependencies):
-    runner = Session()
-    runner.rc_state.info = "async-info"
-    the_node = lambda: None
-    # flagging this becuase I envision us having a dumb bug if we ever change the import statement in that source file.
-    with patch('railtracks.session.call', return_value=None) as m_call:
-        result = await runner.run(the_node, 1, foo=2)
-        m_call.assert_called_once_with(the_node, 1, foo=2)
-        assert result == "async-info"
-
-# ================ END Session: call and run async ===============
-
-
 
 
 # ================= START Session: Check saved data ===============

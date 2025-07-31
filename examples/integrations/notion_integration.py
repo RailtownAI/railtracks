@@ -7,10 +7,9 @@
 import json
 import os
 
-from mcp import StdioServerParameters
-from railtracks.nodes.library.easy_usage_wrappers.mcp_tool import connect_mcp
 
-from railtracks.nodes.library.easy_usage_wrappers.tool_calling_llms.tool_call_llm import tool_call_llm
+from railtracks.integrations.rt_mcp import connect_mcp, MCPStdioParams
+
 import railtracks as rt
 
 
@@ -28,7 +27,7 @@ notion_env = {
 }
 
 server = connect_mcp(
-    StdioServerParameters(
+    MCPStdioParams(
         command=MCP_COMMAND,
         args=MCP_ARGS,
         env=notion_env,
@@ -40,18 +39,18 @@ tools = server.tools
 # Example using the tools with an agent
 
 
-agent = tool_call_llm(
+agent = rt.agent_node(
     tool_nodes={*tools},
     system_message="""You are a master Notion page designer. You love creating beautiful
      and well-structured Notion pages and make sure that everything is correctly formatted.""",
-    model=rt.llm.OpenAILLM("gpt-4o"),
+    llm_model=rt.llm.OpenAILLM("gpt-4o"),
 )
 
 user_prompt = """Create a new page in Notion called 'Jokes' under the parent page "Welcome to Notion!" with a small joke at the top of the page."""
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
-with rt.Session() as run:
-    result = run.run_sync(agent, message_history)
+with rt.Session():
+    result = rt.call_sync(agent, message_history)
 
-print(result.answer.content)
+print(result.content)

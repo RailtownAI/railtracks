@@ -6,7 +6,7 @@ from railtracks.llm.response import Response
 
 from pydantic import BaseModel
 
-from railtracks.nodes.easy_usage_wrappers.helpers import structured_llm
+from railtracks.nodes.easy_usage_wrappers.helpers import structured_llm, tool_call_llm, structured_tool_call_llm
 
 NODE_INIT_METHODS = ["easy_wrapper", "class_based"]
 
@@ -19,10 +19,10 @@ async def test_structured_with_no_tool_calls(simple_node, simple_output_model):
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Generate a simple text and number.")]
         )
-        response = await runner.run(simple_node, user_input=message_history)
-        assert isinstance(response.answer.structured, simple_output_model)
-        assert isinstance(response.answer.structured.text, str)
-        assert isinstance(response.answer.structured.number, int)
+        response = await rt.call(simple_node, user_input=message_history)
+        assert isinstance(response.structured, simple_output_model)
+        assert isinstance(response.structured.text, str)
+        assert isinstance(response.structured.number, int)
 
 @pytest.mark.asyncio
 @pytest.mark.skip("Skipping test due to stochastic LLM failures.")
@@ -40,7 +40,7 @@ async def test_tool_with_structured_output_child_tool():
         success: bool
 
     # Define the child tool with structured output
-    child_tool = rt.library.structured_llm(
+    child_tool = structured_llm(
         output_schema=ChildResponse,
         system_message="You are a word counting tool that counts the number of words in the request provided by the user.",
         llm_model=rt.llm.OpenAILLM("gpt-4o"),
@@ -56,8 +56,8 @@ async def test_tool_with_structured_output_child_tool():
     )
 
     # Define the parent tool that uses the child tool
-    parent_tool = rt.library.tool_call_llm(
-        schema=ParentResponse,
+    parent_tool = structured_tool_call_llm(
+        output_schema=ParentResponse,
         tool_nodes={child_tool},
         name="Parent Tool",
         system_message="Use the child tool to generate a structured response. Respond with the output from the child tool only. No additional text.",
@@ -71,14 +71,14 @@ async def test_tool_with_structured_output_child_tool():
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Generate a structured response for 'Hello World'.")]
         )
-        response = await runner.run(parent_tool, user_input=message_history)
+        response = await rt.call(parent_tool, user_input=message_history)
 
     # Assertions
-    assert response.answer is not None
-    assert isinstance(response.answer, ParentResponse)
-    assert response.answer.message == "Hello World"
-    assert response.answer.word_count == 2
-    assert response.answer.success is True
+    assert response is not None
+    assert isinstance(response, ParentResponse)
+    assert response.message == "Hello World"
+    assert response.word_count == 2
+    assert response.success is True
 
 @pytest.mark.asyncio
 async def test_functions_passed_tool_calls(only_function_taking_travel_planner_node, travel_planner_output_model):
@@ -91,11 +91,11 @@ async def test_functions_passed_tool_calls(only_function_taking_travel_planner_n
                 )
             ]
         )
-        response = await runner.run(only_function_taking_travel_planner_node, user_input=message_history)
-        assert isinstance(response.answer.structured, travel_planner_output_model)
-        assert isinstance(response.answer.structured.travel_plan, str)
-        assert isinstance(response.answer.structured.Total_cost, float)
-        assert isinstance(response.answer.structured.Currency, str)
+        response = await rt.call(only_function_taking_travel_planner_node, user_input=message_history)
+        assert isinstance(response.structured, travel_planner_output_model)
+        assert isinstance(response.structured.travel_plan, str)
+        assert isinstance(response.structured.Total_cost, float)
+        assert isinstance(response.structured.Currency, str)
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("math_node", NODE_INIT_METHODS, indirect=True)
@@ -105,10 +105,10 @@ async def test_structured_with_terminal_llm_as_tool(math_node, math_output_model
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Start the Math node.")]
         )
-        response = await runner.run(math_node, user_input=message_history)
-        assert isinstance(response.answer.structured, math_output_model)
-        assert isinstance(response.answer.structured.sum, float)
-        assert isinstance(response.answer.structured.random_numbers, list)
+        response = await rt.call(math_node, user_input=message_history)
+        assert isinstance(response.structured, math_output_model)
+        assert isinstance(response.structured.sum, float)
+        assert isinstance(response.structured.random_numbers, list)
 
 
 @pytest.mark.asyncio
@@ -125,13 +125,13 @@ async def test_structured_with_complex_output_model(
                 )
             ]
         )
-        response = await runner.run(complex_node, user_input=message_history)
-        assert isinstance(response.answer.structured, person_output_model)
-        assert isinstance(response.answer.structured.name, str)
-        assert isinstance(response.answer.structured.age, int)
-        assert isinstance(response.answer.structured.Favourites, simple_output_model)
-        assert isinstance(response.answer.structured.Favourites.text, str)
-        assert isinstance(response.answer.structured.Favourites.number, int)
+        response = await rt.call(complex_node, user_input=message_history)
+        assert isinstance(response.structured, person_output_model)
+        assert isinstance(response.structured.name, str)
+        assert isinstance(response.structured.age, int)
+        assert isinstance(response.structured.Favourites, simple_output_model)
+        assert isinstance(response.structured.Favourites.text, str)
+        assert isinstance(response.structured.Favourites.number, int)
 
 
 @pytest.mark.asyncio
@@ -151,13 +151,13 @@ async def test_structured_with_tool_calls(
             ]
         )
 
-        response = await runner.run(
+        response = await rt.call(
             travel_planner_node, user_input=message_history
         )
-        assert isinstance(response.answer.structured, travel_planner_output_model)
-        assert isinstance(response.answer.structured.travel_plan, str)
-        assert isinstance(response.answer.structured.Total_cost, float)
-        assert isinstance(response.answer.structured.Currency, str)
+        assert isinstance(response.structured, travel_planner_output_model)
+        assert isinstance(response.structured.travel_plan, str)
+        assert isinstance(response.structured.Total_cost, float)
+        assert isinstance(response.structured.Currency, str)
 
 
 def test_return_into_structured(mock_llm):
@@ -178,7 +178,7 @@ def test_return_into_structured(mock_llm):
     )
 
     with rt.Session() as run:
-        result = run.run_sync(node, user_input=MessageHistory()).answer
+        result = rt.call_sync(node, user_input=MessageHistory())
         assert result is None  # The result should be None since it was stored in context
         stored = rt.context.get("structured_greeting")
         assert stored is not None

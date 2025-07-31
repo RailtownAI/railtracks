@@ -20,10 +20,10 @@ async def context_flow():
 
 def test_put_context():
     context_node = function_node(context_flow)
-    with rt.Session() as runner:
-        result = runner.run_sync(context_node)
+    with rt.Session():
+        result = rt.call_sync(context_node)
 
-    assert result.answer == "test_value"
+    assert result == "test_value"
 
 
 def test_context_addition():

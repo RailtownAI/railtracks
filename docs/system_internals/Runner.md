@@ -108,17 +108,17 @@ async def main():
 ### Custom Configuration
 
 ```python
-import requestcompletion as rc
+import railtracks as rt
 
-config = rc.ExecutorConfig(
+config = rt.ExecutorConfig(
     logging_setting="VERBOSE",
     save_state=True,
     end_on_error=True,
     timeout=30.0
 )
 
-with rc.Session(executor_config=config) as runner:
-    result = await runner.run(MyNode)
+with rt.Session(executor_config=config) as runner:
+    result = await rt.call(MyNode)
 ```
 
 ## State Persistence

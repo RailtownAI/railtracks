@@ -7,7 +7,7 @@ def sync_blocking(timeout: float):
     time.sleep(timeout)
 
 
-Blocking = rt.library.function_node(sync_blocking)
+Blocking = rt.function_node(sync_blocking)
 
 lengths = [1, 2, 2, 2, 1]
 
@@ -20,10 +20,10 @@ async def top_level_sync_blocking():
     return None
 
 
-TopLevel = rt.library.function_node(top_level_sync_blocking)
+TopLevel = rt.function_node(top_level_sync_blocking)
 
 with rt.Session() as runner:
     start_time = time.time()
-    runner.run_sync(TopLevel)
+    rt.call_sync(TopLevel)
     end_time = time.time()
     print(f"Sync blocking task {lengths} took {end_time - start_time:.2f} seconds")

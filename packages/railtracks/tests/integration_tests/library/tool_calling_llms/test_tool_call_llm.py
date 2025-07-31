@@ -70,10 +70,10 @@ async def test_simple_function_passed_tool_call(simple_function_taking_node, sim
                 )
             ]
         )
-        response = await runner.run(simple_function_taking_node, user_input=message_history)
-        assert isinstance(response.answer.structured, simple_output_model)
-        assert isinstance(response.answer.structured.text, str)
-        assert isinstance(response.answer.structured.number, int)
+        response = await rt.call(simple_function_taking_node, user_input=message_history)
+        assert isinstance(response.structured, simple_output_model)
+        assert isinstance(response.structured.text, str)
+        assert isinstance(response.structured.number, int)
 
 @pytest.mark.asyncio
 async def test_some_functions_passed_tool_calls(some_function_taking_travel_planner_node, travel_planner_output_model):
@@ -87,11 +87,11 @@ async def test_some_functions_passed_tool_calls(some_function_taking_travel_plan
                 )
             ]
         )
-        response = await runner.run(some_function_taking_travel_planner_node, user_input=message_history)
-        assert isinstance(response.answer.structured, travel_planner_output_model)
-        assert isinstance(response.answer.structured.travel_plan, str)
-        assert isinstance(response.answer.structured.Total_cost, float)
-        assert isinstance(response.answer.structured.Currency, str)
+        response = await rt.call(some_function_taking_travel_planner_node, user_input=message_history)
+        assert isinstance(response.structured, travel_planner_output_model)
+        assert isinstance(response.structured.travel_plan, str)
+        assert isinstance(response.structured.Total_cost, float)
+        assert isinstance(response.structured.Currency, str)
 
 
 @pytest.mark.asyncio
@@ -132,15 +132,15 @@ async def test_tool_with_llm_tool_as_input_easy_tools():
 
     # Run the parent tool
     with rt.Session(
-        executor_config=rt.ExecutorConfig(logging_setting="NONE", timeout=1000)
+        logging_setting="NONE", timeout=1000
     ) as runner:
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Give me a response.")]
         )
-        response = await runner.run(parent_tool, user_input=message_history)
+        response = await rt.call(parent_tool, user_input=message_history)
 
-    assert response.answer is not None
-    assert response.answer.content == "2 foxes and a dog"
+    assert response is not None
+    assert response.content == "2 foxes and a dog"
 
 
 @pytest.mark.asyncio
@@ -220,10 +220,10 @@ async def test_tool_with_llm_tool_as_input_class_easy():
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Give me a response.")]
         )
-        response = await runner.run(parent_tool, user_input=message_history)
+        response = await rt.call(parent_tool, user_input=message_history)
 
-    assert response.answer is not None
-    assert "2 foxes and a dog" in response.answer.content
+    assert response is not None
+    assert "2 foxes and a dog" in response.content
 
 
 @pytest.mark.asyncio
@@ -288,10 +288,10 @@ async def test_tool_with_llm_tool_as_input_easy_class():
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Give me a response.")]
         )
-        response = await runner.run(ParentTool, user_input=message_history)
+        response = await rt.call(ParentTool, user_input=message_history)
 
-    assert response.answer is not None
-    assert response.answer.content == "2 foxes and a dog"
+    assert response is not None
+    assert response.content == "2 foxes and a dog"
 
 
 @pytest.mark.asyncio
@@ -384,15 +384,15 @@ async def test_tool_with_llm_tool_as_input_class_tools():
 
     # Run the parent tool
     with rt.Session(
-        executor_config=rt.ExecutorConfig(logging_setting="NONE", timeout=1000)
+        logging_setting="NONE", timeout=1000
     ) as runner:
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Give me a response.")]
         )
-        response = await runner.run(ParentTool, user_input=message_history)
+        response = await rt.call(ParentTool, user_input=message_history)
 
-    assert response.answer is not None
-    assert response.answer.content == "2 foxes and a dog"
+    assert response is not None
+    assert response.content == "2 foxes and a dog"
 
 
 def test_return_into(mock_llm):
@@ -409,7 +409,7 @@ def test_return_into(mock_llm):
     )
 
     with rt.Session() as run:
-        result = run.run_sync(node, user_input=MessageHistory()).answer
+        result = rt.call_sync(node, user_input=MessageHistory())
         assert result is None  # The result should be None since it was stored in context
         assert rt.context.get("greeting").content == "Hello"
 
@@ -433,7 +433,7 @@ def test_return_into_custom_fn(mock_llm):
     )
 
     with rt.Session() as run:
-        result = run.run_sync(node, user_input=MessageHistory()).answer
+        result = rt.call_sync(node, user_input=MessageHistory())
         assert result == "Success!"  # The result should be None since it was stored in context
         assert rt.context.get("greeting") == "HELLO"
 
