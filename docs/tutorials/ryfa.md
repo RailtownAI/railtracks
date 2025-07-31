@@ -2,7 +2,7 @@
 
 Once you have defined your agent class you can then run your work flow and see results!
 
-To begin you just have to use `call` for asynchronous flow or `call_sync` otherwise and pass your agent class as a parameter as well as the prompt as `user_input`:
+To begin you just have to use `call` for asynchronous flows or `call_sync` if it's s sequential flow. You simply pass your agent node as a parameter as well as the prompt as `user_input`:
 
 
 ###Example
@@ -20,34 +20,97 @@ Just like that you have ran your first agent!
 
 ##Customization and Configurability
 
-Although it really is that simple to run your agent, you can do more of course. If you have a dynamic work flow you can delay parameters to runtime and pass any number of args or kwargs and even the llm model you would like to use.
-
+Although it really is that simple to run your agent, you can do more of course. If you have a dynamic work flow you can delay parameters like `llm_model` and you can add a `SystemMessage` along with your prompt directly to `user_input` as a `MessageHistory` object.
 
 ###Example
 ```python
 
-dynamic_agent_class = rt.define_agent(
-    agent_name="Weather Agent",
-    system_message="You are a helpful assistant that answers weather-related questions. You have access to weather_tool which you should always consult when answering a question.",
-    tools={weather_tool},
-    schema=weather_schema,
-    agent_params=weather_params
-    agent_doc="This is an agent that will give you the current weather and answer weather related questions you have"    
+weather_agent_class = rt.agent_node(
+    tool_nodes={weather_tool},
+    output_schema=weather_schema, 
 )
+
+system_message = rt.message.SystemMessage("You are a helpful assistant that answers weather-related questions.")
+user_message = rt.message.UserMessage("Would you please be able to tell me the forecast for the next week?")
 
 response = rt.call(
     weather_agent_class,
-    user_input="Would you please be able to tell me the forecast for the next week?",
+    user_input=MessageHistory([system_message, user_message]),
     llm_model='claude-3-5-sonnet-20240620',
-    weather_param_city='Vancouver',
-    weather_param_provider='The Weather Network',
-    weather_param_air_qual=True
 )
 ```
 
+Should you pass `llm_model` to `agent_node` and then a different llm model to either call function, RailTracks will use the parameter passed in the call. If you pass `system_message` to `agent_node` and then another `system_message` to a call function, the system messages will be stacked.
+
+###Example
+```python
+
+default_model = "gpt-40"
+default_system_message = "You are a helpful assistant that answers weather-related questions."
+
+weather_agent_class = rt.agent_node(
+    tool_nodes={weather_tool},
+    system_message=default_system_message,
+    llm_model=default_model,
+)
+
+system_message = rt.message.SystemMessage("If not specified, the user is talking about Vancouver.")
+user_message = rt.message.UserMessage("Would you please be able to tell me the forecast for the next week?")
+
+response = rt.call(
+    weather_agent_class,
+    user_input=MessageHistory([system_message, user_message]),
+    llm_model='claude-3-5-sonnet-20240620',
+)
+```
+In this example RailTracks will use claude rather than chatgpt and the system message will become
+"You are a helpful assistant that answers weather-related questions. If not specified, the user is talking about Vancouver."
+
 ##Retrieving The Results of a Run
 
-All agents return a response object which you can use to get the required results.
+All agents return a response object which you can use to get the last message or the entire message history if you would prefer.
+
+###Unstructured Response Example
+```python
+
+coding_agent_node = rt.agent_node()
+
+system_message = rt.message.SystemMessage("You are an assistant that helps users write code and learn about coding.")
+user_message = rt.message.UserMessage("Would you be able to help me figure out a good solution to running agentic flows?")
+
+response = rt.call(
+    coding_agent_node,
+    user_input=MessageHistory([system_message, user_message]),
+    llm_model='claude-3-5-sonnet-20240620',
+)
+
+answer_string = response.text()
+message_history_object = response.message_history
+```
+
+###Structured Response Example
+```python
+from pydantic import BaseModel
+
+class User(BaseModel):
+    user_number : int
+    age: int
+    name: str
+
+agent_node = rt.agent_node(
+    output_schema=User,
+    system_message=agent_message,
+    llm_model="gpt-4o"
+)
+
+response = rt.call(
+    agent_class,
+    user_input=input_str
+)
+
+user_number = response.structured().user_number
+message_history_object = response.message_history
+```
 
 
 <p style="text-align:center;">
