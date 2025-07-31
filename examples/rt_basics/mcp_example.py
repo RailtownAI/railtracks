@@ -31,7 +31,7 @@ parent_tool = rt.library.tool_call_llm(
 #%%
 user_message = ("Tell me about conductr.ai. Then, tell me what time it is.")
 
-with rt.Session(executor_config=rt.ExecutorConfig(logging_setting="QUIET", timeout=1000)) as runner:
+with rt.Session(logging_setting="QUIET", timeout=1000) as runner:
     message_history = rt.llm.MessageHistory(
        [
             rt.llm.UserMessage(
@@ -39,6 +39,6 @@ with rt.Session(executor_config=rt.ExecutorConfig(logging_setting="QUIET", timeo
             )
         ]
     )
-    response = asyncio.run(runner.run(parent_tool, user_input=message_history))
+    response = asyncio.run(rt.call(parent_tool, user_input=message_history))
 
     print("Response:", response.answer)

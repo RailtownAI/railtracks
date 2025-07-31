@@ -14,10 +14,10 @@ RNGNode = rt.function_node(random.random)
 @pytest.mark.timeout(1)
 def test_simple_request():
     with rt.Session(logging_setting="NONE") as run:
-        result = run.run_sync(RNGNode)
+        result = rt.call_sync(RNGNode)
 
-    assert isinstance(result.answer, float)
-    assert 0 < result.answer < 1
+    assert isinstance(result, float)
+    assert 0 < result < 1
 
 
 class ErrorforTest(Exception):
@@ -32,9 +32,9 @@ ErrorThrower = rt.function_node(error_thrower)
 
 
 def test_error():
-    with rt.Session(logging_setting="NONE") as run:
+    with rt.Session(logging_setting="NONE"):
         with pytest.raises(ErrorforTest):
-            run.run_sync(ErrorThrower)
+            rt.call_sync(ErrorThrower)
 
 
 async def error_handler():
@@ -50,8 +50,8 @@ ErrorHandler = rt.function_node(error_handler)
 @pytest.mark.timeout(1)
 def test_error_handler():
     with rt.Session(logging_setting="NONE") as run:
-        result = run.run_sync(ErrorHandler)
-    assert result.answer == "Caught the error"
+        result = rt.call_sync(ErrorHandler)
+    assert result == "Caught the error"
 
 
 def test_error_handler_wo_retry():
@@ -61,7 +61,7 @@ def test_error_handler_wo_retry():
                 end_on_error=True, logging_setting="NONE"
 
         ) as run:
-            result = run.run_sync(ErrorHandler)
+            result = rt.call_sync(ErrorHandler)
 
 
 async def error_handler_with_retry(retries: int):
@@ -83,7 +83,8 @@ def test_error_handler_with_retry():
         with rt.Session(
             logging_setting="NONE"
         ) as run:
-            result = run.run_sync(ErrorHandlerWithRetry, num_retries)
+            result = rt.call_sync(ErrorHandlerWithRetry, num_retries)
+            result = run.info
 
         assert result.answer == "Caught the error"
         i_r = result.request_forest.insertion_request[0]
@@ -116,11 +117,11 @@ def test_parallel_error_tester():
         with rt.Session(
             logging_setting="NONE"
         ) as run:
-            result = run.run_sync(ParallelErrorHandler, n_c, p_c)
+            result = rt.call_sync(ParallelErrorHandler, n_c, p_c)
 
-        assert isinstance(result.answer, list)
-        assert len(result.answer) == n_c * p_c
-        assert all([isinstance(x, ErrorforTest) for x in result.answer])
+        assert isinstance(result, list)
+        assert len(result) == n_c * p_c
+        assert all([isinstance(x, ErrorforTest) for x in result])
 
 
 # wraps the above error handler in a top level function
@@ -139,19 +140,19 @@ def test_parallel_error_wrapper():
         with rt.Session(
             logging_setting="NONE"
         ) as run:
-            result = run.run_sync(ErrorHandlerWrapper, n_c, p_c)
+            result = rt.call_sync(ErrorHandlerWrapper, n_c, p_c)
 
-        assert len(result.answer) == n_c * p_c
-        assert all([isinstance(x, ErrorforTest) for x in result.answer])
 
-        i_r = result.request_forest.insertion_request[0]
+        assert len(result) == n_c * p_c
+        assert all([isinstance(x, ErrorforTest) for x in result])
+        i_r = run.info.request_forest.insertion_request[0]
 
-        children = result.request_forest.children(i_r.sink_id)
+
+        children = run.info.request_forest.children(i_r.sink_id)
         assert len(children) == 1
-        full_children = result.request_forest.children(children[0].sink_id)
-
+        full_children = run.info.request_forest.children(children[0].sink_id)
         for r in children:
-            assert r.output == result.answer
+            assert r.output == result
 
         for r in full_children:
             assert isinstance(r.output, Failure)

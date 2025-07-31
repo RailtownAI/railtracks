@@ -41,8 +41,8 @@ def test_terminal_llm_class_based_run(model , encoder_system_message):
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("The input string is 'hello world'")]
         )
-        response = runner.run_sync(Encoder, user_input=message_history)
-        assert isinstance(response.answer.text, str)
+        response = rt.call_sync(Encoder, user_input=message_history)
+        assert isinstance(response.text, str)
 
 def test_return_into(mock_llm):
     """Test that a node can return its result into context instead of returning it directly."""
@@ -57,7 +57,7 @@ def test_return_into(mock_llm):
     )
 
     with rt.Session() as run:
-        result = run.run_sync(node, user_input=MessageHistory()).answer
+        result = rt.call_sync(node, user_input=MessageHistory())
         assert result is None  # The result should be None since it was stored in context
         assert rt.context.get("greeting") == "Hello"
 
@@ -158,11 +158,11 @@ async def test_terminal_llm_as_tool_correct_initialization(
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("The input string is 'hello world'")]
         )
-        response = await runner.run(randomizer, user_input=message_history)
+        response = await rt.call(randomizer, user_input=message_history)
         assert any(
             message.role == "tool"
             and "There was an error running the tool" not in message.content
-            for message in response.answer.message_history
+            for message in response.message_history
         )  # inside tool_call_llm's invoke function is this exact string in case of error
 
 
@@ -196,11 +196,11 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(model):
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Start the Math node.")]
         )
-        response = await runner.run(math_node, user_input=message_history)
+        response = await rt.call(math_node, user_input=message_history)
         assert any(
             message.role == "tool"
             and "There was an error running the tool" not in message.content
-            for message in response.answer.message_history
+            for message in response.message_history
         )
 
 @pytest.mark.timeout(30)
@@ -234,11 +234,11 @@ async def test_terminal_llm_tool_with_invalid_parameters_easy_usage(model, encod
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Encode this text but use an invalid parameter name.")]
         )
-        response = await runner.run(tool_call_llm, user_input=message_history)
+        response = await rt.call(tool_call_llm, user_input=message_history)
         # Check that there was an error running the tool
         assert any(
             message.role == "tool" and "There was an error running the tool" in message.content.result
-            for message in response.answer.message_history
+            for message in response.message_history
         )
 
 

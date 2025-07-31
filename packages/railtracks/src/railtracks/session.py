@@ -1,9 +1,6 @@
-import asyncio
 import os
 from pathlib import Path
 from typing import Any, Callable, Coroutine, Dict, ParamSpec, TypeVar
-
-from typing_extensions import deprecated
 
 from .context.central import (
     delete_globals,
@@ -12,8 +9,6 @@ from .context.central import (
 )
 from .execution.coordinator import Coordinator
 from .execution.execution_strategy import AsyncioExecutionStrategy
-from .interaction.call import call
-from .nodes.nodes import Node
 from .pubsub import RTPublisher, stream_subscriber
 from .pubsub.messages import (
     RequestCompletionMessage,
@@ -209,18 +204,6 @@ class Session:
                 name="Streaming Subscriber",
             )
 
-    # @warnings.deprecated("run_sync is deprecated, use `rt.call_sync`")
-    def run_sync(
-        self,
-        start_node: Callable[_P, Node] | None = None,
-        *args: _P.args,
-        **kwargs: _P.kwargs,
-    ):
-        """Runs the provided node synchronously."""
-        asyncio.run(call(start_node, *args, **kwargs))
-
-        return self.rc_state.info
-
     def _close(self):
         """
         Closes the runner and cleans up all resources.
@@ -242,28 +225,4 @@ class Session:
 
         This is useful for debugging and viewing the current state of the run.
         """
-        return self.rc_state.info
-
-    @deprecated(
-        "`call` is deprecated, use `runner.run` or access the global function `rt.call`"
-    )
-    async def call(
-        self,
-        node: Callable[_P, Node[_TOutput]],
-        /,
-        *args: _P.args,
-        **kwargs: _P.kwargs,
-    ):
-        return await call(node, *args, **kwargs)
-
-    async def run(
-        self,
-        start_node: Callable[_P, Node] | None = None,
-        *args: _P.args,
-        **kwargs: _P.kwargs,
-    ):
-        """Runs thert framework with the given start node and provided arguments."""
-
-        await call(start_node, *args, **kwargs)
-
         return self.rc_state.info

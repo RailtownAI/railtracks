@@ -7,8 +7,7 @@ Finally, use the `from_mcp_server` utility to load tools directly from the MCP s
 ```python
 import os
 
-from mcp import StdioServerParameters
-from railtracks.nodes.library import connect_mcp
+from railtracks.integrations.rt_mcp import connect_mcp, MCPStdioParams
 
 MCP_COMMAND = "npx"
 MCP_ARGS = ["-y", "@modelcontextprotocol/server-slack"]
@@ -20,7 +19,7 @@ slack_env = {
 }
 
 server = connect_mcp(
-    StdioServerParameters(
+    MCPStdioParams(
         command=MCP_COMMAND,
         args=MCP_ARGS,
         env=slack_env,
@@ -32,21 +31,21 @@ tools = server.tools
 At this point, the tools can be used the same as any other RT tool. See the following code as a simple example.
 
 ```python
-from railtracks.nodes.library import tool_call_llm
+
 import railtracks as rt
 
-agent = tool_call_llm(
+agent = rt.agent_node(
     tool_nodes={*tools},
     system_message="""You are a Slack agent that can interact with Slack channels.""",
-    model=rt.llm.OpenAILLM("gpt-4o"),
+    llm_model=rt.llm.OpenAILLM("gpt-4o"),
 )
 
 user_prompt = """Send a message to general saying "Hello!"."""
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
-with rt.Session(rt.ExecutorConfig(logging_setting="VERBOSE")) as run:
-    result = run.run_sync(agent, message_history)
+with rt.Session(logging_setting="VERBOSE"):
+    result = rt.call_sync(agent, message_history)
 
 print(result.answer.content)
 ```

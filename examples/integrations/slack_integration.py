@@ -5,8 +5,8 @@
 ##################################################################
 import os
 
-from mcp import StdioServerParameters
-from railtracks.nodes.library import connect_mcp, tool_call_llm
+
+from railtracks.integrations.rt_mcp import connect_mcp, MCPStdioParams
 import railtracks as rt
 
 MCP_COMMAND = "npx"
@@ -19,7 +19,7 @@ slack_env = {
 }
 
 server = connect_mcp(
-    StdioServerParameters(
+    MCPStdioParams(
         command=MCP_COMMAND,
         args=MCP_ARGS,
         env=slack_env,
@@ -30,17 +30,17 @@ tools = server.tools
 ##################################################################
 # Example using the tools with an agent
 
-agent = tool_call_llm(
+agent = rt.agent_node(
     tool_nodes={*tools},
     system_message="""You are a Slack agent that can interact with Slack channels.""",
-    model=rt.llm.OpenAILLM("gpt-4o"),
+    llm_model=rt.llm.OpenAILLM("gpt-4o"),
 )
 
 user_prompt = """Send a message to thert-maintainer slack channel saying "Hello from your new overlord"."""
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
-with rt.Session(rt.ExecutorConfig(logging_setting="VERBOSE")) as run:
-    result = run.run_sync(agent, message_history)
+with rt.Session(logging_setting="VERBOSE"):
+    result = rt.call_sync(agent, message_history)
 
-print(result.answer.content)
+print(result.content)

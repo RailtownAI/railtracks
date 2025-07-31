@@ -75,10 +75,10 @@ def test_from_mcp_server_with_llm():
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("What time is it?")]
         )
-        response = asyncio.run(runner.run(parent_tool, user_input=message_history))
+        response = asyncio.run(rt.call(parent_tool, user_input=message_history))
 
-    assert response.answer is not None
-    assert response.answer.content != "It didn't work!"
+    assert response is not None
+    assert response.content != "It didn't work!"
 
 
 def test_from_mcp_server_with_http():
@@ -100,10 +100,10 @@ def test_from_mcp_server_with_http():
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Tell me about the website conductr.ai")]
         )
-        response = asyncio.run(runner.run(parent_tool, user_input=message_history))
+        response = asyncio.run(rt.call(parent_tool, user_input=message_history))
 
-    assert response.answer is not None
-    assert response.answer.content is not "It didn't work!"
+    assert response is not None
+    assert response.content is not "It didn't work!"
 
 
 class MockClient:

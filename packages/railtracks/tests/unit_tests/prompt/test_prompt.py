@@ -19,9 +19,9 @@ def test_prompt_injection(mock_llm):
     )
 
     with rt.Session(context={"secret": "tomato"}) as runner:
-        response = runner.run_sync(node, user_input=MessageHistory())
+        response = rt.call_sync(node, user_input=MessageHistory())
 
-    assert response.answer.content == "tomato"
+    assert response.content == "tomato"
 
 
 def test_prompt_injection_bypass(mock_llm):
@@ -36,9 +36,9 @@ def test_prompt_injection_bypass(mock_llm):
     )
 
     with rt.Session(context={"secret_value": "tomato"}) as runner:
-        response = runner.run_sync(node, user_input=MessageHistory())
+        response = rt.call_sync(node, user_input=MessageHistory())
 
-    assert response.answer.content == "{secret_value}"
+    assert response.content == "{secret_value}"
 
 
 def test_prompt_numerical(mock_llm):
@@ -53,9 +53,9 @@ def test_prompt_numerical(mock_llm):
     )
 
     with rt.Session(context={"1": "tomato"}) as runner:
-        response = runner.run_sync(node, user_input=MessageHistory())
+        response = rt.call_sync(node, user_input=MessageHistory())
 
-    assert response.answer.content == "tomato"
+    assert response.content == "tomato"
 
 
 def test_prompt_not_in_context(mock_llm):
@@ -70,9 +70,9 @@ def test_prompt_not_in_context(mock_llm):
     )
 
     with rt.Session() as runner:
-        response = runner.run_sync(node, user_input=MessageHistory())
+        response = rt.call_sync(node, user_input=MessageHistory())
 
-    assert response.answer.content == "{secret2}"
+    assert response.content == "{secret2}"
 
 
 @pytest.mark.order("last")
@@ -91,6 +91,6 @@ def test_prompt_injection_global_config_bypass(mock_llm):
             context={"secret_value": "tomato"},
             prompt_injection=False
     ) as runner:
-        response = runner.run_sync(node, user_input=MessageHistory())
+        response = rt.call_sync(node, user_input=MessageHistory())
 
-    assert response.answer.content == "{secret_value}"
+    assert response.content == "{secret_value}"

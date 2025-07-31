@@ -49,8 +49,8 @@ if prompt := st.chat_input("Type your message..."):
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage(m["content"]) if m["role"] == "user" else rt.llm.SystemMessage(m["content"]) for m in history if m["role"] != "assistant"]
         )
-        with rt.Session(executor_config=rt.ExecutorConfig(logging_setting="QUIET", timeout=1000)) as runner:
-            response = await runner.run(st.session_state.node, user_input=message_history)
+        with rt.Session(logging_setting="QUIET", timeout=1000) as runner:
+            response = await rt.call(st.session_state.node, user_input=message_history)
             return response.answer
 
     # Run async function in Streamlit

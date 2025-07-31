@@ -98,7 +98,7 @@ class TestPrimitiveInputTypes:
             return "This is an empty function."
         test_node = function_node(empty_function)
         with rt.Session() as run:
-            result = run.run_sync(test_node).answer
+            result = rt.call_sync(test_node)
 
         assert "This is an empty function." == result
 
@@ -108,7 +108,7 @@ class TestPrimitiveInputTypes:
         """Test that a function with a single int parameter works correctly."""
         test_node = function_node(func_type)
         with rt.Session() as run:
-            assert run.run_sync(test_node, input).answer == expected_output
+            assert rt.call_sync(test_node, input) == expected_output
 
 class TestSequenceInputTypes:
     @pytest.mark.parametrize("input, expected_output", arg_test_inputs)
@@ -116,14 +116,14 @@ class TestSequenceInputTypes:
         """Test that a function with multiple arg parameters works correctly."""
         test_node = function_node(func_multiple_types)
         with rt.Session() as run:
-            assert run.run_sync(test_node, *input).answer == expected_output
+            assert rt.call_sync(test_node, *input) == expected_output
 
     @pytest.mark.parametrize("input, expected_output", kwarg_test_inputs)
     def test_multi_kwarg_input(self, input, expected_output):
         """Test that a function with multiple kwarg parameters works correctly."""
         test_node = function_node(func_multiple_ktypes_coroutine)
         with rt.Session() as run:
-            assert run.run_sync(test_node, **input).answer == expected_output
+            assert rt.call_sync(test_node, **input) == expected_output
 
 class TestfunctionMethods:
     def test_prepare_tools(self):
@@ -155,7 +155,7 @@ class TestRaiseErrors:
         test_node = function_node(func_buggy)
         with pytest.raises(NodeCreationError):
             with rt.Session() as run:
-                run.run_sync(test_node)
+                rt.call_sync(test_node)
 
     def test_dict_parameter(self):
         """Test that a function with a dict parameter raises an error."""

@@ -58,17 +58,17 @@ async def logging_config_test_async():
             logging_setting=log_setting
         )
         with rt.Session() as run:
-            info = await run.run(RNGNode)
+            info = await rt.call(RNGNode)
             runner = run
             assert run == runner
             assert runner.rc_state.executor_config.logging_setting == log_setting
             assert runner.rc_state.executor_config.end_on_error == False
 
-        response = info.answer
+        response = info
         assert isinstance(response, float), "Expected a float result from RNGNode"
         assert 0 < response < 1, "Expected a float result from RNGNode"
         assert (
-            info.answer == response
+            info == response
         ), "Expected the answer to be the same as the response"
 
     async def run_with_logging_config_w_context_w_call(log_setting):
@@ -119,17 +119,14 @@ def logging_config_test_threads():
             logging_setting=log_setting
         )
         with rt.Session() as run:
-            info = run.run_sync(RNGNode)
+            response = rt.call_sync(RNGNode)
             runner = run
             assert runner.rc_state.executor_config.logging_setting == log_setting
             assert runner.rc_state.executor_config.end_on_error == False
 
-        response = info.answer
         assert isinstance(response, float), "Expected a float result from RNGNode"
         assert 0 < response < 1, "Expected a float result from RNGNode"
-        assert (
-            info.answer == response
-        ), "Expected the answer to be the same as the response"
+
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         executor.map(
@@ -148,10 +145,10 @@ def test_sequence_of_changes():
         end_on_error=True, logging_setting="NONE"
     )
     with rt.Session() as run:
-        info = run.run_sync(RNGNode)
+        response = rt.call_sync(RNGNode)
         assert run.rc_state.executor_config.end_on_error
         assert run.rc_state.executor_config.logging_setting == "NONE"
-        assert info.answer == run.info.answer
+        assert response == run.info.answer
 
 
 def test_sequence_of_changes_overwrite():
@@ -160,10 +157,10 @@ def test_sequence_of_changes_overwrite():
     with rt.Session(
         end_on_error=True, logging_setting="NONE"
     ) as run:
-        info = run.run_sync(RNGNode)
+        response = rt.call_sync(RNGNode)
         assert run.rc_state.executor_config.end_on_error
         assert run.rc_state.executor_config.logging_setting == "NONE"
-        assert info.answer == run.info.answer
+        assert response == run.info.answer
 
 def test_back_to_defaults():
     rt.set_config(end_on_error=True, logging_setting="REGULAR")
@@ -204,8 +201,8 @@ def test_streaming_inserted_globally():
 
     railtracks.context.central.set_config(broadcast_callback=handler.handle)
     with rt.Session() as run:
-        result = run.run_sync(StreamingNode)
-        assert result.answer == None
+        result = rt.call_sync(StreamingNode)
+        assert result is None
 
     sleep(0.1)
     assert len(handler.message) == 1
@@ -216,8 +213,8 @@ def test_streaming_inserted_locally():
     handler = StreamHandler()
 
     with rt.Session(broadcast_callback=handler.handle) as run:
-        result = run.run_sync(StreamingNode)
-        assert result.answer == None
+        result = rt.call_sync(StreamingNode)
+        assert result is None
 
     sleep(0.1)
     assert len(handler.message) == 1
@@ -233,8 +230,8 @@ def test_streaming_overwrite():
 
     railtracks.context.central.set_config(broadcast_callback=fake_handler)
     with rt.Session(broadcast_callback=handler.handle) as run:
-        result = run.run_sync(StreamingNode)
-        assert result.answer == None
+        result = rt.call_sync(StreamingNode)
+        assert result is None
 
     sleep(0.1)
     assert len(handler.message) == 1
