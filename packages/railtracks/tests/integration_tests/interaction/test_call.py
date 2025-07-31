@@ -336,7 +336,7 @@ def many_calls_tester(num_calls: int, parallel_calls: int):
         i for i in range(num_calls * parallel_calls * 2 + 2)
     }
 
-    assert len(finished_result.all_stamps) == 2 * num_calls * parallel_calls + 2
+    assert len(info.all_stamps) == 2 * num_calls * parallel_calls + 2
 
 
 @pytest.mark.timeout(5)

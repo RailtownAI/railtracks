@@ -1,9 +1,6 @@
-import asyncio
 import os
 from pathlib import Path
 from typing import Any, Callable, Coroutine, Dict, ParamSpec, TypeVar
-
-from typing_extensions import deprecated
 
 from .context.central import (
     delete_globals,
@@ -12,8 +9,6 @@ from .context.central import (
 )
 from .execution.coordinator import Coordinator
 from .execution.execution_strategy import AsyncioExecutionStrategy
-from .interaction.call import call
-from .nodes.nodes import Node
 from .pubsub import RTPublisher, stream_subscriber
 from .pubsub.messages import (
     RequestCompletionMessage,
@@ -208,18 +203,6 @@ class Session:
                 stream_subscriber(self.executor_config.subscriber),
                 name="Streaming Subscriber",
             )
-
-    # @warnings.deprecated("run_sync is deprecated, use `rt.call_sync`")
-    def run_sync(
-        self,
-        start_node: Callable[_P, Node] | None = None,
-        *args: _P.args,
-        **kwargs: _P.kwargs,
-    ):
-        """Runs the provided node synchronously."""
-        asyncio.run(call(start_node, *args, **kwargs))
-
-        return self.rc_state.info
 
     def _close(self):
         """

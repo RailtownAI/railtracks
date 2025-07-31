@@ -141,14 +141,15 @@ def test_parallel_error_wrapper():
         ) as run:
             result = rt.call_sync(ErrorHandlerWrapper, n_c, p_c)
 
+
         assert len(result) == n_c * p_c
         assert all([isinstance(x, ErrorforTest) for x in result])
         i_r = run.info.request_forest.insertion_request[0]
 
 
-        children = result.request_forest.children(i_r.sink_id)
+        children = run.info.request_forest.children(i_r.sink_id)
         assert len(children) == 1
-        full_children = result.request_forest.children(children[0].sink_id)
+        full_children = run.info.request_forest.children(children[0].sink_id)
         for r in children:
             assert r.output == result
 
