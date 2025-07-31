@@ -1,14 +1,14 @@
 import litellm
 
 # litellm.drop_params=True
-from ....exceptions.errors import LLMError
+from .._model_exception_base import ModelError, FunctionCallingNotSupportedError
 from ....utils.logging.create import get_rt_logger
 from .._litellm_wrapper import LiteLLMWrapper
 
 LOGGER_NAME = "AZURE_AI"
 
 
-class AzureAIError(LLMError):
+class AzureAIError(ModelError):
     pass
 
 
@@ -49,12 +49,7 @@ class AzureAILLM(LiteLLMWrapper):
 
     def chat_with_tools(self, messages, tools, **kwargs):
         if not litellm.supports_function_calling(model=self._model_name.lower()):
-            raise AzureAIError(
-                reason=(
-                    f"Model '{self._model_name}' does not support function calling.\n"
-                    f"Models and Tool Calling: {self._tool_calling_supported()}"
-                )
-            )
+            raise FunctionCallingNotSupportedError(self._model_name)
 
         try:
             return super().chat_with_tools(messages, tools, **kwargs)

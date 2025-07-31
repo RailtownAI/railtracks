@@ -1,4 +1,4 @@
-class RTLLMException(Exception):
+class RTLLMError(Exception):
     """
     A simple base class for all LLM Exceptions to inherit from.
     """

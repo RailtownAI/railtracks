@@ -10,7 +10,7 @@ import warnings
 from typing import Any, Callable, Dict, Iterable, List, Set, Type
 from pydantic import BaseModel
 from typing_extensions import Self
-from .._exception_base import RTLLMException
+from .._exception_base import RTLLMError
 from .docstring_parser import extract_main_description, parse_docstring_args
 from .parameter import Parameter
 from .parameter_handlers import (
@@ -208,7 +208,7 @@ class Tool:
         return cls(name=tool.name, detail=tool.description, parameters=param_objs)
 
 
-class ToolCreationError(RTLLMException):
+class ToolCreationError(RTLLMError):
     """Exception raised when a tool cannot be created."""
 
     def __init__(self, message, notes=None):

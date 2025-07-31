@@ -1,7 +1,7 @@
 import pytest 
 from railtracks.llm import OpenAILLM, GeminiLLM, AnthropicLLM
 from railtracks.llm.history import MessageHistory
-from railtracks.exceptions import LLMError
+from railtracks.llm._exception_base import RTLLMError
 from unittest.mock import patch
 
 
@@ -37,7 +37,7 @@ class TestInvalidModelNames:
                 # Return the actual provider, which should mismatch with the class being tested
                 mock_provider.return_value = ("something", actual_provider, "info")
                 
-                with pytest.raises(LLMError):
+                with pytest.raises(RTLLMError):
                     _ = provider_class(model_name)
 
 
@@ -59,6 +59,6 @@ class TestFunctionCallingSupport:
                 model = provider_class(model_name)
                 assert model is not None
                 
-                with pytest.raises(LLMError, match="does not support function calling"):
+                with pytest.raises(RTLLMError, match="does not support function calling"):
                     model.chat_with_tools(MessageHistory([]), [])
 
