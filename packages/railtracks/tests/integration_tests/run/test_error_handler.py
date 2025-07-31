@@ -84,6 +84,7 @@ def test_error_handler_with_retry():
             logging_setting="NONE"
         ) as run:
             result = rt.call_sync(ErrorHandlerWithRetry, num_retries)
+            result = run.info
 
         assert result == "Caught the error"
         i_r = result.request_forest.insertion_request[0]

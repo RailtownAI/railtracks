@@ -418,7 +418,7 @@ def nested_many_calls_tester(num_calls: int, parallel_calls: int, depth: int):
     assert len(ans.answer) == (parallel_calls * num_calls) ** (depth + 1)
     assert all([0 < x < 1 for x in ans.answer])
 
-    r_h = finished_result.request_forest
+    r_h = ans.request_forest
     assert len(r_h.insertion_request) ==  1
     child_requests = r_h.children(r_h.insertion_request[0].sink_id)
 

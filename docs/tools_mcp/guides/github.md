@@ -4,8 +4,8 @@ To use the GitHub MCP server with RT, use the `from_mcp_server` utility to load 
 
 ```python
 import os
-from railtracks.integrations.rt_mcp import MCPHttpParams, connect_mcp
-
+from railtracks.rt_mcp import MCPHttpParams
+from railtracks.nodes.library.easy_usage_wrappers.mcp_tool import connect_mcp
 
 server = connect_mcp(
     MCPHttpParams(
@@ -21,20 +21,21 @@ tools = server.tools
 At this point, the tools can be used the same as any other RT tool. See the following code as a simple example.
 
 ```python
+from railtracks.nodes.library.easy_usage_wrappers.tool_call_llm import tool_call_llm
 import railtracks as rt
 
-agent = rt.agent_node(
-    tool_nodes={*tools},
+agent = tool_call_llm(
+    connected_nodes={*tools},
     system_message="""You are a GitHub Copilot agent that can interact with GitHub repositories.""",
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    model=rt.llm.OpenAILLM("gpt-4o"),
 )
 
 user_prompt = """Tell me about the RailtownAI/rc repository on GitHub."""
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
-with rt.Session():
-    result = rt.call_sync(agent, message_history)
+with rt.Session() as run:
+    result = run.run_sync(agent, message_history)
 
 print(result.answer.content)
 
