@@ -135,53 +135,6 @@ user_prompt = "Who won the Nobel Prize in Physics in 2023 and for what discovery
 user_prompt = "Compare the features and pricing of GitHub Copilot and Amazon CodeWhisperer."
 ```
 
-## 5. Common Use Cases
-
-### Research Assistant
-
-Create an agent to perform in-depth research on any topic.
-
-```python
-agent = tool_call_llm(
-    connected_nodes={*tools},
-    system_message="""You are a meticulous research assistant. 
-    Use web search to find multiple sources, synthesize the information, 
-    and provide a comprehensive summary with citations.""",
-    model=rt.llm.OpenAILLM("gpt-4o"),
-)
-```
-
-### News and Trend Analyst
-
-Build an agent that stays up-to-date with the latest news and trends.
-
-```python
-agent = tool_call_llm(
-    connected_nodes={*tools},
-    system_message="""You are a news analyst. Find the latest articles and reports on a given topic 
-    and summarize the key developments and future outlook.""",
-    model=rt.llm.OpenAILLM("gpt-4o"),
-)
-```
-
-## 6. Troubleshooting
-
-### Common Issues
-
-**"API key not valid" or "Permission denied" errors**
-- Ensure your `GOOGLE_SEARCH_API_KEY` is correct.
-- Verify that the Custom Search API is enabled in your Google Cloud project.
-- Check that your API key is not restricted (e.g., by IP address).
-
-**No search results returned**
-- Confirm your `GOOGLE_SEARCH_ENGINE_ID` is correct.
-- Make sure your custom search engine is configured to search the entire web.
-
-**URL fetching fails**
-- The target website might be blocking automated requests.
-- The URL may be incorrect or the page may no longer exist.
-- The remote MCP server at `https://remote.mcpservers.org/fetch/mcp` might be temporarily unavailable.
-
 ### Getting Help
 
 - **Examples**: See the complete working code in `examples/integrations/websearch_integration.py`.
@@ -189,5 +142,3 @@ agent = tool_call_llm(
 - **Google API Docs**: Refer to the [Custom Search API documentation](https://developers.google.com/custom-search/v1/overview) for more details.
 
 ---
-
-*Last updated: July

@@ -4,15 +4,6 @@ Connect your Railtracks agents to Notion workspaces and enable them to create, r
 
 **Version:** 0.0.1
 
-## Table of Contents
-
-- [1. What You Can Do](#1-what-you-can-do)
-- [2. Quick Start](#2-quick-start)
-- [3. Setup Requirements](#3-setup-requirements)
-- [4. Usage Examples](#4-usage-examples)
-- [5. Common Use Cases](#5-common-use-cases)
-- [6. Troubleshooting](#6-troubleshooting)
-
 ---
 
 ## 1. What You Can Do

@@ -140,59 +140,9 @@ user_prompt = "What were the last 5 messages in the #dev-team channel?"
 user_prompt = "Summarize the key points from today's conversation in the #project-alpha channel."
 ```
 
-## 5. Common Use Cases
-
-### Daily Stand-up Bot
-
-Create an agent to automate daily stand-ups by collecting and posting updates.
-
-```python
-agent = tool_call_llm(
-    connected_nodes={*slack_server.tools},
-    system_message="""You are a scrum master. You collect daily stand-up notes from team members
-    and post a summary in the #standups channel each morning.""",
-    model=rt.llm.OpenAILLM("gpt-4o"),
-)
-```
-
-### CI/CD Notification Bot
-
-Build an agent to post build and deployment statuses from your CI/CD pipeline.
-
-```python
-agent = tool_call_llm(
-    connected_nodes={*slack_server.tools},
-    system_message="""You are a CI/CD bot. You post notifications about build statuses,
-    deployment successes, and failures to the #devops channel.""",
-    model=rt.llm.OpenAILLM("gpt-4o"),
-)
-```
-
-## 6. Troubleshooting
-
-### Common Issues
-
-**`not_in_channel` error**
-- Your Slack app/bot must be a member of the channel it's trying to interact with.
-- Manually invite the bot to the channel by typing `/invite @YourBotName`.
-
-**`missing_scope` error**
-- Your bot token lacks the required permissions.
-- Go to your Slack app's "OAuth & Permissions" page and add the necessary scopes (e.g., `chat:write` for sending messages).
-- Reinstall the app to your workspace after changing scopes.
-
-**`invalid_auth` error**
-- Your `SLACK_BOT_TOKEN` is incorrect or has been revoked.
-- Verify the token is correct and regenerate it if necessary.
-
-**"Command not found: npx" error**
-- Install Node.js from [nodejs.org](https://nodejs.org/). NPX is included with Node.js.
-
 ### Getting Help
 
 - **Examples**: Check out the complete example at `examples/integrations/slack_integration.py`.
 - **Slack API**: Reference the [Slack API documentation](https://api.slack.com/) for more details on scopes and methods.
 
 ---
-
-*Last updated: July 29, 2025*
