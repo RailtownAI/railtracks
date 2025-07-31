@@ -197,7 +197,7 @@ def patch_HTTPServer():
 
 @pytest.fixture
 def patch_threading_Thread():
-    with patch("railtracks..integrationsrt_mcp.oauth.threading.Thread") as p:
+    with patch("railtracks.integrations.rt_mcp.oauth.threading.Thread") as p:
         yield p
 
 @pytest.fixture
