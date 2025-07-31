@@ -25,16 +25,14 @@ nav:
   - Home: index.md
 
 
-  - Guides:
-        - guides/index.md
-        - Agents: guides/agents.md
-        - Tools: guides/tools.md
+
 
   - Tutorials:
         - tutorials/byfa.md
-
-
-
+        - Background:
+            - tutorials/guides/index.md
+            - Agents: tutorials/guides/agents.md
+            - Tools: tutorials/guides/tools.md
 
   - Tools + MCP:
       - tools_mcp/index.md
@@ -54,6 +52,7 @@ nav:
 
   - Observability:
         - observability/index.md
+        - Visualization: observability/visualization.md
         - Logging: observability/logging.md
         - Streaming: observability/streaming.md
 
@@ -89,7 +88,6 @@ nav:
 
 plugins:
   - search
-  - mkdocstrings
   - mermaid2
 
 
@@ -113,7 +111,4 @@ markdown_extensions:
       anchor_linenums: true
   - attr_list
 
-
-extra_css:
-  - css/extra.css
 

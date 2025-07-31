@@ -32,13 +32,17 @@ Agents are already being used in real world applications such as:
 3. 🖊️ Technical Documentation Writing ([ParagraphAI](https://www.paragraphai.com/product))
 4. 🛰️ Deep Research Tools ([GPT Deep Research](https://openai.com/index/introducing-deep-research/))
 
+## 📚 Related Topics
+
+* [Tools](../tools)
+
 # Build Your Own
 
 You don't need to be a rocket scientist to build your own agent. With just a simple prompt and a bit of Python, you’re
 already well on your way to building your first agent.
 applications.
 <div style="text-align:center;">
-    <a href="guides/build" class="md-button" style="margin:3px">Start Building with RailTracks</a>
+    <a href="../../byfa" class="md-button" style="margin:3px">Start Building with RailTracks</a>
 </div>
 
 
