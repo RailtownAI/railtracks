@@ -7,7 +7,7 @@ from typing import (
     TypeVar,
 )
 
-from ..nodes.nodes import Node
+from railtracks.nodes.nodes import Node
 from .call import call
 
 _P = ParamSpec("_P")

@@ -76,9 +76,9 @@ async def test_message_history_not_mutated_terminal_llm(model, terminal_nodes):
 
         return response
 
-    MathGameNode = rt.library.function_node(make_math_game_node)
+    MathGameNode = rt.function_node(make_math_game_node)
 
-    with rt.Session(rt.ExecutorConfig(logging_setting="NONE")) as runner:
+    with rt.Session(logging_setting="NONE") as runner:
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("You can start the game")]
         )
@@ -150,7 +150,7 @@ async def test_message_history_not_mutated_structured_llm(model, structured_node
 
         return prof_grade
 
-    MathProofNode = rt.library.function_node(math_proof_node)
+    MathProofNode = rt.function_node(math_proof_node)
 
     with rt.Session(logging_setting="NONE") as runner:
         message_history = rt.llm.MessageHistory(
@@ -216,7 +216,7 @@ async def test_message_history_not_mutated_tool_call_llm(model, tool_calling_nod
 
         return response
 
-    TravelSummarizerNode = rt.library.function_node(travel_summarizer_node)
+    TravelSummarizerNode = rt.function_node(travel_summarizer_node)
     with rt.Session(logging_setting="NONE") as runner:
         message_history = rt.llm.MessageHistory(
             [
@@ -250,7 +250,7 @@ def add(x: float, y: float):
     return x + y
 
 
-AddNode = rt.library.function_node(add)
+AddNode = rt.function_node(add)
 
 
 def add_many(pairs: list[float]):
@@ -269,8 +269,8 @@ async def async_add_many(pairs: list[float]):
     return total
 
 
-AddManyNode = rt.library.function_node(add_many)
-AddManyAsyncNode = rt.library.function_node(async_add_many)
+AddManyNode = rt.function_node(add_many)
+AddManyAsyncNode = rt.function_node(async_add_many)
 
 
 @pytest.mark.parametrize(
@@ -307,7 +307,7 @@ async def test_even_simple_call_sync_in_async_context():
 
 # ============================================ START Many calls and Timeout tests ============================================
 
-RNGNode = rt.library.function_node(random.random)
+RNGNode = rt.function_node(random.random)
 
 
 async def many_calls(num_calls: int, parallel_calls: int):
@@ -319,7 +319,7 @@ async def many_calls(num_calls: int, parallel_calls: int):
     return data
 
 
-ManyCalls = rt.library.function_node(many_calls)
+ManyCalls = rt.function_node(many_calls)
 
 
 def many_calls_tester(num_calls: int, parallel_calls: int):
@@ -366,8 +366,8 @@ def test_simple_rng():
 
     assert 0 < result.answer < 1
 
-
-class NestedManyCalls(rt.Node):
+from railtracks.nodes.nodes import Node
+class NestedManyCalls(Node):
     def __init__(self, num_calls: int, parallel_calls: int, depth: int):
         self.num_calls = num_calls
         self.parallel_calls = parallel_calls
@@ -504,7 +504,7 @@ async def test_multiple_runs_async():
 def level_3(message: str):
     return message
 
-Level3 = rt.library.function_node(level_3)
+Level3 = rt.function_node(level_3)
 
 async def a_level_2(message: str):
     return await rt.call(Level3, message)
@@ -512,8 +512,8 @@ async def a_level_2(message: str):
 def level_2(message: str):
     return rt.call_sync(Level3, message)
 
-ALevel2 = rt.library.function_node(a_level_2)
-Level2 = rt.library.function_node(level_2)
+ALevel2 = rt.function_node(a_level_2)
+Level2 = rt.function_node(level_2)
 
 @pytest.mark.parametrize("level_2_node", [Level2, ALevel2], ids=["sync", "async"])
 def test_multi_level_calls(level_2_node):
@@ -552,8 +552,8 @@ async def test_multi_level_calls(level_2_node):
     def level_1(message: str):
         return rt.call_sync(level_2_node, message)
 
-    ALevel1 = rt.library.function_node(level_1_async)
-    Level1 = rt.library.function_node(level_1)
+    ALevel1 = rt.function_node(level_1_async)
+    Level1 = rt.function_node(level_1)
 
     with rt.Session(logging_setting="NONE") as run:
         result = await run.run(Level1, "Hello from Level 1")
@@ -581,7 +581,7 @@ async def timeout_node(timeout_len: float):
     return timeout_len
 
 
-TimeoutNode = rt.library.function_node(timeout_node)
+TimeoutNode = rt.function_node(timeout_node)
 
 
 def test_timeout():
@@ -596,7 +596,7 @@ async def timeout_thrower():
     raise asyncio.TimeoutError("Test timeout error")
 
 
-TimeoutThrower = rt.library.function_node(timeout_thrower)
+TimeoutThrower = rt.function_node(timeout_thrower)
 
 
 def test_timeout_thrower():

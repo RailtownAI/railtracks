@@ -10,8 +10,9 @@ from railtracks.exceptions import NodeCreationError
 from railtracks.llm import MessageHistory, UserMessage, Message
 from railtracks.llm.response import Response
 
-from railtracks.nodes.library import function_node
-from railtracks.nodes.library.easy_usage_wrappers.tool_calling_llms.tool_call_llm import tool_call_llm
+from railtracks import function_node
+from railtracks.nodes.concrete import ToolCallLLM
+from railtracks.nodes.easy_usage_wrappers.helpers import tool_call_llm
 
 NODE_INIT_METHODS = ["easy_wrapper", "class_based"]
 
@@ -21,7 +22,7 @@ NODE_INIT_METHODS = ["easy_wrapper", "class_based"]
 async def test_empty_connected_nodes_easy_wrapper(model):
     """Test when the output model is empty while making a node with easy wrapper."""
     with pytest.raises(NodeCreationError, match="tool_nodes must not return an empty set."):
-        _ = rt.library.tool_call_llm(
+        _ = tool_call_llm(
             tool_nodes=set(),
             system_message="You are a helpful assistant that can strucure the response into a structured output.",
             llm_model=model,
@@ -36,7 +37,7 @@ async def test_empty_connected_nodes_class_based(model):
     with pytest.raises(NodeCreationError, match="tool_nodes must not return an empty set."):
 
         system_simple ="Return a simple text and number. Don't use any tools."
-        class SimpleNode(rt.library.ToolCallLLM):
+        class SimpleNode(ToolCallLLM):
             def __init__(
                 self,
                 user_input: rt.llm.MessageHistory,
@@ -102,7 +103,7 @@ async def test_tool_with_llm_tool_as_input_easy_tools():
         return "2 foxes and a dog"
 
     # Define the child tool
-    child_tool = rt.library.tool_call_llm(
+    child_tool = tool_call_llm(
         tool_nodes={function_node(secret_phrase)},
         name="Child Tool",
         system_message=rt.llm.SystemMessage(
@@ -120,7 +121,7 @@ async def test_tool_with_llm_tool_as_input_easy_tools():
     )
 
     # Define the parent tool that uses the child tool
-    parent_tool = rt.library.tool_call_llm(
+    parent_tool = tool_call_llm(
         tool_nodes={child_tool},
         name="Parent Tool",
         system_message=rt.llm.SystemMessage(
@@ -151,7 +152,7 @@ async def test_tool_with_llm_tool_as_input_class_easy():
         return "2 foxes and a dog"
 
     # Define the child tool
-    class ChildTool(rt.library.ToolCallLLM):
+    class ChildTool(ToolCallLLM):
         def __init__(
             self,
             user_input: rt.llm.MessageHistory,
@@ -170,7 +171,7 @@ async def test_tool_with_llm_tool_as_input_class_easy():
 
         @classmethod
         def tool_nodes(cls):
-            return {rt.library.function_node(secret_phrase)}
+            return {function_node(secret_phrase)}
 
         @classmethod
         def tool_info(cls) -> rt.llm.Tool:
@@ -202,7 +203,7 @@ async def test_tool_with_llm_tool_as_input_class_easy():
             return "Child Tool"
 
     # Define the parent tool that uses the child tool
-    parent_tool = rt.library.tool_call_llm(
+    parent_tool = tool_call_llm(
         tool_nodes={ChildTool},
         name="Parent_Tool",
         system_message=rt.llm.SystemMessage(
@@ -233,7 +234,7 @@ async def test_tool_with_llm_tool_as_input_easy_class():
         return "2 foxes and a dog"
 
     # Define the child tool
-    child_tool = rt.library.tool_call_llm(
+    child_tool = tool_call_llm(
         tool_nodes={function_node(secret_phrase)},
         name="Child_Tool",
         system_message=rt.llm.SystemMessage(
@@ -251,7 +252,7 @@ async def test_tool_with_llm_tool_as_input_easy_class():
     )
 
     # Define the parent tool that uses the child tool
-    class ParentTool(rt.library.ToolCallLLM):
+    class ParentTool(ToolCallLLM):
         def return_output(self):
             return self.message_hist[-1]
 
@@ -281,7 +282,7 @@ async def test_tool_with_llm_tool_as_input_easy_class():
 
     # Run the parent tool
     with rt.Session(
-        executor_config=rt.ExecutorConfig(logging_setting="NONE", timeout=1000)
+        logging_setting="NONE", timeout=1000
     ) as runner:
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Give me a response.")]
@@ -301,7 +302,7 @@ async def test_tool_with_llm_tool_as_input_class_tools():
         return "2 foxes and a dog"
 
     # Define the child tool
-    class ChildTool(rt.library.ToolCallLLM):
+    class ChildTool(ToolCallLLM):
         def __init__(
             self,
             user_input: rt.llm.MessageHistory,
@@ -315,12 +316,12 @@ async def test_tool_with_llm_tool_as_input_class_tools():
             )
 
             super().__init__(
-                user_input=message_history_copy, model=rt.llm.OpenAILLM("gpt-4o")
+                user_input=message_history_copy, llm_model=rt.llm.OpenAILLM("gpt-4o")
             )
 
         @classmethod
         def tool_nodes(cls):
-            return {rt.library.function_node(secret_phrase)}
+            return {function_node(secret_phrase)}
 
         @classmethod
         def tool_info(cls) -> rt.llm.Tool:
@@ -352,7 +353,7 @@ async def test_tool_with_llm_tool_as_input_class_tools():
             return "Child Tool"
 
     # Define the parent tool that uses the child tool
-    class ParentTool(rt.library.ToolCallLLM):
+    class ParentTool(ToolCallLLM):
         def return_output(self):
             return self.message_hist[-1]
 

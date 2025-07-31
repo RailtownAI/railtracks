@@ -12,11 +12,11 @@ from typing import Tuple, List, Dict, Union
 from pydantic import BaseModel, Field
 import time
 import asyncio
-from railtracks.llm.tools.parameter_handlers import UnsupportedParameterError
-from railtracks.exceptions.errors import NodeCreationError
+
 import railtracks as rt
 from railtracks.exceptions import NodeCreationError
-from railtracks.nodes.library import function_node
+from railtracks import function_node
+from railtracks.nodes.nodes import Node
 
 class PydanticModel(BaseModel):
     """A simple Pydantic model for testing."""
@@ -83,7 +83,7 @@ def test_to_node():
         """
         return "Constantinople"
 
-    assert issubclass(secret_phrase, rt.Node)
+    assert issubclass(secret_phrase, Node)
     assert secret_phrase.name() == "secret_phrase"
 
 # ===== Test Classes =====
@@ -163,7 +163,7 @@ class TestRaiseErrors:
             return fruits.get("secret", "")
 
         with pytest.raises(NodeCreationError, match=self.DICT_ERROR_FROM_FUNCTION_MSG):
-            _ = rt.library.function_node(secret_function)
+            _ = rt.function_node(secret_function)
 
 
     def test_nested_dict_parameter(self):
@@ -185,7 +185,7 @@ class TestRaiseErrors:
             pass
 
         with pytest.raises(NodeCreationError, match=self.DICT_ERROR_FROM_FUNCTION_MSG):
-            _ = rt.library.function_node(secret_function)
+            _ = rt.function_node(secret_function)
 
 
     def test_bmodel_with_nested_dict_param(self):
@@ -204,7 +204,7 @@ class TestRaiseErrors:
 
     def test_pydantic_for_kwarg_raises_error(self):
         """Test that passing a dict for a kwarg raises an error since we don't support dicts as kwargs yet"""
-        with pytest.raises(UnsupportedParameterError):
+        with pytest.raises(RuntimeError):
             test_node = function_node(func_kwarg_error_pydantic)
             test_node.prepare_tool({"pydantic_model" : ("name", 5)})
 

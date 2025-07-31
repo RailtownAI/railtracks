@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 from ._base import RTError
 
 if TYPE_CHECKING:
-    from ..llm.history import MessageHistory
+    from railtracks.llm.history import MessageHistory
 
 
 class NodeInvocationError(RTError):

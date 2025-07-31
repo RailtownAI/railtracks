@@ -6,6 +6,8 @@ from railtracks.llm.response import Response
 
 from pydantic import BaseModel
 
+from railtracks.nodes.easy_usage_wrappers.helpers import structured_llm
+
 NODE_INIT_METHODS = ["easy_wrapper", "class_based"]
 
 
@@ -168,7 +170,7 @@ def test_return_into_structured(mock_llm):
     def return_structured_message(messages: MessageHistory, basemodel) -> Response:
         return Response(message=Message(role="assistant", content=basemodel(text="Hello", number=42)))
 
-    node = rt.library.structured_llm(
+    node = structured_llm(
         system_message="Hello",
         llm_model=mock_llm(structured=return_structured_message),
         return_into="structured_greeting",  # Store result in context

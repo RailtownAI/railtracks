@@ -41,7 +41,9 @@ class Parameter:
     def __init__(
         self,
         name: str,
-        param_type: ParameterType | list[ParameterType] | Literal["string", "integer", "number", "boolean", "array", "object", "null"],
+        param_type: ParameterType
+        | list[ParameterType]
+        | Literal["string", "integer", "number", "boolean", "array", "object", "null"],
         description: str = "",
         required: bool = True,
         additional_properties: bool = False,

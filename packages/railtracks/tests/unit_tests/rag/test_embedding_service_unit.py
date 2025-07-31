@@ -1,5 +1,5 @@
 import pytest
-from railtracks.RAG.embedding_service import BaseEmbeddingService, EmbeddingService
+from railtracks.integrations.rag.embedding_service import BaseEmbeddingService, EmbeddingService
 
 
 @pytest.fixture(autouse=True)
@@ -14,7 +14,7 @@ def patch_litellm(monkeypatch):
             ]}
 
     # Patch where it is used:
-    import railtracks.RAG.embedding_service as embmod
+    import railtracks.integrations.rag.embedding_service as embmod
     monkeypatch.setattr(embmod, "litellm", DummyLitellm)
 
 def test_repr_includes_class_and_model():

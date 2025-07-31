@@ -1,8 +1,8 @@
 from collections import namedtuple
 from typing import Dict, List, Tuple
 
-from railtracks.state.node import LinkedNode, NodeForest
-from railtracks.state.request import RequestForest, RequestTemplate
+from .node import LinkedNode, NodeForest
+from .request import RequestForest, RequestTemplate
 
 NodeRequestForestTuple = namedtuple(
     "NodeRequestForestTuple", ["node_forest", "request_forest"]

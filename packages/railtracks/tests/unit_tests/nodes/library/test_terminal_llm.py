@@ -1,7 +1,8 @@
 import pytest
 import railtracks as rt
 from railtracks.llm import MessageHistory, SystemMessage, UserMessage
-from railtracks.nodes.library import TerminalLLM, terminal_llm
+from railtracks.nodes.concrete import TerminalLLM
+from railtracks.nodes.easy_usage_wrappers.helpers import terminal_llm
 from railtracks.exceptions import NodeCreationError, NodeInvocationError
 
 
@@ -111,7 +112,7 @@ async def test_terminal_llm_missing_tool_details_easy_usage(mock_llm, encoder_sy
     with pytest.raises(
         NodeCreationError, match="Tool parameters are provided, but tool details are missing."
     ):
-        encoder_wo_tool_details = rt.library.terminal_llm(
+        encoder_wo_tool_details = terminal_llm(
             name="Encoder",
             system_message=encoder_system_message,
             llm_model=mock_llm(),
@@ -133,7 +134,7 @@ async def test_terminal_llm_tool_duplicate_parameter_names_easy_usage(
     with pytest.raises(
         NodeCreationError, match="Duplicate parameter names are not allowed."
     ):
-       encoder_w_duplicate_param = rt.library.terminal_llm(
+       encoder_w_duplicate_param = terminal_llm(
             name="Encoder",
             system_message=encoder_system_message,
             llm_model=mock_llm(),
@@ -149,7 +150,7 @@ async def test_tool_info_not_classmethod(mock_llm, encoder_system_message):
     with pytest.raises(
         NodeCreationError, match="The 'tool_info' method must be a @classmethod."
     ):
-        class Encoder(rt.library.TerminalLLM):
+        class Encoder(TerminalLLM):
             def __init__(
                     self,
                     user_input: rt.llm.MessageHistory,
@@ -183,7 +184,7 @@ async def test_tool_info_not_classmethod(mock_llm, encoder_system_message):
 # =================== START invocation exceptions =====================
 @pytest.mark.asyncio
 async def test_no_message_history_easy_usage(mock_llm):
-    simple_agent = rt.library.terminal_llm(
+    simple_agent = rt.agent_node(
             name="Encoder",
             llm_model=mock_llm(),
         )
@@ -193,7 +194,7 @@ async def test_no_message_history_easy_usage(mock_llm):
 
 @pytest.mark.asyncio
 async def test_no_message_history_class_based():
-    class Encoder(rt.library.TerminalLLM):
+    class Encoder(TerminalLLM):
         def __init__(self, user_input: rt.llm.MessageHistory, llm_model: rt.llm.ModelBase = None):
             super().__init__(user_input=user_input, llm_model=llm_model)
 
@@ -207,7 +208,7 @@ async def test_no_message_history_class_based():
 @pytest.mark.asyncio
 async def test_system_message_as_a_string_class_based(mock_llm):
     # if a string is provided as system_message in a class based initialization, we are throwing an error
-    class Encoder(rt.library.TerminalLLM):
+    class Encoder(TerminalLLM):
         def __init__(
                 self,
                 user_input: rt.llm.MessageHistory,

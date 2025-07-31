@@ -3,14 +3,14 @@ import railtracks as rt
 
 from railtracks.llm import MessageHistory, Message
 from railtracks.llm.response import Response
-from railtracks.nodes.library.easy_usage_wrappers.terminal_llm import terminal_llm
-
+from railtracks.nodes.concrete import TerminalLLM
+from railtracks.nodes.easy_usage_wrappers.helpers import terminal_llm, tool_call_llm
 
 
 # ================================================ START terminal_llm basic functionality =========================================================
 @pytest.mark.asyncio
 async def test_terminal_llm_easy_usage_run(model , encoder_system_message):
-    encoder_agent = rt.library.terminal_llm(
+    encoder_agent = terminal_llm(
         name="Encoder",
         system_message=encoder_system_message,
         llm_model=model,
@@ -21,7 +21,7 @@ async def test_terminal_llm_easy_usage_run(model , encoder_system_message):
     assert isinstance(response.text, str)
 
 def test_terminal_llm_class_based_run(model , encoder_system_message):
-    class Encoder(rt.library.TerminalLLM):
+    class Encoder(TerminalLLM):
         def __init__(
                 self,
                 user_input: rt.llm.MessageHistory,
@@ -64,7 +64,7 @@ def test_return_into(mock_llm):
 @pytest.mark.asyncio
 async def test_terminal_llm_easy_usage_with_string(model, encoder_system_message):
     """Test that the easy usage wrapper can be called with a string input."""
-    encoder_agent = rt.library.terminal_llm(
+    encoder_agent = terminal_llm(
         name="Encoder",
         system_message=encoder_system_message,
         llm_model=model,
@@ -78,7 +78,7 @@ async def test_terminal_llm_easy_usage_with_string(model, encoder_system_message
 @pytest.mark.asyncio
 async def test_terminal_llm_easy_usage_with_user_message(model, encoder_system_message):
     """Test that the easy usage wrapper can be called with a UserMessage input."""
-    encoder_agent = rt.library.terminal_llm(
+    encoder_agent = terminal_llm(
         name="Encoder",
         system_message=encoder_system_message,
         llm_model=model,
@@ -111,7 +111,7 @@ async def test_terminal_llm_as_tool_correct_initialization(
         rt.llm.Parameter("bytes_input", "string", "The bytes you would like to decode")
     }
 
-    encoder = rt.library.terminal_llm(
+    encoder = terminal_llm(
         name="Encoder",
         system_message=encoder_system_message,
         llm_model=model,
@@ -119,7 +119,7 @@ async def test_terminal_llm_as_tool_correct_initialization(
         tool_details=encoder_tool_details,
         tool_params=encoder_tool_params,
     )
-    decoder = rt.library.terminal_llm(
+    decoder = terminal_llm(
         name="Decoder",
         system_message=decoder_system_message,
         llm_model=model,
@@ -147,7 +147,7 @@ async def test_terminal_llm_as_tool_correct_initialization(
         f"Decoder parameters {decoder_params} should be instances of rc.llm.Parameter"
     )
 
-    randomizer = rt.library.tool_call_llm(
+    randomizer = tool_call_llm(
         tool_nodes={encoder, decoder},
         llm_model=model,
         name="Randomizer",
@@ -171,7 +171,7 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(model):
 
     rng_tool_details = "A tool that generates 5 random integers between 1 and 100."
 
-    rng_node = rt.library.terminal_llm(
+    rng_node = terminal_llm(
         name="RNG Tool",
         system_message="You are a helful assistant that can generate 5 random numbers between 1 and 100.",
         llm_model=model,
@@ -185,7 +185,7 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(model):
 
     system_message = "You are a math genius that calls the RNG tool to generate 5 random numbers between 1 and 100 and gives the sum of those numbers."
 
-    math_node = rt.library.tool_call_llm(
+    math_node = tool_call_llm(
         tool_nodes={rng_node},
         name="Math Node",
         system_message=system_message,
@@ -212,7 +212,7 @@ async def test_terminal_llm_tool_with_invalid_parameters_easy_usage(model, encod
         rt.llm.Parameter("text_input", "string", "The string to encode.")
     }
 
-    encoder = rt.library.terminal_llm(
+    encoder = terminal_llm(
         name="Encoder",
         system_message=encoder_system_message,
         llm_model=model,
@@ -221,7 +221,7 @@ async def test_terminal_llm_tool_with_invalid_parameters_easy_usage(model, encod
     )
 
     system_message = "You are a helful assitant. Use the encoder tool with invalid parameters (invoke the tool with invalid parameters) once and then invoke it again with valid parameters."
-    tool_call_llm = rt.library.tool_call_llm(
+    tool_call_llm = rt.agent_node(
         tool_nodes={encoder},
         llm_model=model,
         name="InvalidToolCaller",

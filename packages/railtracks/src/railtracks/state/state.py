@@ -28,12 +28,13 @@ from .request import Cancelled, Failure
 from .utils import create_sub_state_info
 
 if TYPE_CHECKING:
-    from .. import ExecutorConfig
-from ..exceptions import FatalError, NodeInvocationError
-from ..info import ExecutionInfo
-from ..nodes.nodes import Node
-from ..utils.logging.create import get_rt_logger
-from ..utils.profiling import Stamp
+    from railtracks.utils.config import ExecutorConfig
+
+from railtracks.exceptions import FatalError, NodeInvocationError
+from .info import ExecutionInfo
+from railtracks.nodes.nodes import Node
+from railtracks.utils.logging.create import get_rt_logger
+from railtracks.utils.profiling import Stamp
 
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
@@ -169,9 +170,7 @@ class RTState:
         # 2. Add it to the node heap.
         sc = self._stamper.stamp_creator()
         parent_node_type = self._node_heap.get_node_type(parent_node_id)
-        parent_node_name = (
-            parent_node_type.name() if parent_node_type else "START"
-        )
+        parent_node_name = parent_node_type.name() if parent_node_type else "START"
 
         request_creation_obj = RequestCreationAction(
             parent_node_name=parent_node_name,
@@ -235,9 +234,7 @@ class RTState:
         except Exception as e:
             # TODO improve this so we know the name of the node trying to be created in the case of a tool call llm.
             rfa = RequestFailureAction(
-                node_name=node.name()
-                if hasattr(node, "name")
-                else node.__name__,
+                node_name=node.name() if hasattr(node, "name") else node.__name__,
                 exception=e,
             )
             await self.publisher.publish(
@@ -447,9 +444,7 @@ class RTState:
         else:
             raise TypeError(f"Unknown result type: {type(result)}")
 
-        stamp = self._stamper.create_stamp(
-            f"Finished executing {result.node.name()}"
-        )
+        stamp = self._stamper.create_stamp(f"Finished executing {result.node.name()}")
 
         self._request_heap.update(result.request_id, output, stamp)
         self._node_heap.update(result.node, stamp)

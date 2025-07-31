@@ -2,11 +2,11 @@ from unittest.mock import MagicMock
 
 from pydantic import BaseModel
 
-from railtracks.nodes.nodes import Node, _TOutput
-from railtracks.nodes.library import TerminalLLM, StructuredLLM
-from railtracks.nodes.library.easy_usage_wrappers.one_wrapper import agent_node
-from railtracks.nodes.library.tool_calling_llms.structured_tool_call_llm_base import StructuredToolCallLLM
-from railtracks.nodes.library.tool_calling_llms.tool_call_llm_base import ToolCallLLM
+from railtracks.nodes.nodes import Node
+from railtracks.nodes.concrete import TerminalLLM, StructuredLLM
+from railtracks import agent_node
+from railtracks.nodes.concrete import StructuredToolCallLLM
+from railtracks.nodes.concrete import ToolCallLLM
 
 
 def test_create_new_agent_terminal():

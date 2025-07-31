@@ -6,7 +6,7 @@
 import os
 
 from mcp import StdioServerParameters
-from railtracks.nodes.library import from_mcp_server, tool_call_llm
+from railtracks.nodes.library import connect_mcp, tool_call_llm
 import railtracks as rt
 
 MCP_COMMAND = "npx"
@@ -18,7 +18,7 @@ slack_env = {
     "SLACK_CHANNEL_IDS": os.environ['SLACK_CHANNEL_IDS'],
 }
 
-server = from_mcp_server(
+server = connect_mcp(
     StdioServerParameters(
         command=MCP_COMMAND,
         args=MCP_ARGS,

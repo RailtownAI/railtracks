@@ -18,7 +18,7 @@ Use the `create_mcp_server` utility to expose your RT nodes as MCP tools:
 
 ```python
 from railtracks.nodes.library import function_node
-from railtracks.rt_mcp.to_node import create_mcp_server
+from railtracks.integrations.rt_mcp.node_to_mcp import create_mcp_server
 
 
 def add_nums_plus_ten(num1: int, num2: int):
@@ -41,7 +41,7 @@ Any MCP-compatible client or LLM agent can now discover and invoke your tool. As
 
 ```python
 from railtracks.nodes.library.mcp_tool import from_mcp_server
-from railtracks.rt_mcp.main import MCPHttpParams
+from railtracks.integrations.rt_mcp.main import MCPHttpParams
 
 server = from_mcp_server(MCPHttpParams(url="http://127.0.0.1:8000/mcp"))
 tools = server.tools

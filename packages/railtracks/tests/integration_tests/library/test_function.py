@@ -12,7 +12,7 @@ from typing import Tuple, List, Dict, Union, Optional
 from pydantic import BaseModel, Field
 import time
 
-from railtracks.nodes.library import function_node
+
 from railtracks.state.request import Failure
 import railtracks as rt
 

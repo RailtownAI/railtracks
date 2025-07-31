@@ -1,14 +1,10 @@
-import asyncio
-
 import threading
 import time
 
-import pytest
-
 import railtracks as rt
-from railtracks.rt_mcp import MCPHttpParams
-from railtracks.rt_mcp.to_node import create_mcp_server
-from railtracks.nodes import library as rt_library
+from railtracks.integrations.rt_mcp import MCPHttpParams, create_mcp_server, connect_mcp
+
+
 
 from mcp.server import FastMCP
 
@@ -49,7 +45,7 @@ def add_nums(num1: int, num2: int, print_s: str):
     return num1 + num2 + 10
 
 
-node = rt_library.function_node(add_nums)
+node = rt.function_node(add_nums)
 
 FAST_MCP_PORT = get_free_port(8000)
 
@@ -82,7 +78,7 @@ def mcp_server():
 #                                    Tests                                    #
 # --------------------------------------------------------------------------- #
 def test_add_nums_tool(mcp_server):
-    server = rt_library.from_mcp_server(
+    server = connect_mcp(
         MCPHttpParams(url=f"http://127.0.0.1:{FAST_MCP_PORT}/mcp")
     )
     assert len(server.tools) == 1

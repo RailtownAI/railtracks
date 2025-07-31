@@ -5,9 +5,9 @@ import os
 import warnings
 from typing import Any, Callable, Coroutine
 
-from railtracks.config import ExecutorConfig
-from railtracks.context.external import ExternalContext, MutableExternalContext
-from railtracks.context.internal import InternalContext
+from railtracks.utils.config import ExecutorConfig
+from .external import ExternalContext, MutableExternalContext
+from .internal import InternalContext
 from railtracks.exceptions import ContextError
 from railtracks.pubsub.publisher import RTPublisher
 from railtracks.utils.logging.config import allowable_log_levels
@@ -293,17 +293,17 @@ def put(
 
 
 def set_config(
-        *,
+    *,
     timeout: float | None = None,
-        end_on_error: bool | None = None,
-        logging_setting: allowable_log_levels | None = None,
-        log_file: str | os.PathLike | None = None,
-        broadcast_callback: (
-            Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
-        ) = None,
-        run_identifier: str | None = None,
-        prompt_injection: bool | None = None,
-        save_state: bool | None = None,
+    end_on_error: bool | None = None,
+    logging_setting: allowable_log_levels | None = None,
+    log_file: str | os.PathLike | None = None,
+    broadcast_callback: (
+        Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
+    ) = None,
+    run_identifier: str | None = None,
+    prompt_injection: bool | None = None,
+    save_state: bool | None = None,
 ):
     """
     Sets the global configuration for the executor. This will be propagated to all new runners created after this call.
@@ -332,4 +332,3 @@ def set_config(
     )
 
     global_executor_config.set(new_config)
-

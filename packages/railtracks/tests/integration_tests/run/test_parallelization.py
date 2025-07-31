@@ -14,8 +14,8 @@ async def timeout_node_async(t_: float):
     return t_
 
 
-TimeoutNode = rt.library.function_node(timeout_node)
-TimeoutNodeAsync = rt.library.function_node(timeout_node_async)
+TimeoutNode = rt.function_node(timeout_node)
+TimeoutNodeAsync = rt.function_node(timeout_node_async)
 
 
 async def top_level_async():
@@ -42,8 +42,8 @@ async def top_level():
     return result
 
 
-TopLevelAsync = rt.library.function_node(top_level_async)
-TopLevel = rt.library.function_node(top_level)
+TopLevelAsync = rt.function_node(top_level_async)
+TopLevel = rt.function_node(top_level)
 
 
 @pytest.mark.timeout(4)

@@ -1,7 +1,7 @@
 #%%
 import asyncio
 import railtracks as rt
-from railtracks.nodes.library.easy_usage_wrappers.mcp_tool import from_mcp_server
+from railtracks.nodes.library.easy_usage_wrappers.mcp_tool import connect_mcp
 from railtracks.rt_mcp import MCPHttpParams, MCPStdioParams
 
 
@@ -14,8 +14,8 @@ MCP_ARGS = ["mcp-server-time"]
 # 
 #%%
 # Discover all tools
-fetch_server = from_mcp_server(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))
-time_server = from_mcp_server(MCPStdioParams(command=MCP_COMMAND, args=MCP_ARGS))
+fetch_server = connect_mcp(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))
+time_server = connect_mcp(MCPStdioParams(command=MCP_COMMAND, args=MCP_ARGS))
 
 fetch_tools = fetch_server.tools
 time_tools = time_server.tools

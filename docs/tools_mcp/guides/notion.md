@@ -6,7 +6,7 @@ To use Notion tools with RT, use the `from_mcp_server` utility to load tools dir
 import json
 import os
 from mcp import StdioServerParameters
-from railtracks.nodes.library.easy_usage_wrappers.mcp_tool import from_mcp_server
+from railtracks.nodes.library.easy_usage_wrappers.mcp_tool import connect_mcp
 
 MCP_COMMAND = "npx"
 MCP_ARGS = ["-y", "@notionhq/notion-mcp-server"]
@@ -21,7 +21,7 @@ notion_env = {
     "OPENAPI_MCP_HEADERS": json.dumps(headers)
 }
 
-server = from_mcp_server(
+server = connect_mcp(
     StdioServerParameters(
         command=MCP_COMMAND,
         args=MCP_ARGS,

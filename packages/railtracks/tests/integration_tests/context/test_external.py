@@ -1,7 +1,7 @@
 import pytest
 import railtracks as rt
 from railtracks.context import put, get
-from railtracks.nodes.library import function_node
+from railtracks import function_node
 from railtracks.interaction.call import call
 
 

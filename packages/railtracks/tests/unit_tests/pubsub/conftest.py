@@ -58,7 +58,7 @@ def dummy_publisher():
 
 @pytest.fixture
 def logger_patch():
-    with patch("railtracks.pubsub.publisher.logger") as mock_logger:
+    with patch("railtracks.utils.publisher.logger") as mock_logger:
         yield mock_logger
 
 # ================================== Message Fixtures ==================================

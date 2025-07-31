@@ -1,8 +1,9 @@
 import pytest
 import asyncio
 import time
-from railtracks.pubsub.publisher import Subscriber, Publisher
-from railtracks.pubsub.subscriber import stream_subscriber
+from railtracks.utils.publisher import Publisher, Subscriber
+
+from railtracks.pubsub._subscriber import stream_subscriber
 from railtracks.pubsub.messages import RequestCompletionMessage
 
 # ================= START Subscriber class tests ============

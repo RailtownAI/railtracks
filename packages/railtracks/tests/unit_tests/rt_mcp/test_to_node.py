@@ -1,5 +1,5 @@
 import pytest
-from railtracks.rt_mcp.to_node import create_tool_function, create_mcp_server
+from railtracks.integrations.rt_mcp.node_to_mcp import _create_tool_function, create_mcp_server
 from unittest.mock import MagicMock
 from mcp.server.fastmcp import FastMCP
 
@@ -10,7 +10,7 @@ from mcp.server.fastmcp import FastMCP
 async def test_create_tool_function_signature_and_doc(
     mock_node_cls, mock_node_info, mock_executor_config, mock_call
 ):
-    tool_fn = create_tool_function(
+    tool_fn = _create_tool_function(
         node_cls=mock_node_cls,
         node_info=mock_node_info,
     )
@@ -38,7 +38,7 @@ def test_create_tool_function_with_no_params(
     mock_node_info.parameters = None
     mock_node_info.name = "basic"
     mock_node_info.detail = "detail"
-    tool_fn = create_tool_function(
+    tool_fn = _create_tool_function(
         node_cls=mock_node_cls,
         node_info=mock_node_info,
 

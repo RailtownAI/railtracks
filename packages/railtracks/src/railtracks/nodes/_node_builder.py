@@ -18,30 +18,27 @@ from typing import (
 
 from pydantic import BaseModel
 
-from railtracks.exceptions.node_creation.validation import (
+from railtracks.validation.node_creation.validation import (
     _check_duplicate_param_names,
     _check_max_tool_calls,
     _check_system_message,
     _check_tool_params_and_details,
-    check_connected_nodes, validate_tool_params,
+    check_connected_nodes,
 )
 from railtracks.llm import (
     ModelBase,
     Parameter,
     SystemMessage,
     Tool,
+
 )
 from railtracks.llm.type_mapping import TypeMapper
-from railtracks.nodes.library._llm_base import LLMBase
-from railtracks.nodes.library.easy_usage_wrappers.mcp_tool import from_mcp_server
-from railtracks.nodes.library.function_base import DynamicFunctionNode
-from railtracks.nodes.library.tool_calling_llms._base import (
-    OutputLessToolCallLLM,
-)
-from railtracks.nodes.library.tool_calling_llms.tool_call_llm_base import ToolCallLLM
-from railtracks.nodes.nodes import Node
-from railtracks.rt_mcp import MCPStdioParams
-from railtracks.visuals.browser.chat_ui import ChatUI
+from .concrete import LLMBase, DynamicFunctionNode, OutputLessToolCallLLM
+
+
+from .nodes import Node
+
+from railtracks.utils.visuals.browser.chat_ui import ChatUI
 
 _TNode = TypeVar("_TNode", bound=Node)
 _P = ParamSpec("_P")
@@ -81,9 +78,7 @@ class NodeBuilder(Generic[_TNode]):
         self._methods = {}
 
         if name is not None:
-            self._with_override(
-                "name", classmethod(lambda cls: name or cls.__name__)
-            )
+            self._with_override("name", classmethod(lambda cls: name or cls.__name__))
 
         if return_into is not None:
             self._with_override("return_into", classmethod(lambda cls: return_into))
@@ -164,7 +159,7 @@ class NodeBuilder(Generic[_TNode]):
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         )
 
-        from railtracks.nodes.library.easy_usage_wrappers.function import (
+        from railtracks import (
             function_node,
         )
 
@@ -178,42 +173,6 @@ class NodeBuilder(Generic[_TNode]):
 
         _check_max_tool_calls(max_tool_calls)
         check_connected_nodes(connected_nodes, Node)
-
-        self._with_override("tool_nodes", classmethod(lambda cls: connected_nodes))
-        self._with_override("max_tool_calls", max_tool_calls)
-
-    def mcp_llm(self, mcp_command, mcp_args, mcp_env, max_tool_calls):
-        """
-        Configure the node subclass to use MCP (Model Context Protocol) tool calling.
-
-        This method sets up the node to call tools via an MCP server, specifying the command, arguments,
-        environment, and maximum tool calls.
-
-        Args:
-            mcp_command (str): The command to run the MCP server (e.g., 'npx').
-            mcp_args (list): Arguments to pass to the MCP server command.
-            mcp_env (dict or None): Environment variables for the MCP server process.
-            max_tool_calls (int): Maximum number of tool calls allowed per invocation.
-
-        Raises:
-            AssertionError: If the node class is not a subclass of ToolCallLLM.
-        """
-
-        assert issubclass(self._node_class, ToolCallLLM), (
-            f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
-        )
-        tools = from_mcp_server(
-            MCPStdioParams(
-                command=mcp_command,
-                args=mcp_args,
-                env=mcp_env if mcp_env is not None else None,
-            )
-        )
-
-        connected_nodes = {*tools}
-
-        _check_max_tool_calls(max_tool_calls)
-        check_connected_nodes(connected_nodes, self._node_class)
 
         self._with_override("tool_nodes", classmethod(lambda cls: connected_nodes))
         self._with_override("max_tool_calls", max_tool_calls)

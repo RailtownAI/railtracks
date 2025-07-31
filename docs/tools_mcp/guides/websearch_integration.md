@@ -29,7 +29,7 @@ Before implementing this integration, you'll need:
 ```python
 from dotenv import load_dotenv
 import os
-from railtracks.nodes.library import from_mcp_server, tool_call_llm
+from railtracks.nodes.library import connect_mcp, tool_call_llm
 import railtracks as rt
 from railtracks.rt_mcp import MCPHttpParams
 import aiohttp

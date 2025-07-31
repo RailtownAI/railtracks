@@ -3,6 +3,7 @@ import railtracks as rt
 from typing import List, Callable
 from pydantic import BaseModel, Field
 from railtracks.llm import SystemMessage
+from railtracks.nodes.concrete import ToolCallLLM
 
 
 # ============ Model ===========
@@ -41,7 +42,7 @@ def create_top_level_node():
             A ToolCallLLM node that can be used to test the function.
         """
 
-        class TopLevelNode(rt.library.ToolCallLLM):
+        class TopLevelNode(ToolCallLLM):
             def __init__(self, user_input: rt.llm.MessageHistory):
                 user_input.insert(0, self.system_message())
 
@@ -65,7 +66,7 @@ def create_top_level_node():
 
             @classmethod
             def tool_nodes(cls):
-                return {rt.library.function_node(test_function)}
+                return {rt.function_node(test_function)}
 
             @classmethod
             def name(cls) -> str:

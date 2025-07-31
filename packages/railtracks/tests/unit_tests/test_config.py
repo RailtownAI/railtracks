@@ -3,7 +3,7 @@ import uuid
 import types
 import pytest
 
-from railtracks.config import ExecutorConfig
+from railtracks.utils.config import ExecutorConfig
 
 # ================= START ExecutorConfig: Fixtures ============
 @pytest.fixture(params=["REGULAR", "DEBUG", "ERROR"])

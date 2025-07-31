@@ -3,8 +3,6 @@ from typing import Any, Callable, Dict, List, Tuple, Type, Union, get_args, get_
 
 from pydantic import BaseModel
 
-from railtracks.llm.tools.parameter_handlers import UnsupportedParameterError
-
 
 class TypeMapper:
     """
@@ -70,7 +68,7 @@ class TypeMapper:
         # Handle dictionary types - raise UnsupportedParameterException
         if origin in (dict, Dict):
             param_type = str(target_type)
-            raise UnsupportedParameterError(param_name, param_type)
+            raise RuntimeError(param_name, param_type)
 
         # Handle sequence types (lists and tuples) consistently
         if origin in (list, tuple):
@@ -94,7 +92,7 @@ class TypeMapper:
         """Convert a value to a Pydantic model."""
         if isinstance(value, dict):
             return model_class(**value)
-        raise UnsupportedParameterError(str(value), str(type(value)))
+        raise RuntimeError(str(value), str(type(value)))
 
     @classmethod
     def _convert_to_sequence(

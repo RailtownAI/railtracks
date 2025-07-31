@@ -4,8 +4,8 @@ import railtracks as rt
 
 from railtracks.llm import Parameter
 from railtracks.nodes.manifest import ToolManifest
-from railtracks.nodes.library.easy_usage_wrappers.one_wrapper import agent_node
-from railtracks.nodes.library.easy_usage_wrappers.terminal_llm import terminal_llm
+from railtracks.nodes.easy_usage_wrappers.agent import agent_node
+from railtracks.nodes.easy_usage_wrappers.helpers import terminal_llm
 
 def test_create_with_manifest():
     param = Parameter(

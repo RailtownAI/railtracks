@@ -5,12 +5,12 @@
 import os
 
 from railtracks.rt_mcp import MCPHttpParams
-from railtracks.nodes.library.easy_usage_wrappers.mcp_tool import from_mcp_server
+from railtracks.nodes.library.easy_usage_wrappers.mcp_tool import connect_mcp
 
 from railtracks.nodes.library.easy_usage_wrappers.tool_calling_llms.tool_call_llm import tool_call_llm
 import railtracks as rt
 
-server = from_mcp_server(
+server = connect_mcp(
     MCPHttpParams(
         url="https://api.githubcopilot.com/mcp/",
         headers={

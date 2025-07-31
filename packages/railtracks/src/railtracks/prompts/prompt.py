@@ -1,37 +1,19 @@
 import string
 
-import railtracks as rt
+
 from railtracks.exceptions import ContextError
 
-from ..context.central import get_local_config
-from ..llm import Message, MessageHistory
+import railtracks.context as context
+from railtracks.context.central import get_local_config
+from railtracks.llm import MessageHistory
+from railtracks.utils.prompt_injection import ValueDict, inject_values
 
 
-class KeyOnlyFormatter(string.Formatter):
-    """
-    A simple formatter which will only use keyword arguments to fill placeholders.
-    """
-
-    def get_value(self, key, args, kwargs):
-        try:
-            return kwargs[str(key)]
-        except KeyError:
-            return f"{{{key}}}"
-
-
-class _ContextDict(dict):
+class _ContextDict(ValueDict):
     def __getitem__(self, key):
-        return rt.context.get(key)
-
-    def __missing__(self, key):
-        return f"{{{key}}}"  # Return the placeholder if not found
+        return context.get(key)
 
 
-def fill_prompt(prompt: str) -> str:
-    """
-    Fills a prompt using the railtracks context object as its source of truth
-    """
-    return KeyOnlyFormatter().vformat(prompt, (), _ContextDict())
 
 
 def inject_context(message_history: MessageHistory):
@@ -51,15 +33,6 @@ def inject_context(message_history: MessageHistory):
         is_prompt_inject = False
 
     if is_prompt_inject:
-        for i, message in enumerate(message_history):
-            if message.inject_prompt and isinstance(message.content, str):
-                try:
-                    message_history[i] = Message(
-                        role=message.role.value,
-                        content=fill_prompt(message.content),
-                        inject_prompt=False,
-                    )
-                except ValueError:
-                    pass
+        inject_values(message_history, _ContextDict())
 
     return message_history

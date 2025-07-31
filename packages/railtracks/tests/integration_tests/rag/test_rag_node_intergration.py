@@ -1,16 +1,22 @@
 import pytest
 import railtracks as rt
-from railtracks.RAG.rag_node import get_rag_node
-from conftest import get_docs
+
+from railtracks.nodes.nodes import Node
+from railtracks.integrations.rag import rag_node
+
+
+
+
 
 def test_node_search_question(get_docs):
+
     docs = get_docs
-    rag_node: rt.Node = get_rag_node(
+    node = rag_node(
         documents=docs,
     )
 
     query = "What is the color of watermelon?"
-    result = rt.call_sync(rag_node, query)
+    result = rt.call_sync(node, query)
     print(query)
     print(result[0].record.text)
     print(result[1].record.text)
@@ -22,12 +28,12 @@ def test_node_search_question(get_docs):
 
 def test_node_search_confirmation(get_docs):
     docs = get_docs
-    rag_node: rt.Node = get_rag_node(
+    node = rag_node(
         documents=docs,
     )
 
     query = "Pear is yellow"
-    result = rt.call_sync(rag_node, query)
+    result = rt.call_sync(node, query)
     print(query)
     print(result[0].record.text)
     print(result[1].record.text)

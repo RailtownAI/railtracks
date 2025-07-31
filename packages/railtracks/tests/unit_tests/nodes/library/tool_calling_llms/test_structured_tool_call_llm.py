@@ -3,11 +3,11 @@ import railtracks as rt
 from pydantic import BaseModel, Field
 
 from railtracks.llm.response import Response
-from railtracks.nodes.library import structured_tool_call_llm
+from railtracks.nodes.easy_usage_wrappers.helpers import structured_tool_call_llm, structured_llm
 from railtracks.exceptions import NodeCreationError, LLMError
 from railtracks.llm import MessageHistory, SystemMessage, UserMessage, AssistantMessage
 
-from railtracks.nodes.library.tool_calling_llms.structured_tool_call_llm_base import StructuredToolCallLLM
+from railtracks.nodes.concrete import StructuredToolCallLLM
 
 
 # =========================== Basic functionality ==========================
@@ -220,8 +220,8 @@ class SimpleOutput(BaseModel):
 @pytest.mark.parametrize(
     "llm_function, tool_nodes",
     [
-        (rt.library.structured_tool_call_llm, {rt.library.function_node(lambda: "test")}),
-        (rt.library.structured_llm, None),
+        (structured_tool_call_llm, {rt.function_node(lambda: "test")}),
+        (structured_llm, None),
     ],
     ids=["tool_call_llm", "structured_llm"],
 )

@@ -3,11 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, Optional, ParamSpec, Type
 
-from ..nodes.nodes import (
+from railtracks.nodes.nodes import (
     Node,
 )
-from ..utils.profiling import Stamp
-from ..utils.serialization.graph import Vertex
+from railtracks.utils.profiling import Stamp
+from railtracks.utils.serialization.graph import Vertex
 from .forest import (
     AbstractLinkedObject,
     Forest,

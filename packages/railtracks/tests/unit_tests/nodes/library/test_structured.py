@@ -3,7 +3,8 @@ import railtracks as rt
 from pydantic import BaseModel
 from railtracks.llm import MessageHistory, SystemMessage, ModelBase, UserMessage, AssistantMessage, ToolMessage, ToolResponse
 from railtracks.llm.response import Response
-from railtracks.nodes.library import structured_llm, StructuredLLM
+from railtracks.nodes.concrete import StructuredLLM
+from railtracks.nodes.easy_usage_wrappers.helpers import structured_llm
 from railtracks.exceptions import NodeCreationError, NodeInvocationError
 from typing import Type
 
@@ -65,7 +66,7 @@ def test_structured_llm_easy_usage_wrapper_classmethods(simple_output_model, moc
 @pytest.mark.asyncio
 async def test_easy_usage_no_output_model():
     with pytest.raises(NodeCreationError, match="Output model cannot be empty"):
-        _ = rt.library.structured_llm(
+        _ = structured_llm(
             output_schema=None,
             system_message="You are a helpful assistant that can strucure the response into a structured output.",
             llm_model=rt.llm.OpenAILLM("gpt-4o"),
@@ -75,7 +76,7 @@ async def test_easy_usage_no_output_model():
 @pytest.mark.asyncio
 async def test_easy_usage_empty_output_model(empty_output_model):
     with pytest.raises(NodeCreationError, match="Output model cannot be empty"):
-        _ = rt.library.structured_llm(
+        _ = structured_llm(
             output_schema=empty_output_model,
             system_message="You are a helpful assistant that can strucure the response into a structured output.",
             llm_model=rt.llm.OpenAILLM("gpt-4o"),
@@ -88,7 +89,7 @@ async def test_easy_usage_tool_details_not_provided(simple_output_model):
         NodeCreationError,
         match="Tool parameters are provided, but tool details are missing.",
     ):
-        _ = rt.library.structured_llm(
+        _ = structured_llm(
             output_schema=simple_output_model,
             system_message="You are a helpful assistant that can strucure the response into a structured output.",
             llm_model=rt.llm.OpenAILLM("gpt-4o"),
@@ -108,7 +109,7 @@ async def test_easy_usage_duplicate_parameter_names(simple_output_model):
     with pytest.raises(
         NodeCreationError, match="Duplicate parameter names are not allowed."
     ):
-        _ = rt.library.structured_llm(
+        _ = structured_llm(
             output_schema=simple_output_model,
             system_message="You are a helpful assistant that can strucure the response into a structured output.",
             llm_model=rt.llm.OpenAILLM("gpt-4o"),
@@ -131,7 +132,7 @@ async def test_easy_usage_duplicate_parameter_names(simple_output_model):
 
 @pytest.mark.asyncio
 async def test_easy_usage_system_message_as_a_string(simple_output_model):
-    Node_Class = rt.library.structured_llm(
+    Node_Class = rt.agent_node(
         output_schema=simple_output_model,
         system_message="You are a helpful assistant that can structure the response into a structured output.",
         llm_model=rt.llm.OpenAILLM("gpt-4o"),
@@ -146,7 +147,7 @@ async def test_easy_usage_system_message_as_a_string(simple_output_model):
 @pytest.mark.asyncio
 async def test_system_message_as_a_user_message(simple_output_model):
     with pytest.raises(NodeCreationError, match="system_message must be of type string or SystemMessage, not any other type."):
-        _ = rt.library.structured_llm(
+        _ = rt.agent_node(
             output_schema=simple_output_model,
             system_message=rt.llm.UserMessage("You are a helpful assistant that can structure the response into a structured output."),
             llm_model=rt.llm.OpenAILLM("gpt-4o"),
@@ -158,7 +159,7 @@ async def test_system_message_as_a_user_message(simple_output_model):
 @pytest.mark.asyncio
 async def test_class_based_empty_output_model(empty_output_model):
     with pytest.raises(NodeCreationError, match="Output model cannot be empty."):
-        class Structurer(rt.library.StructuredLLM):
+        class Structurer(StructuredLLM):
             def __init__(
                 self,
                 user_input: rt.llm.MessageHistory,
@@ -182,7 +183,7 @@ async def test_class_based_empty_output_model(empty_output_model):
 @pytest.mark.asyncio
 async def test_class_based_output_model_not_class_based(simple_output_model):
     with pytest.raises(NodeCreationError, match="The 'output_schema' method must be a @classmethod."):
-        class Structurer(rt.library.StructuredLLM):
+        class Structurer(StructuredLLM):
             def __init__(
                 self,
                 user_input: rt.llm.MessageHistory,
@@ -205,7 +206,7 @@ async def test_class_based_output_model_not_class_based(simple_output_model):
 @pytest.mark.asyncio
 async def test_class_based_output_model_not_pydantic():
     with pytest.raises(NodeCreationError, match="Output model must be a pydantic model"):
-        class Structurer(rt.library.StructuredLLM):
+        class Structurer(StructuredLLM):
             def __init__(
                 self,
                 user_input: rt.llm.MessageHistory,
@@ -231,7 +232,7 @@ async def test_class_based_output_model_not_pydantic():
 @pytest.mark.asyncio
 async def test_system_message_in_message_history_easy_usage(simple_output_model):
     with pytest.raises(NodeCreationError, match="system_message must be of type string or SystemMessage, not any other type."):
-        simple_structured = rt.library.structured_llm(
+        simple_structured = structured_llm(
             output_schema=simple_output_model,
             system_message=rt.llm.UserMessage("You are a helpful assistant that can structure the response into a structured output."),
             llm_model=rt.llm.OpenAILLM("gpt-4o"),
@@ -240,7 +241,7 @@ async def test_system_message_in_message_history_easy_usage(simple_output_model)
 
 @pytest.mark.asyncio
 async def test_system_message_in_message_history_class_based(simple_output_model):
-    class Structurer(rt.library.StructuredLLM):
+    class Structurer(StructuredLLM):
         def __init__(
             self,
             user_input: rt.llm.MessageHistory,

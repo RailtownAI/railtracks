@@ -1,10 +1,11 @@
 import pytest
 import railtracks as rt
-from railtracks import Node
-from railtracks.nodes.library import tool_call_llm, ToolCallLLM
-from railtracks.nodes.library.easy_usage_wrappers.one_wrapper import agent_node
-from railtracks.nodes.library.response import LLMResponse
-from railtracks.nodes.library.tool_calling_llms._base import OutputLessToolCallLLM
+from railtracks.nodes.concrete.response import LLMResponse
+from railtracks.nodes.nodes import Node
+from railtracks.nodes.easy_usage_wrappers.helpers import tool_call_llm
+from railtracks.nodes.concrete import ToolCallLLM
+from railtracks import agent_node
+from railtracks.nodes.concrete import OutputLessToolCallLLM
 from railtracks.exceptions import LLMError, NodeCreationError, NodeInvocationError
 from railtracks.llm import MessageHistory, ToolMessage, SystemMessage, UserMessage, AssistantMessage, ToolCall, ToolResponse, Tool
 # ---- ToolCallLLM tests ----
@@ -284,7 +285,7 @@ async def test_negative_tool_calls_raises(class_based, mock_llm, mock_tool):
     neg_max_tool_calls = -1
     if not class_based:
         with pytest.raises(NodeCreationError, match="max_tool_calls must be a non-negative integer."):
-            _ = rt.library.tool_call_llm(
+            _ = tool_call_llm(
                 tool_nodes={mock_tool},
                 name="Limited Tool Call Test Node",
                 system_message=SystemMessage("system prompt"),

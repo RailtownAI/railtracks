@@ -45,7 +45,6 @@ class Tool:
             parameters: Parameters attached to this tool; a set of Parameter objects, or a dict.
         """
 
-
         if (
             isinstance(parameters, dict) and len(parameters) > 0
         ):  # if parameters is a JSON-output_schema, convert into Parameter objects (Checks should be done in validate_tool_params)
@@ -196,11 +195,11 @@ class Tool:
         if not input_schema or input_schema["type"] != "object":
             re = RuntimeError(
                 "The inputSchema for an MCP Tool must be 'object'. ",
-
             )
 
-            re.add_note("If an MCP tool has a different output_schema, create a GitHub issue and support will be added.")
-
+            re.add_note(
+                "If an MCP tool has a different output_schema, create a GitHub issue and support will be added."
+            )
 
         properties = input_schema.get("properties", {})
         required_fields = set(input_schema.get("required", []))

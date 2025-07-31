@@ -43,11 +43,11 @@ To use tools in your RailTracks agents, you'll typically follow these steps:
 
 ```python
 import railtracks as rt
-from railtracks.nodes.library import from_mcp_server
+from railtracks.nodes.library import connect_mcp
 from railtracks.rt_mcp import MCPHttpParams
 
 # Get tools from an MCP server
-server = from_mcp_server(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))
+server = connect_mcp(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))
 tools = server.tools
 
 # Create an agent with access to these tools

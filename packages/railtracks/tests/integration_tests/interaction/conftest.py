@@ -5,6 +5,10 @@ from typing import List
 from pydantic import BaseModel, Field
 import railtracks as rt
 from railtracks.llm import SystemMessage
+from railtracks.nodes.concrete import TerminalLLM, ToolCallLLM, StructuredLLM
+from railtracks.nodes.easy_usage_wrappers.helpers import tool_call_llm
+from railtracks.nodes.nodes import Node
+
 
 @pytest.fixture
 def model():
@@ -167,15 +171,15 @@ def terminal_nodes(request, model, terminal_llms_system_messages):
     system_rng, system_rng_operation, system_math_genius = terminal_llms_system_messages
 
     if fixture_name == "easy_wrapper":
-        rng_node = rt.library.terminal_llm(
+        rng_node = rt.agent_node(
             name="RNG Node", system_message=system_rng, llm_model=model
         )
-        rng_operation_node = rt.library.terminal_llm(
+        rng_operation_node = rt.agent_node(
             name="RNG Operation Node",
             system_message=system_rng_operation,
             llm_model=model,
         )
-        math_detective_node = rt.library.terminal_llm(
+        math_detective_node = rt.agent_node(
             name="Math Detective Node",
             system_message=system_math_genius,
             llm_model=model,
@@ -188,7 +192,7 @@ def terminal_nodes(request, model, terminal_llms_system_messages):
         def make_terminal_llm_class_version(
             pretty_name: str, system_message: str
         ):
-            class TerminalLLMNode(rt.library.TerminalLLM):
+            class TerminalLLMNode(TerminalLLM):
                 def __init__(
                     self,
                     user_input: rt.llm.MessageHistory,
@@ -240,13 +244,13 @@ def structured_nodes(request, model, structured_llms_system_messages):
         )
 
     if fixture_name == "easy_wrapper":
-        math_undergrad_student_node = rt.library.structured_llm(
+        math_undergrad_student_node = rt.agent_node(
             name="Math Undergraduate Student Node",
             output_schema=ProofModel,
             system_message=system_undergrad_student,
             llm_model=model,
         )
-        math_professor_node = rt.library.structured_llm(
+        math_professor_node = rt.agent_node(
             name="Math Professor Node",
             output_schema=GradingSchema,
             system_message=system_professor,
@@ -262,7 +266,7 @@ def structured_nodes(request, model, structured_llms_system_messages):
             system_message: str,
             schema: BaseModel,
         ):
-            class StructuredLLMNode(rt.library.StructuredLLM):
+            class StructuredLLMNode(StructuredLLM):
                 def __init__(
                     self,
                     user_input: rt.llm.MessageHistory,
@@ -315,20 +319,20 @@ def tool_calling_nodes(
     available_locations, currency_used, average_location_cost = travel_planner_tools
     system_currency_converter, system_travel_planner = tool_call_llm_system_messages
 
-    AvailableCurrencies = rt.library.function_node(available_currencies)
-    ConvertCurrency = rt.library.function_node(convert_currency)
-    AvailableLocations = rt.library.function_node(available_locations)
-    CurrencyUsed = rt.library.function_node(currency_used)
-    AverageLocationCost = rt.library.function_node(average_location_cost)
+    AvailableCurrencies = rt.function_node(available_currencies)
+    ConvertCurrency = rt.function_node(convert_currency)
+    AvailableLocations = rt.function_node(available_locations)
+    CurrencyUsed = rt.function_node(currency_used)
+    AverageLocationCost = rt.function_node(average_location_cost)
 
     if fixture_name == "easy_wrapper":
-        currency_converter_node = rt.library.tool_call_llm(
+        currency_converter_node = tool_call_llm(
             tool_nodes={AvailableCurrencies, ConvertCurrency},
             name="Currency Converter Node",
             system_message=system_currency_converter,
             llm_model=model,
         )
-        travel_planner_node = rt.library.tool_call_llm(
+        travel_planner_node = tool_call_llm(
             tool_nodes={AvailableLocations, CurrencyUsed, AverageLocationCost},
             name="Travel Planner Node",
             system_message=system_travel_planner,
@@ -341,9 +345,9 @@ def tool_calling_nodes(
         def make_tool_call_llm_class_version(
             pretty_name: str,
             system_message: str,
-            connected_nodes: List[rt.Node],
+            connected_nodes: List[Node],
         ):
-            class ToolCallLLMNode(rt.library.ToolCallLLM):
+            class ToolCallLLMNode(ToolCallLLM):
                 def __init__(
                     self,
                     user_input: rt.llm.MessageHistory,
@@ -390,12 +394,12 @@ def parallel_node():
         await asyncio.sleep(timeout_len)
         return timeout_len
 
-    TimeoutNode = rt.library.function_node(sleep)
+    TimeoutNode = rt.function_node(sleep)
 
     async def parallel_function(timeout_config: List[float]):
         return await rt.call_batch(TimeoutNode, timeout_config)
 
-    return rt.library.function_node(parallel_function)
+    return rt.function_node(parallel_function)
 
 
 # ====================================== End Nodes ======================================

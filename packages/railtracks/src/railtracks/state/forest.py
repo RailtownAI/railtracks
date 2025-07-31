@@ -6,7 +6,7 @@ from typing import Dict, Generic, Iterable, List, Optional, Tuple, TypeVar
 
 from typing_extensions import Self
 
-from ..utils.profiling import Stamp
+from railtracks.utils.profiling import Stamp
 
 
 def get_all_open_heads(

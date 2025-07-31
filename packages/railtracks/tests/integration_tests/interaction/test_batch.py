@@ -59,7 +59,7 @@ async def error_thrower(exception: Exception, is_throw):
     return None
 
 
-ErrorThrower = rt.library.function_node(error_thrower)
+ErrorThrower = rt.function_node(error_thrower)
 
 
 async def error_thrower_top_level(
@@ -101,7 +101,7 @@ async def error_thrower_top_level(
         pass
 
 
-ErrorThrowerTopLevel = rt.library.function_node(error_thrower_top_level)
+ErrorThrowerTopLevel = rt.function_node(error_thrower_top_level)
 
 
 @pytest.mark.parametrize(

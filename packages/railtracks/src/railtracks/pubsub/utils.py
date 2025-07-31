@@ -1,4 +1,4 @@
-from ..pubsub.messages import (
+from .messages import (
     FatalFailure,
     RequestCompletionMessage,
     RequestCreationFailure,

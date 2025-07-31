@@ -71,7 +71,7 @@ async def call(
     if isinstance(node_, FunctionType):
         # If a function is passed, we will convert it to a node
         # we have to use lazy import here to prevent a circular import issue. Bad design I know :(
-        from railtracks.nodes.library.easy_usage_wrappers.function import (
+        from railtracks import (
             function_node,
         )
 
@@ -83,8 +83,8 @@ async def call(
 
     # if the context is none then we will need to create a wrapper for the state object to work with.
     if not is_context_present():
-        # we have to use lazy import here to prevent a circular import issue. Bad design I know :(
-        from railtracks.run import Session
+        # we have to use lazy import here to prevent a circular import issue. This is a must have unfortunately.
+        from railtracks import Session
 
         with Session():
             result = await _start(node, args=args, kwargs=kwargs)

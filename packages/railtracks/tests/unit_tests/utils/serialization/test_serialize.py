@@ -1,6 +1,7 @@
 import json
 import pytest
-from railtracks.utils.serialization import serialize
+from railtracks.state import serialize
+
 
 # ================= START encoder_extender tests ==================
 

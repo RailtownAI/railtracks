@@ -1,8 +1,8 @@
 import streamlit as st
 import asyncio
 import railtracks as rt
-from railtracks.nodes.library.easy_usage_wrappers.mcp_tool import from_mcp_server
-from railtracks.rt_mcp.main import MCPHttpParams
+from railtracks.nodes.library.easy_usage_wrappers.mcp_tool import connect_mcp
+from railtracks.integrations.rt_mcp.main import MCPHttpParams
 
 # MCP server URL
 urls = [
@@ -14,7 +14,7 @@ if "node" not in st.session_state:
 
     # Initialize tools in session state
     async def get_node():
-        servers = [from_mcp_server(MCPHttpParams(url=url)) for url in urls]
+        servers = [connect_mcp(MCPHttpParams(url=url)) for url in urls]
         all_tools = set(*[server.tools for server in servers])
 
         return rt.library.tool_call_llm(

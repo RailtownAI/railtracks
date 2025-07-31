@@ -5,9 +5,9 @@ To use the GitHub MCP server with RT, use the `from_mcp_server` utility to load 
 ```python
 import os
 from railtracks.rt_mcp import MCPHttpParams
-from railtracks.nodes.library.easy_usage_wrappers.mcp_tool import from_mcp_server
+from railtracks.nodes.library.easy_usage_wrappers.mcp_tool import connect_mcp
 
-server = from_mcp_server(
+server = connect_mcp(
     MCPHttpParams(
         url="https://api.githubcopilot.com/mcp/",
         headers={

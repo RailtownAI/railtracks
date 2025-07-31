@@ -14,9 +14,9 @@ from typing import (
 
 from typing_extensions import Self
 
-from railtracks.nodes.tool_callable import ToolCallable
+from .tool_callable import ToolCallable
 
-from ..exceptions.node_creation.validation import (
+from railtracks.validation.node_creation.validation import (
     check_classmethod,
 )
 

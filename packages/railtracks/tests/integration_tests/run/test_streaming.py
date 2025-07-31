@@ -15,7 +15,7 @@ async def streaming_rng():
     return number
 
 
-StreamingRNGNode = rt.library.function_node(streaming_rng)
+StreamingRNGNode = rt.function_node(streaming_rng)
 
 
 def test_simple_streamer():
@@ -75,7 +75,7 @@ async def rng_tree_streamer(num_calls: int, parallel_call_nums: int, multiplier:
     return data
 
 
-RNGTreeStreamer = rt.library.function_node(rng_tree_streamer)
+RNGTreeStreamer = rt.function_node(rng_tree_streamer)
 
 
 def rng_stream_tester(
