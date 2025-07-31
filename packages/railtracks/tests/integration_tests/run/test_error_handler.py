@@ -86,7 +86,7 @@ def test_error_handler_with_retry():
             result = rt.call_sync(ErrorHandlerWithRetry, num_retries)
             result = run.info
 
-        assert result == "Caught the error"
+        assert result.answer == "Caught the error"
         i_r = result.request_forest.insertion_request[0]
 
         children = result.request_forest.children(i_r.sink_id)
