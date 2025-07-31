@@ -486,7 +486,7 @@ async def test_multiple_runs_async():
 
         result = await rt.call(RNGNode)
 
-        result = run.info.anwer
+        result = run.info.answer
         assert isinstance(result, List)
         assert 0 < result[0] < 1
         assert 0 < result[1] < 1
