@@ -78,11 +78,11 @@ class RequestTemplate(AbstractLinkedObject):
         """
 
         if self.output is not None:
-            return "Completed"
-        else:
             if isinstance(self.output, Failure):
                 return "Failed"
 
+            return "Completed"
+        else:
             return "Open"
 
     def get_all_parents(self):
