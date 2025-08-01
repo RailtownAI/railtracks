@@ -24,10 +24,12 @@ __all__ = [
     "agent_node",
     "chatui_node",
     "integrations",
+    "prebuilt"
 ]
 
 
-from . import context, integrations, llm
+from . import context, llm, prebuilt, integrations
+from .rt_mcp import connect_mcp, MCPHttpParams, MCPStdioParams, create_mcp_server
 from .context.central import set_config
 from .interaction import broadcast, call, call_batch, call_sync
 from .nodes.easy_usage_wrappers import agent_node, chatui_node, function_node

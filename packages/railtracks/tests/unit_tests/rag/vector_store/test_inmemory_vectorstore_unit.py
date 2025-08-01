@@ -6,7 +6,7 @@ import pytest
 # -------------- Auto-patch module dependencies (pytest-style) --------------
 @pytest.fixture(autouse=True)
 def patch_vectorstore_deps(monkeypatch, dummy_uuid_str, dummy_embedding_service, dummy_record, dummy_search_result, dummy_metric):
-    import railtracks.integrations.rag.vector_store.in_memory as vsmem
+    import railtracks.rag.vector_store.in_memory as vsmem
     # Patch all dependencies in the *module under test's namespace*:
     monkeypatch.setattr(vsmem, "uuid_str", lambda: dummy_uuid_str)
     monkeypatch.setattr(vsmem, "BaseEmbeddingService", dummy_embedding_service)
@@ -15,7 +15,7 @@ def patch_vectorstore_deps(monkeypatch, dummy_uuid_str, dummy_embedding_service,
     monkeypatch.setattr(vsmem, "Metric", dummy_metric)
     # No need to patch AbstractVectorStore if real base is abstract and not used directly
 
-from railtracks.integrations.rag.vector_store.in_memory import InMemoryVectorStore
+from railtracks.rag.vector_store.in_memory import InMemoryVectorStore
 import math
 
 # --------------------------- TESTS -----------------------------

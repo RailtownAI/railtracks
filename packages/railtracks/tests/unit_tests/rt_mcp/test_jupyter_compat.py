@@ -11,8 +11,8 @@ import sys
 import pytest
 from unittest.mock import patch, MagicMock
 
-from railtracks.integrations.rt_mcp.jupyter_compat import apply_patches, is_jupyter
-from railtracks.integrations.rt_mcp import jupyter_compat
+from railtracks.rt_mcp.jupyter_compat import apply_patches, is_jupyter
+from railtracks.rt_mcp import jupyter_compat
 
 
 def test_is_jupyter_detection_normal_env():

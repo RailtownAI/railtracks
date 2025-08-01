@@ -1,6 +1,6 @@
 import railtracks as rt
 
-from .rag_core import RAG
+from ..rag.rag_core import RAG
 
 
 def rag_node(
@@ -10,6 +10,13 @@ def rag_node(
     chunk_size=1000,
     chunk_overlap=200,
 ):
+    """
+    Creates a rag node that allows you to vector the search the provided documents.
+
+    Args:
+
+    """
+
     rag_core = RAG(
         docs=documents,
         embed_config={

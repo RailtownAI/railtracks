@@ -1,5 +1,5 @@
 import pytest
-from railtracks.integrations.rag import RAG
+from railtracks.rag import RAG
 from conftest import get_docs
 
 

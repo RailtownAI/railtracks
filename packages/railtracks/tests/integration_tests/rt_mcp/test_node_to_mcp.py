@@ -2,7 +2,7 @@ import threading
 import time
 
 import railtracks as rt
-from railtracks.integrations.rt_mcp import MCPHttpParams, create_mcp_server, connect_mcp
+from railtracks.rt_mcp import MCPHttpParams, create_mcp_server, connect_mcp
 
 
 
