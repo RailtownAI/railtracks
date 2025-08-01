@@ -85,9 +85,18 @@
             "input_kwargs": {
               "type": "object"
             },
+            "status": {
+              "anyOf": [
+                {
+                  "type":  "string",
+                  "enum": ["Completed", "Failed", "Open"]
+                }
+              ]
+            },
+
             "output": {}
           },
-          "required": ["input_args", "input_kwargs", "output"]
+          "required": ["input_args", "input_kwargs", "output", "status"]
         },
         "parent": {
           "anyOf": [
