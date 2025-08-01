@@ -1,0 +1,158 @@
+{
+  "type": "object",
+  "properties": {
+    "nodes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Node" }
+    },
+    "edges": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Edge" }
+    },
+    "steps": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Stamp" }
+    }
+  },
+  "required": ["nodes", "edges", "steps"],
+  "$defs": {
+    "Stamp": {
+      "type": "object",
+      "properties": {
+        "step": { "type": "integer" },
+        "time": { "type": "number" },
+        "identifier": { "type": "string" }
+      },
+      "required": ["step", "time", "identifier"]
+    },
+    "Node": {
+  "type": "object",
+  "properties": {
+    "identifier": { "type": "string" },
+    "node_type": { "type": "string" },
+    "stamp": { "$ref": "#/$defs/Stamp" },
+    "details": {
+      "type": "object",
+      "properties": {
+        "internals": {
+          "type": "object",
+          "properties": {
+            "latency": {
+              "type": "object",
+              "properties": {
+                "total_time": { "type": "number" }
+              },
+              "required": ["total_time"]
+            },
+            "llm_internals": { "$ref": "#/$defs/LLMInternals" }
+          },
+          "additionalProperties": true
+        }
+      },
+      "required": ["internals"]
+    },
+    "parent": {
+      "anyOf": [
+        { "$ref": "#/$defs/Node" },
+        { "type": "null" }
+      ]
+    }
+  },
+  "required": ["identifier", "node_type", "stamp", "details"]
+
+
+
+    },
+    "Edge": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "anyOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ]
+        },
+        "target": { "type": "string" },
+        "identifier": { "type": "string" },
+        "stamp": { "$ref": "#/$defs/Stamp" },
+        "details": {
+          "type": "object",
+          "properties": {
+            "input_args": {
+              "type": "array",
+              "items": {}
+            },
+            "input_kwargs": {
+              "type": "object"
+            },
+            "output": {}
+          },
+          "required": ["input_args", "input_kwargs", "output"]
+        },
+        "parent": {
+          "anyOf": [
+            { "$ref": "#/$defs/Edge" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "required": ["target", "identifier", "stamp", "details"]
+    },
+    "LLMInternals": {
+      "type": "object",
+      "properties": {
+        "model_name": { "type": "string" },
+        "model_provider": { "type": "string" },
+        "input": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "role": { "type": "string" },
+              "content": { "type": "string" }
+            },
+            "required": ["role", "content"]
+          }
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "role": { "type": "string" },
+            "content": { "type": "string"}
+          },
+          "required": ["role", "content"]
+        },
+        "input_tokens": {
+          "anyOf": [
+            { "type": "integer" },
+            { "type": "null" }
+          ]
+        },
+        "output_tokens": {
+          "anyOf": [
+            { "type": "integer" },
+            { "type": "null" }
+          ]
+        },
+        "total_cost": {
+          "anyOf": [
+            { "type": "number" },
+            { "type": "null" }
+          ]
+        },
+        "system_fingerprint": {
+          "anyOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "required": [
+        "model_name",
+        "model_provider",
+        "input",
+        "output"
+      ]
+    }
+  }
+}

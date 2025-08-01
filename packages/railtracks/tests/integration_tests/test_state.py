@@ -1,7 +1,11 @@
+import asyncio
+import json
 import random
 import time
 import uuid
 from typing import List, TypeVar
+
+from jsonschema import validate, ValidationError
 
 import pytest
 
@@ -104,6 +108,34 @@ def test_no_changes(request_structure):
 
     assert node_forest.heap() == node_heap, "There should be no changes because the filter doesn't change things"
     assert request_forest.heap() == request_heap, "There should be no changes because the filter doesn't change things"
+
+
+
+
+
+def test_json_serialization(planner_node, json_state_schema):
+    with rt.Session(logging_setting="NONE") as session:
+        rt.call_sync(planner_node, "New York", "Houston")
+
+        info = session.info
+
+
+    try:
+        validate(json.loads(info.graph_serialization()), json_state_schema)
+    except ValidationError as e:
+        raise
+
+def test_json_serialization_2(planner_with_llm_node, json_state_schema):
+    with rt.Session(logging_setting="NONE") as session:
+        rt.call_sync(planner_with_llm_node)
+
+        info = session.info
+
+
+    try:
+        validate(json.loads(info.graph_serialization()), json_state_schema)
+    except ValidationError as e:
+        raise
 
 
 
