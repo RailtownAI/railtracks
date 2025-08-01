@@ -34,7 +34,7 @@ def test_apply_patches_normal_env(reset_patched_flag):
 def test_apply_patches_jupyter_env(reset_patched_flag):
     """Test that apply_patches applies patches in a Jupyter environment."""
     # Mock is_jupyter to return True to simulate Jupyter environment
-    with patch('railtracks.integrations.rt_mcp.jupyter_compat.is_jupyter', return_value=True):
+    with patch('railtracks.rt_mcp.jupyter_compat.is_jupyter', return_value=True):
         with patch('sys.platform', 'win32'):
 
             # Import the module to apply patches
@@ -61,7 +61,7 @@ def test_apply_patches_jupyter_env(reset_patched_flag):
 def test_patched_functions_behavior(reset_patched_flag, patch_function):
     """Test that the patched functions handle Jupyter's lack of fileno() support."""
     # Mock is_jupyter to return True to simulate Jupyter environment
-    with patch('railtracks.integrations.rt_mcp.jupyter_compat.is_jupyter', return_value=True):
+    with patch('railtracks.rt_mcp.jupyter_compat.is_jupyter', return_value=True):
         # Apply patches
         apply_patches()
         
