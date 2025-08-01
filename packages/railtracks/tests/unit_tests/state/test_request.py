@@ -6,7 +6,7 @@ from railtracks.state.request import (
     RequestAlreadyExistsError, Cancelled, Failure,
 )
 from railtracks.utils.profiling import Stamp
-from unit_tests.state.conftest import unique_id
+
 
 
 # ================ START RequestTemplate unit tests ======================
