@@ -4,7 +4,6 @@ theme:
   name: material
   features:
     - navigation.indexes
-    - navigation.sections
     - navigation.prefetch
     - search.suggest
     - content.code.copy
@@ -81,7 +80,7 @@ nav:
   - System Overviews:
       - system_internals/index.md
       - Node: system_internals/node.md
-      - Runner: system_internals/runner.md
+      - Session: system_internals/session.md
       - PubSub: system_internals/pubsub.md
       - Coordinator: system_internals/coordinator.md
 
