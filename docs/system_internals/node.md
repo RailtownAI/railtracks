@@ -1,5 +1,7 @@
 ## Overview
+## Overview
 
+**Nodes** are the main components of **RailTracks** core of our abstractions. Looking at the abstract class, we can see that each Node needs the following methods implemented:
 **Nodes** are the main components of **RailTracks** core of our abstractions. Looking at the abstract class, we can see that each Node needs the following methods implemented:
 
 ## Execution Flow

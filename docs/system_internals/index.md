@@ -3,7 +3,15 @@
 Welcome to the internal architecture overview of RailTracks, our framework for building agentic workflows. This document provides a high-level understanding of how the system is structured and how its different components interact with each other.
 
 ## Execution Flow
+# RailTracks Internal Architecture Overview
 
+Welcome to the internal architecture overview of RailTracks, our framework for building agentic workflows. This document provides a high-level understanding of how the system is structured and how its different components interact with each other.
+
+## Execution Flow
+
+1. **Agent Creation**: Users create an agent using `rt.agent_node(...)` customizing the various different available parameters such as `llm_model`, `system_message`, and `tool_nodes`. 
+2. **Session Initialization**: The `Session` is initialized as a context manager, which sets up the necessary components like `RTPublisher`, `Coordinator`, and `RTState`.
+3. **Agent Execution**: Users run the agent by calling `call` or `call_sync` methods inside the context with the appropriate parameters given the setup of their agent.
 1. **Agent Creation**: Users create an agent using `rt.agent_node(...)` customizing the various different available parameters such as `llm_model`, `system_message`, and `tool_nodes`. 
 2. **Session Initialization**: The `Session` is initialized as a context manager, which sets up the necessary components like `RTPublisher`, `Coordinator`, and `RTState`.
 3. **Agent Execution**: Users run the agent by calling `call` or `call_sync` methods inside the context with the appropriate parameters given the setup of their agent.

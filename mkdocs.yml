@@ -28,6 +28,9 @@ nav:
 
   - Tutorials:
         - tutorials/byfa.md
+        - tutorials/ryfa.md
+        - tutorials/node_builder.md
+        - tutorials/yet_another_weather_bot.md
         - Background:
             - tutorials/guides/index.md
             - Agents: tutorials/guides/agents.md
@@ -65,6 +68,7 @@ nav:
   - LLM Support:
       - llm_support/index.md
       - Prompts and Context Injection: llm_support/prompts.md
+      - Configuration: llm_support/config.md
 
   - Deployments:
         - deployments/index.md
