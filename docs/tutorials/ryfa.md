@@ -18,7 +18,7 @@ Just like that you have ran your first agent!
 
 ---
 
-##Customization and Configurability
+## Customization and Configurability
 
 Although it really is that simple to run your agent, you can do more of course. If you have a dynamic work flow you can delay parameters like `llm_model` and you can add a `SystemMessage` along with your prompt directly to `user_input` as a `MessageHistory` object.
 
@@ -66,7 +66,7 @@ response = rt.call(
 In this example RailTracks will use claude rather than chatgpt and the system message will become
 "You are a helpful assistant that answers weather-related questions. If not specified, the user is talking about Vancouver."
 
-##Retrieving The Results of a Run
+## Retrieving The Results of a Run
 
 All agents return a response object which you can use to get the last message or the entire message history if you would prefer.
 
@@ -114,11 +114,40 @@ message_history_object = response.message_history
 
 ## Advanced Usage Examples
 
-### A Tool Call Example
+### Deciding Precise Run Time Calls
 
 ```python
 
-agent_node()
+class stocks(BaseModel):
+    action : str 
+
+def find_stocks(...):
+    ...
+
+def own_stocks(...):
+    ...
+
+def analyze_stock(...):
+    ...
+
+def buy_stocks(...):
+    ...
+
+def sell_stocks(...):
+    ...
+
+scoutNode = agent_node(
+    name="Scout Node",
+    system_message="""You are a trading agent that helps find the best stocks to buy and sell. To find stocks you can use the find_stocks tool,
+    to see which stocks you own you can use own_stocks tool, and to analyze""" 
+)
+buyingNode = function_node(buy_stocks)
+sellingNode = function_node(sell_stocks)
+
+while stillHaveMoney:
+    stocks = rt.call(scoutNode)
+
+    if stocks.structure[action] = "buy" 
 
 ```
 
@@ -170,9 +199,6 @@ async def summarize(commit: types.CommitData, prompt_data: dict) -> dict:
 
 results = rt.call(CommitSummarizer, Summarize, payload.Commits, prompt_data)
 ```
-
-
-using a function that uses a function
 
 
 

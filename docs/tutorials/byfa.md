@@ -22,7 +22,7 @@ Optionally, you can define attributes for using the agent as a tool itself and d
 
 For advanced users you can see [context](../advanced_usage/context.md), for further configurability.
 
-###Example
+### Example
 ```python
 
 weather_agent_class = rt.define_agent(
@@ -45,7 +45,7 @@ Tool-calling agents can invoke one or more tools during a conversation. This all
 
 When making a Tool-Calling Agent you can also specify `max_tool_calls` to have a safety net for your agents calls. If you don't specify `max_tool_calls`, your agent will be able to make as many tool calls as it sees fit.
 
-###Example
+### Example
 ```python
 
 weather_agent_class = rt.define_agent(
@@ -59,7 +59,7 @@ weather_agent_class = rt.define_agent(
 
 Additionally, we have an MCP agent if you would like integrate API functionalities as tools your agent can use directly. See [Using MCP](../tools_mcp/mcp/MCP_tools_in_RT.md) for more details.
 
-###Example
+### Example
 ```python
 
 notion_agent_class = rt.define_agent(
