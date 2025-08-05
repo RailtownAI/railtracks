@@ -7,14 +7,12 @@ from typing import (
     Callable,
     Coroutine,
     ParamSpec,
-    Set,
     Type,
     TypeVar,
     overload,
 )
 
 from railtracks.exceptions import NodeCreationError
-from railtracks.llm import Parameter
 from railtracks.validation.node_creation.validation import validate_function
 
 from .._node_builder import NodeBuilder
@@ -22,6 +20,7 @@ from ..concrete import (
     AsyncDynamicFunctionNode,
     SyncDynamicFunctionNode,
 )
+from ..manifest import ToolManifest
 
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
@@ -33,8 +32,7 @@ def function_node(
     /,
     *,
     name: str | None = None,
-    tool_details: str | None = None,
-    tool_params: set[Parameter] | None = None,
+    tool_manifest: ToolManifest = None,
 ) -> Type[AsyncDynamicFunctionNode[_P, _TOutput]]:
     pass
 
@@ -45,8 +43,7 @@ def function_node(
     /,
     *,
     name: str | None = None,
-    tool_details: str | None = None,
-    tool_params: set[Parameter] | None = None,
+    tool_manifest: ToolManifest = None,
 ) -> Type[SyncDynamicFunctionNode[_P, _TOutput]]:
     pass
 
@@ -56,20 +53,21 @@ def function_node(
     /,
     *,
     name: str | None = None,
-    tool_details: str | None = None,
-    tool_params: dict | Set[Parameter] | None = None,
+    tool_manifest: ToolManifest = None,
 ):
     """
     Creates a new Node type from a function that can be used in `rt.call()`.
 
-    By default, it will parse the function's parameters and turn them into tool details and parameters. However, if
-    you provide custom tool details or parameters, they will override the defaults.
+    By default, it will parse the function's docstring and turn them into tool details and parameters. However, if
+    you provide custom ToolManifest it will override that logic.
+
+    WARNING: If you overriding tool parameters. It is on you to make sure they will work with your function.
+
 
     Args:
         func (Callable): The function to convert into a Node.
         name (str, optional): Human-readable name for the node/tool.
-        tool_details (str, optional): Description of the node subclass for other LLMs to know how to use this as a tool.
-        tool_params (dict or Set[Parameter], optional): Parameters that must be passed if other LLMs want to use this as a tool.
+        tool_manifest (ToolManifest, optional): The details you would like to override the tool with.
     """
 
     if not isinstance(
@@ -98,8 +96,8 @@ def function_node(
 
     builder.setup_function_node(
         func,
-        tool_details=tool_details,
-        tool_params=tool_params,
+        tool_details=tool_manifest.description if tool_manifest is not None else None,
+        tool_params=tool_manifest.parameters if tool_manifest is not None else None,
     )
 
     return builder.build()

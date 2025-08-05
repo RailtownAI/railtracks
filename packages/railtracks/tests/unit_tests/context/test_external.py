@@ -50,6 +50,16 @@ def test_update_overwrites_but_does_not_delete():
     assert context.get("c") == 3
 # ============ END Update/Overwrite Tests ===============
 
+# ============ START Delete Tests ===============
+def test_delete_from_context():
+    context = MutableExternalContext()
+    context.update({"a": 1})
+    assert context.get("a") == 1
+    context.delete("a")
+    with pytest.raises(KeyError):
+        context.get("a")
+# ============ END Delete Tests ===============
+
 # ============ START Initialization Tests ===============
 def test_init_with_input_dict():
     d = {"x": 42}

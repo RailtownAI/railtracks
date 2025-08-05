@@ -1,6 +1,6 @@
 # How to Build Your First Agent
 
-RailTracks allows you to easily create custom agents using the `define_agent` function by configuring a few simple parameters.
+RailTracks allows you to easily create custom agents using the `define_agent` function by configuring a few simple parameters in any combination!
 
 Start by specifying:
 
@@ -8,7 +8,7 @@ Start by specifying:
 - `system_message`: Define the agent’s behavior. This guides the agent and often improves output quality.  
   *(See also: [Prompt Engineering](https://en.wikipedia.org/wiki/Prompt_engineering))*
 
-Then, configure your agent class by selecting which functionalities to enable. These parameters can be used in any combination:
+Then, configure your agent class by selecting which functionalities to enable:
 
 - `tools`: If you pass this parameter, the agent gains access to the specified [tools](../guides/tools.md). If you don't it will act as a conversational agent instead.
 - `schema`: Given a schema, the agents responses will follow that schema. Otherwise it will return output as it sees fit.
@@ -22,10 +22,10 @@ Optionally, you can define attributes for using the agent as a tool itself and d
 
 For advanced users you can see [context](../advanced_usage/context.md), for further configurability.
 
-###Example
+### Example
 ```python
 
-weather_agent_class = define_agent(
+weather_agent_class = rt.define_agent(
     agent_name="Weather Agent",
     llm_model="gpt-4o",
     system_message="You are a helpful assistant that answers weather-related questions.",
@@ -45,10 +45,10 @@ Tool-calling agents can invoke one or more tools during a conversation. This all
 
 When making a Tool-Calling Agent you can also specify `max_tool_calls` to have a safety net for your agents calls. If you don't specify `max_tool_calls`, your agent will be able to make as many tool calls as it sees fit.
 
-###Example
+### Example
 ```python
 
-weather_agent_class = define_agent(
+weather_agent_class = rt.define_agent(
     agent_name="Weather Agent",
     llm_model="gpt-4o",
     system_message="You are a helpful assistant that answers weather-related questions.",
@@ -59,10 +59,10 @@ weather_agent_class = define_agent(
 
 Additionally, we have an MCP agent if you would like integrate API functionalities as tools your agent can use directly. See [Using MCP](../tools_mcp/mcp/MCP_tools_in_RT.md) for more details.
 
-###Example
+### Example
 ```python
 
-notion_agent_class = define_agent(
+notion_agent_class = rt.define_agent(
     agent_name="Notion Agent",
     mcp_command: notion_command,
     mcp_args: notion_args,
