@@ -296,7 +296,7 @@ def put(
 
 def update(data: dict[str, Any]):
     """
-    Update the context with the provided data.
+    Sets the values in the context. If the context already has values, this will overwrite them, but it will not delete any existing keys.
 
     Args:
         data (dict[str, Any]): The data to update the context with.

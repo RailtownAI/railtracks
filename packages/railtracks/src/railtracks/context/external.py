@@ -49,8 +49,8 @@ class MutableExternalContext(ExternalContext):
         Sets the values in the context. If the context already has values, this will overwrite them, but it will not
         delete any existing keys.
         """
-        for key, value in data.items():
-            self._context_var_store[key] = value
+
+        self._context_var_store.update(data)
 
     def get(self, key: str, *, default: Any | None = None):
         """
