@@ -374,10 +374,10 @@ class RTState:
     @property
     def info(self):
         """Returns the current state as an ExecutionInfo object."""
-        return ExecutionInfo(
-            node_forest=self._node_heap,
-            request_forest=self._request_heap,
-            stamper=self._stamper,
+        return (
+            self._node_heap,
+            self._request_heap,
+            self._stamper,
         )
 
     def get_info(self, ids: List[str] | str) -> ExecutionInfo:

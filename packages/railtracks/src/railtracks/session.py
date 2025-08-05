@@ -112,7 +112,7 @@ class Session:
 
         self._identifier = self.executor_config.run_identifier
 
-        executor_info = ExecutionInfo.create_new()
+        executor_info = ExecutionInfo.create_new(self._identifier)
         self.coordinator = Coordinator(
             execution_modes={"async": AsyncioExecutionStrategy()}
         )
@@ -225,4 +225,10 @@ class Session:
 
         This is useful for debugging and viewing the current state of the run.
         """
-        return self.rc_state.info
+        nf, rf, stamp = self.rc_state.info
+        return ExecutionInfo(
+            node_forest=nf,
+            request_forest=rf,
+            stamper=stamp,
+            session_id=self._identifier,
+        )
