@@ -114,14 +114,12 @@ message_history_object = response.message_history
 
 ## Advanced Usage Examples
 
-### More Concrete Example of a Structured Tool Calling Agent
+### Deciding Precise Run Time Calls
 
 ```python
 
 class stocks(BaseModel):
-    action : Literal["buy", "sell"]
-    ammount : int
-    name : str
+    action : str 
 
 def find_stocks(...):
     ...
@@ -138,29 +136,22 @@ def buy_stocks(...):
 def sell_stocks(...):
     ...
 
-TradingNode = agent_node(
-    name="Trading Node",
+scoutNode = agent_node(
+    name="Scout Node",
     system_message="""You are a trading agent that helps find the best stocks to buy and sell. To find stocks you can use the find_stocks tool,
-    to see which stocks you own you can use own_stocks tool, and to decide whether or not to buy a stock you must use the analyze_stock tool.
-    You are at your own discretion to decide which stocks to prioritize looking at. Once you have confirmed a stock is good to sell or buy, 
-    you can use the buy_stocks and sell_stocks tools""",
-    tool_nodes=[find_stocks, own_stocks, analyze_stock, buy_stocks, sell_stocks],
-    output_schema=stocks,
-    llm_model="gpt-40",
-    max_tool_calls=10
+    to see which stocks you own you can use own_stocks tool, and to analyze""" 
 )
+buyingNode = function_node(buy_stocks)
+sellingNode = function_node(sell_stocks)
 
 while stillHaveMoney:
-    stocks = rt.call(
-        TradingNode,
-        user_input="I need you to make as much money as possible and beat the market. #DiamondHands"
-    )
+    stocks = rt.call(scoutNode)
+
+    if stocks.structure[action] = "buy" 
 
 ```
 
 ### The power of RailTracks
-
-Here we can see the power of RailTracks providing flexible parallel processes. Given a list of diffs Railtracks can create one top level node that can organize for all the diffs of a file to be summarized in using many agents at once.
 
 ```python
 
@@ -182,7 +173,7 @@ async def top_level_summarizer(Summarize, commit_diffs, prompt_data) -> list[dic
     """
     Top level node for the commit summarizer
     """
-    contracts = [rt.call(Summarize, commit_diff, prompt_data) for commit_diff in commit_diffs]
+    contracts = [rc.call(Summarize, commit_diff, prompt_data) for commit_diff in commit_diffs]
 
     results = await asyncio.gather(*contracts)
     return results
@@ -202,7 +193,7 @@ async def summarize(commit: types.CommitData, prompt_data: dict) -> dict:
         ]
     )
 
-    response = await rt.call(CommitSummarizerNode, message_history, prompt_data["llm_prompt"])
+    response = await rc.call(CommitSummarizerNode, message_history, prompt_data["llm_prompt"])
     
     return {commit.CommitSha: response}
 

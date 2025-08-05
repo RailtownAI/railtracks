@@ -1,10 +1,11 @@
-# PubSub (Publish-Subscribe) Documentation
+# 📡 PubSub (Publisher-Subscriber) Documentation
+<link rel="stylesheet" href="/system_internals/css/class_diagram.css">
+<script src="/system_internals/js/class_diagram.js"></script>
+## 🔍 Overview
 
-## Overview
+The PubSub (Publisher-Subscriber) system is a messaging pattern that allows different parts of the **RailTracks** system to communicate asynchronously. Think of it like a radio station: publishers broadcast messages (like radio shows), and subscribers listen for messages they're interested in (like tuning into specific stations).
 
-The PubSub (Publish-Subscribe) system is a messaging pattern that allows different parts of the Request Completion system to communicate asynchronously. Think of it like a radio station: publishers broadcast messages (like radio shows), and subscribers listen for messages they're interested in (like tuning into specific stations).
-
-## What is PubSub?
+## 🤔 What is PubSub?
 
 PubSub is a communication pattern where:
 
@@ -14,7 +15,7 @@ PubSub is a communication pattern where:
 
 This creates loose coupling between components - they don't need to know about each other directly.
 
-## What are Callbacks?
+## 📞 What are Callbacks?
 
 A **callback** is a function that gets called automatically when something happens. In the context of PubSub:
 
@@ -30,17 +31,17 @@ def my_callback(message):
 # This callback will be called whenever a message is published
 ```
 
-## Core Components
+## 🧩 Core Components
 
-### 1. Messages (`messages.py`)
+### 1. 📨 Messages (`messages.py`)
 
 Messages are the data structures that flow through the PubSub system. All messages inherit from `RequestCompletionMessage`:
 
-#### Base Message Class
+#### 🏗️ Base Message Class
 - **`RequestCompletionMessage`**: The foundation for all messages in the system
   - Has a `log_message()` method for debugging
 
-#### Request Lifecycle Messages
+#### 🔄 Request Lifecycle Messages
 - **`RequestCreation`**: Sent when a new request is created
     - Contains: current node ID, new request ID, execution mode, node type, and arguments
 - **`RequestSuccess`**: Sent when a request completes successfully
@@ -50,35 +51,35 @@ Messages are the data structures that flow through the PubSub system. All messag
 - **`RequestCreationFailure`**: Sent when request creation itself fails
     - Contains: request ID and the error
 
-#### Special Messages
+#### ⚡ Special Messages
 - **`FatalFailure`**: Indicates an irrecoverable system failure
 - **`Streaming`**: Used for streaming data during execution
     - Contains: the streamed object and node ID
 
-### 2. Publisher (`publisher.py`)
+### 2. 📢 Publisher (`publisher.py`)
 
 The Publisher is the central message broker that manages message distribution.
 
-#### Basic Publisher Features
+#### 🚀 Basic Publisher Features
 - **Asynchronous**: Uses `asyncio` for non-blocking operations
 - **Ordered**: Messages are processed in the order they arrive
 - **Thread-safe**: Multiple components can publish simultaneously
 
-#### Key Methods
+#### 🔑 Key Methods
 
-**Starting and Stopping:**
+**🎬 Starting and Stopping:**
 ```python
 publisher = Publisher()
 await publisher.start()  # Start the message processing loop
 await publisher.shutdown()  # Stop and cleanup
 ```
 
-**Publishing Messages:**
+**📤 Publishing Messages:**
 ```python
 await publisher.publish(message)  # Send a message to all subscribers
 ```
 
-**Subscribing:**
+**📥 Subscribing:**
 ```python
 def my_callback(message):
     print(f"Got message: {message}")
@@ -86,14 +87,33 @@ def my_callback(message):
 subscriber_id = publisher.subscribe(my_callback, name="my_subscriber")
 ```
 
-**Unsubscribing:**
+**🚫 Unsubscribing:**
 ```python
 publisher.unsubscribe(subscriber_id)  # Remove a specific broadcast_callback
 ```
 
-#### Advanced Features
+**🔗 Workflow Example:**
+```python
+import asyncio
+from railtracks.pubsub.publisher import Publisher
 
-**Listeners:**
+def callback(message: str):
+    """
+    A simple callback function that processes incoming messages.
+    """
+    print(f"Received message: {message}")
+
+publisher = Publisher()
+await publisher.start()  # Start the publisher
+subscriber_id = publisher.subscribe(callback, name="example_subscriber")
+await publisher.publish("Hello, World!")  # Publish a message
+
+await asyncio.sleep(1)  # Wait for the message to be processed
+await publisher.shutdown()  # Stop the publisher
+```
+#### 🎯 Advanced Features
+
+**👂 Listeners:**
 Listeners wait for a specific message that matches criteria:
 ```python
 # Wait for the first message that matches the filter
@@ -104,18 +124,34 @@ result = await publisher.listener(
 )
 ```
 
-**Context Manager Support:**
+**🔒 Context Manager Support:**
 ```python
 async with Publisher() as pub:
     await pub.publish(message)
 # Publisher automatically shuts down when exiting the context
 ```
 
-### 3. Subscriber (`subscriber.py`)
-
+### 3. 👥 Subscriber (`subscriber.py`)
+<div class="class-diagram" id="subscriber-diagram" data-diagram='{
+  "classes": [
+    {
+      "id": "subscriber",
+      "name": "Subscriber",
+      "attributes": [
+        {"name": "callback", "type": "Callable[[RequestCompletionMessage], None]", "visibility": "public"},
+        {"name": "name", "type": "str", "visibility": "public"},
+        {"name": "id", "type": "str", "visibility": "public"}
+      ],
+      "methods": [
+        {"name": "__init__", "parameters": "execution_modes: Dict[ExecutionConfigurations, TaskExecutionStrategy]", "visibility": "public"},
+        {"name": "trigger", "parameters": "message: RequestCompletionMessage", "returnType": "void", "visibility": "public"}
+      ]
+    }
+  ]
+}'></div>
 Contains utilities for creating specialized subscribers.
 
-#### Stream Subscriber
+#### 🌊 Stream Subscriber
 Converts streaming callbacks into proper message subscribers:
 ```python
 def handle_stream_data(data):
@@ -125,11 +161,11 @@ subscriber = stream_subscriber(handle_stream_data)
 publisher.subscribe(subscriber)
 ```
 
-### 4. Utilities (`utils.py`)
+### 4. 🛠️ Utilities (`utils.py`)
 
 Helper functions for working with messages.
 
-#### Output Mapping
+#### 🗺️ Output Mapping
 Converts message results into their final outputs or raises errors:
 ```python
 try:
@@ -139,25 +175,25 @@ except Exception as error:
     print(f"Failed: {error}")
 ```
 
-## Request Completion Publisher (RCPublisher)
+## 🎯 RailTracks Publisher (RTPublisher)
 
-`RCPublisher` is a specialized publisher for the Request Completion system that:
+`RTPublisher` is a specialized publisher for the RailTracks system that:
 
 - Automatically logs all messages for debugging
-- Handles Request Completion specific message types
+- Handles RailTracks specific message types
 - Provides built-in error logging with stack traces
 
 ```python
-publisher = RCPublisher()
+publisher = RTPublisher()
 await publisher.start()
 ```
 
-## Common Usage Patterns
+## 🎨 Common Usage Patterns
 
-### 1. Basic Message Publishing
+### 1. 📝 Basic Message Publishing
 ```python
 # Create and start publisher
-async with RCPublisher() as publisher:
+async with RTPublisher() as publisher:
     # Create a message
     message = RequestSuccess(
         request_id="123",
@@ -169,7 +205,7 @@ async with RCPublisher() as publisher:
     await publisher.publish(message)
 ```
 
-### 2. Subscribing to Specific Message Types
+### 2. 🎯 Subscribing to Specific Message Types
 ```python
 def handle_success(message):
     if isinstance(message, RequestSuccess):
@@ -183,7 +219,7 @@ publisher.subscribe(handle_success, "success_handler")
 publisher.subscribe(handle_failure, "failure_handler")
 ```
 
-### 3. Waiting for Specific Results
+### 3. ⏰ Waiting for Specific Results
 ```python
 # Wait for a specific request to complete
 result = await publisher.listener(
@@ -196,7 +232,7 @@ result = await publisher.listener(
 )
 ```
 
-### 4. Streaming Data
+### 4. 🌊 Streaming Data
 ```python
 def process_stream(data):
     # Process each piece of streaming data
@@ -207,7 +243,7 @@ stream_handler = stream_subscriber(process_stream)
 publisher.subscribe(stream_handler, "stream_processor")
 ```
 
-## Error Handling
+## ⚠️ Error Handling
 
 The PubSub system handles errors gracefully:
 
@@ -215,7 +251,7 @@ The PubSub system handles errors gracefully:
 2. **Publisher Errors**: Fatal errors are communicated through `FatalFailure` messages
 3. **Request Errors**: Both creation and execution failures have specific message types
 
-## Best Practices
+## ✅ Best Practices
 
 1. **Always use descriptive names** for subscribers to aid debugging
 2. **Handle errors in your callbacks** - don't let them crash the system
@@ -224,14 +260,14 @@ The PubSub system handles errors gracefully:
 5. **Unsubscribe when done** to prevent memory leaks
 6. **Use listeners for one-time responses** instead of persistent subscribers
 
-## Thread Safety and Async Considerations
+## 🧵 Thread Safety and Async Considerations
 
 - The Publisher uses `asyncio.Queue` for thread-safe message handling
 - All operations are asynchronous - always use `await`
 - Messages are processed sequentially to maintain order
 - The system gracefully handles shutdown during active operations
 
-## Debugging Tips
+## 🐛 Debugging Tips
 
 1. **Enable debug logging** to see all message flows
 2. **Use meaningful subscriber names** for easier log interpretation

@@ -264,7 +264,7 @@ def get(
     default: Any | None = None,
 ):
     """
-    Get a value from the context object
+    Get a value from context
 
     Args:
         key (str): The key to retrieve.
@@ -284,13 +284,39 @@ def put(
     value: Any,
 ):
     """
-    Set a value in the external context.
+    Set a value in the context.
 
-    :param key: The key to set.
-    :param value: The value to associate with the key.
+    Args:
+        key (str): The key to set.
+        value (Any): The value to set.
     """
     context = safe_get_runner_context()
     context.external_context.put(key, value)
+
+
+def update(data: dict[str, Any]):
+    """
+    Sets the values in the context. If the context already has values, this will overwrite them, but it will not delete any existing keys.
+
+    Args:
+        data (dict[str, Any]): The data to update the context with.
+    """
+    context = safe_get_runner_context()
+    context.external_context.update(data)
+
+
+def delete(key: str):
+    """
+    Delete a key from the context.
+
+    Args:
+        key (str): The key to delete.
+
+    Raises:
+        KeyError: If the key does not exist.
+    """
+    context = safe_get_runner_context()
+    context.external_context.delete(key)
 
 
 def set_config(
@@ -317,7 +343,7 @@ def set_config(
 
     if is_context_active():
         warnings.warn(
-            "The executor config is being set after the runner has been created, this is not recomended"
+            "The executor config is being set after the runner has been created, this is not recommended"
         )
 
     config = global_executor_config.get()

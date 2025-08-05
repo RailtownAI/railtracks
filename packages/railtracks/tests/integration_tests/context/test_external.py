@@ -1,6 +1,6 @@
 import pytest
 import railtracks as rt
-from railtracks.context import put, get
+from railtracks.context import put, get, update, delete
 from railtracks import function_node
 from railtracks.interaction.call import call
 
@@ -24,6 +24,21 @@ def test_put_context():
         result = rt.call_sync(context_node)
 
     assert result == "test_value"
+
+
+def test_update_and_delete_context():
+    with rt.Session():
+        put("key2", "value2")
+        update({"key": "value"})
+
+        assert get("key") == "value"
+
+        delete("key")
+        with pytest.raises(KeyError):
+            get("key")
+
+        # Ensure update does not delete existing keys
+        assert get("key2") == "value2"
 
 
 def test_context_addition():
