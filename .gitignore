@@ -11,6 +11,8 @@ package.json
 test-results.xml
 **/.railtracks
 .coverage
+.mypy_cache
+.pytest_cache
 
 # jupyter notebook
 .ipynb_checkpoints

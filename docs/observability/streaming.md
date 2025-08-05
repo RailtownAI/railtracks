@@ -15,10 +15,12 @@ To enable streaming, provide a **callback function** to the `subscriber` paramet
 ```python
 import railtracks as rt
 
+
 def example_streaming_handler(data):
     print(f"Received data: {data}")
 
-rt.ExecutorConfig(subscriber=example_streaming_handler)
+
+rt.ExecutorConfig(broadcast_callback=example_streaming_handler)
 ```
 
 With streaming enabled, call `rt.stream(...)` inside any function decorated with `@rt.to_node` to send updates:
@@ -26,9 +28,10 @@ With streaming enabled, call `rt.stream(...)` inside any function decorated with
 ```python
 import railtracks as rt
 
-@rt.to_node
+
+@rt.function_node
 def example_node(data: list[str]):
-    rt.stream(f"Handling {len(data)} items")
+    rt.broadcast(f"Handling {len(data)} items")
 ```
 
 !!! warning

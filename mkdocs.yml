@@ -4,10 +4,11 @@ theme:
   name: material
   features:
     - navigation.indexes
-
+    - navigation.sections
     - navigation.prefetch
     - search.suggest
     - content.code.copy
+    - content.code.highlight
   code:
     highlight_theme:
       light: github
@@ -15,22 +16,23 @@ theme:
 
 
 
+
+
+extra_css:
+  - css/extra.css
+
 nav:
   - Home: index.md
 
 
-  - Guides:
-        - guides/index.md
-        - Agents: guides/agents.md
-        - Tools: guides/tools.md
+
 
   - Tutorials:
         - tutorials/byfa.md
-        - tutorials/ryfa.md
-        - tutorials/node_builder.md
-
-
-
+        - Background:
+            - tutorials/guides/index.md
+            - Agents: tutorials/guides/agents.md
+            - Tools: tutorials/guides/tools.md
 
   - Tools + MCP:
       - tools_mcp/index.md
@@ -50,6 +52,7 @@ nav:
 
   - Observability:
         - observability/index.md
+        - Visualization: observability/visualization.md
         - Logging: observability/logging.md
         - Streaming: observability/streaming.md
 
@@ -74,12 +77,19 @@ nav:
 
   - API Reference:
       - api_reference/index.md
+  
+  - System Overviews:
+      - system_internals/index.md
+      - Node: system_internals/node.md
+      - Runner: system_internals/runner.md
+      - PubSub: system_internals/pubsub.md
+      - Coordinator: system_internals/coordinator.md
 
 
 plugins:
   - search
-  - mkdocstrings
   - mermaid2
+
 
 
 markdown_extensions:
@@ -100,13 +110,5 @@ markdown_extensions:
   - pymdownx.highlight:
       anchor_linenums: true
   - attr_list
-
-
-extra_css:
-  - css/extra.css
-
-
-
-
 
 

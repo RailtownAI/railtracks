@@ -12,6 +12,7 @@ Here's an example of a tool that uses [SymPy](https://www.sympy.org/) to solve e
 from sympy import solve, sympify
 import railtracks as rt
 
+
 def solve_expression(equation: str, solving_for: str):
     """
     Solves the given equation (assumed to be equal to 0) for the specified variable.
@@ -26,7 +27,8 @@ def solve_expression(equation: str, solving_for: str):
     # Solve the equation for the given variable
     return solve(eq, solving_for)
 
-SolveExpressionTool = rt.library.from_function(solve_expression)
+
+SolveExpressionTool = rt.library.function_node(solve_expression)
 ```
 
 Alternatively, you can use a decorator to register the function directly:
@@ -34,7 +36,8 @@ Alternatively, you can use a decorator to register the function directly:
 ```python
 import railtracks as rt
 
-@rt.to_node
+
+@rt.function_node
 def solve_expression(equation: str, solving_for: str):
     ...
 ```

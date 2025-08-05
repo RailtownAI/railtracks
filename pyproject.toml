@@ -2,40 +2,6 @@
 requires = ["flit_core >=3.2,<4"]
 build-backend = "flit_core.buildapi"
 
-
-[project]
-name = "railtracks"
-authors = [
-    { name = "Logan Underwood", email = "logan@railtown.ai" },
-    { name = "Levi Varsanyi", email = "levi@railtownn.ai" },
-    { name = "Jaime Bueza", email = "jaime@railtown.ai" },
-    { name = "Amir Refaee", email = "amir@railtown.ai" },
-    { name = "Aryan Ballani", email = "aryan@railtown.ai" },
-    { name = "Tristan Brown", email = "tristan@railtown.ai" }
-]
-readme = "README.md"
-license = { file = "LICENSE" }
-classifiers = ["License :: OSI Approved :: MIT License"]
-dynamic = ["version", "description"]
-dependencies = [
-    "colorama >= 0.4.6",
-    "fastapi >= 0.104.0",
-    "litellm >= 1.70.2",
-    "mcp >= 1.9.0",
-    "pydantic >= 2.5.3,<3",
-    "python-dotenv >= 1.0.0",
-    "pyvis >= 0.3.1",
-    "requests >=2.31,<3",
-    "requests-mock >= 1.12.1",
-]
-
-[project.urls]
-Home = "https://railtown.ai"
-
-
-[tool.flit.module]
-name = "railtracks"
-
 [tool.ruff]
 target-version = "py310"
 line-length = 88
@@ -63,28 +29,12 @@ lint.ignore = [
 fix = true
 lint.fixable = ["F401", "F841", "I001"]
 
-exclude = [".git", "examples", "docs", ".venv", ".conda", "tests", "src/railtracks/visuals"]
-
-
+exclude = [".git", "examples", "docs", ".venv", ".conda", "tests"]
 
 lint.mccabe.max-complexity = 10
 
 
-
-
-[project.optional-dependencies]
-test = [
-    "pytest >=7.1.2",
-    "pytest-asyncio",
-    "flit",
-    "tomlkit==0.11.8",
-    "pytest-timeout"
-]
-cli = [
-    "railtracks-cli"
-]
-
 [tool.pytest.ini_options]
-pythonpath = ["src"]
-testpaths = ["tests"]
 asyncio_mode = "auto"
+
+
