@@ -1,20 +1,40 @@
-# 🔧 Exposing Functions as Tools
+# 🔧 Functions as Tools
 
-In Railtracks, you can turn any Python function into a tool that agents can call—no special boilerplate needed. The key is to provide a **Google-style docstring**, which acts as the tool's description and schema.
+In Railtracks, you can turn any Python function into a tool that agents can call—no special boilerplate needed. The key is to provide a [**Google-style docstring**](https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html), which acts as the tool's description and schema.  
 
----
+!!! info "Function Nodes"
+    `rt.function_node` is a convenience function that wraps a function into a Railtrack node. Read more about this [DynamicFunctionNode](../../system_internals/node.md#dynamicfunctionnode).
 
-## 🧠 What Is a Tool?
-
-A **tool** is simply a function that has been wrapped using `rt.function_node(...)`, making it callable by agents or orchestrated within larger flows.
-
-!!! info "python function -> node"
-    When you call `rt.function_node(...)`, you're basically creating a Dynamic Function Node, which is a specialized version of a normal node that can be called by agents.
----
 
 ## ⚙️ Creating a Function Tool
 
-Here’s all it takes to create your own tool:
+### 1. Simple Function
+
+Let's start with a simple function that takes two arguments and returns their sum:
+
+```python
+def add(a: int, b: int) -> int:
+    """
+    Adds two numbers together.
+    Args:
+        a (int): The first number.
+        b (int): The second number.
+
+    Returns:
+        int: The sum of the two numbers.
+    """
+    return a + b
+```
+
+To turn this function into a tool, we need to provide a docstring that describes the function's parameters and return type:
+
+```python
+import railtracks as rt
+
+add_tool_node = rt.function_node(add)
+```
+
+### 2. Custom Tool Example
 
 ```python
 from sympy import solve, sympify
@@ -34,5 +54,39 @@ def solve_expression(equation: str, solving_for: str):
     # Solve the equation for the given variable
     return solve(eq, solving_for)
 
-SolveExpressionTool = rt.function_node(solve_expression)
+expression_solver_tool_node = rt.function_node(solve_expression)
 ```
+
+## 🔮 Using the tools
+
+Now that we have our tool, we can use it in our agent:
+
+```python
+import railtracks as rt
+
+# Create an agent with tool access
+math_agent = rt.agent_node(
+                pretty_name="MathAgent",
+                tool_nodes=[expression_solver_tool_node, add_tool_node],    # the agent has access to these tools
+                llm_model = rt.llm.OpenAILLM("gpt-4o"),
+                )
+
+# run the agent
+result = rt.call_sync(math_agent, "What is 3 + 4?")
+```
+
+## 📚 Related
+
+Want to go further with tools in Railtracks?
+
+* [🛠️ What *are* tools?](../index.md) <br>
+  Learn how tools fit into the bigger picture of Railtracks and agent orchestration.
+
+* [🔧 How to build your first agent](../../tutorials/byfa.md) <br>
+  Follow along with a tutorial to build your first agent.
+
+* [🤖 Using Agents as Tools](./agents_as_tools.md) <br>
+  Discover how you can turn entire agents into callable tools inside other agents.
+
+* [🧠 Advanced Tooling](./advanced_usages.md) <br>
+  Explore dynamic tool loading, runtime validation, and other advanced patterns.
