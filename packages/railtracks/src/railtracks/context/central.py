@@ -343,7 +343,7 @@ def set_config(
 
     if is_context_active():
         warnings.warn(
-            "The executor config is being set after the runner has been created, this is not recomended"
+            "The executor config is being set after the runner has been created, this is not recommended"
         )
 
     config = global_executor_config.get()

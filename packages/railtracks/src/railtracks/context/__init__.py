@@ -1,8 +1,8 @@
 from .central import (
+    delete,
     get,
     put,
     update,
-    delete,
 )
 
 __all__ = ["put", "get", "update", "delete"]
