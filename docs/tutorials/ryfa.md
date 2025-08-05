@@ -5,7 +5,7 @@ Once you have defined your agent class you can then run your work flow and see r
 To begin you just have to use `call` for asynchronous flows or `call_sync` if it's s sequential flow. You simply pass your agent node as a parameter as well as the prompt as `user_input`:
 
 
-###Example
+### Example
 ```python
 
 response = rt.call(
@@ -22,7 +22,7 @@ Just like that you have ran your first agent!
 
 Although it really is that simple to run your agent, you can do more of course. If you have a dynamic work flow you can delay parameters like `llm_model` and you can add a `SystemMessage` along with your prompt directly to `user_input` as a `MessageHistory` object.
 
-###Example
+### Example
 ```python
 
 weather_agent_class = rt.agent_node(
@@ -42,7 +42,7 @@ response = rt.call(
 
 Should you pass `llm_model` to `agent_node` and then a different llm model to either call function, RailTracks will use the parameter passed in the call. If you pass `system_message` to `agent_node` and then another `system_message` to a call function, the system messages will be stacked.
 
-###Example
+### Example
 ```python
 
 default_model = "gpt-40"
@@ -70,7 +70,7 @@ In this example RailTracks will use claude rather than chatgpt and the system me
 
 All agents return a response object which you can use to get the last message or the entire message history if you would prefer.
 
-###Unstructured Response Example
+### Unstructured Response Example
 ```python
 
 coding_agent_node = rt.agent_node()
@@ -88,7 +88,7 @@ answer_string = response.text()
 message_history_object = response.message_history
 ```
 
-###Structured Response Example
+### Structured Response Example
 ```python
 from pydantic import BaseModel
 
@@ -111,6 +111,69 @@ response = rt.call(
 user_number = response.structured().user_number
 message_history_object = response.message_history
 ```
+
+## Advanced Usage Examples
+
+### A Tool Call Example
+
+```python
+
+agent_node()
+
+```
+
+### The power of RailTracks
+
+```python
+
+class ShortAndLongSummaries(BaseModel):
+    OneLineSummarry: str = Field(description="One line summary of the commit")
+    DetailedSummary: str = Field(description="Detailed summary of the commit")
+
+system_prompt = """You are an expert software developer and manager. Your job is to look at developers' code updates, and summarize what was done in a brief but understable way. 
+                        Always provide only the summary - no acknowledgements or greetings. You are to generate a brief one-line summary as well as a longer more detailed one. 
+                        Be sure to focus on the function or purpose of the changes made rather than the minutiae of the code changes. If the diff is short, your detailed summary can be brief."""
+
+
+CommitSummarizerNode = agent_node(
+    output_schema=ShortAndLongSummaries,
+    system_message=system_prompt)
+
+
+async def top_level_summarizer(Summarize, commit_diffs, prompt_data) -> list[dict]: 
+    """
+    Top level node for the commit summarizer
+    """
+    contracts = [rc.call(Summarize, commit_diff, prompt_data) for commit_diff in commit_diffs]
+
+    results = await asyncio.gather(*contracts)
+    return results
+
+async def summarize(commit: types.CommitData, prompt_data: dict) -> dict:
+    """
+    Summarize a commit using the provided prompt data
+    """
+    full_diff = combine_file_diffs(commit.FileDiffs)
+    user_prompt = prompt_data["UserPrompt"].format(
+        diff=full_diff, commit_message=commit.CommitMessage
+    )
+
+    message_history = rc.llm.MessageHistory(
+        [
+            rc.llm.UserMessage(user_prompt),
+        ]
+    )
+
+    response = await rc.call(CommitSummarizerNode, message_history, prompt_data["llm_prompt"])
+    
+    return {commit.CommitSha: response}
+
+results = rt.call(CommitSummarizer, Summarize, payload.Commits, prompt_data)
+```
+
+
+using a function that uses a function
+
 
 
 <p style="text-align:center;">
