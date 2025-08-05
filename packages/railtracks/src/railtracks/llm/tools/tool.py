@@ -12,6 +12,7 @@ from typing import Any, Callable, Dict, Iterable, List, Set, Type
 from pydantic import BaseModel
 from typing_extensions import Self
 
+from .._exception_base import RTLLMError
 from .docstring_parser import extract_main_description, parse_docstring_args
 from .parameter import Parameter
 from .parameter_handlers import (
@@ -118,12 +119,13 @@ class Tool:
             # Get the function signature
             signature = inspect.signature(func)
         except ValueError:
-            re = RuntimeError(
-                "Cannot convert kwargs for builtin functions.",
+            raise ToolCreationError(
+                message="Cannot convert kwargs for builtin functions.",
+                notes=[
+                    "Please use a cutom made function.",
+                    "Eg.- \ndef my_custom_function(a: int, b: str):\n    pass",
+                ],
             )
-
-            re.add_note("Please use a function of your own")
-            raise re
 
         if name is not None:
             # TODO: add some checking here to ensure that the name is valid snake case.
@@ -193,12 +195,11 @@ class Tool:
         """
         input_schema = getattr(tool, "inputSchema", None)
         if not input_schema or input_schema["type"] != "object":
-            re = RuntimeError(
-                "The inputSchema for an MCP Tool must be 'object'. ",
-            )
-
-            re.add_note(
-                "If an MCP tool has a different output_schema, create a GitHub issue and support will be added."
+            raise ToolCreationError(
+                message="The inputSchema for an MCP Tool must be 'object'. ",
+                notes=[
+                    "If an MCP tool has a different output_schema, create a GitHub issue and support will be added."
+                ],
             )
 
         properties = input_schema.get("properties", {})
@@ -209,3 +210,22 @@ class Tool:
             param_objs.add(parse_json_schema_to_parameter(name, prop, required))
 
         return cls(name=tool.name, detail=tool.description, parameters=param_objs)
+
+
+class ToolCreationError(RTLLMError):
+    """Exception raised when a tool cannot be created."""
+
+    def __init__(self, message, notes=None):
+        super().__init__(message)
+        self.notes = notes or []
+
+    def __str__(self):
+        base = super().__str__()
+        if self.notes:
+            notes_str = (
+                "\n"
+                + self._color("Tips to debug:\n", self.GREEN)
+                + "\n".join(self._color(f"- {note}", self.GREEN) for note in self.notes)
+            )
+            return f"\n{self._color(base, self.RED)}{notes_str}"
+        return self._color(base, self.RED)

@@ -1,7 +1,7 @@
 from mcp import ClientSession
 
-from railtracks.integrations.rt_mcp.jupyter_compat import apply_patches
-from railtracks.integrations.rt_mcp.main import MCPHttpParams, MCPServer, MCPStdioParams
+from .jupyter_compat import apply_patches
+from .main import MCPHttpParams, MCPServer, MCPStdioParams
 
 
 def connect_mcp(

@@ -17,7 +17,6 @@ license = { file = "LICENSE" }
 classifiers = ["License :: OSI Approved :: MIT License"]
 dynamic = ["version", "description"]
 
-# TODO add in RailTracks as a dependency
 dependencies = [
     "railtracks",
     "watchdog >= 3.0.0"

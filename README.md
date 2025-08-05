@@ -1,119 +1,100 @@
-# RailTracks Agentic Framework (RC)
+# RailTracks
 
 ## Overview
 
-The RailTracks framework is a system designed to allow you to build simple Agentic systems that can be used to
-accomplish complicated tasks. By building "agents" with specialized abilities you can accomplish much more complicated
-tasks that single module could accomplish. Although the system is designed from the standpoint of LLMs being those
-agents,
-it is flexible and the idea of an agent could be any piece of modular functionality.
+**RailTracks** is a lightweight framework for building agentic systems; modular, intelligent agents that can be composed to solve complex tasks more effectively than any single module could.
 
-The framework is designed to support the building, testing, debugging, and deployment of
-such systems. It's core principle of the system your agentic system is made up of modular components.
-Each modular component has the ability to answer the upstream query or open a new downstream request
-to another modular component.
+The framework supports the entire lifecycle of agentic development: building, testing, debugging, and deploying. Its core principle is modularity, your systems are constructed from reusable, modular components.
 
-## Key Features
+---
 
-- **Automatic Parallelism** - The backend of the RT system will automatically parallelize the execution of the modular
-  components. You don't need to worry about it.
-- **Streaming Capability** - By defining what you want to stream and attaching a handler you can stream updates to the
-  system via a callback mechanism.
-- **Error Handling** - Our predefined agents will automatically handle errors and retry requests as needed.
-- **Debugging** - The system has built in logging tools that will allow high quality insights into the working of your
-  system.
-- **Visuals** - The system has built in visualization tools that will allow you to see the flow of your system and how
-  the
-  requests are being processed.
-- **Definitions of Complex Flows** - RTs natural programmatic definitions of flows makes the design of complicated flows
-  a breeze.
-- **Configurable** - The system is designed to be configurable and extensible. You maintain full control of a variety of
-  parameters that can be used to control the behavior of the system.
+## Why RailTracks?
+
+Many frameworks for building LLM-powered applications focus on pipelines, chains, or prompt orchestration. While effective for simple use cases, they quickly become brittle or overly complex when handling asynchronous tasks, multi-step reasoning, and heterogeneous agents.
+
+**RailTracks was designed from the ground up with the developer in mind to support real-world agentic systems**, with an emphasis on:
+
+* **Programmatic structure without rigidity** – Unlike declarative workflows (e.g., LangChain), RailTracks encourages clean Pythonic control flow.
+* **Agent-first abstraction** – Inspired by real-world coordination, RailTracks focuses on defining smart agents that collaborate via tools—not just chaining LLM calls.
+* **Automatic Parallelism** – All executions are automatically parallelized where possible, freeing you from managing threading or async manually.
+* **Transparent Execution** – Includes integrated logging, history tracing, and built-in visualizations to show exactly how your system behaves.
+* **Minimal API** – The small configurable API makes life a breeze compared to other tools. No magic.
+* **Visual Insights** – Graph-based visualizations help you understand data flow and agent interactions at a glance.
+* **Pluggable Models** – Use any LLM provider: OpenAI, open-weight models, or your own local inference engine.
+
+Where frameworks like LangGraph emphasize pipelines, RailTracks aims to be the developer-friendly sweet spot: powerful enough for complex systems, but simple enough to understand, extend, and debug.
+
+---
 
 ## Quick Start
 
-Let's get started with building your first Agentic system. The following steps will guide you through the process of
-creating a simple Agentic system using the RailTracks framework.
+Build your first agentic system in just a few steps.
 
 ### Step 1: Install the Library
 
 ```bash
-# Install the core library
+# Core library
 pip install railtracks
 
-# Install with CLI support for development and visualization
-pip install railtracks[cli]
+# [Optional] CLI support for development and visualization
+pip install railtracks-cli
 ```
 
-### Step 2: Define your Modular Components
+### Step 2: Define Your Modular Components
 
 ```python
 import railtracks as rt
 
-
 def number_of_chars(text: str) -> int:
-  """
-  Counts the number of characters in the text.
-
-  Args:
-      text (str): The text to count characters in.
-  """
-  return len(text)
-
+    return len(text)
 
 def number_of_words(text: str) -> int:
-  """
-  Counts the number of words in the text.
+    return len(text.split())
 
-  Args:
-      text (str): The text to count words in.
-  """
-  return len(text.split())
+def number_of_characters(text: str, character_of_interest: str) -> int:
+    return text.count(character_of_interest)
 
+TotalNumberChars = rt.function_node(number_of_chars)
+TotalNumberWords = rt.function_node(number_of_words)
+CharacterCount = rt.function_node(number_of_characters)
 
-def number_of_characters(text: str, character_of_interest) -> int:
-  """
-  Counts the number of characters in the text.
-
-  Args:
-      text (str): The text to count characters in.
-      character_of_interest (str): The character to count.
-  """
-  return len(text)
-
-
-TotalNumberChars = rt.library.function_node(number_of_chars)
-TotalNumberWords = rt.library.function_node(number_of_words)
-CharacterCount = rt.library.function_node(number_of_characters)
-
-TextAnalyzer = rt.library.tool_call_llm(
-  tool_nodes={
-    TotalNumberChars,
-    TotalNumberWords,
-    CharacterCount,
-  },
-  model=rt.llm.OpenAILLM("gpt-4o"),
-  system_message=rt.llm.SystemMessage(
-    "You are a text analyzer. You will be given a text and you will return the number of characters, "
-    "the number of words, and the number of occurrences of a specific character in the text."
-  ),
+TextAnalyzer = rt.agent_node(
+    tool_nodes={TotalNumberChars, TotalNumberWords, CharacterCount},
+    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    system_message=(
+        "You are a text analyzer. You will be given a text and return the number of characters, "
+        "the number of words, and the number of occurrences of a specific character."
+    ),
 )
 ```
 
-### Step 3: Run your Application
+### Step 3: Run Your Application
 
 ```python
 import railtracks as rt
 
-result = await rt.call(
+result = rt.call_sync(
     TextAnalyzer,
-    rt.llm.MessageHistory([rt.llm.UserMessage("Hello world! This is a test of the RailTracks framework.")])
+    rt.llm.MessageHistory([
+        rt.llm.UserMessage("Hello world! This is a test of the RailTracks framework.")
+    ])
 )
 print(result)
 ```
 
-Getting started with RT is as simple as that!. View the docs for more examples. The possibilities are truly endless.
+### Step 4: \[Optional] Visualize the Run
+
+```bash
+railtracks init
+railtracks viz
+```
+
+> *(Insert example visualization image here)*
+
+And just like that, you're up and running. The possibilities are endless.
+
+---
 
 ## Contributing
 
-See the [contributing guide](./CONTRIBUTING.md) for more information.
+We welcome contributions of all kinds! Check out our [contributing guide](./CONTRIBUTING.md) to get started.

@@ -8,10 +8,16 @@ from typing import Any, Dict, Generic, Iterable, Type, TypeVar
 from pydantic import BaseModel
 from typing_extensions import Self
 
-import railtracks.llm as llm
 from railtracks.exceptions.errors import NodeInvocationError
 from railtracks.exceptions.messages.exception_messages import get_message
-from railtracks.llm import MessageHistory, Parameter, SystemMessage, UserMessage
+from railtracks.llm import (
+    Message,
+    MessageHistory,
+    ModelBase,
+    Parameter,
+    SystemMessage,
+    UserMessage,
+)
 from railtracks.llm.response import Response
 from railtracks.prompts.prompt import inject_context
 from railtracks.validation.node_invocation.validation import (
@@ -32,8 +38,8 @@ class RequestDetails:
 
     def __init__(
         self,
-        message_input: llm.MessageHistory,
-        output: llm.Message | None,
+        message_input: MessageHistory,
+        output: Message | None,
         model_name: str | None,
         model_provider: str | None,
         input_tokens: int | None = None,
@@ -70,20 +76,20 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
 
     def __init__(
         self,
-        user_input: llm.MessageHistory | UserMessage | str | list[llm.Message],
-        llm_model: llm.ModelBase | None = None,
+        user_input: MessageHistory | UserMessage | str | list[Message],
+        llm_model: ModelBase | None = None,
     ):
         super().__init__()
 
         # Convert str or UserMessage to MessageHistory if needed
         if isinstance(user_input, str):
-            user_input = llm.MessageHistory([UserMessage(user_input)])
+            user_input = MessageHistory([UserMessage(user_input)])
         elif isinstance(user_input, UserMessage):
-            user_input = llm.MessageHistory([user_input])
+            user_input = MessageHistory([user_input])
         elif isinstance(user_input, list) and not isinstance(
-            user_input, llm.MessageHistory
+            user_input, MessageHistory
         ):
-            user_input = llm.MessageHistory(user_input)
+            user_input = MessageHistory(user_input)
 
         self._verify_message_history(user_input)
         message_history_copy = deepcopy(
@@ -123,7 +129,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
             unwrapped_llm_model = llm_model
 
         self._verify_llm_model(unwrapped_llm_model)
-        assert isinstance(unwrapped_llm_model, llm.ModelBase), (
+        assert isinstance(unwrapped_llm_model, ModelBase), (
             "unwrapped_llm_model must be an instance of llm.ModelBase"
         )
         self.llm_model = unwrapped_llm_model
@@ -137,7 +143,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
     @classmethod
     def prepare_tool_message_history(
         cls, tool_parameters: Dict[str, Any], tool_params: Iterable[Parameter] = None
-    ) -> llm.MessageHistory:
+    ) -> MessageHistory:
         """
         Prepare a message history for a tool call with the given parameters.
 
@@ -153,7 +159,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         """
         # If no parameters, return empty message history
         if not tool_params:
-            return llm.MessageHistory([])
+            return MessageHistory([])
 
         # Create a single, coherent instruction instead of multiple separate messages
         instruction_parts = [
@@ -179,23 +185,23 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         )
 
         # Create a single UserMessage with the complete instruction
-        return llm.MessageHistory([llm.UserMessage("\n".join(instruction_parts))])
+        return MessageHistory([UserMessage("\n".join(instruction_parts))])
 
     @abstractmethod
     def return_output(self) -> _T: ...
 
     @classmethod
-    def _verify_message_history(cls, message_history: llm.MessageHistory):
+    def _verify_message_history(cls, message_history: MessageHistory):
         """Verify the message history is valid for this LLM."""
         check_message_history(message_history, cls.system_message())
 
     @classmethod
-    def _verify_llm_model(cls, llm_model: llm.ModelBase | None):
+    def _verify_llm_model(cls, llm_model: ModelBase | None):
         """Verify the llm model is valid for this LLM."""
         check_llm_model(llm_model)
 
     @classmethod
-    def get_llm_model(cls) -> llm.ModelBase | None:
+    def get_llm_model(cls) -> ModelBase | None:
         return None
 
     @classmethod
@@ -213,11 +219,11 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         self.llm_model.remove_pre_hooks()
         self.llm_model.remove_post_hooks()
 
-    def _pre_llm_hook(self, message_history: llm.MessageHistory) -> llm.MessageHistory:
+    def _pre_llm_hook(self, message_history: MessageHistory) -> MessageHistory:
         """Hook to modify messages before sending them to the llm model."""
         return inject_context(message_history)
 
-    def _post_llm_hook(self, message_history: llm.MessageHistory, response: Response):
+    def _post_llm_hook(self, message_history: MessageHistory, response: Response):
         """Hook to store the response details after invoking the llm model."""
         self._details["llm_details"].append(
             RequestDetails(
@@ -237,7 +243,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         return response
 
     def _exception_llm_hook(
-        self, message_history: llm.MessageHistory, exception: Exception
+        self, message_history: MessageHistory, exception: Exception
     ):
         """Hook to store the response details after exception was thrown during llm model invocation"""
         self._details["llm_details"].append(

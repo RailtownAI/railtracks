@@ -4,15 +4,15 @@ from typing import Literal
 import litellm
 import requests
 
-from ....exceptions.errors import LLMError
 from ....utils.logging.create import get_rt_logger
 from .._litellm_wrapper import LiteLLMWrapper
+from .._model_exception_base import FunctionCallingNotSupportedError, ModelError
 
 LOGGER_NAME = "OLLAMA"
 DEFAULT_DOMAIN = "http://localhost:11434"
 
 
-class OllamaError(LLMError):
+class OllamaError(ModelError):
     def __init__(self, reason: str):
         super().__init__(reason=reason)
 
@@ -92,9 +92,7 @@ class OllamaLLM(LiteLLMWrapper):
 
     def chat_with_tools(self, messages, tools, **kwargs):
         if not litellm.supports_function_calling(model=self._model_name):
-            raise LLMError(
-                reason=f"Model '{self.model_name()}' does not support function calling."
-            )
+            raise FunctionCallingNotSupportedError(self._model_name)
 
         return super().chat_with_tools(messages, tools, **kwargs)
 

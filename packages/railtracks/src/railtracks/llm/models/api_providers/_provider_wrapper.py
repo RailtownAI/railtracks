@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 import litellm
 from litellm.litellm_core_utils.get_llm_provider_logic import get_llm_provider
 
-from ....exceptions.errors import LLMError
 from .._litellm_wrapper import LiteLLMWrapper
+from .._model_exception_base import FunctionCallingNotSupportedError, ModelError
 
 
 class ProviderLLMWrapper(LiteLLMWrapper, ABC):
@@ -49,13 +49,11 @@ class ProviderLLMWrapper(LiteLLMWrapper, ABC):
 
     def chat_with_tools(self, messages, tools, **kwargs):
         if not litellm.supports_function_calling(model=self._model_name):
-            raise LLMError(
-                reason=f"Model {self._model_name} does not support function calling. Chat with tools is not supported."
-            )
+            raise FunctionCallingNotSupportedError(self._model_name)
         return super().chat_with_tools(messages, tools, **kwargs)
 
 
-class ModelNotFoundError(LLMError):
+class ModelNotFoundError(ModelError):
     def __init__(self, reason: str, notes: list[str] = None):
         self.reason = reason
         self.notes = notes or []

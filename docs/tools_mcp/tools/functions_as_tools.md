@@ -8,8 +8,7 @@ In Railtracks, you can turn any Python function into a tool that agents can call
 
 ## ⚙️ Creating a Function Tool
 
-### 1. Simple Function
-
+### 1. Using an RT Function
 Let's start with a simple function that takes two arguments and returns their sum:
 
 ```python
@@ -26,7 +25,7 @@ def add(a: int, b: int) -> int:
     return a + b
 ```
 
-To turn this function into a tool, we need to provide a docstring that describes the function's parameters and return type:
+To turn this function into a tool, we need to provide a docstring that describes the function's parameters. Then we can pass the function to `rt.function_node` to create a tool:
 
 ```python
 import railtracks as rt
@@ -34,12 +33,14 @@ import railtracks as rt
 add_tool_node = rt.function_node(add)
 ```
 
-### 2. Custom Tool Example
+### 2. Using a decorator
+Let's make another tool that we can use in our agent, this time using the `@rt.function_node` decorator:
 
 ```python
 from sympy import solve, sympify
 import railtracks as rt
 
+@rt.function_node
 def solve_expression(equation: str, solving_for: str):
     """
     Solves the given equation (assumed to be equal to 0) for the specified variable.
@@ -53,8 +54,6 @@ def solve_expression(equation: str, solving_for: str):
 
     # Solve the equation for the given variable
     return solve(eq, solving_for)
-
-expression_solver_tool_node = rt.function_node(solve_expression)
 ```
 
 ## 🔮 Using the tools
@@ -67,9 +66,12 @@ import railtracks as rt
 # Create an agent with tool access
 math_agent = rt.agent_node(
                 pretty_name="MathAgent",
-                tool_nodes=[expression_solver_tool_node, add_tool_node],    # the agent has access to these tools
+                tool_nodes=[
+                  solve_expression, 
+                  add_tool_node,
+                ],    # the agent has access to these tools
                 llm_model = rt.llm.OpenAILLM("gpt-4o"),
-                )
+            )
 
 # run the agent
 result = rt.call_sync(math_agent, "What is 3 + 4?")
@@ -82,10 +84,10 @@ Want to go further with tools in Railtracks?
 * [🛠️ What *are* tools?](../index.md) <br>
   Learn how tools fit into the bigger picture of Railtracks and agent orchestration.
 
-* [🔧 How to build your first agent](../../tutorials/byfa.md) <br>
+* [🤖 How to build your first agent](../../tutorials/byfa.md) <br>
   Follow along with a tutorial to build your first agent.
 
-* [🤖 Using Agents as Tools](./agents_as_tools.md) <br>
+* [🔧 Agents as Tools](./agents_as_tools.md) <br>
   Discover how you can turn entire agents into callable tools inside other agents.
 
 * [🧠 Advanced Tooling](./advanced_usages.md) <br>

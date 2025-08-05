@@ -2,7 +2,7 @@ import asyncio
 import time
 
 import railtracks as rt
-from railtracks.integrations.rt_mcp import connect_mcp
+from railtracks.rt_mcp import connect_mcp
 from railtracks.nodes.easy_usage_wrappers.helpers import tool_call_llm
 from railtracks.nodes.nodes import Node
 
@@ -10,7 +10,7 @@ import pytest
 import subprocess
 import sys
 
-from railtracks.integrations.rt_mcp.main import MCPHttpParams, MCPStdioParams
+from railtracks.rt_mcp.main import MCPHttpParams, MCPStdioParams
 
 
 @pytest.fixture(scope="session", autouse=True)

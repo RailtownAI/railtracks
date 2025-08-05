@@ -3,7 +3,7 @@ import litellm
 from unittest.mock import patch
 
 from railtracks.llm.models import AzureAILLM
-from railtracks.llm.models.cloud.azureai import AzureAIError
+from railtracks.llm._exception_base import RTLLMError
 from railtracks.llm.models._litellm_wrapper import LiteLLMWrapper
 
 from railtracks.llm.response import Response
@@ -36,7 +36,7 @@ def test_init_success():
 def test_init_model_not_available():
     """Test initialization with a model that is not available"""
     with pytest.raises(
-        AzureAIError, match="Model 'non_existent_model' is not available"
+        RTLLMError, match="Model 'non_existent_model' is not available"
     ):
         AzureAILLM(model_name="non_existent_model")
 
@@ -68,7 +68,7 @@ def test_chat_failure(message_history):
         ),
     ):
         with pytest.raises(
-            AzureAIError, match="Azure AI LLM error while processing the request"
+            RTLLMError, match="Azure AI LLM error while processing the request"
         ):
             llm.chat(message_history)
 
@@ -97,5 +97,5 @@ def test_chat_with_tools_failure(message_history, tool):
         return_value=False
 
     ):
-        with pytest.raises(AzureAIError):
+        with pytest.raises(RTLLMError):
             llm.chat_with_tools(message_history, [tool])

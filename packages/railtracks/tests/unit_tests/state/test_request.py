@@ -1,8 +1,13 @@
+import time
+
 import pytest
 from railtracks.state.request import (
     RequestTemplate, RequestForest, RequestDoesNotExistError,
     RequestAlreadyExistsError, Cancelled, Failure,
 )
+from railtracks.utils.profiling import Stamp
+
+
 
 # ================ START RequestTemplate unit tests ======================
 def test_repr_and_properties(req_template_factory):
@@ -207,3 +212,43 @@ def test_cancelled_and_failure():
     assert isinstance(f, Failure)
     assert f.exception is e
 # =============== END Failure and Cancelled tests ========================
+
+
+
+def test_status():
+    unfinished_request = RequestTemplate(
+        identifier="ahsusu",
+        stamp = Stamp(time=time.time(), step=0, identifier="Hello World"),
+        parent=None,
+        source_id="heghe",
+        sink_id="heheuii",
+        input=((), {}),
+        output=None,
+    )
+
+    assert unfinished_request.status == "Open"
+
+def test_status_2():
+    completed_request = RequestTemplate(
+        identifier="ahsusu",
+        stamp=Stamp(time=time.time(), step=0, identifier="Hello World"),
+        parent=None,
+        source_id="heghe",
+        sink_id="heheuii",
+        input=((), {}),
+        output="example output",
+    )
+    assert completed_request.status == "Completed"
+
+def test_status_failure():
+    failed_request = RequestTemplate(
+        identifier="ahsusu",
+        stamp=Stamp(time=time.time(), step=0, identifier="Hello World"),
+        parent=None,
+        source_id="heghe",
+        sink_id="heheuii",
+        input=((), {}),
+        output=Failure(Exception("example")),
+    )
+
+    assert failed_request.status == "Failed"

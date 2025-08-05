@@ -51,6 +51,7 @@ class RequestTemplate(AbstractLinkedObject):
                 "state": self.status,
                 "input_args": self.input[0],
                 "input_kwargs": self.input[1],
+                "status": self.status,
                 "output": self.output,
             },
             parent=self.parent.to_edge() if self.parent is not None else None,
@@ -77,6 +78,9 @@ class RequestTemplate(AbstractLinkedObject):
         """
 
         if self.output is not None:
+            if isinstance(self.output, Failure):
+                return "Failed"
+
             return "Completed"
         else:
             return "Open"

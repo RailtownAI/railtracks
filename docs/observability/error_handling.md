@@ -86,7 +86,7 @@ try:
     )
     
     # Configure timeout
-    rt.config(timeout=60.0)
+    rt.set_config(timeout=60.0)
     
     # Execution phase
     result = await rt.call(node, user_input="Explain quantum computing")
