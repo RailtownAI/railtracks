@@ -71,10 +71,10 @@ Take a look at the examples below to see how using different providers look for 
     )
     ```
 
-!!! info "🔑 API Keys"
+!!! info "API Keys"
     Make sure you set the appropriate environment variable keys for your specific provider. By default, RailTracks uses the `dotenv` framework to load environment variables from a `.env` file. Please refer to the API Reference for each provider to see the required environment variables.
 
-!!! info "🛠️ Tool Calling Capabilities"
+!!! info "Tool Calling Capabilities"
     If you want to use tool calling capabilities by passing the `tool_nodes` parameter to the `agent_node`, you can do so with any of the above providers. However, you need to ensure that the provider and the specific LLM model you are using support tool calling.
 
 ## 🔧 Writing Custom LLM Providers
@@ -82,6 +82,6 @@ We hope to cover most of the common and widely used LLM providers, but if you ne
 
 For our implementation, we have benefited from the amazing [LiteLLM](https://github.com/BerriAI/litellm) 🚀 framework, which provides excellent multi-provider support.
 
-!!! tip "📚 Custom Provider Documentation"
+!!! tip "Custom Provider Documentation"
     Please refer to the **Custom LLM Provider documentation** for detailed instructions on how to implement your own provider.
 

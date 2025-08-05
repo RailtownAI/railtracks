@@ -2,7 +2,37 @@
 
 ## Overview
 
-The `Session` is the primary entry point and orchestrator for the entire Railtracks system. It serves as the main execution context that initializes, configures, and manages all core components required for running node-based workflows. The `Session` acts as a facade that brings together the `Coordinator`, `RTState`, pub/sub messaging, logging, and global context management into a unified, easy-to-use interface.
+The `Session` is the primary entry point and orchestrator for the entire Railtracks system. It serves as the main execution context that initializes, configures, and manages all core components required for running node-based workflows. The `Session` acts as a facade that brings together the `Coordinator`, `RTState`, `Pub/Sub` messaging, logging, and global context management into a unified, easy-to-use interface.
+
+## Overall Flow
+
+1. **Session Creation**: A new `Session` is created, initializing all necessary components.
+2. **Context Management**: The `Session` manages the execution context, including variable scoping and state management.
+3. **Workflow Execution**: Users define and execute workflows within the `Session`, leveraging its orchestration capabilities.
+4. **Result Handling**: The `Session` collects and processes results from the workflow execution, providing a unified interface for accessing outcomes.
+5. **Cleanup**: Upon completion, the `Session` handles cleanup tasks, ensuring all resources are released properly.
+
+```mermaid
+graph TD
+    A[Session Initialization] --> |Creates and Starts| B[RTPublisher]
+    A[Session Initialization] --> |Creates| C[ExecutorConfig]
+    A[Session Initialization] --> |Creates and Starts| D[Coordinator]
+    A[Session Initialization] --> |Creates| E[RTState]
+    D[Coordinator] --> |Subscribes to| B[RTPublisher]
+```
+
+### Publisher/Subscriber Integration
+The `Session` establishes a pub/sub messaging system where:
+- `Coordinator` subscribes to handle task completion messages
+- `RTState` subscribes to manage state updates
+- Optional user subscribers can be attached for streaming
+
+### Global Context Management
+The `Session` manages global context through:
+- Registration of session ID, publisher, and configuration
+- Context variable scoping for nested executions
+- Cleanup to prevent context leakage between runs
+
 
 ## Key Components
 
@@ -93,12 +123,9 @@ classDiagram
 The `Session` follows a well-defined lifecycle that ensures proper initialization, execution, and cleanup:
 
 ### 1. Initialization Phase
-```python
-with rt.Session() as session:
-    # Session is fully initialized and ready
-```
 
 During initialization, the `Session`:
+
 - Creates or uses provided `ExecutorConfig`
 - Initializes logging system based on configuration
 - Creates `RTPublisher` for pub/sub messaging
@@ -109,97 +136,23 @@ During initialization, the `Session`:
 - Sets up subscriber connections
 
 ### 2. Execution Phase
-```python
-# Synchronous execution
-result = session.run_sync(MyNode, arg1, arg2)
-
-# Asynchronous execution  
-result = await session.run(MyNode, arg1, arg2)
-```
-
 During execution, the `Session`:
+
 - Delegates node execution to the global `call` function
 - Maintains execution state through `RTState`
 - Coordinates task execution via `Coordinator`
-- Publishes and handles completion messages
+- Publishes and handles completion messages via `RTPublisher`
 - Tracks all execution details in `ExecutionInfo`
 
 ### 3. Cleanup Phase
-```python
-# Automatic cleanup when exiting context manager
-```
 
 During cleanup, the `Session`:
+
 - Optionally saves execution state to disk (if `save_state=True`)
 - Shuts down all execution strategies
 - Detaches logging handlers
 - Cleans up global context variables
 - Releases system resources
-
-## Integration with Core Components
-
-The `Session` acts as the integration point for all major system components:
-
-```mermaid
-graph TB
-    R[Session] --> EC[ExecutorConfig]
-    R --> P[RTPublisher]
-    R --> C[Coordinator]
-    R --> RS[RTState]
-    R --> EI[ExecutionInfo]
-    
-    C --> ES[ExecutionStrategy]
-    RS --> EI
-    RS --> C
-    RS --> P
-    
-    EI --> NH[NodeForest]
-    EI --> RH[RequestForest] 
-    EI --> SM[StampManager]
-```
-
-### Publisher/Subscriber Integration
-The `Session` establishes a pub/sub messaging system where:
-- `Coordinator` subscribes to handle task completion messages
-- `RTState` subscribes to manage state updates
-- Optional user subscribers can be attached for streaming
-
-### Global Context Management
-The `Session` manages global context through:
-- Registration of session ID, publisher, and configuration
-- Context variable scoping for nested executions
-- Cleanup to prevent context leakage between runs
-
-## Execution Flow
-
-The complete execution flow when running a node through the `Session`:
-
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant R as Session
-    participant RS as RTState
-    participant C as Coordinator
-    participant ES as ExecutionStrategy
-    participant P as RTPublisher
-
-    U->>R: run(start_node, args, kwargs)
-    R->>RS: call_nodes(node, args, kwargs)
-    RS->>C: submit(task, mode)
-    C->>ES: execute(task)
-    ES->>P: publish(RequestSuccess/Failure)
-    
-    Note over P: All subscribers receive completion message
-    
-    P->>C: handle_item(completion_message)
-    P->>RS: handle(completion_message)
-    
-    C->>C: update job status
-    RS->>RS: update execution state
-    
-    RS->>R: return result
-    R->>U: return ExecutionInfo
-```
 
 ## Configuration and Customization
 
@@ -212,65 +165,11 @@ The `Session` supports extensive customization through `ExecutorConfig`:
 - **Streaming**: Attach custom subscribers for real-time monitoring
 - **Context Injection**: Control global context variable behavior
 
-## State Management and Introspection
-
-The `Session` provides comprehensive state access:
-
-```python
-# Access current execution state
-info = session.info
-
-# Get filtered state for specific nodes
-subset_info = info.get_info(['node_id_1', 'node_id_2'])
-
-# Export state for analysis
-graph_json = info.graph_serialization()
-```
-
 ## Error Handling and Recovery
 
 The `Session` implements robust error handling:
+
 - **Graceful Degradation**: Continues execution when possible
 - **Error Propagation**: Properly bubbles up fatal errors
 - **State Preservation**: Maintains execution state even during failures
 - **Cleanup Guarantees**: Ensures proper resource cleanup in all scenarios
-
-## Usage Patterns
-
-### Basic Usage
-```python
-import railtracks as rt
-
-# Simple synchronous execution
-with rt.Session() as session:
-    result = session.run_sync(MyNode, input_data)
-    print(result.answer)
-```
-
-### Advanced Configuration
-```python
-config = rt.ExecutorConfig(
-    timeout=300,
-    end_on_error=False,
-    logging_setting="DEBUG",
-    save_state=True,
-    subscriber=my_streaming_handler
-)
-
-with rt.Session(config) as session:
-    result = await session.run(ComplexWorkflow, params)
-```
-
-### State Analysis
-```python
-with rt.Session() as session:
-    result = session.run_sync(AnalysisNode, data)
-    
-    # Examine execution details
-    print(f"Total nodes executed: {len(result.all_stamps)}")
-    print(f"Final answer: {result.answer}")
-    
-    # Export for external analysis
-    with open("execution_graph.json", "w") as f:
-        f.write(result.graph_serialization())
-```
