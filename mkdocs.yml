@@ -54,6 +54,7 @@ nav:
         - Visualization: observability/visualization.md
         - Logging: observability/logging.md
         - Streaming: observability/streaming.md
+        - Local Chat: observability/chat.md
 
   - LLM Support:
       - llm_support/index.md
