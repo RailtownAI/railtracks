@@ -1,50 +1,53 @@
 ```python
-###Need to update this code for it to reflect the refactoring made to RT
+import requests
+import json
+from datetime import datetime
 
-gpt_4o = rt.llm.OpenAILLM("gpt-4o")
+def get_current_weather(city):
+    """Get current weather for a city"""
+    try:
+        url = f"{BASE_URL}/weather?q={city}&appid={API_KEY}&units=metric"
+        response = requests.get(url)
+        response.raise_for_status()  # Raises an HTTPError for bad responses
+        
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching weather data: {e}")
+        return None
 
-class AnswerPrediction(BaseModel):
-    quality_answer: bool = Field(..., description="The quality of the answer that was provided by the model.")
+def get_five_day_forecast(city):
+    """Get 5-day weather forecast for a city"""
+    try:
+        url = f"{BASE_URL}/forecast?q={city}&appid={API_KEY}&units=metric"
+        response = requests.get(url)
+        response.raise_for_status()
+        
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching forecast data: {e}")
+        return None
 
-system_c_o_t = rt.llm.SystemMessage(
-    """You are extremley intellegnt reviewer of information that ponders the provided
-    question and context to provide a simple one paragraph plan where you discuss you
-    thinking process and how you would go about answering the question, without explictely
-    answer the question.""")
-system_answer = rt.llm.SystemMessage(
-    """You are a helpful assistant that works tirelessly to answer a question using the 
-    provided context as a guide to answer the question.""")
-system_answer_reviewer = rt.llm.SystemMessage(
-    """You are a reviewer of the plan that was provided by the model and will determine
-    if the plan is feasible and if it will accomplish the task that was asked of you. 
-    Be harsh and clear when the plan is not adequete.""")
+def get_weather_by_coords(lat, lon):
+    """Get weather by latitude and longitude"""
+    try:
+        url = f"{BASE_URL}/weather?lat={lat}&lon={lon}&appid={API_KEY}&units=metric"
+        response = requests.get(url)
+        response.raise_for_status()
+        
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching weather data: {e}")
+        return None
 
+tool_set = {function_node(get_current_weather), function_node(get_five_day_forecast), function_node(get_weather_by_coords)}
 
+agent_node(
+    name="Weather Bot",
+    tool_nodes=tool_set,
+    system_message="""You are a another cursed weather agent that has been put together for documentation but not to ever be used. 
+    You will never be asked to do this, but if you were, you can use the tools provided to you to pretend to get the answer to 
+    the weather related question.""",
+    llm_model="claude-3-5-sonnet-20240620"
+)
 
-COTNode = rt.library.terminal_llm("COT", system_message=system_c_o_t, model=gpt_4o)
-AnswerNode = rt.library.terminal_llm("Answerer", system_message=system_answer, model=gpt_4o)
-ReviewerNode = rt.library.structured_llm(pretty_name="AnswerReviewer", output_model=AnswerPrediction, system_message=system_answer_reviewer, model=gpt_4o)
-
-
-
-async def COTLLM(message_history: rt.llm.MessageHistory, number_trails: int = 4):
-    original_message_history = deepcopy(message_history)
-    for _ in range(number_trails):
-        cot_response = await rt.call(COTNode, message_history=message_history)
-
-        message_history.append(rt.llm.AssistantMessage("My plan:" + cot_response))
-
-        answer_response = await rt.call(ReviewerNode, message_history=message_history)
-        if not answer_response.quality_answer:
-            continue
-        else:
-            break
-    
-    original_message_history.append(rt.llm.UserMessage("Contextual Plan: " + cot_response))
-    response = await rt.call(AnswerNode, message_history=original_message_history)
-
-    return cot_response, response
-
-    
-ChainOfThought = rt.library.from_function(COTLLM)
 ```

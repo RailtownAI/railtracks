@@ -28,6 +28,9 @@ nav:
 
   - Tutorials:
         - tutorials/byfa.md
+        - tutorials/ryfa.md
+        - tutorials/node_builder.md
+        - tutorials/yet_another_weather_bot.md
         - Background:
             - tutorials/guides/index.md
             - Agents: tutorials/guides/agents.md
