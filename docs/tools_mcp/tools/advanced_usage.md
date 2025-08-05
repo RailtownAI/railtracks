@@ -1,77 +1,102 @@
 # 🧠 Advanced Tooling
 
-This page covers advanced patterns and techniques for working with tools in Railtracks, including dynamic tool loading and complex agent compositions.
+This page covers advanced patterns and techniques for working with tools in Railtracks, including tool behaviour encapsulation, conditional tool loading and complex agent compositions.
 
 ## 🔧 Tool Calling Agents as Tools
 
 One powerful pattern is creating agents that can call multiple tools and then making those agents available as tools themselves. This creates a hierarchical structure where complex behaviors can be encapsulated and reused.
 
-### Creating a Reusable Tool Calling Agent
 
-Let's create a ticket booking agent that can handle both flights and hotels, and make it available as a tool:
+Let's create a math calculator agent that has access to basic math operations and can be reused as a tool:
 
 ```python
 import railtracks as rt
 from railtracks.nodes.manifest import ToolManifest
 from railtracks.llm import Parameter
 
-# Define the individual tools
+# Define basic math operation tools
 @rt.function_node
-def book_hotel(city: str, country: str):
-    """Book a hotel in the specified city and country."""
-    # Hotel booking logic here
-    return f"Hotel booked in {city}, {country}"
+def add(a: float, b: float) -> float:
+    """Add two numbers."""
+    return a + b
 
 @rt.function_node
-def book_flight(origin: str, destination: str):
-    """Book a flight from origin to destination."""
-    # Flight booking logic here
-    return f"Flight booked from {origin} to {destination}"
+def multiply(a: float, b: float) -> float:
+    """Multiply two numbers."""
+    return a * b
 
-# Create the tool manifest for the ticket booker
-ticket_booker_tool_info = ToolManifest(
-    description="A comprehensive travel booking agent that can book flights and hotels.",
+@rt.function_node
+def divide(a: float, b: float) -> float:
+    """Divide two numbers."""
+    if b == 0:
+        return "Error: Cannot divide by zero"
+    return a / b
+
+# Create the tool manifest for the calculator
+calculator_manifest = ToolManifest(
+    description="A calculator agent that can perform mathematical calculations and solve math problems.",
     parameters=[
-        Parameter(name="origin_city", description="The origin city.", type="str"),
-        Parameter(name="origin_country", description="The country of origin.", type="str"),
-        Parameter(name="destination_city", description="The destination city.", type="str"),
-        Parameter(name="destination_country", description="The country of destination.", type="str"),
+        Parameter(name="math_problem", description="The mathematical problem or calculation to solve.", type="str"),
     ],
-    
 )
 
-# Create the ticket booker agent
-ticket_booker = rt.agent_node(
-    pretty_name="Ticket Booker",
+# Create the calculator agent
+calculator_agent = rt.agent_node(
+    pretty_name="Calculator Agent",
     llm_model=rt.llm.OpenAILLM("gpt-4o"),
-    system_message="You are a helpful travel agent that can book both flights and hotels. When given travel details, book both the flight and accommodation.",
-    tool_nodes=[book_hotel, book_flight],
-    manifest=ticket_booker_tool_info,  # This makes the agent usable as a tool
+    system_message="You are a helpful calculator. Solve math problems step by step using the available math operations.",
+    tool_nodes=[add, multiply, divide],
+    manifest=calculator_manifest,  # This makes the agent usable as a tool
 )
 ```
 
-### Using the Tool Calling Agent
+**I. Invoking the Agent independently:**
 
-Now this complex agent can be used as a single tool in other agents:
+This calculator can be invoked independently:
 
+```python
+# Invoke the calculator agent
+result = rt.call_sync(calculator_agent, "What is 3 + 4?")
+print(result.content)
+```
+
+**II. Using the Agent as a Tool:**
+
+This calculator can be used as a tool in other agents:
 ```python
 import railtracks as rt
 
-# Create a high-level travel assistant
-travel_assistant = rt.agent_node(
-    pretty_name="Travel Assistant",
-    tool_nodes=[ticket_booker],  # Use the complex agent as a simple tool
+@rt.function_node
+def get_price_data(item: str) -> dict:
+    """Get pricing data for an item."""
+    # Mock pricing data
+    prices = {
+        "laptop": {"price": 999.99, "tax_rate": 0.08},
+        "phone": {"price": 699.99, "tax_rate": 0.08},
+        "tablet": {"price": 449.99, "tax_rate": 0.08}
+    }
+    return prices.get(item, {"price": 0, "tax_rate": 0})
+
+# Create a shopping assistant that uses the calculator agent
+shopping_assistant = rt.agent_node(
+    pretty_name="Shopping Assistant",
+    tool_nodes=[get_price_data, calculator_agent],  # Use the calculator agent as a tool
     llm_model=rt.llm.OpenAILLM("gpt-4o"),
-    system_message="You are a travel assistant that helps users plan and book their trips."
+    system_message="You are a shopping assistant. Help users with pricing calculations including taxes, discounts, and totals."
 )
 
-# Use the travel assistant
+# Demonstrate the agents working together
 response = rt.call_sync(
-    travel_assistant,
-    "I need to travel from London, UK to Paris, France next week. Can you help me book everything?"
+    shopping_assistant,
+    "I want to buy 3 laptops. Can you calculate the total cost including tax?"
 )
 print(response.content)
 ```
+
+In this example: <br>
+1. The **calculator agent** encapsulates math operations and can solve complex calculations <br>
+2. The **shopping assistant** uses both the price lookup function and the calculator agent <br>
+3. When asked about laptop costs, it fetches the price data and delegates the math to the calculator agent <br>
 
 ## 🔄 Conditional Tool Loading
 
@@ -81,7 +106,7 @@ For more advanced use cases, you might want to load tools dynamically based on r
 import railtracks as rt
 from typing import List, Any
 
-def create_agent_with_conditional_tools(user_permissions: List[str]) -> rt.AgentNode:
+def create_agent_with_conditional_tools(user_permissions: List[str]) -> rt.Node:
     """Create an agent with tools based on user permissions."""
     
     available_tools = []
@@ -123,7 +148,7 @@ basic_agent = create_agent_with_conditional_tools([])
 
 ## 🏗️ Complex Agent Hierarchies
 
-Create sophisticated agent hierarchies where specialized agents handle specific domains.
+We can create sophisticated agent hierarchies where specialized agents handle specific domains.
 
 
 ```python
@@ -148,7 +173,7 @@ calendar_agent_manifest = ToolManifest(
     ],
 )
 ```
-Now we can create the specialized agents, that have access to specific tools. <br>
+Now we can create the specialized agents. <br>
 In this case we are assuming we have multiple tools defined:
 
 ```python
