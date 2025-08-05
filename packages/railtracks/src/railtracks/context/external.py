@@ -32,7 +32,7 @@ class ExternalContext(ABC):
 
 class MutableExternalContext(ExternalContext):
     """
-    A context that can be initially defined, then be interacted with using the `get` and `put` methods.
+    A context that can be initially defined, then be interacted with using the `get`, `put`, `update`, and `delete` methods.
     """
 
     def __init__(
