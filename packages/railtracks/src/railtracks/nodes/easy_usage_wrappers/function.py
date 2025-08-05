@@ -7,14 +7,12 @@ from typing import (
     Callable,
     Coroutine,
     ParamSpec,
-    Set,
     Type,
     TypeVar,
     overload,
 )
 
 from railtracks.exceptions import NodeCreationError
-from railtracks.llm import Parameter
 from railtracks.validation.node_creation.validation import validate_function
 
 from .._node_builder import NodeBuilder
@@ -34,7 +32,7 @@ def function_node(
     /,
     *,
     name: str | None = None,
-    tool_manifest: ToolManifest = None
+    tool_manifest: ToolManifest = None,
 ) -> Type[AsyncDynamicFunctionNode[_P, _TOutput]]:
     pass
 
@@ -45,16 +43,18 @@ def function_node(
     /,
     *,
     name: str | None = None,
-    tool_manifest: ToolManifest = None
+    tool_manifest: ToolManifest = None,
 ) -> Type[SyncDynamicFunctionNode[_P, _TOutput]]:
     pass
 
 
-def function_node(func: Callable[_P, Coroutine[None, None, _TOutput] | _TOutput],
-                  /,
-                  *, name: str | None = None,
-                  tool_manifest: ToolManifest = None
-                  ):
+def function_node(
+    func: Callable[_P, Coroutine[None, None, _TOutput] | _TOutput],
+    /,
+    *,
+    name: str | None = None,
+    tool_manifest: ToolManifest = None,
+):
     """
     Creates a new Node type from a function that can be used in `rt.call()`.
 
