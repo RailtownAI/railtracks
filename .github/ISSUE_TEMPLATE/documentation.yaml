@@ -1,0 +1,39 @@
+name: 📚 Documentation Issue
+description: Report missing, unclear, or incorrect documentation.
+title: "[Docs] "
+labels: [docs]
+
+body:
+  - type: checkboxes
+    id: issue_type
+    attributes:
+      label: Issue Categorization
+      description: Select the categories that best describe the documentation issue.
+      options:
+        - label: Missing documentation
+        - label: Incorrect or outdated information
+        - label: Overly verbose or complex explanation
+        - label: Broken links or formatting
+        - label: Missing code examples
+        - label: Typos or grammar issues
+
+  - type: textarea
+    id: documentation_problem
+    attributes:
+      label: Documentation Problem
+      description: Describe the issue, where it occurs, what you expect to improve, and what is currently there.
+      placeholder: |
+        The README lacks a clear section on authentication.
+        Currently, there is no mention of API keys or login.
+        I expect a detailed explanation on setting up authentication.
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Any other context, examples, or references that could help improve the documentation.
+      placeholder: Related tutorials or links.
+    validations:
+      required: false
