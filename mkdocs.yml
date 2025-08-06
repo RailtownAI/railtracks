@@ -88,7 +88,6 @@ nav:
       - Coordinator Orchestration: system_internals/coordinator.md
 
   - API Reference:
-      - api_reference/index.md
       - Generated: api_reference/generated/railtracks.html
 
       - Components:
