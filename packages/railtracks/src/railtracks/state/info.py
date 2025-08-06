@@ -75,15 +75,18 @@ class ExecutionInfo:
         insertion_requests = self.insertion_requests
 
         if len(insertion_requests) >= 2:
-            raise ValueError("You cannot get the name of a graph with multiple insertion requests")
+            raise ValueError(
+                "You cannot get the name of a graph with multiple insertion requests"
+            )
 
         if len(insertion_requests) == 0:
-            raise ValueError("You cannot get the name of a graph with no insertion requests")
+            raise ValueError(
+                "You cannot get the name of a graph with no insertion requests"
+            )
 
         i_r = insertion_requests[0]
 
         return self.node_forest.get_node_type(i_r.sink_id).name()
-
 
     @property
     def insertion_requests(self):
@@ -157,22 +160,24 @@ class ExecutionInfo:
         """
         parent_nodes = [x.identifier for x in self.insertion_requests]
 
-
         infos = [self._get_info(parent_node) for parent_node in parent_nodes]
 
         prepared_obj = [
             {
-            "session_id": session_id,
-               "name": info.name,
-               "nodes": info.node_forest.to_vertices(),
+                "session_id": session_id,
+                "name": info.name,
+                "nodes": info.node_forest.to_vertices(),
                 "edges": info.request_forest.to_edges(),
-                "steps": _get_stamps_from_forests(info.node_forest, info.request_forest),
-
-           } for info in infos
+                "steps": _get_stamps_from_forests(
+                    info.node_forest, info.request_forest
+                ),
+            }
+            for info in infos
         ]
 
         return json.dumps(
-            prepared_obj, cls=RTJSONEncoder,
+            prepared_obj,
+            cls=RTJSONEncoder,
         )
 
 
@@ -180,17 +185,9 @@ def _get_stamps_from_forests(
     node_forest: NodeForest,
     request_forest: RequestForest,
 ):
-    node_stamps = set(n.stamp
-        for n in node_forest.full_data()
-    )
-    request_stamps = set(r.stamp
-        for r in request_forest.full_data()
-    )
-
-
+    node_stamps = {n.stamp for n in node_forest.full_data()}
+    request_stamps = {r.stamp for r in request_forest.full_data()}
 
     result = sorted(node_stamps.union(request_stamps))
 
     return result
-
-

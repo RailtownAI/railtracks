@@ -2,8 +2,6 @@ import os
 from pathlib import Path
 from typing import Any, Callable, Coroutine, Dict, ParamSpec, TypeVar
 
-from typing_extensions import deprecated
-
 from .context.central import (
     delete_globals,
     get_global_config,
@@ -186,7 +184,7 @@ class Session:
 
                 logger.info("Saving execution info to %s" % file_path)
 
-                file_path.write_text(self.info.graph_serialization())
+                file_path.write_text(self.payload())
             except Exception as e:
                 logger.error(
                     "Error while saving to execution info to file",
@@ -220,7 +218,6 @@ class Session:
         delete_globals()
         # by deleting all of the state variables we are ensuring that the next time we create a runner it is fresh
 
-
     @property
     def info(self) -> ExecutionInfo:
         """
@@ -244,4 +241,3 @@ class Session:
         info = self.info
 
         return info.graph_serialization(self._identifier)
-
