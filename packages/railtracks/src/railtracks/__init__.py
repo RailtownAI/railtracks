@@ -42,4 +42,4 @@ from .utils.config import ExecutorConfig
 
 load_dotenv()
 # Only change the MAJOR.MINOR if you need to. Do not change the PATCH. (vMAJOR.MINOR.PATCH).
-__version__ = "0.1.0"
+__version__ = "1.0.0"

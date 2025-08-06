@@ -184,7 +184,7 @@ class Session:
 
                 logger.info("Saving execution info to %s" % file_path)
 
-                file_path.write_text(self.info.graph_serialization())
+                file_path.write_text(self.payload())
             except Exception as e:
                 logger.error(
                     "Error while saving to execution info to file",
@@ -226,3 +226,13 @@ class Session:
         This is useful for debugging and viewing the current state of the run.
         """
         return self.rc_state.info
+
+    def payload(self):
+        """
+        Gets the complete json payload tied to this session.
+
+        The outputted json schema is maintained in (link here)
+        """
+        info = self.info
+
+        return info.graph_serialization(self._identifier)

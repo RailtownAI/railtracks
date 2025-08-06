@@ -1,0 +1,62 @@
+name: ❓ Question or Support
+description: Ask a question about using railtracks.
+title: "[Question] "
+labels: ['question']
+
+
+
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: Ask your question clearly and concisely.
+      placeholder: How do I configure railtracks to work offline?
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: What I'm Trying to Do
+      description: What are you trying to accomplish with railtracks?
+      placeholder: I want to log events locally and sync them after deployment.
+    validations:
+      required: true
+
+  - type: textarea
+    id: what_ive_tried
+    attributes:
+      label: What I've Tried
+      description: Share anything you've already attempted — code, config, docs, etc.
+      placeholder: I tried setting `sync=False`, but it didn’t stop the uploads.
+    validations:
+      required: false
+
+  - type: input
+    id: railtracks_version
+    attributes:
+      label: railtracks Version
+      placeholder: e.g. 0.1.0
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating System
+      placeholder: e.g. macOS 14, Windows 11, Ubuntu 22.04
+
+  - type: input
+    id: python_version
+    attributes:
+      label: Python Version
+      placeholder: e.g. 3.10.8
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Before Submitting
+      description: "Please confirm the following:"
+      options:
+        - label: I have read the README and documentation.
+        - label: I have searched existing issues for similar questions.
+        - label: I am confident this is a question and not a bug or feature request.
