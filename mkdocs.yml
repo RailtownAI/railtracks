@@ -37,14 +37,14 @@ nav:
             - Tools: tutorials/guides/tools.md
 
   - Tools + MCP:
-      - tools_mcp/index.md
+      - Equip your LLMs: tools_mcp/tools_mcp.md
       - MCP:
-          - tools_mcp/mcp/index.md
+          - Model Context Protocol: tools_mcp/mcp/mcp.md
           - Using MCP: tools_mcp/mcp/MCP_tools_in_RT.md
           - Creating an MCP: tools_mcp/mcp/RTtoMCP.md
 
       - Tools:
-          - tools_mcp/tools/index.md
+          - What is a Tool: tools_mcp/tools/tools.md
           - Functions as Tools: tools_mcp/tools/functions_as_tools.md
           - Agents as Tools: tools_mcp/tools/agents_as_tools.md
           - Advanced Tooling: tools_mcp/tools/advanced_usage.md
