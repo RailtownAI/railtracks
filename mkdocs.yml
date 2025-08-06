@@ -82,11 +82,17 @@ nav:
       - samples/index.md
 
   - System Internals:
-        - system_internals/index.md
-        - Coordinator: system_internals/Coordinator.md
+      - Overview: system_internals/overview.md
+      - Core Concepts: system_internals/concepts.md
+      - Node Abstraction: system_internals/node.md
+      - Session Management: system_internals/session.md
+      - PubSub Messaging: system_internals/pubsub.md
+      - Coordinator Orchestration: system_internals/coordinator.md
 
   - API Reference:
       - api_reference/index.md
+      - Generated: api_reference/generated/railtracks.html
+
       - Components:
           - api_reference/components/api_provider_wrappers.md
           - api_reference/components/chat_tool_call_node.md
@@ -160,14 +166,6 @@ nav:
           - api_reference/features/task_execution.md
           - api_reference/features/tool_management.md
           - api_reference/features/validation.md
-  
-  - System Overviews:
-      - system_internals/index.md
-      - Core Concepts: system_internals/concepts.md
-      - Node Abstraction: system_internals/node.md
-      - Session Management: system_internals/session.md
-      - PubSub Messaging: system_internals/pubsub.md
-      - Coordinator Orchestration: system_internals/coordinator.md
 
 
 plugins:
