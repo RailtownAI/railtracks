@@ -58,7 +58,6 @@ nav:
         - Web Search: tools_mcp/guides/websearch_integration.md
 
   - Observability:
-        - observability/index.md
         - Visualization: observability/visualization.md
         - Logging: observability/logging.md
         - Streaming: observability/streaming.md
