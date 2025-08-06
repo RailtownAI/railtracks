@@ -73,7 +73,6 @@ nav:
         - deployments/index.md
 
   - Advanced Usage:
-        - advanced_usage/index.md
         - Context: advanced_usage/context.md
         - Prompt Injection: advanced_usage/prompt_injection.md
 
