@@ -2,7 +2,7 @@
 name: Documentation Issue
 about: Report missing, unclear, or incorrect documentation
 title: "[Docs] "
-labels: documentation
+labels: docs
 assignees: ""
 
 ---

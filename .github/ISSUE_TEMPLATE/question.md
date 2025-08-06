@@ -2,7 +2,6 @@
 name: Question or Support
 about: Ask a question about using railtracks
 title: "[Question] "
-labels: question
 assignees: ""
 
 ---
@@ -38,4 +37,4 @@ assignees: ""
 - [ ] I have searched existing issues for similar questions
 - [ ] I have confirmed this is a question and not a bug report or feature request
 
-**Note**: For general usage questions, you may also find help in our documentation or by checking existing issues. This issue tracker is primarily for bugs, features, and documentation improvements.
+**Note**: For general usage questions, you may also find help in our documentation or by checking existing issues. 

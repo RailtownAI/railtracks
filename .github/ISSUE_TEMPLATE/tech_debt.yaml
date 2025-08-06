@@ -1,0 +1,25 @@
+name: 🧹 Tech Debt
+description: Identify and suggest a solution for technical debt in the railtracks codebase.
+title: "[Tech Debt] "
+labels: [tech debt]
+
+body:
+  - type: textarea
+    id: description_solution
+    attributes:
+      label: Description + Solution
+      description: Describe the technical debt and how you suggest resolving it.
+      placeholder: |
+        The current implementation is hard to test due to tightly coupled logic.
+        Suggest extracting the logic into a separate service class.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context_references
+    attributes:
+      label: Other Context or References
+      description: Add links to related issues, discussions, or code examples.
+      placeholder: e.g. Related to issue #42 or PR #103
+    validations:
+      required: false

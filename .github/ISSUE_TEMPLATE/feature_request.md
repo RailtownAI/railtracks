@@ -2,7 +2,7 @@
 name: Feature Request
 about: Suggest a new feature or enhancement for railtracks
 title: "[Feature] "
-labels: enhancement
+labels: feature
 assignees: ""
 
 ---
