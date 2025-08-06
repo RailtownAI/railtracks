@@ -5,7 +5,15 @@
     "properties": {
       "session_id": {
         "type": "string",
-        "description": "The session id is a unique identifier that this run is tied to."
+        "description": "The session id is a unique identifier that this run is connected to."
+      },
+      "run_id": {
+        "type": "string",
+        "description": "The run id is a unique identifier for this run."
+      },
+      "name": {
+        "type": "string",
+        "description": "The name of the run."
       },
       "nodes": {
         "type": "array",
@@ -27,6 +35,9 @@
       }
     },
     "required": [
+      "session_id",
+      "name",
+      "run_id",
       "nodes",
       "edges",
       "steps"
