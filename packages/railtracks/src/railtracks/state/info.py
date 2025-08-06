@@ -28,22 +28,19 @@ class ExecutionInfo:
         request_forest: RequestForest,
         node_forest: NodeForest,
         stamper: StampManager,
-        session_id: str,
     ):
         self.request_forest = request_forest
         self.node_forest = node_forest
         self.stamper = stamper
-        self.session_id = session_id
 
     @classmethod
     def default(cls, session_id: str) -> ExecutionInfo:
         """Creates a new "empty" instance of the ExecutionInfo class with the default values."""
-        return cls.create_new(session_id=session_id)
+        return cls.create_new()
 
     @classmethod
     def create_new(
         cls,
-        session_id: str,
     ) -> ExecutionInfo:
         """
         Creates a new empty instance of state variables with the provided executor configuration.
@@ -57,7 +54,6 @@ class ExecutionInfo:
             request_forest=request_heap,
             node_forest=node_heap,
             stamper=stamper,
-            session_id=session_id,
         )
 
     @property
@@ -130,7 +126,6 @@ class ExecutionInfo:
                 node_forest=new_node_forest,
                 request_forest=new_request_forest,
                 stamper=self.stamper,
-                session_id=self.session_id,
             )
 
     def _to_graph(self) -> Tuple[List[Vertex], List[Edge]]:
@@ -143,7 +138,7 @@ class ExecutionInfo:
         """
         return self.node_forest.to_vertices(), self.request_forest.to_edges()
 
-    def graph_serialization(self) -> str:
+    def graph_serialization(self, session_id: str) -> str:
         """
                 Creates a string (JSON) representation of this info object designed to be used to construct a graph for this
                 info object.
@@ -167,7 +162,7 @@ class ExecutionInfo:
 
         prepared_obj = [
             {
-            "session_id": info.session_id,
+            "session_id": session_id,
                "name": info.name,
                "nodes": info.node_forest.to_vertices(),
                 "edges": info.request_forest.to_edges(),
@@ -186,12 +181,16 @@ def _get_stamps_from_forests(
     request_forest: RequestForest,
 ):
     node_stamps = set(n.stamp
-        for n in node_forest.heap().values()
+        for n in node_forest.full_data()
     )
     request_stamps = set(r.stamp
-        for r in request_forest.heap().values()
+        for r in request_forest.full_data()
     )
 
-    return sorted(node_stamps.union(request_stamps))
+
+
+    result = sorted(node_stamps.union(request_stamps))
+
+    return result
 
 

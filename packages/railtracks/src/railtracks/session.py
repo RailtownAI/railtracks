@@ -2,6 +2,8 @@ import os
 from pathlib import Path
 from typing import Any, Callable, Coroutine, Dict, ParamSpec, TypeVar
 
+from typing_extensions import deprecated
+
 from .context.central import (
     delete_globals,
     get_global_config,
@@ -112,7 +114,7 @@ class Session:
 
         self._identifier = self.executor_config.run_identifier
 
-        executor_info = ExecutionInfo.create_new(self._identifier)
+        executor_info = ExecutionInfo.create_new()
         self.coordinator = Coordinator(
             execution_modes={"async": AsyncioExecutionStrategy()}
         )
@@ -218,6 +220,7 @@ class Session:
         delete_globals()
         # by deleting all of the state variables we are ensuring that the next time we create a runner it is fresh
 
+
     @property
     def info(self) -> ExecutionInfo:
         """
@@ -230,5 +233,15 @@ class Session:
             node_forest=nf,
             request_forest=rf,
             stamper=stamp,
-            session_id=self._identifier,
         )
+
+    def payload(self):
+        """
+        Gets the complete json payload tied to this session.
+
+        The outputted json schema is maintained in (link here)
+        """
+        info = self.info
+
+        return info.graph_serialization(self._identifier)
+

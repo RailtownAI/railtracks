@@ -118,7 +118,8 @@ def test_json_serialization(planner_node, json_state_schema):
 
 
     try:
-        validate(json.loads(info.graph_serialization()), json_state_schema)
+        validate(json.loads(session.
+                            payload()), json_state_schema)
     except ValidationError as e:
         raise
 
@@ -126,11 +127,10 @@ def test_json_serialization_2(planner_with_llm_node, json_state_schema):
     with rt.Session(logging_setting="NONE") as session:
         rt.call_sync(planner_with_llm_node)
 
-        info = session.info
 
 
     try:
-        validate(json.loads(info.graph_serialization()), json_state_schema)
+        validate(json.loads(session.payload()), json_state_schema)
     except ValidationError as e:
         raise
 
