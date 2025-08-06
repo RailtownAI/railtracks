@@ -35,7 +35,7 @@ class ExecutionInfo:
         self.stamper = stamper
 
     @classmethod
-    def default(cls, session_id: str) -> ExecutionInfo:
+    def default(cls) -> ExecutionInfo:
         """Creates a new "empty" instance of the ExecutionInfo class with the default values."""
         return cls.create_new()
 

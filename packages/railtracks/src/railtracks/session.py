@@ -225,12 +225,7 @@ class Session:
 
         This is useful for debugging and viewing the current state of the run.
         """
-        nf, rf, stamp = self.rc_state.info
-        return ExecutionInfo(
-            node_forest=nf,
-            request_forest=rf,
-            stamper=stamp,
-        )
+        return self.rc_state.info
 
     def payload(self):
         """

@@ -374,9 +374,9 @@ class RTState:
     @property
     def info(self):
         """Returns the current state as an ExecutionInfo object."""
-        return (
-            self._node_heap,
+        return ExecutionInfo(
             self._request_heap,
+            self._node_heap,
             self._stamper,
         )
 

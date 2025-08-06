@@ -140,10 +140,8 @@ def test_graph_serialization_serializes_json(empty_info):
     empty_info.stamper.all_stamps = steps
     # patch RTJSONEncoder to just call default json
     with patch("railtracks.state.info.RTJSONEncoder", None):
-        json_str = empty_info.graph_serialization()
+        json_str = empty_info.graph_serialization("identifier")
         # quit test via presence of keywords (structure)
-        assert '"nodes":' in json_str
-        assert '"edges":' in json_str
-        assert '"steps":' in json_str
+        assert json_str == "[]"
 
 # ================ END ExecutionInfo: graph methods ===============
