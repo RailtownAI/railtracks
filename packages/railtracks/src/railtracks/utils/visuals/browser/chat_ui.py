@@ -78,7 +78,7 @@ class ChatUI:
             FileNotFoundError: If the static file cannot be found
         """
         try:
-            package_files = files("railtracks.visuals.browser")
+            package_files = files("railtracks.utils.visuals.browser")
             return (package_files / filename).read_text(encoding="utf-8")
         except Exception as e:
             raise Exception(
@@ -138,13 +138,13 @@ class ChatUI:
             content = self._get_static_file_content("chat.html")
             return HTMLResponse(content)
 
-        @app.get("chat.css")
+        @app.get("/chat.css")
         async def get_chat_css():
             """Serve the chat CSS file"""
             content = self._get_static_file_content("chat.css")
             return Response(content, media_type="text/css")
 
-        @app.get("chat.js")
+        @app.get("/chat.js")
         async def get_chat_js():
             """Serve the chat JavaScript file"""
             content = self._get_static_file_content("chat.js")
