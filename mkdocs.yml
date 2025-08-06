@@ -65,7 +65,7 @@ nav:
         - Error Handling: observability/error_handling.md
 
   - LLM Support:
-      - llm_support/index.md
+      - Supported Providers: llm_support/providers.md
       - Prompts and Context Injection: llm_support/prompts.md
       - Configuration: llm_support/config.md
 

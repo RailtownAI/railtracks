@@ -1,7 +1,4 @@
-# 🤖 LLM Support
-
-## 🌐 Supported Providers
-
+# 🌐 Supported Providers
 We currently support connecting to different available LLMs through the following providers:
 
 - **OpenAI** - GPT models
