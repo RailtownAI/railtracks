@@ -63,7 +63,7 @@ def test_get_static_file_content_success(mock_files, chat_ui):
     content = chat_ui._get_static_file_content("test.html")
     
     assert content == "test content"
-    mock_files.assert_called_once_with('railtracks.visuals.browser')
+    mock_files.assert_called_once_with('railtracks.utils.visuals.browser')
     mock_package.__truediv__.assert_called_once_with("test.html")
     mock_file.read_text.assert_called_once_with(encoding='utf-8')
 
@@ -168,8 +168,8 @@ async def test_create_app_routes_exist(chat_ui):
     assert "/send_message" in route_paths
     assert "/update_tools" in route_paths
     assert "/events" in route_paths
-    assert "chat.css" in route_paths
-    assert "chat.js" in route_paths
+    assert "/chat.css" in route_paths
+    assert "/chat.js" in route_paths
 
 
 @patch('railtracks.utils.visuals.browser.chat_ui.uvicorn')
