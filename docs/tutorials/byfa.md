@@ -35,11 +35,11 @@ def weather_tool(city: str):
     # Simulate a weather API call
     return f"{city} is sunny with a temperature of 25°C."
 
-weather_agent_class = rt.agent_node(
+WeatherAgent = rt.agent_node(
     name="Weather Agent",
     llm_model=rt.llm.OpenAILLM("gpt-4o"),
     system_message="You are a helpful assistant that answers weather-related questions.",
-    tool_nodes=[rt.tool_node(weather_tool)],
+    tool_nodes=[rt.function_node(weather_tool)],
     schema=WeatherResponse,
 )
 ```
@@ -54,9 +54,9 @@ When making a Tool-Calling Agent you can also specify `max_tool_calls` to have a
 ```python
 
 # weather_tool_set would be a list of multiple tools
-weather_tool_set = [rt.tool_node(weather_tool), rt.tool_node(another_tool)]
+weather_tool_set = [rt.function_node(weather_tool), rt.function_node(another_tool)]
 
-weather_agent_class = rt.agent_node(
+WeatherAgent = rt.agent_node(
     name="Weather Agent",
     llm_model=rt.llm.OpenAILLM("gpt-4o"),
     system_message="You are a helpful assistant that answers weather-related questions.",
