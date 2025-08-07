@@ -6,6 +6,8 @@ from typing import Dict, List, Optional
 import railtracks as rt
 from pydantic import BaseModel, Field
 from railtracks import agent_node
+from railtracks.llm import Parameter
+from railtracks.nodes.manifest import ToolManifest
 from railtracks.rag import RAG
 
 MEMORY_FILE_PATH = os.path.join(os.path.dirname(__file__), "project_memory.json")
@@ -20,6 +22,10 @@ class MemoryEntry(BaseModel):
     content: str
     timestamp: str
     tags: List[str] = []
+
+    def __str__(self):
+        tag_str = ", ".join(self.tags) if self.tags else "No tags"
+        return f"[{self.timestamp}] ({tag_str})\n{self.content}"
 
 
 class ProjectMemory(BaseModel):
@@ -68,9 +74,11 @@ class PersistentMemoryContext:
             )
         return docs
 
-    def get_overview(self) -> MemoryEntry:
+    def get_overview(self) -> str:
         """Get the project overview."""
-        return self.memory.overview
+        if not self.memory.overview:
+            return "No overview set."
+        return str(self.memory.overview)
 
     def set_overview(self, content: str, tags: List[str] = []):
         """Set or update the project overview."""
@@ -96,13 +104,21 @@ class PersistentMemoryContext:
         """List all memory entry keys."""
         return list(self.memory.memory_entries.keys())
 
-    def retrieve_entry(self, key: str) -> Optional[MemoryEntry]:
-        """Retrieve a memory entry by key."""
-        return self.memory.memory_entries.get(key)
+    def retrieve_entry(self, key: str) -> str:
+        entry = self.memory.memory_entries.get(key)
+        if not entry:
+            return f"No memory found for key '{key}'."
+        return str(entry)
 
-    def search(self, query: str, top_k=3):
+    def search(self, query: str, top_k=3) -> str:
         """Search memory entries using RAG."""
-        return self.rag.search(query, top_k=top_k)
+        results = self.rag.search(query, top_k=top_k)
+        if not results:
+            return f"No results for '{query}'."
+        output = []
+        for res in results:
+            output.append(f"[Score: {res.score:.2f}] {res.record.text}")
+        return "\n\n".join(output)
 
     def delete_entry(self, key: str) -> bool:
         """Delete a memory entry by key."""
@@ -131,8 +147,17 @@ memory_functions = {
 # ----------------------------
 # Memory Agent
 # ----------------------------
-memory_agent = agent_node(name="Memory Agent", tool_nodes=memory_functions)
-
-# ----------------------------
-# Memory Functions
-# ----------------------------
+memory_agent = agent_node(
+    name="Memory Agent",
+    tool_nodes=memory_functions,
+    system_message="""You are a Memory Agent that manages project knowledge.
+    You can set and retrieve the project overview, add and manage named memory entries,
+    and search for relevant information based on user queries. 
+    Be intelligent about whether a result is actually relevant.
+    Always be helpful and focused on the user's needs.""",
+    manifest=ToolManifest(
+        description="Memory Interface that manages project knowledge. Can update the overview or memory entries "
+        "of a project, or search for relevant context based on queries.",
+        parameters={Parameter(name="request", param_type="string")},
+    ),
+)
