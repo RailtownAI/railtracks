@@ -7,7 +7,7 @@ context based on user queries.
 """
 
 import railtracks as rt
-from memory_agent import memory, memory_agent_node, memory_agent
+from memory_agent import memory, memory_agent, memory_agent_node
 from railtracks.llm import MessageHistory, UserMessage
 from railtracks.llm.models.api_providers import OpenAILLM
 
