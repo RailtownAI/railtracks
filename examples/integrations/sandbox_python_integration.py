@@ -17,6 +17,9 @@ def kill_sandbox():
 
 
 def execute_code(code: str) -> str:
+    """Executes Python code in a sandboxed Docker container.
+    You can only see the output of the code if it is printed to stdout or stderr, so anything you want to see must be printed.
+    You can install packages with code like 'import os; os.system('pip install numpy')'"""
     exec_result = subprocess.run([
         "docker", "exec", "sandbox_chatbot_session",
         "python3", "-c", code

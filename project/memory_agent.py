@@ -6,11 +6,12 @@ from typing import Dict, List, Optional
 import railtracks as rt
 from pydantic import BaseModel, Field
 from railtracks import agent_node
-from railtracks.llm import OpenAILLM, Parameter
+from railtracks.llm import OpenAILLM, Parameter, MessageHistory, UserMessage
 from railtracks.nodes.manifest import ToolManifest
 from railtracks.rag import RAG
 
 MEMORY_FILE_PATH = os.path.join(os.path.dirname(__file__), "project_memory.json")
+print(f"Using memory file path: {MEMORY_FILE_PATH}")
 
 
 # ----------------------------
@@ -164,7 +165,7 @@ def retrieve_entry(key: str) -> str:
 
 
 def search(query: str, top_k: int = 3) -> str:
-    """Search memory entries using RAG."""
+    """Search memory entries using RAG. Input should be a natural language query."""
     return memory.search(query, top_k)
 
 
@@ -187,7 +188,7 @@ memory_functions = {
 # ----------------------------
 # Memory Agent
 # ----------------------------
-memory_agent = agent_node(
+memory_agent_node = agent_node(
     name="Memory Agent",
     tool_nodes=memory_functions,
     system_message="""You are a Memory Agent that manages project knowledge.
@@ -197,11 +198,17 @@ memory_agent = agent_node(
     Each memory entry you create should have a unique key, content, and optional tags (add relevant tags).
     When creating entries, provide a key that is unique within the project (unless you are updating an existing entry).
     
+    You should update the project overview if you receive significant new information from what the current overview is.
+    If it is a new project with no overview, you should set it as soon as possible.
+    
     Be intelligent about whether a result is actually relevant.
     Always be helpful and focused on the user's needs.
     
     Here is the current list of keys in the project memory:
-    {memory_keys}""",
+    {memory_keys}
+    
+    The project overview is:
+    {overview}""",
     llm_model=OpenAILLM(model_name="gpt-4o"),
     manifest=ToolManifest(
         description="Memory Interface that manages project knowledge. Can update the overview or memory entries "
@@ -209,3 +216,17 @@ memory_agent = agent_node(
         parameters={Parameter(name="request", param_type="string")},
     ),
 )
+
+
+@rt.function_node
+def memory_agent(
+    request: str,
+) -> str:
+    """Memory Interface that manages project knowledge. Can update the overview or memory entries "
+    "of a project, or search for relevant context based on queries."""
+    memory_message_history = rt.context.get("memory_message_history", MessageHistory())
+    memory_message_history.append(UserMessage(request))
+    response = rt.call(memory_agent_node, memory_message_history)
+    memory_message_history.append(response)
+    rt.context.put("memory_message_history", memory_message_history)
+    return response.content

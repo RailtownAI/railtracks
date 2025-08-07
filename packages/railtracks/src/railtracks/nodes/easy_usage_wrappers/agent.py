@@ -102,7 +102,7 @@ def agent_node(
     # See issue (___) this logic should be migrated soon.
     if manifest is not None:
         tool_details = manifest.description
-        tool_params = manifest.parameters
+        tool_params = set(manifest.parameters)
     else:
         tool_details = None
         tool_params = None
