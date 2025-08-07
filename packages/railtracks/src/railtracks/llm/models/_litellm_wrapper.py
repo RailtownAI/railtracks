@@ -179,7 +179,7 @@ def _handle_set_of_parameters(
 
 
 def _parameters_to_json_schema(
-    parameters: List[Parameter] | None,
+    parameters: list[Parameter] | set[Parameter] | None,
 ) -> Dict[str, Any]:
     """
     Turn a set of Parameter instances
@@ -191,6 +191,10 @@ def _parameters_to_json_schema(
         isinstance(x, Parameter) for x in parameters
     ):
         return _handle_set_of_parameters(parameters)
+    elif isinstance(parameters, set) and all(
+        isinstance(x, Parameter) for x in parameters
+    ):
+        return _handle_set_of_parameters(list(parameters))
 
     raise NodeInvocationError(
         message="Unable to parse Tool.parameters. Please check the documentation for Tool.parameters.",
