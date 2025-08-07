@@ -7,11 +7,6 @@ context based on user queries.
 """
 
 import railtracks as rt
-from agents import (
-    code_execution_agent,
-    file_system_agent,
-    web_search_agent,
-)
 from memory_agent import memory, memory_agent
 from railtracks.llm import MessageHistory, UserMessage
 from railtracks.llm.models.api_providers import OpenAILLM
@@ -47,9 +42,9 @@ def hook_function(message_history: MessageHistory):
 
 tool_nodes = {
     memory_agent,
-    web_search_agent,
-    code_execution_agent,
-    file_system_agent,
+    # web_search_agent,
+    # code_execution_agent,
+    # file_system_agent,
 }
 
 # Create the RAG-enhanced main agent
@@ -63,14 +58,14 @@ rag_main_agent = rt.chatui_node(
     The memory system contains a project overview and various memory entries that can be searched.
     This allows you to provide more accurate and helpful responses by leveraging your stored knowledge.
     After any significant interaction, you should update your memory with new information by sending a request.
-    For example, you can say "Update Overview to <Project Overview>", or <The user is creating a RAG system..>.
+    For example, you can say "Update Overview to <Project Overview>", or <Add memory entry: The user is creating a RAG system..>.
 
     Available specialized agents:
     - Memory Agent: For storing and retrieving project knowledge
-    - Web Search Agent: For searching the web for information
-    - Notion Agent: For creating notion pages
-    - Code Execution Agent: For executing Python code
-    - File System Agent: For interacting with the file system
+    # - Web Search Agent: For searching the web for information
+    # - Notion Agent: For creating notion pages
+    # - Code Execution Agent: For executing Python code
+    # - File System Agent: For interacting with the file system
 
     When needed, first check the memory to understand what you already know about the project.
     Always be helpful, informative, and focused on the user's needs.
@@ -80,7 +75,7 @@ rag_main_agent = rt.chatui_node(
 
     Here is an overview of the project to get you started:
     {overview}""",
-    llm_model=OpenAILLM(model_name="gpt-4o", pre_hook=hook_function),
+    llm_model=OpenAILLM(model_name="gpt-4o", pre_hook=[hook_function]),
 )
 
 with rt.Session():
