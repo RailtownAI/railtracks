@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 import railtracks as rt
 from pydantic import BaseModel, Field
 from railtracks import agent_node
-from railtracks.llm import Parameter
+from railtracks.llm import OpenAILLM, Parameter
 from railtracks.nodes.manifest import ToolManifest
 from railtracks.rag import RAG
 
@@ -33,6 +33,7 @@ class ProjectMemory(BaseModel):
 
     overview: Optional[MemoryEntry] = None
     memory_entries: Dict[str, MemoryEntry] = Field(default_factory=dict)
+    working_memory: Dict[str, MemoryEntry] = Field(default_factory=dict)
 
 
 # ----------------------------
@@ -50,6 +51,8 @@ class PersistentMemoryContext:
     def _load_memory(self):
         if os.path.exists(self.file_path):
             self.memory = ProjectMemory(**json.load(open(self.file_path)))
+            self.memory.memory_entries.update(self.memory.working_memory)
+            self.memory.working_memory.clear()
         else:
             self.memory = ProjectMemory()
 
@@ -57,7 +60,7 @@ class PersistentMemoryContext:
         json.dump(self.memory.model_dump(), open(self.file_path, "w"), indent=2)
         self._init_rag()
 
-    def _init_rag(self, **rag_config):
+    def _init_rag(self):
         docs = self._memory_to_documents()
         self.rag = RAG(docs=docs, embed_config={"model": self.embed_model})
         self.rag.embed_all()
@@ -97,7 +100,7 @@ class PersistentMemoryContext:
             timestamp=datetime.now().isoformat(),
             tags=tags,
         )
-        self.memory.memory_entries[key] = entry
+        self.memory.working_memory[key] = entry
         self._save_memory()
 
     def list_entries(self) -> List[str]:
@@ -133,14 +136,51 @@ class PersistentMemoryContext:
 # Memory Functions
 # ----------------------------
 memory = PersistentMemoryContext()
+
+
+def set_overview(content: str, tags: List[str] = []):
+    """Set or update the project overview."""
+    memory.set_overview(content, tags)
+
+
+def get_overview() -> str:
+    """Get the project overview."""
+    return memory.get_overview()
+
+
+def add_entry(key: str, content: str, tags: List[str] = []):
+    """Add a new memory entry with a unique key."""
+    memory.add_entry(key, content, tags)
+
+
+# def list_entries() -> List[str]:
+#     """List all memory entry keys."""
+#     return memory.list_entries()
+
+
+def retrieve_entry(key: str) -> str:
+    """Retrieve a memory entry by key."""
+    return memory.retrieve_entry(key)
+
+
+def search(query: str, top_k: int = 3) -> str:
+    """Search memory entries using RAG."""
+    return memory.search(query, top_k)
+
+
+def delete_entry(key: str) -> bool:
+    """Delete a memory entry by key."""
+    return memory.delete_entry(key)
+
+
 memory_functions = {
-    rt.function_node(memory.set_overview),
-    rt.function_node(memory.get_overview),
-    rt.function_node(memory.add_entry),
-    rt.function_node(memory.list_entries),
-    rt.function_node(memory.retrieve_entry),
-    rt.function_node(memory.search),
-    rt.function_node(memory.delete_entry),
+    rt.function_node(set_overview),
+    rt.function_node(get_overview),
+    rt.function_node(add_entry),
+    # rt.function_node(list_entries),
+    rt.function_node(retrieve_entry),
+    rt.function_node(search),
+    rt.function_node(delete_entry),
 }
 
 
@@ -153,8 +193,16 @@ memory_agent = agent_node(
     system_message="""You are a Memory Agent that manages project knowledge.
     You can set and retrieve the project overview, add and manage named memory entries,
     and search for relevant information based on user queries. 
+    
+    Each memory entry you create should have a unique key, content, and optional tags (add relevant tags).
+    When creating entries, provide a key that is unique within the project (unless you are updating an existing entry).
+    
     Be intelligent about whether a result is actually relevant.
-    Always be helpful and focused on the user's needs.""",
+    Always be helpful and focused on the user's needs.
+    
+    Here is the current list of keys in the project memory:
+    {memory_keys}""",
+    llm_model=OpenAILLM(model_name="gpt-4o"),
     manifest=ToolManifest(
         description="Memory Interface that manages project knowledge. Can update the overview or memory entries "
         "of a project, or search for relevant context based on queries.",

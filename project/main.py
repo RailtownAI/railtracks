@@ -13,6 +13,37 @@ from agents import (
     web_search_agent,
 )
 from memory_agent import memory, memory_agent
+from railtracks.llm import MessageHistory, UserMessage
+from railtracks.llm.models.api_providers import OpenAILLM
+
+
+def hook_function(message_history: MessageHistory):
+    """
+    Hook function to inject memory into the user prompt.
+
+    This function asks the memory agent for relevant details and injects it
+    into the latest user message.
+    """
+    # Get the latest user message
+    user_message = message_history[-1] if message_history else None
+
+    # If no user message, return as is
+    if not user_message:
+        return message_history
+
+    # Ask the memory agent for relevant context
+    request = "Find relevant context for: " + user_message.content
+    memory_context = rt.call(memory_agent, request).result
+
+    # Inject the memory context into the user message
+    if memory_context:
+        message_history[-1] = UserMessage(
+            content=user_message.content
+            + f"\n\nRelevant Memory Context:\n{memory_context}"
+        )
+
+    return message_history
+
 
 tool_nodes = {
     memory_agent,
@@ -21,36 +52,41 @@ tool_nodes = {
     file_system_agent,
 }
 
-rt.context.put("overview", memory.get_overview())
-
-
 # Create the RAG-enhanced main agent
 rag_main_agent = rt.chatui_node(
     pretty_name="RAG-Enhanced Project Assistant",
     tool_nodes=tool_nodes,
     system_message="""You are an intelligent project assistant with advanced project-specific knowledge.
     You have access to a memory system that stores project knowledge, and various tools to help with tasks.
-    
+
     Relevant context from your memory will be automatically provided based on the user's query. 
     The memory system contains a project overview and various memory entries that can be searched.
     This allows you to provide more accurate and helpful responses by leveraging your stored knowledge.
     After any significant interaction, you should update your memory with new information by sending a request.
     For example, you can say "Update Overview to <Project Overview>", or <The user is creating a RAG system..>.
-    
+
     Available specialized agents:
     - Memory Agent: For storing and retrieving project knowledge
     - Web Search Agent: For searching the web for information
     - Notion Agent: For creating notion pages
     - Code Execution Agent: For executing Python code
     - File System Agent: For interacting with the file system
-    
+
     When needed, first check the memory to understand what you already know about the project.
     Always be helpful, informative, and focused on the user's needs.
-    
+
     When you receive a query, relevant context from your memory will be automatically added to the prompt.
     Use this context to inform your response, but don't repeat it verbatim unless necessary.
-    
+
     Here is an overview of the project to get you started:
     {overview}""",
-    llm_model=None,
+    llm_model=OpenAILLM(model_name="gpt-4o", pre_hook=hook_function),
 )
+
+with rt.Session():
+    rt.context.put("overview", memory.get_overview())
+    rt.context.put("memory_keys", memory.list_entries())
+
+    rt.call_sync(
+        rag_main_agent, "Hello! I need help with my project. Can you assist me?"
+    )
