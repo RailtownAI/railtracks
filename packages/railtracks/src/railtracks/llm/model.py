@@ -86,8 +86,11 @@ class ModelBase(ABC):
 
     def _run_pre_hooks(self, message_history: MessageHistory) -> MessageHistory:
         """Runs all pre-hooks on the provided message history."""
+        print("Running pre-hooks on message history...")
+        print(f"Message history before pre-hooks: {message_history}")
         for hook in self._pre_hook:
             message_history = hook(message_history)
+            print("\n\n\n" + str(message_history))
         return message_history
 
     def _run_post_hooks(

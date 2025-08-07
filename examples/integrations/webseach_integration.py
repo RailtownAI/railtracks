@@ -75,18 +75,19 @@ async def google_search(query: str, num_results: int = 3) -> Dict[str, Any]:
 
 ##################################################################
 # Example using the tools with an agent
-tools = fetch_mcp_tools + [google_search]
-agent = agent_node(
-    tool_nodes={*tools},
-    system_message="""You are an information gathering agent that can search the web.""",
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
-)
+if __name__ == "__main__":
+    tools = fetch_mcp_tools + [google_search]
+    agent = agent_node(
+        tool_nodes={*tools},
+        system_message="""You are an information gathering agent that can search the web.""",
+        llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    )
 
-user_prompt = """Tell me about Railtown AI."""
-message_history = rt.llm.MessageHistory()
-message_history.append(rt.llm.UserMessage(user_prompt))
+    user_prompt = """Tell me about Railtown AI."""
+    message_history = rt.llm.MessageHistory()
+    message_history.append(rt.llm.UserMessage(user_prompt))
 
 
-result = rt.call_sync(agent, message_history)
+    result = rt.call_sync(agent, message_history)
 
-print(result)
+    print(result)

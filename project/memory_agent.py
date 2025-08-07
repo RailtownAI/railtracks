@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 import railtracks as rt
 from pydantic import BaseModel, Field
 from railtracks import agent_node
-from railtracks.llm import OpenAILLM, Parameter, MessageHistory, UserMessage
+from railtracks.llm import MessageHistory, OpenAILLM, Parameter, UserMessage
 from railtracks.nodes.manifest import ToolManifest
 from railtracks.rag import RAG
 
@@ -226,7 +226,7 @@ def memory_agent(
     "of a project, or search for relevant context based on queries."""
     memory_message_history = rt.context.get("memory_message_history", MessageHistory())
     memory_message_history.append(UserMessage(request))
-    response = rt.call(memory_agent_node, memory_message_history)
+    response = rt.call_sync(memory_agent_node, memory_message_history)
     memory_message_history.append(response)
     rt.context.put("memory_message_history", memory_message_history)
     return response.content
