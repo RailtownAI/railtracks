@@ -177,9 +177,7 @@ class Session:
                     exist_ok=True
                 )  # Creates if doesn't exist, skips otherwise.
 
-                file_path = (
-                    railtracks_dir / f"{self._identifier}.json"
-                )
+                file_path = railtracks_dir / f"{self._identifier}.json"
                 if file_path.exists():
                     logger.warning("File %s already exists, overwriting..." % file_path)
 
