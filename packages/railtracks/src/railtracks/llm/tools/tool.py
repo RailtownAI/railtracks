@@ -7,7 +7,7 @@ parameters and descriptions.
 
 import inspect
 import warnings
-from typing import Any, Callable, Dict, Iterable, List, Set, Type
+from typing import Any, Callable, Dict, Iterable, List, Type
 
 from pydantic import BaseModel
 from typing_extensions import Self
