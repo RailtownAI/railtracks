@@ -6,7 +6,6 @@ import random
 import datetime
 
 import railtracks as rt
-from railtracks.nodes.library.easy_usage_wrappers.chat_tool_call_llm import chat_tool_call_llm
 
 def get_todays_date(tell_time: bool, tell_location: bool):
     """
@@ -30,7 +29,7 @@ INSTRUCTION ="""
 You are a helpful agent that can analyze images and answer questions about them.
 """
 
-ChatBot = chat_tool_call_llm(
+ChatBot = rt.chatui_node(
     port=5000,
     auto_open=True,
     llm_model=rt.llm.OpenAILLM("gpt-4o"),
@@ -38,13 +37,13 @@ ChatBot = chat_tool_call_llm(
     system_message=rt.llm.SystemMessage(
         INSTRUCTION
     ),
-    connected_nodes={
+    tool_nodes={
         get_todays_date,
     },
 )
 
-with rt.Runner(rt.ExecutorConfig(timeout=600)) as runner:
-    resp = runner.run_sync(
+with rt.Session(timeout=600) as session:
+    resp = rt.call_sync(
         ChatBot,
         rt.llm.MessageHistory(),
     )
