@@ -24,50 +24,51 @@ class ModelBase(ABC):
 
     def __init__(
         self,
-        pre_hook: List[Callable[[MessageHistory], MessageHistory]] | None = None,
-        post_hook: List[Callable[[MessageHistory, Response], Response]] | None = None,
-        exception_hook: List[Callable[[MessageHistory, Exception], None]] | None = None,
+        pre_hooks: List[Callable[[MessageHistory], MessageHistory]] | None = None,
+        post_hooks: List[Callable[[MessageHistory, Response], Response]] | None = None,
+        exception_hooks: List[Callable[[MessageHistory, Exception], None]]
+        | None = None,
     ):
-        if pre_hook is None:
-            pre_hook: List[Callable[[MessageHistory], MessageHistory]] = []
+        if pre_hooks is None:
+            pre_hooks: List[Callable[[MessageHistory], MessageHistory]] = []
 
-        if post_hook is None:
-            post_hook: List[Callable[[MessageHistory, Response], Response]] = []
+        if post_hooks is None:
+            post_hooks: List[Callable[[MessageHistory, Response], Response]] = []
 
-        if exception_hook is None:
-            exception_hook: List[Callable[[MessageHistory, Exception], None]] = []
+        if exception_hooks is None:
+            exception_hooks: List[Callable[[MessageHistory, Exception], None]] = []
 
-        self._pre_hook = pre_hook
-        self._post_hook = post_hook
-        self._exception_hook = exception_hook
+        self._pre_hooks = pre_hooks
+        self._post_hooks = post_hooks
+        self._exception_hooks = exception_hooks
 
     def add_pre_hook(self, hook: Callable[[MessageHistory], MessageHistory]) -> None:
         """Adds a pre-hook to modify messages before sending them to the model."""
-        self._pre_hook.append(hook)
+        self._pre_hooks.append(hook)
 
     def add_post_hook(
         self, hook: Callable[[MessageHistory, Response], Response]
     ) -> None:
         """Adds a post-hook to modify the response after receiving it from the model."""
-        self._post_hook.append(hook)
+        self._post_hooks.append(hook)
 
     def add_exception_hook(
         self, hook: Callable[[MessageHistory, Exception], None]
     ) -> None:
         """Adds an exception hook to handle exceptions during model interactions."""
-        self._exception_hook.append(hook)
+        self._exception_hooks.append(hook)
 
     def remove_pre_hooks(self) -> None:
         """Removes all of the hooks that modify messages before sending them to the model."""
-        self._pre_hook = []
+        self._pre_hooks = []
 
     def remove_post_hooks(self) -> None:
         """Removes all of the hooks that modify the response after receiving it from the model."""
-        self._post_hook = []
+        self._post_hooks = []
 
     def remove_exception_hooks(self) -> None:
         """Removes all of the hooks that handle exceptions during model interactions."""
-        self._exception_hook = []
+        self._exception_hooks = []
 
     @abstractmethod
     def model_name(self) -> str:
@@ -86,7 +87,7 @@ class ModelBase(ABC):
 
     def _run_pre_hooks(self, message_history: MessageHistory) -> MessageHistory:
         """Runs all pre-hooks on the provided message history."""
-        for hook in self._pre_hook:
+        for hook in self._pre_hooks:
             message_history = hook(message_history)
         return message_history
 
@@ -94,7 +95,7 @@ class ModelBase(ABC):
         self, message_history: MessageHistory, result: Response
     ) -> Response:
         """Runs all post-hooks on the provided message history and result."""
-        for hook in self._post_hook:
+        for hook in self._post_hooks:
             result = hook(message_history, result)
         return result
 
@@ -102,7 +103,7 @@ class ModelBase(ABC):
         self, message_history: MessageHistory, exception: Exception
     ) -> None:
         """Runs all exception hooks on the provided message history and exception."""
-        for hook in self._exception_hook:
+        for hook in self._exception_hooks:
             hook(message_history, exception)
 
     def chat(self, messages: MessageHistory, **kwargs):
