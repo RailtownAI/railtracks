@@ -159,7 +159,9 @@ def register_globals(
         external_context=e_c,
     )
 
-    print(f"(register_globals) Registering globals with runner_id: {runner_id}, parent_id: {parent_id}")
+    print(
+        f"(register_globals) Registering globals with runner_id: {runner_id}, parent_id: {parent_id}"
+    )
 
     runner_context.set(runner_context_vars)
 
