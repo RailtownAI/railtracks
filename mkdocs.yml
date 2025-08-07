@@ -37,14 +37,14 @@ nav:
             - Tools: tutorials/guides/tools.md
 
   - Tools + MCP:
-      - tools_mcp/index.md
+      - Equip your LLMs: tools_mcp/tools_mcp.md
       - MCP:
-          - tools_mcp/mcp/index.md
+          - Model Context Protocol: tools_mcp/mcp/mcp.md
           - Using MCP: tools_mcp/mcp/MCP_tools_in_RT.md
           - Creating an MCP: tools_mcp/mcp/RTtoMCP.md
 
       - Tools:
-          - tools_mcp/tools/index.md
+          - What is a Tool: tools_mcp/tools/tools.md
           - Functions as Tools: tools_mcp/tools/functions_as_tools.md
           - Agents as Tools: tools_mcp/tools/agents_as_tools.md
           - Advanced Tooling: tools_mcp/tools/advanced_usage.md
@@ -58,7 +58,6 @@ nav:
         - Web Search: tools_mcp/guides/websearch_integration.md
 
   - Observability:
-        - observability/index.md
         - Visualization: observability/visualization.md
         - Logging: observability/logging.md
         - Streaming: observability/streaming.md
@@ -66,7 +65,7 @@ nav:
         - Error Handling: observability/error_handling.md
 
   - LLM Support:
-      - llm_support/index.md
+      - Supported Providers: llm_support/providers.md
       - Prompts and Context Injection: llm_support/prompts.md
       - Configuration: llm_support/config.md
 
@@ -74,7 +73,6 @@ nav:
         - deployments/index.md
 
   - Advanced Usage:
-        - advanced_usage/index.md
         - Context: advanced_usage/context.md
         - Prompt Injection: advanced_usage/prompt_injection.md
 
@@ -82,11 +80,16 @@ nav:
       - samples/index.md
 
   - System Internals:
-        - system_internals/index.md
-        - Coordinator: system_internals/Coordinator.md
+      - Overview: system_internals/overview.md
+      - Core Concepts: system_internals/concepts.md
+      - Node Abstraction: system_internals/node.md
+      - Session Management: system_internals/session.md
+      - PubSub Messaging: system_internals/pubsub.md
+      - Coordinator Orchestration: system_internals/coordinator.md
 
   - API Reference:
-      - api_reference/index.md
+      - Generated: api_reference/generated/railtracks.html
+
       - Components:
           - api_reference/components/api_provider_wrappers.md
           - api_reference/components/chat_tool_call_node.md
@@ -160,14 +163,6 @@ nav:
           - api_reference/features/task_execution.md
           - api_reference/features/tool_management.md
           - api_reference/features/validation.md
-  
-  - System Overviews:
-      - system_internals/index.md
-      - Core Concepts: system_internals/concepts.md
-      - Node Abstraction: system_internals/node.md
-      - Session Management: system_internals/session.md
-      - PubSub Messaging: system_internals/pubsub.md
-      - Coordinator Orchestration: system_internals/coordinator.md
 
 
 plugins:
