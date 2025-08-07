@@ -159,7 +159,7 @@ def _build_final_schema(
 
 
 def _handle_set_of_parameters(
-    parameters: Set[Parameter | PydanticParameter | ArrayParameter],
+    parameters: List[Parameter | PydanticParameter | ArrayParameter],
     sub_property: bool = False,
 ) -> Dict[str, Any]:
     """Handle the case where parameters are a set of Parameter instances."""
@@ -180,7 +180,7 @@ def _handle_set_of_parameters(
 
 
 def _parameters_to_json_schema(
-    parameters: Set[Parameter] | None,
+    parameters: List[Parameter] | None,
 ) -> Dict[str, Any]:
     """
     Turn a set of Parameter instances
@@ -188,7 +188,7 @@ def _parameters_to_json_schema(
     """
     if parameters is None:
         return {}
-    elif isinstance(parameters, set) and all(
+    elif isinstance(parameters, list) and all(
         isinstance(x, Parameter) for x in parameters
     ):
         return _handle_set_of_parameters(parameters)
