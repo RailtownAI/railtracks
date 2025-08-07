@@ -18,7 +18,6 @@ class ExecutorConfig:
         broadcast_callback: (
             Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
         ) = None,
-        run_identifier: str | None = None,
         prompt_injection: bool = True,
         save_state: bool = True,
     ):
@@ -39,7 +38,6 @@ class ExecutorConfig:
         self.end_on_error = end_on_error
         self.logging_setting = logging_setting
         self.subscriber = broadcast_callback
-        self.run_identifier = run_identifier if run_identifier else str(uuid.uuid4())
         self.log_file = log_file
         self.prompt_injection = prompt_injection
         self.save_state = save_state
@@ -54,7 +52,6 @@ class ExecutorConfig:
         subscriber: (
             Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
         ) = None,
-        run_identifier: str | None = None,
         prompt_injection: bool | None = None,
         save_state: bool | None = None,
     ):
@@ -73,9 +70,6 @@ class ExecutorConfig:
             broadcast_callback=subscriber
             if subscriber is not None
             else self.subscriber,
-            run_identifier=run_identifier
-            if run_identifier is not None
-            else self.run_identifier,
             prompt_injection=prompt_injection
             if prompt_injection is not None
             else self.prompt_injection,
@@ -86,6 +80,6 @@ class ExecutorConfig:
         return (
             f"ExecutorConfig(timeout={self.timeout}, end_on_error={self.end_on_error}, "
             f"logging_setting={self.logging_setting}, log_file={self.log_file}, "
-            f"run_identifier={self.run_identifier}, prompt_injection={self.prompt_injection}, "
+            f"prompt_injection={self.prompt_injection}, "
             f"save_state={self.save_state})"
         )
