@@ -78,9 +78,6 @@ class Job:
     def __str__(self):
         return f"Job(request_id={self.request_id}, status={self.status}, result={self.result}, start_time={self.start_time}, end_time={self.end_time})"
 
-    def __repr__(self):
-        return self.__str__()
-
 
 class CoordinatorState:
     """
