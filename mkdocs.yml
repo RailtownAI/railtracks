@@ -27,10 +27,7 @@ theme:
     - search.suggest
     - content.code.copy
     - content.code.highlight
-  code:
-    highlight_theme:
-      light: github
-      dark: dracula
+    - content.code.annotate
 
 plugins:
   - search
@@ -52,8 +49,7 @@ markdown_extensions:
   - pymdownx.snippets
   - pymdownx.highlight:
       anchor_linenums: true
-
-  - attr_list
+      pygments_lang_class: true
 
 extra_css:
   - css/extra.css
@@ -65,12 +61,12 @@ nav:
   - Home: index.md
 
   - Tutorials:
-        - Background:
-            - Agents: tutorials/guides/agents.md
-            - Tools: tutorials/guides/tools.md
-        - Building your first agent: tutorials/byfa.md
-        - Running your first agent: tutorials/ryfa.md
-        - WeatherAgent: tutorials/yet_another_weather_bot.md
+      - Background:
+          - Agents: tutorials/guides/agents.md
+          - Tools: tutorials/guides/tools.md
+      - Building your first agent: tutorials/byfa.md
+      - Running your first agent: tutorials/ryfa.md
+      - WeatherAgent: tutorials/yet_another_weather_bot.md
 
   - Tools + MCP:
       - Equip your LLMs: tools_mcp/tools_mcp.md
@@ -86,19 +82,19 @@ nav:
           - Advanced Tooling: tools_mcp/tools/advanced_usage.md
 
       - Integrations:
-        - Notion: tools_mcp/guides/notion.md
-        - Github: tools_mcp/guides/github.md
-        - Python Sandbox: tools_mcp/guides/python_sandbox.md
-        - Shell Bash: tools_mcp/guides/shell_bash.md
-        - Slack: tools_mcp/guides/slack.md
-        - Web Search: tools_mcp/guides/websearch_integration.md
+          - Notion: tools_mcp/guides/notion.md
+          - Github: tools_mcp/guides/github.md
+          - Python Sandbox: tools_mcp/guides/python_sandbox.md
+          - Shell Bash: tools_mcp/guides/shell_bash.md
+          - Slack: tools_mcp/guides/slack.md
+          - Web Search: tools_mcp/guides/websearch_integration.md
 
   - Observability:
-        - Visualization: observability/visualization.md
-        - Logging: observability/logging.md
-        - Streaming: observability/streaming.md
-        - Local Chat: observability/chat.md
-        - Error Handling: observability/error_handling.md
+      - Visualization: observability/visualization.md
+      - Logging: observability/logging.md
+      - Streaming: observability/streaming.md
+      - Local Chat: observability/chat.md
+      - Error Handling: observability/error_handling.md
 
   - LLM Support:
       - Supported Providers: llm_support/providers.md
@@ -106,11 +102,11 @@ nav:
       - Configuration: llm_support/config.md
 
   - Deployments:
-        - deployments/index.md
+      - deployments/index.md
 
   - Advanced Usage:
-        - Context: advanced_usage/context.md
-        - Prompt Injection: advanced_usage/prompt_injection.md
+      - Context: advanced_usage/context.md
+      - Prompt Injection: advanced_usage/prompt_injection.md
 
   - Samples:
       - samples/index.md
