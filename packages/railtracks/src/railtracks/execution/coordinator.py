@@ -22,8 +22,8 @@ class Job:
         child_node_id: str,
         status: Literal["opened", "closed"],
         result: Literal["success", "failure"] | None = None,
-        start_time: float = None,
-        end_time: float = None,
+        start_time: float | None = None,
+        end_time: float | None = None,
     ):
         """
         A simple object that represents a job to be completed.
