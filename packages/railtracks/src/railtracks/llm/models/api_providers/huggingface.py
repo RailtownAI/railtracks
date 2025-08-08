@@ -13,10 +13,10 @@ class HuggingFaceLLM(ProviderLLMWrapper):
         try:
             assert len(model_name.split("/")) == 3, "Invalid model name"
         except AssertionError as e:
-            raise HUggingFaceModelNameingError(
+            raise HuggingFaceModelNameingError(
                 reason=e.args[0],
                 notes=[
-                    "Model name muust be of the format `huggingface/<provider>/<hf_org_or_user>/<hf_model>` or `<provider>/<hf_org_or_user>/<hf_model>`",
+                    "Model name must be of the format `huggingface/<provider>/<hf_org_or_user>/<hf_model>` or `<provider>/<hf_org_or_user>/<hf_model>`",
                     "We only support the huggingface Serverless Inference Provider Models.",
                     "Provider List: https://docs.litellm.ai/docs/providers",
                 ],
@@ -28,7 +28,7 @@ class HuggingFaceLLM(ProviderLLMWrapper):
         return "HuggingFace"
 
 
-class HUggingFaceModelNameingError(ModelError):
+class HuggingFaceModelNameingError(ModelError):
     def __init__(self, reason: str, notes: list[str] = None):
         self.reason = reason
         self.notes = notes or []
