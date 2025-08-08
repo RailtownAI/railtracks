@@ -19,7 +19,10 @@ _TOutput = TypeVar("_TOutput", bound=BaseModel)
 
 # note the ordering here does matter, the t
 class StructuredLLM(
-    StructuredOutputMixIn[_TOutput], LLMBase[_TOutput], ABC, Generic[_TOutput]
+    StructuredOutputMixIn[_TOutput],
+    LLMBase[StructuredResponse[_TOutput]],
+    ABC,
+    Generic[_TOutput],
 ):
     # TODO: allow for more general (non-pydantic) outputs
 
