@@ -22,7 +22,7 @@ body:
         I suggest adding a new endpoint to the API that allows users to fetch their profile data.
         This could be implemented by creating a new route in the `routes.py` file and a corresponding controller method.
     validations:
-        required: true
+      required: true
 
 
   - type: textarea
