@@ -137,7 +137,7 @@ class TestfunctionMethods:
         parent_tool = test_parent_node.prepare_tool({"nodeA": test_nodea, "nodeB": test_nodeb, "first" : 5,"second": {"name": "name", "value" : 5}, "third": 5.0, "fourth": None})
         assert child_toola.kwargs == {"zeroth": None, "first": 5, "second": PydanticModel(name="name", value=5), "third": [1, 2, 3]}
         assert child_toolb.kwargs == {"third": [1,2,3,4], "fourth": ["[1,2]"]}
-        assert child_toolc.kwargs == {"third": ['Tool call parameter type conversion failed.']}
+        assert child_toolc.kwargs == {"third": ["1,2,3,4"]}
         assert parent_tool.kwargs == {}
 
 
