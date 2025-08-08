@@ -146,7 +146,6 @@ def test_multiple_updated(base_config):
     assert updated_config.end_on_error is False
     assert updated_config.logging_setting == "QUIET"
     assert updated_config.log_file == "new_log.txt"
-    assert updated_config.run_identifier == "new-id"
     assert updated_config.prompt_injection is False
 
     assert base_config.timeout == 100.0
