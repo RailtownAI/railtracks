@@ -15,7 +15,6 @@ class TypeMapper:
     def __init__(self, function: Callable):
         try:
             self.sig = inspect.signature(function)
-
         except ValueError:
             raise RuntimeError(
                 "Cannot convert kwargs for builtin functions. "
@@ -80,7 +79,7 @@ class TypeMapper:
             if inspect.isclass(target_type) and not hasattr(target_type, "__origin__"):
                 return target_type(value)
         except (TypeError, ValueError):
-            return "Tool call parameter type conversion failed."
+            return value
 
         # If conversion fails or isn't applicable, return the original value
         return value

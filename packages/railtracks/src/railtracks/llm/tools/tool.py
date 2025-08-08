@@ -7,7 +7,7 @@ parameters and descriptions.
 
 import inspect
 import warnings
-from typing import Any, Callable, Dict, Iterable, List, Set, Type
+from typing import Any, Callable, Dict, Iterable, List, Type
 
 from pydantic import BaseModel
 from typing_extensions import Self
@@ -50,10 +50,10 @@ class Tool:
             isinstance(parameters, dict) and len(parameters) > 0
         ):  # if parameters is a JSON-output_schema, convert into Parameter objects (Checks should be done in validate_tool_params)
             props = parameters.get("properties")
-            required_fields = set(parameters.get("required", []))
-            param_objs: Set[Parameter] = set()
+            required_fields = list(parameters.get("required", []))
+            param_objs: List[Parameter] = []
             for name, prop in props.items():
-                param_objs.add(
+                param_objs.append(
                     parse_json_schema_to_parameter(name, prop, name in required_fields)
                 )
             parameters = param_objs
@@ -73,7 +73,7 @@ class Tool:
         return self._detail
 
     @property
-    def parameters(self) -> Set[Parameter] | None:
+    def parameters(self) -> List[Parameter] | None:
         """Gets the parameters attached to this tool (if any)."""
         return self._parameters
 
@@ -91,7 +91,7 @@ class Tool:
         *,
         name: str | None = None,
         details: str | None = None,
-        params: Type[BaseModel] | Dict[str, Any] | Set[Parameter] | None = None,
+        params: Type[BaseModel] | Dict[str, Any] | List[Parameter] | None = None,
     ) -> Self:
         """
         Creates a Tool from a Python callable.
@@ -150,7 +150,7 @@ class Tool:
                 DefaultParameterHandler(),
             ]
 
-            parameters: Set[Parameter] = set()
+            parameters: List[Parameter] = []
 
             for param in signature.parameters.values():
                 # Skip 'self' parameter for class methods
@@ -168,7 +168,7 @@ class Tool:
                     param.name, param.annotation, description, required
                 )
 
-                parameters.add(param_obj)
+                parameters.append(param_obj)
 
         if details is not None:
             main_description = details

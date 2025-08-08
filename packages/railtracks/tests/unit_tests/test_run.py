@@ -80,7 +80,7 @@ def test_runner_context_manager_closes_on_exit(mock_dependencies):
 def test_runner_identifier_is_taken_from_executor_config():
     run_id = "abc123"
 
-    r = Session(run_identifier=run_id)
+    r = Session(identifier=run_id)
     assert r._identifier == run_id
 
 # ================ END Session: Singleton/Instance Id Behavior ===============
@@ -149,7 +149,7 @@ def test_runner_saves_data():
         mock_runner.return_value.graph_serialization.return_value = serialization_mock
 
         r = Session(
-            run_identifier=run_id,
+            identifier=run_id,
             save_state=True,
         )
         r.__exit__(None, None, None)
@@ -173,7 +173,7 @@ def test_runner_not_saves_data():
     with patch.object(Session, 'info', new_callable=PropertyMock) as mock_runner:
         mock_runner.return_value.graph_serialization.return_value = serialization_mock
 
-        r = Session(run_identifier=run_id, save_state=False)
+        r = Session(identifier=run_id, save_state=False)
         r.__exit__(None, None, None)
 
 

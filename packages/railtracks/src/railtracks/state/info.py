@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 from typing import List, Tuple, TypeVar
 
 from railtracks.utils.profiling import Stamp, StampManager
@@ -34,7 +35,7 @@ class ExecutionInfo:
         self.stamper = stamper
 
     @classmethod
-    def default(cls):
+    def default(cls) -> ExecutionInfo:
         """Creates a new "empty" instance of the ExecutionInfo class with the default values."""
         return cls.create_new()
 
@@ -65,6 +66,28 @@ class ExecutionInfo:
     def all_stamps(self) -> List[Stamp]:
         """Convenience method to access all the stamps of the run."""
         return self.stamper.all_stamps
+
+    @property
+    def name(self):
+        """
+        Gets the name of the graph by pulling the name of the insertion request. It will raise a ValueError if the insertion
+        request is not present or there are multiple insertion requests.
+        """
+        insertion_requests = self.insertion_requests
+
+        if len(insertion_requests) >= 2:
+            raise ValueError(
+                "You cannot get the name of a graph with multiple insertion requests"
+            )
+
+        if len(insertion_requests) == 0:
+            raise ValueError(
+                "You cannot get the name of a graph with no insertion requests"
+            )
+
+        i_r = insertion_requests[0]
+
+        return self.node_forest.get_node_type(i_r.sink_id).name()
 
     @property
     def insertion_requests(self):
@@ -119,7 +142,7 @@ class ExecutionInfo:
         """
         return self.node_forest.to_vertices(), self.request_forest.to_edges()
 
-    def graph_serialization(self) -> str:
+    def graph_serialization(self, session_id: str) -> str:
         """
                 Creates a string (JSON) representation of this info object designed to be used to construct a graph for this
                 info object.
@@ -133,58 +156,40 @@ class ExecutionInfo:
                 - However, both will carry an addition param called "stamp" which is a timestamp style object.
                 - They also will carry a "parent" param which is a recursive structure that allows you to traverse the graph in time.
 
-                The current output_schema looks something like the following.
-                ```json
-        {
-          "nodes": [
-            {
-              "identifier": str,
-              "node_type": str,
-              "stamp": {
-                 "step": int,
-                 "time": float,
-                 "identifier": str
-              }
-              "details": {
-                 "internals": {
-                    "latency": float,
-                    <any other debugging details specific to that node type (i.e. LLM nodes)>
-              }
-              "parent": <recursive the same as above | terminating when this param is null>
-          ]
-          "edges": [
-            {
-              "source": str | null,
-              "target": str,
-              "indentifier": str,
-              "stamp": {
-                "step": int,
-                "time": float,
-                "identifier": str
-              }
-              "details": {
-                 "input_args": [<list of input args>],
-                 "input_kwargs": {<dict of input kwargs>},
-                 "output": Any
-              }
-              "parent": <recursive, the same as above | terminating when this param is null>
-            }
-          ],
-          "stamps": [
-            {
-               "step": int,
-               "time": float,
-               "identifier: str
-            }
-          ]
-        }
+
         ```
         """
-        return json.dumps(
+        parent_nodes = [x.identifier for x in self.insertion_requests]
+
+        infos = [self._get_info(parent_node) for parent_node in parent_nodes]
+
+        prepared_obj = [
             {
-                "nodes": self.node_forest.to_vertices(),
-                "edges": self.request_forest.to_edges(),
-                "steps": self.all_stamps,
-            },
+                "session_id": session_id,
+                "name": info.name,
+                "run_id": str(uuid.uuid4()),
+                "nodes": info.node_forest.to_vertices(),
+                "edges": info.request_forest.to_edges(),
+                "steps": _get_stamps_from_forests(
+                    info.node_forest, info.request_forest
+                ),
+            }
+            for info in infos
+        ]
+
+        return json.dumps(
+            prepared_obj,
             cls=RTJSONEncoder,
         )
+
+
+def _get_stamps_from_forests(
+    node_forest: NodeForest,
+    request_forest: RequestForest,
+):
+    node_stamps = {n.stamp for n in node_forest.full_data()}
+    request_stamps = {r.stamp for r in request_forest.full_data()}
+
+    result = sorted(node_stamps.union(request_stamps))
+
+    return result

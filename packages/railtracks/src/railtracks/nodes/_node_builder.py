@@ -202,7 +202,7 @@ class NodeBuilder(Generic[_TNode]):
         self,
         func: Callable[_P, Coroutine[Any, Any, Any] | Any],
         tool_details: str,
-        tool_params: Set[Parameter] | None = None,
+        tool_params: list[Parameter] | None = None,
     ):
         pass
 
@@ -210,7 +210,7 @@ class NodeBuilder(Generic[_TNode]):
         self,
         func: Callable[_P, Coroutine[Any, Any, Any] | Any],
         tool_details: str | None = None,
-        tool_params: Set[Parameter] | None = None,
+        tool_params: list[Parameter] | None = None,
     ):
         """
         Setups a function node with the provided details:
