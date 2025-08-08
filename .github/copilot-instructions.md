@@ -29,7 +29,7 @@ pip install mkdocs mkdocs-material mkdocs-material-extensions mkdocs-mermaid2-pl
 export PYTHONPATH=/home/runner/work/railtracks/railtracks/packages/railtracks/src:/home/runner/work/railtracks/railtracks/packages/railtracks-cli/src:$PYTHONPATH
 ```
 
-**CRITICAL**: The standard `pip install -r requirements-dev.txt` often fails due to flit_core network timeouts. Always use the manual installation approach above.
+**CRITICAL**: The standard `pip install -r requirements-dev.txt` may have issues due to flit build system complexity. The manual installation approach above provides a more reliable alternative.
 
 ### Build and Test Commands
 
@@ -58,7 +58,7 @@ export OPENAI_API_KEY=your_key_here
 pytest -s -v --junit-xml=test-results.xml --timeout=200
 ```
 
-**Expected Results**: 601+ tests pass, 2 minor string representation test failures are expected, ~9 second runtime.
+**Expected Results**: All 601+ tests should pass, ~9 second runtime. Any failures are typically due to LLM stochasticity and should be minor.
 
 #### Documentation (NEVER CANCEL - takes ~5 seconds)
 ```bash
@@ -86,10 +86,10 @@ python -c "import railtracks_cli; print('CLI imported successfully')"
 python -m railtracks_cli
 
 # Initialize railtracks (fails in limited network environments due to CDN access)
-python -m railtracks_cli init
+railtracks init
 
 # Start visualizer (requires successful init first)
-python -m railtracks_cli viz
+railtracks viz
 ```
 
 **Known Issue**: CLI `init` command fails in environments with limited internet access due to CDN dependency for UI components.
@@ -158,8 +158,7 @@ print('✓ Function nodes created successfully')
 - **Solution**: Always set PYTHONPATH as shown in setup section for development
 
 ### Test Failures
-- **Expected**: 2 test failures in `test_parameter.py` related to string representation format
-- **Action**: These are minor and expected, focus on ensuring no new test failures are introduced
+- **Action**: All tests should pass. Focus on ensuring no new test failures are introduced. Any occasional failures are typically due to LLM stochasticity and should be minor.
 
 ## Package Structure Reference
 
