@@ -23,7 +23,7 @@ dependencies = [
 
 [project.optional-dependencies]
 llm = [
-    "litellm >= 1.70.2"
+    "litellm[proxy] >= 1.70.2"
 ]
 chat = [
     "fastapi >= 0.104.0"
@@ -33,7 +33,7 @@ mcp = [
     "mcp >= 1.9.0",
 ]
 rag = [
-    "litellm >= 1.70.2"
+    "litellm[proxy] >= 1.70.2"
 ]
 # the integrations submodule will be list a of the above deps
 integrations = [
