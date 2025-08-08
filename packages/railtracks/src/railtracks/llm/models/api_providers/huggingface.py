@@ -1,6 +1,7 @@
 from ._provider_wrapper import ProviderLLMWrapper
 from .._model_exception_base import ModelError
-
+from litellm.utils import ModelResponse
+from ...response import MessageInfo, Response
 
 class HuggingFaceLLM(ProviderLLMWrapper):
     
@@ -22,12 +23,6 @@ class HuggingFaceLLM(ProviderLLMWrapper):
                     ],
                 )
         return model_name
-    
-    def _chat_with_tools_handler_base(self, messages, tools, **kwargs):
-        # similar issue here, due to the wide range of huggingface models, `litellm.supports_function_calling` isn't always accurate.
-        # so we are just going to pass through the check and the error will be generated at runtime during `litellm.completion`.
-        pass
-
     
     @classmethod
     def model_type(cls) -> str:

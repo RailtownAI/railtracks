@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 
 import litellm
 from litellm.litellm_core_utils.get_llm_provider_logic import get_llm_provider
+from litellm.utils import ModelResponse
+from ...response import MessageInfo, Response
 
 from .._litellm_wrapper import LiteLLMWrapper
 from .._model_exception_base import FunctionCallingNotSupportedError, ModelError
@@ -50,10 +52,15 @@ class ProviderLLMWrapper(LiteLLMWrapper, ABC):
         """Returns the name of the provider"""
         pass
 
-    def _chat_with_tools_handler_base(self, messages, tools, **kwargs):
-        if not litellm.supports_function_calling(model=self._model_name):
+    def _chat_with_tools_handler_base(
+        self, raw: ModelResponse, info: MessageInfo
+    ) -> Response:
+        # NOTE: special exception case for higgingface
+        # Due to the wide range of huggingface models, `litellm.supports_function_calling` isn't always accurate.
+        # so we are just going to skip the check and the error (if any) will be generated at runtime during `litellm.completion`.
+        if not self.model_type() == "HuggingFace" and not litellm.supports_function_calling(model=self._model_name):
             raise FunctionCallingNotSupportedError(self._model_name)
-        return super().chat_with_tools(messages, tools, **kwargs)
+        return super()._chat_with_tools_handler_base(raw, info)
 
 
 class ModelNotFoundError(ModelError):
