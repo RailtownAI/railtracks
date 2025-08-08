@@ -24,14 +24,15 @@ For advanced users you can see [context](../advanced_usage/context.md), for furt
 
 ### Example
 ```python
+import railtracks as rt
 
 weather_agent_class = rt.define_agent(
     agent_name="Weather Agent",
-    llm_model="gpt-4o",
+    llm_model=rt.llm.OpenAILLM("gpt-4o"),
     system_message="You are a helpful assistant that answers weather-related questions.",
-    tools={weather_tool},
-    schema=weather_schema,
-    agent_params=weather_param,
+    tools={your_weather_tool},
+    schema=your_weather_schema,
+    agent_params=your_weather_param,
     agent_doc="This is an agent that will give you the current weather and answer weather related questions you have"    
 )
 ```
@@ -47,10 +48,11 @@ When making a Tool-Calling Agent you can also specify `max_tool_calls` to have a
 
 ### Example
 ```python
+import railtracks as rt
 
 weather_agent_class = rt.define_agent(
     agent_name="Weather Agent",
-    llm_model="gpt-4o",
+    llm_model=rt.llm.AnthropicLLM("claude-3-5-sonnet-20241022"),
     system_message="You are a helpful assistant that answers weather-related questions.",
     tools=weather_tool_set,
     maximum_tool_calls=10
@@ -62,12 +64,14 @@ Additionally, we have an MCP agent if you would like integrate API functionaliti
 ### Example
 ```python
 
+import railtracks as rt
+
 notion_agent_class = rt.define_agent(
     agent_name="Notion Agent",
     mcp_command: notion_command,
     mcp_args: notion_args,
     mcp_env: notion_env,
-    llm_model="gpt-4o",
+    llm_model=rt.llm.OpenAILLM("gpt-4o"),
     system_message="You are a helpful assistant that help edit users Notion pages",
     
 )
@@ -88,6 +92,5 @@ Define the schema or expected structure when initializing the agent so the model
 ---
 
 <p style="text-align:center;">
-  <a href="../tools_mcp/create_your_own" class="md-button" style="margin:3px">Create Your Own Agent</a>
-  <a href="../advanced_usage/context" class="md-button" style="margin:3px">Using Context</a>
+  <a href="../ryfa" class="md-button" style="margin:3px">Run Your First Agent</a>
 </p>
