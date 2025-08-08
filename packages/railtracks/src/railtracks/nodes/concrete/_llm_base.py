@@ -218,6 +218,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         """Detach pre and post hooks from the llm model."""
         self.llm_model.remove_pre_hooks()
         self.llm_model.remove_post_hooks()
+        self.llm_model.remove_exception_hooks()
 
     def _pre_llm_hook(self, message_history: MessageHistory) -> MessageHistory:
         """Hook to modify messages before sending them to the llm model."""
