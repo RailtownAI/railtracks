@@ -68,10 +68,9 @@ nav:
         - Background:
             - Agents: tutorials/guides/agents.md
             - Tools: tutorials/guides/tools.md
-        - tutorials/byfa.md
-        - tutorials/ryfa.md
-        - tutorials/node_builder.md
-        - An Actual Working WeatherBot: tutorials/yet_another_weather_bot.md
+        - Building your first agent: tutorials/byfa.md
+        - Running your first agent: tutorials/ryfa.md
+        - WeatherAgent: tutorials/yet_another_weather_bot.md
 
   - Tools + MCP:
       - Equip your LLMs: tools_mcp/tools_mcp.md

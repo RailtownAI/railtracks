@@ -42,7 +42,7 @@ Although it really is that simple to run your agent, you can do more of course. 
 import railtracks as rt
 
 WeatherAgent = rt.agent_node(
-    tool_nodes={weather_tool},
+    tool_nodes={weather_node},
     schema=WeatherResponse, 
 )
 
@@ -68,7 +68,7 @@ default_model = "gpt-4o"
 default_system_message = "You are a helpful assistant that answers weather-related questions."
 
 WeatherAgent = rt.agent_node(
-    tool_nodes=[weather_tool],
+    tool_nodes=[weather_node],
     system_message=default_system_message,
     llm_model=default_model,
 )
@@ -77,7 +77,7 @@ system_message = rt.llm.SystemMessage("If not specified, the user is talking abo
 user_message = rt.llm.UserMessage("Would you please be able to tell me the forecast for the next week?")
 
 response = await rt.call(
-    weather_agent_class,
+    WeatherAgent,
     user_input=rt.llm.MessageHistory([system_message, user_message]),
     llm_model='claude-3-5-sonnet-20240620',
 )
@@ -130,43 +130,4 @@ response = await rt.call(
 
 user_number = response.structured().user_number
 message_history_object = response.message_history
-```
-
-## Advanced Usage Examples
-
-### Deciding Precise Run Time Calls
-
-```python
-
-class stocks(BaseModel):
-    action : str 
-
-def find_stocks(...):
-    ...
-
-def own_stocks(...):
-    ...
-
-def analyze_stock(...):
-    ...
-
-def buy_stocks(...):
-    ...
-
-def sell_stocks(...):
-    ...
-
-ScoutNode = agent_node(
-    name="Scout Node",
-    system_message="""You are a trading agent that helps find the best stocks to buy and sell. To find stocks you can use the find_stocks tool,
-    to see which stocks you own you can use own_stocks tool, and to analyze""" 
-)
-buyingNode = function_node(buy_stocks)
-sellingNode = function_node(sell_stocks)
-
-while stillHaveMoney:
-    stocks = rt.call(scoutNode)
-
-    if stocks.structure[action] = "buy" 
-
 ```

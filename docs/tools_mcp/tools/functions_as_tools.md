@@ -30,7 +30,7 @@ To turn this function into a tool, we need to provide a docstring that describes
 ```python
 import railtracks as rt
 
-AddNode = rt.function_node(add)
+add = rt.function_node(add)
 ```
 
 ### 2. Using a decorator
@@ -68,7 +68,7 @@ MathAgent = rt.agent_node(
                 pretty_name="MathAgent",
                 tool_nodes=[
                   solve_expression, 
-                  AddNode,
+                  AddTool,
                 ],    # the agent has access to these tools
                 llm_model = rt.llm.OpenAILLM("gpt-4o"),
             )
