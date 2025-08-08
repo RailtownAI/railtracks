@@ -139,7 +139,7 @@ class Coordinator:
     # we have a fairly hard dependency on the execution modes. This is a bit of a dependency hack for catching errors early.
     def __init__(
         self,
-        execution_modes: Dict[ExecutionConfigurations, TaskExecutionStrategy] = None,
+        execution_modes: Dict[ExecutionConfigurations, TaskExecutionStrategy] | None = None,
     ):
         self.state = CoordinatorState.empty()
         assert set(execution_modes.keys()) == set(get_args(ExecutionConfigurations)), (
