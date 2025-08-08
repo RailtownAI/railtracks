@@ -12,9 +12,15 @@ RailTracks is a Python framework for building agentic systems. This is a monorep
 
 ### Prerequisites and Setup
 - Python 3.10+ required (tested with 3.12.3)
-- Development requires manual dependency installation due to flit build system complexity
 
 ### Development Environment Setup
+
+**Option 1: Standard Installation** (recommended when network is reliable)
+```bash
+pip install -r requirements-dev.txt
+```
+
+**Option 2: Manual Installation** (for environments with network limitations)
 ```bash
 # Install core development tools first
 pip install ruff pytest pytest-asyncio pytest-cov pytest-timeout
@@ -29,7 +35,7 @@ pip install mkdocs mkdocs-material mkdocs-material-extensions mkdocs-mermaid2-pl
 export PYTHONPATH=/home/runner/work/railtracks/railtracks/packages/railtracks/src:/home/runner/work/railtracks/railtracks/packages/railtracks-cli/src:$PYTHONPATH
 ```
 
-**CRITICAL**: The standard `pip install -r requirements-dev.txt` may have issues due to flit build system complexity. The manual installation approach above provides a more reliable alternative.
+
 
 ### Build and Test Commands
 
@@ -145,8 +151,8 @@ print('✓ Function nodes created successfully')
 ## Common Issues and Workarounds
 
 ### Installation Issues
-- **Problem**: `pip install -e packages/railtracks` fails with network timeouts
-- **Solution**: Use manual dependency installation as shown in setup section
+- **Problem**: `pip install -r requirements-dev.txt` fails with network timeouts  
+- **Solution**: Use manual dependency installation as shown in setup section when network connectivity is limited
 
 ### CLI Issues  
 - **Problem**: `railtracks init` fails with "No address associated with hostname"
