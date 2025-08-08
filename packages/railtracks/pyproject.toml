@@ -19,6 +19,7 @@ dependencies = [
     "colorama >= 0.4.6",
     "pydantic >= 2.5.3, <3",
     "python-dotenv >= 1.0.0",
+    "PyYAML >= 6.0",
 ]
 
 [project.optional-dependencies]
