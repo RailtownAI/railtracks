@@ -9,6 +9,10 @@ from .._model_exception_base import FunctionCallingNotSupportedError, ModelError
 
 class ProviderLLMWrapper(LiteLLMWrapper, ABC):
     def __init__(self, model_name: str, **kwargs):
+        model_name = self.pre_init_provider_check(model_name)
+        super().__init__(model_name=self.full_model_name(model_name), **kwargs)
+
+    def pre_init_provider_check(self, model_name: str):
         provider_name = self.model_type().lower()
         try:
             # NOTE: Incase of a valid model for gemini, `get_llm_provider` returns provider = vertex_ai.
@@ -19,6 +23,7 @@ class ProviderLLMWrapper(LiteLLMWrapper, ABC):
             assert provider_info[1] == provider_name, (
                 f"Provider mismatch. Expected {provider_name}, got {provider_info[1]}"
             )
+            return model_name
         except Exception as e:
             reason_str = (
                 e.args[0]
@@ -33,9 +38,7 @@ class ProviderLLMWrapper(LiteLLMWrapper, ABC):
                     "Provider List: https://docs.litellm.ai/docs/providers",
                 ],
             ) from e
-
-        super().__init__(model_name=self.full_model_name(model_name), **kwargs)
-
+        
     def full_model_name(self, model_name: str) -> str:
         """After the provider is checked, this method is called to get the full model name"""
         # for anthropic/openai models the full model name is {provider}/{model_name}
@@ -47,7 +50,7 @@ class ProviderLLMWrapper(LiteLLMWrapper, ABC):
         """Returns the name of the provider"""
         pass
 
-    def chat_with_tools(self, messages, tools, **kwargs):
+    def _chat_with_tools_handler_base(self, messages, tools, **kwargs):
         if not litellm.supports_function_calling(model=self._model_name):
             raise FunctionCallingNotSupportedError(self._model_name)
         return super().chat_with_tools(messages, tools, **kwargs)
