@@ -138,7 +138,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
 
         self._details["llm_details"] = []
 
-        self._attach_llm_hooks()
+        self._attach_internal_llm_hooks()
 
     @classmethod
     def prepare_tool_message_history(
@@ -208,16 +208,45 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
     def system_message(cls) -> SystemMessage | str | None:
         return None
 
-    def _attach_llm_hooks(self):
+    def _attach_internal_llm_hooks(self):
         """Attach pre and post hooks to the llm model."""
         self.llm_model.add_pre_hook(self._pre_llm_hook)
         self.llm_model.add_post_hook(self._post_llm_hook)
         self.llm_model.add_exception_hook(self._exception_llm_hook)
 
-    def _detach_llm_hooks(self):
-        """Detach pre and post hooks from the llm model."""
+    def _detach_internal_llm_hooks(self):
+        """Detach internal pre and post hooks from the llm model while preserving external hooks."""
+        # Save all existing hooks
+        pre_hooks = self.llm_model._pre_hooks.copy()
+        post_hooks = self.llm_model._post_hooks.copy()
+        exception_hooks = self.llm_model._exception_hooks.copy()
+
+        # Remove all hooks
         self.llm_model.remove_pre_hooks()
         self.llm_model.remove_post_hooks()
+        self.llm_model.remove_exception_hooks()
+
+        # Get the underlying function objects for internal hooks
+        pre_llm_hook_func = self._pre_llm_hook.__func__
+        post_llm_hook_func = self._post_llm_hook.__func__
+        exception_llm_hook_func = self._exception_llm_hook.__func__
+
+        # Re-add external hooks (all hooks except the internal ones)
+        for hook in pre_hooks:
+            # Compare the underlying function objects, not the bound methods
+            if not hasattr(hook, "__func__") or hook.__func__ != pre_llm_hook_func:
+                self.llm_model.add_pre_hook(hook)
+
+        for hook in post_hooks:
+            if not hasattr(hook, "__func__") or hook.__func__ != post_llm_hook_func:
+                self.llm_model.add_post_hook(hook)
+
+        for hook in exception_hooks:
+            if (
+                not hasattr(hook, "__func__")
+                or hook.__func__ != exception_llm_hook_func
+            ):
+                self.llm_model.add_exception_hook(hook)
 
     def _pre_llm_hook(self, message_history: MessageHistory) -> MessageHistory:
         """Hook to modify messages before sending them to the llm model."""
@@ -300,8 +329,8 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         # This has got to be one of the weirdest things I've seen working with python
         # basically if we don't reattach the hooks, the `self` inserted into the model hooks will be the old memory address
         # so those updates will go to the old instance instead of the new one.
-        new_instance._detach_llm_hooks()
-        new_instance._attach_llm_hooks()
+        new_instance._detach_internal_llm_hooks()
+        new_instance._attach_internal_llm_hooks()
         # now that we have reattached the correct memory address to the llm the hooks will update properly.
 
         return new_instance
