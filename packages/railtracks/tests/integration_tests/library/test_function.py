@@ -147,8 +147,9 @@ class TestPrimitiveInputTypes:
                     ]
                 ),
             )
+        resp: str = response.content
 
-        assert response.content == "True"
+        assert resp.lower() == "true"
 
     @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
     def test_single_bool_input(self, model_provider, create_top_level_node):

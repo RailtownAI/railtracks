@@ -27,3 +27,6 @@ venv
 .logs
 
 experiments
+
+# Documentation build output
+site/

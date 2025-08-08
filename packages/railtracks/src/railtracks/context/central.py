@@ -46,6 +46,7 @@ class RunnerContextVars:
 runner_context: contextvars.ContextVar[RunnerContextVars | None] = (
     contextvars.ContextVar("runner_context", default=None)
 )
+
 global_executor_config: contextvars.ContextVar[ExecutorConfig] = contextvars.ContextVar(
     "executor_config", default=ExecutorConfig()
 )
@@ -76,6 +77,7 @@ def safe_get_runner_context() -> RunnerContextVars:
 def is_context_present():
     """Returns true if a context exists."""
     t_c = runner_context.get()
+    print(f"--------------------------------- {t_c}")
     return t_c is not None
 
 
@@ -155,6 +157,10 @@ def register_globals(
         runner_id=runner_id,
         internal_context=i_c,
         external_context=e_c,
+    )
+
+    print(
+        f"(register_globals) Registering globals with runner_id: {runner_id}, parent_id: {parent_id}"
     )
 
     runner_context.set(runner_context_vars)
@@ -353,7 +359,6 @@ def set_config(
         logging_setting=logging_setting,
         log_file=log_file,
         subscriber=broadcast_callback,
-        run_identifier=run_identifier,
         prompt_injection=prompt_injection,
         save_state=save_state,
     )

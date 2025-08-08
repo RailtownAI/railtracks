@@ -20,7 +20,6 @@ def test_instantiation_with_all_defaults():
     assert config.end_on_error is False
     assert config.logging_setting == "REGULAR"
     assert config.log_file is None
-    assert isinstance(uuid.UUID(config.run_identifier), uuid.UUID)
     assert config.prompt_injection is True
     assert config.subscriber is None
 
@@ -33,7 +32,6 @@ def test_instantiation_with_custom_values(tmp_path, log_level):
         logging_setting=log_level,       
         log_file=tmp_path / "logfile.txt",
         broadcast_callback=test_subscriber,
-        run_identifier=custom_run_identifier,
         prompt_injection=False
     )
     assert config.timeout == 12.0
@@ -41,25 +39,11 @@ def test_instantiation_with_custom_values(tmp_path, log_level):
     assert config.logging_setting == log_level
     assert config.log_file == tmp_path / "logfile.txt"
     assert config.subscriber == test_subscriber
-    assert config.run_identifier == custom_run_identifier
     assert config.prompt_injection is False
 
 # ================ END ExecutorConfig: Instantiation tests ===============
 
 
-# ================= START ExecutorConfig: run_identifier logic tests ============
-
-def test_run_identifier_is_generated_if_none():
-    config = ExecutorConfig(run_identifier=None)
-    uuid_obj = uuid.UUID(config.run_identifier)
-    assert isinstance(uuid_obj, uuid.UUID)
-
-def test_run_identifier_is_used_when_given():
-    identifier = "special-test-id"
-    config = ExecutorConfig(run_identifier=identifier)
-    assert config.run_identifier == identifier
-
-# ================ END ExecutorConfig: run_identifier logic tests ===============
 
 
 # ================= START ExecutorConfig: broadcast_callback handling tests ============
@@ -138,7 +122,6 @@ def base_config():
         timeout=100.0,
         end_on_error=True,
         logging_setting="REGULAR",
-        run_identifier="base-id",
         prompt_injection=True,
         save_state=True
     )
@@ -149,7 +132,6 @@ def test_updated_timeout(base_config):
     assert updated_config.end_on_error == base_config.end_on_error
     assert updated_config.logging_setting == base_config.logging_setting
     assert updated_config.log_file == base_config.log_file
-    assert updated_config.run_identifier == base_config.run_identifier
     assert updated_config.prompt_injection == base_config.prompt_injection
 
 def test_multiple_updated(base_config):
@@ -158,14 +140,12 @@ def test_multiple_updated(base_config):
         end_on_error=False,
         logging_setting="QUIET",
         log_file="new_log.txt",
-        run_identifier="new-id",
         prompt_injection=False
     )
     assert updated_config.timeout == 200.0
     assert updated_config.end_on_error is False
     assert updated_config.logging_setting == "QUIET"
     assert updated_config.log_file == "new_log.txt"
-    assert updated_config.run_identifier == "new-id"
     assert updated_config.prompt_injection is False
 
     assert base_config.timeout == 100.0
