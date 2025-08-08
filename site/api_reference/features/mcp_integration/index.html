@@ -1,0 +1,1866 @@
+
+<!DOCTYPE html>
+
+<html class="no-js" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://something/api_reference/features/mcp_integration/" rel="canonical"/>
+<link href="../logging_profiling/" rel="prev"/>
+<link href="../node_interaction/" rel="next"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.6.16" name="generator"/>
+<title>Mcp integration - RailTracks Docs</title>
+<link href="../../../assets/stylesheets/main.7e37652d.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<link href="../../../css/extra.css" rel="stylesheet"/>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#mcp-integration">
+          Skip to content
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Header" class="md-header__inner md-grid">
+<a aria-label="RailTracks Docs" class="md-header__button md-logo" data-md-component="logo" href="../../.." title="RailTracks Docs">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            RailTracks Docs
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              Mcp integration
+            
+          </span>
+</div>
+</div>
+</div>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Search" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Search" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Search" class="md-search__options">
+<button aria-label="Clear" class="md-search__icon md-icon" tabindex="-1" title="Clear" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Initializing search
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Navigation" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="RailTracks Docs" class="md-nav__button md-logo" data-md-component="logo" href="../../.." title="RailTracks Docs">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    RailTracks Docs
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../..">
+<span class="md-ellipsis">
+    Home
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    Tutorials
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            Tutorials
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tutorials/byfa/">
+<span class="md-ellipsis">
+    How to Build Your First Agent
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tutorials/ryfa/">
+<span class="md-ellipsis">
+    How to Run Your First Agent
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tutorials/node_builder/">
+<span class="md-ellipsis">
+    How to Customize Class Building
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tutorials/yet_another_weather_bot/">
+<span class="md-ellipsis">
+    Yet another weather bot
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_2_5" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+<span class="md-ellipsis">
+    Background
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_2_5_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_5">
+<span class="md-nav__icon md-icon"></span>
+            Background
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tutorials/guides/index.md">
+<span class="md-ellipsis">
+    None
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tutorials/guides/agents/">
+<span class="md-ellipsis">
+    Agents
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tutorials/guides/tools/">
+<span class="md-ellipsis">
+    Tools
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    Tools + MCP
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            Tools + MCP
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/tools_mcp/">
+<span class="md-ellipsis">
+    Equip your LLMs
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_3_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+<span class="md-ellipsis">
+    MCP
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_2_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_3_2">
+<span class="md-nav__icon md-icon"></span>
+            MCP
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/mcp/mcp/">
+<span class="md-ellipsis">
+    Model Context Protocol
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/mcp/MCP_tools_in_RT/">
+<span class="md-ellipsis">
+    Using MCP
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/mcp/RTtoMCP/">
+<span class="md-ellipsis">
+    Creating an MCP
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_3_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+<span class="md-ellipsis">
+    Tools
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_3_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_3_3">
+<span class="md-nav__icon md-icon"></span>
+            Tools
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/tools/tools/">
+<span class="md-ellipsis">
+    What is a Tool
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/tools/functions_as_tools/">
+<span class="md-ellipsis">
+    Functions as Tools
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/tools/agents_as_tools/">
+<span class="md-ellipsis">
+    Agents as Tools
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/tools/advanced_usage/">
+<span class="md-ellipsis">
+    Advanced Tooling
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_3_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+<span class="md-ellipsis">
+    Integrations
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_4_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_3_4">
+<span class="md-nav__icon md-icon"></span>
+            Integrations
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/guides/notion/">
+<span class="md-ellipsis">
+    Notion
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/guides/github/">
+<span class="md-ellipsis">
+    Github
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/guides/python_sandbox/">
+<span class="md-ellipsis">
+    Python Sandbox
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/guides/shell_bash/">
+<span class="md-ellipsis">
+    Shell Bash
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/guides/slack/">
+<span class="md-ellipsis">
+    Slack
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/guides/websearch_integration/">
+<span class="md-ellipsis">
+    Web Search
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    Observability
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            Observability
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../observability/visualization/">
+<span class="md-ellipsis">
+    Visualization
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../observability/logging/">
+<span class="md-ellipsis">
+    Logging
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../observability/streaming/">
+<span class="md-ellipsis">
+    Streaming
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../observability/chat/">
+<span class="md-ellipsis">
+    Local Chat
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../observability/error_handling/">
+<span class="md-ellipsis">
+    Error Handling
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_5" type="checkbox"/>
+<label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+<span class="md-ellipsis">
+    LLM Support
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_5_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_5">
+<span class="md-nav__icon md-icon"></span>
+            LLM Support
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../llm_support/providers/">
+<span class="md-ellipsis">
+    Supported Providers
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../llm_support/prompts/">
+<span class="md-ellipsis">
+    Prompts and Context Injection
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../llm_support/config/">
+<span class="md-ellipsis">
+    Configuration
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_6" type="checkbox"/>
+<div class="md-nav__link md-nav__container">
+<a class="md-nav__link" href="../../../deployments/">
+<span class="md-ellipsis">
+    Deployments
+    
+  </span>
+</a>
+</div>
+<nav aria-expanded="false" aria-labelledby="__nav_6_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_6">
+<span class="md-nav__icon md-icon"></span>
+            Deployments
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_7" type="checkbox"/>
+<label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+<span class="md-ellipsis">
+    Advanced Usage
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_7_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_7">
+<span class="md-nav__icon md-icon"></span>
+            Advanced Usage
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../advanced_usage/context/">
+<span class="md-ellipsis">
+    Context
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../advanced_usage/prompt_injection/">
+<span class="md-ellipsis">
+    Prompt Injection
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_8" type="checkbox"/>
+<div class="md-nav__link md-nav__container">
+<a class="md-nav__link" href="../../../samples/">
+<span class="md-ellipsis">
+    Samples
+    
+  </span>
+</a>
+</div>
+<nav aria-expanded="false" aria-labelledby="__nav_8_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_8">
+<span class="md-nav__icon md-icon"></span>
+            Samples
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_9" type="checkbox"/>
+<label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+<span class="md-ellipsis">
+    System Internals
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_9_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_9">
+<span class="md-nav__icon md-icon"></span>
+            System Internals
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../system_internals/overview/">
+<span class="md-ellipsis">
+    Overview
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../system_internals/concepts/">
+<span class="md-ellipsis">
+    Core Concepts
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../system_internals/node/">
+<span class="md-ellipsis">
+    Node Abstraction
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../system_internals/session/">
+<span class="md-ellipsis">
+    Session Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../system_internals/pubsub/">
+<span class="md-ellipsis">
+    PubSub Messaging
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../system_internals/coordinator/">
+<span class="md-ellipsis">
+    Coordinator Orchestration
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_10" type="checkbox"/>
+<label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
+<span class="md-ellipsis">
+    API Reference
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_10_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_10">
+<span class="md-nav__icon md-icon"></span>
+            API Reference
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../generated/railtracks.html">
+<span class="md-ellipsis">
+    Generated
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_10_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_10_2" id="__nav_10_2_label" tabindex="0">
+<span class="md-ellipsis">
+    Components
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_10_2_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_10_2">
+<span class="md-nav__icon md-icon"></span>
+            Components
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/api_provider_wrappers/">
+<span class="md-ellipsis">
+    API Provider Wrappers
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/chat_tool_call_node/">
+<span class="md-ellipsis">
+    Chat Tool Call Node
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/chat_ui/">
+<span class="md-ellipsis">
+    Chat UI
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/chunking_service/">
+<span class="md-ellipsis">
+    Chunking Service
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/cli_entry_point/">
+<span class="md-ellipsis">
+    CLI Entry Point
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/cloud_model_wrappers/">
+<span class="md-ellipsis">
+    Azure AI LLM Wrapper
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/context_management/">
+<span class="md-ellipsis">
+    Context Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/embedding_service/">
+<span class="md-ellipsis">
+    Embedding Service
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/exception_handling/">
+<span class="md-ellipsis">
+    Exception Handling
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/execution_info/">
+<span class="md-ellipsis">
+    Execution Info
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/executor_configuration/">
+<span class="md-ellipsis">
+    Executor Configuration
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/function_node_base/">
+<span class="md-ellipsis">
+    Function Node Base
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/graph_serialization/">
+<span class="md-ellipsis">
+    Graph Serialization
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/in_memory_vector_store/">
+<span class="md-ellipsis">
+    In-Memory Vector Store
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/jupyter_compatibility/">
+<span class="md-ellipsis">
+    Jupyter Compatibility
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/llm_messaging/">
+<span class="md-ellipsis">
+    LLM Messaging
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/llm_node_base/">
+<span class="md-ellipsis">
+    LLM Node Base
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/local_model_wrappers/">
+<span class="md-ellipsis">
+    Local Model Wrappers
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/logger_creation/">
+<span class="md-ellipsis">
+    Logger Creation
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/logging_actions/">
+<span class="md-ellipsis">
+    Logging Actions
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/logging_configuration/">
+<span class="md-ellipsis">
+    Logging Configuration
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/mcp_client_server/">
+<span class="md-ellipsis">
+    MCP Client and Server
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/mcp_tool_connection/">
+<span class="md-ellipsis">
+    MCP Tool Connection
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/model_error_handling/">
+<span class="md-ellipsis">
+    Model Error Handling
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/model_interaction/">
+<span class="md-ellipsis">
+    Model Interaction
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/node_building/">
+<span class="md-ellipsis">
+    Node Building
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/node_creation_validation/">
+<span class="md-ellipsis">
+    Node Creation Validation
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/node_interaction/">
+<span class="md-ellipsis">
+    Node Interaction
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/node_invocation_validation/">
+<span class="md-ellipsis">
+    Node Invocation Validation
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/node_management/">
+<span class="md-ellipsis">
+    Node Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/node_manifest/">
+<span class="md-ellipsis">
+    Node Manifest
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/node_state_management/">
+<span class="md-ellipsis">
+    Node State Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/node_to_mcp_server/">
+<span class="md-ellipsis">
+    Node to MCP Server
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/profiling/">
+<span class="md-ellipsis">
+    Profiling
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/prompt_formatting/">
+<span class="md-ellipsis">
+    Prompt Injection
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/prompt_injection/">
+<span class="md-ellipsis">
+    Prompt Injection
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/publisher/">
+<span class="md-ellipsis">
+    Publisher
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/pubsub_messaging/">
+<span class="md-ellipsis">
+    Pub/Sub Messaging
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/rag_core/">
+<span class="md-ellipsis">
+    RAG Core
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/rag_node/">
+<span class="md-ellipsis">
+    RAG Node
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/rag_utilities/">
+<span class="md-ellipsis">
+    RAG Utilities
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/request_management/">
+<span class="md-ellipsis">
+    Request Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/response_handling/">
+<span class="md-ellipsis">
+    Response Handling
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/rt_state_management/">
+<span class="md-ellipsis">
+    RT State Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/serialization/">
+<span class="md-ellipsis">
+    Serialization
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/session_management/">
+<span class="md-ellipsis">
+    Session Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/state_management/">
+<span class="md-ellipsis">
+    State Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/state_utilities/">
+<span class="md-ellipsis">
+    State Utilities
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/task_execution/">
+<span class="md-ellipsis">
+    Task Execution
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/terminal_node_base/">
+<span class="md-ellipsis">
+    Terminal Node Base
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/text_object_management/">
+<span class="md-ellipsis">
+    Text Object Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/tool_call_node_base/">
+<span class="md-ellipsis">
+    Tool Call Node Base
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/tool_callable_node/">
+<span class="md-ellipsis">
+    Tool Callable Node
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/tool_management/">
+<span class="md-ellipsis">
+    Tool Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/tool_parsing/">
+<span class="md-ellipsis">
+    Tool Parsing
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/vector_store_base/">
+<span class="md-ellipsis">
+    Vector Store Base
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/vector_store_factory/">
+<span class="md-ellipsis">
+    Vector Store Factory
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/vector_store_utilities/">
+<span class="md-ellipsis">
+    Vector Store Utilities
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_10_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_10_3" id="__nav_10_3_label" tabindex="0">
+<span class="md-ellipsis">
+    Features
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_10_3_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_10_3">
+<span class="md-nav__icon md-icon"></span>
+            Features
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../cli_interface/">
+<span class="md-ellipsis">
+    Cli interface
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../context_management/">
+<span class="md-ellipsis">
+    Context management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../exception_handling/">
+<span class="md-ellipsis">
+    Exception handling
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../llm_integration/">
+<span class="md-ellipsis">
+    Llm integration
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../logging_profiling/">
+<span class="md-ellipsis">
+    Logging profiling
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    Mcp integration
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    Mcp integration
+    
+  </span>
+</a>
+<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#table-of-contents">
+<span class="md-ellipsis">
+      Table of Contents
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1-functional-overview">
+<span class="md-ellipsis">
+      1. Functional Overview
+    </span>
+</a>
+<nav aria-label="1. Functional Overview" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11-consuming-remote-mcp-tools">
+<span class="md-ellipsis">
+      1.1 Consuming Remote MCP Tools
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12-exposing-railtracks-nodes-as-mcp-tools">
+<span class="md-ellipsis">
+      1.2 Exposing RailTracks Nodes as MCP Tools
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13-jupyter-windows-compatibility">
+<span class="md-ellipsis">
+      1.3 Jupyter / Windows Compatibility
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-external-contracts">
+<span class="md-ellipsis">
+      2. External Contracts
+    </span>
+</a>
+<nav aria-label="2. External Contracts" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#21-supported-transports">
+<span class="md-ellipsis">
+      2.1 Supported Transports
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#22-environment-variables-tokens">
+<span class="md-ellipsis">
+      2.2 Environment Variables &amp; Tokens
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#23-cli-commands">
+<span class="md-ellipsis">
+      2.3 CLI Commands
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-design-and-architecture">
+<span class="md-ellipsis">
+      3. Design and Architecture
+    </span>
+</a>
+<nav aria-label="3. Design and Architecture" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#31-runtime-data-flow-railtracks-mcp">
+<span class="md-ellipsis">
+      3.1 Runtime Data-flow (RailTracks ⇒ MCP)
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#32-runtime-data-flow-mcp-railtracks">
+<span class="md-ellipsis">
+      3.2 Runtime Data-flow (MCP ⇒ RailTracks)
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#33-threading-event-loop-model">
+<span class="md-ellipsis">
+      3.3 Threading &amp; Event-Loop Model
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#34-key-design-decisions-trade-offs">
+<span class="md-ellipsis">
+      3.4 Key Design Decisions &amp; Trade-offs
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-related-files">
+<span class="md-ellipsis">
+      4. Related Files
+    </span>
+</a>
+<nav aria-label="4. Related Files" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#41-related-component-files">
+<span class="md-ellipsis">
+      4.1 Related Component Files
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#42-external-dependencies">
+<span class="md-ellipsis">
+      4.2 External Dependencies
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#changelog">
+<span class="md-ellipsis">
+      CHANGELOG
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../node_interaction/">
+<span class="md-ellipsis">
+    Node interaction
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../node_management/">
+<span class="md-ellipsis">
+    Node management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../rag_system/">
+<span class="md-ellipsis">
+    Rag system
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../state_management/">
+<span class="md-ellipsis">
+    State management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../task_execution/">
+<span class="md-ellipsis">
+    Task execution
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../tool_management/">
+<span class="md-ellipsis">
+    Tool management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../validation/">
+<span class="md-ellipsis">
+    Validation
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#table-of-contents">
+<span class="md-ellipsis">
+      Table of Contents
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1-functional-overview">
+<span class="md-ellipsis">
+      1. Functional Overview
+    </span>
+</a>
+<nav aria-label="1. Functional Overview" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11-consuming-remote-mcp-tools">
+<span class="md-ellipsis">
+      1.1 Consuming Remote MCP Tools
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12-exposing-railtracks-nodes-as-mcp-tools">
+<span class="md-ellipsis">
+      1.2 Exposing RailTracks Nodes as MCP Tools
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13-jupyter-windows-compatibility">
+<span class="md-ellipsis">
+      1.3 Jupyter / Windows Compatibility
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-external-contracts">
+<span class="md-ellipsis">
+      2. External Contracts
+    </span>
+</a>
+<nav aria-label="2. External Contracts" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#21-supported-transports">
+<span class="md-ellipsis">
+      2.1 Supported Transports
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#22-environment-variables-tokens">
+<span class="md-ellipsis">
+      2.2 Environment Variables &amp; Tokens
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#23-cli-commands">
+<span class="md-ellipsis">
+      2.3 CLI Commands
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-design-and-architecture">
+<span class="md-ellipsis">
+      3. Design and Architecture
+    </span>
+</a>
+<nav aria-label="3. Design and Architecture" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#31-runtime-data-flow-railtracks-mcp">
+<span class="md-ellipsis">
+      3.1 Runtime Data-flow (RailTracks ⇒ MCP)
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#32-runtime-data-flow-mcp-railtracks">
+<span class="md-ellipsis">
+      3.2 Runtime Data-flow (MCP ⇒ RailTracks)
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#33-threading-event-loop-model">
+<span class="md-ellipsis">
+      3.3 Threading &amp; Event-Loop Model
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#34-key-design-decisions-trade-offs">
+<span class="md-ellipsis">
+      3.4 Key Design Decisions &amp; Trade-offs
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-related-files">
+<span class="md-ellipsis">
+      4. Related Files
+    </span>
+</a>
+<nav aria-label="4. Related Files" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#41-related-component-files">
+<span class="md-ellipsis">
+      4.1 Related Component Files
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#42-external-dependencies">
+<span class="md-ellipsis">
+      4.2 External Dependencies
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#changelog">
+<span class="md-ellipsis">
+      CHANGELOG
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<!--
+
+                       🚀 FEATURE DOCUMENTATION – MCP Integration
+================================================================================
+Remove comment blocks when no longer needed. Maintain this document as carefully
+as you maintain the code: engineers will rely on it to understand, extend, and
+operate the feature.
+
+-->
+<h1 id="mcp-integration">MCP Integration</h1>
+<p>Provides first-class, bi-directional integration between RailTracks and the
+Model Context Protocol (MCP): <em>consume</em> any remote MCP tool as a RailTracks
+<code>Node</code>, or <em>expose</em> any RailTracks <code>Node</code> as a FastMCP-compatible tool.</p>
+<p><strong>Version:</strong> 0.0.1</p>
+<h2 id="table-of-contents">Table of Contents</h2>
+<ul>
+<li><a href="#1-functional-overview">1. Functional Overview</a></li>
+<li><a href="#11-consuming-remote-mcp-tools">1.1 Consuming Remote MCP Tools</a></li>
+<li><a href="#12-exposing-railtracks-nodes-as-mcp-tools">1.2 Exposing RailTracks Nodes as MCP Tools</a></li>
+<li><a href="#13-jupyter--windows-compatibility">1.3 Jupyter / Windows Compatibility</a></li>
+<li><a href="#2-external-contracts">2. External Contracts</a></li>
+<li><a href="#21-supported-transports">2.1 Supported Transports</a></li>
+<li><a href="#22-environment-variables--tokens">2.2 Environment Variables &amp; Tokens</a></li>
+<li><a href="#23-cli-commands">2.3 CLI Commands</a></li>
+<li><a href="#3-design-and-architecture">3. Design and Architecture</a></li>
+<li><a href="#31-runtime-data-flow-railtracks-⇒-mcp">3.1 Runtime Data-flow (RailTracks ⇒ MCP)</a></li>
+<li><a href="#32-runtime-data-flow-mcp-⇒-railtracks">3.2 Runtime Data-flow (MCP ⇒ RailTracks)</a></li>
+<li><a href="#33-threading--event-loop-model">3.3 Threading &amp; Event-Loop Model</a></li>
+<li><a href="#34-key-design-decisions--trade-offs">3.4 Key Design Decisions &amp; Trade-offs</a></li>
+<li><a href="#4-related-files">4. Related Files</a></li>
+<li><a href="#41-related-component-files">4.1 Related Component Files</a></li>
+<li><a href="#42-external-dependencies">4.2 External Dependencies</a></li>
+<li><a href="#changelog">CHANGELOG</a></li>
+</ul>
+<hr/>
+<h2 id="1-functional-overview">1. Functional Overview</h2>
+<p>The feature is organised around three developer task sets.</p>
+<h3 id="11-consuming-remote-mcp-tools">1.1 Consuming Remote MCP Tools</h3>
+<p>Connect to any MCP server (HTTP Stream, SSE, or STDIO) and instantly convert
+its tools into importable RailTracks <code>Node</code> classes that can be invoked inside
+agents, graphs, batch pipelines, etc.</p>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-0-1" id="__codelineno-0-1" name="__codelineno-0-1"></a><span class="kn">from</span> <span class="nn">railtracks.rt_mcp</span> <span class="kn">import</span> <span class="n">MCPHttpParams</span>
+<a href="#__codelineno-0-2" id="__codelineno-0-2" name="__codelineno-0-2"></a><span class="kn">from</span> <span class="nn">railtracks.rt_mcp.mcp_tool</span> <span class="kn">import</span> <span class="n">connect_mcp</span>
+<a href="#__codelineno-0-3" id="__codelineno-0-3" name="__codelineno-0-3"></a><span class="kn">from</span> <span class="nn">railtracks.nodes.easy_usage_wrappers.agent</span> <span class="kn">import</span> <span class="n">Agent</span>      <span class="c1"># Example usage</span>
+<a href="#__codelineno-0-4" id="__codelineno-0-4" name="__codelineno-0-4"></a>
+<a href="#__codelineno-0-5" id="__codelineno-0-5" name="__codelineno-0-5"></a><span class="c1"># 1) Establish a connection ---------------------------------------------------</span>
+<a href="#__codelineno-0-6" id="__codelineno-0-6" name="__codelineno-0-6"></a><span class="n">mcp_server</span> <span class="o">=</span> <span class="n">connect_mcp</span><span class="p">(</span>
+<a href="#__codelineno-0-7" id="__codelineno-0-7" name="__codelineno-0-7"></a>    <span class="n">config</span><span class="o">=</span><span class="n">MCPHttpParams</span><span class="p">(</span>
+<a href="#__codelineno-0-8" id="__codelineno-0-8" name="__codelineno-0-8"></a>        <span class="n">url</span><span class="o">=</span><span class="s2">"https://fetch.mcp.ai/streamable-http"</span><span class="p">,</span>      <span class="c1"># or "…/sse"</span>
+<a href="#__codelineno-0-9" id="__codelineno-0-9" name="__codelineno-0-9"></a>        <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">"Authorization"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"Bearer </span><span class="si">{</span><span class="n">MCP_TOKEN</span><span class="si">}</span><span class="s2">"</span><span class="p">},</span>
+<a href="#__codelineno-0-10" id="__codelineno-0-10" name="__codelineno-0-10"></a>    <span class="p">)</span>
+<a href="#__codelineno-0-11" id="__codelineno-0-11" name="__codelineno-0-11"></a><span class="p">)</span>
+<a href="#__codelineno-0-12" id="__codelineno-0-12" name="__codelineno-0-12"></a>
+<a href="#__codelineno-0-13" id="__codelineno-0-13" name="__codelineno-0-13"></a><span class="c1"># 2) Inspect available tools --------------------------------------------------</span>
+<a href="#__codelineno-0-14" id="__codelineno-0-14" name="__codelineno-0-14"></a><span class="k">for</span> <span class="n">ToolNode</span> <span class="ow">in</span> <span class="n">mcp_server</span><span class="o">.</span><span class="n">tools</span><span class="p">:</span>
+<a href="#__codelineno-0-15" id="__codelineno-0-15" name="__codelineno-0-15"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">ToolNode</span><span class="o">.</span><span class="n">name</span><span class="p">())</span>
+<a href="#__codelineno-0-16" id="__codelineno-0-16" name="__codelineno-0-16"></a>
+<a href="#__codelineno-0-17" id="__codelineno-0-17" name="__codelineno-0-17"></a><span class="c1"># 3) Use tools like ordinary Nodes -------------------------------------------</span>
+<a href="#__codelineno-0-18" id="__codelineno-0-18" name="__codelineno-0-18"></a><span class="n">translator</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">mcp_server</span><span class="o">.</span><span class="n">tools</span> <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">name</span><span class="p">()</span> <span class="o">==</span> <span class="s2">"translate"</span><span class="p">)</span>
+<a href="#__codelineno-0-19" id="__codelineno-0-19" name="__codelineno-0-19"></a><span class="n">result</span>     <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">prepare_tool</span><span class="p">({</span><span class="s2">"text"</span><span class="p">:</span> <span class="s2">"Hello world"</span><span class="p">,</span> <span class="s2">"target"</span><span class="p">:</span> <span class="s2">"es"</span><span class="p">})</span><span class="o">.</span><span class="n">invoke</span><span class="p">()</span>
+<a href="#__codelineno-0-20" id="__codelineno-0-20" name="__codelineno-0-20"></a><span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>     <span class="c1"># → "Hola mundo"</span>
+</code></pre></div>
+<p>The <code>MCPServer</code> object keeps the underlying connection open; close it explicitly
+when finished to free resources:</p>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-1-1" id="__codelineno-1-1" name="__codelineno-1-1"></a><span class="n">mcp_server</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</code></pre></div>
+<h3 id="12-exposing-railtracks-nodes-as-mcp-tools">1.2 Exposing RailTracks Nodes as MCP Tools</h3>
+<p>Publish your own nodes so they can be consumed by any MCP-compatible client or
+LLM agent.</p>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-2-1" id="__codelineno-2-1" name="__codelineno-2-1"></a><span class="kn">from</span> <span class="nn">railtracks.nodes.easy_usage_wrappers.function</span> <span class="kn">import</span> <span class="n">function_node</span>
+<a href="#__codelineno-2-2" id="__codelineno-2-2" name="__codelineno-2-2"></a><span class="kn">from</span> <span class="nn">railtracks.rt_mcp.node_to_mcp</span> <span class="kn">import</span> <span class="n">create_mcp_server</span>
+<a href="#__codelineno-2-3" id="__codelineno-2-3" name="__codelineno-2-3"></a>
+<a href="#__codelineno-2-4" id="__codelineno-2-4" name="__codelineno-2-4"></a><span class="c1"># 1) Wrap business logic into a RailTracks Node -------------------------------</span>
+<a href="#__codelineno-2-5" id="__codelineno-2-5" name="__codelineno-2-5"></a><span class="nd">@function_node</span>
+<a href="#__codelineno-2-6" id="__codelineno-2-6" name="__codelineno-2-6"></a><span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<a href="#__codelineno-2-7" id="__codelineno-2-7" name="__codelineno-2-7"></a><span class="w">    </span><span class="sd">"""Return a + b."""</span>
+<a href="#__codelineno-2-8" id="__codelineno-2-8" name="__codelineno-2-8"></a>
+<a href="#__codelineno-2-9" id="__codelineno-2-9" name="__codelineno-2-9"></a><span class="c1"># 2) Create and launch a FastMCP server ---------------------------------------</span>
+<a href="#__codelineno-2-10" id="__codelineno-2-10" name="__codelineno-2-10"></a><span class="n">mcp</span> <span class="o">=</span> <span class="n">create_mcp_server</span><span class="p">(</span><span class="n">nodes</span><span class="o">=</span><span class="p">[</span><span class="n">add</span><span class="p">])</span>
+<a href="#__codelineno-2-11" id="__codelineno-2-11" name="__codelineno-2-11"></a><span class="n">mcp</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">host</span><span class="o">=</span><span class="s2">"0.0.0.0"</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">8080</span><span class="p">,</span> <span class="n">transport</span><span class="o">=</span><span class="s2">"streamable-http"</span><span class="p">)</span>
+</code></pre></div>
+<p>The server now advertises an MCP tool named <code>add</code> that accepts JSON input
+<code>{"a": &lt;int&gt;, "b": &lt;int&gt;}</code> and returns the sum.</p>
+<h3 id="13-jupyter-windows-compatibility">1.3 Jupyter / Windows Compatibility</h3>
+<p>On Windows, MCP’s internal process-creation code is incompatible with Jupyter’s
+custom I/O streams. Importing <code>connect_mcp</code> (or explicitly calling
+<code>railtracks.rt_mcp.jupyter_compat.apply_patches()</code>) transparently monkey-patches
+MCP to work inside notebooks:</p>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-3-1" id="__codelineno-3-1" name="__codelineno-3-1"></a><span class="kn">from</span> <span class="nn">railtracks.rt_mcp.jupyter_compat</span> <span class="kn">import</span> <span class="n">apply_patches</span>
+<a href="#__codelineno-3-2" id="__codelineno-3-2" name="__codelineno-3-2"></a><span class="n">apply_patches</span><span class="p">()</span>   <span class="c1"># Safe to call multiple times / no-op on non-Windows.</span>
+</code></pre></div>
+<hr/>
+<h2 id="2-external-contracts">2. External Contracts</h2>
+<h3 id="21-supported-transports">2.1 Supported Transports</h3>
+<table>
+<thead>
+<tr>
+<th>Transport</th>
+<th>Endpoint Shape</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Streamable-HTTP</td>
+<td><code>POST /streamable-http</code></td>
+<td>Bidirectional HTTP chunked stream.</td>
+</tr>
+<tr>
+<td>Server-Sent Events</td>
+<td><code>GET  /sse</code></td>
+<td>One HTTP request per invocation.</td>
+</tr>
+<tr>
+<td>STDIO</td>
+<td>Local executable exposing stdin/stdout</td>
+<td>Usually used for CLI wrappers.</td>
+</tr>
+</tbody>
+</table>
+<p>All transports share the same JSON envelope defined by the
+MCP specification (see upstream MCP docs).</p>
+<h3 id="22-environment-variables-tokens">2.2 Environment Variables &amp; Tokens</h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Purpose</th>
+<th>When Required</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MCP_TOKEN</code></td>
+<td>Bearer token added to <code>Authorization</code> header.</td>
+<td>Remote HTTP/SSE servers that require auth.</td>
+</tr>
+<tr>
+<td>Service-specific variables</td>
+<td>e.g. <code>OPENAI_API_KEY</code>, <code>NOTION_TOKEN</code>, etc.</td>
+<td>Only when the <em>server</em> needs them; not referenced by client-side code.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="23-cli-commands">2.3 CLI Commands</h3>
+<p>While this feature has no dedicated CLI, typical workflows rely on FastMCP’s
+CLI for local servers:</p>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-4-1" id="__codelineno-4-1" name="__codelineno-4-1"></a><span class="c1"># Serve current project’s tools on port 8080</span>
+<a href="#__codelineno-4-2" id="__codelineno-4-2" name="__codelineno-4-2"></a>python<span class="w"> </span>-m<span class="w"> </span>mcp.server.fastmcp<span class="w"> </span>--host<span class="w"> </span><span class="m">0</span>.0.0.0<span class="w"> </span>--port<span class="w"> </span><span class="m">8080</span>
+</code></pre></div>
+<hr/>
+<h2 id="3-design-and-architecture">3. Design and Architecture</h2>
+<h3 id="31-runtime-data-flow-railtracks-mcp">3.1 Runtime Data-flow (RailTracks ⇒ MCP)</h3>
+<pre class="mermaid"><code>flowchart TD
+    RT_Node["RailTracks Node<br/>(generated)"] --&gt;|invoke()| MCPAsyncClient
+    MCPAsyncClient --&gt;|await| mcp.ClientSession
+    ClientSession --&gt; RemoteServer["Remote MCP Server"]
+</code></pre>
+<ol>
+<li><code>connect_mcp</code> ➜ instantiates <code>MCPServer</code>, spinning up a background thread.</li>
+<li>The thread creates its own asyncio event loop and an <code>MCPAsyncClient</code>.</li>
+<li>Tools are lazily fetched (<code>list_tools</code>) and cached.</li>
+<li>Each <code>Tool</code> record from MCP is wrapped by <code>from_mcp</code> into a <code>Node</code>
+   subclass whose <code>invoke</code> submits an RPC via <code>call_tool</code>.</li>
+</ol>
+<h3 id="32-runtime-data-flow-mcp-railtracks">3.2 Runtime Data-flow (MCP ⇒ RailTracks)</h3>
+<pre class="mermaid"><code>flowchart TD
+    ExternalClient["MCP Client / LLM"] --&gt; FastMCP["FastMCP Server"]
+    FastMCP --&gt;|dispatch tool fn| _create_tool_function
+    _create_tool_function --&gt;|await| railtracks.interaction.call
+    call --&gt; UserNode["User-defined Node"]
+</code></pre>
+<p><code>create_mcp_server</code> converts each <code>Node</code> into an asynchronous function that:
+1. Validates &amp; orders parameters via <code>_parameters_to_json_schema</code>.
+2. Delegates execution to the Node’s <code>prepare_tool</code> + <code>call</code> helper (ensuring
+   standardised logging/metrics).</p>
+<h3 id="33-threading-event-loop-model">3.3 Threading &amp; Event-Loop Model</h3>
+<table>
+<thead>
+<tr>
+<th>Context</th>
+<th>Thread</th>
+<th>Event Loop</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Main application</td>
+<td>main</td>
+<td><em>any</em></td>
+<td>Runs user code, agents, etc.</td>
+</tr>
+<tr>
+<td><code>MCPServer</code> background</td>
+<td>child</td>
+<td>private</td>
+<td>Keeps network I/O off the main loop; avoids deadlocks when the application already owns an asyncio loop (common in Streamlit, Jupyter).</td>
+</tr>
+<tr>
+<td><code>FastMCP</code> server</td>
+<td>main</td>
+<td>uvicorn loop</td>
+<td>Follows FastAPI/Starlette conventions (FastMCP’s implementation).</td>
+</tr>
+</tbody>
+</table>
+<p>Cross-thread invocations use <code>asyncio.run_coroutine_threadsafe</code>, enforcing a
+timeout derived from <code>config.timeout</code>.</p>
+<h3 id="34-key-design-decisions-trade-offs">3.4 Key Design Decisions &amp; Trade-offs</h3>
+<table>
+<thead>
+<tr>
+<th>Decision</th>
+<th>Motivation</th>
+<th>Trade-offs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Background thread for <code>MCPServer</code></strong></td>
+<td>Transparent usage from both sync &amp; async user code</td>
+<td>Extra complexity; must marshal data across threads.</td>
+</tr>
+<tr>
+<td><strong>Lazy tool list caching</strong></td>
+<td>Minimise round-trips on each invocation</td>
+<td>Tools added to the remote server after initialisation will not appear unless the user reconnects.</td>
+</tr>
+<tr>
+<td><strong>Monkey patch instead of fork/exec shim</strong></td>
+<td>Keep Jupyter support zero-config</td>
+<td>Risk of upstream MCP internals changing; mitigated by patch guard checks.</td>
+</tr>
+<tr>
+<td><strong>Parameter JSON-Schema translation</strong></td>
+<td>Preserve Node parameter metadata inside FastMCP</td>
+<td>Requires dual maintenance of schema mapping helpers.</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="4-related-files">4. Related Files</h2>
+<h3 id="41-related-component-files">4.1 Related Component Files</h3>
+<ul>
+<li><a href="../../components/jupyter_compatibility/"><code>components/jupyter_compatibility.md</code></a>: Details monkey-patching strategy for notebook environments.</li>
+<li><a href="../../components/mcp_client_server/"><code>components/mcp_client_server.md</code></a>: Explains the <code>MCPAsyncClient</code> / <code>MCPServer</code> internal design.</li>
+<li><a href="../../components/mcp_tool_connection/"><code>components/mcp_tool_connection.md</code></a>: Documents the <code>connect_mcp</code> convenience wrapper.</li>
+<li><a href="../../components/node_to_mcp_server/"><code>components/node_to_mcp_server.md</code></a>: Describes exporting Nodes via <code>create_mcp_server</code>.</li>
+</ul>
+<h3 id="42-external-dependencies">4.2 External Dependencies</h3>
+<ul>
+<li><a href="https://github.com/modelcontext/mcp"><code>https://github.com/modelcontext/mcp</code></a>: Upstream MCP reference implementation.</li>
+<li><a href="https://github.com/modelcontext/fastmcp"><code>https://github.com/modelcontext/fastmcp</code></a>: FastAPI-based MCP server used by <code>node_to_mcp_server</code>.</li>
+</ul>
+<hr/>
+<h2 id="changelog">CHANGELOG</h2>
+<ul>
+<li><strong>v0.0.1</strong> (YYYY-MM-DD) [<code>&lt;COMMIT_HASH&gt;</code>]: Initial public documentation.</li>
+</ul>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+</main>
+<footer class="md-footer">
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"base": "../../..", "features": ["navigation.indexes", "navigation.prefetch", "search.suggest", "content.code.copy", "content.code.highlight"], "search": "../../../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.50899def.min.js"></script>
+<script type="module">import mermaid from "https://unpkg.com/mermaid@10.4.0/dist/mermaid.esm.min.mjs";
+window.mermaidConfig = {default: {
+    startOnLoad: false
+}};</script></body>
+</html>

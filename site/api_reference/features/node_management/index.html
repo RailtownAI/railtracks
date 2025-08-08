@@ -1,0 +1,1956 @@
+
+<!DOCTYPE html>
+
+<html class="no-js" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://something/api_reference/features/node_management/" rel="canonical"/>
+<link href="../node_interaction/" rel="prev"/>
+<link href="../rag_system/" rel="next"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.6.16" name="generator"/>
+<title>Node management - RailTracks Docs</title>
+<link href="../../../assets/stylesheets/main.7e37652d.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<link href="../../../css/extra.css" rel="stylesheet"/>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#node-management">
+          Skip to content
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Header" class="md-header__inner md-grid">
+<a aria-label="RailTracks Docs" class="md-header__button md-logo" data-md-component="logo" href="../../.." title="RailTracks Docs">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            RailTracks Docs
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              Node management
+            
+          </span>
+</div>
+</div>
+</div>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Search" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Search" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Search" class="md-search__options">
+<button aria-label="Clear" class="md-search__icon md-icon" tabindex="-1" title="Clear" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Initializing search
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Navigation" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="RailTracks Docs" class="md-nav__button md-logo" data-md-component="logo" href="../../.." title="RailTracks Docs">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    RailTracks Docs
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../..">
+<span class="md-ellipsis">
+    Home
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    Tutorials
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            Tutorials
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tutorials/byfa/">
+<span class="md-ellipsis">
+    How to Build Your First Agent
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tutorials/ryfa/">
+<span class="md-ellipsis">
+    How to Run Your First Agent
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tutorials/node_builder/">
+<span class="md-ellipsis">
+    How to Customize Class Building
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tutorials/yet_another_weather_bot/">
+<span class="md-ellipsis">
+    Yet another weather bot
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_2_5" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+<span class="md-ellipsis">
+    Background
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_2_5_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_5">
+<span class="md-nav__icon md-icon"></span>
+            Background
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tutorials/guides/index.md">
+<span class="md-ellipsis">
+    None
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tutorials/guides/agents/">
+<span class="md-ellipsis">
+    Agents
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tutorials/guides/tools/">
+<span class="md-ellipsis">
+    Tools
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    Tools + MCP
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            Tools + MCP
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/tools_mcp/">
+<span class="md-ellipsis">
+    Equip your LLMs
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_3_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+<span class="md-ellipsis">
+    MCP
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_2_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_3_2">
+<span class="md-nav__icon md-icon"></span>
+            MCP
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/mcp/mcp/">
+<span class="md-ellipsis">
+    Model Context Protocol
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/mcp/MCP_tools_in_RT/">
+<span class="md-ellipsis">
+    Using MCP
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/mcp/RTtoMCP/">
+<span class="md-ellipsis">
+    Creating an MCP
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_3_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+<span class="md-ellipsis">
+    Tools
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_3_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_3_3">
+<span class="md-nav__icon md-icon"></span>
+            Tools
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/tools/tools/">
+<span class="md-ellipsis">
+    What is a Tool
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/tools/functions_as_tools/">
+<span class="md-ellipsis">
+    Functions as Tools
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/tools/agents_as_tools/">
+<span class="md-ellipsis">
+    Agents as Tools
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/tools/advanced_usage/">
+<span class="md-ellipsis">
+    Advanced Tooling
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_3_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+<span class="md-ellipsis">
+    Integrations
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_4_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_3_4">
+<span class="md-nav__icon md-icon"></span>
+            Integrations
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/guides/notion/">
+<span class="md-ellipsis">
+    Notion
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/guides/github/">
+<span class="md-ellipsis">
+    Github
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/guides/python_sandbox/">
+<span class="md-ellipsis">
+    Python Sandbox
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/guides/shell_bash/">
+<span class="md-ellipsis">
+    Shell Bash
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/guides/slack/">
+<span class="md-ellipsis">
+    Slack
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/guides/websearch_integration/">
+<span class="md-ellipsis">
+    Web Search
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    Observability
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            Observability
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../observability/visualization/">
+<span class="md-ellipsis">
+    Visualization
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../observability/logging/">
+<span class="md-ellipsis">
+    Logging
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../observability/streaming/">
+<span class="md-ellipsis">
+    Streaming
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../observability/chat/">
+<span class="md-ellipsis">
+    Local Chat
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../observability/error_handling/">
+<span class="md-ellipsis">
+    Error Handling
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_5" type="checkbox"/>
+<label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+<span class="md-ellipsis">
+    LLM Support
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_5_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_5">
+<span class="md-nav__icon md-icon"></span>
+            LLM Support
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../llm_support/providers/">
+<span class="md-ellipsis">
+    Supported Providers
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../llm_support/prompts/">
+<span class="md-ellipsis">
+    Prompts and Context Injection
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../llm_support/config/">
+<span class="md-ellipsis">
+    Configuration
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_6" type="checkbox"/>
+<div class="md-nav__link md-nav__container">
+<a class="md-nav__link" href="../../../deployments/">
+<span class="md-ellipsis">
+    Deployments
+    
+  </span>
+</a>
+</div>
+<nav aria-expanded="false" aria-labelledby="__nav_6_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_6">
+<span class="md-nav__icon md-icon"></span>
+            Deployments
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_7" type="checkbox"/>
+<label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+<span class="md-ellipsis">
+    Advanced Usage
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_7_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_7">
+<span class="md-nav__icon md-icon"></span>
+            Advanced Usage
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../advanced_usage/context/">
+<span class="md-ellipsis">
+    Context
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../advanced_usage/prompt_injection/">
+<span class="md-ellipsis">
+    Prompt Injection
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_8" type="checkbox"/>
+<div class="md-nav__link md-nav__container">
+<a class="md-nav__link" href="../../../samples/">
+<span class="md-ellipsis">
+    Samples
+    
+  </span>
+</a>
+</div>
+<nav aria-expanded="false" aria-labelledby="__nav_8_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_8">
+<span class="md-nav__icon md-icon"></span>
+            Samples
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_9" type="checkbox"/>
+<label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+<span class="md-ellipsis">
+    System Internals
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_9_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_9">
+<span class="md-nav__icon md-icon"></span>
+            System Internals
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../system_internals/overview/">
+<span class="md-ellipsis">
+    Overview
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../system_internals/concepts/">
+<span class="md-ellipsis">
+    Core Concepts
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../system_internals/node/">
+<span class="md-ellipsis">
+    Node Abstraction
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../system_internals/session/">
+<span class="md-ellipsis">
+    Session Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../system_internals/pubsub/">
+<span class="md-ellipsis">
+    PubSub Messaging
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../system_internals/coordinator/">
+<span class="md-ellipsis">
+    Coordinator Orchestration
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_10" type="checkbox"/>
+<label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
+<span class="md-ellipsis">
+    API Reference
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_10_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_10">
+<span class="md-nav__icon md-icon"></span>
+            API Reference
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../generated/railtracks.html">
+<span class="md-ellipsis">
+    Generated
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_10_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_10_2" id="__nav_10_2_label" tabindex="0">
+<span class="md-ellipsis">
+    Components
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_10_2_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_10_2">
+<span class="md-nav__icon md-icon"></span>
+            Components
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/api_provider_wrappers/">
+<span class="md-ellipsis">
+    API Provider Wrappers
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/chat_tool_call_node/">
+<span class="md-ellipsis">
+    Chat Tool Call Node
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/chat_ui/">
+<span class="md-ellipsis">
+    Chat UI
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/chunking_service/">
+<span class="md-ellipsis">
+    Chunking Service
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/cli_entry_point/">
+<span class="md-ellipsis">
+    CLI Entry Point
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/cloud_model_wrappers/">
+<span class="md-ellipsis">
+    Azure AI LLM Wrapper
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/context_management/">
+<span class="md-ellipsis">
+    Context Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/embedding_service/">
+<span class="md-ellipsis">
+    Embedding Service
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/exception_handling/">
+<span class="md-ellipsis">
+    Exception Handling
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/execution_info/">
+<span class="md-ellipsis">
+    Execution Info
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/executor_configuration/">
+<span class="md-ellipsis">
+    Executor Configuration
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/function_node_base/">
+<span class="md-ellipsis">
+    Function Node Base
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/graph_serialization/">
+<span class="md-ellipsis">
+    Graph Serialization
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/in_memory_vector_store/">
+<span class="md-ellipsis">
+    In-Memory Vector Store
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/jupyter_compatibility/">
+<span class="md-ellipsis">
+    Jupyter Compatibility
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/llm_messaging/">
+<span class="md-ellipsis">
+    LLM Messaging
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/llm_node_base/">
+<span class="md-ellipsis">
+    LLM Node Base
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/local_model_wrappers/">
+<span class="md-ellipsis">
+    Local Model Wrappers
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/logger_creation/">
+<span class="md-ellipsis">
+    Logger Creation
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/logging_actions/">
+<span class="md-ellipsis">
+    Logging Actions
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/logging_configuration/">
+<span class="md-ellipsis">
+    Logging Configuration
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/mcp_client_server/">
+<span class="md-ellipsis">
+    MCP Client and Server
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/mcp_tool_connection/">
+<span class="md-ellipsis">
+    MCP Tool Connection
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/model_error_handling/">
+<span class="md-ellipsis">
+    Model Error Handling
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/model_interaction/">
+<span class="md-ellipsis">
+    Model Interaction
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/node_building/">
+<span class="md-ellipsis">
+    Node Building
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/node_creation_validation/">
+<span class="md-ellipsis">
+    Node Creation Validation
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/node_interaction/">
+<span class="md-ellipsis">
+    Node Interaction
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/node_invocation_validation/">
+<span class="md-ellipsis">
+    Node Invocation Validation
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/node_management/">
+<span class="md-ellipsis">
+    Node Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/node_manifest/">
+<span class="md-ellipsis">
+    Node Manifest
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/node_state_management/">
+<span class="md-ellipsis">
+    Node State Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/node_to_mcp_server/">
+<span class="md-ellipsis">
+    Node to MCP Server
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/profiling/">
+<span class="md-ellipsis">
+    Profiling
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/prompt_formatting/">
+<span class="md-ellipsis">
+    Prompt Injection
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/prompt_injection/">
+<span class="md-ellipsis">
+    Prompt Injection
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/publisher/">
+<span class="md-ellipsis">
+    Publisher
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/pubsub_messaging/">
+<span class="md-ellipsis">
+    Pub/Sub Messaging
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/rag_core/">
+<span class="md-ellipsis">
+    RAG Core
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/rag_node/">
+<span class="md-ellipsis">
+    RAG Node
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/rag_utilities/">
+<span class="md-ellipsis">
+    RAG Utilities
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/request_management/">
+<span class="md-ellipsis">
+    Request Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/response_handling/">
+<span class="md-ellipsis">
+    Response Handling
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/rt_state_management/">
+<span class="md-ellipsis">
+    RT State Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/serialization/">
+<span class="md-ellipsis">
+    Serialization
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/session_management/">
+<span class="md-ellipsis">
+    Session Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/state_management/">
+<span class="md-ellipsis">
+    State Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/state_utilities/">
+<span class="md-ellipsis">
+    State Utilities
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/task_execution/">
+<span class="md-ellipsis">
+    Task Execution
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/terminal_node_base/">
+<span class="md-ellipsis">
+    Terminal Node Base
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/text_object_management/">
+<span class="md-ellipsis">
+    Text Object Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/tool_call_node_base/">
+<span class="md-ellipsis">
+    Tool Call Node Base
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/tool_callable_node/">
+<span class="md-ellipsis">
+    Tool Callable Node
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/tool_management/">
+<span class="md-ellipsis">
+    Tool Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/tool_parsing/">
+<span class="md-ellipsis">
+    Tool Parsing
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/vector_store_base/">
+<span class="md-ellipsis">
+    Vector Store Base
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/vector_store_factory/">
+<span class="md-ellipsis">
+    Vector Store Factory
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/vector_store_utilities/">
+<span class="md-ellipsis">
+    Vector Store Utilities
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_10_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_10_3" id="__nav_10_3_label" tabindex="0">
+<span class="md-ellipsis">
+    Features
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_10_3_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_10_3">
+<span class="md-nav__icon md-icon"></span>
+            Features
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../cli_interface/">
+<span class="md-ellipsis">
+    Cli interface
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../context_management/">
+<span class="md-ellipsis">
+    Context management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../exception_handling/">
+<span class="md-ellipsis">
+    Exception handling
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../llm_integration/">
+<span class="md-ellipsis">
+    Llm integration
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../logging_profiling/">
+<span class="md-ellipsis">
+    Logging profiling
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../mcp_integration/">
+<span class="md-ellipsis">
+    Mcp integration
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../node_interaction/">
+<span class="md-ellipsis">
+    Node interaction
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    Node management
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    Node management
+    
+  </span>
+</a>
+<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#table-of-contents">
+<span class="md-ellipsis">
+      Table of Contents
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1-functional-overview">
+<span class="md-ellipsis">
+      1. Functional Overview
+    </span>
+</a>
+<nav aria-label="1. Functional Overview" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11-create-a-simple-node">
+<span class="md-ellipsis">
+      1.1 Create a Simple Node
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12-execute-with-latency-tracking">
+<span class="md-ellipsis">
+      1.2 Execute With Latency Tracking
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13-pass-nodes-across-process-boundaries">
+<span class="md-ellipsis">
+      1.3 Pass Nodes Across Process Boundaries
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#14-build-variants-programmatically">
+<span class="md-ellipsis">
+      1.4 Build Variants Programmatically
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#15-expose-as-an-llm-tool">
+<span class="md-ellipsis">
+      1.5 Expose as an LLM Tool
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-external-contracts">
+<span class="md-ellipsis">
+      2. External Contracts
+    </span>
+</a>
+<nav aria-label="2. External Contracts" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#21-cli">
+<span class="md-ellipsis">
+      2.1 CLI
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#22-environment-variables">
+<span class="md-ellipsis">
+      2.2 Environment Variables
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#23-event-bus-messages">
+<span class="md-ellipsis">
+      2.3 Event Bus Messages
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-design-and-architecture">
+<span class="md-ellipsis">
+      3. Design and Architecture
+    </span>
+</a>
+<nav aria-label="3. Design and Architecture" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#31-core-abstractions">
+<span class="md-ellipsis">
+      3.1 Core Abstractions
+    </span>
+</a>
+<nav aria-label="3.1 Core Abstractions" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#why-async-wrapping">
+<span class="md-ellipsis">
+      Why Async Wrapping?
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#toolcallable-mix-in">
+<span class="md-ellipsis">
+      ToolCallable Mix-in
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#32-data-control-flow">
+<span class="md-ellipsis">
+      3.2 Data &amp; Control Flow
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#33-serialisation-strategy">
+<span class="md-ellipsis">
+      3.3 Serialisation Strategy
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#34-failure-semantics">
+<span class="md-ellipsis">
+      3.4 Failure Semantics
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#35-rejected-alternatives">
+<span class="md-ellipsis">
+      3.5 Rejected Alternatives
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-related-files">
+<span class="md-ellipsis">
+      4. Related Files
+    </span>
+</a>
+<nav aria-label="4. Related Files" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#41-related-component-files">
+<span class="md-ellipsis">
+      4.1 Related Component Files
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#42-related-feature-files">
+<span class="md-ellipsis">
+      4.2 Related Feature Files
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#43-external-dependencies">
+<span class="md-ellipsis">
+      4.3 External Dependencies
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#changelog">
+<span class="md-ellipsis">
+      CHANGELOG
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../rag_system/">
+<span class="md-ellipsis">
+    Rag system
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../state_management/">
+<span class="md-ellipsis">
+    State management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../task_execution/">
+<span class="md-ellipsis">
+    Task execution
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../tool_management/">
+<span class="md-ellipsis">
+    Tool management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../validation/">
+<span class="md-ellipsis">
+    Validation
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#table-of-contents">
+<span class="md-ellipsis">
+      Table of Contents
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1-functional-overview">
+<span class="md-ellipsis">
+      1. Functional Overview
+    </span>
+</a>
+<nav aria-label="1. Functional Overview" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11-create-a-simple-node">
+<span class="md-ellipsis">
+      1.1 Create a Simple Node
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12-execute-with-latency-tracking">
+<span class="md-ellipsis">
+      1.2 Execute With Latency Tracking
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13-pass-nodes-across-process-boundaries">
+<span class="md-ellipsis">
+      1.3 Pass Nodes Across Process Boundaries
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#14-build-variants-programmatically">
+<span class="md-ellipsis">
+      1.4 Build Variants Programmatically
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#15-expose-as-an-llm-tool">
+<span class="md-ellipsis">
+      1.5 Expose as an LLM Tool
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-external-contracts">
+<span class="md-ellipsis">
+      2. External Contracts
+    </span>
+</a>
+<nav aria-label="2. External Contracts" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#21-cli">
+<span class="md-ellipsis">
+      2.1 CLI
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#22-environment-variables">
+<span class="md-ellipsis">
+      2.2 Environment Variables
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#23-event-bus-messages">
+<span class="md-ellipsis">
+      2.3 Event Bus Messages
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-design-and-architecture">
+<span class="md-ellipsis">
+      3. Design and Architecture
+    </span>
+</a>
+<nav aria-label="3. Design and Architecture" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#31-core-abstractions">
+<span class="md-ellipsis">
+      3.1 Core Abstractions
+    </span>
+</a>
+<nav aria-label="3.1 Core Abstractions" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#why-async-wrapping">
+<span class="md-ellipsis">
+      Why Async Wrapping?
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#toolcallable-mix-in">
+<span class="md-ellipsis">
+      ToolCallable Mix-in
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#32-data-control-flow">
+<span class="md-ellipsis">
+      3.2 Data &amp; Control Flow
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#33-serialisation-strategy">
+<span class="md-ellipsis">
+      3.3 Serialisation Strategy
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#34-failure-semantics">
+<span class="md-ellipsis">
+      3.4 Failure Semantics
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#35-rejected-alternatives">
+<span class="md-ellipsis">
+      3.5 Rejected Alternatives
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-related-files">
+<span class="md-ellipsis">
+      4. Related Files
+    </span>
+</a>
+<nav aria-label="4. Related Files" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#41-related-component-files">
+<span class="md-ellipsis">
+      4.1 Related Component Files
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#42-related-feature-files">
+<span class="md-ellipsis">
+      4.2 Related Feature Files
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#43-external-dependencies">
+<span class="md-ellipsis">
+      4.3 External Dependencies
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#changelog">
+<span class="md-ellipsis">
+      CHANGELOG
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<!--
+
+                        INSTRUCTIONS FOR AUTHORS
+
+=============================================================================
+Remove these comment blocks when you no longer need the guidance.
+-->
+<h1 id="node-management">Node Management</h1>
+<p>Provides the core abstractions and infrastructure for creating, executing, serialising and debugging Railtracks “nodes”—small, composable units of asynchronous work.</p>
+<p><strong>Version:</strong> 0.0.1 <!-- Bump on any externally-observable change. --></p>
+<h2 id="table-of-contents">Table of Contents</h2>
+<ul>
+<li><a href="#1-functional-overview">1. Functional Overview</a></li>
+<li><a href="#2-external-contracts">2. External Contracts</a></li>
+<li><a href="#3-design-and-architecture">3. Design and Architecture</a></li>
+<li><a href="#4-related-files">4. Related Files</a></li>
+<li><a href="#changelog">CHANGELOG</a></li>
+</ul>
+<hr/>
+<h2 id="1-functional-overview">1. Functional Overview</h2>
+<p>Railtracks workflows are expressed as graphs of <em>nodes</em>.<br/>
+The Node Management feature offers a complete, opinionated life-cycle for those nodes:</p>
+<ol>
+<li><em>Definition</em> – subclass <code>railtracks.nodes.Node</code> or use higher-level helpers (e.g. <code>NodeBuilder</code> or function-wrappers) to declare new node types.  </li>
+<li><em>Creation</em> – validate the new class with <code>node_creation.validation</code> and optionally register it with a registry.  </li>
+<li><em>Invocation</em> – execute a node asynchronously (<code>await node.tracked_invoke()</code>) while automatically capturing debug &amp; latency data.  </li>
+<li><em>Introspection</em> – access <code>node.details</code> for rich runtime telemetry.  </li>
+<li><em>Serialisation</em> – convert a live node into a light-weight <code>NodeState</code> object that can cross process or network boundaries, then re-hydrate it with <code>.instantiate()</code>.  </li>
+<li><em>Tool exposure</em> – expose a node as an LLM-callable <em>tool</em> via the <code>ToolCallable</code> mix-in.</li>
+</ol>
+<p>The following sections group the most common developer tasks.</p>
+<h3 id="11-create-a-simple-node">1.1 Create a Simple Node</h3>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-0-1" id="__codelineno-0-1" name="__codelineno-0-1"></a><span class="kn">from</span> <span class="nn">railtracks.nodes</span> <span class="kn">import</span> <span class="n">Node</span>
+<a href="#__codelineno-0-2" id="__codelineno-0-2" name="__codelineno-0-2"></a>
+<a href="#__codelineno-0-3" id="__codelineno-0-3" name="__codelineno-0-3"></a><span class="k">class</span> <span class="nc">Adder</span><span class="p">(</span><span class="n">Node</span><span class="p">[</span><span class="nb">int</span><span class="p">]):</span>
+<a href="#__codelineno-0-4" id="__codelineno-0-4" name="__codelineno-0-4"></a>    <span class="nd">@classmethod</span>
+<a href="#__codelineno-0-5" id="__codelineno-0-5" name="__codelineno-0-5"></a>    <span class="k">def</span> <span class="nf">name</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<a href="#__codelineno-0-6" id="__codelineno-0-6" name="__codelineno-0-6"></a>        <span class="k">return</span> <span class="s2">"Adder"</span>
+<a href="#__codelineno-0-7" id="__codelineno-0-7" name="__codelineno-0-7"></a>
+<a href="#__codelineno-0-8" id="__codelineno-0-8" name="__codelineno-0-8"></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">a</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<a href="#__codelineno-0-9" id="__codelineno-0-9" name="__codelineno-0-9"></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+<a href="#__codelineno-0-10" id="__codelineno-0-10" name="__codelineno-0-10"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">a</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="o">=</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span>
+<a href="#__codelineno-0-11" id="__codelineno-0-11" name="__codelineno-0-11"></a>
+<a href="#__codelineno-0-12" id="__codelineno-0-12" name="__codelineno-0-12"></a>    <span class="k">async</span> <span class="k">def</span> <span class="nf">invoke</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<a href="#__codelineno-0-13" id="__codelineno-0-13" name="__codelineno-0-13"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">a</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span>
+</code></pre></div>
+<h3 id="12-execute-with-latency-tracking">1.2 Execute With Latency Tracking</h3>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-1-1" id="__codelineno-1-1" name="__codelineno-1-1"></a><span class="n">node</span> <span class="o">=</span> <span class="n">Adder</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+<a href="#__codelineno-1-2" id="__codelineno-1-2" name="__codelineno-1-2"></a><span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">node</span><span class="o">.</span><span class="n">tracked_invoke</span><span class="p">()</span>
+<a href="#__codelineno-1-3" id="__codelineno-1-3" name="__codelineno-1-3"></a><span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>                             <span class="c1"># 7</span>
+<a href="#__codelineno-1-4" id="__codelineno-1-4" name="__codelineno-1-4"></a><span class="nb">print</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">details</span><span class="p">[</span><span class="s2">"latency"</span><span class="p">]</span><span class="o">.</span><span class="n">total_time</span><span class="p">)</span> <span class="c1"># seconds (float)</span>
+</code></pre></div>
+<h3 id="13-pass-nodes-across-process-boundaries">1.3 Pass Nodes Across Process Boundaries</h3>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-2-1" id="__codelineno-2-1" name="__codelineno-2-1"></a><span class="kn">from</span> <span class="nn">railtracks.nodes</span> <span class="kn">import</span> <span class="n">NodeState</span>
+<a href="#__codelineno-2-2" id="__codelineno-2-2" name="__codelineno-2-2"></a>
+<a href="#__codelineno-2-3" id="__codelineno-2-3" name="__codelineno-2-3"></a><span class="n">state</span> <span class="o">=</span> <span class="n">NodeState</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>         <span class="c1"># serialisable!</span>
+<a href="#__codelineno-2-4" id="__codelineno-2-4" name="__codelineno-2-4"></a><span class="n">transport</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>                <span class="c1"># send over IPC / network</span>
+<a href="#__codelineno-2-5" id="__codelineno-2-5" name="__codelineno-2-5"></a><span class="n">new_node</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">instantiate</span><span class="p">()</span>  <span class="c1"># get a working copy</span>
+</code></pre></div>
+<h3 id="14-build-variants-programmatically">1.4 Build Variants Programmatically</h3>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-3-1" id="__codelineno-3-1" name="__codelineno-3-1"></a><span class="kn">from</span> <span class="nn">railtracks.nodes</span> <span class="kn">import</span> <span class="n">NodeBuilder</span>
+<a href="#__codelineno-3-2" id="__codelineno-3-2" name="__codelineno-3-2"></a>
+<a href="#__codelineno-3-3" id="__codelineno-3-3" name="__codelineno-3-3"></a><span class="n">CustomAdder</span> <span class="o">=</span> <span class="p">(</span>
+<a href="#__codelineno-3-4" id="__codelineno-3-4" name="__codelineno-3-4"></a>    <span class="n">NodeBuilder</span><span class="p">(</span><span class="n">Adder</span><span class="p">,</span> <span class="n">class_name</span><span class="o">=</span><span class="s2">"BigAdder"</span><span class="p">)</span>
+<a href="#__codelineno-3-5" id="__codelineno-3-5" name="__codelineno-3-5"></a>    <span class="o">.</span><span class="n">override_attrs</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="k">lambda</span> <span class="bp">cls</span><span class="p">:</span> <span class="s2">"Big Adder"</span><span class="p">)</span>
+<a href="#__codelineno-3-6" id="__codelineno-3-6" name="__codelineno-3-6"></a>    <span class="o">.</span><span class="n">build</span><span class="p">()</span>
+<a href="#__codelineno-3-7" id="__codelineno-3-7" name="__codelineno-3-7"></a><span class="p">)</span>
+</code></pre></div>
+<h3 id="15-expose-as-an-llm-tool">1.5 Expose as an LLM Tool</h3>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-4-1" id="__codelineno-4-1" name="__codelineno-4-1"></a><span class="k">class</span> <span class="nc">AdderTool</span><span class="p">(</span><span class="n">Adder</span><span class="p">):</span>
+<a href="#__codelineno-4-2" id="__codelineno-4-2" name="__codelineno-4-2"></a>    <span class="nd">@classmethod</span>
+<a href="#__codelineno-4-3" id="__codelineno-4-3" name="__codelineno-4-3"></a>    <span class="k">def</span> <span class="nf">tool_info</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+<a href="#__codelineno-4-4" id="__codelineno-4-4" name="__codelineno-4-4"></a>        <span class="kn">from</span> <span class="nn">railtracks.llm.tools</span> <span class="kn">import</span> <span class="n">Tool</span><span class="p">,</span> <span class="n">Parameter</span>
+<a href="#__codelineno-4-5" id="__codelineno-4-5" name="__codelineno-4-5"></a>        <span class="k">return</span> <span class="n">Tool</span><span class="p">(</span>
+<a href="#__codelineno-4-6" id="__codelineno-4-6" name="__codelineno-4-6"></a>            <span class="n">name</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">name</span><span class="p">(),</span>
+<a href="#__codelineno-4-7" id="__codelineno-4-7" name="__codelineno-4-7"></a>            <span class="n">description</span><span class="o">=</span><span class="s2">"Adds two integers"</span><span class="p">,</span>
+<a href="#__codelineno-4-8" id="__codelineno-4-8" name="__codelineno-4-8"></a>            <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+<a href="#__codelineno-4-9" id="__codelineno-4-9" name="__codelineno-4-9"></a>                <span class="n">Parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"a"</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s2">"int"</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">"first operand"</span><span class="p">),</span>
+<a href="#__codelineno-4-10" id="__codelineno-4-10" name="__codelineno-4-10"></a>                <span class="n">Parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"b"</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s2">"int"</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">"second operand"</span><span class="p">),</span>
+<a href="#__codelineno-4-11" id="__codelineno-4-11" name="__codelineno-4-11"></a>            <span class="p">],</span>
+<a href="#__codelineno-4-12" id="__codelineno-4-12" name="__codelineno-4-12"></a>        <span class="p">)</span>
+</code></pre></div>
+<h2 id="2-external-contracts">2. External Contracts</h2>
+<p>Although node management is an internal runtime concern, other systems can interact with it via several stable surfaces.</p>
+<h3 id="21-cli">2.1 CLI</h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>railtracks run &lt;NodeClass&gt; [args…]</code></td>
+<td>Spawn a node in an isolated worker.</td>
+</tr>
+<tr>
+<td><code>railtracks inspect &lt;state.json&gt;</code></td>
+<td>Re-hydrate a <code>NodeState</code> file and print debug info.</td>
+</tr>
+</tbody>
+</table>
+<p>(See <a href="../../components/cli_entry_point/"><code>components/cli_entry_point.md</code></a> for the full specification.)</p>
+<h3 id="22-environment-variables">2.2 Environment Variables</h3>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Default</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>RT_NODE_DEBUG</code></td>
+<td><code>false</code></td>
+<td>When <code>true</code>, each node captures verbose debug data.</td>
+</tr>
+<tr>
+<td><code>RT_NODE_SERIALISATION_FMT</code></td>
+<td><code>json</code></td>
+<td>Wire-format for <code>NodeState</code> objects.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="23-event-bus-messages">2.3 Event Bus Messages</h3>
+<p>If <a href="../task_execution/"><code>features/task_execution.md</code></a> is enabled, each <code>tracked_invoke</code> emits:</p>
+<table>
+<thead>
+<tr>
+<th>Topic</th>
+<th>Payload</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>node.started</code></td>
+<td><code>{uuid, name, params}</code></td>
+</tr>
+<tr>
+<td><code>node.finished</code></td>
+<td><code>{uuid, latency_ms, output_summary}</code></td>
+</tr>
+<tr>
+<td><code>node.failed</code></td>
+<td><code>{uuid, latency_ms, exception_type}</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-design-and-architecture">3. Design and Architecture</h2>
+<h3 id="31-core-abstractions">3.1 Core Abstractions</h3>
+<table>
+<thead>
+<tr>
+<th>Class / Module</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>railtracks.nodes.Node</code></td>
+<td>Abstract base; enforces async <code>invoke</code>, debug hooks, and tool-integration.</td>
+</tr>
+<tr>
+<td><code>NodeState</code></td>
+<td>Portable, serialisable snapshot of a node.</td>
+</tr>
+<tr>
+<td><code>DebugDetails</code>, <code>LatencyDetails</code></td>
+<td>Typed containers recorded inside each node’s <code>details</code> dict.</td>
+</tr>
+<tr>
+<td><code>NodeBuilder</code> (<code>components/node_building.md</code>)</td>
+<td>Meta-programming helper that fabricates new subclasses at runtime.</td>
+</tr>
+<tr>
+<td>Validation modules (<code>node_creation.validation</code>, <code>node_invocation.validation</code>)</td>
+<td>Static and runtime validation to keep nodes well-formed.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="why-async-wrapping">Why Async Wrapping?</h4>
+<p><code>Node.__init_subclass__</code> dynamically wraps the subclass’ <code>invoke</code> method:</p>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-5-1" id="__codelineno-5-1" name="__codelineno-5-1"></a>if not asyncio.iscoroutinefunction(invoke):
+<a href="#__codelineno-5-2" id="__codelineno-5-2" name="__codelineno-5-2"></a>    invoke = asyncio.to_thread(invoke)
+</code></pre></div>
+<p>This allows library authors to write sync code without sacrificing the async contract expected by the wider execution engine.</p>
+<h4 id="toolcallable-mix-in">ToolCallable Mix-in</h4>
+<p><code>Node</code> inherits from <a href="../../components/tool_callable_node/"><code>ToolCallable</code></a>.<br/>
+This single-inheritance trick means <em>every</em> node can optionally advertise itself as an LLM “tool” by implementing <code>tool_info</code> and <code>prepare_tool</code>, without duplicating boiler-plate.</p>
+<h3 id="32-data-control-flow">3.2 Data &amp; Control Flow</h3>
+<pre class="mermaid"><code>flowchart TD
+    subgraph Worker-Process
+        A[Instantiate Node] --&gt;|tracked_invoke| B[Record start time]
+        B --&gt; C[invoke()]
+        C --&gt;|await| D[return output]
+        D --&gt; E[Compute latency]
+        E --&gt; F[Populate DebugDetails]
+        F --&gt; G[Return output to caller]
+    end
+    G --&gt; H[Coordinator / Caller]
+</code></pre>
+<h3 id="33-serialisation-strategy">3.3 Serialisation Strategy</h3>
+<ol>
+<li><code>NodeState(node)</code> performs a <strong>deepcopy</strong> of the node (ensures pass-by-value).  </li>
+<li>The instance is pickled / JSON-encoded (configurable).  </li>
+<li>On the remote side <code>NodeState.instantiate()</code> returns a <em>shallow</em> reference copy—fast, avoids replaying constructor logic.</li>
+</ol>
+<p>Trade-off: deep-copy serialises <em>all</em> attributes, so extremely large tensors or file handles should be stored in external object stores and fetched lazily.</p>
+<h3 id="34-failure-semantics">3.4 Failure Semantics</h3>
+<p>• Any unhandled exception in <code>invoke</code> bubbles up unchanged; <code>tracked_invoke</code> still records latency and attaches the exception type to <code>details</code>.<br/>
+• Nodes guarantee <em>at-least-once</em> execution semantics; the surrounding task-execution feature is responsible for retries and idempotency.</p>
+<h3 id="35-rejected-alternatives">3.5 Rejected Alternatives</h3>
+<table>
+<thead>
+<tr>
+<th>Alternative</th>
+<th>Reason Rejected</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Enforcing <code>async def</code> at author-time</td>
+<td>Too intrusive for simple sync functions; runtime wrapping is safer.</td>
+</tr>
+<tr>
+<td>ORMs / Dataclasses for serialisation</td>
+<td>Added heavy dependencies and poorer forward-compatibility.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-related-files">4. Related Files</h2>
+<h3 id="41-related-component-files">4.1 Related Component Files</h3>
+<ul>
+<li><a href="../../components/node_management/"><code>components/node_management.md</code></a>: Detailed component-level API and examples of the <code>Node</code> base class.  </li>
+<li><a href="../../components/node_building/"><code>components/node_building.md</code></a>: Runtime subclass generation.  </li>
+<li><a href="../../components/node_state_management/"><code>components/node_state_management.md</code></a>: Low-level serialisation helpers.  </li>
+<li><a href="../../components/node_creation_validation/"><code>components/node_creation_validation.md</code></a> &amp; <a href="../../components/node_invocation_validation/"><code>components/node_invocation_validation.md</code></a>: Static and runtime validators.  </li>
+<li><a href="../../components/response_handling/"><code>components/response_handling.md</code></a>: Response objects returned by many node subclasses.  </li>
+<li><a href="../../components/tool_callable_node/"><code>components/tool_callable_node.md</code></a>: Base class that integrates nodes with LLM tool-calling.</li>
+</ul>
+<h3 id="42-related-feature-files">4.2 Related Feature Files</h3>
+<ul>
+<li><a href="../node_interaction/"><code>features/node_interaction.md</code></a>: Higher-level API for orchestrating multiple nodes.  </li>
+<li><a href="../task_execution/"><code>features/task_execution.md</code></a>: Distributed executor which relies heavily on Node Management.  </li>
+<li><a href="../llm_integration/"><code>features/llm_integration.md</code></a>: How the LLM subsystem makes use of nodes like <code>TerminalLLM</code>.  </li>
+</ul>
+<h3 id="43-external-dependencies">4.3 External Dependencies</h3>
+<ul>
+<li><a href="https://pypi.org/project/typing-extensions/"><code>typing-extensions</code></a> – <code>Self</code>, <code>TypeVarTuple</code>, etc.  </li>
+<li><strong>Python ≥ 3.10</strong> – structural pattern-matching used in validation modules.</li>
+</ul>
+<hr/>
+<h2 id="changelog">CHANGELOG</h2>
+<ul>
+<li><strong>v0.0.1</strong> (2024-04-30) [<code>&lt;INITIAL_COMMIT&gt;</code>]: Initial extraction from monolith into standalone feature document.</li>
+</ul>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+</main>
+<footer class="md-footer">
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"base": "../../..", "features": ["navigation.indexes", "navigation.prefetch", "search.suggest", "content.code.copy", "content.code.highlight"], "search": "../../../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.50899def.min.js"></script>
+<script type="module">import mermaid from "https://unpkg.com/mermaid@10.4.0/dist/mermaid.esm.min.mjs";
+window.mermaidConfig = {default: {
+    startOnLoad: false
+}};</script></body>
+</html>

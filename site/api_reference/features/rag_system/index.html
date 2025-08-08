@@ -1,0 +1,1791 @@
+
+<!DOCTYPE html>
+
+<html class="no-js" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://something/api_reference/features/rag_system/" rel="canonical"/>
+<link href="../node_management/" rel="prev"/>
+<link href="../state_management/" rel="next"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.6.16" name="generator"/>
+<title>Rag system - RailTracks Docs</title>
+<link href="../../../assets/stylesheets/main.7e37652d.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<link href="../../../css/extra.css" rel="stylesheet"/>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#rag-system">
+          Skip to content
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Header" class="md-header__inner md-grid">
+<a aria-label="RailTracks Docs" class="md-header__button md-logo" data-md-component="logo" href="../../.." title="RailTracks Docs">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            RailTracks Docs
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              Rag system
+            
+          </span>
+</div>
+</div>
+</div>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Search" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Search" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Search" class="md-search__options">
+<button aria-label="Clear" class="md-search__icon md-icon" tabindex="-1" title="Clear" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Initializing search
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Navigation" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="RailTracks Docs" class="md-nav__button md-logo" data-md-component="logo" href="../../.." title="RailTracks Docs">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    RailTracks Docs
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../..">
+<span class="md-ellipsis">
+    Home
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    Tutorials
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            Tutorials
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tutorials/byfa/">
+<span class="md-ellipsis">
+    How to Build Your First Agent
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tutorials/ryfa/">
+<span class="md-ellipsis">
+    How to Run Your First Agent
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tutorials/node_builder/">
+<span class="md-ellipsis">
+    How to Customize Class Building
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tutorials/yet_another_weather_bot/">
+<span class="md-ellipsis">
+    Yet another weather bot
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_2_5" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+<span class="md-ellipsis">
+    Background
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_2_5_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_5">
+<span class="md-nav__icon md-icon"></span>
+            Background
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tutorials/guides/index.md">
+<span class="md-ellipsis">
+    None
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tutorials/guides/agents/">
+<span class="md-ellipsis">
+    Agents
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tutorials/guides/tools/">
+<span class="md-ellipsis">
+    Tools
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    Tools + MCP
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            Tools + MCP
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/tools_mcp/">
+<span class="md-ellipsis">
+    Equip your LLMs
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_3_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+<span class="md-ellipsis">
+    MCP
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_2_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_3_2">
+<span class="md-nav__icon md-icon"></span>
+            MCP
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/mcp/mcp/">
+<span class="md-ellipsis">
+    Model Context Protocol
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/mcp/MCP_tools_in_RT/">
+<span class="md-ellipsis">
+    Using MCP
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/mcp/RTtoMCP/">
+<span class="md-ellipsis">
+    Creating an MCP
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_3_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+<span class="md-ellipsis">
+    Tools
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_3_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_3_3">
+<span class="md-nav__icon md-icon"></span>
+            Tools
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/tools/tools/">
+<span class="md-ellipsis">
+    What is a Tool
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/tools/functions_as_tools/">
+<span class="md-ellipsis">
+    Functions as Tools
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/tools/agents_as_tools/">
+<span class="md-ellipsis">
+    Agents as Tools
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/tools/advanced_usage/">
+<span class="md-ellipsis">
+    Advanced Tooling
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_3_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+<span class="md-ellipsis">
+    Integrations
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_4_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_3_4">
+<span class="md-nav__icon md-icon"></span>
+            Integrations
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/guides/notion/">
+<span class="md-ellipsis">
+    Notion
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/guides/github/">
+<span class="md-ellipsis">
+    Github
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/guides/python_sandbox/">
+<span class="md-ellipsis">
+    Python Sandbox
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/guides/shell_bash/">
+<span class="md-ellipsis">
+    Shell Bash
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/guides/slack/">
+<span class="md-ellipsis">
+    Slack
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../tools_mcp/guides/websearch_integration/">
+<span class="md-ellipsis">
+    Web Search
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    Observability
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            Observability
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../observability/visualization/">
+<span class="md-ellipsis">
+    Visualization
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../observability/logging/">
+<span class="md-ellipsis">
+    Logging
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../observability/streaming/">
+<span class="md-ellipsis">
+    Streaming
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../observability/chat/">
+<span class="md-ellipsis">
+    Local Chat
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../observability/error_handling/">
+<span class="md-ellipsis">
+    Error Handling
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_5" type="checkbox"/>
+<label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+<span class="md-ellipsis">
+    LLM Support
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_5_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_5">
+<span class="md-nav__icon md-icon"></span>
+            LLM Support
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../llm_support/providers/">
+<span class="md-ellipsis">
+    Supported Providers
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../llm_support/prompts/">
+<span class="md-ellipsis">
+    Prompts and Context Injection
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../llm_support/config/">
+<span class="md-ellipsis">
+    Configuration
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_6" type="checkbox"/>
+<div class="md-nav__link md-nav__container">
+<a class="md-nav__link" href="../../../deployments/">
+<span class="md-ellipsis">
+    Deployments
+    
+  </span>
+</a>
+</div>
+<nav aria-expanded="false" aria-labelledby="__nav_6_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_6">
+<span class="md-nav__icon md-icon"></span>
+            Deployments
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_7" type="checkbox"/>
+<label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+<span class="md-ellipsis">
+    Advanced Usage
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_7_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_7">
+<span class="md-nav__icon md-icon"></span>
+            Advanced Usage
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../advanced_usage/context/">
+<span class="md-ellipsis">
+    Context
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../advanced_usage/prompt_injection/">
+<span class="md-ellipsis">
+    Prompt Injection
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_8" type="checkbox"/>
+<div class="md-nav__link md-nav__container">
+<a class="md-nav__link" href="../../../samples/">
+<span class="md-ellipsis">
+    Samples
+    
+  </span>
+</a>
+</div>
+<nav aria-expanded="false" aria-labelledby="__nav_8_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_8">
+<span class="md-nav__icon md-icon"></span>
+            Samples
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_9" type="checkbox"/>
+<label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+<span class="md-ellipsis">
+    System Internals
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_9_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_9">
+<span class="md-nav__icon md-icon"></span>
+            System Internals
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../system_internals/overview/">
+<span class="md-ellipsis">
+    Overview
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../system_internals/concepts/">
+<span class="md-ellipsis">
+    Core Concepts
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../system_internals/node/">
+<span class="md-ellipsis">
+    Node Abstraction
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../system_internals/session/">
+<span class="md-ellipsis">
+    Session Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../system_internals/pubsub/">
+<span class="md-ellipsis">
+    PubSub Messaging
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../system_internals/coordinator/">
+<span class="md-ellipsis">
+    Coordinator Orchestration
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_10" type="checkbox"/>
+<label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
+<span class="md-ellipsis">
+    API Reference
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_10_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_10">
+<span class="md-nav__icon md-icon"></span>
+            API Reference
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../generated/railtracks.html">
+<span class="md-ellipsis">
+    Generated
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_10_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_10_2" id="__nav_10_2_label" tabindex="0">
+<span class="md-ellipsis">
+    Components
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_10_2_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_10_2">
+<span class="md-nav__icon md-icon"></span>
+            Components
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/api_provider_wrappers/">
+<span class="md-ellipsis">
+    API Provider Wrappers
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/chat_tool_call_node/">
+<span class="md-ellipsis">
+    Chat Tool Call Node
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/chat_ui/">
+<span class="md-ellipsis">
+    Chat UI
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/chunking_service/">
+<span class="md-ellipsis">
+    Chunking Service
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/cli_entry_point/">
+<span class="md-ellipsis">
+    CLI Entry Point
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/cloud_model_wrappers/">
+<span class="md-ellipsis">
+    Azure AI LLM Wrapper
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/context_management/">
+<span class="md-ellipsis">
+    Context Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/embedding_service/">
+<span class="md-ellipsis">
+    Embedding Service
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/exception_handling/">
+<span class="md-ellipsis">
+    Exception Handling
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/execution_info/">
+<span class="md-ellipsis">
+    Execution Info
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/executor_configuration/">
+<span class="md-ellipsis">
+    Executor Configuration
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/function_node_base/">
+<span class="md-ellipsis">
+    Function Node Base
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/graph_serialization/">
+<span class="md-ellipsis">
+    Graph Serialization
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/in_memory_vector_store/">
+<span class="md-ellipsis">
+    In-Memory Vector Store
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/jupyter_compatibility/">
+<span class="md-ellipsis">
+    Jupyter Compatibility
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/llm_messaging/">
+<span class="md-ellipsis">
+    LLM Messaging
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/llm_node_base/">
+<span class="md-ellipsis">
+    LLM Node Base
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/local_model_wrappers/">
+<span class="md-ellipsis">
+    Local Model Wrappers
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/logger_creation/">
+<span class="md-ellipsis">
+    Logger Creation
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/logging_actions/">
+<span class="md-ellipsis">
+    Logging Actions
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/logging_configuration/">
+<span class="md-ellipsis">
+    Logging Configuration
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/mcp_client_server/">
+<span class="md-ellipsis">
+    MCP Client and Server
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/mcp_tool_connection/">
+<span class="md-ellipsis">
+    MCP Tool Connection
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/model_error_handling/">
+<span class="md-ellipsis">
+    Model Error Handling
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/model_interaction/">
+<span class="md-ellipsis">
+    Model Interaction
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/node_building/">
+<span class="md-ellipsis">
+    Node Building
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/node_creation_validation/">
+<span class="md-ellipsis">
+    Node Creation Validation
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/node_interaction/">
+<span class="md-ellipsis">
+    Node Interaction
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/node_invocation_validation/">
+<span class="md-ellipsis">
+    Node Invocation Validation
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/node_management/">
+<span class="md-ellipsis">
+    Node Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/node_manifest/">
+<span class="md-ellipsis">
+    Node Manifest
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/node_state_management/">
+<span class="md-ellipsis">
+    Node State Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/node_to_mcp_server/">
+<span class="md-ellipsis">
+    Node to MCP Server
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/profiling/">
+<span class="md-ellipsis">
+    Profiling
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/prompt_formatting/">
+<span class="md-ellipsis">
+    Prompt Injection
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/prompt_injection/">
+<span class="md-ellipsis">
+    Prompt Injection
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/publisher/">
+<span class="md-ellipsis">
+    Publisher
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/pubsub_messaging/">
+<span class="md-ellipsis">
+    Pub/Sub Messaging
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/rag_core/">
+<span class="md-ellipsis">
+    RAG Core
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/rag_node/">
+<span class="md-ellipsis">
+    RAG Node
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/rag_utilities/">
+<span class="md-ellipsis">
+    RAG Utilities
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/request_management/">
+<span class="md-ellipsis">
+    Request Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/response_handling/">
+<span class="md-ellipsis">
+    Response Handling
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/rt_state_management/">
+<span class="md-ellipsis">
+    RT State Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/serialization/">
+<span class="md-ellipsis">
+    Serialization
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/session_management/">
+<span class="md-ellipsis">
+    Session Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/state_management/">
+<span class="md-ellipsis">
+    State Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/state_utilities/">
+<span class="md-ellipsis">
+    State Utilities
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/task_execution/">
+<span class="md-ellipsis">
+    Task Execution
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/terminal_node_base/">
+<span class="md-ellipsis">
+    Terminal Node Base
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/text_object_management/">
+<span class="md-ellipsis">
+    Text Object Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/tool_call_node_base/">
+<span class="md-ellipsis">
+    Tool Call Node Base
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/tool_callable_node/">
+<span class="md-ellipsis">
+    Tool Callable Node
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/tool_management/">
+<span class="md-ellipsis">
+    Tool Management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/tool_parsing/">
+<span class="md-ellipsis">
+    Tool Parsing
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/vector_store_base/">
+<span class="md-ellipsis">
+    Vector Store Base
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/vector_store_factory/">
+<span class="md-ellipsis">
+    Vector Store Factory
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../components/vector_store_utilities/">
+<span class="md-ellipsis">
+    Vector Store Utilities
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_10_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_10_3" id="__nav_10_3_label" tabindex="0">
+<span class="md-ellipsis">
+    Features
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_10_3_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_10_3">
+<span class="md-nav__icon md-icon"></span>
+            Features
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../cli_interface/">
+<span class="md-ellipsis">
+    Cli interface
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../context_management/">
+<span class="md-ellipsis">
+    Context management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../exception_handling/">
+<span class="md-ellipsis">
+    Exception handling
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../llm_integration/">
+<span class="md-ellipsis">
+    Llm integration
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../logging_profiling/">
+<span class="md-ellipsis">
+    Logging profiling
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../mcp_integration/">
+<span class="md-ellipsis">
+    Mcp integration
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../node_interaction/">
+<span class="md-ellipsis">
+    Node interaction
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../node_management/">
+<span class="md-ellipsis">
+    Node management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    Rag system
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    Rag system
+    
+  </span>
+</a>
+<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#table-of-contents">
+<span class="md-ellipsis">
+      Table of Contents
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1-functional-overview">
+<span class="md-ellipsis">
+      1. Functional Overview
+    </span>
+</a>
+<nav aria-label="1. Functional Overview" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11-quickstart-all-in-one-helper">
+<span class="md-ellipsis">
+      1.1 Quickstart (all-in-one helper)
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12-fine-grained-control">
+<span class="md-ellipsis">
+      1.2 Fine-grained Control
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13-incremental-updates">
+<span class="md-ellipsis">
+      1.3 Incremental Updates
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-external-contracts">
+<span class="md-ellipsis">
+      2. External Contracts
+    </span>
+</a>
+<nav aria-label="2. External Contracts" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#21-environment-variables">
+<span class="md-ellipsis">
+      2.1 Environment Variables
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#22-configuration-objects">
+<span class="md-ellipsis">
+      2.2 Configuration Objects
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-design-and-architecture">
+<span class="md-ellipsis">
+      3. Design and Architecture
+    </span>
+</a>
+<nav aria-label="3. Design and Architecture" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#31-component-boundaries">
+<span class="md-ellipsis">
+      3.1 Component Boundaries
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#32-key-design-decisions-trade-offs">
+<span class="md-ellipsis">
+      3.2 Key Design Decisions &amp; Trade-offs
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#33-rejected-alternatives">
+<span class="md-ellipsis">
+      3.3 Rejected Alternatives
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-related-files">
+<span class="md-ellipsis">
+      4. Related Files
+    </span>
+</a>
+<nav aria-label="4. Related Files" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#41-related-component-files">
+<span class="md-ellipsis">
+      4.1 Related Component Files
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#42-external-dependencies">
+<span class="md-ellipsis">
+      4.2 External Dependencies
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#changelog">
+<span class="md-ellipsis">
+      CHANGELOG
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../state_management/">
+<span class="md-ellipsis">
+    State management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../task_execution/">
+<span class="md-ellipsis">
+    Task execution
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../tool_management/">
+<span class="md-ellipsis">
+    Tool management
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../validation/">
+<span class="md-ellipsis">
+    Validation
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#table-of-contents">
+<span class="md-ellipsis">
+      Table of Contents
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1-functional-overview">
+<span class="md-ellipsis">
+      1. Functional Overview
+    </span>
+</a>
+<nav aria-label="1. Functional Overview" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11-quickstart-all-in-one-helper">
+<span class="md-ellipsis">
+      1.1 Quickstart (all-in-one helper)
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12-fine-grained-control">
+<span class="md-ellipsis">
+      1.2 Fine-grained Control
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13-incremental-updates">
+<span class="md-ellipsis">
+      1.3 Incremental Updates
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-external-contracts">
+<span class="md-ellipsis">
+      2. External Contracts
+    </span>
+</a>
+<nav aria-label="2. External Contracts" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#21-environment-variables">
+<span class="md-ellipsis">
+      2.1 Environment Variables
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#22-configuration-objects">
+<span class="md-ellipsis">
+      2.2 Configuration Objects
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-design-and-architecture">
+<span class="md-ellipsis">
+      3. Design and Architecture
+    </span>
+</a>
+<nav aria-label="3. Design and Architecture" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#31-component-boundaries">
+<span class="md-ellipsis">
+      3.1 Component Boundaries
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#32-key-design-decisions-trade-offs">
+<span class="md-ellipsis">
+      3.2 Key Design Decisions &amp; Trade-offs
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#33-rejected-alternatives">
+<span class="md-ellipsis">
+      3.3 Rejected Alternatives
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-related-files">
+<span class="md-ellipsis">
+      4. Related Files
+    </span>
+</a>
+<nav aria-label="4. Related Files" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#41-related-component-files">
+<span class="md-ellipsis">
+      4.1 Related Component Files
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#42-external-dependencies">
+<span class="md-ellipsis">
+      4.2 External Dependencies
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#changelog">
+<span class="md-ellipsis">
+      CHANGELOG
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<!--
+Feature documentation for the Retrieval-Augmented Generation (RAG) system.
+Remove comment blocks once you’re confident the document is complete.
+-->
+<h1 id="rag-system">RAG System</h1>
+<p>Provides a plug-and-play Retrieval-Augmented Generation pipeline for chunking, embedding, storing, and semantically searching large collections of documents.</p>
+<p><strong>Version:</strong> 0.0.1 <!-- bump on any externally-observable change --></p>
+<h2 id="table-of-contents">Table of Contents</h2>
+<ul>
+<li><a href="#1-functional-overview">1. Functional Overview</a></li>
+<li><a href="#2-external-contracts">2. External Contracts</a></li>
+<li><a href="#3-design-and-architecture">3. Design and Architecture</a></li>
+<li><a href="#4-related-files">4. Related Files</a></li>
+<li><a href="#changelog">CHANGELOG</a></li>
+</ul>
+<hr/>
+<h2 id="1-functional-overview">1. Functional Overview</h2>
+<p>The RAG System feature bundles several lower-level components into a cohesive workflow that:</p>
+<ol>
+<li>Ingests raw text or files.</li>
+<li>Splits the text into overlapping chunks.</li>
+<li>Generates dense embeddings for every chunk.</li>
+<li>Stores the embeddings (and rich metadata) in a vector store.</li>
+<li>Performs similarity search to retrieve the <em>k</em> most relevant chunks for an arbitrary user query.</li>
+</ol>
+<p>The end result is a simple API that lets application developers add “chat-with-my-data” or “semantic search” capabilities without worrying about the details of chunk sizes, embedding models, or vector-store plumbing.</p>
+<h3 id="11-quickstart-all-in-one-helper">1.1 Quickstart (all-in-one helper)</h3>
+<p>The <code>railtracks.prebuilt.rag_node.rag_node</code> helper wraps the entire flow in a single <strong>function node</strong> that can be mounted inside a RailTracks graph.</p>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-0-1" id="__codelineno-0-1" name="__codelineno-0-1"></a><span class="kn">from</span> <span class="nn">railtracks.prebuilt.rag_node</span> <span class="kn">import</span> <span class="n">rag_node</span>
+<a href="#__codelineno-0-2" id="__codelineno-0-2" name="__codelineno-0-2"></a>
+<a href="#__codelineno-0-3" id="__codelineno-0-3" name="__codelineno-0-3"></a><span class="n">documents</span> <span class="o">=</span> <span class="p">[</span>
+<a href="#__codelineno-0-4" id="__codelineno-0-4" name="__codelineno-0-4"></a>    <span class="s2">"The mitochondrion is the powerhouse of the cell."</span><span class="p">,</span>
+<a href="#__codelineno-0-5" id="__codelineno-0-5" name="__codelineno-0-5"></a>    <span class="s2">"ATP is synthesized via oxidative phosphorylation."</span><span class="p">,</span>
+<a href="#__codelineno-0-6" id="__codelineno-0-6" name="__codelineno-0-6"></a><span class="p">]</span>
+<a href="#__codelineno-0-7" id="__codelineno-0-7" name="__codelineno-0-7"></a>
+<a href="#__codelineno-0-8" id="__codelineno-0-8" name="__codelineno-0-8"></a><span class="n">search_node</span> <span class="o">=</span> <span class="n">rag_node</span><span class="p">(</span>
+<a href="#__codelineno-0-9" id="__codelineno-0-9" name="__codelineno-0-9"></a>    <span class="n">documents</span><span class="p">,</span>
+<a href="#__codelineno-0-10" id="__codelineno-0-10" name="__codelineno-0-10"></a>    <span class="n">embed_model</span><span class="o">=</span><span class="s2">"text-embedding-3-small"</span><span class="p">,</span>
+<a href="#__codelineno-0-11" id="__codelineno-0-11" name="__codelineno-0-11"></a>    <span class="n">token_count_model</span><span class="o">=</span><span class="s2">"gpt-4o"</span><span class="p">,</span>
+<a href="#__codelineno-0-12" id="__codelineno-0-12" name="__codelineno-0-12"></a>    <span class="n">chunk_size</span><span class="o">=</span><span class="mi">1_000</span><span class="p">,</span>
+<a href="#__codelineno-0-13" id="__codelineno-0-13" name="__codelineno-0-13"></a>    <span class="n">chunk_overlap</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span>
+<a href="#__codelineno-0-14" id="__codelineno-0-14" name="__codelineno-0-14"></a><span class="p">)</span>
+<a href="#__codelineno-0-15" id="__codelineno-0-15" name="__codelineno-0-15"></a>
+<a href="#__codelineno-0-16" id="__codelineno-0-16" name="__codelineno-0-16"></a><span class="nb">print</span><span class="p">(</span><span class="n">search_node</span><span class="p">(</span><span class="s2">"What produces ATP?"</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">record</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+<a href="#__codelineno-0-17" id="__codelineno-0-17" name="__codelineno-0-17"></a><span class="c1"># ➜ "ATP is synthesized via oxidative phosphorylation."</span>
+</code></pre></div>
+<p>Internally this helper:</p>
+<ol>
+<li>Creates a <code>rag.rag_core.RAG</code> instance.  </li>
+<li>Calls <code>embed_all()</code> to preprocess and index the documents.  </li>
+<li>Returns a callable node that runs <code>RAG.search()</code> for every invocation.</li>
+</ol>
+<h3 id="12-fine-grained-control">1.2 Fine-grained Control</h3>
+<p>If you need to swap out the vector store, change similarity metrics, or stream documents gradually, use <code>rag.rag_core.RAG</code> directly.</p>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-1-1" id="__codelineno-1-1" name="__codelineno-1-1"></a><span class="kn">from</span> <span class="nn">railtracks.rag.rag_core</span> <span class="kn">import</span> <span class="n">RAG</span>
+<a href="#__codelineno-1-2" id="__codelineno-1-2" name="__codelineno-1-2"></a>
+<a href="#__codelineno-1-3" id="__codelineno-1-3" name="__codelineno-1-3"></a><span class="n">rag</span> <span class="o">=</span> <span class="n">RAG</span><span class="p">(</span>
+<a href="#__codelineno-1-4" id="__codelineno-1-4" name="__codelineno-1-4"></a>    <span class="n">docs</span><span class="o">=</span><span class="p">[</span><span class="s2">"some text"</span><span class="p">,</span> <span class="s2">"…"</span><span class="p">],</span>
+<a href="#__codelineno-1-5" id="__codelineno-1-5" name="__codelineno-1-5"></a>    <span class="n">embed_config</span><span class="o">=</span><span class="p">{</span><span class="s2">"model"</span><span class="p">:</span> <span class="s2">"text-embedding-3-small"</span><span class="p">},</span>
+<a href="#__codelineno-1-6" id="__codelineno-1-6" name="__codelineno-1-6"></a>    <span class="n">store_config</span><span class="o">=</span><span class="p">{</span><span class="s2">"backend"</span><span class="p">:</span> <span class="s2">"memory"</span><span class="p">,</span> <span class="s2">"metric"</span><span class="p">:</span> <span class="s2">"cosine"</span><span class="p">},</span>
+<a href="#__codelineno-1-7" id="__codelineno-1-7" name="__codelineno-1-7"></a>    <span class="n">chunk_config</span><span class="o">=</span><span class="p">{</span><span class="s2">"chunk_size"</span><span class="p">:</span> <span class="mi">1500</span><span class="p">,</span> <span class="s2">"chunk_overlap"</span><span class="p">:</span> <span class="mi">300</span><span class="p">,</span> <span class="s2">"model"</span><span class="p">:</span> <span class="s2">"gpt-3.5-turbo"</span><span class="p">},</span>
+<a href="#__codelineno-1-8" id="__codelineno-1-8" name="__codelineno-1-8"></a><span class="p">)</span>
+<a href="#__codelineno-1-9" id="__codelineno-1-9" name="__codelineno-1-9"></a>
+<a href="#__codelineno-1-10" id="__codelineno-1-10" name="__codelineno-1-10"></a><span class="n">rag</span><span class="o">.</span><span class="n">embed_all</span><span class="p">()</span>                               <span class="c1"># ⬅️ ingest + index</span>
+<a href="#__codelineno-1-11" id="__codelineno-1-11" name="__codelineno-1-11"></a><span class="n">hits</span> <span class="o">=</span> <span class="n">rag</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s2">"semantic query"</span><span class="p">,</span> <span class="n">top_k</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>  <span class="c1"># ⬅️ retrieve</span>
+<a href="#__codelineno-1-12" id="__codelineno-1-12" name="__codelineno-1-12"></a><span class="k">for</span> <span class="n">hit</span> <span class="ow">in</span> <span class="n">hits</span><span class="p">:</span>
+<a href="#__codelineno-1-13" id="__codelineno-1-13" name="__codelineno-1-13"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">hit</span><span class="o">.</span><span class="n">score</span><span class="p">,</span> <span class="n">hit</span><span class="o">.</span><span class="n">record</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="13-incremental-updates">1.3 Incremental Updates</h3>
+<p><code>RAG</code> exposes the underlying <code>vector_store</code> so you can add new <code>VectorRecord</code>s or delete outdated ones without rebuilding the entire index:</p>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-2-1" id="__codelineno-2-1" name="__codelineno-2-1"></a><span class="n">new_id</span> <span class="o">=</span> <span class="n">rag</span><span class="o">.</span><span class="n">vector_store</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
+<a href="#__codelineno-2-2" id="__codelineno-2-2" name="__codelineno-2-2"></a>    <span class="p">[</span><span class="s2">"fresh note about ATP"</span><span class="p">],</span>
+<a href="#__codelineno-2-3" id="__codelineno-2-3" name="__codelineno-2-3"></a>    <span class="n">embed</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a href="#__codelineno-2-4" id="__codelineno-2-4" name="__codelineno-2-4"></a>    <span class="n">metadata</span><span class="o">=</span><span class="p">[{</span><span class="s2">"source"</span><span class="p">:</span> <span class="s2">"notes.md"</span><span class="p">}],</span>
+<a href="#__codelineno-2-5" id="__codelineno-2-5" name="__codelineno-2-5"></a><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+<a href="#__codelineno-2-6" id="__codelineno-2-6" name="__codelineno-2-6"></a>
+<a href="#__codelineno-2-7" id="__codelineno-2-7" name="__codelineno-2-7"></a><span class="n">rag</span><span class="o">.</span><span class="n">vector_store</span><span class="o">.</span><span class="n">delete</span><span class="p">([</span><span class="n">new_id</span><span class="p">])</span>
+</code></pre></div>
+<h2 id="2-external-contracts">2. External Contracts</h2>
+<p>The RAG System is a purely in-process Python feature and does <strong>not</strong> expose HTTP endpoints or CLI commands. The only external contract is the requirement for an embedding provider that follows the <code>litellm</code> interface.</p>
+<h3 id="21-environment-variables">2.1 Environment Variables</h3>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Purpose</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OPENAI_API_KEY</code></td>
+<td>Used by <code>EmbeddingService</code> when no <code>api_key</code> passed.</td>
+<td><em>None</em></td>
+</tr>
+</tbody>
+</table>
+<h3 id="22-configuration-objects">2.2 Configuration Objects</h3>
+<p>All tunables are passed in as <strong>plain Python dictionaries</strong>:</p>
+<ul>
+<li><strong><code>embed_config</code></strong> → forwarded to <code>components/embedding_service.md</code> </li>
+<li><strong><code>chunk_config</code></strong> → forwarded to <code>components/chunking_service.md</code> </li>
+<li><strong><code>store_config</code></strong> → forwarded to <code>components/vector_store_factory.md</code></li>
+</ul>
+<h2 id="3-design-and-architecture">3. Design and Architecture</h2>
+<p>At a high-level the feature implements the canonical RAG pipeline:</p>
+<pre class="mermaid"><code>flowchart LR
+    A[Raw Docs / Paths] --&gt;|Text| B[TextChunkingService]
+    B --&gt;|Chunks| C[EmbeddingService]
+    C --&gt;|Vectors\n+ Metadata| D[VectorStore (In-Memory)]
+    E[Query] --&gt;|Embed| C
+    C --&gt;|Query Vector| F[Similarity Search]
+    F --&gt;|Top-k SearchResult| G[Caller / LLM]
+</code></pre>
+<h3 id="31-component-boundaries">3.1 Component Boundaries</h3>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>Component (doc)</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Chunking</td>
+<td><code>components/chunking_service.md</code></td>
+<td>Overlapping splits by char/token.</td>
+</tr>
+<tr>
+<td>Embedding</td>
+<td><code>components/embedding_service.md</code></td>
+<td>Batch requests to <code>litellm.embedding</code>.</td>
+</tr>
+<tr>
+<td>Storage + Search</td>
+<td><code>components/vector_store_base.md</code>  ← factory / memory</td>
+<td>CRUD, similarity search, persistence.</td>
+</tr>
+<tr>
+<td>Data Abstraction</td>
+<td><code>components/text_object_management.md</code></td>
+<td>Holds raw content, chunk list, embeddings, metadata hash.</td>
+</tr>
+<tr>
+<td>Utilities</td>
+<td><code>components/rag_utilities.md</code>, <code>components/vector_store_utilities.md</code></td>
+<td>Token counting, file-ops, vector math, stable hashing, UUIDs.</td>
+</tr>
+<tr>
+<td>Orchestration</td>
+<td><code>components/rag_core.md</code></td>
+<td>Glue code that wires every sub-component into a single façade.</td>
+</tr>
+<tr>
+<td>Pre-built Node</td>
+<td><code>components/rag_node.md</code></td>
+<td>Exposes a single RailTracks node for graph composition.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="32-key-design-decisions-trade-offs">3.2 Key Design Decisions &amp; Trade-offs</h3>
+<ol>
+<li>
+<p><strong>In-memory first:</strong><br/>
+   The default backend is <code>InMemoryVectorStore</code> for zero-dependency prototyping. Disk persistence is provided via simple pickle-based <code>persist()</code> / <code>load()</code>. A future roadmap item (v0.1) is to add FAISS / Qdrant backends via the factory.</p>
+</li>
+<li>
+<p><strong>Overlapping chunks:</strong><br/>
+   A default <code>chunk_overlap</code> of 20 % (200 tokens for a 1 000 token chunk) was chosen to reduce boundary information loss at the cost of minor duplication in the store.</p>
+</li>
+<li>
+<p><strong>Cosine similarity + normalization:</strong><br/>
+   Normalization is automatically turned on when the metric is <code>cosine</code>, ensuring distance computations remain numerically stable and comparable.</p>
+</li>
+<li>
+<p><strong>Loose coupling via factory functions:</strong><br/>
+   Both the vector store and chunking strategy can be swapped by injecting a different <code>backend</code> or <code>strategy</code> callable respectively—no changes needed in <code>RAG</code>.</p>
+</li>
+<li>
+<p><strong>Batch-size-agnostic embeddings:</strong><br/>
+<code>EmbeddingService.embed()</code> internally chunks long input lists into 8-item batches to stay within OpenAI’s recommended payload sizes, but keeps the public signature simple.</p>
+</li>
+</ol>
+<h3 id="33-rejected-alternatives">3.3 Rejected Alternatives</h3>
+<ul>
+<li><strong>Rigid pipeline class</strong>: An earlier design hard-coded the ingestion order inside a monolithic class. This was replaced by the current thin façade + injectable services to encourage experimentation (e.g., multi-modal embeddings).  </li>
+<li><strong>Auto-token-chunking via GPT-4</strong>: Considered using GPT-4 to dynamically decide split points (<code>chunk_smart</code>). Ultimately postponed due to latency/cost concerns; placeholder method remains for future work.</li>
+</ul>
+<h2 id="4-related-files">4. Related Files</h2>
+<h3 id="41-related-component-files">4.1 Related Component Files</h3>
+<ul>
+<li><a href="../../components/rag_node/"><code>components/rag_node.md</code></a>: one-line RailTracks node wrapper around <code>RAG</code>.</li>
+<li><a href="../../components/rag_core/"><code>components/rag_core.md</code></a>: orchestrator that drives chunking, embedding, storage, and search.</li>
+<li><a href="../../components/chunking_service/"><code>components/chunking_service.md</code></a>: text splitting strategies.</li>
+<li><a href="../../components/embedding_service/"><code>components/embedding_service.md</code></a>: litellm embedding interface.</li>
+<li><a href="../../components/vector_store_base/"><code>components/vector_store_base.md</code></a>: abstract CRUD + search API for any vector store backend.</li>
+<li><a href="../../components/vector_store_factory/"><code>components/vector_store_factory.md</code></a>: factory that selects <code>InMemoryVectorStore</code> by default.</li>
+<li><a href="../../components/in_memory_vector_store/"><code>components/in_memory_vector_store.md</code></a>: default, dependency-free backend.</li>
+<li><a href="../../components/text_object_management/"><code>components/text_object_management.md</code></a>: canonical representation of a document + metadata.</li>
+<li><a href="../../components/rag_utilities/"><code>components/rag_utilities.md</code></a>: tokenization &amp; file helpers.</li>
+<li><a href="../../components/vector_store_utilities/"><code>components/vector_store_utilities.md</code></a>: vector math, UUID, hashing.</li>
+</ul>
+<h3 id="42-external-dependencies">4.2 External Dependencies</h3>
+<ul>
+<li><a href="https://github.com/BerriAI/litellm"><code>https://github.com/BerriAI/litellm</code></a>: lightweight wrapper used for both embeddings and tokenization.</li>
+<li><a href="https://pypi.org/project/tiktoken/"><code>https://pypi.org/project/tiktoken/</code></a>: fast tokenizer leveraged by <code>LORAGTokenizer</code>.</li>
+</ul>
+<hr/>
+<h2 id="changelog">CHANGELOG</h2>
+<ul>
+<li><strong>v0.0.1</strong> (2024-06-07) [<code>&lt;INIT&gt;</code>]: Initial specification of the RAG System feature.</li>
+</ul>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+</main>
+<footer class="md-footer">
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"base": "../../..", "features": ["navigation.indexes", "navigation.prefetch", "search.suggest", "content.code.copy", "content.code.highlight"], "search": "../../../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.50899def.min.js"></script>
+<script type="module">import mermaid from "https://unpkg.com/mermaid@10.4.0/dist/mermaid.esm.min.mjs";
+window.mermaidConfig = {default: {
+    startOnLoad: false
+}};</script></body>
+</html>
