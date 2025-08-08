@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 import railtracks.context as context
 from railtracks.exceptions import LLMError
-from railtracks.llm import MessageHistory, ModelBase
+from railtracks.llm import Message, MessageHistory, ModelBase, UserMessage
 from railtracks.validation.node_creation.validation import (
     check_classmethod,
     check_schema,
@@ -35,11 +35,17 @@ class StructuredLLM(
             check_classmethod(method, "output_schema")
             check_schema(method, cls)
 
-    def __init__(self, user_input: MessageHistory, llm_model: ModelBase | None = None):
+    def __init__(
+        self,
+        user_input: MessageHistory | UserMessage | str | list[Message],
+        llm_model: ModelBase | None = None,
+    ):
         """Creates a new instance of the StructuredlLLM class
 
         Args:
-            user_input (MessageHistory): The message history to use for the LLM.
+            user_input (MessageHistory | UserMessage | str | list[Message]): The input to use for the LLM. Can be a MessageHistory object, a UserMessage object, or a string.
+                If a string is provided, it will be converted to a MessageHistory with a UserMessage.
+                If a UserMessage is provided, it will be converted to a MessageHistory.
             llm_model (ModelBase | None, optional): The LLM model to use. Defaults to None.
 
         """
