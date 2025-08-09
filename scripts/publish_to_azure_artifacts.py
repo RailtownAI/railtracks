@@ -254,18 +254,20 @@ def main():
     print("\nPublishing packages...")
 
     # Publish railtracks core package
-    success1 = publish_package(railtracks_dir, "railtracks", azure_pat)
+    core_publish_success = publish_package(railtracks_dir, "railtracks", azure_pat)
 
-    if not success1:
+    if not core_publish_success:
         print(
             "Failed to publish railtracks core package. Aborting CLI package publish."
         )
         sys.exit(1)
 
     # Publish railtracks-cli package
-    success2 = publish_package(railtracks_cli_dir, "railtracks-cli", azure_pat)
+    cli_publish_success = publish_package(
+        railtracks_cli_dir, "railtracks-cli", azure_pat
+    )
 
-    if not success2:
+    if not cli_publish_success:
         print("Failed to publish railtracks-cli package.")
         sys.exit(1)
 
