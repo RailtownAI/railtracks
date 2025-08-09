@@ -231,11 +231,11 @@ def main():
     print(f"Publishing version: {version}")
 
     if not args.publish:
-        print("\nDRY RUN MODE - No packages will be published")
+        print("\n✨ DRY RUN MODE - No packages will be published ✨")
         print(f"Would update version to {version} in:")
         print(f"  - {railtracks_dir}/src/railtracks/__init__.py")
         print(f"  - {railtracks_cli_dir}/src/railtracks_cli/__init__.py")
-        print(f"Would publish packages from:")
+        print(f"Would publish packages from:")  # noqa: F541
         print(f"  - {railtracks_dir}")
         print(f"  - {railtracks_cli_dir}")
         print("\nTo actually publish, run with --publish flag")
