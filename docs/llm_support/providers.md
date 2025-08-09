@@ -78,7 +78,10 @@ Take a look at the examples below to see how using different providers look for 
         Make sure you set the appropriate environment variable keys for your specific provider. By default, RailTracks uses the `dotenv` framework to load environment variables from a `.env` file.
         Variable name for the API key: `HUGGINGFACE_API_KEY`
 
-    In case of HuggingFace, model name must be of the format:  <br>
+    !!! caution "Tool Calling Support"
+        For HuggingFace serverless inference models, you need to make sure that the model you are using supports tool calling. We **DO NOT**  check for tool calling support in HuggingFace models. If you are using a model that does not support tool calling, it will default t regular chat, even if the tool_nodes parameter is provided.
+
+    In case of HuggingFace, `model_name` must be of the format:  <br>
     - `huggingface/<provider>/<hf_org_or_user>/<hf_model>` or  <br>
     - `<provider>/<hf_org_or_user>/<hf_model>`"  <br>
     Here are a few example models that you can use:
