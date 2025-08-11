@@ -104,11 +104,12 @@ nav:
       - Configuration: llm_support/config.md
 
   - Deployments:
-      - deployments/index.md
+      - Docker: deployments/docker.md
 
   - Advanced Usage:
       - Context: advanced_usage/context.md
       - Prompt Injection: advanced_usage/prompt_injection.md
+      - Custom Nodes: advanced_usage/node_builder.md
 
   - Samples:
       - samples/index.md
