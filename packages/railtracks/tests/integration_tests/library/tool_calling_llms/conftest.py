@@ -147,7 +147,7 @@ def _make_node(fixture_name, system_message, model, schema, tool_nodes, class_ty
                 return schema
             @classmethod
             def tool_nodes(cls):
-                return tool_nodes
+                return [x if not hasattr(x, "node_type") else x.node_type for x in tool_nodes]
             @classmethod
             def pretty_name(cls):
                 return schema.__name__ + " Node"
@@ -278,7 +278,7 @@ def limited_tool_call_node_factory(model, travel_planner_tools):
                     super().__init__(user_input, model, max_tool_calls=max_tool_calls)
                 @classmethod
                 def tool_nodes(cls):
-                    return tool_nodes
+                    return [x if not hasattr(x, "node_type") else x.node_type for x in tool_nodes]
                 @classmethod
                 def name(cls):
                     return "Limited Tool Call Test Node"
