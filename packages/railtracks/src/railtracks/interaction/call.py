@@ -2,7 +2,14 @@ from __future__ import annotations
 
 import asyncio
 from types import FunctionType
-from typing import TYPE_CHECKING, Callable, Coroutine, ParamSpec, TypeVar, Union, overload
+from typing import (
+    TYPE_CHECKING,
+    Callable,
+    Coroutine,
+    ParamSpec,
+    TypeVar,
+    Union,
+)
 from uuid import uuid4
 
 from railtracks.context.central import (
@@ -15,8 +22,6 @@ from railtracks.context.central import (
     shutdown_publisher,
 )
 from railtracks.exceptions import GlobalTimeOutError
-
-from .utils import extract_node_from_function
 from railtracks.pubsub.messages import (
     FatalFailure,
     RequestCompletionMessage,
@@ -25,8 +30,13 @@ from railtracks.pubsub.messages import (
 )
 from railtracks.pubsub.utils import output_mapping
 
+from .utils import extract_node_from_function
+
 if TYPE_CHECKING:
-    from railtracks.nodes.easy_usage_wrappers.function import _AsyncNodeAttachedFunc, _SyncNodeAttachedFunc
+    from railtracks.nodes.easy_usage_wrappers.function import (
+        _AsyncNodeAttachedFunc,
+        _SyncNodeAttachedFunc,
+    )
     from railtracks.nodes.nodes import Node
 
 _P = ParamSpec("_P")
@@ -34,7 +44,9 @@ _TOutput = TypeVar("_TOutput")
 
 
 async def call(
-    node_: Callable[_P, Union[Node[_TOutput], _TOutput]] | _AsyncNodeAttachedFunc[_P, _TOutput] | _SyncNodeAttachedFunc[_P, _TOutput],
+    node_: Callable[_P, Union[Node[_TOutput], _TOutput]]
+    | _AsyncNodeAttachedFunc[_P, _TOutput]
+    | _SyncNodeAttachedFunc[_P, _TOutput],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput:
@@ -58,12 +70,11 @@ async def call(
         **kwargs: The keyword arguments to pass to the node
     """
     node: Callable[_P, Node[_TOutput]]
-    # this entire section is a bit of a typing nightmare becuase all overloads we provide. 
+    # this entire section is a bit of a typing nightmare becuase all overloads we provide.
     if isinstance(node_, FunctionType):
         node = extract_node_from_function(node_)
     else:
         node = node_
-
 
     # if the context is none then we will need to create a wrapper for the state object to work with.
     if not is_context_present():
@@ -199,7 +210,9 @@ async def _execute(
 
 
 def call_sync(
-    node: Callable[_P, Union[Node[_TOutput], _TOutput]] | _AsyncNodeAttachedFunc[_P, _TOutput] | _SyncNodeAttachedFunc[_P, _TOutput],
+    node: Callable[_P, Union[Node[_TOutput], _TOutput]]
+    | _AsyncNodeAttachedFunc[_P, _TOutput]
+    | _SyncNodeAttachedFunc[_P, _TOutput],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput:

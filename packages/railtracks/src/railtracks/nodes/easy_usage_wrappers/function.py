@@ -9,11 +9,11 @@ from typing import (
     Coroutine,
     Generic,
     ParamSpec,
+    Protocol,
     Type,
     TypeVar,
     cast,
     overload,
-    Protocol
 )
 
 from railtracks.exceptions import NodeCreationError
@@ -23,7 +23,6 @@ from .._node_builder import NodeBuilder
 from ..concrete import (
     AsyncDynamicFunctionNode,
     SyncDynamicFunctionNode,
-    DynamicFunctionNode
 )
 from ..manifest import ToolManifest
 
@@ -31,27 +30,17 @@ _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
 
 
-
-
 class _SyncNodeAttachedFunc(Generic[_P, _TOutput], Protocol):
-    def __call__(
-        self, *args: _P.args, **kwargs: _P.kwargs
-    ) -> _TOutput:
-        ...
+    def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput: ...
 
     node_type: Type[SyncDynamicFunctionNode[_P, _TOutput]]
 
+
 class _AsyncNodeAttachedFunc(Generic[_P, _TOutput], Protocol):
-    async def __call__(
-        self, *args: _P.args, **kwargs: _P.kwargs
-    ) -> _TOutput:
-        ...
+    async def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput: ...
 
     node_type: Type[AsyncDynamicFunctionNode[_P, _TOutput]]
 
-
-
-    
 
 @overload
 def function_node(
@@ -59,7 +48,7 @@ def function_node(
     /,
     *,
     name: str | None = None,
-    tool_manifest: ToolManifest | None  = None,
+    tool_manifest: ToolManifest | None = None,
 ) -> _AsyncNodeAttachedFunc[_P, _TOutput]:
     pass
 
@@ -108,7 +97,7 @@ def function_node(
         node_class = SyncDynamicFunctionNode
     elif inspect.isbuiltin(func):
         # builtin functions are written in C and do not have space for the addition of metadata like our node type.
-        # so instead we wrap them in a function that allows for the addition of the node type. 
+        # so instead we wrap them in a function that allows for the addition of the node type.
         # this logic preserved details like the function name, docstring, and signature, but allows us to add the node type.
         func = _function_preserving_metadata(func)
         node_class = SyncDynamicFunctionNode
@@ -146,7 +135,6 @@ def function_node(
                 "This is an unknown bug.",
             ],
         )
-    
 
 
 def _function_preserving_metadata(
@@ -155,8 +143,5 @@ def _function_preserving_metadata(
     @functools.wraps(func)
     def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
         return func(*args, **kwargs)
-    
+
     return wrapper
-
-
-

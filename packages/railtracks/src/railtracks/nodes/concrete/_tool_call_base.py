@@ -3,7 +3,16 @@ from __future__ import annotations
 import asyncio
 import warnings
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, Dict, Generic, ParamSpec, Set, Type, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Generic,
+    ParamSpec,
+    Set,
+    Type,
+    TypeVar,
+)
 
 import railtracks.context as context
 from railtracks.exceptions import LLMError, NodeCreationError
@@ -21,7 +30,7 @@ from railtracks.validation.node_creation.validation import check_connected_nodes
 from railtracks.validation.node_invocation.validation import check_max_tool_calls
 
 if TYPE_CHECKING:
-    from railtracks.nodes.easy_usage_wrappers.function import _AsyncNodeAttachedFunc, _SyncNodeAttachedFunc
+    pass
 from ..nodes import Node
 from ._llm_base import LLMBase
 
@@ -205,8 +214,8 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                 )
 
     async def invoke(self) -> _T:
-        # we do a lazy import here becuase the invoke method 
-        
+        # we do a lazy import here becuase the invoke method
+
         await self._handle_tool_calls()
 
         if (key := self.return_into()) is not None:
