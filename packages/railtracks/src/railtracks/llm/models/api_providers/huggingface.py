@@ -22,7 +22,7 @@ class HuggingFaceLLM(ProviderLLMWrapper):
                 ],
             )
         return model_name
-    
+
     def _validate_tool_calling_support(self):
         # NOTE: special exception case for huggingface
         # Due to the wide range of huggingface models, `litellm.supports_function_calling` isn't always accurate.
@@ -32,5 +32,3 @@ class HuggingFaceLLM(ProviderLLMWrapper):
     @classmethod
     def model_type(cls) -> str:
         return "HuggingFace"
-
-
