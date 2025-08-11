@@ -215,9 +215,38 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         self.llm_model.add_exception_hook(self._exception_llm_hook)
 
     def _detach_llm_hooks(self):
-        """Detach pre and post hooks from the llm model."""
+        """Detach internal pre and post hooks from the llm model while preserving external hooks."""
+        # Save all existing hooks
+        pre_hooks = self.llm_model._pre_hook.copy()
+        post_hooks = self.llm_model._post_hook.copy()
+        exception_hooks = self.llm_model._exception_hook.copy()
+
+        # Remove all hooks
         self.llm_model.remove_pre_hooks()
         self.llm_model.remove_post_hooks()
+        self.llm_model.remove_exception_hooks()
+
+        # Get the underlying function objects for internal hooks
+        pre_llm_hook_func = self._pre_llm_hook.__func__
+        post_llm_hook_func = self._post_llm_hook.__func__
+        exception_llm_hook_func = self._exception_llm_hook.__func__
+
+        # Re-add external hooks (all hooks except the internal ones)
+        for hook in pre_hooks:
+            # Compare the underlying function objects, not the bound methods
+            if not hasattr(hook, "__func__") or hook.__func__ != pre_llm_hook_func:
+                self.llm_model.add_pre_hook(hook)
+
+        for hook in post_hooks:
+            if not hasattr(hook, "__func__") or hook.__func__ != post_llm_hook_func:
+                self.llm_model.add_post_hook(hook)
+
+        for hook in exception_hooks:
+            if (
+                not hasattr(hook, "__func__")
+                or hook.__func__ != exception_llm_hook_func
+            ):
+                self.llm_model.add_exception_hook(hook)
 
     def _pre_llm_hook(self, message_history: MessageHistory) -> MessageHistory:
         """Hook to modify messages before sending them to the llm model."""

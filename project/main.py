@@ -7,8 +7,8 @@ context based on user queries.
 """
 
 import railtracks as rt
-from memory_agent import memory, memory_agent, memory_agent_node
-from railtracks.llm import MessageHistory, UserMessage
+from custom_chat_ui import custom_chatui_node
+from memory_agent import memory, memory_agent_node
 from railtracks.llm.models.api_providers import OpenAILLM
 
 from examples.integrations.sandbox_python_integration import (
@@ -18,49 +18,10 @@ from examples.integrations.sandbox_python_integration import (
 )
 from examples.integrations.webseach_integration import fetch_mcp_tools, google_search
 
-
-def hook_function(message_history: MessageHistory) -> MessageHistory:
-    """
-    Hook function to inject memory into the user prompt.
-
-    This function asks the memory agent for relevant details and injects it
-    into the latest user message.
-    """
-    # Get the latest user message
-    user_message = message_history[-1] if message_history else None
-
-    return MessageHistory([UserMessage("Tell me what 1+1 is?")])
-
-    # If no user message, return as is
-    if not user_message:
-        return message_history
-
-    # Ask the memory agent for relevant context
-    request = (
-        f"If applicable, find relevant context for: {user_message.content}"
-        f"Otherwise, return an empty string."
-    )
-    memory_context = rt.call_sync(memory_agent, request=request).result
-    print(f"Memory context retrieved: {memory_context}")
-
-    # Inject the memory context into the user message
-    if memory_context:
-        message_history[-1] = UserMessage(
-            content=user_message.content
-            + f"\n\nRelevant Memory Context:\n{memory_context}"
-            + "\n<hehehe>\n"
-        )
-
-    return message_history
-
-
 tool_nodes = [memory_agent_node, google_search, execute_code] + fetch_mcp_tools
 
-model = OpenAILLM(model_name="gpt-4o")
-model.add_pre_hook(hook_function)
-
 # Create the RAG-enhanced main agent
-rag_main_agent = rt.chatui_node(
+rag_main_agent = custom_chatui_node(
     pretty_name="RAG-Enhanced Project Assistant",
     tool_nodes=tool_nodes,
     system_message="""You are an intelligent project assistant with advanced project-specific knowledge.
@@ -84,7 +45,7 @@ rag_main_agent = rt.chatui_node(
 
     Here is an overview of the project to get you started:
     {overview}""",
-    llm_model=model,
+    llm_model=OpenAILLM(model_name="gpt-4o"),
 )
 
 with rt.Session(logging_setting="VERBOSE", timeout=1000000000):
