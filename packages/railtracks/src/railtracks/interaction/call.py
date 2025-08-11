@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import asyncio
 from types import FunctionType
-from typing import Callable, Coroutine, ParamSpec, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Callable, Coroutine, ParamSpec, TypeVar, Union, overload
 from uuid import uuid4
 
 from railtracks.context.central import (
@@ -22,6 +24,9 @@ from railtracks.pubsub.messages import (
 )
 from railtracks.pubsub.utils import output_mapping
 
+if TYPE_CHECKING:
+    from railtracks.nodes.easy_usage_wrappers.function import _AsyncNodeAttachedFunc, _SyncNodeAttachedFunc
+
 _P = ParamSpec("_P")
 _TOutput = TypeVar("_TOutput")
 
@@ -34,6 +39,22 @@ async def call(
 ) -> _TOutput:
     pass
 
+@overload
+async def call(
+    node: _AsyncNodeAttachedFunc[_P, _TOutput],
+    *args: _P.args,
+    **kwargs: _P.kwargs,
+) -> _TOutput:
+    pass
+
+@overload
+async def call(
+    node: _SyncNodeAttachedFunc[_P, _TOutput],
+    *args: _P.args,
+    **kwargs: _P.kwargs,
+) -> _TOutput:
+    pass 
+
 
 @overload
 async def call(
@@ -45,7 +66,7 @@ async def call(
 
 
 async def call(
-    node_: Callable[_P, Union[Node[_TOutput], _TOutput]],
+    node_: Callable[_P, Union[Node[_TOutput], _TOutput]] | _AsyncNodeAttachedFunc[_P, _TOutput] | _SyncNodeAttachedFunc[_P, _TOutput],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ):
@@ -64,22 +85,31 @@ async def call(
     ```
 
     Args:
-        node: The node type you would like to create
+        node: The node type you would like to create. This could be a function decorated with `@function_node`, a function, or a Node instance.
         *args: The arguments to pass to the node
         **kwargs: The keyword arguments to pass to the node
     """
+    node: Callable[_P, Node[_TOutput]]
+    # this entire section is a bit of a typing nightmare becuase all overloads we provide. 
     if isinstance(node_, FunctionType):
+        # we enter this block if the user passed in a previously from function decorated node. 
+        if hasattr(node_, "node_type"):
+            node = node_.node_type
+            assert issubclass(node, Node), f"The node type must be a Node instance. Instead it was {type(node)}"
+        # if the node is a pure function then we will also convert it to a node.
+        else:
+            # since this task is completed at run_time we will use a lazy import here. 
+            from railtracks import (
+                function_node,
+            )
+
+            node = function_node(node_).node_type
         # If a function is passed, we will convert it to a node
         # we have to use lazy import here to prevent a circular import issue. Bad design I know :(
-        from railtracks import (
-            function_node,
-        )
-
-        node = function_node(node_)
+    
     else:
         node = node_
 
-    node: Callable[_P, Node[_TOutput]]
 
     # if the context is none then we will need to create a wrapper for the state object to work with.
     if not is_context_present():
@@ -213,27 +243,41 @@ async def _execute(
 
     return await f
 
-
 @overload
-def call_sync(
+async def call_sync(
     node: Callable[_P, Node[_TOutput]],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput:
     pass
 
+@overload
+async def call_sync(
+    node: _AsyncNodeAttachedFunc[_P, _TOutput],
+    *args: _P.args,
+    **kwargs: _P.kwargs,
+) -> _TOutput:
+    pass
 
 @overload
-def call_sync(
+async def call_sync(
+    node: _SyncNodeAttachedFunc[_P, _TOutput],
+    *args: _P.args,
+    **kwargs: _P.kwargs,
+) -> _TOutput:
+    pass 
+
+
+@overload
+async def call_sync(
     node: Callable[_P, _TOutput],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput:
     pass
 
-
 def call_sync(
-    node: Callable[_P, Union[Node[_TOutput], _TOutput]],
+    node: Callable[_P, Union[Node[_TOutput], _TOutput]] | _AsyncNodeAttachedFunc[_P, _TOutput] | _SyncNodeAttachedFunc[_P, _TOutput],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput:
@@ -269,7 +313,7 @@ def call_sync(
     asyncio.set_event_loop(loop)
     try:
         task = loop.create_task(call(node, *args, **kwargs))
-        result = loop.run_until_complete(task)
+        result: _TOutput = loop.run_until_complete(task)
     finally:
         loop.close()
 

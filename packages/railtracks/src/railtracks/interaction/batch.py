@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 from typing import (
     Any,
@@ -5,8 +7,11 @@ from typing import (
     Iterable,
     ParamSpec,
     TypeVar,
+    TYPE_CHECKING,
 )
 
+if TYPE_CHECKING:
+    from railtracks.nodes.easy_usage_wrappers.function import _AsyncNodeAttachedFunc, _SyncNodeAttachedFunc
 from railtracks.nodes.nodes import Node
 
 from .call import call
@@ -16,7 +21,7 @@ _TOutput = TypeVar("_TOutput")
 
 
 async def call_batch(
-    node: Callable[..., Node[_TOutput]],
+    node: Callable[..., Node[_TOutput]] | Callable[..., _TOutput] | _AsyncNodeAttachedFunc[_P, _TOutput] | _SyncNodeAttachedFunc[_P, _TOutput],
     *iterables: Iterable[Any],
     return_exceptions: bool = True,
 ):
@@ -44,6 +49,7 @@ async def call_batch(
             handle(result)
         ```
     """
+    # this is big typing shitshow, so there is nothing we can really do here. 
     contracts = [call(node, *args) for args in zip(*iterables)]
 
     results = await asyncio.gather(*contracts, return_exceptions=return_exceptions)
