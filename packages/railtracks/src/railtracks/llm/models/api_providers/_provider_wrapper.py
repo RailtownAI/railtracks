@@ -8,7 +8,7 @@ from ...history import MessageHistory
 from ...response import Response
 from ...tools import Tool
 from .._litellm_wrapper import LiteLLMWrapper
-from .._model_exception_base import FunctionCallingNotSupportedError, ModelError
+from .._model_exception_base import FunctionCallingNotSupportedError, ModelNotFoundError
 
 
 class ProviderLLMWrapper(LiteLLMWrapper, ABC):
@@ -54,33 +54,15 @@ class ProviderLLMWrapper(LiteLLMWrapper, ABC):
         """Returns the name of the provider"""
         pass
 
+    def _validate_tool_calling_support(self):
+        if not litellm.supports_function_calling(model=self._model_name):
+            raise FunctionCallingNotSupportedError(self._model_name)
+        
+        
     def _chat_with_tools(
         self, messages: MessageHistory, tools: List[Tool], **kwargs: Any
     ) -> Response:
-        # NOTE: special exception case for higgingface
-        # Due to the wide range of huggingface models, `litellm.supports_function_calling` isn't always accurate.
-        # so we are just going to skip the check and the error (if any) will be generated at runtime during `litellm.completion`.
-        if (
-            not self.model_type() == "HuggingFace"
-            and not litellm.supports_function_calling(model=self._model_name)
-        ):
-            raise FunctionCallingNotSupportedError(self._model_name)
+        self._validate_tool_calling_support()
         return super()._chat_with_tools(messages, tools, **kwargs)
 
 
-class ModelNotFoundError(ModelError):
-    def __init__(self, reason: str, notes: list[str] = None):
-        self.reason = reason
-        self.notes = notes or []
-        super().__init__(reason)
-
-    def __str__(self):
-        base = super().__str__()
-        if self.notes:
-            notes_str = (
-                "\n"
-                + self._color("Tips to debug:\n", self.GREEN)
-                + "\n".join(self._color(f"- {note}", self.GREEN) for note in self.notes)
-            )
-            return f"\n{self._color(base, self.RED)}{notes_str}"
-        return self._color(base, self.RED)

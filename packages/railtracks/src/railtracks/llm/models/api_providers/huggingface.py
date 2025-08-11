@@ -1,4 +1,4 @@
-from .._model_exception_base import ModelError
+from .._model_exception_base import ModelNotFoundError
 from ._provider_wrapper import ProviderLLMWrapper
 
 
@@ -13,7 +13,7 @@ class HuggingFaceLLM(ProviderLLMWrapper):
         try:
             assert len(model_name.split("/")) == 3, "Invalid model name"
         except AssertionError as e:
-            raise HuggingFaceModelNameingError(
+            raise ModelNotFoundError(
                 reason=e.args[0],
                 notes=[
                     "Model name must be of the format `huggingface/<provider>/<hf_org_or_user>/<hf_model>` or `<provider>/<hf_org_or_user>/<hf_model>`",
@@ -22,25 +22,15 @@ class HuggingFaceLLM(ProviderLLMWrapper):
                 ],
             )
         return model_name
+    
+    def _validate_tool_calling_support(self):
+        # NOTE: special exception case for huggingface
+        # Due to the wide range of huggingface models, `litellm.supports_function_calling` isn't always accurate.
+        # so we are just going to skip the check and the error (if any) will be generated at runtime during `litellm.completion`.
+        pass
 
     @classmethod
     def model_type(cls) -> str:
         return "HuggingFace"
 
 
-class HuggingFaceModelNameingError(ModelError):
-    def __init__(self, reason: str, notes: list[str] = None):
-        self.reason = reason
-        self.notes = notes or []
-        super().__init__(reason)
-
-    def __str__(self):
-        base = super().__str__()
-        if self.notes:
-            notes_str = (
-                "\n"
-                + self._color("Tips to debug:\n", self.GREEN)
-                + "\n".join(self._color(f"- {note}", self.GREEN) for note in self.notes)
-            )
-            return f"\n{self._color(base, self.RED)}{notes_str}"
-        return self._color(base, self.RED)
