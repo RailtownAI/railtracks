@@ -5,7 +5,8 @@ deploy agentic workflows. The foundational principles of RailTracks were designe
 creating agents an exercise in writing code, not writing a configuration file.
 
 <p style="text-align:center;">
-  <a href="tutorials/byfa" class="md-button" style="margin:3px">Quick Start</a>
+  <a href="quickstart/quickstart" class="md-button" style="margin:3px">Quick Start</a>
+  <a href="tutorials/byfa" class="md-button" style="margin:3px">Build Your First Agent</a>
   <a href="api_reference/generated/railtracks.html" class="md-button" style="margin:3px">API Reference</a>
 </p>
 
