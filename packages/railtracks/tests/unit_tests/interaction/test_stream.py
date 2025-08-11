@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock, patch
-from railtracks.interaction.stream import broadcast
+from railtracks.interaction.broadcast import broadcast
 from railtracks.pubsub.messages import Streaming
 
 

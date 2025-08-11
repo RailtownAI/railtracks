@@ -1,6 +1,6 @@
 from .batch import call_batch
 from .call import call, call_sync
-from .stream import broadcast
+from .broadcast import broadcast
 
 __all__ = [
     "call",
