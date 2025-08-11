@@ -156,7 +156,6 @@ def publish_package(package_dir, package_name, azure_pat):
 
 def validate_version(version):
     """Validate version format."""
-
     # Check if version follows semantic versioning (MAJOR.MINOR.PATCH)
     pattern = r"^\d+\.\d+\.\d+$"
     if not re.match(pattern, version):
