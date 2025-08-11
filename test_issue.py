@@ -6,6 +6,7 @@ import railtracks as rt
 def example_function(x: int, y: int) -> float:
     return x + y
 
+
 function = rt.function_node(example_function)
 
 if __name__ == "__main__":
