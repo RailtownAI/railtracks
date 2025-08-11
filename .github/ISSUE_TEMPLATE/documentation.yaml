@@ -33,7 +33,7 @@ body:
     id: additional_context
     attributes:
       label: Additional Context
-      description: Any other context, examples, or references that could help improve the documentation.
+      description: Any other context that will help us understand the issue.
       placeholder: Related tutorials or links.
     validations:
       required: false

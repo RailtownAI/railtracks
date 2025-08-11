@@ -1,4 +1,5 @@
 import os
+import uuid
 from pathlib import Path
 from typing import Any, Callable, Coroutine, Dict, ParamSpec, TypeVar
 
@@ -60,7 +61,7 @@ class Session:
         logging_setting (allowable_log_levels, optional): The setting for the level of logging you would like to have.
         log_file (str | os.PathLike | None, optional): The file to which the logs will be written.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
-        run_identifier (str | None, optional): A unique identifier for the run.
+        identifier (str | None, optional): A unique identifier for the run. If none one will be generated automatically.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks` directory.
 
@@ -84,7 +85,7 @@ class Session:
         broadcast_callback: (
             Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
         ) = None,
-        run_identifier: str | None = None,
+        identifier: str = None,
         prompt_injection: bool | None = None,
         save_state: bool | None = None,
     ):
@@ -96,7 +97,6 @@ class Session:
             logging_setting=logging_setting,
             log_file=log_file,
             broadcast_callback=broadcast_callback,
-            run_identifier=run_identifier,
             prompt_injection=prompt_injection,
             save_state=save_state,
         )
@@ -104,13 +104,16 @@ class Session:
         if context is None:
             context = {}
 
+        if identifier is None:
+            identifier = str(uuid.uuid4())
+
         prepare_logger(
             setting=self.executor_config.logging_setting,
             path=self.executor_config.log_file,
         )
         self.publisher: RTPublisher[RequestCompletionMessage] = RTPublisher()
 
-        self._identifier = self.executor_config.run_identifier
+        self._identifier = identifier
 
         executor_info = ExecutionInfo.create_new()
         self.coordinator = Coordinator(
@@ -142,7 +145,6 @@ class Session:
         broadcast_callback: (
             Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
         ),
-        run_identifier: str | None,
         prompt_injection: bool | None,
         save_state: bool | None,
     ) -> ExecutorConfig:
@@ -160,7 +162,6 @@ class Session:
             logging_setting=logging_setting,
             log_file=log_file,
             subscriber=broadcast_callback,
-            run_identifier=run_identifier,
             prompt_injection=prompt_injection,
             save_state=save_state,
         )
@@ -176,9 +177,7 @@ class Session:
                     exist_ok=True
                 )  # Creates if doesn't exist, skips otherwise.
 
-                file_path = (
-                    railtracks_dir / f"{self.executor_config.run_identifier}.json"
-                )
+                file_path = railtracks_dir / f"{self._identifier}.json"
                 if file_path.exists():
                     logger.warning("File %s already exists, overwriting..." % file_path)
 

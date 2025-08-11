@@ -63,7 +63,3 @@ With tools, agents can:
 ## 📚 Related Topics
 
 * [Agents](../agents)
-
-<div style="text-align:center;">
-    <a href="../../../tools_mcp" class="md-button" style="margin:3px">Check out RailTracks Tools</a>
-</div>

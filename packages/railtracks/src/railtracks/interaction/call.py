@@ -83,6 +83,7 @@ async def call(
 
     # if the context is none then we will need to create a wrapper for the state object to work with.
     if not is_context_present():
+        print("Creating new session")
         # we have to use lazy import here to prevent a circular import issue. This is a must have unfortunately.
         from railtracks import Session
 
@@ -92,6 +93,7 @@ async def call(
 
     # if the context is not active then we know this is the top level request
     if not is_context_active():
+        print("Using existing session")
         result = await _start(node, args=args, kwargs=kwargs)
         return result
 
