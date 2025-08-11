@@ -137,7 +137,7 @@ class NodeBuilder(Generic[_TNode]):
         self._with_override("output_schema", classmethod(lambda cls: schema))
 
     def tool_calling_llm(
-        self, connected_nodes: Set[Union[Type[Node], Callable]], max_tool_calls: int
+        self, connected_nodes: Set[Type[Node] | Callable], max_tool_calls: int
     ):
         """
         Configure the node subclass to have a tool_nodes method and max_tool_calls method.
@@ -161,7 +161,7 @@ class NodeBuilder(Generic[_TNode]):
         )
 
         connected_nodes = {
-            function_node(elem) if isfunction(elem) else elem
+            function_node(elem).node_type if isfunction(elem) else elem
             for elem in connected_nodes
         }
 

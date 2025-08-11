@@ -9,6 +9,7 @@ from typing import (
     Any,
     Dict,
     Generic,
+    ParamSpec,
     TypeVar,
 )
 

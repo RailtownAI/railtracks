@@ -15,7 +15,8 @@ from railtracks.context.central import (
     shutdown_publisher,
 )
 from railtracks.exceptions import GlobalTimeOutError
-from railtracks.nodes.nodes import Node
+
+from .utils import extract_node_from_function
 from railtracks.pubsub.messages import (
     FatalFailure,
     RequestCompletionMessage,
@@ -26,50 +27,17 @@ from railtracks.pubsub.utils import output_mapping
 
 if TYPE_CHECKING:
     from railtracks.nodes.easy_usage_wrappers.function import _AsyncNodeAttachedFunc, _SyncNodeAttachedFunc
+    from railtracks.nodes.nodes import Node
 
 _P = ParamSpec("_P")
 _TOutput = TypeVar("_TOutput")
-
-
-@overload
-async def call(
-    node: Callable[_P, Node[_TOutput]],
-    *args: _P.args,
-    **kwargs: _P.kwargs,
-) -> _TOutput:
-    pass
-
-@overload
-async def call(
-    node: _AsyncNodeAttachedFunc[_P, _TOutput],
-    *args: _P.args,
-    **kwargs: _P.kwargs,
-) -> _TOutput:
-    pass
-
-@overload
-async def call(
-    node: _SyncNodeAttachedFunc[_P, _TOutput],
-    *args: _P.args,
-    **kwargs: _P.kwargs,
-) -> _TOutput:
-    pass 
-
-
-@overload
-async def call(
-    node: Callable[_P, _TOutput],
-    *args: _P.args,
-    **kwargs: _P.kwargs,
-) -> _TOutput:
-    pass
 
 
 async def call(
     node_: Callable[_P, Union[Node[_TOutput], _TOutput]] | _AsyncNodeAttachedFunc[_P, _TOutput] | _SyncNodeAttachedFunc[_P, _TOutput],
     *args: _P.args,
     **kwargs: _P.kwargs,
-):
+) -> _TOutput:
     """
     Call a node from within a node inside the framework. This will return a coroutine that you can interact with
     in whatever way using async/await logic.
@@ -92,21 +60,7 @@ async def call(
     node: Callable[_P, Node[_TOutput]]
     # this entire section is a bit of a typing nightmare becuase all overloads we provide. 
     if isinstance(node_, FunctionType):
-        # we enter this block if the user passed in a previously from function decorated node. 
-        if hasattr(node_, "node_type"):
-            node = node_.node_type
-            assert issubclass(node, Node), f"The node type must be a Node instance. Instead it was {type(node)}"
-        # if the node is a pure function then we will also convert it to a node.
-        else:
-            # since this task is completed at run_time we will use a lazy import here. 
-            from railtracks import (
-                function_node,
-            )
-
-            node = function_node(node_).node_type
-        # If a function is passed, we will convert it to a node
-        # we have to use lazy import here to prevent a circular import issue. Bad design I know :(
-    
+        node = extract_node_from_function(node_)
     else:
         node = node_
 
@@ -243,38 +197,6 @@ async def _execute(
 
     return await f
 
-@overload
-async def call_sync(
-    node: Callable[_P, Node[_TOutput]],
-    *args: _P.args,
-    **kwargs: _P.kwargs,
-) -> _TOutput:
-    pass
-
-@overload
-async def call_sync(
-    node: _AsyncNodeAttachedFunc[_P, _TOutput],
-    *args: _P.args,
-    **kwargs: _P.kwargs,
-) -> _TOutput:
-    pass
-
-@overload
-async def call_sync(
-    node: _SyncNodeAttachedFunc[_P, _TOutput],
-    *args: _P.args,
-    **kwargs: _P.kwargs,
-) -> _TOutput:
-    pass 
-
-
-@overload
-async def call_sync(
-    node: Callable[_P, _TOutput],
-    *args: _P.args,
-    **kwargs: _P.kwargs,
-) -> _TOutput:
-    pass
 
 def call_sync(
     node: Callable[_P, Union[Node[_TOutput], _TOutput]] | _AsyncNodeAttachedFunc[_P, _TOutput] | _SyncNodeAttachedFunc[_P, _TOutput],
