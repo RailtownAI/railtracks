@@ -6,7 +6,7 @@ import asyncio
 import concurrent.futures
 
 import railtracks.context.central
-import railtracks.interaction.stream
+import railtracks.interaction.broadcast_
 from railtracks import ExecutorConfig
 
 RNGNode = rt.function_node(random.random)
@@ -181,7 +181,7 @@ message = "Hello, World!"
 
 
 async def streaming_func():
-    await railtracks.interaction.stream.broadcast(message)
+    await railtracks.interaction.broadcast(message)
     return
 
 

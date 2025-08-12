@@ -30,14 +30,15 @@
             <div class="status" id="statusBar"></div>
             
             <div class="chat-input">
-                <input 
-                    type="text" 
+                <textarea 
                     class="message-input" 
                     id="messageInput" 
-                    placeholder="Type your message here..." 
-                    maxlength="500"
+                    placeholder="Type your message... (Shift+Enter for new line)" 
+                    maxlength="200000"
+                    rows="1"
                     onkeypress="handleKeyPress(event)"
-                >
+                    oninput="autoResize(this)"
+                ></textarea>
                 <button class="send-button" id="sendButton" onclick="sendMessage()">Send</button>
             </div>
         </div>
