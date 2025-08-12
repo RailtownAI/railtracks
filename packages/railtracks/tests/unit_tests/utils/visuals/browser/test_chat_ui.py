@@ -9,31 +9,6 @@ def chat_ui():
     """Fixture providing a ChatUI instance for testing."""
     return ChatUI(port=8001, auto_open=False)  # Use different port to avoid conflicts
 
-@pytest.fixture
-def mock_static_content():
-    """Mock static file content for testing."""
-    return {
-        'chat.html': '<html><body>Test HTML</body></html>',
-        'chat.css': 'body { color: red; }',
-        'chat.js': 'console.log("test");'
-    }
-
-@pytest.fixture
-def sample_user_message():
-    """Sample user message for testing."""
-    return UIUserMessage(message="Hello, world!", timestamp="2023-01-01T12:00:00")
-
-@pytest.fixture
-def sample_tool_invocation():
-    """Sample tool invocation for testing."""
-    return ToolInvocation(
-        name="test_tool",
-        identifier="tool_123",
-        arguments={"arg1": "value1"},
-        result="Tool executed successfully",
-        success=True
-    )
-
 
 def test_chat_ui_initialization():
     """Test ChatUI initializes with correct default values."""
@@ -245,24 +220,64 @@ async def test_user_input_flow_integration(chat_ui):
     assert result == "User question"
 
 @pytest.mark.asyncio
-async def test_long_message_handling_success(chat_ui):
+async def test_long_message_handling(chat_ui):
     """Test that ChatUI can handle very long messages (up to 200,000 characters)."""
-    # Create a message close to the 200,000 character limit
-    long_message = "A" * 199999  # 199,999 characters
+    # Test maximum length message
+    max_message = "B" * 200000  # Exactly 200,000 characters
     
     user_data = {
-        "message": long_message,
+        "message": max_message,
         "timestamp": datetime.now().isoformat()
     }
     
-    # Put long message in queue
+    # Put maximum length message in queue
     await chat_ui.user_input_queue.put(user_data)
     
-    # Retrieve the long message
+    # Retrieve the maximum length message
     result = await chat_ui.wait_for_user_input()
     
-    assert result == long_message
-    assert len(result) == 199999
+    assert result == max_message
+    assert len(result) == 200000
+
+@pytest.mark.asyncio
+async def test_multiline_message_handling(chat_ui):
+    """Test that multi-line messages with newlines are handled correctly."""
+    multiline_message = "This is line 1\nThis is line 2\nThis is line 3"
+    
+    user_data = {
+        "message": multiline_message,
+        "timestamp": datetime.now().isoformat()
+    }
+    
+    # Put multi-line message in queue
+    await chat_ui.user_input_queue.put(user_data)
+    
+    # Retrieve the multi-line message
+    result = await chat_ui.wait_for_user_input()
+    
+    assert result == multiline_message
+    assert "\n" in result
+    assert result.count("\n") == 2  # Two newline characters
+    assert "line 1" in result and "line 2" in result and "line 3" in result
+
+@pytest.mark.asyncio
+async def test_edge_case_messages(chat_ui):
+    """Test edge cases: empty messages and short messages."""
+    # Test empty message
+    empty_message = ""
+    user_data = {"message": empty_message, "timestamp": datetime.now().isoformat()}
+    await chat_ui.user_input_queue.put(user_data)
+    result = await chat_ui.wait_for_user_input()
+    assert result == empty_message
+    assert len(result) == 0
+    
+    # Test short message
+    short_message = "Hello!"
+    user_data = {"message": short_message, "timestamp": datetime.now().isoformat()}
+    await chat_ui.user_input_queue.put(user_data)
+    result = await chat_ui.wait_for_user_input()
+    assert result == short_message
+    assert len(result) == 6
 
 @pytest.mark.asyncio
 async def test_maximum_length_message_handling(chat_ui):

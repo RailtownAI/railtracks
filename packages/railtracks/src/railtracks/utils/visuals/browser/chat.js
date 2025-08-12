@@ -83,7 +83,7 @@ function updateConnectionStatus(connected) {
 }
 
 function handleSSEMessage(data) {
-    console.log('📡 SSE Message received:', data.type, data);
+    console.log('SSE Message:', data.type);
     const messagesContainer = document.getElementById('chatMessages');
     const statusBar = document.getElementById('statusBar');
     
