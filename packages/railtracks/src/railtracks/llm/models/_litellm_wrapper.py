@@ -313,6 +313,9 @@ class LiteLLMWrapper(ModelBase, ABC):
           2. Merges default kwargs
           3. Calls litellm.completion
         """
+        # NOTE: TODO: For the moment we are using litellm.completion instead of litellm.acompletion
+        # Read more about why  here: https://github.com/RailtownAI/railtracks/issues/505 
+        # when the issue is resolved we can switch back to acompletion
         start_time = time.time()
         litellm_messages = [_to_litellm_message(m) for m in messages]
         merged = {**self._default_kwargs, **call_kwargs}
@@ -321,7 +324,8 @@ class LiteLLMWrapper(ModelBase, ABC):
         warnings.filterwarnings(
             "ignore", category=UserWarning, module="pydantic.*"
         )  # Supress pydantic warnings. See issue #204 for more deatils.
-        completion = await litellm.acompletion(
+        # completion = await litellm.acompletion(
+        completion = litellm.completion(
             model=self._model_name, messages=litellm_messages, stream=stream, **merged
         )
 
