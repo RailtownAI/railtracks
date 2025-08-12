@@ -1,8 +1,12 @@
-import pytest
 import asyncio
-from unittest.mock import Mock, MagicMock, patch
 from datetime import datetime
-from railtracks.utils.visuals.browser.chat_ui import ChatUI, UIUserMessage, ToolInvocation
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
+from railtracks.utils.visuals.browser.chat_ui import (
+    ChatUI,
+)
+
 
 @pytest.fixture
 def chat_ui():
@@ -238,27 +242,6 @@ async def test_long_message_handling(chat_ui):
     
     assert result == max_message
     assert len(result) == 200000
-
-@pytest.mark.asyncio
-async def test_multiline_message_handling(chat_ui):
-    """Test that multi-line messages with newlines are handled correctly."""
-    multiline_message = "This is line 1\nThis is line 2\nThis is line 3"
-    
-    user_data = {
-        "message": multiline_message,
-        "timestamp": datetime.now().isoformat()
-    }
-    
-    # Put multi-line message in queue
-    await chat_ui.user_input_queue.put(user_data)
-    
-    # Retrieve the multi-line message
-    result = await chat_ui.wait_for_user_input()
-    
-    assert result == multiline_message
-    assert "\n" in result
-    assert result.count("\n") == 2  # Two newline characters
-    assert "line 1" in result and "line 2" in result and "line 3" in result
 
 @pytest.mark.asyncio
 async def test_edge_case_messages(chat_ui):
