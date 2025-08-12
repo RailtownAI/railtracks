@@ -8,10 +8,12 @@ The context system gives you a simple and clear API for interacting with shared 
 
 ## 🧰 Core Functions
 
-You can use the context with just two main functions:
+You can use the context with the following main functions:
 
 * `rt.context.get(key, default=None)` - Retrieves a value from the context
 * `rt.context.put(key, value)` - Stores a value in the context
+* `rt.context.update(dict)` - Updates multiple values in the context at once
+* `rt.context.delete(key)` - Removes a value from the context
 
 ## 🚀 Quick Example
 
@@ -66,8 +68,9 @@ def find_issue(input: str) -> str:
 
 @rt.function_node
 def comment_on_issue(comment: str):
-    issue = context.get("issue_number")
-    if not issue:
+    try:
+        issue = context.get("issue_number")
+    except KeyError:
         return "No relevant issue is available."
     
     comment_on_github_issue(issue, comment)  # Assume this function comments on the issue
@@ -124,7 +127,8 @@ In this example, the system message will be expanded to: "You are a friendly and
 
 ## 🔍 Benefits of Using Context
 
-The context system provides several advantages over alternatives like global variables:
+!!! info "Why use the context system?"
+    The context system provides several advantages over alternatives like global variables
 
 1. **Safer and clearer** way to manage shared values
 2. Makes runs more **predictable**
