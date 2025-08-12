@@ -76,6 +76,7 @@ class StructuredToolCallLLM(
                 user_input=MessageHistory(
                     [UserMessage(str(self.message_hist), inject_prompt=False)]
                 ),
+                llm_model=self.llm_model,
             )
 
             structured_output = response.structured
