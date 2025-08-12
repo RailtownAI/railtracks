@@ -155,7 +155,7 @@ body {
     background: linear-gradient(135deg, #00a8ff 0%, #0078d4 100%);
     color: white;
     margin-left: auto;
-    text-align: right;
+    text-align: left;
     border: 1px solid #0078d4;
     box-shadow: 0 2px 8px rgba(0, 120, 212, 0.3);
 }
@@ -360,6 +360,7 @@ body {
     border-top: 1px solid #4a5568;
     display: flex;
     gap: 12px;
+    align-items: flex-end; /* Align items to bottom so button aligns with textarea bottom */
     flex-shrink: 0; /* Prevent shrinking */
     position: sticky;
     bottom: 0;

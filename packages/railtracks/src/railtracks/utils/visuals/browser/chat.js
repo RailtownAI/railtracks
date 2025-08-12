@@ -197,6 +197,10 @@ async function sendMessage() {
     // Add user message to chat
     addMessage('user', message, new Date().toLocaleTimeString());
     messageInput.value = '';
+    
+    // Reset textarea height to original size
+    messageInput.style.height = '40px';
+    
     setProcessing(true);
     
     try {
