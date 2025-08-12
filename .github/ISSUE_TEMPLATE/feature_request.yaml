@@ -8,25 +8,28 @@ body:
     id: feature_description
     attributes:
       label: Feature Description
-      description: Describe the feature you'd like to see added.
+      description: Describe the feature you'd like to see added. Write this as a user using the new feature.
       placeholder: A clear and concise description of the new feature.
     validations:
       required: true
 
   - type: textarea
-    id: proposed_solution
+    id: solution
     attributes:
       label: Proposed Solution
-      description: How do you envision this feature working? Include any ideas.
-      placeholder: Describe the implementation or design you'd suggest.
+      description: Describe how you envision the feature being implemented. Include any relevant code examples or design ideas you would like to share.
+      placeholder: |
+        I suggest adding a new endpoint to the API that allows users to fetch their profile data.
+        This could be implemented by creating a new route in the `routes.py` file and a corresponding controller method.
     validations:
-      required: false
+      required: true
+
 
   - type: textarea
     id: additional_context
     attributes:
       label: Additional Context
-      description: Add any other context, screenshots, or related links.
+      description: Add any other context that will help us understand the feature request.
       placeholder: Related issues, libraries, or notes.
     validations:
       required: false

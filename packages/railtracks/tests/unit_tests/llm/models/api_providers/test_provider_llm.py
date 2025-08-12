@@ -1,5 +1,5 @@
 import pytest 
-from railtracks.llm import OpenAILLM, GeminiLLM, AnthropicLLM
+from railtracks.llm import OpenAILLM, GeminiLLM, AnthropicLLM, HuggingFaceLLM
 from railtracks.llm.history import MessageHistory
 from railtracks.llm._exception_base import RTLLMError
 from unittest.mock import patch
@@ -15,6 +15,8 @@ class TestInvalidModelNames:
         (OpenAILLM, "gemini-pro"),  # Gemini model for OpenAI
         (AnthropicLLM, "gemini-pro"),  # Gemini model for Anthropic
         (GeminiLLM, "claude-3-5-sonnet"),  # Anthropic model for Gemini
+        (HuggingFaceLLM, "huggingface/meta-llama/Llama-3.3-70B-Instruct"),  # invalid naming structure for HuggingFace
+        (HuggingFaceLLM, "meta-llama/Llama-3.3-70B-Instruct"),  # invalid naming structure for HuggingFace
     ])
     def test_invalid_model_names(self, provider_class, model_name):
         """Test that wrong model names raise LLMError."""

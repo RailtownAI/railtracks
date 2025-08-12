@@ -12,6 +12,7 @@ from ._llm_base import StructuredOutputMixIn
 from ._tool_call_base import (
     OutputLessToolCallLLM,
 )
+from .response import StructuredResponse
 
 _TReturn = TypeVar("_TReturn")
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
@@ -19,7 +20,7 @@ _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 
 class StructuredToolCallLLM(
     StructuredOutputMixIn[_TBaseModel],
-    OutputLessToolCallLLM[_TBaseModel],
+    OutputLessToolCallLLM[StructuredResponse[_TBaseModel]],
     ABC,
     Generic[_TBaseModel],
 ):
