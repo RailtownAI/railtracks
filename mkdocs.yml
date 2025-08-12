@@ -108,7 +108,6 @@ nav:
 
   - Advanced Usage:
       - Context: advanced_usage/context.md
-      - Prompt Injection: advanced_usage/prompt_injection.md
       - Custom Nodes: advanced_usage/node_builder.md
 
   - Samples:
