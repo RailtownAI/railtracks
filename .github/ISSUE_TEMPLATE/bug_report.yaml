@@ -1,0 +1,56 @@
+name: 🐛 Bug Report
+description: Report a bug or issue with railtracks.
+title: "[Bug] "
+labels: [bug]
+
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe what you expected to happen and what happened instead. (Include any relevant stack traces)
+      placeholder: |
+        I expected the form to submit successfully, but it throws a 500 error.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproducing_steps
+    attributes:
+      label: Reproducing Steps (include code examples if applicable)
+      description: Provide step-by-step instructions to reproduce the bug.
+      placeholder: |
+        1. ...
+        ```python 
+        def example_code_here():
+        
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Any other information that will make it easier to understand the issue.
+      placeholder: This happens only on macOS with Python 3.10.
+    validations:
+      required: false
+
+  - type: input
+    id: operating_system
+    attributes:
+      label: Operating System
+      placeholder: e.g. Windows 11, macOS 14, Ubuntu 22.04
+
+  - type: input
+    id: railtracks_version
+    attributes:
+      label: railtracks Version
+      placeholder: e.g. 0.1.0
+
+  - type: input
+    id: python_version
+    attributes:
+      label: Python Version
+      placeholder: e.g. 3.10.8

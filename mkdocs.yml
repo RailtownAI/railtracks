@@ -1,98 +1,37 @@
 site_name: RailTracks Docs
 site_url: https://something
+
+repo_name: railtracks
+repo_url: https://github.com/RailtownAI/railtracks
+
 theme:
   name: material
+
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/brightness-6
+        name: Switch to dark mode
+
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
   features:
     - navigation.indexes
-    - navigation.sections
     - navigation.prefetch
+    - navigation.path
+    - navigation.top
+    - navigation.footer
     - search.suggest
     - content.code.copy
     - content.code.highlight
-  code:
-    highlight_theme:
-      light: github
-      dark: dracula
-
-
-
-
-
-extra_css:
-  - css/extra.css
-
-nav:
-  - Home: index.md
-
-
-  - Guides:
-        - guides/index.md
-        - Agents: guides/agents.md
-        - Tools: guides/tools.md
-
-  - Tutorials:
-        - tutorials/byfa.md
-
-
-
-
-  - Tools + MCP:
-      - tools_mcp/index.md
-      - Create Your Own Tool: tools_mcp/create_your_own.md
-      - MCP:
-          - tools_mcp/mcp/index.md
-          - Using MCP: tools_mcp/mcp/MCP_tools_in_RT.md
-          - Creating an MCP: tools_mcp/mcp/RTtoMCP.md
-
-      - Integrations:
-        - Notion: tools_mcp/guides/notion.md
-        - Github: tools_mcp/guides/github.md
-        - Python Sandbox: tools_mcp/guides/python_sandbox.md
-        - Shell Bash: tools_mcp/guides/shell_bash.md
-        - Slack: tools_mcp/guides/slack.md
-        - Web Search: tools_mcp/guides/websearch_integration.md
-
-  - Observability:
-        - observability/index.md
-        - Logging: observability/logging.md
-        - Streaming: observability/streaming.md
-
-  - LLM Support:
-      - llm_support/index.md
-      - Prompts and Context Injection: llm_support/prompts.md
-
-  - Deployments:
-        - deployments/index.md
-
-  - Advanced Usage:
-        - advanced_usage/index.md
-        - Context: advanced_usage/context.md
-        - Prompt Injection: advanced_usage/prompt_injection.md
-
-  - Samples:
-      - samples/index.md
-
-  - System Internals:
-        - system_internals/index.md
-        - Coordinator: system_internals/Coordinator.md
-
-  - API Reference:
-      - api_reference/index.md
-  
-  - System Overviews:
-      - system_internals/index.md
-      - Node: system_internals/node.md
-      - Runner: system_internals/runner.md
-      - PubSub: system_internals/pubsub.md
-      - Coordinator: system_internals/coordinator.md
-
+    - content.code.annotate
 
 plugins:
   - search
-  - mkdocstrings
   - mermaid2
-
-
 
 markdown_extensions:
   - pymdownx.emoji:
@@ -108,12 +47,156 @@ markdown_extensions:
           format: !!python/name:mermaid2.fence_mermaid_custom
   - pymdownx.inlinehilite
   - pymdownx.snippets
-  - codehilite
   - pymdownx.highlight:
       anchor_linenums: true
-  - attr_list
-
+      pygments_lang_class: true
 
 extra_css:
   - css/extra.css
+
+extra:
+  generator: false
+
+nav:
+  - Home: index.md
+
+  - Quickstart: quickstart/index.md
+  
+  - Tutorials:
+      - Background:
+          - Agents: tutorials/guides/agents.md
+          - Tools: tutorials/guides/tools.md
+      - Building your first agent: tutorials/byfa.md
+      - Running your first agent: tutorials/ryfa.md
+      - WeatherAgent: tutorials/yet_another_weather_bot.md
+
+  - Tools + MCP:
+      - Equip your LLMs: tools_mcp/tools_mcp.md
+      - MCP:
+          - Model Context Protocol: tools_mcp/mcp/mcp.md
+          - Using MCP: tools_mcp/mcp/MCP_tools_in_RT.md
+          - Creating an MCP: tools_mcp/mcp/RTtoMCP.md
+
+      - Tools:
+          - What is a Tool: tools_mcp/tools/tools.md
+          - Functions as Tools: tools_mcp/tools/functions_as_tools.md
+          - Agents as Tools: tools_mcp/tools/agents_as_tools.md
+          - Advanced Tooling: tools_mcp/tools/advanced_usage.md
+
+      - Integrations:
+          - Notion: tools_mcp/guides/notion.md
+          - Github: tools_mcp/guides/github.md
+          - Python Sandbox: tools_mcp/guides/python_sandbox.md
+          - Shell Bash: tools_mcp/guides/shell_bash.md
+          - Slack: tools_mcp/guides/slack.md
+          - Web Search: tools_mcp/guides/websearch_integration.md
+
+  - Observability:
+      - Visualization: observability/visualization.md
+      - Logging: observability/logging.md
+      - Broadcasting: observability/broadcasting.md
+      - Local Chat: observability/chat.md
+      - Error Handling: observability/error_handling.md
+
+  - LLM Support:
+      - Supported Providers: llm_support/providers.md
+      - Prompts and Context Injection: llm_support/prompts.md
+      - Configuration: llm_support/config.md
+
+  - Deployments:
+      - Docker: deployments/docker.md
+
+  - Advanced Usage:
+      - Context: advanced_usage/context.md
+      - Prompt Injection: advanced_usage/prompt_injection.md
+      - Custom Nodes: advanced_usage/node_builder.md
+
+  - Samples:
+      - samples/index.md
+
+  - System Internals:
+      - Overview: system_internals/overview.md
+      - Core Concepts: system_internals/concepts.md
+      - Node Abstraction: system_internals/node.md
+      - Session Management: system_internals/session.md
+      - PubSub Messaging: system_internals/pubsub.md
+      - Coordinator Orchestration: system_internals/coordinator.md
+
+  - API Reference:
+      - Generated: api_reference/generated/index.html
+
+      - Components:
+          - api_reference/components/api_provider_wrappers.md
+          - api_reference/components/chat_tool_call_node.md
+          - api_reference/components/chat_ui.md
+          - api_reference/components/chunking_service.md
+          - api_reference/components/cli_entry_point.md
+          - api_reference/components/cloud_model_wrappers.md
+          - api_reference/components/context_management.md
+          - api_reference/components/embedding_service.md
+          - api_reference/components/exception_handling.md
+          - api_reference/components/execution_info.md
+          - api_reference/components/executor_configuration.md
+          - api_reference/components/function_node_base.md
+          - api_reference/components/graph_serialization.md
+          - api_reference/components/in_memory_vector_store.md
+          - api_reference/components/jupyter_compatibility.md
+          - api_reference/components/llm_messaging.md
+          - api_reference/components/llm_node_base.md
+          - api_reference/components/local_model_wrappers.md
+          - api_reference/components/logger_creation.md
+          - api_reference/components/logging_actions.md
+          - api_reference/components/logging_configuration.md
+          - api_reference/components/mcp_client_server.md
+          - api_reference/components/mcp_tool_connection.md
+          - api_reference/components/model_error_handling.md
+          - api_reference/components/model_interaction.md
+          - api_reference/components/node_building.md
+          - api_reference/components/node_creation_validation.md
+          - api_reference/components/node_interaction.md
+          - api_reference/components/node_invocation_validation.md
+          - api_reference/components/node_management.md
+          - api_reference/components/node_manifest.md
+          - api_reference/components/node_state_management.md
+          - api_reference/components/node_to_mcp_server.md
+          - api_reference/components/profiling.md
+          - api_reference/components/prompt_formatting.md
+          - api_reference/components/prompt_injection.md
+          - api_reference/components/publisher.md
+          - api_reference/components/pubsub_messaging.md
+          - api_reference/components/rag_core.md
+          - api_reference/components/rag_node.md
+          - api_reference/components/rag_utilities.md
+          - api_reference/components/request_management.md
+          - api_reference/components/response_handling.md
+          - api_reference/components/rt_state_management.md
+          - api_reference/components/serialization.md
+          - api_reference/components/session_management.md
+          - api_reference/components/state_management.md
+          - api_reference/components/state_utilities.md
+          - api_reference/components/task_execution.md
+          - api_reference/components/terminal_node_base.md
+          - api_reference/components/text_object_management.md
+          - api_reference/components/tool_call_node_base.md
+          - api_reference/components/tool_callable_node.md
+          - api_reference/components/tool_management.md
+          - api_reference/components/tool_parsing.md
+          - api_reference/components/vector_store_base.md
+          - api_reference/components/vector_store_factory.md
+          - api_reference/components/vector_store_utilities.md
+      - Features:
+          - api_reference/features/cli_interface.md
+          - api_reference/features/context_management.md
+          - api_reference/features/exception_handling.md
+          - api_reference/features/llm_integration.md
+          - api_reference/features/logging_profiling.md
+          - api_reference/features/mcp_integration.md
+          - api_reference/features/node_interaction.md
+          - api_reference/features/node_management.md
+          - api_reference/features/rag_system.md
+          - api_reference/features/state_management.md
+          - api_reference/features/task_execution.md
+          - api_reference/features/tool_management.md
+          - api_reference/features/validation.md
+
 

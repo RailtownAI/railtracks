@@ -1,0 +1,447 @@
+[
+    {
+        "file_description": "this file contains some extra test cases that are being parsed correctly, but the deep_eval function that we have doesn't provide support for it yet.",
+        "todo": "Move these test cases to ./test_schemas_for_tools.json once we have support for them. (Hopefully when we refact the Parameter conversion)"
+    },
+    {
+        "type": "object",
+        "properties": {
+            "database_id": {
+                "type": "string",
+                "description": "identifier for a Notion database"
+            },
+            "title": {
+                "type": "array",
+                "description": "An array of [rich text objects](https://developers.notion.com/reference/rich-text) that represents the title of the database that is displayed in the Notion UI. If omitted, then the database title remains unchanged.",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "text": {
+                            "type": "object",
+                            "properties": {
+                                "content": {
+                                    "type": "string"
+                                },
+                                "link": {
+                                    "type": [
+                                        "object",
+                                        "null"
+                                    ]
+                                }
+                            },
+                            "required": [
+                                "content"
+                            ],
+                            "additionalProperties": false
+                        },
+                        "type": {
+                            "type": "string",
+                            "enum": [
+                                "text"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "text"
+                    ],
+                    "additionalProperties": false
+                }
+            },
+            "description": {
+                "type": "array",
+                "description": "An array of [rich text objects](https://developers.notion.com/reference/rich-text) that represents the description of the database that is displayed in the Notion UI. If omitted, then the database description remains unchanged.",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "text": {
+                            "type": "object",
+                            "properties": {
+                                "content": {
+                                    "type": "string"
+                                },
+                                "link": {
+                                    "type": [
+                                        "object",
+                                        "null"
+                                    ]
+                                }
+                            },
+                            "required": [
+                                "content"
+                            ],
+                            "additionalProperties": false
+                        },
+                        "type": {
+                            "type": "string",
+                            "enum": [
+                                "text"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "text"
+                    ],
+                    "additionalProperties": false
+                }
+            },
+            "properties": {
+                "type": "object",
+                "description": "Property schema of database. The keys are the names of properties as they appear in Notion and the values are [property schema objects](https://developers.notion.com/reference/property-schema-object).",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "additionalProperties": true
+            }
+        },
+        "required": [
+            "database_id"
+        ]
+    },
+    {
+        "type": "object",
+        "properties": {
+            "page_id": {
+                "type": "string",
+                "description": "The identifier for the Notion page to be updated."
+            },
+            "properties": {
+                "type": "object",
+                "description": "The property values to update for the page. The keys are the names or IDs of the property and the values are property values. If a page property ID is not included, then it is not changed.",
+                "properties": {
+                    "title": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "text": {
+                                    "type": "object",
+                                    "properties": {
+                                        "content": {
+                                            "type": "string"
+                                        },
+                                        "link": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "content"
+                                    ],
+                                    "additionalProperties": false
+                                },
+                                "type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "text"
+                                    ]
+                                }
+                            },
+                            "required": [
+                                "text"
+                            ],
+                            "additionalProperties": false
+                        }
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "title"
+                        ]
+                    }
+                },
+                "required": [
+                    "title"
+                ],
+                "additionalProperties": false
+            },
+            "in_trash": {
+                "type": "boolean",
+                "description": "Set to true to delete a block. Set to false to restore a block.",
+                "default": false
+            },
+            "archived": {
+                "type": "boolean"
+            },
+            "icon": {
+                "type": "object",
+                "description": "A page icon for the page. Supported types are [external file object](https://developers.notion.com/reference/file-object) or [emoji object](https://developers.notion.com/reference/emoji-object).",
+                "properties": {
+                    "emoji": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "emoji"
+                ],
+                "additionalProperties": false
+            },
+            "cover": {
+                "type": "object",
+                "description": "A cover image for the page. Only [external file objects](https://developers.notion.com/reference/file-object) are supported.",
+                "properties": {
+                    "external": {
+                        "type": "object",
+                        "properties": {
+                            "url": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "url"
+                        ],
+                        "additionalProperties": false
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "external"
+                        ]
+                    }
+                },
+                "required": [
+                    "external"
+                ],
+                "additionalProperties": false
+            }
+        },
+        "required": [
+            "page_id"
+        ]
+    },
+    {
+        "type": "object",
+        "properties": {
+            "parent": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "page_id"
+                        ]
+                    },
+                    "page_id": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "type",
+                    "page_id"
+                ],
+                "additionalProperties": true
+            },
+            "properties": {
+                "type": "object",
+                "description": "Property schema of database. The keys are the names of properties as they appear in Notion and the values are [property schema objects](https://developers.notion.com/reference/property-schema-object).",
+                "additionalProperties": {
+                    "oneOf": [
+                        {
+                            "type": "object",
+                            "properties": {
+                                "title": {
+                                    "type": "object",
+                                    "properties": {},
+                                    "additionalProperties": false
+                                },
+                                "description": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "title"
+                            ],
+                            "additionalProperties": false
+                        }
+                    ]
+                },
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "title": {
+                                "type": "object",
+                                "properties": {},
+                                "additionalProperties": false
+                            },
+                            "description": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "title"
+                        ],
+                        "additionalProperties": false
+                    }
+                ]
+            },
+            "title": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "text": {
+                            "type": "object",
+                            "properties": {
+                                "content": {
+                                    "type": "string"
+                                },
+                                "link": {
+                                    "type": [
+                                        "object",
+                                        "null"
+                                    ]
+                                }
+                            },
+                            "required": [
+                                "content"
+                            ],
+                            "additionalProperties": false
+                        },
+                        "type": {
+                            "type": "string",
+                            "enum": [
+                                "text"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "text"
+                    ],
+                    "additionalProperties": false
+                }
+            }
+        },
+        "required": [
+            "parent",
+            "properties"
+        ]
+    },
+    {
+        "type": "object",
+        "properties": {
+            "block_id": {
+                "type": "string",
+                "description": "Identifier for a [block](ref:block). Also accepts a [page](ref:page) ID."
+            },
+            "children": {
+                "type": "array",
+                "description": "Child content to append to a container block as an array of [block objects](ref:block)",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "paragraph": {
+                            "type": "object",
+                            "properties": {
+                                "rich_text": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "text": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "content": {
+                                                        "type": "string"
+                                                    },
+                                                    "link": {
+                                                        "type": [
+                                                            "object",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "content"
+                                                ],
+                                                "additionalProperties": false
+                                            },
+                                            "type": {
+                                                "type": "string",
+                                                "enum": [
+                                                    "text"
+                                                ]
+                                            }
+                                        },
+                                        "required": [
+                                            "text"
+                                        ],
+                                        "additionalProperties": false
+                                    }
+                                }
+                            },
+                            "required": [
+                                "rich_text"
+                            ],
+                            "additionalProperties": false
+                        },
+                        "bulleted_list_item": {
+                            "type": "object",
+                            "properties": {
+                                "rich_text": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "text": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "content": {
+                                                        "type": "string"
+                                                    },
+                                                    "link": {
+                                                        "type": [
+                                                            "object",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "content"
+                                                ],
+                                                "additionalProperties": false
+                                            },
+                                            "type": {
+                                                "type": "string",
+                                                "enum": [
+                                                    "text"
+                                                ]
+                                            }
+                                        },
+                                        "required": [
+                                            "text"
+                                        ],
+                                        "additionalProperties": false
+                                    }
+                                }
+                            },
+                            "required": [
+                                "rich_text"
+                            ],
+                            "additionalProperties": false
+                        },
+                        "type": {
+                            "type": "string",
+                            "enum": [
+                                "paragraph",
+                                "bulleted_list_item"
+                            ]
+                        }
+                    },
+                    "additionalProperties": false
+                }
+            },
+            "after": {
+                "type": "string",
+                "description": "The ID of the existing block that the new block should be appended after."
+            }
+        },
+        "required": [
+            "block_id",
+            "children"
+        ]
+    }
+]

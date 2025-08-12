@@ -4,7 +4,8 @@ To allow for usage of shell as a tool, we can create a simple tool using `from_f
 
 ```python
 import subprocess
-from railtracks.nodes.library import from_function
+from railtracks.nodes.library import function_node
+
 
 def run_shell(command: str) -> str:
     """Run a bash command and return its output or error."""
@@ -17,7 +18,8 @@ def run_shell(command: str) -> str:
     except Exception as e:
         return f"Exception: {str(e)}"
 
-bash_tool = from_function(run_shell)
+
+bash_tool = function_node(run_shell)
 ```
 
 At this point, the tool can be used the same as any other RT tool. See the following code as a simple example.
@@ -26,21 +28,20 @@ At this point, the tool can be used the same as any other RT tool. See the follo
 import platform
 
 import railtracks as rt
-from railtracks.nodes.library.easy_usage_wrappers.tool_call_llm import tool_call_llm
 
-agent = tool_call_llm(
-    connected_nodes={bash_tool},
+agent = rt.agent_node(
+    tool_nodes={bash_tool},
     system_message=f"You are a useful helper that can run local shell commands. "
                    f"You are on a {platform.system()} machine. Use appropriate shell commands to answer the user's questions.",
-    model=rt.llm.OpenAILLM("gpt-4o"),
+    llm_model=rt.llm.OpenAILLM("gpt-4o"),
 )
 
 user_prompt = """What directories are in the current directory?"""
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
-with rt.Runner(rt.ExecutorConfig(logging_setting="VERBOSE")) as run:
-    result = run.run_sync(agent, message_history)
+with rt.Session(logging_setting="VERBOSE"):
+    result = rt.call_sync(agent, message_history)
 
 print(result.answer.content)
 ```

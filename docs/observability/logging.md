@@ -95,11 +95,11 @@ Applies to all flows.
 ```python
 import railtracks as rt
 
-with rt.Runner(
-    rt.ExecutorConfig(
-        logging_setting="VERBOSE",
-        log_file="my_logs.log"
-    )
+with rt.Session(
+        rt.ExecutorConfig(
+            logging_setting="VERBOSE",
+            log_file="my_logs.log"
+        )
 ) as runner:
     # Your code here
     pass

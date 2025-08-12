@@ -4,13 +4,11 @@
 ##################################################################
 import os
 
-from railtracks.rt_mcp import MCPHttpParams
-from railtracks.nodes.library.easy_usage_wrappers.mcp_tool import from_mcp_server
+from railtracks.integrations.rt_mcp import MCPHttpParams, connect_mcp
 
-from railtracks.nodes.library.easy_usage_wrappers.tool_calling_llms.tool_call_llm import tool_call_llm
 import railtracks as rt
 
-server = from_mcp_server(
+server = connect_mcp(
     MCPHttpParams(
         url="https://api.githubcopilot.com/mcp/",
         headers={
@@ -23,17 +21,17 @@ tools = server.tools
 # Example using the tools with an agent
 
 
-agent = tool_call_llm(
-    connected_nodes={*tools},
+agent = rt.agent_node(
+    tool_nodes={*tools},
     system_message="""You are a GitHub Copilot agent that can interact with GitHub repositories.""",
-    model=rt.llm.OpenAILLM("gpt-4o"),
+    llm_model=rt.llm.OpenAILLM("gpt-4o"),
 )
 
 user_prompt = """Tell me about the RailtownAI/rc repository on GitHub."""
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
-with rt.Runner() as run:
-    result = run.run_sync(agent, message_history)
+with rt.Session():
+    result = rt.call_sync(agent, message_history)
 
-print(result.answer.content)
+print(result.content)

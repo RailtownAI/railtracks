@@ -1,0 +1,1174 @@
+[
+    {
+        "type": "object",
+        "properties": {
+            "invoice_id": {
+                "type": "string",
+                "description": "The ID of the invoice to send."
+            },
+            "note": {
+                "type": "string",
+                "description": "A note to the recipient."
+            },
+            "send_to_recipient": {
+                "type": "boolean",
+                "description": "Indicates whether to send the invoice to the recipient."
+            },
+            "additional_recipients": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                },
+                "description": "Additional email addresses to which to send the invoice."
+            }
+        },
+        "required": [
+            "invoice_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    {
+        "type": "object",
+        "properties": {
+            "dispute_id": {
+                "type": "string",
+                "description": "The order id generated during create call"
+            }
+        },
+        "required": [
+            "dispute_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    {
+        "type": "object",
+        "properties": {
+            "subscription_id": {
+                "type": "string",
+                "description": "The ID of the subscription to update."
+            },
+            "currency_code": {
+                "type": "string",
+                "enum": [
+                    "USD"
+                ],
+                "default": "USD",
+                "description": "Currency code of the amount."
+            },
+            "outstanding_balance": {
+                "type": "string",
+                "description": "Outstanding Balance in the subscription"
+            },
+            "custom_id": {
+                "type": "string",
+                "description": "The custom id for the subscription"
+            },
+            "fixed_price": {
+                "type": "object",
+                "properties": {
+                    "value": {
+                        "type": "string",
+                        "description": "The fixed price for the subscription."
+                    },
+                    "sequence": {
+                        "type": "number",
+                        "description": "The order sequence for the billing cycles"
+                    }
+                },
+                "required": [
+                    "value",
+                    "sequence"
+                ],
+                "additionalProperties": false,
+                "description": "The fixed price for a billing cycle."
+            },
+            "payment_failure_threshold": {
+                "type": "number",
+                "description": "The number of failed payments before the subscription is canceled."
+            },
+            "auto_bill_outstanding": {
+                "type": "boolean",
+                "description": "Indicates whether to automatically bill outstanding amounts."
+            },
+            "taxes_inclusive": {
+                "type": "boolean",
+                "description": "Indicates whether the tax is inclusive."
+            },
+            "taxes_percentage": {
+                "type": "string",
+                "description": "The tax percentage."
+            },
+            "shipping_amount": {
+                "type": "string",
+                "description": "The value of the shipping amount."
+            },
+            "shipping_address": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "object",
+                        "properties": {
+                            "given_name": {
+                                "type": "string",
+                                "description": "The subscriber given name."
+                            },
+                            "surname": {
+                                "type": "string",
+                                "description": "The subscriber last name."
+                            }
+                        },
+                        "additionalProperties": false,
+                        "description": "The subscriber shipping address name."
+                    },
+                    "address": {
+                        "type": "object",
+                        "properties": {
+                            "address_line_1": {
+                                "type": "string",
+                                "description": "The first line of the address."
+                            },
+                            "address_line_2": {
+                                "type": "string",
+                                "description": "The second line of the address."
+                            },
+                            "admin_area_1": {
+                                "type": "string",
+                                "description": "The city or locality."
+                            },
+                            "admin_area_2": {
+                                "type": "string",
+                                "description": "The state or province."
+                            },
+                            "postal_code": {
+                                "type": "string",
+                                "description": "The postal code."
+                            },
+                            "country_code": {
+                                "type": "string",
+                                "enum": [
+                                    "US"
+                                ],
+                                "description": "The country code."
+                            }
+                        },
+                        "required": [
+                            "address_line_1",
+                            "admin_area_1",
+                            "admin_area_2",
+                            "postal_code",
+                            "country_code"
+                        ],
+                        "additionalProperties": false,
+                        "description": "The shipping address."
+                    }
+                },
+                "additionalProperties": false,
+                "description": "The shipping address."
+            }
+        },
+        "required": [
+            "subscription_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    {
+        "type": "object",
+        "properties": {
+            "subscription_id": {
+                "type": "string",
+                "description": "The ID of the subscription to show details."
+            },
+            "get_additional_details": {
+                "type": "boolean",
+                "description": "Get all detailed information for the subscription."
+            }
+        },
+        "required": [
+            "subscription_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    {
+        "type": "object",
+        "properties": {
+            "plan_id": {
+                "type": "string",
+                "description": "The ID of the subscription plan to create."
+            },
+            "quantity": {
+                "type": "number",
+                "description": "The quantity of the product in the subscription."
+            },
+            "shipping_amount": {
+                "type": "object",
+                "properties": {
+                    "currency_code": {
+                        "type": "string",
+                        "enum": [
+                            "USD"
+                        ],
+                        "description": "The currency code for the shipping amount."
+                    },
+                    "value": {
+                        "type": "string",
+                        "description": "The value of the shipping amount."
+                    }
+                },
+                "required": [
+                    "currency_code",
+                    "value"
+                ],
+                "additionalProperties": false,
+                "description": "The shipping amount for the subscription."
+            },
+            "subscriber": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "object",
+                        "properties": {
+                            "given_name": {
+                                "type": "string",
+                                "description": "The subscriber given name."
+                            },
+                            "surname": {
+                                "type": "string",
+                                "description": "The subscriber last name."
+                            }
+                        },
+                        "additionalProperties": false,
+                        "description": "The subscriber name."
+                    },
+                    "email_address": {
+                        "type": "string",
+                        "description": "The subscriber email address."
+                    },
+                    "shipping_address": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "$ref": "#/properties/subscriber/properties/name",
+                                "description": "The subscriber shipping address name."
+                            },
+                            "address": {
+                                "type": "object",
+                                "properties": {
+                                    "address_line_1": {
+                                        "type": "string",
+                                        "description": "The first line of the address."
+                                    },
+                                    "address_line_2": {
+                                        "type": "string",
+                                        "description": "The second line of the address."
+                                    },
+                                    "admin_area_1": {
+                                        "type": "string",
+                                        "description": "The city or locality."
+                                    },
+                                    "admin_area_2": {
+                                        "type": "string",
+                                        "description": "The state or province."
+                                    },
+                                    "postal_code": {
+                                        "type": "string",
+                                        "description": "The postal code."
+                                    },
+                                    "country_code": {
+                                        "type": "string",
+                                        "enum": [
+                                            "US"
+                                        ],
+                                        "description": "The country code."
+                                    }
+                                },
+                                "required": [
+                                    "address_line_1",
+                                    "admin_area_1",
+                                    "admin_area_2",
+                                    "postal_code",
+                                    "country_code"
+                                ],
+                                "additionalProperties": false,
+                                "description": "The shipping address."
+                            }
+                        },
+                        "additionalProperties": false,
+                        "description": "The subscriber shipping address."
+                    }
+                },
+                "additionalProperties": false,
+                "description": "The subscriber details."
+            },
+            "application_context": {
+                "type": "object",
+                "properties": {
+                    "brand_name": {
+                        "type": "string",
+                        "description": "The brand name."
+                    },
+                    "locale": {
+                        "type": "string",
+                        "description": "The locale for the subscription."
+                    },
+                    "shipping_preference": {
+                        "type": "string",
+                        "enum": [
+                            "SET_PROVIDED_ADDRESS",
+                            "GET_FROM_FILE"
+                        ],
+                        "description": "The shipping preference."
+                    },
+                    "user_action": {
+                        "type": "string",
+                        "enum": [
+                            "SUBSCRIBE_NOW",
+                            "CONTINUE"
+                        ],
+                        "description": "The user action."
+                    },
+                    "return_url": {
+                        "type": "string",
+                        "description": "The return URL after the subscription is created."
+                    },
+                    "cancel_url": {
+                        "type": "string",
+                        "description": "The cancel URL if the user cancels the subscription."
+                    },
+                    "payment_method": {
+                        "type": "object",
+                        "properties": {
+                            "payer_selected": {
+                                "type": "string",
+                                "enum": [
+                                    "PAYPAL",
+                                    "CREDIT_CARD"
+                                ],
+                                "description": "The payment method selected by the payer."
+                            },
+                            "payee_preferred": {
+                                "type": "string",
+                                "enum": [
+                                    "IMMEDIATE_PAYMENT_REQUIRED",
+                                    "INSTANT_FUNDING_SOURCE"
+                                ],
+                                "description": "The preferred payment method for the payee."
+                            }
+                        },
+                        "required": [
+                            "payer_selected"
+                        ],
+                        "additionalProperties": false,
+                        "description": "The payment method details."
+                    }
+                },
+                "required": [
+                    "brand_name",
+                    "return_url",
+                    "cancel_url"
+                ],
+                "additionalProperties": false,
+                "description": "The application context for the subscription."
+            }
+        },
+        "required": [
+            "plan_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    {
+        "type": "object",
+        "properties": {
+            "product_id": {
+                "type": "string",
+                "description": "The ID of the product for which to get subscription plans."
+            },
+            "page": {
+                "type": "number",
+                "description": "The page number of the result set to fetch."
+            },
+            "page_size": {
+                "type": "number",
+                "description": "The number of records to return per page (maximum 100)."
+            },
+            "total_required": {
+                "type": "boolean",
+                "description": "Indicates whether the response should include the total count of plans."
+            }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    {
+        "type": "object",
+        "properties": {
+            "url": {
+                "type": "string"
+            },
+            "max_length": {
+                "type": "number",
+                "default": 5000
+            },
+            "start_index": {
+                "type": "number",
+                "default": 0
+            },
+            "raw": {
+                "type": "boolean",
+                "default": false
+            }
+        },
+        "required": [
+            "url"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    {
+        "type": "object",
+        "properties": {
+            "name": {
+                "type": "string",
+                "description": "The product name."
+            },
+            "type": {
+                "type": "string",
+                "enum": [
+                    "PHYSICAL",
+                    "DIGITAL",
+                    "SERVICE"
+                ],
+                "description": "The product type. Value is PHYSICAL, DIGITAL, or SERVICE."
+            },
+            "description": {
+                "type": "string",
+                "description": "The product description."
+            },
+            "category": {
+                "type": "string",
+                "description": "The product category."
+            },
+            "image_url": {
+                "type": "string",
+                "description": "The image URL for the product."
+            },
+            "home_url": {
+                "type": "string",
+                "description": "The home page URL for the product."
+            }
+        },
+        "required": [
+            "name",
+            "type"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    {
+        "type": "object",
+        "properties": {
+            "invoice_id": {
+                "type": "string",
+                "description": "The ID of the invoice to retrieve."
+            }
+        },
+        "required": [
+            "invoice_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    {
+        "type": "object",
+        "properties": {
+            "currencyCode": {
+                "type": "string",
+                "enum": [
+                    "USD"
+                ],
+                "description": "Currency code of the amount."
+            },
+            "items": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "The name of the item."
+                        },
+                        "quantity": {
+                            "type": "number",
+                            "description": "The item quantity. Must be a whole number.",
+                            "default": 1
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "The detailed item description."
+                        },
+                        "itemCost": {
+                            "type": "number",
+                            "description": "The cost of each item - upto 2 decimal points."
+                        },
+                        "taxPercent": {
+                            "type": "number",
+                            "description": "The tax percent for the specific item.",
+                            "default": 0
+                        },
+                        "itemTotal": {
+                            "type": "number",
+                            "description": "The total cost of this line item."
+                        }
+                    },
+                    "required": [
+                        "name",
+                        "itemCost",
+                        "itemTotal"
+                    ],
+                    "additionalProperties": false
+                },
+                "maxItems": 50
+            },
+            "discount": {
+                "type": "number",
+                "description": "The discount amount for the order.",
+                "default": 0
+            },
+            "shippingCost": {
+                "type": "number",
+                "description": "The cost of shipping for the order.",
+                "default": 0
+            },
+            "shippingAddress": {
+                "anyOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "address_line_1": {
+                                "type": "string",
+                                "description": "The first line of the address, such as number and street, for example, `173 Drury Lane`.This field needs to pass the full address."
+                            },
+                            "address_line_2": {
+                                "type": "string",
+                                "description": "The second line of the address, for example, a suite or apartment number."
+                            },
+                            "admin_area_2": {
+                                "type": "string",
+                                "description": "A city, town, or village. Smaller than `admin_area_level_1`."
+                            },
+                            "admin_area_1": {
+                                "type": "string",
+                                "description": "The highest-level sub-division in a country, which is usually a province, state, or ISO-3166-2 subdivision. "
+                            },
+                            "postal_code": {
+                                "type": "string",
+                                "description": "The postal code, which is the ZIP code or equivalent. Typically required for countries with a postal code or an equivalent."
+                            },
+                            "country_code": {
+                                "type": "string",
+                                "description": "The 2-character ISO 3166-1 code that identifies the country or region. Note: The country code for Great Britain is `GB` and not `UK` as used in the top-level domain names for that country."
+                            }
+                        },
+                        "additionalProperties": false,
+                        "description": "The shipping address for the order."
+                    },
+                    {
+                        "type": "null"
+                    }
+                ],
+                "description": "The shipping address for the order.",
+                "default": null
+            },
+            "notes": {
+                "anyOf": [
+                    {
+                        "type": "string"
+                    },
+                    {
+                        "type": "null"
+                    }
+                ],
+                "default": null
+            },
+            "returnUrl": {
+                "type": "string",
+                "default": "https://example.com/returnUrl"
+            },
+            "cancelUrl": {
+                "type": "string",
+                "default": "https://example.com/cancelUrl"
+            }
+        },
+        "required": [
+            "currencyCode",
+            "items"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    {
+        "type": "object",
+        "properties": {
+            "page": {
+                "type": "number",
+                "default": 1,
+                "description": "The page number of the result set to fetch."
+            },
+            "page_size": {
+                "type": "number",
+                "default": 100,
+                "description": "The number of records to return per page (maximum 100)."
+            },
+            "total_required": {
+                "type": "boolean",
+                "description": "Indicates whether the response should include the total count of items."
+            }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    {
+        "type": "object",
+        "properties": {
+            "capture_id": {
+                "type": "string",
+                "description": "The ID of the capture to refund."
+            },
+            "amount": {
+                "type": "object",
+                "properties": {
+                    "currency_code": {
+                        "type": "string"
+                    },
+                    "value": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "currency_code",
+                    "value"
+                ],
+                "additionalProperties": false,
+                "description": "The amount to refund. If not specified, the full captured amount is refunded."
+            },
+            "invoice_id": {
+                "type": "string",
+                "description": "The invoice ID that is used to track this payment."
+            },
+            "note_to_payer": {
+                "type": "string",
+                "description": "A note to the payer."
+            }
+        },
+        "required": [
+            "capture_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    {
+        "type": "object",
+        "properties": {
+            "invoice_id": {
+                "type": "string",
+                "description": "The ID of the invoice to cancel."
+            },
+            "note": {
+                "type": "string",
+                "description": "A cancellation note to the recipient."
+            },
+            "send_to_recipient": {
+                "type": "boolean",
+                "description": "Indicates whether to send the cancellation to the recipient."
+            },
+            "additional_recipients": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                },
+                "description": "Additional email addresses to which to send the cancellation."
+            }
+        },
+        "required": [
+            "invoice_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    {
+        "type": "object",
+        "properties": {
+            "id": {
+                "type": "string",
+                "description": "The order id generated during create call"
+            }
+        },
+        "required": [
+            "id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    {
+        "type": "object",
+        "properties": {
+            "order_id": {
+                "type": "string",
+                "description": "The ID of the order for which to create a shipment"
+            },
+            "tracking_number": {
+                "type": "string",
+                "description": "The tracking number for the shipment. Id is provided by the shipper. This is required to create a shipment."
+            },
+            "transaction_id": {
+                "type": "string",
+                "description": "The transaction ID associated with the shipment. Transaction id available after the order is paid or captured. This is required to create a shipment."
+            },
+            "status": {
+                "type": "string",
+                "description": "The status of the shipment. It can be \"ON_HOLD\", \"SHIPPED\", \"DELIVERED\", or \"CANCELLED\".",
+                "default": "SHIPPED"
+            },
+            "carrier": {
+                "type": "string",
+                "description": "The carrier handling the shipment."
+            }
+        },
+        "required": [
+            "tracking_number",
+            "transaction_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    {
+        "type": "object",
+        "properties": {
+            "product_id": {
+                "type": "string",
+                "description": "The ID of the product to update."
+            },
+            "operations": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": true
+                },
+                "description": "The PATCH operations to perform on the product."
+            }
+        },
+        "required": [
+            "product_id",
+            "operations"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    {
+        "type": "object",
+        "properties": {
+            "dispute_id": {
+                "type": "string"
+            },
+            "note": {
+                "type": "string",
+                "description": "A note about why the seller is accepting the claim"
+            }
+        },
+        "required": [
+            "dispute_id",
+            "note"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    {
+        "type": "object",
+        "properties": {
+            "subscription_id": {
+                "type": "string",
+                "description": "The ID of the subscription to show details."
+            },
+            "payload": {
+                "type": "object",
+                "properties": {
+                    "reason": {
+                        "type": "string",
+                        "description": "The reason for the cancellation of a subscription."
+                    }
+                },
+                "required": [
+                    "reason"
+                ],
+                "additionalProperties": true,
+                "description": "Payload for subscription cancellation."
+            }
+        },
+        "required": [
+            "subscription_id",
+            "payload"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    {
+        "type": "object",
+        "properties": {
+            "disputed_transaction_id": {
+                "anyOf": [
+                    {
+                        "type": "string"
+                    },
+                    {
+                        "type": "null"
+                    }
+                ],
+                "default": null
+            },
+            "dispute_state": {
+                "type": "string",
+                "enum": [
+                    "REQUIRED_ACTION",
+                    "REQUIRED_OTHER_PARTY_ACTION",
+                    "UNDER_PAYPAL_REVIEW",
+                    "RESOLVED",
+                    "OPEN_INQUIRIES",
+                    "APPEALABLE"
+                ],
+                "description": "OPEN_INQUIRIES"
+            },
+            "page_size": {
+                "type": "number",
+                "default": 10
+            },
+            "page": {
+                "type": "number",
+                "default": 1
+            }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    {
+        "type": "object",
+        "properties": {
+            "parent": {
+                "type": "object",
+                "properties": {
+                    "page_id": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "page_id"
+                ],
+                "additionalProperties": true
+            },
+            "properties": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "text": {
+                                    "type": "object",
+                                    "properties": {
+                                        "content": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "content"
+                                    ],
+                                    "additionalProperties": true
+                                }
+                            },
+                            "required": [
+                                "text"
+                            ],
+                            "additionalProperties": true
+                        }
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "title"
+                        ]
+                    }
+                },
+                "required": [
+                    "title"
+                ],
+                "additionalProperties": false
+            },
+            "children": {
+                "type": "array",
+                "description": "The content to be rendered on the new page, represented as an array of [block objects](https://developers.notion.com/reference/block).",
+                "items": {
+                    "type": "string"
+                }
+            },
+            "icon": {
+                "type": "string",
+                "description": "The icon of the new page. Either an [emoji object](https://developers.notion.com/reference/emoji-object) or an [external file object](https://developers.notion.com/reference/file-object).."
+            },
+            "cover": {
+                "type": "string",
+                "description": "The cover image of the new page, represented as a [file object](https://developers.notion.com/reference/file-object)."
+            }
+        },
+        "required": [
+            "parent",
+            "properties"
+        ]
+    },
+    {
+        "type": "object",
+        "properties": {
+            "page_id": {
+                "type": "string",
+                "description": "Identifier for a Notion page"
+            },
+            "property_id": {
+                "type": "string",
+                "description": "Identifier for a page [property](https://developers.notion.com/reference/page#all-property-values)"
+            },
+            "page_size": {
+                "type": "integer",
+                "description": "For paginated properties. The max number of property item objects on a page. The default size is 100"
+            },
+            "start_cursor": {
+                "type": "string",
+                "description": "For paginated properties."
+            }
+        },
+        "required": [
+            "page_id",
+            "property_id"
+        ]
+    },
+    {
+        "type": "object",
+        "properties": {
+            "block_id": {
+                "type": "string",
+                "description": "Identifier for a Notion block"
+            }
+        },
+        "required": [
+            "block_id"
+        ]
+    },
+    {
+        "type": "object",
+        "properties": {
+            "block_id": {
+                "type": "string",
+                "description": "Identifier for a Notion block"
+            }
+        },
+        "required": [
+            "block_id"
+        ]
+    },
+    {
+        "type": "object",
+        "properties": {
+            "parent": {
+                "type": "object",
+                "description": "The page that contains the comment",
+                "properties": {
+                    "page_id": {
+                        "type": "string",
+                        "description": "the page ID"
+                    }
+                },
+                "required": [
+                    "page_id"
+                ],
+                "additionalProperties": true
+            },
+            "rich_text": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "text": {
+                            "type": "object",
+                            "properties": {
+                                "content": {
+                                    "type": "string",
+                                    "description": "The content of the comment"
+                                }
+                            },
+                            "required": [
+                                "content"
+                            ],
+                            "additionalProperties": true
+                        }
+                    },
+                    "required": [
+                        "text"
+                    ],
+                    "additionalProperties": true
+                }
+            }
+        },
+        "required": [
+            "parent",
+            "rich_text"
+        ]
+    },
+    {
+        "type": "object",
+        "properties": {
+            "query": {
+                "type": "string",
+                "description": "The text that the API compares page and database titles against."
+            },
+            "sort": {
+                "type": "object",
+                "description": "A set of criteria, `direction` and `timestamp` keys, that orders the results. The **only** supported timestamp value is `\"last_edited_time\"`. Supported `direction` values are `\"ascending\"` and `\"descending\"`. If `sort` is not provided, then the most recently edited results are returned first.",
+                "properties": {
+                    "direction": {
+                        "type": "string",
+                        "description": "The direction to sort. Possible values include `ascending` and `descending`."
+                    },
+                    "timestamp": {
+                        "type": "string",
+                        "description": "The name of the timestamp to sort against. Possible values include `last_edited_time`."
+                    }
+                },
+                "additionalProperties": true
+            },
+            "filter": {
+                "type": "object",
+                "description": "A set of criteria, `value` and `property` keys, that limits the results to either only pages or only databases. Possible `value` values are `\"page\"` or `\"database\"`. The only supported `property` value is `\"object\"`.",
+                "properties": {
+                    "value": {
+                        "type": "string",
+                        "description": "The value of the property to filter the results by.  Possible values for object type include `page` or `database`.  **Limitation**: Currently the only filter allowed is `object` which will filter by type of object (either `page` or `database`)"
+                    },
+                    "property": {
+                        "type": "string",
+                        "description": "The name of the property to filter by. Currently the only property you can filter by is the object type.  Possible values include `object`.   Limitation: Currently the only filter allowed is `object` which will filter by type of object (either `page` or `database`)"
+                    }
+                },
+                "additionalProperties": true
+            },
+            "start_cursor": {
+                "type": "string",
+                "description": "A `cursor` value returned in a previous response that If supplied, limits the response to results starting after the `cursor`. If not supplied, then the first page of results is returned. Refer to [pagination](https://developers.notion.com/reference/intro#pagination) for more details."
+            },
+            "page_size": {
+                "type": "integer",
+                "description": "The number of items from the full list to include in the response. Maximum: `100`.",
+                "default": 100
+            }
+        }
+    },
+    {
+        "type": "object",
+        "properties": {
+            "user_id": {
+                "type": "string"
+            }
+        },
+        "required": [
+            "user_id"
+        ]
+    },
+    {
+        "type": "object",
+        "properties": {
+            "page_id": {
+                "type": "string",
+                "description": "Identifier for a Notion page"
+            },
+            "filter_properties": {
+                "type": "string",
+                "description": "A list of page property value IDs associated with the page. Use this param to limit the response to a specific page property value or values. To retrieve multiple properties, specify each page property ID. For example: `?filter_properties=iAk8&filter_properties=b7dh`."
+            }
+        },
+        "required": [
+            "page_id"
+        ]
+    },
+    {
+        "type": "object",
+        "properties": {
+            "block_id": {
+                "type": "string",
+                "description": "Identifier for a Notion block"
+            },
+            "type": {
+                "type": "object",
+                "description": "The [block object `type`](ref:block#block-object-keys) value with the properties to be updated. Currently only `text` (for supported block types) and `checked` (for `to_do` blocks) fields can be updated.",
+                "properties": {},
+                "additionalProperties": true
+            },
+            "archived": {
+                "type": "boolean",
+                "description": "Set to true to archive (delete) a block. Set to false to un-archive (restore) a block.",
+                "default": true
+            }
+        },
+        "required": [
+            "block_id"
+        ]
+    },
+    {
+        "type": "object",
+        "properties": {
+            "block_id": {
+                "type": "string",
+                "description": "Identifier for a [block](ref:block)"
+            },
+            "start_cursor": {
+                "type": "string",
+                "description": "If supplied, this endpoint will return a page of results starting after the cursor provided. If not supplied, this endpoint will return the first page of results."
+            },
+            "page_size": {
+                "type": "integer",
+                "default": 100,
+                "description": "The number of items from the full list desired in the response. Maximum: 100"
+            }
+        },
+        "required": [
+            "block_id"
+        ]
+    },
+    {
+        "type": "object",
+        "properties": {
+            "start_cursor": {
+                "type": "string",
+                "description": "If supplied, this endpoint will return a page of results starting after the cursor provided. If not supplied, this endpoint will return the first page of results."
+            },
+            "page_size": {
+                "type": "integer",
+                "default": 100,
+                "description": "The number of items from the full list desired in the response. Maximum: 100"
+            }
+        }
+    },
+    {
+        "type": "object",
+        "properties": {
+            "database_id": {
+                "type": "string",
+                "description": "An identifier for the Notion database."
+            }
+        },
+        "required": [
+            "database_id"
+        ]
+    }
+]

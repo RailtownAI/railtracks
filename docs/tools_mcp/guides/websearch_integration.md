@@ -29,7 +29,7 @@ Before implementing this integration, you'll need:
 ```python
 from dotenv import load_dotenv
 import os
-from railtracks.nodes.library import from_mcp_server, tool_call_llm
+from railtracks.nodes.library import connect_mcp, tool_call_llm
 import railtracks as rt
 from railtracks.rt_mcp import MCPHttpParams
 import aiohttp
@@ -54,38 +54,39 @@ This connects to a [remote MCP server](https://remote-mcp-servers.com/servers/ec
 
 ```python
 def _format_results(data: Dict[str, Any]) -> Dict[str, Any]:
-    ...
+   ...
 
-@rt.to_node
+
+@rt.function_node
 async def google_search(query: str, num_results: int = 3) -> Dict[str, Any]:
-    """
-    Tool for searching using Google Custom Search API
-    
-    Args:
-        query (str): The search query
-        num_results (int): The number of results to return (max 5)
-    
-    Returns:
-        Dict[str, Any]: Formatted search results
-    """
-    params = {
-        'key': os.environ['GOOGLE_SEARCH_API_KEY'],
-        'cx': os.environ['GOOGLE_SEARCH_ENGINE_ID'],
-        'q': query,
-        'num': min(num_results, 5)  # Google API maximum is 5
-    }
-    
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get("https://www.googleapis.com/customsearch/v1", params=params) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    return _format_results(data)
-                else:
-                    error_text = await response.text()
-                    raise Exception(f"Google API error {response.status}: {error_text}")
-        except Exception as e:
-            raise Exception(f"Search failed: {str(e)}")
+   """
+   Tool for searching using Google Custom Search API
+   
+   Args:
+       query (str): The search query
+       num_results (int): The number of results to return (max 5)
+   
+   Returns:
+       Dict[str, Any]: Formatted search results
+   """
+   params = {
+      'key': os.environ['GOOGLE_SEARCH_API_KEY'],
+      'cx': os.environ['GOOGLE_SEARCH_ENGINE_ID'],
+      'q': query,
+      'num': min(num_results, 5)  # Google API maximum is 5
+   }
+
+   async with aiohttp.ClientSession() as session:
+      try:
+         async with session.get("https://www.googleapis.com/customsearch/v1", params=params) as response:
+            if response.status == 200:
+               data = await response.json()
+               return _format_results(data)
+            else:
+               error_text = await response.text()
+               raise Exception(f"Google API error {response.status}: {error_text}")
+      except Exception as e:
+         raise Exception(f"Search failed: {str(e)}")
 ```
 
 ### Step 4: Create and Use the Search Agent
