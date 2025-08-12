@@ -243,3 +243,77 @@ async def test_user_input_flow_integration(chat_ui):
     result = await chat_ui.wait_for_user_input()
     
     assert result == "User question"
+
+@pytest.mark.asyncio
+async def test_long_message_handling_success(chat_ui):
+    """Test that ChatUI can handle very long messages (up to 200,000 characters)."""
+    # Create a message close to the 200,000 character limit
+    long_message = "A" * 199999  # 199,999 characters
+    
+    user_data = {
+        "message": long_message,
+        "timestamp": datetime.now().isoformat()
+    }
+    
+    # Put long message in queue
+    await chat_ui.user_input_queue.put(user_data)
+    
+    # Retrieve the long message
+    result = await chat_ui.wait_for_user_input()
+    
+    assert result == long_message
+    assert len(result) == 199999
+
+@pytest.mark.asyncio
+async def test_maximum_length_message_handling(chat_ui):
+    """Test that ChatUI can handle the maximum allowed message length (200,000 characters)."""
+    # Create a message at exactly the 200,000 character limit
+    max_message = "B" * 200000  # Exactly 200,000 characters
+    
+    user_data = {
+        "message": max_message,
+        "timestamp": datetime.now().isoformat()
+    }
+    
+    # Put maximum length message in queue
+    await chat_ui.user_input_queue.put(user_data)
+    
+    # Retrieve the maximum length message
+    result = await chat_ui.wait_for_user_input()
+    
+    assert result == max_message
+    assert len(result) == 200000
+
+@pytest.mark.asyncio
+async def test_send_long_assistant_message(chat_ui):
+    """Test sending very long assistant messages through the interface."""
+    # Create a long assistant response
+    long_response = "This is a very long assistant response. " * 5000  # ~200,000 characters
+    long_response = long_response[:199999]  # Trim to just under 200k
+    
+    await chat_ui.send_message(long_response)
+    
+    message = await chat_ui.sse_queue.get()
+    assert message["type"] == "assistant_response"
+    assert message["data"] == long_response
+    assert len(message["data"]) == 199999
+    assert "timestamp" in message
+
+@pytest.mark.asyncio
+async def test_empty_message_handling(chat_ui):
+    """Test that empty messages are handled correctly."""
+    empty_message = ""
+    
+    user_data = {
+        "message": empty_message,
+        "timestamp": datetime.now().isoformat()
+    }
+    
+    # Put empty message in queue
+    await chat_ui.user_input_queue.put(user_data)
+    
+    # Retrieve the empty message
+    result = await chat_ui.wait_for_user_input()
+    
+    assert result == empty_message
+    assert len(result) == 0
