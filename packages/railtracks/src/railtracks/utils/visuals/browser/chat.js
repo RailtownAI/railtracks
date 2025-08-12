@@ -290,8 +290,8 @@ function autoResize(textarea) {
     textarea.style.height = 'auto';
     
     // Calculate the new height based on content
-    const newHeight = Math.min(textarea.scrollHeight, 150); // Max height of 150px (about 6 lines)
-    
+    const newHeight = Math.min(textarea.scrollHeight, 320); // Max height of 320px (about 12 lines)
+
     // Set the new height
     textarea.style.height = newHeight + 'px';
     
