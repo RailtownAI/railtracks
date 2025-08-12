@@ -49,8 +49,6 @@ with rt.Session(logging_setting="VERBOSE", timeout=1000000000):
 
     create_sandbox_container()
     try:
-        rt.call_sync(
-            rag_main_agent, "Hello! I need help with my project. Can you assist me?"
-        )
+        rt.call_sync(rag_main_agent, rt.llm.MessageHistory([]))
     finally:
         kill_sandbox()
