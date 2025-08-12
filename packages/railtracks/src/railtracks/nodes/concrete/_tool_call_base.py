@@ -214,7 +214,6 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                 )
 
     async def invoke(self) -> _T:
-        # we do a lazy import here becuase the invoke method
 
         await self._handle_tool_calls()
 
