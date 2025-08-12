@@ -3,6 +3,7 @@ import warnings
 from typing import Any, Callable, Dict, Iterable, get_origin
 
 from pydantic import BaseModel
+
 from railtracks.exceptions.errors import NodeCreationError
 from railtracks.exceptions.messages.exception_messages import (
     ExceptionMessageKey,

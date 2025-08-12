@@ -117,10 +117,9 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
         self.message_hist.append(returned_mess.message)
 
     async def _handle_tool_calls(self) -> bool:
-
         current_tool_calls = len(
-                [m for m in self.message_hist if isinstance(m, ToolMessage)]
-            )
+            [m for m in self.message_hist if isinstance(m, ToolMessage)]
+        )
         allowed_tool_calls = (
             self.max_tool_calls - current_tool_calls
             if self.max_tool_calls is not None
@@ -129,8 +128,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
         if self.max_tool_calls is not None and allowed_tool_calls <= 0:
             await self._on_max_tool_calls_exceeded()
             return False
-    
-            
+
         # collect the response from the llm model
         returned_mess = await self.llm_model.achat_with_tools(
             self.message_hist, tools=self.tools()
@@ -183,9 +181,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                 ):
                     self.message_hist.append(
                         ToolMessage(
-                            ToolResponse(
-                                identifier=r_id, result=str(resp), name=r_name
-                            )
+                            ToolResponse(identifier=r_id, result=str(resp), name=r_name)
                         )
                     )
                 return True
