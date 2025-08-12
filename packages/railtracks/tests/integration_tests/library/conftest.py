@@ -66,7 +66,7 @@ def create_top_level_node():
 
             @classmethod
             def tool_nodes(cls):
-                return {rt.function_node(test_function)}
+                return {rt.function_node(test_function).node_type}
 
             @classmethod
             def name(cls) -> str:

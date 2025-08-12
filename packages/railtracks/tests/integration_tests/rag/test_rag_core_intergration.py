@@ -1,6 +1,5 @@
 import pytest
 from railtracks.rag import RAG
-from conftest import get_docs
 
 
 @pytest.fixture(scope="module")

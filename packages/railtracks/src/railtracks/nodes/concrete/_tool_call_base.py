@@ -1,13 +1,24 @@
+from __future__ import annotations
+
 import asyncio
 import warnings
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Generic, ParamSpec, Set, Type, TypeVar, Union
+from typing import (
+    Any,
+    Dict,
+    Generic,
+    ParamSpec,
+    Set,
+    Type,
+    TypeVar,
+)
 
 import railtracks.context as context
 from railtracks.exceptions import LLMError, NodeCreationError
 from railtracks.interaction.call import call
 from railtracks.llm import (
     AssistantMessage,
+    Message,
     MessageHistory,
     ModelBase,
     ToolCall,
@@ -53,7 +64,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
 
     def __init__(
         self,
-        user_input: MessageHistory | UserMessage | str,
+        user_input: MessageHistory | UserMessage | str | list[Message],
         llm_model: ModelBase | None = None,
         max_tool_calls: int | None = None,
     ):
@@ -85,7 +96,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
 
     @classmethod
     @abstractmethod
-    def tool_nodes(cls) -> Set[Union[Type[Node], Callable]]: ...
+    def tool_nodes(cls) -> Set[Type[Node]]: ...
 
     def create_node(self, tool_name: str, arguments: Dict[str, Any]) -> Node:
         """

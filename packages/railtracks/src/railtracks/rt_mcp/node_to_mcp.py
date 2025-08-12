@@ -10,6 +10,10 @@ from railtracks.interaction.call import call
 
 # TODO this must be moved to a more appropriate place in utils.
 from railtracks.llm.models._litellm_wrapper import _parameters_to_json_schema
+from railtracks.nodes.easy_usage_wrappers.function import (
+    _AsyncNodeAttachedFunc,
+    _SyncNodeAttachedFunc,
+)
 from railtracks.nodes.nodes import Node
 
 
@@ -79,9 +83,9 @@ def _create_tool_function(
 
 
 def create_mcp_server(
-    nodes: List[Node],
+    nodes: List[Node | _AsyncNodeAttachedFunc | _SyncNodeAttachedFunc],
     server_name: str = "MCP Server",
-    fastmcp: FastMCP = None,
+    fastmcp: FastMCP | None = None,
 ):
     """
     Create a FastMCP server that can be used to run nodes as MCP tools.
@@ -101,7 +105,7 @@ def create_mcp_server(
     else:
         mcp = FastMCP(server_name)
 
-    for node in nodes:
+    for node in [n if not hasattr(n, "node_type") else n.node_type for n in nodes]:
         node_info = node.tool_info()
         func = _create_tool_function(node, node_info)
 

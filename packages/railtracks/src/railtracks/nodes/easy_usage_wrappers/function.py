@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import inspect
 from types import BuiltinFunctionType
 from typing import (
     Callable,
     Coroutine,
+    Generic,
     ParamSpec,
+    Protocol,
     Type,
     TypeVar,
+    cast,
     overload,
 )
 
@@ -26,14 +30,26 @@ _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
 
 
+class _SyncNodeAttachedFunc(Generic[_P, _TOutput], Protocol):
+    def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput: ...
+
+    node_type: Type[SyncDynamicFunctionNode[_P, _TOutput]]
+
+
+class _AsyncNodeAttachedFunc(Generic[_P, _TOutput], Protocol):
+    async def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput: ...
+
+    node_type: Type[AsyncDynamicFunctionNode[_P, _TOutput]]
+
+
 @overload
 def function_node(
     func: Callable[_P, Coroutine[None, None, _TOutput]],
     /,
     *,
     name: str | None = None,
-    tool_manifest: ToolManifest = None,
-) -> Type[AsyncDynamicFunctionNode[_P, _TOutput]]:
+    tool_manifest: ToolManifest | None = None,
+) -> _AsyncNodeAttachedFunc[_P, _TOutput]:
     pass
 
 
@@ -43,8 +59,8 @@ def function_node(
     /,
     *,
     name: str | None = None,
-    tool_manifest: ToolManifest = None,
-) -> Type[SyncDynamicFunctionNode[_P, _TOutput]]:
+    tool_manifest: ToolManifest | None = None,
+) -> _SyncNodeAttachedFunc[_P, _TOutput]:
     pass
 
 
@@ -53,7 +69,7 @@ def function_node(
     /,
     *,
     name: str | None = None,
-    tool_manifest: ToolManifest = None,
+    tool_manifest: ToolManifest | None = None,
 ):
     """
     Creates a new Node type from a function that can be used in `rt.call()`.
@@ -80,6 +96,10 @@ def function_node(
     elif inspect.isfunction(func):
         node_class = SyncDynamicFunctionNode
     elif inspect.isbuiltin(func):
+        # builtin functions are written in C and do not have space for the addition of metadata like our node type.
+        # so instead we wrap them in a function that allows for the addition of the node type.
+        # this logic preserved details like the function name, docstring, and signature, but allows us to add the node type.
+        func = _function_preserving_metadata(func)
         node_class = SyncDynamicFunctionNode
     else:
         raise NodeCreationError(
@@ -100,4 +120,28 @@ def function_node(
         tool_params=tool_manifest.parameters if tool_manifest is not None else None,
     )
 
-    return builder.build()
+    completed_node_type = builder.build()
+
+    if issubclass(completed_node_type, AsyncDynamicFunctionNode):
+        setattr(func, "node_type", completed_node_type)
+        return cast(_AsyncNodeAttachedFunc[_P, _TOutput], func)
+    elif issubclass(completed_node_type, SyncDynamicFunctionNode):
+        setattr(func, "node_type", completed_node_type)
+        return cast(_SyncNodeAttachedFunc[_P, _TOutput], func)
+    else:
+        raise NodeCreationError(
+            message="The provided function did not create a valid node type.",
+            notes=[
+                "This is an unknown bug.",
+            ],
+        )
+
+
+def _function_preserving_metadata(
+    func: Callable[_P, _TOutput],
+):
+    @functools.wraps(func)
+    def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
+        return func(*args, **kwargs)
+
+    return wrapper

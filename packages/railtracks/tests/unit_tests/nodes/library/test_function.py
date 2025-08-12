@@ -83,8 +83,8 @@ def test_to_node():
         """
         return "Constantinople"
 
-    assert issubclass(secret_phrase, Node)
-    assert secret_phrase.name() == "secret_phrase"
+    assert issubclass(secret_phrase.node_type, Node)
+    assert secret_phrase.node_type.name() == "secret_phrase"
 
 # ===== Test Classes =====
 class TestPrimitiveInputTypes:
@@ -128,9 +128,9 @@ class TestSequenceInputTypes:
 class TestfunctionMethods:
     def test_prepare_tools(self):
         """Test that tools are prepared properly when called."""
-        test_nodea = function_node(func_kwarg_auto)
-        test_nodeb = function_node(func_kwarg_auto)
-        test_parent_node = function_node(func_multiple_types)
+        test_nodea = function_node(func_kwarg_auto).node_type
+        test_nodeb = function_node(func_kwarg_auto).node_type
+        test_parent_node = function_node(func_multiple_types).node_type
         child_toola = test_nodea.prepare_tool({"zeroth" : None, "first" : 5,"second": {"name": "name", "value" : 5}, "third" : [1,2,3]})
         child_toolb = test_nodea.prepare_tool({ "third" : (1,2,3,4), "fourth" : "[1,2]"})
         child_toolc = test_nodea.prepare_tool({ "third" : "1,2,3,4"})
@@ -148,7 +148,7 @@ class TestRaiseErrors:
         """Test that a builtin function raises error"""
         with pytest.raises(RuntimeError):
             test_node = function_node(time.sleep)
-            test_node.prepare_tool({"seconds": 5})
+            test_node.node_type.prepare_tool({"seconds": 5})
 
     def test_nested_async_func_raises_error(self):
         """Test edge case where a function that returns a coroutine raises an error."""
@@ -205,6 +205,6 @@ class TestRaiseErrors:
     def test_pydantic_for_kwarg_raises_error(self):
         """Test that passing a dict for a kwarg raises an error since we don't support dicts as kwargs yet"""
         with pytest.raises(RuntimeError):
-            test_node = function_node(func_kwarg_error_pydantic)
+            test_node = function_node(func_kwarg_error_pydantic).node_type
             test_node.prepare_tool({"pydantic_model" : ("name", 5)})
 
