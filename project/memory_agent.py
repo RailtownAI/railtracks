@@ -207,6 +207,11 @@ memory_agent_node = agent_node(
     You should update the project overview if you receive significant new information from what the current overview is.
     If it is a new project with no overview, you should set it as soon as possible.
     
+    When you are given user messages, you should be frequently updating your memory with new information you learn about the project. Anything that is relevant to the fundamentals of the project should be added to the memory.
+    The memory should have concrete examples, project details, and any other relevant information that can help you assist the user later.
+    
+    Any examples you need to add (such as code snippets or project details) should be provided.
+    
     Be intelligent about whether a result is actually relevant.
     Always be helpful and focused on the user's needs.
     
@@ -228,8 +233,8 @@ memory_agent_node = agent_node(
 def memory_agent(
     request: str,
 ) -> str:
-    """Memory Interface that manages project knowledge. Can update the overview or memory entries "
-    "of a project, or search for relevant context based on queries."""
+    """Memory Interface that manages project knowledge. Can search memory entries
+    of a project based on queries."""
     memory_message_history = rt.context.get("memory_message_history", MessageHistory())
     memory_message_history.append(UserMessage(request))
     response = rt.call_sync(memory_agent_node, memory_message_history).content

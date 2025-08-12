@@ -39,8 +39,13 @@ async def hook_function(message_history: MessageHistory) -> MessageHistory:
 
     # Ask the memory agent for relevant context
     request = (
-        f"If applicable, find relevant context for: {user_message.content}"
-        f"Otherwise, return an empty string."
+        f"Here is the user's message: {user_message.content}"
+        "\n\n"
+        "Please update the project memory with any relevant information from this message."
+        "\n"
+        "If applicable, search the memory for relevant context that can help answer the user's query."
+        "Return anything that is relevant to the user query, or anything that should be considered in creating a response to the message."
+        "Otherwise, return an empty string."
     )
 
     memory_context = await rt.call(memory_agent, request=request)
@@ -215,13 +220,17 @@ def custom_chatui_node(  # noqa: C901
                         self.message_hist.append(
                             AssistantMessage(content=assistant_message)
                         )
-                        self.message_hist = await hook_function(self.message_hist)
+
                         await self.chat_ui.send_message(assistant_message)
 
                         user_message = await self.chat_ui.wait_for_user_input()
                         if user_message == "EXIT":
                             break
+
                         self.message_hist.append(UserMessage(content=user_message))
+
+                        self.message_hist = await hook_function(self.message_hist)
+                        # print("User message after hook function:" + str(self.message_hist))
                 else:
                     # the message is malformed from the model
                     raise LLMError(

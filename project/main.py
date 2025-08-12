@@ -8,7 +8,7 @@ context based on user queries.
 
 import railtracks as rt
 from custom_chat_ui import custom_chatui_node
-from memory_agent import memory, memory_agent_node
+from memory_agent import memory, memory_agent
 from railtracks.llm.models.api_providers import OpenAILLM
 
 from examples.integrations.sandbox_python_integration import (
@@ -18,7 +18,7 @@ from examples.integrations.sandbox_python_integration import (
 )
 from examples.integrations.webseach_integration import fetch_mcp_tools, google_search
 
-tool_nodes = [memory_agent_node, google_search, execute_code] + fetch_mcp_tools
+tool_nodes = [memory_agent, google_search, execute_code] + fetch_mcp_tools
 
 # Create the RAG-enhanced main agent
 rag_main_agent = custom_chatui_node(
@@ -28,14 +28,9 @@ rag_main_agent = custom_chatui_node(
     You have access to a memory system that stores project knowledge, and various tools to help with tasks.
 
     Relevant context from your memory will be automatically provided based on the user's query. 
-    The memory system contains a project overview and various memory entries that can be searched.
+    The memory system contains a project overview and various memory entries that can be searched if you need to remember anything else.
     
     This allows you to provide more accurate and helpful responses by leveraging your stored knowledge.
-    You should be frequently updating your memory with new information you learn about the project. Anything that is relevant to the fundamentals of the project should be added to the memory.
-    The memory should have concrete examples, project details, and any other relevant information that can help you assist the user later.
-    
-    For example, you can say "Update Overview to <Project Overview>", or "<Add memory entry: The user is creating a RAG system...>", or "To use this component of the project, do <this> and <that>."
-    The request should be clear and concise, specifying what you want to update or add, and in natural language. Any examples you need to add (such as code snippets or project details) should be provided.
 
     When needed, first check the memory to understand what you already know about the project.
     Always be helpful, informative, and focused on the user's needs.
