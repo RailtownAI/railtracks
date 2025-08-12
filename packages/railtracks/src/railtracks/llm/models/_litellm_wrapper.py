@@ -314,7 +314,7 @@ class LiteLLMWrapper(ModelBase, ABC):
           3. Calls litellm.completion
         """
         # NOTE: TODO: For the moment we are using litellm.completion instead of litellm.acompletion
-        # Read more about why  here: https://github.com/RailtownAI/railtracks/issues/505 
+        # Read more about why  here: https://github.com/RailtownAI/railtracks/issues/505
         # when the issue is resolved we can switch back to acompletion
         start_time = time.time()
         litellm_messages = [_to_litellm_message(m) for m in messages]
