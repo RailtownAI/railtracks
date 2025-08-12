@@ -181,7 +181,7 @@ message = "Hello, World!"
 
 
 async def streaming_func():
-    await railtracks.interaction.broadcast.broadcast(message)
+    await railtracks.interaction.broadcast(message)
     return
 
 
