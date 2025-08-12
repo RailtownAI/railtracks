@@ -8,23 +8,23 @@ body {
     font-family: 'Consolas', 'Monaco', 'Lucida Console', monospace;
     background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
     min-height: 100vh;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
     display: flex;
     justify-content: center;
     align-items: center;
     color: #e0e0e0;
-    overflow: auto;
-    padding: 10px;
+    overflow: hidden;
 }
 
 .main-container {
-    width: 95%;
-    max-width: 1200px;
-    min-height: 90vh;
-    max-height: 95vh;
+    width: 100vw;
+    height: 100vh;
     background: #1e1e2e;
-    border-radius: 12px;
-    box-shadow: 0 0 30px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.1);
-    border: 1px solid #333;
+    border-radius: 0;
+    box-shadow: none;
+    border: none;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -114,7 +114,6 @@ body {
     scrollbar-width: thin;
     scrollbar-color: #4a5568 #1e1e2e;
     min-height: 0; /* Important for flex containers */
-    max-height: calc(95vh - 200px); /* Ensure it doesn't grow too large */
 }
 
 .chat-messages::-webkit-scrollbar {
