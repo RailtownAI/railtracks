@@ -6,5 +6,5 @@ __all__ = [
     "call",
     "call_sync",
     "call_batch",
-    "broadcast_",
+    "broadcast",
 ]
