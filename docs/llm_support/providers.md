@@ -76,7 +76,7 @@ Take a look at the examples below to see how using different providers look for 
 === "HuggingFace"
     !!! info "Environment Variables Configuration"
         Make sure you set the appropriate environment variable keys for your specific provider. By default, RailTracks uses the `dotenv` framework to load environment variables from a `.env` file.
-        Variable name for the API key: `HUGGINGFACE_API_KEY`
+        Variable name for the API key: `HF_TOKEN`
 
     !!! caution "Tool Calling Support"
         For HuggingFace serverless inference models, you need to make sure that the model you are using supports tool calling. We **DO NOT**  check for tool calling support in HuggingFace models. If you are using a model that does not support tool calling, it will default to regular chat, even if the `tool_nodes` parameter is provided.
@@ -87,10 +87,10 @@ Take a look at the examples below to see how using different providers look for 
     Here are a few example models that you can use:
     ```python
     # same model, different provider: both have tool calling support
-    rt.llm.HuggingFaceLLM("huggingface/sambanova/meta-llama/Llama-3.3-70B-Instruct") 
+    rt.llm.HuggingFaceLLM("together_ai/meta-llama/Llama-3.3-70B-Instruct") 
     rt.llm.HuggingFaceLLM("sambanova/meta-llama/Llama-3.3-70B-Instruct")
 
-    # does support tool calling
+    # does not support tool calling
     rt.llm.HuggingFaceLLM("featherless-ai/mistralai/Mistral-7B-Instruct-v0.2")
     ```
 
