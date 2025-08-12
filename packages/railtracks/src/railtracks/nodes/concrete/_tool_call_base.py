@@ -28,7 +28,6 @@ from railtracks.llm import (
 from railtracks.validation.node_creation.validation import check_connected_nodes
 from railtracks.validation.node_invocation.validation import check_max_tool_calls
 
-
 from ..nodes import Node
 from ._llm_base import LLMBase
 

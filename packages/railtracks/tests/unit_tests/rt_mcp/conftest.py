@@ -154,6 +154,7 @@ def mock_node_cls(mock_node_info):
     cls = MagicMock()
     cls.tool_info.return_value = mock_node_info
     cls.prepare_tool = MagicMock()
+    cls.node_type = cls
     return cls
 
 @pytest.fixture
