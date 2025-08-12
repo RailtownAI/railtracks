@@ -73,6 +73,7 @@ def custom_chatui_node(  # noqa: C901
     llm_model: ModelBase | None = None,
     max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
+    user_function_hook = hook_function,
 ) -> Type[ChatToolCallLLM]:
     """
     Dynamically create a ChatToolCallLLM node class with a web-based chat interface.
@@ -229,7 +230,7 @@ def custom_chatui_node(  # noqa: C901
 
                         self.message_hist.append(UserMessage(content=user_message))
 
-                        self.message_hist = await hook_function(self.message_hist)
+                        self.message_hist = await user_function_hook(self.message_hist)
                         # print("User message after hook function:" + str(self.message_hist))
                 else:
                     # the message is malformed from the model
