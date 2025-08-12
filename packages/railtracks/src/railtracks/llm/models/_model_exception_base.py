@@ -40,6 +40,24 @@ class ModelError(RTLLMError):
         return self._color(base, self.RED)
 
 
+class ModelNotFoundError(RTLLMError):
+    def __init__(self, reason: str, notes: list[str] = None):
+        self.reason = reason
+        self.notes = notes or []
+        super().__init__(reason)
+
+    def __str__(self):
+        base = super().__str__()
+        if self.notes:
+            notes_str = (
+                "\n"
+                + self._color("Tips to debug:\n", self.GREEN)
+                + "\n".join(self._color(f"- {note}", self.GREEN) for note in self.notes)
+            )
+            return f"\n{self._color(base, self.RED)}{notes_str}"
+        return self._color(base, self.RED)
+
+
 class FunctionCallingNotSupportedError(ModelError):
     """Error raised when a model does not support function calling."""
 

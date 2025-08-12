@@ -23,6 +23,24 @@ def test_job_create_and_end(mock_task):
     assert job.status == "closed"
     assert job.result == "success"
     assert job.end_time is not None
+def test_job_init_with_none_timestamps():
+    """Test that Job.__init__ correctly handles None values for start_time and end_time."""
+    job = Job(
+        request_id="test-req",
+        parent_node_id="parent-1",
+        child_node_id="child-1",
+        status="opened",
+        result=None,
+        start_time=None,  # Explicitly testing None value
+        end_time=None,    # Explicitly testing None value
+    )
+    assert job.request_id == "test-req"
+    assert job.parent_node_id == "parent-1"
+    assert job.child_node_id == "child-1"
+    assert job.status == "opened"
+    assert job.result is None
+    assert job.start_time is None
+    assert job.end_time is None
 # ============ END Job Tests ===============
 
 # ============ START CoordinatorState Tests ===============

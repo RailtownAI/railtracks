@@ -1,40 +1,74 @@
 site_name: RailTracks Docs
 site_url: https://something
+
+repo_name: railtracks
+repo_url: https://github.com/RailtownAI/railtracks
+
 theme:
   name: material
+
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/brightness-6
+        name: Switch to dark mode
+
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
   features:
     - navigation.indexes
     - navigation.prefetch
+    - navigation.path
+    - navigation.top
+    - navigation.footer
     - search.suggest
     - content.code.copy
     - content.code.highlight
-  code:
-    highlight_theme:
-      light: github
-      dark: dracula
+    - content.code.annotate
 
+plugins:
+  - search
+  - mermaid2
 
-
-
+markdown_extensions:
+  - pymdownx.emoji:
+      emoji_generator: !!python/name:pymdownx.emoji.to_svg
+  - admonition
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:mermaid2.fence_mermaid_custom
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.highlight:
+      anchor_linenums: true
+      pygments_lang_class: true
 
 extra_css:
   - css/extra.css
 
+extra:
+  generator: false
+
 nav:
   - Home: index.md
 
-
-
-
+  - Quickstart: quickstart/index.md
+  
   - Tutorials:
-        - tutorials/byfa.md
-        - tutorials/ryfa.md
-        - tutorials/node_builder.md
-        - tutorials/yet_another_weather_bot.md
-        - Background:
-            - tutorials/guides/index.md
-            - Agents: tutorials/guides/agents.md
-            - Tools: tutorials/guides/tools.md
+      - Background:
+          - Agents: tutorials/guides/agents.md
+          - Tools: tutorials/guides/tools.md
+      - Building your first agent: tutorials/byfa.md
+      - Running your first agent: tutorials/ryfa.md
+      - WeatherAgent: tutorials/yet_another_weather_bot.md
 
   - Tools + MCP:
       - Equip your LLMs: tools_mcp/tools_mcp.md
@@ -50,19 +84,19 @@ nav:
           - Advanced Tooling: tools_mcp/tools/advanced_usage.md
 
       - Integrations:
-        - Notion: tools_mcp/guides/notion.md
-        - Github: tools_mcp/guides/github.md
-        - Python Sandbox: tools_mcp/guides/python_sandbox.md
-        - Shell Bash: tools_mcp/guides/shell_bash.md
-        - Slack: tools_mcp/guides/slack.md
-        - Web Search: tools_mcp/guides/websearch_integration.md
+          - Notion: tools_mcp/guides/notion.md
+          - Github: tools_mcp/guides/github.md
+          - Python Sandbox: tools_mcp/guides/python_sandbox.md
+          - Shell Bash: tools_mcp/guides/shell_bash.md
+          - Slack: tools_mcp/guides/slack.md
+          - Web Search: tools_mcp/guides/websearch_integration.md
 
   - Observability:
-        - Visualization: observability/visualization.md
-        - Logging: observability/logging.md
-        - Streaming: observability/streaming.md
-        - Local Chat: observability/chat.md
-        - Error Handling: observability/error_handling.md
+      - Visualization: observability/visualization.md
+      - Logging: observability/logging.md
+      - Broadcasting: observability/broadcasting.md
+      - Local Chat: observability/chat.md
+      - Error Handling: observability/error_handling.md
 
   - LLM Support:
       - Supported Providers: llm_support/providers.md
@@ -70,11 +104,12 @@ nav:
       - Configuration: llm_support/config.md
 
   - Deployments:
-        - deployments/index.md
+      - Docker: deployments/docker.md
 
   - Advanced Usage:
-        - Context: advanced_usage/context.md
-        - Prompt Injection: advanced_usage/prompt_injection.md
+      - Context: advanced_usage/context.md
+      - Prompt Injection: advanced_usage/prompt_injection.md
+      - Custom Nodes: advanced_usage/node_builder.md
 
   - Samples:
       - samples/index.md
@@ -88,7 +123,7 @@ nav:
       - Coordinator Orchestration: system_internals/coordinator.md
 
   - API Reference:
-      - Generated: api_reference/generated/railtracks.html
+      - Generated: api_reference/generated/index.html
 
       - Components:
           - api_reference/components/api_provider_wrappers.md
@@ -163,31 +198,5 @@ nav:
           - api_reference/features/task_execution.md
           - api_reference/features/tool_management.md
           - api_reference/features/validation.md
-
-
-plugins:
-  - search
-  - mermaid2
-
-
-
-markdown_extensions:
-  - pymdownx.emoji:
-      emoji_generator: !!python/name:pymdownx.emoji.to_svg
-  - admonition
-  - pymdownx.details
-  - pymdownx.tabbed:
-      alternate_style: true
-  - pymdownx.superfences:
-      custom_fences:
-        - name: mermaid
-          class: mermaid
-          format: !!python/name:mermaid2.fence_mermaid_custom
-  - pymdownx.inlinehilite
-  - pymdownx.snippets
-  - codehilite
-  - pymdownx.highlight:
-      anchor_linenums: true
-  - attr_list
 
 

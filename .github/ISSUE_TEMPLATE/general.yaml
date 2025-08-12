@@ -1,0 +1,23 @@
+name: ❓ General Query/Suggestion
+description: Ask a question about using railtracks.
+title: "[General] "
+
+
+
+body:
+  - type: textarea
+    id: feedback_query
+    attributes:
+      label: Feedback or Inquiry
+      description: Provide details about your question or suggestion.
+      placeholder: How do I configure railtracks to work offline?
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Any other information that will help us understand your query or suggestion.
+      placeholder: Related documentation, links, or examples.
+

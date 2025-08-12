@@ -1,43 +1,48 @@
 # How to Build Your First Agent
 
-RailTracks allows you to easily create custom agents using the `define_agent` function by configuring a few simple parameters in any combination!
+RailTracks allows you to easily create custom agents using the `agent_node` function by configuring a few simple parameters in any combination!
 
 Start by specifying:
 
 - `llm_model`: Choose which LLM the agent will use.
 - `system_message`: Define the agent’s behavior. This guides the agent and often improves output quality.  
-  *(See also: [Prompt Engineering](https://en.wikipedia.org/wiki/Prompt_engineering))*
 
 Then, configure your agent class by selecting which functionalities to enable:
 
-- `tools`: If you pass this parameter, the agent gains access to the specified [tools](../guides/tools.md). If you don't it will act as a conversational agent instead.
+- `tool_nodes`: If you pass this parameter, the agent gains access to the specified [tools](../tools_mcp/tools/tools.md). If you don't it will act as a conversational agent instead.
 - `schema`: Given a schema, the agents responses will follow that schema. Otherwise it will return output as it sees fit.
 
-Optionally, you can define attributes for using the agent as a tool itself and debugging:
+!!! info "Structured Agents"
+    RailTracks supports structured agents that return output conforming to a specified schema. This is useful for ensuring consistent and predictable responses, especially when integrating with other systems or processes. This can be achieved by passing a Pydantic model to the `schema` parameter.
 
-- `agent_name`: The identifier used when referencing the agent while debugging.
-- `agent_params`: [Parameters](../tools) required when the agent is called as a tool.
-- `agent_doc`: A short explanation of what the agent does — this helps other LLMs decide when and how to use it.
-
-
-For advanced users you can see [context](../advanced_usage/context.md), for further configurability.
 
 ### Example
 ```python
+import railtracks as rt
+from pydantic import BaseModel
 
-weather_agent_class = rt.define_agent(
-    agent_name="Weather Agent",
-    llm_model="gpt-4o",
+class WeatherResponse(BaseModel):
+    temperature: float
+    condition: str
+
+def weather_tool(city: str):
+    """
+    Returns the current weather for a given city.
+
+    Args:
+      city (str): The name of the city to get the weather for.
+    """
+    # Simulate a weather API call
+    return f"{city} is sunny with a temperature of 25°C."
+
+WeatherAgent = rt.agent_node(
+    name="Weather Agent",
+    llm_model=rt.llm.OpenAILLM("gpt-4o"),
     system_message="You are a helpful assistant that answers weather-related questions.",
-    tools={weather_tool},
-    schema=weather_schema,
-    agent_params=weather_param,
-    agent_doc="This is an agent that will give you the current weather and answer weather related questions you have"    
+    tool_nodes=[rt.function_node(weather_tool)],
+    schema=WeatherResponse,
 )
 ```
-
-
----
 
 ## Tool-Calling Agents
 
@@ -48,12 +53,15 @@ When making a Tool-Calling Agent you can also specify `max_tool_calls` to have a
 ### Example
 ```python
 
-weather_agent_class = rt.define_agent(
-    agent_name="Weather Agent",
-    llm_model="gpt-4o",
+# weather_tool_set would be a list of multiple tools
+weather_tool_set = [rt.function_node(weather_tool), rt.function_node(another_tool)]
+
+WeatherAgent = rt.agent_node(
+    name="Weather Agent",
+    llm_model=rt.llm.OpenAILLM("gpt-4o"),
     system_message="You are a helpful assistant that answers weather-related questions.",
-    tools=weather_tool_set,
-    maximum_tool_calls=10
+    tool_nodes=weather_tool_set,
+    max_tool_calls=10
 )
 ```
 
@@ -62,32 +70,17 @@ Additionally, we have an MCP agent if you would like integrate API functionaliti
 ### Example
 ```python
 
-notion_agent_class = rt.define_agent(
-    agent_name="Notion Agent",
-    mcp_command: notion_command,
-    mcp_args: notion_args,
-    mcp_env: notion_env,
-    llm_model="gpt-4o",
+notion_agent_class = rt.agent_node(
+    name="Notion Agent",
+    tool_nodes=notion_mcp_tools,
+    llm_model=rt.llm.OpenAILLM("gpt-4o"),
     system_message="You are a helpful assistant that help edit users Notion pages",
-    
 )
 ```
 
----
 
-## Structured Agents
+!!! info "Agents as Tools"
+    You might have noticed that `agent_node` accepts a parameter called `manifest`. This is used to define the agent's capabilities and how it can be used as a tool by other agents. You can refer to the [Agents as Tools](../tools_mcp/tools/agents_as_tools.md) for more details.
 
-Structured agents are built to return output that conforms to a consistent schema (Currently we only support Pydantic models). This is especially useful for:
-
-- Parsing responses programmatically
-- Integrating with downstream processes
-- Enforcing predictable structure for evaluation or validation
-
-Define the schema or expected structure when initializing the agent so the model can reliably adhere to it.
-
----
-
-<p style="text-align:center;">
-  <a href="../tools_mcp/create_your_own" class="md-button" style="margin:3px">Create Your Own Agent</a>
-  <a href="../advanced_usage/context" class="md-button" style="margin:3px">Using Context</a>
-</p>
+!!! info "Advanced Usage: Shared Context"
+    For advanced usage cases that require sharing context (ie variables, paramters, etc) between nodes please refer to [context](../advanced_usage/context.md), for further configurability.

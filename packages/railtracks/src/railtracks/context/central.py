@@ -77,7 +77,6 @@ def safe_get_runner_context() -> RunnerContextVars:
 def is_context_present():
     """Returns true if a context exists."""
     t_c = runner_context.get()
-    print(f"--------------------------------- {t_c}")
     return t_c is not None
 
 
@@ -157,10 +156,6 @@ def register_globals(
         runner_id=runner_id,
         internal_context=i_c,
         external_context=e_c,
-    )
-
-    print(
-        f"(register_globals) Registering globals with runner_id: {runner_id}, parent_id: {parent_id}"
     )
 
     runner_context.set(runner_context_vars)

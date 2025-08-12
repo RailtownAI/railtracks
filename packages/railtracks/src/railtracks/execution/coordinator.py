@@ -22,8 +22,8 @@ class Job:
         child_node_id: str,
         status: Literal["opened", "closed"],
         result: Literal["success", "failure"] | None = None,
-        start_time: float = None,
-        end_time: float = None,
+        start_time: float | None = None,
+        end_time: float | None = None,
     ):
         """
         A simple object that represents a job to be completed.
@@ -77,9 +77,6 @@ class Job:
 
     def __str__(self):
         return f"Job(request_id={self.request_id}, status={self.status}, result={self.result}, start_time={self.start_time}, end_time={self.end_time})"
-
-    def __repr__(self):
-        return self.__str__()
 
 
 class CoordinatorState:
@@ -139,7 +136,8 @@ class Coordinator:
     # we have a fairly hard dependency on the execution modes. This is a bit of a dependency hack for catching errors early.
     def __init__(
         self,
-        execution_modes: Dict[ExecutionConfigurations, TaskExecutionStrategy] = None,
+        execution_modes: Dict[ExecutionConfigurations, TaskExecutionStrategy]
+        | None = None,
     ):
         self.state = CoordinatorState.empty()
         assert set(execution_modes.keys()) == set(get_args(ExecutionConfigurations)), (

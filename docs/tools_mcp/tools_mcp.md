@@ -51,7 +51,7 @@ server = connect_mcp(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"
 tools = server.tools
 
 # Create an agent with access to these tools
-agent = rt.library.tool_call_llm(
+Agent = rt.agent_node(
     tool_nodes=tools,
     name="Research Agent",
     system_message="Use the tools to find information.",
@@ -61,13 +61,12 @@ agent = rt.library.tool_call_llm(
 # Run the agent
 with rt.Session():
     result = rt.call_sync(
-        agent,
+        Agent,
         "Find information about RailTracks"
     )
 ```
 
 ## ➡️ Next Steps
 
-- Learn about [Model Context Protocol (MCP)](mcp/index.md) for accessing even more tools
-- Explore how to [create your own custom tools](create_your_own.md)
+- Learn about [Model Context Protocol (MCP)](mcp/mcp.md) for accessing even more tools
 - Check out the [tool-specific guides](#available-tools) for detailed usage instructions

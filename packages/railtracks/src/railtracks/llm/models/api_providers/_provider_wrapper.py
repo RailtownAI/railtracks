@@ -1,14 +1,22 @@
 from abc import ABC, abstractmethod
+from typing import Any, List
 
 import litellm
 from litellm.litellm_core_utils.get_llm_provider_logic import get_llm_provider
 
+from ...history import MessageHistory
+from ...response import Response
+from ...tools import Tool
 from .._litellm_wrapper import LiteLLMWrapper
-from .._model_exception_base import FunctionCallingNotSupportedError, ModelError
+from .._model_exception_base import FunctionCallingNotSupportedError, ModelNotFoundError
 
 
 class ProviderLLMWrapper(LiteLLMWrapper, ABC):
     def __init__(self, model_name: str, **kwargs):
+        model_name = self._pre_init_provider_check(model_name)
+        super().__init__(model_name=self.full_model_name(model_name), **kwargs)
+
+    def _pre_init_provider_check(self, model_name: str):
         provider_name = self.model_type().lower()
         try:
             # NOTE: Incase of a valid model for gemini, `get_llm_provider` returns provider = vertex_ai.
@@ -19,6 +27,7 @@ class ProviderLLMWrapper(LiteLLMWrapper, ABC):
             assert provider_info[1] == provider_name, (
                 f"Provider mismatch. Expected {provider_name}, got {provider_info[1]}"
             )
+            return model_name
         except Exception as e:
             reason_str = (
                 e.args[0]
@@ -34,8 +43,6 @@ class ProviderLLMWrapper(LiteLLMWrapper, ABC):
                 ],
             ) from e
 
-        super().__init__(model_name=self.full_model_name(model_name), **kwargs)
-
     def full_model_name(self, model_name: str) -> str:
         """After the provider is checked, this method is called to get the full model name"""
         # for anthropic/openai models the full model name is {provider}/{model_name}
@@ -47,25 +54,12 @@ class ProviderLLMWrapper(LiteLLMWrapper, ABC):
         """Returns the name of the provider"""
         pass
 
-    def chat_with_tools(self, messages, tools, **kwargs):
+    def _validate_tool_calling_support(self):
         if not litellm.supports_function_calling(model=self._model_name):
             raise FunctionCallingNotSupportedError(self._model_name)
-        return super().chat_with_tools(messages, tools, **kwargs)
 
-
-class ModelNotFoundError(ModelError):
-    def __init__(self, reason: str, notes: list[str] = None):
-        self.reason = reason
-        self.notes = notes or []
-        super().__init__(reason)
-
-    def __str__(self):
-        base = super().__str__()
-        if self.notes:
-            notes_str = (
-                "\n"
-                + self._color("Tips to debug:\n", self.GREEN)
-                + "\n".join(self._color(f"- {note}", self.GREEN) for note in self.notes)
-            )
-            return f"\n{self._color(base, self.RED)}{notes_str}"
-        return self._color(base, self.RED)
+    def _chat_with_tools(
+        self, messages: MessageHistory, tools: List[Tool], **kwargs: Any
+    ) -> Response:
+        self._validate_tool_calling_support()
+        return super()._chat_with_tools(messages, tools, **kwargs)
