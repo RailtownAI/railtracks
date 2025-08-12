@@ -376,6 +376,11 @@ body {
     background: #1a202c;
     color: #e2e8f0;
     transition: all 0.3s ease;
+    resize: none; /* Disable manual resize for auto-resize */
+    min-height: 40px; /* Minimum height for single line */
+    max-height: 150px; /* Maximum height before scrolling */
+    line-height: 1.4;
+    overflow-y: auto; /* Enable scrolling when content exceeds max-height */
 }
 
 .message-input:focus {

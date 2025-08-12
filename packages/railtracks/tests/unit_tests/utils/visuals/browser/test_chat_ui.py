@@ -317,3 +317,38 @@ async def test_empty_message_handling(chat_ui):
     
     assert result == empty_message
     assert len(result) == 0
+
+@pytest.mark.asyncio
+async def test_multiline_message_handling(chat_ui):
+    """Test that multi-line messages with newlines are handled correctly."""
+    multiline_message = "This is line 1\nThis is line 2\nThis is line 3"
+    
+    user_data = {
+        "message": multiline_message,
+        "timestamp": datetime.now().isoformat()
+    }
+    
+    # Put multi-line message in queue
+    await chat_ui.user_input_queue.put(user_data)
+    
+    # Retrieve the multi-line message
+    result = await chat_ui.wait_for_user_input()
+    
+    assert result == multiline_message
+    assert "\n" in result
+    assert result.count("\n") == 2  # Two newline characters
+    assert "line 1" in result and "line 2" in result and "line 3" in result
+
+@pytest.mark.asyncio
+async def test_send_multiline_assistant_message(chat_ui):
+    """Test sending multi-line assistant messages through the interface."""
+    multiline_response = "Here's a multi-line response:\n\n1. First point\n2. Second point\n3. Third point\n\nThat's all!"
+    
+    await chat_ui.send_message(multiline_response)
+    
+    message = await chat_ui.sse_queue.get()
+    assert message["type"] == "assistant_response"
+    assert message["data"] == multiline_response
+    assert "\n" in message["data"]
+    assert "First point" in message["data"]
+    assert "timestamp" in message

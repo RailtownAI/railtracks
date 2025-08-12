@@ -278,6 +278,23 @@ function handleKeyPress(event) {
         event.preventDefault();
         sendMessage();
     }
+    // Allow Shift+Enter for new lines - no action needed, default behavior
+}
+
+function autoResize(textarea) {
+    // Reset height to auto to get the correct scrollHeight
+    textarea.style.height = 'auto';
+    
+    // Calculate the new height based on content
+    const newHeight = Math.min(textarea.scrollHeight, 150); // Max height of 150px (about 6 lines)
+    
+    // Set the new height
+    textarea.style.height = newHeight + 'px';
+    
+    // Ensure minimum height
+    if (newHeight < 40) {
+        textarea.style.height = '40px';
+    }
 }
 
 function addTool(toolData) {
@@ -354,8 +371,10 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Initializing Real-time AI Chat...');
     initializeSSE();
     
-    // Focus on input
-    document.getElementById('messageInput').focus();
+    // Focus on input and set initial height
+    const messageInput = document.getElementById('messageInput');
+    messageInput.focus();
+    autoResize(messageInput); // Set initial height
 });
 
 // Cleanup on page unload
