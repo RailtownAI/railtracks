@@ -197,7 +197,7 @@ def _parameters_to_json_schema(
         return _handle_set_of_parameters(list(parameters))
 
     raise NodeInvocationError(
-        message="Unable to parse Tool.parameters. Please check the documentation for Tool.parameters.",
+        message=f"Unable to parse Tool.parameters. It was {parameters}",
         fatal=True,
         notes=[
             "Tool.parameters must be a set of Parameter objects",

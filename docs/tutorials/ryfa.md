@@ -49,10 +49,10 @@ WeatherAgent = rt.agent_node(
 system_message = rt.llm.SystemMessage("You are a helpful assistant that answers weather-related questions.")
 user_message = rt.llm.UserMessage("Would you please be able to tell me the forecast for the next week?")
 
-response = rt.call(
-    WeatherAgent,
-    user_input=rt.llm.MessageHistory([system_message, user_message]),
-    llm_model='claude-3-5-sonnet-20240620',
+response = rt.call_sync(
+    weather_agent_class,
+    user_input=MessageHistory([system_message, user_message]),
+    llm_model=rt.llm.AnthropicLLM("claude-3-5-sonnet-20241022"),
 )
 ```
 
@@ -64,7 +64,7 @@ response = rt.call(
 ```python
 import railtracks as rt
 
-default_model = "gpt-4o"
+default_model = rt.llm.OpenAILLM("gpt-4o")
 default_system_message = "You are a helpful assistant that answers weather-related questions."
 
 WeatherAgent = rt.agent_node(
@@ -77,9 +77,9 @@ system_message = rt.llm.SystemMessage("If not specified, the user is talking abo
 user_message = rt.llm.UserMessage("Would you please be able to tell me the forecast for the next week?")
 
 response = await rt.call(
-    WeatherAgent,
-    user_input=rt.llm.MessageHistory([system_message, user_message]),
-    llm_model='claude-3-5-sonnet-20240620',
+    weather_agent_class,
+    user_input=MessageHistory([system_message, user_message]),
+    llm_model=rt.llm.AnthropicLLM("claude-3-5-sonnet-20241022"),
 )
 ```
 In this example RailTracks will use claude rather than chatgpt and the `system_message` will become
@@ -101,7 +101,7 @@ user_message = rt.message.UserMessage("Would you be able to help me figure out a
 response = await rt.call(
     CodingAgent,
     user_input=MessageHistory([system_message, user_message]),
-    llm_model='claude-3-5-sonnet-20240620',
+    llm_model=rt.llm.AnthropicLLM("claude-3-5-sonnet-20241022"),
 )
 
 answer_string = response.text()
@@ -120,8 +120,7 @@ class User(BaseModel):
 AgentNode = rt.agent_node(
     output_schema=User,
     system_message=agent_message,
-    llm_model="gpt-4o"
-)
+    llm_model=rt.llm.OpenAILLM("gpt-4o")
 
 response = await rt.call(
     AgentNode,
@@ -131,3 +130,5 @@ response = await rt.call(
 user_number = response.structured().user_number
 message_history_object = response.message_history
 ```
+
+

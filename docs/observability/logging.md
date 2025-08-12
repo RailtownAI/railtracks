@@ -29,10 +29,10 @@ Railtracks supports four logging levels:
 ```python
 import railtracks as rt
 
-rt.ExecutorConfig(logging_setting="VERBOSE")
-rt.ExecutorConfig(logging_setting="REGULAR")
-rt.ExecutorConfig(logging_setting="QUIET")
-rt.ExecutorConfig(logging_setting="NONE")
+rt.set_config(logging_setting="VERBOSE")
+rt.set_config(logging_setting="REGULAR")
+rt.set_config(logging_setting="QUIET")
+rt.set_config(logging_setting="NONE")
 ```
 
 ---
@@ -50,7 +50,7 @@ To save logs to a file, pass a `log_file` parameter to the config:
 ```python
 import railtracks as rt
 
-rt.ExecutorConfig(log_file="my_logs.log")
+rt.set_config(log_file="my_logs.log")
 ```
 
 #### 🛠️ Custom Handlers
@@ -81,10 +81,8 @@ You can configure logging globally or per-run.
 import railtracks as rt
 
 rt.set_config(
-    rt.ExecutorConfig(
-        logging_setting="VERBOSE",
-        log_file="my_logs.log"
-    )
+    logging_setting="VERBOSE",
+    log_file="my_logs.log"
 )
 ```
 
@@ -95,11 +93,9 @@ Applies to all flows.
 ```python
 import railtracks as rt
 
-with rt.Session(
-        rt.ExecutorConfig(
-            logging_setting="VERBOSE",
-            log_file="my_logs.log"
-        )
+with rt.Session(    
+    logging_setting="VERBOSE",
+    log_file="my_logs.log"
 ) as runner:
     # Your code here
     pass
@@ -117,9 +113,10 @@ You can forward logs to services like [Loggly](https://www.loggly.com/), [Sentry
 
     ```python
     import logging
-    # Example integration TBD
+    import railtownai
     
-    logger = logging.getLogger("RT")
+    RAILTOWN_API_KEY = 'YOUR_RAILTOWN_API_KEY'
+    railtownai.init(RAILTOWN_API_KEY)
     ```
 
 === "Loggly"

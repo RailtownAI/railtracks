@@ -60,7 +60,7 @@ extra:
 nav:
   - Home: index.md
 
-  - Quickstart: quickstart/index.md
+  - Quickstart: quickstart/quickstart.md
   
   - Tutorials:
       - Background:

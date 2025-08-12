@@ -6,7 +6,13 @@ from pydantic import BaseModel
 import railtracks.context as context
 from railtracks.exceptions.errors import LLMError
 from railtracks.interaction import call
-from railtracks.llm import AssistantMessage, MessageHistory, ModelBase, UserMessage
+from railtracks.llm import (
+    AssistantMessage,
+    Message,
+    MessageHistory,
+    ModelBase,
+    UserMessage,
+)
 
 from ._llm_base import StructuredOutputMixIn
 from ._tool_call_base import (
@@ -60,7 +66,7 @@ class StructuredToolCallLLM(
 
     def __init__(
         self,
-        user_input: MessageHistory | UserMessage | str,
+        user_input: MessageHistory | UserMessage | str | list[Message],
         llm_model: ModelBase | None = None,
         max_tool_calls: int | None = None,
     ):
