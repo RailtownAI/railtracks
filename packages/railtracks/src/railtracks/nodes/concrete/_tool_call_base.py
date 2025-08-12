@@ -214,7 +214,6 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                 )
 
     async def invoke(self) -> _T:
-
         await self._handle_tool_calls()
 
         if (key := self.return_into()) is not None:

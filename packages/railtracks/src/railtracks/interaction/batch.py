@@ -55,7 +55,7 @@ async def call_batch(
             handle(result)
         ```
     """
-    # this is big typing disaster but there is no way around it. Try if if you want to. 
+    # this is big typing disaster but there is no way around it. Try if if you want to.
     contracts = [call(node, *args) for args in zip(*iterables)]
 
     results = await asyncio.gather(*contracts, return_exceptions=return_exceptions)
