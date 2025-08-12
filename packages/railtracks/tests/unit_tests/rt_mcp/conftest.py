@@ -140,7 +140,7 @@ def mock_node_info():
     bar_param.name = "bar"
     bar_param.param_type = "string"   # Set actual string value
     bar_param.description = "A bar parameter"
-    bar_param.required = False  
+    bar_param.required = False
     bar_param.default = None
     bar_param.enum = None
     #########################################################################
