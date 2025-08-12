@@ -117,6 +117,22 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
         self.message_hist.append(returned_mess.message)
 
     async def _handle_tool_calls(self) -> bool:
+        """
+        Handles the execution of tool calls for the node, including LLM interaction and message history updates.
+
+        This method:
+        - Checks if the maximum number of tool calls has been reached and triggers a final response if so.
+        - Interacts with the LLM to get a tool call request or final answers.
+        - Executes a tool call and appends the results to the message history.
+        - Handles malformed LLM responses and raises errors as needed.
+
+        Returns:
+            bool: True if more tool calls are expected (the tool call loop should continue),
+                  False if the tool call process is finished and a final answer is available.
+
+        Raises:
+            LLMError: If the LLM returns an unexpected message type or the message is malformed.
+        """
         current_tool_calls = len(
             [m for m in self.message_hist if isinstance(m, ToolMessage)]
         )
@@ -199,8 +215,10 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
             )
 
     async def invoke(self) -> _T:
-        while await self._handle_tool_calls():
-            pass
+        while True:
+            finished_tool_calls = await self._handle_tool_calls()
+            if finished_tool_calls:
+                break
 
         if (key := self.return_into()) is not None:
             output = self.return_output()
