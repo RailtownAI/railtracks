@@ -44,23 +44,30 @@ if TYPE_CHECKING:
 _P = ParamSpec("_P")
 _TOutput = TypeVar("_TOutput")
 
-
 @overload
 async def call(
-    node_: Type[Node[_TOutput]],
+    node_: Callable[_P, Node[_TOutput]],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput: ...
 
-
 @overload
 async def call(
-    node_: Callable[_P, Union[Node[_TOutput], _TOutput]]
-    | _AsyncNodeAttachedFunc[_P, _TOutput]
+    node_: _AsyncNodeAttachedFunc[_P, _TOutput]
     | _SyncNodeAttachedFunc[_P, _TOutput],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput: ...
+
+@overload
+async def call(
+    node_: Callable[_P, _TOutput],
+    *args: _P.args,
+    **kwargs: _P.kwargs,
+) -> _TOutput: ...
+
+
+
 
 
 async def call(
@@ -231,17 +238,22 @@ async def _execute(
 
 @overload
 def call_sync(
-    node: Type[Node[_TOutput]],
+    node_: Callable[_P, Node[_TOutput]],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput: ...
 
+@overload
+def call_sync(
+    node_: _AsyncNodeAttachedFunc[_P, _TOutput]
+    | _SyncNodeAttachedFunc[_P, _TOutput],
+    *args: _P.args,
+    **kwargs: _P.kwargs,
+) -> _TOutput: ...
 
 @overload
 def call_sync(
-    node: Callable[_P, Union[Node[_TOutput], _TOutput]]
-    | _AsyncNodeAttachedFunc[_P, _TOutput]
-    | _SyncNodeAttachedFunc[_P, _TOutput],
+    node_: Callable[_P, _TOutput],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput: ...
