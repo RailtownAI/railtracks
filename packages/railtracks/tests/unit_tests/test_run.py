@@ -54,9 +54,9 @@ def test_runner_construction_with_explicit_config_and_context(mock_dependencies)
     # Should not raise
     r = Session(context=context)
     assert hasattr(r, 'publisher')
-    assert hasattr(r, 'rc_state')
+    assert hasattr(r, 'rt_state')
     assert hasattr(r, 'coordinator')
-    assert r.rc_state.info == info_mock
+    assert r.rt_state.info == info_mock
 
 def test_runner_construction_with_defaults(mock_dependencies):
     # Should call get_global_config()
@@ -116,9 +116,9 @@ def test_setup_subscriber_noop_if_no_subscriber(mock_dependencies):
 def test_close_calls_shutdown_detach_delete(mock_dependencies):
 
     runner = Session()
-    runner.rc_state = MagicMock()
+    runner.rt_state = MagicMock()
     runner._close()
-    assert runner.rc_state.shutdown.called
+    assert runner.rt_state.shutdown.called
     assert mock_dependencies['detach_logging_handlers'].called
     assert mock_dependencies['delete_globals'].called
 
@@ -127,10 +127,10 @@ def test_close_calls_shutdown_detach_delete(mock_dependencies):
 
 # ================= START Session: info property ===============
 
-def test_info_property_returns_rc_state_info(mock_dependencies):
+def test_info_property_returns_rt_state_info(mock_dependencies):
     runner = Session()
     rt_info = MagicMock()
-    runner.rc_state.info = rt_info
+    runner.rt_state.info = rt_info
     assert runner.info is rt_info
 
 # ================ END Session: info property ===============
