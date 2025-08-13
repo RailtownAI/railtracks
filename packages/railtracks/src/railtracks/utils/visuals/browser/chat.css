@@ -1,16 +1,16 @@
 :root {
-    /* --primary-color: #00ff88;
+    --primary-color: #00ff88;
     --secondary-color: #00cc6936;
     --text-color: #e2e8f0;
     --background-color: #1a202c; 
     --font: 'Consolas', 'Monaco', 'Lucida Console', monospace;
-    */
-    
-    --primary-color: #cd1094;
-    --secondary-color: #00cc6a;
+   
+
+    /* --primary-color: #cd1094;
+    --secondary-color: #cd109447;
     --text-color: #0c0c0c;
     --background-color: #e4e7ed;
-    --font: 'Helvetica Neue', 'Arial', sans-serif;
+    --font: 'Helvetica Neue', 'Arial', sans-serif; */
    
 } 
 
@@ -46,8 +46,7 @@ body {
 }
 
 .app-header {
-    padding: 15px 20px;
-    border-bottom: 1px solid #4a5568;
+    padding: 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -58,9 +57,9 @@ body {
 }
 
 .tab-container {
-    border-bottom: 1px solid #4a5568;
+    border-bottom: 1px solid #909090;
     display: flex;
-    padding: 0;
+    padding: 0 20px;
 }
 
 .tab {
@@ -70,7 +69,6 @@ body {
     cursor: pointer;
     font-size: 14px;
     font-weight: 500;
-    border-right: 1px solid #4a5568;
     position: relative;
 }
 
@@ -96,6 +94,7 @@ body {
     flex: 1;
     display: none;
     flex-direction: column;
+    padding: 20px;
     min-height: 0; /* Important for flex containers */
     overflow: hidden;
 }
@@ -108,7 +107,6 @@ body {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 20px;
     scrollbar-width: thin;
     scrollbar-color: #4a5568 #1e1e2e;
     min-height: 0; /* Important for flex containers */
@@ -377,9 +375,6 @@ body {
     border-color: var(--primary-color);
 }
 
-.message-input::placeholder {
-}
-
 .send-button {
     padding: 12px 20px;
     border: none;
@@ -405,11 +400,15 @@ body {
 }
 
 .status {
-    padding: 12px 20px;
-    border-top: 1px solid #4a5568;
     font-size: 13px;
     text-align: center;
     flex-shrink: 0; /* Prevent shrinking */
+}
+
+.status-inner {
+    padding: 8px 12px;
+    border-top: 1px solid #4a5568;
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .status.processing {
@@ -426,15 +425,13 @@ body {
 }
 
 .connection-status.connected {
-    background: rgba(0, 255, 136, 0.2);
-    color: var(--primary-color);;
-    border: 1px solid var(--primary-color);;
+    color: #00ca00;
+    border: 1px solid #00ca00;
 }
 
 .connection-status.disconnected {
-    background: rgba(255, 107, 107, 0.2);
-    color: #ff6b6b;
-    border: 1px solid #ff6b6b;
+    color: red;
+    border: 1px solid red;
 }
 
 .end-session-button {
@@ -473,7 +470,6 @@ body {
 
 .tools-container {
     flex: 1;
-    padding: 20px;
     display: flex;
     flex-direction: column;
     min-height: 0; /* Important for flex containers */
@@ -482,11 +478,10 @@ body {
 
 .tools-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
     margin-bottom: 20px;
     padding-bottom: 15px;
-    border-bottom: 1px solid #4a5568;
 }
 
 .tools-header h2 {
@@ -669,9 +664,6 @@ body {
 
 .tool-args {
     color: #ffd700;
-}
-
-.tool-result {
 }
 
 .code-accent {
