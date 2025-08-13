@@ -108,7 +108,7 @@ function handleSSEMessage(data) {
             
         case 'assistant_progress':
             // Update status bar instead of adding chat message
-            statusBar.innerHTML = `<div class="status-inner">🔄 <span class="code-accent">${data.data}</span></div>`;
+            statusBar.innerHTML = `<div class="status-inner"><i class="fa-solid fa-rotate"></i> <span class="code-accent">${data.data}</span></div>`;
             statusBar.className = 'status processing';
             break;
             
@@ -141,7 +141,12 @@ function addMessage(type, content, timestamp) {
     const messagesContainer = document.getElementById('chatMessages');
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${type}`;
-    
+
+    let avatarHtml = '';
+    if (type === 'assistant') {
+        avatarHtml = '<span class="avatar avatar-assistant"><i class="fa-solid fa-robot"></i></span>';
+    }
+
     // Parse markdown for assistant messages using marked.js, keep plain text for user/system messages
     let processedContent;
     if (type === 'assistant' && typeof marked !== 'undefined') {
@@ -154,10 +159,15 @@ function addMessage(type, content, timestamp) {
     } else {
         processedContent = content.replace(/\n/g, '<br>');
     }
-    
+
     messageDiv.innerHTML = `
-        <div>${processedContent}</div>
-        <div class="timestamp">${timestamp || new Date().toLocaleTimeString()}</div>
+        <div class="message-row" style="display: flex; gap: 10px; align-items: baseline;">
+            ${avatarHtml}
+            <div class="message-content">
+                <div>${processedContent}</div>
+                <div class="timestamp">${timestamp || new Date().toLocaleTimeString()}</div>
+            </div>
+        </div>
     `;
     
     messagesContainer.appendChild(messageDiv);
@@ -374,7 +384,7 @@ function clearTools() {
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Initializing Real-time AI Chat...');
-    
+
     initializeSSE();
     // Focus on input and set initial height
     const messageInput = document.getElementById('messageInput');
