@@ -53,7 +53,7 @@ async def call(
 ) -> _TOutput: ...
 
 
-@overload 
+@overload
 async def call(
     node_: Callable[_P, Union[Node[_TOutput], _TOutput]]
     | _AsyncNodeAttachedFunc[_P, _TOutput]
