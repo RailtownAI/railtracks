@@ -44,6 +44,7 @@ if TYPE_CHECKING:
 _P = ParamSpec("_P")
 _TOutput = TypeVar("_TOutput")
 
+
 @overload
 async def call(
     node_: Callable[_P, Node[_TOutput]],
@@ -51,13 +52,14 @@ async def call(
     **kwargs: _P.kwargs,
 ) -> _TOutput: ...
 
+
 @overload
 async def call(
-    node_: _AsyncNodeAttachedFunc[_P, _TOutput]
-    | _SyncNodeAttachedFunc[_P, _TOutput],
+    node_: _AsyncNodeAttachedFunc[_P, _TOutput] | _SyncNodeAttachedFunc[_P, _TOutput],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput: ...
+
 
 @overload
 async def call(
@@ -65,9 +67,6 @@ async def call(
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput: ...
-
-
-
 
 
 async def call(
@@ -243,13 +242,14 @@ def call_sync(
     **kwargs: _P.kwargs,
 ) -> _TOutput: ...
 
+
 @overload
 def call_sync(
-    node_: _AsyncNodeAttachedFunc[_P, _TOutput]
-    | _SyncNodeAttachedFunc[_P, _TOutput],
+    node_: _AsyncNodeAttachedFunc[_P, _TOutput] | _SyncNodeAttachedFunc[_P, _TOutput],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput: ...
+
 
 @overload
 def call_sync(
