@@ -122,7 +122,7 @@ nav:
       - Coordinator Orchestration: system_internals/coordinator.md
 
   - API Reference:
-      - Generated: api_reference/generated/index.html
+      - Generated: api_reference/generated/railtracks.html
 
       - Components:
           - api_reference/components/api_provider_wrappers.md
