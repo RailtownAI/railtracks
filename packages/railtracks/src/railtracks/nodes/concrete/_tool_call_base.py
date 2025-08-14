@@ -15,7 +15,7 @@ from typing import (
 
 import railtracks.context as context
 from railtracks.exceptions import LLMError, NodeCreationError
-from railtracks.interaction.call import call
+from railtracks.interaction._call import call
 from railtracks.llm import (
     AssistantMessage,
     Message,

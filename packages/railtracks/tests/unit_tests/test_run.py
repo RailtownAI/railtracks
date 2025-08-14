@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import MagicMock, patch, call, PropertyMock, Mock
 import asyncio
 import railtracks as rt
-from railtracks.session import Session
+from railtracks._session import Session
 
 # ================= START Mock Fixture ============
 @pytest.fixture

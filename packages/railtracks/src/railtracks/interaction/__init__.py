@@ -1,9 +1,9 @@
 from .batch import call_batch
 from .broadcast_ import broadcast
-from .call import call, call_sync
+from ._call import call, call_sync
 
 __all__ = [
-    "call",
+    "_call",
     "call_sync",
     "call_batch",
     "broadcast",

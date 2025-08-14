@@ -39,7 +39,7 @@ from .interaction import broadcast, call, call_batch, call_sync
 from .nodes.easy_usage_wrappers import agent_node, chatui_node, function_node
 from .nodes.manifest import ToolManifest
 from .rt_mcp import MCPHttpParams, MCPStdioParams, connect_mcp, create_mcp_server
-from .session import ExecutionInfo, Session
+from ._session import ExecutionInfo, Session
 from .utils.config import ExecutorConfig
 
 load_dotenv()

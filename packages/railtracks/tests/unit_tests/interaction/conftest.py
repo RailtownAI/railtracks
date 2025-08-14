@@ -21,13 +21,13 @@ def mock_config():
 @pytest.fixture
 def mock_context_functions():
     """Fixture that patches all context-related functions."""
-    with patch('railtracks.interaction.call.is_context_present') as present, \
-         patch('railtracks.interaction.call.is_context_active') as active, \
-         patch('railtracks.interaction.call.activate_publisher') as activate, \
-         patch('railtracks.interaction.call.shutdown_publisher') as shutdown, \
-         patch('railtracks.interaction.call.get_publisher') as get_pub, \
-         patch('railtracks.interaction.call.get_parent_id') as get_parent, \
-         patch('railtracks.interaction.call.get_local_config') as get_config:
+    with patch('railtracks.interaction._call.is_context_present') as present, \
+         patch('railtracks.interaction._call.is_context_active') as active, \
+         patch('railtracks.interaction._call.activate_publisher') as activate, \
+         patch('railtracks.interaction._call.shutdown_publisher') as shutdown, \
+         patch('railtracks.interaction._call.get_publisher') as get_pub, \
+         patch('railtracks.interaction._call.get_parent_id') as get_parent, \
+         patch('railtracks.interaction._call.get_local_config') as get_config:
         
         # Set default return values
         get_parent.return_value = "parent_123"
@@ -43,34 +43,25 @@ def mock_context_functions():
         }
 
 
-@pytest.fixture
-def mock_runner():
-    """Fixture providing a mock Session context manager."""
-    with patch('railtracks.run.Session') as runner_class:
-        runner_instance = Mock()
-        runner_class.return_value.__enter__ = Mock(return_value=runner_instance)
-        runner_class.return_value.__exit__ = Mock(return_value=None)
-        yield runner_class
-
 
 @pytest.fixture
 def mock_execute():
     """Fixture that patches the _execute function."""
-    with patch('railtracks.interaction.call._execute') as execute:
+    with patch('railtracks.interaction._call._execute') as execute:
         yield execute
 
 
 @pytest.fixture
 def mock_start():
     """Fixture that patches the _start function."""
-    with patch('railtracks.interaction.call._start') as start:
+    with patch('railtracks.interaction._call._start') as start:
         yield start
 
 
 @pytest.fixture
 def mock_run():
     """Fixture that patches the _run function."""
-    with patch('railtracks.interaction.call._run') as run:
+    with patch('railtracks.interaction._call._run') as run:
         yield run
 
 
