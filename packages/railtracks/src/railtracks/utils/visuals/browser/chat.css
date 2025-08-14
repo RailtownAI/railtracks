@@ -2,14 +2,14 @@
     --primary-color: #00ff88;
     --secondary-color: #00cc6936;
     --text-color: #e2e8f0;
-    --background-color: #dddddd; 
+    --background-color: #1a202c; 
     --font: 'Consolas', 'Monaco', 'Lucida Console', monospace;
    
 
     /* --primary-color: #cd1094;
     --secondary-color: #cd109447;
     --text-color: #0c0c0c;
-    --background-color: #e4e7ed;
+    --background-color: #dddddd;
     --font: 'Helvetica Neue', 'Arial', sans-serif; */
    
 } 
@@ -413,7 +413,6 @@ body {
 .status-inner {
     padding: 8px 12px;
     border-top: 1px solid #4a5568;
-    background: rgba(255, 255, 255, 0.1);
 }
 
 .status.processing {
