@@ -2,7 +2,7 @@
     --primary-color: #00ff88;
     --secondary-color: #00cc6936;
     --text-color: #e2e8f0;
-    --background-color: #1a202c; 
+    --background-color: #dddddd; 
     --font: 'Consolas', 'Monaco', 'Lucida Console', monospace;
    
 
@@ -133,7 +133,8 @@ body {
     margin-bottom: 15px;
     padding: 12px 16px;
     border-radius: 8px;
-    max-width: 85%;
+    width: fit-content;
+    max-width: 90%;
     word-wrap: break-word;
     animation: slideIn 0.3s ease-out;
     font-size: 14px;
@@ -310,8 +311,12 @@ body {
     margin: 15px auto;
     text-align: center;
     font-size: 13px;
-    max-width: 90%;
+    max-width: fit-content;
     border: 1px solid #4a5568;
+}
+
+.message.system .message-row {
+    display: block !important;
 }
 
 .message.progress {
@@ -481,7 +486,6 @@ body {
     justify-content: flex-end;
     align-items: center;
     margin-bottom: 20px;
-    padding-bottom: 15px;
 }
 
 .tools-header h2 {
@@ -601,12 +605,11 @@ body {
     cursor: pointer;
     padding: 4px 8px;
     border-radius: 4px;
-    transition: all 0.2s ease;
     
 }
 
 .toggle-button:hover {
-    background-color: rgba(0, 255, 136, 0.2);
+    background-color: var(--secondary-color)
 }
 
 .toggle-button.collapsed::before {
