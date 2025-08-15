@@ -18,31 +18,13 @@ Then, configure your agent class by selecting which functionalities to enable:
 
 ### Example
 ```python
-import railtracks as rt
-from pydantic import BaseModel
+--8<-- "docs/scripts/byfa.py:imports"
 
-class WeatherResponse(BaseModel):
-    temperature: float
-    condition: str
+--8<-- "docs/scripts/byfa.py:weather_response"
 
-def weather_tool(city: str):
-    """
-    Returns the current weather for a given city.
-
-    Args:
-      city (str): The name of the city to get the weather for.
-    """
-    # Simulate a weather API call
-    return f"{city} is sunny with a temperature of 25°C."
-
-WeatherAgent = rt.agent_node(
-    name="Weather Agent",
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
-    system_message="You are a helpful assistant that answers weather-related questions.",
-    tool_nodes=[rt.function_node(weather_tool)],
-    schema=WeatherResponse,
-)
+--8<-- "docs/scripts/byfa.py:first_agent"
 ```
+
 
 ## Tool-Calling Agents
 
@@ -51,34 +33,17 @@ Tool-calling agents can invoke one or more tools during a conversation. This all
 When making a Tool-Calling Agent you can also specify `max_tool_calls` to have a safety net for your agents calls. If you don't specify `max_tool_calls`, your agent will be able to make as many tool calls as it sees fit.
 
 ### Example
-```python
-import railtracks as rt
 
-# weather_tool_set would be a list of multiple tools
-weather_tool_set = [rt.function_node(weather_tool), rt.function_node(another_tool)]
-
-WeatherAgent = rt.agent_node(
-    name="Weather Agent",
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
-    system_message="You are a helpful assistant that answers weather-related questions.",
-    tool_nodes=weather_tool_set,
-    max_tool_calls=10
-)
-```
 
 Additionally, we have an MCP agent if you would like integrate API functionalities as tools your agent can use directly. See [Using MCP](../tools_mcp/mcp/MCP_tools_in_RT.md) for more details.
 
 ### Example
 ```python
 
-import railtracks as rt
+--8<-- "docs/scripts/byfa.py:1:2"
 
-notion_agent_class = rt.agent_node(
-    name="Notion Agent",
-    tool_nodes=notion_mcp_tools,
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
-    system_message="You are a helpful assistant that help edit users Notion pages",
-)
+--8<-- "docs/scripts/byfa.py:notion_agent"
+
 ```
 
 
@@ -87,3 +52,4 @@ notion_agent_class = rt.agent_node(
 
 !!! info "Advanced Usage: Shared Context"
     For advanced usage cases that require sharing context (ie variables, paramters, etc) between nodes please refer to [context](../advanced_usage/context.md), for further configurability.
+    
