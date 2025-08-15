@@ -4,8 +4,7 @@ from railtracks.llm import (
     ModelBase,
     SystemMessage,
 )
-from railtracks.nodes.concrete import ChatToolCallLLM
-from railtracks.nodes.concrete import RTFunction
+from railtracks.nodes.concrete import ChatToolCallLLM, RTFunction
 from railtracks.utils.visuals.browser.chat_ui import ChatUI
 
 from .._node_builder import NodeBuilder

@@ -5,17 +5,16 @@ from pydantic import BaseModel
 
 from railtracks.llm.message import SystemMessage
 from railtracks.llm.model import ModelBase
-from railtracks.nodes.concrete.function_base import RTFunction
 from railtracks.nodes.manifest import ToolManifest
 from railtracks.nodes.nodes import Node
 from railtracks.nodes.utils import extract_node_from_function
 
 from ..concrete import (
+    RTFunction,
     StructuredLLM,
     StructuredToolCallLLM,
     TerminalLLM,
     ToolCallLLM,
-    RTFunction,
 )
 from .helpers import (
     structured_llm,
@@ -23,8 +22,6 @@ from .helpers import (
     terminal_llm,
     tool_call_llm,
 )
-
-
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 
@@ -112,7 +109,6 @@ def agent_node(
                     f"Expected {node} to be a subclass of Node"
                 )
                 unpacked_tool_nodes.add(node)
-                
 
     # See issue (___) this logic should be migrated soon.
     if manifest is not None:

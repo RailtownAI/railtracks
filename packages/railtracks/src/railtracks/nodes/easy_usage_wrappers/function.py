@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import functools
 import inspect
+import warnings
 from types import BuiltinFunctionType
 from typing import (
     Callable,
@@ -11,7 +12,6 @@ from typing import (
     TypeVar,
     overload,
 )
-import warnings
 
 from railtracks.exceptions import NodeCreationError
 from railtracks.validation.node_creation.validation import validate_function
@@ -21,13 +21,11 @@ from ..concrete import (
     AsyncDynamicFunctionNode,
     SyncDynamicFunctionNode,
 )
-from ..concrete.function_base import RTFunction, RTAsyncFunction, RTSyncFunction
+from ..concrete.function_base import RTAsyncFunction, RTSyncFunction
 from ..manifest import ToolManifest
 
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
-
-
 
 
 @overload
@@ -118,7 +116,7 @@ def function_node(
 
     completed_node_type = builder.build()
 
-    # there is some pretty scary logic here. 
+    # there is some pretty scary logic here.
     if issubclass(completed_node_type, AsyncDynamicFunctionNode):
         setattr(func, "node_type", completed_node_type)
         return func
@@ -138,8 +136,9 @@ def _function_preserving_metadata(
     func: Callable[_P, _TOutput],
 ):
     """
-    Wraps the given function in a trivial wrapper that preserves its metadata. 
+    Wraps the given function in a trivial wrapper that preserves its metadata.
     """
+
     @functools.wraps(func)
     def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
         return func(*args, **kwargs)

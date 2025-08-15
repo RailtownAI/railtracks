@@ -10,7 +10,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
-    overload
+    overload,
 )
 from uuid import uuid4
 
@@ -32,16 +32,13 @@ from railtracks.pubsub.messages import (
 )
 from railtracks.pubsub.utils import output_mapping
 
-
-
 if TYPE_CHECKING:
-    from railtracks.nodes.concrete import (
-        RTFunction
-    )
+    from railtracks.nodes.concrete import RTFunction
     from railtracks.nodes.nodes import Node
 
 _P = ParamSpec("_P")
 _TOutput = TypeVar("_TOutput")
+
 
 @overload
 async def call(
@@ -50,12 +47,14 @@ async def call(
     **kwargs: _P.kwargs,
 ) -> _TOutput: ...
 
+
 @overload
 async def call(
     node_: Callable[_P, Node[_TOutput]],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput: ...
+
 
 @overload
 async def call(
@@ -66,8 +65,7 @@ async def call(
 
 
 async def call(
-    node_: Callable[_P, Node[_TOutput] | _TOutput]
-    | RTFunction[_P, _TOutput],
+    node_: Callable[_P, Node[_TOutput] | _TOutput] | RTFunction[_P, _TOutput],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput:
@@ -229,6 +227,7 @@ async def _execute(
     )
 
     return await f
+
 
 @overload
 def call_sync(

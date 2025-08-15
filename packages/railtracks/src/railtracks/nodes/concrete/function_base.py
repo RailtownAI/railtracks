@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from ast import Not
 import asyncio
 from abc import ABC, abstractmethod
-from types import FunctionType
 from typing import (
     Any,
     Coroutine,
@@ -11,10 +9,9 @@ from typing import (
     Generic,
     ParamSpec,
     Protocol,
-    TypeVar, Callable,
+    TypeVar,
 )
 
-from annotated_types import Ge
 from typing_extensions import Self
 
 from railtracks.exceptions import NodeCreationError
@@ -146,15 +143,11 @@ class RTFunction(Protocol, Generic[_P, _TOutput]):
     def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput: ...
 
 
-class RTAsyncFunction(RTFunction[_P, Coroutine[None, None, _TOutput]], Generic[_P, _TOutput]):
+class RTAsyncFunction(
+    RTFunction[_P, Coroutine[None, None, _TOutput]], Generic[_P, _TOutput]
+):
     node_type: AsyncDynamicFunctionNode[_P, _TOutput]
 
 
 class RTSyncFunction(RTFunction[_P, _TOutput], Generic[_P, _TOutput]):
     node_type: SyncDynamicFunctionNode[_P, _TOutput]
-
-
-
-
-
-
