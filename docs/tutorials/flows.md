@@ -9,7 +9,7 @@ To start, let’s look at the simplest case: an agent that uses another agent as
 import railtracks as rt
 from pydantic import BaseModel
 
-#As before, we will create our Weather Agent
+#As before, we will create our Weather Agent with the additional tool manifest so that other agents know how to use it
 class WeatherResponse(BaseModel):
     temperature: float
     condition: str
@@ -26,7 +26,7 @@ def weather_tool(city: str):
 
 weather_manifest = ToolManifest(
     description="A tool you can call to see what the weather in a specified city"
-    parameter
+    parameters=Parameter("prompt", "string", "Specify the city you want to know about here") #Cross Reference this is the way to do this
 )
 WeatherAgent = rt.agent_node(
     name="Weather Agent",
@@ -42,10 +42,12 @@ WeatherAgent = rt.agent_node(
 HikingAgent = rt.agent_node(
     name="Hiking Agent",
     llm_model=rt.llm.OpenAILLM("gpt-4o"),
-    system_message="You are a helpful assistant that answers questions about conditions for hiking.",
+    system_message="You are a helpful assistant that answers questions about which cities have the best conditions for hiking. The user should specify multiple cities near them.",
     tool_nodes=[WeatherAgent],
 )
 ```
+
+
 
 ## Tool-Calling Agents
 
