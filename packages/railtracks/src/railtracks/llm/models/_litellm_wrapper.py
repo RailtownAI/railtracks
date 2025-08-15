@@ -1,4 +1,3 @@
-from email import message
 import json
 import time
 import warnings
@@ -413,7 +412,10 @@ class LiteLLMWrapper(ModelBase, ABC):
         choice = raw.choices[0]
 
         if choice.finish_reason == "stop" and not choice.message.tool_calls:
-            return Response(message=AssistantMessage(content=choice.message.content), message_info=info)
+            return Response(
+                message=AssistantMessage(content=choice.message.content),
+                message_info=info,
+            )
 
         calls: List[ToolCall] = []
         for tc in choice.message.tool_calls:
