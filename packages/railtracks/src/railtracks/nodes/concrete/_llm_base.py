@@ -46,6 +46,7 @@ class RequestDetails:
         output_tokens: int | None = None,
         total_cost: float | None = None,
         system_fingerprint: str | None = None,
+        latency: float | None = None
     ):
         self.input = message_input
         self.output = output
@@ -55,6 +56,7 @@ class RequestDetails:
         self.output_tokens = output_tokens
         self.total_cost = total_cost
         self.system_fingerprint = system_fingerprint
+        self.latency = latency
 
     def __repr__(self):
         return f"RequestDetails(model_name={self.model_name}, model_provider={self.model_provider}, input={self.input}, output={self.output})"
@@ -226,6 +228,10 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
 
     def _post_llm_hook(self, message_history: MessageHistory, response: Response):
         """Hook to store the response details after invoking the llm model."""
+        try:
+            print(response.message_info)
+        except Exception as e:
+            print(f"Error occurred while printing response message info: {e}")
         self._details["llm_details"].append(
             RequestDetails(
                 message_input=deepcopy(message_history),
@@ -238,6 +244,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
                 output_tokens=response.message_info.output_tokens,
                 total_cost=response.message_info.total_cost,
                 system_fingerprint=response.message_info.system_fingerprint,
+                latency=response.message_info.latency
             )
         )
 
@@ -247,6 +254,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         self, message_history: MessageHistory, exception: Exception
     ):
         """Hook to store the response details after exception was thrown during llm model invocation"""
+        print("entering hook for post_llm exception")
         self._details["llm_details"].append(
             RequestDetails(
                 message_input=deepcopy(message_history),
