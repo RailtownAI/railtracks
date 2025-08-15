@@ -9,7 +9,7 @@ from typing import (
     Any,
     Dict,
     Generic,
-    TypeVar, Callable, ParamSpec,
+    TypeVar
 )
 
 from typing_extensions import Self
