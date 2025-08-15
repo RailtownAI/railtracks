@@ -15,7 +15,9 @@ from typing import (
     cast,
     overload,
 )
+import warnings
 
+from attr import has
 from railtracks.exceptions import NodeCreationError
 from railtracks.validation.node_creation.validation import validate_function
 
@@ -24,22 +26,13 @@ from ..concrete import (
     AsyncDynamicFunctionNode,
     SyncDynamicFunctionNode,
 )
+from ..concrete.function_base import RTFunction, RTAsyncFunction, RTSyncFunction
 from ..manifest import ToolManifest
 
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
 
 
-class _SyncNodeAttachedFunc(Generic[_P, _TOutput], Protocol):
-    def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput: ...
-
-    node_type: Type[SyncDynamicFunctionNode[_P, _TOutput]]
-
-
-class _AsyncNodeAttachedFunc(Generic[_P, _TOutput], Protocol):
-    async def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput: ...
-
-    node_type: Type[AsyncDynamicFunctionNode[_P, _TOutput]]
 
 
 @overload
@@ -49,7 +42,7 @@ def function_node(
     *,
     name: str | None = None,
     tool_manifest: ToolManifest | None = None,
-) -> _AsyncNodeAttachedFunc[_P, _TOutput]:
+) -> RTAsyncFunction[_P, _TOutput]:
     pass
 
 
@@ -60,7 +53,7 @@ def function_node(
     *,
     name: str | None = None,
     tool_manifest: ToolManifest | None = None,
-) -> _SyncNodeAttachedFunc[_P, _TOutput]:
+) -> RTSyncFunction[_P, _TOutput]:
     pass
 
 
@@ -79,12 +72,20 @@ def function_node(
 
     WARNING: If you overriding tool parameters. It is on you to make sure they will work with your function.
 
+    NOTE: If you have already converted this function to a node this function will do nothing
 
     Args:
         func (Callable): The function to convert into a Node.
         name (str, optional): Human-readable name for the node/tool.
         tool_manifest (ToolManifest, optional): The details you would like to override the tool with.
     """
+
+    if hasattr(func, "node_type"):
+        warnings.warn(
+            "The provided function has already been converted to a node.",
+            UserWarning,
+        )
+        return func
 
     if not isinstance(
         func, BuiltinFunctionType
@@ -122,17 +123,18 @@ def function_node(
 
     completed_node_type = builder.build()
 
+    # there is some pretty scary logic here. 
     if issubclass(completed_node_type, AsyncDynamicFunctionNode):
         setattr(func, "node_type", completed_node_type)
-        return cast(_AsyncNodeAttachedFunc[_P, _TOutput], func)
+        return func
     elif issubclass(completed_node_type, SyncDynamicFunctionNode):
         setattr(func, "node_type", completed_node_type)
-        return cast(_SyncNodeAttachedFunc[_P, _TOutput], func)
+        return func
     else:
         raise NodeCreationError(
             message="The provided function did not create a valid node type.",
             notes=[
-                "This is an unknown bug.",
+                "Please make a github issue with the details of what went wrong.",
             ],
         )
 
@@ -140,6 +142,9 @@ def function_node(
 def _function_preserving_metadata(
     func: Callable[_P, _TOutput],
 ):
+    """
+    Wraps the given function in a trivial wrapper that preserves its metadata. 
+    """
     @functools.wraps(func)
     def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
         return func(*args, **kwargs)

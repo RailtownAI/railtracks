@@ -12,6 +12,9 @@ __all__ = [
     "DynamicFunctionNode",
     "OutputLessToolCallLLM",
     "RequestDetails",
+    "RTFunction",
+    "RTSyncFunction",
+    "RTAsyncFunction",
 ]
 
 from ._llm_base import LLMBase, RequestDetails
@@ -21,6 +24,9 @@ from .function_base import (
     AsyncDynamicFunctionNode,
     DynamicFunctionNode,
     SyncDynamicFunctionNode,
+    RTFunction,
+    RTSyncFunction, 
+    RTAsyncFunction
 )
 from .response import StringResponse, StructuredResponse
 from .structured_llm_base import StructuredLLM
