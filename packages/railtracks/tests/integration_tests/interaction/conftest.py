@@ -358,7 +358,7 @@ def tool_calling_nodes(
                     super().__init__(user_input=user_input, llm_model=llm_model)
 
                 def tool_nodes(self):
-                    return connected_nodes
+                    return [x if not hasattr(x, "node_type") else x.node_type for x in connected_nodes]
 
                 @classmethod
                 def name(cls) -> str:

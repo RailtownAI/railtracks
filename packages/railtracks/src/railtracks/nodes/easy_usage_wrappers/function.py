@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import inspect
+import warnings
 from types import BuiltinFunctionType
 from typing import (
     Callable,
     Coroutine,
     ParamSpec,
-    Type,
     TypeVar,
     overload,
 )
@@ -20,6 +21,7 @@ from ..concrete import (
     AsyncDynamicFunctionNode,
     SyncDynamicFunctionNode,
 )
+from ..concrete.function_base import RTAsyncFunction, RTSyncFunction
 from ..manifest import ToolManifest
 
 _TOutput = TypeVar("_TOutput")
@@ -32,8 +34,8 @@ def function_node(
     /,
     *,
     name: str | None = None,
-    tool_manifest: ToolManifest = None,
-) -> Type[AsyncDynamicFunctionNode[_P, _TOutput]]:
+    tool_manifest: ToolManifest | None = None,
+) -> RTAsyncFunction[_P, _TOutput]:
     pass
 
 
@@ -43,8 +45,8 @@ def function_node(
     /,
     *,
     name: str | None = None,
-    tool_manifest: ToolManifest = None,
-) -> Type[SyncDynamicFunctionNode[_P, _TOutput]]:
+    tool_manifest: ToolManifest | None = None,
+) -> RTSyncFunction[_P, _TOutput]:
     pass
 
 
@@ -53,7 +55,7 @@ def function_node(
     /,
     *,
     name: str | None = None,
-    tool_manifest: ToolManifest = None,
+    tool_manifest: ToolManifest | None = None,
 ):
     """
     Creates a new Node type from a function that can be used in `rt.call()`.
@@ -63,12 +65,20 @@ def function_node(
 
     WARNING: If you overriding tool parameters. It is on you to make sure they will work with your function.
 
+    NOTE: If you have already converted this function to a node this function will do nothing
 
     Args:
         func (Callable): The function to convert into a Node.
         name (str, optional): Human-readable name for the node/tool.
         tool_manifest (ToolManifest, optional): The details you would like to override the tool with.
     """
+
+    if hasattr(func, "node_type"):
+        warnings.warn(
+            "The provided function has already been converted to a node.",
+            UserWarning,
+        )
+        return func
 
     if not isinstance(
         func, BuiltinFunctionType
@@ -80,6 +90,10 @@ def function_node(
     elif inspect.isfunction(func):
         node_class = SyncDynamicFunctionNode
     elif inspect.isbuiltin(func):
+        # builtin functions are written in C and do not have space for the addition of metadata like our node type.
+        # so instead we wrap them in a function that allows for the addition of the node type.
+        # this logic preserved details like the function name, docstring, and signature, but allows us to add the node type.
+        func = _function_preserving_metadata(func)
         node_class = SyncDynamicFunctionNode
     else:
         raise NodeCreationError(
@@ -100,4 +114,33 @@ def function_node(
         tool_params=tool_manifest.parameters if tool_manifest is not None else None,
     )
 
-    return builder.build()
+    completed_node_type = builder.build()
+
+    # there is some pretty scary logic here.
+    if issubclass(completed_node_type, AsyncDynamicFunctionNode):
+        setattr(func, "node_type", completed_node_type)
+        return func
+    elif issubclass(completed_node_type, SyncDynamicFunctionNode):
+        setattr(func, "node_type", completed_node_type)
+        return func
+    else:
+        raise NodeCreationError(
+            message="The provided function did not create a valid node type.",
+            notes=[
+                "Please make a github issue with the details of what went wrong.",
+            ],
+        )
+
+
+def _function_preserving_metadata(
+    func: Callable[_P, _TOutput],
+):
+    """
+    Wraps the given function in a trivial wrapper that preserves its metadata.
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
+        return func(*args, **kwargs)
+
+    return wrapper

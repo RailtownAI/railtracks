@@ -51,7 +51,7 @@ def test_create_tool_function_with_no_params(
 
 # ======= START create_mcp_server tests ==============
 def test_create_mcp_server_new_server_registers_tools(
-    mock_FastMCP, mock_MCPTool, mock_func_metadata, mock_node_cls, mock_node_info, mock_executor_config, mock_params_schema
+    mock_FastMCP, mock_MCPTool, mock_func_metadata, mock_node_cls, mock_node_info, mock_params_schema
 ):
     # Setup
     mcp_instance = MagicMock()
