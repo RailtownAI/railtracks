@@ -52,6 +52,7 @@ When making a Tool-Calling Agent you can also specify `max_tool_calls` to have a
 
 ### Example
 ```python
+import railtracks as rt
 
 # weather_tool_set would be a list of multiple tools
 weather_tool_set = [rt.function_node(weather_tool), rt.function_node(another_tool)]
@@ -69,6 +70,8 @@ Additionally, we have an MCP agent if you would like integrate API functionaliti
 
 ### Example
 ```python
+
+import railtracks as rt
 
 notion_agent_class = rt.agent_node(
     name="Notion Agent",

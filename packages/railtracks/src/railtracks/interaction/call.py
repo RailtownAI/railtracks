@@ -7,8 +7,10 @@ from typing import (
     Callable,
     Coroutine,
     ParamSpec,
+    Type,
     TypeVar,
     Union,
+    overload
 )
 from uuid import uuid4
 
@@ -40,6 +42,27 @@ if TYPE_CHECKING:
 
 _P = ParamSpec("_P")
 _TOutput = TypeVar("_TOutput")
+
+@overload
+async def call(
+    node_: RTFunction[_P, _TOutput],
+    *args: _P.args,
+    **kwargs: _P.kwargs,
+) -> _TOutput: ...
+
+@overload
+async def call(
+    node_: Callable[_P, Node[_TOutput]],
+    *args: _P.args,
+    **kwargs: _P.kwargs,
+) -> _TOutput: ...
+
+@overload
+async def call(
+    node_: Callable[_P, _TOutput],
+    *args: _P.args,
+    **kwargs: _P.kwargs,
+) -> _TOutput: ...
 
 
 async def call(
@@ -207,9 +230,34 @@ async def _execute(
 
     return await f
 
+@overload
+def call_sync(
+    node_: Callable[_P, Node[_TOutput]],
+    *args: _P.args,
+    **kwargs: _P.kwargs,
+) -> _TOutput: ...
+
+
+@overload
+def call_sync(
+    node_: RTFunction[_P, _TOutput],
+    *args: _P.args,
+    **kwargs: _P.kwargs,
+) -> _TOutput: ...
+
+
+@overload
+def call_sync(
+    node_: Callable[_P, _TOutput],
+    *args: _P.args,
+    **kwargs: _P.kwargs,
+) -> _TOutput: ...
+
 
 def call_sync(
-    node: Callable[_P, Node[_TOutput] | _TOutput] | RTFunction[_P, _TOutput],
+    node: Type[Node[_TOutput]]
+    | Callable[_P, Union[Node[_TOutput], _TOutput]]
+    | RTFunction[_P, _TOutput],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput:

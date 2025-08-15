@@ -119,7 +119,7 @@ class Session:
         self.coordinator = Coordinator(
             execution_modes={"async": AsyncioExecutionStrategy()}
         )
-        self.rc_state = RTState(
+        self.rt_state = RTState(
             executor_info, self.executor_config, self.coordinator, self.publisher
         )
 
@@ -212,7 +212,7 @@ class Session:
         - Deletes all the global variables that were registered in the context
         """
         # the publisher should have already been closed in `_run_base`
-        self.rc_state.shutdown()
+        self.rt_state.shutdown()
         detach_logging_handlers()
         delete_globals()
         # by deleting all of the state variables we are ensuring that the next time we create a runner it is fresh
@@ -224,7 +224,7 @@ class Session:
 
         This is useful for debugging and viewing the current state of the run.
         """
-        return self.rc_state.info
+        return self.rt_state.info
 
     def payload(self):
         """

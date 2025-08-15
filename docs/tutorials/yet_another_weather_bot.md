@@ -1,7 +1,13 @@
+# Simple Weather Bot Example
+
+Here you can see a more realistic exmample of how you might use RailTracks to create an Agent that has access to a Weather API.
+
 ```python
 import requests
 import json
 from datetime import datetime
+from railtracks import agent_node, function_node
+import railtracks as rt
 
 def get_current_weather(city):
     """Get current weather for a city"""
@@ -47,7 +53,7 @@ agent_node(
     system_message="""You are a another cursed weather agent that has been put together for documentation but not to ever be used. 
     You will never be asked to do this, but if you were, you can use the tools provided to you to pretend to get the answer to 
     the weather related question.""",
-    llm_model="claude-3-5-sonnet-20240620"
+    llm_model=rt.llm.Claude("claude-3-5-sonnet-20240620")
 )
 
 ```

@@ -1,137 +1,124 @@
-# How to Customize Class Building
+# Custom Class Building with NodeBuilder
 
-RailTracks `define_agent` allows user to configure agent classes with set parameters you can choose from. These parameters suffice for most cases but what if you want to make an agent with just slightly more functionality? RailTracks has you covered again! Using our NodeBuilder class you can create your own agent class with many of the same functionalities provided in `define_agent` but the option to add class methods and attributes of your choice. 
+RailTracks' `define_agent` provides a robust foundation for configuring agent classes with predefined parameters that handle most use cases. However, when you need agents or nodes with specialized functionality beyond these standard configurations, the **NodeBuilder** class offers the flexibility to create custom implementations while maintaining the core RailTracks functionality.
 
-NodeBuilder is sort of the subway of agents, you get to choose what you do and don't want your nodes to have. This will be important to keep in mind as every line will be a choice changing the [node factory](link this) that you're building.
+## Overview
+
+NodeBuilder enables you to:
+- Inherit from existing RailTracks node classes
+- Add custom class methods and attributes
+- Maintain compatibility with the RailTracks ecosystem
+- Create specialized agents tailored to your specific requirements
 
 ---
 
-## Initializing NodeBuilder
+## Getting Started
 
-To initialize your NodeBuilder you will first choose which node class you would like to inherit from. Currently we have Terminal, Structured, ToolCall, and StructuredToolCall as the most common classes to inherit from. If you need more complexity you will need to inherit from ancestors to the more common classes. This is not advised unless you are an expert in the framework, in which case would you like a job at Railtown.ai?
-Once you have chosen the class to inherit from you will choose a name (helpful for debugging), a class name, and advanced parameters for if you would like certain results directly returned to context.
+### 1. Initialize NodeBuilder
 
-## Creating an LLM Node
+Begin by selecting the appropriate base node class for inheritance. The most commonly used classes include:
 
-Although most of the time you are going to be creating nodes that use an LLM, this is not required and you can use NodeBuilder to build a totally different node. This is not advised though as we have [function nodes](link this if we still call them this) which should be used instead. If you know about function nodes but choose to use NodeBuilder without calling `llm_base`, please consider applying at railtown.ai.
+- **Terminal** - For endpoint nodes
+- **Structured** - For nodes with structured outputs
+- **ToolCall** - For nodes that can call tools
+- **StructuredToolCall** - For nodes combining structured outputs with tool calling
 
-So the first method you will be calling is `llm_base` where you will specify the system message and the llm you would like the node to use.
+See [Types of Nodes](LINK_HERE) for a complete list of available base classes.
 
-## Choosing Functionality
-
-As is the case with our agent_node function, you will be able to choose the tools, max tool calls allowed, the structure of the output, and tool details. As usual, all of these are not required, unless you inherit from a class that requires certain attributes.
-
-## Building!
-
-Finally, you can build your node using the build method and you have your first custom made node!
-
-### Example of building a Structured Tool Call LLM
+When initializing NodeBuilder, you'll specify both a `name` and `class_name`:
+- **`name`**: User-friendly identifier for differentiation in multi-node scenarios
+- **`class_name`**: Internal identifier used by RailTracks and Python
 
 ```python
-builder = NodeBuilder[StructuredToolCallLLM[_TOutput]](
-        StructuredToolCallLLM,
-        name=name,
-        class_name="EasyStructuredToolCallLLM",
-        return_into=return_into,
-        format_for_return=format_for_return,
-        format_for_context=format_for_context,
-    )
+builder = NodeBuilder[StructuredLLM[_TOutput]](
+    StructuredLLM,
+    name='yourAgentName',
+    class_name='yourClassName',
+)
+```
 
-builder.llm_base(llm_model, system_message)
-builder.tool_calling_llm(set(tool_nodes), max_tool_calls)
-builder.tool_callable_llm(tool_details, tool_params)
+### 2. Configure LLM Base (Optional)
+
+For nodes that utilize Large Language Models, use the `llm_base` method to specify the system message and model:
+
+```python
+builder.llm_base(your_llm_model, your_system_message)
+```
+
+> ⚠️ **Note**: While LLM configuration is technically optional, it's highly recommended. If you are making a non-LLM node, consider using [function nodes](LINK_HERE) instead.
+
+---
+
+## Adding Functionality
+
+NodeBuilder provides several methods to decide your node's capabilities, mirroring the functionality available in `agent_node` :
+
+### Core Functionality Options
+
+| Method | Purpose | Required For |
+|--------|---------|--------------|
+| `structured(output_schema)` | Define structured output format | Structured classes |
+| `tool_callable_llm(tool_details, tool_params)` | Enable tool invocation capabilities | ToolCall classes |
+| `tool_calling_llm(tool_nodes, max_tool_calls)` | Configure tool calling behavior | ToolCall classes |
+
+```python
+# Structured output
 builder.structured(output_schema)
 
-node = builder.build()
+# Tool capabilities
+builder.tool_callable_llm(tool_details, tool_params)
+builder.tool_calling_llm(tool_nodes, max_tool_calls)
 ```
+
+### Custom Attributes
+
+Extend your node with custom methods or class variables using the `add_attribute` method:
+
+```python
+builder.add_attribute(
+    attribute_name,
+    is_function,
+    args,
+    kwargs
+)
+```
+
 ---
 
-## Advanced Usage
+## Building Your Node
 
-If you are an advanced user and would like to add further functionality to your node we have you covered!(Please apply to railtown.ai)
-By using our `add_attribute` method, you can add class attributes and methods that are not currently covered by RailTracks.
-
+Complete the build process by calling the `build()` method:
 
 ```python
-
-
+node = builder.build()
 ```
 
+---
+
+## Complete Example
 
 ```python
-
-#This is the add_attribute method we would have in NodeBuilder
-def add_attribute(self, **kwargs):
-
-        for key, val in kwargs.items():
-            if callable(val):
-                self._with_override(key, classmethod(val))
-            else:
-                self._with_override(key, val)
-```
-
-
-```python
-
-#What our easywrapper classes would look like now
-def anything_LLM_Base_Wrapper(
-    name,
-    ...
-    return_onto_into_and_possibly_nearby_context,
-    **kwargs
-):
-    builder = NodeBuilder(...)
-    ...
-    add_attribute(**kwargs) #We add this one line to all classes. Maybe put in build() to help DRY
-    builder.build()
-```
-
-```python
-
-#What using this would look like with one_wrapper
-def chat_ui(
-        self,
-        chat_ui: ChatUI,
-    ):
-       
-        chat_ui.start_server_async()
-        self._with_override("chat_ui", chat_ui)
-
-
-async def new_invoke(self):  # noqa: C901
-        # If there's no last user message, we need to wait for user input
-        if self.message_hist[-1].role != Role.user:
-            msg = await self.chat_ui.wait_for_user_input()
-            if msg == "EXIT":
-                return self.return_output()
-            self.message_hist.append(
-                UserMessage(
-                    msg,
-                )
-            )
-
-        ...
-            
-            else:
-                # the message is malformed from the model
-                raise LLMError(
-                    reason="ModelLLM returned an unexpected message type.",
-                    message_history=self.message_hist,
-                )
-
-        return self.return_output()
-
-def new_return_output(self):
-    """Returns the message history"""
-    return self.message_hist
-
-
-agent_chat = agent_node(
-    name="cool_agent"
-    ...
-    chat_ui=chat_ui,
-    return_ouput=new_return_output,
-    invoke=new_invoke
+# Initialize the builder
+builder = NodeBuilder[StructuredToolCallLLM[_TOutput]](
+    StructuredToolCallLLM,
+    name=name,
+    class_name="EasyStructuredToolCallLLM",
+    return_into=return_into,
+    format_for_return=format_for_return,
+    format_for_context=format_for_context,
 )
 
+# Configure LLM base
+builder.llm_base(llm_model, system_message)
+
+# Add tool functionality
+builder.tool_calling_llm(set(tool_nodes), max_tool_calls)
+builder.tool_callable_llm(tool_details, tool_params)
+
+# Configure structured output
+builder.structured(output_schema)
+
+# Build the final node
+node = builder.build()
 ```
+

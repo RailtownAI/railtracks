@@ -7,17 +7,12 @@ from types import BuiltinFunctionType
 from typing import (
     Callable,
     Coroutine,
-    Generic,
     ParamSpec,
-    Protocol,
-    Type,
     TypeVar,
-    cast,
     overload,
 )
 import warnings
 
-from attr import has
 from railtracks.exceptions import NodeCreationError
 from railtracks.validation.node_creation.validation import validate_function
 

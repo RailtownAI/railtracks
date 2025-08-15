@@ -18,6 +18,7 @@ from railtracks.exceptions import LLMError, NodeCreationError
 from railtracks.interaction.call import call
 from railtracks.llm import (
     AssistantMessage,
+    Message,
     MessageHistory,
     ModelBase,
     ToolCall,
@@ -63,7 +64,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
 
     def __init__(
         self,
-        user_input: MessageHistory | UserMessage | str,
+        user_input: MessageHistory | UserMessage | str | list[Message],
         llm_model: ModelBase | None = None,
         max_tool_calls: int | None = None,
     ):
@@ -126,92 +127,109 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
         )
         self.message_hist.append(returned_mess.message)
 
-    async def _handle_tool_calls(self):
-        while True:
-            current_tool_calls = len(
-                [m for m in self.message_hist if isinstance(m, ToolMessage)]
-            )
-            allowed_tool_calls = (
-                self.max_tool_calls - current_tool_calls
-                if self.max_tool_calls is not None
-                else None
-            )
-            if self.max_tool_calls is not None and allowed_tool_calls <= 0:
-                await self._on_max_tool_calls_exceeded()
-                break
+    async def _handle_tool_calls(self) -> bool:
+        """
+        Handles the execution of tool calls for the node, including LLM interaction and message history updates.
 
-            # collect the response from the llm model
-            returned_mess = await self.llm_model.achat_with_tools(
-                self.message_hist, tools=self.tools()
-            )
+        This method:
+        - Checks if the maximum number of tool calls has been reached and triggers a final response if so.
+        - Interacts with the LLM to get a tool call request or final answers.
+        - Executes a tool call and appends the results to the message history.
+        - Handles malformed LLM responses and raises errors as needed.
 
-            if returned_mess.message.role == "assistant":
-                # if the returned item is a list then it is a list of tool calls
-                if isinstance(returned_mess.message.content, list):
-                    assert all(
-                        isinstance(x, ToolCall) for x in returned_mess.message.content
-                    )
+        Returns:
+            bool: True if more tool calls are expected (the tool call loop should continue),
+                  False if the tool call process is finished and a final answer is available.
 
-                    tool_calls = returned_mess.message.content
-                    if (
-                        allowed_tool_calls is not None
-                        and len(tool_calls) > allowed_tool_calls
-                    ):
-                        tool_calls = tool_calls[:allowed_tool_calls]
+        Raises:
+            LLMError: If the LLM returns an unexpected message type or the message is malformed.
+        """
+        current_tool_calls = len(
+            [m for m in self.message_hist if isinstance(m, ToolMessage)]
+        )
+        allowed_tool_calls = (
+            self.max_tool_calls - current_tool_calls
+            if self.max_tool_calls is not None
+            else None
+        )
+        if self.max_tool_calls is not None and allowed_tool_calls <= 0:
+            await self._on_max_tool_calls_exceeded()
+            return False
 
-                    # append the requested tool calls assistant message, once the tool calls have been verified and truncated (if needed)
-                    self.message_hist.append(AssistantMessage(content=tool_calls))
+        # collect the response from the llm model
+        returned_mess = await self.llm_model.achat_with_tools(
+            self.message_hist, tools=self.tools()
+        )
 
-                    contracts = []
-                    for t_c in tool_calls:
-                        contract = call(
-                            self.create_node,
-                            t_c.name,
-                            t_c.arguments,
-                        )
-                        contracts.append(contract)
-
-                    tool_responses = await asyncio.gather(
-                        *contracts, return_exceptions=True
-                    )
-                    tool_responses = [
-                        (
-                            x
-                            if not isinstance(x, Exception)
-                            else f"There was an error running the tool: \n Exception message: {x} "
-                        )
-                        for x in tool_responses
-                    ]
-                    tool_ids = [x.identifier for x in tool_calls]
-                    tool_names = [x.name for x in tool_calls]
-
-                    for r_id, r_name, resp in zip(
-                        tool_ids,
-                        tool_names,
-                        tool_responses,
-                    ):
-                        self.message_hist.append(
-                            ToolMessage(
-                                ToolResponse(
-                                    identifier=r_id, result=str(resp), name=r_name
-                                )
-                            )
-                        )
-                else:
-                    # this means the tool call is finished
-                    self.message_hist.append(
-                        AssistantMessage(content=returned_mess.message.content)
-                    )
-                    break
-            else:
-                # the message is malformed from the llm model
-                raise LLMError(
-                    reason="ModelLLM returned an unexpected message type.",
-                    message_history=self.message_hist,
+        if returned_mess.message.role == "assistant":
+            # if the returned item is a list then it is a list of tool calls
+            if isinstance(returned_mess.message.content, list):
+                assert all(
+                    isinstance(x, ToolCall) for x in returned_mess.message.content
                 )
 
+                tool_calls = returned_mess.message.content
+                if (
+                    allowed_tool_calls is not None
+                    and len(tool_calls) > allowed_tool_calls
+                ):
+                    tool_calls = tool_calls[:allowed_tool_calls]
+
+                # append the requested tool calls assistant message, once the tool calls have been verified and truncated (if needed)
+                self.message_hist.append(AssistantMessage(content=tool_calls))
+
+                contracts = []
+                for t_c in tool_calls:
+                    contract = call(
+                        self.create_node,
+                        t_c.name,
+                        t_c.arguments,
+                    )
+                    contracts.append(contract)
+
+                tool_responses = await asyncio.gather(
+                    *contracts, return_exceptions=True
+                )
+                tool_responses = [
+                    (
+                        x
+                        if not isinstance(x, Exception)
+                        else f"There was an error running the tool: \n Exception message: {x} "
+                    )
+                    for x in tool_responses
+                ]
+                tool_ids = [x.identifier for x in tool_calls]
+                tool_names = [x.name for x in tool_calls]
+
+                for r_id, r_name, resp in zip(
+                    tool_ids,
+                    tool_names,
+                    tool_responses,
+                ):
+                    self.message_hist.append(
+                        ToolMessage(
+                            ToolResponse(identifier=r_id, result=str(resp), name=r_name)
+                        )
+                    )
+                return True
+            else:
+                # this means the tool call is finished
+                self.message_hist.append(
+                    AssistantMessage(content=returned_mess.message.content)
+                )
+                return False
+        else:
+            # the message is malformed from the llm model
+            raise LLMError(
+                reason="ModelLLM returned an unexpected message type.",
+                message_history=self.message_hist,
+            )
+
     async def invoke(self) -> _T:
-        await self._handle_tool_calls()
+        while True:
+            still_tool_calls = await self._handle_tool_calls()
+            if not still_tool_calls:
+                break
 
         if (key := self.return_into()) is not None:
             output = self.return_output()
