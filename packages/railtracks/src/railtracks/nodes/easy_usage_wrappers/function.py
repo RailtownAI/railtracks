@@ -138,6 +138,7 @@ def _function_preserving_metadata(
     """
     Wraps the given function in a trivial wrapper that preserves its metadata.
     """
+
     @functools.wraps(func)
     def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
         return func(*args, **kwargs)

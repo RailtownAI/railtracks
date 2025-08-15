@@ -141,6 +141,7 @@ class RTFunction(Protocol, Generic[_P, _TOutput]):
     """
     A protocol for a function (callable) which contains an additional parameter called node_type which contains the node representation of this function.
     """
+
     node_type: type[DynamicFunctionNode[_P, _TOutput]]
 
     def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput: ...
@@ -152,6 +153,7 @@ class RTAsyncFunction(
     """
     A protocol for an async function (callable) which contains an additional parameter called node_type which contains the node representation of this function.
     """
+
     node_type: AsyncDynamicFunctionNode[_P, _TOutput]
 
 
@@ -159,4 +161,5 @@ class RTSyncFunction(RTFunction[_P, _TOutput], Generic[_P, _TOutput]):
     """
     A protocol for a sync function (callable) which contains an additional parameter called node_type which contains the node representation of this function.
     """
+
     node_type: SyncDynamicFunctionNode[_P, _TOutput]
