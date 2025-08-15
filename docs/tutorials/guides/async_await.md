@@ -91,10 +91,10 @@ async def main():
 
 ## 🏗 How RT uses `async/await`
 
-In RT if you want to call another node you should use the `async` logic.
+If you are writing a tool in RT and need to call another tool, use `rt.call(...)`. This ensures the RT backend tracks the tool invocation, enabling logging and visualization.
+
 !!! Note
-    If you are making a node which uses `rt.call(...)` to call another node you must use the `async` keyword in the
-    function definition.
+    Because rt.call(...) returns a coroutine, your function must be declared as async (e.g., `async def my_function(...)`) so you can `await rt.call(...)`.
 
 ```python
 import railtracks as rt
@@ -109,8 +109,8 @@ def split_text(text: str) -> list[str]:
 def alternate_capitalization(text: str) -> str:
     return text.swapcase()
 
-# since the modify_text function calls other nodes, it must be an async function
-# you can use the asyncio library to run the nodes however you want. See below for an example of sequential and parallel execution.
+# Since the modify_text function calls other nodes, it must be an async function
+# You can use the asyncio library to run the nodes however you want.
 @rt.function_node
 async def modify_text(text: str) -> str:
     # Call the split_text node sequentially.
