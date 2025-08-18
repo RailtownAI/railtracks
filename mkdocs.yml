@@ -109,6 +109,7 @@ nav:
       - Docker: deployments/docker.md
 
   - Advanced Usage:
+      - Session: advanced_usage/session.md
       - Context: advanced_usage/context.md
       - Custom Nodes: advanced_usage/node_builder.md
 

@@ -76,3 +76,14 @@ response = rt.call_sync(
     ]
 )
 # --8<-- [end: fewshot]
+weather_context = {}
+# --8<-- [start: session]
+with rt.Session(
+    context=weather_context,
+    timeout=60  # seconds
+):
+    response = rt.call_sync(
+        WeatherAgent,
+        "What is the weather like in Vancouver?"
+    )
+# --8<-- [end: session]
