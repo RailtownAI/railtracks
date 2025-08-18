@@ -139,5 +139,6 @@ class ChatToolCallLLM(StringOutputMixIn, OutputLessToolCallLLM[StringResponse], 
 
         return self.return_output()
 
-    def type(self):
+    @classmethod
+    def type(cls):
         return "Agent"

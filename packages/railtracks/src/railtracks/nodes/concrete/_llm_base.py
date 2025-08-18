@@ -310,7 +310,8 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
 
         return new_instance
 
-    def type(self):
+    @classmethod
+    def type(cls):
         return "Agent"
 
 

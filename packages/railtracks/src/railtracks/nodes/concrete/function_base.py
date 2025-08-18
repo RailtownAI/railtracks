@@ -67,7 +67,8 @@ class DynamicFunctionNode(Node[_TOutput], ABC, Generic[_P, _TOutput]):
         )
         return cls(**converted_params)
 
-    def type(self):
+    @classmethod
+    def type(cls):
         return "Tool"
 
 
