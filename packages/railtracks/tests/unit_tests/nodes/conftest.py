@@ -33,6 +33,10 @@ class DummyTool:
         return (func, details, params)  # tuple for testing
 
 @pytest.fixture
+def dummy_node_class():
+    return DummyNode
+
+@pytest.fixture
 def patch_node():
     patcher = patch("railtracks.nodes._node_builder.Node", DummyNode)
     patcher.start()

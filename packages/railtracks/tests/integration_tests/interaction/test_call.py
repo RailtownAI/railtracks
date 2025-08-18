@@ -8,11 +8,7 @@ import asyncio
 import railtracks as rt
 from railtracks.exceptions import GlobalTimeOutError
 
-NODE_INIT_METHODS = ["class_based", "easy_wrapper"]
-
-
 @pytest.mark.asyncio
-@pytest.mark.parametrize("terminal_nodes", NODE_INIT_METHODS, indirect=True)
 async def test_message_history_not_mutated_terminal_llm(model, terminal_nodes):
     """
     Verify that message history is not modified after rt.call when passed to nodes constructed using different methods.
@@ -91,7 +87,6 @@ async def test_message_history_not_mutated_terminal_llm(model, terminal_nodes):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("structured_nodes", NODE_INIT_METHODS, indirect=True)
 async def test_message_history_not_mutated_structured_llm(model, structured_nodes):
     """
     Verify that message history is not modified after rt.call when passed to nodes constructed using different methods.
@@ -170,7 +165,6 @@ async def test_message_history_not_mutated_structured_llm(model, structured_node
 
 @pytest.mark.timeout(34)
 @pytest.mark.asyncio
-@pytest.mark.parametrize("tool_calling_nodes", NODE_INIT_METHODS, indirect=True)
 async def test_message_history_not_mutated_tool_call_llm(model, tool_calling_nodes):
     """
     Verify that message history is not modified after rt.call when passed to nodes constructed using different methods.

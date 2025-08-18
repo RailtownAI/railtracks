@@ -163,65 +163,26 @@ def travel_planner_tools():
 
 # ====================================== Nodes ======================================
 @pytest.fixture
-def terminal_nodes(request, model, terminal_llms_system_messages):
+def terminal_nodes(model, terminal_llms_system_messages):
     """
     Returns the appropriate nodes based on the parametrized fixture name.
     """
-    fixture_name = request.param
     system_rng, system_rng_operation, system_math_genius = terminal_llms_system_messages
+    rng_node = rt.agent_node(
+        name="RNG Node", system_message=system_rng, llm_model=model
+    )
+    rng_operation_node = rt.agent_node(
+        name="RNG Operation Node",
+        system_message=system_rng_operation,
+        llm_model=model,
+    )
+    math_detective_node = rt.agent_node(
+        name="Math Detective Node",
+        system_message=system_math_genius,
+        llm_model=model,
+    )
 
-    if fixture_name == "easy_wrapper":
-        rng_node = rt.agent_node(
-            name="RNG Node", system_message=system_rng, llm_model=model
-        )
-        rng_operation_node = rt.agent_node(
-            name="RNG Operation Node",
-            system_message=system_rng_operation,
-            llm_model=model,
-        )
-        math_detective_node = rt.agent_node(
-            name="Math Detective Node",
-            system_message=system_math_genius,
-            llm_model=model,
-        )
-
-        return rng_node, rng_operation_node, math_detective_node
-
-    elif fixture_name == "class_based":
-
-        def make_terminal_llm_class_version(
-            pretty_name: str, system_message: str
-        ):
-            class TerminalLLMNode(TerminalLLM):
-                def __init__(
-                    self,
-                    user_input: rt.llm.MessageHistory,
-                    llm_model: rt.llm.ModelBase,
-                ):
-                    user_input = [x for x in user_input if x.role != "system"]
-                    user_input.insert(0, SystemMessage(system_message))
-                    super().__init__(user_input=rt.llm.MessageHistory(user_input), llm_model=llm_model)
-
-                @classmethod
-                def name(cls) -> str:
-                    return pretty_name
-
-            return TerminalLLMNode
-
-        rng_node = make_terminal_llm_class_version(
-            "RNG Node", system_message=system_rng
-        )
-        rng_operation_node = make_terminal_llm_class_version(
-            "RNG Operation Node", system_message=system_rng_operation
-        )
-        math_detective_node = make_terminal_llm_class_version(
-            "Math Detective Node", system_message=system_math_genius
-        )
-
-        return rng_node, rng_operation_node, math_detective_node
-
-    else:
-        raise ValueError(f"Unknown node fixture: {fixture_name}")
+    return rng_node, rng_operation_node, math_detective_node
 
 
 @pytest.fixture
@@ -229,7 +190,6 @@ def structured_nodes(request, model, structured_llms_system_messages):
     """
     Returns the appropriate nodes based on the parametrized fixture name.
     """
-    fixture_name = request.param
     system_undergrad_student, system_professor = structured_llms_system_messages
 
     class ProofModel(BaseModel):
@@ -243,64 +203,20 @@ def structured_nodes(request, model, structured_llms_system_messages):
             description="Any suggestions on improving the proof or reason for the grade"
         )
 
-    if fixture_name == "easy_wrapper":
-        math_undergrad_student_node = rt.agent_node(
-            name="Math Undergraduate Student Node",
-            output_schema=ProofModel,
-            system_message=system_undergrad_student,
-            llm_model=model,
-        )
-        math_professor_node = rt.agent_node(
-            name="Math Professor Node",
-            output_schema=GradingSchema,
-            system_message=system_professor,
-            llm_model=model,
-        )
+    math_undergrad_student_node = rt.agent_node(
+        name="Math Undergraduate Student Node",
+        output_schema=ProofModel,
+        system_message=system_undergrad_student,
+        llm_model=model,
+    )
+    math_professor_node = rt.agent_node(
+        name="Math Professor Node",
+        output_schema=GradingSchema,
+        system_message=system_professor,
+        llm_model=model,
+    )
 
-        return math_undergrad_student_node, math_professor_node
-
-    elif fixture_name == "class_based":
-
-        def make_structured_llm_class_version(
-            pretty_name: str,
-            system_message: str,
-            schema: BaseModel,
-        ):
-            class StructuredLLMNode(StructuredLLM):
-                def __init__(
-                    self,
-                    user_input: rt.llm.MessageHistory,
-                    llm_model: rt.llm.ModelBase,
-                ):
-                    user_input = [x for x in user_input if x.role != "system"]
-                    user_input.insert(0, SystemMessage(system_message))
-                    super().__init__(user_input=user_input, llm_model=llm_model)
-
-                @classmethod
-                def output_schema(cls) -> BaseModel:
-                    return schema
-
-                @classmethod
-                def name(cls) -> str:
-                    return pretty_name
-
-            return StructuredLLMNode
-
-        math_undergrad_student_node = make_structured_llm_class_version(
-            "Math Undergraduate Student Node",
-            schema=ProofModel,
-            system_message=system_undergrad_student,
-        )
-        math_professor_node = make_structured_llm_class_version(
-            "Math Professor Node",
-            schema=GradingSchema,
-            system_message=system_professor,
-        )
-
-        return math_undergrad_student_node, math_professor_node
-
-    else:
-        raise ValueError(f"Unknown node fixture: {fixture_name}")
+    return math_undergrad_student_node, math_professor_node
 
 
 @pytest.fixture
@@ -314,7 +230,6 @@ def tool_calling_nodes(
     """
     Returns the appropriate nodes based on the parametrized fixture name.
     """
-    fixture_name = request.param
     available_currencies, convert_currency = currency_converter_tools
     available_locations, currency_used, average_location_cost = travel_planner_tools
     system_currency_converter, system_travel_planner = tool_call_llm_system_messages
@@ -325,62 +240,20 @@ def tool_calling_nodes(
     CurrencyUsed = rt.function_node(currency_used)
     AverageLocationCost = rt.function_node(average_location_cost)
 
-    if fixture_name == "easy_wrapper":
-        currency_converter_node = tool_call_llm(
-            tool_nodes={AvailableCurrencies, ConvertCurrency},
-            name="Currency Converter Node",
-            system_message=system_currency_converter,
-            llm_model=model,
-        )
-        travel_planner_node = tool_call_llm(
-            tool_nodes={AvailableLocations, CurrencyUsed, AverageLocationCost},
-            name="Travel Planner Node",
-            system_message=system_travel_planner,
-            llm_model=model,
-        )
+    currency_converter_node = tool_call_llm(
+        tool_nodes={AvailableCurrencies, ConvertCurrency},
+        name="Currency Converter Node",
+        system_message=system_currency_converter,
+        llm_model=model,
+    )
+    travel_planner_node = tool_call_llm(
+        tool_nodes={AvailableLocations, CurrencyUsed, AverageLocationCost},
+        name="Travel Planner Node",
+        system_message=system_travel_planner,
+        llm_model=model,
+    )
 
-        return currency_converter_node, travel_planner_node
-    elif fixture_name == "class_based":
-
-        def make_tool_call_llm_class_version(
-            pretty_name: str,
-            system_message: str,
-            connected_nodes: List[Node],
-        ):
-            class ToolCallLLMNode(ToolCallLLM):
-                def __init__(
-                    self,
-                    user_input: rt.llm.MessageHistory,
-                    llm_model: rt.llm.ModelBase,
-                ):
-                    user_input = [x for x in user_input if x.role != "system"]
-                    user_input.insert(0, SystemMessage(system_message))
-                    super().__init__(user_input=user_input, llm_model=llm_model)
-
-                def tool_nodes(self):
-                    return [x if not hasattr(x, "node_type") else x.node_type for x in connected_nodes]
-
-                @classmethod
-                def name(cls) -> str:
-                    return pretty_name
-
-            return ToolCallLLMNode
-
-        currency_converter_node = make_tool_call_llm_class_version(
-            "Currency Converter Node",
-            system_message=system_currency_converter,
-            connected_nodes=[AvailableCurrencies, ConvertCurrency],
-        )
-        travel_planner_node = make_tool_call_llm_class_version(
-            "Travel Planner Node",
-            system_message=system_travel_planner,
-            connected_nodes=[AvailableLocations, CurrencyUsed, AverageLocationCost],
-        )
-
-        return currency_converter_node, travel_planner_node
-
-    else:
-        raise ValueError(f"Unknown node fixture: {fixture_name}")
+    return currency_converter_node, travel_planner_node
 
 
 @pytest.fixture

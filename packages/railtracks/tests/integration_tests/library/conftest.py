@@ -3,7 +3,6 @@ import railtracks as rt
 from typing import List, Callable
 from pydantic import BaseModel, Field
 from railtracks.llm import SystemMessage
-from railtracks.nodes.concrete import ToolCallLLM
 
 
 # ============ Model ===========
@@ -42,37 +41,14 @@ def create_top_level_node():
             A ToolCallLLM node that can be used to test the function.
         """
 
-        class TopLevelNode(ToolCallLLM):
-            def __init__(self, user_input: rt.llm.MessageHistory):
-                user_input.insert(0, self.system_message())
-
-                super().__init__(
-                    user_input=user_input,
-                    llm_model=self.create_model(),
-                )
-
-            @classmethod
-            def system_message(cls) -> str:
-                return SystemMessage("You are a helpful assistant that can call the tools available to you to answer user queries")
-
-            @classmethod
-            def create_model(cls):
-                if model_provider == "openai":
-                    return rt.llm.OpenAILLM("gpt-4o")
-                elif model_provider == "anthropic":
-                    return rt.llm.AnthropicLLM("claude-3-5-sonnet-20241022")
-                else:
-                    raise ValueError(f"Invalid model provider: {model_provider}")
-
-            @classmethod
-            def tool_nodes(cls):
-                return {rt.function_node(test_function).node_type}
-
-            @classmethod
-            def name(cls) -> str:
-                return "Top Level Node"
-
-        return TopLevelNode
+        return rt.agent_node(
+            name=f"TestNode-{test_function.__name__}",
+            system_message=SystemMessage(
+                f"You are a test node for the function {test_function.__name__}"
+            ),
+            llm_model=rt.llm.OpenAILLM("gpt-4o"),
+            tool_nodes={rt.function_node(test_function)},
+        )
 
     return _create_node
 

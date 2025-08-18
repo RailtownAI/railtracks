@@ -127,8 +127,6 @@ def test_json_serialization_2(planner_with_llm_node, json_state_schema):
     with rt.Session(logging_setting="NONE") as session:
         rt.call_sync(planner_with_llm_node)
 
-
-
     try:
         validate(json.loads(session.payload()), json_state_schema)
     except ValidationError as e:
