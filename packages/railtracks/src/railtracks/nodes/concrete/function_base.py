@@ -7,7 +7,6 @@ from typing import (
     Coroutine,
     Dict,
     Generic,
-    Literal,
     ParamSpec,
     Protocol,
     TypeVar,
@@ -67,7 +66,7 @@ class DynamicFunctionNode(Node[_TOutput], ABC, Generic[_P, _TOutput]):
             tool_parameters
         )
         return cls(**converted_params)
-      
+
     def type(self):
         return "Tool"
 

@@ -159,8 +159,7 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
 
     def __repr__(self):
         return f"{self.name()} <{hex(id(self))}>"
-    
+
     @abstractmethod
     def type(self) -> Literal["Tool", "Agent", "Other"]:
         pass
-

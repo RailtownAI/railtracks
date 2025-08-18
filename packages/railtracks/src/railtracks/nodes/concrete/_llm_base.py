@@ -309,7 +309,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         # now that we have reattached the correct memory address to the llm the hooks will update properly.
 
         return new_instance
-    
+
     def type(self):
         return "Agent"
 
