@@ -1,29 +1,25 @@
-# 🛠️ Tools
+# Tools
 
-One of the most important parts of any agentic system is the **set of tools** that the agent can use.
+One of the most important parts of any agentic system is the **set of tools** that the agent can use. While an LLM on its own can understand and generate language, it's the ability to *use tools* that transforms it from simple conversational bot into a true **agent** capable of taking action, solving problems, and achieving real-world goals.
 
-While an LLM on its own can understand and generate language, it's the ability to *use tools* that transforms it from a chatbot into a true **agent** capable of taking action, solving problems, and achieving real-world goals.
+## What Is a Tool?
 
-
-
-## 🤖 What Is a Tool?
-
-A **tool** is an action the agent can take in the external world.
+A **tool** provides the agent with the ability to interact with external systems, perform actions, or access information that is not contained within the LLM's training data. Tools can be anything from APIs, databases, or even simple functions that perform specific tasks.
 
 At a technical level, tools are often defined as **functions** that the agent can call. Large Language Models (LLMs) like OpenAI’s or Anthropic’s support something called `tool_calls` or `function_calls`. These allow the LLM to output structured `JSON`.
 
 !!! info "Common Tools"
-    * 🔍 Search the web
-    * 🖥️ Execute code in a sandbox
-    * 📨 Send a message to Slack
-    * 🔗 Call a REST API
-    * 📂 Read or write to a file system
+    * Search the web
+    * Execute code in a sandbox
+    * Send a message to Slack
+    * Call a REST API
+    * Read or write to a file system
 
 Think of tools as the **hands and eyes** of your agent: they allow it to act beyond just thinking and talking.
 
 
 
-## ⚙️ Example: Connecting Tools to an Agent
+## Example: Connecting Tools to an Agent
 
 Here’s a conceptual diagram of an LLM agent using tools to interact with different systems:
 
@@ -47,7 +43,7 @@ graph TD
 
 
 
-## 💡 Why Tools Matter
+## Why Tools Matter
 
 Without tools, LLMs are limited to just generating language.
 
@@ -60,6 +56,6 @@ With tools, agents can:
 * Chain actions across different services
 
 
-## 📚 Related Topics
+## Related Topics
 
 * [Agents](../agents)

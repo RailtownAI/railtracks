@@ -38,6 +38,8 @@ To begin you just have to use **`call`** for asynchronous contexts or **`call_sy
     Since the **`call`** function is asynchronous and needs to be awaited, you should ensure that you are running this code within an asynchronous context like the **`main`** function in the code snippet above.
 
     **Jupyter Notebooks**: If you are using in a notebook, you can run the code in a cell with **`await`** directly.
+    
+    For more info on using `async/await` in RT, see [Async/Await in Python](./guides/async_await.md).
 
 !!! info "Dynamic Runtime Configuration"
 

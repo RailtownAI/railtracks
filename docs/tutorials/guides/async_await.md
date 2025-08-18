@@ -1,9 +1,7 @@
-# 🚀 Async/Await in Python
+# Async/Await in Python
+We're going to switch the context here a bit and talk about `async` and `await` in Python. As a Python developer, the `async` and `await` keywords can sometimes stir up confusion. This guide will give you all the basics you need to get started with RT's usage of `async` and `await` since they are core to how RT operates.
 
-As a Python developer, the `async` and `await` keywords can sometimes stir up confusion. This guide will give you all the
-basics you need to get started with RT's usage of `async` and `await`.
-
-## ❓ What is `async/await`?
+## What is `async/await`?
 
 `async` and `await` are keywords in Python that unlock the ability to write asynchronous code.
 This asynchronous code allows your program to behave like a multithreaded one — but in a single thread — by efficiently managing I/O-bound tasks.
@@ -30,14 +28,14 @@ async def my_async_function():
 !!! Tip
     If we have already lost you I encourage you to visit the [official documentation](https://docs.python.org/3/library/asyncio.html).
 
-## 💡 When is it useful?
+## When is it useful?
 
 Asynchronous code shines when the tasks you are performing involve I/O operations, which is perfect for LLMs
 because they are often waiting for a response from the LLM APIs.
 
-## 🛠 Some Advanced Features
+## Some Advanced Features
 
-### 📌 Tasks
+### Tasks
 
 The `asyncio` library provides a way to run background tasks just like you would do with `concurrent.futures.ThreadPoolExecutor.submit(...)`.
 
@@ -53,7 +51,7 @@ async def main():
     result = await task # await the task just as you would with a normal async function
 ```
 
-### 🤝 Gather
+### Gather
 
 You can use `asyncio.gather(...)` to run multiple async functions concurrently and gather their results. This allows for
 high level parallelism.
@@ -74,7 +72,7 @@ async def main():
     print(results)  # Output: ['Task 1 completed', 'Task 2 completed']
 ```
 
-## 🆚 Parallelism vs. Sequential Execution
+## Parallelism vs. Sequential Execution
 
 !!! note "Parallelism"
     Each of the coroutines can run concurrently, only finishing when all of them are done.
@@ -89,36 +87,13 @@ async def main():
         await coroutine_2()
     ```
 
-## 🏗 How RT uses `async/await`
+## How RT uses `async/await`
 
-If you are writing a tool in RT and need to call another tool, use `rt.call(...)`. This ensures the RT backend tracks the tool invocation, enabling logging and visualization.
+If you are writing a tool in RT and need to call another tool, use **`rt.call(...)`**. This ensures the RT backend tracks the tool invocation, enabling logging and visualization.
 
 !!! Note
-    Because rt.call(...) returns a coroutine, your function must be declared as async (e.g., `async def my_function(...)`) so you can `await rt.call(...)`.
+    Because **`rt.call(...)`** returns a coroutine, your function must be declared as async (e.g., **`async def my_function(...)`**) so you can **`await rt.call(...)`**.
 
 ```python
-import railtracks as rt
-import asyncio
-
-@rt.function_node
-def split_text(text: str) -> list[str]:
-    return text.split()
-
-# since the alternate_capitalization function is a simple operation, it can be a regular function
-@rt.function_node
-def alternate_capitalization(text: str) -> str:
-    return text.swapcase()
-
-# Since the modify_text function calls other nodes, it must be an async function
-# You can use the asyncio library to run the nodes however you want.
-@rt.function_node
-async def modify_text(text: str) -> str:
-    # Call the split_text node sequentially.
-    words = await rt.call(split_text, text)
-
-    # Process each word parallelly using asyncio.gather
-    modified_words = await asyncio.gather(*(rt.call(alternate_capitalization, word) for word in words))
-
-    # Join the modified words back into a single string
-    return ' '.join(modified_words)
+--8<-- "docs/scripts/async_await.py"
 ```

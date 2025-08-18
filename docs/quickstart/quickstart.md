@@ -32,6 +32,7 @@ pip install railtracks-cli
     ```
 !!! tip "Jupyter Notebooks"
     If you're using Jupyter Notebooks, you can run the code in a cell with `await` directly with the `async main` function.
+    For more info on using `async/await` in RT, see [Async/Await in Python](../tutorials/guides/async_await.md).
 !!! example "Output"
     ```bash
     LLMResponse(The word "Tyrannosaurus" contains a total of 5 vowels: 2 'a's, 1 'o', and 2 'u's.)
