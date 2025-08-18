@@ -1,31 +1,42 @@
 # How to Run Your First Agent
 
-Once you have defined your agent class you can then run your work flow and see results!
+Once you have defined your agent class ([Build Your First Agent](byfa.md)) you can then run your workflow and see results!
 
-To begin you just have to use `call` for asynchronous flows or `call_sync` if it's a sequential flow. You simply pass your agent node as a parameter as well as the prompt as `user_input`:
+To begin you just have to use **`call`** for asynchronous contexts or **`call_sync`** for synchronous ones.
 
 
-### Example
 === "Asynchronous"
     ```python
-    --8<-- "docs/scripts/byfa.py:call"
+    --8<-- "docs/scripts/first_agent.py:call"
     ```
 
 === "Synchronous"
     ```python
 
-    --8<-- "docs/scripts/byfa.py:call_sync"
+    --8<-- "docs/scripts/first_agent.py:call_sync"
 
     ```
 
+!!! tip "Agent input options"
+    There are multiple ways to provide input to your agent.
+    
+    ???+ example "single user message"
+        If you'd like to simply provide a single user message, you can pass it as a string directly to the **`call`** or **`call_sync`** functions:
+        ```python
+        --8<-- "docs/scripts/first_agent.py:call_sync"
+        ```
+
+    ???+ example "few-shot prompting"
+        If you want to provide a few-shot prompt, you can pass a list of messages to the `call` or `call_sync` functions, with the specific message for each role being passed as an input to its specific role ie (**`rt.llm.UserMessage`** for user, **`rt.llm.AssistantMessage`** for assistant): 
+        ```python
+        --8<-- "docs/scripts/first_agent.py:fewshot"
+        ```
+        
+
 !!! info "Asynchronous Execution"
-    Since the `call` function is asynchronous and needs to be awaited, you should ensure that you are running this code within an asynchronous context like the `main` function in the code snippet above.
+    Since the **`call`** function is asynchronous and needs to be awaited, you should ensure that you are running this code within an asynchronous context like the **`main`** function in the code snippet above.
 
-    **Jupyter Notebooks**: If you are using in a notebook, you can run the code in a cell with `await` directly.
-
-Just like that you have run your first agent!
-
----
+    **Jupyter Notebooks**: If you are using in a notebook, you can run the code in a cell with **`await`** directly.
 
 !!! info "Dynamic Runtime Configuration"
 
@@ -33,16 +44,18 @@ Just like that you have run your first agent!
 
     ??? example
         ```python
-            --8<-- "docs/scripts/byfa.py:imports"
+            --8<-- "docs/scripts/first_agent.py:imports"
 
-            --8<-- "docs/scripts/byfa.py:weather_response"
+            --8<-- "docs/scripts/first_agent.py:weather_response"
 
-            --8<-- "docs/scripts/byfa.py:first_agent"
+            --8<-- "docs/scripts/first_agent.py:first_agent"
 
-            --8<-- "docs/scripts/byfa.py:dynamic_prompts"
+            --8<-- "docs/scripts/first_agent.py:dynamic_prompts"
         ```
         In this example RailTracks will use claude rather than chatgpt and the `system_message` will become
         `"You are a helpful assistant that answers weather-related questions. If not specified, the user is talking about Vancouver."`
+
+Just like that you have run your first agent!
 
 ---
 
@@ -64,7 +77,7 @@ All agents return a response object which you can use to get the last message or
         !!! example inline end "WeatherResponse"
 
             ```python
-            --8<-- "docs/scripts/byfa.py:weather_response"
+            --8<-- "docs/scripts/first_agent.py:weather_response"
             ```
         In the structured response example, the `output_schema` parameter is used to define the expected output structure. The response can then be accessed using the `structured` attribute.
         

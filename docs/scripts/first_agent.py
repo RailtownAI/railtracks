@@ -11,7 +11,6 @@ class WeatherResponse(BaseModel):
     condition: str
 # --8<-- [end: weather_response]
 
-
 # --8<-- [start: weather_tool]
 def weather_tool(city: str):
     """
@@ -36,17 +35,20 @@ WeatherAgent = rt.agent_node(
 
 # --8<-- [start: call]
 async def main():
-
-    response = await rt.call(WeatherAgent, "What is the forecast for Vancouver today?")
+    response = await rt.call(
+        WeatherAgent, 
+        "What is the forecast for Vancouver today?"
+        )
     return response
 # --8<-- [end: call]
 
 
 # --8<-- [start: call_sync]
-response = rt.call_sync(WeatherAgent, "What is the forecast for Vancouver today?")
+response = rt.call_sync(
+    WeatherAgent, 
+    "What is the forecast for Vancouver today?"
+    )
 # --8<-- [end: call_sync]
-
-asyncio.run(main())
 
 # --8<-- [start: dynamic_prompts]
 system_message = rt.llm.SystemMessage(
@@ -63,3 +65,14 @@ response = rt.call_sync(
 )
 # --8<-- [end: dynamic_prompts]
 print(response.structured.temperature)
+
+# --8<-- [start: fewshot]
+response = rt.call_sync(
+    WeatherAgent,
+    [
+        rt.llm.UserMessage("What is the forecast for BC today?"),
+        rt.llm.AssistantMessage("Please specify the specific city in BC you're interested in"),
+        rt.llm.UserMessage("Vancouver"),
+    ]
+)
+# --8<-- [end: fewshot]
