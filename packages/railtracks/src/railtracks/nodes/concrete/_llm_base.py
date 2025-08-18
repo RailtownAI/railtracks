@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import Any, Dict, Generic, Iterable, Type, TypeVar
@@ -20,6 +19,7 @@ from railtracks.llm import (
 )
 from railtracks.llm.response import Response
 from railtracks.prompts.prompt import inject_context
+from railtracks.utils.logging import get_rt_logger
 from railtracks.validation.node_invocation.validation import (
     check_llm_model,
     check_message_history,
@@ -107,7 +107,8 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
                 )
             # If there is already a SystemMessage in MessageHistory we will tell user both are being used
             if len([x for x in message_history_copy if x.role == "system"]) > 0:
-                warnings.warn(
+                logger = get_rt_logger("LLM")
+                logger.warning(
                     "System message was passed in message history and defined as a method. We will use both and add model method to message history."
                 )
             message_history_copy.insert(
@@ -121,7 +122,8 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
 
         if instance_injected_llm_model is not None:
             if llm_model is not None:
-                warnings.warn(
+                logger = get_rt_logger("LLM")
+                logger.warning(
                     "You have provided an llm model as a parameter and as a class variable. We will use the parameter."
                 )
                 unwrapped_llm_model = llm_model

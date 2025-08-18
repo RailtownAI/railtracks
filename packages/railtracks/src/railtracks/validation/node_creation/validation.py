@@ -1,5 +1,4 @@
 import inspect
-import warnings
 from typing import Any, Callable, Dict, Iterable, get_origin
 
 from pydantic import BaseModel
@@ -10,6 +9,7 @@ from railtracks.exceptions.messages.exception_messages import (
     get_notes,
 )
 from railtracks.llm import SystemMessage
+from railtracks.utils.logging import get_rt_logger
 
 
 def validate_function(func: Callable) -> None:
@@ -219,10 +219,8 @@ def _check_max_tool_calls(max_tool_calls: int | None) -> None:
         NodeCreationError: If max_tool_calls is negative.
     """
     if max_tool_calls is None:
-        warnings.warn(
-            get_message(ExceptionMessageKey.MAX_TOOL_CALLS_UNLIMITED_WARN),
-            UserWarning,
-        )
+        logger = get_rt_logger("Validation")
+        logger.warning(get_message(ExceptionMessageKey.MAX_TOOL_CALLS_UNLIMITED_WARN))
     elif max_tool_calls < 0:
         raise NodeCreationError(
             get_message(ExceptionMessageKey.MAX_TOOL_CALLS_NEGATIVE_MSG),
