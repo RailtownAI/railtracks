@@ -32,6 +32,7 @@ def test_linkednode_to_vertex_includes_hierarchy(dummy_node_factory, linked_node
     assert vertex.node_type == child_ln.node.name()
     assert vertex.stamp == child_ln.stamp
     assert vertex.parent.identifier == parent_ln.identifier
+    assert vertex.type == parent_ln.type()
 
 def test_linkednode_nodecopyerror_raised_on_safe_copy(monkeypatch, linked_node_factory):
     class UnsafeNode:

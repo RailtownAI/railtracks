@@ -101,6 +101,7 @@ def test_vertex_instantiation_minimal(fake_stamp):
     v = Vertex(
         identifier="nid",
         node_type="typeA",
+        name="Vertex Name",
         stamp=fake_stamp,
         details={"abc": 1},
         parent=None,
@@ -114,6 +115,7 @@ def test_vertex_instantiation_minimal(fake_stamp):
 def test_vertex_with_parent_identifier_must_match(fake_stamp):
     parent = Vertex(
         identifier="n1",
+        name="Parent Vertex",
         node_type="T",
         stamp=fake_stamp,
         details={},
@@ -122,6 +124,7 @@ def test_vertex_with_parent_identifier_must_match(fake_stamp):
     v = Vertex(
         identifier="n1",
         node_type="T",
+        name="Child Vertex",
         stamp=fake_stamp,
         details={},
         parent=parent,
@@ -132,6 +135,7 @@ def test_vertex_parent_identifier_mismatch_raises(fake_stamp):
     parent = Vertex(
         identifier="z1",
         node_type="T",
+        name="Parent Vertex",
         stamp=fake_stamp,
         details={},
         parent=None,
@@ -140,6 +144,7 @@ def test_vertex_parent_identifier_mismatch_raises(fake_stamp):
         Vertex(
             identifier="z2",
             node_type="T",
+            name="Child Vertex",
             stamp=fake_stamp,
             details={},
             parent=parent,

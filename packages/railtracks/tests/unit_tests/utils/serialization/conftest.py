@@ -23,7 +23,7 @@ def fake_edge(fake_stamp):
 @pytest.fixture
 def fake_vertex(fake_stamp):
     return SimpleNamespace(
-        identifier="vid", node_type="TYPE", stamp=fake_stamp, details={"a": 1}, parent=None
+        identifier="vid", node_type="TYPE", name="Vertex Name", stamp=fake_stamp, details={"a": 1}, parent=None
     )
 
 @pytest.fixture
