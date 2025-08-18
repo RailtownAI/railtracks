@@ -28,6 +28,9 @@ from railtracks.validation.node_invocation.validation import (
 from ..nodes import Node
 from .response import StringResponse, StructuredResponse
 
+# Global logger for LLM nodes
+logger = get_rt_logger("Node.LLM")
+
 _T = TypeVar("_T")
 
 
@@ -107,7 +110,6 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
                 )
             # If there is already a SystemMessage in MessageHistory we will tell user both are being used
             if len([x for x in message_history_copy if x.role == "system"]) > 0:
-                logger = get_rt_logger("LLM")
                 logger.warning(
                     "System message was passed in message history and defined as a method. We will use both and add model method to message history."
                 )
@@ -122,7 +124,6 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
 
         if instance_injected_llm_model is not None:
             if llm_model is not None:
-                logger = get_rt_logger("LLM")
                 logger.warning(
                     "You have provided an llm model as a parameter and as a class variable. We will use the parameter."
                 )
