@@ -83,3 +83,4 @@ async def main():
         "How many vowels are in Tyrannosaurus?"
     )
 # --8<-- [end: async_main]
+print(result)
