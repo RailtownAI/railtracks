@@ -4,7 +4,7 @@ from railtracks.llm import (
     ModelBase,
     SystemMessage,
 )
-from railtracks.nodes.concrete import ChatToolCallLLM
+from railtracks.nodes.concrete import ChatToolCallLLM, RTFunction
 from railtracks.utils.visuals.browser.chat_ui import ChatUI
 
 from .._node_builder import NodeBuilder
@@ -12,7 +12,7 @@ from ..nodes import Node
 
 
 def chatui_node(
-    tool_nodes: Set[Union[Type[Node], Callable]],
+    tool_nodes: Set[Union[Type[Node], Callable | RTFunction]],
     *,
     port: int | None = None,
     host: str | None = None,
@@ -30,7 +30,7 @@ def chatui_node(
     through a web interface, making it ideal for interactive demonstrations and testing.
 
     Args:
-        tool_nodes (Set[Union[Type[Node], Callable]]): The set of node classes or callables
+        tool_nodes (Set[Union[Type[Node], Callable | RTFunction]]): The set of node classes or callables
             that this LLM can call as tools during conversations.
         port (int, optional): Port number for the web chat interface. If None, a default port
             will be used.

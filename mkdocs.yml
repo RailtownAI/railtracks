@@ -66,6 +66,7 @@ nav:
       - Background:
           - Agents: tutorials/guides/agents.md
           - Tools: tutorials/guides/tools.md
+          - Async/Await: tutorials/guides/async_await.md
       - Building your first agent: tutorials/byfa.md
       - Running your first agent: tutorials/ryfa.md
       - WeatherAgent: tutorials/yet_another_weather_bot.md

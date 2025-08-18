@@ -5,12 +5,7 @@ import time
 import uuid
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import (
-    Any,
-    Dict,
-    Generic,
-    TypeVar,
-)
+from typing import Any, Dict, Generic, TypeVar
 
 from typing_extensions import Self
 

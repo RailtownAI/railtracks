@@ -32,13 +32,8 @@ from railtracks.pubsub.messages import (
 )
 from railtracks.pubsub.utils import output_mapping
 
-from .utils import extract_node_from_function
-
 if TYPE_CHECKING:
-    from railtracks.nodes.easy_usage_wrappers.function import (
-        _AsyncNodeAttachedFunc,
-        _SyncNodeAttachedFunc,
-    )
+    from railtracks.nodes.concrete import RTFunction
     from railtracks.nodes.nodes import Node
 
 _P = ParamSpec("_P")
@@ -47,7 +42,7 @@ _TOutput = TypeVar("_TOutput")
 
 @overload
 async def call(
-    node_: Callable[_P, Node[_TOutput]],
+    node_: RTFunction[_P, _TOutput],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput: ...
@@ -55,7 +50,7 @@ async def call(
 
 @overload
 async def call(
-    node_: _AsyncNodeAttachedFunc[_P, _TOutput] | _SyncNodeAttachedFunc[_P, _TOutput],
+    node_: Callable[_P, Node[_TOutput]],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput: ...
@@ -70,10 +65,7 @@ async def call(
 
 
 async def call(
-    node_: Type[Node[_TOutput]]
-    | Callable[_P, Union[Node[_TOutput], _TOutput]]
-    | _AsyncNodeAttachedFunc[_P, _TOutput]
-    | _SyncNodeAttachedFunc[_P, _TOutput],
+    node_: Callable[_P, Node[_TOutput] | _TOutput] | RTFunction[_P, _TOutput],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput:
@@ -99,6 +91,9 @@ async def call(
     node: Callable[_P, Node[_TOutput]]
     # this entire section is a bit of a typing nightmare becuase all overloads we provide.
     if isinstance(node_, FunctionType):
+        # this is a temporary lazy import. We need to decouple the dependecny tree around the interaction and node module see (# 551)
+        from railtracks.nodes.utils import extract_node_from_function
+
         node = extract_node_from_function(node_)
     else:
         node = node_
@@ -245,7 +240,7 @@ def call_sync(
 
 @overload
 def call_sync(
-    node_: _AsyncNodeAttachedFunc[_P, _TOutput] | _SyncNodeAttachedFunc[_P, _TOutput],
+    node_: RTFunction[_P, _TOutput],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput: ...
@@ -262,8 +257,7 @@ def call_sync(
 def call_sync(
     node: Type[Node[_TOutput]]
     | Callable[_P, Union[Node[_TOutput], _TOutput]]
-    | _AsyncNodeAttachedFunc[_P, _TOutput]
-    | _SyncNodeAttachedFunc[_P, _TOutput],
+    | RTFunction[_P, _TOutput],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput:
