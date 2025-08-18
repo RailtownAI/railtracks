@@ -25,6 +25,7 @@ dependencies = [
 [project.optional-dependencies]
 llm = [
     "litellm[proxy] >= 1.70.2"
+    "openai < 1.100.0"
 ]
 chat = [
     "fastapi >= 0.104.0"
@@ -35,6 +36,7 @@ mcp = [
 ]
 rag = [
     "litellm[proxy] >= 1.70.2"
+    "openai < 1.100.0"
 ]
 # the integrations submodule will be list a of the above deps
 integrations = [
