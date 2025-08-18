@@ -30,6 +30,10 @@ class AbstractNode(Node[int]):
     
     async def invoke(self) -> int:
         raise NotImplementedError
+    
+    @classmethod
+    def type(cls):
+        raise NotImplementedError
 
 # ============== FIXTURES ==============
 
