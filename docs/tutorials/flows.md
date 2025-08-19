@@ -7,22 +7,7 @@ To start, let’s look at the simplest case: an agent that uses another agent as
 ### Example
 ```python
 
---8<-- "docs/scripts/flows.py:imports"
-
-#As before, we will create our Weather Agent with the additional tool manifest so that other agents know how to use it
---8<-- "docs/scripts/flows.py:weather_response"
-
---8<-- "docs/scripts/flows.py:weather_tool"
-
---8<-- "docs/scripts/flows.py:weather_manifest"
-
---8<-- "docs/scripts/flows.py:weather_tool"
-
---8<-- "docs/scripts/flows.py:weather_tool"
-
-#Now lets create a hiking planner agent
-
---8<-- "docs/scripts/flows.py:HikingAgent"
+--8<-- "docs/scripts/flows.py:hiking_example"
 ```
 You can see here that the flow will look like this
 
@@ -46,21 +31,7 @@ One important aspect of RailTracks is that it handles these complex flows throug
 
 ### Example
 ```python
---8<-- "docs/scripts/flows.py:coding_imports"
-
---8<-- "docs/scripts/flows.py:static_check"
-
---8<-- "docs/scripts/flows.py:CodeManifest"
-
---8<-- "docs/scripts/flows.py:CodingMessage"
-
---8<-- "docs/scripts/flows.py:CodeAgent"
-
---8<-- "docs/scripts/flows.py:CodeWrapper"
-
---8<-- "docs/scripts/flows.py:CodeCoordinatorAgent"
-
---8<-- "docs/scripts/flows.py:call_code_coordinator"
+--8<-- "docs/scripts/flows.py:coding_example"
 ```
 ### What this flow would look like
 
@@ -88,17 +59,7 @@ Let's see how context enables reliable multi-agent workflows.
 ### Customer Service Agents
 ```python
 
---8<-- "docs/scripts/flows.py:customer_imports"
-
---8<-- "docs/scripts/flows.py:customer_agents"
-
---8<-- "docs/scripts/flows.py:BillingTool"
-
---8<-- "docs/scripts/flows.py:TechnicalTool"
-
---8<-- "docs/scripts/flows.py:OtherTools"
-
---8<-- "docs/scripts/flows.py:CustomerCoordinatorAgent"
+--8<-- "docs/scripts/flows.py:customer_example"
 ```
 
 ### What an example flow would look like
