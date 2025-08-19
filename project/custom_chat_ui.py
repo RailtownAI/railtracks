@@ -1,5 +1,5 @@
 import asyncio
-from typing import Callable, Set, Type, Union
+from typing import Callable, Set, Type, Union, Iterable
 
 import railtracks as rt
 from railtracks.exceptions import LLMError
@@ -64,7 +64,7 @@ async def hook_function(message_history: MessageHistory) -> MessageHistory:
 
 
 def custom_chatui_node(  # noqa: C901
-    tool_nodes: Set[Union[Type[Node], Callable]],
+    tool_nodes: Iterable[Union[Type[Node], Callable]],
     *,
     port: int | None = None,
     host: str | None = None,

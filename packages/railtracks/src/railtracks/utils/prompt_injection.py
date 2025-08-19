@@ -45,7 +45,7 @@ def inject_values(message_history: MessageHistory, value_dict: ValueDict):
                     content=fill_prompt(message.content, value_dict),
                     inject_prompt=False,
                 )
-            except ValueError:
+            except Exception:
                 pass
 
     return message_history

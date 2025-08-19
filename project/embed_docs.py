@@ -10,14 +10,19 @@ from railtracks.rag.vector_store.base import VectorRecord
 # === Embedding service (simplified based on your litellm wrapper) ===
 def embed_and_index_docs(
     base_dir: str | Path,
-    api_reference_subdir: str = "api_reference",
     normal_chunk_size: int = 1000,
     normal_chunk_overlap: int = 160,
     api_chunk_size: int = 500,
     api_chunk_overlap: int = 80,
-) -> InMemoryVectorStore:
+):
     base_dir = Path(base_dir)
     embedder = EmbeddingService()
+
+    stores = {
+        "main": InMemoryVectorStore(embedding_service=embedder, normalize=True),
+        "advanced": InMemoryVectorStore(embedding_service=embedder, normalize=True),
+        "api": InMemoryVectorStore(embedding_service=embedder, normalize=True),
+    }
     store = InMemoryVectorStore(embedding_service=embedder, normalize=True)
 
     normal_chunker = TextChunkingService(
@@ -27,61 +32,45 @@ def embed_and_index_docs(
         chunk_size=api_chunk_size, chunk_overlap=api_chunk_overlap, strategy=TextChunkingService.chunk_by_token
     )
 
-    all_texts = []
-    all_metadatas = []
-
     for root, dirs, files in os.walk(base_dir):
         root_path = Path(root)
-        print(f"Processing directory: {root_path}")
-        is_api_ref = api_reference_subdir in root_path.parts
 
-        chunker = api_chunker if is_api_ref else normal_chunker
+        if "api_reference" in root_path.parts:
+            store_key, chunker = "api", api_chunker
+        elif "advanced_usage" in root_path.parts:
+            store_key, chunker = "advanced", normal_chunker
+        else:
+            store_key, chunker = "main", normal_chunker
 
         for fname in files:
-            if not fname.endswith((".md", ".txt")):
-                continue
-            file_path = root_path / fname
-            with open(file_path, "r", encoding="utf-8") as f:
-                content = f.read()
+            if fname.endswith(".md"):
+                rel_path = Path(root_path / fname).relative_to(base_dir)
+                rel_path_str = str(rel_path).replace("\\", "/")
 
-            chunks = chunker.chunk(content)
+                print(f"Processing file: {rel_path_str} in {root_path} of type {store_key}")
+                text = Path(root_path / fname).read_text(encoding="utf-8")
+                chunks = chunker.chunk(text)
+                vecs = embedder.embed(chunks)
+                records = [
+                    VectorRecord(id=f"{store_key}-{rel_path_str}-{i}", vector=vecs[i], text=chunks[i], metadata={
+                        "source_file": rel_path_str,
+                        "chunk_index": i
+                    })
+                    for i in range(len(chunks))
+                ]
+                stores[store_key].add(records, embed=False)
 
-            for i, chunk in enumerate(chunks):
-                metadata = {
-                    "source_file": str(file_path.relative_to(base_dir)),
-                    "chunk_index": i,
-                    "is_api_reference": is_api_ref,
-                }
-                all_texts.append(chunk)
-                all_metadatas.append(metadata)
+    return stores
 
-    vecs = embedder.embed(all_texts)
-    records = [
-        VectorRecord(id=f"chunk-{i}", vector=vecs[i], text=all_texts[i], metadata=all_metadatas[i])
-        for i in range(len(all_texts))
-    ]
-    store.add(records, embed=False)
-
-    return store
 
 
 if __name__ == "__main__":
     docs_dir = "../docs"
 
     print("Indexing documents...")
-    vector_store = embed_and_index_docs(docs_dir)
+    stores = embed_and_index_docs(docs_dir)
     print("Indexed.")
 
-    # Example query
-    query = "How to use a function as a tool?"
-    print(f"\nSearch results for query: {query}\n")
-
-    embedder = EmbeddingService()
-    query_vector = embedder.embed([query])[0]  # embed returns List[List[float]]
-
-    results = vector_store.search(query_vector, top_k=5, embed=False)
-
-    for i, res in enumerate(results):
-        print(f"Result {i+1} [score={res.score:.3f}]:")
-        print(f"Source: {res.record.metadata['source_file']} chunk #{res.record.metadata['chunk_index']}")
-        print(f"Text snippet:\n{res.record.text[:400]}...\n")
+    stores["main"].persist("docs_vector_store.pkl")
+    stores["advanced"].persist("docs_advanced_vector_store.pkl")
+    stores["api"].persist("docs_api_vector_store.pkl")

@@ -263,7 +263,7 @@ class InMemoryVectorStore(AbstractVectorStore):
                     "dim": self._dim,
                     "normalize": self._normalize,
                     "vectors": self._vectors,
-                    "record": self._record.json(),
+                    "record": self._record
                 },
                 f,
             )
@@ -288,5 +288,5 @@ class InMemoryVectorStore(AbstractVectorStore):
             normalize=data["normalize"],
         )
         store._vectors = data["vectors"]
-        store._record = {k: VectorRecord(**v) for k, v in data["record"].items()}
+        store._record = data["record"]
         return store
