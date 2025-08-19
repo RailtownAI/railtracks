@@ -82,7 +82,6 @@ nav:
           - What is a Tool: tools_mcp/tools/tools.md
           - Functions as Tools: tools_mcp/tools/functions_as_tools.md
           - Agents as Tools: tools_mcp/tools/agents_as_tools.md
-          - Advanced Tooling: tools_mcp/tools/advanced_usage.md
 
       - Integrations:
           - Notion: tools_mcp/guides/notion.md
@@ -123,7 +122,4 @@ nav:
       - PubSub Messaging: system_internals/pubsub.md
       - Coordinator Orchestration: system_internals/coordinator.md
 
-  - API Reference:
-      - Generated: api_reference/generated/railtracks.html
-
-
+  - API Reference: api_reference/railtracks.html
