@@ -90,7 +90,7 @@ class RAG:
         """
         chunks_all = []
         for tobj in self.text_objects:
-            # chunk return a listC of chunks for each textObject
+            # chunk returns a list of chunks for each textObject
             chunks = self.chunk_service.chunk(tobj.raw_content)
             vectors = self.embed_service.embed(chunks)
             chunks_all.extend(chunks)
