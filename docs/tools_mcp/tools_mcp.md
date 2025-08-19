@@ -1,11 +1,11 @@
-# 🛠️ RailTracks Tools
+# RailTracks Tools
 
 !!! tip "Extend Your Agents' Capabilities"
     Tools transform LLMs from chatbots into true agents that can take action in the world.
 
 RailTracks provides a comprehensive suite of tools that extend the capabilities of your agents, allowing them to interact with external systems and services. These tools are the "hands and eyes" of your agents, enabling them to perform actions beyond just generating text.
 
-## 🔍 Ways to Get Tools
+## Ways to Get Tools
 
 RailTracks offers multiple ways to access and create tools:
 
@@ -15,16 +15,16 @@ RailTracks offers multiple ways to access and create tools:
 
 For a conceptual overview of tools in RailTracks, see the [Tools Guide](/guides/tools).
 
-## 🧰 Available Tools
+## Available Tools
 
-### 💻 Built-in Tools
+### Built-in Tools
 
 | Tool | Description | Use Case |
 |------|-------------|----------|
 | [**Python Execution**](guides/python_sandbox.md) | Write and run Python code | Data analysis, calculations, algorithmic tasks |
 | [**Local Shell**](guides/shell_bash.md) | Execute commands in your local environment | File operations, system management, running scripts |
 
-### 🔌 MCP-Based Tools
+### MCP-Based Tools
 
 | Tool | Description | Use Case |
 |------|-------------|----------|
@@ -33,7 +33,7 @@ For a conceptual overview of tools in RailTracks, see the [Tools Guide](/guides/
 | [**Slack**](guides/slack.md) | Send and receive Slack messages | Team communication, notifications, updates |
 | [**Web Search**](guides/websearch_integration.md) | Search the web and retrieve information | Research, fact-checking, data gathering |
 
-## 🚀 Getting Started
+## Getting Started
 
 To use tools in your RailTracks agents, you'll typically follow these steps:
 
@@ -66,7 +66,7 @@ with rt.Session():
     )
 ```
 
-## ➡️ Next Steps
+## Next Steps
 
 - Learn about [Model Context Protocol (MCP)](mcp/mcp.md) for accessing even more tools
 - Check out the [tool-specific guides](#available-tools) for detailed usage instructions

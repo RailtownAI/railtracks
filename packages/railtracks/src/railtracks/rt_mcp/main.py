@@ -236,4 +236,8 @@ def from_mcp(
         def prepare_tool(cls, tool_parameters: Dict[str, Any]) -> Self:
             return cls(**tool_parameters)
 
+        @classmethod
+        def type(cls):
+            return "Tool"
+
     return MCPToolNode

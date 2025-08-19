@@ -103,6 +103,7 @@ def encode_vertex(vertex: Vertex) -> dict[str, Any]:
     return {
         "identifier": vertex.identifier,
         "node_type": vertex.node_type,
+        "name": vertex.name,
         "stamp": vertex.stamp,
         "details": vertex.details,
         "parent": vertex.parent,

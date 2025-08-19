@@ -9,17 +9,30 @@ class CapitalizeText(Node[str]):
     def __init__(self, string: str, debug_details=None):
         self.string = string
         super().__init__(debug_details=debug_details)
+
     async def invoke(self) -> str:
         return self.string.capitalize()
+    
     @classmethod
     def name(cls) -> str:
         return "Capitalize Text"
+    
+    @classmethod
+    def type(cls):
+        return "Tool"
+    
+    
 
 class AbstractNode(Node[int]):
     @classmethod
     def name(cls) -> str:
         return "Abstract"
+    
     async def invoke(self) -> int:
+        raise NotImplementedError
+    
+    @classmethod
+    def type(cls):
         raise NotImplementedError
 
 # ============== FIXTURES ==============

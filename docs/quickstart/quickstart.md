@@ -13,91 +13,43 @@ pip install railtracks-cli
 ### Step 2: Define Your Modular Components
 
 ```python
-import railtracks as rt
-
-def number_of_chars(text: str) -> int:
-    return len(text)
-
-def number_of_words(text: str) -> int:
-    return len(text.split())
-
-def number_of_characters(text: str, character_of_interest: str) -> int:
-    return text.count(character_of_interest)
-
-# Define the tool nodes giving your agent different capabilities
-TotalNumberChars = rt.function_node(number_of_chars)
-TotalNumberWords = rt.function_node(number_of_words)
-CharacterCount = rt.function_node(number_of_characters)
-
-TextAnalyzer = rt.agent_node(
-    tool_nodes=[TotalNumberChars, TotalNumberWords, CharacterCount],
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
-    system_message=(
-        "You are a text analyzer. You will be given a text and return the number of characters, "
-        "the number of words, and the number of occurrences of a specific character."
-    ),
-)
+--8<-- "docs/scripts/quickstart.py:setup"
 ```
 
 ### Step 3: Run Your Application
 
+
 === "Synchronous"
 
     ```python
-    result = rt.call_sync(
-        TextAnalyzer,
-        rt.llm.MessageHistory([
-            rt.llm.UserMessage("Hello world! This is a test of the RailTracks framework.")
-        ])
-    )
-    print(result)
+    --8<-- "docs/scripts/quickstart.py:synchronous_call"
     ```
 
-=== "Asynchronous - Notebook"
+=== "Asynchronous"
 
     ```python
-    result = await rt.call(
-        TextAnalyzer,
-        rt.llm.MessageHistory([
-            rt.llm.UserMessage("Hello world! This is a test of the RailTracks framework.")
-        ])
-    )
-    print(result)
+    --8<-- "docs/scripts/quickstart.py:async_main"
     ```
-
-=== "Asynchronous - Script"
-
-    ```python
-    import asyncio
-    
-    async def main():
-        result = await rt.call(
-            TextAnalyzer,
-            rt.llm.MessageHistory([
-                rt.llm.UserMessage("Hello world! This is a test of the RailTracks framework.")
-            ])
-        )
-        print(result)
-    
-    asyncio.run(main())
+!!! tip "Jupyter Notebooks"
+    If you're using Jupyter Notebooks, you can run the code in a cell with `await` directly with the `async main` function.
+    For more info on using `async/await` in RT, see [Async/Await in Python](../tutorials/guides/async_await.md).
+!!! example "Output"
+    ```bash
+    LLMResponse(The word "Tyrannosaurus" contains a total of 5 vowels: 2 'a's, 1 'o', and 2 'u's.)
     ```
-
-
 ### Step 4: \[Optional] Visualize the Run
 
 ```bash
-railtracks init
 railtracks viz
 ```
+??? tip "Initializing the Visualizer"
+    If you haven't run the visualizer before, you will need to initialize the CLI first:
 
+    ```bash
+    railtracks init
+    ```
 ![RailTracks Visualization](../assets/visualizer_photo.png)
 
 This will open a web interface showing the execution flow, node interactions, and performance metrics of your agentic system.
 
 And just like that, you're up and running. The possibilities are endless.
-
----
-
-## Contributing
-
-We welcome contributions of all kinds! Check out our [contributing guide](https://github.com/RailtownAI/railtracks/blob/main/CONTRIBUTING.md) to get started.

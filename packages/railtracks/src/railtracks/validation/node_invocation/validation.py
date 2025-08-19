@@ -1,5 +1,3 @@
-import warnings
-
 from railtracks.exceptions.errors import NodeInvocationError
 from railtracks.exceptions.messages.exception_messages import (
     ExceptionMessageKey,
@@ -7,6 +5,10 @@ from railtracks.exceptions.messages.exception_messages import (
     get_notes,
 )
 from railtracks.llm import Message, MessageHistory, ModelBase
+from railtracks.utils.logging import get_rt_logger
+
+# Global logger for validation
+logger = get_rt_logger("Validation")
 
 
 def check_message_history(
@@ -29,11 +31,11 @@ def check_message_history(
         and message_history[0].role != "system"
         and not system_message
     ):
-        warnings.warn(get_message("NO_SYSTEM_MESSAGE_WARN"))
+        logger.warning(get_message("NO_SYSTEM_MESSAGE_WARN"))
     elif (len(message_history) == 1 and message_history[0].role == "system") or (
         system_message and len(message_history) == 0
     ):
-        warnings.warn(get_message("ONLY_SYSTEM_MESSAGE_WARN"))
+        logger.warning(get_message("ONLY_SYSTEM_MESSAGE_WARN"))
 
 
 def check_llm_model(llm_model: ModelBase | None):
@@ -47,10 +49,7 @@ def check_llm_model(llm_model: ModelBase | None):
 
 def check_max_tool_calls(max_tool_calls: int | None):
     if max_tool_calls is None:
-        warnings.warn(
-            get_message(ExceptionMessageKey.MAX_TOOL_CALLS_UNLIMITED_WARN),
-            RuntimeWarning,
-        )
+        logger.warning(get_message(ExceptionMessageKey.MAX_TOOL_CALLS_UNLIMITED_WARN))
     elif max_tool_calls < 0:
         raise NodeInvocationError(
             get_message(ExceptionMessageKey.MAX_TOOL_CALLS_NEGATIVE_MSG),

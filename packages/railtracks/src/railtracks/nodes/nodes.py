@@ -5,7 +5,7 @@ import time
 import uuid
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Dict, Generic, TypeVar
+from typing import Any, Dict, Generic, Literal, TypeVar
 
 from typing_extensions import Self
 
@@ -159,3 +159,8 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
 
     def __repr__(self):
         return f"{self.name()} <{hex(id(self))}>"
+
+    @classmethod
+    @abstractmethod
+    def type(cls) -> Literal["Tool", "Agent", "Other"]:
+        pass

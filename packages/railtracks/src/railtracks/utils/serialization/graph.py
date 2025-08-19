@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from typing_extensions import Self
 
@@ -51,7 +51,8 @@ class Vertex:
         self,
         *,
         identifier: str,
-        node_type: str,
+        node_type: Literal["Tool", "Agent", "Other"],
+        name: str,
         stamp: Stamp,
         details: dict[str, Any],
         parent: Self | None,
@@ -74,6 +75,7 @@ class Vertex:
         self.node_type = node_type
         self.details = details
         self.stamp = stamp
+        self.name = name
         assert parent is None or parent.identifier == identifier, (
             "The parent identifier must match the vertex identifier"
         )

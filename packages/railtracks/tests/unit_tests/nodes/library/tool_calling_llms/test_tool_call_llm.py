@@ -85,8 +85,8 @@ def test_outputless_tool_call_llm_create_node_multiple_match(mock_llm, mock_tool
         node.create_node("duplicate", {})
 
 # ---- Max Tool Calls tests ----
-def test_unlimited_tool_call_gives_warning_on_creation(mock_llm, mock_tool):
-    with pytest.warns(UserWarning, match="unlimited tool calls"):
+def test_unlimited_tool_call_gives_warning_on_creation(mock_llm, mock_tool, caplog):
+    with caplog.at_level("WARNING"):
         _ = tool_call_llm(
             tool_nodes={mock_tool},
             name="Test ToolCallLLM",

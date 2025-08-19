@@ -86,6 +86,7 @@ def example_structure():
 def dummy_node_factory():
     class DummyNode:
         _pretty = "dummy"  # class variable for name
+        _type = "Tool"  # class variable for type
 
         def __init__(self, uuid=None, details=None):
             self.uuid = uuid or str(uuid4())
@@ -110,6 +111,10 @@ def dummy_node_factory():
 
         def __repr__(self):
             return f"DummyNode<{self.uuid}>"
+
+        @classmethod
+        def type(cls):
+            return cls._type
         
     def _factory(uuid=None, details=None, pretty="dummy"):
         # Dynamically make a new subclass with desired _pretty
