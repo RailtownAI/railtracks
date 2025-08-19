@@ -78,7 +78,7 @@ class SearchEntry:
             "record": self.record.json(),
             "metadata": self.metadata,
         }
-        
+
 
 class SearchResult(list[SearchEntry]):
     """
@@ -95,11 +95,8 @@ class SearchResult(list[SearchEntry]):
 
     def to_list_of_texts(self) -> List[str]:
         """Extract non-empty record.text values."""
-        return [
-            entry.record.text
-            for entry in self
-            if entry.record.text is not None
-        ]
+        return [entry.record.text for entry in self if entry.record.text is not None]
+
 
 class AbstractVectorStore(abc.ABC):
     """
