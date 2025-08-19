@@ -133,7 +133,7 @@ class InMemoryVectorStore(AbstractVectorStore):
             embed: Whether to embed the query string (default True).
 
         Returns:
-            List of SearchEntry, ranked by similarity (ascending distance; descending score for dot/cos).
+            A search Result object which include a List of SearchEntry, ranked by similarity (ascending distance; descending score for dot/cos).
 
         Raises:
             ValueError: If wrong input type for embed setting, or not enough vectors.
