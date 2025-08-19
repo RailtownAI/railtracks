@@ -1,17 +1,21 @@
 import pytest
-
-
-
+from unittest.mock import MagicMock
 
 # -------------- Auto-patch module dependencies (pytest-style) --------------
 @pytest.fixture(autouse=True)
-def patch_vectorstore_deps(monkeypatch, dummy_uuid_str, dummy_embedding_service, dummy_record, dummy_search_result, dummy_metric):
+def patch_vectorstore_deps(monkeypatch, dummy_embedding_service, dummy_record, dummy_search_result, dummy_metric):
     import railtracks.rag.vector_store.in_memory as vsmem
+    
+    # Create a mock that returns unique strings on each call
+    mock_uuid = MagicMock()
+    mock_uuid.side_effect = [f"uuid{i}" for i in range(100)] # Generates uuid0, uuid1, ...
+
     # Patch all dependencies in the *module under test's namespace*:
-    monkeypatch.setattr(vsmem, "uuid_str", lambda: dummy_uuid_str)
+    monkeypatch.setattr(vsmem, "uuid_str", mock_uuid)
     monkeypatch.setattr(vsmem, "BaseEmbeddingService", dummy_embedding_service)
-    monkeypatch.setattr(vsmem, "VectorRecord", dummy_record)
-    monkeypatch.setattr(vsmem, "SearchResult", dummy_search_result)
+    monkeypatch.setattr(vsmem, "VectorRecord", 
+                        dummy_record)
+    monkeypatch.setattr(vsmem, "SearchEntry", dummy_search_result)
     monkeypatch.setattr(vsmem, "Metric", dummy_metric)
     # No need to patch AbstractVectorStore if real base is abstract and not used directly
 
@@ -28,7 +32,6 @@ def store(dummy_embedding_service):
         dim=3,
     )
 
-@pytest.mark.skip("Unknown failure")
 def test_add_and_count(store, dummy_record):
     n = store.count()
     ids = store.add(["hello", "world"])
@@ -42,8 +45,7 @@ def test_add_and_count(store, dummy_record):
 def test_add_metadata_length_mismatch(store):
     with pytest.raises(ValueError):
         store.add(["a", "b"], metadata=[{}, {}, {}])
-
-@pytest.mark.skip("Unknown failure")
+        
 def test_search_text_and_vector(store):
     store.add(["abc", "def", "ghi"])
     results = store.search("abc", top_k=2, embed=True)
@@ -59,7 +61,6 @@ def test_search_wrong_embed_flag(store):
     with pytest.raises(ValueError):
         store.search("text", embed=False)
 
-@pytest.mark.skip
 def test_delete(store):
     ids = store.add(["x", "y"])
     deleted = store.delete([ids[0]])

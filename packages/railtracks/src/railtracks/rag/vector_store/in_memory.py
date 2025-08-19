@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 from ..embedding_service import BaseEmbeddingService
-from .base import AbstractVectorStore, Metric, SearchResult, VectorRecord
+from .base import AbstractVectorStore, Metric, SearchEntry, SearchResult, VectorRecord
 from .utils import distance, normalize_vector, uuid_str
 
 
@@ -123,7 +123,7 @@ class InMemoryVectorStore(AbstractVectorStore):
         top_k: int = 5,
         *,
         embed: bool = False,
-    ) -> List[SearchResult]:
+    ) -> List[SearchEntry]:
         """
         Find the top-k most similar items to the query.
 
@@ -133,7 +133,7 @@ class InMemoryVectorStore(AbstractVectorStore):
             embed: Whether to embed the query string (default True).
 
         Returns:
-            List of SearchResult, ranked by similarity (ascending distance; descending score for dot/cos).
+            List of SearchEntry, ranked by similarity (ascending distance; descending score for dot/cos).
 
         Raises:
             ValueError: If wrong input type for embed setting, or not enough vectors.
@@ -160,13 +160,13 @@ class InMemoryVectorStore(AbstractVectorStore):
         ]
         # Lower scores are better for all supported metrics
         scores.sort(key=lambda t: t[1])
-        results = [
-            SearchResult(
+        results = SearchResult(
+            SearchEntry(
                 score=score,
                 record=self._record[vid],
             )
             for vid, score in scores[:top_k]
-        ]
+        )
         return results
 
     def delete(self, ids: Sequence[str]) -> int:

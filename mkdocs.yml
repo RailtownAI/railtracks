@@ -69,6 +69,7 @@ nav:
       - Building your first agent: tutorials/byfa.md
       - Running your first agent: tutorials/ryfa.md
       - WeatherAgent: tutorials/yet_another_weather_bot.md
+      - RAG system: tutorials/rag_tutorial.md
 
   - Tools + MCP:
       - Equip your LLMs: tools_mcp/tools_mcp.md
@@ -90,6 +91,7 @@ nav:
           - Shell Bash: tools_mcp/guides/shell_bash.md
           - Slack: tools_mcp/guides/slack.md
           - Web Search: tools_mcp/guides/websearch_integration.md
+      - RAG: tools_mcp/RAG.md
 
   - Observability:
       - Visualization: observability/visualization.md

@@ -37,6 +37,11 @@ def textobject_to_vectorrecords(text_obj: TextObject) -> List[VectorRecord]:
 
 
 class RAG:
+    """RAG (Retrieval-Augmented Generation) system for processing and searching documents.
+
+    This class handles embedding, chunking, and searching of documents.
+    """
+
     def __init__(
         self,
         docs: List[Any],  # str, file path, or raw content
@@ -45,6 +50,15 @@ class RAG:
         chunk_config: Optional[dict] = None,
         input_type: str = "text",  # 'text' or 'path'
     ):
+        """Initialize the RAG system.
+
+        Args:
+            docs (List[Any]): List of documents to process. Can be raw text, file paths, or TextObject instances.
+            embed_config (Optional[dict]): Configuration for embedding service.
+            store_config (Optional[dict]): Configuration for vector store.
+            chunk_config (Optional[dict]): Configuration for chunking service.
+            input_type (str): Type of input documents ('text' or 'path').
+        """
         self.text_objects: List[TextObject] = []
         self.embed_service = EmbeddingService(**(embed_config or {}))
         self.vector_store = create_store(**(store_config or {}))
@@ -70,9 +84,13 @@ class RAG:
             )
 
     def embed_all(self):
+        """Embed all text objects and store in vector store.
+
+        Required to invoke this before searching.
+        """
         chunks_all = []
         for tobj in self.text_objects:
-            # chunk return a list of chunks for each textObject
+            # chunk return a listC of chunks for each textObject
             chunks = self.chunk_service.chunk(tobj.raw_content)
             vectors = self.embed_service.embed(chunks)
             chunks_all.extend(chunks)
@@ -81,6 +99,15 @@ class RAG:
             vobjects = textobject_to_vectorrecords(tobj)
             self.vector_store.add(vobjects)
 
-    def search(self, query: str, top_k=3) -> List[SearchResult]:
+    def search(self, query: str, top_k: int = 3) -> SearchResult:
+        """Search the vector store for relevant documents.
+
+        Args:
+            query (str): The search query.
+            top_k (int): Number of top results to return.
+
+        Returns:
+            List[SearchEntry]: List of search results with text and metadata.
+        """
         query_vec = self.embed_service.embed([query])[0]  # Assume one vector only
         return self.vector_store.search(query_vec, top_k=top_k)
