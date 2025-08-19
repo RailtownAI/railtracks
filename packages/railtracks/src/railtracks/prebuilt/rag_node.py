@@ -1,4 +1,5 @@
 from typing import Type
+
 import railtracks as rt
 from railtracks.nodes.concrete import DynamicFunctionNode
 from railtracks.rag.rag_core import RAG, SearchResult
