@@ -123,7 +123,7 @@ class InMemoryVectorStore(AbstractVectorStore):
         top_k: int = 5,
         *,
         embed: bool = False,
-    ) -> List[SearchEntry]:
+    ) -> SearchResult:
         """
         Find the top-k most similar items to the query.
 
