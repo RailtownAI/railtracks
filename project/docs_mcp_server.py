@@ -1,17 +1,12 @@
 from typing import List
 
-from project.custom_chat_ui import custom_chatui_node
-import railtracks as rt
-from railtracks.llm import MessageHistory, UserMessage, OpenAILLM
 from railtracks.rag.embedding_service import EmbeddingService
 from railtracks.rag.vector_store import InMemoryVectorStore
 
 vector_store = InMemoryVectorStore.load("docs_vector_store.pkl")
 
-def query_railtracks_docs(
-    query: str,
-    top_k: int = 5
-) -> List[str]:
+
+def query_railtracks_docs(query: str, top_k: int = 5) -> List[str]:
     """
     Query the documentation of the RailTracks framework for relevent information.
 

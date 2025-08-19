@@ -23,13 +23,16 @@ def embed_and_index_docs(
         "advanced": InMemoryVectorStore(embedding_service=embedder, normalize=True),
         "api": InMemoryVectorStore(embedding_service=embedder, normalize=True),
     }
-    store = InMemoryVectorStore(embedding_service=embedder, normalize=True)
 
     normal_chunker = TextChunkingService(
-        chunk_size=normal_chunk_size, chunk_overlap=normal_chunk_overlap, strategy=TextChunkingService.chunk_by_token
+        chunk_size=normal_chunk_size,
+        chunk_overlap=normal_chunk_overlap,
+        strategy=TextChunkingService.chunk_by_token,
     )
     api_chunker = TextChunkingService(
-        chunk_size=api_chunk_size, chunk_overlap=api_chunk_overlap, strategy=TextChunkingService.chunk_by_token
+        chunk_size=api_chunk_size,
+        chunk_overlap=api_chunk_overlap,
+        strategy=TextChunkingService.chunk_by_token,
     )
 
     for root, dirs, files in os.walk(base_dir):
@@ -47,21 +50,24 @@ def embed_and_index_docs(
                 rel_path = Path(root_path / fname).relative_to(base_dir)
                 rel_path_str = str(rel_path).replace("\\", "/")
 
-                print(f"Processing file: {rel_path_str} in {root_path} of type {store_key}")
+                print(
+                    f"Processing file: {rel_path_str} in {root_path} of type {store_key}"
+                )
                 text = Path(root_path / fname).read_text(encoding="utf-8")
                 chunks = chunker.chunk(text)
                 vecs = embedder.embed(chunks)
                 records = [
-                    VectorRecord(id=f"{store_key}-{rel_path_str}-{i}", vector=vecs[i], text=chunks[i], metadata={
-                        "source_file": rel_path_str,
-                        "chunk_index": i
-                    })
+                    VectorRecord(
+                        id=f"{store_key}-{rel_path_str}-{i}",
+                        vector=vecs[i],
+                        text=chunks[i],
+                        metadata={"source_file": rel_path_str, "chunk_index": i},
+                    )
                     for i in range(len(chunks))
                 ]
                 stores[store_key].add(records, embed=False)
 
     return stores
-
 
 
 if __name__ == "__main__":

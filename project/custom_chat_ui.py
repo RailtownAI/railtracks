@@ -1,5 +1,5 @@
 import asyncio
-from typing import Callable, Set, Type, Union, Iterable
+from typing import Callable, Iterable, Type, Union
 
 import railtracks as rt
 from railtracks.exceptions import LLMError
@@ -73,7 +73,7 @@ def custom_chatui_node(  # noqa: C901
     llm_model: ModelBase | None = None,
     max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
-    user_function_hook = hook_function,
+    user_function_hook=hook_function,
 ) -> Type[ChatToolCallLLM]:
     """
     Dynamically create a ChatToolCallLLM node class with a web-based chat interface.

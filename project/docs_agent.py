@@ -1,17 +1,16 @@
 from typing import List
 
-from project.custom_chat_ui import custom_chatui_node
 import railtracks as rt
-from railtracks.llm import MessageHistory, UserMessage, OpenAILLM
+from railtracks.llm import MessageHistory, OpenAILLM, UserMessage
 from railtracks.rag.embedding_service import EmbeddingService
 from railtracks.rag.vector_store import InMemoryVectorStore
 
+from project.custom_chat_ui import custom_chatui_node
+
 vector_store = InMemoryVectorStore.load("docs_vector_store.pkl")
 
-def query_embedding_store(
-    query: str,
-    top_k: int = 5
-) -> List[str]:
+
+def query_embedding_store(query: str, top_k: int = 5) -> List[str]:
     """
     Query the embedding store for similar documents.
 
@@ -54,15 +53,18 @@ async def hook_function(message_history: MessageHistory) -> MessageHistory:
     # Inject the memory context into the user message
     message_history[-1] = UserMessage(
         content=(
-            user_message.content + f"\n\nRelevant Memory Context:\n{'\n\n'.join(results)}"
+            user_message.content
+            + "\n\nRelevant Memory Context:\n"
+            + "\n\n".join(results)
         )
     )
 
     return message_history
 
+
 docs_agent = custom_chatui_node(
     pretty_name="RAG-Enhanced Project Assistant",
-    tool_nodes=[rt.function_node(query_embedding_store)] ,
+    tool_nodes=[rt.function_node(query_embedding_store)],
     system_message="""You are a RailTracks project assistant with advanced knowledge of this codebase.
     
     You have access to a memory system that stores RailTracks-specific documentation, code, and development practices, as well as tools to help with project tasks.
@@ -80,4 +82,3 @@ docs_agent = custom_chatui_node(
 
 with rt.Session(logging_setting="VERBOSE", timeout=1000000000):
     rt.call_sync(docs_agent, rt.llm.MessageHistory([]))
-

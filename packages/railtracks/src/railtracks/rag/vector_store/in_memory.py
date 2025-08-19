@@ -263,7 +263,7 @@ class InMemoryVectorStore(AbstractVectorStore):
                     "dim": self._dim,
                     "normalize": self._normalize,
                     "vectors": self._vectors,
-                    "record": self._record
+                    "record": self._record,
                 },
                 f,
             )
