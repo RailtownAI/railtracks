@@ -4,7 +4,7 @@
 ##################################################################
 import os
 
-from railtracks.integrations.rt_mcp import MCPHttpParams, connect_mcp
+from railtracks import MCPHttpParams, connect_mcp
 
 import railtracks as rt
 

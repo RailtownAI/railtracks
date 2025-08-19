@@ -404,6 +404,10 @@ class NestedManyCalls(Node):
     @classmethod
     def name(cls) -> str:
         return "NestedManyCalls"
+    
+    @classmethod
+    def type(cls):
+        return 'Tool'
 
 
 def nested_many_calls_tester(num_calls: int, parallel_calls: int, depth: int):

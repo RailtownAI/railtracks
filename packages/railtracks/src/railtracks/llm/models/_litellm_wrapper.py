@@ -197,7 +197,7 @@ def _parameters_to_json_schema(
         return _handle_set_of_parameters(list(parameters))
 
     raise NodeInvocationError(
-        message="Unable to parse Tool.parameters. Please check the documentation for Tool.parameters.",
+        message=f"Unable to parse Tool.parameters. It was {parameters}",
         fatal=True,
         notes=[
             "Tool.parameters must be a set of Parameter objects",
@@ -412,7 +412,10 @@ class LiteLLMWrapper(ModelBase, ABC):
         choice = raw.choices[0]
 
         if choice.finish_reason == "stop" and not choice.message.tool_calls:
-            return Response(message=AssistantMessage(content=choice.message.content))
+            return Response(
+                message=AssistantMessage(content=choice.message.content),
+                message_info=info,
+            )
 
         calls: List[ToolCall] = []
         for tc in choice.message.tool_calls:

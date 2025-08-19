@@ -9,7 +9,7 @@ from railtracks.state import serialize
     "fixture_name,expected_keys,encode_func,expected_type",
     [
         ("fake_edge", {"source", "target", "identifier", "stamp", "details", "parent"}, serialize.encode_edge, dict),
-        ("fake_vertex", {"identifier", "node_type", "stamp", "details", "parent"}, serialize.encode_vertex, dict),
+        ("fake_vertex", {"identifier", "node_type", "name", "stamp", "details", "parent"}, serialize.encode_vertex, dict),
         ("fake_stamp", {"step", "time", "identifier"}, serialize.encode_stamp, dict),
         ("fake_request_details", {"model_name", "model_provider", "input", "output", "input_tokens", "output_tokens", "total_cost", "system_fingerprint"}, serialize.encode_request_details, dict),
         ("fake_message", {"role", "content"}, serialize.encode_message, dict),

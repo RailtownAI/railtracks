@@ -38,7 +38,7 @@ def mock_tool():
     def magic_number() -> int:
         return 42
     
-    return magic_number
+    return magic_number.node_type
 
 # ============ Output Models ===========
 @pytest.fixture

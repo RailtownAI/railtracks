@@ -2,7 +2,7 @@ from typing import TypeVar
 
 import railtracks.context as context
 from railtracks.exceptions import LLMError
-from railtracks.llm import MessageHistory, ModelBase, UserMessage
+from railtracks.llm import Message, MessageHistory, ModelBase, UserMessage
 
 from ._llm_base import LLMBase, StringOutputMixIn
 from .response import StringResponse
@@ -37,7 +37,7 @@ class TerminalLLM(StringOutputMixIn, LLMBase[StringResponse]):
 
     def __init__(
         self,
-        user_input: MessageHistory | UserMessage | str,
+        user_input: MessageHistory | UserMessage | str | list[Message],
         llm_model: ModelBase | None = None,
     ):
         super().__init__(llm_model=llm_model, user_input=user_input)

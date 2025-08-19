@@ -115,7 +115,7 @@ The Prompt Injection component is designed to provide a flexible and efficient w
 
 ### 5.3 Related Feature Files
 
-- [`llm_integration.md`](../docs/llm_support/prompts.md): Provides additional context on how prompt injection is used within the larger LLM integration framework.
+- [`prompts.md`](../../llm_support/prompts.md): Provides additional context on how prompt injection is used within the larger LLM integration framework.
 
 ## CHANGELOG
 

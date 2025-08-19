@@ -8,7 +8,7 @@ import json
 import os
 
 
-from railtracks.integrations.rt_mcp import connect_mcp, MCPStdioParams
+from railtracks import connect_mcp, MCPStdioParams
 
 import railtracks as rt
 
@@ -46,7 +46,7 @@ agent = rt.agent_node(
     llm_model=rt.llm.OpenAILLM("gpt-4o"),
 )
 
-user_prompt = """Create a new page in Notion called 'Jokes' under the parent page "Welcome to Notion!" with a small joke at the top of the page."""
+user_prompt = """Create a new page in Notion called 'Jokes' under the parent page "Agent Demo Root" with a small joke at the top of the page."""
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 

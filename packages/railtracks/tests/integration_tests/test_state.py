@@ -32,7 +32,7 @@ def create_linked_request(identifier, source, sink):
     stamp=Stamp(identifier="test", time=time.time(), step=1)
 )
 
-def create_node(): return rt.function_node(random.random)()
+def create_node(): return rt.function_node(random.random).node_type()
 
 def create_linked_node(node: Node): return LinkedNode(
     identifier=node.uuid,

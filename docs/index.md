@@ -4,11 +4,12 @@ RailTracks is a streamlined agentic workflow creation tool that allows users to 
 deploy agentic workflows. The foundational principles of RailTracks were designed to make the process of
 creating agents an exercise in writing code, not writing a configuration file.
 
-<p style="text-align:center; white-space:nowrap;">
+<p style="text-align:center">
   <a href="quickstart/quickstart" class="md-button" style="margin:1px">Quick Start</a>
   <a href="tutorials/byfa" class="md-button" style="margin:1px">Your First Agent</a>
   <a href="advanced_usage/context" class="md-button" style="margin:1px">Advanced Usage</a>
   <a href="api_reference/generated/railtracks.html" class="md-button" style="margin:1px">API Reference</a>
+  <a href="https://github.com/RailtownAI/railtracks/discussions" class="md-button" style="margin:1px">Community Discussions</a>
 </p>
 
 ## Why RailTracks?
@@ -34,3 +35,7 @@ RailTracks offers a unique approach that focuses on simplicity and developer exp
         <p>For complex applications, RailTracks provides a simple interface for coordinating multiple agents with built-in logging.</p>
     </a>
 </div>
+
+## Contributing
+
+We welcome contributions of all kinds! Check out our [contributing guide](https://github.com/RailtownAI/railtracks/blob/main/CONTRIBUTING.md) to get started.

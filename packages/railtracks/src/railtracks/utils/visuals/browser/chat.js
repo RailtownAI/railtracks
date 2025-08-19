@@ -74,10 +74,10 @@ function initializeSSE() {
 function updateConnectionStatus(connected) {
     const status = document.getElementById('connectionStatus');
     if (connected) {
-        status.textContent = '🟢 Connected';
+        status.innerHTML = '<i class="fa-solid fa-circle" style="color:green;"></i> Connected';
         status.className = 'connection-status connected';
     } else {
-        status.textContent = '🔴 Disconnected';
+        status.innerHTML = '<i class="fa-solid fa-circle" style="color:red;"></i> Disconnected';
         status.className = 'connection-status disconnected';
     }
 }
@@ -90,25 +90,25 @@ function handleSSEMessage(data) {
     switch(data.type) {
         case 'background_update':
             // Just update the status bar, don't add chat messages
-            statusBar.innerHTML = `<span class="code-accent">Background:</span> ${data.data}`;
+            statusBar.innerHTML = `<div class="status-inner"><span class="code-accent">Background:</span> ${data.data}</div>`;
             statusBar.className = 'status';
             break;
             
         case 'message_received':
             // Just update status bar, don't add chat message
-            statusBar.innerHTML = '🤖 <span class="code-accent">Assistant is processing...</span>';
+            statusBar.innerHTML = '<div class="status-inner"><i class="fa-solid fa-robot"></i> <span class="code-accent">Assistant is processing...</span></div>';
             statusBar.className = 'status processing';
             break;
             
         case 'assistant_thinking':
             // Update status bar instead of adding chat message
-            statusBar.innerHTML = `🤖 <span class="code-accent">${data.data}</span>`;
+            statusBar.innerHTML = `<div class="status-inner"><i class="fa-solid fa-robot"></i> <span class="code-accent">${data.data}</span></div>`;
             statusBar.className = 'status processing';
             break;
             
         case 'assistant_progress':
             // Update status bar instead of adding chat message
-            statusBar.innerHTML = `🔄 <span class="code-accent">${data.data}</span>`;
+            statusBar.innerHTML = `<div class="status-inner"><i class="fa-solid fa-rotate"></i> <span class="code-accent">${data.data}</span></div>`;
             statusBar.className = 'status processing';
             break;
             
@@ -120,7 +120,7 @@ function handleSSEMessage(data) {
             break;
             
         case 'error':
-            addMessage('system', `❌ ${data.data}`, data.timestamp);
+            addMessage('system', `<i class="fa-solid fa-circle-xmark" style="color:red;"></i> ${data.data}`, data.timestamp);
             setProcessing(false);
             break;
             
@@ -141,7 +141,12 @@ function addMessage(type, content, timestamp) {
     const messagesContainer = document.getElementById('chatMessages');
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${type}`;
-    
+
+    let avatarHtml = '';
+    if (type === 'assistant') {
+        avatarHtml = '<span class="avatar avatar-assistant"><i class="fa-solid fa-robot"></i></span>';
+    }
+
     // Parse markdown for assistant messages using marked.js, keep plain text for user/system messages
     let processedContent;
     if (type === 'assistant' && typeof marked !== 'undefined') {
@@ -154,10 +159,15 @@ function addMessage(type, content, timestamp) {
     } else {
         processedContent = content.replace(/\n/g, '<br>');
     }
-    
+
     messageDiv.innerHTML = `
-        <div>${processedContent}</div>
-        <div class="timestamp">${timestamp || new Date().toLocaleTimeString()}</div>
+        <div class="message-row" style="display: flex; gap: 10px; align-items: baseline;">
+            ${avatarHtml}
+            <div class="message-content">
+                <div>${processedContent}</div>
+                <div class="timestamp">${timestamp || new Date().toLocaleTimeString()}</div>
+            </div>
+        </div>
     `;
     
     messagesContainer.appendChild(messageDiv);
@@ -225,12 +235,13 @@ async function sendMessage() {
         
     } catch (error) {
         console.error('Error sending message:', error);
-        addMessage('system', `❌ Error: ${error.message}`, new Date().toLocaleTimeString());
+        addMessage('system', `<i class="fa-solid fa-circle-xmark" style="color:red;"></i> Error: ${error.message}`, new Date().toLocaleTimeString());
         setProcessing(false);
     }
 }
 
-async function endSession() {
+async function endSession(event) {
+    event.preventDefault();
     if (isProcessing) return;
     
     const endButton = document.getElementById('endSessionButton');
@@ -264,11 +275,11 @@ async function endSession() {
         }
         
         console.log('Session ended successfully:', result);
-        addMessage('system', '✅ Session ended successfully', new Date().toLocaleTimeString());
+        addMessage('system', '<i class="fa-solid fa-circle-check" style="color: green;"></i> Session ended successfully', new Date().toLocaleTimeString());
         
     } catch (error) {
         console.error('Error ending session:', error);
-        addMessage('system', `❌ Error ending session: ${error.message}`, new Date().toLocaleTimeString());
+        addMessage('system', `<i class="fa-solid fa-circle-xmark" style="color:red;"></i> Error ending session: ${error.message}`, new Date().toLocaleTimeString());
         
         // Re-enable UI elements on error
         endButton.disabled = false;
@@ -293,11 +304,11 @@ function autoResize(textarea) {
     const newHeight = Math.min(textarea.scrollHeight, 320); // Max height of 320px (about 12 lines)
 
     // Set the new height
-    textarea.style.height = newHeight + 'px';
-    
+    textarea.style.height = (newHeight + 5) + 'px';
+
     // Ensure minimum height
-    if (newHeight < 40) {
-        textarea.style.height = '40px';
+    if (newHeight < 30) {
+        textarea.style.height = '30px';
     }
 }
 
@@ -316,7 +327,7 @@ function updateToolsDisplay() {
     
     const toolsHTML = toolsData.map((tool, index) => {
         const statusClass = tool.success ? 'success' : 'error';
-        const statusIcon = tool.success ? '✅' : '❌';
+        const statusIcon = tool.success ? '<i class="fa-solid fa-circle-check" style="color: green;"></i>' : '<i class="fa-solid fa-circle-xmark" style="color:red;"></i>';
         
         return `
             <div class="tool-item ${statusClass}">
@@ -373,8 +384,8 @@ function clearTools() {
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Initializing Real-time AI Chat...');
+
     initializeSSE();
-    
     // Focus on input and set initial height
     const messageInput = document.getElementById('messageInput');
     messageInput.focus();
