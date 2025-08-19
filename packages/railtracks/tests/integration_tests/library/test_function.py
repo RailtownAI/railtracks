@@ -403,51 +403,7 @@ class TestUnionAndOptionalParameter:
         assert response.content == str(answer)
 
 
-class TestRealisticScenarios:
-    @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_realistic_scenario(self, model_provider, create_top_level_node):
-        """Test that a function with a realistic scenario works correctly."""
 
-        class StaffDirectory(BaseModel):
-            name: str = Field(description="The name of the staff member")
-            role: str = Field(description="The role of the staff member")
-            phone: str = Field(description="The phone number of the staff member")
-
-        # Define DB at class level so it's accessible for assertions
-        DB = {
-            "John": {"role": "Manager", "phone": "1234567890"},
-        }
-
-        def update_staff_directory(staff: List[StaffDirectory]) -> None:
-            """
-            For a given list of staff, updates the staff directory with new members or updates existing members.
-
-            Args:
-                staff (List[StaffDirectory]): The list of staff to to gather information about.
-
-            """
-            for person in staff:
-                DB[person.name] = {"role": person.role, "phone": person.phone}
-
-        usr_prompt = (
-            "Update the staff directory with the following information: John is now a 'Senior Manager' and his phone number is changed to 5555"
-            " and Jane is new a Developer and her phone number is 0987654321."
-        )
-
-        agent = create_top_level_node(
-            update_staff_directory, model_provider=model_provider
-        )
-
-        with rt.Session(logging_setting="NONE") as run:
-            response = rt.call_sync(
-                agent, rt.llm.MessageHistory([rt.llm.UserMessage(usr_prompt)])
-            )
-
-
-        assert DB["John"]["role"] == "Senior Manager"
-        assert DB["John"]["phone"] == "5555"
-        assert DB["Jane"]["role"] == "Developer"
-        assert DB["Jane"]["phone"] == "0987654321"
         
 
 

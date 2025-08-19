@@ -1,7 +1,7 @@
 import pytest 
 import railtracks as rt
 from pydantic import BaseModel, Field
-from .config import llm_map
+from .llm_map import llm_map
 
 class Address(BaseModel):
     city: str = Field(description="The city the person lives in")
