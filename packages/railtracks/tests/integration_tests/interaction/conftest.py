@@ -363,6 +363,8 @@ def tool_calling_nodes(
                 @classmethod
                 def name(cls) -> str:
                     return pretty_name
+                
+            
 
             return ToolCallLLMNode
 

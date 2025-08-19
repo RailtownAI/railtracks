@@ -35,3 +35,7 @@ RailTracks offers a unique approach that focuses on simplicity and developer exp
         <p>For complex applications, RailTracks provides a simple interface for coordinating multiple agents with built-in logging.</p>
     </a>
 </div>
+
+## Contributing
+
+We welcome contributions of all kinds! Check out our [contributing guide](https://github.com/RailtownAI/railtracks/blob/main/CONTRIBUTING.md) to get started.

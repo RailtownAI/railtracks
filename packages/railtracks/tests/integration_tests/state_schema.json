@@ -57,7 +57,8 @@
         "type": "object",
         "properties": {
           "identifier": { "type": "string" },
-          "node_type": { "type": "string" },
+          "node_type": { "enum": ["Other", "Agent", "Tool"]},
+          "name": { "type": "string" },
           "stamp": { "$ref": "#/$defs/Stamp" },
           "details": {
             "type": "object",
@@ -86,7 +87,7 @@
             ]
           }
         },
-        "required": ["identifier", "node_type", "stamp", "details"]
+        "required": ["identifier", "node_type", "name", "stamp", "details"]
       },
       "Edge": {
         "type": "object",
