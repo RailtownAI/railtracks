@@ -89,8 +89,8 @@ In this example: <br>
 ```
 ??? example "Sample Output"
     Here is a sample out of the running the **`ShoppingAssistant`** agent for the above user query. Please note that the output may vary based on the current training date cutoff of the LLM you use.
-    ```bash
-    --8<-- "docs/scripts/agents_as_tools.py:shopping_agent"
+    ```console
+    LLMResponse(The total cost for 3 laptops, including tax, is approximately $3,239.97.)
     ```
 
 Congratulations! You have created an agent that can be used as a tool by other agents. This pattern allows you to build complex behaviors by composing smaller, reusable components.

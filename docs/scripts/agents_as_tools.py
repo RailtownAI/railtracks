@@ -114,4 +114,4 @@ response = rt.call_sync(
     "I want to buy 3 laptops. Can you calculate the total cost including tax?",
 )
 # --8<-- [end: shop_call]
-print(response.content)
+print(response)
