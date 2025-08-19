@@ -1,64 +1,13 @@
 import asyncio
 
 import pytest
-from typing import List, Literal, Type
-import copy
+from typing import List, Type
 from pydantic import BaseModel, Field
 import railtracks as rt
-from railtracks.llm.response import Response, MessageInfo
 
 
 # ====================================== Mock Model ======================================
-
-@pytest.fixture
-def mock_model():
-    """
-    Fixture to mock OpenAILLM methods with configurable responses.
-    Pass a custom_response_message to override the message in all default responses.
-    Usage:
-        model = mock_model(custom_response_message=rt.llm.Message(content="custom", role="assistant"))
-    """
-    class MockOpenAILLM(rt.llm.OpenAILLM):
-        def __init__(self, custom_response_message: rt.llm.Message | None = None):
-            super().__init__("gpt-4o")
-            self.custom_response_message = custom_response_message
-            self.mocked_message_info = MessageInfo(
-                input_tokens=42,
-                output_tokens=42,
-                latency=1.42,
-                model_name="mock_model",
-                total_cost=0.00042,
-                system_fingerprint="fp_4242424242",
-            )
-
-        def get_message(self, default_content: str | BaseModel, role: Literal["assistant", "user", "system", "tool"] = "assistant") -> rt.llm.Message:
-            return self.custom_response_message or rt.llm.Message(content=default_content, role=role)
-
-        # Override all methods that make network calls with mocks
-        async def _achat(self, messages, **kwargs):
-            return Response(
-                message=self.get_message("mocked Message"),
-                streamer=None,
-                message_info=self.mocked_message_info,
-            )
-
-        async def _astructured(self, messages, schema, **kwargs):
-            class DummyStructured(BaseModel):
-                dummy_attr: str = "mocked"
-            return Response(
-                message=self.get_message(DummyStructured()),
-                streamer=None,
-                message_info=self.mocked_message_info
-            )
-
-        async def _achat_with_tools(self, messages, tools, **kwargs):
-            return Response(
-                message=self.get_message("mocked tool message"),
-                streamer=None,
-                message_info=self.mocked_message_info,
-            )
-
-    return MockOpenAILLM
+# Check the root conftest in tests folder for MockLLM class
 # ====================================== End Mock Model ======================================
 
 
@@ -210,30 +159,30 @@ def travel_planner_tools():
 
 # ====================================== Nodes ======================================
 @pytest.fixture
-def terminal_nodes(mock_model, terminal_llms_system_messages):
+def terminal_nodes(mock_llm, terminal_llms_system_messages):
     """
     Returns the appropriate nodes based on the parametrized fixture name.
     """
     system_rng, system_rng_operation, system_math_genius = terminal_llms_system_messages
     rng_node = rt.agent_node(
-        name="RNG Node", system_message=system_rng, llm_model=mock_model()
+        name="RNG Node", system_message=system_rng, llm_model=mock_llm()
     )
     rng_operation_node = rt.agent_node(
         name="RNG Operation Node",
         system_message=system_rng_operation,
-        llm_model=mock_model(),
+        llm_model=mock_llm(),
     )
     math_detective_node = rt.agent_node(
         name="Math Detective Node",
         system_message=system_math_genius,
-        llm_model=mock_model(),
+        llm_model=mock_llm(),
     )
 
     return rng_node, rng_operation_node, math_detective_node
 
 
 @pytest.fixture
-def structured_nodes(mock_model, structured_llms_system_messages):
+def structured_nodes(mock_llm, structured_llms_system_messages):
     """
     Returns the appropriate nodes based on the parametrized fixture name.
     """
@@ -258,13 +207,13 @@ def structured_nodes(mock_model, structured_llms_system_messages):
         name="Math Undergraduate Student Node",
         output_schema=ProofModel,
         system_message=system_undergrad_student,
-        llm_model=mock_model(math_undergrad_response),
+        llm_model=mock_llm(math_undergrad_response),
     )
     math_professor_node = rt.agent_node(
         name="Math Professor Node",
         output_schema=GradingSchema,
         system_message=system_professor,
-        llm_model=mock_model(math_professor_response),
+        llm_model=mock_llm(math_professor_response),
     )
 
     return math_undergrad_student_node, math_professor_node
@@ -272,7 +221,7 @@ def structured_nodes(mock_model, structured_llms_system_messages):
 
 @pytest.fixture
 def tool_calling_nodes(
-    mock_model,
+    mock_llm,
     tool_call_llm_system_messages,
     currency_converter_tools,
     travel_planner_tools,
@@ -294,13 +243,13 @@ def tool_calling_nodes(
         tool_nodes={AvailableCurrencies, ConvertCurrency},
         name="Currency Converter Node",
         system_message=system_currency_converter,
-        llm_model=mock_model(),
+        llm_model=mock_llm(),
     )
     travel_planner_node = rt.agent_node(
         tool_nodes={AvailableLocations, CurrencyUsed, AverageLocationCost},
         name="Travel Planner Node",
         system_message=system_travel_planner,
-        llm_model=mock_model(),
+        llm_model=mock_llm(),
     )
 
     return currency_converter_node, travel_planner_node

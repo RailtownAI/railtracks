@@ -1,57 +1,91 @@
-from typing import Callable, List, Type
+from typing import Type, Literal
 
 import pytest
-
-from railtracks.llm import MessageHistory, Tool
-from railtracks.llm.response import Response
-import railtracks.llm as llm
-
+import railtracks as rt
+from railtracks.llm.response import Response, MessageInfo
 from pydantic import BaseModel
 
-class MockLLM(llm.ModelBase):
-    def __init__(
-            self,
-            chat: Callable[[MessageHistory], Response] = lambda x: Response(),
-            structured: Callable[[MessageHistory, BaseModel], Response] = lambda x,
-                                                                                 y: Response(),
-            stream_chat: Callable[[MessageHistory], Response] = lambda x: Response(),
-            chat_with_tools: Callable[[MessageHistory, List[Tool]], Response] = lambda x,
-                                                                                       y: Response(),
-    ):
+
+class MockLLM(rt.llm.ModelBase):
+    def __init__(self, custom_response_message: rt.llm.Message | None = None):
+        """
+        Creates a new instance of the MockLLM class.
+        Args:
+            custom_response_message (Message | None, optional): The custom response message to use for the LLM. Defaults to None.
+        """
         super().__init__()
-        self._chat = chat
-        self._structured = structured
-        self._stream_chat = stream_chat
-        self._chat_with_tools = chat_with_tools
+        self.custom_response_message = custom_response_message
+        self.mocked_message_info = MessageInfo(
+            input_tokens=42,
+            output_tokens=42,
+            latency=1.42,
+            model_name="MockLLM",
+            total_cost=0.00042,
+            system_fingerprint="fp_4242424242",
+        )
 
-    def _chat(self, messages: MessageHistory, **kwargs) -> Response:
-        return self._chat(messages)
+    def get_message(
+        self,
+        default_content: str | BaseModel,
+        role: Literal["assistant", "user", "system", "tool"] = "assistant",
+    ) -> rt.llm.Message:
+        return self.custom_response_message or rt.llm.Message(
+            content=default_content, role=role
+        )
+    
+    # ================ Base responses (common for sync and async versions) ==================
+    def _base_chat(self):
+        return Response(
+            message=self.get_message("mocked Message"),
+            streamer=None,
+            message_info=self.mocked_message_info,
+        )
+    
+    def _base_structured(self):
+        class DummyStructured(BaseModel):
+            dummy_attr: str = "mocked"
 
-    def _structured(self, messages: MessageHistory, schema: BaseModel, **kwargs) -> Response:
-        return self._structured(messages, schema)
+        return Response(
+            message=self.get_message(DummyStructured()),
+            streamer=None,
+            message_info=self.mocked_message_info,
+        )
+    
+    def _base_chat_with_tools(self):
+        return Response(
+            message=self.get_message("mocked tool message"),
+            streamer=None,
+            message_info=self.mocked_message_info,
+        )
 
-    def _stream_chat(self, messages: MessageHistory, **kwargs) -> Response:
-        return self._stream_chat(messages)
+    # ==========================================================
+    # Override all methods that make network calls with mocks
+    async def _achat(self, messages, **kwargs):
+        return self._base_chat()
 
-    def _chat_with_tools(self, messages: MessageHistory, tools: List[Tool], **kwargs) -> Response:
-        return self._chat_with_tools(messages, tools)
+    async def _astructured(self, messages, schema, **kwargs):
+        return self._base_structured()
 
-    async def _achat(self, messages: MessageHistory, **kwargs) -> Response:
-        return self._chat(messages)
+    async def _achat_with_tools(self, messages, tools, **kwargs):
+        return self._base_chat_with_tools()
+    
+    async def _astream_chat(self, messages, **kwargs):
+        return self._base_chat()
 
-    async def _astructured(
-            self, messages: MessageHistory, schema: BaseModel, **kwargs
-    ) -> Response:
-        return self._structured(messages, schema)
+    def _chat(self, messages, **kwargs):
+        return self._base_chat()
 
-    async def _astream_chat(self, messages: MessageHistory, **kwargs) -> Response:
-        return self._stream_chat(messages)
+    def _structured(self, messages, schema, **kwargs):
+        return self._base_structured()
 
-    async def _achat_with_tools(
-            self, messages: MessageHistory, tools: List[Tool], **kwargs
-    ) -> Response:
-        return self._chat_with_tools(messages, tools)
+    def _chat_with_tools(self, messages, tools, **kwargs):
+        return self._base_chat_with_tools()
 
+    def _stream_chat(self, messages, **kwargs):
+        return self._base_chat()
+    # ==========================================================
+
+    # =====================================
     def model_name(self) -> str | None:
         return "MockLLM"
 
@@ -59,7 +93,15 @@ class MockLLM(llm.ModelBase):
     def model_type(cls) -> str | None:
         return "mock"
 
+    # =====================================
+
 
 @pytest.fixture
 def mock_llm() -> Type[MockLLM]:
+    """
+    Fixture to mock LLM methods with configurable responses.
+    Pass a custom_response_message to override the message in all default responses.
+    Usage:
+        model = mock_model(custom_response_message=rt.llm.Message(content="custom", role="assistant"))
+    """
     return MockLLM
