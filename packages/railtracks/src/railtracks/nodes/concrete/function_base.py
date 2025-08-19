@@ -17,6 +17,7 @@ from typing_extensions import Self
 from railtracks.exceptions import NodeCreationError
 from railtracks.llm import Tool
 from railtracks.llm.type_mapping import TypeMapper
+from railtracks.utils.naming import snake_case_to_title_case
 
 from ..nodes import Node
 
@@ -48,7 +49,7 @@ class DynamicFunctionNode(Node[_TOutput], ABC, Generic[_P, _TOutput]):
 
     @classmethod
     def name(cls) -> str:
-        return f"{cls.func.__name__}"
+        return snake_case_to_title_case(cls.func.__name__)
 
     @classmethod
     @abstractmethod

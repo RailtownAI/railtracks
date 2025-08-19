@@ -14,6 +14,7 @@ from typing import (
 )
 
 from railtracks.exceptions import NodeCreationError
+from railtracks.utils.naming import snake_case_to_title_case
 from railtracks.validation.node_creation.validation import validate_function
 
 from .._node_builder import NodeBuilder
@@ -105,7 +106,7 @@ def function_node(
 
     builder = NodeBuilder(
         node_class,
-        name=name if name is not None else f"{func.__name__}",
+        name=name if name is not None else snake_case_to_title_case(func.__name__),
     )
 
     builder.setup_function_node(
