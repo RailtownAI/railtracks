@@ -126,7 +126,8 @@ class ModelBase(ABC):
 
         try:
             response = await self._achat(messages, **kwargs)
-        except:
+        except Exception as e:
+            print(e)
             self._run_exception_hooks(messages, Exception("Error during async chat"))
             raise
 
@@ -219,7 +220,8 @@ class ModelBase(ABC):
 
         try:
             response = await self._achat_with_tools(messages, tools, **kwargs)
-        except:
+        except Exception as e:
+            print(e)
             self._run_exception_hooks(
                 messages, Exception("Error during async chat with tools")
             )

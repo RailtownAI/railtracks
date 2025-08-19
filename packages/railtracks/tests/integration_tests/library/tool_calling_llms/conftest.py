@@ -258,7 +258,7 @@ def travel_message_history():
     return _make
 
 @pytest.fixture
-def limited_tool_call_node_factory(model, travel_planner_tools):
+def limited_tool_call_node_factory(mock_llm, travel_planner_tools):
     def _factory(max_tool_calls=1, system_message=None, tools=None, class_based=False):
         tools = tools or set([rt.function_node(tool) for tool in travel_planner_tools])
         sys_msg = system_message or SystemMessage("You are a travel planner that will plan a trip. you have access to AvailableLocations, CurrencyUsed and AverageLocationCost tools. Use them when you need to.")
@@ -268,14 +268,14 @@ def limited_tool_call_node_factory(model, travel_planner_tools):
                 tool_nodes=tool_nodes,
                 name="Limited Tool Call Test Node",
                 system_message=sys_msg,
-                llm_model=model,
+                llm_model=mock_llm(),
                 max_tool_calls=max_tool_calls,
             )
         else:
             class LimitedToolCallTestNode(ToolCallLLM):
                 def __init__(self, user_input, model=model):
                     user_input.insert(0, SystemMessage(sys_msg) if isinstance(sys_msg, str) else sys_msg)
-                    super().__init__(user_input, model, max_tool_calls=max_tool_calls)
+                    super().__init__(user_input, mock_llm, max_tool_calls=max_tool_calls)
                 @classmethod
                 def tool_nodes(cls):
                     return [x if not hasattr(x, "node_type") else x.node_type for x in tool_nodes]

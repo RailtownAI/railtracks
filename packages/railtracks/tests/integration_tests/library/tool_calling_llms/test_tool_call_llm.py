@@ -19,19 +19,19 @@ NODE_INIT_METHODS = ["easy_wrapper", "class_based"]
 
 # =========================================== START BASE FUNCTIONALITY TESTS ===========================================
 @pytest.mark.asyncio
-async def test_empty_connected_nodes_easy_wrapper(model):
+async def test_empty_connected_nodes_easy_wrapper(mock_llm):
     """Test when the output model is empty while making a node with easy wrapper."""
     with pytest.raises(NodeCreationError, match="tool_nodes must not return an empty set."):
         _ = tool_call_llm(
             tool_nodes=set(),
             system_message="You are a helpful assistant that can strucure the response into a structured output.",
-            llm_model=model,
+            llm_model=mock_llm,
             name="ToolCallLLM",
         )
 
 
 @pytest.mark.asyncio
-async def test_empty_connected_nodes_class_based(model):
+async def test_empty_connected_nodes_class_based(mock_llm):
     """Test when the output model is empty while making a node with class based."""
 
     with pytest.raises(NodeCreationError, match="tool_nodes must not return an empty set."):
@@ -41,7 +41,7 @@ async def test_empty_connected_nodes_class_based(model):
             def __init__(
                 self,
                 user_input: rt.llm.MessageHistory,
-                llm_model: rt.llm.ModelBase = model,
+                llm_model: rt.llm.ModelBase = mock_llm(),
             ):
                 user_input = [x for x in user_input if x.role != "system"]
                 user_input.insert(0, system_simple)
@@ -96,28 +96,27 @@ async def test_some_functions_passed_tool_calls(some_function_taking_travel_plan
 
 @pytest.mark.asyncio
 @pytest.mark.skip("Skipping test due to stochastic LLM failures.")
-async def test_tool_with_llm_tool_as_input_easy_tools():
+async def test_tool_with_llm_tool_as_input_easy_tools(mock_llm):
     """Test a tool that uses another LLM tool as input."""
 
     def secret_phrase(true_to_call: bool = True):
         return "2 foxes and a dog"
 
     # Define the child tool
-    child_tool = tool_call_llm(
-        tool_nodes={function_node(secret_phrase)},
+    child_tool = rt.agent_node(
         name="Child Tool",
-        system_message=rt.llm.SystemMessage(
-            "When asked for a response, provide the output of the tool."
-        ),
-        model=rt.llm.OpenAILLM("gpt-4o"),
-        tool_details="A tool that generates a simple response.",
-        tool_params={
-            rt.llm.Parameter(
-                name="response_request",
-                param_type="string",
-                description="A sentence that requests a response.",
-            )
-        },
+        system_message=rt.llm.SystemMessage("When asked for a response, provide the output of the tool."),
+        llm_model=mock_llm(),
+        manifest=rt.ToolManifest(
+            description="A tool that generates a simple response.",
+            parameters=[
+                rt.llm.Parameter(
+                    name="response_request",
+                    param_type="string",
+                    description="A sentence that requests a response.",
+                )
+            ]
+        )
     )
 
     # Define the parent tool that uses the child tool
