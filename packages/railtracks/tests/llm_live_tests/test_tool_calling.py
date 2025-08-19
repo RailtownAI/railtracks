@@ -80,13 +80,13 @@ def test_realistic_scenario(llm):
         response = rt.call_sync(
             agent, rt.llm.MessageHistory([rt.llm.UserMessage(usr_prompt)])
         )
+        assert rt.context.get("staff_directory_updated")
 
 
     assert DB["John"]["role"] == "Senior Manager"
     assert DB["John"]["phone"] == "5555"
     assert DB["Jane"]["role"] == "Developer"
     assert DB["Jane"]["phone"] == "0987654321"
-    assert rt.context.get("staff_directory_updated")
     
 
 @pytest.mark.parametrize("llm", llm_map.values(), ids=llm_map.keys())
