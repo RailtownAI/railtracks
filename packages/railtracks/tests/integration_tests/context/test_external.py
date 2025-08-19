@@ -1,6 +1,6 @@
 import pytest
 import railtracks as rt
-from railtracks.context import put, get, update, delete
+from railtracks.context import put, get, update, delete, keys
 from railtracks import function_node
 from railtracks.interaction.call import call
 
@@ -85,5 +85,44 @@ def test_multiple_runners():
             rt.context.get("key3")
 
 
+def test_keys_empty_context():
+    with rt.Session():
+        context_keys = keys()
+        assert len(context_keys) == 0
 
 
+def test_keys_with_initial_context():
+    with rt.Session(context={"key1": "value1", "key2": "value2"}):
+        context_keys = keys()
+        assert set(context_keys) == {"key1", "key2"}
+
+
+def test_keys_after_modifications():
+    with rt.Session(context={"initial": "value"}):
+        # Initial state
+        context_keys = keys()
+        assert set(context_keys) == {"initial"}
+        
+        # Add keys
+        put("new_key", "new_value")
+        update({"another": "another_value"})
+        context_keys = keys()
+        assert set(context_keys) == {"initial", "new_key", "another"}
+        
+        # Delete a key
+        delete("initial")
+        context_keys = keys()
+        assert set(context_keys) == {"new_key", "another"}
+
+
+def test_keys_across_function_calls():
+    def get_context_keys():
+        return list(keys())
+    
+    with rt.Session(context={"test": "value"}):
+        put("runtime", "data")
+        
+        # Test that keys() works inside function nodes
+        keys_node = function_node(get_context_keys)
+        result = rt.call_sync(keys_node)
+        assert set(result) == {"test", "runtime"}

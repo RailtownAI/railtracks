@@ -23,6 +23,10 @@ class ExternalContext(ABC):
     def delete(self, key: str):
         pass
 
+    @abstractmethod
+    def keys(self):
+        pass
+
     def __setitem__(self, key, value):
         self.put(key, value)
 
@@ -84,3 +88,12 @@ class MutableExternalContext(ExternalContext):
             del self._context_var_store[key]
         except KeyError:
             raise KeyError(f"Key '{key}' does not exist in the context.")
+
+    def keys(self):
+        """
+        Returns the keys of the context.
+
+        Returns:
+            dict_keys: The keys in the context.
+        """
+        return self._context_var_store.keys()

@@ -320,6 +320,17 @@ def delete(key: str):
     context.external_context.delete(key)
 
 
+def keys():
+    """
+    Get the keys of the context.
+
+    Returns:
+        dict_keys: The keys in the context.
+    """
+    context = safe_get_runner_context()
+    return context.external_context.keys()
+
+
 def set_config(
     *,
     timeout: float | None = None,
