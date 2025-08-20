@@ -320,7 +320,7 @@ def delete(key: str):
     context.external_context.delete(key)
 
 
-def keys() -> KeysView[str]:
+def keys():
     """
     Get the keys of the context.
 
