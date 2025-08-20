@@ -8,7 +8,7 @@ body:
     id: feature_description
     attributes:
       label: Feature Request
-      description: Describe the feature you'd like to see added and optionally include any solution ideas or implementation suggestions you may have.
+      description: Describe the feature you'd like to see added. Optionally include any solution ideas or implementation suggestions you may have.
       placeholder: |
         A clear and concise description of the new feature you'd like to see.
         
