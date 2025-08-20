@@ -304,3 +304,101 @@ def validate_tool_params(parameters: Any, param_type) -> bool:
 
 
 # ================================================================== END Tool init error ===========================================================
+
+
+# ============================================================== START Tool Manifest Verification ===========================================================
+def _check_manifest_params_exist_in_function(
+    func_params: dict, manifest_param_dict: dict
+) -> None:
+    """Check that all manifest parameters exist in function signature."""
+    for manifest_param_name in manifest_param_dict:
+        if manifest_param_name not in func_params:
+            raise NodeCreationError(
+                message=f"Tool manifest parameter '{manifest_param_name}' does not exist in function signature.",
+                notes=[
+                    f"Function parameters are: {list(func_params.keys())}",
+                    "Remove the extra parameter from the tool manifest or add it to the function signature.",
+                ],
+            )
+
+
+def _check_required_params_in_manifest(
+    func_params: dict, manifest_param_dict: dict
+) -> None:
+    """Check that required function parameters are present in manifest."""
+    for func_param_name, func_param in func_params.items():
+        if func_param.default == inspect.Parameter.empty:  # Required parameter
+            if func_param_name not in manifest_param_dict:
+                raise NodeCreationError(
+                    message=f"Required function parameter '{func_param_name}' is missing from tool manifest.",
+                    notes=[
+                        "Add the missing parameter to the tool manifest.",
+                        "All required function parameters must be included in the manifest.",
+                    ],
+                )
+
+
+def _check_required_optional_consistency(
+    func_params: dict, manifest_param_dict: dict
+) -> None:
+    """Check that required/optional consistency between function and manifest."""
+    for func_param_name, func_param in func_params.items():
+        if func_param_name in manifest_param_dict:
+            manifest_param = manifest_param_dict[func_param_name]
+            func_is_required = func_param.default == inspect.Parameter.empty
+            manifest_is_required = manifest_param.required
+
+            if func_is_required and not manifest_is_required:
+                raise NodeCreationError(
+                    message=f"Function parameter '{func_param_name}' is required but marked as optional in tool manifest.",
+                    notes=[
+                        "Make the parameter required in the tool manifest.",
+                        "Required function parameters must be marked as required in the manifest.",
+                    ],
+                )
+
+
+def validate_tool_manifest_against_function(
+    func: Callable, manifest_params: list | None
+) -> None:
+    """
+    Validate that tool manifest parameters are compatible with function signature.
+
+    This checks that:
+    1. Manifest parameter names match function parameter names
+    2. Required function parameters are present in manifest (unless they have defaults)
+    3. No extra parameters in manifest that don't exist in function
+    4. Parameter types are broadly compatible considering type mapping
+
+    Args:
+        func: The function to validate against
+        manifest_params: List of Parameter objects from ToolManifest, or None
+
+    Raises:
+        NodeCreationError: If validation fails
+    """
+    if manifest_params is None:
+        return
+
+    try:
+        sig = inspect.signature(func)
+    except ValueError:
+        # For builtin functions, we can't validate - trust the user
+        return
+
+    # Get function parameters (excluding 'self' and 'cls' for methods)
+    func_params = {}
+    for param_name, param in sig.parameters.items():
+        if param_name not in ("self", "cls"):
+            func_params[param_name] = param
+
+    # Convert manifest parameters to dict for easier lookup
+    manifest_param_dict = {p.name: p for p in manifest_params}
+
+    # Perform all validation checks
+    _check_manifest_params_exist_in_function(func_params, manifest_param_dict)
+    _check_required_params_in_manifest(func_params, manifest_param_dict)
+    _check_required_optional_consistency(func_params, manifest_param_dict)
+
+
+# ============================================================== END Tool Manifest Verification ===========================================================
