@@ -94,6 +94,6 @@ class MutableExternalContext(ExternalContext):
         Returns the keys of the context.
 
         Returns:
-            dict_keys: The keys in the context.
+            KeysView[str]: The keys in the context.
         """
         return self._context_var_store.keys()
