@@ -7,7 +7,6 @@ maintaining valid snake_case identifiers for tool calls.
 """
 
 
-
 def snake_case_to_title_case(snake_case_name: str) -> str:
     """
     Convert a snake_case name to Title Case.
@@ -98,4 +97,3 @@ def is_title_case(name: str) -> bool:
 
     # Multiple words: each should start with uppercase, rest lowercase
     return all(word and word[0].isupper() and word[1:].islower() for word in words)
-
