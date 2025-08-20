@@ -10,8 +10,9 @@ This module tests the ability to create nodes from functions with various parame
 import pytest
 from typing import Tuple, List, Dict, Union, Optional
 import railtracks as rt
-from railtracks.llm import Message, AssistantMessage, Parameter
+from railtracks.llm import Message, AssistantMessage
 from railtracks.llm.response import Response
+import re
 
 # ===== Test Classes =====
 class TestPrimitiveInputTypes:
@@ -333,7 +334,7 @@ class TestSequenceInputTypes:
             for parameter in tools[0].parameters:
                 assert parameter.name == "items"
                 assert parameter.param_type == "array"
-                assert parameter.description == "The list of items to test."
+                assert "The list of items to test." in parameter.description
 
             tool_response = magic_list(["1", "2", "3"])
 
@@ -376,21 +377,36 @@ class TestSequenceInputTypes:
             rt.context.put("magic_tuple_called", True)
             return " ".join(reversed(items))
 
+        # ============ mock llm config =========
+        async def invoke_child_tool(messages, tools):
+            assert len(tools) == 1
+            assert tools[0].name == "magic_tuple"
+            for parameter in tools[0].parameters:
+                assert parameter.name == "items"
+                assert parameter.param_type == "array"
+                assert "The tuple of items to test." in parameter.description
+
+            tool_response = magic_tuple(("1", "2", "3"))
+
+            return Response(
+                message=AssistantMessage(
+                    tool_response,
+                ),
+            )
+
+        
+        llm = mock_llm()
+        llm._achat_with_tools = invoke_child_tool
+        # =======================================
+
         agent = _agent_node_factory(
             magic_tuple,
-            mock_llm(Message(content="3 2 1", role="assistant")),
+            llm,
         )
-
         with rt.Session(logging_setting="NONE") as run:
             response = rt.call_sync(
                 agent,
-                rt.llm.MessageHistory(
-                    [
-                        rt.llm.UserMessage(
-                            "What is the magic tuple for ('1', '2', '3')? Only return the result, no other text."
-                        )
-                    ]
-                ),
+                "What is the magic tuple for ('1', '2', '3')? Only return the result, no other text."
             )
 
             assert response.content == "3 2 1"
@@ -403,7 +419,7 @@ class TestSequenceInputTypes:
         def magic_result(num_items: List[float], prices: List[float]) -> float:
             """
             Args:
-                num_items (List[str]): The list of items to test.
+                num_items (List[float]): The list of items to test.
                 prices (List[float]): The list of prices to test.
 
             Returns:
@@ -413,20 +429,36 @@ class TestSequenceInputTypes:
             total = sum(price * item for price, item in zip(prices, num_items))
             return total
 
+        # ============ mock llm config =========
+        async def invoke_child_tool(messages, tools):
+            assert len(tools) == 1
+            assert tools[0].name == "magic_result"
+            for parameter in tools[0].parameters:
+                assert parameter.name in ["num_items", "prices"]
+                assert parameter.param_type == "array"
+                assert re.search(r"The list of .* to test\.", parameter.description)
+
+
+            tool_response = magic_result([1.0, 2.0], [5.5, 10.0])
+
+            return Response(
+                message=AssistantMessage(
+                    str(tool_response),
+                ),
+            )
+        
+        llm = mock_llm()
+        llm._achat_with_tools = invoke_child_tool
+        # =======================================
+
         agent = _agent_node_factory(
             magic_result,
-            mock_llm(Message(content="25.5", role="assistant")),
+            llm,
         )
         with rt.Session(logging_setting="NONE") as run:
             response = rt.call_sync(
                 agent,
-                rt.llm.MessageHistory(
-                    [
-                        rt.llm.UserMessage(
-                            "What is the magic result for [1, 2] and [5.5, 10]? Only return the result, no other text."
-                        )
-                    ]
-                ),
+                "What is the magic result for [1, 2] and [5.5, 10]? Only return the result, no other text."
             )
 
         assert response.content == "25.5"
@@ -473,10 +505,36 @@ class TestUnionAndOptionalParameter:
             rt.context.put("magic_number_called", True)
             return 21
 
+        # ============ mock llm config =========
+        async def invoke_child_tool(messages, tools):
+            assert len(tools) == 1
+            assert tools[0].name == "magic_number"
+            for parameter in tools[0].parameters:
+                assert parameter.name == "x"
+                assert parameter.param_type == ["integer", "string"]
+                assert parameter.description == "The input parameter"
+
+            tool_response1 = magic_number(5)
+            tool_response2 = magic_number("fox")
+            tool_response = tool_response1 + tool_response2
+
+
+            return Response(
+                message=AssistantMessage(
+                    str(tool_response),
+                ),
+            )
+        
+        llm = mock_llm()
+        llm._achat_with_tools = invoke_child_tool
+        # =======================================
+
         agent = _agent_node_factory(
-            magic_number, mock_llm(Message(content="42", role="assistant"))
+            magic_number,
+            llm,
         )
-        with rt.Session(logging_setting="QUIET") as run:
+
+        with rt.Session(logging_setting="QUIET"):
             response = rt.call_sync(
                 agent,
                 rt.llm.MessageHistory(
@@ -501,9 +559,36 @@ class TestUnionAndOptionalParameter:
             rt.context.put("magic_number_called", True)
             return 21 if x is None else x
 
+        # ============ mock llm config =========
+        async def invoke_child_tool(messages, tools):
+            assert len(tools) == 1
+            assert tools[0].name == "magic_number"
+            for parameter in tools[0].parameters:
+                assert parameter.name == "x"
+                assert parameter.param_type == ["integer"]
+                assert parameter.description == "The input parameter"
+                assert parameter.required == False
+
+            tool_response1 = magic_number(21)
+            tool_response2 = magic_number()
+            tool_response = tool_response1 + tool_response2
+
+
+            return Response(
+                message=AssistantMessage(
+                    str(tool_response),
+                ),
+            )
+        
+        llm = mock_llm()
+        llm._achat_with_tools = invoke_child_tool
+        # =======================================
+
         agent = _agent_node_factory(
-            magic_number, mock_llm(Message(content=str(answer), role="assistant"))
+            magic_number,
+            llm,
         )
+
         with rt.Session(logging_setting="QUIET") as run:
             response = rt.call_sync(
                 agent,
