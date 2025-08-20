@@ -89,7 +89,7 @@ class MutableExternalContext(ExternalContext):
         except KeyError:
             raise KeyError(f"Key '{key}' does not exist in the context.")
 
-    def keys(self) -> KeysView[str]:
+    def keys(self):
         """
         Returns the keys of the context.
 
