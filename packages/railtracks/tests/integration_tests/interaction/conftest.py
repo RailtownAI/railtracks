@@ -200,8 +200,8 @@ def structured_nodes(mock_llm, structured_llms_system_messages):
         )
 
     # Mock responses
-    math_undergrad_response = rt.llm.Message(content=ProofModel(proof="Mocked proof"), role="assistant")
-    math_professor_response = rt.llm.Message(content=GradingSchema(overall_score=100, feedback="Mocked feedback"), role="assistant")
+    math_undergrad_response = ProofModel(proof="Mocked proof")
+    math_professor_response = GradingSchema(overall_score=100, feedback="Mocked feedback")
 
     math_undergrad_student_node = rt.agent_node(
         name="Math Undergraduate Student Node",

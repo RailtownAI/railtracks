@@ -29,19 +29,15 @@ class TestSimpleToolCalling:
             rt.context.put("secret_phrase_called", True)
             return "Constantinople"
 
+        llm = mock_llm(
+            [ToolCall(name="secret_phrase", identifier="id_42424242", arguments={})]
+        )
+
         agent = rt.agent_node(
             tool_nodes={rt.function_node(secret_phrase)},
             name="Secret Phrase Maker",
             system_message="You are a helpful assistant that can call the tools available to you to answer user queries",
-            llm_model=mock_llm(
-                AssistantMessage(
-                    [
-                        ToolCall(
-                            name="secret_phrase", identifier="id_42424242", arguments={}
-                        )
-                    ]
-                )
-            ),
+            llm_model=llm,
         )
 
         with rt.Session(logging_setting="NONE"):
@@ -51,10 +47,6 @@ class TestSimpleToolCalling:
             )
             assert "Constantinople" in response.content
             assert rt.context.get("secret_phrase_called")
-
-
-class TestStructuredToolCalling:
-    pass
 
 
 class TestLimitedToolCalling:
@@ -178,3 +170,7 @@ class TestLimitedToolCalling:
             )
             assert isinstance(response.content, str)
             assert rt.context.get("tools_called") == num_tc
+
+
+class TestStructuredToolCalling:
+    pass

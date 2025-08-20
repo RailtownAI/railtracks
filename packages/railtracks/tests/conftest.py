@@ -4,10 +4,11 @@ import pytest
 import railtracks as rt
 from railtracks.llm.response import Response, MessageInfo
 from pydantic import BaseModel
+from railtracks.llm.message import AssistantMessage, Message
 
 
 class MockLLM(rt.llm.ModelBase):
-    def __init__(self, custom_response_message: rt.llm.Message | None = None):
+    def __init__(self, custom_response_message: str | BaseModel | None = None, requested_tool_calls: list[rt.llm.ToolCall] | None = None):
         """
         Creates a new instance of the MockLLM class.
         Args:
@@ -15,6 +16,7 @@ class MockLLM(rt.llm.ModelBase):
         """
         super().__init__()
         self.custom_response_message = custom_response_message
+        self.requested_tool_calls = requested_tool_calls
         self.mocked_message_info = MessageInfo(
             input_tokens=42,
             output_tokens=42,
@@ -39,20 +41,23 @@ class MockLLM(rt.llm.ModelBase):
                 break  # Stop at first non-tool message
         return tool_results
     
-    def get_message(
+    def _make_custom_assistant_message( 
         self,
         default_content: str | BaseModel,
-        role: Literal["assistant", "user", "system", "tool"] = "assistant",
-    ) -> rt.llm.Message:
-        return self.custom_response_message or rt.llm.Message(
-            content=default_content, role=role
-        )
+        requested_tool_calls: list[rt.llm.ToolCall] | None = None,
+    ) -> AssistantMessage:
+        if requested_tool_calls:
+            return AssistantMessage(content=requested_tool_calls)
+        if self.custom_response_message:
+            return AssistantMessage(self.custom_response_message)
+        else:
+            return AssistantMessage(content=default_content)
     # =======================================================================================
     
     # ================ Base responses (common for sync and async versions) ==================
     def _base_chat(self):
         return Response(
-            message=self.get_message("mocked Message"),
+            message=self._make_custom_assistant_message("mocked Message"),
             streamer=None,
             message_info=self.mocked_message_info,
         )
@@ -62,12 +67,12 @@ class MockLLM(rt.llm.ModelBase):
             dummy_attr: str = "mocked"
 
         return Response(
-            message=self.get_message(DummyStructured()),
+            message=self._make_custom_assistant_message(DummyStructured()),
             streamer=None,
             message_info=self.mocked_message_info,
         )
     
-    def _base_chat_with_tools(self, messages, tools, **kwargs):
+    def _base_chat_with_tools(self, messages):
         tool_results = self._extract_pending_tool_results(messages)
         if tool_results:
             final_message = ""
@@ -81,7 +86,7 @@ class MockLLM(rt.llm.ModelBase):
             )
         else:
             return Response(
-                message=self.get_message("mocked tool message"),
+                message=self._make_custom_assistant_message("mocked tool message", self.requested_tool_calls),
                 streamer=None,
                 message_info=self.mocked_message_info,
             )            
@@ -96,7 +101,7 @@ class MockLLM(rt.llm.ModelBase):
 
     
     async def _achat_with_tools(self, messages, tools, **kwargs):
-        return self._base_chat_with_tools(messages, tools, **kwargs)
+        return self._base_chat_with_tools(messages, **kwargs)
     
     async def _astream_chat(self, messages, **kwargs):
         return self._base_chat()
@@ -108,7 +113,7 @@ class MockLLM(rt.llm.ModelBase):
         return self._base_structured()
 
     def _chat_with_tools(self, messages, tools, **kwargs):
-        return self._base_chat_with_tools(messages=messages, tools=tools, **kwargs)
+        return self._base_chat_with_tools(messages, **kwargs)
 
     def _stream_chat(self, messages, **kwargs):
         return self._base_chat()

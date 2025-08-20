@@ -32,9 +32,7 @@ class TestPrimitiveInputTypes:
 
         # mock_llm will run the tool and return the result if requested
         llm = mock_llm(
-            AssistantMessage(
-                [ToolCall(name="secret_phrase", identifier="id_42424242", arguments={})]
-            )
+            [ToolCall(name="secret_phrase", identifier="id_42424242", arguments={})]
         )
 
         agent = _agent_node_factory(
@@ -66,15 +64,13 @@ class TestPrimitiveInputTypes:
 
         # mock_llm will run the tool and return the result if requested
         llm = mock_llm(
-            AssistantMessage(
-                [
-                    ToolCall(
-                        name="magic_number",
-                        identifier="id_42424242",
-                        arguments={"input_num": 6},
-                    )
-                ]
-            )
+            [
+                ToolCall(
+                    name="magic_number",
+                    identifier="id_42424242",
+                    arguments={"input_num": 6},
+                )
+            ]
         )
         # =======================================
 
@@ -107,15 +103,13 @@ class TestPrimitiveInputTypes:
 
         # mock_llm will run the tool and return the result if requested
         llm = mock_llm(
-            AssistantMessage(
-                [
-                    ToolCall(
-                        name="magic_phrase",
-                        identifier="id_42424242",
-                        arguments={"word": "hello"},
-                    )
-                ]
-            )
+            [
+                ToolCall(
+                    name="magic_phrase",
+                    identifier="id_42424242",
+                    arguments={"word": "hello"},
+                )
+            ]
         )
         # =======================================
 
@@ -148,15 +142,13 @@ class TestPrimitiveInputTypes:
 
         # mock_llm will run the tool and return the result if requested
         llm = mock_llm(
-            AssistantMessage(
-                [
-                    ToolCall(
-                        name="magic_test",
-                        identifier="id_42424242",
-                        arguments={"num": 5.0},
-                    )
-                ]
-            )
+            [
+                ToolCall(
+                    name="magic_test",
+                    identifier="id_42424242",
+                    arguments={"num": 5.0},
+                )
+            ]
         )
         # =======================================
 
@@ -190,15 +182,13 @@ class TestPrimitiveInputTypes:
 
         # mock_llm will run the tool and return the result if requested
         llm = mock_llm(
-            AssistantMessage(
-                [
-                    ToolCall(
-                        name="magic_test",
-                        identifier="id_42424242",
-                        arguments={"is_magic": True},
-                    )
-                ]
-            )
+            [
+                ToolCall(
+                    name="magic_test",
+                    identifier="id_42424242",
+                    arguments={"is_magic": True},
+                )
+            ]
         )
         # =======================================
 
@@ -231,15 +221,13 @@ class TestPrimitiveInputTypes:
 
         # mock_llm will run the tool and return the result if requested
         llm = mock_llm(
-            AssistantMessage(
-                [
-                    ToolCall(
-                        name="error_function",
-                        identifier="id_42424242",
-                        arguments={"x": 0},
-                    )
-                ]
-            )
+            [
+                ToolCall(
+                    name="error_function",
+                    identifier="id_42424242",
+                    arguments={"x": 0},
+                )
+            ]
         )
         # =======================================
 
@@ -279,15 +267,13 @@ class TestSequenceInputTypes:
 
         # mock_llm will run the tool and return the result if requested
         llm = mock_llm(
-            AssistantMessage(
-                [
-                    ToolCall(
-                        name="magic_list",
-                        identifier="id_42424242",
-                        arguments={"items": ["1", "2", "3"]},
-                    )
-                ]
-            )
+            [
+                ToolCall(
+                    name="magic_list",
+                    identifier="id_42424242",
+                    arguments={"items": ["1", "2", "3"]},
+                )
+            ]
         )
         # =======================================
 
@@ -320,15 +306,13 @@ class TestSequenceInputTypes:
 
         # mock_llm will run the tool and return the result if requested
         llm = mock_llm(
-            AssistantMessage(
-                [
-                    ToolCall(
-                        name="magic_tuple",
-                        identifier="id_42424242",
-                        arguments={"items": ("1", "2", "3")},
-                    )
-                ]
-            )
+            [
+                ToolCall(
+                    name="magic_tuple",
+                    identifier="id_42424242",
+                    arguments={"items": ("1", "2", "3")},
+                )
+            ]
         )
         # =======================================
 
@@ -363,15 +347,13 @@ class TestSequenceInputTypes:
 
         # mock_llm will run the tool and return the result if requested
         llm = mock_llm(
-            AssistantMessage(
-                [
-                    ToolCall(
-                        name="magic_result",
-                        identifier="id_42424242",
-                        arguments={"num_items": [1.0, 2.0], "prices": [5.5, 10.0]},
-                    )
-                ]
-            )
+            [
+                ToolCall(
+                    name="magic_result",
+                    identifier="id_42424242",
+                    arguments={"num_items": [1.0, 2.0], "prices": [5.5, 10.0]},
+                )
+            ]
         )
         # =======================================
 
@@ -437,20 +419,18 @@ class TestUnionAndOptionalParameter:
 
         # mock_llm will run the tool and return the result if requested
         llm = mock_llm(
-            AssistantMessage(
-                [
-                    ToolCall(
-                        name="magic_number",
-                        identifier="id_42424242",
-                        arguments={"x": 5},
-                    ),
-                    ToolCall(
-                        name="magic_number",
-                        identifier="id_42424242",
-                        arguments={"x": "fox"},
-                    ),
-                ]
-            )
+            [
+                ToolCall(
+                    name="magic_number",
+                    identifier="id_42424242",
+                    arguments={"x": 5},
+                ),
+                ToolCall(
+                    name="magic_number",
+                    identifier="id_42424242",
+                    arguments={"x": "fox"},
+                ),
+            ]
         )
         # =======================================
 
@@ -462,22 +442,24 @@ class TestUnionAndOptionalParameter:
         with rt.Session(logging_setting="QUIET"):
             response = rt.call_sync(
                 agent,
-                "Calculate the magic number for 5. Then calculate the magic number for 'fox'."
+                "Calculate the magic number for 5. Then calculate the magic number for 'fox'.",
             )
             assert rt.context.get("magic_number_called")
-            assert len(re.findall(r"21", response.content)) == 2        # 21 appears twice
-
+            assert len(re.findall(r"21", response.content)) == 2  # 21 appears twice
 
     @pytest.mark.parametrize(
         "default_value, expected",
         [
-            (None, [21, 21]),   # default: both calls return 21
-            (5, [21, 5]),       # non-default: first call 21, second call default (5)
+            (None, [21, 21]),  # default: both calls return 21
+            (5, [21, 5]),  # non-default: first call 21, second call default (5)
         ],
         ids=["default value", "non default value"],
     )
-    def test_optional_parameter(self, _agent_node_factory, default_value, expected, mock_llm):
+    def test_optional_parameter(
+        self, _agent_node_factory, default_value, expected, mock_llm
+    ):
         """Test that a function with an optional parameter works correctly."""
+
         def magic_number(x: Optional[int] = default_value) -> int:
             """
             Args:
@@ -491,18 +473,14 @@ class TestUnionAndOptionalParameter:
 
         # mock_llm will run the tool and return the result if requested
         llm = mock_llm(
-            AssistantMessage(
-                [
-                    ToolCall(
-                        name="magic_number",
-                        identifier="id_42424242",
-                        arguments={"x": 21},
-                    ),
-                    ToolCall(
-                        name="magic_number", identifier="id_42424242", arguments={}
-                    ),
-                ]
-            )
+            [
+                ToolCall(
+                    name="magic_number",
+                    identifier="id_42424242",
+                    arguments={"x": 21},
+                ),
+                ToolCall(name="magic_number", identifier="id_42424242", arguments={}),
+            ]
         )
 
         agent = _agent_node_factory(magic_number, llm)
@@ -510,7 +488,7 @@ class TestUnionAndOptionalParameter:
         with rt.Session(logging_setting="QUIET") as run:
             response = rt.call_sync(
                 agent,
-                "Calculate the magic number for 21. Then calculate the magic number with no args."
+                "Calculate the magic number for 21. Then calculate the magic number with no args.",
             )
 
             # verify each expected number appears in the response
@@ -519,6 +497,8 @@ class TestUnionAndOptionalParameter:
 
             # also check counts if you want stricter validation
             for val in set(expected):
-                assert len(re.findall(str(val), response.content)) == expected.count(val)
+                assert len(re.findall(str(val), response.content)) == expected.count(
+                    val
+                )
 
             assert rt.context.get("magic_number_called")

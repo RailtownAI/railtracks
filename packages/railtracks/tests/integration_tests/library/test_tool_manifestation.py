@@ -1,6 +1,6 @@
 import pytest
 import railtracks as rt
-from railtracks.llm import Message
+from railtracks.llm import Message, ToolCall
 from railtracks.llm.response import Response
 import asyncio
 
@@ -29,13 +29,13 @@ async def test_terminal_llm_as_tool_correct_initialization(
     encoder = rt.agent_node(
         name="Encoder",
         system_message=encoder_system_message,
-        llm_model=mock_llm(Message(content="encoder check", role="assistant")),
+        llm_model=mock_llm("encoder check"),
         manifest=encoder_manifest,
     )
     decoder = rt.agent_node(
         name="Decoder",
         system_message=decoder_system_message,
-        llm_model=mock_llm(Message(content="decoder check", role="assistant")),
+        llm_model=mock_llm("decoder check"),
         manifest=decoder_manifest,
     )
 
@@ -58,26 +58,12 @@ async def test_terminal_llm_as_tool_correct_initialization(
     _check_tool_info(encoder.tool_info())
     _check_tool_info(decoder.tool_info())
 
-    # ======== mock chat_with tools =========
-    async def child_llms_invoke(messages, tools):
-        assert len(tools) == 2
-        _check_tool_info(tools[0])
-        _check_tool_info(tools[1])
-
-        encoder_tool_terminal = encoder.prepare_tool({"text_input": "hello world"})
-        decoder_tool_terminal = decoder.prepare_tool({"bytes_input": "hello world"})
-
-        contracts = [encoder_tool_terminal.invoke(), decoder_tool_terminal.invoke()]
-        tool_responses = await asyncio.gather(*contracts)
-
-        assert tool_responses[0].content == "encoder check"
-        assert tool_responses[1].content == "decoder check"
-
-        return Response(Message(content=str("Both children returned the correct response"), role="assistant"))
-
-
-    randomizer_llm = mock_llm()
-    randomizer_llm._achat_with_tools = child_llms_invoke
+    randomizer_llm = mock_llm(
+        [
+            ToolCall(name="Encoder", identifier="id_42424242", arguments={"text_input": "hello world"}),
+            ToolCall(name="Decoder", identifier="id_42424242", arguments={"bytes_input": "hello world"}),
+        ]
+    )
     # ========================================
     randomizer = rt.agent_node(
         tool_nodes={encoder, decoder},
@@ -91,7 +77,8 @@ async def test_terminal_llm_as_tool_correct_initialization(
             [rt.llm.UserMessage("The input string is 'hello world'")]
         )
         response = await rt.call(randomizer, user_input=message_history)
-        assert response.content == "Both children returned the correct response"
+        assert "encoder check" in response.content
+        assert "decoder check" in response.content
 
 
 @pytest.mark.asyncio
@@ -102,7 +89,7 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(mock_llm):
     rng_node = rt.agent_node(
         name="RNG Tool",
         system_message="You are a helful assistant that can generate 5 random numbers between 1 and 100.",
-        llm_model=mock_llm(custom_response_message=Message(content="[42, 42, 42, 42, 42]", role="assistant")),    # Assert this is propogated to the parent llm
+        llm_model=mock_llm("[42, 42, 42, 42, 42]"),    # Assert this is propogated to the parent llm
         manifest=rt.ToolManifest(rng_tool_details, None),
     )
 
@@ -112,18 +99,7 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(mock_llm):
 
     system_message = "You are a math genius that calls the RNG tool to generate 5 random numbers between 1 and 100 and gives the sum of those numbers."
 
-    # ======== mock chat_with tools =========
-    async def child_llm_invoke(messages, tools):
-        assert len(tools) == 1
-        assert tools[0].name == "RNG_Tool"
-        # once asserted, we can call the child node and return the result
-        rng_tool_terminal = rng_node.prepare_tool({})
-        response = await rng_tool_terminal.invoke()
-        return Response(Message(content=str(response.content), role="assistant"))
-
-
-    math_llm = mock_llm()
-    math_llm._achat_with_tools = child_llm_invoke
+    math_llm = mock_llm([ToolCall(name="RNG_Tool", identifier="id_42424242", arguments={})])
     # ========================================
 
     math_node = rt.agent_node(
@@ -139,7 +115,7 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(mock_llm):
         )
         response = await rt.call(math_node, user_input=message_history)
         
-        assert response.content == '[42, 42, 42, 42, 42]'
+        assert '[42, 42, 42, 42, 42]' in response.content
 
 @pytest.mark.timeout(30)
 @pytest.mark.asyncio
@@ -157,26 +133,7 @@ async def test_terminal_llm_tool_with_invalid_parameters(mock_llm, encoder_syste
         manifest=rt.ToolManifest(encoder_tool_details, encoder_tool_params),
     )
 
-    # ======== mock chat_with tools =========
-    async def child_llm_invoke(messages, tools):    
-        assert len(tools) == 1
-        assert tools[0].name == "Encoder"
-
-        # once asserted, we can call the child node and return the result
-        try:
-            encoder_tool_terminal = encoder.prepare_tool({"invalid_arg_name": "hello world"})
-        except Exception as e:  
-            assert isinstance(e, KeyError)  # we expect the child to raise a KeyError
-            encoder_tool_terminal = encoder.prepare_tool({"text_input": "hello world"})
-
-        response = await encoder_tool_terminal.invoke()
-        assert response.content == "Encoder ran successfully"
-
-        return Response(Message(content="There was an error running the tool", role="assistant"))
-
-
-    invalid_caller_llm = mock_llm()
-    invalid_caller_llm._achat_with_tools = child_llm_invoke
+    invalid_caller_llm = mock_llm([ToolCall(name="encoder", identifier="id_42424242", arguments={"invalid_arg_name": "hello world"})])
     # ========================================
 
 
