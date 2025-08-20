@@ -1,15 +1,9 @@
 import pytest
 import railtracks as rt
-from typing import List, Callable
+from typing import List, Callable, Type
 from pydantic import BaseModel, Field
 from railtracks.llm import SystemMessage
-
-
-# ============ Model ===========
-@pytest.fixture
-def model():
-    return rt.llm.OpenAILLM("gpt-4o")
-
+import random 
 
 # ============ System Messages ===========
 @pytest.fixture
@@ -108,3 +102,18 @@ def empty_output_model():
 def person_output_model():
     return PersonOutput
 # =====================================================
+
+# ============ Context Variables ===========
+@pytest.fixture
+def _reset_tools_called():
+    def _reset(val=0):
+        rt.context.put("tools_called", val)
+    return _reset
+
+@pytest.fixture
+def _increment_tools_called():
+    """Increments the tools_called context variable by 1"""
+    def _increment():
+        count = rt.context.get("tools_called", 0)
+        rt.context.put("tools_called", count + 1)
+    return _increment

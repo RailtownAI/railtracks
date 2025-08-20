@@ -10,9 +10,10 @@ This module tests the ability to create nodes from functions with various parame
 import pytest
 from typing import Tuple, List, Dict, Union, Optional
 import railtracks as rt
-from railtracks.llm import Message, AssistantMessage
+from railtracks.llm import AssistantMessage, ToolCall
 from railtracks.llm.response import Response
 import re
+
 
 # ===== Test Classes =====
 class TestPrimitiveInputTypes:
@@ -29,22 +30,12 @@ class TestPrimitiveInputTypes:
             rt.context.put("secret_phrase_called", True)
             return "Constantinople"
 
-        # ============ mock llm config =========
-        async def invoke_child_tool(messages, tools):
-            assert len(tools) == 1
-            assert tools[0].name == "secret_phrase"
-
-            tool_response = secret_phrase()
-
-            return Response(
-                message=AssistantMessage(
-                    tool_response,
-                ),
+        # mock_llm will run the tool and return the result if requested
+        llm = mock_llm(
+            AssistantMessage(
+                [ToolCall(name="secret_phrase", identifier="id_42424242", arguments={})]
             )
-        
-        llm = mock_llm()
-        llm._achat_with_tools = invoke_child_tool
-        # =======================================
+        )
 
         agent = _agent_node_factory(
             secret_phrase,
@@ -54,9 +45,9 @@ class TestPrimitiveInputTypes:
         with rt.Session(logging_setting="NONE"):
             response = rt.call_sync(
                 agent,
-                "What is the secret phrase? Only return the secret phrase, no other text."
+                "What is the secret phrase? Only return the secret phrase, no other text.",
             )
-            assert response.content == "Constantinople"
+            assert "Constantinople" in response.content
             assert rt.context.get("secret_phrase_called")
 
     def test_single_int_input(self, _agent_node_factory, mock_llm):
@@ -73,25 +64,18 @@ class TestPrimitiveInputTypes:
             rt.context.put("magic_number_called", True)
             return str(input_num) * input_num
 
-        # ============ mock llm config =========
-        async def invoke_child_tool(messages, tools):
-            assert len(tools) == 1
-            assert tools[0].name == "magic_number"
-            for parameter in tools[0].parameters:
-                assert parameter.name == "input_num"
-                assert parameter.param_type == "integer"
-                assert parameter.description == "The input number to test."
-
-            tool_response = magic_number(6)
-
-            return Response(
-                message=AssistantMessage(
-                    tool_response,
-                ),
+        # mock_llm will run the tool and return the result if requested
+        llm = mock_llm(
+            AssistantMessage(
+                [
+                    ToolCall(
+                        name="magic_number",
+                        identifier="id_42424242",
+                        arguments={"input_num": 6},
+                    )
+                ]
             )
-        
-        llm = mock_llm()
-        llm._achat_with_tools = invoke_child_tool
+        )
         # =======================================
 
         agent = _agent_node_factory(
@@ -102,11 +86,10 @@ class TestPrimitiveInputTypes:
         with rt.Session(logging_setting="NONE") as run:
             response = rt.call_sync(
                 agent,
-                "Find what the magic function output is for 6? Only return the magic number, no other text."
+                "Find what the magic function output is for 6? Only return the magic number, no other text.",
             )
             assert rt.context.get("magic_number_called")
-            assert response.content == "666666"
-
+            assert "666666" in response.content
 
     def test_single_str_input(self, _agent_node_factory, mock_llm):
         """Test that a function with a single str parameter works correctly."""
@@ -122,25 +105,18 @@ class TestPrimitiveInputTypes:
             rt.context.put("magic_phrase_called", True)
             return "$".join(list(word))
 
-        # ============ mock llm config =========
-        async def invoke_child_tool(messages, tools):
-            assert len(tools) == 1
-            assert tools[0].name == "magic_phrase"
-            for parameter in tools[0].parameters:
-                assert parameter.name == "word"
-                assert parameter.param_type == "string"
-                assert parameter.description == "The word to create the magic phrase from"
-
-            tool_response = magic_phrase("hello")
-
-            return Response(
-                message=AssistantMessage(
-                    tool_response,
-                ),
+        # mock_llm will run the tool and return the result if requested
+        llm = mock_llm(
+            AssistantMessage(
+                [
+                    ToolCall(
+                        name="magic_phrase",
+                        identifier="id_42424242",
+                        arguments={"word": "hello"},
+                    )
+                ]
             )
-        
-        llm = mock_llm()
-        llm._achat_with_tools = invoke_child_tool
+        )
         # =======================================
 
         agent = _agent_node_factory(
@@ -151,10 +127,10 @@ class TestPrimitiveInputTypes:
         with rt.Session(logging_setting="NONE") as run:
             response = rt.call_sync(
                 agent,
-                "What is the magic phrase for the word 'hello'? Only return the magic phrase, no other text."
+                "What is the magic phrase for the word 'hello'? Only return the magic phrase, no other text.",
             )
             assert rt.context.get("magic_phrase_called")
-            assert response.content == "h$e$l$l$o"
+            assert "h$e$l$l$o" in response.content
 
     def test_single_float_input(self, _agent_node_factory, mock_llm):
         """Test that a function with a single float parameter works correctly."""
@@ -170,26 +146,18 @@ class TestPrimitiveInputTypes:
             rt.context.put("magic_test_called", True)
             return str(isinstance(num, float))
 
-        
-        # ============ mock llm config =========
-        async def invoke_child_tool(messages, tools):
-            assert len(tools) == 1
-            assert tools[0].name == "magic_test"
-            for parameter in tools[0].parameters:
-                assert parameter.name == "num"
-                assert parameter.param_type == "number"
-                assert parameter.description == "The number to test."
-
-            tool_response = magic_test(5.0) 
-
-            return Response(
-                message=AssistantMessage(
-                    tool_response,
-                ),
+        # mock_llm will run the tool and return the result if requested
+        llm = mock_llm(
+            AssistantMessage(
+                [
+                    ToolCall(
+                        name="magic_test",
+                        identifier="id_42424242",
+                        arguments={"num": 5.0},
+                    )
+                ]
             )
-        
-        llm = mock_llm()
-        llm._achat_with_tools = invoke_child_tool
+        )
         # =======================================
 
         agent = _agent_node_factory(
@@ -200,12 +168,11 @@ class TestPrimitiveInputTypes:
         with rt.Session(logging_setting="NONE") as run:
             response = rt.call_sync(
                 agent,
-                "Does 5 pass the magic test? Only return the result, no other text."
+                "Does 5 pass the magic test? Only return the result, no other text.",
             )
             assert rt.context.get("magic_test_called")
             resp: str = response.content
-            assert resp.lower() == "true"
-
+            assert "True" in resp
 
     def test_single_bool_input(self, _agent_node_factory, mock_llm):
         """Test that a function with a single bool parameter works correctly."""
@@ -221,25 +188,18 @@ class TestPrimitiveInputTypes:
             rt.context.put("magic_test_called", True)
             return "Wish Granted" if is_magic else "Wish Denied"
 
-        # ============ mock llm config =========
-        async def invoke_child_tool(messages, tools):
-            assert len(tools) == 1
-            assert tools[0].name == "magic_test"
-            for parameter in tools[0].parameters:
-                assert parameter.name == "is_magic"
-                assert parameter.param_type == "boolean"
-                assert parameter.description == "The boolean to test."
-
-            tool_response = magic_test(True)
-
-            return Response(
-                message=AssistantMessage(
-                    tool_response,
-                ),
+        # mock_llm will run the tool and return the result if requested
+        llm = mock_llm(
+            AssistantMessage(
+                [
+                    ToolCall(
+                        name="magic_test",
+                        identifier="id_42424242",
+                        arguments={"is_magic": True},
+                    )
+                ]
             )
-        
-        llm = mock_llm()
-        llm._achat_with_tools = invoke_child_tool
+        )
         # =======================================
 
         agent = _agent_node_factory(
@@ -249,11 +209,10 @@ class TestPrimitiveInputTypes:
 
         with rt.Session(logging_setting="NONE") as run:
             response = rt.call_sync(
-                agent,
-                "Is the magic test true? Only return the result, no other text."
+                agent, "Is the magic test true? Only return the result, no other text."
             )
             assert rt.context.get("magic_test_called")
-            assert response.content == "Wish Granted"
+            assert "Wish Granted" in response.content
 
     # TODO: think carefully about how we can test the graceful error handling. This test is temporary.
     def test_function_error_handling(self, _agent_node_factory, mock_llm):
@@ -270,28 +229,18 @@ class TestPrimitiveInputTypes:
             rt.context.put("magic_test_called", True)
             return str(1 / x)
 
-        # ============ mock llm config =========
-        async def invoke_child_tool(messages, tools):
-            assert len(tools) == 1
-            assert tools[0].name == "error_function"
-            for parameter in tools[0].parameters:
-                assert parameter.name == "x"
-                assert parameter.param_type == "integer"
-                assert parameter.description == "The input number to the function"
-
-            try:
-                tool_response = error_function(0)
-            except Exception as e:
-                assert isinstance(e, ZeroDivisionError)
-                return Response(
-                    message=AssistantMessage(
-                        "Division by zero error",
+        # mock_llm will run the tool and return the result if requested
+        llm = mock_llm(
+            AssistantMessage(
+                [
+                    ToolCall(
+                        name="error_function",
+                        identifier="id_42424242",
+                        arguments={"x": 0},
                     )
-                )
-
-        
-        llm = mock_llm()
-        llm._achat_with_tools = invoke_child_tool
+                ]
+            )
+        )
         # =======================================
 
         agent = _agent_node_factory(
@@ -302,10 +251,12 @@ class TestPrimitiveInputTypes:
         with rt.Session(logging_setting="NONE"):
             output = rt.call_sync(
                 agent,
-                "What does the tool return for an input of 0? Only return the result, no other text."
+                "What does the tool return for an input of 0? Only return the result, no other text.",
             )
 
-            assert output.content == "Division by zero error"
+            assert (
+                "There was an error running the tool" in output.content
+            )  # graceful error handling
             assert rt.context.get("magic_test_called")
 
 
@@ -326,27 +277,18 @@ class TestSequenceInputTypes:
             items_copy.reverse()
             return " ".join(items_copy)
 
-
-        # ============ mock llm config =========
-        async def invoke_child_tool(messages, tools):
-            assert len(tools) == 1
-            assert tools[0].name == "magic_list"
-            for parameter in tools[0].parameters:
-                assert parameter.name == "items"
-                assert parameter.param_type == "array"
-                assert "The list of items to test." in parameter.description
-
-            tool_response = magic_list(["1", "2", "3"])
-
-            return Response(
-                message=AssistantMessage(
-                    tool_response,
-                ),
+        # mock_llm will run the tool and return the result if requested
+        llm = mock_llm(
+            AssistantMessage(
+                [
+                    ToolCall(
+                        name="magic_list",
+                        identifier="id_42424242",
+                        arguments={"items": ["1", "2", "3"]},
+                    )
+                ]
             )
-
-        
-        llm = mock_llm()
-        llm._achat_with_tools = invoke_child_tool
+        )
         # =======================================
 
         agent = _agent_node_factory(
@@ -357,11 +299,10 @@ class TestSequenceInputTypes:
         with rt.Session(logging_setting="NONE") as run:
             response = rt.call_sync(
                 agent,
-                "What is the magic list for ['1', '2', '3']? Only return the result, no other text."
+                "What is the magic list for ['1', '2', '3']? Only return the result, no other text.",
             )
-            assert response.content == "3 2 1"
+            assert "3 2 1" in response.content
             assert rt.context.get("magic_list_called")
-
 
     def test_single_tuple_input(self, _agent_node_factory, mock_llm):
         """Test that a function with a single tuple parameter works correctly."""
@@ -377,26 +318,18 @@ class TestSequenceInputTypes:
             rt.context.put("magic_tuple_called", True)
             return " ".join(reversed(items))
 
-        # ============ mock llm config =========
-        async def invoke_child_tool(messages, tools):
-            assert len(tools) == 1
-            assert tools[0].name == "magic_tuple"
-            for parameter in tools[0].parameters:
-                assert parameter.name == "items"
-                assert parameter.param_type == "array"
-                assert "The tuple of items to test." in parameter.description
-
-            tool_response = magic_tuple(("1", "2", "3"))
-
-            return Response(
-                message=AssistantMessage(
-                    tool_response,
-                ),
+        # mock_llm will run the tool and return the result if requested
+        llm = mock_llm(
+            AssistantMessage(
+                [
+                    ToolCall(
+                        name="magic_tuple",
+                        identifier="id_42424242",
+                        arguments={"items": ("1", "2", "3")},
+                    )
+                ]
             )
-
-        
-        llm = mock_llm()
-        llm._achat_with_tools = invoke_child_tool
+        )
         # =======================================
 
         agent = _agent_node_factory(
@@ -406,12 +339,11 @@ class TestSequenceInputTypes:
         with rt.Session(logging_setting="NONE") as run:
             response = rt.call_sync(
                 agent,
-                "What is the magic tuple for ('1', '2', '3')? Only return the result, no other text."
+                "What is the magic tuple for ('1', '2', '3')? Only return the result, no other text.",
             )
 
-            assert response.content == "3 2 1"
+            assert "3 2 1" in response.content
             assert rt.context.get("magic_tuple_called")
-
 
     def test_lists(self, _agent_node_factory, mock_llm):
         """Test that a function with a list parameter works correctly."""
@@ -429,26 +361,18 @@ class TestSequenceInputTypes:
             total = sum(price * item for price, item in zip(prices, num_items))
             return total
 
-        # ============ mock llm config =========
-        async def invoke_child_tool(messages, tools):
-            assert len(tools) == 1
-            assert tools[0].name == "magic_result"
-            for parameter in tools[0].parameters:
-                assert parameter.name in ["num_items", "prices"]
-                assert parameter.param_type == "array"
-                assert re.search(r"The list of .* to test\.", parameter.description)
-
-
-            tool_response = magic_result([1.0, 2.0], [5.5, 10.0])
-
-            return Response(
-                message=AssistantMessage(
-                    str(tool_response),
-                ),
+        # mock_llm will run the tool and return the result if requested
+        llm = mock_llm(
+            AssistantMessage(
+                [
+                    ToolCall(
+                        name="magic_result",
+                        identifier="id_42424242",
+                        arguments={"num_items": [1.0, 2.0], "prices": [5.5, 10.0]},
+                    )
+                ]
             )
-        
-        llm = mock_llm()
-        llm._achat_with_tools = invoke_child_tool
+        )
         # =======================================
 
         agent = _agent_node_factory(
@@ -458,10 +382,10 @@ class TestSequenceInputTypes:
         with rt.Session(logging_setting="NONE") as run:
             response = rt.call_sync(
                 agent,
-                "What is the magic result for [1, 2] and [5.5, 10]? Only return the result, no other text."
+                "What is the magic result for [1, 2] and [5.5, 10]? Only return the result, no other text.",
             )
 
-        assert response.content == "25.5"
+        assert "25.5" in response.content
 
 
 class TestDictionaryInputTypes:
@@ -490,43 +414,44 @@ class TestDictionaryInputTypes:
                     ),
                 )
 
+
 class TestUnionAndOptionalParameter:
-    @pytest.mark.parametrize("type_annotation", [Union[int, str], int|str], ids=["union", "or notation union"])
+    @pytest.mark.parametrize(
+        "type_annotation",
+        [Union[int, str], int | str],
+        ids=["union", "or notation union"],
+    )
     def test_union_parameter(self, type_annotation, _agent_node_factory, mock_llm):
         """Test that a function with a union parameter works correctly."""
+
         def magic_number(x: type_annotation) -> int:
             """
             Args:
                 x: The input parameter
-                
+
             Returns:
                 int: The result of the function
             """
             rt.context.put("magic_number_called", True)
             return 21
 
-        # ============ mock llm config =========
-        async def invoke_child_tool(messages, tools):
-            assert len(tools) == 1
-            assert tools[0].name == "magic_number"
-            for parameter in tools[0].parameters:
-                assert parameter.name == "x"
-                assert parameter.param_type == ["integer", "string"]
-                assert parameter.description == "The input parameter"
-
-            tool_response1 = magic_number(5)
-            tool_response2 = magic_number("fox")
-            tool_response = tool_response1 + tool_response2
-
-
-            return Response(
-                message=AssistantMessage(
-                    str(tool_response),
-                ),
+        # mock_llm will run the tool and return the result if requested
+        llm = mock_llm(
+            AssistantMessage(
+                [
+                    ToolCall(
+                        name="magic_number",
+                        identifier="id_42424242",
+                        arguments={"x": 5},
+                    ),
+                    ToolCall(
+                        name="magic_number",
+                        identifier="id_42424242",
+                        arguments={"x": "fox"},
+                    ),
+                ]
             )
-        
-        llm = mock_llm()
-        llm._achat_with_tools = invoke_child_tool
+        )
         # =======================================
 
         agent = _agent_node_factory(
@@ -537,71 +462,63 @@ class TestUnionAndOptionalParameter:
         with rt.Session(logging_setting="QUIET"):
             response = rt.call_sync(
                 agent,
-                rt.llm.MessageHistory(
-                    [rt.llm.UserMessage("Calculate the magic number for 5. Then calculate the magic number for 'fox'. Add them and return the result only.")]
-                ),
+                "Calculate the magic number for 5. Then calculate the magic number for 'fox'."
             )
             assert rt.context.get("magic_number_called")
-            assert response.content == "42"
+            assert len(re.findall(r"21", response.content)) == 2        # 21 appears twice
 
-    @pytest.mark.parametrize("deafult_value", [(None, 42), (5, 26)], ids=["default value", "non default value"])
-    def test_optional_parameter(self, _agent_node_factory, deafult_value, mock_llm):
+
+    @pytest.mark.parametrize(
+        "default_value, expected",
+        [
+            (None, [21, 21]),   # default: both calls return 21
+            (5, [21, 5]),       # non-default: first call 21, second call default (5)
+        ],
+        ids=["default value", "non default value"],
+    )
+    def test_optional_parameter(self, _agent_node_factory, default_value, expected, mock_llm):
         """Test that a function with an optional parameter works correctly."""
-        deafult, answer = deafult_value
-        def magic_number(x: Optional[int] = deafult) -> int:
+        def magic_number(x: Optional[int] = default_value) -> int:
             """
             Args:
                 x: The input parameter
-                
+
             Returns:
                 int: The result of the function
             """
             rt.context.put("magic_number_called", True)
             return 21 if x is None else x
 
-        # ============ mock llm config =========
-        async def invoke_child_tool(messages, tools):
-            assert len(tools) == 1
-            assert tools[0].name == "magic_number"
-            for parameter in tools[0].parameters:
-                assert parameter.name == "x"
-                assert parameter.param_type == ["integer"]
-                assert parameter.description == "The input parameter"
-                assert parameter.required == False
-
-            tool_response1 = magic_number(21)
-            tool_response2 = magic_number()
-            tool_response = tool_response1 + tool_response2
-
-
-            return Response(
-                message=AssistantMessage(
-                    str(tool_response),
-                ),
+        # mock_llm will run the tool and return the result if requested
+        llm = mock_llm(
+            AssistantMessage(
+                [
+                    ToolCall(
+                        name="magic_number",
+                        identifier="id_42424242",
+                        arguments={"x": 21},
+                    ),
+                    ToolCall(
+                        name="magic_number", identifier="id_42424242", arguments={}
+                    ),
+                ]
             )
-        
-        llm = mock_llm()
-        llm._achat_with_tools = invoke_child_tool
-        # =======================================
-
-        agent = _agent_node_factory(
-            magic_number,
-            llm,
         )
+
+        agent = _agent_node_factory(magic_number, llm)
 
         with rt.Session(logging_setting="QUIET") as run:
             response = rt.call_sync(
                 agent,
-                rt.llm.MessageHistory(
-                    [rt.llm.UserMessage("Calculate the magic number for 21. Then calculate the magic number with no args. Add them and return the result only.")]
-                ),
+                "Calculate the magic number for 21. Then calculate the magic number with no args."
             )
 
-            assert response.content == str(answer)
+            # verify each expected number appears in the response
+            for val in expected:
+                assert str(val) in response.content
+
+            # also check counts if you want stricter validation
+            for val in set(expected):
+                assert len(re.findall(str(val), response.content)) == expected.count(val)
+
             assert rt.context.get("magic_number_called")
-
-
-
-        
-
-

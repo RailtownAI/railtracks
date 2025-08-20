@@ -28,9 +28,13 @@ class MockNode(Node):
     @classmethod
     def name(cls):
         return "Mock Node"
-
-    def invoke(cls):
+    
+    def invoke(self):
         return ""
+    
+    @classmethod
+    def type(cls):
+        return "Agent"
 
     def __init__(self, value: Any):
         self.uuid = 123

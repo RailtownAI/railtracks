@@ -24,6 +24,21 @@ class MockLLM(rt.llm.ModelBase):
             system_fingerprint="fp_4242424242",
         )
 
+    # ================================ HELPERS =================================================
+    def _extract_pending_tool_results(self, messages):
+        """
+        Extract tool results from the end of the message history that need processing.
+        """
+        tool_results = []
+        
+        # Look backwards from the end for consecutive tool messages
+        for message in reversed(messages):
+            if message.role == "tool":
+                tool_results.insert(0, message)  # Insert at beginning to maintain order
+            else:
+                break  # Stop at first non-tool message
+        return tool_results
+    
     def get_message(
         self,
         default_content: str | BaseModel,
@@ -32,6 +47,7 @@ class MockLLM(rt.llm.ModelBase):
         return self.custom_response_message or rt.llm.Message(
             content=default_content, role=role
         )
+    # =======================================================================================
     
     # ================ Base responses (common for sync and async versions) ==================
     def _base_chat(self):
@@ -51,12 +67,24 @@ class MockLLM(rt.llm.ModelBase):
             message_info=self.mocked_message_info,
         )
     
-    def _base_chat_with_tools(self):
-        return Response(
-            message=self.get_message("mocked tool message"),
-            streamer=None,
-            message_info=self.mocked_message_info,
-        )
+    def _base_chat_with_tools(self, messages, tools, **kwargs):
+        tool_results = self._extract_pending_tool_results(messages)
+        if tool_results:
+            final_message = ""
+            for tool_message in tool_results:
+               tool_response = tool_message.content
+               final_message += f"Tool {tool_response.name} returned: '{tool_response.result}'" + "\n"
+            return Response(
+                message=rt.llm.Message(content=final_message, role="assistant"),
+                streamer=None,
+                message_info=self.mocked_message_info,
+            )
+        else:
+            return Response(
+                message=self.get_message("mocked tool message"),
+                streamer=None,
+                message_info=self.mocked_message_info,
+            )            
 
     # ==========================================================
     # Override all methods that make network calls with mocks
@@ -66,8 +94,9 @@ class MockLLM(rt.llm.ModelBase):
     async def _astructured(self, messages, schema, **kwargs):
         return self._base_structured()
 
+    
     async def _achat_with_tools(self, messages, tools, **kwargs):
-        return self._base_chat_with_tools()
+        return self._base_chat_with_tools(messages, tools, **kwargs)
     
     async def _astream_chat(self, messages, **kwargs):
         return self._base_chat()
@@ -79,7 +108,7 @@ class MockLLM(rt.llm.ModelBase):
         return self._base_structured()
 
     def _chat_with_tools(self, messages, tools, **kwargs):
-        return self._base_chat_with_tools()
+        return self._base_chat_with_tools(messages=messages, tools=tools, **kwargs)
 
     def _stream_chat(self, messages, **kwargs):
         return self._base_chat()
