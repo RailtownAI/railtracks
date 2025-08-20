@@ -86,19 +86,19 @@
 
     </div>
     <a class="headerlink" href="#put"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="put-283"><a href="#put-283"><span class="linenos">283</span></a><span class="k">def</span><span class="w"> </span><span class="nf">put</span><span class="p">(</span>
-</span><span id="put-284"><a href="#put-284"><span class="linenos">284</span></a>    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-</span><span id="put-285"><a href="#put-285"><span class="linenos">285</span></a>    <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
-</span><span id="put-286"><a href="#put-286"><span class="linenos">286</span></a><span class="p">):</span>
-</span><span id="put-287"><a href="#put-287"><span class="linenos">287</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="put-288"><a href="#put-288"><span class="linenos">288</span></a><span class="sd">    Set a value in the context.</span>
-</span><span id="put-289"><a href="#put-289"><span class="linenos">289</span></a>
-</span><span id="put-290"><a href="#put-290"><span class="linenos">290</span></a><span class="sd">    Args:</span>
-</span><span id="put-291"><a href="#put-291"><span class="linenos">291</span></a><span class="sd">        key (str): The key to set.</span>
-</span><span id="put-292"><a href="#put-292"><span class="linenos">292</span></a><span class="sd">        value (Any): The value to set.</span>
-</span><span id="put-293"><a href="#put-293"><span class="linenos">293</span></a><span class="sd">    &quot;&quot;&quot;</span>
-</span><span id="put-294"><a href="#put-294"><span class="linenos">294</span></a>    <span class="n">context</span> <span class="o">=</span> <span class="n">safe_get_runner_context</span><span class="p">()</span>
-</span><span id="put-295"><a href="#put-295"><span class="linenos">295</span></a>    <span class="n">context</span><span class="o">.</span><span class="n">external_context</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="put-284"><a href="#put-284"><span class="linenos">284</span></a><span class="k">def</span><span class="w"> </span><span class="nf">put</span><span class="p">(</span>
+</span><span id="put-285"><a href="#put-285"><span class="linenos">285</span></a>    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span id="put-286"><a href="#put-286"><span class="linenos">286</span></a>    <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+</span><span id="put-287"><a href="#put-287"><span class="linenos">287</span></a><span class="p">):</span>
+</span><span id="put-288"><a href="#put-288"><span class="linenos">288</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="put-289"><a href="#put-289"><span class="linenos">289</span></a><span class="sd">    Set a value in the context.</span>
+</span><span id="put-290"><a href="#put-290"><span class="linenos">290</span></a>
+</span><span id="put-291"><a href="#put-291"><span class="linenos">291</span></a><span class="sd">    Args:</span>
+</span><span id="put-292"><a href="#put-292"><span class="linenos">292</span></a><span class="sd">        key (str): The key to set.</span>
+</span><span id="put-293"><a href="#put-293"><span class="linenos">293</span></a><span class="sd">        value (Any): The value to set.</span>
+</span><span id="put-294"><a href="#put-294"><span class="linenos">294</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="put-295"><a href="#put-295"><span class="linenos">295</span></a>    <span class="n">context</span> <span class="o">=</span> <span class="n">safe_get_runner_context</span><span class="p">()</span>
+</span><span id="put-296"><a href="#put-296"><span class="linenos">296</span></a>    <span class="n">context</span><span class="o">.</span><span class="n">external_context</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
 </span></pre></div>
 
 
@@ -122,25 +122,25 @@
 
     </div>
     <a class="headerlink" href="#get"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="get-262"><a href="#get-262"><span class="linenos">262</span></a><span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
-</span><span id="get-263"><a href="#get-263"><span class="linenos">263</span></a>    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-</span><span id="get-264"><a href="#get-264"><span class="linenos">264</span></a>    <span class="o">/</span><span class="p">,</span>
-</span><span id="get-265"><a href="#get-265"><span class="linenos">265</span></a>    <span class="n">default</span><span class="p">:</span> <span class="n">Any</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span id="get-266"><a href="#get-266"><span class="linenos">266</span></a><span class="p">):</span>
-</span><span id="get-267"><a href="#get-267"><span class="linenos">267</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="get-268"><a href="#get-268"><span class="linenos">268</span></a><span class="sd">    Get a value from context</span>
-</span><span id="get-269"><a href="#get-269"><span class="linenos">269</span></a>
-</span><span id="get-270"><a href="#get-270"><span class="linenos">270</span></a><span class="sd">    Args:</span>
-</span><span id="get-271"><a href="#get-271"><span class="linenos">271</span></a><span class="sd">        key (str): The key to retrieve.</span>
-</span><span id="get-272"><a href="#get-272"><span class="linenos">272</span></a><span class="sd">        default (Any | None): The default value to return if the key does not exist. If set to None and the key does not exist, a KeyError will be raised.</span>
-</span><span id="get-273"><a href="#get-273"><span class="linenos">273</span></a><span class="sd">    Returns:</span>
-</span><span id="get-274"><a href="#get-274"><span class="linenos">274</span></a><span class="sd">        Any: The value associated with the key, or the default value if the key does not exist.</span>
-</span><span id="get-275"><a href="#get-275"><span class="linenos">275</span></a>
-</span><span id="get-276"><a href="#get-276"><span class="linenos">276</span></a><span class="sd">    Raises:</span>
-</span><span id="get-277"><a href="#get-277"><span class="linenos">277</span></a><span class="sd">        KeyError: If the key does not exist and no default value is provided.</span>
-</span><span id="get-278"><a href="#get-278"><span class="linenos">278</span></a><span class="sd">    &quot;&quot;&quot;</span>
-</span><span id="get-279"><a href="#get-279"><span class="linenos">279</span></a>    <span class="n">context</span> <span class="o">=</span> <span class="n">safe_get_runner_context</span><span class="p">()</span>
-</span><span id="get-280"><a href="#get-280"><span class="linenos">280</span></a>    <span class="k">return</span> <span class="n">context</span><span class="o">.</span><span class="n">external_context</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">default</span><span class="p">)</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="get-263"><a href="#get-263"><span class="linenos">263</span></a><span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+</span><span id="get-264"><a href="#get-264"><span class="linenos">264</span></a>    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span id="get-265"><a href="#get-265"><span class="linenos">265</span></a>    <span class="o">/</span><span class="p">,</span>
+</span><span id="get-266"><a href="#get-266"><span class="linenos">266</span></a>    <span class="n">default</span><span class="p">:</span> <span class="n">Any</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="get-267"><a href="#get-267"><span class="linenos">267</span></a><span class="p">):</span>
+</span><span id="get-268"><a href="#get-268"><span class="linenos">268</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="get-269"><a href="#get-269"><span class="linenos">269</span></a><span class="sd">    Get a value from context</span>
+</span><span id="get-270"><a href="#get-270"><span class="linenos">270</span></a>
+</span><span id="get-271"><a href="#get-271"><span class="linenos">271</span></a><span class="sd">    Args:</span>
+</span><span id="get-272"><a href="#get-272"><span class="linenos">272</span></a><span class="sd">        key (str): The key to retrieve.</span>
+</span><span id="get-273"><a href="#get-273"><span class="linenos">273</span></a><span class="sd">        default (Any | None): The default value to return if the key does not exist. If set to None and the key does not exist, a KeyError will be raised.</span>
+</span><span id="get-274"><a href="#get-274"><span class="linenos">274</span></a><span class="sd">    Returns:</span>
+</span><span id="get-275"><a href="#get-275"><span class="linenos">275</span></a><span class="sd">        Any: The value associated with the key, or the default value if the key does not exist.</span>
+</span><span id="get-276"><a href="#get-276"><span class="linenos">276</span></a>
+</span><span id="get-277"><a href="#get-277"><span class="linenos">277</span></a><span class="sd">    Raises:</span>
+</span><span id="get-278"><a href="#get-278"><span class="linenos">278</span></a><span class="sd">        KeyError: If the key does not exist and no default value is provided.</span>
+</span><span id="get-279"><a href="#get-279"><span class="linenos">279</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="get-280"><a href="#get-280"><span class="linenos">280</span></a>    <span class="n">context</span> <span class="o">=</span> <span class="n">safe_get_runner_context</span><span class="p">()</span>
+</span><span id="get-281"><a href="#get-281"><span class="linenos">281</span></a>    <span class="k">return</span> <span class="n">context</span><span class="o">.</span><span class="n">external_context</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">default</span><span class="p">)</span>
 </span></pre></div>
 
 
@@ -169,15 +169,15 @@ Returns:
 
     </div>
     <a class="headerlink" href="#update"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="update-298"><a href="#update-298"><span class="linenos">298</span></a><span class="k">def</span><span class="w"> </span><span class="nf">update</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]):</span>
-</span><span id="update-299"><a href="#update-299"><span class="linenos">299</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="update-300"><a href="#update-300"><span class="linenos">300</span></a><span class="sd">    Sets the values in the context. If the context already has values, this will overwrite them, but it will not delete any existing keys.</span>
-</span><span id="update-301"><a href="#update-301"><span class="linenos">301</span></a>
-</span><span id="update-302"><a href="#update-302"><span class="linenos">302</span></a><span class="sd">    Args:</span>
-</span><span id="update-303"><a href="#update-303"><span class="linenos">303</span></a><span class="sd">        data (dict[str, Any]): The data to update the context with.</span>
-</span><span id="update-304"><a href="#update-304"><span class="linenos">304</span></a><span class="sd">    &quot;&quot;&quot;</span>
-</span><span id="update-305"><a href="#update-305"><span class="linenos">305</span></a>    <span class="n">context</span> <span class="o">=</span> <span class="n">safe_get_runner_context</span><span class="p">()</span>
-</span><span id="update-306"><a href="#update-306"><span class="linenos">306</span></a>    <span class="n">context</span><span class="o">.</span><span class="n">external_context</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="update-299"><a href="#update-299"><span class="linenos">299</span></a><span class="k">def</span><span class="w"> </span><span class="nf">update</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]):</span>
+</span><span id="update-300"><a href="#update-300"><span class="linenos">300</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="update-301"><a href="#update-301"><span class="linenos">301</span></a><span class="sd">    Sets the values in the context. If the context already has values, this will overwrite them, but it will not delete any existing keys.</span>
+</span><span id="update-302"><a href="#update-302"><span class="linenos">302</span></a>
+</span><span id="update-303"><a href="#update-303"><span class="linenos">303</span></a><span class="sd">    Args:</span>
+</span><span id="update-304"><a href="#update-304"><span class="linenos">304</span></a><span class="sd">        data (dict[str, Any]): The data to update the context with.</span>
+</span><span id="update-305"><a href="#update-305"><span class="linenos">305</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="update-306"><a href="#update-306"><span class="linenos">306</span></a>    <span class="n">context</span> <span class="o">=</span> <span class="n">safe_get_runner_context</span><span class="p">()</span>
+</span><span id="update-307"><a href="#update-307"><span class="linenos">307</span></a>    <span class="n">context</span><span class="o">.</span><span class="n">external_context</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
 </span></pre></div>
 
 
@@ -200,18 +200,18 @@ Returns:
 
     </div>
     <a class="headerlink" href="#delete"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="delete-309"><a href="#delete-309"><span class="linenos">309</span></a><span class="k">def</span><span class="w"> </span><span class="nf">delete</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-</span><span id="delete-310"><a href="#delete-310"><span class="linenos">310</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="delete-311"><a href="#delete-311"><span class="linenos">311</span></a><span class="sd">    Delete a key from the context.</span>
-</span><span id="delete-312"><a href="#delete-312"><span class="linenos">312</span></a>
-</span><span id="delete-313"><a href="#delete-313"><span class="linenos">313</span></a><span class="sd">    Args:</span>
-</span><span id="delete-314"><a href="#delete-314"><span class="linenos">314</span></a><span class="sd">        key (str): The key to delete.</span>
-</span><span id="delete-315"><a href="#delete-315"><span class="linenos">315</span></a>
-</span><span id="delete-316"><a href="#delete-316"><span class="linenos">316</span></a><span class="sd">    Raises:</span>
-</span><span id="delete-317"><a href="#delete-317"><span class="linenos">317</span></a><span class="sd">        KeyError: If the key does not exist.</span>
-</span><span id="delete-318"><a href="#delete-318"><span class="linenos">318</span></a><span class="sd">    &quot;&quot;&quot;</span>
-</span><span id="delete-319"><a href="#delete-319"><span class="linenos">319</span></a>    <span class="n">context</span> <span class="o">=</span> <span class="n">safe_get_runner_context</span><span class="p">()</span>
-</span><span id="delete-320"><a href="#delete-320"><span class="linenos">320</span></a>    <span class="n">context</span><span class="o">.</span><span class="n">external_context</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="delete-310"><a href="#delete-310"><span class="linenos">310</span></a><span class="k">def</span><span class="w"> </span><span class="nf">delete</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+</span><span id="delete-311"><a href="#delete-311"><span class="linenos">311</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="delete-312"><a href="#delete-312"><span class="linenos">312</span></a><span class="sd">    Delete a key from the context.</span>
+</span><span id="delete-313"><a href="#delete-313"><span class="linenos">313</span></a>
+</span><span id="delete-314"><a href="#delete-314"><span class="linenos">314</span></a><span class="sd">    Args:</span>
+</span><span id="delete-315"><a href="#delete-315"><span class="linenos">315</span></a><span class="sd">        key (str): The key to delete.</span>
+</span><span id="delete-316"><a href="#delete-316"><span class="linenos">316</span></a>
+</span><span id="delete-317"><a href="#delete-317"><span class="linenos">317</span></a><span class="sd">    Raises:</span>
+</span><span id="delete-318"><a href="#delete-318"><span class="linenos">318</span></a><span class="sd">        KeyError: If the key does not exist.</span>
+</span><span id="delete-319"><a href="#delete-319"><span class="linenos">319</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="delete-320"><a href="#delete-320"><span class="linenos">320</span></a>    <span class="n">context</span> <span class="o">=</span> <span class="n">safe_get_runner_context</span><span class="p">()</span>
+</span><span id="delete-321"><a href="#delete-321"><span class="linenos">321</span></a>    <span class="n">context</span><span class="o">.</span><span class="n">external_context</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
 </span></pre></div>
 
 
