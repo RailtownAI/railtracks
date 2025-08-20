@@ -36,6 +36,28 @@ Now that we have our tool, we can use it in our agent:
 ---8<-- "docs/scripts/tools.py:agent"
 ```
 
+## Naming Conventions
+
+!!! info "Title Case Function Names"
+    RailTracks automatically converts function names from `snake_case` to `Title Case` for better debugging and visualization while preserving `snake_case` for tool identifiers.
+
+When creating function nodes, RailTracks automatically converts the function name:
+
+```python
+def number_of_chars(text: str) -> int:
+    return len(text)
+
+CharsNode = rt.function_node(number_of_chars)
+print(CharsNode.node_type.name())           # "Number Of Chars" ✨
+print(CharsNode.node_type.tool_info().name) # "number_of_chars" (for LLM tools)
+```
+
+!!! tip "Custom Names"
+    You can override the default naming by providing an explicit name:
+    ```python
+    CustomNode = rt.function_node(number_of_chars, name="Character Counter")
+    ```
+
 ## Related
 
 Want to go further with tools in Railtracks?
