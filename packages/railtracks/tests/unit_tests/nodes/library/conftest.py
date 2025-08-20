@@ -11,11 +11,11 @@ from pydantic import BaseModel, Field
 
 @pytest.fixture
 def mock_chat_response_message():
-    return AssistantMessage("dummy content")
+    return "dummy content"
 
 @pytest.fixture
 def mock_structured_response_message(simple_output_model):
-    return AssistantMessage(simple_output_model(text="dummy content", number=42))
+    return '{"text":"dummy content", "number": "42"}'
 # ============ System Messages ===========
 @pytest.fixture
 def encoder_system_message():

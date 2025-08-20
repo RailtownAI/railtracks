@@ -114,9 +114,7 @@ class ModelBase(ABC):
         try:
             response = self._chat(messages, **kwargs)
         except Exception as e:
-            self._run_exception_hooks(
-                messages, e
-            )
+            self._run_exception_hooks(messages, e)
             raise e
 
         response = self._run_post_hooks(messages, response)
@@ -129,9 +127,7 @@ class ModelBase(ABC):
         try:
             response = await self._achat(messages, **kwargs)
         except Exception as e:
-            self._run_exception_hooks(
-                messages, e
-            )
+            self._run_exception_hooks(messages, e)
             raise e
 
         response = self._run_post_hooks(messages, response)
@@ -145,9 +141,7 @@ class ModelBase(ABC):
         try:
             response = self._structured(messages, schema, **kwargs)
         except Exception as e:
-            self._run_exception_hooks(
-                messages, e
-            )
+            self._run_exception_hooks(messages, e)
             raise e
 
         response = self._run_post_hooks(messages, response)
@@ -161,9 +155,7 @@ class ModelBase(ABC):
         try:
             response = await self._astructured(messages, schema, **kwargs)
         except Exception as e:
-            self._run_exception_hooks(
-                messages, e
-            )
+            self._run_exception_hooks(messages, e)
             raise e
 
         response = self._run_post_hooks(messages, response)
@@ -177,9 +169,7 @@ class ModelBase(ABC):
         try:
             response = self._stream_chat(messages, **kwargs)
         except Exception as e:
-            self._run_exception_hooks(
-                messages, e
-            )
+            self._run_exception_hooks(messages, e)
             raise e
 
         response = self._run_post_hooks(messages, response)
@@ -193,9 +183,7 @@ class ModelBase(ABC):
         try:
             response = await self._astream_chat(messages, **kwargs)
         except Exception as e:
-            self._run_exception_hooks(
-                messages, e
-            )
+            self._run_exception_hooks(messages, e)
             raise e
 
         response = self._run_post_hooks(messages, response)
@@ -209,9 +197,7 @@ class ModelBase(ABC):
         try:
             response = self._chat_with_tools(messages, tools, **kwargs)
         except Exception as e:
-            self._run_exception_hooks(
-                messages, e
-            )
+            self._run_exception_hooks(messages, e)
             raise e
 
         response = self._run_post_hooks(messages, response)
@@ -226,9 +212,7 @@ class ModelBase(ABC):
         try:
             response = await self._achat_with_tools(messages, tools, **kwargs)
         except Exception as e:
-            self._run_exception_hooks(
-                messages, e
-            )
+            self._run_exception_hooks(messages, e)
             raise e
 
         response = self._run_post_hooks(messages, response)

@@ -22,7 +22,7 @@ async def test_hooks(mock_llm):
         llm.UserMessage(content="What is the meaning of life?"),
     ])
     response = "There is none."
-    llm_model = mock_llm(llm.AssistantMessage(response))
+    llm_model = mock_llm(response)
     node = MockModelNode(
         llm_model=llm_model,
         user_input=example_message_history,

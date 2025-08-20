@@ -22,7 +22,7 @@ async def test_structured_llm_instantiate_and_invoke(simple_output_model, mock_l
             return "Mock LLM"
 
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("hello")])
-    result = await rt.call(MyLLM, user_input=mh, llm_model=mock_llm(custom_response_message=mock_structured_response_message))
+    result = await rt.call(MyLLM, user_input=mh, llm_model=mock_llm(custom_response=mock_structured_response_message))
 
     assert isinstance(result.structured, simple_output_model)
     assert result.structured.text == "dummy content"
@@ -41,7 +41,7 @@ async def test_structured_llm_easy_usage_wrapper_invoke(simple_output_model, moc
     node = structured_llm(
         output_schema=simple_output_model,
         system_message="system prompt",
-        llm_model=mock_llm(custom_response_message=mock_structured_response_message),
+        llm_model=mock_llm(custom_response=mock_structured_response_message),
         name="TestNode"
     )
     mh = MessageHistory([UserMessage("hello")])
