@@ -48,10 +48,7 @@ def check_llm_model(llm_model: ModelBase | None):
 
 
 def check_max_tool_calls(max_tool_calls: int | None):
-    if max_tool_calls is None:
-        # Warning for unlimited tool calls is handled at creation time, not runtime
-        pass
-    elif max_tool_calls < 0:
+    if max_tool_calls is not None and max_tool_calls < 0:
         raise NodeInvocationError(
             get_message(ExceptionMessageKey.MAX_TOOL_CALLS_NEGATIVE_MSG),
             notes=get_notes(ExceptionMessageKey.MAX_TOOL_CALLS_NEGATIVE_NOTES),
