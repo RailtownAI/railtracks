@@ -10,6 +10,7 @@ from railtracks.exceptions.messages.exception_messages import (
 )
 from railtracks.llm import SystemMessage
 from railtracks.utils.logging import get_rt_logger
+from railtracks.utils.naming import is_title_case
 
 # Global logger for validation
 logger = get_rt_logger("Validation")

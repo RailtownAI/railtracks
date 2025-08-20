@@ -9,7 +9,6 @@ from typing import Any, Dict, Generic, Literal, TypeVar
 
 from typing_extensions import Self
 
-from railtracks.utils.naming import validate_node_name_convention
 from railtracks.validation.node_creation.validation import (
     check_classmethod,
 )
@@ -92,15 +91,6 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
             if method_name in cls.__dict__ and callable(cls.__dict__[method_name]):
                 method = cls.__dict__[method_name]
                 check_classmethod(method, method_name)
-
-        # 2. Validate node naming convention
-        if hasattr(cls, "name") and callable(cls.name):
-            try:
-                node_name = cls.name()
-                validate_node_name_convention(node_name, cls.__name__)
-            except Exception:
-                # Don't fail node creation if name validation fails
-                pass
 
         # without this direct call to the parent __init_subclass__ method the generic resolutions will not work correctly
         super().__init_subclass__()

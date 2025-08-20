@@ -264,7 +264,7 @@ class NodeBuilder(Generic[_TNode]):
     def override_tool_info(
         self,
         *,
-        name: str = None,
+        name: str | None = None,
         tool_details: str = "",
         tool_params: dict[str, Any] | Set[Parameter] | None = None,
     ):
@@ -281,10 +281,10 @@ class NodeBuilder(Generic[_TNode]):
     def override_tool_info(
         self,
         *,
-        tool: Tool = None,
-        name: str = None,
+        tool: Tool | None = None,
+        name: str | None = None,
         tool_details: str = "",
-        tool_params: dict[str, Any] | Set[Parameter] = None,
+        tool_params: dict[str, Any] | Set[Parameter] | None = None,
     ):
         """
         Override the tool_info function for the node.

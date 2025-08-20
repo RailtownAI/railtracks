@@ -6,7 +6,6 @@ particularly for ensuring consistent Title Case names for RailTracks nodes while
 maintaining valid snake_case identifiers for tool calls.
 """
 
-import warnings
 
 
 def snake_case_to_title_case(snake_case_name: str) -> str:
@@ -100,19 +99,3 @@ def is_title_case(name: str) -> bool:
     # Multiple words: each should start with uppercase, rest lowercase
     return all(word and word[0].isupper() and word[1:].islower() for word in words)
 
-
-def validate_node_name_convention(name: str, node_class_name: str) -> None:
-    """
-    Validate that a node name follows the Title Case convention and warn if not.
-
-    Args:
-        name (str): The node name to validate
-        node_class_name (str): The name of the node class for context in warnings
-    """
-    if name and not is_title_case(name):
-        warnings.warn(
-            f"Node '{node_class_name}' has name '{name}' which is not in Title Case. "
-            f"Consider using '{snake_case_to_title_case(name)}' for better consistency.",
-            UserWarning,
-            stacklevel=3,
-        )
