@@ -329,7 +329,6 @@ def set_config(
     broadcast_callback: (
         Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
     ) = None,
-    run_identifier: str | None = None,
     prompt_injection: bool | None = None,
     save_state: bool | None = None,
 ):

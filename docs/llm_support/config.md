@@ -16,7 +16,6 @@ Configuration parameters follow a specific precedence order, allowing you to ove
 
 - **`timeout`** (`float`): Maximum seconds to wait for a response to your top-level request
 - **`end_on_error`** (`bool`): Stop execution when an exception is encountered
-- **`run_identifier`** (`str | None`): Unique identifier for the run (random if not provided)
 
 ### Logging Configuration
 
@@ -43,7 +42,6 @@ end_on_error = False              # continue on errors
 logging_setting = "REGULAR"       # standard logging level
 log_file = None                   # no file logging
 broadcast_callback = None         # no broadcast callback
-run_identifier = None             # random identifier generated
 prompt_injection = True           # enable prompt injection
 save_state = True                 # save execution state
 ```
@@ -61,7 +59,6 @@ with rt.session(
     end_on_error=True,
     logging_setting="DEBUG",
     log_file="execution.log",
-    run_identifier="my-custom-run-001",
     prompt_injection=False,
     save_state=False,
     context={"user_name": "Alice", "environment": "production"}
@@ -159,7 +156,6 @@ rt.set_config(
     log_file="debug_session.log",
     end_on_error=True,           # Stop on first error
     save_state=True,             # Save state for inspection
-    run_identifier="debug-001"   # Easy identification
 )
 
 def debug_callback(message: str):
