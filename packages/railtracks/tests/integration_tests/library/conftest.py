@@ -24,12 +24,12 @@ def decoder_system_message():
 
 # ============ Helper function for test_function.py ===========
 @pytest.fixture
-def create_top_level_node():
+def _agent_node_factory():
     """
-    Returns a factory function that creates top-level nodes for testing.
+    Returns a top level agent node with mock model for testing 
     """
 
-    def _create_node(test_function: Callable, model_provider: str = "openai"):
+    def _create_node(test_function: Callable, llm: rt.llm.ModelBase):
         """
         Creates a top-level node for testing function nodes.
 
@@ -46,7 +46,7 @@ def create_top_level_node():
             system_message=SystemMessage(
                 f"You are a test node for the function {test_function.__name__}"
             ),
-            llm_model=rt.llm.OpenAILLM("gpt-4o"),
+            llm_model=llm,
             tool_nodes={rt.function_node(test_function)},
         )
 

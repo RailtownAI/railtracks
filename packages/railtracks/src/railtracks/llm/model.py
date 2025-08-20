@@ -113,9 +113,11 @@ class ModelBase(ABC):
 
         try:
             response = self._chat(messages, **kwargs)
-        except:
-            self._run_exception_hooks(messages, Exception("Error during chat"))
-            raise
+        except Exception as e:
+            self._run_exception_hooks(
+                messages, e
+            )
+            raise e
 
         response = self._run_post_hooks(messages, response)
         return response
@@ -126,9 +128,11 @@ class ModelBase(ABC):
 
         try:
             response = await self._achat(messages, **kwargs)
-        except:
-            self._run_exception_hooks(messages, Exception("Error during async chat"))
-            raise
+        except Exception as e:
+            self._run_exception_hooks(
+                messages, e
+            )
+            raise e
 
         response = self._run_post_hooks(messages, response)
 
@@ -140,11 +144,11 @@ class ModelBase(ABC):
 
         try:
             response = self._structured(messages, schema, **kwargs)
-        except:
+        except Exception as e:
             self._run_exception_hooks(
-                messages, Exception("Error during structured interaction")
+                messages, e
             )
-            raise
+            raise e
 
         response = self._run_post_hooks(messages, response)
 
@@ -156,11 +160,11 @@ class ModelBase(ABC):
 
         try:
             response = await self._astructured(messages, schema, **kwargs)
-        except:
+        except Exception as e:
             self._run_exception_hooks(
-                messages, Exception("Error during async structured interaction")
+                messages, e
             )
-            raise
+            raise e
 
         response = self._run_post_hooks(messages, response)
 
@@ -172,9 +176,11 @@ class ModelBase(ABC):
 
         try:
             response = self._stream_chat(messages, **kwargs)
-        except:
-            self._run_exception_hooks(messages, Exception("Error during stream chat"))
-            raise
+        except Exception as e:
+            self._run_exception_hooks(
+                messages, e
+            )
+            raise e
 
         response = self._run_post_hooks(messages, response)
 
@@ -186,11 +192,11 @@ class ModelBase(ABC):
 
         try:
             response = await self._astream_chat(messages, **kwargs)
-        except:
+        except Exception as e:
             self._run_exception_hooks(
-                messages, Exception("Error during async stream chat")
+                messages, e
             )
-            raise
+            raise e
 
         response = self._run_post_hooks(messages, response)
 
@@ -202,11 +208,11 @@ class ModelBase(ABC):
 
         try:
             response = self._chat_with_tools(messages, tools, **kwargs)
-        except:
+        except Exception as e:
             self._run_exception_hooks(
-                messages, Exception("Error during chat with tools")
+                messages, e
             )
-            raise
+            raise e
 
         response = self._run_post_hooks(messages, response)
         return response
@@ -219,11 +225,11 @@ class ModelBase(ABC):
 
         try:
             response = await self._achat_with_tools(messages, tools, **kwargs)
-        except:
+        except Exception as e:
             self._run_exception_hooks(
-                messages, Exception("Error during async chat with tools")
+                messages, e
             )
-            raise
+            raise e
 
         response = self._run_post_hooks(messages, response)
 

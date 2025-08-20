@@ -4,15 +4,27 @@ from railtracks.llm import MessageHistory, Message
 model = rt.llm.OpenAILLM("gpt-4o")
 
 
-def add(x: float, y: float):
-    """A simple synchronous function that adds two numbers."""
-    return x + y
+def error_function(x: int) -> str:
+    """
+    Args:
+        x (int): The input number to the function
 
+    Returns:
+        str: The result of the function.
+    """
+    rt.context.put("magic_test_called", True)
+    return str(1 / x)
 
-
-resp = model.chat_with_tools(
-    messages=MessageHistory([Message("Please use the tool you have to add 5 and 6", "user")]),
-    tools=[rt.llm.Tool.from_function(add)],
+agent = rt.agent_node(
+    tool_nodes={rt.function_node(error_function)},
+    name="Error Function Agent",
+    system_message="You are a helpful assistant that can call the tools available to you to answer user queries",
+    llm_model=model,
 )
 
-print(resp)
+with rt.Session():
+    response = rt.call_sync(    
+        agent, 
+        "Please use the tool you have and invoke it with 0"
+    )   
+    print(response.content)

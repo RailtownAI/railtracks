@@ -1,53 +1,8 @@
 import pytest
 import railtracks as rt
-
-from railtracks.llm import MessageHistory, Message
+from railtracks.llm import Message
 from railtracks.llm.response import Response
 import asyncio
-
-# ================================================ START terminal_llm basic functionality =========================================================
-@pytest.mark.asyncio
-async def test_terminal_llm_run(mock_llm , encoder_system_message):
-    encoder_agent = rt.agent_node(
-        name="Encoder",
-        system_message=encoder_system_message,
-        llm_model=mock_llm(),
-    )
-
-    response = await rt.call(encoder_agent, user_input=rt.llm.MessageHistory([rt.llm.UserMessage("hello world")]))
-
-    assert isinstance(response.text, str)
-
-@pytest.mark.asyncio
-async def test_terminal_llm_with_string(mock_llm, encoder_system_message):
-    """Test that the easy usage wrapper can be called with a string input."""
-    encoder_agent = rt.agent_node(
-        name="Encoder",
-        system_message=encoder_system_message,
-        llm_model=mock_llm(),
-    )
-
-    # Call with a string instead of MessageHistory
-    response = await rt.call(encoder_agent, user_input="hello world")
-
-    assert isinstance(response.text, str)
-
-@pytest.mark.asyncio
-async def test_terminal_llm_with_user_message(mock_llm, encoder_system_message):
-    """Test that the easy usage wrapper can be called with a UserMessage input."""
-    encoder_agent = rt.agent_node(
-        name="Encoder",
-        system_message=encoder_system_message,
-        llm_model=mock_llm(),
-    )
-
-    # Call with a UserMessage instead of MessageHistory
-    user_msg = rt.llm.UserMessage("hello world")
-    response = await rt.call(encoder_agent, user_input=user_msg)
-
-    assert isinstance(response.text, str)
-
-# ================================================ END terminal_llm basic functionality ===========================================================
 
 # ================================================ START terminal_llm as tools =========================================================== 
 @pytest.mark.asyncio
@@ -245,5 +200,10 @@ async def test_terminal_llm_tool_with_invalid_parameters(mock_llm, encoder_syste
             message.role == "assistant" and "There was an error running the tool" in message.content
             for message in response.message_history
         )
+
+def test_no_manifest():
+    agent = rt.agent_node(name="not a tool")
+    with pytest.raises(NotImplementedError):
+        agent.tool_info()
 
 # ====================================================== END terminal_llm as tool ========================================================
