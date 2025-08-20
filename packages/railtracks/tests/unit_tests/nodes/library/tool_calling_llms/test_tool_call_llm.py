@@ -95,7 +95,7 @@ def test_unlimited_tool_call_gives_warning_on_creation(mock_llm, mock_tool, capl
             system_message=SystemMessage("system prompt")
         )
     assert "unlimited tool calls" in caplog.text
-@pytest.mark.skip("infinite loop")
+@pytest.mark.skip("infinite loop - test no longer valid as runtime warning removed in favor of creation-time warning")
 async def test_unlimited_tool_call_gives_warning_at_runtime(mock_llm, mock_tool, mock_chat_with_tools_function, caplog):
     class MockLimitedToolCallLLM(ToolCallLLM):
         @classmethod
