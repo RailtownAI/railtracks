@@ -31,7 +31,9 @@ async def test_ternial_llm_run_with_different_inputs(mock_llm, encoder_system_me
 @pytest.mark.asyncio
 async def test_structured_llm_run_with_different_inputs(mock_llm, simple_output_model, user_input_factory):
     """Test that the structured agent can be called with different input types."""
-    structured_llm = mock_llm(simple_output_model(text="hello world", number=42))
+
+    # mock_llm will try to populate the structured output with the provided dict
+    structured_llm = mock_llm('{"text":"hello world", "number":"42"}')
 
     simple_agent = rt.agent_node(
         name="Simple LLM",

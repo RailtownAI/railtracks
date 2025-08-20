@@ -30,7 +30,7 @@ class TestSimpleToolCalling:
             return "Constantinople"
 
         llm = mock_llm(
-            [ToolCall(name="secret_phrase", identifier="id_42424242", arguments={})]
+            requested_tool_calls=[ToolCall(name="secret_phrase", identifier="id_42424242", arguments={})]
         )
 
         agent = rt.agent_node(
@@ -113,7 +113,7 @@ class TestLimitedToolCalling:
         ],
         ids=["zero_exact", "one_exact", "five_exact", "one_extra", "five_extra"],
     )
-    async def test_max_limit(
+    async def test_base_functionality(
         self,
         mock_llm,
         _reset_tools_called,
@@ -128,31 +128,13 @@ class TestLimitedToolCalling:
             _increment_tools_called()
             return 42
 
-        # ============ mock llm config =========
-        async def achat_with_tools(messages, tools):
-            if (
-                len(tools) == 0
-            ):  #  this means we have exhausted all tool calls and are back to regular chat
-                assert rt.context.get("tools_called") == num_tc
-                return Response(
-                    message=AssistantMessage("All tc exhausted, back to regular chat"),
-                )
-
-            # Calculate how many tool calls the LLM should request
-            llm_call_count = num_tc + (1 if llm_requests_extra else 0)
-            return Response(
-                message=AssistantMessage(
-                    [
-                        ToolCall(
-                            name="magic_number", identifier="id_42424242", arguments={}
-                        )
-                        for _ in range(llm_call_count)
-                    ]
-                ),
-            )
-
-        llm = mock_llm()
-        llm._achat_with_tools = achat_with_tools
+        llm_call_count = num_tc + (1 if llm_requests_extra else 0)
+        llm = mock_llm(
+            requested_tool_calls=[
+                ToolCall(name="magic_number", identifier="id_42424242", arguments={})
+                for _ in range(llm_call_count)
+            ]
+        )
         # =======================================
 
         agent = rt.agent_node(
@@ -173,4 +155,32 @@ class TestLimitedToolCalling:
 
 
 class TestStructuredToolCalling:
-    pass
+    def test_base_functionality(self, mock_llm, simple_output_model):
+        def secrets():
+            rt.context.put("secrets_called", True)
+            return ("Constantinople", 42)
+
+        llm = mock_llm(
+            custom_response='{"text": "Constantinople", "number": "42"}',   # for passing into schema
+            requested_tool_calls=[
+                ToolCall(name="secrets", identifier="id_42424242", arguments={})
+            ],
+        )
+
+        agent = rt.agent_node(
+            name="Secret Phrase Maker",
+            system_message="You are a helpful assistant that can call the tools available to you to answer user queries",
+            llm_model=llm,
+            output_schema=simple_output_model,
+            tool_nodes={rt.function_node(secrets)},
+        )
+
+        with rt.Session(logging_setting="NONE"):
+            response = rt.call_sync(
+                agent,
+                user_input="What is the secret phrase? Only return the structured output, no other text.",
+            )
+            assert isinstance(response.content, simple_output_model)
+            assert response.content.text == "Constantinople"
+            assert response.content.number == 42
+            assert rt.context.get("secrets_called")

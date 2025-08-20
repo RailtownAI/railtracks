@@ -5,17 +5,17 @@ import railtracks as rt
 from railtracks.llm.response import Response, MessageInfo
 from pydantic import BaseModel
 from railtracks.llm.message import AssistantMessage, Message
-
+import json
 
 class MockLLM(rt.llm.ModelBase):
-    def __init__(self, custom_response_message: str | BaseModel | None = None, requested_tool_calls: list[rt.llm.ToolCall] | None = None):
+    def __init__(self, custom_response: str | None = None, requested_tool_calls: list[rt.llm.ToolCall] | None = None):
         """
         Creates a new instance of the MockLLM class.
         Args:
             custom_response_message (Message | None, optional): The custom response message to use for the LLM. Defaults to None.
         """
         super().__init__()
-        self.custom_response_message = custom_response_message
+        self.custom_response = custom_response
         self.requested_tool_calls = requested_tool_calls
         self.mocked_message_info = MessageInfo(
             input_tokens=42,
@@ -40,34 +40,28 @@ class MockLLM(rt.llm.ModelBase):
             else:
                 break  # Stop at first non-tool message
         return tool_results
-    
-    def _make_custom_assistant_message( 
-        self,
-        default_content: str | BaseModel,
-        requested_tool_calls: list[rt.llm.ToolCall] | None = None,
-    ) -> AssistantMessage:
-        if requested_tool_calls:
-            return AssistantMessage(content=requested_tool_calls)
-        if self.custom_response_message:
-            return AssistantMessage(self.custom_response_message)
-        else:
-            return AssistantMessage(content=default_content)
     # =======================================================================================
     
     # ================ Base responses (common for sync and async versions) ==================
     def _base_chat(self):
+        return_message = self.custom_response or "mocked Message"
         return Response(
-            message=self._make_custom_assistant_message("mocked Message"),
+            message=AssistantMessage(return_message),
             streamer=None,
             message_info=self.mocked_message_info,
         )
     
-    def _base_structured(self):
+    def _base_structured(self, messages, schema):
         class DummyStructured(BaseModel):
             dummy_attr: str = "mocked"
 
+        if self.custom_response:
+            response_model = schema(**json.loads(self.custom_response))
+        else:
+            response_model = DummyStructured()
+
         return Response(
-            message=self._make_custom_assistant_message(DummyStructured()),
+            message=AssistantMessage(response_model),
             streamer=None,
             message_info=self.mocked_message_info,
         )
@@ -85,8 +79,9 @@ class MockLLM(rt.llm.ModelBase):
                 message_info=self.mocked_message_info,
             )
         else:
+            return_message = self.requested_tool_calls or "mocked tool message"
             return Response(
-                message=self._make_custom_assistant_message("mocked tool message", self.requested_tool_calls),
+                message=AssistantMessage(return_message),
                 streamer=None,
                 message_info=self.mocked_message_info,
             )            
@@ -97,8 +92,7 @@ class MockLLM(rt.llm.ModelBase):
         return self._base_chat()
 
     async def _astructured(self, messages, schema, **kwargs):
-        return self._base_structured()
-
+        return self._base_structured(messages, schema)
     
     async def _achat_with_tools(self, messages, tools, **kwargs):
         return self._base_chat_with_tools(messages, **kwargs)
@@ -110,7 +104,7 @@ class MockLLM(rt.llm.ModelBase):
         return self._base_chat()
 
     def _structured(self, messages, schema, **kwargs):
-        return self._base_structured()
+        return self._base_structured(messages, schema)
 
     def _chat_with_tools(self, messages, tools, **kwargs):
         return self._base_chat_with_tools(messages, **kwargs)
@@ -136,6 +130,9 @@ def mock_llm() -> Type[MockLLM]:
     Fixture to mock LLM methods with configurable responses.
     Pass a custom_response_message to override the message in all default responses.
     Usage:
-        model = mock_model(custom_response_message=rt.llm.Message(content="custom", role="assistant"))
+        model = mock_model(
+                    custom_response_message=r"custom")
+                    requested_tool_calls=[ToolCall(name="secret_phrase", identifier="id_42424242", arguments={})]
+                )
     """
     return MockLLM

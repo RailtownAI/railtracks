@@ -32,7 +32,7 @@ class TestPrimitiveInputTypes:
 
         # mock_llm will run the tool and return the result if requested
         llm = mock_llm(
-            [ToolCall(name="secret_phrase", identifier="id_42424242", arguments={})]
+            requested_tool_calls=[ToolCall(name="secret_phrase", identifier="id_42424242", arguments={})]
         )
 
         agent = _agent_node_factory(
@@ -64,7 +64,7 @@ class TestPrimitiveInputTypes:
 
         # mock_llm will run the tool and return the result if requested
         llm = mock_llm(
-            [
+            requested_tool_calls=[
                 ToolCall(
                     name="magic_number",
                     identifier="id_42424242",
@@ -103,7 +103,7 @@ class TestPrimitiveInputTypes:
 
         # mock_llm will run the tool and return the result if requested
         llm = mock_llm(
-            [
+            requested_tool_calls=[
                 ToolCall(
                     name="magic_phrase",
                     identifier="id_42424242",
@@ -142,7 +142,7 @@ class TestPrimitiveInputTypes:
 
         # mock_llm will run the tool and return the result if requested
         llm = mock_llm(
-            [
+            requested_tool_calls=[
                 ToolCall(
                     name="magic_test",
                     identifier="id_42424242",
@@ -182,7 +182,7 @@ class TestPrimitiveInputTypes:
 
         # mock_llm will run the tool and return the result if requested
         llm = mock_llm(
-            [
+            requested_tool_calls=[
                 ToolCall(
                     name="magic_test",
                     identifier="id_42424242",
@@ -221,7 +221,7 @@ class TestPrimitiveInputTypes:
 
         # mock_llm will run the tool and return the result if requested
         llm = mock_llm(
-            [
+            requested_tool_calls=[
                 ToolCall(
                     name="error_function",
                     identifier="id_42424242",
@@ -267,7 +267,7 @@ class TestSequenceInputTypes:
 
         # mock_llm will run the tool and return the result if requested
         llm = mock_llm(
-            [
+            requested_tool_calls=[
                 ToolCall(
                     name="magic_list",
                     identifier="id_42424242",
@@ -306,7 +306,7 @@ class TestSequenceInputTypes:
 
         # mock_llm will run the tool and return the result if requested
         llm = mock_llm(
-            [
+            requested_tool_calls=[
                 ToolCall(
                     name="magic_tuple",
                     identifier="id_42424242",
@@ -347,7 +347,7 @@ class TestSequenceInputTypes:
 
         # mock_llm will run the tool and return the result if requested
         llm = mock_llm(
-            [
+            requested_tool_calls=[
                 ToolCall(
                     name="magic_result",
                     identifier="id_42424242",
@@ -419,7 +419,7 @@ class TestUnionAndOptionalParameter:
 
         # mock_llm will run the tool and return the result if requested
         llm = mock_llm(
-            [
+            requested_tool_calls=[
                 ToolCall(
                     name="magic_number",
                     identifier="id_42424242",
@@ -473,7 +473,7 @@ class TestUnionAndOptionalParameter:
 
         # mock_llm will run the tool and return the result if requested
         llm = mock_llm(
-            [
+            requested_tool_calls=[
                 ToolCall(
                     name="magic_number",
                     identifier="id_42424242",

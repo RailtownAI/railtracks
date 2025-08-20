@@ -59,7 +59,7 @@ async def test_terminal_llm_as_tool_correct_initialization(
     _check_tool_info(decoder.tool_info())
 
     randomizer_llm = mock_llm(
-        [
+        requested_tool_calls=[
             ToolCall(name="Encoder", identifier="id_42424242", arguments={"text_input": "hello world"}),
             ToolCall(name="Decoder", identifier="id_42424242", arguments={"bytes_input": "hello world"}),
         ]
@@ -99,7 +99,7 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(mock_llm):
 
     system_message = "You are a math genius that calls the RNG tool to generate 5 random numbers between 1 and 100 and gives the sum of those numbers."
 
-    math_llm = mock_llm([ToolCall(name="RNG_Tool", identifier="id_42424242", arguments={})])
+    math_llm = mock_llm(requested_tool_calls=[ToolCall(name="RNG_Tool", identifier="id_42424242", arguments={})])
     # ========================================
 
     math_node = rt.agent_node(
@@ -129,11 +129,11 @@ async def test_terminal_llm_tool_with_invalid_parameters(mock_llm, encoder_syste
     encoder = rt.agent_node(
         name="Encoder",
         system_message=encoder_system_message,
-        llm_model=mock_llm(custom_response_message=Message(content="Encoder ran successfully", role="assistant")),
+        llm_model=mock_llm(custom_response="Encoder ran successfully"),
         manifest=rt.ToolManifest(encoder_tool_details, encoder_tool_params),
     )
 
-    invalid_caller_llm = mock_llm([ToolCall(name="encoder", identifier="id_42424242", arguments={"invalid_arg_name": "hello world"})])
+    invalid_caller_llm = mock_llm(requested_tool_calls=[ToolCall(name="encoder", identifier="id_42424242", arguments={"invalid_arg_name": "hello world"})])
     # ========================================
 
 
