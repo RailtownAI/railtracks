@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any, Dict, KeysView
 
 
 class ExternalContext(ABC):
@@ -24,7 +24,7 @@ class ExternalContext(ABC):
         pass
 
     @abstractmethod
-    def keys(self):
+    def keys(self) -> KeysView[str]:
         pass
 
     def __setitem__(self, key, value):
