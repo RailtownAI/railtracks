@@ -24,18 +24,18 @@ class ModelBase(ABC):
 
     def __init__(
         self,
-        pre_hooks: List[Callable[[MessageHistory], MessageHistory]] | None = None,
-        post_hooks: List[Callable[[MessageHistory, Response], Response]] | None = None,
-        exception_hooks: List[Callable[[MessageHistory, Exception], None]]
+        __pre_hooks: List[Callable[[MessageHistory], MessageHistory]] | None = None,
+        __post_hooks: List[Callable[[MessageHistory, Response], Response]] | None = None,
+        __exception_hooks: List[Callable[[MessageHistory, Exception], None]]
         | None = None,
     ):
-        if pre_hooks is None:
+        if __pre_hooks is None:
             pre_hooks: List[Callable[[MessageHistory], MessageHistory]] = []
 
-        if post_hooks is None:
+        if __post_hooks is None:
             post_hooks: List[Callable[[MessageHistory, Response], Response]] = []
 
-        if exception_hooks is None:
+        if __exception_hooks is None:
             exception_hooks: List[Callable[[MessageHistory, Exception], None]] = []
 
         self._pre_hooks = pre_hooks
