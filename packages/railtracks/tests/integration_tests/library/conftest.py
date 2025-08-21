@@ -53,54 +53,10 @@ class SimpleOutput(BaseModel):  # simple structured output case
     number: int = Field(description="The number to return")
 
 
-class TravelPlannerOutput(BaseModel):  # structured using tool calls
-    travel_plan: str = Field(description="The travel plan")
-    Total_cost: float = Field(description="The total cost of the trip")
-    Currency: str = Field(description="The currency used for the trip")
-
-
-class MathOutput(BaseModel):  # structured using terminal llm as tool
-    sum: float = Field(description="The sum of the random numbers")
-    random_numbers: List[int] = Field(
-        description="The list of random numbers generated"
-    )
-
-
-class EmptyModel(BaseModel):  # empty structured output case
-    pass
-
-
-class PersonOutput(BaseModel):  # complex structured output case
-    name: str = Field(description="The name of the person")
-    age: int = Field(description="The age of the person")
-    Favourites: SimpleOutput = Field(
-        description="The favourite text and number of the person"
-    )
-
-
-@pytest.fixture
-def travel_planner_output_model():
-    return TravelPlannerOutput
-
-
-@pytest.fixture
-def math_output_model():
-    return MathOutput
-
-
 @pytest.fixture
 def simple_output_model():
     return SimpleOutput
 
-
-@pytest.fixture
-def empty_output_model():
-    return EmptyModel
-
-
-@pytest.fixture
-def person_output_model():
-    return PersonOutput
 # =====================================================
 
 # ============ Context Variables ===========
