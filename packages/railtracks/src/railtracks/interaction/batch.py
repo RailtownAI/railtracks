@@ -15,7 +15,7 @@ if TYPE_CHECKING:
         _AsyncNodeAttachedFunc,
         _SyncNodeAttachedFunc,
     )
-from railtracks.nodes.nodes import Node
+from railtracks.node import Node
 
 from .call import call
 

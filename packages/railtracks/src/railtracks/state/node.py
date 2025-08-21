@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, Optional, ParamSpec, Type
 
-from railtracks.nodes.nodes import (
+from railtracks.node import (
     Node,
 )
 from railtracks.utils.profiling import Stamp

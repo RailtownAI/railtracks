@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from typing_extensions import Self, Type
 
 from railtracks.llm import Tool
-from railtracks.nodes.nodes import Node
+from railtracks.node import Node
 
 
 class MCPStdioParams(StdioServerParameters):

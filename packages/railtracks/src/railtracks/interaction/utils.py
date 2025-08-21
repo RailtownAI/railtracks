@@ -11,7 +11,7 @@ from typing import (
 )
 
 if TYPE_CHECKING:
-    from railtracks.nodes.concrete import (
+    from railtracks.builtnodes.concrete import (
         AsyncDynamicFunctionNode,
         SyncDynamicFunctionNode,
     )
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
         _AsyncNodeAttachedFunc,
         _SyncNodeAttachedFunc,
     )
-    from railtracks.nodes.nodes import Node
+    from railtracks.node import Node
 
 
 _P = ParamSpec("_P")

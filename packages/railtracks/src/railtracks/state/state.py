@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from railtracks.utils.config import ExecutorConfig
 
 from railtracks.exceptions import FatalError, NodeInvocationError
-from railtracks.nodes.nodes import Node
+from railtracks.node import Node
 from railtracks.utils.logging.create import get_rt_logger
 from railtracks.utils.profiling import Stamp
 

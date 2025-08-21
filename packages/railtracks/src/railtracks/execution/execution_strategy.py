@@ -11,7 +11,7 @@ from railtracks.context.central import (
     update_parent_id,
 )
 from railtracks.context.internal import InternalContext
-from railtracks.nodes.nodes import NodeState
+from railtracks.node import NodeState
 from railtracks.pubsub.messages import RequestFailure, RequestSuccess
 
 if TYPE_CHECKING:

@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC
 from typing import Any, Literal, ParamSpec, Type, TypeVar
 
-from railtracks.nodes.nodes import Node, NodeState
+from railtracks.node import Node, NodeState
 
 # RT specific imports
 

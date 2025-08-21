@@ -10,10 +10,10 @@ from railtracks.interaction.call import call
 
 # TODO this must be moved to a more appropriate place in utils.
 from railtracks.llm.models._litellm_wrapper import _parameters_to_json_schema
-from railtracks.nodes.concrete import (
+from railtracks.builtnodes.concrete import (
     RTFunction,
 )
-from railtracks.nodes.nodes import Node
+from railtracks.node import Node
 
 
 def _create_tool_function(
