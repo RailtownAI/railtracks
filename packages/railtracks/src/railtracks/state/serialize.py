@@ -5,8 +5,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from railtracks.llm import Message, ToolCall, ToolResponse
 from railtracks.builtnodes.concrete import RequestDetails
+from railtracks.llm import Message, ToolCall, ToolResponse
 from railtracks.node import LatencyDetails
 from railtracks.utils.profiling import Stamp
 from railtracks.utils.serialization.graph import Edge, Vertex

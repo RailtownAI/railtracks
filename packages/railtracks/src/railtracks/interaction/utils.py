@@ -15,7 +15,7 @@ if TYPE_CHECKING:
         AsyncDynamicFunctionNode,
         SyncDynamicFunctionNode,
     )
-    from railtracks.nodes.easy_usage_wrappers.function import (
+    from railtracks.builtnodes.easy_usage_wrappers.function import (
         _AsyncNodeAttachedFunc,
         _SyncNodeAttachedFunc,
     )
