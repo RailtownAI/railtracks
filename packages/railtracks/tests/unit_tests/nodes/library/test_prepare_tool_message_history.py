@@ -1,7 +1,7 @@
 import pytest
 
 from railtracks.llm import MessageHistory, Parameter
-from railtracks.builtnodes.concrete import LLMBase
+from railtracks.built_nodes.concrete import LLMBase
 
 
 class TestPrepareToolMessageHistory:

@@ -2,7 +2,7 @@
 
 import logging
 import railtracks as rt
-from railtracks.builtnodes.easy_usage_wrappers.helpers import tool_call_llm
+from railtracks.built_nodes.easy_usage_wrappers.helpers import tool_call_llm
 from railtracks.llm import SystemMessage
 
 

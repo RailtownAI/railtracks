@@ -1,7 +1,7 @@
 import pytest
 
 from railtracks.llm.response import Response
-from railtracks.builtnodes.concrete import LLMBase, RequestDetails
+from railtracks.built_nodes.concrete import LLMBase, RequestDetails
 import railtracks.llm as llm
 
 class MockModelNode(LLMBase):

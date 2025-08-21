@@ -17,7 +17,7 @@ from typing import (
 
 from pydantic import BaseModel
 
-from railtracks.builtnodes.concrete import (
+from railtracks.built_nodes.concrete import (
     DynamicFunctionNode,
     LLMBase,
     OutputLessToolCallLLM,

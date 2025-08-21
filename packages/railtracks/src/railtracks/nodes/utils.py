@@ -11,7 +11,7 @@ from typing import (
 )
 
 if TYPE_CHECKING:
-    from railtracks.builtnodes.concrete import (
+    from railtracks.built_nodes.concrete import (
         AsyncDynamicFunctionNode,
         RTAsyncFunction,
         RTFunction,

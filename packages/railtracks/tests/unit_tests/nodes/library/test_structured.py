@@ -2,8 +2,8 @@ import pytest
 import railtracks as rt
 from pydantic import BaseModel
 from railtracks.llm import MessageHistory, SystemMessage, UserMessage
-from railtracks.builtnodes.concrete import StructuredLLM
-from railtracks.builtnodes.easy_usage_wrappers.helpers import structured_llm
+from railtracks.built_nodes.concrete import StructuredLLM
+from railtracks.built_nodes.easy_usage_wrappers.helpers import structured_llm
 from railtracks.exceptions import NodeCreationError, NodeInvocationError
 from typing import Type
 

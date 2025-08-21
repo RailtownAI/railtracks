@@ -13,8 +13,8 @@ from typing import (
     overload,
 )
 
-from railtracks.builtnodes._node_builder import NodeBuilder
-from railtracks.builtnodes.concrete import (
+from railtracks.built_nodes._node_builder import NodeBuilder
+from railtracks.built_nodes.concrete import (
     AsyncDynamicFunctionNode,
     RTAsyncFunction,
     RTSyncFunction,

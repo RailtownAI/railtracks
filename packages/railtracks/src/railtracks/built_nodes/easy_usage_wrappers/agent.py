@@ -3,7 +3,7 @@ from typing import Callable, Iterable, Type, TypeVar, overload
 
 from pydantic import BaseModel
 
-from railtracks.builtnodes.concrete import (
+from railtracks.built_nodes.concrete import (
     RTFunction,
     StructuredLLM,
     StructuredToolCallLLM,

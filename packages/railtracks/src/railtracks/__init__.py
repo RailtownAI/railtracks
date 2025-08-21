@@ -33,7 +33,7 @@ __all__ = [
 ]
 
 
-from railtracks.builtnodes.easy_usage_wrappers import (
+from railtracks.built_nodes.easy_usage_wrappers import (
     agent_node,
     chatui_node,
     function_node,

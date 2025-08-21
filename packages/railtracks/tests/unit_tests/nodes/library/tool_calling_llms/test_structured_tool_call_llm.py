@@ -3,11 +3,11 @@ import railtracks as rt
 from pydantic import BaseModel, Field
 
 from railtracks.llm.response import Response
-from railtracks.builtnodes.easy_usage_wrappers.helpers import structured_tool_call_llm, structured_llm
+from railtracks.built_nodes.easy_usage_wrappers.helpers import structured_tool_call_llm, structured_llm
 from railtracks.exceptions import NodeCreationError, LLMError
 from railtracks.llm import MessageHistory, SystemMessage, UserMessage, AssistantMessage
 
-from railtracks.builtnodes.concrete import StructuredToolCallLLM
+from railtracks.built_nodes.concrete import StructuredToolCallLLM
 
 
 # =========================== Basic functionality ==========================
