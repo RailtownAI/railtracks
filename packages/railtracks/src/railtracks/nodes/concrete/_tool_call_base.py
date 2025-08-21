@@ -71,13 +71,9 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
         super().__init__(llm_model=llm_model, user_input=user_input)
         # Set max_tool_calls for non easy usage wrappers
         if not hasattr(self, "max_tool_calls"):
-            # Check if max_tool_calls was passed
-            if max_tool_calls is not None:
-                check_max_tool_calls(max_tool_calls)
-                self.max_tool_calls = max_tool_calls
-            # Default to unlimited if not passed
-            else:
-                self.max_tool_calls = None
+            # Check max_tool_calls (including warning for None)
+            check_max_tool_calls(max_tool_calls)
+            self.max_tool_calls = max_tool_calls
 
         # Warn user that two max_tool_calls are set and we will use the parameter
         else:
