@@ -20,7 +20,7 @@ def test_function_as_tool(llm):
         """
         Args:
             x (int): The first number
-            y (int): The second number
+            y (Optional[int]): The second number
         """
         rt.context.put("magic_operator_called", True)
         return (2 * x) + y
@@ -33,9 +33,10 @@ def test_function_as_tool(llm):
     )
 
     with rt.Session(logging_setting="NONE"):
-        response = rt.call_sync(agent, user_input="Find the magic number for 4. Then use the magic operator with `x` as the magic number, don't provide `y`. Return the final result only.")
+        response = rt.call_sync(agent, user_input="First find the magic number for 4. Then use the magic_operator with `x` as the result from magic_number and `y` as 3. Return the result from the magic_operator.")
         assert '15' in response.content
         assert rt.context.get("magic_number_called")
+        assert rt.context.get("magic_operator_called")
 
 
 @pytest.mark.parametrize("llm", llm_map.values(), ids=llm_map.keys())
