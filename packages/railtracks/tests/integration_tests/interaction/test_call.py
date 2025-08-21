@@ -367,7 +367,7 @@ def test_simple_rng():
 
     assert 0 < result < 1
 
-from railtracks.nodes.nodes import Node
+from railtracks.node import Node
 class NestedManyCalls(Node):
     def __init__(self, num_calls: int, parallel_calls: int, depth: int):
         self.num_calls = num_calls

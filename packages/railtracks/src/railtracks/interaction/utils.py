@@ -52,13 +52,9 @@ def extract_node_from_function(
 
     # if the node is a pure function then we will also convert it to a node.
     else:
-        # since this task is completed at run_time we will use a lazy import here.
-        from railtracks import (
-            function_node,
-        )
+        # Import function_node from builtnodes easy usage wrappers
+        from railtracks.builtnodes.easy_usage_wrappers import function_node
 
         node = function_node(func).node_type
-    # If a function is passed, we will convert it to a node
-    # we have to use lazy import here to prevent a circular import issue. Bad design I know :(
 
     return node

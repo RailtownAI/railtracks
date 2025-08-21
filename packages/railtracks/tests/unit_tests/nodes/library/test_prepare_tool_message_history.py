@@ -2,7 +2,7 @@ import pytest
 from typing import Dict, Any
 
 from railtracks.llm import MessageHistory, Parameter, UserMessage
-from railtracks.nodes.concrete import LLMBase
+from railtracks.builtnodes.concrete import LLMBase
 
 
 class TestPrepareToolMessageHistory:

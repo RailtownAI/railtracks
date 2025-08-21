@@ -4,7 +4,7 @@ from datetime import timedelta
 from mcp import ClientSession, StdioServerParameters
 from railtracks.llm import Parameter
 from railtracks.rt_mcp.main import MCPHttpParams
-from railtracks.nodes.nodes import Node
+from railtracks.node import Node
 
 # ================= START patch fixtures ================
 

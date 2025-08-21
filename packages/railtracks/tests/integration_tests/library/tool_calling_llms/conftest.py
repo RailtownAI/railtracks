@@ -3,9 +3,9 @@ import railtracks as rt
 from typing import List
 from pydantic import BaseModel, Field
 import random
-from railtracks.nodes.concrete import ToolCallLLM, StructuredLLM
+from railtracks.builtnodes.concrete import ToolCallLLM, StructuredLLM
 from railtracks.llm import SystemMessage
-from railtracks.nodes.easy_usage_wrappers.helpers import terminal_llm, structured_tool_call_llm, tool_call_llm
+from railtracks.builtnodes.easy_usage_wrappers.helpers import terminal_llm, structured_tool_call_llm, tool_call_llm
 
 
 # ============ Model ===========

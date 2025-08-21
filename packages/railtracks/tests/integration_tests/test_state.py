@@ -12,7 +12,7 @@ import pytest
 from collections import Counter
 
 import railtracks as rt
-from railtracks.nodes.nodes import Node
+from railtracks.node import Node
 from railtracks.state.forest import AbstractLinkedObject
 from railtracks.state.node import LinkedNode, NodeForest
 from railtracks.state.request import RequestTemplate

@@ -1,7 +1,7 @@
 import pytest
 import railtracks as rt
 
-from railtracks.nodes.nodes import Node
+from railtracks.node import Node
 from railtracks.prebuilt import rag_node
 
 

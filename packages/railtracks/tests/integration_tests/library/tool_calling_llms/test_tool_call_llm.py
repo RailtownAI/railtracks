@@ -11,8 +11,8 @@ from railtracks.llm import MessageHistory, UserMessage, Message
 from railtracks.llm.response import Response
 
 from railtracks import function_node
-from railtracks.nodes.concrete import ToolCallLLM
-from railtracks.nodes.easy_usage_wrappers.helpers import tool_call_llm
+from railtracks.builtnodes.concrete import ToolCallLLM
+from railtracks.builtnodes.easy_usage_wrappers.helpers import tool_call_llm
 
 NODE_INIT_METHODS = ["easy_wrapper", "class_based"]
 

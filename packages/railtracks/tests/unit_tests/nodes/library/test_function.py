@@ -16,7 +16,7 @@ import asyncio
 import railtracks as rt
 from railtracks.exceptions import NodeCreationError
 from railtracks import function_node
-from railtracks.nodes.nodes import Node
+from railtracks.node import Node
 
 class PydanticModel(BaseModel):
     """A simple Pydantic model for testing."""

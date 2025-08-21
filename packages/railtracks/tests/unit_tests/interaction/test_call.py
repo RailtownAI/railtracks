@@ -11,7 +11,7 @@
 #     _regular_message_filter,
 #     _top_level_message_filter,
 # )
-# from railtracks.nodes.nodes import Node
+# from railtracks.node import Node
 # from railtracks.exceptions import GlobalTimeOutError
 # from railtracks.pubsub.messages import (
 #     RequestCompletionMessage,

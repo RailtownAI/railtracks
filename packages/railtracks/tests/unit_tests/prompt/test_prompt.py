@@ -3,7 +3,7 @@ import pytest
 from railtracks import ExecutorConfig
 from railtracks.llm import MessageHistory, Message
 from railtracks.llm.response import Response
-from railtracks.nodes.easy_usage_wrappers.helpers import terminal_llm
+from railtracks.builtnodes.easy_usage_wrappers.helpers import terminal_llm
 import railtracks as rt
 
 
