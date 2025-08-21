@@ -26,8 +26,9 @@ async def test_ternial_llm_run_with_different_inputs(mock_llm, encoder_system_me
 @pytest.mark.parametrize("user_input_factory", [
     lambda: rt.llm.MessageHistory([rt.llm.UserMessage("Generate a simple text and number.")]),
     lambda: rt.llm.UserMessage("Generate a simple text and number."),
+    lambda: [rt.llm.Message(role="user", content="Generate a simple text and number.")],
     lambda: "Generate a simple text and number.",
-], ids=["message_history", "user_message", "string"])
+], ids=["message_history", "user_message", "list_of_messages", "string_message"])
 @pytest.mark.asyncio
 async def test_structured_llm_run_with_different_inputs(mock_llm, simple_output_model, user_input_factory):
     """Test that the structured agent can be called with different input types."""
