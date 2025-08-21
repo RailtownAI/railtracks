@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import MagicMock, patch, call, PropertyMock, Mock
 import asyncio
 import railtracks as rt
-from railtracks.session import Session
+from railtracks._session import Session
 
 # ================= START Mock Fixture ============
 @pytest.fixture
@@ -19,15 +19,15 @@ def mock_dependencies(monkeypatch):
     m_delete_globals = MagicMock()
     m_detach_logging_handlers = MagicMock()
 
-    monkeypatch.setattr('railtracks.session.prepare_logger', m_prepare_logger)
-    monkeypatch.setattr('railtracks.session.get_global_config', m_get_global_config)
-    monkeypatch.setattr('railtracks.session.RTPublisher', m_RTPublisher)
-    monkeypatch.setattr('railtracks.session.ExecutionInfo', m_ExecutionInfo)
-    monkeypatch.setattr('railtracks.session.Coordinator', m_Coordinator)
-    monkeypatch.setattr('railtracks.session.RTState', m_RTState)
-    monkeypatch.setattr('railtracks.session.register_globals', m_register_globals)
-    monkeypatch.setattr('railtracks.session.delete_globals', m_delete_globals)
-    monkeypatch.setattr('railtracks.session.detach_logging_handlers', m_detach_logging_handlers)
+    monkeypatch.setattr('railtracks._session.prepare_logger', m_prepare_logger)
+    monkeypatch.setattr('railtracks._session.get_global_config', m_get_global_config)
+    monkeypatch.setattr('railtracks._session.RTPublisher', m_RTPublisher)
+    monkeypatch.setattr('railtracks._session.ExecutionInfo', m_ExecutionInfo)
+    monkeypatch.setattr('railtracks._session.Coordinator', m_Coordinator)
+    monkeypatch.setattr('railtracks._session.RTState', m_RTState)
+    monkeypatch.setattr('railtracks._session.register_globals', m_register_globals)
+    monkeypatch.setattr('railtracks._session.delete_globals', m_delete_globals)
+    monkeypatch.setattr('railtracks._session.detach_logging_handlers', m_detach_logging_handlers)
 
     return {
         'prepare_logger': m_prepare_logger,
@@ -92,7 +92,7 @@ def test_setup_subscriber_adds_subscriber_if_present():
     sub_subscriber = Mock()
     runner = Session(broadcast_callback=sub_subscriber)
     runner.publisher = MagicMock()
-    with patch('railtracks.session.stream_subscriber', return_value="fake_stream_sub") as m_stream:
+    with patch('railtracks._session.stream_subscriber', return_value="fake_stream_sub") as m_stream:
         runner._setup_subscriber()
         runner.publisher.subscribe.assert_called_once_with(
             "fake_stream_sub", name="Streaming Subscriber"
@@ -103,7 +103,7 @@ def test_setup_subscriber_noop_if_no_subscriber(mock_dependencies):
     runner = Session()
     runner.executor_config.subscriber = None
     runner.publisher = MagicMock()
-    with patch('railtracks.session.stream_subscriber') as m_stream:
+    with patch('railtracks._session.stream_subscriber') as m_stream:
         runner._setup_subscriber()
         runner.publisher.subscribe.assert_not_called()
         m_stream.assert_not_called()

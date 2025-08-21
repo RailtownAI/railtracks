@@ -62,6 +62,9 @@ jobs:
         shell: bash
         run: |
           export OPENAI_API_KEY=${{ secrets.INTEGRATION_TESTS_OPENAI_API_KEY }}
+          export ANTHROPIC_API_KEY=${{ secrets.INTEGRATION_TESTS_ANTHROPIC_API_KEY }}
+          export HF_TOKEN=${{ secrets.INTEGRATION_TESTS_HUGGINGFACE_API_KEY }}
+          export GEMINI_API_KEY=${{ secrets.INTEGRATION_TESTS_GEMINI_API_KEY }}
           pip list
           pip install pytest-timeout
           pytest -s -v --junit-xml=test-results.xml --timeout=200

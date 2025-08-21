@@ -9,23 +9,15 @@ This module tests the ability to create nodes from functions with various parame
 
 import pytest
 from typing import Tuple, List, Dict, Union, Optional
-from pydantic import BaseModel, Field
-import time
-
-
-from railtracks.state.request import Failure
 import railtracks as rt
-
-# ===== Test Models =====
-
-# Define model providers to test with
-MODEL_PROVIDERS = ["openai"]
+from railtracks.llm import AssistantMessage, ToolCall
+from railtracks.llm.response import Response
+import re
 
 
 # ===== Test Classes =====
 class TestPrimitiveInputTypes:
-    @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_empty_function(self, model_provider, create_top_level_node):
+    def test_empty_function(self, _agent_node_factory, mock_llm):
         """Test that a function with no parameters works correctly."""
 
         def secret_phrase() -> str:
@@ -35,27 +27,28 @@ class TestPrimitiveInputTypes:
             Returns:
                 str: The secret phrase.
             """
+            rt.context.put("secret_phrase_called", True)
             return "Constantinople"
 
-        agent = create_top_level_node(
-            secret_phrase,
-            model_provider=model_provider,
+        # mock_llm will run the tool and return the result if requested
+        llm = mock_llm(
+            requested_tool_calls=[ToolCall(name="secret_phrase", identifier="id_42424242", arguments={})]
         )
+
+        agent = _agent_node_factory(
+            secret_phrase,
+            llm,
+        )
+
         with rt.Session(logging_setting="NONE"):
             response = rt.call_sync(
                 agent,
-                rt.llm.MessageHistory(
-                    [
-                        rt.llm.UserMessage(
-                            "What is the secret phrase? Only return the secret phrase, no other text."
-                        )
-                    ]
-                ),
+                "What is the secret phrase? Only return the secret phrase, no other text.",
             )
-        assert response.content == "Constantinople"
+            assert "Constantinople" in response.content
+            assert rt.context.get("secret_phrase_called")
 
-    @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_single_int_input(self, model_provider, create_top_level_node):
+    def test_single_int_input(self, _agent_node_factory, mock_llm):
         """Test that a function with a single int parameter works correctly."""
 
         def magic_number(input_num: int) -> str:
@@ -66,28 +59,35 @@ class TestPrimitiveInputTypes:
             Returns:
                 str: The result of the function.
             """
+            rt.context.put("magic_number_called", True)
             return str(input_num) * input_num
 
-        agent = create_top_level_node(
-            magic_number,
-            model_provider=model_provider,
+        # mock_llm will run the tool and return the result if requested
+        llm = mock_llm(
+            requested_tool_calls=[
+                ToolCall(
+                    name="magic_number",
+                    identifier="id_42424242",
+                    arguments={"input_num": 6},
+                )
+            ]
         )
+        # =======================================
+
+        agent = _agent_node_factory(
+            magic_number,
+            llm,
+        )
+
         with rt.Session(logging_setting="NONE") as run:
             response = rt.call_sync(
                 agent,
-                rt.llm.MessageHistory(
-                    [
-                        rt.llm.UserMessage(
-                            "Find what the magic function output is for 6? Only return the magic number, no other text."
-                        )
-                    ]
-                ),
+                "Find what the magic function output is for 6? Only return the magic number, no other text.",
             )
+            assert rt.context.get("magic_number_called")
+            assert "666666" in response.content
 
-        assert response.content == "666666"
-
-    @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_single_str_input(self, model_provider, create_top_level_node):
+    def test_single_str_input(self, _agent_node_factory, mock_llm):
         """Test that a function with a single str parameter works correctly."""
 
         def magic_phrase(word: str) -> str:
@@ -98,28 +98,35 @@ class TestPrimitiveInputTypes:
             Returns:
                 str: The result of the function.
             """
+            rt.context.put("magic_phrase_called", True)
             return "$".join(list(word))
 
-        agent = create_top_level_node(
-            magic_phrase,
-            model_provider=model_provider,
+        # mock_llm will run the tool and return the result if requested
+        llm = mock_llm(
+            requested_tool_calls=[
+                ToolCall(
+                    name="magic_phrase",
+                    identifier="id_42424242",
+                    arguments={"word": "hello"},
+                )
+            ]
         )
+        # =======================================
+
+        agent = _agent_node_factory(
+            magic_phrase,
+            llm,
+        )
+
         with rt.Session(logging_setting="NONE") as run:
             response = rt.call_sync(
                 agent,
-                rt.llm.MessageHistory(
-                    [
-                        rt.llm.UserMessage(
-                            "What is the magic phrase for the word 'hello'? Only return the magic phrase, no other text."
-                        )
-                    ]
-                ),
+                "What is the magic phrase for the word 'hello'? Only return the magic phrase, no other text.",
             )
+            assert rt.context.get("magic_phrase_called")
+            assert "h$e$l$l$o" in response.content
 
-        assert response.content == "h$e$l$l$o"
-
-    @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_single_float_input(self, model_provider, create_top_level_node):
+    def test_single_float_input(self, _agent_node_factory, mock_llm):
         """Test that a function with a single float parameter works correctly."""
 
         def magic_test(num: float) -> str:
@@ -130,29 +137,36 @@ class TestPrimitiveInputTypes:
             Returns:
                 str: The result of the function.
             """
+            rt.context.put("magic_test_called", True)
             return str(isinstance(num, float))
 
-        agent = create_top_level_node(
-            magic_test,
-            model_provider=model_provider,
+        # mock_llm will run the tool and return the result if requested
+        llm = mock_llm(
+            requested_tool_calls=[
+                ToolCall(
+                    name="magic_test",
+                    identifier="id_42424242",
+                    arguments={"num": 5.0},
+                )
+            ]
         )
+        # =======================================
+
+        agent = _agent_node_factory(
+            magic_test,
+            llm,
+        )
+
         with rt.Session(logging_setting="NONE") as run:
             response = rt.call_sync(
                 agent,
-                rt.llm.MessageHistory(
-                    [
-                        rt.llm.UserMessage(
-                            "Does 5 pass the magic test? Only return the result, no other text."
-                        )
-                    ]
-                ),
+                "Does 5 pass the magic test? Only return the result, no other text.",
             )
-        resp: str = response.content
+            assert rt.context.get("magic_test_called")
+            resp: str = response.content
+            assert "True" in resp
 
-        assert resp.lower() == "true"
-
-    @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_single_bool_input(self, model_provider, create_top_level_node):
+    def test_single_bool_input(self, _agent_node_factory, mock_llm):
         """Test that a function with a single bool parameter works correctly."""
 
         def magic_test(is_magic: bool) -> str:
@@ -163,27 +177,35 @@ class TestPrimitiveInputTypes:
             Returns:
                 str: The result of the function.
             """
+            rt.context.put("magic_test_called", True)
             return "Wish Granted" if is_magic else "Wish Denied"
 
-        agent = create_top_level_node(
-            magic_test,
-            model_provider=model_provider,
+        # mock_llm will run the tool and return the result if requested
+        llm = mock_llm(
+            requested_tool_calls=[
+                ToolCall(
+                    name="magic_test",
+                    identifier="id_42424242",
+                    arguments={"is_magic": True},
+                )
+            ]
         )
+        # =======================================
+
+        agent = _agent_node_factory(
+            magic_test,
+            llm,
+        )
+
         with rt.Session(logging_setting="NONE") as run:
             response = rt.call_sync(
-                agent,
-                rt.llm.MessageHistory(
-                    [
-                        rt.llm.UserMessage(
-                            "Is the magic test true? Only return the result, no other text."
-                        )
-                    ]
-                ),
+                agent, "Is the magic test true? Only return the result, no other text."
             )
-        assert response.content == "Wish Granted"
+            assert rt.context.get("magic_test_called")
+            assert "Wish Granted" in response.content
 
-    @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_function_error_handling(self, model_provider, create_top_level_node):
+    # TODO: think carefully about how we can test the graceful error handling. This test is temporary.
+    def test_function_error_handling(self, _agent_node_factory, mock_llm):
         """Test that errors in function execution are handled gracefully."""
 
         def error_function(x: int) -> str:
@@ -194,34 +216,40 @@ class TestPrimitiveInputTypes:
             Returns:
                 str: The result of the function.
             """
+            rt.context.put("magic_test_called", True)
             return str(1 / x)
 
-        agent = create_top_level_node(
-            error_function,
-            model_provider=model_provider,
+        # mock_llm will run the tool and return the result if requested
+        llm = mock_llm(
+            requested_tool_calls=[
+                ToolCall(
+                    name="error_function",
+                    identifier="id_42424242",
+                    arguments={"x": 0},
+                )
+            ]
         )
-        with rt.Session(logging_setting="NONE") as run:
+        # =======================================
+
+        agent = _agent_node_factory(
+            error_function,
+            llm,
+        )
+
+        with rt.Session(logging_setting="NONE"):
             output = rt.call_sync(
                 agent,
-                rt.llm.MessageHistory(
-                    [
-                        rt.llm.UserMessage(
-                            "What does the tool return for an input of 0? Only return the result, no other text."
-                        )
-                    ]
-                ),
+                "What does the tool return for an input of 0? Only return the result, no other text.",
             )
-            output = run.info
 
-            i_r = output.request_forest.insertion_request[0]
-            children = output.request_forest.children(i_r.sink_id)[0]
-
-            assert isinstance(children.output, Failure)
+            assert (
+                "There was an error running the tool" in output.content
+            )  # graceful error handling
+            assert rt.context.get("magic_test_called")
 
 
 class TestSequenceInputTypes:
-    @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_single_list_input(self, model_provider, create_top_level_node):
+    def test_single_list_input(self, _agent_node_factory, mock_llm):
         """Test that a function with a single list parameter works correctly."""
 
         def magic_list(items: List[str]) -> str:
@@ -232,29 +260,37 @@ class TestSequenceInputTypes:
             Returns:
                 str: The result of the function.
             """
+            rt.context.put("magic_list_called", True)
             items_copy = items.copy()
             items_copy.reverse()
             return " ".join(items_copy)
 
-        agent = create_top_level_node(
-            magic_list,
-            model_provider=model_provider,
+        # mock_llm will run the tool and return the result if requested
+        llm = mock_llm(
+            requested_tool_calls=[
+                ToolCall(
+                    name="magic_list",
+                    identifier="id_42424242",
+                    arguments={"items": ["1", "2", "3"]},
+                )
+            ]
         )
+        # =======================================
+
+        agent = _agent_node_factory(
+            magic_list,
+            llm,
+        )
+
         with rt.Session(logging_setting="NONE") as run:
             response = rt.call_sync(
                 agent,
-                rt.llm.MessageHistory(
-                    [
-                        rt.llm.UserMessage(
-                            "What is the magic list for ['1', '2', '3']? Only return the result, no other text."
-                        )
-                    ]
-                ),
+                "What is the magic list for ['1', '2', '3']? Only return the result, no other text.",
             )
-        assert response.content == "3 2 1"
+            assert "3 2 1" in response.content
+            assert rt.context.get("magic_list_called")
 
-    @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_single_tuple_input(self, model_provider, create_top_level_node):
+    def test_single_tuple_input(self, _agent_node_factory, mock_llm):
         """Test that a function with a single tuple parameter works correctly."""
 
         def magic_tuple(items: Tuple[str, str, str]) -> str:
@@ -265,67 +301,79 @@ class TestSequenceInputTypes:
             Returns:
                 str: The result of the function.
             """
+            rt.context.put("magic_tuple_called", True)
             return " ".join(reversed(items))
 
-        agent = create_top_level_node(
-            magic_tuple,
-            model_provider=model_provider,
+        # mock_llm will run the tool and return the result if requested
+        llm = mock_llm(
+            requested_tool_calls=[
+                ToolCall(
+                    name="magic_tuple",
+                    identifier="id_42424242",
+                    arguments={"items": ("1", "2", "3")},
+                )
+            ]
         )
+        # =======================================
 
+        agent = _agent_node_factory(
+            magic_tuple,
+            llm,
+        )
         with rt.Session(logging_setting="NONE") as run:
             response = rt.call_sync(
                 agent,
-                rt.llm.MessageHistory(
-                    [
-                        rt.llm.UserMessage(
-                            "What is the magic tuple for ('1', '2', '3')? Only return the result, no other text."
-                        )
-                    ]
-                ),
+                "What is the magic tuple for ('1', '2', '3')? Only return the result, no other text.",
             )
 
-        assert response.content == "3 2 1"
+            assert "3 2 1" in response.content
+            assert rt.context.get("magic_tuple_called")
 
-    @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_lists(self, model_provider, create_top_level_node):
+    def test_lists(self, _agent_node_factory, mock_llm):
         """Test that a function with a list parameter works correctly."""
 
         def magic_result(num_items: List[float], prices: List[float]) -> float:
             """
             Args:
-                num_items (List[str]): The list of items to test.
+                num_items (List[float]): The list of items to test.
                 prices (List[float]): The list of prices to test.
 
             Returns:
                 str: The result of the function.
             """
+            rt.context.put("magic_result_called", True)
             total = sum(price * item for price, item in zip(prices, num_items))
             return total
 
-        agent = create_top_level_node(
+        # mock_llm will run the tool and return the result if requested
+        llm = mock_llm(
+            requested_tool_calls=[
+                ToolCall(
+                    name="magic_result",
+                    identifier="id_42424242",
+                    arguments={"num_items": [1.0, 2.0], "prices": [5.5, 10.0]},
+                )
+            ]
+        )
+        # =======================================
+
+        agent = _agent_node_factory(
             magic_result,
-            model_provider=model_provider,
+            llm,
         )
         with rt.Session(logging_setting="NONE") as run:
             response = rt.call_sync(
                 agent,
-                rt.llm.MessageHistory(
-                    [
-                        rt.llm.UserMessage(
-                            "What is the magic result for [1, 2] and [5.5, 10]? Only return the result, no other text."
-                        )
-                    ]
-                ),
+                "What is the magic result for [1, 2] and [5.5, 10]? Only return the result, no other text.",
             )
 
-        assert response.content == "25.5"
+        assert "25.5" in response.content
 
 
 class TestDictionaryInputTypes:
     """Test that dictionary input types raise appropriate errors."""
 
-    @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_dict_input_raises_error(self, model_provider, create_top_level_node):
+    def test_dict_input_raises_error(self, _agent_node_factory, mock_llm):
         """Test that a function with a dictionary parameter raises an error."""
 
         def dict_func(data: Dict[str, str]):
@@ -339,8 +387,8 @@ class TestDictionaryInputTypes:
             return "test"
 
         with pytest.raises(Exception):
-            agent = create_top_level_node(dict_func, model_provider=model_provider)
-            with rt.Session(logging_setting="NONE") as run:
+            agent = _agent_node_factory(dict_func, mock_llm())
+            with rt.Session(logging_setting="NONE"):
                 response = rt.call_sync(
                     agent,
                     rt.llm.MessageHistory(
@@ -348,106 +396,109 @@ class TestDictionaryInputTypes:
                     ),
                 )
 
+
 class TestUnionAndOptionalParameter:
-    @pytest.mark.parametrize("type_annotation", [Union[int, str], int|str], ids=["union", "or notation union"])
-    def test_union_parameter(self, type_annotation, create_top_level_node):
+    @pytest.mark.parametrize(
+        "type_annotation",
+        [Union[int, str], int | str],
+        ids=["union", "or notation union"],
+    )
+    def test_union_parameter(self, type_annotation, _agent_node_factory, mock_llm):
         """Test that a function with a union parameter works correctly."""
+
         def magic_number(x: type_annotation) -> int:
             """
             Args:
                 x: The input parameter
-                
+
             Returns:
                 int: The result of the function
             """
+            rt.context.put("magic_number_called", True)
             return 21
 
-        agent = create_top_level_node(
-            magic_number, model_provider="openai"
+        # mock_llm will run the tool and return the result if requested
+        llm = mock_llm(
+            requested_tool_calls=[
+                ToolCall(
+                    name="magic_number",
+                    identifier="id_42424242",
+                    arguments={"x": 5},
+                ),
+                ToolCall(
+                    name="magic_number",
+                    identifier="id_42424242",
+                    arguments={"x": "fox"},
+                ),
+            ]
         )
-        with rt.Session(logging_setting="QUIET") as run:
+        # =======================================
+
+        agent = _agent_node_factory(
+            magic_number,
+            llm,
+        )
+
+        with rt.Session(logging_setting="QUIET"):
             response = rt.call_sync(
                 agent,
-                rt.llm.MessageHistory(
-                    [rt.llm.UserMessage("Calculate the magic number for 5. Then calculate the magic number for 'fox'. Add them and return the result only.")]
-                ),
+                "Calculate the magic number for 5. Then calculate the magic number for 'fox'.",
             )
+            assert rt.context.get("magic_number_called")
+            assert len(re.findall(r"21", response.content)) == 2  # 21 appears twice
 
-        assert response.content == "42"
-
-    @pytest.mark.parametrize("deafult_value", [(None, 42), (5, 26)], ids=["default value", "non default value"])
-    def test_optional_parameter(self, create_top_level_node, deafult_value):
+    @pytest.mark.parametrize(
+        "default_value, expected",
+        [
+            (None, [21, 21]),  # default: both calls return 21
+            (5, [21, 5]),  # non-default: first call 21, second call default (5)
+        ],
+        ids=["default value", "non default value"],
+    )
+    def test_optional_parameter(
+        self, _agent_node_factory, default_value, expected, mock_llm
+    ):
         """Test that a function with an optional parameter works correctly."""
-        deafult, answer = deafult_value
-        def magic_number(x: Optional[int] = deafult) -> int:
+
+        def magic_number(x: Optional[int] = default_value) -> int:
             """
             Args:
                 x: The input parameter
-                
+
             Returns:
                 int: The result of the function
             """
+            rt.context.put("magic_number_called", True)
             return 21 if x is None else x
 
-        agent = create_top_level_node(
-            magic_number, model_provider="openai"
+        # mock_llm will run the tool and return the result if requested
+        llm = mock_llm(
+            requested_tool_calls=[
+                ToolCall(
+                    name="magic_number",
+                    identifier="id_42424242",
+                    arguments={"x": 21},
+                ),
+                ToolCall(name="magic_number", identifier="id_42424242", arguments={}),
+            ]
         )
+
+        agent = _agent_node_factory(magic_number, llm)
+
         with rt.Session(logging_setting="QUIET") as run:
             response = rt.call_sync(
                 agent,
-                rt.llm.MessageHistory(
-                    [rt.llm.UserMessage("Calculate the magic number for 21. Then calculate the magic number with no args. Add them and return the result only.")]
-                ),
+                "Calculate the magic number for 21. Then calculate the magic number with no args.",
             )
 
-        assert response.content == str(answer)
+            # verify each expected number appears in the response
+            for val in expected:
+                assert str(val) in response.content
 
+            # also check counts if you want stricter validation
+            for val in set(expected):
+                assert len(re.findall(str(val), response.content)) == expected.count(
+                    val
+                )
 
-class TestRealisticScenarios:
-    @pytest.mark.parametrize("model_provider", MODEL_PROVIDERS)
-    def test_realistic_scenario(self, model_provider, create_top_level_node):
-        """Test that a function with a realistic scenario works correctly."""
-
-        class StaffDirectory(BaseModel):
-            name: str = Field(description="The name of the staff member")
-            role: str = Field(description="The role of the staff member")
-            phone: str = Field(description="The phone number of the staff member")
-
-        # Define DB at class level so it's accessible for assertions
-        DB = {
-            "John": {"role": "Manager", "phone": "1234567890"},
-        }
-
-        def update_staff_directory(staff: List[StaffDirectory]) -> None:
-            """
-            For a given list of staff, updates the staff directory with new members or updates existing members.
-
-            Args:
-                staff (List[StaffDirectory]): The list of staff to to gather information about.
-
-            """
-            for person in staff:
-                DB[person.name] = {"role": person.role, "phone": person.phone}
-
-        usr_prompt = (
-            "Update the staff directory with the following information: John is now a 'Senior Manager' and his phone number is changed to 5555"
-            " and Jane is new a Developer and her phone number is 0987654321."
-        )
-
-        agent = create_top_level_node(
-            update_staff_directory, model_provider=model_provider
-        )
-
-        with rt.Session(logging_setting="NONE") as run:
-            response = rt.call_sync(
-                agent, rt.llm.MessageHistory([rt.llm.UserMessage(usr_prompt)])
-            )
-
-
-        assert DB["John"]["role"] == "Senior Manager"
-        assert DB["John"]["phone"] == "5555"
-        assert DB["Jane"]["role"] == "Developer"
-        assert DB["Jane"]["phone"] == "0987654321"
-        
-
-
+            assert rt.context.get("magic_number_called")

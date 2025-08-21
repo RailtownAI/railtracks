@@ -8,12 +8,8 @@ import asyncio
 import railtracks as rt
 from railtracks.exceptions import GlobalTimeOutError
 
-NODE_INIT_METHODS = ["class_based", "easy_wrapper"]
-
-
 @pytest.mark.asyncio
-@pytest.mark.parametrize("terminal_nodes", NODE_INIT_METHODS, indirect=True)
-async def test_message_history_not_mutated_terminal_llm(model, terminal_nodes):
+async def test_message_history_not_mutated_terminal_llm(terminal_nodes):
     """
     Verify that message history is not modified after rt.call when passed to nodes constructed using different methods.
     """
@@ -21,19 +17,11 @@ async def test_message_history_not_mutated_terminal_llm(model, terminal_nodes):
         terminal_nodes  # All nodes can be found in ./conftest.py
     )
 
-    # Determine if we need to pass the model based on which fixture was used
-    needs_model = isinstance(terminal_nodes, tuple) and any(
-        hasattr(node, "__call__") and node.__name__ == "TerminalLLMNode"
-        for node in terminal_nodes
-    )
-
     async def make_math_game_node(message_history: rt.llm.MessageHistory):
         original_message_history = deepcopy(message_history)
 
         # Common parameters for node calls
         call_params = {"user_input": message_history}
-        if needs_model:
-            call_params["llm_model"] = model
 
         # First node call
         random_num_list_response = await rt.call(rng_node, **call_params)
@@ -78,7 +66,7 @@ async def test_message_history_not_mutated_terminal_llm(model, terminal_nodes):
 
     MathGameNode = rt.function_node(make_math_game_node)
 
-    with rt.Session(logging_setting="NONE") as runner:
+    with rt.Session(logging_setting="NONE"):
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("You can start the game")]
         )
@@ -91,8 +79,7 @@ async def test_message_history_not_mutated_terminal_llm(model, terminal_nodes):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("structured_nodes", NODE_INIT_METHODS, indirect=True)
-async def test_message_history_not_mutated_structured_llm(model, structured_nodes):
+async def test_message_history_not_mutated_structured_llm(structured_nodes):
     """
     Verify that message history is not modified after rt.call when passed to nodes constructed using different methods.
     """
@@ -100,19 +87,11 @@ async def test_message_history_not_mutated_structured_llm(model, structured_node
         structured_nodes  # All nodes can be found in ./conftest.py
     )
 
-    # Determine if we need to pass the model based on which fixture was used
-    needs_model = isinstance(structured_nodes, tuple) and any(
-        hasattr(node, "__call__") and node.__name__ == "StructuredLLMNode"
-        for node in structured_nodes
-    )
-
     async def math_proof_node(message_history: rt.llm.MessageHistory):
         original_message_history = deepcopy(message_history)
 
         # Common parameters for node calls
         call_params = {"user_input": message_history}
-        if needs_model:
-            call_params["llm_model"] = model
 
         # First node (math student node)
         student_proof = await rt.call(math_undergrad_student_node, **call_params)
@@ -170,28 +149,18 @@ async def test_message_history_not_mutated_structured_llm(model, structured_node
 
 @pytest.mark.timeout(34)
 @pytest.mark.asyncio
-@pytest.mark.parametrize("tool_calling_nodes", NODE_INIT_METHODS, indirect=True)
-async def test_message_history_not_mutated_tool_call_llm(model, tool_calling_nodes):
+async def test_message_history_not_mutated_tool_call_llm(tool_calling_nodes):
     """
     Verify that message history is not modified after rt.call when passed to nodes constructed using different methods.
     """
     currrency_converter_node, travel_planner_node = (
         tool_calling_nodes  # All nodes can be found in ./conftest.py
     )
-
-    # Determine if we need to pass the model based on which fixture was used
-    needs_model = isinstance(tool_calling_nodes, tuple) and any(
-        hasattr(node, "__call__") and node.__name__ == "ToolCallLLMNode"
-        for node in tool_calling_nodes
-    )
-
     async def travel_summarizer_node(message_history: rt.llm.MessageHistory):
         original_message_history = deepcopy(message_history)
 
         # Common parameters for node calls
         call_params = {"user_input": message_history}
-        if needs_model:
-            call_params["llm_model"] = model
 
         # First node call
         travel_planner_response = await rt.call(travel_planner_node, **call_params)

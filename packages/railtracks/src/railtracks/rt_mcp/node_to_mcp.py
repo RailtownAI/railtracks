@@ -10,7 +10,7 @@ from railtracks.builtnodes.concrete import (
 )
 
 # TODO: this logic must be get refactored
-from railtracks.interaction.call import call
+from railtracks.interaction._call import call
 
 # TODO this must be moved to a more appropriate place in utils.
 from railtracks.llm.models._litellm_wrapper import _parameters_to_json_schema

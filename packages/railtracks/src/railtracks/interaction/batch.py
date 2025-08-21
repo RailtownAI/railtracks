@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     )
 from railtracks.nodes.nodes import Node
 
-from .call import call
+from ._call import call
 
 _P = ParamSpec("_P")
 _TOutput = TypeVar("_TOutput")

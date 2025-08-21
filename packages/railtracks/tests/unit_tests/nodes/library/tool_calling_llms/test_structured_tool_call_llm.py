@@ -81,12 +81,14 @@ def test_structured_message_hist_tool_call_llm_return_output_success(mock_tool, 
 async def test_structured_tool_call_llm_return_output_exception(mock_llm, schema, mock_tool):
     def mock_structured(message_history, base_model):
         raise ValueError("fail")
+    
+    model = mock_llm(AssistantMessage("Hello world"))
+    model._structured = mock_structured
 
     node = structured_tool_call_llm(
         system_message="system prompt",
         tool_nodes={mock_tool},
-        llm_model=mock_llm(structured=mock_structured,
-             chat_with_tools=lambda x, tools: Response(message=AssistantMessage("Hello world"))),
+        llm_model=model,
         output_schema=schema,
         tool_details="Extracts a value.",
         tool_params=None,

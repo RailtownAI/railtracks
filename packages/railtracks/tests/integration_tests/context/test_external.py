@@ -2,7 +2,7 @@ import pytest
 import railtracks as rt
 from railtracks.context import put, get, update, delete, keys
 from railtracks import function_node
-from railtracks.interaction.call import call
+from railtracks.interaction._call import call
 
 
 def set_context():
