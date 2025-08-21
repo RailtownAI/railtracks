@@ -5,8 +5,8 @@ from typing import List
 from pydantic import BaseModel, Field
 import railtracks as rt
 from railtracks.llm import SystemMessage
-from railtracks.nodes.concrete import TerminalLLM, ToolCallLLM, StructuredLLM
-from railtracks.nodes.easy_usage_wrappers.helpers import tool_call_llm
+from railtracks.builtnodes.concrete import TerminalLLM, ToolCallLLM, StructuredLLM
+from railtracks.builtnodes.easy_usage_wrappers.helpers import tool_call_llm
 from railtracks.nodes.nodes import Node
 
 

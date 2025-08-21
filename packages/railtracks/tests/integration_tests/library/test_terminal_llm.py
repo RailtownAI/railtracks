@@ -3,8 +3,8 @@ import railtracks as rt
 
 from railtracks.llm import MessageHistory, Message
 from railtracks.llm.response import Response
-from railtracks.nodes.concrete import TerminalLLM
-from railtracks.nodes.easy_usage_wrappers.helpers import terminal_llm, tool_call_llm
+from railtracks.builtnodes.concrete import TerminalLLM
+from railtracks.builtnodes.easy_usage_wrappers.helpers import terminal_llm, tool_call_llm
 
 
 # ================================================ START terminal_llm basic functionality =========================================================

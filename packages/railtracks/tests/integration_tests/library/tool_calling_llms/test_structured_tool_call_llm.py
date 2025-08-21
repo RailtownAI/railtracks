@@ -6,7 +6,7 @@ from railtracks.llm.response import Response
 
 from pydantic import BaseModel
 
-from railtracks.nodes.easy_usage_wrappers.helpers import structured_llm, tool_call_llm, structured_tool_call_llm
+from railtracks.builtnodes.easy_usage_wrappers.helpers import structured_llm, structured_tool_call_llm
 
 NODE_INIT_METHODS = ["easy_wrapper", "class_based"]
 

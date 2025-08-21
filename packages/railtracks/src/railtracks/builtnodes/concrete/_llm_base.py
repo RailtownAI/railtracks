@@ -18,6 +18,7 @@ from railtracks.llm import (
     UserMessage,
 )
 from railtracks.llm.response import Response
+from railtracks.nodes.nodes import Node
 from railtracks.prompts.prompt import inject_context
 from railtracks.utils.logging import get_rt_logger
 from railtracks.validation.node_invocation.validation import (
@@ -25,7 +26,6 @@ from railtracks.validation.node_invocation.validation import (
     check_message_history,
 )
 
-from ..nodes import Node
 from .response import StringResponse, StructuredResponse
 
 # Global logger for LLM nodes

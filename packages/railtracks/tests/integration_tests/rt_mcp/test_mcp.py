@@ -3,7 +3,7 @@ import time
 
 import railtracks as rt
 from railtracks.rt_mcp import connect_mcp
-from railtracks.nodes.easy_usage_wrappers.helpers import tool_call_llm
+from railtracks.builtnodes.easy_usage_wrappers.helpers import tool_call_llm
 from railtracks.nodes.nodes import Node
 
 import pytest

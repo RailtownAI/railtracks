@@ -3,7 +3,7 @@ import railtracks as rt
 from typing import List, Callable
 from pydantic import BaseModel, Field
 from railtracks.llm import SystemMessage
-from railtracks.nodes.concrete import ToolCallLLM
+from railtracks.builtnodes.concrete import ToolCallLLM
 
 
 # ============ Model ===========

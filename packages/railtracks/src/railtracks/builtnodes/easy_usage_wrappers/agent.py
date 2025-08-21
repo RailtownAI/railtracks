@@ -3,19 +3,19 @@ from typing import Callable, Iterable, Type, TypeVar, overload
 
 from pydantic import BaseModel
 
-from railtracks.llm.message import SystemMessage
-from railtracks.llm.model import ModelBase
-from railtracks.nodes.manifest import ToolManifest
-from railtracks.nodes.nodes import Node
-from railtracks.nodes.utils import extract_node_from_function
-
-from ..concrete import (
+from railtracks.builtnodes.concrete import (
     RTFunction,
     StructuredLLM,
     StructuredToolCallLLM,
     TerminalLLM,
     ToolCallLLM,
 )
+from railtracks.llm.message import SystemMessage
+from railtracks.llm.model import ModelBase
+from railtracks.nodes.manifest import ToolManifest
+from railtracks.nodes.nodes import Node
+from railtracks.nodes.utils import extract_node_from_function
+
 from .helpers import (
     structured_llm,
     structured_tool_call_llm,

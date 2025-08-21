@@ -26,10 +26,10 @@ from railtracks.llm import (
     ToolResponse,
     UserMessage,
 )
+from railtracks.nodes.nodes import Node
 from railtracks.validation.node_creation.validation import check_connected_nodes
 from railtracks.validation.node_invocation.validation import check_max_tool_calls
 
-from ..nodes import Node
 from ._llm_base import LLMBase
 
 _T = TypeVar("_T")

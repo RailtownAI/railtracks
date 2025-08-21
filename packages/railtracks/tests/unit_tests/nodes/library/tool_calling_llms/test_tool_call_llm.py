@@ -1,11 +1,11 @@
 import pytest
 import railtracks as rt
-from railtracks.nodes.concrete.response import LLMResponse
+from railtracks.builtnodes.concrete.response import LLMResponse
 from railtracks.nodes.nodes import Node
-from railtracks.nodes.easy_usage_wrappers.helpers import tool_call_llm
-from railtracks.nodes.concrete import ToolCallLLM
+from railtracks.builtnodes.easy_usage_wrappers.helpers import tool_call_llm
+from railtracks.builtnodes.concrete import ToolCallLLM
 from railtracks import agent_node
-from railtracks.nodes.concrete import OutputLessToolCallLLM
+from railtracks.builtnodes.concrete import OutputLessToolCallLLM
 from railtracks.exceptions import LLMError, NodeCreationError, NodeInvocationError
 from railtracks.llm import MessageHistory, ToolMessage, SystemMessage, UserMessage, AssistantMessage, ToolCall, ToolResponse, Tool
 # ---- ToolCallLLM tests ----

@@ -2,15 +2,14 @@ from typing import Any, Callable, Iterable, Type, TypeVar, Union
 
 from pydantic import BaseModel
 
+from railtracks.builtnodes._node_builder import NodeBuilder
+from railtracks.builtnodes.concrete import StructuredToolCallLLM
 from railtracks.llm import (
     ModelBase,
     SystemMessage,
 )
 from railtracks.llm.tools import Parameter
-from railtracks.nodes._node_builder import NodeBuilder
-
-from ...concrete import StructuredToolCallLLM
-from ...nodes import Node
+from railtracks.nodes.nodes import Node
 
 _TOutput = TypeVar("_TOutput", bound=BaseModel)
 

@@ -33,7 +33,7 @@ from railtracks.pubsub.messages import (
 from railtracks.pubsub.utils import output_mapping
 
 if TYPE_CHECKING:
-    from railtracks.nodes.concrete import RTFunction
+    from railtracks.builtnodes.concrete import RTFunction
     from railtracks.nodes.nodes import Node
 
 _P = ParamSpec("_P")

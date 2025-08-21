@@ -1,6 +1,6 @@
 from typing import Callable, Coroutine, ParamSpec, Type, TypeVar, overload
 
-from railtracks.nodes.concrete import (
+from railtracks.builtnodes.concrete import (
     AsyncDynamicFunctionNode,
     RTAsyncFunction,
     RTFunction,

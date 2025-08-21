@@ -1,10 +1,9 @@
 import pytest
 import railtracks as rt
 from pydantic import BaseModel
-from railtracks.llm import MessageHistory, SystemMessage, ModelBase, UserMessage, AssistantMessage, ToolMessage, ToolResponse
-from railtracks.llm.response import Response
-from railtracks.nodes.concrete import StructuredLLM
-from railtracks.nodes.easy_usage_wrappers.helpers import structured_llm
+from railtracks.llm import MessageHistory, SystemMessage, UserMessage
+from railtracks.builtnodes.concrete import StructuredLLM
+from railtracks.builtnodes.easy_usage_wrappers.helpers import structured_llm
 from railtracks.exceptions import NodeCreationError, NodeInvocationError
 from typing import Type
 
