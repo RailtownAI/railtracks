@@ -2,8 +2,6 @@ import asyncio
 import time
 
 import railtracks as rt
-from railtracks.rt_mcp import connect_mcp
-from railtracks.nodes.easy_usage_wrappers.helpers import tool_call_llm
 from railtracks.nodes.nodes import Node
 
 import pytest
@@ -41,7 +39,7 @@ def install_mcp_server_time():
 
 
 def test_from_mcp_server_basic():
-    time_server = connect_mcp(
+    time_server = rt.connect_mcp(
         MCPStdioParams(
             command=sys.executable,
             args=["-m", "mcp_server_time", "--local-timezone=America/Vancouver"],
@@ -50,60 +48,6 @@ def test_from_mcp_server_basic():
     assert len(time_server.tools) == 2
     assert all(issubclass(tool, Node) for tool in time_server.tools)
 
-
-def test_from_mcp_server_with_llm():
-    time_server = connect_mcp(
-        MCPStdioParams(
-            command=sys.executable,
-            args=["-m", "mcp_server_time", "--local-timezone=America/Vancouver"],
-        )
-    )
-    parent_tool = tool_call_llm(
-        tool_nodes={*time_server.tools},
-        name="Parent Tool",
-        system_message=(
-            "Provide a response using the tool when asked. If the tool doesn't work,"
-            " respond with 'It didn't work!'"
-        ),
-        llm_model=rt.llm.OpenAILLM("gpt-4o"),
-    )
-
-    # Run the parent tool
-    with rt.Session(
-        logging_setting="NONE", timeout=1000
-    ) as runner:
-        message_history = rt.llm.MessageHistory(
-            [rt.llm.UserMessage("What time is it?")]
-        )
-        response = asyncio.run(rt.call(parent_tool, user_input=message_history))
-
-    assert response is not None
-    assert response.content != "It didn't work!"
-
-
-def test_from_mcp_server_with_http():
-    time_server = connect_mcp(MCPHttpParams(url="https://mcp.deepwiki.com/sse"))
-    parent_tool = tool_call_llm(
-        tool_nodes={*time_server.tools},
-        name="Parent Tool",
-        system_message=(
-            "Provide a response using the tool when asked. If the tool doesn't work,"
-            " respond with 'It didn't work!'"
-        ),
-        llm_model=rt.llm.OpenAILLM("gpt-4o"),
-    )
-
-    # Run the parent tool
-    with rt.Session(
-        logging_setting="NONE", timeout=1000
-    ) as runner:
-        message_history = rt.llm.MessageHistory(
-            [rt.llm.UserMessage("Tell me about the website conductr.ai")]
-        )
-        response = asyncio.run(rt.call(parent_tool, user_input=message_history))
-
-    assert response is not None
-    assert response.content is not "It didn't work!"
 
 
 class MockClient:
@@ -140,11 +84,11 @@ class MockClient:
 async def test_parallel_mcp_servers():
     client = MockClient()
     client2 = MockClient()
-    node1 = connect_mcp(MCPHttpParams(url=""), client).tools[0]
-    node2 = connect_mcp(MCPHttpParams(url=""), client2).tools[1]
+    server1 = rt.connect_mcp(MCPHttpParams(url=""), client).tools[0]
+    server2 = rt.connect_mcp(MCPHttpParams(url=""), client2).tools[1]
 
     start = time.perf_counter()
-    results = await asyncio.gather(rt.call(node1), rt.call(node2))
+    results = await asyncio.gather(rt.call(server1), rt.call(server2))
     elapsed = time.perf_counter() - start
 
     assert all("done" in r for r in results)

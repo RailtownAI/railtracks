@@ -18,6 +18,7 @@ from railtracks.state.node import LinkedNode, NodeForest
 from railtracks.state.request import RequestTemplate
 from railtracks.utils.profiling import Stamp
 from railtracks.state.utils import create_sub_state_info
+from railtracks.llm.response import Response, MessageInfo
 
 def generate_ids(): return RequestTemplate.generate_id()
 
@@ -123,11 +124,35 @@ def test_json_serialization(planner_node, json_state_schema):
     except ValidationError as e:
         raise
 
-def test_json_serialization_2(planner_with_llm_node, json_state_schema):
+def test_json_serialization_2(planner_with_llm_node, json_state_schema, mock_llm):
+    # ============ mock llm config =========
+    async def random_number(messages):
+        if rt.context.get("already_called", False):
+            ret_num = random.randint(0, 2)
+        else:
+            ret_num = random.randint(0, 3)
+
+        rt.context.put("already_called", True)
+        
+        return Response(
+            message=rt.llm.AssistantMessage(content=str(ret_num)),
+            streamer=None,
+            message_info=MessageInfo(
+                input_tokens=42,
+                output_tokens=42,
+                latency=1.42,
+                model_name="mock_model",
+                total_cost=0.00042,
+                system_fingerprint="fp_4242424242",
+            ),
+        )
+
+    model = mock_llm()
+    model._achat = random_number
+    # =======================================
+
     with rt.Session(logging_setting="NONE") as session:
-        rt.call_sync(planner_with_llm_node)
-
-
+        rt.call_sync(planner_with_llm_node, llm_model=model)
 
     try:
         validate(json.loads(session.payload()), json_state_schema)
