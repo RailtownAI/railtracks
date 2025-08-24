@@ -134,7 +134,7 @@ async def test_easy_usage_system_message_as_a_string(simple_output_model):
     Node_Class = rt.agent_node(
         output_schema=simple_output_model,
         system_message="You are a helpful assistant that can structure the response into a structured output.",
-        llm_model=rt.llm.OpenAILLM("gpt-4o"),
+        llm=rt.llm.OpenAILLM("gpt-4o"),
         name="Structured ToolCallLLM",
     )
 
@@ -149,7 +149,7 @@ async def test_system_message_as_a_user_message(simple_output_model):
         _ = rt.agent_node(
             output_schema=simple_output_model,
             system_message=rt.llm.UserMessage("You are a helpful assistant that can structure the response into a structured output."),
-            llm_model=rt.llm.OpenAILLM("gpt-4o"),
+            llm=rt.llm.OpenAILLM("gpt-4o"),
             name="Structured ToolCallLLM",
         )
 # =================== END Easy Usage Node Creation ===================

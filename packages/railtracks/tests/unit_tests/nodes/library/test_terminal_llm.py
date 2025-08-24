@@ -186,7 +186,7 @@ async def test_tool_info_not_classmethod(mock_llm, encoder_system_message):
 async def test_no_message_history_easy_usage(mock_llm):
     simple_agent = rt.agent_node(
             name="Encoder",
-            llm_model=mock_llm(),
+            llm=mock_llm(),
         )
     
     with pytest.raises(NodeInvocationError, match="Message history must contain at least one message"):

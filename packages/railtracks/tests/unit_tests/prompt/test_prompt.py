@@ -16,7 +16,7 @@ def test_prompt_injection(mock_llm):
 
     node = rt.agent_node(
         system_message=prompt,
-        llm_model=model
+        llm=model
     )
 
     with rt.Session(context={"secret": "tomato"}) as runner:
@@ -36,7 +36,7 @@ def test_prompt_injection_bypass(mock_llm):
 
     node = rt.agent_node(
         system_message=prompt,
-        llm_model=model
+        llm=model
     )
 
     with rt.Session(context={"secret_value": "tomato"}) as runner:
@@ -56,7 +56,7 @@ def test_prompt_numerical(mock_llm):
 
     node = rt.agent_node(
         system_message=prompt,
-        llm_model=model
+        llm=model
     )
 
     with rt.Session(context={"1": "tomato"}) as runner:
@@ -76,7 +76,7 @@ def test_prompt_not_in_context(mock_llm):
 
     node = rt.agent_node(
         system_message=prompt,
-        llm_model=model
+        llm=model
     )
 
     with rt.Session() as runner:
@@ -97,7 +97,7 @@ def test_prompt_injection_global_config_bypass(mock_llm):
 
     node = rt.agent_node(
         system_message=prompt,
-        llm_model=model
+        llm=model
     )
 
     with rt.Session(
