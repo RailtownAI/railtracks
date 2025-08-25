@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, AnyStr, Dict, List, Union
+from typing import Any, AnyStr, Dict, List, Union, Generator
 
 from pydantic import BaseModel, Field
 
@@ -42,4 +42,4 @@ class ToolResponse(BaseModel):
         return f"{self.name} -> {self.result}"
 
 
-Content = Union[str, List[ToolCall], ToolResponse, BaseModel]
+Content = Union[str, List[ToolCall], ToolResponse, BaseModel, Generator[str, None, None]]   

@@ -12,9 +12,9 @@ from .._model_exception_base import FunctionCallingNotSupportedError, ModelNotFo
 
 
 class ProviderLLMWrapper(LiteLLMWrapper, ABC):
-    def __init__(self, model_name: str, **kwargs):
+    def __init__(self, model_name: str, stream: bool = False):
         model_name = self._pre_init_provider_check(model_name)
-        super().__init__(model_name=self.full_model_name(model_name), **kwargs)
+        super().__init__(model_name=self.full_model_name(model_name), stream=stream)
 
     def _pre_init_provider_check(self, model_name: str):
         provider_name = self.model_type().lower()

@@ -3,12 +3,12 @@
 # route to a given model.
 ###
 from abc import ABC, abstractmethod
-from typing import Callable, List
+from typing import Callable, List, Union, overload
 
 from pydantic import BaseModel
 
 from .history import MessageHistory
-from .response import Response
+from .response import Response, Stream
 from .tools import Tool
 
 
@@ -25,15 +25,15 @@ class ModelBase(ABC):
     def __init__(
         self,
         __pre_hooks: List[Callable[[MessageHistory], MessageHistory]] | None = None,
-        __post_hooks: List[Callable[[MessageHistory, Response], Response]] | None = None,
-        __exception_hooks: List[Callable[[MessageHistory, Exception], None]]
-        | None = None,
+        __post_hooks: List[Callable[[MessageHistory, Union[Response, Stream]], Union[Response, Stream]]] | None = None,
+        __exception_hooks: List[Callable[[MessageHistory, Exception], None]] | None = None,
+        _stream: bool = False,
     ):
         if __pre_hooks is None:
             pre_hooks: List[Callable[[MessageHistory], MessageHistory]] = []
 
         if __post_hooks is None:
-            post_hooks: List[Callable[[MessageHistory, Response], Response]] = []
+            post_hooks: List[Callable[[MessageHistory, Union[Response, Stream]], Union[Response, Stream]]] = []
 
         if __exception_hooks is None:
             exception_hooks: List[Callable[[MessageHistory, Exception], None]] = []
@@ -41,13 +41,14 @@ class ModelBase(ABC):
         self._pre_hooks = pre_hooks
         self._post_hooks = post_hooks
         self._exception_hooks = exception_hooks
+        self._stream = _stream
 
     def add_pre_hook(self, hook: Callable[[MessageHistory], MessageHistory]) -> None:
         """Adds a pre-hook to modify messages before sending them to the model."""
         self._pre_hooks.append(hook)
 
     def add_post_hook(
-        self, hook: Callable[[MessageHistory, Response], Response]
+        self, hook: Callable[[MessageHistory, Union[Response, Stream]], Union[Response, Stream]]
     ) -> None:
         """Adds a post-hook to modify the response after receiving it from the model."""
         self._post_hooks.append(hook)
@@ -92,8 +93,8 @@ class ModelBase(ABC):
         return message_history
 
     def _run_post_hooks(
-        self, message_history: MessageHistory, result: Response
-    ) -> Response:
+        self, message_history: MessageHistory, result: Union[Response, Stream]
+    ) -> Union[Response, Stream]:
         """Runs all post-hooks on the provided message history and result."""
         for hook in self._post_hooks:
             result = hook(message_history, result)
@@ -106,26 +107,27 @@ class ModelBase(ABC):
         for hook in self._exception_hooks:
             hook(message_history, exception)
 
-    def chat(self, messages: MessageHistory, **kwargs):
+    def chat(self, messages: MessageHistory) -> Union[Response, Stream]:
         """Chat with the model using the provided messages."""
 
         messages = self._run_pre_hooks(messages)
 
         try:
-            response = self._chat(messages, **kwargs)
+            response = self._chat(messages)
         except Exception as e:
             self._run_exception_hooks(messages, e)
             raise e
+        
 
         response = self._run_post_hooks(messages, response)
         return response
 
-    async def achat(self, messages: MessageHistory, **kwargs):
+    async def achat(self, messages: MessageHistory):
         """Asynchronous chat with the model using the provided messages."""
         messages = self._run_pre_hooks(messages)
 
         try:
-            response = await self._achat(messages, **kwargs)
+            response = await self._achat(messages)
         except Exception as e:
             self._run_exception_hooks(messages, e)
             raise e
@@ -134,12 +136,12 @@ class ModelBase(ABC):
 
         return response
 
-    def structured(self, messages: MessageHistory, schema: BaseModel, **kwargs):
+    def structured(self, messages: MessageHistory, schema: BaseModel):
         """Structured interaction with the model using the provided messages and output_schema."""
         messages = self._run_pre_hooks(messages)
 
         try:
-            response = self._structured(messages, schema, **kwargs)
+            response = self._structured(messages, schema)
         except Exception as e:
             self._run_exception_hooks(messages, e)
             raise e
@@ -148,12 +150,12 @@ class ModelBase(ABC):
 
         return response
 
-    async def astructured(self, messages: MessageHistory, schema: BaseModel, **kwargs):
+    async def astructured(self, messages: MessageHistory, schema: BaseModel):
         """Asynchronous structured interaction with the model using the provided messages and output_schema."""
         messages = self._run_pre_hooks(messages)
 
         try:
-            response = await self._astructured(messages, schema, **kwargs)
+            response = await self._astructured(messages, schema)
         except Exception as e:
             self._run_exception_hooks(messages, e)
             raise e
@@ -162,40 +164,12 @@ class ModelBase(ABC):
 
         return response
 
-    def stream_chat(self, messages: MessageHistory, **kwargs):
-        """Stream chat with the model using the provided messages."""
-        messages = self._run_pre_hooks(messages)
-
-        try:
-            response = self._stream_chat(messages, **kwargs)
-        except Exception as e:
-            self._run_exception_hooks(messages, e)
-            raise e
-
-        response = self._run_post_hooks(messages, response)
-
-        return response
-
-    async def astream_chat(self, messages: MessageHistory, **kwargs):
-        """Asynchronous stream chat with the model using the provided messages."""
-        messages = self._run_pre_hooks(messages)
-
-        try:
-            response = await self._astream_chat(messages, **kwargs)
-        except Exception as e:
-            self._run_exception_hooks(messages, e)
-            raise e
-
-        response = self._run_post_hooks(messages, response)
-
-        return response
-
-    def chat_with_tools(self, messages: MessageHistory, tools: List[Tool], **kwargs):
+    def chat_with_tools(self, messages: MessageHistory, tools: List[Tool]):
         """Chat with the model using the provided messages and tools."""
         messages = self._run_pre_hooks(messages)
 
         try:
-            response = self._chat_with_tools(messages, tools, **kwargs)
+            response = self._chat_with_tools(messages, tools)
         except Exception as e:
             self._run_exception_hooks(messages, e)
             raise e
@@ -204,13 +178,13 @@ class ModelBase(ABC):
         return response
 
     async def achat_with_tools(
-        self, messages: MessageHistory, tools: List[Tool], **kwargs
+        self, messages: MessageHistory, tools: List[Tool]
     ):
         """Asynchronous chat with the model using the provided messages and tools."""
         messages = self._run_pre_hooks(messages)
 
         try:
-            response = await self._achat_with_tools(messages, tools, **kwargs)
+            response = await self._achat_with_tools(messages, tools)
         except Exception as e:
             self._run_exception_hooks(messages, e)
             raise e
@@ -220,41 +194,33 @@ class ModelBase(ABC):
         return response
 
     @abstractmethod
-    def _chat(self, messages: MessageHistory, **kwargs) -> Response:
+    def _chat(self, messages: MessageHistory) -> Union[Response, Stream]:
         pass
 
     @abstractmethod
     def _structured(
-        self, messages: MessageHistory, schema: BaseModel, **kwargs
+        self, messages: MessageHistory, schema: BaseModel
     ) -> Response:
-        pass
-
-    @abstractmethod
-    def _stream_chat(self, messages: MessageHistory, **kwargs) -> Response:
         pass
 
     @abstractmethod
     def _chat_with_tools(
-        self, messages: MessageHistory, tools: List[Tool], **kwargs
+        self, messages: MessageHistory, tools: List[Tool]
     ) -> Response:
         pass
 
     @abstractmethod
-    async def _achat(self, messages: MessageHistory, **kwargs) -> Response:
+    async def _achat(self, messages: MessageHistory) -> Response:
         pass
 
     @abstractmethod
     async def _astructured(
-        self, messages: MessageHistory, schema: BaseModel, **kwargs
+        self, messages: MessageHistory, schema: BaseModel
     ) -> Response:
         pass
 
     @abstractmethod
-    async def _astream_chat(self, messages: MessageHistory, **kwargs) -> Response:
-        pass
-
-    @abstractmethod
     async def _achat_with_tools(
-        self, messages: MessageHistory, tools: List[Tool], **kwargs
+        self, messages: MessageHistory, tools: List[Tool]
     ) -> Response:
         pass

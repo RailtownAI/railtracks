@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar
+from typing import Generic, TypeVar, Generator
 
 from pydantic import BaseModel
 
@@ -25,8 +25,24 @@ class LLMResponse(Generic[_T]):
         return f"LLMResponse({self.content})"
 
 
-_TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
+_TGenerator = TypeVar("_TGenerator", bound=Generator)
 
+class StreamedResponse(LLMResponse[_TGenerator]):
+    """
+    A special response object designed to be returned by an LLM node in the RT system.
+    This response object is used to stream the response from the LLM model.
+    """
+    def __init__(self, streamer: _TGenerator, message_history: MessageHistory):
+        super().__init__(streamer, message_history)
+
+    @property
+    def streamer(self) -> _TGenerator:
+        """Returns the streamer that was returned as part of this response."""
+        return self.content
+
+
+
+_TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 
 class StructuredResponse(LLMResponse[_TBaseModel]):
     """

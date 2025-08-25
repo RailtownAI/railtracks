@@ -5,7 +5,7 @@ from railtracks.exceptions import LLMError
 from railtracks.llm import Message, MessageHistory, ModelBase, UserMessage
 
 from ._llm_base import LLMBase, StringOutputMixIn
-from .response import StringResponse
+from .response import StringResponse, StreamedResponse
 
 _T = TypeVar("_T")
 
@@ -53,7 +53,7 @@ class TerminalLLM(StringOutputMixIn, LLMBase[StringResponse]):
             (TerminalLLM.Output): The response message from the llm model
         """
         try:
-            returned_mess = await self.llm_model.achat(self.message_hist)
+            returned_mess = self.llm_model.chat(self.message_hist)
         except Exception as e:
             raise LLMError(
                 reason=f"Exception during llm model chat: {str(e)}",

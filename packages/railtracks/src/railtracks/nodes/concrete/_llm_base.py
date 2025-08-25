@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Dict, Generic, Iterable, Type, TypeVar
+from typing import Any, Dict, Generic, Iterable, Type, TypeVar, Union
 
 from pydantic import BaseModel
 from typing_extensions import Self
@@ -17,7 +17,7 @@ from railtracks.llm import (
     SystemMessage,
     UserMessage,
 )
-from railtracks.llm.response import Response
+from railtracks.llm.response import Response, Stream, MessageInfo
 from railtracks.prompts.prompt import inject_context
 from railtracks.utils.logging import get_rt_logger
 from railtracks.validation.node_invocation.validation import (
@@ -229,23 +229,52 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         """Hook to modify messages before sending them to the llm model."""
         return inject_context(message_history)
 
-    def _post_llm_hook(self, message_history: MessageHistory, response: Response):
+    def _post_llm_hook(self, message_history: MessageHistory, response: Union[Response, Stream]):
         """Hook to store the response details after invoking the llm model."""
-        self._details["llm_details"].append(
-            RequestDetails(
-                message_input=deepcopy(message_history),
-                output=deepcopy(response.message),
-                model_name=response.message_info.model_name
-                if response.message_info.model_name is not None
-                else self.llm_model.model_name(),
-                model_provider=self.llm_model.model_type(),
-                input_tokens=response.message_info.input_tokens,
-                output_tokens=response.message_info.output_tokens,
-                total_cost=response.message_info.total_cost,
-                system_fingerprint=response.message_info.system_fingerprint,
-                latency=response.message_info.latency,
+        if isinstance(response, Response):
+            self._details["llm_details"].append(
+                RequestDetails(
+                    message_input=deepcopy(message_history),
+                    output=deepcopy(response.message),
+                    model_name=response.message_info.model_name
+                    if response.message_info.model_name is not None
+                    else self.llm_model.model_name(),
+                    model_provider=self.llm_model.model_type(),
+                    input_tokens=response.message_info.input_tokens,
+                    output_tokens=response.message_info.output_tokens,
+                    total_cost=response.message_info.total_cost,
+                    system_fingerprint=response.message_info.system_fingerprint,
+                    latency=response.message_info.latency,
+                )
             )
-        )
+        elif isinstance(response, Stream):
+            original_streamer = response.streamer
+            def _hooked_streamer():
+                # Stream all chunks
+                for chunk in original_streamer:
+                    yield chunk
+                
+                # After streaming completes, store the details
+                if response.final_message:
+                    assert isinstance(response.message_info, MessageInfo)
+                    self._details["llm_details"].append(
+                        RequestDetails(
+                            message_input=deepcopy(message_history),
+                            output=response.final_message,  # Use final_message instead of response.message
+                            model_name=response.message_info.model_name
+                            if response.message_info.model_name is not None
+                            else self.llm_model.model_name(),
+                            model_provider=self.llm_model.model_type(),
+                            input_tokens=response.message_info.input_tokens,
+                            output_tokens=response.message_info.output_tokens,
+                            total_cost=response.message_info.total_cost,
+                            system_fingerprint=response.message_info.system_fingerprint,
+                            latency=response.message_info.latency,
+                        )
+                    )
+            
+            # Replace the streamer with the hooked version
+            response._streamer = _hooked_streamer()
 
         return response
 
