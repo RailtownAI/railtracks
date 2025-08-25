@@ -50,8 +50,8 @@ MISSING_TOOL_DETAILS_NOTES:
 
 MODEL_REQUIRED_MSG: "You must provide a model to this node."
 MODEL_REQUIRED_NOTES:
-  - "You can provide the model during the time of node creation using easy_usage_wrappers. Eg:\n_ = rt.library.terminal_llm(..., llm_model=rt.llm.OpenAILLM('gpt-4o'))"
-  - "You can insert the model during the time of node invocation using the 'llm_model' parameter. Eg:\n_ = rt.call(node, llm_model=rt.llm.OpenAILLM('gpt-4o'))"
+  - "You can provide the model during the time of node creation using easy_usage_wrappers. Eg:\n_ = rt.library.terminal_llm(..., llm=rt.llm.OpenAILLM('gpt-4o'))"
+  - "You can insert the model during the time of node invocation using the 'llm' parameter. Eg:\n_ = rt.call(node, llm=rt.llm.OpenAILLM('gpt-4o'))"
 
 OUTPUT_MODEL_EMPTY_MSG: "Output model has no fields defined."
 OUTPUT_MODEL_EMPTY_NOTES:
