@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 
 __all__ = [
     "Session",
+    "session",
     "call",
     "call_sync",
     "broadcast",
@@ -46,6 +47,9 @@ from .interaction import broadcast, call, call_batch, call_sync
 from .nodes.manifest import ToolManifest
 from .rt_mcp import MCPHttpParams, MCPStdioParams, connect_mcp, create_mcp_server
 from .utils.config import ExecutorConfig
+
+# Expose session decorator directly
+session = Session.session
 
 load_dotenv()
 # Only change the MAJOR.MINOR if you need to. Do not change the PATCH. (vMAJOR.MINOR.PATCH).

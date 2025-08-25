@@ -1,4 +1,5 @@
 import railtracks as rt
+import asyncio
 
 
 def example_1():
@@ -20,4 +21,58 @@ def test_multiple_sessions_ids_distinct():
         r2 = rt.call_sync(E2)
 
     assert sess1._identifier != sess2._identifier, "Session identifiers should be distinct"
+
+
+# ================= START Session: Decorator Integration Tests ===============
+
+def test_session_decorator_with_rt_call():
+    """Test session decorator with actual rt.call operations."""
+    @rt.function_node
+    async def async_example():
+        return "async result"
+    
+    @rt.session(timeout=5)
+    async def decorated_function():
+        result = await rt.call(async_example)
+        return result
+    
+    # Run the decorated function
+    result = asyncio.run(decorated_function())
+    assert result == "async result"
+
+def test_session_decorator_with_custom_context():
+    """Test session decorator passes context correctly."""
+    @rt.function_node
+    def context_reader():
+        # This would read from context in real usage
+        return "context accessed"
+    
+    @rt.session(context={"test_key": "test_value"})
+    async def decorated_function():
+        result = await rt.call(context_reader)
+        return result
+    
+    result = asyncio.run(decorated_function())
+    assert result == "context accessed"
+
+def test_session_decorator_timeout_parameter():
+    """Test session decorator respects timeout parameter."""
+    @rt.function_node
+    async def slow_function():
+        await asyncio.sleep(0.1)  # Short delay
+        return "completed"
+    
+    @rt.session(timeout=1)  # Generous timeout
+    async def decorated_function():
+        result = await rt.call(slow_function)
+        return result
+    
+    result = asyncio.run(decorated_function())
+    assert result == "completed"
+
+def test_rt_session_vs_rt_Session_session_equivalence():
+    """Test that rt.session is equivalent to rt.Session.session"""
+    assert rt.session is rt.Session.session
+
+# ================ END Session: Decorator Integration Tests ===============
 
