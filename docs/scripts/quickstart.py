@@ -1,4 +1,5 @@
 # --8<-- [start: setup]
+import asyncio
 import railtracks as rt
 
 #########################################################################
@@ -68,19 +69,14 @@ TextAnalyzer = rt.agent_node(
 )
 # --8<-- [end: setup]
 
-
-# --8<-- [start: synchronous_call]
-result = rt.call_sync(
-    TextAnalyzer,
-    "How many vowels are in Tyrannosaurus?"
-)
-# --8<-- [end: synchronous_call]
-
 # --8<-- [start: async_main]
 async def main():
     result = await rt.call(
         TextAnalyzer,
         "How many vowels are in Tyrannosaurus?"
     )
+    return result
+
+result = asyncio.run(main())
 # --8<-- [end: async_main]
 print(result)

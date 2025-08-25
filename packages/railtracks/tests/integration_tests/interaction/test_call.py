@@ -218,10 +218,6 @@ async def test_no_context_call():
             key="This is a test keyword argument",
         )
 
-
-# below are tests for `call_sync` function
-
-
 def add(x: float, y: float):
     """A simple synchronous function that adds two numbers."""
     return x + y

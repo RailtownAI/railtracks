@@ -42,6 +42,9 @@
             <li>
                     <a class="function" href="#delete">delete</a>
             </li>
+            <li>
+                    <a class="function" href="#keys">keys</a>
+            </li>
     </ul>
 
 
@@ -66,11 +69,12 @@
                         <div class="pdoc-code codehilite"><pre><span></span><span id="L-1"><a href="#L-1"><span class="linenos">1</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.central</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
 </span><span id="L-2"><a href="#L-2"><span class="linenos">2</span></a>    <span class="n">delete</span><span class="p">,</span>
 </span><span id="L-3"><a href="#L-3"><span class="linenos">3</span></a>    <span class="n">get</span><span class="p">,</span>
-</span><span id="L-4"><a href="#L-4"><span class="linenos">4</span></a>    <span class="n">put</span><span class="p">,</span>
-</span><span id="L-5"><a href="#L-5"><span class="linenos">5</span></a>    <span class="n">update</span><span class="p">,</span>
-</span><span id="L-6"><a href="#L-6"><span class="linenos">6</span></a><span class="p">)</span>
-</span><span id="L-7"><a href="#L-7"><span class="linenos">7</span></a>
-</span><span id="L-8"><a href="#L-8"><span class="linenos">8</span></a><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;put&quot;</span><span class="p">,</span> <span class="s2">&quot;get&quot;</span><span class="p">,</span> <span class="s2">&quot;update&quot;</span><span class="p">,</span> <span class="s2">&quot;delete&quot;</span><span class="p">]</span>
+</span><span id="L-4"><a href="#L-4"><span class="linenos">4</span></a>    <span class="n">keys</span><span class="p">,</span>
+</span><span id="L-5"><a href="#L-5"><span class="linenos">5</span></a>    <span class="n">put</span><span class="p">,</span>
+</span><span id="L-6"><a href="#L-6"><span class="linenos">6</span></a>    <span class="n">update</span><span class="p">,</span>
+</span><span id="L-7"><a href="#L-7"><span class="linenos">7</span></a><span class="p">)</span>
+</span><span id="L-8"><a href="#L-8"><span class="linenos">8</span></a>
+</span><span id="L-9"><a href="#L-9"><span class="linenos">9</span></a><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;put&quot;</span><span class="p">,</span> <span class="s2">&quot;get&quot;</span><span class="p">,</span> <span class="s2">&quot;update&quot;</span><span class="p">,</span> <span class="s2">&quot;delete&quot;</span><span class="p">,</span> <span class="s2">&quot;keys&quot;</span><span class="p">]</span>
 </span></pre></div>
 
 
@@ -222,6 +226,37 @@ Returns:
 
 <p>Raises:
     KeyError: If the key does not exist.</p>
+</div>
+
+
+                </section>
+                <section id="keys">
+                            <input id="keys-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+            
+        <span class="def">def</span>
+        <span class="name">keys</span><span class="signature pdoc-code condensed">(<span class="return-annotation">) -> <span class="n">KeysView</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>:</span></span>
+
+                <label class="view-source-button" for="keys-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#keys"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="keys-324"><a href="#keys-324"><span class="linenos">324</span></a><span class="k">def</span><span class="w"> </span><span class="nf">keys</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">KeysView</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+</span><span id="keys-325"><a href="#keys-325"><span class="linenos">325</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="keys-326"><a href="#keys-326"><span class="linenos">326</span></a><span class="sd">    Get the keys of the context.</span>
+</span><span id="keys-327"><a href="#keys-327"><span class="linenos">327</span></a>
+</span><span id="keys-328"><a href="#keys-328"><span class="linenos">328</span></a><span class="sd">    Returns:</span>
+</span><span id="keys-329"><a href="#keys-329"><span class="linenos">329</span></a><span class="sd">        KeysView[str]: The keys in the context.</span>
+</span><span id="keys-330"><a href="#keys-330"><span class="linenos">330</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="keys-331"><a href="#keys-331"><span class="linenos">331</span></a>    <span class="n">context</span> <span class="o">=</span> <span class="n">safe_get_runner_context</span><span class="p">()</span>
+</span><span id="keys-332"><a href="#keys-332"><span class="linenos">332</span></a>    <span class="k">return</span> <span class="n">context</span><span class="o">.</span><span class="n">external_context</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+</span></pre></div>
+
+
+            <div class="docstring"><p>Get the keys of the context.</p>
+
+<p>Returns:
+    KeysView[str]: The keys in the context.</p>
 </div>
 
 

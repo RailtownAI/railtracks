@@ -70,7 +70,7 @@ class Session:
     import railtracks as rt
 
     with rt.Session() as run:
-        result = rt.call_sync(rt.nodes.NodeA, "Hello World")
+        result = await rt.call(rt.nodes.NodeA, "Hello World")
     ```
     """
 

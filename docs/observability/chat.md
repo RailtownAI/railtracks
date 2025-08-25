@@ -43,7 +43,7 @@ ChatBot = rt.chatui_node(
 )
 
 with rt.Session(timeout=600) as session:
-    resp = rt.call_sync(
+    resp = await rt.call(
         ChatBot,
         rt.llm.MessageHistory(),
     )

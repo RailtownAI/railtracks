@@ -7,9 +7,7 @@ from typing import (
     Callable,
     Coroutine,
     ParamSpec,
-    Type,
     TypeVar,
-    Union,
     overload,
 )
 from uuid import uuid4
