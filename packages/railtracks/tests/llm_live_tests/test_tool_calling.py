@@ -4,8 +4,9 @@ import railtracks as rt
 from pydantic import BaseModel, Field
 from typing import Optional
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize("llm", llm_map.values(), ids=llm_map.keys())
-def test_function_as_tool(llm):
+async def test_function_as_tool(llm):
     """Test that a function with a single tool call works correctly."""
 
     def magic_number(input_num: int):
@@ -33,14 +34,14 @@ def test_function_as_tool(llm):
     )
 
     with rt.Session(logging_setting="NONE"):
-        response = rt.call_sync(agent, user_input="First find the magic number for 4. Then use the magic_operator with `x` as the result from magic_number and `y` as 3. Return the result from the magic_operator.")
+        response = await rt.call(agent, user_input="First find the magic number for 4. Then use the magic_operator with `x` as the result from magic_number and `y` as 3. Return the result from the magic_operator.")
         assert '15' in response.content
         assert rt.context.get("magic_number_called")
         assert rt.context.get("magic_operator_called")
 
-
+@pytest.mark.asyncio
 @pytest.mark.parametrize("llm", llm_map.values(), ids=llm_map.keys())
-def test_realistic_scenario(llm):
+async def test_realistic_scenario(llm):
     """Test that a function with a realistic scenario works correctly."""
 
     class StaffDirectory(BaseModel):
@@ -78,7 +79,7 @@ def test_realistic_scenario(llm):
     )
 
     with rt.Session(logging_setting="NONE"):
-        response = rt.call_sync(
+        await rt.call(
             agent, rt.llm.MessageHistory([rt.llm.UserMessage(usr_prompt)])
         )
         assert rt.context.get("staff_directory_updated")
@@ -89,9 +90,9 @@ def test_realistic_scenario(llm):
     assert DB["Jane"]["role"] == "Developer"
     assert DB["Jane"]["phone"] == "0987654321"
     
-
+@pytest.mark.asyncio
 @pytest.mark.parametrize("llm", llm_map.values(), ids=llm_map.keys())
-def test_agents_as_tools(llm):
+async def test_agents_as_tools(llm):
     """Test that an agent using other agnets as tools works correctly."""
 
     def secret_phrase(id: int):
@@ -140,7 +141,7 @@ def test_agents_as_tools(llm):
     with rt.Session(
         logging_setting="NONE", timeout=100
     ):
-        response = rt.call_sync(
+        response = await rt.call(
             parent_tool, user_input="Get me the secret phrase for id `1`."
         )
         assert rt.context.get("secret_phrase_called")
