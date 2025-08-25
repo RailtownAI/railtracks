@@ -49,7 +49,7 @@ class StructuredLLM(
             llm_model (ModelBase | None, optional): The LLM model to use. Defaults to None.
 
         """
-        super().__init__(llm_model=llm_model, user_input=user_input)
+        super().__init__(llm=llm_model, user_input=user_input)
 
     @classmethod
     def name(cls) -> str:

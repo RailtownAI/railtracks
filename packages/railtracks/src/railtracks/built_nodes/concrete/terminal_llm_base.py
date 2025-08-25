@@ -40,7 +40,7 @@ class TerminalLLM(StringOutputMixIn, LLMBase[StringResponse]):
         user_input: MessageHistory | UserMessage | str | list[Message],
         llm_model: ModelBase | None = None,
     ):
-        super().__init__(llm_model=llm_model, user_input=user_input)
+        super().__init__(llm=llm_model, user_input=user_input)
 
     @classmethod
     def name(cls) -> str:
