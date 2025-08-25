@@ -53,10 +53,10 @@ async def test_terminal_llm(llm):
 
     with rt.Session(logging_setting="NONE"):
         response = await rt.call(
-            terminal_node, user_input="Please reverse 'mississippi'."
+            terminal_node, user_input="Please reverse '12345'."
         )
 
-        assert 'ippississim' in response.content
+        assert '54321' in response.content
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("llm", llm_map.values(), ids=llm_map.keys())
