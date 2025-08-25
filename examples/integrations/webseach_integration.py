@@ -79,7 +79,7 @@ tools = fetch_mcp_tools + [google_search]
 agent = rt.agent_node(
     tool_nodes={*tools},
     system_message="""You are an infomation gathering agent that can search the web.""",
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
     max_tool_calls=10,
 )
 

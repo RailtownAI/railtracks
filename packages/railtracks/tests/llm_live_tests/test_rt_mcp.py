@@ -21,7 +21,7 @@ def test_from_mcp_server_with_llm():
             "Provide a response using the tool when asked. If the tool doesn't work,"
             " respond with 'It didn't work!'"
         ),
-        llm_model=rt.llm.OpenAILLM("gpt-4o"),
+        llm=rt.llm.OpenAILLM("gpt-4o"),
     )
 
     # Run the parent tool
@@ -46,7 +46,7 @@ def test_from_mcp_server_with_http():
             "Provide a response using the tool when asked. If the tool doesn't work,"
             " respond with 'It didn't work!'"
         ),
-        llm_model=rt.llm.OpenAILLM("gpt-4o"),
+        llm=rt.llm.OpenAILLM("gpt-4o"),
     )
 
     # Run the parent tool

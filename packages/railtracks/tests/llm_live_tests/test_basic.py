@@ -47,7 +47,7 @@ def test_terminal_llm(llm):
     terminal_node = rt.agent_node(
         name="Terminal Node",
         system_message="You are a helpful assistant reverses the input string.",
-        llm_model=llm,
+        llm=llm,
     )
 
     with rt.Session(logging_setting="NONE"):
@@ -67,7 +67,7 @@ def test_structured_llm(llm, test_case):
         output_schema=test_case["schema"],
         name="Structured Node",
         system_message="You are a helpful assistant that extracts information into structured format.",
-        llm_model=llm,
+        llm=llm,
     )
 
     with rt.Session(logging_setting="NONE"):

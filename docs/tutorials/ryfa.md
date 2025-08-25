@@ -43,7 +43,7 @@ To begin you just have to use **`call`** for asynchronous contexts or **`call_sy
 
 !!! info "Dynamic Runtime Configuration"
 
-    If you pass `llm_model` to `agent_node` and then a different llm model to either `call` or `call_sync` functions, RailTracks will use the latter one. If you pass `system_message` to `agent_node` and then another `system_message` to either `call` or `call_sync`, the system messages will be stacked.
+    If you pass `llm` to `agent_node` and then a different llm model to either `call` or `call_sync` functions, RailTracks will use the latter one. If you pass `system_message` to `agent_node` and then another `system_message` to either `call` or `call_sync`, the system messages will be stacked.
 
     ??? example
         ```python

@@ -124,7 +124,7 @@ def agent_node(
                 tool_nodes=unpacked_tool_nodes,
                 output_schema=output_schema,
                 name=name,
-                llm_model=llm,
+                llm=llm,
                 max_tool_calls=max_tool_calls,
                 system_message=system_message,
                 tool_details=tool_details,
@@ -134,7 +134,7 @@ def agent_node(
             return tool_call_llm(
                 tool_nodes=unpacked_tool_nodes,
                 name=name,
-                llm_model=llm,
+                llm=llm,
                 max_tool_calls=max_tool_calls,
                 system_message=system_message,
                 tool_details=tool_details,
@@ -145,7 +145,7 @@ def agent_node(
             return structured_llm(
                 output_schema=output_schema,
                 name=name,
-                llm_model=llm,
+                llm=llm,
                 system_message=system_message,
                 tool_details=tool_details,
                 tool_params=tool_params,
@@ -153,7 +153,7 @@ def agent_node(
         else:
             return terminal_llm(
                 name=name,
-                llm_model=llm,
+                llm=llm,
                 system_message=system_message,
                 tool_details=tool_details,
                 tool_params=tool_params,

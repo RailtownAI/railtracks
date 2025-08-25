@@ -165,17 +165,17 @@ def terminal_nodes(mock_llm, terminal_llms_system_messages):
     """
     system_rng, system_rng_operation, system_math_genius = terminal_llms_system_messages
     rng_node = rt.agent_node(
-        name="RNG Node", system_message=system_rng, llm_model=mock_llm()
+        name="RNG Node", system_message=system_rng, llm=mock_llm()
     )
     rng_operation_node = rt.agent_node(
         name="RNG Operation Node",
         system_message=system_rng_operation,
-        llm_model=mock_llm(),
+        llm=mock_llm(),
     )
     math_detective_node = rt.agent_node(
         name="Math Detective Node",
         system_message=system_math_genius,
-        llm_model=mock_llm(),
+        llm=mock_llm(),
     )
 
     return rng_node, rng_operation_node, math_detective_node
@@ -207,13 +207,13 @@ def structured_nodes(mock_llm, structured_llms_system_messages):
         name="Math Undergraduate Student Node",
         output_schema=ProofModel,
         system_message=system_undergrad_student,
-        llm_model=mock_llm(math_undergrad_response),
+        llm=mock_llm(math_undergrad_response),
     )
     math_professor_node = rt.agent_node(
         name="Math Professor Node",
         output_schema=GradingSchema,
         system_message=system_professor,
-        llm_model=mock_llm(math_professor_response),
+        llm=mock_llm(math_professor_response),
     )
 
     return math_undergrad_student_node, math_professor_node
@@ -243,13 +243,13 @@ def tool_calling_nodes(
         tool_nodes={AvailableCurrencies, ConvertCurrency},
         name="Currency Converter Node",
         system_message=system_currency_converter,
-        llm_model=mock_llm(),
+        llm=mock_llm(),
     )
     travel_planner_node = rt.agent_node(
         tool_nodes={AvailableLocations, CurrencyUsed, AverageLocationCost},
         name="Travel Planner Node",
         system_message=system_travel_planner,
-        llm_model=mock_llm(),
+        llm=mock_llm(),
     )
 
     return currency_converter_node, travel_planner_node

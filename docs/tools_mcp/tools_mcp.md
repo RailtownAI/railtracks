@@ -55,7 +55,7 @@ Agent = rt.agent_node(
     tool_nodes=tools,
     name="Research Agent",
     system_message="Use the tools to find information.",
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
 )
 
 # Run the agent

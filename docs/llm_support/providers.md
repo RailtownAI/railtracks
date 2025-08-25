@@ -104,7 +104,7 @@ Take a look at the examples below to see how using different providers look for 
 
 ```python
 GeneralAgent = rt.agent_node(
-    llm_model=model,
+    llm=model,
     system_message="You are a general-purpose AI assistant."
 )
 ```

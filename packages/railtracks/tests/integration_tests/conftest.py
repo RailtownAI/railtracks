@@ -110,7 +110,7 @@ TLLMNode = rt.agent_node(
 )
 
 @rt.function_node
-async def planner_with_llm(llm_model: rt.llm.ModelBase):
+async def planner_with_llm(llm: rt.llm.ModelBase):
     cities = []
     available_cities = ["New York", "Chicago", "Los Angeles", "Houston"]
     while True:
@@ -118,7 +118,7 @@ async def planner_with_llm(llm_model: rt.llm.ModelBase):
         result = await rt.call(
             TLLMNode, 
             user_input=f"Choose a Random city from {available_cities} and give me the index of the city only. Nothing else.",
-            llm_model=llm_model,
+            llm=llm,
         )  # we will make the mock_llm return a random integer between 0 and 3 to simulate the random choice
 
         city = available_cities[int(result.text)]

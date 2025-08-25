@@ -26,7 +26,7 @@ def weather_tool(city: str):
 # --8<-- [start: first_agent]
 WeatherAgent = rt.agent_node(
     name="Weather Agent",
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
     system_message="You are a helpful assistant that answers weather-related questions.",
     tool_nodes=[rt.function_node(weather_tool)],
     output_schema=WeatherResponse,
@@ -61,7 +61,7 @@ user_message = rt.llm.UserMessage(
 response = rt.call_sync(
     WeatherAgent,
     user_input=rt.llm.MessageHistory([system_message, user_message]),
-    llm_model=rt.llm.AnthropicLLM("claude-3-5-sonnet-20241022"),
+    llm=rt.llm.AnthropicLLM("claude-3-5-sonnet-20241022"),
 )
 # --8<-- [end: dynamic_prompts]
 print(response.structured.temperature)

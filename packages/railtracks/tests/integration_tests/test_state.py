@@ -152,7 +152,7 @@ def test_json_serialization_2(planner_with_llm_node, json_state_schema, mock_llm
     # =======================================
 
     with rt.Session(logging_setting="NONE") as session:
-        rt.call_sync(planner_with_llm_node, llm_model=model)
+        rt.call_sync(planner_with_llm_node, llm=model)
 
     try:
         validate(json.loads(session.payload()), json_state_schema)

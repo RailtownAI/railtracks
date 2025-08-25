@@ -29,7 +29,7 @@ def test_function_as_tool(llm):
         tool_nodes={rt.function_node(magic_number), rt.function_node(magic_operator)},
         name="Magic Number Agent",
         system_message="You are a helpful assistant that can call the tools available to you to answer user queries",
-        llm_model=llm,
+        llm=llm,
     )
 
     with rt.Session(logging_setting="NONE"):
@@ -74,7 +74,7 @@ def test_realistic_scenario(llm):
         tool_nodes={update_staff_directory},
         name="Staff Directory Agent",
         system_message="You are a helpful assistant that can call the tools available to you to answer user queries",
-        llm_model=llm,
+        llm=llm,
     )
 
     with rt.Session(logging_setting="NONE"):
@@ -123,7 +123,7 @@ def test_agents_as_tools(llm):
                 )
             ]
         ),
-        llm_model=llm,
+        llm=llm,
     )
 
     # Define the parent tool that uses the child tool
@@ -133,7 +133,7 @@ def test_agents_as_tools(llm):
         system_message=rt.llm.SystemMessage(
             "You are a helpful assistant that can call the tools available to you to answer user queries"
         ),
-        llm_model=llm,
+        llm=llm,
     )
 
     # Run the parent tool

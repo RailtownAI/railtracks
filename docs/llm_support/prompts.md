@@ -13,7 +13,7 @@ from railtracks.llm import OpenAILLM
 encoder_agent = rt.agent_node(
     name="Encoder",
     system_message="You are an encoder that converts text to base64 encoding.",
-    llm_model=OpenAILLM("gpt-4o"),
+    llm=OpenAILLM("gpt-4o"),
 )
 ```
 
@@ -46,7 +46,7 @@ system_message = "You are a {role} assistant specialized in {domain}."
 assistant = rt.agent_node(
     name="Assistant",
     system_message=system_message,
-    llm_model=OpenAILLM("gpt-4o"),
+    llm=OpenAILLM("gpt-4o"),
 )
 
 # Run with context values
@@ -68,7 +68,7 @@ from railtracks.llm import MessageHistory, UserMessage
 my_node = rt.agent_node(
     name="Example",
     system_message="You are a {variable} assistant.",
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
 )
 
 # Disable context injection for a specific run
@@ -137,7 +137,7 @@ The user's name is {user_name}."""
 assistant = rt.agent_node(
     name="Dynamic Assistant",
     system_message=template,
-    llm_model=OpenAILLM("gpt-4o"),
+    llm=OpenAILLM("gpt-4o"),
 )
 
 # Different context for different scenarios

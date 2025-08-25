@@ -32,7 +32,7 @@ You are a helpful agent that can analyze images and answer questions about them.
 ChatBot = rt.chatui_node(
     port=5000,
     auto_open=True,
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
     pretty_name="ChatBot",
     system_message=rt.llm.SystemMessage(
         INSTRUCTION

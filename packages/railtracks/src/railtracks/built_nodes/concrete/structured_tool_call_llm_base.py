@@ -59,7 +59,7 @@ class StructuredToolCallLLM(
             cls.structured_resp_node = structured_llm(
                 cls.output_schema(),
                 system_message=system_structured,
-                llm_model=cls.get_llm_model(),
+                llm=cls.get_llm_model(),
             )
 
         super().__init_subclass__()

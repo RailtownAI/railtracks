@@ -44,7 +44,7 @@ def test_init_with_name_and_return_into(dummy_node_class):
 
 def test_llm_base_overrides_model_and_system_message(patch_llm_base, dummy_system_message):
     builder = NodeBuilder(patch_llm_base)
-    builder.llm_base(llm_model="MODEL", system_message=dummy_system_message)
+    builder.llm_base(llm="MODEL", system_message=dummy_system_message)
     klass = builder.build()
     # The 'get_llm_model' and 'system_message' should be set as class methods
     assert klass.get_llm_model() == "MODEL"

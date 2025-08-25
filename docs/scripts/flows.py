@@ -24,7 +24,7 @@ description="A tool you can call to see what the weather in a specified city",
 #As before, we will create our Weather Agent with the additional tool manifest so that other agents know how to use it
 WeatherAgent = rt.agent_node(
     name="Weather Agent",
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
     system_message="You are a helpful assistant that answers weather-related questions.",
     tool_nodes=[rt.function_node(weather_tool)],
     output_schema=WeatherResponse,
@@ -34,7 +34,7 @@ WeatherAgent = rt.agent_node(
 #Now lets create a hiking planner agent
 HikingAgent = rt.agent_node(
     name="Hiking Agent",
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
     system_message="You are a helpful assistant that answers questions about which cities have the best conditions for hiking. The user should specify multiple cities near them.",
     tool_nodes=[WeatherAgent],
 )
@@ -82,7 +82,7 @@ CoordinatorMessage = """You are a helpful assistant that will talk to users abou
 coding_agent = rt.agent_node(
     name="Code Tool",
     system_message=CodingMessage,
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
     )
 
 #Wrap our Validation and file writing flow in a function
@@ -106,7 +106,7 @@ tool_nodes = {rt.function_node(CodeAgent, tool_manifest=CodeManifest)}
 CoordinatorAgent = rt.chatui_node(
     system_message=CoordinatorMessage,
     tool_nodes=tool_nodes,
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
     )
 
 rt.call_sync(
@@ -187,7 +187,7 @@ tools = {rt.function_node(BillingTool), rt.function_node(TechnicalTool), rt.func
 Coordinator = rt.agent_node(
     name="Coordinator Agent",
     tool_nodes=tools,
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
     system_message=CoordinatorMessage,
 )
 

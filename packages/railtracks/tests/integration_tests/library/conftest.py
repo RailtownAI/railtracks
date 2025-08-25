@@ -40,7 +40,7 @@ def _agent_node_factory():
             system_message=SystemMessage(
                 f"You are a test node for the function {test_function.__name__}"
             ),
-            llm_model=llm,
+            llm=llm,
             tool_nodes={rt.function_node(test_function)},
         )
 

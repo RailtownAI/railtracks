@@ -78,7 +78,7 @@ def comment_on_issue(comment: str):
 # Define the agent with the tool
 GitHubAgent = agent_node(
     tool_nodes=[find_issue, comment_on_issue],
-    llm_model=OpenAILLM("gpt-4o"),
+    llm=OpenAILLM("gpt-4o"),
     system_message="You are an agent that provides information based on important facts.",
 )
 
@@ -106,7 +106,7 @@ system_message = "You are a {assistant_type} assistant. The user's name is {user
 assistant = rt.agent_node(
     name="Assistant",
     system_message=system_message,
-    llm_model=OpenAILLM("gpt-4o"),
+    llm=OpenAILLM("gpt-4o"),
 )
 
 # Run with context values
