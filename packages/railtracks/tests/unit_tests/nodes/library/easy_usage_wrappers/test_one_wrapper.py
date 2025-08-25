@@ -15,7 +15,7 @@ def test_create_new_agent_terminal():
     TerminalAgent = agent_node("Terminal_LLM", llm=model, system_message=system_message_text)
 
     assert issubclass(TerminalAgent, TerminalLLM)
-    assert TerminalAgent.get_llm_model() == model
+    assert TerminalAgent.get_llm() == model
     assert TerminalAgent.system_message().content == system_message_text
     assert TerminalAgent.name() == "Terminal_LLM"
 

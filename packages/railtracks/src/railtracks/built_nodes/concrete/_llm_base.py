@@ -120,7 +120,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
                 else self.system_message(),
             )
 
-        instance_injected_llm_model = self.get_llm_model()
+        instance_injected_llm_model = self.get_llm()
 
         if instance_injected_llm_model is not None:
             if llm is not None:
@@ -206,7 +206,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         check_llm_model(llm)
 
     @classmethod
-    def get_llm_model(cls) -> ModelBase | None:
+    def get_llm(cls) -> ModelBase | None:
         return None
 
     @classmethod

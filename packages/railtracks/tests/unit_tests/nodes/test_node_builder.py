@@ -47,7 +47,7 @@ def test_llm_base_overrides_model_and_system_message(patch_llm_base, dummy_syste
     builder.llm_base(llm="MODEL", system_message=dummy_system_message)
     klass = builder.build()
     # The 'get_llm_model' and 'system_message' should be set as class methods
-    assert klass.get_llm_model() == "MODEL"
+    assert klass.get_llm() == "MODEL"
     assert klass.system_message().content == "DummySystemMessage"
 
 def test_structured_sets_output_schema(dummy_node_class):
