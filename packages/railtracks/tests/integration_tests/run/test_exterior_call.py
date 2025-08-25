@@ -1,13 +1,12 @@
-import railtracks as rt
-import random
-import pytest
-import time
 import asyncio
 import concurrent.futures
+import random
+import time
 
+import pytest
+import railtracks as rt
 import railtracks.context.central
 import railtracks.interaction.broadcast_
-from railtracks import ExecutorConfig
 
 RNGNode = rt.function_node(random.random)
 
@@ -38,50 +37,39 @@ async def test_runner_call_with_context():
         response = await rt.call(RNGNode)
         assert isinstance(response, float), "Expected a float result from RNGNode"
         info = run.info
-        assert (
-            info.answer == response
-        ), "Expected the answer to be the same as the response"
+        assert info.answer == response, (
+            "Expected the answer to be the same as the response"
+        )
 
 
 async def logging_config_test_async():
     async def run_with_logging_config(log_setting):
-        railtracks.context.central.set_config(
-            end_on_error=True
-        )
+        railtracks.context.central.set_config(end_on_error=True)
         with pytest.raises(Exception):
-            resp = await rt.call(ExceptionNode)
-
+            await rt.call(ExceptionNode)
 
     async def run_with_logging_config_w_context(log_setting):
         railtracks.context.central.set_config(end_on_error=False)
-        railtracks.context.central.set_config(
-            logging_setting=log_setting
-        )
-        with rt.Session() as run:
+        railtracks.context.central.set_config(logging_setting=log_setting)
+        with rt.Session() as session:
             info = await rt.call(RNGNode)
-            runner = run
-            assert run == runner
-            assert runner.rt_state.executor_config.logging_setting == log_setting
-            assert runner.rt_state.executor_config.end_on_error == False
+
+            assert session.rt_state.executor_config.logging_setting == log_setting
+            assert not session.rt_state.executor_config.end_on_error
 
         response = info
         assert isinstance(response, float), "Expected a float result from RNGNode"
         assert 0 < response < 1, "Expected a float result from RNGNode"
-        assert (
-            info == response
-        ), "Expected the answer to be the same as the response"
+        assert info == response, "Expected the answer to be the same as the response"
 
     async def run_with_logging_config_w_context_w_call(log_setting):
-        railtracks.context.central.set_config(
-            logging_setting=log_setting
-        )
-        with rt.Session() as run:
+        railtracks.context.central.set_config(logging_setting=log_setting)
+        with rt.Session() as session:
             resp = await rt.call(RNGNode)
-            info = run.info
-            runner = run
-            assert run == runner
-            assert runner.rt_state.executor_config.logging_setting == log_setting
-            assert runner.rt_state.executor_config.end_on_error == False
+            info = session.info
+
+            assert session.rt_state.executor_config.logging_setting == log_setting
+            assert not session.rt_state.executor_config.end_on_error
 
         assert isinstance(resp, float), "Expected a float result from RNGNode"
         assert 0 < resp < 1, "Expected a float result from RNGNode"
@@ -114,23 +102,22 @@ async def test_different_config_local_set_async():
 
 
 def logging_config_test_threads():
-    def run_with_logging_config_w_context(log_setting):
-        railtracks.context.central.set_config(
-            logging_setting=log_setting
-        )
-        with rt.Session() as run:
-            response = rt.call_sync(RNGNode)
-            runner = run
-            assert runner.rt_state.executor_config.logging_setting == log_setting
-            assert runner.rt_state.executor_config.end_on_error == False
+    async def run_with_logging_config_w_context(log_setting):
+        railtracks.context.central.set_config(logging_setting=log_setting)
+        with rt.Session() as session:
+            response = await rt.call(RNGNode)
+            assert session.rt_state.executor_config.logging_setting == log_setting
+            assert not session.rt_state.executor_config.end_on_error
 
         assert isinstance(response, float), "Expected a float result from RNGNode"
         assert 0 < response < 1, "Expected a float result from RNGNode"
-
-
+    
+    def run_with_logging_config(log_setting):
+        asyncio.run(run_with_logging_config_w_context(log_setting))
+    
     with concurrent.futures.ThreadPoolExecutor() as executor:
         executor.map(
-            run_with_logging_config_w_context, ["VERBOSE", "QUIET", "REGULAR", "NONE"]
+            run_with_logging_config, ["VERBOSE", "QUIET", "REGULAR", "NONE"]
         )
 
 
@@ -138,43 +125,36 @@ def test_threads_config():
     logging_config_test_threads()
 
 
-def test_sequence_of_changes():
+async def test_sequence_of_changes():
     railtracks.context.central.set_config(end_on_error=True)
     railtracks.context.central.set_config(end_on_error=False)
-    railtracks.context.central.set_config(
-        end_on_error=True, logging_setting="NONE"
-    )
-    with rt.Session() as run:
-        response = rt.call_sync(RNGNode)
-        assert run.rt_state.executor_config.end_on_error
-        assert run.rt_state.executor_config.logging_setting == "NONE"
-        assert response == run.info.answer
+    railtracks.context.central.set_config(end_on_error=True, logging_setting="NONE")
+    with rt.Session() as session:
+        response = await rt.call(RNGNode)
+        assert session.rt_state.executor_config.end_on_error
+        assert session.rt_state.executor_config.logging_setting == "NONE"
+        assert response == session.info.answer
 
 
-def test_sequence_of_changes_overwrite():
+async def test_sequence_of_changes_overwrite():
     railtracks.context.central.set_config(end_on_error=True)
     railtracks.context.central.set_config(end_on_error=False)
-    with rt.Session(
-        end_on_error=True, logging_setting="NONE"
-    ) as run:
-        response = rt.call_sync(RNGNode)
-        assert run.rt_state.executor_config.end_on_error
-        assert run.rt_state.executor_config.logging_setting == "NONE"
-        assert response == run.info.answer
+    with rt.Session(end_on_error=True, logging_setting="NONE") as session:
+        response = await rt.call(RNGNode)
+        assert session.rt_state.executor_config.end_on_error
+        assert session.rt_state.executor_config.logging_setting == "NONE"
+        assert response == session.info.answer
+
 
 def test_back_to_defaults():
     rt.set_config(end_on_error=True, logging_setting="REGULAR")
-    with rt.Session(
-        end_on_error=True, logging_setting="NONE"
-    ) as run:
+    with rt.Session(end_on_error=True, logging_setting="NONE") as run:
         assert run.rt_state.executor_config.end_on_error
         assert run.rt_state.executor_config.logging_setting == "NONE"
 
     with rt.Session() as run:
         assert run.rt_state.executor_config.end_on_error
         assert run.rt_state.executor_config.logging_setting == "REGULAR"
-
-
 
 
 message = "Hello, World!"
@@ -196,12 +176,12 @@ class StreamHandler:
 StreamingNode = rt.function_node(streaming_func)
 
 
-def test_streaming_inserted_globally():
+async def test_streaming_inserted_globally():
     handler = StreamHandler()
 
     railtracks.context.central.set_config(broadcast_callback=handler.handle)
-    with rt.Session() as run:
-        result = rt.call_sync(StreamingNode)
+    with rt.Session():
+        result = await rt.call(StreamingNode)
         assert result is None
 
     sleep(0.1)
@@ -209,11 +189,11 @@ def test_streaming_inserted_globally():
     assert handler.message[0] == message
 
 
-def test_streaming_inserted_locally():
+async def test_streaming_inserted_locally():
     handler = StreamHandler()
 
-    with rt.Session(broadcast_callback=handler.handle) as run:
-        result = rt.call_sync(StreamingNode)
+    with rt.Session(broadcast_callback=handler.handle):
+        result = await rt.call(StreamingNode)
         assert result is None
 
     sleep(0.1)
@@ -225,12 +205,12 @@ def fake_handler(item: str) -> None:
     raise Exception("This is a fake handler")
 
 
-def test_streaming_overwrite():
+async def test_streaming_overwrite():
     handler = StreamHandler()
 
     railtracks.context.central.set_config(broadcast_callback=fake_handler)
-    with rt.Session(broadcast_callback=handler.handle) as run:
-        result = rt.call_sync(StreamingNode)
+    with rt.Session(broadcast_callback=handler.handle):
+        result = await rt.call(StreamingNode)
         assert result is None
 
     sleep(0.1)
