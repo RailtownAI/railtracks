@@ -7,9 +7,7 @@ from typing import (
     Callable,
     Coroutine,
     ParamSpec,
-    Type,
     TypeVar,
-    Union,
     overload,
 )
 from uuid import uuid4
@@ -226,73 +224,3 @@ async def _execute(
     )
 
     return await f
-
-
-@overload
-def call_sync(
-    node_: Callable[_P, Node[_TOutput]],
-    *args: _P.args,
-    **kwargs: _P.kwargs,
-) -> _TOutput: ...
-
-
-@overload
-def call_sync(
-    node_: RTFunction[_P, _TOutput],
-    *args: _P.args,
-    **kwargs: _P.kwargs,
-) -> _TOutput: ...
-
-
-@overload
-def call_sync(
-    node_: Callable[_P, _TOutput],
-    *args: _P.args,
-    **kwargs: _P.kwargs,
-) -> _TOutput: ...
-
-
-def call_sync(
-    node: Type[Node[_TOutput]]
-    | Callable[_P, Union[Node[_TOutput], _TOutput]]
-    | RTFunction[_P, _TOutput],
-    *args: _P.args,
-    **kwargs: _P.kwargs,
-) -> _TOutput:
-    """
-    Call a node from within a node inside the framework synchronously. This will block until the node is completed
-    and return the result.
-
-    Usage:
-    ```python
-    result = call_sync(NodeA, "hello world", 42)
-    ```
-
-    Args:
-        node: The node type you would like to create
-        *args: The arguments to pass to the node
-        **kwargs: The keyword arguments to pass to the node
-    """
-    loop_found = False
-    try:
-        loop = asyncio.get_running_loop()
-        loop_found = True
-        # if we made it here then we already have a running loop. We will create a new thread and execute the call in there
-        raise RuntimeError(
-            "You cannot call `call_sync` from within an already running event loop. "
-            "Use `call` instead to run the node asynchronously."
-        )
-    except RuntimeError:
-        # If there is no running loop, we need to create one
-        if loop_found:
-            raise
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        task = loop.create_task(call(node, *args, **kwargs))
-        result: _TOutput = loop.run_until_complete(task)
-    finally:
-        loop.close()
-
-    return result

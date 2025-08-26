@@ -3,32 +3,21 @@
 ## Calling the Agent directly
 Once you have defined your agent class ([Build Your First Agent](byfa.md)) you can then run your workflow and see results!
 
-To begin you just have to use **`call`** for asynchronous contexts or **`call_sync`** for synchronous ones.
-
+To begin you just have to use **`call`** method from RailTracks. This is an asynchronous method so you will need to run it in an async context.
 
 === "Asynchronous"
     ```python
     --8<-- "docs/scripts/first_agent.py:call"
     ```
 
-=== "Synchronous"
-    ```python
-
-    --8<-- "docs/scripts/first_agent.py:call_sync"
-
-    ```
-
 !!! tip "Agent input options"
     There are multiple ways to provide input to your agent.
     
     ???+ example "single user message"
-        If you'd like to simply provide a single user message, you can pass it as a string directly to the **`call`** or **`call_sync`** functions:
-        ```python
-        --8<-- "docs/scripts/first_agent.py:call_sync"
-        ```
+        If you'd like to simply provide a single user message, you can pass it as a string directly to the **`call`** 
 
     ???+ example "few-shot prompting"
-        If you want to provide a few-shot prompt, you can pass a list of messages to the `call` or `call_sync` functions, with the specific message for each role being passed as an input to its specific role ie (**`rt.llm.UserMessage`** for user, **`rt.llm.AssistantMessage`** for assistant): 
+        If you want to provide a few-shot prompt, you can pass a list of messages to the `call` functions, with the specific message for each role being passed as an input to its specific role ie (**`rt.llm.UserMessage`** for user, **`rt.llm.AssistantMessage`** for assistant): 
         ```python
         --8<-- "docs/scripts/first_agent.py:fewshot"
         ```
@@ -43,7 +32,7 @@ To begin you just have to use **`call`** for asynchronous contexts or **`call_sy
 
 !!! info "Dynamic Runtime Configuration"
 
-    If you pass `llm_model` to `agent_node` and then a different llm model to either `call` or `call_sync` functions, RailTracks will use the latter one. If you pass `system_message` to `agent_node` and then another `system_message` to either `call` or `call_sync`, the system messages will be stacked.
+    If you pass `llm_model` to `agent_node` and then a different llm model to `call` function, RailTracks will use the latter one. If you pass `system_message` to `agent_node` and then another `system_message` to `call`, the system messages will be stacked.
 
     ??? example
         ```python

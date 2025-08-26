@@ -81,7 +81,7 @@ agent = rt.library.tool_call_llm(
 
 # Use the agent
 with rt.Session():
-    result = rt.call_sync(
+    result = await rt.call(
         agent,
         "Find information about RailTracks"
     )

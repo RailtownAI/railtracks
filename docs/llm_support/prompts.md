@@ -51,7 +51,7 @@ assistant = rt.agent_node(
 
 # Run with context values
 with rt.Session(context={"role": "technical", "domain": "Python programming"}):
-    response = rt.call_sync(assistant, user_input="Help me understand decorators.")
+    response = await rt.call(assistant, user_input="Help me understand decorators.")
 ```
 
 In this example, the system message will be expanded to: "You are a technical assistant specialized in Python programming."
@@ -78,7 +78,7 @@ with rt.Session(
 ):
     # Context injection will not occur in this run
     user_message = MessageHistory([UserMessage("Hello")])
-    response = rt.call_sync(my_node, user_input=user_message)
+    response = await rt.call(my_node, user_input=user_message)
 ```
 
 This may be useful when formatting prompts that should not change based on the context.
@@ -157,10 +157,10 @@ technical_expert_context = {
 
 # Run with different contexts for different scenarios
 with rt.Session(context=customer_support_context):
-    response1 = rt.call_sync(assistant, user_input="My product isn't working.")
+    response1 = await rt.call(assistant, user_input="My product isn't working.")
 
 with rt.Session(context=technical_expert_context):
-    response2 = rt.call_sync(assistant, user_input="How do I implement a binary tree?")
+    response2 = await rt.call(assistant, user_input="How do I implement a binary tree?")
 ```
 
 ## 💡 Benefits of Context Injection

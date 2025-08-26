@@ -1,7 +1,8 @@
-import pytest
-import railtracks as rt
 import asyncio
 import time
+
+import pytest
+import railtracks as rt
 
 
 def timeout_node(t_: float):
@@ -47,17 +48,9 @@ TopLevel = rt.function_node(top_level)
 
 
 @pytest.mark.timeout(4)
-@pytest.mark.parametrize("node", [TopLevel, TopLevelAsync], ids=["sync", "async"])
-def test_async_style_parallel(node):
-    with rt.Session(logging_setting="NONE") as run:
-        result = rt.call_sync(node)
-        assert result == [1, 2, 3, 2, 1]
-
-
-@pytest.mark.timeout(4)
 @pytest.mark.asyncio
 @pytest.mark.parametrize("node", [TopLevel, TopLevelAsync], ids=["sync", "async"])
-async def test_async_style_parallel_2(node):
-    with rt.Session() as run:
+async def test_async_style_parallel(node):
+    with rt.Session():
         result = await rt.call(node)
         assert result == [1, 2, 3, 2, 1]

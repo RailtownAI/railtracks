@@ -1,24 +1,23 @@
 import asyncio
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
 from typing import Any
+from unittest.mock import Mock, patch
+
+import pytest
+from railtracks.exceptions import GlobalTimeOutError
 from railtracks.interaction._call import (
-    call,
-    call_sync,
-    _start,
-    _run,
     _execute,
     _regular_message_filter,
+    _run,
+    _start,
     _top_level_message_filter,
+    call,
 )
-import railtracks as rt
 from railtracks.nodes.nodes import Node
-from railtracks.exceptions import GlobalTimeOutError
 from railtracks.pubsub.messages import (
-    RequestCompletionMessage,
-    RequestFinishedBase,
     FatalFailure,
+    RequestCompletionMessage,
     RequestCreation,
+    RequestFinishedBase,
 )
 
 # ============================ START Helper Classes ============================
@@ -28,10 +27,10 @@ class MockNode(Node):
     @classmethod
     def name(cls):
         return "Mock Node"
-    
+
     def invoke(self):
         return ""
-    
+
     @classmethod
     def type(cls):
         return "Agent"
@@ -103,9 +102,12 @@ def test_top_level_message_filter_matches_request_id_and_fatal_failure():
 
 # ============================ END Message Filter Tests ==============================
 
+
 # ============================ START Call Function Tests ============================
 @pytest.mark.asyncio
-@patch('railtracks.Session')        # generally not recommended, but we need this to counter the lazy import inside the call function
+@patch(
+    "railtracks.Session"
+)  # generally not recommended, but we need this to counter the lazy import inside the call function
 async def test_call_with_no_context_creates_runner(
     mock_session_class, mock_context_functions, mock_start
 ):
@@ -119,7 +121,7 @@ async def test_call_with_no_context_creates_runner(
 
     mock_context_functions["is_context_present"].return_value = False
     mock_start.return_value = "test_result"
-    
+
     result = await call(mock_node, "arg1", kwarg1="kwarg1")
 
     assert result == "test_result"
@@ -303,58 +305,6 @@ async def test_execute_publishes_request_and_waits_for_response(full_context_set
 # ============================ END Execute Function Tests ==============================
 
 
-# ============================ START Call Sync Tests ============================
-def test_call_sync_with_no_running_loop():
-    """Test call_sync when no event loop is running."""
-    mock_node = Mock(return_value=MockNode("sync_result"))
-
-    with patch(
-        "asyncio.get_running_loop", side_effect=RuntimeError("No running loop")
-    ), patch("asyncio.new_event_loop") as mock_new_loop, patch(
-        "asyncio.set_event_loop"
-    ) as mock_set_loop, patch(
-        "railtracks.interaction._call.call"
-    ) as mock_call:
-
-        mock_loop = Mock()
-        mock_task = Mock()
-        mock_new_loop.return_value = mock_loop
-        mock_loop.create_task.return_value = mock_task
-        mock_loop.run_until_complete.return_value = "sync_result"
-
-        future = Mock()
-        future.set_result = Mock()
-        mock_call.return_value = future
-
-        result = call_sync(mock_node, "arg1", kwarg1="value1")
-
-        assert result == "sync_result"
-        mock_new_loop.assert_called_once()
-        mock_set_loop.assert_called_once_with(mock_loop)
-        mock_loop.create_task.assert_called_once()
-        mock_loop.run_until_complete.assert_called_once_with(mock_task)
-        mock_loop.close.assert_called_once()
-
-
-def test_call_sync_with_running_loop_raises_error():
-    """Test that call_sync raises RuntimeError when called from within a running loop."""
-    mock_node = Mock(return_value=MockNode("sync_result"))
-    mock_loop = Mock()
-
-    with patch("asyncio.get_running_loop", return_value=mock_loop):
-        with pytest.raises(RuntimeError) as exc_info:
-            call_sync(mock_node, "arg1")
-
-        assert (
-            "cannot call `call_sync` from within an already running event loop"
-            in str(exc_info.value)
-        )
-        assert "Use `call` instead" in str(exc_info.value)
-
-
-# ============================ END Call Sync Tests ==============================
-
-
 # ============================ START Edge Case Tests ============================
 @pytest.mark.asyncio
 async def test_call_with_none_arguments(mock_run):
@@ -375,27 +325,6 @@ async def test_call_with_empty_arguments(mock_run):
     result = await mock_run(mock_node)
     assert result == "empty_result"
     mock_run.assert_called_once_with(mock_node)
-
-
-def test_call_sync_loop_cleanup_on_exception():
-    """Test that call_sync properly cleans up the event loop even if an exception occurs."""
-    mock_node = Mock(return_value=MockNode("exception_result"))
-
-    with patch(
-        "asyncio.get_running_loop", side_effect=RuntimeError("No running loop")
-    ), patch("asyncio.new_event_loop") as mock_new_loop, patch(
-        "asyncio.set_event_loop"
-    ) as mock_set_loop:
-
-        mock_loop = Mock()
-        mock_new_loop.return_value = mock_loop
-        mock_loop.create_task.side_effect = Exception("Task creation failed")
-
-        with pytest.raises(Exception) as exc_info:
-            call_sync(mock_node)
-
-        assert str(exc_info.value) == "Task creation failed"
-        mock_loop.close.assert_called_once()  # Ensure cleanup happened
 
 
 # ============================ END Edge Case Tests ==============================

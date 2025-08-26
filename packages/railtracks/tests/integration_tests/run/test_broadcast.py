@@ -1,11 +1,8 @@
+import asyncio
 import random
 import time
-import asyncio
-
+import pytest
 import railtracks as rt
-
-
-from railtracks import ExecutorConfig
 
 
 async def streaming_rng():
@@ -18,7 +15,7 @@ async def streaming_rng():
 StreamingRNGNode = rt.function_node(streaming_rng)
 
 
-def test_simple_streamer():
+async def test_simple_streamer():
     class SubObject:
         def __init__(self):
             self.finished_message = None
@@ -28,11 +25,10 @@ def test_simple_streamer():
 
     sub = SubObject()
     with rt.Session(
-
-            logging_setting="NONE", broadcast_callback=sub.handle
-        ,
-    ) as runner:
-        finished_result = rt.call_sync(StreamingRNGNode)
+        logging_setting="NONE",
+        broadcast_callback=sub.handle,
+    ):
+        finished_result = await rt.call(StreamingRNGNode)
 
     # force close streams flag must be set to false to allow the slow streaming to finish.
 
@@ -43,7 +39,7 @@ def test_simple_streamer():
 
 
 # rather annoyingly this test could fail but it should be good nearly all of the time
-def test_slow_streamer():
+async def test_slow_streamer():
     class Sub:
         def __init__(self):
             self.finished_message = None
@@ -54,8 +50,8 @@ def test_slow_streamer():
             self.finished_message = item
 
     sub = Sub()
-    with rt.Session(broadcast_callback=sub.handle) as runner:
-        finished_result = rt.call_sync(StreamingRNGNode)
+    with rt.Session(broadcast_callback=sub.handle):
+        finished_result = await rt.call(StreamingRNGNode)
 
     assert isinstance(finished_result, float)
     assert sub.finished_message is not None
@@ -78,7 +74,7 @@ async def rng_tree_streamer(num_calls: int, parallel_call_nums: int, multiplier:
 RNGTreeStreamer = rt.function_node(rng_tree_streamer)
 
 
-def rng_stream_tester(
+async def rng_stream_tester(
     num_calls=3,
     parallel_call_nums=3,
     multiplier=1,
@@ -93,33 +89,31 @@ def rng_stream_tester(
                 self.total_streams.append(item)
 
     sub = Sub()
-    with rt.Session(
-        logging_setting="NONE", broadcast_callback=sub.handle
-    ) as run:
-        finished_result = rt.call_sync(
+    with rt.Session(logging_setting="NONE", broadcast_callback=sub.handle):
+        finished_result = await rt.call(
             RNGTreeStreamer, num_calls, parallel_call_nums, multiplier
         )
 
     assert isinstance(finished_result, list)
     assert len(finished_result) == num_calls * parallel_call_nums
 
-    assert all([0 < x < 1 * multiplier for x in finished_result])
+    assert all(0 < x < 1 * multiplier for x in finished_result)
 
     assert len(sub.total_streams) == num_calls * parallel_call_nums * 2
-    assert set(sub.total_streams) == set([str(x) for x in finished_result])
+    assert set(sub.total_streams) == {str(x) for x in finished_result}
 
+@pytest.mark.asyncio
+async def test_rng_streamer():
+    await rng_stream_tester(3, 3)
 
-def test_rng_streamer():
-    rng_stream_tester(3, 3)
+@pytest.mark.asyncio
+async def test_rng_streamer_2():
+    await rng_stream_tester(1, 15)
 
+@pytest.mark.asyncio
+async def test_rng_streamer_chaos():
+    await rng_stream_tester(4, 25)
 
-def test_rng_streamer_2():
-    rng_stream_tester(1, 15)
-
-
-def test_rng_streamer_chaos():
-    rng_stream_tester(4, 25)
-
-
-def test_rng_streamer_chaos_2():
-    rng_stream_tester(2, 15)
+@pytest.mark.asyncio
+async def test_rng_streamer_chaos_2():
+    await rng_stream_tester(2, 15)

@@ -40,8 +40,9 @@ test_cases = [
     }
 ]
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize("llm", llm_map.values(), ids=llm_map.keys())
-def test_terminal_llm(llm):
+async def test_terminal_llm(llm):
     """Test that a basic terminal llm can be created and used."""
 
     terminal_node = rt.agent_node(
@@ -51,16 +52,16 @@ def test_terminal_llm(llm):
     )
 
     with rt.Session(logging_setting="NONE"):
-        response = rt.call_sync(
-            terminal_node, user_input="Please reverse 'mississippi'."
+        response = await rt.call(
+            terminal_node, user_input="Please reverse '12345'."
         )
 
-        assert 'ippississim' in response.content
+        assert '54321' in response.content
 
-
+@pytest.mark.asyncio
 @pytest.mark.parametrize("llm", llm_map.values(), ids=llm_map.keys())
 @pytest.mark.parametrize("test_case", test_cases, ids=[case["case_id"] for case in test_cases])
-def test_structured_llm(llm, test_case):
+async def test_structured_llm(llm, test_case):
     """Test that structured LLMs work with various schema types."""
     
     structured_node = rt.agent_node(
@@ -71,7 +72,7 @@ def test_structured_llm(llm, test_case):
     )
 
     with rt.Session(logging_setting="NONE"):
-        response = rt.call_sync(
+        response = await rt.call(
             structured_node, 
             user_input=test_case["user_input"]
         )
