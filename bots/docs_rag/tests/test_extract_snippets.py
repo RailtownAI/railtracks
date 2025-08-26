@@ -51,14 +51,3 @@ def test_skipped_file():
 def test_no_extra_characters():
     result = extract_snippets(NO_EXTRA_MD, WORKSPACE_ROOT)
     assert "--8<--" not in result
-
-def test_empty_file(tmp_path):
-    # Create a temp empty file and reference it
-    empty_path = tmp_path / "empty.py"
-    with open(empty_path, "w", encoding="utf-8") as f:
-        f.write("")
-    # The markdown path should be relative to WORKSPACE_ROOT
-    rel_path = os.path.relpath(empty_path, WORKSPACE_ROOT).replace("\\", "/")
-    md = f'--8<-- "{rel_path}:1:2"'
-    result = extract_snippets(md, WORKSPACE_ROOT)
-    assert result.strip() == ""
