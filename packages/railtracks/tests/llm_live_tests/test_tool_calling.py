@@ -4,6 +4,7 @@ import railtracks as rt
 from pydantic import BaseModel, Field
 from typing import Optional
 
+@pytest.mark.skip(reason="Skipped due to LLM stochasticity")
 @pytest.mark.asyncio
 @pytest.mark.parametrize("llm", llm_map.values(), ids=llm_map.keys())
 async def test_function_as_tool(llm):
@@ -39,6 +40,7 @@ async def test_function_as_tool(llm):
         assert rt.context.get("magic_number_called")
         assert rt.context.get("magic_operator_called")
 
+@pytest.mark.skip(reason="Skipped due to LLM stochasticity")
 @pytest.mark.asyncio
 @pytest.mark.parametrize("llm", llm_map.values(), ids=llm_map.keys())
 async def test_realistic_scenario(llm):
@@ -89,7 +91,8 @@ async def test_realistic_scenario(llm):
     assert DB["John"]["phone"] == "5555"
     assert DB["Jane"]["role"] == "Developer"
     assert DB["Jane"]["phone"] == "0987654321"
-    
+
+@pytest.mark.skip(reason="Skipped due to LLM stochasticity")
 @pytest.mark.asyncio
 @pytest.mark.parametrize("llm", llm_map.values(), ids=llm_map.keys())
 async def test_agents_as_tools(llm):

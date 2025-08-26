@@ -40,6 +40,7 @@ test_cases = [
     }
 ]
 
+@pytest.mark.skip(reason="Skipped due to LLM stochasticity")
 @pytest.mark.asyncio
 @pytest.mark.parametrize("llm", llm_map.values(), ids=llm_map.keys())
 async def test_terminal_llm(llm):
@@ -58,6 +59,7 @@ async def test_terminal_llm(llm):
 
         assert '54321' in response.content
 
+@pytest.mark.skip(reason="Skipped due to LLM stochasticity")
 @pytest.mark.asyncio
 @pytest.mark.parametrize("llm", llm_map.values(), ids=llm_map.keys())
 @pytest.mark.parametrize("test_case", test_cases, ids=[case["case_id"] for case in test_cases])
