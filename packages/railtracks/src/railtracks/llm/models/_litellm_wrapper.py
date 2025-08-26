@@ -430,13 +430,13 @@ class LiteLLMWrapper(ModelBase, ABC):
         self, messages: MessageHistory, schema: Type[BaseModel]
     ) -> Response:
         try:
-            model_resp, completion_time = self._invoke(messages, response_format=schema)
+            model_resp, time = self._invoke(messages, response_format=schema)
             if isinstance(model_resp, CustomStreamWrapper):
-                return self._stream_handler_base(model_resp, completion_time)
+                return self._stream_handler_base(model_resp, time)
             elif isinstance(model_resp, ModelResponse):
                 return self._structured_handle_base(
                     model_resp,
-                    self.extract_message_info(model_resp, completion_time),
+                    self.extract_message_info(model_resp, time),
                     schema,
                 )
             else:
@@ -461,12 +461,12 @@ class LiteLLMWrapper(ModelBase, ABC):
         Returns:
             A Response containing either plain assistant text or ToolCall(s).
         """
-        resp, completion_time = self._invoke(messages, tools=tools)
+        resp, time = self._invoke(messages, tools=tools)
         if isinstance(resp, CustomStreamWrapper):
-            return self._stream_handler_base(resp, completion_time)
+            return self._stream_handler_base(resp, time)
         elif isinstance(resp, ModelResponse):
             return self._chat_with_tools_handler_base(
-                resp, self.extract_message_info(resp, completion_time)
+                resp, self.extract_message_info(resp, time)
             )
         else:
             raise ValueError("Unexpected response type")
