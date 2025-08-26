@@ -6,20 +6,20 @@ from typing import Any, Dict, Generic, Iterable, Type, TypeVar
 
 from pydantic import BaseModel
 from typing_extensions import Self
-import inspect
+
 from railtracks.exceptions.errors import NodeInvocationError
 from railtracks.exceptions.messages.exception_messages import get_message
 from railtracks.llm import (
+    AssistantMessage,
     Message,
     MessageHistory,
-    AssistantMessage,
     ModelBase,
     Parameter,
     SystemMessage,
     UserMessage,
 )
-from railtracks.llm.response import Response, MessageInfo
 from railtracks.llm.content import Stream
+from railtracks.llm.response import Response
 from railtracks.prompts.prompt import inject_context
 from railtracks.utils.logging import get_rt_logger
 from railtracks.validation.node_invocation.validation import (
@@ -138,9 +138,9 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
             unwrapped_llm_model = llm_model
 
         self._verify_llm_model(unwrapped_llm_model)
-        assert isinstance(
-            unwrapped_llm_model, ModelBase
-        ), "unwrapped_llm_model must be an instance of llm.ModelBase"
+        assert isinstance(unwrapped_llm_model, ModelBase), (
+            "unwrapped_llm_model must be an instance of llm.ModelBase"
+        )
         self.llm_model = unwrapped_llm_model
 
         self.message_hist = message_history_copy
@@ -238,11 +238,14 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         if isinstance(response.message, AssistantMessage) and isinstance(
             response.message.content, Stream
         ):
-            assert response.message.content.final_message, "The _stream_handler_base should have ensured that the final message is populated"
-            output_message = Message(content=response.message.content.final_message, role="assistant")      # instead of the generator we give the final_message for the RequestDetails
+            assert response.message.content.final_message, (
+                "The _stream_handler_base should have ensured that the final message is populated"
+            )
+            output_message = Message(
+                content=response.message.content.final_message, role="assistant"
+            )  # instead of the generator we give the final_message for the RequestDetails
         else:
             output_message = deepcopy(response.message)
-
 
         self._details["llm_details"].append(
             RequestDetails(
@@ -347,9 +350,9 @@ class StructuredOutputMixIn(Generic[_TBaseModel]):
     def return_output(self) -> StructuredResponse[_TBaseModel]:
         structured_output = self.message_hist[-1].content
 
-        assert isinstance(
-            structured_output, self.output_schema()
-        ), f"The final output must be a pydantic {self.output_schema()} instance. Instead it was {type(structured_output)}"
+        assert isinstance(structured_output, self.output_schema()), (
+            f"The final output must be a pydantic {self.output_schema()} instance. Instead it was {type(structured_output)}"
+        )
 
         return StructuredResponse(
             model=structured_output,
@@ -362,10 +365,14 @@ class StringOutputMixIn:
 
     def return_output(self, message: Message | None = None) -> StringResponse:
         """Returns the String response."""
-        if message is None:  # if no message is provided, use the last message from message history
+        if (
+            message is None
+        ):  # if no message is provided, use the last message from message history
             message = self.message_hist[-1]
-    
-        assert isinstance(message.content, str | Stream), "The final output must be a string or stream"
+
+        assert isinstance(message.content, str | Stream), (
+            "The final output must be a string or stream"
+        )
         return StringResponse(
             content=message.content,
             message_history=self.message_hist.removed_system_messages(),

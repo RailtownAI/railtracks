@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, AnyStr, Dict, List, Union, Generator, AsyncGenerator
+from typing import Any, AnyStr, Dict, Generator, List, Union
 
 from pydantic import BaseModel, Field
 
@@ -41,7 +41,8 @@ class ToolResponse(BaseModel):
     def __str__(self):
         return f"{self.name} -> {self.result}"
 
-class Stream():
+
+class Stream:
     """
     A simple object that represents a streaming response from a model.
 
@@ -61,7 +62,9 @@ class Stream():
             streamer: A generator that streams the response as a collection of chunked Response objects.
         """
         if streamer is not None and not isinstance(streamer, Generator):
-            raise TypeError(f"streamer must be of type Generator/ AsyncGenerator, got {type(streamer)}")
+            raise TypeError(
+                f"streamer must be of type Generator/ AsyncGenerator, got {type(streamer)}"
+            )
         self._streamer = streamer
         self._final_message = final_message
 
@@ -86,4 +89,4 @@ class Stream():
         return f"Stream(streamer={self._streamer})"
 
 
-Content = Union[str, List[ToolCall], ToolResponse, BaseModel, Stream]   
+Content = Union[str, List[ToolCall], ToolResponse, BaseModel, Stream]

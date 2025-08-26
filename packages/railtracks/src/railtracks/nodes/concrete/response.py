@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar, Generator
+from typing import Generator, Generic, TypeVar
 
 from pydantic import BaseModel
 
@@ -23,17 +23,21 @@ class LLMResponse(Generic[_T]):
 
     def __repr__(self):
         return f"LLMResponse({self.content})"
-    
+
     @property
     def streamer(self) -> Generator[str, None, None]:
         """Returns the streamer that was returned as part of this response.
-        
+
         Note that this is a generator that yields strings.
-        """ 
-        assert isinstance(self.content, Stream), "For this property to be usable, the llm should have stream=True"
+        """
+        assert isinstance(self.content, Stream), (
+            "For this property to be usable, the llm should have stream=True"
+        )
         return self.content.streamer
 
+
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
+
 
 class StructuredResponse(LLMResponse[_TBaseModel]):
     """

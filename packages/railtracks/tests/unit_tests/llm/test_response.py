@@ -74,10 +74,6 @@ def test_response_invalid_message_type_raises_type_error():
         Response(123)
 
 
-def test_response_invalid_streamer_type_raises_type_error():
-    with pytest.raises(TypeError):
-        Response(streamer="Invalid streamer")
-
 
 def test_response_message_info_assigned_and_accessible():
     mi = MessageInfo(input_tokens=5, output_tokens=7, latency=0.12, model_name="test-model", total_cost=0.5)

@@ -2,16 +2,16 @@
 # In the following document, we will use the interface types defined in this module to interact with the llama index to
 # route to a given model.
 ###
-import inspect
 
 from abc import ABC, abstractmethod
 from typing import Callable, List
+
 from pydantic import BaseModel
 
 from .history import MessageHistory
 from .response import Response
 from .tools import Tool
-from .content import Stream
+
 
 class ModelBase(ABC):
     """
@@ -26,8 +26,10 @@ class ModelBase(ABC):
     def __init__(
         self,
         __pre_hooks: List[Callable[[MessageHistory], MessageHistory]] | None = None,
-        __post_hooks: List[Callable[[MessageHistory, Response], Response]] | None = None,
-        __exception_hooks: List[Callable[[MessageHistory, Exception], None]] | None = None,
+        __post_hooks: List[Callable[[MessageHistory, Response], Response]]
+        | None = None,
+        __exception_hooks: List[Callable[[MessageHistory, Exception], None]]
+        | None = None,
         _stream: bool = False,
     ):
         if __pre_hooks is None:
@@ -118,7 +120,6 @@ class ModelBase(ABC):
         except Exception as e:
             self._run_exception_hooks(messages, e)
             raise e
-        
 
         response = self._run_post_hooks(messages, response)
         return response
@@ -178,9 +179,7 @@ class ModelBase(ABC):
         response = self._run_post_hooks(messages, response)
         return response
 
-    async def achat_with_tools(
-        self, messages: MessageHistory, tools: List[Tool]
-    ):
+    async def achat_with_tools(self, messages: MessageHistory, tools: List[Tool]):
         """Asynchronous chat with the model using the provided messages and tools."""
         messages = self._run_pre_hooks(messages)
 
@@ -199,15 +198,11 @@ class ModelBase(ABC):
         pass
 
     @abstractmethod
-    def _structured(
-        self, messages: MessageHistory, schema: BaseModel
-    ) -> Response:
+    def _structured(self, messages: MessageHistory, schema: BaseModel) -> Response:
         pass
 
     @abstractmethod
-    def _chat_with_tools(
-        self, messages: MessageHistory, tools: List[Tool]
-    ) -> Response:
+    def _chat_with_tools(self, messages: MessageHistory, tools: List[Tool]) -> Response:
         pass
 
     @abstractmethod

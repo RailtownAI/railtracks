@@ -86,7 +86,6 @@ class Response:
         """
         return self._message
 
-
     @property
     def message_info(self) -> MessageInfo:
         """
@@ -104,4 +103,3 @@ class Response:
 
     def __repr__(self):
         return f"Response(message={self._message}, message_info={self._message_info})"
-

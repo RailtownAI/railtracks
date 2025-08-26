@@ -106,136 +106,138 @@ def test_to_litellm_message_tool_call_list(tool_call):
 # =================================== END _to_litellm_message Tests ====================================
 
 
-# =================================== START LiteLLMWrapper Tests ==================================
-@pytest.mark.parametrize(
-    "model_name, expected_str",
-    [
-        ("openai/gpt-3.5-turbo", "LiteLLMWrapper(provider=openai, name=gpt-3.5-turbo)"),
-        ("mock-model", "LiteLLMWrapper(name=mock-model)"),
-    ],
-)
-def test_litellm_wrapper_str(model_name, expected_str, mock_litellm_wrapper):
-    wrapper = mock_litellm_wrapper(model_name=model_name)
-    assert str(wrapper) == expected_str
+class TestLiteLLMWrapper:
+    # =================================== START LiteLLMWrapper Tests ==================================
+    @pytest.mark.parametrize(
+        "model_name, expected_str",
+        [
+            ("openai/gpt-3.5-turbo", "LiteLLMWrapper(provider=openai, name=gpt-3.5-turbo)"),
+            ("mock-model", "LiteLLMWrapper(name=mock-model)"),
+        ],
+    )
+    def test_litellm_wrapper_str(self, model_name, expected_str, mock_litellm_wrapper):
+        wrapper = mock_litellm_wrapper(model_name=model_name)
+        assert str(wrapper) == expected_str
 
 
-def test_litellm_wrapper_invoke_with_empty_messages(mock_litellm_wrapper):
-    empty_history = MessageHistory([])
-    litellm_model = mock_litellm_wrapper(model_name="mock-model")
-    result = litellm_model._invoke(empty_history)
-    # Validate that the structure of the returned result is correct
-    assert "choices" in result
-    assert len(result["choices"]) == 1
-    assert "message" in result["choices"][0]
+    def test_litellm_wrapper_invoke_with_empty_messages(self, mock_litellm_wrapper):
+        empty_history = MessageHistory([])
+        litellm_model = mock_litellm_wrapper(model_name="mock-model")
+        result = litellm_model._invoke(empty_history)
+        # Validate that the structure of the returned result is correct
+        assert "choices" in result
+        assert len(result["choices"]) == 1
+        assert "message" in result["choices"][0]
 
 
-def test_litellm_wrapper_structured_schema_mismatch(
-    mock_litellm_wrapper, message_history
-):
-    class ExampleSchema(BaseModel):
-        required_value: int
+    def test_litellm_wrapper_structured_schema_mismatch(
+        self, mock_litellm_wrapper, message_history
+    ):
+        class ExampleSchema(BaseModel):
+            required_value: int
 
-    # Force a response that won't match the output_schema (string instead of int)
-    def _invoke_override(*args, **kwargs):
-        return (
-            litellm.utils.ModelResponse(
-                choices=[
+        # Force a response that won't match the output_schema (string instead of int)
+        def _invoke_override(*args, **kwargs):
+            return (
+                litellm.utils.ModelResponse(
+                    choices=[
+                        {
+                            "message": {"content": '{"required_value": "not_an_int"}'},
+                        }
+                    ]
+                ),
+                None,
+            )
+
+        litellm_model = mock_litellm_wrapper(model_name="mock-model")
+        litellm_model._invoke = _invoke_override
+
+        with pytest.raises(ValueError) as exc_info:
+            litellm_model.structured(message_history, ExampleSchema)
+
+
+    def test_litellm_wrapper_structured_invalid_json(self, mock_litellm_wrapper, message_history):
+        class ExampleSchema(BaseModel):
+            required_value: int
+
+        # Force a response that's not valid JSON
+        def _invoke_override(*args, **kwargs):
+            return {
+                "choices": [
                     {
-                        "message": {"content": '{"required_value": "not_an_int"}'},
+                        "message": {"content": "Not valid JSON at all"},
                     }
                 ]
-            ),
-            None,
-        )
+            }
 
-    litellm_model = mock_litellm_wrapper(model_name="mock-model")
-    litellm_model._invoke = _invoke_override
+        litellm_model = mock_litellm_wrapper(model_name="mock-model")
+        litellm_model._invoke = _invoke_override
 
-    with pytest.raises(ValueError) as exc_info:
-        litellm_model.structured(message_history, ExampleSchema)
-
-
-def test_litellm_wrapper_structured_invalid_json(mock_litellm_wrapper, message_history):
-    class ExampleSchema(BaseModel):
-        required_value: int
-
-    # Force a response that's not valid JSON
-    def _invoke_override(*args, **kwargs):
-        return {
-            "choices": [
-                {
-                    "message": {"content": "Not valid JSON at all"},
-                }
-            ]
-        }
-
-    litellm_model = mock_litellm_wrapper(model_name="mock-model")
-    litellm_model._invoke = _invoke_override
-
-    with pytest.raises(LLMError) as exc_info:
-        litellm_model.structured(message_history, ExampleSchema)
-    assert "Structured LLM call failed" in str(exc_info.value)
+        with pytest.raises(LLMError) as exc_info:
+            litellm_model.structured(message_history, ExampleSchema)
+        assert "Structured LLM call failed" in str(exc_info.value)
 
 
-def test_litellm_wrapper_chat_with_tools_no_tool_call(
-    mock_litellm_wrapper, message_history, tool
-):
-    def _invoke_override(*args, **kwargs):
-        return (
-            litellm.utils.ModelResponse(
-                choices=[
-                    {
-                        "message": {"content": "No tool call here"},
-                        "finish_reason": "stop",
-                    }
-                ]
-            ),
-            None,
-        )
+    def test_litellm_wrapper_chat_with_tools_no_tool_call(
+        self, mock_litellm_wrapper, message_history, tool
+    ):
+        def _invoke_override(*args, **kwargs):
+            return (
+                litellm.utils.ModelResponse(
+                    choices=[
+                        {
+                            "message": {"content": "No tool call here"},
+                            "finish_reason": "stop",
+                        }
+                    ]
+                ),
+                None,
+            )
 
-    litellm_model = mock_litellm_wrapper(model_name="mock-model")
-    litellm_model._invoke = _invoke_override
+        litellm_model = mock_litellm_wrapper(model_name="mock-model")
+        litellm_model._invoke = _invoke_override
 
-    response = litellm_model.chat_with_tools(message_history, [tool])
-    assert response.message.content == "No tool call here"
-
-
-def test_litellm_wrapper_chat_with_tools_single_tool_call(
-    mock_litellm_wrapper, message_history, tool
-):
-    def _invoke_override(*args, **kwargs):
-        return (
-            litellm.utils.ModelResponse(
-                choices=[
-                    {
-                        "message": {
-                            "content": "",
-                            "tool_calls": [
-                                {
-                                    "function": {
-                                        "name": "example_tool",
-                                        "arguments": '{"arg1": "val1"}',
-                                    },
-                                    "id": "toolcall-abc",
-                                }
-                            ],
-                        },
-                        "finish_reason": "function_call",
-                    }
-                ]
-            ),
-            None,
-        )
-
-    litellm_model = mock_litellm_wrapper(model_name="mock-model")
-    litellm_model._invoke = _invoke_override
-
-    response = litellm_model.chat_with_tools(message_history, [tool])
-    calls = response.message.content
-    assert len(calls) == 1
-    assert calls[0].name == "example_tool"
-    assert calls[0].arguments == {"arg1": "val1"}
-    assert calls[0].identifier == "toolcall-abc"
+        response = litellm_model.chat_with_tools(message_history, [tool])
+        assert response.message.content == "No tool call here"
 
 
-# =================================== END LiteLLMWrapper Tests ==================================
+    def test_litellm_wrapper_chat_with_tools_single_tool_call(
+        self, mock_litellm_wrapper, message_history, tool
+    ):
+        def _invoke_override(*args, **kwargs):
+            return (
+                litellm.utils.ModelResponse(
+                    choices=[
+                        {
+                            "message": {
+                                "content": "",
+                                "tool_calls": [
+                                    {
+                                        "function": {
+                                            "name": "example_tool",
+                                            "arguments": '{"arg1": "val1"}',
+                                        },
+                                        "id": "toolcall-abc",
+                                    }
+                                ],
+                            },
+                            "finish_reason": "function_call",
+                        }
+                    ]
+                ),
+                None,
+            )
+
+        litellm_model = mock_litellm_wrapper(model_name="mock-model")
+        litellm_model._invoke = _invoke_override
+
+        response = litellm_model.chat_with_tools(message_history, [tool])
+        calls = response.message.content
+        assert len(calls) == 1
+        assert calls[0].name == "example_tool"
+        assert calls[0].arguments == {"arg1": "val1"}
+        assert calls[0].identifier == "toolcall-abc"
+        # =================================== END LiteLLMWrapper Tests ==================================
+
+class TestStreaming:
+    

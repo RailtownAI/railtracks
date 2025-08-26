@@ -6,8 +6,6 @@ from typing import (
     Any,
     Callable,
     Dict,
-    Generator,
-    AsyncGenerator,
     List,
     Optional,
     Tuple,
@@ -21,7 +19,7 @@ from litellm.utils import CustomStreamWrapper, ModelResponse
 from pydantic import BaseModel, ValidationError
 
 from ...exceptions.errors import LLMError, NodeInvocationError
-from ..content import ToolCall, Stream
+from ..content import Stream, ToolCall
 from ..history import MessageHistory
 from ..message import AssistantMessage, Message, ToolMessage
 from ..model import ModelBase
@@ -386,7 +384,7 @@ class LiteLLMWrapper(ModelBase, ABC):
             message_info=mess_info,  # will be updated during consume
         )
         return return_message
-    
+
     async def _astream_handler_base(
         self, raw: CustomStreamWrapper, start_time: float
     ) -> Response:
@@ -429,7 +427,7 @@ class LiteLLMWrapper(ModelBase, ABC):
             message_info=mess_info,  # will be updated during consume
         )
         return return_message
-    
+
     # ================ END Streaming Handlers ===============
 
     # ================ START Base Handlers ==================
@@ -568,7 +566,6 @@ class LiteLLMWrapper(ModelBase, ABC):
     async def _achat_with_tools(
         self, messages: MessageHistory, tools: List[Tool]
     ) -> Response:
-
         resp, time = self._invoke(messages, tools=tools)
         if isinstance(resp, CustomStreamWrapper):
             return await self._astream_handler_base(resp, time)
@@ -578,6 +575,7 @@ class LiteLLMWrapper(ModelBase, ABC):
             )
         else:
             raise ValueError("Unexpected response type")
+
     # ================ END Async LLM calls ===============
 
     def __str__(self) -> str:

@@ -1,6 +1,7 @@
-import railtracks as rt
-from pydantic import BaseModel, Field
+import asyncio
+
 import litellm
+import railtracks as rt
 
 
 def secret_words(id: int):
@@ -17,11 +18,15 @@ def secret_words(id: int):
     }
     return secret_words[id]
 
+
 async def main():
     resp = await litellm.acompletion(
         model="gpt-4o",
         messages=[
-            {"role": "user", "content": "give me a 100 word using the secret_words tool"},
+            {
+                "role": "user",
+                "content": "give me a 100 word using the secret_words tool",
+            },
         ],
         stream=True,
         # tools=[
@@ -48,6 +53,5 @@ async def main():
     async for chunk in resp.completion_stream:
         print(chunk)
 
-import asyncio
 
 asyncio.run(main())

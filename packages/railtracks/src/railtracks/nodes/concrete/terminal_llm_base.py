@@ -1,10 +1,10 @@
-import railtracks.context as context
 from railtracks.exceptions import LLMError
 from railtracks.llm import Message, MessageHistory, ModelBase, UserMessage
+from railtracks.llm.content import Stream
 
 from ._llm_base import LLMBase, StringOutputMixIn
 from .response import StringResponse
-from railtracks.llm.content import Stream
+
 
 class TerminalLLM(StringOutputMixIn, LLMBase[StringResponse]):
     def __init__(
@@ -29,9 +29,15 @@ class TerminalLLM(StringOutputMixIn, LLMBase[StringResponse]):
         assert returned_mess.message
         if returned_mess.message.role == "assistant":
             cont = returned_mess.message.content
-            if isinstance(cont, Stream):    # if the AssistantMessage is a stream, we need to add the final message to the message history instead of the generator
-                assert isinstance(cont.final_message, str), "The _stream_handler_base in _litellm_wrapper should have ensured that the final message is populated"
-                self.message_hist.append(Message(content=cont.final_message, role="assistant"))  # instead of the generator we attach the final_message to the message history
+            if isinstance(
+                cont, Stream
+            ):  # if the AssistantMessage is a stream, we need to add the final message to the message history instead of the generator
+                assert isinstance(cont.final_message, str), (
+                    "The _stream_handler_base in _litellm_wrapper should have ensured that the final message is populated"
+                )
+                self.message_hist.append(
+                    Message(content=cont.final_message, role="assistant")
+                )  # instead of the generator we attach the final_message to the message history
             elif isinstance(cont, str):
                 self.message_hist.append(returned_mess.message)
             else:
