@@ -113,9 +113,12 @@ def replace_block(match, workspace_root):
         file = file.strip()
         if file.startswith(";"):  # Skip files prefixed with `;`
             continue
-        extracted_content.append(
-            replace_snippet(SNIPPET_PATTERN.match(f'--8<-- "{file}"'), workspace_root)
-        )
+        match = SNIPPET_PATTERN.match(f'--8<-- "{file}"')
+        if match is not None:
+            extracted_content.append(replace_snippet(match, workspace_root))
+        else:
+            # Optionally, append an empty string or log a warning
+            extracted_content.append("")
     return "".join(extracted_content)
 
 
