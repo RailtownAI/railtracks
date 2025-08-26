@@ -105,7 +105,6 @@ async def call(
 
     # if the context is not active then we know this is the top level request
     if not is_context_active():
-        print("Using existing session")
         result = await _start(node, args=args, kwargs=kwargs)
         return result
 
