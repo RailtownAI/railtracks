@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import MagicMock, patch, call, PropertyMock, Mock
 import asyncio
 import railtracks as rt
-from railtracks._session import Session
+from railtracks import Session, session
 
 # ================= START Mock Fixture ============
 @pytest.fixture
@@ -187,12 +187,12 @@ def test_runner_not_saves_data():
 
 def test_session_decorator_creates_function():
     """Test that the session decorator returns a decorator function."""
-    decorator = Session.session()
+    decorator = session()
     assert callable(decorator)
 
 def test_session_decorator_with_parameters():
     """Test session decorator with various parameters."""
-    decorator = Session.session(
+    decorator = session(
         timeout=30,
         context={"test": "value"},
         end_on_error=True,
@@ -203,7 +203,7 @@ def test_session_decorator_with_parameters():
 @pytest.mark.asyncio
 async def test_session_decorator_wraps_async_function(mock_dependencies):
     """Test that the decorator properly wraps an async function."""
-    @Session.session(timeout=10)
+    @session(timeout=10)
     async def test_function():
         return "test_result"
     
@@ -213,7 +213,7 @@ async def test_session_decorator_wraps_async_function(mock_dependencies):
 @pytest.mark.asyncio
 async def test_session_decorator_with_function_args(mock_dependencies):
     """Test that the decorator preserves function arguments."""
-    @Session.session()
+    @session()
     async def test_function(arg1, arg2, kwarg1=None):
         return f"{arg1}-{arg2}-{kwarg1}"
     
@@ -242,7 +242,7 @@ async def test_session_decorator_context_manager_behavior(mock_dependencies):
     with patch.object(Session, '__init__', mock_init), \
          patch.object(Session, '__exit__', mock_exit):
         
-        @Session.session()
+        @session()
         async def test_function():
             return "done"
         
@@ -251,28 +251,24 @@ async def test_session_decorator_context_manager_behavior(mock_dependencies):
     assert session_created
     assert session_closed
 
-def test_rt_session_public_api_equivalence():
-    """Test that rt.session is equivalent to rt.Session.session"""
-    assert rt.session is rt.Session.session
-
 def test_session_decorator_raises_error_on_sync_function():
     """Test that the session decorator raises TypeError when applied to sync function."""
     with pytest.raises(TypeError, match="@session decorator can only be applied to async functions"):
-        @Session.session()
+        @session()
         def sync_function():
             return "this should fail"
 
 def test_session_decorator_error_message_contains_function_name():
     """Test that the error message includes the function name."""
     with pytest.raises(TypeError, match="Function 'my_sync_func' is not async"):
-        @Session.session()
+        @session()
         def my_sync_func():
             return "this should fail"
 
 def test_rt_session_decorator_raises_error_on_sync_function():
     """Test that rt.session also raises TypeError when applied to sync function."""
     with pytest.raises(TypeError, match="@session decorator can only be applied to async functions"):
-        @rt.session()
+        @session()
         def sync_function():
             return "this should fail"
 
