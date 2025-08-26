@@ -1,16 +1,15 @@
 import pytest
 import railtracks as rt
 from pydantic import BaseModel
-from railtracks.llm import MessageHistory, SystemMessage, ModelBase, UserMessage, AssistantMessage, ToolMessage, ToolResponse
-from railtracks.llm.response import Response
-from railtracks.nodes.concrete import StructuredLLM
-from railtracks.nodes.easy_usage_wrappers.helpers import structured_llm
+from railtracks.llm import MessageHistory, SystemMessage, UserMessage
+from railtracks.built_nodes.concrete import StructuredLLM
+from railtracks.built_nodes.easy_usage_wrappers.helpers import structured_llm
 from railtracks.exceptions import NodeCreationError, NodeInvocationError
 from typing import Type
 
 # ===================================================== START Unit Testing =========================================================
 @pytest.mark.asyncio
-async def test_structured_llm_instantiate_and_invoke(simple_output_model, mock_llm, mock_structured_function):
+async def test_structured_llm_instantiate_and_invoke(simple_output_model, mock_llm, mock_structured_response_message):
     class MyLLM(StructuredLLM[simple_output_model]):
 
         @classmethod
@@ -22,7 +21,7 @@ async def test_structured_llm_instantiate_and_invoke(simple_output_model, mock_l
             return "Mock LLM"
 
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("hello")])
-    result = await rt.call(MyLLM, user_input=mh, llm_model=mock_llm(structured=mock_structured_function))
+    result = await rt.call(MyLLM, user_input=mh, llm_model=mock_llm(custom_response=mock_structured_response_message))
 
     assert isinstance(result.structured, simple_output_model)
     assert result.structured.text == "dummy content"
@@ -37,11 +36,11 @@ def test_structured_llm_output_model_classmethod(simple_output_model):
     assert MyLLM.output_schema() is simple_output_model
 
 @pytest.mark.asyncio
-async def test_structured_llm_easy_usage_wrapper_invoke(simple_output_model, mock_llm, mock_structured_function):
+async def test_structured_llm_easy_usage_wrapper_invoke(simple_output_model, mock_llm, mock_structured_response_message):
     node = structured_llm(
         output_schema=simple_output_model,
         system_message="system prompt",
-        llm_model=mock_llm(structured=mock_structured_function),
+        llm_model=mock_llm(custom_response=mock_structured_response_message),
         name="TestNode"
     )
     mh = MessageHistory([UserMessage("hello")])

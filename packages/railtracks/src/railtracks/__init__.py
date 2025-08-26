@@ -11,7 +11,6 @@ from dotenv import load_dotenv
 __all__ = [
     "Session",
     "call",
-    "call_sync",
     "broadcast",
     "call_batch",
     "ExecutionInfo",
@@ -33,13 +32,18 @@ __all__ = [
 ]
 
 
+from railtracks.built_nodes.easy_usage_wrappers import (
+    agent_node,
+    chatui_node,
+    function_node,
+)
+
 from . import context, integrations, llm, prebuilt
+from ._session import ExecutionInfo, Session
 from .context.central import set_config
-from .interaction import broadcast, call, call_batch, call_sync
-from .nodes.easy_usage_wrappers import agent_node, chatui_node, function_node
+from .interaction import broadcast, call, call_batch
 from .nodes.manifest import ToolManifest
 from .rt_mcp import MCPHttpParams, MCPStdioParams, connect_mcp, create_mcp_server
-from .session import ExecutionInfo, Session
 from .utils.config import ExecutorConfig
 
 load_dotenv()

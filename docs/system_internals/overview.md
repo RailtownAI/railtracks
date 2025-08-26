@@ -11,10 +11,7 @@ Welcome to the internal architecture overview of RailTracks, our framework for b
 
 1. **Agent Creation**: Users create an agent using `rt.agent_node(...)` customizing the various different available parameters such as `llm_model`, `system_message`, and `tool_nodes`. 
 2. **Session Initialization**: The `Session` is initialized as a context manager, which sets up the necessary components like `RTPublisher`, `Coordinator`, and `RTState`.
-3. **Agent Execution**: Users run the agent by calling `call` or `call_sync` methods inside the context with the appropriate parameters given the setup of their agent.
-1. **Agent Creation**: Users create an agent using `rt.agent_node(...)` customizing the various different available parameters such as `llm_model`, `system_message`, and `tool_nodes`. 
-2. **Session Initialization**: The `Session` is initialized as a context manager, which sets up the necessary components like `RTPublisher`, `Coordinator`, and `RTState`.
-3. **Agent Execution**: Users run the agent by calling `call` or `call_sync` methods inside the context with the appropriate parameters given the setup of their agent.
+3. **Agent Execution**: Users run the agent by calling `call` method inside the context with the appropriate parameters given the setup of their agent.
 
 ```mermaid
 graph TD

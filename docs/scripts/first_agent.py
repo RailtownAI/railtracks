@@ -42,14 +42,6 @@ async def main():
     return response
 # --8<-- [end: call]
 
-
-# --8<-- [start: call_sync]
-response = rt.call_sync(
-    WeatherAgent, 
-    "What is the forecast for Vancouver today?"
-    )
-# --8<-- [end: call_sync]
-
 # --8<-- [start: dynamic_prompts]
 system_message = rt.llm.SystemMessage(
     "You can also geolocate the user"
@@ -57,33 +49,41 @@ system_message = rt.llm.SystemMessage(
 user_message = rt.llm.UserMessage(
     "Would you please be able to tell me the forecast for the next week?"
 )
+async def top_level():
 
-response = rt.call_sync(
-    WeatherAgent,
-    user_input=rt.llm.MessageHistory([system_message, user_message]),
-    llm_model=rt.llm.AnthropicLLM("claude-3-5-sonnet-20241022"),
-)
+    response = await rt.call(
+        WeatherAgent,
+        user_input=rt.llm.MessageHistory([system_message, user_message]),
+        llm_model=rt.llm.AnthropicLLM("claude-3-5-sonnet-20241022"),
+    )
+
+    return response
 # --8<-- [end: dynamic_prompts]
+response = asyncio.run(top_level())
 print(response.structured.temperature)
 
 # --8<-- [start: fewshot]
-response = rt.call_sync(
-    WeatherAgent,
-    [
-        rt.llm.UserMessage("What is the forecast for BC today?"),
-        rt.llm.AssistantMessage("Please specify the specific city in BC you're interested in"),
-        rt.llm.UserMessage("Vancouver"),
-    ]
-)
+async def top_level():
+    response = await rt.call(
+        WeatherAgent,
+        [
+            rt.llm.UserMessage("What is the forecast for BC today?"),
+            rt.llm.AssistantMessage("Please specify the specific city in BC you're interested in"),
+            rt.llm.UserMessage("Vancouver"),
+        ]
+    )
+    return response
+
 # --8<-- [end: fewshot]
 weather_context = {}
 # --8<-- [start: session]
-with rt.Session(
-    context=weather_context,
-    timeout=60  # seconds
-):
-    response = rt.call_sync(
-        WeatherAgent,
-        "What is the weather like in Vancouver?"
-    )
+async def top_level():
+    with rt.Session(
+        context=weather_context,
+        timeout=60  # seconds
+    ):
+        response = await rt.call(
+            WeatherAgent,
+            "What is the weather like in Vancouver?"
+        )
 # --8<-- [end: session]

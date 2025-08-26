@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any, Dict, KeysView
 
 
 class ExternalContext(ABC):
@@ -21,6 +21,10 @@ class ExternalContext(ABC):
 
     @abstractmethod
     def delete(self, key: str):
+        pass
+
+    @abstractmethod
+    def keys(self) -> KeysView[str]:
         pass
 
     def __setitem__(self, key, value):
@@ -84,3 +88,12 @@ class MutableExternalContext(ExternalContext):
             del self._context_var_store[key]
         except KeyError:
             raise KeyError(f"Key '{key}' does not exist in the context.")
+
+    def keys(self):
+        """
+        Returns the keys of the context.
+
+        Returns:
+            KeysView[str]: The keys in the context.
+        """
+        return self._context_var_store.keys()

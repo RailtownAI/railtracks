@@ -10,16 +10,12 @@ from pydantic import BaseModel, Field
 # =========== Mock model and functions ===========
 
 @pytest.fixture
-def mock_chat_function():
-    def _chat(messages):
-        return Response(message=AssistantMessage("dummy content"))
-    return _chat
+def mock_chat_response_message():
+    return "dummy content"
 
 @pytest.fixture
-def mock_structured_function(simple_output_model):
-    def _structured(messages, schema):
-        return Response(message=AssistantMessage(simple_output_model(text="dummy content", number=42)))
-    return _structured
+def mock_structured_response_message(simple_output_model):
+    return '{"text":"dummy content", "number": "42"}'
 # ============ System Messages ===========
 @pytest.fixture
 def encoder_system_message():
