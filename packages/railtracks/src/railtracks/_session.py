@@ -238,6 +238,7 @@ class Session:
 
         return info.graph_serialization(self._identifier)
 
+
 def session(
     context: Dict[str, Any] | None = None,
     *,
@@ -278,12 +279,15 @@ def session(
     ```python
     import railtracks as rt
 
+
     @rt.session(timeout=10)
     async def my_function():
         result = await rt.call(some_node)
-        return result
-    """
-    def decorator(func: Callable[_P, Coroutine[Any, Any, _TOutput]]) -> Callable[_P, Coroutine[Any, Any, _TOutput]]:
+        return result"""
+
+    def decorator(
+        func: Callable[_P, Coroutine[Any, Any, _TOutput]],
+    ) -> Callable[_P, Coroutine[Any, Any, _TOutput]]:
         # Validate that the decorated function is async
         if not inspect.iscoroutinefunction(func):
             raise TypeError(
@@ -291,7 +295,7 @@ def session(
                 f"Function '{func.__name__}' is not async. "
                 f"Add 'async' keyword to your function definition."
             )
-        
+
         @wraps(func)
         async def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
             with Session(
@@ -306,5 +310,7 @@ def session(
                 save_state=save_state,
             ):
                 return await func(*args, **kwargs)
+
         return wrapper
+
     return decorator
