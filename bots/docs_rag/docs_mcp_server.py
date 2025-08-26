@@ -3,7 +3,7 @@ from typing import List
 from railtracks.rag.embedding_service import EmbeddingService
 from railtracks.rag.vector_store import InMemoryVectorStore
 
-vector_store = InMemoryVectorStore.load("docs_vector_store.pkl")
+vector_store = InMemoryVectorStore.load("../../project/docs_vector_store.pkl")
 
 
 def query_railtracks_docs(query: str, top_k: int = 5) -> List[str]:

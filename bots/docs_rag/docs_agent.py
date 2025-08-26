@@ -7,7 +7,7 @@ from railtracks.rag.vector_store import InMemoryVectorStore
 
 from project.custom_chat_ui import custom_chatui_node
 
-vector_store = InMemoryVectorStore.load("docs_vector_store.pkl")
+vector_store = InMemoryVectorStore.load("../../project/docs_vector_store.pkl")
 
 
 def query_embedding_store(query: str, top_k: int = 5) -> List[str]:

@@ -6,6 +6,8 @@ from railtracks.rag.embedding_service import EmbeddingService
 from railtracks.rag.vector_store import InMemoryVectorStore
 from railtracks.rag.vector_store.base import VectorRecord
 
+from bots.docs_rag.extract_snippets import extract_snippets
+
 
 # === Embedding service (simplified based on your litellm wrapper) ===
 def embed_and_index_docs(
@@ -54,6 +56,9 @@ def embed_and_index_docs(
                     f"Processing file: {rel_path_str} in {root_path} of type {store_key}"
                 )
                 text = Path(root_path / fname).read_text(encoding="utf-8")
+                workspace_root = str(base_dir.parent)
+                text = extract_snippets(text, workspace_root)
+
                 chunks = chunker.chunk(text)
                 vecs = embedder.embed(chunks)
                 records = [
@@ -71,7 +76,7 @@ def embed_and_index_docs(
 
 
 if __name__ == "__main__":
-    docs_dir = "../docs"
+    docs_dir = "../../docs"
 
     print("Indexing documents...")
     stores = embed_and_index_docs(docs_dir)
