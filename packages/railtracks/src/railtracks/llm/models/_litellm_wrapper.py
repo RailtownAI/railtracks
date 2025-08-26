@@ -20,11 +20,11 @@ from litellm.utils import CustomStreamWrapper, ModelResponse
 from pydantic import BaseModel, ValidationError
 
 from ...exceptions.errors import LLMError, NodeInvocationError
-from ..content import ToolCall
+from ..content import ToolCall, Stream
 from ..history import MessageHistory
 from ..message import AssistantMessage, Message, ToolMessage
 from ..model import ModelBase
-from ..response import MessageInfo, Response, Stream
+from ..response import MessageInfo, Response
 from ..tools import ArrayParameter, Parameter, PydanticParameter, Tool
 
 
@@ -340,39 +340,40 @@ class LiteLLMWrapper(ModelBase, ABC):
         return completion, mess_info
 
     # ================ START Base Handlers ===============
-    def _stream_handler_base(self, raw: CustomStreamWrapper, start_time: float) -> Stream:
-        stream_obj = Stream()
+    def _stream_handler_base(
+        self, raw: CustomStreamWrapper, start_time: float
+    ) -> Response:
 
         def _streamer(
             _extract_message_info: Callable[[ModelResponse, float], MessageInfo],
-        ):
+        ) -> Generator[str, None, None]:
             accumulated_content: str = ""
             _stream_finished = False
             for chunk in raw.completion_stream:
-                if not _stream_finished:  # this should always be there, it can be empty though
+                if not _stream_finished: 
                     if chunk.choices[0].finish_reason == "stop":    # this means we are on the last chunk
                         _stream_finished = True
                         chunk_content = None
-                    else:
+                    else:        # general case to handle chunks
                         chunk_content = chunk.choices[0].delta.content
                         assert isinstance(chunk_content, str)
                         accumulated_content += chunk_content
-                    yield Response(
-                        message=AssistantMessage(content=chunk_content) if chunk_content else None,
-                        message_info=MessageInfo(),
-                    )
+                    yield chunk_content if chunk_content else ""
                 else:
                     # Update the SAME object that was already returned to user
-                    stream_obj._final_message = AssistantMessage(content=accumulated_content)
+                    stream_response._final_message = accumulated_content
                     message_info = _extract_message_info(chunk, time.time() - start_time)
-                    stream_obj._message_info = message_info
-                    yield Response(
-                        message=None,
-                        message_info=message_info,
-                    )
+                    return_message._message_info = message_info
+                    yield ""
 
-        stream_obj._streamer = _streamer(self.extract_message_info)
-        return stream_obj  # User gets this immediately, but properties update later
+
+        stream_response = Stream(streamer=_streamer(self.extract_message_info))
+        return_message = Response(
+            message=AssistantMessage(content=stream_response),
+            message_info=MessageInfo(),  # empty initially, will be updated later by the streamer
+        )
+
+        return  return_message     # User gets this immediately, but properties update later
 
     def _chat_handle_base(self, raw: ModelResponse, info: MessageInfo):
         content = raw["choices"][0]["message"]["content"]

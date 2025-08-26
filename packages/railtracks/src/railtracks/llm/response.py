@@ -1,5 +1,3 @@
-from typing import Generator
-
 from .message import Message
 
 
@@ -63,7 +61,7 @@ class Response:
 
     def __init__(
         self,
-        message: Message | Generator[str, None, None] | None = None,
+        message: Message | None = None,
         message_info: MessageInfo = MessageInfo(),
     ):
         """
@@ -107,52 +105,3 @@ class Response:
     def __repr__(self):
         return f"Response(message={self._message}, message_info={self._message_info})"
 
-
-class Stream:
-    """
-    A simple object that represents a streaming response from a model. It includes specific detail about the returned message
-    and any other additional information from the model.
-    """
-
-    def __init__(
-        self,
-        streamer: Generator[Response, None, None] | None = None,
-    ):
-        """
-        Creates a new instance of a Stream object.
-
-        Args:
-            streamer: A generator that streams the response as a collection of chunked Response objects.
-        """
-        if streamer is not None and not isinstance(streamer, Generator):
-            raise TypeError(f"streamer must be of type Generator, got {type(streamer)}")
-        self._streamer = streamer
-        self._final_message: Message | None = None
-        self._message_info: MessageInfo | None = None
-
-    @property
-    def final_message(self) -> Message | None:
-        """
-        Gets the Final message that was constructured from the streamer, aftter the streamer has finished. Else returns None.
-        """
-        return self._final_message
-    
-    @property
-    def message_info(self) -> MessageInfo | None:
-        """
-        Gets the message info of the completed stream, if stream is not completed this will return None.
-        """
-        return self._message_info
-
-    @property
-    def streamer(self):
-        """
-        Gets the streamer that was returned as part of this response.
-        """
-        return self._streamer
-
-    def __str__(self):
-        return f"Stream(streamer={self._streamer})"
-
-    def __repr__(self):
-        return f"Stream(streamer={self._streamer})"

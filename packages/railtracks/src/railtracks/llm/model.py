@@ -8,7 +8,7 @@ from typing import Callable, List, Union, overload
 from pydantic import BaseModel
 
 from .history import MessageHistory
-from .response import Response, Stream
+from .response import Response
 from .tools import Tool
 
 
@@ -25,7 +25,7 @@ class ModelBase(ABC):
     def __init__(
         self,
         __pre_hooks: List[Callable[[MessageHistory], MessageHistory]] | None = None,
-        __post_hooks: List[Callable[[MessageHistory, Union[Response, Stream]], Union[Response, Stream]]] | None = None,
+        __post_hooks: List[Callable[[MessageHistory, Response], Response]] | None = None,
         __exception_hooks: List[Callable[[MessageHistory, Exception], None]] | None = None,
         _stream: bool = False,
     ):
@@ -33,7 +33,7 @@ class ModelBase(ABC):
             pre_hooks: List[Callable[[MessageHistory], MessageHistory]] = []
 
         if __post_hooks is None:
-            post_hooks: List[Callable[[MessageHistory, Union[Response, Stream]], Union[Response, Stream]]] = []
+            post_hooks: List[Callable[[MessageHistory, Response], Response]] = []
 
         if __exception_hooks is None:
             exception_hooks: List[Callable[[MessageHistory, Exception], None]] = []
@@ -48,7 +48,7 @@ class ModelBase(ABC):
         self._pre_hooks.append(hook)
 
     def add_post_hook(
-        self, hook: Callable[[MessageHistory, Union[Response, Stream]], Union[Response, Stream]]
+        self, hook: Callable[[MessageHistory, Response], Response]
     ) -> None:
         """Adds a post-hook to modify the response after receiving it from the model."""
         self._post_hooks.append(hook)
@@ -93,8 +93,8 @@ class ModelBase(ABC):
         return message_history
 
     def _run_post_hooks(
-        self, message_history: MessageHistory, result: Union[Response, Stream]
-    ) -> Union[Response, Stream]:
+        self, message_history: MessageHistory, result: Response
+    ) -> Response:
         """Runs all post-hooks on the provided message history and result."""
         for hook in self._post_hooks:
             result = hook(message_history, result)
@@ -107,7 +107,7 @@ class ModelBase(ABC):
         for hook in self._exception_hooks:
             hook(message_history, exception)
 
-    def chat(self, messages: MessageHistory) -> Union[Response, Stream]:
+    def chat(self, messages: MessageHistory):
         """Chat with the model using the provided messages."""
 
         messages = self._run_pre_hooks(messages)
@@ -194,7 +194,7 @@ class ModelBase(ABC):
         return response
 
     @abstractmethod
-    def _chat(self, messages: MessageHistory) -> Union[Response, Stream]:
+    def _chat(self, messages: MessageHistory) -> Response:
         pass
 
     @abstractmethod

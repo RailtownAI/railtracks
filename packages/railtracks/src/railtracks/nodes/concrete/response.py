@@ -3,7 +3,7 @@ from typing import Generic, TypeVar, Generator
 from pydantic import BaseModel
 
 from railtracks.llm import MessageHistory
-from railtracks.llm.content import Content
+from railtracks.llm.content import Content, Stream
 
 _T = TypeVar("_T", bound=Content)
 
@@ -23,24 +23,6 @@ class LLMResponse(Generic[_T]):
 
     def __repr__(self):
         return f"LLMResponse({self.content})"
-
-
-_TGenerator = TypeVar("_TGenerator", bound=Generator)
-
-class StreamedResponse(LLMResponse[_TGenerator]):
-    """
-    A special response object designed to be returned by an LLM node in the RT system.
-    This response object is used to stream the response from the LLM model.
-    """
-    def __init__(self, streamer: _TGenerator, message_history: MessageHistory):
-        super().__init__(streamer, message_history)
-
-    @property
-    def streamer(self) -> _TGenerator:
-        """Returns the streamer that was returned as part of this response."""
-        return self.content
-
-
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 
@@ -62,7 +44,7 @@ class StructuredResponse(LLMResponse[_TBaseModel]):
         return self.content
 
 
-class StringResponse(LLMResponse[str]):
+class StringResponse(LLMResponse[str | Stream]):
     """
     A specialized response object for string outputs from LLMs.
 
@@ -71,10 +53,20 @@ class StringResponse(LLMResponse[str]):
         message_history: The history of messages exchanged during the interaction.
     """
 
-    def __init__(self, content: str, message_history: MessageHistory):
+    def __init__(self, content: str | Stream, message_history: MessageHistory):
         super().__init__(content, message_history)
 
     @property
     def text(self) -> str:
         """Returns the text content of the response."""
+        assert isinstance(self.content, str)
         return self.content
+    
+    @property
+    def streamer(self) -> Generator[str, None, None]:
+        """Returns the streamer that was returned as part of this response.
+        
+        Note that this is a generator that yields strings.
+        """ 
+        assert isinstance(self.content, Stream), "For this property to be usable, the llm should have stream=True"
+        return self.content.streamer

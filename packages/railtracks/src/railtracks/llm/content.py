@@ -41,5 +41,48 @@ class ToolResponse(BaseModel):
     def __str__(self):
         return f"{self.name} -> {self.result}"
 
+class Stream():
+    """
+    A simple object that represents a streaming response from a model.
 
-Content = Union[str, List[ToolCall], ToolResponse, BaseModel, Generator[str, None, None]]   
+    This simple model is used to represent a streaming response from a model.
+    It contains a streamer attribute that is a generator that yields strings.
+    """
+
+    def __init__(
+        self,
+        streamer: Generator[str, None, None],
+    ):
+        """
+        Creates a new instance of a Stream object.
+
+        Args:
+            streamer: A generator that streams the response as a collection of chunked Response objects.
+        """
+        if streamer is not None and not isinstance(streamer, Generator):
+            raise TypeError(f"streamer must be of type Generator, got {type(streamer)}")
+        self._streamer = streamer
+        self._final_message: str | None = None
+
+    @property
+    def final_message(self) -> str | None:
+        """
+        Gets the Final message that was constructured from the streamer, aftter the streamer has finished. Else returns None.
+        """
+        return self._final_message
+
+    @property
+    def streamer(self):
+        """
+        Gets the streamer that was returned as part of this response.
+        """
+        return self._streamer
+
+    def __str__(self):
+        return f"Stream(streamer={self._streamer})"
+
+    def __repr__(self):
+        return f"Stream(streamer={self._streamer})"
+
+
+Content = Union[str, List[ToolCall], ToolResponse, BaseModel, Stream]   

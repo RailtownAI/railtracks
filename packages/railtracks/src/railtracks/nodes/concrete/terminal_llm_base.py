@@ -1,40 +1,12 @@
-from typing import TypeVar
-
 import railtracks.context as context
 from railtracks.exceptions import LLMError
 from railtracks.llm import Message, MessageHistory, ModelBase, UserMessage
 
 from ._llm_base import LLMBase, StringOutputMixIn
-from .response import StringResponse, StreamedResponse
-
-_T = TypeVar("_T")
-
+from .response import StringResponse
+from railtracks.llm.content import Stream
 
 class TerminalLLM(StringOutputMixIn, LLMBase[StringResponse]):
-    """A simple LLM node that takes in a message and returns a response. It is the simplest of all LLMs.
-
-    This node accepts message_history in the following formats:
-    - MessageHistory: A list of Message objects
-    - UserMessage: A single UserMessage object
-    - str: A string that will be converted to a UserMessage
-
-    Examples:
-        ```python
-        # Using MessageHistory
-        mh = MessageHistory([UserMessage("Tell me about the world around us")])
-        result = await rc.call(TerminalLLM, user_input=mh)
-
-        # Using UserMessage
-        user_msg = UserMessage("Tell me about the world around us")
-        result = await rc.call(TerminalLLM, user_input=user_msg)
-
-        # Using string
-        result = await rc.call(
-            TerminalLLM, user_input="Tell me about the world around us"
-        )
-        ```
-    """
-
     def __init__(
         self,
         user_input: MessageHistory | UserMessage | str | list[Message],
@@ -47,11 +19,6 @@ class TerminalLLM(StringOutputMixIn, LLMBase[StringResponse]):
         return "Terminal LLM"
 
     async def invoke(self) -> StringResponse:
-        """Makes a call containing the inputted message and system prompt to the llm model and returns the response
-
-        Returns:
-            (TerminalLLM.Output): The response message from the llm model
-        """
         try:
             returned_mess = self.llm_model.chat(self.message_hist)
         except Exception as e:
@@ -59,19 +26,19 @@ class TerminalLLM(StringOutputMixIn, LLMBase[StringResponse]):
                 reason=f"Exception during llm model chat: {str(e)}",
                 message_history=self.message_hist,
             )
-
-        self.message_hist.append(returned_mess.message)
+        assert returned_mess.message
         if returned_mess.message.role == "assistant":
             cont = returned_mess.message.content
-            if cont is None:
+            if isinstance(cont, Stream):    # if the AssistantMessage is a stream, we need to add the final message to the message history instead of the generator
+                assert isinstance(cont.final_message, str), "The _post_llm_hook should have ensured that the final message is populated"
+                returned_mess.message._content = cont.final_message
+            elif cont is None:
                 raise LLMError(
                     reason="ModelLLM returned None content",
                     message_history=self.message_hist,
                 )
-            if (key := self.return_into()) is not None:
-                context.put(key, self.format_for_context(cont))
-                return self.format_for_return(cont)
-            return self.return_output()
+            self.message_hist.append(returned_mess.message)
+            return self.return_output(returned_mess.message)
 
         raise LLMError(
             reason="ModelLLM returned an unexpected message type.",

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Dict, Generic, Iterable, Type, TypeVar, Union
+from typing import Any, Dict, Generic, Iterable, Type, TypeVar
 
 from pydantic import BaseModel
 from typing_extensions import Self
@@ -12,12 +12,14 @@ from railtracks.exceptions.messages.exception_messages import get_message
 from railtracks.llm import (
     Message,
     MessageHistory,
+    AssistantMessage,
     ModelBase,
     Parameter,
     SystemMessage,
     UserMessage,
 )
-from railtracks.llm.response import Response, Stream, MessageInfo
+from railtracks.llm.response import Response, MessageInfo
+from railtracks.llm.content import Stream
 from railtracks.prompts.prompt import inject_context
 from railtracks.utils.logging import get_rt_logger
 from railtracks.validation.node_invocation.validation import (
@@ -115,9 +117,11 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
                 )
             message_history_copy.insert(
                 0,
-                SystemMessage(self.system_message())
-                if isinstance(self.system_message(), str)
-                else self.system_message(),
+                (
+                    SystemMessage(self.system_message())
+                    if isinstance(self.system_message(), str)
+                    else self.system_message()
+                ),
             )
 
         instance_injected_llm_model = self.get_llm_model()
@@ -134,9 +138,9 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
             unwrapped_llm_model = llm_model
 
         self._verify_llm_model(unwrapped_llm_model)
-        assert isinstance(unwrapped_llm_model, ModelBase), (
-            "unwrapped_llm_model must be an instance of llm.ModelBase"
-        )
+        assert isinstance(
+            unwrapped_llm_model, ModelBase
+        ), "unwrapped_llm_model must be an instance of llm.ModelBase"
         self.llm_model = unwrapped_llm_model
 
         self.message_hist = message_history_copy
@@ -229,52 +233,45 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         """Hook to modify messages before sending them to the llm model."""
         return inject_context(message_history)
 
-    def _post_llm_hook(self, message_history: MessageHistory, response: Union[Response, Stream]):
+    def _post_llm_hook(self, message_history: MessageHistory, response: Response):
         """Hook to store the response details after invoking the llm model."""
-        if isinstance(response, Response):
-            self._details["llm_details"].append(
-                RequestDetails(
-                    message_input=deepcopy(message_history),
-                    output=deepcopy(response.message),
-                    model_name=response.message_info.model_name
-                    if response.message_info.model_name is not None
-                    else self.llm_model.model_name(),
-                    model_provider=self.llm_model.model_type(),
-                    input_tokens=response.message_info.input_tokens,
-                    output_tokens=response.message_info.output_tokens,
-                    total_cost=response.message_info.total_cost,
-                    system_fingerprint=response.message_info.system_fingerprint,
-                    latency=response.message_info.latency,
-                )
-            )
-        elif isinstance(response, Stream):
-            original_streamer = response.streamer
-            def _hooked_streamer():
-                # Stream all chunks
-                for chunk in original_streamer:
+        output_message = response.message
+
+        if isinstance(response.message, AssistantMessage) and isinstance(
+            response.message.content, Stream
+        ):
+            original_streamer = response.message.content.streamer
+            # Eagerly consume the original stream, so that we can populate message_info
+            chunks = list(original_streamer)
+            # After streaming completes, store the details
+            assert response.message.content.final_message
+            output_message = Message(content=response.message.content.final_message
+                                     , role="assistant")
+            # Create a fresh generator that just replays the chunks
+            def _replay_streamer():
+                for chunk in chunks:
                     yield chunk
-                
-                # After streaming completes, store the details
-                if response.final_message:
-                    assert isinstance(response.message_info, MessageInfo)
-                    self._details["llm_details"].append(
-                        RequestDetails(
-                            message_input=deepcopy(message_history),
-                            output=response.final_message,  # Use final_message instead of response.message
-                            model_name=response.message_info.model_name
-                            if response.message_info.model_name is not None
-                            else self.llm_model.model_name(),
-                            model_provider=self.llm_model.model_type(),
-                            input_tokens=response.message_info.input_tokens,
-                            output_tokens=response.message_info.output_tokens,
-                            total_cost=response.message_info.total_cost,
-                            system_fingerprint=response.message_info.system_fingerprint,
-                            latency=response.message_info.latency,
-                        )
-                    )
-            
-            # Replace the streamer with the hooked version
-            response._streamer = _hooked_streamer()
+
+            # Replace the streamer with the replay generator
+            response.message.content._streamer = _replay_streamer()
+
+        self._details["llm_details"].append(
+            RequestDetails(
+                message_input=deepcopy(message_history),
+                output=deepcopy(output_message),
+                model_name=(
+                    response.message_info.model_name
+                    if response.message_info.model_name is not None
+                    else self.llm_model.model_name()
+                ),
+                model_provider=self.llm_model.model_type(),
+                input_tokens=response.message_info.input_tokens,
+                output_tokens=response.message_info.output_tokens,
+                total_cost=response.message_info.total_cost,
+                system_fingerprint=response.message_info.system_fingerprint,
+                latency=response.message_info.latency,
+            )
+        )
 
         return response
 
@@ -361,9 +358,9 @@ class StructuredOutputMixIn(Generic[_TBaseModel]):
     def return_output(self) -> StructuredResponse[_TBaseModel]:
         structured_output = self.message_hist[-1].content
 
-        assert isinstance(structured_output, self.output_schema()), (
-            f"The final output must be a pydantic {self.output_schema()} instance. Instead it was {type(structured_output)}"
-        )
+        assert isinstance(
+            structured_output, self.output_schema()
+        ), f"The final output must be a pydantic {self.output_schema()} instance. Instead it was {type(structured_output)}"
 
         return StructuredResponse(
             model=structured_output,
@@ -374,14 +371,11 @@ class StructuredOutputMixIn(Generic[_TBaseModel]):
 class StringOutputMixIn:
     message_hist: MessageHistory
 
-    def return_output(self) -> StringResponse:
-        """Returns the last message content as a string."""
-        last_message = self.message_hist[-1]
-        assert isinstance(last_message.content, str), (
-            "The final output must be a string"
-        )
-
+    def return_output(self, message: Message) -> StringResponse:
+        """Returns the String response."""
+    
+        assert isinstance(message.content, str | Stream), "The final output must be a string or stream"
         return StringResponse(
-            content=last_message.content,
+            content=message.content,
             message_history=self.message_hist.removed_system_messages(),
         )
