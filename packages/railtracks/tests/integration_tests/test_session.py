@@ -43,6 +43,7 @@ def test_session_decorator_with_rt_call():
     result = asyncio.run(decorated_function())
     assert result == "async result"
 
+@rt.session
 def test_session_decorator_with_custom_context():
     """Test session decorator passes context correctly."""
     @rt.function_node
@@ -76,6 +77,15 @@ def test_session_decorator_timeout_parameter():
 def test_rt_session_vs_rt_Session_session_equivalence():
     """Test that rt.session is equivalent to rt.Session.session"""
     assert rt.session is rt.Session.session
+
+def test_session_decorator_sync_function_validation():
+    """Test that using @rt.session on sync function raises appropriate error."""
+    import pytest
+    
+    with pytest.raises(TypeError, match="@session decorator can only be applied to async functions"):
+        @rt.session()
+        def sync_function():
+            return "this should fail"
 
 # ================ END Session: Decorator Integration Tests ===============
 

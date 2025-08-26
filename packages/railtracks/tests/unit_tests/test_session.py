@@ -255,4 +255,25 @@ def test_rt_session_public_api_equivalence():
     """Test that rt.session is equivalent to rt.Session.session"""
     assert rt.session is rt.Session.session
 
+def test_session_decorator_raises_error_on_sync_function():
+    """Test that the session decorator raises TypeError when applied to sync function."""
+    with pytest.raises(TypeError, match="@session decorator can only be applied to async functions"):
+        @Session.session()
+        def sync_function():
+            return "this should fail"
+
+def test_session_decorator_error_message_contains_function_name():
+    """Test that the error message includes the function name."""
+    with pytest.raises(TypeError, match="Function 'my_sync_func' is not async"):
+        @Session.session()
+        def my_sync_func():
+            return "this should fail"
+
+def test_rt_session_decorator_raises_error_on_sync_function():
+    """Test that rt.session also raises TypeError when applied to sync function."""
+    with pytest.raises(TypeError, match="@session decorator can only be applied to async functions"):
+        @rt.session()
+        def sync_function():
+            return "this should fail"
+
 # ================ END Session: Decorator Tests ===============

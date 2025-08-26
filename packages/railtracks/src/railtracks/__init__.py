@@ -40,15 +40,12 @@ from railtracks.built_nodes.easy_usage_wrappers import (
 )
 
 from . import context, integrations, llm, prebuilt
-from ._session import ExecutionInfo, Session
+from ._session import ExecutionInfo, Session, session
 from .context.central import set_config
 from .interaction import broadcast, call, call_batch
 from .nodes.manifest import ToolManifest
 from .rt_mcp import MCPHttpParams, MCPStdioParams, connect_mcp, create_mcp_server
 from .utils.config import ExecutorConfig
-
-# Expose session decorator directly
-session = Session.session
 
 load_dotenv()
 # Only change the MAJOR.MINOR if you need to. Do not change the PATCH. (vMAJOR.MINOR.PATCH).
