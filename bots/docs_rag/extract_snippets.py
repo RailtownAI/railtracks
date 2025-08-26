@@ -29,7 +29,10 @@ def parse_line_selection(file_path, line_spec, workspace_root):
                 end += total_lines + 1
             selected_lines.extend(code_lines[start - 1 : end])
         else:
-            selected_lines.extend(code_lines[: int(spec)])
+            line = int(spec)
+            if line < 0:
+                line += total_lines + 1
+            selected_lines.append(code_lines[line - 1])
 
     # Remove snippet markers
     cleaned_lines = [
