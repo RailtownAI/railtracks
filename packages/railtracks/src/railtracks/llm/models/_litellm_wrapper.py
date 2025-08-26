@@ -7,6 +7,7 @@ from typing import (
     Callable,
     Dict,
     Generator,
+    AsyncGenerator,
     List,
     Optional,
     Tuple,
@@ -312,7 +313,7 @@ class LiteLLMWrapper(ModelBase, ABC):
         *,
         response_format: Optional[Any] = None,
         tools: Optional[list[Tool]] = None,
-    ) -> Tuple[ModelResponse, MessageInfo]:
+    ) -> Tuple[Union[CustomStreamWrapper, ModelResponse], float]:
         """
         Internal helper that:
           1. Converts MessageHistory
@@ -331,49 +332,107 @@ class LiteLLMWrapper(ModelBase, ABC):
             "ignore", category=UserWarning, module="pydantic.*"
         )  # Supress pydantic warnings. See issue #204 for more deatils.
         completion = await litellm.acompletion(  # override stream to always be false
-            model=self._model_name, messages=litellm_messages, stream=False, **merged
+            model=self._model_name,
+            messages=litellm_messages,
+            stream=self._stream,
+            **merged,
         )
-        assert isinstance(
-            completion, ModelResponse
-        ), "Please ensure stream is set to False, the expected response type is ModelResponse"
-        mess_info = self.extract_message_info(completion, time.time() - start_time)
-        return completion, mess_info
+        if isinstance(completion, CustomStreamWrapper):
+            return completion, start_time
+        else:
+            completion_time = time.time() - start_time
+            return completion, completion_time
 
-    # ================ START Base Handlers ===============
+    # ================ START Streaming Handlers ===============
     def _stream_handler_base(
         self, raw: CustomStreamWrapper, start_time: float
     ) -> Response:
+        """Consume the raw stream immediately, then return a replayable stream."""
 
-        def _streamer(
-            _extract_message_info: Callable[[ModelResponse, float], MessageInfo],
-        ) -> Generator[str, None, None]:
+        def _consume():
+            chunks = []
             accumulated_content: str = ""
+            message_info = MessageInfo()
             _stream_finished = False
             for chunk in raw.completion_stream:
-                if not _stream_finished: 
-                    if chunk.choices[0].finish_reason == "stop":    # this means we are on the last chunk
+                if not _stream_finished:
+                    if chunk.choices[0].finish_reason == "stop":
                         _stream_finished = True
                         chunk_content = None
-                    else:        # general case to handle chunks
+                    else:
                         chunk_content = chunk.choices[0].delta.content
                         assert isinstance(chunk_content, str)
                         accumulated_content += chunk_content
-                    yield chunk_content if chunk_content else ""
+                    chunks.append(chunk_content if chunk_content else "")
                 else:
-                    # Update the SAME object that was already returned to user
-                    stream_response._final_message = accumulated_content
-                    message_info = _extract_message_info(chunk, time.time() - start_time)
-                    return_message._message_info = message_info
-                    yield ""
+                    message_info = self.extract_message_info(
+                        chunk, time.time() - start_time
+                    )
+                    chunks.append("")  # still yield an empty string like before
+            return chunks, accumulated_content, message_info
 
+        chunks, accumulated_content, mess_info = _consume()
 
-        stream_response = Stream(streamer=_streamer(self.extract_message_info))
+        # replay streamer definitions
+        def _replay_streamer():
+            for c in chunks:
+                yield c
+
+        stream_response = Stream(
+            streamer=_replay_streamer(), final_message=accumulated_content
+        )
         return_message = Response(
             message=AssistantMessage(content=stream_response),
-            message_info=MessageInfo(),  # empty initially, will be updated later by the streamer
+            message_info=mess_info,  # will be updated during consume
         )
+        return return_message
+    
+    async def _astream_handler_base(
+        self, raw: CustomStreamWrapper, start_time: float
+    ) -> Response:
+        """Consume the raw stream immediately, then return a replayable stream."""
 
-        return  return_message     # User gets this immediately, but properties update later
+        async def _aconsume():
+            chunks = []
+            accumulated_content: str = ""
+            message_info = MessageInfo()
+            _stream_finished = False
+            async for chunk in raw.completion_stream:
+                if not _stream_finished:
+                    if chunk.choices[0].finish_reason == "stop":
+                        _stream_finished = True
+                        chunk_content = None
+                    else:
+                        chunk_content = chunk.choices[0].delta.content
+                        assert isinstance(chunk_content, str)
+                        accumulated_content += chunk_content
+                    chunks.append(chunk_content if chunk_content else "")
+                else:
+                    message_info = self.extract_message_info(
+                        chunk, time.time() - start_time
+                    )
+                    chunks.append("")  # still yield an empty string like before
+            return chunks, accumulated_content, message_info
+
+        chunks, accumulated_content, mess_info = await _aconsume()
+
+        # replay streamer definitions
+        def _replay_streamer():
+            for c in chunks:
+                yield c
+
+        stream_response = Stream(
+            streamer=_replay_streamer(), final_message=accumulated_content
+        )
+        return_message = Response(
+            message=AssistantMessage(content=stream_response),
+            message_info=mess_info,  # will be updated during consume
+        )
+        return return_message
+    
+    # ================ END Streaming Handlers ===============
+
+    # ================ START Base Handlers ==================
 
     def _chat_handle_base(self, raw: ModelResponse, info: MessageInfo):
         content = raw["choices"][0]["message"]["content"]
@@ -475,15 +534,31 @@ class LiteLLMWrapper(ModelBase, ABC):
 
     # ================ START Async LLM calls ===============
     async def _achat(self, messages: MessageHistory) -> Response:
-        raw = await self._ainvoke(messages=messages)
-        return self._chat_handle_base(*raw)
+        response, time = await self._ainvoke(messages=messages)
+        if isinstance(response, CustomStreamWrapper):
+            return await self._astream_handler_base(response, time)
+        elif isinstance(response, ModelResponse):
+            return self._chat_handle_base(
+                response, self.extract_message_info(response, time)
+            )
+        else:
+            raise ValueError("Unexpected response type")
 
     async def _astructured(
         self, messages: MessageHistory, schema: Type[BaseModel]
     ) -> Response:
         try:
-            model_resp, info = await self._ainvoke(messages, response_format=schema)
-            return self._structured_handle_base(model_resp, info, schema)
+            model_resp, time = self._invoke(messages, response_format=schema)
+            if isinstance(model_resp, CustomStreamWrapper):
+                return await self._astream_handler_base(model_resp, time)
+            elif isinstance(model_resp, ModelResponse):
+                return self._structured_handle_base(
+                    model_resp,
+                    self.extract_message_info(model_resp, time),
+                    schema,
+                )
+            else:
+                raise ValueError("Unexpected response type")
         except Exception as e:
             raise LLMError(
                 reason="Structured LLM call failed",
@@ -494,10 +569,15 @@ class LiteLLMWrapper(ModelBase, ABC):
         self, messages: MessageHistory, tools: List[Tool]
     ) -> Response:
 
-        resp, info = await self._ainvoke(messages, tools=tools)
-
-        return self._chat_with_tools_handler_base(resp, info)
-
+        resp, time = self._invoke(messages, tools=tools)
+        if isinstance(resp, CustomStreamWrapper):
+            return await self._astream_handler_base(resp, time)
+        elif isinstance(resp, ModelResponse):
+            return self._chat_with_tools_handler_base(
+                resp, self.extract_message_info(resp, time)
+            )
+        else:
+            raise ValueError("Unexpected response type")
     # ================ END Async LLM calls ===============
 
     def __str__(self) -> str:

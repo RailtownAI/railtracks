@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, AnyStr, Dict, List, Union, Generator
+from typing import Any, AnyStr, Dict, List, Union, Generator, AsyncGenerator
 
 from pydantic import BaseModel, Field
 
@@ -52,6 +52,7 @@ class Stream():
     def __init__(
         self,
         streamer: Generator[str, None, None],
+        final_message: str = "",
     ):
         """
         Creates a new instance of a Stream object.
@@ -60,12 +61,12 @@ class Stream():
             streamer: A generator that streams the response as a collection of chunked Response objects.
         """
         if streamer is not None and not isinstance(streamer, Generator):
-            raise TypeError(f"streamer must be of type Generator, got {type(streamer)}")
+            raise TypeError(f"streamer must be of type Generator/ AsyncGenerator, got {type(streamer)}")
         self._streamer = streamer
-        self._final_message: str | None = None
+        self._final_message = final_message
 
     @property
-    def final_message(self) -> str | None:
+    def final_message(self) -> str:
         """
         Gets the Final message that was constructured from the streamer, aftter the streamer has finished. Else returns None.
         """

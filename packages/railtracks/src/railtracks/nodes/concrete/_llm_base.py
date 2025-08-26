@@ -6,7 +6,7 @@ from typing import Any, Dict, Generic, Iterable, Type, TypeVar
 
 from pydantic import BaseModel
 from typing_extensions import Self
-
+import inspect
 from railtracks.exceptions.errors import NodeInvocationError
 from railtracks.exceptions.messages.exception_messages import get_message
 from railtracks.llm import (
@@ -235,30 +235,19 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
 
     def _post_llm_hook(self, message_history: MessageHistory, response: Response):
         """Hook to store the response details after invoking the llm model."""
-        output_message = response.message
-
         if isinstance(response.message, AssistantMessage) and isinstance(
             response.message.content, Stream
         ):
-            original_streamer = response.message.content.streamer
-            # Eagerly consume the original stream, so that we can populate message_info
-            chunks = list(original_streamer)
-            # After streaming completes, store the details
-            assert response.message.content.final_message
-            output_message = Message(content=response.message.content.final_message
-                                     , role="assistant")
-            # Create a fresh generator that just replays the chunks
-            def _replay_streamer():
-                for chunk in chunks:
-                    yield chunk
+            assert response.message.content.final_message, "The _stream_handler_base should have ensured that the final message is populated"
+            output_message = Message(content=response.message.content.final_message, role="assistant")      # instead of the generator we give the final_message for the RequestDetails
+        else:
+            output_message = deepcopy(response.message)
 
-            # Replace the streamer with the replay generator
-            response.message.content._streamer = _replay_streamer()
 
         self._details["llm_details"].append(
             RequestDetails(
                 message_input=deepcopy(message_history),
-                output=deepcopy(output_message),
+                output=output_message,
                 model_name=(
                     response.message_info.model_name
                     if response.message_info.model_name is not None

@@ -20,7 +20,7 @@ class TerminalLLM(StringOutputMixIn, LLMBase[StringResponse]):
 
     async def invoke(self) -> StringResponse:
         try:
-            returned_mess = self.llm_model.chat(self.message_hist)
+            returned_mess = await self.llm_model.achat(self.message_hist)
         except Exception as e:
             raise LLMError(
                 reason=f"Exception during llm model chat: {str(e)}",
@@ -30,14 +30,15 @@ class TerminalLLM(StringOutputMixIn, LLMBase[StringResponse]):
         if returned_mess.message.role == "assistant":
             cont = returned_mess.message.content
             if isinstance(cont, Stream):    # if the AssistantMessage is a stream, we need to add the final message to the message history instead of the generator
-                assert isinstance(cont.final_message, str), "The _post_llm_hook should have ensured that the final message is populated"
-                returned_mess.message._content = cont.final_message
-            elif cont is None:
+                assert isinstance(cont.final_message, str), "The _stream_handler_base in _litellm_wrapper should have ensured that the final message is populated"
+                self.message_hist.append(Message(content=cont.final_message, role="assistant"))  # instead of the generator we attach the final_message to the message history
+            elif isinstance(cont, str):
+                self.message_hist.append(returned_mess.message)
+            else:
                 raise LLMError(
-                    reason="ModelLLM returned None content",
+                    reason=f"ModelLLM returned unexpected content. Expected a string or stream, got {type(cont)}",
                     message_history=self.message_hist,
                 )
-            self.message_hist.append(returned_mess.message)
             return self.return_output(returned_mess.message)
 
         raise LLMError(

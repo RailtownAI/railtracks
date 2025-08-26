@@ -47,7 +47,6 @@ class MockLLM(rt.llm.ModelBase):
         return_message = self.custom_response or "mocked Message"
         return Response(
             message=AssistantMessage(return_message),
-            streamer=None,
             message_info=self.mocked_message_info,
         )
     
@@ -62,7 +61,6 @@ class MockLLM(rt.llm.ModelBase):
 
         return Response(
             message=AssistantMessage(response_model),
-            streamer=None,
             message_info=self.mocked_message_info,
         )
     
@@ -75,14 +73,12 @@ class MockLLM(rt.llm.ModelBase):
                final_message += f"Tool {tool_response.name} returned: '{tool_response.result}'" + "\n"
             return Response(
                 message=rt.llm.Message(content=final_message, role="assistant"),
-                streamer=None,
                 message_info=self.mocked_message_info,
             )
         else:
             return_message = self.requested_tool_calls or "mocked tool message"
             return Response(
                 message=AssistantMessage(return_message),
-                streamer=None,
                 message_info=self.mocked_message_info,
             )            
 

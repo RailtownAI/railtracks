@@ -27,6 +27,6 @@ agent = rt.agent_node(
 )
 response = rt.call_sync(agent, user_input=mh)
 
-print(response.message_history)
+print(response.streamer)
 
 print(response.text)

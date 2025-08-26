@@ -2,15 +2,16 @@
 # In the following document, we will use the interface types defined in this module to interact with the llama index to
 # route to a given model.
 ###
-from abc import ABC, abstractmethod
-from typing import Callable, List, Union, overload
+import inspect
 
+from abc import ABC, abstractmethod
+from typing import Callable, List
 from pydantic import BaseModel
 
 from .history import MessageHistory
 from .response import Response
 from .tools import Tool
-
+from .content import Stream
 
 class ModelBase(ABC):
     """

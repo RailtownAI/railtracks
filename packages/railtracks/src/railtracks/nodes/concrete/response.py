@@ -59,8 +59,12 @@ class StringResponse(LLMResponse[str | Stream]):
     @property
     def text(self) -> str:
         """Returns the text content of the response."""
-        assert isinstance(self.content, str)
-        return self.content
+        if isinstance(self.content, str):
+            return self.content
+        elif isinstance(self.content, Stream):
+            return self.content.final_message
+        else:
+            raise ValueError("Unexpected content type")
     
     @property
     def streamer(self) -> Generator[str, None, None]:
