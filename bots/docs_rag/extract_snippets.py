@@ -1,6 +1,5 @@
 import os
 import re
-import sys
 
 SNIPPET_PATTERN = re.compile(r'--8<--\s*"([^"]+)"')
 BLOCK_PATTERN = re.compile(r"--8<--\s*\n([\s\S]+?)\n--8<--")
@@ -8,7 +7,11 @@ START_MARKER = re.compile(r"# --8<-- \[start:(.+?)\]")
 END_MARKER = re.compile(r"# --8<-- \[end:(.+?)\]")
 
 
-def parse_line_selection(file_path, line_spec, workspace_root):
+def parse_line_selection(file_path: str, line_spec: str, workspace_root: str) -> str:
+    """
+    Extracts specific lines from a file based on line_spec, supporting start:end (colon) syntax,
+    as well as multiple ranges separated by commas. Removes snippet markers and comments from the output.
+    """
     abs_path = os.path.join(workspace_root, file_path)
     if not os.path.isfile(abs_path):
         return ""
@@ -17,6 +20,7 @@ def parse_line_selection(file_path, line_spec, workspace_root):
     total_lines = len(code_lines)
     selected_lines = []
     for spec in line_spec.split(","):
+        spec = spec.strip()
         if ":" in spec:
             start, end = (
                 spec.split(":") if spec.count(":") == 1 else spec.split(":")[:2]
@@ -47,7 +51,11 @@ def parse_line_selection(file_path, line_spec, workspace_root):
     return "".join(cleaned_lines)
 
 
-def parse_named_section(file_path, section_name, workspace_root):
+def parse_named_section(file_path: str, section_name: str, workspace_root: str) -> str:
+    """
+    Extracts a named snippet block from a file, identified by snippet markers.
+    Returns the code between the start and end markers for the given section name.
+    """
     abs_path = os.path.join(workspace_root, file_path)
     if not os.path.isfile(abs_path):
         return ""
@@ -83,7 +91,11 @@ def parse_named_section(file_path, section_name, workspace_root):
     return "".join(cleaned_lines)
 
 
-def replace_snippet(match, workspace_root):
+def replace_snippet(match: re.Match, workspace_root: str) -> str:
+    """
+    Resolves a snippet pattern match to the corresponding code, handling line ranges, named sections, or full file extraction.
+    Returns an empty string for invalid or unresolvable patterns.
+    """
     snippet = match.group(1)
     if not snippet or not isinstance(snippet, str):
         return ""
@@ -109,7 +121,12 @@ def replace_snippet(match, workspace_root):
         return "".join(cleaned_lines)
 
 
-def replace_block(match, workspace_root):
+def replace_block(match: re.Match, workspace_root: str) -> str:
+    """
+    Resolves a block pattern match to the concatenated code from all referenced files/snippets in the block.
+    Skips files prefixed with ';'. Returns empty string for invalid patterns.
+    extracted_content = []
+    """
     files = match.group(1).strip().splitlines()
     extracted_content = []
     for file in files:
@@ -125,26 +142,18 @@ def replace_block(match, workspace_root):
     return "".join(extracted_content)
 
 
-def extract_snippets(content, workspace_root):
-    def snippet_replacer(match):
+def extract_snippets(content: str, workspace_root: str) -> str:
+    """
+    Extracts and replaces all snippet and block patterns in the given content using the workspace root.
+    Returns the content with all snippet references replaced by their corresponding code.
+    """
+
+    def snippet_replacer(match) -> str:
         return replace_snippet(match, workspace_root)
 
-    def block_replacer(match):
+    def block_replacer(match) -> str:
         return replace_block(match, workspace_root)
 
     content = SNIPPET_PATTERN.sub(snippet_replacer, content)
     content = BLOCK_PATTERN.sub(block_replacer, content)
     return content
-
-
-if __name__ == "__main__":
-    print("Testing snippet extraction:")
-    if len(sys.argv) < 2:
-        print("Usage: python extract_snippets.py <markdown_file>")
-        sys.exit(1)
-    md_path = sys.argv[1]
-    workspace_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    with open(md_path, "r", encoding="utf-8") as f:
-        content = f.read()
-
-    print(extract_snippets(content, workspace_root))
