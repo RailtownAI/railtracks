@@ -8,10 +8,10 @@ START_MARKER = re.compile(r"# --8<-- \[start:(.+?)\]")
 END_MARKER = re.compile(r"# --8<-- \[end:(.+?)\]")
 
 
-def parse_line_selection(file_path, line_spec):
+def parse_line_selection(file_path, line_spec, workspace_root):
     abs_path = os.path.join(workspace_root, file_path)
     if not os.path.isfile(abs_path):
-        return f"# [ERROR] File not found: {abs_path}\n"
+        return ""
     with open(abs_path, "r", encoding="utf-8") as src:
         code_lines = src.readlines()
     total_lines = len(code_lines)
@@ -30,13 +30,24 @@ def parse_line_selection(file_path, line_spec):
             selected_lines.extend(code_lines[start - 1 : end])
         else:
             selected_lines.extend(code_lines[: int(spec)])
-    return "".join(selected_lines)
+
+    # Remove snippet markers
+    cleaned_lines = [
+        line
+        for line in selected_lines
+        if not (
+            START_MARKER.match(line.strip())
+            or END_MARKER.match(line.strip())
+            or line.strip().startswith("# --8<--")
+        )
+    ]
+    return "".join(cleaned_lines)
 
 
-def parse_named_section(file_path, section_name):
+def parse_named_section(file_path, section_name, workspace_root):
     abs_path = os.path.join(workspace_root, file_path)
     if not os.path.isfile(abs_path):
-        return f"# [ERROR] File not found: {abs_path}\n"
+        return ""
     with open(abs_path, "r", encoding="utf-8") as src:
         code_lines = src.readlines()
     in_block = False
@@ -54,24 +65,37 @@ def parse_named_section(file_path, section_name):
         if in_block:
             block_lines.append(line)
     if not found_start or not block_lines:
-        return f"# [ERROR] Snippet block '{section_name}' not found or empty in {file_path}\n"
-    return "".join(block_lines)
+        return ""
+
+    # Remove snippet markers
+    cleaned_lines = [
+        line
+        for line in block_lines
+        if not (
+            START_MARKER.match(line.strip())
+            or END_MARKER.match(line.strip())
+            or line.strip().startswith("# --8<--")
+        )
+    ]
+    return "".join(cleaned_lines)
 
 
-def replace_snippet(match):
+def replace_snippet(match, workspace_root):
     snippet = match.group(1)
+    if not snippet or not isinstance(snippet, str):
+        return ""
     if ":" in snippet:
         file_path, after_colon = snippet.split(":", 1)
         # If after_colon is all digits, colons, commas, or negative signs, treat as line spec
         if re.match(r"^[-\d:,]+$", after_colon):
-            return parse_line_selection(file_path, after_colon)
+            return parse_line_selection(file_path, after_colon, workspace_root)
         else:
-            return parse_named_section(file_path, after_colon)
+            return parse_named_section(file_path, after_colon, workspace_root)
     else:
         file_path = snippet
         abs_path = os.path.join(workspace_root, file_path)
         if not os.path.isfile(abs_path):
-            return f"# [ERROR] File not found: {abs_path}\n"
+            return ""
         with open(abs_path, "r", encoding="utf-8") as src:
             code_lines = src.readlines()
         cleaned_lines = [
@@ -82,7 +106,7 @@ def replace_snippet(match):
         return "".join(cleaned_lines)
 
 
-def replace_block(match):
+def replace_block(match, workspace_root):
     files = match.group(1).strip().splitlines()
     extracted_content = []
     for file in files:
@@ -90,14 +114,20 @@ def replace_block(match):
         if file.startswith(";"):  # Skip files prefixed with `;`
             continue
         extracted_content.append(
-            replace_snippet(SNIPPET_PATTERN.match(f'--8<-- "{file}"'))
+            replace_snippet(SNIPPET_PATTERN.match(f'--8<-- "{file}"'), workspace_root)
         )
     return "".join(extracted_content)
 
 
 def extract_snippets(content, workspace_root):
-    content = SNIPPET_PATTERN.sub(replace_snippet, content)
-    content = BLOCK_PATTERN.sub(replace_block, content)
+    def snippet_replacer(match):
+        return replace_snippet(match, workspace_root)
+
+    def block_replacer(match):
+        return replace_block(match, workspace_root)
+
+    content = SNIPPET_PATTERN.sub(snippet_replacer, content)
+    content = BLOCK_PATTERN.sub(block_replacer, content)
     return content
 
 
