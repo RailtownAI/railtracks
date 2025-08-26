@@ -283,7 +283,9 @@ def session(
     @rt.session(timeout=10)
     async def my_function():
         result = await rt.call(some_node)
-        return result"""
+        return result
+    ```
+    """
 
     def decorator(
         func: Callable[_P, Coroutine[Any, Any, _TOutput]],
