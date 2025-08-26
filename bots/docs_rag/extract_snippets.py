@@ -15,10 +15,13 @@ def parse_line_selection(file_path: str, line_spec: str, workspace_root: str) ->
     abs_path = os.path.join(workspace_root, file_path)
     if not os.path.isfile(abs_path):
         return ""
+
     with open(abs_path, "r", encoding="utf-8") as src:
         code_lines = src.readlines()
+
     total_lines = len(code_lines)
     selected_lines = []
+
     for spec in line_spec.split(","):
         spec = spec.strip()
         if ":" in spec:
@@ -57,10 +60,13 @@ def parse_named_section(file_path: str, section_name: str, workspace_root: str) 
     Returns the code between the start and end markers for the given section name.
     """
     abs_path = os.path.join(workspace_root, file_path)
+
     if not os.path.isfile(abs_path):
         return ""
+
     with open(abs_path, "r", encoding="utf-8") as src:
         code_lines = src.readlines()
+
     in_block = False
     block_lines = []
     found_start = False
@@ -99,6 +105,7 @@ def replace_snippet(match: re.Match, workspace_root: str) -> str:
     snippet = match.group(1)
     if not snippet or not isinstance(snippet, str):
         return ""
+
     if ":" in snippet:
         file_path, after_colon = snippet.split(":", 1)
         # If after_colon is all digits, colons, commas, or negative signs, treat as line spec
@@ -129,6 +136,7 @@ def replace_block(match: re.Match, workspace_root: str) -> str:
     """
     files = match.group(1).strip().splitlines()
     extracted_content = []
+
     for file in files:
         file = file.strip()
         if file.startswith(";"):  # Skip files prefixed with `;`
