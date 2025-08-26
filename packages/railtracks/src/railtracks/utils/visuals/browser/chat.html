@@ -5,21 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time AI Chat - Async/Await Demo</title>
     <link rel="stylesheet" href="chat.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.0/css/all.min.css" integrity="sha512-DxV+EoADOkOygM4IR9yXP8Sb2qwgidEmeqAEmDKIOfPRQZOWbXCzLC6vjbZyy0vPisbH2SyW27+ddLVCN+OMzQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
     <div class="main-container">
         <div class="app-header">
-            <div class="connection-status" id="connectionStatus">Connecting...</div>
-            <button class="end-session-button" id="endSessionButton" onclick="endSession()">
-                End Session
-            </button>
-            <h1>🤖 <span class="code-accent glow">Real-time AI Chat</span></h1>
+            <h1 class="code-accent"><i class="fa-solid fa-robot"></i> <span class="">Real-time AI Chat</span></h1>
+            <div style="display: flex; gap:10px">
+                <a class="end-session-button" id="endSessionButton" title="End the current chat session" onclick="endSession(event)">
+                    End Session
+                </a>
+                <div class="connection-status" id="connectionStatus">Connecting...</div>
+            </div>
         </div>
         
         <div class="tab-container">
-            <button class="tab active" onclick="switchTab('chat')">Chat Interface</button>
-            <button class="tab" onclick="switchTab('tools')">Invoked Tools</button>
+            <a class="tab active" onclick="switchTab('chat')"><i class="fa-solid fa-comments"></i> Chat</a>
+            <a class="tab" onclick="switchTab('tools')"><i class="fa-solid fa-gear"></i> Tools</a>
         </div>
         
         <!-- Chat Tab Content -->
@@ -47,7 +50,6 @@
         <div class="tab-content" id="toolsTab">
             <div class="tools-container">
                 <div class="tools-header">
-                    <h2>🧰 Invoked Tools</h2>
                     <button class="clear-tools-button" onclick="clearTools()">Clear Tools</button>
                 </div>
                 <div class="tools-list" id="toolsList">

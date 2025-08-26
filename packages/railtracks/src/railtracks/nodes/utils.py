@@ -1,9 +1,11 @@
 from typing import Callable, Coroutine, ParamSpec, Type, TypeVar, overload
 
-from railtracks.nodes.concrete import AsyncDynamicFunctionNode, SyncDynamicFunctionNode
-from railtracks.nodes.easy_usage_wrappers.function import (
-    _AsyncNodeAttachedFunc,
-    _SyncNodeAttachedFunc,
+from railtracks.nodes.concrete import (
+    AsyncDynamicFunctionNode,
+    RTAsyncFunction,
+    RTFunction,
+    RTSyncFunction,
+    SyncDynamicFunctionNode,
 )
 from railtracks.nodes.nodes import Node
 
@@ -13,30 +15,29 @@ _TOutput = TypeVar("_TOutput")
 
 @overload
 def extract_node_from_function(
-    func: Callable[_P, Coroutine[None, None, _TOutput]]
-    | _AsyncNodeAttachedFunc[_P, _TOutput],
+    func: Callable[_P, Coroutine[None, None, _TOutput]] | RTAsyncFunction[_P, _TOutput],
 ) -> Type[Node[AsyncDynamicFunctionNode[_P, _TOutput]]]:
     pass
 
 
 @overload
 def extract_node_from_function(
-    func: Callable[_P, _TOutput] | _SyncNodeAttachedFunc[_P, _TOutput],
+    func: Callable[_P, _TOutput] | RTSyncFunction[_P, _TOutput],
 ) -> Type[Node[SyncDynamicFunctionNode[_P, _TOutput]]]:
     pass
 
 
 def extract_node_from_function(
     func: Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]
-    | _AsyncNodeAttachedFunc[_P, _TOutput]
-    | _SyncNodeAttachedFunc[_P, _TOutput],
+    | RTFunction[_P, _TOutput],
 ):
+    """
+    Extracts the node type from a function or a callable.
+    """
     # we enter this block if the user passed in a previously from function decorated node.
     if hasattr(func, "node_type"):
         node = func.node_type
-        assert issubclass(node, Node), (
-            f"The node type must be a Node instance. Instead it was {type(node)}"
-        )
+
     # if the node is a pure function then we will also convert it to a node.
     else:
         # since this task is completed at run_time we will use a lazy import here.

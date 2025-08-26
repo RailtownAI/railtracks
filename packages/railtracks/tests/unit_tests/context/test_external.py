@@ -60,6 +60,38 @@ def test_delete_from_context():
         context.get("a")
 # ============ END Delete Tests ===============
 
+# ============ START Keys Tests ===============
+def test_keys_empty_context():
+    context = MutableExternalContext()
+    keys = context.keys()
+    assert len(keys) == 0
+
+
+def test_keys_with_data():
+    context = MutableExternalContext({"a": 1, "b": 2})
+    keys = context.keys()
+    assert set(keys) == {"a", "b"}
+
+
+def test_keys_after_modifications():
+    context = MutableExternalContext({"a": 1})
+    
+    # Add a key
+    context.put("b", 2)
+    keys = context.keys()
+    assert set(keys) == {"a", "b"}
+    
+    # Delete a key
+    context.delete("a")
+    keys = context.keys()
+    assert set(keys) == {"b"}
+    
+    # Update with new keys
+    context.update({"c": 3, "d": 4})
+    keys = context.keys()
+    assert set(keys) == {"b", "c", "d"}
+# ============ END Keys Tests ===============
+
 # ============ START Initialization Tests ===============
 def test_init_with_input_dict():
     d = {"x": 42}

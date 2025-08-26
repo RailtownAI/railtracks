@@ -8,20 +8,20 @@ from railtracks.exceptions import NodeCreationError, NodeInvocationError
 
 # ================================================ START terminal_llm basic functionality =========================================================
 @pytest.mark.asyncio
-async def test_terminal_llm_instantiate_and_invoke(mock_llm, mock_chat_function):
+async def test_terminal_llm_instantiate_and_invoke(mock_llm, mock_chat_response_message):
     class MockLLM(TerminalLLM):
         @classmethod
         def name(cls):
             return "Mock LLM"
         
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("hello")])
-    node = MockLLM(user_input=mh, llm_model=mock_llm(chat=mock_chat_function))
+    node = MockLLM(user_input=mh, llm_model=mock_llm(mock_chat_response_message))
     # with rt.Session() as runner:
     result = await node.invoke()
     assert result.text == "dummy content"
 
 @pytest.mark.asyncio
-async def test_terminal_llm_instantiate_with_string(mock_llm, mock_chat_function):
+async def test_terminal_llm_instantiate_with_string(mock_llm, mock_chat_response_message):
     """Test that TerminalLLM can be instantiated with a string input."""
     class MockLLM(TerminalLLM):
         @classmethod
@@ -32,7 +32,7 @@ async def test_terminal_llm_instantiate_with_string(mock_llm, mock_chat_function
         def system_message(cls):
             return "system prompt"
 
-    node = MockLLM(user_input="hello", llm_model=mock_llm(chat=mock_chat_function))
+    node = MockLLM(user_input="hello", llm_model=mock_llm(mock_chat_response_message))
     # Verify that the string was converted to a MessageHistory with a UserMessage
     assert len(node.message_hist) == 2  # System message + UserMessage
     assert node.message_hist[0].role == "system"
@@ -44,7 +44,7 @@ async def test_terminal_llm_instantiate_with_string(mock_llm, mock_chat_function
     assert result.text == "dummy content"
 
 @pytest.mark.asyncio
-async def test_terminal_llm_instantiate_with_user_message(mock_llm, mock_chat_function):
+async def test_terminal_llm_instantiate_with_user_message(mock_llm, mock_chat_response_message):
     """Test that TerminalLLM can be instantiated with a UserMessage input."""
     class MockLLM(TerminalLLM):
         @classmethod
@@ -56,7 +56,7 @@ async def test_terminal_llm_instantiate_with_user_message(mock_llm, mock_chat_fu
             return "system prompt"
 
     user_msg = UserMessage("hello")
-    node = MockLLM(user_input=user_msg, llm_model=mock_llm(chat=mock_chat_function))
+    node = MockLLM(user_input=user_msg, llm_model=mock_llm(mock_chat_response_message))
     # Verify that the UserMessage was converted to a MessageHistory
     assert len(node.message_hist) == 2  # System message + UserMessage
     assert node.message_hist[0].role == "system"
@@ -68,11 +68,11 @@ async def test_terminal_llm_instantiate_with_user_message(mock_llm, mock_chat_fu
     assert result.text == "dummy content"
 
 @pytest.mark.asyncio
-async def test_terminal_llm_easy_usage_wrapper_invoke(mock_llm, mock_chat_function):
+async def test_terminal_llm_easy_usage_wrapper_invoke(mock_llm, mock_chat_response_message):
     node = terminal_llm(
         name="Mock LLM",
         system_message="system prompt",
-        llm_model=mock_llm(chat=mock_chat_function),
+        llm_model=mock_llm(mock_chat_response_message),
     )
     mh = MessageHistory([UserMessage("hello")])
     result = await rt.call(node, user_input=mh)

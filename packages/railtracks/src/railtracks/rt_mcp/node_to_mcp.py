@@ -6,13 +6,12 @@ from mcp.server.fastmcp.tools import Tool as MCPTool
 from mcp.server.fastmcp.utilities.func_metadata import func_metadata
 
 # TODO: this logic must be get refactored
-from railtracks.interaction.call import call
+from railtracks.interaction._call import call
 
 # TODO this must be moved to a more appropriate place in utils.
 from railtracks.llm.models._litellm_wrapper import _parameters_to_json_schema
-from railtracks.nodes.easy_usage_wrappers.function import (
-    _AsyncNodeAttachedFunc,
-    _SyncNodeAttachedFunc,
+from railtracks.nodes.concrete import (
+    RTFunction,
 )
 from railtracks.nodes.nodes import Node
 
@@ -83,7 +82,7 @@ def _create_tool_function(
 
 
 def create_mcp_server(
-    nodes: List[Node | _AsyncNodeAttachedFunc | _SyncNodeAttachedFunc],
+    nodes: List[Node | RTFunction],
     server_name: str = "MCP Server",
     fastmcp: FastMCP | None = None,
 ):

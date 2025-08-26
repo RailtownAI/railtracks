@@ -3,7 +3,7 @@ from __future__ import annotations
 import contextvars
 import os
 import warnings
-from typing import Any, Callable, Coroutine
+from typing import Any, Callable, Coroutine, KeysView
 
 from railtracks.exceptions import ContextError
 from railtracks.pubsub.publisher import RTPublisher
@@ -320,6 +320,17 @@ def delete(key: str):
     context.external_context.delete(key)
 
 
+def keys() -> KeysView[str]:
+    """
+    Get the keys of the context.
+
+    Returns:
+        KeysView[str]: The keys in the context.
+    """
+    context = safe_get_runner_context()
+    return context.external_context.keys()
+
+
 def set_config(
     *,
     timeout: float | None = None,
@@ -329,7 +340,6 @@ def set_config(
     broadcast_callback: (
         Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
     ) = None,
-    run_identifier: str | None = None,
     prompt_injection: bool | None = None,
     save_state: bool | None = None,
 ):

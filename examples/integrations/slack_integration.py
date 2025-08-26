@@ -6,7 +6,7 @@
 import os
 
 
-from railtracks.integrations.rt_mcp import connect_mcp, MCPStdioParams
+from railtracks import connect_mcp, MCPStdioParams
 import railtracks as rt
 
 MCP_COMMAND = "npx"

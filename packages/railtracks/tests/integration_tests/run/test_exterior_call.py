@@ -61,8 +61,8 @@ async def logging_config_test_async():
             info = await rt.call(RNGNode)
             runner = run
             assert run == runner
-            assert runner.rc_state.executor_config.logging_setting == log_setting
-            assert runner.rc_state.executor_config.end_on_error == False
+            assert runner.rt_state.executor_config.logging_setting == log_setting
+            assert runner.rt_state.executor_config.end_on_error == False
 
         response = info
         assert isinstance(response, float), "Expected a float result from RNGNode"
@@ -80,8 +80,8 @@ async def logging_config_test_async():
             info = run.info
             runner = run
             assert run == runner
-            assert runner.rc_state.executor_config.logging_setting == log_setting
-            assert runner.rc_state.executor_config.end_on_error == False
+            assert runner.rt_state.executor_config.logging_setting == log_setting
+            assert runner.rt_state.executor_config.end_on_error == False
 
         assert isinstance(resp, float), "Expected a float result from RNGNode"
         assert 0 < resp < 1, "Expected a float result from RNGNode"
@@ -121,8 +121,8 @@ def logging_config_test_threads():
         with rt.Session() as run:
             response = rt.call_sync(RNGNode)
             runner = run
-            assert runner.rc_state.executor_config.logging_setting == log_setting
-            assert runner.rc_state.executor_config.end_on_error == False
+            assert runner.rt_state.executor_config.logging_setting == log_setting
+            assert runner.rt_state.executor_config.end_on_error == False
 
         assert isinstance(response, float), "Expected a float result from RNGNode"
         assert 0 < response < 1, "Expected a float result from RNGNode"
@@ -146,8 +146,8 @@ def test_sequence_of_changes():
     )
     with rt.Session() as run:
         response = rt.call_sync(RNGNode)
-        assert run.rc_state.executor_config.end_on_error
-        assert run.rc_state.executor_config.logging_setting == "NONE"
+        assert run.rt_state.executor_config.end_on_error
+        assert run.rt_state.executor_config.logging_setting == "NONE"
         assert response == run.info.answer
 
 
@@ -158,8 +158,8 @@ def test_sequence_of_changes_overwrite():
         end_on_error=True, logging_setting="NONE"
     ) as run:
         response = rt.call_sync(RNGNode)
-        assert run.rc_state.executor_config.end_on_error
-        assert run.rc_state.executor_config.logging_setting == "NONE"
+        assert run.rt_state.executor_config.end_on_error
+        assert run.rt_state.executor_config.logging_setting == "NONE"
         assert response == run.info.answer
 
 def test_back_to_defaults():
@@ -167,12 +167,12 @@ def test_back_to_defaults():
     with rt.Session(
         end_on_error=True, logging_setting="NONE"
     ) as run:
-        assert run.rc_state.executor_config.end_on_error
-        assert run.rc_state.executor_config.logging_setting == "NONE"
+        assert run.rt_state.executor_config.end_on_error
+        assert run.rt_state.executor_config.logging_setting == "NONE"
 
     with rt.Session() as run:
-        assert run.rc_state.executor_config.end_on_error
-        assert run.rc_state.executor_config.logging_setting == "REGULAR"
+        assert run.rt_state.executor_config.end_on_error
+        assert run.rt_state.executor_config.logging_setting == "REGULAR"
 
 
 

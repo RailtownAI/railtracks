@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import Any, Dict, Generic, Iterable, Type, TypeVar
@@ -20,6 +19,7 @@ from railtracks.llm import (
 )
 from railtracks.llm.response import Response
 from railtracks.prompts.prompt import inject_context
+from railtracks.utils.logging import get_rt_logger
 from railtracks.validation.node_invocation.validation import (
     check_llm_model,
     check_message_history,
@@ -27,6 +27,9 @@ from railtracks.validation.node_invocation.validation import (
 
 from ..nodes import Node
 from .response import StringResponse, StructuredResponse
+
+# Global logger for LLM nodes
+logger = get_rt_logger("Node.LLM")
 
 _T = TypeVar("_T")
 
@@ -46,6 +49,7 @@ class RequestDetails:
         output_tokens: int | None = None,
         total_cost: float | None = None,
         system_fingerprint: str | None = None,
+        latency: float | None = None,
     ):
         self.input = message_input
         self.output = output
@@ -55,6 +59,7 @@ class RequestDetails:
         self.output_tokens = output_tokens
         self.total_cost = total_cost
         self.system_fingerprint = system_fingerprint
+        self.latency = latency
 
     def __repr__(self):
         return f"RequestDetails(model_name={self.model_name}, model_provider={self.model_provider}, input={self.input}, output={self.output})"
@@ -105,7 +110,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
                 )
             # If there is already a SystemMessage in MessageHistory we will tell user both are being used
             if len([x for x in message_history_copy if x.role == "system"]) > 0:
-                warnings.warn(
+                logger.warning(
                     "System message was passed in message history and defined as a method. We will use both and add model method to message history."
                 )
             message_history_copy.insert(
@@ -119,7 +124,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
 
         if instance_injected_llm_model is not None:
             if llm_model is not None:
-                warnings.warn(
+                logger.warning(
                     "You have provided an llm model as a parameter and as a class variable. We will use the parameter."
                 )
                 unwrapped_llm_model = llm_model
@@ -238,6 +243,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
                 output_tokens=response.message_info.output_tokens,
                 total_cost=response.message_info.total_cost,
                 system_fingerprint=response.message_info.system_fingerprint,
+                latency=response.message_info.latency,
             )
         )
 
@@ -306,6 +312,10 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         # now that we have reattached the correct memory address to the llm the hooks will update properly.
 
         return new_instance
+
+    @classmethod
+    def type(cls):
+        return "Agent"
 
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)

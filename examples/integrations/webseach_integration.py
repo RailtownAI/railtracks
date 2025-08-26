@@ -5,7 +5,7 @@
 ##################################################################
 from dotenv import load_dotenv
 import os
-from railtracks import connect_mcp, agent_node
+from railtracks import connect_mcp
 import railtracks as rt
 from railtracks.rt_mcp import MCPHttpParams
 import aiohttp
@@ -75,19 +75,14 @@ async def google_search(query: str, num_results: int = 3) -> Dict[str, Any]:
 
 ##################################################################
 # Example using the tools with an agent
-if __name__ == "__main__":
-    tools = fetch_mcp_tools + [google_search]
-    agent = agent_node(
-        tool_nodes={*tools},
-        system_message="""You are an information gathering agent that can search the web.""",
-        llm_model=rt.llm.OpenAILLM("gpt-4o"),
-    )
+tools = fetch_mcp_tools + [google_search]
+agent = rt.agent_node(
+    tool_nodes={*tools},
+    system_message="""You are an infomation gathering agent that can search the web.""",
+    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    max_tool_calls=10,
+)
 
-    user_prompt = """Tell me about Railtown AI."""
-    message_history = rt.llm.MessageHistory()
-    message_history.append(rt.llm.UserMessage(user_prompt))
+result = rt.call_sync(agent, "Tell me about Railtown AI.")
 
-
-    result = rt.call_sync(agent, message_history)
-
-    print(result)
+print(result)
