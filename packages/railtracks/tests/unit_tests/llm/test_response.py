@@ -52,28 +52,21 @@ def test_response_repr_includes_components():
     s = repr(resp)
     assert "Response(" in s
     assert "message=" in s
-    assert "streamer=None" in s
     assert "message_info=" in s
 
 
-def test_response_message_and_streamer_behaviors_with_message():
-    def streamer():
-        yield "chunk1"
-        yield "chunk2"
-
+def test_response_message():
     message = AssistantMessage("Streaming test.")
-    resp = Response(message=message, streamer=streamer())
+    resp = Response(message=message)
     assert resp.message is message
-    assert resp.streamer is not None
-    assert list(resp.streamer) == ["chunk1", "chunk2"]
+    assert resp is not None
 
 
-def test_response_message_none_streamer_none_and_str_and_repr():
+def test_response_message_none_and_str_and_repr():
     resp = Response()
     assert resp.message is None
-    assert resp.streamer is None
     assert str(resp) == "Response(<no-data>)"
-    assert resp.__repr__().startswith("Response(message=None, streamer=None")
+    assert resp.__repr__().startswith("Response(message=None")
 
 
 def test_response_invalid_message_type_raises_type_error():

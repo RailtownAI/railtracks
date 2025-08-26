@@ -360,8 +360,10 @@ class StructuredOutputMixIn(Generic[_TBaseModel]):
 class StringOutputMixIn:
     message_hist: MessageHistory
 
-    def return_output(self, message: Message) -> StringResponse:
+    def return_output(self, message: Message | None = None) -> StringResponse:
         """Returns the String response."""
+        if message is None:  # if no message is provided, use the last message from message history
+            message = self.message_hist[-1]
     
         assert isinstance(message.content, str | Stream), "The final output must be a string or stream"
         return StringResponse(
