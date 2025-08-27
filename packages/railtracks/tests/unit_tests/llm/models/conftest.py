@@ -6,6 +6,9 @@ from railtracks.llm.content import ToolCall, ToolResponse
 from railtracks.llm.tools import Tool, Parameter
 from railtracks.llm.models._litellm_wrapper import LiteLLMWrapper
 
+from typing import Any, Optional, Tuple, Union
+from litellm.utils import CustomStreamWrapper, ModelResponse  # type: ignore
+
 
 # ====================================== START Tool Fixtures ======================================
 @pytest.fixture
@@ -51,7 +54,9 @@ def tool_with_parameters_set():
         },
     )
 
+
 # ====================================== END Tool Fixtures ======================================
+
 
 # ====================================== START Message Fixtures ======================================
 @pytest.fixture
@@ -93,32 +98,50 @@ def tool_call():
     """
     return ToolCall(identifier="123", name="example_tool", arguments={"arg1": "value1"})
 
+
 @pytest.fixture
 def message_history(user_message, assistant_message):
     """
     Fixture to provide a MessageHistory instance.
     """
     return MessageHistory([user_message, assistant_message])
+
+
 # ====================================== END Message Fixtures ======================================
+
 
 # ======================================= START Mock LiteLLMWrapper ======================================
 class MockLiteLLMWrapper(LiteLLMWrapper):
     """
     Mock implementation of LiteLLMWrapper for testing purposes.
     """
+
+    def __init__(self, response, stream: bool = False):
+        self.response = response
+        self.stream = stream
+
     @classmethod
     def model_type(cls) -> str:
         return "mock"
 
-    def _invoke(self, messages, *args, **kwargs):
-        return {
-            "choices": [
-                {
-                    "message": {"content": "Mocked response"},
-                    "finish_reason": "stop",
-                }
-            ]
-        }
+    def _invoke(
+        self,
+        messages: MessageHistory,
+        *,
+        response_format: Optional[Any] = None,
+        tools: Optional[list[Tool]] = None,
+    ) -> Tuple[Union[CustomStreamWrapper, ModelResponse], float]:
+        return (
+            ModelResponse(
+                choices=[
+                    {
+                        "message": {"content": self.response},
+                        "finish_reason": "stop",
+                    }
+                ]
+            ),
+            0.0,
+        )
 
 
 @pytest.fixture
@@ -127,4 +150,6 @@ def mock_litellm_wrapper():
     Fixture to provide a mock LiteLLMWrapper instance.
     """
     return MockLiteLLMWrapper
+
+
 # ======================================= END Mock LiteLLMWrapper ======================================

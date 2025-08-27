@@ -15,7 +15,7 @@ from typing import (
 )
 
 import litellm
-from litellm.utils import CustomStreamWrapper, ModelResponse
+from litellm.utils import CustomStreamWrapper, ModelResponse        # type: ignore
 from pydantic import BaseModel, ValidationError
 
 from ...exceptions.errors import LLMError, NodeInvocationError

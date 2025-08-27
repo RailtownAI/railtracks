@@ -1,4 +1,5 @@
 import pytest
+import types
 from railtracks.llm.models._litellm_wrapper import (
     _parameters_to_json_schema,
     _to_litellm_tool,
@@ -6,238 +7,155 @@ from railtracks.llm.models._litellm_wrapper import (
 )
 from railtracks.exceptions import NodeInvocationError, LLMError
 from railtracks.llm.message import AssistantMessage
-from railtracks.llm.history import MessageHistory
 from pydantic import BaseModel
-import litellm
+from railtracks.llm.response import Response
+
+class TestHelpers:
+
+    # =================================== START _parameters_to_json_schema Tests ==================================
+    # parameters_to_json_schema is guaranteed to get only a set of Parameter objects
+    def test_parameters_to_json_schema_with_parameters_set(self, tool_with_parameters_set):
+        """
+        Test _parameters_to_json_schema with a set of Parameter objects.
+        """
+        schema = _parameters_to_json_schema(tool_with_parameters_set.parameters)
+        assert schema["type"] == "object"
+        assert "properties" in schema
+        assert "param1" in schema["properties"]
+        assert schema["properties"]["param1"]["type"] == "string"
+        assert schema["properties"]["param1"]["description"] == "A string parameter."
+        assert "required" in schema
+        assert "param1" in schema["required"]
 
 
-# =================================== START _parameters_to_json_schema Tests ==================================
-# parameters_to_json_schema is guaranteed to get only a set of Parameter objects
+    def test_parameters_to_json_schema_with_empty_set(self):
+        schema = _parameters_to_json_schema(set())
+        assert schema == {"type": "object", "properties": {}}
 
 
-def test_parameters_to_json_schema_with_parameters_set(tool_with_parameters_set):
-    """
-    Test _parameters_to_json_schema with a set of Parameter objects.
-    """
-    schema = _parameters_to_json_schema(tool_with_parameters_set.parameters)
-    assert schema["type"] == "object"
-    assert "properties" in schema
-    assert "param1" in schema["properties"]
-    assert schema["properties"]["param1"]["type"] == "string"
-    assert schema["properties"]["param1"]["description"] == "A string parameter."
-    assert "required" in schema
-    assert "param1" in schema["required"]
+    def test_parameters_to_json_schema_invalid_input(self):
+        """
+        Test _parameters_to_json_schema with invalid input.
+        """
+        with pytest.raises(NodeInvocationError):
+            _parameters_to_json_schema(123)     # type: ignore
 
 
-def test_parameters_to_json_schema_with_empty_set():
-    schema = _parameters_to_json_schema(set())
-    assert schema == {"type": "object", "properties": {}}
+    # =================================== END _parameters_to_json_schema Tests ====================================
 
 
-def test_parameters_to_json_schema_invalid_input():
-    """
-    Test _parameters_to_json_schema with invalid input.
-    """
-    with pytest.raises(NodeInvocationError):
-        _parameters_to_json_schema(123)
+    # =================================== START _to_litellm_tool Tests ==================================
+    def test_to_litellm_tool(self, tool):
+        """
+        Test _to_litellm_tool with a valid Tool instance.
+        """
+        litellm_tool = _to_litellm_tool(tool)
+        assert litellm_tool["type"] == "function"
+        assert "function" in litellm_tool
+        assert litellm_tool["function"]["name"] == "example_tool"
+        assert litellm_tool["function"]["description"] == "This is an example tool."
+        assert "parameters" in litellm_tool["function"]
 
 
-# =================================== END _parameters_to_json_schema Tests ====================================
+    # =================================== END _to_litellm_tool Tests ====================================
 
 
-# =================================== START _to_litellm_tool Tests ==================================
-def test_to_litellm_tool(tool):
-    """
-    Test _to_litellm_tool with a valid Tool instance.
-    """
-    litellm_tool = _to_litellm_tool(tool)
-    assert litellm_tool["type"] == "function"
-    assert "function" in litellm_tool
-    assert litellm_tool["function"]["name"] == "example_tool"
-    assert litellm_tool["function"]["description"] == "This is an example tool."
-    assert "parameters" in litellm_tool["function"]
+    # =================================== START _to_litellm_message Tests ==================================
+    def test_to_litellm_message_user_message(self, user_message):
+        """
+        Test _to_litellm_message with a UserMessage instance.
+        """
+        litellm_message = _to_litellm_message(user_message)
+        assert litellm_message["role"] == "user"
+        assert litellm_message["content"] == "This is a user message."
 
 
-# =================================== END _to_litellm_tool Tests ====================================
+    def test_to_litellm_message_assistant_message(self, assistant_message):
+        """
+        Test _to_litellm_message with an AssistantMessage instance.
+        """
+        litellm_message = _to_litellm_message(assistant_message)
+        assert litellm_message["role"] == "assistant"
+        assert litellm_message["content"] == "This is an assistant message."
 
 
-# =================================== START _to_litellm_message Tests ==================================
-def test_to_litellm_message_user_message(user_message):
-    """
-    Test _to_litellm_message with a UserMessage instance.
-    """
-    litellm_message = _to_litellm_message(user_message)
-    assert litellm_message["role"] == "user"
-    assert litellm_message["content"] == "This is a user message."
+    def test_to_litellm_message_tool_message(self, tool_message):
+        """
+        Test _to_litellm_message with a ToolMessage instance.
+        """
+        litellm_message = _to_litellm_message(tool_message)
+        assert litellm_message["role"] == "tool"
+        assert litellm_message["name"] == "example_tool"
+        assert litellm_message["tool_call_id"] == "123"
+        assert litellm_message["content"] == "success"
 
 
-def test_to_litellm_message_assistant_message(assistant_message):
-    """
-    Test _to_litellm_message with an AssistantMessage instance.
-    """
-    litellm_message = _to_litellm_message(assistant_message)
-    assert litellm_message["role"] == "assistant"
-    assert litellm_message["content"] == "This is an assistant message."
+    def test_to_litellm_message_tool_call_list(self, tool_call):
+        """
+        Test _to_litellm_message with a list of ToolCall instances.
+        """
+        tool_calls = [tool_call]
+        message = AssistantMessage(content=tool_calls)
+        litellm_message = _to_litellm_message(message)
+        assert litellm_message["role"] == "assistant"
+        assert len(litellm_message["tool_calls"]) == 1
+        assert litellm_message["tool_calls"][0].function.name == "example_tool"
+
+    # =================================== END _to_litellm_message Tests ====================================
 
 
-def test_to_litellm_message_tool_message(tool_message):
-    """
-    Test _to_litellm_message with a ToolMessage instance.
-    """
-    litellm_message = _to_litellm_message(tool_message)
-    assert litellm_message["role"] == "tool"
-    assert litellm_message["name"] == "example_tool"
-    assert litellm_message["tool_call_id"] == "123"
-    assert litellm_message["content"] == "success"
+# ================= BEGIN str/model_name (smoke) ==================
+@pytest.mark.parametrize(
+    "model_name, expected_str",
+    [
+        ("openai/gpt-3.5-turbo", "LiteLLMWrapper(provider=openai, name=gpt-3.5-turbo)"),
+        ("mock-model", "LiteLLMWrapper(name=mock-model)"),
+    ],
+)
+def test_litellm_wrapper_str(model_name, expected_str, mock_litellm_wrapper):
+    wrapper = mock_litellm_wrapper(model_name=model_name)
+    assert str(wrapper) == expected_str
 
+def test_litellm_wrapper_model_name_property(mock_litellm_wrapper):
+    wrapper = mock_litellm_wrapper(model_name="mock-model")
+    assert wrapper.model_name() == "mock-model"
+# ================= END str/model_name (smoke) ==================
 
-def test_to_litellm_message_tool_call_list(tool_call):
-    """
-    Test _to_litellm_message with a list of ToolCall instances.
-    """
-    tool_calls = [tool_call]
-    message = AssistantMessage(content=tool_calls)
-    litellm_message = _to_litellm_message(message)
-    assert litellm_message["role"] == "assistant"
-    assert len(litellm_message["tool_calls"]) == 1
-    assert litellm_message["tool_calls"][0].function.name == "example_tool"
+# ================= START sync tests =========================
+class TestSync:
 
+    def test_chat_returns_response(self, mock_litellm_wrapper, message_history):
+        wrapper = mock_litellm_wrapper(response="Mocked response")
+        result = wrapper._chat(message_history)
+        assert isinstance(result, Response)
+        assert isinstance(result.message, AssistantMessage)
 
-# =================================== END _to_litellm_message Tests ====================================
-
-
-class TestLiteLLMWrapper:
-    # =================================== START LiteLLMWrapper Tests ==================================
-    @pytest.mark.parametrize(
-        "model_name, expected_str",
-        [
-            ("openai/gpt-3.5-turbo", "LiteLLMWrapper(provider=openai, name=gpt-3.5-turbo)"),
-            ("mock-model", "LiteLLMWrapper(name=mock-model)"),
-        ],
-    )
-    def test_litellm_wrapper_str(self, model_name, expected_str, mock_litellm_wrapper):
-        wrapper = mock_litellm_wrapper(model_name=model_name)
-        assert str(wrapper) == expected_str
-
-
-    def test_litellm_wrapper_invoke_with_empty_messages(self, mock_litellm_wrapper):
-        empty_history = MessageHistory([])
-        litellm_model = mock_litellm_wrapper(model_name="mock-model")
-        result = litellm_model._invoke(empty_history)
-        # Validate that the structure of the returned result is correct
-        assert "choices" in result
-        assert len(result["choices"]) == 1
-        assert "message" in result["choices"][0]
-
-
-    def test_litellm_wrapper_structured_schema_mismatch(
-        self, mock_litellm_wrapper, message_history
-    ):
+    def test_structured_returns_response(self, mock_litellm_wrapper, message_history):
         class ExampleSchema(BaseModel):
-            required_value: int
+            field: str
+        wrapper = mock_litellm_wrapper(response=ExampleSchema(field="VAL"))
+        result = wrapper._structured(message_history, schema=ExampleSchema)
+        assert isinstance(result.message.content, ExampleSchema)
+        assert result.message.content.field == "VAL"
 
-        # Force a response that won't match the output_schema (string instead of int)
-        def _invoke_override(*args, **kwargs):
-            return (
-                litellm.utils.ModelResponse(
-                    choices=[
-                        {
-                            "message": {"content": '{"required_value": "not_an_int"}'},
-                        }
-                    ]
-                ),
-                None,
-            )
+    def test_structured_schema_validation_error(self, mock_litellm_wrapper, message_history):
+        class Schema(BaseModel):
+            val: int 
+        result = mock_litellm_wrapper._structured(message_history, Schema)
+        assert isinstance(result.message.content, ValidationError)
 
-        litellm_model = mock_litellm_wrapper(model_name="mock-model")
-        litellm_model._invoke = _invoke_override
+    def test_structured_invalid_json_raises_llm_error(self,  mock_litellm_wrapper, message_history):
+        class Schema(BaseModel):
+            val: int 
+        result = mock_litellm_wrapper._structured(message_history, Schema)
+        assert isinstance(result.message.content, LLMError)
+        assert "Structured LLM call failed" in str(result.message.content)
 
-        with pytest.raises(ValueError) as exc_info:
-            litellm_model.structured(message_history, ExampleSchema)
-
-
-    def test_litellm_wrapper_structured_invalid_json(self, mock_litellm_wrapper, message_history):
-        class ExampleSchema(BaseModel):
-            required_value: int
-
-        # Force a response that's not valid JSON
-        def _invoke_override(*args, **kwargs):
-            return {
-                "choices": [
-                    {
-                        "message": {"content": "Not valid JSON at all"},
-                    }
-                ]
-            }
-
-        litellm_model = mock_litellm_wrapper(model_name="mock-model")
-        litellm_model._invoke = _invoke_override
-
-        with pytest.raises(LLMError) as exc_info:
-            litellm_model.structured(message_history, ExampleSchema)
-        assert "Structured LLM call failed" in str(exc_info.value)
-
-
-    def test_litellm_wrapper_chat_with_tools_no_tool_call(
-        self, mock_litellm_wrapper, message_history, tool
-    ):
-        def _invoke_override(*args, **kwargs):
-            return (
-                litellm.utils.ModelResponse(
-                    choices=[
-                        {
-                            "message": {"content": "No tool call here"},
-                            "finish_reason": "stop",
-                        }
-                    ]
-                ),
-                None,
-            )
-
-        litellm_model = mock_litellm_wrapper(model_name="mock-model")
-        litellm_model._invoke = _invoke_override
-
-        response = litellm_model.chat_with_tools(message_history, [tool])
-        assert response.message.content == "No tool call here"
-
-
-    def test_litellm_wrapper_chat_with_tools_single_tool_call(
-        self, mock_litellm_wrapper, message_history, tool
-    ):
-        def _invoke_override(*args, **kwargs):
-            return (
-                litellm.utils.ModelResponse(
-                    choices=[
-                        {
-                            "message": {
-                                "content": "",
-                                "tool_calls": [
-                                    {
-                                        "function": {
-                                            "name": "example_tool",
-                                            "arguments": '{"arg1": "val1"}',
-                                        },
-                                        "id": "toolcall-abc",
-                                    }
-                                ],
-                            },
-                            "finish_reason": "function_call",
-                        }
-                    ]
-                ),
-                None,
-            )
-
-        litellm_model = mock_litellm_wrapper(model_name="mock-model")
-        litellm_model._invoke = _invoke_override
-
-        response = litellm_model.chat_with_tools(message_history, [tool])
-        calls = response.message.content
-        assert len(calls) == 1
-        assert calls[0].name == "example_tool"
-        assert calls[0].arguments == {"arg1": "val1"}
-        assert calls[0].identifier == "toolcall-abc"
-        # =================================== END LiteLLMWrapper Tests ==================================
-
-class TestStreaming:
-    
+    def test_chat_with_tools_tool_call(self, mock_litellm_wrapper, message_history, tool):
+        result = mock_litellm_wrapper._chat_with_tools(message_history, [tool])
+        calls = result.message.content
+        assert isinstance(calls, list)
+        assert calls[0].name == "tool_x"
+        assert calls[0].arguments == {"foo": 1}
+        assert calls[0].identifier == "id123"
+    # ================= END sync tests =========================
