@@ -24,6 +24,7 @@ import tempfile
 import threading
 import time
 import urllib.request
+import webbrowser
 import zipfile
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
@@ -354,6 +355,21 @@ class RailtracksServer:
         print_status("   GET  /api/json/filename - Load JSON file")
         print_status("   POST /api/refresh - Trigger frontend refresh")
         print_status("Press Ctrl+C to stop the server")
+
+        # Open browser after a short delay to ensure server is ready
+        def open_browser():
+            time.sleep(1)  # Give server a moment to fully start
+            url = f"http://localhost:{self.port}"
+            print_status(f"Opening browser to {url}")
+            try:
+                webbrowser.open(url)
+            except Exception as e:
+                print_warning(f"Could not open browser automatically: {e}")
+                print_status(f"Please manually open: {url}")
+
+        browser_thread = threading.Thread(target=open_browser)
+        browser_thread.daemon = True
+        browser_thread.start()
 
         self.server.serve_forever()
 
