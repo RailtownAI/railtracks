@@ -19,11 +19,13 @@ For testing purposes, you can add `alias railtracks="python railtracks.py"` to y
 import json
 import mimetypes
 import os
+import signal
 import sys
 import tempfile
 import threading
 import time
 import urllib.request
+import webbrowser
 import zipfile
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
@@ -41,6 +43,11 @@ cli_name = "railtracks"
 cli_directory = ".railtracks"
 DEFAULT_PORT = 3030
 DEBOUNCE_INTERVAL = 0.5  # seconds
+
+# Global SSE clients management
+sse_clients = set()
+sse_clients_lock = threading.Lock()
+global_shutdown_request = False
 
 
 def get_script_directory():
@@ -147,6 +154,28 @@ def init_railtracks():
     print_status("You can now run 'railtracks viz' to start the server")
 
 
+def broadcast_sse_event(event_data):
+    """Broadcast an event to all connected SSE clients"""
+    if not sse_clients:
+        return
+
+    message = f"data: {json.dumps(event_data)}\n\n"
+    message_bytes = message.encode()
+
+    with sse_clients_lock:
+        disconnected_clients = set()
+        for client in sse_clients:
+            try:
+                client.wfile.write(message_bytes)
+                client.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError):
+                disconnected_clients.add(client)
+
+        # Clean up disconnected clients
+        for client in disconnected_clients:
+            sse_clients.discard(client)
+
+
 class FileChangeHandler(FileSystemEventHandler):
     """Handle file system events in the .railtracks directory"""
 
@@ -167,6 +196,16 @@ class FileChangeHandler(FileSystemEventHandler):
                 self.last_modified[str(file_path)] = current_time
                 print_status(f"JSON file modified: {file_path.name}")
 
+                # Broadcast SSE event to all connected clients
+                broadcast_sse_event(
+                    {
+                        "type": "file_changed",
+                        "file": file_path.name,
+                        "timestamp": current_time,
+                        "size": file_path.stat().st_size,
+                    }
+                )
+
 
 class RailtracksHTTPHandler(BaseHTTPRequestHandler):
     """HTTP request handler for the railtracks server"""
@@ -186,6 +225,8 @@ class RailtracksHTTPHandler(BaseHTTPRequestHandler):
             self.handle_api_files()
         elif path.startswith("/api/json/"):
             self.handle_api_json(path)
+        elif path == "/api/sse":  # SSE endpoint
+            self.handle_sse()
         else:
             # Serve static files from build directory
             self.serve_static_file(path)
@@ -265,6 +306,64 @@ class RailtracksHTTPHandler(BaseHTTPRequestHandler):
             print_error(f"Error handling /api/json/{filename}: {e}")
             self.send_error(500, "Internal Server Error")
 
+    def handle_sse(self):
+        """Handle /api/sse endpoint - Server-Sent Events for real-time file notifications"""
+        try:
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "keep-alive")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Headers", "Cache-Control")
+            self.end_headers()
+
+            # Add this client to the SSE clients set
+            with sse_clients_lock:
+                sse_clients.add(self)
+
+            try:
+                # Keep connection alive and send heartbeats
+                # For single-user local tool, use very short intervals
+                while True:
+                    # Send heartbeat every 1 second
+                    heartbeat_data = json.dumps(
+                        {"type": "heartbeat", "timestamp": time.time()}
+                    )
+                    self.wfile.write(f"data: {heartbeat_data}\n\n".encode())
+                    self.wfile.flush()
+
+                    # Sleep in very tiny chunks for immediate shutdown response
+                    for _ in range(20):  # 1 second total, checking every 0.05 seconds
+                        time.sleep(0.05)
+                        # Check if server is shutting down - multiple ways
+                        try:
+                            # Check if the connection is still valid
+                            if not self.wfile or self.wfile.closed:
+                                return
+                            # Check if server is shutting down
+                            if (
+                                hasattr(self.server, "_shutdown_request")
+                                and self.server._shutdown_request
+                            ):
+                                return
+                            # Check global shutdown flag
+                            if global_shutdown_request:
+                                return
+                        except:  # noqa: E722
+                            return
+
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+            finally:
+                # Remove client when connection closes
+                with sse_clients_lock:
+                    sse_clients.discard(self)
+
+        except Exception as e:
+            print_error(f"Error in SSE handler: {e}")
+            with sse_clients_lock:
+                sse_clients.discard(self)
+
     def handle_refresh(self):
         """Handle /api/refresh endpoint - trigger frontend refresh"""
         self.send_response(200)
@@ -314,14 +413,56 @@ class RailtracksHTTPHandler(BaseHTTPRequestHandler):
         print_status(f"{self.address_string()} - {format % args}")
 
 
+class FastShutdownHTTPServer(HTTPServer):
+    """HTTP server that can be shut down more quickly"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._shutdown_request = False
+
+    def shutdown(self):
+        """Override shutdown to be more immediate"""
+        self._shutdown_request = True
+        super().shutdown()
+
+
 class RailtracksServer:
     """Main server class"""
 
-    def __init__(self, port=DEFAULT_PORT):
+    def __init__(self, port=DEFAULT_PORT, open_browser=True):
         self.port = port
         self.server = None
         self.observer = None
         self.running = False
+        self.open_browser = open_browser
+        self._shutdown_request = False
+
+    def open_web_browser(self):
+        """Open the default web browser to the railtracks server"""
+        try:
+            url = f"http://localhost:{self.port}"
+            print_status(f"🌐 Opening browser to: {url}")
+
+            # Open browser in a separate thread to avoid blocking
+            def open_browser_thread():
+                try:
+                    # Small delay to ensure server is ready
+                    time.sleep(0.5)
+                    webbrowser.open(url)
+                    print_success("Browser opened successfully")
+                except Exception as e:
+                    print_warning(f"Could not open browser automatically: {e}")
+                    print_status(f"Please open your browser and navigate to: {url}")
+
+            browser_thread = threading.Thread(target=open_browser_thread)
+            browser_thread.daemon = True
+            browser_thread.start()
+
+        except Exception as e:
+            print_warning(f"Could not open browser: {e}")
+            print_status(
+                f"Please open your browser and navigate to: http://localhost:{self.port}"
+            )
 
     def start_file_watcher(self):
         """Start watching the .railtracks directory"""
@@ -333,6 +474,11 @@ class RailtracksServer:
         self.observer = Observer()
         self.observer.schedule(event_handler, str(railtracks_dir), recursive=True)
         self.observer.start()
+
+        # Make observer threads daemon so they don't block shutdown
+        for thread in self.observer._threads:
+            thread.daemon = True
+
         print_status(f"Watching for JSON file changes in: {railtracks_dir}")
 
     def start_http_server(self):
@@ -345,21 +491,40 @@ class RailtracksServer:
                 self.railtracks_dir = Path(cli_directory)
                 super().__init__(*args, **kwargs)
 
-        self.server = HTTPServer(("localhost", self.port), Handler)
+        self.server = FastShutdownHTTPServer(("localhost", self.port), Handler)
         print_success(f"🚀 railtracks server running at http://localhost:{self.port}")
         print_status(f"📁 Serving files from: {cli_directory}/ui/")
         print_status(f"👀 Watching for changes in: {cli_directory}/")
         print_status("📋 API endpoints:")
         print_status("   GET  /api/files - List JSON files")
         print_status("   GET  /api/json/filename - Load JSON file")
+        print_status("   GET  /api/sse - Server-Sent Events")
         print_status("   POST /api/refresh - Trigger frontend refresh")
         print_status("Press Ctrl+C to stop the server")
+
+        # Open browser if requested
+        if self.open_browser:
+            self.open_web_browser()
 
         self.server.serve_forever()
 
     def start(self):
         """Start both the file watcher and HTTP server"""
         self.running = True
+
+        # Set up signal handlers for immediate shutdown
+        def signal_handler(signum, frame):
+            print_status(f"Received signal {signum}, shutting down immediately...")
+            # Force immediate shutdown for single-user local tool
+            global global_shutdown_request
+            global_shutdown_request = True
+            self.running = False
+            if self.server:
+                self.server._shutdown_request = True
+            sys.exit(0)
+
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
 
         # Start file watcher in a separate thread
         watcher_thread = threading.Thread(target=self.start_file_watcher)
@@ -373,25 +538,45 @@ class RailtracksServer:
             self.stop()
 
     def stop(self):
-        """Stop the server and cleanup"""
-        if self.running:
-            print_status("Shutting down railtracks...")
-            self.running = False
+        """Stop the server and cleanup - aggressive shutdown for single user"""
+        if not self.running:
+            return
 
-            if self.server:
+        print_status("Shutting down railtracks...")
+        self.running = False
+        self._shutdown_request = True
+        global global_shutdown_request
+        global_shutdown_request = True
+
+        # Clear all SSE clients immediately
+        with sse_clients_lock:
+            sse_clients.clear()
+
+        # Force shutdown HTTP server immediately
+        if self.server:
+            try:
+                self.server._shutdown_request = True
                 self.server.shutdown()
+                print_status("HTTP server stopped")
+            except Exception as e:
+                print_error(f"Error shutting down HTTP server: {e}")
 
-            if self.observer:
+        # Stop file watcher immediately (no waiting)
+        if self.observer:
+            try:
                 self.observer.stop()
-                self.observer.join()
+                # Don't wait - just force stop
+                print_status("File watcher stopped")
+            except Exception as e:
+                print_error(f"Error stopping file watcher: {e}")
 
-            print_success("railtracks stopped.")
+        print_success("railtracks stopped.")
 
 
 def main():
     """Main function"""
     if len(sys.argv) < 2:
-        print(f"Usage: {cli_name} [command]")
+        print(f"Usage: {cli_name} [command] [options]")
         print("")
         print("Commands:")
         print(
@@ -399,9 +584,17 @@ def main():
         )
         print(f"  viz     Start the {cli_name} development server")
         print("")
+        print("Options for 'viz' command:")
+        print("  --no-browser    Don't automatically open browser")
+        print("")
         print("Examples:")
-        print(f"  {cli_name} init    # Initialize development environment")
-        print(f"  {cli_name} viz     # Start visualizer web app")
+        print(f"  {cli_name} init              # Initialize development environment")
+        print(
+            f"  {cli_name} viz               # Start visualizer web app (opens browser)"
+        )
+        print(
+            f"  {cli_name} viz --no-browser  # Start visualizer web app (don't open browser)"
+        )
         sys.exit(1)
 
     command = sys.argv[1]
@@ -409,11 +602,14 @@ def main():
     if command == "init":
         init_railtracks()
     elif command == "viz":
+        # Check for --no-browser flag
+        open_browser = "--no-browser" not in sys.argv
+
         # Setup directories
         create_railtracks_dir()
 
         # Start server
-        server = RailtracksServer()
+        server = RailtracksServer(open_browser=open_browser)
         server.start()
     else:
         print(f"Unknown command: {command}")
