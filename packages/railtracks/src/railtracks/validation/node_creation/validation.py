@@ -320,11 +320,11 @@ def _check_manifest_params_exist_in_function(
                 ],
             )
         if (
-            ParameterType.from_python_type(func_params[param_name])
+            ParameterType.from_python_type(func_params[param_name].annotation)
             != manifest_params[param_name]
         ):
             raise NodeCreationError(
-                message=f"Type mismatch for parameter '{param_name}': function expects '{ParameterType.from_python_type(func_params[param_name])}', but manifest specifies '{manifest_params[param_name]}'.",
+                message=f"Type mismatch for parameter '{param_name}': function expects '{ParameterType.from_python_type(func_params[param_name].annotation)}', but manifest specifies '{manifest_params[param_name]}'.",
                 notes=[
                     "Ensure the parameter types in the tool manifest match the function signature.",
                     "Refer to the ParameterType enum for valid types.",
@@ -347,11 +347,11 @@ def _check_required_params_in_manifest(
                     ],
                 )
             if (
-                ParameterType.from_python_type(func_params[param_name])
+                ParameterType.from_python_type(func_params[param_name].annotation)
                 != manifest_params[param_name]
             ):
                 raise NodeCreationError(
-                    message=f"Type mismatch for parameter '{param_name}': function expects '{ParameterType.from_python_type(func_params[param_name])}', but manifest specifies '{manifest_params[param_name]}'.",
+                    message=f"Type mismatch for parameter '{param_name}': function expects '{ParameterType.from_python_type(func_params[param_name].annotation)}', but manifest specifies '{manifest_params[param_name]}'.",
                     notes=[
                         "Ensure the parameter types in the tool manifest match the function signature.",
                         "Refer to the ParameterType enum for valid types.",
@@ -388,7 +388,7 @@ def validate_tool_manifest_against_function(
     func_params = {}
     for param_name, param in sig.parameters.items():
         if param_name not in ("self", "cls"):
-            func_params[param_name] = param.annotation
+            func_params[param_name] = param
 
     if manifest_params is None:
         if func_params:

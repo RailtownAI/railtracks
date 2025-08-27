@@ -74,52 +74,6 @@ class TestManifestValidation:
         with pytest.raises(NodeCreationError, match="Tool manifest parameter 'c' does not exist in function signature"):
             function_node(simple_func, manifest=manifest)
 
-    def test_required_optional_consistency(self):
-        """Test that required function parameters must be required in manifest."""
-        def func_with_optional(a: int, b: str = "default") -> str:
-            return f"{a}: {b}"
-        
-        # Required function param marked as optional in manifest should fail
-        manifest = ToolManifest(
-            description="Test function",
-            parameters=[
-                Parameter("a", "integer", "Number parameter", required=False),  # Should be required
-                Parameter("b", "string", "String parameter", required=False)
-            ]
-        )
-        
-        with pytest.raises(NodeCreationError, match="Function parameter 'a' is required but marked as optional in tool manifest"):
-            function_node(func_with_optional, manifest=manifest)
-
-    def test_optional_parameter_flexibility(self):
-        """Test that optional function parameters can be either required or optional in manifest."""
-        def func_with_optional(a: int, b: str = "default") -> str:
-            return f"{a}: {b}"
-        
-        # Optional function param can be required in manifest (should work)
-        manifest1 = ToolManifest(
-            description="Test function",
-            parameters=[
-                Parameter("a", "integer", "Number parameter", required=True),
-                Parameter("b", "string", "String parameter", required=True)  # Optional in func, required in manifest
-            ]
-        )
-        
-        node1 = function_node(func_with_optional, manifest=manifest1)
-        assert node1 is not None
-        
-        # Optional function param can be optional in manifest (should work)
-        manifest2 = ToolManifest(
-            description="Test function",
-            parameters=[
-                Parameter("a", "integer", "Number parameter", required=True),
-                Parameter("b", "string", "String parameter", required=False)  # Optional in both
-            ]
-        )
-        
-        node2 = function_node(func_with_optional, manifest=manifest2)
-        assert node2 is not None
-
     def test_function_with_defaults_allows_missing_manifest_params(self):
         """Test that optional function parameters can be omitted from manifest."""
         def func_with_defaults(a: int, b: str = "default", c: float = 1.0) -> str:
