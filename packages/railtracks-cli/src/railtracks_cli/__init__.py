@@ -19,14 +19,16 @@ For testing purposes, you can add `alias railtracks="python railtracks.py"` to y
 import json
 import mimetypes
 import os
+import queue
 import sys
 import tempfile
 import threading
 import time
 import urllib.request
+import uuid
 import webbrowser
 import zipfile
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -42,6 +44,10 @@ cli_name = "railtracks"
 cli_directory = ".railtracks"
 DEFAULT_PORT = 3030
 DEBOUNCE_INTERVAL = 0.5  # seconds
+
+# SSE client management
+sse_clients = {}  # client_id -> queue
+sse_clients_lock = threading.Lock()
 
 
 def get_script_directory():
@@ -63,6 +69,43 @@ def print_warning(message):
 
 def print_error(message):
     print(f"[{cli_name}] {message}")
+
+
+def add_sse_client():
+    """Add a new SSE client and return client ID"""
+    client_id = str(uuid.uuid4())
+    client_queue = queue.Queue()
+
+    with sse_clients_lock:
+        sse_clients[client_id] = client_queue
+
+    print_status(f"SSE client connected: {client_id[:8]}...")
+    return client_id, client_queue
+
+
+def remove_sse_client(client_id):
+    """Remove an SSE client"""
+    with sse_clients_lock:
+        if client_id in sse_clients:
+            del sse_clients[client_id]
+            print_status(f"SSE client disconnected: {client_id[:8]}...")
+
+
+def broadcast_to_sse_clients(message):
+    """Broadcast a message to all connected SSE clients"""
+    with sse_clients_lock:
+        disconnected_clients = []
+        for client_id, client_queue in sse_clients.items():
+            try:
+                client_queue.put_nowait(message)
+            except queue.Full:
+                # Client queue is full, mark for removal
+                disconnected_clients.append(client_id)
+
+        # Remove disconnected clients
+        for client_id in disconnected_clients:
+            del sse_clients[client_id]
+            print_status(f"Removed unresponsive SSE client: {client_id[:8]}...")
 
 
 def create_railtracks_dir():
@@ -168,6 +211,14 @@ class FileChangeHandler(FileSystemEventHandler):
                 self.last_modified[str(file_path)] = current_time
                 print_status(f"JSON file modified: {file_path.name}")
 
+                # Broadcast to SSE clients
+                sse_message = {
+                    "type": "file_updated",
+                    "filename": file_path.name,
+                    "timestamp": current_time,
+                }
+                broadcast_to_sse_clients(json.dumps(sse_message))
+
 
 class RailtracksHTTPHandler(BaseHTTPRequestHandler):
     """HTTP request handler for the railtracks server"""
@@ -175,7 +226,11 @@ class RailtracksHTTPHandler(BaseHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         self.ui_dir = Path(f"{cli_directory}/ui")
         self.railtracks_dir = Path(cli_directory)
-        super().__init__(*args, **kwargs)
+        try:
+            super().__init__(*args, **kwargs)
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            # Client disconnected during initialization - this is normal for SSE
+            pass
 
     def do_GET(self):  # noqa: N802
         """Handle GET requests"""
@@ -187,6 +242,8 @@ class RailtracksHTTPHandler(BaseHTTPRequestHandler):
             self.handle_api_files()
         elif path.startswith("/api/json/"):
             self.handle_api_json(path)
+        elif path == "/sse":
+            self.handle_sse()
         else:
             # Serve static files from build directory
             self.serve_static_file(path)
@@ -275,6 +332,64 @@ class RailtracksHTTPHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps({"status": "refresh_triggered"}).encode())
         print_status("Frontend refresh triggered")
 
+    def handle_sse(self):
+        """Handle /sse endpoint - Server-Sent Events for file updates"""
+        try:
+            # Add SSE client and get queue
+            client_id, client_queue = add_sse_client()
+
+            # Send SSE headers
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "keep-alive")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Headers", "Cache-Control")
+            self.end_headers()
+
+            # Send initial connection message
+            initial_message = json.dumps(
+                {
+                    "type": "connected",
+                    "message": "SSE connection established",
+                    "timestamp": time.time(),
+                }
+            )
+            self.wfile.write(f"data: {initial_message}\n\n".encode())
+            self.wfile.flush()
+
+            # Keep connection alive and send messages
+            # Now this runs in its own thread thanks to ThreadingHTTPServer
+            try:
+                while True:
+                    try:
+                        # Wait for message with timeout to allow for connection checks
+                        message = client_queue.get(timeout=30)
+                        self.wfile.write(f"data: {message}\n\n".encode())
+                        self.wfile.flush()
+                    except queue.Empty:
+                        # Send keepalive message
+                        keepalive = json.dumps(
+                            {"type": "keepalive", "timestamp": time.time()}
+                        )
+                        self.wfile.write(f"data: {keepalive}\n\n".encode())
+                        self.wfile.flush()
+                    except (BrokenPipeError, ConnectionResetError, OSError):
+                        # Client disconnected
+                        break
+            except Exception as e:
+                print_error(f"SSE connection error: {e}")
+            finally:
+                # Clean up client
+                remove_sse_client(client_id)
+
+        except Exception as e:
+            print_error(f"Error handling SSE connection: {e}")
+            try:
+                self.send_error(500, "Internal Server Error")
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                pass  # Connection might already be closed
+
     def serve_static_file(self, path):
         """Serve static files from .railtracks/ui directory"""
         try:
@@ -311,8 +426,44 @@ class RailtracksHTTPHandler(BaseHTTPRequestHandler):
             self.send_error(500, "Internal Server Error")
 
     def log_message(self, format, *args):
-        """Override to use our colored logging"""
-        print_status(f"{self.address_string()} - {format % args}")
+        """Override to use our colored logging and suppress connection errors"""
+        message = format % args
+        # Suppress common connection error messages that are normal for SSE
+        if any(
+            error in message.lower()
+            for error in [
+                "connection aborted",
+                "connection reset",
+                "broken pipe",
+                "an established connection was aborted",
+            ]
+        ):
+            return
+        print_status(f"{self.address_string()} - {message}")
+
+    def handle_error(self, request, client_address):
+        """Override to suppress connection errors"""
+        import sys
+        import traceback
+
+        # Get the exception info
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+
+        # Suppress common connection errors that are normal for SSE
+        if exc_type in (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            return
+
+        # For other errors, use default handling but with our logging
+        print_error(f"Error handling request from {client_address}")
+        print_error(f"{exc_type.__name__}: {exc_value}")
+
+        # Only print full traceback for unexpected errors
+        if exc_type not in (
+            ConnectionAbortedError,
+            ConnectionResetError,
+            BrokenPipeError,
+        ):
+            traceback.print_exc()
 
 
 class RailtracksServer:
@@ -344,9 +495,13 @@ class RailtracksServer:
             def __init__(self, *args, **kwargs):
                 self.ui_dir = Path(f"{cli_directory}/ui")
                 self.railtracks_dir = Path(cli_directory)
-                super().__init__(*args, **kwargs)
+                try:
+                    super().__init__(*args, **kwargs)
+                except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+                    # Client disconnected during initialization - this is normal for SSE
+                    pass
 
-        self.server = HTTPServer(("localhost", self.port), Handler)
+        self.server = ThreadingHTTPServer(("localhost", self.port), Handler)
         print_success(f"🚀 railtracks server running at http://localhost:{self.port}")
         print_status(f"📁 Serving files from: {cli_directory}/ui/")
         print_status(f"👀 Watching for changes in: {cli_directory}/")
@@ -354,6 +509,7 @@ class RailtracksServer:
         print_status("   GET  /api/files - List JSON files")
         print_status("   GET  /api/json/filename - Load JSON file")
         print_status("   POST /api/refresh - Trigger frontend refresh")
+        print_status("   GET  /sse - Server-Sent Events for file updates")
         print_status("Press Ctrl+C to stop the server")
 
         # Open browser after a short delay to ensure server is ready
