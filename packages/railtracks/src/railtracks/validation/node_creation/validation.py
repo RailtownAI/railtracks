@@ -390,7 +390,7 @@ def validate_tool_manifest_against_function(
         if param_name not in ("self", "cls"):
             func_params[param_name] = param
 
-    if manifest_params is None:
+    if not manifest_params:
         if func_params:
             raise NodeCreationError(
                 message="No Tool manifest parameters are provided but the function passed requires parameters",
@@ -401,7 +401,7 @@ def validate_tool_manifest_against_function(
             )
         return
     else:
-        if not func_params:
+        if not func_params or func_params == {}:
             raise NodeCreationError(
                 message="Tool manifest parameters are provided but the function passed does not accept any parameters",
                 notes=[
