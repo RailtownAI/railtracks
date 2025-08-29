@@ -60,7 +60,7 @@ Agent = rt.agent_node(
 
 # Run the agent
 with rt.Session():
-    result = rt.call_sync(
+    result = await rt.call(
         Agent,
         "Find information about RailTracks"
     )

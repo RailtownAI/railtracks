@@ -63,7 +63,7 @@ with rt.session(
     save_state=False,
     context={"user_name": "Alice", "environment": "production"}
     ):
-    response = rt.call_sync(
+    response = await rt.call(
         my_agent,
         "Hello world!",
     )
@@ -71,7 +71,7 @@ with rt.session(
 
 ## 🌐 Method 2: Global Configuration
 
-Set configuration globally using `rt.set_config()`. This must be called **before** any `rt.call()` or `rt.call_sync()` operations:
+Set configuration globally using `rt.set_config()`. This must be called **before** any `rt.call()`:
 
 ```python
 import railtracks as rt
@@ -86,8 +86,8 @@ rt.set_config(
 )
 
 # Now all subsequent calls will use these settings
-response1 = rt.call_sync(agent1, "First request")
-response2 = rt.call_sync(agent2, "Second request")
+response1 = await rt.call(agent1, "First request")
+response2 = await rt.call(agent2, "Second request")
 ```
 
 ## 🎚️ Configuration Precedence
@@ -106,7 +106,7 @@ with rt.session(
     end_on_error=True     # This uses session-level setting
     # logging_setting not specified, so uses global "REGULAR"
 ):
-    response = rt.call_sync(
+    response = await rt.call(
         my_agent,
         "Hello!",
     )
@@ -164,7 +164,7 @@ def debug_callback(message: str):
 with rt.session(
     broadcast_callback=debug_callback,
 ):
-    response = rt.call_sync(
+    response = await rt.call(
         my_agent,
         "Debug this workflow",
     )

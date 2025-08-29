@@ -44,7 +44,7 @@ with rt.Session(context=data):
         return rt.context.get("var_1")
     
     with rt.Runner(context={"var_1": "value_1"}):
-        rt.call_sync(some_node)
+        await rt.call(some_node)
     ```
 
 !!! warning
@@ -84,7 +84,7 @@ GitHubAgent = agent_node(
 
 # Run the agent
 with rt.Session:
-    response = rt.call_sync(
+    response = await rt.call(
         GitHubAgent,
         "What is the last issue created? Please write a comment on it."
     )
@@ -114,7 +114,7 @@ with rt.Session(context={
     "assistant_type": "friendly and helpful",
     "user_name": "Alex"
 }):
-    response = rt.call_sync(
+    response = await rt.call(
         assistant, 
         user_input="Can you help me with my project?"
     )

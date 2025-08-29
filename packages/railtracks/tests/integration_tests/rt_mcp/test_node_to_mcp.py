@@ -1,15 +1,11 @@
+import socket
 import threading
 import time
 
-import railtracks as rt
-from railtracks.rt_mcp import MCPHttpParams, create_mcp_server, connect_mcp
-
-
-
-from mcp.server import FastMCP
-
-import socket
 import pytest
+import railtracks as rt
+from mcp.server import FastMCP
+from railtracks.rt_mcp import MCPHttpParams, connect_mcp, create_mcp_server
 
 
 # --------------------------------------------------------------------------- #
@@ -77,20 +73,17 @@ def mcp_server():
 # --------------------------------------------------------------------------- #
 #                                    Tests                                    #
 # --------------------------------------------------------------------------- #
-def test_add_nums_tool(mcp_server):
-    server = connect_mcp(
-        MCPHttpParams(url=f"http://127.0.0.1:{FAST_MCP_PORT}/mcp")
-    )
+@pytest.mark.asyncio
+async def test_add_nums_tool(mcp_server):
+    server = connect_mcp(MCPHttpParams(url=f"http://127.0.0.1:{FAST_MCP_PORT}/mcp"))
     assert len(server.tools) == 1
 
-    with rt.Session(
-        logging_setting="QUIET", timeout=1000
-    ) as runner:
-        response = rt.call_sync(server.tools[0], num1=1, num2=3, print_s="Hello")
+    with rt.Session(logging_setting="QUIET", timeout=1000):
+        response = await rt.call(server.tools[0], num1=1, num2=3, print_s="Hello")
 
-    assert (
-        response.content[0].text == "14"
-    ), f"Expected 14, got {response.content[0].text}"
+    assert response.content[0].text == "14", (
+        f"Expected 14, got {response.content[0].text}"
+    )
 
 
 # --------------------------------------------------------------------------- #
