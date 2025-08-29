@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Dict, Generic, Iterable, Type, TypeVar
+from typing import Any, Dict, Generic, Iterable, Type, TypeVar, Generator
 
 from pydantic import BaseModel
 from typing_extensions import Self
@@ -347,7 +347,7 @@ class StructuredOutputMixIn(Generic[_TBaseModel]):
     def output_schema(cls) -> Type[_TBaseModel]:
         pass
 
-    def return_output(self) -> StructuredResponse[_TBaseModel]:
+    def return_output(self, stream_response: Generator[str, None, None] | None = None) -> StructuredResponse[_TBaseModel]:
         structured_output = self.message_hist[-1].content
 
         assert isinstance(structured_output, self.output_schema()), (
@@ -357,6 +357,7 @@ class StructuredOutputMixIn(Generic[_TBaseModel]):
         return StructuredResponse(
             model=structured_output,
             message_history=self.message_hist.removed_system_messages(),
+            stream_response=stream_response,
         )
 
 

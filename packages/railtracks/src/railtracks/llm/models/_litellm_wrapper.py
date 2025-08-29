@@ -16,7 +16,8 @@ from typing import (
 
 import litellm
 from litellm.utils import CustomStreamWrapper, ModelResponse        # type: ignore
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
+from json import JSONDecodeError
 
 from ...exceptions.errors import LLMError, NodeInvocationError
 from ..content import Stream, ToolCall
@@ -498,8 +499,8 @@ class LiteLLMWrapper(ModelBase, ABC):
                 )
             else:
                 raise ValueError("Unexpected response type")
-        except ValidationError as ve:
-            raise ve
+        except JSONDecodeError as jde:
+            raise jde
         except Exception as e:
             raise LLMError(
                 reason="Structured LLM call failed",
@@ -546,7 +547,7 @@ class LiteLLMWrapper(ModelBase, ABC):
         self, messages: MessageHistory, schema: Type[BaseModel]
     ) -> Response:
         try:
-            model_resp, time = self._invoke(messages, response_format=schema)
+            model_resp, time = await self._ainvoke(messages, response_format=schema)
             if isinstance(model_resp, CustomStreamWrapper):
                 return await self._astream_handler_base(model_resp, time)
             elif isinstance(model_resp, ModelResponse):
@@ -557,6 +558,8 @@ class LiteLLMWrapper(ModelBase, ABC):
                 )
             else:
                 raise ValueError("Unexpected response type")
+        except JSONDecodeError as jde:
+            raise jde
         except Exception as e:
             raise LLMError(
                 reason="Structured LLM call failed",
@@ -566,7 +569,7 @@ class LiteLLMWrapper(ModelBase, ABC):
     async def _achat_with_tools(
         self, messages: MessageHistory, tools: List[Tool]
     ) -> Response:
-        resp, time = self._invoke(messages, tools=tools)
+        resp, time = await self._ainvoke(messages, tools=tools)
         if isinstance(resp, CustomStreamWrapper):
             return await self._astream_handler_base(resp, time)
         elif isinstance(resp, ModelResponse):

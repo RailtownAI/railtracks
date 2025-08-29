@@ -24,17 +24,6 @@ class LLMResponse(Generic[_T]):
     def __repr__(self):
         return f"LLMResponse({self.content})"
 
-    @property
-    def streamer(self) -> Generator[str, None, None]:
-        """Returns the streamer that was returned as part of this response.
-
-        Note that this is a generator that yields strings.
-        """
-        assert isinstance(self.content, Stream), (
-            "For this property to be usable, the llm should have stream=True"
-        )
-        return self.content.streamer
-
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 
@@ -48,14 +37,25 @@ class StructuredResponse(LLMResponse[_TBaseModel]):
         message_history: The history of messages exchanged during the interaction.
     """
 
-    def __init__(self, model: _TBaseModel, message_history: MessageHistory):
+    def __init__(
+        self,
+        model: _TBaseModel,
+        message_history: MessageHistory,
+        stream_response: Generator[str, None, None] | None = None,
+    ):
+        self._streamer = stream_response if stream_response else None
         super().__init__(model, message_history)
 
     @property
     def structured(self) -> _TBaseModel:
         """Returns the structured content of the response."""
         return self.content
-
+    
+    @property
+    def streamer(self) -> Generator[str, None, None] | None:
+        """Returns the streamer if the response was streamed, otherwise None."""
+        assert self._streamer, "For this property to be usable, the llm should have stream=True"
+        return self._streamer
 
 class StringResponse(LLMResponse[str | Stream]):
     """
@@ -78,3 +78,14 @@ class StringResponse(LLMResponse[str | Stream]):
             return self.content.final_message
         else:
             raise ValueError("Unexpected content type")
+        
+    @property
+    def streamer(self) -> Generator[str, None, None]:
+        """Returns the streamer that was returned as part of this response.
+
+        Note that this is a generator that yields strings.
+        """
+        assert isinstance(
+            self.content, Stream
+        ), "For this property to be usable, the llm should have stream=True"
+        return self.content.streamer

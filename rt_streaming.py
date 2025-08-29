@@ -1,8 +1,9 @@
 import railtracks as rt
+from pydantic import BaseModel
 
 llm = rt.llm.OpenAILLM("gpt-4o", stream=True)
 
-mh = rt.llm.MessageHistory([rt.llm.UserMessage("give me a 50 word essay on LLMs")])
+mh = rt.llm.MessageHistory([rt.llm.UserMessage("give me the answer to the universe")])
 
 # =============================================================================
 # response = llm.chat(messages=mh)
@@ -18,14 +19,21 @@ mh = rt.llm.MessageHistory([rt.llm.UserMessage("give me a 50 word essay on LLMs"
 
 # print(response.message_info)
 # =============================================================================
+class SimpleSchema(BaseModel):
+    val: int
 
-agent = rt.agent_node(
-    name="Simple Node",
-    system_message="You are a helpful assistant.",
-    llm_model=llm,
-)
-response = rt.call_sync(agent, user_input=mh)
+async def main():
+    agent = rt.agent_node(
+        name="Simple Node",
+        system_message="You are a helpful assistant.",
+        llm=llm,
+        output_schema=SimpleSchema,
+    )
+    response = await rt.call(agent, user_input=mh)
 
-print(response.streamer)
+    print(response.streamer)
 
-print(response.text)
+    print(response.structured)
+
+import asyncio
+asyncio.run(main())

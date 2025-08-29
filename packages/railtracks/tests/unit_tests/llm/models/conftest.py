@@ -8,6 +8,7 @@ from railtracks.llm.models._litellm_wrapper import LiteLLMWrapper
 
 from typing import Any, Optional, Tuple, Union
 from litellm.utils import CustomStreamWrapper, ModelResponse  # type: ignore
+import logging
 
 
 # ====================================== START Tool Fixtures ======================================
@@ -111,18 +112,67 @@ def message_history(user_message, assistant_message):
 
 
 # ======================================= START Mock LiteLLMWrapper ======================================
+
+
+class MockLogger(logging.Logger):
+    def __init__(self):
+        super().__init__("mock_logger")
+
+    @property
+    def model_call_details(self):
+        return {}
+
+    def log(self, level, msg, *args, **kwargs):
+        print(msg)
+
+
+class MockDelta(BaseModel):
+    content: str
+    tool_calls: list | None
+
+
+class MockChoice(BaseModel):
+    delta: MockDelta
+    finish_reason: str
+
+
+class ChatCompletionChunk(BaseModel):
+    id: str
+    choices: list[MockChoice]
+
+
 class MockLiteLLMWrapper(LiteLLMWrapper):
     """
     Mock implementation of LiteLLMWrapper for testing purposes.
     """
 
-    def __init__(self, response, stream: bool = False):
-        self.response = response
+    def __init__(
+        self, model_name=None, content=None, tool_calls=None, stream: bool = False
+    ):
+        self.content = content or "mock response"
+        self.tool_calls = tool_calls
         self.stream = stream
+        super().__init__(model_name=model_name or "mock-model")
 
     @classmethod
     def model_type(cls) -> str:
         return "mock"
+
+    def _invoke_conntent(self):
+        return (
+            ModelResponse(
+                choices=[
+                    {
+                        "message": {
+                            "content": self.content,
+                            "tool_calls": self.tool_calls,
+                        },
+                        "finish_reason": "tool_calls" if self.tool_calls else "stop",
+                    }
+                ]
+            ),
+            0.0,
+        )
 
     def _invoke(
         self,
@@ -131,17 +181,72 @@ class MockLiteLLMWrapper(LiteLLMWrapper):
         response_format: Optional[Any] = None,
         tools: Optional[list[Tool]] = None,
     ) -> Tuple[Union[CustomStreamWrapper, ModelResponse], float]:
-        return (
-            ModelResponse(
-                choices=[
-                    {
-                        "message": {"content": self.response},
-                        "finish_reason": "stop",
-                    }
-                ]
-            ),
-            0.0,
-        )
+        if self.stream:
+
+            def _stream_gen():
+                for i, char in enumerate(self.content):
+                    yield ChatCompletionChunk(
+                        id=str(i),
+                        choices=[
+                            MockChoice(
+                                delta=MockDelta(
+                                    content=char,
+                                    tool_calls=self.tool_calls,
+                                ),
+                                finish_reason=(
+                                    "stop" if i == len(self.content) else ""
+                                ),
+                            )
+                        ],
+                    )
+
+            return (
+                CustomStreamWrapper(
+                    completion_stream=_stream_gen(),
+                    model=self.model_name(),
+                    logging_obj=MockLogger(),
+                ),
+                0.0,
+            )
+        else:
+            return self._invoke_conntent()
+
+    async def _ainvoke(
+        self,
+        messages: MessageHistory,
+        *,
+        response_format: Optional[Any] = None,
+        tools: Optional[list[Tool]] = None,
+    ) -> Tuple[Union[CustomStreamWrapper, ModelResponse], float]:
+        if self.stream:
+
+            async def _astream_gen():
+                for i, char in enumerate(self.content):
+                    yield ChatCompletionChunk(
+                        id=str(i),
+                        choices=[
+                            MockChoice(
+                                delta=MockDelta(
+                                    content=char,
+                                    tool_calls=self.tool_calls,
+                                ),
+                                finish_reason=(
+                                    "stop" if i == len(self.content) else ""
+                                ),
+                            )
+                        ],
+                    )
+
+            return (
+                CustomStreamWrapper(
+                    completion_stream=_astream_gen(),
+                    model=self.model_name(),
+                    logging_obj=MockLogger(),
+                ),
+                0.0,
+            )
+        else:
+            return self._invoke_conntent()
 
 
 @pytest.fixture

@@ -2,6 +2,7 @@ import asyncio
 
 import litellm
 import railtracks as rt
+from pydantic import BaseModel
 
 
 def secret_words(id: int):
@@ -19,8 +20,12 @@ def secret_words(id: int):
     return secret_words[id]
 
 
+class Schema(BaseModel):
+    val: int
+
+
 async def main():
-    resp = await litellm.acompletion(
+    resp = litellm.completion(
         model="gpt-4o",
         messages=[
             {
@@ -49,9 +54,9 @@ async def main():
         #         }
         # ]
     )
-
-    async for chunk in resp.completion_stream:
+    for chunk in resp.completion_stream:
         print(chunk)
+
 
 
 asyncio.run(main())

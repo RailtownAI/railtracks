@@ -3,7 +3,6 @@ from typing import Generic, TypeVar
 
 from pydantic import BaseModel
 
-import railtracks.context as context
 from railtracks.exceptions import LLMError
 from railtracks.llm import Message, MessageHistory, ModelBase, UserMessage
 from railtracks.validation.node_creation.validation import (
@@ -13,6 +12,8 @@ from railtracks.validation.node_creation.validation import (
 
 from ._llm_base import LLMBase, StructuredOutputMixIn
 from .response import StructuredResponse
+from railtracks.llm.content import Stream
+import json
 
 _TOutput = TypeVar("_TOutput", bound=BaseModel)
 
@@ -66,8 +67,7 @@ class StructuredLLM(
             self.message_hist, schema=self.output_schema()
         )
 
-        self.message_hist.append(returned_mess.message)
-
+        assert returned_mess.message
         if returned_mess.message.role == "assistant":
             cont = returned_mess.message.content
             if cont is None:
@@ -75,15 +75,28 @@ class StructuredLLM(
                     reason="ModelLLM returned None content",
                     message_history=self.message_hist,
                 )
-            if isinstance(cont, self.output_schema()):
-                if (key := self.return_into()) is not None:
-                    context.put(key, self.format_for_context(cont))
-                    return self.format_for_return(cont)
-                return self.return_output()
-            raise LLMError(
-                reason="The LLM returned content does not match the expected return type",
-                message_history=self.message_hist,
-            )
+            elif isinstance(cont, Stream):  
+                try:
+                    parsed_json = json.loads(cont.final_message)
+                    parsed = self.output_schema()(**parsed_json)
+                    self.message_hist.append(
+                        Message(content=parsed, role="assistant")
+                    )  # if the AssistantMessage is a stream, we need to add the final message to the message history instead of the generator
+                    return self.return_output(cont.streamer)
+                except Exception as e:
+                    raise LLMError(
+                        reason=f"The string returned from the LLM did not match the expected output schema. Error: {str(e)}",
+                        message_history=self.message_hist,
+                    )
+            elif isinstance(cont, self.output_schema()):
+                self.message_hist.append(returned_mess.message)
+            else:
+                raise LLMError(
+                    reason="The LLM returned content does not match the expected return type",
+                    message_history=self.message_hist,
+                )
+            return self.return_output()
+            
 
         raise LLMError(
             reason="ModelLLM returned an unexpected message type.",
