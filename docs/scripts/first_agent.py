@@ -26,7 +26,7 @@ def weather_tool(city: str):
 # --8<-- [start: first_agent]
 WeatherAgent = rt.agent_node(
     name="Weather Agent",
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
     system_message="You are a helpful assistant that answers weather-related questions.",
     tool_nodes=[rt.function_node(weather_tool)],
     output_schema=WeatherResponse,

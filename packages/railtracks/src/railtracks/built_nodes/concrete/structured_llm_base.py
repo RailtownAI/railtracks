@@ -38,7 +38,7 @@ class StructuredLLM(
     def __init__(
         self,
         user_input: MessageHistory | UserMessage | str | list[Message],
-        llm_model: ModelBase | None = None,
+        llm: ModelBase | None = None,
     ):
         """Creates a new instance of the StructuredlLLM class
 
@@ -49,7 +49,7 @@ class StructuredLLM(
             llm_model (ModelBase | None, optional): The LLM model to use. Defaults to None.
 
         """
-        super().__init__(llm_model=llm_model, user_input=user_input)
+        super().__init__(llm=llm, user_input=user_input)
 
     @classmethod
     def name(cls) -> str:

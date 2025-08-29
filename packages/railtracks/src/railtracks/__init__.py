@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 
 __all__ = [
     "Session",
+    "session",
     "call",
     "broadcast",
     "call_batch",
@@ -39,7 +40,7 @@ from railtracks.built_nodes.easy_usage_wrappers import (
 )
 
 from . import context, integrations, llm, prebuilt
-from ._session import ExecutionInfo, Session
+from ._session import ExecutionInfo, Session, session
 from .context.central import set_config
 from .interaction import broadcast, call, call_batch
 from .nodes.manifest import ToolManifest

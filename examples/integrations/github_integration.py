@@ -24,7 +24,7 @@ tools = server.tools
 agent = rt.agent_node(
     tool_nodes={*tools},
     system_message="""You are a GitHub Copilot agent that can interact with GitHub repositories.""",
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
 )
 
 user_prompt = """Tell me about the RailtownAI/rc repository on GitHub."""

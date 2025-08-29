@@ -32,7 +32,7 @@ def agent_node(
     *,
     tool_nodes: Iterable[Type[Node] | Callable | RTFunction],
     output_schema: Type[_TBaseModel],
-    llm_model: ModelBase | None = None,
+    llm: ModelBase | None = None,
     max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
@@ -45,7 +45,7 @@ def agent_node(
     name: str | None = None,
     *,
     output_schema: Type[_TBaseModel],
-    llm_model: ModelBase | None = None,
+    llm: ModelBase | None = None,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
 ) -> Type[StructuredLLM[_TBaseModel]]:
@@ -56,7 +56,7 @@ def agent_node(
 def agent_node(
     name: str | None = None,
     *,
-    llm_model: ModelBase | None = None,
+    llm: ModelBase | None = None,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
 ) -> Type[TerminalLLM]:
@@ -68,7 +68,7 @@ def agent_node(
     name: str | None = None,
     *,
     tool_nodes: Iterable[Type[Node] | Callable | RTFunction],
-    llm_model: ModelBase | None = None,
+    llm: ModelBase | None = None,
     max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
@@ -81,7 +81,7 @@ def agent_node(
     *,
     tool_nodes: Iterable[Type[Node] | Callable | RTFunction] | None = None,
     output_schema: Type[_TBaseModel] | None = None,
-    llm_model: ModelBase | None = None,
+    llm: ModelBase | None = None,
     max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
@@ -93,7 +93,7 @@ def agent_node(
         name (str | None): The name of the agent. If none the default will be used.
         tool_nodes (set[Type[Node] | Callable | RTFunction] | None): If your agent is a LLM with access to tools, what does it have access to?
         output_schema (Type[_TBaseModel] | None): If your agent should return a structured output, what is the output_schema?
-        llm_model (ModelBase | None): The LLM model to use. If None it will need to be passed in at instance time.
+        llm (ModelBase | None): The LLM model to use. If None it will need to be passed in at instance time.
         max_tool_calls (int | None): Maximum number of tool calls allowed (if it is a ToolCall Agent).
         system_message (SystemMessage | str | None): System message for the agent.
         manifest (ToolManifest | None): If you want to use this as a tool in other agents you can pass in a ToolManifest.
@@ -124,7 +124,7 @@ def agent_node(
                 tool_nodes=unpacked_tool_nodes,
                 output_schema=output_schema,
                 name=name,
-                llm_model=llm_model,
+                llm=llm,
                 max_tool_calls=max_tool_calls,
                 system_message=system_message,
                 tool_details=tool_details,
@@ -134,7 +134,7 @@ def agent_node(
             return tool_call_llm(
                 tool_nodes=unpacked_tool_nodes,
                 name=name,
-                llm_model=llm_model,
+                llm=llm,
                 max_tool_calls=max_tool_calls,
                 system_message=system_message,
                 tool_details=tool_details,
@@ -145,7 +145,7 @@ def agent_node(
             return structured_llm(
                 output_schema=output_schema,
                 name=name,
-                llm_model=llm_model,
+                llm=llm,
                 system_message=system_message,
                 tool_details=tool_details,
                 tool_params=tool_params,
@@ -153,7 +153,7 @@ def agent_node(
         else:
             return terminal_llm(
                 name=name,
-                llm_model=llm_model,
+                llm=llm,
                 system_message=system_message,
                 tool_details=tool_details,
                 tool_params=tool_params,

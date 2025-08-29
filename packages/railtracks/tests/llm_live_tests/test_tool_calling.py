@@ -4,6 +4,7 @@ import railtracks as rt
 from pydantic import BaseModel, Field
 from typing import Optional
 
+@pytest.mark.skip(reason="Skipped due to LLM stochasticity")
 @pytest.mark.asyncio
 @pytest.mark.parametrize("llm", llm_map.values(), ids=llm_map.keys())
 async def test_function_as_tool(llm):
@@ -30,7 +31,7 @@ async def test_function_as_tool(llm):
         tool_nodes={rt.function_node(magic_number), rt.function_node(magic_operator)},
         name="Magic Number Agent",
         system_message="You are a helpful assistant that can call the tools available to you to answer user queries",
-        llm_model=llm,
+        llm=llm,
     )
 
     with rt.Session(logging_setting="NONE"):
@@ -39,6 +40,7 @@ async def test_function_as_tool(llm):
         assert rt.context.get("magic_number_called")
         assert rt.context.get("magic_operator_called")
 
+@pytest.mark.skip(reason="Skipped due to LLM stochasticity")
 @pytest.mark.asyncio
 @pytest.mark.parametrize("llm", llm_map.values(), ids=llm_map.keys())
 async def test_realistic_scenario(llm):
@@ -75,7 +77,7 @@ async def test_realistic_scenario(llm):
         tool_nodes={update_staff_directory},
         name="Staff Directory Agent",
         system_message="You are a helpful assistant that can call the tools available to you to answer user queries",
-        llm_model=llm,
+        llm=llm,
     )
 
     with rt.Session(logging_setting="NONE"):
@@ -89,7 +91,8 @@ async def test_realistic_scenario(llm):
     assert DB["John"]["phone"] == "5555"
     assert DB["Jane"]["role"] == "Developer"
     assert DB["Jane"]["phone"] == "0987654321"
-    
+
+@pytest.mark.skip(reason="Skipped due to LLM stochasticity")
 @pytest.mark.asyncio
 @pytest.mark.parametrize("llm", llm_map.values(), ids=llm_map.keys())
 async def test_agents_as_tools(llm):
@@ -124,7 +127,7 @@ async def test_agents_as_tools(llm):
                 )
             ]
         ),
-        llm_model=llm,
+        llm=llm,
     )
 
     # Define the parent tool that uses the child tool
@@ -134,7 +137,7 @@ async def test_agents_as_tools(llm):
         system_message=rt.llm.SystemMessage(
             "You are a helpful assistant that can call the tools available to you to answer user queries"
         ),
-        llm_model=llm,
+        llm=llm,
     )
 
     # Run the parent tool

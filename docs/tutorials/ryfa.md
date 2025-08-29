@@ -32,7 +32,7 @@ To begin you just have to use **`call`** method from RailTracks. This is an asyn
 
 !!! info "Dynamic Runtime Configuration"
 
-    If you pass `llm_model` to `agent_node` and then a different llm model to `call` function, RailTracks will use the latter one. If you pass `system_message` to `agent_node` and then another `system_message` to `call`, the system messages will be stacked.
+    If you pass `llm` to `agent_node` and then a different llm model to `call` function, RailTracks will use the latter one. If you pass `system_message` to `agent_node` and then another `system_message` to `call`, the system messages will be stacked.
 
     ??? example
         ```python

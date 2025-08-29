@@ -63,7 +63,7 @@ calculator_manifest = rt.ToolManifest(
 # --8<-- [start: calculation_agent]
 CalculatorAgent = rt.agent_node(
     name="Calculator Agent",
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
     system_message="You are a helpful calculator. Solve math problems step by step using the available math operations.",
     tool_nodes=[add, multiply, divide],
     manifest=calculator_manifest,  # This makes the agent usable as a tool
@@ -104,7 +104,7 @@ def get_price_data(item: str) -> dict:
 ShoppingAssistant = rt.agent_node(
     name="Shopping Assistant",
     tool_nodes=[get_price_data, CalculatorAgent],  # Use the calculator agent as a tool
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
     system_message=(
         "You are a shopping assistant." 
         "Help users with pricing calculations including taxes, discounts, and totals."

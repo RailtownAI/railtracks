@@ -76,7 +76,7 @@ agent = rt.library.tool_call_llm(
     tool_nodes=tools,
     name="Web Research Agent",
     system_message="Use the tools to research information online.",
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
 )
 
 # Use the agent
@@ -192,7 +192,7 @@ super_agent = rt.library.tool_call_llm(
     tool_nodes=all_tools,
     name="Multi-Tool Agent",
     system_message="Use the appropriate tools to complete tasks.",
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
 )
 ```
 

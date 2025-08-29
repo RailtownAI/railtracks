@@ -48,7 +48,6 @@ class RequestTemplate(AbstractLinkedObject):
             identifier=self.identifier,
             stamp=self.stamp,
             details={
-                "state": self.status,
                 "input_args": self.input[0],
                 "input_kwargs": self.input[1],
                 "status": self.status,

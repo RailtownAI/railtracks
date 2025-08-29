@@ -96,7 +96,7 @@ class NodeBuilder(Generic[_TNode]):
 
     def llm_base(
         self,
-        llm_model: ModelBase | None,
+        llm: ModelBase | None,
         system_message: SystemMessage | str | None = None,
     ):
         """
@@ -112,8 +112,8 @@ class NodeBuilder(Generic[_TNode]):
         assert issubclass(self._node_class, LLMBase), (
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         )
-        if llm_model is not None:
-            self._with_override("get_llm_model", classmethod(lambda cls: llm_model))
+        if llm is not None:
+            self._with_override("get_llm", classmethod(lambda cls: llm))
 
         # Handle system message being passed as a string
         if isinstance(system_message, str):

@@ -155,7 +155,7 @@ async def test_json_serialization_2(planner_with_llm_node, json_state_schema, mo
     # =======================================
 
     with rt.Session(logging_setting="NONE") as session:
-        await rt.call(planner_with_llm_node, llm_model=model)
+        await rt.call(planner_with_llm_node, llm=model)
 
     try:
         validate(json.loads(session.payload()), json_state_schema)

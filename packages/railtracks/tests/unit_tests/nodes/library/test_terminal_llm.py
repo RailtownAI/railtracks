@@ -15,7 +15,7 @@ async def test_terminal_llm_instantiate_and_invoke(mock_llm, mock_chat_response_
             return "Mock LLM"
         
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("hello")])
-    node = MockLLM(user_input=mh, llm_model=mock_llm(mock_chat_response_message))
+    node = MockLLM(user_input=mh, llm=mock_llm(mock_chat_response_message))
     # with rt.Session() as runner:
     result = await node.invoke()
     assert result.text == "dummy content"
@@ -32,7 +32,7 @@ async def test_terminal_llm_instantiate_with_string(mock_llm, mock_chat_response
         def system_message(cls):
             return "system prompt"
 
-    node = MockLLM(user_input="hello", llm_model=mock_llm(mock_chat_response_message))
+    node = MockLLM(user_input="hello", llm=mock_llm(mock_chat_response_message))
     # Verify that the string was converted to a MessageHistory with a UserMessage
     assert len(node.message_hist) == 2  # System message + UserMessage
     assert node.message_hist[0].role == "system"
@@ -56,7 +56,7 @@ async def test_terminal_llm_instantiate_with_user_message(mock_llm, mock_chat_re
             return "system prompt"
 
     user_msg = UserMessage("hello")
-    node = MockLLM(user_input=user_msg, llm_model=mock_llm(mock_chat_response_message))
+    node = MockLLM(user_input=user_msg, llm=mock_llm(mock_chat_response_message))
     # Verify that the UserMessage was converted to a MessageHistory
     assert len(node.message_hist) == 2  # System message + UserMessage
     assert node.message_hist[0].role == "system"
@@ -72,7 +72,7 @@ async def test_terminal_llm_easy_usage_wrapper_invoke(mock_llm, mock_chat_respon
     node = terminal_llm(
         name="Mock LLM",
         system_message="system prompt",
-        llm_model=mock_llm(mock_chat_response_message),
+        llm=mock_llm(mock_chat_response_message),
     )
     mh = MessageHistory([UserMessage("hello")])
     result = await rt.call(node, user_input=mh)
@@ -82,7 +82,7 @@ def test_terminal_llm_easy_usage_wrapper_classmethods(mock_llm):
     NodeClass = terminal_llm(
         name="Mock LLM",
         system_message="system prompt",
-        llm_model=mock_llm(),
+        llm=mock_llm(),
     )
     assert NodeClass.name() == "Mock LLM"
 
@@ -91,7 +91,7 @@ async def test_terminal_llm_system_message_string_inserts_system_message(mock_ll
     NodeClass = terminal_llm(
         name="TestTerminalNode",
         system_message="system prompt",
-        llm_model=mock_llm(),
+        llm=mock_llm(),
     )
     mh = MessageHistory([UserMessage("hello")])
     node = NodeClass(user_input=mh)
@@ -115,7 +115,7 @@ async def test_terminal_llm_missing_tool_details_easy_usage(mock_llm, encoder_sy
         encoder_wo_tool_details = terminal_llm(
             name="Encoder",
             system_message=encoder_system_message,
-            llm_model=mock_llm(),
+            llm=mock_llm(),
             tool_params=encoder_tool_params,  # Intentionally omitting tool_details
         )
         
@@ -137,7 +137,7 @@ async def test_terminal_llm_tool_duplicate_parameter_names_easy_usage(
        encoder_w_duplicate_param = terminal_llm(
             name="Encoder",
             system_message=encoder_system_message,
-            llm_model=mock_llm(),
+            llm=mock_llm(),
             tool_details=encoder_tool_details,
             tool_params=encoder_tool_params,
         )
@@ -154,13 +154,13 @@ async def test_tool_info_not_classmethod(mock_llm, encoder_system_message):
             def __init__(
                     self,
                     user_input: rt.llm.MessageHistory,
-                    llm_model: rt.llm.ModelBase = mock_llm(),
+                    llm: rt.llm.ModelBase = mock_llm(),
                 ):
                     user_input = [x for x in user_input if x.role != "system"]
                     user_input.insert(0, encoder_system_message)
                     super().__init__(
                         user_input=user_input,
-                        llm_model=llm_model,
+                        llm=llm,
                     )
             
             @classmethod
@@ -186,7 +186,7 @@ async def test_tool_info_not_classmethod(mock_llm, encoder_system_message):
 async def test_no_message_history_easy_usage(mock_llm):
     simple_agent = rt.agent_node(
             name="Encoder",
-            llm_model=mock_llm(),
+            llm=mock_llm(),
         )
     
     with pytest.raises(NodeInvocationError, match="Message history must contain at least one message"):
@@ -195,8 +195,8 @@ async def test_no_message_history_easy_usage(mock_llm):
 @pytest.mark.asyncio
 async def test_no_message_history_class_based():
     class Encoder(TerminalLLM):
-        def __init__(self, user_input: rt.llm.MessageHistory, llm_model: rt.llm.ModelBase = None):
-            super().__init__(user_input=user_input, llm_model=llm_model)
+        def __init__(self, user_input: rt.llm.MessageHistory, llm: rt.llm.ModelBase = None):
+            super().__init__(user_input=user_input, llm=llm)
 
         @classmethod 
         def name(cls) -> str:
@@ -212,13 +212,13 @@ async def test_system_message_as_a_string_class_based(mock_llm):
         def __init__(
                 self,
                 user_input: rt.llm.MessageHistory,
-                llm_model: rt.llm.ModelBase = mock_llm(),
+                llm: rt.llm.ModelBase = mock_llm(),
             ):
                 user_input = [x for x in user_input if x.role != "system"]
                 user_input.insert(0, "You are a helpful assistant that can encode text into bytes.")
                 super().__init__(
                     user_input=MessageHistory(user_input),
-                    llm_model=llm_model,
+                    llm=llm,
                 )
         @classmethod
         def name(cls) -> str:

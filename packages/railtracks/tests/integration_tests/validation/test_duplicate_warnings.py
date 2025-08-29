@@ -21,7 +21,7 @@ def test_unlimited_tool_calls_single_warning(mock_llm, caplog):
     llm_node_class = tool_call_llm(
             tool_nodes={simple_tool},
             name="Test ToolCallLLM",
-            llm_model=mock_llm(),
+            llm=mock_llm(),
             max_tool_calls=None,  # This should NOT trigger warning at class creation
             system_message=SystemMessage("Test system message")
         )
@@ -47,7 +47,7 @@ def test_unlimited_tool_calls_not_creation_warning(mock_llm, caplog):
     llm_node_class = tool_call_llm(
             tool_nodes={simple_tool},
             name="Test ToolCallLLM",
-            llm_model=mock_llm(),
+            llm=mock_llm(),
             max_tool_calls=10,
             system_message=SystemMessage("Test system message")
         )

@@ -17,7 +17,7 @@ class TestSimpleToolCalling:
             _ = rt.agent_node(
                 tool_nodes=set(),
                 system_message="You are a helpful assistant that can strucure the response into a structured output.",
-                llm_model=mock_llm(),
+                llm=mock_llm(),
                 name="ToolCallLLM",
             )
 
@@ -37,7 +37,7 @@ class TestSimpleToolCalling:
             tool_nodes={rt.function_node(secret_phrase)},
             name="Secret Phrase Maker",
             system_message="You are a helpful assistant that can call the tools available to you to answer user queries",
-            llm_model=llm,
+            llm=llm,
         )
 
         with rt.Session(logging_setting="NONE"):
@@ -78,7 +78,7 @@ class TestLimitedToolCalling:
             tool_nodes={rt.function_node(magic_number)},
             name="Magic Number Agent",
             system_message="You are a helpful assistant that can call the tools available to you to answer user queries",
-            llm_model=llm,
+            llm=llm,
         )
 
         message = "Get the magic number and divide it by 2."
@@ -96,7 +96,7 @@ class TestLimitedToolCalling:
                 tool_nodes={rt.function_node(lambda: 42)},
                 name="Magic Number Agent",
                 system_message="You are a helpful assistant that can call the tools available to you to answer user queries",
-                llm_model=mock_llm(),
+                llm=mock_llm(),
                 max_tool_calls=-1,
             )
 
@@ -140,7 +140,7 @@ class TestLimitedToolCalling:
             tool_nodes={rt.function_node(magic_number)},
             name="Magic Number Agent",
             system_message="You are a helpful assistant that can call the tools available to you to answer user queries",
-            llm_model=llm,
+            llm=llm,
             max_tool_calls=num_tc,
         )
 
@@ -170,7 +170,7 @@ class TestStructuredToolCalling:
         agent = rt.agent_node(
             name="Secret Phrase Maker",
             system_message="You are a helpful assistant that can call the tools available to you to answer user queries",
-            llm_model=llm,
+            llm=llm,
             output_schema=simple_output_model,
             tool_nodes={rt.function_node(secrets)},
         )

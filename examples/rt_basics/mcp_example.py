@@ -24,7 +24,7 @@ parent_tool = rt.agent_node(
     name="Parent Tool",
     tool_nodes={*fetch_tools, *time_tools},
     system_message=rt.llm.SystemMessage("Provide a response using the tool when asked."),
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
 )
 
 #%%

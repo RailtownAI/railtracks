@@ -15,7 +15,7 @@ def test_prompt_injection(mock_llm):
     model = mock_llm()
     model._achat = return_message
 
-    node = rt.agent_node(system_message=prompt, llm_model=model)
+    node = rt.agent_node(system_message=prompt, llm=model)
 
     async def top_level():
         with rt.Session(context={"secret": "tomato"}):
@@ -35,7 +35,7 @@ def test_prompt_injection_bypass(mock_llm):
     model = mock_llm()
     model._achat = return_message
 
-    node = rt.agent_node(system_message=prompt, llm_model=model)
+    node = rt.agent_node(system_message=prompt, llm=model)
 
     async def top_level():
         with rt.Session(context={"secret_value": "tomato"}):
@@ -56,7 +56,10 @@ def test_prompt_numerical(mock_llm):
     model = mock_llm()
     model._achat = return_message
 
-    node = rt.agent_node(system_message=prompt, llm_model=model)
+    node = rt.agent_node(
+        system_message=prompt,
+        llm=model
+    )
 
     async def top_level():
         with rt.Session(context={"1": "tomato"}):
@@ -77,7 +80,10 @@ def test_prompt_not_in_context(mock_llm):
     model = mock_llm()
     model._achat = return_message
 
-    node = rt.agent_node(system_message=prompt, llm_model=model)
+    node = rt.agent_node(
+        system_message=prompt,
+        llm=model
+    )
 
     async def top_level():
         with rt.Session():
@@ -100,7 +106,10 @@ def test_prompt_injection_global_config_bypass(mock_llm):
     model = mock_llm()
     model._achat = return_message
 
-    node = rt.agent_node(system_message=prompt, llm_model=model)
+    node = rt.agent_node(
+        system_message=prompt,
+        llm=model
+    )
 
     async def top_level():
         with rt.Session(context={"secret_value": "tomato"}, prompt_injection=False):

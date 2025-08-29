@@ -1,5 +1,7 @@
+import inspect
 import os
 import uuid
+from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, Coroutine, Dict, ParamSpec, TypeVar
 
@@ -235,3 +237,82 @@ class Session:
         info = self.info
 
         return info.graph_serialization(self._identifier)
+
+
+def session(
+    context: Dict[str, Any] | None = None,
+    *,
+    timeout: float | None = None,
+    end_on_error: bool | None = None,
+    logging_setting: allowable_log_levels | None = None,
+    log_file: str | os.PathLike | None = None,
+    broadcast_callback: (
+        Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
+    ) = None,
+    identifier: str = None,
+    prompt_injection: bool | None = None,
+    save_state: bool | None = None,
+):
+    """
+    Decorator to wrap an async function with a RailTracks session.
+
+    This decorator automatically creates and manages a Session context for the decorated function,
+    allowing async functions to use RailTracks operations without manually managing the session lifecycle.
+
+    Note: This decorator is also available as `rt.session` for convenience.
+
+    Args:
+        context (Dict[str, Any], optional): A dictionary of global context variables to be used during the execution.
+        timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
+        end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
+        logging_setting (allowable_log_levels, optional): The setting for the level of logging you would like to have.
+        log_file (str | os.PathLike | None, optional): The file to which the logs will be written.
+        broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
+        identifier (str | None, optional): A unique identifier for the run. If none one will be generated automatically.
+        prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
+        save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks` directory.
+
+    Returns:
+        A decorator function that wraps async functions with a Session context.
+
+    Example Usage:
+    ```python
+    import railtracks as rt
+
+
+    @rt.session(timeout=10)
+    async def my_function():
+        result = await rt.call(some_node)
+        return result
+    ```
+    """
+
+    def decorator(
+        func: Callable[_P, Coroutine[Any, Any, _TOutput]],
+    ) -> Callable[_P, Coroutine[Any, Any, _TOutput]]:
+        # Validate that the decorated function is async
+        if not inspect.iscoroutinefunction(func):
+            raise TypeError(
+                f"@session decorator can only be applied to async functions. "
+                f"Function '{func.__name__}' is not async. "
+                f"Add 'async' keyword to your function definition."
+            )
+
+        @wraps(func)
+        async def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
+            with Session(
+                context=context,
+                timeout=timeout,
+                end_on_error=end_on_error,
+                logging_setting=logging_setting,
+                log_file=log_file,
+                broadcast_callback=broadcast_callback,
+                identifier=identifier,
+                prompt_injection=prompt_injection,
+                save_state=save_state,
+            ):
+                return await func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator

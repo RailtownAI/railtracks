@@ -52,7 +52,7 @@ def create_top_level_node():
 
                 super().__init__(
                     user_input=user_input,
-                    llm_model=self.create_model(),
+                    llm=self.create_model(),
                 )
 
             @classmethod
