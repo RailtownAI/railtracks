@@ -10,6 +10,7 @@ from railtracks import function_node
 from railtracks.exceptions import NodeCreationError
 from railtracks.llm import Parameter
 from railtracks.nodes.manifest import ToolManifest
+import time
 
 
 class TestManifestValidation:
@@ -76,7 +77,6 @@ class TestManifestValidation:
 
     def test_builtin_function_skips_validation(self):
         """Test that builtin functions skip validation."""
-        import time
         
         # This should not raise validation errors even with incorrect manifest
         manifest = ToolManifest(
