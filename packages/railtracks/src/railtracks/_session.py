@@ -117,7 +117,7 @@ class Session:
 
         self._identifier = identifier
 
-        executor_info = ExecutionInfo.create_new()
+        executor_info = ExecutionInfo.create_new(self._identifier)
         self.coordinator = Coordinator(
             execution_modes={"async": AsyncioExecutionStrategy()}
         )

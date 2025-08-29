@@ -29,19 +29,21 @@ class ExecutionInfo:
         request_forest: RequestForest,
         node_forest: NodeForest,
         stamper: StampManager,
+        session_id: str,
     ):
         self.request_forest = request_forest
         self.node_forest = node_forest
         self.stamper = stamper
-
+        self.session_id = session_id
     @classmethod
-    def default(cls) -> ExecutionInfo:
+    def default(cls, session_id: str) -> ExecutionInfo:
         """Creates a new "empty" instance of the ExecutionInfo class with the default values."""
-        return cls.create_new()
+        return cls.create_new(session_id=session_id)
 
     @classmethod
     def create_new(
         cls,
+        session_id: str
     ) -> ExecutionInfo:
         """
         Creates a new empty instance of state variables with the provided executor configuration.
@@ -55,6 +57,7 @@ class ExecutionInfo:
             request_forest=request_heap,
             node_forest=node_heap,
             stamper=stamper,
+            session_id=session_id
         )
 
     @property
@@ -130,6 +133,7 @@ class ExecutionInfo:
                 node_forest=new_node_forest,
                 request_forest=new_request_forest,
                 stamper=self.stamper,
+                session_id=self.session_id,
             )
 
     def _to_graph(self) -> Tuple[List[Vertex], List[Edge]]:
@@ -142,7 +146,7 @@ class ExecutionInfo:
         """
         return self.node_forest.to_vertices(), self.request_forest.to_edges()
 
-    def graph_serialization(self, session_id: str) -> str:
+    def graph_serialization(self) -> str:
         """
                 Creates a string (JSON) representation of this info object designed to be used to construct a graph for this
                 info object.
@@ -165,7 +169,7 @@ class ExecutionInfo:
 
         prepared_obj = [
             {
-                "session_id": session_id,
+                "session_id": self.session_id,
                 "name": info.name,
                 "run_id": str(uuid.uuid4()),
                 "nodes": info.node_forest.to_vertices(),

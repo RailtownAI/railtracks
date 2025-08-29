@@ -35,6 +35,7 @@ def empty_info(empty_request_forest, empty_node_forest, empty_stamper):
         request_forest=empty_request_forest,
         node_forest=empty_node_forest,
         stamper=empty_stamper,
+        session_id="test_session"
     )
 
 def confirm_empty(info: ExecutionInfo):
@@ -58,7 +59,7 @@ def test_empty_starter():
             answer=None, insertion_request=[], __contains__=lambda self, x: False, heap=lambda: [], to_edges=lambda: [])), \
          patch("railtracks.state.info.NodeForest", return_value=MagicMock(heap=lambda: [], to_vertices=lambda: [])), \
          patch("railtracks.state.info.StampManager", return_value=MagicMock(_step=0, all_stamps=[])):
-        info = ExecutionInfo.create_new()
+        info = ExecutionInfo.create_new("text_session")
         confirm_empty(info)
 
 def test_default():
@@ -66,7 +67,7 @@ def test_default():
             answer=None, insertion_request=[], __contains__=lambda self, x: False, heap=lambda: [], to_edges=lambda: [])), \
          patch("railtracks.state.info.NodeForest", return_value=MagicMock(heap=lambda: [], to_vertices=lambda: [])), \
          patch("railtracks.state.info.StampManager", return_value=MagicMock(_step=0, all_stamps=[])):
-        info = ExecutionInfo.default()
+        info = ExecutionInfo.default("test_session")
         confirm_empty(info)
 
 # ================ END ExecutionInfo: creation and defaults ===============
@@ -140,7 +141,7 @@ def test_graph_serialization_serializes_json(empty_info):
     empty_info.stamper.all_stamps = steps
     # patch RTJSONEncoder to just call default json
     with patch("railtracks.state.info.RTJSONEncoder", None):
-        json_str = empty_info.graph_serialization("identifier")
+        json_str = empty_info.graph_serialization()
         # quit test via presence of keywords (structure)
         assert json_str == "[]"
 
