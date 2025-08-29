@@ -1,5 +1,5 @@
 Large Language Models (LLMs) are powerful, but they’re not enough on their own.  
-**Railtracks** gives them structure, tools, and visibility so you can build agents that actually get things done.  
+Railtracks gives them structure, tools, and visibility so you can build agents that actually get things done.  
 
 In this quickstart, you’ll install Railtracks, run your first agent, and visualize its execution — all in a few minutes.
 
@@ -9,7 +9,8 @@ In this quickstart, you’ll install Railtracks, run your first agent, and visua
 pip install railtracks
 pip install railtracks-cli
 ```
-> railtracks-cli is optional, but required for the visualization step. 
+!!! note 
+    `railtracks-cli` is optional, but required for the visualization step. 
 
 
 ### 2. Running your Agent
