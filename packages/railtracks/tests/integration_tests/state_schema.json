@@ -179,6 +179,12 @@
               { "type": "string" },
               { "type": "null" }
             ]
+          },
+          "latency": {
+            "anyOf": [
+              { "type": "number" },
+              { "type": "null" }
+            ]
           }
         },
         "required": [
