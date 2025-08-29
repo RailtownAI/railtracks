@@ -36,6 +36,14 @@
 }
 
 
+.code-card {
+  background: #1e1e2f;
+  border-radius: 12px;
+  padding: 16px;
+  font-family: 'Fira Code', monospace;
+  color: #f8f8f2;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
 
 
 /* Extra CSS for MkDocs */
