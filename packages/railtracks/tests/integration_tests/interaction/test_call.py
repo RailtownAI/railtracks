@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-import pytest
-from copy import deepcopy
-import random
-from typing import List
 import asyncio
+import random
+from copy import deepcopy
+from typing import List
+
+import pytest
 import railtracks as rt
 from railtracks.exceptions import GlobalTimeOutError
+from railtracks.nodes.nodes import Node
+
 
 @pytest.mark.asyncio
 async def test_message_history_not_mutated_terminal_llm(terminal_nodes):
@@ -64,7 +67,7 @@ async def test_message_history_not_mutated_terminal_llm(terminal_nodes):
 
         return response
 
-    MathGameNode = rt.function_node(make_math_game_node)
+    MathGameNode = rt.function_node(make_math_game_node)  # noqa: N806
 
     with rt.Session(logging_setting="NONE"):
         message_history = rt.llm.MessageHistory(
@@ -115,13 +118,17 @@ async def test_message_history_not_mutated_structured_llm(structured_nodes):
         ), "Message history modified after rt.call 2"
 
         message_history.append(
-            rt.llm.AssistantMessage("The grade: " + str(prof_grade.structured.overall_score))
+            rt.llm.AssistantMessage(
+                "The grade: " + str(prof_grade.structured.overall_score)
+            )
         )
         message_history.append(
             rt.llm.AssistantMessage("The feedback: " + prof_grade.structured.feedback)
         )
         original_message_history.append(
-            rt.llm.AssistantMessage("The grade: " + str(prof_grade.structured.overall_score))
+            rt.llm.AssistantMessage(
+                "The grade: " + str(prof_grade.structured.overall_score)
+            )
         )
         original_message_history.append(
             rt.llm.AssistantMessage("The feedback: " + prof_grade.structured.feedback)
@@ -129,9 +136,9 @@ async def test_message_history_not_mutated_structured_llm(structured_nodes):
 
         return prof_grade
 
-    MathProofNode = rt.function_node(math_proof_node)
+    MathProofNode = rt.function_node(math_proof_node)  # noqa: N806
 
-    with rt.Session(logging_setting="NONE") as runner:
+    with rt.Session(logging_setting="NONE"):
         message_history = rt.llm.MessageHistory(
             [
                 rt.llm.UserMessage(
@@ -156,6 +163,7 @@ async def test_message_history_not_mutated_tool_call_llm(tool_calling_nodes):
     currrency_converter_node, travel_planner_node = (
         tool_calling_nodes  # All nodes can be found in ./conftest.py
     )
+
     async def travel_summarizer_node(message_history: rt.llm.MessageHistory):
         original_message_history = deepcopy(message_history)
 
@@ -185,8 +193,8 @@ async def test_message_history_not_mutated_tool_call_llm(tool_calling_nodes):
 
         return response
 
-    TravelSummarizerNode = rt.function_node(travel_summarizer_node)
-    with rt.Session(logging_setting="NONE") as runner:
+    TravelSummarizerNode = rt.function_node(travel_summarizer_node)  # noqa: N806
+    with rt.Session(logging_setting="NONE"):
         message_history = rt.llm.MessageHistory(
             [
                 rt.llm.UserMessage(
@@ -210,24 +218,12 @@ async def test_no_context_call():
             key="This is a test keyword argument",
         )
 
-
-# below are tests for `call_sync` function
-
-
 def add(x: float, y: float):
     """A simple synchronous function that adds two numbers."""
     return x + y
 
 
 AddNode = rt.function_node(add)
-
-
-def add_many(pairs: list[float]):
-    total = 0
-    for i in range(len(pairs)):
-        total = rt.call_sync(AddNode, total, pairs[i])
-
-    return total
 
 
 async def async_add_many(pairs: list[float]):
@@ -238,41 +234,16 @@ async def async_add_many(pairs: list[float]):
     return total
 
 
-AddManyNode = rt.function_node(add_many)
 AddManyAsyncNode = rt.function_node(async_add_many)
-
-
-@pytest.mark.parametrize(
-    "top_level_node",
-    [AddManyNode, AddManyAsyncNode],
-    ids=["Sync Top Level", "Async Top Level"],
-)
-def test_simple_call_sync(top_level_node):
-    """Test the synchronous call of a simple function."""
-    with rt.Session() as runner:
-        result = rt.call_sync(top_level_node, [1, 3, 4, 5])
-        assert result == 13, f"Expected 13, got {result}"
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "top_level_node",
-    [AddManyNode, AddManyAsyncNode],
-    ids=["Sync Top Level", "Async Top Level"],
-)
-async def test_simple_call_sync_in_async_context(top_level_node):
-    """Test the synchronous call of a simple function in an async context."""
-    with rt.Session() as runner:
-        result = await rt.call(top_level_node, [5, 6])
-        assert result == 11, f"Expected 11, got {result}"
 
 
 @pytest.mark.asyncio
 async def test_even_simple_call_sync_in_async_context():
     """Test the synchronous call of a simple function in an async context."""
-    with rt.Session() as runner:
+    with rt.Session():
         result = await rt.call(AddNode, 5, 6)
         assert result == 11, f"Expected 11, got {result}"
+
 
 # ============================================ START Many calls and Timeout tests ============================================
 
@@ -291,52 +262,57 @@ async def many_calls(num_calls: int, parallel_calls: int):
 ManyCalls = rt.function_node(many_calls)
 
 
-def many_calls_tester(num_calls: int, parallel_calls: int):
+@pytest.mark.asyncio
+async def many_calls_tester(num_calls: int, parallel_calls: int):
     with rt.Session(logging_setting="NONE") as run:
-        finished_result = rt.call_sync(ManyCalls, num_calls, parallel_calls)
+        finished_result = await rt.call(ManyCalls, num_calls, parallel_calls)
         info = run.info
 
     ans = finished_result
 
     assert isinstance(ans, list)
     assert len(ans) == num_calls * parallel_calls
-    assert all([0 < x < 1 for x in ans])
-    assert {x.step for x in info.all_stamps} == {
-        i for i in range(num_calls * parallel_calls * 2 + 2)
-    }
+    assert all(0 < x < 1 for x in ans)
+    assert {x.step for x in info.all_stamps} == set(
+        range(num_calls * parallel_calls * 2 + 2)
+    )
 
     assert len(info.all_stamps) == 2 * num_calls * parallel_calls + 2
 
 
 @pytest.mark.timeout(5)
-def test_no_deadlock():
+@pytest.mark.asyncio
+async def test_no_deadlock():
     num_calls = 4
     parallel_calls = 55
 
-    many_calls_tester(num_calls, parallel_calls)
+    await many_calls_tester(num_calls, parallel_calls)
 
 
-def test_small_no_deadlock():
+@pytest.mark.asyncio
+async def test_small_no_deadlock():
     num_calls = 10
     parallel_calls = 15
 
-    many_calls_tester(num_calls, parallel_calls)
+    await many_calls_tester(num_calls, parallel_calls)
 
 
-def test_large_no_deadlock():
+@pytest.mark.asyncio
+async def test_large_no_deadlock():
     num_calls = 45
     parallel_calls = 23
 
-    many_calls_tester(num_calls, parallel_calls)
+    await many_calls_tester(num_calls, parallel_calls)
 
 
-def test_simple_rng():
-    with rt.Session(logging_setting="NONE") as run:
-        result = rt.call_sync(RNGNode)
+@pytest.mark.asyncio
+async def test_simple_rng():
+    with rt.Session(logging_setting="NONE"):
+        result = await rt.call(RNGNode)
 
     assert 0 < result < 1
 
-from railtracks.nodes.nodes import Node
+
 class NestedManyCalls(Node):
     def __init__(self, num_calls: int, parallel_calls: int, depth: int):
         self.num_calls = num_calls
@@ -373,26 +349,25 @@ class NestedManyCalls(Node):
     @classmethod
     def name(cls) -> str:
         return "NestedManyCalls"
-    
+
     @classmethod
     def type(cls):
-        return 'Tool'
+        return "Tool"
 
 
-def nested_many_calls_tester(num_calls: int, parallel_calls: int, depth: int):
+@pytest.mark.asyncio
+async def nested_many_calls_tester(num_calls: int, parallel_calls: int, depth: int):
     with rt.Session(logging_setting="NONE") as run:
-        finished_result = rt.call_sync(
-            NestedManyCalls, num_calls, parallel_calls, depth
-        )
+        await rt.call(NestedManyCalls, num_calls, parallel_calls, depth)
 
     ans = run.info
 
     assert isinstance(ans.answer, list)
     assert len(ans.answer) == (parallel_calls * num_calls) ** (depth + 1)
-    assert all([0 < x < 1 for x in ans.answer])
+    assert all(0 < x < 1 for x in ans.answer)
 
     r_h = ans.request_forest
-    assert len(r_h.insertion_request) ==  1
+    assert len(r_h.insertion_request) == 1
     child_requests = r_h.children(r_h.insertion_request[0].sink_id)
 
     assert len(child_requests) == num_calls * parallel_calls
@@ -403,37 +378,40 @@ def nested_many_calls_tester(num_calls: int, parallel_calls: int, depth: int):
 
 
 @pytest.mark.timeout(4)
-def test_nested_no_deadlock():
+@pytest.mark.asyncio
+async def test_nested_no_deadlock():
     num_calls = 2
     parallel_calls = 2
     depth = 3
 
-    nested_many_calls_tester(num_calls, parallel_calls, depth)
+    await nested_many_calls_tester(num_calls, parallel_calls, depth)
 
 
-def test_nested_no_deadlock_harder():
+@pytest.mark.asyncio
+async def test_nested_no_deadlock_harder():
     num_calls = 1
     parallel_calls = 3
     depth = 3
 
-    nested_many_calls_tester(num_calls, parallel_calls, depth)
+    await nested_many_calls_tester(num_calls, parallel_calls, depth)
 
 
-def test_nested_no_deadlock_harder_2():
+@pytest.mark.asyncio
+async def test_nested_no_deadlock_harder_2():
     num_calls = 3
     parallel_calls = 1
     depth = 3
 
-    nested_many_calls_tester(num_calls, parallel_calls, depth)
+    await nested_many_calls_tester(num_calls, parallel_calls, depth)
 
 
-def test_multiple_runs():
+@pytest.mark.asyncio
+async def test_multiple_runs():
     with rt.Session(logging_setting="NONE") as run:
-        result = rt.call_sync(RNGNode)
+        result = await rt.call(RNGNode)
         assert 0 < result < 1
 
-        result = rt.call_sync(RNGNode)
-
+        result = await rt.call(RNGNode)
 
         info = run.info
         assert isinstance(info.answer, List)
@@ -450,6 +428,7 @@ def test_multiple_runs():
             subset_info = info._get_info(i_r_id)
             assert 0 < subset_info.answer < 1
             assert len(subset_info.node_forest.heap()) == 1
+
 
 @pytest.mark.asyncio
 async def test_multiple_runs_async():
@@ -477,76 +456,36 @@ async def test_multiple_runs_async():
             assert 0 < subset_info.answer < 1
             assert len(subset_info.node_forest.heap()) == 1
 
+
 def level_3(message: str):
     return message
 
+
 Level3 = rt.function_node(level_3)
+
 
 async def a_level_2(message: str):
     return await rt.call(Level3, message)
 
-def level_2(message: str):
-    return rt.call_sync(Level3, message)
 
 ALevel2 = rt.function_node(a_level_2)
-Level2 = rt.function_node(level_2)
-
-@pytest.mark.parametrize("level_2_node", [Level2, ALevel2], ids=["sync", "async"])
-def test_multi_level_calls(level_2_node):
-    async def level_1_async(message: str):
-        return await rt.call(level_2_node, message)
-
-    def level_1(message: str):
-        return rt.call_sync(level_2_node, message)
-
-    ALevel1 = rt.function_node(level_1_async)
-    Level1 = rt.function_node(level_1)
-
-    with rt.Session(logging_setting="NONE") as run:
-        result = rt.call_sync(Level1, "Hello from Level 1")
-        assert result == "Hello from Level 1"
-
-    with rt.Session(logging_setting="NONE"):
-        result = rt.call_sync(ALevel1, "Hello from Level 1 (async)")
-        assert result == "Hello from Level 1 (async)"
-
-    with rt.Session(logging_setting="NONE") as run:
-        result = rt.call_sync(Level1, "Hello from Level 1")
-        assert result == "Hello from Level 1"
-
-    with rt.Session(logging_setting="NONE") as run:
-        result = rt.call_sync(ALevel1, "Hello from Level 1 (async)")
-        assert result == "Hello from Level 1 (async)"
 
 
-@pytest.mark.parametrize("level_2_node", [Level2, ALevel2], ids=["sync", "async"])
+@pytest.mark.parametrize("level_2_node", [ALevel2], ids=["async"])
 @pytest.mark.asyncio
 async def test_multi_level_calls(level_2_node):
     async def level_1_async(message: str):
         return await rt.call(level_2_node, message)
 
-    def level_1(message: str):
-        return rt.call_sync(level_2_node, message)
-
-    ALevel1 = rt.function_node(level_1_async)
-    Level1 = rt.function_node(level_1)
-
-    with rt.Session(logging_setting="NONE") as run:
-        result = await rt.call(Level1, "Hello from Level 1")
-        assert result == "Hello from Level 1"
+    ALevel1 = rt.function_node(level_1_async)  # noqa: N806
 
     with rt.Session(logging_setting="NONE"):
         result = await rt.call(ALevel1, "Hello from Level 1 (async)")
         assert result == "Hello from Level 1 (async)"
 
-    with rt.Session(logging_setting="NONE") as run:
-        result = await rt.call(Level1, "Hello from Level 1")
-        assert result == "Hello from Level 1"
-
-    with rt.Session(logging_setting="NONE") as run:
+    with rt.Session(logging_setting="NONE"):
         result = await rt.call(ALevel1, "Hello from Level 1 (async)")
         assert result == "Hello from Level 1 (async)"
-
 
 
 async def timeout_node(timeout_len: float):
@@ -560,12 +499,11 @@ async def timeout_node(timeout_len: float):
 TimeoutNode = rt.function_node(timeout_node)
 
 
-def test_timeout():
-    with rt.Session(
-        logging_setting="NONE", timeout=0.1
-    ) as run:
+@pytest.mark.asyncio
+async def test_timeout():
+    with rt.Session(logging_setting="NONE", timeout=0.1):
         with pytest.raises(GlobalTimeOutError):
-            rt.call_sync(TimeoutNode, 0.3)
+            await rt.call(TimeoutNode, 0.3)
 
 
 async def timeout_thrower():
@@ -575,11 +513,13 @@ async def timeout_thrower():
 TimeoutThrower = rt.function_node(timeout_thrower)
 
 
-def test_timeout_thrower():
-    with rt.Session(logging_setting="NONE") as run:
+@pytest.mark.asyncio
+async def test_timeout_thrower():
+    with rt.Session(logging_setting="NONE"):
         try:
-            result = rt.call_sync(TimeoutThrower)
+            await rt.call(TimeoutThrower)
         except Exception as e:
             assert isinstance(e, asyncio.TimeoutError)
+
 
 # ============================================ END Many calls and Timeout tests ============================================

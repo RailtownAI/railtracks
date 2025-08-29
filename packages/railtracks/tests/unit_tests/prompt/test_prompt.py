@@ -1,9 +1,9 @@
-import pytest
+import asyncio
 
-from railtracks import ExecutorConfig
-from railtracks.llm import MessageHistory, Message
-from railtracks.llm.response import Response
+import pytest
 import railtracks as rt
+from railtracks.llm import Message, MessageHistory
+from railtracks.llm.response import Response
 
 
 def test_prompt_injection(mock_llm):
@@ -15,14 +15,14 @@ def test_prompt_injection(mock_llm):
     model = mock_llm()
     model._achat = return_message
 
-    node = rt.agent_node(
-        system_message=prompt,
-        llm_model=model
-    )
+    node = rt.agent_node(system_message=prompt, llm=model)
 
-    with rt.Session(context={"secret": "tomato"}) as runner:
-        response = rt.call_sync(node, user_input=MessageHistory())
+    async def top_level():
+        with rt.Session(context={"secret": "tomato"}):
+            response = await rt.call(node, user_input=MessageHistory())
+        return response
 
+    response = asyncio.run(top_level())
     assert response.content == "tomato"
 
 
@@ -35,13 +35,14 @@ def test_prompt_injection_bypass(mock_llm):
     model = mock_llm()
     model._achat = return_message
 
-    node = rt.agent_node(
-        system_message=prompt,
-        llm_model=model
-    )
+    node = rt.agent_node(system_message=prompt, llm=model)
 
-    with rt.Session(context={"secret_value": "tomato"}) as runner:
-        response = rt.call_sync(node, user_input=MessageHistory())
+    async def top_level():
+        with rt.Session(context={"secret_value": "tomato"}):
+            response = await rt.call(node, user_input=MessageHistory())
+        return response
+
+    response = asyncio.run(top_level())
 
     assert response.content == "{secret_value}"
 
@@ -57,11 +58,15 @@ def test_prompt_numerical(mock_llm):
 
     node = rt.agent_node(
         system_message=prompt,
-        llm_model=model
+        llm=model
     )
 
-    with rt.Session(context={"1": "tomato"}) as runner:
-        response = rt.call_sync(node, user_input=MessageHistory())
+    async def top_level():
+        with rt.Session(context={"1": "tomato"}):
+            response = await rt.call(node, user_input=MessageHistory())
+        return response
+
+    response = asyncio.run(top_level())
 
     assert response.content == "tomato"
 
@@ -77,11 +82,16 @@ def test_prompt_not_in_context(mock_llm):
 
     node = rt.agent_node(
         system_message=prompt,
-        llm_model=model
+        llm=model
     )
 
-    with rt.Session() as runner:
-        response = rt.call_sync(node, user_input=MessageHistory())
+    async def top_level():
+        with rt.Session():
+            response = await rt.call(node, user_input=MessageHistory())
+
+        return response
+
+    response = asyncio.run(top_level())
 
     assert response.content == "{secret2}"
 
@@ -98,13 +108,14 @@ def test_prompt_injection_global_config_bypass(mock_llm):
 
     node = rt.agent_node(
         system_message=prompt,
-        llm_model=model
+        llm=model
     )
 
-    with rt.Session(
-            context={"secret_value": "tomato"},
-            prompt_injection=False
-    ) as runner:
-        response = rt.call_sync(node, user_input=MessageHistory())
+    async def top_level():
+        with rt.Session(context={"secret_value": "tomato"}, prompt_injection=False):
+            response = await rt.call(node, user_input=MessageHistory())
 
+        return response
+
+    response = asyncio.run(top_level())
     assert response.content == "{secret_value}"

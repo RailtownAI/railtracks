@@ -1,6 +1,5 @@
 import time
 
-
 import pytest
 import railtracks as rt
 
@@ -17,34 +16,11 @@ import railtracks as rt
     ],
 )
 async def test_parallel_calls(parallel_node, timeout_config, expected, buffer):
-
     with rt.Session(
         logging_setting="NONE",
-    ) as runner:
+    ):
         start_time = time.time()
         results = await rt.call(parallel_node, timeout_config)
-        assert abs(time.time() - start_time - expected) < buffer
-        assert results == timeout_config
-
-
-@pytest.mark.parametrize(
-    "timeout_config, expected, buffer",
-    [
-        ([1, 2, 3, 2, 1], 3.5, 0.75),
-        ([1, 5, 1], 5.25, 0.5),
-        ([1] * 35, 1.25, 0.5),
-        ([2] * 100 + [3] * 50, 3.5, 0.75),
-        ([10], 10.25, 0.5),
-    ],
-)
-def test_parallel_calls_sync(parallel_node, timeout_config, expected, buffer):
-    with rt.Session(
-
-        logging_setting="NONE",
-
-    ) as runner:
-        start_time = time.time()
-        results = rt.call_sync(parallel_node, timeout_config)
         assert abs(time.time() - start_time - expected) < buffer
         assert results == timeout_config
 
@@ -87,15 +63,14 @@ async def error_thrower_top_level(
             return_exceptions=return_exceptions,
         )
 
-    if return_exceptions is None or return_exceptions == True:
-
+    if return_exceptions is None or return_exceptions:
         assert len(results) == num_times
-        assert isinstance(
-            results[-1], type(exc)
-        ), "The last result should be the exception"
-        assert all(
-            result is None for result in results[:-1]
-        ), "All other results should be None"
+        assert isinstance(results[-1], type(exc)), (
+            "The last result should be the exception"
+        )
+        assert all(result is None for result in results[:-1]), (
+            "All other results should be None"
+        )
     else:
         # if they have set return_exceptions=False, then exceptions should have already been raised
         pass
@@ -113,9 +88,8 @@ async def test_batch_error_handling_default_error_prop(num_times):
     Test that batch execution handles errors correctly.
     """
     with rt.Session(
-            logging_setting="NONE",
-
-    ) as runner:
+        logging_setting="NONE",
+    ):
         await rt.call(ErrorThrowerTopLevel, num_times=num_times)
 
 
@@ -128,13 +102,9 @@ async def test_batch_error_handling_true_error_prop(num_times):
     Test that batch execution handles errors correctly.
     """
     with rt.Session(
-
-            logging_setting="NONE",
-
-    ) as runner:
-        await rt.call(
-            ErrorThrowerTopLevel, num_times=num_times, return_exceptions=True
-        )
+        logging_setting="NONE",
+    ):
+        await rt.call(ErrorThrowerTopLevel, num_times=num_times, return_exceptions=True)
 
 
 @pytest.mark.parametrize(
@@ -146,10 +116,8 @@ async def test_batch_error_handling_false_error_prop(num_times):
     Test that batch execution handles errors correctly.
     """
     with rt.Session(
-
-            logging_setting="NONE",
-
-    ) as runner:
+        logging_setting="NONE",
+    ):
         with pytest.raises(type(exc)):
             await rt.call(
                 ErrorThrowerTopLevel, num_times=num_times, return_exceptions=False

@@ -6,7 +6,7 @@ RailTracks makes it easy to create custom agents using the **`agent_node`** func
 
 First, specify these essential components:
 
-- **`llm_model`**: The LLM that powers your agent (e.g., OpenAI GPT, Claude, etc.)
+- **`llm`**: The LLM that powers your agent (e.g., OpenAI GPT, Claude, etc.)
 - **`system_message`**: Instructions that define your agent's behavior and personality
 
 Then, enhance your agent with additional capabilities:

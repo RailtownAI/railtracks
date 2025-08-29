@@ -11,7 +11,7 @@ from typing import (
 )
 
 if TYPE_CHECKING:
-    from railtracks.nodes.easy_usage_wrappers.function import (
+    from railtracks.built_nodes.easy_usage_wrappers import (
         _AsyncNodeAttachedFunc,
         _SyncNodeAttachedFunc,
     )

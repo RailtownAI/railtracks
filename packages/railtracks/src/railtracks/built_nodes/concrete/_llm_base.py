@@ -20,6 +20,7 @@ from railtracks.llm import (
 )
 from railtracks.llm.content import Stream
 from railtracks.llm.response import Response
+from railtracks.nodes.nodes import Node
 from railtracks.prompts.prompt import inject_context
 from railtracks.utils.logging import get_rt_logger
 from railtracks.validation.node_invocation.validation import (
@@ -27,7 +28,6 @@ from railtracks.validation.node_invocation.validation import (
     check_message_history,
 )
 
-from ..nodes import Node
 from .response import StringResponse, StructuredResponse
 
 # Global logger for LLM nodes
@@ -78,13 +78,13 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         user_input: The message history to use. Can be a MessageHistory object, a UserMessage object, or a string.
             If a string is provided, it will be converted to a MessageHistory with a UserMessage.
             If a UserMessage is provided, it will be converted to a MessageHistory.
-            llm_model: The LLM model to use. If None, the default model will be used.
+            llm: The LLM model to use. If None, the default model will be used.
     """
 
     def __init__(
         self,
         user_input: MessageHistory | UserMessage | str | list[Message],
-        llm_model: ModelBase | None = None,
+        llm: ModelBase | None = None,
     ):
         super().__init__()
 
@@ -124,18 +124,18 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
                 ),
             )
 
-        instance_injected_llm_model = self.get_llm_model()
+        instance_injected_llm_model = self.get_llm()
 
         if instance_injected_llm_model is not None:
-            if llm_model is not None:
+            if llm is not None:
                 logger.warning(
                     "You have provided an llm model as a parameter and as a class variable. We will use the parameter."
                 )
-                unwrapped_llm_model = llm_model
+                unwrapped_llm_model = llm
             else:
                 unwrapped_llm_model = instance_injected_llm_model
         else:
-            unwrapped_llm_model = llm_model
+            unwrapped_llm_model = llm
 
         self._verify_llm_model(unwrapped_llm_model)
         assert isinstance(unwrapped_llm_model, ModelBase), (
@@ -205,12 +205,12 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         check_message_history(message_history, cls.system_message())
 
     @classmethod
-    def _verify_llm_model(cls, llm_model: ModelBase | None):
+    def _verify_llm_model(cls, llm: ModelBase | None):
         """Verify the llm model is valid for this LLM."""
-        check_llm_model(llm_model)
+        check_llm_model(llm)
 
     @classmethod
-    def get_llm_model(cls) -> ModelBase | None:
+    def get_llm(cls) -> ModelBase | None:
         return None
 
     @classmethod

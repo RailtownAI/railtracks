@@ -59,7 +59,7 @@ class StructuredToolCallLLM(
             cls.structured_resp_node = structured_llm(
                 cls.output_schema(),
                 system_message=system_structured,
-                llm_model=cls.get_llm_model(),
+                llm=cls.get_llm(),
             )
 
         super().__init_subclass__()
@@ -67,10 +67,10 @@ class StructuredToolCallLLM(
     def __init__(
         self,
         user_input: MessageHistory | UserMessage | str | list[Message],
-        llm_model: ModelBase | None = None,
+        llm: ModelBase | None = None,
         max_tool_calls: int | None = None,
     ):
-        super().__init__(user_input, llm_model, max_tool_calls)
+        super().__init__(user_input=user_input, llm=llm, max_tool_calls=max_tool_calls)
         self.structured_output: _TBaseModel | Exception | None = None
 
     async def invoke(self):
@@ -82,7 +82,7 @@ class StructuredToolCallLLM(
                 user_input=MessageHistory(
                     [UserMessage(str(self.message_hist), inject_prompt=False)]
                 ),
-                llm_model=self.llm_model,
+                llm=self.llm_model,
             )
 
             structured_output = response.structured

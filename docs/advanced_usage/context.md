@@ -44,7 +44,7 @@ with rt.Session(context=data):
         return rt.context.get("var_1")
     
     with rt.Runner(context={"var_1": "value_1"}):
-        rt.call_sync(some_node)
+        await rt.call(some_node)
     ```
 
 !!! warning
@@ -78,13 +78,13 @@ def comment_on_issue(comment: str):
 # Define the agent with the tool
 GitHubAgent = agent_node(
     tool_nodes=[find_issue, comment_on_issue],
-    llm_model=OpenAILLM("gpt-4o"),
+    llm=OpenAILLM("gpt-4o"),
     system_message="You are an agent that provides information based on important facts.",
 )
 
 # Run the agent
 with rt.Session:
-    response = rt.call_sync(
+    response = await rt.call(
         GitHubAgent,
         "What is the last issue created? Please write a comment on it."
     )
@@ -106,7 +106,7 @@ system_message = "You are a {assistant_type} assistant. The user's name is {user
 assistant = rt.agent_node(
     name="Assistant",
     system_message=system_message,
-    llm_model=OpenAILLM("gpt-4o"),
+    llm=OpenAILLM("gpt-4o"),
 )
 
 # Run with context values
@@ -114,7 +114,7 @@ with rt.Session(context={
     "assistant_type": "friendly and helpful",
     "user_name": "Alex"
 }):
-    response = rt.call_sync(
+    response = await rt.call(
         assistant, 
         user_input="Can you help me with my project?"
     )

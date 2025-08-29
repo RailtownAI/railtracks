@@ -1,3 +1,4 @@
+import asyncio
 import railtracks as rt
 
 # --8<-- [start: calculation_tools]
@@ -62,7 +63,7 @@ calculator_manifest = rt.ToolManifest(
 # --8<-- [start: calculation_agent]
 CalculatorAgent = rt.agent_node(
     name="Calculator Agent",
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
     system_message="You are a helpful calculator. Solve math problems step by step using the available math operations.",
     tool_nodes=[add, multiply, divide],
     manifest=calculator_manifest,  # This makes the agent usable as a tool
@@ -70,12 +71,15 @@ CalculatorAgent = rt.agent_node(
 # --8<-- [end: calculation_agent]
 
 # --8<-- [start: call]
-result = rt.call_sync(
-    CalculatorAgent, 
-    "What is 3 + 4?"
-    )
-print(result.content)
+async def top_level():
+    result = await rt.call(
+        CalculatorAgent, 
+        "What is 3 + 4?"
+        )
+    return result
+result = asyncio.run(top_level())
 # --8<-- [end: call]
+print(result.content)
 
 # --8<-- [start: pricing_tool]
 @rt.function_node
@@ -100,7 +104,7 @@ def get_price_data(item: str) -> dict:
 ShoppingAssistant = rt.agent_node(
     name="Shopping Assistant",
     tool_nodes=[get_price_data, CalculatorAgent],  # Use the calculator agent as a tool
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
     system_message=(
         "You are a shopping assistant." 
         "Help users with pricing calculations including taxes, discounts, and totals."
@@ -109,9 +113,12 @@ ShoppingAssistant = rt.agent_node(
 # --8<-- [end: shopping_agent]
 
 # --8<-- [start: shop_call]
-response = rt.call_sync(
-    ShoppingAssistant,
-    "I want to buy 3 laptops. Can you calculate the total cost including tax?",
-)
+async def top_level():
+    response = await rt.call(
+        ShoppingAssistant,
+        "I want to buy 3 laptops. Can you calculate the total cost including tax?",
+    )
+    return response
+response = asyncio.run(top_level())
 # --8<-- [end: shop_call]
 print(response)

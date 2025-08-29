@@ -14,7 +14,7 @@ async def test_ternial_llm_run_with_different_inputs(mock_llm, encoder_system_me
     encoder_agent = rt.agent_node(
         name="Encoder",
         system_message=encoder_system_message,
-        llm_model=mock_llm(),
+        llm=mock_llm(),
     )
 
     user_input = user_input_factory()
@@ -39,7 +39,7 @@ async def test_structured_llm_run_with_different_inputs(mock_llm, simple_output_
     simple_agent = rt.agent_node(
         name="Simple LLM",
         system_message="You are a helpful assistant that extracts person information.",
-        llm_model=structured_llm,
+        llm=structured_llm,
         output_schema=simple_output_model,
     )
 

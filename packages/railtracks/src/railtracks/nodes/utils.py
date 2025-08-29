@@ -1,12 +1,24 @@
-from typing import Callable, Coroutine, ParamSpec, Type, TypeVar, overload
+from __future__ import annotations
 
-from railtracks.nodes.concrete import (
-    AsyncDynamicFunctionNode,
-    RTAsyncFunction,
-    RTFunction,
-    RTSyncFunction,
-    SyncDynamicFunctionNode,
+from typing import (
+    TYPE_CHECKING,
+    Callable,
+    Coroutine,
+    ParamSpec,
+    Type,
+    TypeVar,
+    overload,
 )
+
+if TYPE_CHECKING:
+    from railtracks.built_nodes.concrete import (
+        AsyncDynamicFunctionNode,
+        RTAsyncFunction,
+        RTFunction,
+        RTSyncFunction,
+        SyncDynamicFunctionNode,
+    )
+
 from railtracks.nodes.nodes import Node
 
 _P = ParamSpec("_P")

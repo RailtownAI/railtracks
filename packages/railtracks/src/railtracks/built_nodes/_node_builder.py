@@ -17,6 +17,11 @@ from typing import (
 
 from pydantic import BaseModel
 
+from railtracks.built_nodes.concrete import (
+    DynamicFunctionNode,
+    LLMBase,
+    OutputLessToolCallLLM,
+)
 from railtracks.llm import (
     ModelBase,
     Parameter,
@@ -24,6 +29,7 @@ from railtracks.llm import (
     Tool,
 )
 from railtracks.llm.type_mapping import TypeMapper
+from railtracks.nodes.nodes import Node
 from railtracks.utils.visuals.browser.chat_ui import ChatUI
 from railtracks.validation.node_creation.validation import (
     _check_duplicate_param_names,
@@ -32,9 +38,6 @@ from railtracks.validation.node_creation.validation import (
     _check_tool_params_and_details,
     check_connected_nodes,
 )
-
-from .concrete import DynamicFunctionNode, LLMBase, OutputLessToolCallLLM
-from .nodes import Node
 
 _TNode = TypeVar("_TNode", bound=Node)
 _P = ParamSpec("_P")
@@ -93,7 +96,7 @@ class NodeBuilder(Generic[_TNode]):
 
     def llm_base(
         self,
-        llm_model: ModelBase | None,
+        llm: ModelBase | None,
         system_message: SystemMessage | str | None = None,
     ):
         """
@@ -109,8 +112,8 @@ class NodeBuilder(Generic[_TNode]):
         assert issubclass(self._node_class, LLMBase), (
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         )
-        if llm_model is not None:
-            self._with_override("get_llm_model", classmethod(lambda cls: llm_model))
+        if llm is not None:
+            self._with_override("get_llm", classmethod(lambda cls: llm))
 
         # Handle system message being passed as a string
         if isinstance(system_message, str):

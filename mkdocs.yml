@@ -70,6 +70,7 @@ nav:
           - Async/Await: tutorials/guides/async_await.md
       - Building your first agent: tutorials/byfa.md
       - Running your first agent: tutorials/ryfa.md
+      - Controlling Flows and Wrapping Nodes: tutorials/flows.md
 
   - Tools + MCP:
       - Equip your LLMs: tools_mcp/tools_mcp.md

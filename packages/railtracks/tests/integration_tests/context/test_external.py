@@ -1,7 +1,7 @@
 import pytest
 import railtracks as rt
-from railtracks.context import put, get, update, delete, keys
 from railtracks import function_node
+from railtracks.context import delete, get, keys, put, update
 from railtracks.interaction._call import call
 
 
@@ -18,10 +18,11 @@ async def context_flow():
     return await call(function_node(retrieve_context))
 
 
-def test_put_context():
+@pytest.mark.asyncio
+async def test_put_context():
     context_node = function_node(context_flow)
     with rt.Session():
-        result = rt.call_sync(context_node)
+        result = await rt.call(context_node)
 
     assert result == "test_value"
 
@@ -47,6 +48,7 @@ def test_context_addition():
         assert rt.context.get("test_key") == "duo"
         assert rt.context.get("hello world") == "test_value"
 
+
 def test_context_replacement():
     with rt.Session(context={"hello world": "test_value"}):
         rt.context.put("hello world", "new_value")
@@ -54,6 +56,7 @@ def test_context_replacement():
 
         with pytest.raises(KeyError):
             rt.context.get("non_existent_key")
+
 
 def test_multiple_runners():
     with rt.Session(context={"key1": "value1"}):
@@ -63,9 +66,7 @@ def test_multiple_runners():
         assert rt.context.get("key2") == "updated_value1"
         assert rt.context.get("key3") == "value3"
 
-
     with rt.Session(context={"key2": "value2"}):
-
         assert rt.context.get("key2") == "value2"
 
         # Ensure that context from the first runner is not accessible in the second
@@ -102,27 +103,28 @@ def test_keys_after_modifications():
         # Initial state
         context_keys = keys()
         assert set(context_keys) == {"initial"}
-        
+
         # Add keys
         put("new_key", "new_value")
         update({"another": "another_value"})
         context_keys = keys()
         assert set(context_keys) == {"initial", "new_key", "another"}
-        
+
         # Delete a key
         delete("initial")
         context_keys = keys()
         assert set(context_keys) == {"new_key", "another"}
 
 
-def test_keys_across_function_calls():
+@pytest.mark.asyncio
+async def test_keys_across_function_calls():
     def get_context_keys():
         return list(keys())
-    
+
     with rt.Session(context={"test": "value"}):
         put("runtime", "data")
-        
+
         # Test that keys() works inside function nodes
         keys_node = function_node(get_context_keys)
-        result = rt.call_sync(keys_node)
+        result = await rt.call(keys_node)
         assert set(result) == {"test", "runtime"}

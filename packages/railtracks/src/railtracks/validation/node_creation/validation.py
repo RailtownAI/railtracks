@@ -221,9 +221,7 @@ def _check_max_tool_calls(max_tool_calls: int | None) -> None:
     Raises:
         NodeCreationError: If max_tool_calls is negative.
     """
-    if max_tool_calls is None:
-        logger.warning(get_message(ExceptionMessageKey.MAX_TOOL_CALLS_UNLIMITED_WARN))
-    elif max_tool_calls < 0:
+    if max_tool_calls is not None and max_tool_calls < 0:
         raise NodeCreationError(
             get_message(ExceptionMessageKey.MAX_TOOL_CALLS_NEGATIVE_MSG),
             notes=get_notes(ExceptionMessageKey.MAX_TOOL_CALLS_NEGATIVE_NOTES),

@@ -2,15 +2,14 @@ from typing import Any, Callable, Iterable, Type, TypeVar, Union
 
 from pydantic import BaseModel
 
+from railtracks.built_nodes._node_builder import NodeBuilder
+from railtracks.built_nodes.concrete import StructuredToolCallLLM
 from railtracks.llm import (
     ModelBase,
     SystemMessage,
 )
 from railtracks.llm.tools import Parameter
-from railtracks.nodes._node_builder import NodeBuilder
-
-from ...concrete import StructuredToolCallLLM
-from ...nodes import Node
+from railtracks.nodes.nodes import Node
 
 _TOutput = TypeVar("_TOutput", bound=BaseModel)
 
@@ -20,7 +19,7 @@ def structured_tool_call_llm(
     output_schema: Type[_TOutput],
     *,
     name: str | None = None,
-    llm_model: ModelBase | None = None,
+    llm: ModelBase | None = None,
     max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
     tool_details: str | None = None,
@@ -39,7 +38,7 @@ def structured_tool_call_llm(
     Args:
         tool_nodes (Iterable): The set of node classes or callables that this node can call as tools.
         name (str, optional): Human-readable name for the node/tool.
-        llm_model (ModelBase or None, optional): The LLM model instance to use for this node.
+        llm (ModelBase or None, optional): The LLM model instance to use for this node.
         max_tool_calls (int, optional): Maximum number of tool calls allowed per invocation (default: unlimited).
         system_message (SystemMessage or str or None, optional): The system prompt/message for the node. If not passed here it can be passed at runtime in message history.
         output_schema (BaseModel): The Pydantic model that defines the structure of the output.
@@ -62,7 +61,7 @@ def structured_tool_call_llm(
         format_for_context=format_for_context,
     )
 
-    builder.llm_base(llm_model, system_message)
+    builder.llm_base(llm, system_message)
     builder.tool_calling_llm(set(tool_nodes), max_tool_calls)
 
     if tool_details is not None or tool_params is not None:

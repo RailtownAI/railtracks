@@ -38,28 +38,28 @@ def dummy_node_class():
 
 @pytest.fixture
 def patch_node():
-    patcher = patch("railtracks.nodes._node_builder.Node", DummyNode)
+    patcher = patch("railtracks.built_nodes._node_builder.Node", DummyNode)
     patcher.start()
     yield DummyNode
     patcher.stop()
 
 @pytest.fixture
 def patch_llm_base():
-    patcher = patch("railtracks.nodes._node_builder.LLMBase", DummyLLMBase)
+    patcher = patch("railtracks.built_nodes._node_builder.LLMBase", DummyLLMBase)
     patcher.start()
     yield DummyLLMBase
     patcher.stop()
 
 @pytest.fixture
 def patch_outputless_toolcall_llm():
-    patcher = patch("railtracks.nodes._node_builder.OutputLessToolCallLLM", DummyOutputLessToolCallLLM)
+    patcher = patch("railtracks.built_nodes._node_builder.OutputLessToolCallLLM", DummyOutputLessToolCallLLM)
     patcher.start()
     yield DummyOutputLessToolCallLLM
     patcher.stop()
 
 @pytest.fixture
 def patch_function_node():
-    patcher = patch("railtracks.nodes._node_builder.DynamicFunctionNode", DummyFunctionNode)
+    patcher = patch("railtracks.built_nodes._node_builder.DynamicFunctionNode", DummyFunctionNode)
     patcher.start()
     yield DummyFunctionNode
     patcher.stop()

@@ -7,9 +7,7 @@ from typing import (
     Callable,
     Coroutine,
     ParamSpec,
-    Type,
     TypeVar,
-    Union,
     overload,
 )
 from uuid import uuid4
@@ -24,6 +22,7 @@ from railtracks.context.central import (
     shutdown_publisher,
 )
 from railtracks.exceptions import GlobalTimeOutError
+from railtracks.nodes.utils import extract_node_from_function
 from railtracks.pubsub.messages import (
     FatalFailure,
     RequestCompletionMessage,
@@ -33,7 +32,7 @@ from railtracks.pubsub.messages import (
 from railtracks.pubsub.utils import output_mapping
 
 if TYPE_CHECKING:
-    from railtracks.nodes.concrete import RTFunction
+    from railtracks.built_nodes.concrete import RTFunction
     from railtracks.nodes.nodes import Node
 
 _P = ParamSpec("_P")
@@ -91,9 +90,6 @@ async def call(
     node: Callable[_P, Node[_TOutput]]
     # this entire section is a bit of a typing nightmare becuase all overloads we provide.
     if isinstance(node_, FunctionType):
-        # this is a temporary lazy import. We need to decouple the dependecny tree around the interaction and node module see (# 551)
-        from railtracks.nodes.utils import extract_node_from_function
-
         node = extract_node_from_function(node_)
     else:
         node = node_
@@ -109,7 +105,6 @@ async def call(
 
     # if the context is not active then we know this is the top level request
     if not is_context_active():
-        print("Using existing session")
         result = await _start(node, args=args, kwargs=kwargs)
         return result
 
@@ -228,73 +223,3 @@ async def _execute(
     )
 
     return await f
-
-
-@overload
-def call_sync(
-    node_: Callable[_P, Node[_TOutput]],
-    *args: _P.args,
-    **kwargs: _P.kwargs,
-) -> _TOutput: ...
-
-
-@overload
-def call_sync(
-    node_: RTFunction[_P, _TOutput],
-    *args: _P.args,
-    **kwargs: _P.kwargs,
-) -> _TOutput: ...
-
-
-@overload
-def call_sync(
-    node_: Callable[_P, _TOutput],
-    *args: _P.args,
-    **kwargs: _P.kwargs,
-) -> _TOutput: ...
-
-
-def call_sync(
-    node: Type[Node[_TOutput]]
-    | Callable[_P, Union[Node[_TOutput], _TOutput]]
-    | RTFunction[_P, _TOutput],
-    *args: _P.args,
-    **kwargs: _P.kwargs,
-) -> _TOutput:
-    """
-    Call a node from within a node inside the framework synchronously. This will block until the node is completed
-    and return the result.
-
-    Usage:
-    ```python
-    result = call_sync(NodeA, "hello world", 42)
-    ```
-
-    Args:
-        node: The node type you would like to create
-        *args: The arguments to pass to the node
-        **kwargs: The keyword arguments to pass to the node
-    """
-    loop_found = False
-    try:
-        loop = asyncio.get_running_loop()
-        loop_found = True
-        # if we made it here then we already have a running loop. We will create a new thread and execute the call in there
-        raise RuntimeError(
-            "You cannot call `call_sync` from within an already running event loop. "
-            "Use `call` instead to run the node asynchronously."
-        )
-    except RuntimeError:
-        # If there is no running loop, we need to create one
-        if loop_found:
-            raise
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        task = loop.create_task(call(node, *args, **kwargs))
-        result: _TOutput = loop.run_until_complete(task)
-    finally:
-        loop.close()
-
-    return result

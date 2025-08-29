@@ -29,13 +29,13 @@ async def test_terminal_llm_as_tool_correct_initialization(
     encoder = rt.agent_node(
         name="Encoder",
         system_message=encoder_system_message,
-        llm_model=mock_llm("encoder check"),
+        llm=mock_llm("encoder check"),
         manifest=encoder_manifest,
     )
     decoder = rt.agent_node(
         name="Decoder",
         system_message=decoder_system_message,
-        llm_model=mock_llm("decoder check"),
+        llm=mock_llm("decoder check"),
         manifest=decoder_manifest,
     )
 
@@ -67,7 +67,7 @@ async def test_terminal_llm_as_tool_correct_initialization(
     # ========================================
     randomizer = rt.agent_node(
         tool_nodes={encoder, decoder},
-        llm_model=randomizer_llm,
+        llm=randomizer_llm,
         name="Randomizer",
         system_message=system_randomizer,
     )
@@ -89,7 +89,7 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(mock_llm):
     rng_node = rt.agent_node(
         name="RNG Tool",
         system_message="You are a helful assistant that can generate 5 random numbers between 1 and 100.",
-        llm_model=mock_llm("[42, 42, 42, 42, 42]"),    # Assert this is propogated to the parent llm
+        llm=mock_llm("[42, 42, 42, 42, 42]"),    # Assert this is propogated to the parent llm
         manifest=rt.ToolManifest(rng_tool_details, None),
     )
 
@@ -106,7 +106,7 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(mock_llm):
         tool_nodes={rng_node},
         name="Math Node",
         system_message=system_message,
-        llm_model=math_llm,
+        llm=math_llm,
     )
 
     with rt.Session(logging_setting="NONE") as runner:
@@ -129,7 +129,7 @@ async def test_terminal_llm_tool_with_invalid_parameters(mock_llm, encoder_syste
     encoder = rt.agent_node(
         name="Encoder",
         system_message=encoder_system_message,
-        llm_model=mock_llm(custom_response="Encoder ran successfully"),
+        llm=mock_llm(custom_response="Encoder ran successfully"),
         manifest=rt.ToolManifest(encoder_tool_details, encoder_tool_params),
     )
 
@@ -140,7 +140,7 @@ async def test_terminal_llm_tool_with_invalid_parameters(mock_llm, encoder_syste
     system_message = "You are a helful assitant. Use the encoder tool with invalid parameters (invoke the tool with invalid parameters) once and then invoke it again with valid parameters."
     tool_call_llm = rt.agent_node(
         tool_nodes={encoder},
-        llm_model=invalid_caller_llm,
+        llm=invalid_caller_llm,
         name="InvalidToolCaller",
         system_message=system_message,
     )

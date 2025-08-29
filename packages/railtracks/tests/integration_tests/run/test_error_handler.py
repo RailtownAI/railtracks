@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import asyncio
-
-import pytest
 import random
 
+import pytest
 import railtracks as rt
 from railtracks.state.request import Failure
 
@@ -12,35 +11,35 @@ RNGNode = rt.function_node(random.random)
 
 
 @pytest.mark.timeout(1)
-def test_simple_request():
-    with rt.Session(logging_setting="NONE") as run:
-        result = rt.call_sync(RNGNode)
+async def test_simple_request():
+    with rt.Session(logging_setting="NONE"):
+        result = await rt.call(RNGNode)
 
     assert isinstance(result, float)
     assert 0 < result < 1
 
 
-class ErrorforTest(Exception):
+class CustomTestError(Exception):
     pass
 
 
 async def error_thrower():
-    raise ErrorforTest("This is a test error")
+    raise CustomTestError("This is a test error")
 
 
 ErrorThrower = rt.function_node(error_thrower)
 
 
-def test_error():
+async def test_error():
     with rt.Session(logging_setting="NONE"):
-        with pytest.raises(ErrorforTest):
-            rt.call_sync(ErrorThrower)
+        with pytest.raises(CustomTestError):
+            await rt.call(ErrorThrower)
 
 
 async def error_handler():
     try:
-        answer = await rt.call(ErrorThrower)
-    except ErrorforTest as e:
+        await rt.call(ErrorThrower)
+    except CustomTestError:
         return "Caught the error"
 
 
@@ -48,27 +47,23 @@ ErrorHandler = rt.function_node(error_handler)
 
 
 @pytest.mark.timeout(1)
-def test_error_handler():
-    with rt.Session(logging_setting="NONE") as run:
-        result = rt.call_sync(ErrorHandler)
+async def test_error_handler():
+    with rt.Session(logging_setting="NONE"):
+        result = await rt.call(ErrorHandler)
     assert result == "Caught the error"
 
 
-def test_error_handler_wo_retry():
-    with pytest.raises(ErrorforTest):
-        with rt.Session(
-
-                end_on_error=True, logging_setting="NONE"
-
-        ) as run:
-            result = rt.call_sync(ErrorHandler)
+async def test_error_handler_wo_retry():
+    with pytest.raises(CustomTestError):
+        with rt.Session(end_on_error=True, logging_setting="NONE"):
+            await rt.call(ErrorHandler)
 
 
 async def error_handler_with_retry(retries: int):
     for _ in range(retries):
         try:
             return await rt.call(ErrorThrower)
-        except ErrorforTest as e:
+        except CustomTestError:
             continue
 
     return "Caught the error"
@@ -78,12 +73,10 @@ ErrorHandlerWithRetry = rt.function_node(error_handler_with_retry)
 
 
 @pytest.mark.timeout(5)
-def test_error_handler_with_retry():
+async def test_error_handler_with_retry():
     for num_retries in range(5, 15):
-        with rt.Session(
-            logging_setting="NONE"
-        ) as run:
-            result = rt.call_sync(ErrorHandlerWithRetry, num_retries)
+        with rt.Session(logging_setting="NONE") as run:
+            result = await rt.call(ErrorHandlerWithRetry, num_retries)
             result = run.info
 
         assert result.answer == "Caught the error"
@@ -94,7 +87,8 @@ def test_error_handler_with_retry():
 
         for r in children:
             assert isinstance(r.output, Failure)
-            assert isinstance(r.output.exception, ErrorforTest)
+            assert isinstance(r.output.exception, CustomTestError)
+
 
 async def parallel_error_handler(num_calls: int, parallel_calls: int):
     data = []
@@ -111,42 +105,35 @@ async def parallel_error_handler(num_calls: int, parallel_calls: int):
 ParallelErrorHandler = rt.function_node(parallel_error_handler)
 
 
-def test_parallel_error_tester():
-
+async def test_parallel_error_tester():
     for n_c, p_c in [(10, 10), (3, 20), (1, 10), (60, 10)]:
-        with rt.Session(
-            logging_setting="NONE"
-        ) as run:
-            result = rt.call_sync(ParallelErrorHandler, n_c, p_c)
+        with rt.Session(logging_setting="NONE"):
+            result = await rt.call(ParallelErrorHandler, n_c, p_c)
 
         assert isinstance(result, list)
         assert len(result) == n_c * p_c
-        assert all([isinstance(x, ErrorforTest) for x in result])
+        assert all(isinstance(x, CustomTestError) for x in result)
 
 
 # wraps the above error handler in a top level function
 async def error_handler_wrapper(num_calls: int, parallel_calls: int):
     try:
         return await rt.call(ParallelErrorHandler, num_calls, parallel_calls)
-    except ErrorforTest as e:
+    except CustomTestError:
         return "Caught the error"
 
 
 ErrorHandlerWrapper = rt.function_node(error_handler_wrapper)
 
 
-def test_parallel_error_wrapper():
+async def test_parallel_error_wrapper():
     for n_c, p_c in [(10, 10), (3, 20), (1, 10), (60, 10)]:
-        with rt.Session(
-            logging_setting="NONE"
-        ) as run:
-            result = rt.call_sync(ErrorHandlerWrapper, n_c, p_c)
-
+        with rt.Session(logging_setting="NONE") as run:
+            result = await rt.call(ErrorHandlerWrapper, n_c, p_c)
 
         assert len(result) == n_c * p_c
-        assert all([isinstance(x, ErrorforTest) for x in result])
+        assert all(isinstance(x, CustomTestError) for x in result)
         i_r = run.info.request_forest.insertion_request[0]
-
 
         children = run.info.request_forest.children(i_r.sink_id)
         assert len(children) == 1
@@ -156,5 +143,4 @@ def test_parallel_error_wrapper():
 
         for r in full_children:
             assert isinstance(r.output, Failure)
-            assert isinstance(r.output.exception, ErrorforTest)
-
+            assert isinstance(r.output.exception, CustomTestError)

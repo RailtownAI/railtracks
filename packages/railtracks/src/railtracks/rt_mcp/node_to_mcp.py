@@ -5,14 +5,15 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.tools import Tool as MCPTool
 from mcp.server.fastmcp.utilities.func_metadata import func_metadata
 
+from railtracks.built_nodes.concrete import (
+    RTFunction,
+)
+
 # TODO: this logic must be get refactored
 from railtracks.interaction._call import call
 
 # TODO this must be moved to a more appropriate place in utils.
 from railtracks.llm.models._litellm_wrapper import _parameters_to_json_schema
-from railtracks.nodes.concrete import (
-    RTFunction,
-)
 from railtracks.nodes.nodes import Node
 
 

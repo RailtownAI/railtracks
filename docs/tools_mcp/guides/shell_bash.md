@@ -33,7 +33,7 @@ agent = rt.agent_node(
     tool_nodes={bash_tool},
     system_message=f"You are a useful helper that can run local shell commands. "
                    f"You are on a {platform.system()} machine. Use appropriate shell commands to answer the user's questions.",
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
 )
 
 user_prompt = """What directories are in the current directory?"""

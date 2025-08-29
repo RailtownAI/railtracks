@@ -17,8 +17,7 @@ from typing_extensions import Self
 from railtracks.exceptions import NodeCreationError
 from railtracks.llm import Tool
 from railtracks.llm.type_mapping import TypeMapper
-
-from ..nodes import Node
+from railtracks.nodes.nodes import Node
 
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")

@@ -7,17 +7,17 @@ This module tests the ability to create nodes from functions with various parame
 - Complex types (Tuple, List, Dict)
 """
 
-import pytest
-from typing import Tuple, List, Dict, Union, Optional
-import railtracks as rt
-from railtracks.llm import AssistantMessage, ToolCall
-from railtracks.llm.response import Response
 import re
+from typing import Dict, List, Optional, Tuple, Union
+
+import pytest
+import railtracks as rt
+from railtracks.llm import ToolCall
 
 
 # ===== Test Classes =====
 class TestPrimitiveInputTypes:
-    def test_empty_function(self, _agent_node_factory, mock_llm):
+    async def test_empty_function(self, _agent_node_factory, mock_llm):
         """Test that a function with no parameters works correctly."""
 
         def secret_phrase() -> str:
@@ -32,7 +32,9 @@ class TestPrimitiveInputTypes:
 
         # mock_llm will run the tool and return the result if requested
         llm = mock_llm(
-            requested_tool_calls=[ToolCall(name="secret_phrase", identifier="id_42424242", arguments={})]
+            requested_tool_calls=[
+                ToolCall(name="secret_phrase", identifier="id_42424242", arguments={})
+            ]
         )
 
         agent = _agent_node_factory(
@@ -41,14 +43,14 @@ class TestPrimitiveInputTypes:
         )
 
         with rt.Session(logging_setting="NONE"):
-            response = rt.call_sync(
+            response = await rt.call(
                 agent,
                 "What is the secret phrase? Only return the secret phrase, no other text.",
             )
             assert "Constantinople" in response.content
             assert rt.context.get("secret_phrase_called")
 
-    def test_single_int_input(self, _agent_node_factory, mock_llm):
+    async def test_single_int_input(self, _agent_node_factory, mock_llm):
         """Test that a function with a single int parameter works correctly."""
 
         def magic_number(input_num: int) -> str:
@@ -79,15 +81,15 @@ class TestPrimitiveInputTypes:
             llm,
         )
 
-        with rt.Session(logging_setting="NONE") as run:
-            response = rt.call_sync(
+        with rt.Session(logging_setting="NONE"):
+            response = await rt.call(
                 agent,
                 "Find what the magic function output is for 6? Only return the magic number, no other text.",
             )
             assert rt.context.get("magic_number_called")
             assert "666666" in response.content
 
-    def test_single_str_input(self, _agent_node_factory, mock_llm):
+    async def test_single_str_input(self, _agent_node_factory, mock_llm):
         """Test that a function with a single str parameter works correctly."""
 
         def magic_phrase(word: str) -> str:
@@ -118,15 +120,15 @@ class TestPrimitiveInputTypes:
             llm,
         )
 
-        with rt.Session(logging_setting="NONE") as run:
-            response = rt.call_sync(
+        with rt.Session(logging_setting="NONE"):
+            response = await rt.call(
                 agent,
                 "What is the magic phrase for the word 'hello'? Only return the magic phrase, no other text.",
             )
             assert rt.context.get("magic_phrase_called")
             assert "h$e$l$l$o" in response.content
 
-    def test_single_float_input(self, _agent_node_factory, mock_llm):
+    async def test_single_float_input(self, _agent_node_factory, mock_llm):
         """Test that a function with a single float parameter works correctly."""
 
         def magic_test(num: float) -> str:
@@ -157,8 +159,8 @@ class TestPrimitiveInputTypes:
             llm,
         )
 
-        with rt.Session(logging_setting="NONE") as run:
-            response = rt.call_sync(
+        with rt.Session(logging_setting="NONE"):
+            response = await rt.call(
                 agent,
                 "Does 5 pass the magic test? Only return the result, no other text.",
             )
@@ -166,7 +168,7 @@ class TestPrimitiveInputTypes:
             resp: str = response.content
             assert "True" in resp
 
-    def test_single_bool_input(self, _agent_node_factory, mock_llm):
+    async def test_single_bool_input(self, _agent_node_factory, mock_llm):
         """Test that a function with a single bool parameter works correctly."""
 
         def magic_test(is_magic: bool) -> str:
@@ -197,15 +199,15 @@ class TestPrimitiveInputTypes:
             llm,
         )
 
-        with rt.Session(logging_setting="NONE") as run:
-            response = rt.call_sync(
+        with rt.Session(logging_setting="NONE"):
+            response = await rt.call(
                 agent, "Is the magic test true? Only return the result, no other text."
             )
             assert rt.context.get("magic_test_called")
             assert "Wish Granted" in response.content
 
     # TODO: think carefully about how we can test the graceful error handling. This test is temporary.
-    def test_function_error_handling(self, _agent_node_factory, mock_llm):
+    async def test_function_error_handling(self, _agent_node_factory, mock_llm):
         """Test that errors in function execution are handled gracefully."""
 
         def error_function(x: int) -> str:
@@ -237,7 +239,7 @@ class TestPrimitiveInputTypes:
         )
 
         with rt.Session(logging_setting="NONE"):
-            output = rt.call_sync(
+            output = await rt.call(
                 agent,
                 "What does the tool return for an input of 0? Only return the result, no other text.",
             )
@@ -249,7 +251,7 @@ class TestPrimitiveInputTypes:
 
 
 class TestSequenceInputTypes:
-    def test_single_list_input(self, _agent_node_factory, mock_llm):
+    async def test_single_list_input(self, _agent_node_factory, mock_llm):
         """Test that a function with a single list parameter works correctly."""
 
         def magic_list(items: List[str]) -> str:
@@ -282,15 +284,15 @@ class TestSequenceInputTypes:
             llm,
         )
 
-        with rt.Session(logging_setting="NONE") as run:
-            response = rt.call_sync(
+        with rt.Session(logging_setting="NONE"):
+            response = await rt.call(
                 agent,
                 "What is the magic list for ['1', '2', '3']? Only return the result, no other text.",
             )
             assert "3 2 1" in response.content
             assert rt.context.get("magic_list_called")
 
-    def test_single_tuple_input(self, _agent_node_factory, mock_llm):
+    async def test_single_tuple_input(self, _agent_node_factory, mock_llm):
         """Test that a function with a single tuple parameter works correctly."""
 
         def magic_tuple(items: Tuple[str, str, str]) -> str:
@@ -320,8 +322,8 @@ class TestSequenceInputTypes:
             magic_tuple,
             llm,
         )
-        with rt.Session(logging_setting="NONE") as run:
-            response = rt.call_sync(
+        with rt.Session(logging_setting="NONE"):
+            response = await rt.call(
                 agent,
                 "What is the magic tuple for ('1', '2', '3')? Only return the result, no other text.",
             )
@@ -329,7 +331,7 @@ class TestSequenceInputTypes:
             assert "3 2 1" in response.content
             assert rt.context.get("magic_tuple_called")
 
-    def test_lists(self, _agent_node_factory, mock_llm):
+    async def test_lists(self, _agent_node_factory, mock_llm):
         """Test that a function with a list parameter works correctly."""
 
         def magic_result(num_items: List[float], prices: List[float]) -> float:
@@ -361,8 +363,8 @@ class TestSequenceInputTypes:
             magic_result,
             llm,
         )
-        with rt.Session(logging_setting="NONE") as run:
-            response = rt.call_sync(
+        with rt.Session(logging_setting="NONE"):
+            response = await rt.call(
                 agent,
                 "What is the magic result for [1, 2] and [5.5, 10]? Only return the result, no other text.",
             )
@@ -373,7 +375,7 @@ class TestSequenceInputTypes:
 class TestDictionaryInputTypes:
     """Test that dictionary input types raise appropriate errors."""
 
-    def test_dict_input_raises_error(self, _agent_node_factory, mock_llm):
+    async def test_dict_input_raises_error(self, _agent_node_factory, mock_llm):
         """Test that a function with a dictionary parameter raises an error."""
 
         def dict_func(data: Dict[str, str]):
@@ -389,7 +391,7 @@ class TestDictionaryInputTypes:
         with pytest.raises(Exception):
             agent = _agent_node_factory(dict_func, mock_llm())
             with rt.Session(logging_setting="NONE"):
-                response = rt.call_sync(
+                await rt.call(
                     agent,
                     rt.llm.MessageHistory(
                         [rt.llm.UserMessage("What is the result for {'key': 'value'}?")]
@@ -403,7 +405,9 @@ class TestUnionAndOptionalParameter:
         [Union[int, str], int | str],
         ids=["union", "or notation union"],
     )
-    def test_union_parameter(self, type_annotation, _agent_node_factory, mock_llm):
+    async def test_union_parameter(
+        self, type_annotation, _agent_node_factory, mock_llm
+    ):
         """Test that a function with a union parameter works correctly."""
 
         def magic_number(x: type_annotation) -> int:
@@ -440,7 +444,7 @@ class TestUnionAndOptionalParameter:
         )
 
         with rt.Session(logging_setting="QUIET"):
-            response = rt.call_sync(
+            response = await rt.call(
                 agent,
                 "Calculate the magic number for 5. Then calculate the magic number for 'fox'.",
             )
@@ -455,7 +459,7 @@ class TestUnionAndOptionalParameter:
         ],
         ids=["default value", "non default value"],
     )
-    def test_optional_parameter(
+    async def test_optional_parameter(
         self, _agent_node_factory, default_value, expected, mock_llm
     ):
         """Test that a function with an optional parameter works correctly."""
@@ -485,8 +489,8 @@ class TestUnionAndOptionalParameter:
 
         agent = _agent_node_factory(magic_number, llm)
 
-        with rt.Session(logging_setting="QUIET") as run:
-            response = rt.call_sync(
+        with rt.Session(logging_setting="QUIET"):
+            response = await rt.call(
                 agent,
                 "Calculate the magic number for 21. Then calculate the magic number with no args.",
             )

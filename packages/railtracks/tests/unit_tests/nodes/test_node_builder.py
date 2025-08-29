@@ -1,5 +1,5 @@
 import pytest
-from railtracks.nodes._node_builder import NodeBuilder
+from railtracks.built_nodes._node_builder import NodeBuilder
 from unittest.mock import patch
 # ================= START NodeBuilder tests ============
 
@@ -44,10 +44,10 @@ def test_init_with_name_and_return_into(dummy_node_class):
 
 def test_llm_base_overrides_model_and_system_message(patch_llm_base, dummy_system_message):
     builder = NodeBuilder(patch_llm_base)
-    builder.llm_base(llm_model="MODEL", system_message=dummy_system_message)
+    builder.llm_base(llm="MODEL", system_message=dummy_system_message)
     klass = builder.build()
     # The 'get_llm_model' and 'system_message' should be set as class methods
-    assert klass.get_llm_model() == "MODEL"
+    assert klass.get_llm() == "MODEL"
     assert klass.system_message().content == "DummySystemMessage"
 
 def test_structured_sets_output_schema(dummy_node_class):
@@ -61,7 +61,7 @@ def test_tool_calling_llm_sets_tool_nodes_and_max(
     patch_outputless_toolcall_llm, patch_node, monkeypatch
 ):
     # Patch function_node to identity function returning .node_type attribute or input type
-    monkeypatch.setattr("railtracks.nodes._node_builder.isfunction", lambda obj: False)
+    monkeypatch.setattr("railtracks.built_nodes._node_builder.isfunction", lambda obj: False)
     builder = NodeBuilder(patch_outputless_toolcall_llm)
     builder.tool_calling_llm(
         connected_nodes={patch_node}, max_tool_calls=5,
@@ -77,8 +77,8 @@ def test_chat_ui_sets_and_starts_server(dummy_node_class, dummy_chat_ui):
     assert klass.chat_ui.started is True
 
 def test_setup_function_node_sets_func_and_type_mapper(patch_function_node, dummy_tool, dummy_parameter, monkeypatch):
-    monkeypatch.setattr("railtracks.nodes._node_builder.TypeMapper", lambda func: f"TM({func.__name__})")
-    monkeypatch.setattr("railtracks.nodes._node_builder.Tool", dummy_tool)
+    monkeypatch.setattr("railtracks.built_nodes._node_builder.TypeMapper", lambda func: f"TM({func.__name__})")
+    monkeypatch.setattr("railtracks.built_nodes._node_builder.Tool", dummy_tool)
     def example_func(x): return x + 1
     builder = NodeBuilder(patch_function_node)
     builder.setup_function_node(example_func, tool_details="desc", tool_params=[dummy_parameter])
@@ -96,8 +96,8 @@ def test_tool_callable_llm_sets_tool_info_and_prepare_tool(
     dummy_parameter,
     monkeypatch
 ):
-    monkeypatch.setattr("railtracks.nodes._node_builder._check_tool_params_and_details", lambda p, d: None)
-    monkeypatch.setattr("railtracks.nodes._node_builder._check_duplicate_param_names", lambda params: None)
+    monkeypatch.setattr("railtracks.built_nodes._node_builder._check_tool_params_and_details", lambda p, d: None)
+    monkeypatch.setattr("railtracks.built_nodes._node_builder._check_duplicate_param_names", lambda params: None)
     builder = NodeBuilder(patch_llm_base, name="DummyBuilder")
     builder.tool_callable_llm(tool_details="detX", tool_params={dummy_parameter})
     klass = builder.build()
