@@ -24,6 +24,7 @@ import sys
 import tempfile
 import threading
 import time
+import traceback
 import urllib.request
 import uuid
 import webbrowser
@@ -443,9 +444,6 @@ class RailtracksHTTPHandler(BaseHTTPRequestHandler):
 
     def handle_error(self, request, client_address):
         """Override to suppress connection errors"""
-        import sys
-        import traceback
-
         # Get the exception info
         exc_type, exc_value, exc_traceback = sys.exc_info()
 
