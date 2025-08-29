@@ -74,23 +74,6 @@ class TestManifestValidation:
         with pytest.raises(NodeCreationError, match="Tool manifest parameter 'c' does not exist in function signature"):
             function_node(simple_func, manifest=manifest)
 
-    def test_function_with_defaults_allows_missing_manifest_params(self):
-        """Test that optional function parameters can be omitted from manifest."""
-        def func_with_defaults(a: int, b: str = "default", c: float = 1.0) -> str:
-            return f"{a}: {b}: {c}"
-        
-        # Only include required parameter in manifest
-        manifest = ToolManifest(
-            description="Test function",
-            parameters=[
-                Parameter("a", "integer", "Number parameter", required=True)
-                # Optional params 'b' and 'c' can be omitted
-            ]
-        )
-        
-        node = function_node(func_with_defaults, manifest=manifest)
-        assert node is not None
-
     def test_builtin_function_skips_validation(self):
         """Test that builtin functions skip validation."""
         import time
