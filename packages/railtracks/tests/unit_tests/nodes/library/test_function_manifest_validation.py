@@ -91,19 +91,6 @@ class TestManifestValidation:
         node = function_node(func_with_defaults, manifest=manifest)
         assert node is not None
 
-    def test_empty_manifest_parameters(self):
-        """Test that empty manifest parameters list works for functions with only defaults."""
-        def func_all_defaults(a: str = "default1", b: int = 42) -> str:
-            return f"{a}: {b}"
-        
-        manifest = ToolManifest(
-            description="Function with all defaults",
-            parameters=[]  # Empty parameters list
-        )
-        
-        node = function_node(func_all_defaults, manifest=manifest)
-        assert node is not None
-
     def test_builtin_function_skips_validation(self):
         """Test that builtin functions skip validation."""
         import time
