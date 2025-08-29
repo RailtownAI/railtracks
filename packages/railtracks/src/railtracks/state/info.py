@@ -35,16 +35,14 @@ class ExecutionInfo:
         self.node_forest = node_forest
         self.stamper = stamper
         self.session_id = session_id
+
     @classmethod
     def default(cls, session_id: str) -> ExecutionInfo:
         """Creates a new "empty" instance of the ExecutionInfo class with the default values."""
         return cls.create_new(session_id=session_id)
 
     @classmethod
-    def create_new(
-        cls,
-        session_id: str
-    ) -> ExecutionInfo:
+    def create_new(cls, session_id: str) -> ExecutionInfo:
         """
         Creates a new empty instance of state variables with the provided executor configuration.
 
@@ -57,7 +55,7 @@ class ExecutionInfo:
             request_forest=request_heap,
             node_forest=node_heap,
             stamper=stamper,
-            session_id=session_id
+            session_id=session_id,
         )
 
     @property
