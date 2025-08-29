@@ -7,8 +7,8 @@ from railtracks.prebuilt import rag_node
 
 
 
-
-def test_node_search_question(get_docs):
+@pytest.mark.asyncio
+async def test_node_search_question(get_docs):
 
     docs = get_docs
     node = rag_node(
@@ -16,7 +16,7 @@ def test_node_search_question(get_docs):
     )
 
     query = "What is the color of watermelon?"
-    result = rt.call_sync(node, query)
+    result = await rt.call(node, query)
     print(query)
     print(result[0].record.text)
     print(result[1].record.text)
@@ -25,15 +25,15 @@ def test_node_search_question(get_docs):
     # doc[2] should contain the watermelon description
     assert result[0].record.text == docs[2]
 
-
-def test_node_search_confirmation(get_docs):
+@pytest.mark.asyncio
+async def test_node_search_confirmation(get_docs):
     docs = get_docs
     node = rag_node(
         documents=docs,
     )
 
     query = "Pear is yellow"
-    result = rt.call_sync(node, query)
+    result = await rt.call(node, query)
     print(query)
     print(result[0].record.text)
     print(result[1].record.text)

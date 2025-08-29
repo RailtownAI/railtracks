@@ -1,10 +1,8 @@
 import pytest
 import railtracks as rt
-from railtracks.llm import AssistantMessage, Message, MessageHistory, ToolCall
 from railtracks.exceptions import NodeCreationError
+from railtracks.llm import AssistantMessage, ToolCall
 from railtracks.llm.response import Response
-from pydantic import BaseModel, Field
-from typing import Any
 
 
 # NOTE: Simple successful tool calls are already tested in test_function.py
@@ -19,7 +17,7 @@ class TestSimpleToolCalling:
             _ = rt.agent_node(
                 tool_nodes=set(),
                 system_message="You are a helpful assistant that can strucure the response into a structured output.",
-                llm_model=mock_llm(),
+                llm=mock_llm(),
                 name="ToolCallLLM",
             )
 
@@ -30,14 +28,16 @@ class TestSimpleToolCalling:
             return "Constantinople"
 
         llm = mock_llm(
-            requested_tool_calls=[ToolCall(name="secret_phrase", identifier="id_42424242", arguments={})]
+            requested_tool_calls=[
+                ToolCall(name="secret_phrase", identifier="id_42424242", arguments={})
+            ]
         )
 
         agent = rt.agent_node(
             tool_nodes={rt.function_node(secret_phrase)},
             name="Secret Phrase Maker",
             system_message="You are a helpful assistant that can call the tools available to you to answer user queries",
-            llm_model=llm,
+            llm=llm,
         )
 
         with rt.Session(logging_setting="NONE"):
@@ -54,7 +54,6 @@ class TestLimitedToolCalling:
     async def test_context_reset_between_runs(
         self, mock_llm, _reset_tools_called, _increment_tools_called
     ):
-
         def magic_number():
             #  incrementing count for testing purposes
             _increment_tools_called()
@@ -79,11 +78,11 @@ class TestLimitedToolCalling:
             tool_nodes={rt.function_node(magic_number)},
             name="Magic Number Agent",
             system_message="You are a helpful assistant that can call the tools available to you to answer user queries",
-            llm_model=llm,
+            llm=llm,
         )
 
         message = "Get the magic number and divide it by 2."
-        with rt.Session(logging_setting="NONE") as runner:
+        with rt.Session(logging_setting="NONE"):
             _reset_tools_called()
             _ = await rt.call(agent, user_input=message)
             assert rt.context.get("tools_called") == 1
@@ -97,7 +96,7 @@ class TestLimitedToolCalling:
                 tool_nodes={rt.function_node(lambda: 42)},
                 name="Magic Number Agent",
                 system_message="You are a helpful assistant that can call the tools available to you to answer user queries",
-                llm_model=mock_llm(),
+                llm=mock_llm(),
                 max_tool_calls=-1,
             )
 
@@ -141,7 +140,7 @@ class TestLimitedToolCalling:
             tool_nodes={rt.function_node(magic_number)},
             name="Magic Number Agent",
             system_message="You are a helpful assistant that can call the tools available to you to answer user queries",
-            llm_model=llm,
+            llm=llm,
             max_tool_calls=num_tc,
         )
 
@@ -154,14 +153,15 @@ class TestLimitedToolCalling:
             assert rt.context.get("tools_called") == num_tc
 
 
+@pytest.mark.asyncio
 class TestStructuredToolCalling:
-    def test_base_functionality(self, mock_llm, simple_output_model):
+    async def test_base_functionality(self, mock_llm, simple_output_model):
         def secrets():
             rt.context.put("secrets_called", True)
             return ("Constantinople", 42)
 
         llm = mock_llm(
-            custom_response='{"text": "Constantinople", "number": "42"}',   # for passing into schema
+            custom_response='{"text": "Constantinople", "number": "42"}',  # for passing into schema
             requested_tool_calls=[
                 ToolCall(name="secrets", identifier="id_42424242", arguments={})
             ],
@@ -170,13 +170,13 @@ class TestStructuredToolCalling:
         agent = rt.agent_node(
             name="Secret Phrase Maker",
             system_message="You are a helpful assistant that can call the tools available to you to answer user queries",
-            llm_model=llm,
+            llm=llm,
             output_schema=simple_output_model,
             tool_nodes={rt.function_node(secrets)},
         )
 
         with rt.Session(logging_setting="NONE"):
-            response = rt.call_sync(
+            response = await rt.call(
                 agent,
                 user_input="What is the secret phrase? Only return the structured output, no other text.",
             )

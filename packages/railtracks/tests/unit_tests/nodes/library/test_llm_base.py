@@ -24,7 +24,7 @@ async def test_hooks(mock_llm):
     response = "There is none."
     llm_model = mock_llm(response)
     node = MockModelNode(
-        llm_model=llm_model,
+        llm=llm_model,
         user_input=example_message_history,
 
     )
@@ -63,7 +63,7 @@ async def test_error_hooks(mock_llm):
     llm_model = mock_llm()
     llm_model._chat = exception_raiser
     node = MockModelNode(
-        llm_model=llm_model,
+        llm=llm_model,
         user_input=example_message_history,
     )
 
@@ -99,7 +99,7 @@ async def test_exception_hooks_detached_on_safe_copy(mock_llm):
     
     # Create initial node
     original_node = MockModelNode(
-        llm_model=llm_model,
+        llm=llm_model,
         user_input=example_message_history,
     )
     
@@ -133,7 +133,7 @@ async def test_detach_hooks_removes_all_hook_types(mock_llm):
     
     # Create node which automatically attaches hooks
     node = MockModelNode(
-        llm_model=llm_model,
+        llm=llm_model,
         user_input=example_message_history,
     )
     

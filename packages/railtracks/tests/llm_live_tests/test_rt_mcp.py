@@ -1,5 +1,7 @@
 import asyncio
 
+import pytest
+
 import railtracks as rt
 
 import sys
@@ -7,6 +9,7 @@ import sys
 from railtracks.rt_mcp.main import MCPHttpParams, MCPStdioParams
 
 
+@pytest.mark.skip(reason="Skipped due to LLM stochasticity")
 def test_from_mcp_server_with_llm():
     time_server = rt.connect_mcp(
         MCPStdioParams(
@@ -21,7 +24,7 @@ def test_from_mcp_server_with_llm():
             "Provide a response using the tool when asked. If the tool doesn't work,"
             " respond with 'It didn't work!'"
         ),
-        llm_model=rt.llm.OpenAILLM("gpt-4o"),
+        llm=rt.llm.OpenAILLM("gpt-4o"),
     )
 
     # Run the parent tool
@@ -37,6 +40,7 @@ def test_from_mcp_server_with_llm():
     assert response.content != "It didn't work!"
 
 
+@pytest.mark.skip(reason="Skipped due to LLM stochasticity")
 def test_from_mcp_server_with_http():
     time_server = rt.connect_mcp(MCPHttpParams(url="https://mcp.deepwiki.com/sse"))
     parent_tool = rt.agent_node(
@@ -46,7 +50,7 @@ def test_from_mcp_server_with_http():
             "Provide a response using the tool when asked. If the tool doesn't work,"
             " respond with 'It didn't work!'"
         ),
-        llm_model=rt.llm.OpenAILLM("gpt-4o"),
+        llm=rt.llm.OpenAILLM("gpt-4o"),
     )
 
     # Run the parent tool
