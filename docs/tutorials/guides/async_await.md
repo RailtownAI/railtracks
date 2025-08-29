@@ -26,7 +26,7 @@ async def my_async_function():
     `await` can only be used inside an `async` function.
 
 !!! Tip
-    If we have already lost you I encourage you to visit the [official documentation](https://docs.python.org/3/library/asyncio.html).
+    I encourage you to visit the [official documentation](https://docs.python.org/3/library/asyncio.html).
 
 ## When is it useful?
 
