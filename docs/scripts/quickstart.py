@@ -1,6 +1,6 @@
 # --8<-- [start: setup]
-import railtracks as rt
 import asyncio
+import railtracks as rt
 
 # To create your agent, you just need a model and a system message. 
 Agent = rt.agent_node(
