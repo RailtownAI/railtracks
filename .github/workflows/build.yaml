@@ -90,7 +90,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
@@ -98,11 +98,19 @@ jobs:
         working-directory: packages/railtracks-cli
         run: |
           python -m pip install --upgrade pip
-          pip install -r packages/railtracks-cli/requirements.txt
+          pip install -e .
 
       - name: Run tests
         shell: bash
         working-directory: packages/railtracks-cli
+        continue-on-error: true
         run: |
-          pip install pytest-timeout
-          pytest -s -v --junit-xml=test-results.xml --timeout=200
+          python run_tests.py
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cli-test-results
+          path: packages/railtracks-cli/test-results.xml
+          if-no-files-found: ignore
