@@ -62,13 +62,13 @@ jobs:
           else
             echo "✅ No disallowed licenses found in dependencies"
           fi
-          pip-licenses --summary --format=markdown > license-summary.md
+          pip-licenses --summary --format=markdown > licenses-summary.md
 
       - name: License analysis
         if: always()
         run: |
           cat licenses-summary.md >> $GITHUB_STEP_SUMMARY
-          echo "## 📦 Licenses Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Licenses Analysis" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           cat licenses.md >> $GITHUB_STEP_SUMMARY
 
