@@ -157,6 +157,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
             self.message_hist, tools=self.tools()
         )
 
+        assert isinstance(returned_mess.message, AssistantMessage)
         if returned_mess.message.role == "assistant":
             # if the returned item is a list then it is a list of tool calls
             if isinstance(returned_mess.message.content, list):
@@ -226,10 +227,5 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
             still_tool_calls = await self._handle_tool_calls()
             if not still_tool_calls:
                 break
-
-        if (key := self.return_into()) is not None:
-            output = self.return_output()
-            context.put(key, self.format_for_context(output))
-            return self.format_for_return(output)
 
         return self.return_output()
