@@ -1,4 +1,4 @@
-# How to Build Your First Agent
+# Build Your First Agent
 
 RailTracks makes it easy to create custom agents using the **`agent_node`**. Through this one function you can create any agent you want. 
 
