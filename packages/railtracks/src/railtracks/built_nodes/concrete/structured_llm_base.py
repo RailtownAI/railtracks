@@ -56,13 +56,13 @@ class StructuredLLM(
     def name(cls) -> str:
         return f"Structured LLM ({cls.output_schema().__name__})"
 
-    async def invoke(self) -> StructuredResponse[_TOutput]:
+    async def invoke(self) -> StructuredResponse[_TOutput | Stream]:
         """Makes a call containing the inputted message and system prompt to the llm model and returns the response
 
         Returns:
             (StructuredlLLM.Output): The response message from the llm model
         """
-
+        
         returned_mess = await self.llm_model.astructured(
             self.message_hist, schema=self.output_schema()
         )
@@ -77,12 +77,15 @@ class StructuredLLM(
                 )
             elif isinstance(cont, Stream):  
                 try:
+                    assert isinstance(cont.final_message, str)
+                    # convert the str final message to a structured output
                     parsed_json = json.loads(cont.final_message)
                     parsed = self.output_schema()(**parsed_json)
+                    assert isinstance(parsed, self.output_schema())
+                    cont._final_message = parsed
                     self.message_hist.append(
                         Message(content=parsed, role="assistant")
                     )  # if the AssistantMessage is a stream, we need to add the final message to the message history instead of the generator
-                    return self.return_output(cont.streamer)
                 except Exception as e:
                     raise LLMError(
                         reason=f"The string returned from the LLM did not match the expected output schema. Error: {str(e)}",
@@ -95,7 +98,7 @@ class StructuredLLM(
                     reason="The LLM returned content does not match the expected return type",
                     message_history=self.message_hist,
                 )
-            return self.return_output()
+            return self.return_output(returned_mess.message)
             
 
         raise LLMError(

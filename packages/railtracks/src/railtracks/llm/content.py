@@ -53,7 +53,7 @@ class Stream:
     def __init__(
         self,
         streamer: Generator[str, None, None],
-        final_message: str = "",
+        final_message: str | BaseModel,
     ):
         """
         Creates a new instance of a Stream object.
@@ -69,7 +69,7 @@ class Stream:
         self._final_message = final_message
 
     @property
-    def final_message(self) -> str:
+    def final_message(self) -> str | BaseModel:
         """
         Gets the Final message that was constructured from the streamer, aftter the streamer has finished. Else returns None.
         """

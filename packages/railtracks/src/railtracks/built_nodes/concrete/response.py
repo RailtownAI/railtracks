@@ -1,4 +1,4 @@
-from typing import Generator, Generic, TypeVar
+from typing import Generator, Generic, TypeVar, Union
 
 from pydantic import BaseModel
 
@@ -23,12 +23,23 @@ class LLMResponse(Generic[_T]):
 
     def __repr__(self):
         return f"LLMResponse({self.content})"
+    
+    @property
+    def streamer(self) -> Generator[str, None, None]:
+        """Returns the streamer that was returned as part of this response.
+
+        Note that this is a generator that yields strings.
+        """
+        assert isinstance(
+            self.content, Stream
+        ), "For this property to be usable, the llm should have stream=True"
+        return self.content.streamer
 
 
-_TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 
+_TStructured = TypeVar("_TStructured", bound=Union[BaseModel, Stream])
 
-class StructuredResponse(LLMResponse[_TBaseModel]):
+class StructuredResponse(LLMResponse[_TStructured]):
     """
     A specialized response object for structured outputs from LLMs.
 
@@ -39,24 +50,21 @@ class StructuredResponse(LLMResponse[_TBaseModel]):
 
     def __init__(
         self,
-        model: _TBaseModel,
+        content: _TStructured,
         message_history: MessageHistory,
-        stream_response: Generator[str, None, None] | None = None,
     ):
-        self._streamer = stream_response if stream_response else None
-        super().__init__(model, message_history)
+        super().__init__(content, message_history)
 
     @property
-    def structured(self) -> _TBaseModel:
+    def structured(self) -> BaseModel:
         """Returns the structured content of the response."""
+        if isinstance(self.content, BaseModel):
+            return self.content
+        elif isinstance(self.content, Stream):
+            assert isinstance(self.content.final_message, BaseModel)
+            return self.content.final_message
         return self.content
     
-    @property
-    def streamer(self) -> Generator[str, None, None] | None:
-        """Returns the streamer if the response was streamed, otherwise None."""
-        assert self._streamer, "For this property to be usable, the llm should have stream=True"
-        return self._streamer
-
 class StringResponse(LLMResponse[str | Stream]):
     """
     A specialized response object for string outputs from LLMs.
@@ -75,17 +83,8 @@ class StringResponse(LLMResponse[str | Stream]):
         if isinstance(self.content, str):
             return self.content
         elif isinstance(self.content, Stream):
+            assert isinstance(self.content.final_message, str)
             return self.content.final_message
         else:
             raise ValueError("Unexpected content type")
         
-    @property
-    def streamer(self) -> Generator[str, None, None]:
-        """Returns the streamer that was returned as part of this response.
-
-        Note that this is a generator that yields strings.
-        """
-        assert isinstance(
-            self.content, Stream
-        ), "For this property to be usable, the llm should have stream=True"
-        return self.content.streamer

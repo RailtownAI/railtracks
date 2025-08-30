@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Dict, Generic, Iterable, Type, TypeVar, Generator
+from typing import Any, Dict, Generic, Iterable, Type, TypeVar, Union
 
 from pydantic import BaseModel
 from typing_extensions import Self
@@ -138,9 +138,9 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
             unwrapped_llm_model = llm
 
         self._verify_llm_model(unwrapped_llm_model)
-        assert isinstance(unwrapped_llm_model, ModelBase), (
-            "unwrapped_llm_model must be an instance of llm.ModelBase"
-        )
+        assert isinstance(
+            unwrapped_llm_model, ModelBase
+        ), "unwrapped_llm_model must be an instance of llm.ModelBase"
         self.llm_model = unwrapped_llm_model
 
         self.message_hist = message_history_copy
@@ -238,9 +238,9 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         if isinstance(response.message, AssistantMessage) and isinstance(
             response.message.content, Stream
         ):
-            assert response.message.content.final_message, (
-                "The _stream_handler_base should have ensured that the final message is populated"
-            )
+            assert (
+                response.message.content.final_message
+            ), "The _stream_handler_base should have ensured that the final message is populated"
             output_message = Message(
                 content=response.message.content.final_message, role="assistant"
             )  # instead of the generator we give the final_message for the RequestDetails
@@ -336,28 +336,27 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         return "Agent"
 
 
-_TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
+_TStructured = TypeVar("_TStructured", bound=BaseModel)
 
 
-class StructuredOutputMixIn(Generic[_TBaseModel]):
+class StructuredOutputMixIn(Generic[_TStructured]):
     message_hist: MessageHistory
 
     @classmethod
     @abstractmethod
-    def output_schema(cls) -> Type[_TBaseModel]:
+    def output_schema(cls) -> Type[_TStructured]:
         pass
 
-    def return_output(self, stream_response: Generator[str, None, None] | None = None) -> StructuredResponse[_TBaseModel]:
-        structured_output = self.message_hist[-1].content
+    def return_output(self, message: Message) -> StructuredResponse[Union[_TStructured, Stream]]:
+        content = message.content
 
-        assert isinstance(structured_output, self.output_schema()), (
-            f"The final output must be a pydantic {self.output_schema()} instance. Instead it was {type(structured_output)}"
-        )
+        assert isinstance(
+            content, self.output_schema() | Stream
+        ), f"The final output must be a pydantic {self.output_schema()} or Stream instance. Instead it was {type(content)}"
 
         return StructuredResponse(
-            model=structured_output,
+            content=content,
             message_history=self.message_hist.removed_system_messages(),
-            stream_response=stream_response,
         )
 
 
@@ -371,9 +370,9 @@ class StringOutputMixIn:
         ):  # if no message is provided, use the last message from message history
             message = self.message_hist[-1]
 
-        assert isinstance(message.content, str | Stream), (
-            "The final output must be a string or stream"
-        )
+        assert isinstance(
+            message.content, str | Stream
+        ), "The final output must be a string or stream"
         return StringResponse(
             content=message.content,
             message_history=self.message_hist.removed_system_messages(),
