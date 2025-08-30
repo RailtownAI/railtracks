@@ -2,6 +2,9 @@
 
 RailTracks makes it easy to create custom agents using the **`agent_node`**. Through this one function you can create any agent you want. 
 
+!!! warning 
+    This guide will be very high level. For a more hands on example check out [Yet Another Weather Agent](weather_agent.md)
+
 ## Simple LLM Agent
 You will need to the provide the following parameters:
 
