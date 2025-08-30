@@ -35,7 +35,7 @@ jobs:
         run: ruff format --check .
 
   check-licenses:
-    name: Check Licenses
+    name: Check Open Source Licenses
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -48,9 +48,14 @@ jobs:
 
       - name: Check Railtracks Core Dependencies Licenses
         run: |
-          pip install pip-licenses
-          pip-licenses --format=csv > licenses.csv
-          findstr /R /C:"${{ env.DISALLOWED_LICENSES }}" licenses.csv
+          pip-licenses --format=csv --with-dependencies=false > licenses.csv
+          if grep -E "${{ env.DISALLOWED_LICENSES }}" licenses.csv; then
+            echo "❌ Disallowed licenses found in direct dependencies:"
+            grep -E "${{ env.DISALLOWED_LICENSES }}" licenses.csv
+            exit 1
+          else
+            echo "✅ No disallowed licenses found in direct dependencies"
+          fi
 
       - name: License analysis
         if: always()
@@ -69,6 +74,7 @@ jobs:
     runs-on: windows-latest
     needs:
       - ruff-lint
+      - check-licenses
 
     steps:
       - name: Print System Architecture
@@ -103,13 +109,6 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.INTEGRATION_TESTS_GEMINI_API_KEY }}
         run: |
           ./scripts/docs_validation.sh
-
-      # This is a Windows action runner, grep won't work
-      - name: Check Railtracks Core Dependencies Licenses
-        run: |
-          pip install pip-licenses
-          pip-licenses --format=csv > licenses.csv
-          findstr /R /C:"%DISALLOWED_LICENSES%" licenses.csv
 
       - name: Run tests
         shell: bash
