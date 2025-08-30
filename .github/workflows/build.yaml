@@ -41,23 +41,26 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Install dependencies
-        working-directory: packages/railtracks
+      - name: Create isolated venv and install only railtracks + pip-licenses
         run: |
+          python -m venv .venv
+          . .venv/bin/activate
           python -m pip install --upgrade pip
-          pip install -e .
+          # Install ONLY the project under packages/railtracks and its deps
+          pip install -e packages/railtracks
           pip install pip-licenses
 
       - name: Check Railtracks Core Dependencies Licenses
-        working-directory: packages/railtracks
         run: |
+          set -euo pipefail
+          . .venv/bin/activate
           pip-licenses --format=csv > licenses.csv
           if grep -E "${{ env.DISALLOWED_LICENSES }}" licenses.csv; then
-            echo "❌ Disallowed licenses found in direct dependencies:"
+            echo "❌ Disallowed licenses found in dependencies:"
             grep -E "${{ env.DISALLOWED_LICENSES }}" licenses.csv
             exit 1
           else
-            echo "✅ No disallowed licenses found in direct dependencies"
+            echo "✅ No disallowed licenses found in dependencies"
           fi
 
       - name: License analysis
@@ -65,7 +68,7 @@ jobs:
         run: |
           echo "## 📦 Licenses Analysis" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          pip-licenses --summary --from=classifier --format=markdown --with-system >> $GITHUB_STEP_SUMMARY
+          pip-licenses --summary --from=classifier --format=markdown --python= >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
   build:
