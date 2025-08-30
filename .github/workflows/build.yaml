@@ -42,14 +42,15 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install dependencies
+        working-directory: packages/railtracks
         run: |
           python -m pip install --upgrade pip
+          pip install -e .
           pip install pip-licenses
 
       - name: Check Railtracks Core Dependencies Licenses
         working-directory: packages/railtracks
         run: |
-          pip install -e .
           pip-licenses --format=csv > licenses.csv
           if grep -E "${{ env.DISALLOWED_LICENSES }}" licenses.csv; then
             echo "❌ Disallowed licenses found in direct dependencies:"
@@ -64,7 +65,7 @@ jobs:
         run: |
           echo "## 📦 Licenses Analysis" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          pip-licenses --format=markdown >> $GITHUB_STEP_SUMMARY
+          pip-licenses --summary --from=classifier --format=markdown --with-system >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
   build:
