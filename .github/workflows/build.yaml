@@ -35,7 +35,7 @@ jobs:
         run: ruff format --check .
 
   check-licenses:
-    name: Check Open Source Licenses
+    name: Check Licenses
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -64,9 +64,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
 
           echo "### Licenses Detected" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
           pip-licenses --format=markdown >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
   build:
