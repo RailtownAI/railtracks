@@ -1,28 +1,22 @@
 # Build Your First Agent
 
-RailTracks makes it easy to create custom agents using the **`agent_node`**. Through this one function you can create any agent you want. 
-
-!!! warning 
-    This guide will be very high level. For a more hands on example check out [Yet Another Weather Agent](weather_agent.md)
+In the [quickstart](../quickstart/quickstart.md), you ran a ready-made agent. Now let’s build your own step by step, starting from the simplest form and gradually adding more abilities.
 
 ## Simple LLM Agent
-You will need to the provide the following parameters:
-
-- **`llm`**: The LLM that powers your agent (e.g., OpenAI GPT, Claude, see [full list](../llm_support/providers.md))
-- **`system_message`**: Instructions that define your agent's instructions/behavior
+Start with minimal ingredients: a model + a system message
 
 ```python
 --8<-- "docs/scripts/first_agent.py:simple_llm"
 ```
 
-## Adding Tool Calling
-An LLM without [tools](../tools_mcp/tools/tools.md) is not very special. Giving to access to tools unlocks the possibilities with LLMs. 
-To use tools you will need to fill:
+??? question "Supported LLMs"
+    Check out our full list of [supported providers](../llm_support/providers.md)
 
-- **`tool_nodes`**: The python function that your `agent` can access. 
+## Adding Tool Calling
+What if your agent needs real-world data? You will need to give it [tools](../tools_mcp/tools/tools.md). This allows your agent to go beyond static responses and actually interact with the real world.
 
 ??? tip "Creating a Tool"
-    All you need a is a python function with docstring and the `rt.function_node` decorator
+    All you need is a Python function with docstring and the `rt.function_node` decorator
     ```python 
     --8<-- "docs/scripts/first_agent.py:general_tool"
     ```
@@ -37,12 +31,9 @@ To use tools you will need to fill:
 ```
 
 ## Adding a Structured Output
-Often it is nice to force the LLM to output in a specific schema. 
-To force the LLM to respond in a structure format, use the following paramater:
+Now that you've seen how to add tools. Let's look at your agent can respond with reliable typed outputs. Schemas give you reliable, machine-checked outputs you can safely consume in code, rather than brittle strings.
 
-- **`output_schema`**: Define a structured output format using Pydantic models. 
-
-??? tip "Creating a Schema"
+??? tip "Defining a Schema"
     We use the Pydantic library to define structured data models.
     ```python
     --8<-- "docs/scripts/first_agent.py:general_structured"
@@ -56,15 +47,15 @@ To force the LLM to respond in a structure format, use the following paramater:
 ```
 
 ## Structured + Tool Calling
-Railtracks provides an additional functionality for a model which can tool call and will return a structured output. To accomplish this, you should provide both `output_schema` and `tool_nodes`. 
+Often you will want the best of both worlds, an agent capable of both tool calling and responding in a structured format. 
 
 ```python 
 --8<-- "docs/scripts/first_agent.py:first_agent_all"
 ```
 
-## Connecting to MCP 
-To connect to MCP, please refer to our [guide](../tools_mcp/mcp/mcp.md)
+??? note "Connecting to MCP"
+    To connect to MCP, please refer to our [guide](../tools_mcp/mcp/mcp.md)
 
 ---
 # Running Agents
-Now that you have created your agents, you are ready to run them. Vist [Running your First Agent](ryfa.md) 
+Congratulations, you’ve now built agents that call tools, return structured outputs, and even combine both. Next, let’s actually run them and see them in action -> [Running your First Agent](ryfa.md).
