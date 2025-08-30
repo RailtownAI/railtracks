@@ -48,7 +48,7 @@ jobs:
 
       - name: Check Railtracks Core Dependencies Licenses
         run: |
-          pip-licenses --format=csv --with-dependencies=false > licenses.csv
+          pip-licenses --format=csv > licenses.csv
           if grep -E "${{ env.DISALLOWED_LICENSES }}" licenses.csv; then
             echo "❌ Disallowed licenses found in direct dependencies:"
             grep -E "${{ env.DISALLOWED_LICENSES }}" licenses.csv
