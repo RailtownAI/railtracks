@@ -41,7 +41,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Create isolated venv and install only railtracks + pip-licenses
+      - name: Core - Create isolated venv and install only railtracks + pip-licenses
         run: |
           python -m venv .venv
           . .venv/bin/activate
@@ -50,27 +50,27 @@ jobs:
           pip install -e packages/railtracks
           pip install pip-licenses
 
-      - name: Check Railtracks Core Dependencies Licenses
+      - name: Core - Check Railtracks Core Dependencies Licenses
         run: |
           set -euo pipefail
           . .venv/bin/activate
-          pip-licenses --format=markdown > licenses.md
-          if grep -E "${{ env.DISALLOWED_LICENSES }}" licenses.md; then
+          pip-licenses --format=markdown > core-licenses.md
+          if grep -E "${{ env.DISALLOWED_LICENSES }}" core-licenses.md; then
             echo "❌ Disallowed licenses found in dependencies:"
             grep -E "${{ env.DISALLOWED_LICENSES }}" licenses.md
             exit 1
           else
             echo "✅ No disallowed licenses found in dependencies"
           fi
-          pip-licenses --summary --format=markdown > licenses-summary.md
+          pip-licenses --summary --format=markdown > core-licenses-summary.md
 
-      - name: License analysis
+      - name: License Check Analysis
         if: always()
         run: |
-          cat licenses-summary.md >> $GITHUB_STEP_SUMMARY
-          echo "### 📦 Licenses Analysis" >> $GITHUB_STEP_SUMMARY
+          cat core-licenses-summary.md >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Licenses Found" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          cat licenses.md >> $GITHUB_STEP_SUMMARY
+          cat core-licenses.md >> $GITHUB_STEP_SUMMARY
 
   build:
     name: Build and Test
