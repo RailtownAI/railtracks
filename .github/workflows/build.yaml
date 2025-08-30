@@ -8,6 +8,9 @@ on:
     branches:
       - main
 
+env:
+  DISALLOWED_LICENSES: "GPL|AGPL|EPL"
+
 jobs:
   ruff-lint:
     name: Check Code with Ruff
@@ -34,7 +37,9 @@ jobs:
   build:
     name: Build and Test
     runs-on: windows-latest
-    needs: ruff-lint
+    needs:
+      - ruff-lint
+
     steps:
       - name: Print System Architecture
         run: uname -m
@@ -68,6 +73,12 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.INTEGRATION_TESTS_GEMINI_API_KEY }}
         run: |
           ./scripts/docs_validation.sh
+
+      # This is a Windows action runner, grep won't work
+      - name: Check Railtracks Core Dependencies Licenses
+        run: |
+          pip-licenses --format=csv > licenses.csv
+          findstr /R /C:"%DISALLOWED_LICENSES%" licenses.csv
 
       - name: Run tests
         shell: bash
