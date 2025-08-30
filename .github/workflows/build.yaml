@@ -54,22 +54,21 @@ jobs:
         run: |
           set -euo pipefail
           . .venv/bin/activate
-          pip-licenses --format=csv > licenses.csv
-          if grep -E "${{ env.DISALLOWED_LICENSES }}" licenses.csv; then
+          pip-licenses --format=markdown > licenses.md
+          if grep -E "${{ env.DISALLOWED_LICENSES }}" licenses.md; then
             echo "❌ Disallowed licenses found in dependencies:"
-            grep -E "${{ env.DISALLOWED_LICENSES }}" licenses.csv
+            grep -E "${{ env.DISALLOWED_LICENSES }}" licenses.md
             exit 1
           else
             echo "✅ No disallowed licenses found in dependencies"
           fi
+          pip-licenses --summary --format=markdown > licenses-summary.md
 
       - name: License analysis
         if: always()
         run: |
-          echo "## 📦 Licenses Analysis" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          pip-licenses --summary --from=classifier --format=markdown --python= >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          cat licenses-summary.md >> $GITHUB_STEP_SUMMARY
+
 
   build:
     name: Build and Test
