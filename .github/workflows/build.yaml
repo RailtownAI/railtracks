@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -43,7 +43,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
@@ -51,20 +51,32 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
+          pip install -r docs/scripts/requirements.txt
 
       - name: Check pyproject.toml dependency order
         run: |
           python -m pip install --upgrade pip
           pip install tomlkit==0.11.8
           python scripts/check_dependencies_sorted.py
+      
+      - name: Validate Documentation Scripts
+        shell: bash
+        env:
+          OPENAI_API_KEY: ${{ secrets.INTEGRATION_TESTS_OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.INTEGRATION_TESTS_ANTHROPIC_API_KEY }}
+          HF_TOKEN: ${{ secrets.INTEGRATION_TESTS_HUGGINGFACE_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.INTEGRATION_TESTS_GEMINI_API_KEY }}
+        run: |
+          ./scripts/docs_validation.sh
 
       - name: Run tests
         shell: bash
+        env:
+          OPENAI_API_KEY: ${{ secrets.INTEGRATION_TESTS_OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.INTEGRATION_TESTS_ANTHROPIC_API_KEY }}
+          HF_TOKEN: ${{ secrets.INTEGRATION_TESTS_HUGGINGFACE_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.INTEGRATION_TESTS_GEMINI_API_KEY }}
         run: |
-          export OPENAI_API_KEY=${{ secrets.INTEGRATION_TESTS_OPENAI_API_KEY }}
-          export ANTHROPIC_API_KEY=${{ secrets.INTEGRATION_TESTS_ANTHROPIC_API_KEY }}
-          export HF_TOKEN=${{ secrets.INTEGRATION_TESTS_HUGGINGFACE_API_KEY }}
-          export GEMINI_API_KEY=${{ secrets.INTEGRATION_TESTS_GEMINI_API_KEY }}
           pip list
           pip install pytest-timeout
           pytest -s -v --junit-xml=test-results.xml --timeout=200
