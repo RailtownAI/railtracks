@@ -6,6 +6,9 @@ Basic unit tests for railtracks CLI functionality
 
 import json
 import os
+import queue
+import shutil
+import sys
 import tempfile
 import threading
 import time
@@ -13,8 +16,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, mock_open, patch
 
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+import railtracks_cli
 
 from railtracks_cli import (
     DEBOUNCE_INTERVAL,
@@ -72,9 +76,6 @@ class TestStreamQueue(unittest.TestCase):
 
     def test_set_and_clear_stream_queue(self):
         """Test setting and clearing stream queue"""
-        import queue
-        import railtracks_cli
-
         # Initially should be None
         self.assertIsNone(railtracks_cli.current_stream_queue)
 
@@ -98,8 +99,6 @@ class TestStreamQueue(unittest.TestCase):
 
     def test_send_to_stream_with_queue(self):
         """Test sending to stream with active queue"""
-        import queue
-
         test_queue = queue.Queue()
         set_stream_queue(test_queue)
 
@@ -113,8 +112,6 @@ class TestStreamQueue(unittest.TestCase):
 
     def test_send_to_stream_full_queue(self):
         """Test sending to stream when queue is full"""
-        import queue
-
         # Create a queue with maxsize 1
         test_queue = queue.Queue(maxsize=1)
         set_stream_queue(test_queue)
@@ -126,7 +123,6 @@ class TestStreamQueue(unittest.TestCase):
         send_to_stream("new message")
 
         # Queue should have been cleared
-        import railtracks_cli
         self.assertIsNone(railtracks_cli.current_stream_queue)
 
 
@@ -142,7 +138,6 @@ class TestCreateRailtracksDir(unittest.TestCase):
     def tearDown(self):
         """Clean up temporary directory"""
         os.chdir(self.original_cwd)
-        import shutil
         shutil.rmtree(self.test_dir)
 
     @patch('railtracks_cli.print_status')
