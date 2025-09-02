@@ -94,13 +94,13 @@ async def call(
     else:
         node = node_
 
-    # Lazy import here becuase we have use this hack becuase python runtime type checking is broken.
-    from railtracks.nodes.nodes import Node
+    # # Lazy import here becuase we have use this hack becuase python runtime type checking is broken.
+    # from railtracks.nodes.nodes import Node
 
-    if not issubclass(node, Node):
-        raise TypeError(
-            f"Expected one of the the following inputs <Node>, <Function>, <RTFunction>, instead got {type(node)}"
-        )
+    # if not issubclass(node, Node):
+    #     raise TypeError(
+    #         f"Expected one of the the following inputs <Node>, <Function>, <RTFunction>, instead got {type(node)}"
+    #     )
 
     # if the context is none then we will need to create a wrapper for the state object to work with.
     if not is_context_present():

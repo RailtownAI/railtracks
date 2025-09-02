@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, ParamSpec, Tuple, TypeVar
 
+from railtracks.exceptions.errors import NodeCreationError
+
 from ..context.central import update_parent_id
 from ..execution.coordinator import Coordinator
 from ..execution.task import Task
@@ -165,7 +167,6 @@ class RTState:
         """
 
         # 1. Create the node here
-
         node = node(*args, **kwargs)
 
         # 2. Add it to the node heap.
@@ -235,7 +236,7 @@ class RTState:
         except Exception as e:
             # TODO improve this so we know the name of the node trying to be created in the case of a tool call llm.
             rfa = RequestFailureAction(
-                node_name=node.name() if hasattr(node, "name") else node.__name__,
+                node_name=node.name() if hasattr(node, "name") else "Unknown",
                 exception=e,
             )
             await self.publisher.publish(
