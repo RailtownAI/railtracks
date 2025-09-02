@@ -92,7 +92,7 @@ class RTState:
             update_parent_id(item.current_node_id)
 
             assert item.new_request_id not in self._request_heap.heap().keys()
-            
+
             await self.call_nodes(
                 parent_node_id=item.current_node_id,
                 request_id=item.new_request_id,
