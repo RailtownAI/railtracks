@@ -68,6 +68,6 @@ if [ $failed_scripts -eq 0 ]; then
     exit 0
 else
     echo ""
-    echo "ome documentation scripts failed!"
+    echo "some documentation scripts failed!"
     exit 1
 fi

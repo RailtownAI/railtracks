@@ -54,7 +54,7 @@ async def top_level():
     response = await rt.call(
         WeatherAgent,
         user_input=rt.llm.MessageHistory([system_message, user_message]),
-        llm_model=rt.llm.AnthropicLLM("claude-3-5-sonnet-20241022"),
+        llm=rt.llm.AnthropicLLM("claude-3-5-sonnet-20241022"),
     )
 
     return response
