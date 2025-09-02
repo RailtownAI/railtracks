@@ -42,8 +42,6 @@ class TestPrimitiveInputTypes:
             llm,
         )
 
-        print(agent)
-
         with rt.Session(logging_setting="NONE"):
             response = await rt.call(
                 agent,
