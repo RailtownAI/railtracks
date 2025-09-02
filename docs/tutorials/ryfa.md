@@ -1,17 +1,23 @@
 # How to Run Your First Agent
 
-## Calling the Agent directly
-Once you have defined your agent class ([Build Your First Agent](byfa.md)) you can then run your workflow and see results!
+Now that you have [built your first agent](byfa.md), it is time to run your agent and see its results. Railtracks currently provides 2 API's to run your agent:
 
-To begin you just have to use **`call`** method from RailTracks. This is an asynchronous method so you will need to run it in an async context.
+1. **Directly use `rt.call`**: For simple use cases
+2. **Session API**: For cases where configuration is required.  
+
+## Calling the Agent directly
+
+The `call` method is an asynchronous method so you will need to run it in an async context.
 
 === "Asynchronous"
     ```python
     --8<-- "docs/scripts/first_agent.py:call"
     ```
 
+## Calling the Agent with Session
+
 !!! tip "Agent input options"
-    There are multiple ways to provide input to your agent.
+    You can provide the input into the 
     
     ???+ example "single user message"
         If you'd like to simply provide a single user message, you can pass it as a string directly to the **`call`** 
