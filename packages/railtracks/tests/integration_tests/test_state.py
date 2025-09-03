@@ -122,7 +122,7 @@ async def test_json_serialization(planner_node, json_state_schema):
         await rt.call(planner_node, "New York", "Houston")
 
     try:
-        validate(json.loads(session.payload()), json_state_schema)
+        validate(session.payload(), json_state_schema)
     except ValidationError:
         raise
 
@@ -158,6 +158,6 @@ async def test_json_serialization_2(planner_with_llm_node, json_state_schema, mo
         await rt.call(planner_with_llm_node, llm=model)
 
     try:
-        validate(json.loads(session.payload()), json_state_schema)
+        validate(session.payload(), json_state_schema)
     except ValidationError:
         raise

@@ -5,13 +5,43 @@ import railtracks as rt
 from pydantic import BaseModel
 # --8<-- [end: imports]
 
+# --8<-- [start: simple_llm]
+SimpleLLM = rt.agent_node(
+    llm=rt.llm.AnthropicLLM("claude-sonnet-4-20250514"),
+    system_message="You are a helpful AI assistant."
+)
+# --8<-- [end: simple_llm]
+
+# --8<-- [start: general_structured]
+from pydantic import BaseModel, Field
+
+class YourModel(BaseModel):
+    # Use the Field parameter for more control. 
+    parameter: str = Field(default="default_value", description="Your description of the parameter")
+# --8<-- [end: general_structured]
+
 # --8<-- [start: weather_response]
 class WeatherResponse(BaseModel):
     temperature: float
     condition: str
 # --8<-- [end: weather_response]
 
+# --8<--- [start: general_tool]
+# Use @rt.function_node decorator to convert your function into a RT tool
+@rt.function_node
+def your_function(example_input: str) -> str:
+    """
+    Your function description here.
+
+    Args:
+      example_input (str): The input string to process.
+
+    """
+    pass
+# --8<--- [end: general_tool]
+
 # --8<-- [start: weather_tool]
+@rt.function_node
 def weather_tool(city: str):
     """
     Returns the current weather for a given city.
@@ -23,15 +53,33 @@ def weather_tool(city: str):
     return f"{city} is sunny with a temperature of 25°C."
 # --8<-- [end: weather_tool]
 
-# --8<-- [start: first_agent]
+# --8<-- [start: first_agent_tools]
 WeatherAgent = rt.agent_node(
     name="Weather Agent",
     llm=rt.llm.OpenAILLM("gpt-4o"),
     system_message="You are a helpful assistant that answers weather-related questions.",
-    tool_nodes=[rt.function_node(weather_tool)],
+    tool_nodes=[weather_tool],
+)
+# --8<-- [end: first_agent_tools]
+
+# --8<-- [start: first_agent_model]
+WeatherAgent = rt.agent_node(
+    name="Weather Agent",
+    llm=rt.llm.OpenAILLM("gpt-4o"),
+    system_message="You are a helpful assistant that answers weather-related questions.",
     output_schema=WeatherResponse,
 )
-# --8<-- [end: first_agent]
+# --8<-- [end: first_agent_model]
+
+# --8<-- [start: first_agent_all]
+WeatherAgent = rt.agent_node(
+    name="Weather Agent",
+    llm=rt.llm.OpenAILLM("gpt-4o"),
+    system_message="You are a helpful assistant that answers weather-related questions.",
+    tool_nodes=[weather_tool],
+    output_schema=WeatherResponse,
+)
+# --8<-- [end: first_agent_all]
 
 # --8<-- [start: call]
 async def main():

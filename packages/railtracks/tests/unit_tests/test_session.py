@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -78,10 +79,10 @@ def test_runner_context_manager_closes_on_exit(mock_dependencies):
 # ================= START Session: Singleton/Instance Id Behavior ============
 
 def test_runner_identifier_is_taken_from_executor_config():
-    run_id = "abc123"
+    name = "abc123"
 
-    r = Session(identifier=run_id)
-    assert r._identifier == run_id
+    r = Session(name=name)
+    assert r.name == name
 
 # ================ END Session: Singleton/Instance Id Behavior ===============
 
@@ -138,9 +139,9 @@ def test_info_property_returns_rt_state_info(mock_dependencies):
 
 # ================= START Session: Check saved data ===============
 def test_runner_saves_data():
-    run_id = "abs53562j12h267"
+    name = "abs53562j12h267"
 
-    serialization_mock = '{"Key": "Value"}'
+    serialization_mock = {"Key": "Value"}
     info = MagicMock()
     info.graph_serialization.return_value = serialization_mock
 
@@ -149,14 +150,17 @@ def test_runner_saves_data():
         mock_runner.return_value.graph_serialization.return_value = serialization_mock
 
         r = Session(
-            identifier=run_id,
+            name=name,
             save_state=True,
         )
         r.__exit__(None, None, None)
 
 
-    path = Path(".railtracks") / f"{run_id}.json"
-    assert path.read_text() == serialization_mock
+    path = Path(".railtracks") / f"{r._identifier}.json"
+    data = json.loads(path.read_text())
+    assert data["runs"] == serialization_mock
+    assert "session_id" in data
+    assert data["session_name"] == name
 
 
 def test_runner_not_saves_data():
@@ -173,7 +177,7 @@ def test_runner_not_saves_data():
     with patch.object(Session, 'info', new_callable=PropertyMock) as mock_runner:
         mock_runner.return_value.graph_serialization.return_value = serialization_mock
 
-        r = Session(identifier=run_id, save_state=False)
+        r = Session(name=run_id, save_state=False)
         r.__exit__(None, None, None)
 
 
