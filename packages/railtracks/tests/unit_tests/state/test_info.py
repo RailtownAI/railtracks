@@ -142,6 +142,6 @@ def test_graph_serialization_serializes_json(empty_info):
     with patch("railtracks.state.info.RTJSONEncoder", None):
         json_str = empty_info.graph_serialization()
         # quit test via presence of keywords (structure)
-        assert json_str == "[]"
+        assert json_str == []
 
 # ================ END ExecutionInfo: graph methods ===============
