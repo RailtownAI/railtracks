@@ -6,7 +6,14 @@
       "description": "The session id is a unique identifier for the session."
     },
     "session_name": {
-      "type": "string",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
       "description": "The name of the session."
     },
     "start_time": {
@@ -54,272 +61,278 @@
           }
         },
         "required": [
-          "session_id",
           "name",
           "run_id",
           "nodes",
           "edges",
           "steps"
         ]
+      }
+    }
+  },
+  "required": [
+    "session_id",
+    "session_name",
+    "start_time",
+    "end_time",
+    "runs"
+  ],
+  "$defs": {
+    "Stamp": {
+      "type": "object",
+      "properties": {
+        "step": {
+          "type": "integer"
+        },
+        "time": {
+          "type": "number"
+        },
+        "identifier": {
+          "type": "string"
+        }
       },
-      "$defs": {
-        "Stamp": {
-          "type": "object",
-          "properties": {
-            "step": {
-              "type": "integer"
-            },
-            "time": {
-              "type": "number"
-            },
-            "identifier": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "step",
-            "time",
-            "identifier"
+      "required": [
+        "step",
+        "time",
+        "identifier"
+      ]
+    },
+    "Node": {
+      "type": "object",
+      "properties": {
+        "identifier": {
+          "type": "string"
+        },
+        "node_type": {
+          "enum": [
+            "Other",
+            "Agent",
+            "Tool"
           ]
         },
-        "Node": {
+        "name": {
+          "type": "string"
+        },
+        "stamp": {
+          "$ref": "#/$defs/Stamp"
+        },
+        "details": {
           "type": "object",
           "properties": {
-            "identifier": {
-              "type": "string"
-            },
-            "node_type": {
-              "enum": [
-                "Other",
-                "Agent",
-                "Tool"
-              ]
-            },
-            "name": {
-              "type": "string"
-            },
-            "stamp": {
-              "$ref": "#/$defs/Stamp"
-            },
-            "details": {
+            "internals": {
               "type": "object",
               "properties": {
-                "internals": {
+                "latency": {
                   "type": "object",
                   "properties": {
-                    "latency": {
-                      "type": "object",
-                      "properties": {
-                        "total_time": {
-                          "type": "number"
-                        }
-                      },
-                      "required": [
-                        "total_time"
-                      ]
-                    },
-                    "llm_internals": {
-                      "$ref": "#/$defs/LLMInternals"
+                    "total_time": {
+                      "type": "number"
                     }
                   },
-                  "additionalProperties": true
-                }
-              },
-              "required": [
-                "internals"
-              ]
-            },
-            "parent": {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Node"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            }
-          },
-          "required": [
-            "identifier",
-            "node_type",
-            "name",
-            "stamp",
-            "details"
-          ]
-        },
-        "Edge": {
-          "type": "object",
-          "properties": {
-            "source": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "target": {
-              "type": "string"
-            },
-            "identifier": {
-              "type": "string"
-            },
-            "stamp": {
-              "$ref": "#/$defs/Stamp"
-            },
-            "details": {
-              "type": "object",
-              "properties": {
-                "input_args": {
-                  "type": "array",
-                  "items": {}
-                },
-                "input_kwargs": {
-                  "type": "object"
-                },
-                "status": {
-                  "anyOf": [
-                    {
-                      "type": "string",
-                      "enum": [
-                        "Completed",
-                        "Failed",
-                        "Open"
-                      ]
-                    }
+                  "required": [
+                    "total_time"
                   ]
                 },
-                "output": {}
-              },
-              "required": [
-                "input_args",
-                "input_kwargs",
-                "output",
-                "status"
-              ]
-            },
-            "parent": {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Edge"
-                },
-                {
-                  "type": "null"
+                "llm_internals": {
+                  "$ref": "#/$defs/LLMInternals"
                 }
-              ]
+              },
+              "additionalProperties": true
             }
           },
           "required": [
-            "target",
-            "identifier",
-            "stamp",
-            "details"
+            "internals"
           ]
         },
-        "LLMInternals": {
+        "parent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Node"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "identifier",
+        "node_type",
+        "name",
+        "stamp",
+        "details"
+      ]
+    },
+    "Edge": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "target": {
+          "type": "string"
+        },
+        "identifier": {
+          "type": "string"
+        },
+        "stamp": {
+          "$ref": "#/$defs/Stamp"
+        },
+        "details": {
           "type": "object",
           "properties": {
-            "model_name": {
-              "type": "string"
-            },
-            "model_provider": {
-              "type": "string"
-            },
-            "input": {
+            "input_args": {
               "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "role": {
-                    "type": "string"
-                  },
-                  "content": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "role",
-                  "content"
-                ]
+              "items": {}
+            },
+            "input_kwargs": {
+              "type": "object"
+            },
+            "status": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "Completed",
+                    "Failed",
+                    "Open"
+                  ]
+                }
+              ]
+            },
+            "output": {}
+          },
+          "required": [
+            "input_args",
+            "input_kwargs",
+            "output",
+            "status"
+          ]
+        },
+        "parent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Edge"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "target",
+        "identifier",
+        "stamp",
+        "details"
+      ]
+    },
+    "LLMInternals": {
+      "type": "object",
+      "properties": {
+        "model_name": {
+          "type": "string"
+        },
+        "model_provider": {
+          "type": "string"
+        },
+        "input": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string"
+              },
+              "content": {
+                "type": "string"
               }
             },
-            "output": {
-              "type": "object",
-              "properties": {
-                "role": {
-                  "type": "string"
-                },
-                "content": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "role",
-                "content"
-              ]
+            "required": [
+              "role",
+              "content"
+            ]
+          }
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "role": {
+              "type": "string"
             },
-            "input_tokens": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "output_tokens": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "total_cost": {
-              "anyOf": [
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "system_fingerprint": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "latency": {
-              "anyOf": [
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "null"
-                }
-              ]
+            "content": {
+              "type": "string"
             }
           },
           "required": [
-            "model_name",
-            "model_provider",
-            "input",
-            "output"
+            "role",
+            "content"
+          ]
+        },
+        "input_tokens": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "output_tokens": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "total_cost": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "system_fingerprint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "latency": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
           ]
         }
-      }
+      },
+      "required": [
+        "model_name",
+        "model_provider",
+        "input",
+        "output"
+      ]
     }
   }
 }
