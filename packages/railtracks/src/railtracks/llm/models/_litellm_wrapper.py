@@ -355,26 +355,47 @@ class LiteLLMWrapper(ModelBase, ABC):
             _stream_finished = False
             for chunk in raw.completion_stream:
                 if not _stream_finished:
-                    if chunk.choices[0].finish_reason == "stop":
+                    choice = chunk.choices[0]
+                    if choice.finish_reason in ("stop", "tool_calls") :
                         _stream_finished = True
                         chunk_content = None
-                    else:
-                        chunk_content = chunk.choices[0].delta.content
+                        if tc:      # tc stream ended so we need to add it to the list of chunks
+                            tc.arguments = json.loads(string_args)
+                            chunks.append(tc)
+                            string_args = ""
+                    elif choice.delta.tool_calls:
+                        call = choice.delta.tool_calls[0] # the list will have only 1 item since it is coming from a stream
+                        if call.id:   # this is the first chunk of a tool call that is beig streamed
+                            if tc:  # if there is a previous tool call, we need to add it to the list of calls
+                                tc.arguments = json.loads(string_args)
+                                chunks.append(tc)
+                                string_args = ""
+                            tc = ToolCall(identifier=call.id, name=call.function.name, arguments={})    # arguments are empty for now because they will be streamed as a string.
+                        else:   # tc should already exist here
+                            string_args += call.function.arguments 
+                    elif choice.delta.content:
+                        chunk_content = choice.delta.content
                         assert isinstance(chunk_content, str)
                         accumulated_content += chunk_content
-                    chunks.append(chunk_content if chunk_content else "")
+                        chunks.append(chunk_content if chunk_content else "")
+                    else:  # empty chunk
+                        pass
                 else:
                     message_info = self.extract_message_info(
                         chunk, time.time() - start_time
                     )
-                    chunks.append("")  # still yield an empty string like before
+
             return chunks, accumulated_content, message_info
 
         chunks, accumulated_content, mess_info = _consume()
 
+        if chunks and isinstance(chunks[-1], ToolCall):    # if a list of ToolCalls is returned, we do not need to repay the streamer
+            assert all(isinstance(x, ToolCall) for x in chunks)
+            return Response(message=AssistantMessage(content=chunks), message_info=mess_info)
+        
         # replay streamer definitions
         def _replay_streamer():
-            for c in chunks:
+            for c in chunks:  # yield the chunks
                 yield c
 
         stream_response = Stream(
