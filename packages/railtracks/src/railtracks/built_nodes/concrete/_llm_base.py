@@ -197,7 +197,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         return MessageHistory([UserMessage("\n".join(instruction_parts))])
 
     @abstractmethod
-    def return_output(self) -> _T: ...
+    def return_output(self, message: Message | None = None) -> _T: ...
 
     @classmethod
     def _verify_message_history(cls, message_history: MessageHistory):

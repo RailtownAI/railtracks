@@ -3,7 +3,7 @@ from pydantic import BaseModel
 
 llm = rt.llm.OpenAILLM("gpt-4o", stream=True)
 
-mh = rt.llm.MessageHistory([rt.llm.UserMessage("give me the secret phrase for index 1")])
+mh = rt.llm.MessageHistory([rt.llm.UserMessage("give me the secret phrase")])
 
 # =============================================================================
 # response = llm.chat(messages=mh)
@@ -20,11 +20,9 @@ mh = rt.llm.MessageHistory([rt.llm.UserMessage("give me the secret phrase for in
 # print(response.message_info)
 # =============================================================================
 @rt.function_node
-def secret_words(id: int):
+def secret_words():
     """
     Returns a secret phrase based on the id.
-    Args:
-        id (int): The id of the secret phrase to return.
     """
     rt.context.put("secret_words_called", True)
     secret_words = {
@@ -32,7 +30,7 @@ def secret_words(id: int):
         1: "3 cats and a dog",
         2: "4 foxes and a cat",
     }
-    return secret_words[id]
+    return secret_words[0]
 
 
 async def main():

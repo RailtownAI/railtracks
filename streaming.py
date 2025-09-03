@@ -30,32 +30,34 @@ async def main():
         messages=[
             {
                 "role": "user",
-                "content": "give me a 100 word using the secret_words tool",
+                "content": "invoke the secret_words tool with ids 1 and 0",
             },
         ],
         stream=True,
-        # tools=[
-        #     {
-        #             "type": "function",
-        #             "function": {
-        #                 "name": "secret_words",
-        #                 "description": "Returns a secret phrase based on the id.",
-        #                 "parameters": {
-        #                     "type": "object",
-        #                     "properties": {
-        #                         "id": {
-        #                             "type": "integer",
-        #                             "description": "The id of the secret phrase to return.",
-        #                         },
-        #                     },
-        #                     "required": ["id"],
-        #                 },
-        #             },
-        #         }
-        # ]
+        tools=[
+            {
+                    "type": "function",
+                    "function": {
+                        "name": "secret_words",
+                        "description": "Returns a secret phrase based on the id.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "integer",
+                                    "description": "The id of the secret phrase to return.",
+                                },
+                            },
+                            "required": ["id"],
+                        },
+                    },
+                }
+        ]
     )
+    print(resp)
     for chunk in resp.completion_stream:
-        print(chunk)
+        if chunk.choices:
+            print(chunk.choices[0].delta.tool_calls)
 
 
 
