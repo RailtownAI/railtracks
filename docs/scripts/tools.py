@@ -1,4 +1,5 @@
 import railtracks as rt
+import asyncio
 from sympy import solve, sympify
 
 # --8<-- [start: add]
@@ -43,9 +44,9 @@ MathAgent = rt.agent_node(
                   solve_expression, 
                   AddNode,
                 ],    # the agent has access to these tools
-                llm_model = rt.llm.OpenAILLM("gpt-4o"),
+                llm = rt.llm.OpenAILLM("gpt-4o"),
             )
 
 # run the agent
-result = rt.call_sync(MathAgent, "What is 3 + 4?")
+result = asyncio.run(rt.call(MathAgent, "What is 3 + 4?"))
 # --8<-- [end: agent]

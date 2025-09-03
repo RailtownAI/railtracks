@@ -11,13 +11,13 @@ from typing import (
 )
 
 if TYPE_CHECKING:
-    from railtracks.nodes.easy_usage_wrappers.function import (
+    from railtracks.built_nodes.easy_usage_wrappers import (
         _AsyncNodeAttachedFunc,
         _SyncNodeAttachedFunc,
     )
 from railtracks.nodes.nodes import Node
 
-from .call import call
+from ._call import call
 
 _P = ParamSpec("_P")
 _TOutput = TypeVar("_TOutput")

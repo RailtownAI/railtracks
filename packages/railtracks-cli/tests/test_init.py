@@ -1,0 +1,305 @@
+#!/usr/bin/env python3
+
+"""
+Basic unit tests for railtracks CLI functionality
+"""
+
+import json
+import os
+import queue
+import shutil
+import sys
+import tempfile
+import threading
+import time
+import unittest
+from pathlib import Path
+from unittest.mock import MagicMock, mock_open, patch
+
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+import railtracks_cli
+
+from railtracks_cli import (
+    DEBOUNCE_INTERVAL,
+    FileChangeHandler,
+    clear_stream_queue,
+    create_railtracks_dir,
+    get_script_directory,
+    print_error,
+    print_status,
+    print_success,
+    print_warning,
+    send_to_stream,
+    set_stream_queue,
+)
+
+
+class TestUtilityFunctions(unittest.TestCase):
+    """Test basic utility functions"""
+
+    def test_get_script_directory(self):
+        """Test get_script_directory returns a valid Path"""
+        result = get_script_directory()
+        self.assertIsInstance(result, Path)
+        self.assertTrue(result.exists())
+        self.assertTrue(result.is_dir())
+
+    @patch('builtins.print')
+    def test_print_functions(self, mock_print):
+        """Test all print functions format messages correctly"""
+        test_message = "test message"
+
+        print_status(test_message)
+        mock_print.assert_called_with("[railtracks] test message")
+
+        print_success(test_message)
+        mock_print.assert_called_with("[railtracks] test message")
+
+        print_warning(test_message)
+        mock_print.assert_called_with("[railtracks] test message")
+
+        print_error(test_message)
+        mock_print.assert_called_with("[railtracks] test message")
+
+
+class TestStreamQueue(unittest.TestCase):
+    """Test stream queue functionality"""
+
+    def setUp(self):
+        """Clear stream queue before each test"""
+        clear_stream_queue()
+
+    def tearDown(self):
+        """Clear stream queue after each test"""
+        clear_stream_queue()
+
+    def test_set_and_clear_stream_queue(self):
+        """Test setting and clearing stream queue"""
+        # Initially should be None
+        self.assertIsNone(railtracks_cli.current_stream_queue)
+
+        # Set a queue
+        test_queue = queue.Queue()
+        set_stream_queue(test_queue)
+
+        # Should be set now
+        self.assertIsNotNone(railtracks_cli.current_stream_queue)
+
+        # Clear it
+        clear_stream_queue()
+
+        # Should be None again
+        self.assertIsNone(railtracks_cli.current_stream_queue)
+
+    def test_send_to_stream_no_queue(self):
+        """Test sending to stream when no queue is set"""
+        # Should not raise an exception
+        send_to_stream("test message")
+
+    def test_send_to_stream_with_queue(self):
+        """Test sending to stream with active queue"""
+        test_queue = queue.Queue()
+        set_stream_queue(test_queue)
+
+        test_message = "test message"
+        send_to_stream(test_message)
+
+        # Should have received the message
+        self.assertFalse(test_queue.empty())
+        received = test_queue.get_nowait()
+        self.assertEqual(received, test_message)
+
+    def test_send_to_stream_full_queue(self):
+        """Test sending to stream when queue is full"""
+        # Create a queue with maxsize 1
+        test_queue = queue.Queue(maxsize=1)
+        set_stream_queue(test_queue)
+
+        # Fill the queue
+        test_queue.put_nowait("existing message")
+
+        # Try to send another message - should clear the queue
+        send_to_stream("new message")
+
+        # Queue should have been cleared
+        self.assertIsNone(railtracks_cli.current_stream_queue)
+
+
+class TestCreateRailtracksDir(unittest.TestCase):
+    """Test create_railtracks_dir function"""
+
+    def setUp(self):
+        """Set up temporary directory for testing"""
+        self.test_dir = tempfile.mkdtemp()
+        self.original_cwd = os.getcwd()
+        os.chdir(self.test_dir)
+
+    def tearDown(self):
+        """Clean up temporary directory"""
+        os.chdir(self.original_cwd)
+        shutil.rmtree(self.test_dir)
+
+    @patch('railtracks_cli.print_status')
+    @patch('railtracks_cli.print_success')
+    def test_create_railtracks_dir_new(self, mock_success, mock_status):
+        """Test creating .railtracks directory when it doesn't exist"""
+        # Ensure .railtracks doesn't exist
+        railtracks_path = Path(".railtracks")
+        self.assertFalse(railtracks_path.exists())
+
+        create_railtracks_dir()
+
+        # Should exist now
+        self.assertTrue(railtracks_path.exists())
+        self.assertTrue(railtracks_path.is_dir())
+
+        # Should have called print functions
+        mock_status.assert_called()
+        mock_success.assert_called()
+
+    @patch('railtracks_cli.print_status')
+    @patch('railtracks_cli.print_success')
+    def test_create_railtracks_dir_existing(self, mock_success, mock_status):
+        """Test when .railtracks directory already exists"""
+        # Create .railtracks directory first
+        railtracks_path = Path(".railtracks")
+        railtracks_path.mkdir()
+
+        create_railtracks_dir()
+
+        # Should still exist
+        self.assertTrue(railtracks_path.exists())
+        self.assertTrue(railtracks_path.is_dir())
+
+    @patch('railtracks_cli.print_status')
+    @patch('railtracks_cli.print_success')
+    def test_create_railtracks_dir_gitignore_new(self, mock_success, mock_status):
+        """Test creating .gitignore with .railtracks entry"""
+        create_railtracks_dir()
+
+        # Should create .gitignore
+        gitignore_path = Path(".gitignore")
+        self.assertTrue(gitignore_path.exists())
+
+        # Should contain .railtracks
+        with open(gitignore_path) as f:
+            content = f.read()
+        self.assertIn(".railtracks", content)
+
+    @patch('railtracks_cli.print_status')
+    @patch('railtracks_cli.print_success')
+    def test_create_railtracks_dir_gitignore_existing(self, mock_success, mock_status):
+        """Test adding .railtracks to existing .gitignore"""
+        # Create existing .gitignore
+        gitignore_path = Path(".gitignore")
+        with open(gitignore_path, "w") as f:
+            f.write("*.pyc\n__pycache__/\n")
+
+        create_railtracks_dir()
+
+        # Should contain both old and new entries
+        with open(gitignore_path) as f:
+            content = f.read()
+        self.assertIn("*.pyc", content)
+        self.assertIn(".railtracks", content)
+
+    @patch('railtracks_cli.print_status')
+    def test_create_railtracks_dir_gitignore_already_present(self, mock_status):
+        """Test when .railtracks is already in .gitignore"""
+        # Create .gitignore with .railtracks already present
+        gitignore_path = Path(".gitignore")
+        with open(gitignore_path, "w") as f:
+            f.write("*.pyc\n.railtracks\n__pycache__/\n")
+
+        original_content = gitignore_path.read_text()
+
+        create_railtracks_dir()
+
+        # Content should be unchanged
+        new_content = gitignore_path.read_text()
+        self.assertEqual(original_content, new_content)
+
+
+class TestFileChangeHandler(unittest.TestCase):
+    """Test FileChangeHandler debouncing logic"""
+
+    def setUp(self):
+        """Set up handler for testing"""
+        self.handler = FileChangeHandler()
+
+    @patch('railtracks_cli.send_to_stream')
+    @patch('railtracks_cli.print_status')
+    def test_file_change_handler_json_file(self, mock_print, mock_stream):
+        """Test handler processes JSON file changes"""
+        # Create a mock event
+        mock_event = MagicMock()
+        mock_event.is_directory = False
+        mock_event.src_path = "/test/path/file.json"
+
+        self.handler.on_modified(mock_event)
+
+        # Should have printed status and sent to stream
+        mock_print.assert_called_once()
+        mock_stream.assert_called_once()
+
+    @patch('railtracks_cli.send_to_stream')
+    @patch('railtracks_cli.print_status')
+    def test_file_change_handler_non_json_file(self, mock_print, mock_stream):
+        """Test handler ignores non-JSON files"""
+        # Create a mock event for non-JSON file
+        mock_event = MagicMock()
+        mock_event.is_directory = False
+        mock_event.src_path = "/test/path/file.txt"
+
+        self.handler.on_modified(mock_event)
+
+        # Should not have printed or sent to stream
+        mock_print.assert_not_called()
+        mock_stream.assert_not_called()
+
+    @patch('railtracks_cli.send_to_stream')
+    @patch('railtracks_cli.print_status')
+    def test_file_change_handler_directory(self, mock_print, mock_stream):
+        """Test handler ignores directory changes"""
+        # Create a mock event for directory
+        mock_event = MagicMock()
+        mock_event.is_directory = True
+        mock_event.src_path = "/test/path/directory"
+
+        self.handler.on_modified(mock_event)
+
+        # Should not have printed or sent to stream
+        mock_print.assert_not_called()
+        mock_stream.assert_not_called()
+
+    @patch('railtracks_cli.send_to_stream')
+    @patch('railtracks_cli.print_status')
+    @patch('time.time')
+    def test_file_change_handler_debouncing(self, mock_time, mock_print, mock_stream):
+        """Test debouncing prevents rapid duplicate events"""
+        # Set up time mock to simulate rapid changes
+        mock_time.side_effect = [1.0, 1.1, 1.6]  # Second call within debounce, third outside
+
+        mock_event = MagicMock()
+        mock_event.is_directory = False
+        mock_event.src_path = "/test/path/file.json"
+
+        # First call should process
+        self.handler.on_modified(mock_event)
+        self.assertEqual(mock_print.call_count, 1)
+        self.assertEqual(mock_stream.call_count, 1)
+
+        # Second call within debounce interval should be ignored
+        self.handler.on_modified(mock_event)
+        self.assertEqual(mock_print.call_count, 1)  # Still 1
+        self.assertEqual(mock_stream.call_count, 1)  # Still 1
+
+        # Third call outside debounce interval should process
+        self.handler.on_modified(mock_event)
+        self.assertEqual(mock_print.call_count, 2)
+        self.assertEqual(mock_stream.call_count, 2)
+
+
+if __name__ == "__main__":
+    unittest.main()

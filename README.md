@@ -60,7 +60,7 @@ CharacterCount = rt.function_node(number_of_characters)
 
 TextAnalyzer = rt.agent_node(
     tool_nodes={TotalNumberChars, TotalNumberWords, CharacterCount},
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
     system_message=(
         "You are a text analyzer. You will be given a text and return the number of characters, "
         "the number of words, and the number of occurrences of a specific character."

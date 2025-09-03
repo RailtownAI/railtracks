@@ -28,7 +28,7 @@ def test_to_edge_and_hierarchy(req_template_factory):
     edge = child.to_edge()
     assert edge.source == child.source_id
     assert edge.target == child.sink_id
-    assert edge.details["state"] == child.status
+    assert edge.details["status"] == child.status
     assert edge.details["output"] == child.output
     assert edge.parent is not None
     assert edge.parent.identifier == parent.identifier

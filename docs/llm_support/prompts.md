@@ -13,7 +13,7 @@ from railtracks.llm import OpenAILLM
 encoder_agent = rt.agent_node(
     name="Encoder",
     system_message="You are an encoder that converts text to base64 encoding.",
-    llm_model=OpenAILLM("gpt-4o"),
+    llm=OpenAILLM("gpt-4o"),
 )
 ```
 
@@ -46,12 +46,12 @@ system_message = "You are a {role} assistant specialized in {domain}."
 assistant = rt.agent_node(
     name="Assistant",
     system_message=system_message,
-    llm_model=OpenAILLM("gpt-4o"),
+    llm=OpenAILLM("gpt-4o"),
 )
 
 # Run with context values
 with rt.Session(context={"role": "technical", "domain": "Python programming"}):
-    response = rt.call_sync(assistant, user_input="Help me understand decorators.")
+    response = await rt.call(assistant, user_input="Help me understand decorators.")
 ```
 
 In this example, the system message will be expanded to: "You are a technical assistant specialized in Python programming."
@@ -68,7 +68,7 @@ from railtracks.llm import MessageHistory, UserMessage
 my_node = rt.agent_node(
     name="Example",
     system_message="You are a {variable} assistant.",
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
 )
 
 # Disable context injection for a specific run
@@ -78,7 +78,7 @@ with rt.Session(
 ):
     # Context injection will not occur in this run
     user_message = MessageHistory([UserMessage("Hello")])
-    response = rt.call_sync(my_node, user_input=user_message)
+    response = await rt.call(my_node, user_input=user_message)
 ```
 
 This may be useful when formatting prompts that should not change based on the context.
@@ -137,7 +137,7 @@ The user's name is {user_name}."""
 assistant = rt.agent_node(
     name="Dynamic Assistant",
     system_message=template,
-    llm_model=OpenAILLM("gpt-4o"),
+    llm=OpenAILLM("gpt-4o"),
 )
 
 # Different context for different scenarios
@@ -157,10 +157,10 @@ technical_expert_context = {
 
 # Run with different contexts for different scenarios
 with rt.Session(context=customer_support_context):
-    response1 = rt.call_sync(assistant, user_input="My product isn't working.")
+    response1 = await rt.call(assistant, user_input="My product isn't working.")
 
 with rt.Session(context=technical_expert_context):
-    response2 = rt.call_sync(assistant, user_input="How do I implement a binary tree?")
+    response2 = await rt.call(assistant, user_input="How do I implement a binary tree?")
 ```
 
 ## 💡 Benefits of Context Injection

@@ -16,7 +16,6 @@ Configuration parameters follow a specific precedence order, allowing you to ove
 
 - **`timeout`** (`float`): Maximum seconds to wait for a response to your top-level request
 - **`end_on_error`** (`bool`): Stop execution when an exception is encountered
-- **`run_identifier`** (`str | None`): Unique identifier for the run (random if not provided)
 
 ### Logging Configuration
 
@@ -43,7 +42,6 @@ end_on_error = False              # continue on errors
 logging_setting = "REGULAR"       # standard logging level
 log_file = None                   # no file logging
 broadcast_callback = None         # no broadcast callback
-run_identifier = None             # random identifier generated
 prompt_injection = True           # enable prompt injection
 save_state = True                 # save execution state
 ```
@@ -61,12 +59,11 @@ with rt.session(
     end_on_error=True,
     logging_setting="DEBUG",
     log_file="execution.log",
-    run_identifier="my-custom-run-001",
     prompt_injection=False,
     save_state=False,
     context={"user_name": "Alice", "environment": "production"}
     ):
-    response = rt.call_sync(
+    response = await rt.call(
         my_agent,
         "Hello world!",
     )
@@ -74,7 +71,7 @@ with rt.session(
 
 ## 🌐 Method 2: Global Configuration
 
-Set configuration globally using `rt.set_config()`. This must be called **before** any `rt.call()` or `rt.call_sync()` operations:
+Set configuration globally using `rt.set_config()`. This must be called **before** any `rt.call()`:
 
 ```python
 import railtracks as rt
@@ -89,8 +86,8 @@ rt.set_config(
 )
 
 # Now all subsequent calls will use these settings
-response1 = rt.call_sync(agent1, "First request")
-response2 = rt.call_sync(agent2, "Second request")
+response1 = await rt.call(agent1, "First request")
+response2 = await rt.call(agent2, "Second request")
 ```
 
 ## 🎚️ Configuration Precedence
@@ -109,7 +106,7 @@ with rt.session(
     end_on_error=True     # This uses session-level setting
     # logging_setting not specified, so uses global "REGULAR"
 ):
-    response = rt.call_sync(
+    response = await rt.call(
         my_agent,
         "Hello!",
     )
@@ -159,7 +156,6 @@ rt.set_config(
     log_file="debug_session.log",
     end_on_error=True,           # Stop on first error
     save_state=True,             # Save state for inspection
-    run_identifier="debug-001"   # Easy identification
 )
 
 def debug_callback(message: str):
@@ -168,7 +164,7 @@ def debug_callback(message: str):
 with rt.session(
     broadcast_callback=debug_callback,
 ):
-    response = rt.call_sync(
+    response = await rt.call(
         my_agent,
         "Debug this workflow",
     )

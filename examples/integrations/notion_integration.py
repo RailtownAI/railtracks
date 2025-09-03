@@ -43,7 +43,7 @@ agent = rt.agent_node(
     tool_nodes={*tools},
     system_message="""You are a master Notion page designer. You love creating beautiful
      and well-structured Notion pages and make sure that everything is correctly formatted.""",
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
 )
 
 user_prompt = """Create a new page in Notion called 'Jokes' under the parent page "Agent Demo Root" with a small joke at the top of the page."""

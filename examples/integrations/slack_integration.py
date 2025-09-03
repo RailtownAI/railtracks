@@ -33,7 +33,7 @@ tools = server.tools
 agent = rt.agent_node(
     tool_nodes={*tools},
     system_message="""You are a Slack agent that can interact with Slack channels.""",
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
 )
 
 user_prompt = """Send a message to thert-maintainer slack channel saying "Hello from your new overlord"."""

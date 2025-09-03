@@ -31,7 +31,7 @@ def fake_request_details():
     return SimpleNamespace(
         model_name="mod", model_provider="prov",
         input="IN", output="OUT", input_tokens=10, output_tokens=5,
-        total_cost=0.123, system_fingerprint="FP"
+        total_cost=0.123, system_fingerprint="FP", latency=100
     )
 
 @pytest.fixture

@@ -81,7 +81,7 @@ from rt.exceptions import (
 try:
     # Setup phase
     node = rt.agent_node(
-        llm_model=rt.llm.OpenAI("gpt-4o"),
+        llm=rt.llm.OpenAI("gpt-4o"),
         system_message="You are a helpful assistant",
     )
     

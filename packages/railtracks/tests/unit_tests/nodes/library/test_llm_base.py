@@ -1,7 +1,7 @@
 import pytest
 
 from railtracks.llm.response import Response
-from railtracks.nodes.concrete import LLMBase, RequestDetails
+from railtracks.built_nodes.concrete import LLMBase, RequestDetails
 import railtracks.llm as llm
 
 class MockModelNode(LLMBase):
@@ -22,9 +22,9 @@ async def test_hooks(mock_llm):
         llm.UserMessage(content="What is the meaning of life?"),
     ])
     response = "There is none."
-    llm_model = mock_llm(chat=lambda x: Response(llm.AssistantMessage(response)))
+    llm_model = mock_llm(response)
     node = MockModelNode(
-        llm_model=llm_model,
+        llm=llm_model,
         user_input=example_message_history,
 
     )
@@ -60,9 +60,10 @@ async def test_error_hooks(mock_llm):
     def exception_raiser(x):
         raise exception
 
-    llm_model = mock_llm(chat=exception_raiser)
+    llm_model = mock_llm()
+    llm_model._chat = exception_raiser
     node = MockModelNode(
-        llm_model=llm_model,
+        llm=llm_model,
         user_input=example_message_history,
     )
 
@@ -94,11 +95,11 @@ async def test_exception_hooks_detached_on_safe_copy(mock_llm):
         llm.UserMessage(content="What is the meaning of life?"),
     ])
     response = "There is none."
-    llm_model = mock_llm(chat=lambda x: Response(llm.AssistantMessage(response)))
+    llm_model = mock_llm(llm.AssistantMessage(response))
     
     # Create initial node
     original_node = MockModelNode(
-        llm_model=llm_model,
+        llm=llm_model,
         user_input=example_message_history,
     )
     
@@ -128,11 +129,11 @@ async def test_detach_hooks_removes_all_hook_types(mock_llm):
         llm.UserMessage(content="What is the meaning of life?"),
     ])
     response = "There is none."
-    llm_model = mock_llm(chat=lambda x: Response(llm.AssistantMessage(response)))
+    llm_model = mock_llm(llm.AssistantMessage(response))
     
     # Create node which automatically attaches hooks
     node = MockModelNode(
-        llm_model=llm_model,
+        llm=llm_model,
         user_input=example_message_history,
     )
     

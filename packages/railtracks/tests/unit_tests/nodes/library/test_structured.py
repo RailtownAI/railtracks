@@ -1,16 +1,15 @@
 import pytest
 import railtracks as rt
 from pydantic import BaseModel
-from railtracks.llm import MessageHistory, SystemMessage, ModelBase, UserMessage, AssistantMessage, ToolMessage, ToolResponse
-from railtracks.llm.response import Response
-from railtracks.nodes.concrete import StructuredLLM
-from railtracks.nodes.easy_usage_wrappers.helpers import structured_llm
+from railtracks.llm import MessageHistory, SystemMessage, UserMessage
+from railtracks.built_nodes.concrete import StructuredLLM
+from railtracks.built_nodes.easy_usage_wrappers.helpers import structured_llm
 from railtracks.exceptions import NodeCreationError, NodeInvocationError
 from typing import Type
 
 # ===================================================== START Unit Testing =========================================================
 @pytest.mark.asyncio
-async def test_structured_llm_instantiate_and_invoke(simple_output_model, mock_llm, mock_structured_function):
+async def test_structured_llm_instantiate_and_invoke(simple_output_model, mock_llm, mock_structured_response_message):
     class MyLLM(StructuredLLM[simple_output_model]):
 
         @classmethod
@@ -22,7 +21,7 @@ async def test_structured_llm_instantiate_and_invoke(simple_output_model, mock_l
             return "Mock LLM"
 
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("hello")])
-    result = await rt.call(MyLLM, user_input=mh, llm_model=mock_llm(structured=mock_structured_function))
+    result = await rt.call(MyLLM, user_input=mh, llm=mock_llm(custom_response=mock_structured_response_message))
 
     assert isinstance(result.structured, simple_output_model)
     assert result.structured.text == "dummy content"
@@ -37,11 +36,11 @@ def test_structured_llm_output_model_classmethod(simple_output_model):
     assert MyLLM.output_schema() is simple_output_model
 
 @pytest.mark.asyncio
-async def test_structured_llm_easy_usage_wrapper_invoke(simple_output_model, mock_llm, mock_structured_function):
+async def test_structured_llm_easy_usage_wrapper_invoke(simple_output_model, mock_llm, mock_structured_response_message):
     node = structured_llm(
         output_schema=simple_output_model,
         system_message="system prompt",
-        llm_model=mock_llm(structured=mock_structured_function),
+        llm=mock_llm(custom_response=mock_structured_response_message),
         name="TestNode"
     )
     mh = MessageHistory([UserMessage("hello")])
@@ -54,7 +53,7 @@ def test_structured_llm_easy_usage_wrapper_classmethods(simple_output_model, moc
     node = structured_llm(
         output_schema=simple_output_model,
         system_message="system prompt",
-        llm_model=mock_llm(),
+        llm=mock_llm(),
         name="TestNode"
     )
     assert node.output_schema() is simple_output_model
@@ -69,7 +68,7 @@ async def test_easy_usage_no_output_model():
         _ = structured_llm(
             output_schema=None,
             system_message="You are a helpful assistant that can strucure the response into a structured output.",
-            llm_model=rt.llm.OpenAILLM("gpt-4o"),
+            llm=rt.llm.OpenAILLM("gpt-4o"),
             name="Structured ToolCallLLM",
         )
 
@@ -79,7 +78,7 @@ async def test_easy_usage_empty_output_model(empty_output_model):
         _ = structured_llm(
             output_schema=empty_output_model,
             system_message="You are a helpful assistant that can strucure the response into a structured output.",
-            llm_model=rt.llm.OpenAILLM("gpt-4o"),
+            llm=rt.llm.OpenAILLM("gpt-4o"),
             name="Structured ToolCallLLM",
         )
 
@@ -92,7 +91,7 @@ async def test_easy_usage_tool_details_not_provided(simple_output_model):
         _ = structured_llm(
             output_schema=simple_output_model,
             system_message="You are a helpful assistant that can strucure the response into a structured output.",
-            llm_model=rt.llm.OpenAILLM("gpt-4o"),
+            llm=rt.llm.OpenAILLM("gpt-4o"),
             name="Structured ToolCallLLM",
             tool_params={
                 rt.llm.Parameter(
@@ -112,7 +111,7 @@ async def test_easy_usage_duplicate_parameter_names(simple_output_model):
         _ = structured_llm(
             output_schema=simple_output_model,
             system_message="You are a helpful assistant that can strucure the response into a structured output.",
-            llm_model=rt.llm.OpenAILLM("gpt-4o"),
+            llm=rt.llm.OpenAILLM("gpt-4o"),
             name="Structured ToolCallLLM",
             tool_details="A tool that generates a structured response that includes word count.",
             tool_params={
@@ -135,7 +134,7 @@ async def test_easy_usage_system_message_as_a_string(simple_output_model):
     Node_Class = rt.agent_node(
         output_schema=simple_output_model,
         system_message="You are a helpful assistant that can structure the response into a structured output.",
-        llm_model=rt.llm.OpenAILLM("gpt-4o"),
+        llm=rt.llm.OpenAILLM("gpt-4o"),
         name="Structured ToolCallLLM",
     )
 
@@ -150,7 +149,7 @@ async def test_system_message_as_a_user_message(simple_output_model):
         _ = rt.agent_node(
             output_schema=simple_output_model,
             system_message=rt.llm.UserMessage("You are a helpful assistant that can structure the response into a structured output."),
-            llm_model=rt.llm.OpenAILLM("gpt-4o"),
+            llm=rt.llm.OpenAILLM("gpt-4o"),
             name="Structured ToolCallLLM",
         )
 # =================== END Easy Usage Node Creation ===================
@@ -163,13 +162,13 @@ async def test_class_based_empty_output_model(empty_output_model):
             def __init__(
                 self,
                 user_input: rt.llm.MessageHistory,
-                llm_model: rt.llm.ModelBase = None,
+                llm: rt.llm.ModelBase = None,
             ):
                 user_input = [x for x in user_input if x.role != "system"]
                 user_input.insert(0, rt.llm.SystemMessage("You are a helpful assistant."))
                 super().__init__(
                     user_input=user_input,
-                    llm_model=llm_model,
+                    llm=llm,
                 )
 
             @classmethod
@@ -187,13 +186,13 @@ async def test_class_based_output_model_not_class_based(simple_output_model):
             def __init__(
                 self,
                 user_input: rt.llm.MessageHistory,
-                llm_model: rt.llm.ModelBase = None,
+                llm: rt.llm.ModelBase = None,
             ):
                 user_input = [x for x in user_input if x.role != "system"]
                 user_input.insert(0, rt.llm.SystemMessage("You are a helpful assistant."))
                 super().__init__(
                     user_input=user_input,
-                    llm_model=llm_model,
+                    llm=llm,
                 )
 
             def output_schema(cls) -> Type[BaseModel]:
@@ -210,13 +209,13 @@ async def test_class_based_output_model_not_pydantic():
             def __init__(
                 self,
                 user_input: rt.llm.MessageHistory,
-                llm_model: rt.llm.ModelBase = None,
+                llm: rt.llm.ModelBase = None,
             ):
                 user_input = [x for x in user_input if x.role != "system"]
                 user_input.insert(0, rt.llm.SystemMessage("You are a helpful assistant."))
                 super().__init__(
                     user_input=user_input,
-                    llm_model=llm_model,
+                    llm=llm,
                 )
 
             @classmethod
@@ -235,7 +234,7 @@ async def test_system_message_in_message_history_easy_usage(simple_output_model)
         simple_structured = structured_llm(
             output_schema=simple_output_model,
             system_message=rt.llm.UserMessage("You are a helpful assistant that can structure the response into a structured output."),
-            llm_model=rt.llm.OpenAILLM("gpt-4o"),
+            llm=rt.llm.OpenAILLM("gpt-4o"),
             name="Structured ToolCallLLM",
         )
 
@@ -245,12 +244,12 @@ async def test_system_message_in_message_history_class_based(simple_output_model
         def __init__(
             self,
             user_input: rt.llm.MessageHistory,
-            llm_model: rt.llm.ModelBase = None,
+            llm: rt.llm.ModelBase = None,
         ):
             user_input.insert(0, "You are a helpful assistant.")
             super().__init__(
                 user_input=user_input,
-                llm_model=llm_model,
+                llm=llm,
             )
 
         @classmethod
