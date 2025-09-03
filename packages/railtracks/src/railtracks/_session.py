@@ -3,7 +3,7 @@ import os
 import uuid
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, Coroutine, Dict, ParamSpec, TypeVar
+from typing import Any, Callable, Coroutine, Dict, ParamSpec, Tuple, TypeVar
 
 from .context.central import (
     delete_globals,
@@ -258,8 +258,17 @@ def session(
 
     This decorator automatically creates and manages a Session context for the decorated function,
     allowing async functions to use RailTracks operations without manually managing the session lifecycle.
+    
+    When using this decorator, the function returns a tuple containing:
+    1. The original function's return value
+    2. The Session object used during execution
+    
+    This allows access to session information (like execution state, logs, etc.) after the function completes,
+    while maintaining the simplicity of decorator usage.
 
     Note: This decorator is also available as `rt.session` for convenience.
+    Note: If you need to interact with the session object during execution (not just after), 
+          use the Session context manager instead.
 
     Args:
         context (Dict[str, Any], optional): A dictionary of global context variables to be used during the execution.
@@ -273,7 +282,7 @@ def session(
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks` directory.
 
     Returns:
-        A decorator function that wraps async functions with a Session context.
+        A decorator function that wraps async functions with a Session context and returns a tuple of (result, session).
 
     Example Usage:
     ```python
@@ -284,12 +293,20 @@ def session(
     async def my_function():
         result = await rt.call(some_node)
         return result
+    
+    
+    # Usage:
+    result, session = await my_function()
+    # Now you have access to both the result and the session object
+    print(f"Result: {result}")
+    print(f"Session ID: {session._identifier}")
+    print(f"Execution info: {session.info}")
     ```
     """
 
     def decorator(
         func: Callable[_P, Coroutine[Any, Any, _TOutput]],
-    ) -> Callable[_P, Coroutine[Any, Any, _TOutput]]:
+    ) -> Callable[_P, Coroutine[Any, Any, Tuple[_TOutput, Session]]]:
         # Validate that the decorated function is async
         if not inspect.iscoroutinefunction(func):
             raise TypeError(
@@ -299,8 +316,8 @@ def session(
             )
 
         @wraps(func)
-        async def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
-            with Session(
+        async def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> Tuple[_TOutput, Session]:
+            session_obj = Session(
                 context=context,
                 timeout=timeout,
                 end_on_error=end_on_error,
@@ -310,8 +327,11 @@ def session(
                 identifier=identifier,
                 prompt_injection=prompt_injection,
                 save_state=save_state,
-            ):
-                return await func(*args, **kwargs)
+            )
+            
+            with session_obj:
+                result = await func(*args, **kwargs)
+                return result, session_obj
 
         return wrapper
 

@@ -202,23 +202,25 @@ def test_session_decorator_with_parameters():
 
 @pytest.mark.asyncio
 async def test_session_decorator_wraps_async_function(mock_dependencies):
-    """Test that the decorator properly wraps an async function."""
+    """Test that the decorator properly wraps an async function and returns tuple."""
     @session(timeout=10)
     async def test_function():
         return "test_result"
     
-    result = await test_function()
+    result, session_obj = await test_function()
     assert result == "test_result"
+    assert isinstance(session_obj, Session)
 
 @pytest.mark.asyncio
 async def test_session_decorator_with_function_args(mock_dependencies):
-    """Test that the decorator preserves function arguments."""
+    """Test that the decorator preserves function arguments and returns tuple."""
     @session()
     async def test_function(arg1, arg2, kwarg1=None):
         return f"{arg1}-{arg2}-{kwarg1}"
     
-    result = await test_function("a", "b", kwarg1="c")
+    result, session_obj = await test_function("a", "b", kwarg1="c")
     assert result == "a-b-c"
+    assert isinstance(session_obj, Session)
 
 @pytest.mark.asyncio
 async def test_session_decorator_context_manager_behavior(mock_dependencies):
@@ -246,7 +248,9 @@ async def test_session_decorator_context_manager_behavior(mock_dependencies):
         async def test_function():
             return "done"
         
-        await test_function()
+        result, session_obj = await test_function()
+        assert result == "done"
+        assert isinstance(session_obj, Session)
     
     assert session_created
     assert session_closed
@@ -271,5 +275,42 @@ def test_rt_session_decorator_raises_error_on_sync_function():
         @session()
         def sync_function():
             return "this should fail"
+
+@pytest.mark.asyncio
+async def test_session_decorator_returns_session_object(mock_dependencies):
+    """Test that decorator returns both result and session object with access to session info."""
+    @session(identifier="test-session-123")
+    async def test_function():
+        return "test_result"
+    
+    result, session_obj = await test_function()
+    
+    # Verify we get both the result and session
+    assert result == "test_result"
+    assert isinstance(session_obj, Session)
+    assert session_obj._identifier == "test-session-123"
+    
+    # Verify we can access session properties
+    assert hasattr(session_obj, 'info')
+    assert hasattr(session_obj, 'payload')
+
+@pytest.mark.asyncio 
+async def test_session_decorator_handles_tuple_returns(mock_dependencies):
+    """Test that decorator properly handles functions that return tuples."""
+    @session()
+    async def function_returning_tuple():
+        return "hello", 42, True
+    
+    result, session_obj = await function_returning_tuple()
+    
+    # The result should be the tuple returned by the function
+    assert result == ("hello", 42, True)
+    assert isinstance(session_obj, Session)
+    
+    # The tuple structure is preserved
+    val1, val2, val3 = result
+    assert val1 == "hello"
+    assert val2 == 42
+    assert val3 == True
 
 # ================ END Session: Decorator Tests ===============
