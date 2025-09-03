@@ -64,7 +64,11 @@ class MCPAsyncClient:
                     )
                     await self.session.initialize()
                 elif isinstance(self.config, MCPHttpParams):
-                    await self._init_http()
+                    try:
+                        await asyncio.wait_for(self._init_http(), timeout=10.0)
+                    except asyncio.TimeoutError:
+                        print("HTTP connection timed out - check server availability and credentials")
+                        raise ConnectionError("MCP HTTP connection timeout")
                 else:
                     raise ValueError(
                         "Invalid configuration type. Expected MCPStdioParams or MCPHttpParams."
@@ -160,12 +164,14 @@ class MCPServer:
         self._loop = loop
 
         self._shutdown_event = asyncio.Event()
-
-        self._loop.run_until_complete(self._setup())
+        try:
+            self._loop.run_until_complete(self._setup())
+        except Exception as e:
+            # Ensure shutdown event is set so thread can exit
+            loop.call_soon_threadsafe(self._shutdown_event.set)
+            # Optionally log or handle the error
         self._ready_event.set()
-
         loop.run_until_complete(self._shutdown_event.wait())
-
         self._loop.close()
 
     async def _setup(self):
@@ -173,7 +179,15 @@ class MCPServer:
         Set up the MCP server and fetch tools. This is run once, when the thread starts.
         """
         self.client = MCPAsyncClient(self.config, self.client_session)
-        await self.client.connect()
+        try:
+            # Wrap the connect call with asyncio.wait_for
+            await asyncio.wait_for(self.client.connect(), timeout=30.0)
+        except asyncio.TimeoutError:
+            print("Connection timed out - check server availability and credentials")
+            raise ConnectionError("MCP connection timeout")
+        except Exception as e:
+            print(f"Failed to connect to MCP server: {type(e).__name__}: {str(e)}")
+            raise ConnectionError("MCP connection failed") from e
         tools = await self.client.list_tools()
         self._tools = [from_mcp(tool, self.client, self._loop) for tool in tools]
 
