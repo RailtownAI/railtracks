@@ -26,7 +26,7 @@ print(result)  # "Hello, Alice!"
     context={"user_id": "123"},  # Global context variables
     logging_setting="QUIET",  # Enable debug logging
     save_state=True,  # Save execution state to file
-    name="my-unique-run",  # Custom session identifier
+    name="my-unique-run",  # Custom session name
 )
 async def configured_workflow():
     result1 = await rt.call(greet, name="Bob")
@@ -70,7 +70,7 @@ async def context_workflow():
         context={"user_id": "123"},  # Global context variables
         logging_setting="QUIET",  # Enable debug logging
         save_state=True,  # Save execution state to file
-        name="my-unique-run",  # Custom session identifier
+        name="my-unique-run",  # Custom session name
     ):
         result1 = await rt.call(greet, name="Bob")
         result2 = await rt.call(greet, name="Charlie")
