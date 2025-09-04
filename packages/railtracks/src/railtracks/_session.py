@@ -86,7 +86,7 @@ class Session:
         broadcast_callback: (
             Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
         ) = None,
-        name: str | None = None,
+        name: str | None | None = None,
         prompt_injection: bool | None = None,
         save_state: bool | None = None,
     ):
@@ -250,8 +250,9 @@ class Session:
 
 
 def session(
-    context: Dict[str, Any] | None = None,
+    func: Callable[_P, Coroutine[Any, Any, _TOutput]] | None = None,
     *,
+    context: Dict[str, Any] | None = None,
     timeout: float | None = None,
     end_on_error: bool | None = None,
     logging_setting: allowable_log_levels | None = None,
@@ -262,25 +263,27 @@ def session(
     name: str | None = None,
     prompt_injection: bool | None = None,
     save_state: bool | None = None,
+) -> (
+    Callable[_P, Coroutine[Any, Any, Tuple[_TOutput, Session]]]
+    | Callable[
+        [Callable[_P, Coroutine[Any, Any, _TOutput]]],
+        Callable[_P, Coroutine[Any, Any, Tuple[_TOutput, Session]]],
+    ]
 ):
+    #TODO: update docstring
     """
-    Decorator to wrap an async function with a RailTracks session.
-
     This decorator automatically creates and manages a Session context for the decorated function,
     allowing async functions to use RailTracks operations without manually managing the session lifecycle.
-    
+
     When using this decorator, the function returns a tuple containing:
     1. The original function's return value
     2. The Session object used during execution
-    
+
     This allows access to session information (like execution state, logs, etc.) after the function completes,
     while maintaining the simplicity of decorator usage.
 
-    Note: This decorator is also available as `rt.session` for convenience.
-    Note: If you need to interact with the session object during execution (not just after), 
-          use the Session context manager instead.
-
     Args:
+        func (Callable, optional): The function to decorate. This is automatically provided when using @session without parentheses.
         context (Dict[str, Any], optional): A dictionary of global context variables to be used during the execution.
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
@@ -293,40 +296,28 @@ def session(
 
     Returns:
         A decorator function that wraps async functions with a Session context and returns a tuple of (result, session).
-
-    Example Usage:
-    ```python
-    import railtracks as rt
-
-
-    @rt.session(timeout=10)
-    async def my_function():
-        result = await rt.call(some_node)
-        return result
-    
-    
-    # Usage:
-    result, session = await my_function()
-    # Now you have access to both the result and the session object
-    print(f"Result: {result}")
-    print(f"Session ID: {session._identifier}")
-    print(f"Execution info: {session.info}")
-    ```
     """
-
+    # func = args[0] if args else None
+    
+    # # Validate args usage
+    # if len(args) > 1:
+    #     raise TypeError(f"session() takes at most 1 positional argument but {len(args)} were given")
+     
     def decorator(
-        func: Callable[_P, Coroutine[Any, Any, _TOutput]],
+        target_func: Callable[_P, Coroutine[Any, Any, _TOutput]],
     ) -> Callable[_P, Coroutine[Any, Any, Tuple[_TOutput, Session]]]:
         # Validate that the decorated function is async
-        if not inspect.iscoroutinefunction(func):
+        if not inspect.iscoroutinefunction(target_func):
             raise TypeError(
                 f"@session decorator can only be applied to async functions. "
-                f"Function '{func.__name__}' is not async. "
+                f"Function '{target_func.__name__}' is not async. "
                 f"Add 'async' keyword to your function definition."
             )
 
-        @wraps(func)
-        async def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> Tuple[_TOutput, Session]:
+        @wraps(target_func)
+        async def wrapper(
+            *args: _P.args, **kwargs: _P.kwargs
+        ) -> Tuple[_TOutput, Session]:
             session_obj = Session(
                 context=context,
                 timeout=timeout,
@@ -338,11 +329,16 @@ def session(
                 prompt_injection=prompt_injection,
                 save_state=save_state,
             )
-            
+
             with session_obj:
-                result = await func(*args, **kwargs)
+                result = await target_func(*args, **kwargs)
                 return result, session_obj
 
         return wrapper
 
+    # If used as @session without parentheses
+    if func is not None:
+        return decorator(func)
+
+    # If used as @session(...)
     return decorator
