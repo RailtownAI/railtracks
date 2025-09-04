@@ -26,6 +26,10 @@ from .utils.logging.config import (
     prepare_logger,
 )
 from .utils.logging.create import get_rt_logger
+from railtracks.exceptions.messages.exception_messages import (
+    ExceptionMessageKey,
+    get_message,
+)
 
 logger = get_rt_logger("Session")
 
@@ -171,11 +175,18 @@ class Session:
                     exist_ok=True
                 )  # Creates if doesn't exist, skips otherwise.
 
-                file_path = (
-                    railtracks_dir / f"{self.name}_{self._identifier}.json"
-                    if self.name
-                    else railtracks_dir / f"{self._identifier}.json"
-                )
+                # Try to create file path with name, fallback to identifier only if there's an issue
+                try:
+                    file_path = (
+                        railtracks_dir / f"{self.name}_{self._identifier}.json"
+                        if self.name
+                        else railtracks_dir / f"{self._identifier}.json"
+                    )
+                    file_path.touch()
+                except Exception as e:
+                    logger.warning(get_message(ExceptionMessageKey.INVALID_SESSION_FILE_NAME_WARN).format(name=self.name, identifier=self._identifier))
+                    file_path = railtracks_dir / f"{self._identifier}.json"
+
                 if file_path.exists():
                     logger.warning("File %s already exists, overwriting..." % file_path)
 
