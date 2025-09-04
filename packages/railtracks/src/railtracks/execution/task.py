@@ -33,10 +33,4 @@ class Task(Generic[_TOutput]):
         else:
             update_parent_id(self.node.uuid)
 
-        from railtracks.context.central import get_parent_id, get_session_id
-
-        print(
-            f"------ S: {get_session_id()}, R: {get_run_id()}, N: {get_parent_id()} ------"
-        )
-
         return await self.node.tracked_invoke()
