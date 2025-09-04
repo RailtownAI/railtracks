@@ -29,12 +29,8 @@ def empty_string_generator():
 # ---- Stream instance fixtures ----
 
 @pytest.fixture
-def stream_with_final_message(simple_string_generator):
+def sample_stream(simple_string_generator):
     return Stream(streamer=simple_string_generator, final_message="Final!")
-
-@pytest.fixture
-def stream_without_final_message(simple_string_generator):
-    return Stream(streamer=simple_string_generator)
 
 
 
@@ -88,28 +84,19 @@ class TestToolResponse:
         assert valid_tool_response.result == "success"
 
 class TestStream:
-    def test_stream_construction_with_valid_generator(self, simple_string_generator):
-        s = Stream(streamer=simple_string_generator)
-        assert s.streamer is simple_string_generator
-
-    def test_stream_construction_with_final_message(self, simple_string_generator):
+    def test_stream_construction(self, simple_string_generator):
         s = Stream(streamer=simple_string_generator, final_message="Done")
         assert s.final_message == "Done"
+    def test_stream_properties(self, sample_stream, simple_string_generator):
+        assert sample_stream.streamer is simple_string_generator
+        assert sample_stream.final_message == "Final!"
 
-    def test_stream_construction_with_no_final_message(self, simple_string_generator):
-        s = Stream(streamer=simple_string_generator)
-        assert s.final_message == ""
-
-    def test_stream_properties(self, stream_with_final_message, simple_string_generator):
-        assert stream_with_final_message.streamer is simple_string_generator
-        assert stream_with_final_message.final_message == "Final!"
-
-    def test_stream_property_streamer_type(self, stream_with_final_message):
+    def test_stream_property_streamer_type(self, sample_stream):
         # The streamer must be a generator
-        assert hasattr(stream_with_final_message.streamer, "__iter__")
+        assert hasattr(sample_stream.streamer, "__iter__")
 
     def test_stream_with_empty_generator(self, empty_string_generator):
-        s = Stream(streamer=empty_string_generator)
+        s = Stream(streamer=empty_string_generator, final_message= "")
         # Final message is empty by default
         assert s.final_message == ""
         # The streamer is empty
@@ -118,16 +105,16 @@ class TestStream:
     def test_stream_raises_type_error_on_non_generator(self):
         not_a_generator = "I am not a generator"
         with pytest.raises(TypeError):
-            Stream(streamer=not_a_generator)
+            Stream(streamer=not_a_generator, final_message="Done")
 
-    def test_stream_repr_and_str(self, stream_without_final_message):
+    def test_stream_repr_and_str(self, sample_stream):
         # __str__ and __repr__ should be identical
-        s = stream_without_final_message
+        s = sample_stream
         assert str(s) == repr(s)
         assert "Stream(streamer=" in str(s)
 
-    def test_stream_repr_content(self, stream_with_final_message):
-        s = stream_with_final_message
+    def test_stream_repr_content(self, sample_stream):
+        s = sample_stream
         # The repr output should contain the class name and show it's a generator object
         repr_str = repr(s)
         assert "Stream(streamer=" in repr_str

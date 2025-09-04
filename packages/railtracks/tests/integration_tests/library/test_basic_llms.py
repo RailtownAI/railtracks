@@ -1,6 +1,7 @@
 import pytest
 import railtracks as rt
-from railtracks.llm import Message
+from typing import Generator
+import json
 
 
 @pytest.mark.parametrize("user_input_factory", [
@@ -50,3 +51,55 @@ async def test_structured_llm_run_with_different_inputs(mock_llm, simple_output_
         assert isinstance(response.content, simple_output_model)
         assert isinstance(response.content.text, str)
         assert isinstance(response.content.number, int)
+
+@pytest.mark.asyncio
+async def test_terminal_llm_streaming(mock_llm):
+    """Test that the terminal LLM can stream responses."""
+    llm = mock_llm(stream=True, custom_response="hello world")
+
+    agent = rt.agent_node(
+        name="Terminal LLM",
+        system_message="You are a helpful assistant.",
+        llm=llm,
+    )
+
+    with rt.Session(logging_setting="NONE"):
+        response = await rt.call(agent, user_input=rt.llm.MessageHistory([rt.llm.UserMessage("hello world")]))
+
+        assert isinstance(response.streamer, Generator)
+        assert response.text == "hello world"
+
+        accumulated_text = ""
+        for chunk in response.streamer:
+            accumulated_text += chunk
+            assert isinstance(chunk, str)
+        assert accumulated_text == response.text
+
+@pytest.mark.asyncio
+async def test_structured_llm_streaming(mock_llm, simple_output_model):
+    """Test Structured LLM streaming."""
+    llm = mock_llm(stream=True, custom_response='{"text":"hello world", "number":"42"}')
+
+    agent = rt.agent_node(
+        name="Structured LLM",
+        system_message="You are a helpful assistant.",
+        llm=llm,
+        output_schema=simple_output_model,
+    )
+
+    with rt.Session(logging_setting="NONE"):
+        response = await rt.call(agent, user_input=rt.llm.MessageHistory([rt.llm.UserMessage("hello world")]))
+
+        assert isinstance(response.streamer, Generator)
+        assert isinstance(response.structured, simple_output_model)
+
+        accumulated_text = ""
+        for chunk in response.streamer:
+            accumulated_text += chunk
+            assert isinstance(chunk, str)
+
+        model = json.loads(accumulated_text)
+        assert model["text"] == "hello world"
+        assert model["number"] == 42
+
+

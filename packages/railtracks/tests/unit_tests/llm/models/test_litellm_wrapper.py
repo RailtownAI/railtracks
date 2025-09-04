@@ -256,7 +256,7 @@ class TestCompletionMethods:
         assert isinstance(result, Response)
         assert isinstance(result.message, AssistantMessage)
         
-        if stream:
+        if stream:  # no stream in case the llm requests tool
             assert isinstance(result.message.content, Stream)
             try:
                 calls = json.loads(result.message.content.final_message)
