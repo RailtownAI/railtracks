@@ -11,7 +11,7 @@ from railtracks.state import serialize
         ("fake_edge", {"source", "target", "identifier", "stamp", "details", "parent"}, serialize.encode_edge, dict),
         ("fake_vertex", {"identifier", "node_type", "name", "stamp", "details", "parent"}, serialize.encode_vertex, dict),
         ("fake_stamp", {"step", "time", "identifier"}, serialize.encode_stamp, dict),
-        ("fake_request_details", {"model_name", "model_provider", "input", "output", "input_tokens", "output_tokens", "total_cost", "system_fingerprint"}, serialize.encode_request_details, dict),
+        ("fake_request_details", {"model_name", "model_provider", "input", "output", "input_tokens", "output_tokens", "total_cost", "system_fingerprint", "latency"}, serialize.encode_request_details, dict),
         ("fake_message", {"role", "content"}, serialize.encode_message, dict),
         ("fake_tool_response", {"identifier", "name", "result"}, serialize.encode_content, dict),
         ("fake_tool_call", {"identifier", "name", "arguments"}, serialize.encode_tool_call, dict),

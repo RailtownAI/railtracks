@@ -134,6 +134,7 @@ def encode_request_details(details: RequestDetails) -> dict[str, Any]:
         "output_tokens": details.output_tokens,
         "total_cost": details.total_cost,
         "system_fingerprint": details.system_fingerprint,
+        "latency": details.latency,
     }
 
 

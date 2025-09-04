@@ -1,3 +1,4 @@
+import asyncio
 # --8<-- [start: hiking_example]
 import railtracks as rt
 from pydantic import BaseModel
@@ -41,7 +42,6 @@ HikingAgent = rt.agent_node(
 # --8<-- [end: hiking_example]
 
 # --8<-- [start: coding_example]
-import railtracks as rt
 import ast
 
 #Static checking function
@@ -79,19 +79,19 @@ providing elite python code for their requests. You will output valid python cod
 CoordinatorMessage = """You are a helpful assistant that will talk to users about the type of code they want. You have access to a CodeAgent tool to generate the code the user is looking for. Your job is to clarify with users to ensure that they have provided all details required to write the code and then effectively communicate that to the CodeAgent. Do not write any code and strictly refer to the CodeAgent for this."""
 
 #Create our Coding Agent as usual
-coding_agent = rt.agent_node(
+CodingAgent = rt.agent_node(
     name="Code Tool",
     system_message=CodingMessage,
     llm=rt.llm.OpenAILLM("gpt-4o"),
     )
 
 #Wrap our Validation and file writing flow in a function
-def CodeAgent(title : str, prompt : str):
+async def code_agent(prompt : str):
     valid = False
     problem = "There were no problems last time"
     while not valid:
-        response = rt.call_sync(
-        coding_agent,
+        response = await rt.call(
+        CodingAgent,
         user_input=prompt + " Your Problem Last Time: " + problem
         )
 
@@ -102,22 +102,23 @@ def CodeAgent(title : str, prompt : str):
     
     return "Success"
 
-tool_nodes = {rt.function_node(CodeAgent, tool_manifest=CodeManifest)}
+tool_nodes = {rt.function_node(code_agent, manifest=CodeManifest)}
 CoordinatorAgent = rt.chatui_node(
     system_message=CoordinatorMessage,
     tool_nodes=tool_nodes,
     llm=rt.llm.OpenAILLM("gpt-4o"),
+    auto_open=False,
     )
 
-rt.call_sync(
-        CoordinatorAgent,
-        user_input="Would you be able to generate me code that takes 2 numbers as input and returns the sum?"
-    )
+async def run():
+    resp = await rt.call(
+            CoordinatorAgent,
+            user_input="Would you be able to generate me code that takes 2 numbers as input and returns the sum?"
+        )
+    print(resp)
 # --8<-- [end: coding_example]
 
 # --8<-- [start: customer_example]
-import railtracks as rt
-
 #Initialize all your system messages, schemas, and tools here.
 ...
 
@@ -141,13 +142,13 @@ TechnicalAgent = rt.agent_node(
     #adding all other arguments as needed
     )
 
-def BillingTool(prompt : str):
+async def billing_tool(prompt : str):
     try:
         prompt = prompt + "Previously the User had this interaction " + rt.context.get("info_from_other_agents")
         has_context = True
     except KeyError:
         has_context = False
-    response = rt.call_sync(
+    response = await rt.call(
         BillingAgent,
         user_input=prompt
         )
@@ -158,13 +159,13 @@ def BillingTool(prompt : str):
         new = response.structured.info
     rt.context.put("info_from_other_agents", new)
 
-def TechnicalTool(prompt : str):
+async def technical_tool(prompt : str):
     try:
         prompt = prompt + "Previously the User had this interaction " + rt.context.get("info_from_other_agents")
         has_context = True
     except KeyError:
         has_context = False
-    response = rt.call_sync(
+    response = await rt.call(
         TechnicalAgent,
         user_input=prompt
         )
@@ -176,13 +177,13 @@ def TechnicalTool(prompt : str):
     rt.context.put("info_from_other_agents", new)
 
 #This would be similar to functions above
-def QATool():
+def qa_tool():
     ...
 #This would be similar to functions above
-def PETool():
+def pe_tool():
     ...
 
-tools = {rt.function_node(BillingTool), rt.function_node(TechnicalTool), rt.function_node(QATool), rt.function_node(PETool)}
+tools = {rt.function_node(billing_tool), rt.function_node(technical_tool), rt.function_node(qa_tool), rt.function_node(pe_tool)}
 
 Coordinator = rt.agent_node(
     name="Coordinator Agent",
@@ -191,8 +192,9 @@ Coordinator = rt.agent_node(
     system_message=CoordinatorMessage,
 )
 
-response = rt.call_sync(
-        CoordinatorAgent,
-        user_input=""
-    )
+async def run():
+    response = await rt.call(
+            CoordinatorAgent,
+            user_input=""
+        )
 # --8<-- [end: customer_example]

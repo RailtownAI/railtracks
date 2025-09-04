@@ -1,48 +1,61 @@
-# How to Build Your First Agent
+# Build Your First Agent
 
-RailTracks makes it easy to create custom agents using the **`agent_node`** function. You can configure your agent's capabilities by setting a few key parameters.
+In the [quickstart](../quickstart/quickstart.md), you ran a ready-made agent. Now let’s build your own step by step, starting from the simplest form and gradually adding more abilities.
 
-## Required Parameters
-
-First, specify these essential components:
-
-- **`llm`**: The LLM that powers your agent (e.g., OpenAI GPT, Claude, etc.)
-- **`system_message`**: Instructions that define your agent's behavior and personality
-
-Then, enhance your agent with additional capabilities:
-
-- **`tool_nodes`**: Provide your agent with [tools](../tools_mcp/tools/tools.md) to interact with external systems. Without tools, your agent will function as a conversational assistant.
-- **`schema`**: Define a structured output format using Pydantic models. Without a schema, the agent will respond in natural language.
-
-!!! info "Agent Types"
-    Based on the provided values to the above parameters, your agent's capabilities can range from simple conversational agents to more complex tool-using agents capable of extracting structured data out of unstructured text.
-
-    ??? tip "Structured Agents"
-        RailTracks supports structured agents that return output conforming to a specified schema. This is useful for ensuring consistent and predictable responses, especially when integrating with other systems or processes. This can be achieved by passing a Pydantic model to the **`schema`** parameter.
-
-    ??? tip "Tool-Calling Agents"
-        Tool-calling agents can invoke one or more tools during a conversation. This allows them to take actions that conventional LLM's cannot. As seen in the example below, your agent becomes capable of invoking the different tools passed to the **`tool_nodes`** parameter. Please refer to [RailTracks Tools](../tools_mcp/tools_mcp.md) for further details
+## Simple LLM Agent
+Start with minimal ingredients: a model + a system message
 
 ```python
---8<-- "docs/scripts/first_agent.py:imports"
-
---8<-- "docs/scripts/first_agent.py:weather_response"
-
---8<-- "docs/scripts/first_agent.py:first_agent"
+--8<-- "docs/scripts/first_agent.py:simple_llm"
 ```
 
-!!! tip "Number of tool calls"
-    When making a Tool-Calling Agent you can also specify **`max_tool_calls`** to have a safety net for your agents calls. If you don't specify **`max_tool_calls`**, your agent will be able to make as many tool calls as it sees fit.
+??? question "Supported LLMs"
+    Check out our full list of [supported providers](../llm_support/providers.md)
 
-!!! warning "Number of tools"
-    The maximum number of tools an agent can call is limited by the LLM you are using both in terms of the number of tools supported and the context length which needs to incorporate the information about the tools.
+## Adding Tool Calling
+What if your agent needs real-world data? You will need to give it [tools](../tools_mcp/tools/tools.md). This allows your agent to go beyond static responses and actually interact with the real world.
 
-??? info "MCP Tools"
-    We have an MCP agent if you would like integrate API functionalities as tools your agent can use directly. See [Using MCP](../tools_mcp/mcp/MCP_tools_in_RT.md) for more details.
+??? tip "Creating a Tool"
+    All you need is a Python function with docstring and the `rt.function_node` decorator
+    ```python 
+    --8<-- "docs/scripts/first_agent.py:general_tool"
+    ```
+    [Learn more about tools](../tools_mcp/tools/tools.md)
 
-??? info "Agents as Tools"
-    You might have noticed that **`agent_node`** accepts a parameter called **`manifest`**. This is used to define the agent's capabilities and how it can be used as a tool by other agents. You can refer to the [Agents as Tools](../tools_mcp/tools/agents_as_tools.md) for more details.
 
-??? info "Advanced Usage: Shared Context"
-    For advanced usage cases that require sharing context (ie variables, paramters, etc) between nodes please refer to [context](../advanced_usage/context.md), for further configurability.
-    
+
+```python 
+--8<-- "docs/scripts/first_agent.py:weather_tool"
+
+--8<-- "docs/scripts/first_agent.py:first_agent_tools"
+```
+
+## Adding a Structured Output
+Now that you've seen how to add tools. Let's look at your agent can respond with reliable typed outputs. Schemas give you reliable, machine-checked outputs you can safely consume in code, rather than brittle strings.
+
+??? tip "Defining a Schema"
+    We use the Pydantic library to define structured data models.
+    ```python
+    --8<-- "docs/scripts/first_agent.py:general_structured"
+    ```
+    Visit the [pydantic docs](https://docs.pydantic.dev/latest/) to learn about what you can do with `BaseModel`'s
+
+```python 
+--8<-- "docs/scripts/first_agent.py:weather_response"
+
+--8<-- "docs/scripts/first_agent.py:first_agent_model"
+```
+
+## Structured + Tool Calling
+Often you will want the best of both worlds, an agent capable of both tool calling and responding in a structured format. 
+
+```python 
+--8<-- "docs/scripts/first_agent.py:first_agent_all"
+```
+
+??? note "Connecting to MCP"
+    To connect to MCP, please refer to our [guide](../tools_mcp/mcp/mcp.md)
+
+---
+# Running Agents
+Congratulations, you’ve now built agents that call tools, return structured outputs, and even combine both. Next, let’s actually run them and see them in action -> [Running your First Agent](ryfa.md).

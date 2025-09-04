@@ -19,13 +19,16 @@ For testing purposes, you can add `alias railtracks="python railtracks.py"` to y
 import json
 import mimetypes
 import os
+import queue
 import sys
 import tempfile
 import threading
 import time
+import traceback
 import urllib.request
+import webbrowser
 import zipfile
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -41,6 +44,10 @@ cli_name = "railtracks"
 cli_directory = ".railtracks"
 DEFAULT_PORT = 3030
 DEBOUNCE_INTERVAL = 0.5  # seconds
+
+# Simple streaming for single-user dev tool
+current_stream_queue = None
+stream_queue_lock = threading.Lock()
 
 
 def get_script_directory():
@@ -62,6 +69,34 @@ def print_warning(message):
 
 def print_error(message):
     print(f"[{cli_name}] {message}")
+
+
+def set_stream_queue(stream_queue):
+    """Set the current stream queue (single client)"""
+    global current_stream_queue
+    with stream_queue_lock:
+        current_stream_queue = stream_queue
+    print_status("Stream client connected")
+
+
+def clear_stream_queue():
+    """Clear the current stream queue"""
+    global current_stream_queue
+    with stream_queue_lock:
+        current_stream_queue = None
+    print_status("Stream client disconnected")
+
+
+def send_to_stream(message):
+    """Send message to the current stream client (if any)"""
+    global current_stream_queue
+    with stream_queue_lock:
+        if current_stream_queue:
+            try:
+                current_stream_queue.put_nowait(message)
+            except queue.Full:
+                print_status("Stream queue full, clearing connection")
+                current_stream_queue = None
 
 
 def create_railtracks_dir():
@@ -167,6 +202,14 @@ class FileChangeHandler(FileSystemEventHandler):
                 self.last_modified[str(file_path)] = current_time
                 print_status(f"JSON file modified: {file_path.name}")
 
+                # Send to stream client
+                stream_message = {
+                    "type": "file_updated",
+                    "filename": file_path.name,
+                    "timestamp": current_time,
+                }
+                send_to_stream(json.dumps(stream_message))
+
 
 class RailtracksHTTPHandler(BaseHTTPRequestHandler):
     """HTTP request handler for the railtracks server"""
@@ -174,7 +217,11 @@ class RailtracksHTTPHandler(BaseHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         self.ui_dir = Path(f"{cli_directory}/ui")
         self.railtracks_dir = Path(cli_directory)
-        super().__init__(*args, **kwargs)
+        try:
+            super().__init__(*args, **kwargs)
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            # Client disconnected during initialization - this is normal for SSE
+            pass
 
     def do_GET(self):  # noqa: N802
         """Handle GET requests"""
@@ -186,6 +233,8 @@ class RailtracksHTTPHandler(BaseHTTPRequestHandler):
             self.handle_api_files()
         elif path.startswith("/api/json/"):
             self.handle_api_json(path)
+        elif path == "/stream":
+            self.handle_stream()
         else:
             # Serve static files from build directory
             self.serve_static_file(path)
@@ -274,6 +323,68 @@ class RailtracksHTTPHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps({"status": "refresh_triggered"}).encode())
         print_status("Frontend refresh triggered")
 
+    def handle_stream(self):
+        """Handle /stream endpoint - HTTP streaming for file updates (MCP-style)"""
+        try:
+            # Create queue for this connection
+            stream_queue = queue.Queue()
+            set_stream_queue(stream_queue)
+
+            # Send streaming headers (newline-delimited JSON)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/x-ndjson")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "keep-alive")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+
+            # Send initial connection message
+            initial_message = {
+                "type": "connected",
+                "message": "Stream connection established",
+                "timestamp": time.time(),
+            }
+            self.write_json_line(initial_message)
+
+            # Keep connection alive and send messages
+            try:
+                while True:
+                    try:
+                        # Wait for message with timeout
+                        message = stream_queue.get(timeout=30)
+                        parsed_message = json.loads(message)
+                        self.write_json_line(parsed_message)
+                    except queue.Empty:
+                        # Send keepalive
+                        keepalive = {"type": "keepalive", "timestamp": time.time()}
+                        self.write_json_line(keepalive)
+                    except (BrokenPipeError, ConnectionResetError, OSError):
+                        # Client disconnected
+                        break
+            except Exception as e:
+                print_error(f"Stream connection error: {e}")
+            finally:
+                # Clean up
+                clear_stream_queue()
+
+        except Exception as e:
+            print_error(f"Error handling stream connection: {e}")
+            clear_stream_queue()
+            try:
+                self.send_error(500, "Internal Server Error")
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                pass  # Connection might already be closed
+
+    def write_json_line(self, data):
+        """Write a JSON line to the streaming response (NDJSON format)"""
+        try:
+            json_line = json.dumps(data) + "\n"
+            self.wfile.write(json_line.encode())
+            self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            # Client disconnected - this is normal
+            pass
+
     def serve_static_file(self, path):
         """Serve static files from .railtracks/ui directory"""
         try:
@@ -310,8 +421,41 @@ class RailtracksHTTPHandler(BaseHTTPRequestHandler):
             self.send_error(500, "Internal Server Error")
 
     def log_message(self, format, *args):
-        """Override to use our colored logging"""
-        print_status(f"{self.address_string()} - {format % args}")
+        """Override to use our colored logging and suppress connection errors"""
+        message = format % args
+        # Suppress common connection error messages that are normal for SSE
+        if any(
+            error in message.lower()
+            for error in [
+                "connection aborted",
+                "connection reset",
+                "broken pipe",
+                "an established connection was aborted",
+            ]
+        ):
+            return
+        print_status(f"{self.address_string()} - {message}")
+
+    def handle_error(self, request, client_address):
+        """Override to suppress connection errors"""
+        # Get the exception info
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+
+        # Suppress common connection errors that are normal for SSE
+        if exc_type in (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            return
+
+        # For other errors, use default handling but with our logging
+        print_error(f"Error handling request from {client_address}")
+        print_error(f"{exc_type.__name__}: {exc_value}")
+
+        # Only print full traceback for unexpected errors
+        if exc_type not in (
+            ConnectionAbortedError,
+            ConnectionResetError,
+            BrokenPipeError,
+        ):
+            traceback.print_exc()
 
 
 class RailtracksServer:
@@ -343,9 +487,13 @@ class RailtracksServer:
             def __init__(self, *args, **kwargs):
                 self.ui_dir = Path(f"{cli_directory}/ui")
                 self.railtracks_dir = Path(cli_directory)
-                super().__init__(*args, **kwargs)
+                try:
+                    super().__init__(*args, **kwargs)
+                except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+                    # Client disconnected during initialization - this is normal for SSE
+                    pass
 
-        self.server = HTTPServer(("localhost", self.port), Handler)
+        self.server = ThreadingHTTPServer(("localhost", self.port), Handler)
         print_success(f"🚀 railtracks server running at http://localhost:{self.port}")
         print_status(f"📁 Serving files from: {cli_directory}/ui/")
         print_status(f"👀 Watching for changes in: {cli_directory}/")
@@ -353,7 +501,23 @@ class RailtracksServer:
         print_status("   GET  /api/files - List JSON files")
         print_status("   GET  /api/json/filename - Load JSON file")
         print_status("   POST /api/refresh - Trigger frontend refresh")
+        print_status("   GET  /stream - HTTP streaming for file updates")
         print_status("Press Ctrl+C to stop the server")
+
+        # Open browser after a short delay to ensure server is ready
+        def open_browser():
+            time.sleep(1)  # Give server a moment to fully start
+            url = f"http://localhost:{self.port}"
+            print_status(f"Opening browser to {url}")
+            try:
+                webbrowser.open(url)
+            except Exception as e:
+                print_warning(f"Could not open browser automatically: {e}")
+                print_status(f"Please manually open: {url}")
+
+        browser_thread = threading.Thread(target=open_browser)
+        browser_thread.daemon = True
+        browser_thread.start()
 
         self.server.serve_forever()
 
