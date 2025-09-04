@@ -177,7 +177,7 @@ class MCPServer:
         Set up the MCP server and fetch tools. This is run once, when the thread starts.
         """
         self.client = MCPAsyncClient(self.config, self.client_session)
-        await asyncio.wait_for(self.client.connect(), timeout=15.0)
+        await self.client.connect()
         tools = await self.client.list_tools()
         self._tools = [from_mcp(tool, self.client, self._loop) for tool in tools]
 
