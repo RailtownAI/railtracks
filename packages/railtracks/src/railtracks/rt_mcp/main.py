@@ -64,11 +64,7 @@ class MCPAsyncClient:
                     )
                     await self.session.initialize()
                 elif isinstance(self.config, MCPHttpParams):
-                    try:
-                        await asyncio.wait_for(self._init_http(), timeout=10.0)
-                    except asyncio.TimeoutError:
-                        print("HTTP connection timed out - check server availability and credentials")
-                        raise ConnectionError("MCP HTTP connection timeout")
+                    await self._init_http()
                 else:
                     raise ValueError(
                         "Invalid configuration type. Expected MCPStdioParams or MCPHttpParams."
@@ -166,13 +162,15 @@ class MCPServer:
         self._shutdown_event = asyncio.Event()
         try:
             self._loop.run_until_complete(self._setup())
-        except Exception as e:
+        except asyncio.exceptions.CancelledError as e:
             # Ensure shutdown event is set so thread can exit
             loop.call_soon_threadsafe(self._shutdown_event.set)
+            raise e
             # Optionally log or handle the error
-        self._ready_event.set()
-        loop.run_until_complete(self._shutdown_event.wait())
-        self._loop.close()
+        finally:
+            self._ready_event.set()
+            loop.run_until_complete(self._shutdown_event.wait())
+            self._loop.close()
 
     async def _setup(self):
         """
@@ -181,7 +179,7 @@ class MCPServer:
         self.client = MCPAsyncClient(self.config, self.client_session)
         try:
             # Wrap the connect call with asyncio.wait_for
-            await asyncio.wait_for(self.client.connect(), timeout=30.0)
+            await asyncio.wait_for(self.client.connect(), timeout=15.0)
         except asyncio.TimeoutError:
             print("Connection timed out - check server availability and credentials")
             raise ConnectionError("MCP connection timeout")
