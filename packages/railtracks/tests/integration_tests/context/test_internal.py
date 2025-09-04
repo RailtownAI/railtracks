@@ -68,3 +68,53 @@ async def test_run_id_propagation(num_trials):
     
     with rt.Session(name="test_session", logging_setting="NONE") as session:
         await rt.call(TopLevel, num_trials, session._identifier)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("num_trials", [1, 5,])
+async def test_run_id_propagation_multiple_runs(num_trials):
+    
+    with rt.Session(name="test_session", logging_setting="NONE") as session:
+        await rt.call(TopLevel, num_trials, session._identifier)
+        await rt.call(TopLevel, num_trials, session._identifier)
+        await rt.call(TopLevel, num_trials, session._identifier)
+        await rt.call(TopLevel, num_trials, session._identifier)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("num_trials", [1, 5,])
+async def test_run_id_propagation_multiple_runs_parallel(num_trials):
+    
+    with rt.Session(name="test_session", logging_setting="NONE") as session:
+        contracts = [rt.call(TopLevel, num_trials, session._identifier) for _ in range(4)]
+        await asyncio.gather(*contracts)
+
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("num_trials", [1, 5,])
+async def test_run_id_propagation_multiple_sessions(num_trials):
+    
+    with rt.Session(name="test_session", logging_setting="NONE") as session:
+        await rt.call(TopLevel, num_trials, session._identifier)
+        await rt.call(TopLevel, num_trials, session._identifier)
+        await rt.call(TopLevel, num_trials, session._identifier)
+        await rt.call(TopLevel, num_trials, session._identifier)
+
+    with rt.Session(name="test_session_2", logging_setting="NONE") as session:
+        await rt.call(TopLevel, num_trials, session._identifier)
+        await rt.call(TopLevel, num_trials, session._identifier)
+        await rt.call(TopLevel, num_trials, session._identifier)
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("num_trials", [1, 5,])
+async def test_run_id_propagation_multiple_sessions_parallel(num_trials):
+
+    async def runner():
+    
+        with rt.Session(name="test_session", logging_setting="NONE") as session:
+            await rt.call(TopLevel, num_trials, session._identifier)
+            await rt.call(TopLevel, num_trials, session._identifier)
+        
+
+    await asyncio.gather(runner(), runner())
