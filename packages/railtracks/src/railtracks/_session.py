@@ -7,6 +7,11 @@ from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, Coroutine, Dict, ParamSpec, Tuple, TypeVar, overload
 
+from railtracks.exceptions.messages.exception_messages import (
+    ExceptionMessageKey,
+    get_message,
+)
+
 from .context.central import (
     delete_globals,
     get_global_config,
@@ -26,10 +31,6 @@ from .utils.logging.config import (
     prepare_logger,
 )
 from .utils.logging.create import get_rt_logger
-from railtracks.exceptions.messages.exception_messages import (
-    ExceptionMessageKey,
-    get_message,
-)
 
 logger = get_rt_logger("Session")
 
@@ -82,7 +83,7 @@ class Session:
         broadcast_callback: (
             Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
         ) = None,
-        name: str | None | None = None,
+        name: str | None = None,
         prompt_injection: bool | None = None,
         save_state: bool | None = None,
     ):
@@ -183,13 +184,17 @@ class Session:
                         else railtracks_dir / f"{self._identifier}.json"
                     )
                     file_path.touch()
-                except Exception as e:
-                    logger.warning(get_message(ExceptionMessageKey.INVALID_SESSION_FILE_NAME_WARN).format(name=self.name, identifier=self._identifier))
+                except FileNotFoundError:
+                    logger.warning(
+                        get_message(
+                            ExceptionMessageKey.INVALID_SESSION_FILE_NAME_WARN
+                        ).format(name=self.name, identifier=self._identifier)
+                    )
                     file_path = railtracks_dir / f"{self._identifier}.json"
 
                 if file_path.exists():
                     logger.warning("File %s already exists, overwriting..." % file_path)
-                
+
                 # file_path.touch()
                 logger.info("Saving execution info to %s" % file_path)
 
@@ -298,18 +303,19 @@ def session(
     Note: Do not provide the 'func' parameter - it's handled automatically by Python.
 
     Args:
-        context: A dictionary of global context variables to be used during execution.
-        timeout: Maximum seconds to wait for responses to your top-level request.
-        end_on_error: If True, execution stops when an exception is encountered.
-        logging_setting: The level of logging you would like to have.
-        log_file: File path where logs will be written.
-        broadcast_callback: Callback function for broadcast messages.
-        name: Optional name for the session (included in saved state).
-        prompt_injection: If True, prompts are automatically injected from context variables.
-        save_state: If True, execution state is saved to file in the .railtracks directory.
+        context (Dict[str, Any], optional): A dictionary of global context variables to be used during the execution.
+        timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
+        end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
+        logging_setting (allowable_log_levels, optional): The setting for the level of logging you would like to have.
+        log_file (str | os.PathLike | None, optional): The file to which the logs will be written.
+        broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
+        name (str | None, optional): Optional name for the session. This name will be included in the saved state file if `save_state` is True.
+        prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
+        save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks` directory.
 
     Returns:
-        A decorator that wraps async functions and returns (original_result, session).
+        A decorator function that takes an async function and returns a new async function
+        that returns a tuple of (original_result, session).
     """
     ...
 
@@ -352,18 +358,20 @@ def session(
     while maintaining the simplicity of decorator usage.
 
     Args:
-        context: A dictionary of global context variables to be used during execution.
-        timeout: Maximum seconds to wait for responses to your top-level request.
-        end_on_error: If True, execution stops when an exception is encountered.
-        logging_setting: The level of logging you would like to have.
-        log_file: File path where logs will be written.
-        broadcast_callback: Callback function for broadcast messages.
-        name: Optional name for the session (included in saved state).
-        prompt_injection: If True, prompts are automatically injected from context variables.
-        save_state: If True, execution state is saved to file in the .railtracks directory.
+        context (Dict[str, Any], optional): A dictionary of global context variables to be used during the execution.
+        timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
+        end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
+        logging_setting (allowable_log_levels, optional): The setting for the level of logging you would like to have.
+        log_file (str | os.PathLike | None, optional): The file to which the logs will be written.
+        broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
+        name (str | None, optional): Optional name for the session. This name will be included in the saved state file if `save_state` is True.
+        prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
+        save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks` directory.
 
     Returns:
-        A decorator function that wraps async functions with a Session context and returns a tuple of (result, session).
+        When used as @session (without parentheses): Returns the decorated function that returns (result, session).
+        When used as @session(...) (with parameters): Returns a decorator function that takes an async function
+        and returns a new async function that returns (result, session).
     """
 
     def decorator(
