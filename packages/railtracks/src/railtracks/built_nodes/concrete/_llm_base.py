@@ -138,9 +138,9 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
             unwrapped_llm_model = llm
 
         self._verify_llm_model(unwrapped_llm_model)
-        assert isinstance(
-            unwrapped_llm_model, ModelBase
-        ), "unwrapped_llm_model must be an instance of llm.ModelBase"
+        assert isinstance(unwrapped_llm_model, ModelBase), (
+            "unwrapped_llm_model must be an instance of llm.ModelBase"
+        )
         self.llm_model = unwrapped_llm_model
 
         self.message_hist = message_history_copy
@@ -238,9 +238,9 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         if isinstance(response.message, AssistantMessage) and isinstance(
             response.message.content, Stream
         ):
-            assert (
-                response.message.content.final_message
-            ), "The _stream_handler_base should have ensured that the final message is populated"
+            assert response.message.content.final_message, (
+                "The _stream_handler_base should have ensured that the final message is populated"
+            )
             output_message = Message(
                 content=response.message.content.final_message, role="assistant"
             )  # instead of the generator we give the final_message for the RequestDetails
@@ -347,12 +347,14 @@ class StructuredOutputMixIn(Generic[_TStructured]):
     def output_schema(cls) -> Type[_TStructured]:
         pass
 
-    def return_output(self, message: Message) -> StructuredResponse[Union[_TStructured, Stream]]:
+    def return_output(
+        self, message: Message
+    ) -> StructuredResponse[Union[_TStructured, Stream]]:
         content = message.content
 
-        assert isinstance(
-            content, self.output_schema() | Stream
-        ), f"The final output must be a pydantic {self.output_schema()} or Stream instance. Instead it was {type(content)}"
+        assert isinstance(content, self.output_schema() | Stream), (
+            f"The final output must be a pydantic {self.output_schema()} or Stream instance. Instead it was {type(content)}"
+        )
 
         return StructuredResponse(
             content=content,
@@ -370,9 +372,9 @@ class StringOutputMixIn:
         ):  # if no message is provided, use the last message from message history
             message = self.message_hist[-1]
 
-        assert isinstance(
-            message.content, str | Stream
-        ), "The final output must be a string or stream"
+        assert isinstance(message.content, str | Stream), (
+            "The final output must be a string or stream"
+        )
         return StringResponse(
             content=message.content,
             message_history=self.message_hist.removed_system_messages(),

@@ -13,7 +13,6 @@ from typing import (
     TypeVar,
 )
 
-from railtracks.llm.content import Stream
 from railtracks.exceptions import LLMError, NodeCreationError
 from railtracks.interaction._call import call
 from railtracks.llm import (
@@ -26,6 +25,7 @@ from railtracks.llm import (
     ToolResponse,
     UserMessage,
 )
+from railtracks.llm.content import Stream
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_creation.validation import check_connected_nodes
 from railtracks.validation.node_invocation.validation import check_max_tool_calls
@@ -115,7 +115,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
 
     def tools(self):
         return [x.tool_info() for x in self.tool_nodes()]
-    
+
     def _add_message_to_history(self, message: Message):
         cont = message.content
         if isinstance(
@@ -124,19 +124,15 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
             assert isinstance(cont.final_message, str), (
                 "The _stream_handler_base in _litellm_wrapper should have ensured that the final message is populated"
             )
-            self.message_hist.append(   # add final message to the message history
+            self.message_hist.append(  # add final message to the message history
                 Message(content=cont.final_message, role="assistant")
             )
         else:
-            self.message_hist.append(
-                AssistantMessage(content=cont)
-            )
+            self.message_hist.append(AssistantMessage(content=cont))
 
     async def _on_max_tool_calls_exceeded(self):
         """force a final response"""
-        response = await self.llm_model.achat_with_tools(
-            self.message_hist, tools=[]
-        )
+        response = await self.llm_model.achat_with_tools(self.message_hist, tools=[])
         assert isinstance(response.message, AssistantMessage)
         self._add_message_to_history(response.message)
         return response.message
@@ -179,9 +175,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
         if response.message.role == "assistant":
             # if the returned item is a list then it is a list of tool calls
             if isinstance(response.message.content, list):
-                assert all(
-                    isinstance(x, ToolCall) for x in response.message.content
-                )
+                assert all(isinstance(x, ToolCall) for x in response.message.content)
 
                 tool_calls = response.message.content
                 if (
@@ -226,7 +220,9 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                             ToolResponse(identifier=r_id, result=str(resp), name=r_name)
                         )
                     )
-                return True, AssistantMessage(content="")   # dummy message since True wont make invoke break out of the loop
+                return True, AssistantMessage(
+                    content=""
+                )  # dummy message since True wont make invoke break out of the loop
             else:
                 # this means the tool call is finished
                 self._add_message_to_history(response.message)

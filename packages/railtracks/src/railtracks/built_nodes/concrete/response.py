@@ -23,21 +23,21 @@ class LLMResponse(Generic[_T]):
 
     def __repr__(self):
         return f"LLMResponse({self.content})"
-    
+
     @property
     def streamer(self) -> Generator[str, None, None]:
         """Returns the streamer that was returned as part of this response.
 
         Note that this is a generator that yields strings.
         """
-        assert isinstance(
-            self.content, Stream
-        ), "For this property to be usable, the llm should have stream=True"
+        assert isinstance(self.content, Stream), (
+            "For this property to be usable, the llm should have stream=True"
+        )
         return self.content.streamer
 
 
-
 _TStructured = TypeVar("_TStructured", bound=Union[BaseModel, Stream])
+
 
 class StructuredResponse(LLMResponse[_TStructured]):
     """
@@ -64,7 +64,8 @@ class StructuredResponse(LLMResponse[_TStructured]):
             assert isinstance(self.content.final_message, BaseModel)
             return self.content.final_message
         return self.content
-    
+
+
 class StringResponse(LLMResponse[str | Stream]):
     """
     A specialized response object for string outputs from LLMs.
@@ -87,4 +88,3 @@ class StringResponse(LLMResponse[str | Stream]):
             return self.content.final_message
         else:
             raise ValueError("Unexpected content type")
-        

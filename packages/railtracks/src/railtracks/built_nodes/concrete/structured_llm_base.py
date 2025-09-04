@@ -1,3 +1,4 @@
+import json
 from abc import ABC
 from typing import Generic, TypeVar
 
@@ -5,6 +6,7 @@ from pydantic import BaseModel
 
 from railtracks.exceptions import LLMError
 from railtracks.llm import Message, MessageHistory, ModelBase, UserMessage
+from railtracks.llm.content import Stream
 from railtracks.validation.node_creation.validation import (
     check_classmethod,
     check_schema,
@@ -12,8 +14,6 @@ from railtracks.validation.node_creation.validation import (
 
 from ._llm_base import LLMBase, StructuredOutputMixIn
 from .response import StructuredResponse
-from railtracks.llm.content import Stream
-import json
 
 _TOutput = TypeVar("_TOutput", bound=BaseModel)
 
@@ -62,7 +62,7 @@ class StructuredLLM(
         Returns:
             (StructuredlLLM.Output): The response message from the llm model
         """
-        
+
         returned_mess = await self.llm_model.astructured(
             self.message_hist, schema=self.output_schema()
         )
@@ -75,7 +75,7 @@ class StructuredLLM(
                     reason="ModelLLM returned None content",
                     message_history=self.message_hist,
                 )
-            elif isinstance(cont, Stream):  
+            elif isinstance(cont, Stream):
                 try:
                     assert isinstance(cont.final_message, str)
                     # convert the str final message to a structured output
@@ -99,7 +99,6 @@ class StructuredLLM(
                     message_history=self.message_hist,
                 )
             return self.return_output(returned_mess.message)
-            
 
         raise LLMError(
             reason="ModelLLM returned an unexpected message type.",

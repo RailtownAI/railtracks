@@ -2,6 +2,7 @@ import json
 import time
 import warnings
 from abc import ABC
+from json import JSONDecodeError
 from typing import (
     Any,
     Callable,
@@ -15,9 +16,8 @@ from typing import (
 )
 
 import litellm
-from litellm.utils import CustomStreamWrapper, ModelResponse        # type: ignore
+from litellm.utils import CustomStreamWrapper, ModelResponse  # type: ignore
 from pydantic import BaseModel
-from json import JSONDecodeError
 
 from ...exceptions.errors import LLMError, NodeInvocationError
 from ..content import Stream, ToolCall
@@ -343,135 +343,172 @@ class LiteLLMWrapper(ModelBase, ABC):
             return completion, completion_time
 
     # ================ START Streaming Handlers ===============
-    def _stream_handler_base(
-        self, raw: CustomStreamWrapper, start_time: float
-    ) -> Response:
-        """Consume the raw stream immediately, then return a replayable stream."""
-
-        def _consume():
-            chunks = []
-            accumulated_content: str = ""
-            message_info = MessageInfo()
-            _stream_finished = False
-            for chunk in raw.completion_stream:
-                if not _stream_finished:
-                    choice = chunk.choices[0]
-                    if choice.finish_reason in ("stop", "tool_calls") :
-                        _stream_finished = True
-                        chunk_content = None
-                        if tc:      # tc stream ended so we need to add it to the list of chunks
-                            tc.arguments = json.loads(string_args)
-                            chunks.append(tc)
-                            string_args = ""
-                    elif choice.delta.tool_calls:
-                        call = choice.delta.tool_calls[0] # the list will have only 1 item since it is coming from a stream
-                        if call.id:   # this is the first chunk of a tool call that is beig streamed
-                            if tc:  # if there is a previous tool call, we need to add it to the list of calls
-                                tc.arguments = json.loads(string_args)
-                                chunks.append(tc)
-                                string_args = ""
-                            tc = ToolCall(identifier=call.id, name=call.function.name, arguments={})    # arguments are empty for now because they will be streamed as a string.
-                        else:   # tc should already exist here
-                            string_args += call.function.arguments 
-                    elif choice.delta.content:
-                        chunk_content = choice.delta.content
-                        assert isinstance(chunk_content, str)
-                        accumulated_content += chunk_content
-                        chunks.append(chunk_content if chunk_content else "")
-                    else:  # empty chunk
-                        pass
-                else:
-                    message_info = self.extract_message_info(
-                        chunk, time.time() - start_time
-                    )
-
-            return chunks, accumulated_content, message_info
-
-        chunks, accumulated_content, mess_info = _consume()
-
-        if chunks and isinstance(chunks[-1], ToolCall):    # if a list of ToolCalls is returned, we do not need to repay the streamer
-            assert all(isinstance(x, ToolCall) for x in chunks)
-            return Response(message=AssistantMessage(content=chunks), message_info=mess_info)
-        
-        # replay streamer definitions
-        def _replay_streamer():
-            for c in chunks:  # yield the chunks
-                yield c
-
-        stream_response = Stream(
-            streamer=_replay_streamer(), final_message=accumulated_content
-        )
-        return_message = Response(
-            message=AssistantMessage(content=stream_response),
-            message_info=mess_info,  # will be updated during consume
-        )
-        return return_message
-
     async def _astream_handler_base(
         self, raw: CustomStreamWrapper, start_time: float
     ) -> Response:
         """Consume the raw stream immediately, then return a replayable stream."""
 
-        async def _aconsume():
-            chunks = []
-            accumulated_content: str = ""
-            message_info = MessageInfo()
-            _stream_finished = False
-            tc = None
-            string_args = ""
-            async for chunk in raw.completion_stream:
-                if not _stream_finished:
-                    choice = chunk.choices[0]
-                    if choice.finish_reason in ("stop", "tool_calls") :
-                        _stream_finished = True
-                        chunk_content = None
-                        if tc:      # tc stream ended so we need to add it to the list of chunks
-                            tc.arguments = json.loads(string_args)
-                            chunks.append(tc)
-                            string_args = ""
-                    elif choice.delta.tool_calls:
-                        call = choice.delta.tool_calls[0] # the list will have only 1 item since it is coming from a stream
-                        if call.id:   # this is the first chunk of a tool call that is beig streamed
-                            if tc:  # if there is a previous tool call, we need to add it to the list of calls
-                                tc.arguments = json.loads(string_args)
-                                chunks.append(tc)
-                                string_args = ""
-                            tc = ToolCall(identifier=call.id, name=call.function.name, arguments={})    # arguments are empty for now because they will be streamed as a string.
-                        else:   # tc should already exist here
-                            string_args += call.function.arguments 
-                    elif choice.delta.content:
-                        chunk_content = choice.delta.content
-                        assert isinstance(chunk_content, str)
-                        accumulated_content += chunk_content
-                        chunks.append(chunk_content if chunk_content else "")
-                    else:  # empty chunk
-                        pass
-                else:
-                    message_info = self.extract_message_info(
-                        chunk, time.time() - start_time
-                    )
+        chunks, accumulated_content, mess_info = await self._aconsume_stream(
+            raw, start_time
+        )
+        return self._create_response(chunks, accumulated_content, mess_info)
 
-            return chunks, accumulated_content, message_info
+    def _stream_handler_base(
+        self, raw: CustomStreamWrapper, start_time: float
+    ) -> Response:
+        """Consume the raw stream immediately, then return a replayable stream."""
 
-        chunks, accumulated_content, mess_info = await _aconsume()
+        chunks, accumulated_content, mess_info = self._consume_sync_stream(
+            raw, start_time
+        )
+        return self._create_response(chunks, accumulated_content, mess_info)
 
-        if chunks and isinstance(chunks[-1], ToolCall):    # if a list of ToolCalls is returned, we do not need to repay the streamer
-            assert all(isinstance(x, ToolCall) for x in chunks)
-            return Response(message=AssistantMessage(content=chunks), message_info=mess_info)
+    async def _aconsume_stream(self, raw: CustomStreamWrapper, start_time: float):
+        """Consume the entire async stream and extract chunks, content, and metadata."""
+        chunks = []
+        accumulated_content = ""
+        message_info = MessageInfo()
+        active_tool_calls = {}
+        stream_finished = False
 
-        # replay streamer definitions
-        def _replay_streamer():
-            for c in chunks:
-                yield c
+        async for chunk in raw.completion_stream:
+            if stream_finished:
+                message_info = self.extract_message_info(
+                    chunk, time.time() - start_time
+                )
+                continue
 
+            choice = chunk.choices[0]
+
+            if self._is_stream_finished(choice):
+                stream_finished = True
+                self._finalize_remaining_tool_calls(active_tool_calls, chunks)
+                continue
+
+            if choice.delta.tool_calls:
+                self._handle_tool_call_delta(
+                    choice.delta.tool_calls[0], active_tool_calls, chunks
+                )
+            elif choice.delta.content:
+                content = self._handle_content_delta(choice.delta.content)
+                accumulated_content += content
+                chunks.append(content)
+
+        return chunks, accumulated_content, message_info
+
+    def _consume_sync_stream(self, raw: CustomStreamWrapper, start_time: float):
+        """Consume the entire sync stream and extract chunks, content, and metadata."""
+        chunks = []
+        accumulated_content = ""
+        message_info = MessageInfo()
+        active_tool_calls = {}
+        stream_finished = False
+
+        for chunk in raw.completion_stream:
+            if stream_finished:
+                message_info = self.extract_message_info(
+                    chunk, time.time() - start_time
+                )
+                continue
+
+            choice = chunk.choices[0]
+
+            if self._is_stream_finished(choice):
+                stream_finished = True
+                self._finalize_remaining_tool_calls(active_tool_calls, chunks)
+                continue
+
+            if choice.delta.tool_calls:
+                self._handle_tool_call_delta(
+                    choice.delta.tool_calls[0], active_tool_calls, chunks
+                )
+            elif choice.delta.content:
+                content = self._handle_content_delta(choice.delta.content)
+                accumulated_content += content
+                chunks.append(content)
+
+        return chunks, accumulated_content, message_info
+
+    def _create_response(
+        self, chunks: list, accumulated_content: str, mess_info: MessageInfo
+    ) -> Response:
+        """Create the appropriate response based on chunk types."""
+        # If we only have tool calls, return them directly
+        if chunks and all(isinstance(x, ToolCall) for x in chunks):
+            return Response(
+                message=AssistantMessage(content=chunks), message_info=mess_info
+            )
+
+        # Create replay streamer for mixed content
         stream_response = Stream(
-            streamer=_replay_streamer(), final_message=accumulated_content
+            streamer=self._create_replay_streamer(chunks),
+            final_message=accumulated_content,
         )
-        return_message = Response(
+
+        return Response(
             message=AssistantMessage(content=stream_response),
-            message_info=mess_info,  # will be updated during consume
+            message_info=mess_info,
         )
-        return return_message
+
+    def _is_stream_finished(self, choice) -> bool:
+        """Check if the stream has finished."""
+        return choice.finish_reason in ("stop", "tool_calls")
+
+    def _finalize_remaining_tool_calls(self, active_tool_calls: dict, chunks: list):
+        """Finalize any remaining active tool calls and add them to chunks."""
+        for tool_data in active_tool_calls.values():
+            if tool_data["args_buffer"]:
+                tool_data["tool_call"].arguments = json.loads(tool_data["args_buffer"])
+            chunks.append(tool_data["tool_call"])
+        active_tool_calls.clear()
+
+    def _handle_tool_call_delta(self, call, active_tool_calls: dict, chunks: list):
+        """Process a tool call delta from the stream."""
+        call_index = getattr(call, "index", 0)
+
+        if call.id:  # New tool call starting
+            self._start_new_tool_call(call, call_index, active_tool_calls, chunks)
+        else:  # Continue streaming arguments
+            self._continue_tool_call_arguments(call, call_index, active_tool_calls)
+
+    def _start_new_tool_call(
+        self, call, call_index: int, active_tool_calls: dict, chunks: list
+    ):
+        """Start a new tool call, finalizing any previous one at the same index."""
+        # Finalize previous tool call at this index if exists
+        if call_index in active_tool_calls:
+            prev_data = active_tool_calls[call_index]
+            if prev_data["args_buffer"]:
+                prev_data["tool_call"].arguments = json.loads(prev_data["args_buffer"])
+            chunks.append(prev_data["tool_call"])
+
+        # Start new tool call
+        active_tool_calls[call_index] = {
+            "tool_call": ToolCall(
+                identifier=call.id, name=call.function.name, arguments={}
+            ),
+            "args_buffer": "",
+        }
+
+    def _continue_tool_call_arguments(
+        self, call, call_index: int, active_tool_calls: dict
+    ):
+        """Continue accumulating arguments for an existing tool call."""
+        if call_index in active_tool_calls and call.function.arguments:
+            active_tool_calls[call_index]["args_buffer"] += call.function.arguments
+
+    def _handle_content_delta(self, content) -> str:
+        """Process content delta and return validated content string."""
+        assert isinstance(content, str)
+        return content or ""
+
+    def _create_replay_streamer(self, chunks):
+        """Create a generator function for replaying chunks."""
+
+        def _replay_streamer():
+            yield from chunks
+
+        return _replay_streamer()
 
     # ================ END Streaming Handlers ===============
 
