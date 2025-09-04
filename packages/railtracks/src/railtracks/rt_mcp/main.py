@@ -177,15 +177,7 @@ class MCPServer:
         Set up the MCP server and fetch tools. This is run once, when the thread starts.
         """
         self.client = MCPAsyncClient(self.config, self.client_session)
-        try:
-            # Wrap the connect call with asyncio.wait_for
-            await asyncio.wait_for(self.client.connect(), timeout=15.0)
-        except asyncio.TimeoutError:
-            print("Connection timed out - check server availability and credentials")
-            raise ConnectionError("MCP connection timeout")
-        except Exception as e:
-            print(f"Failed to connect to MCP server: {type(e).__name__}: {str(e)}")
-            raise ConnectionError("MCP connection failed") from e
+        await asyncio.wait_for(self.client.connect(), timeout=15.0)
         tools = await self.client.list_tools()
         self._tools = [from_mcp(tool, self.client, self._loop) for tool in tools]
 
