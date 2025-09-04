@@ -89,7 +89,8 @@ class RTState:
         if isinstance(item, RequestFinishedBase):
             await self.handle_result(item)
         if isinstance(item, RequestCreation):
-            update_parent_id(item.current_node_id)
+            if item.current_node_id is not None:
+                update_parent_id(item.current_node_id, item.current_run_id)
 
             assert item.new_request_id not in self._request_heap.heap().keys()
 
@@ -246,6 +247,11 @@ class RTState:
             self.logger.exception(rfa.to_logging_msg())
             raise e
         # you have to run this in a task so it isn't blocking other completions
+        from railtracks.context.central import get_parent_id, get_run_id, get_session_id
+
+        print(
+            f"---- Pre Task - S: {get_session_id()}, R: {get_run_id()}, N: {get_parent_id()} ---- "
+        )
         outputs = asyncio.create_task(self._run_request(request_id))
 
         return outputs

@@ -47,7 +47,7 @@ async def test_shutdown_publisher(monkeypatch, make_runner_context_vars, make_in
 def test_get_runner_id(monkeypatch, make_runner_context_vars):
     rt = make_runner_context_vars(runner_id="runner-xyz")
     monkeypatch.setattr(central, "runner_context", mock.Mock(get=mock.Mock(return_value=rt)))
-    assert central.get_runner_id() == "runner-xyz"
+    assert central.get_session_id() == "runner-xyz"
 
 def test_get_parent_id(monkeypatch, make_runner_context_vars, make_internal_context_mock):
     rt = make_runner_context_vars(internal_context=make_internal_context_mock(parent_id="parent-abc"))
@@ -62,7 +62,7 @@ def test_register_globals_sets_context(monkeypatch):
     monkeypatch.setattr(central, "MutableExternalContext", mock.Mock(return_value="ec"))
     monkeypatch.setattr(central, "RunnerContextVars", mock.Mock())
     central.register_globals(
-        runner_id="r1",
+        session_id="r1",
         rt_publisher=None,
         parent_id=None,
         executor_config=mock.Mock(),
