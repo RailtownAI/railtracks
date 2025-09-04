@@ -189,7 +189,8 @@ class Session:
 
                 if file_path.exists():
                     logger.warning("File %s already exists, overwriting..." % file_path)
-
+                
+                # file_path.touch()
                 logger.info("Saving execution info to %s" % file_path)
 
                 file_path.write_text(json.dumps(self.payload()))

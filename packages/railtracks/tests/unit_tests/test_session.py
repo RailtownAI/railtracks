@@ -187,6 +187,51 @@ def test_session_not_saves_data():
     assert not path.is_file()
 
 
+def test_session_fallback_on_invalid_name():
+    """Test that session falls back to identifier-only filename when name causes issues."""
+    # Use a name that would cause issues in file path creation
+    invalid_name = "test/invalid:name*with|bad<chars>"
+    
+    serialization_mock = {"Key": "Value"}
+    
+    with patch.object(Session, 'info', new_callable=PropertyMock) as mock_runner:
+        mock_runner.return_value.graph_serialization.return_value = serialization_mock
+        
+        # Mock Path.touch to raise an exception when the path contains the invalid name in the filename
+        original_touch = Path.touch
+        def mock_touch(self, *args, **kwargs):
+            # Only raise exception if the invalid name is in the filename part (not just any path)
+            if invalid_name in self.name:
+                raise OSError("Invalid characters in filename")
+            return original_touch(self, *args, **kwargs)
+        
+        with patch.object(Path, 'touch', mock_touch), \
+             patch('railtracks._session.logger') as mock_logger:
+            
+            r = Session(name=invalid_name, save_state=True)
+            r.__exit__(None, None, None)
+            
+            # Verify that a warning was logged about the invalid name
+            mock_logger.warning.assert_called()
+            warning_calls = [call[0][0] for call in mock_logger.warning.call_args_list]
+            fallback_warning = None
+            for call in warning_calls:
+                if "falling back to using the unique identifier only" in call:
+                    fallback_warning = call
+                    break
+            
+            assert fallback_warning is not None, "Expected fallback warning not found"
+            assert invalid_name in fallback_warning
+            
+            # Verify that the fallback file was created (identifier only)
+            fallback_path = Path(".railtracks") / f"{r._identifier}.json"
+            assert fallback_path.exists()
+            
+            # Clean up
+            if fallback_path.exists():
+                fallback_path.unlink()
+
+
 # ================= START Session: Decorator Tests ===============
 
 def test_session_decorator_creates_function():
