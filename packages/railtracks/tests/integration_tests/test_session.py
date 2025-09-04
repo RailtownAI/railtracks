@@ -96,14 +96,14 @@ def test_session_decorator_vs_context_manager():
     
     # Using context manager - session available during execution
     async def context_manager_workflow():
-        with rt.Session(identifier="cm-session") as session:
+        with rt.Session(name="cm-session") as session:
             result = await rt.call(sample_node)
             # Session object is available here during execution
-            session_id_during = session._identifier
-            return result, session_id_during
+            session_name_during = session.name
+            return result, session_name_during
     
     # Using decorator - session available after execution  
-    @rt.session(identifier="dec-session")
+    @rt.session(name="dec-session")
     async def decorator_workflow():
         result = await rt.call(sample_node)
         # Session object is NOT available here during execution
@@ -111,18 +111,18 @@ def test_session_decorator_vs_context_manager():
         return result
     
     # Test context manager
-    cm_result, cm_session_id = asyncio.run(context_manager_workflow())
+    cm_result, cm_session_name = asyncio.run(context_manager_workflow())
     assert cm_result == "sample result"
-    assert cm_session_id == "cm-session"
+    assert cm_session_name == "cm-session"
     
     # Test decorator
     dec_result, dec_session = asyncio.run(decorator_workflow()) 
     assert dec_result == "sample result"
-    assert dec_session._identifier == "dec-session"
+    assert dec_session.name == "dec-session"
     
     # Verify different approaches yield expected results
     assert cm_result == dec_result
-    assert cm_session_id != dec_session._identifier
+    assert cm_session_name != dec_session.name
 
 def test_session_decorator_tuple_handling():
     """Test that session decorator properly handles functions returning tuples."""

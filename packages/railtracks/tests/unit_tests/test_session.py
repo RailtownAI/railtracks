@@ -78,7 +78,7 @@ def test_runner_context_manager_closes_on_exit(mock_dependencies):
 
 # ================= START Session: Singleton/Instance Id Behavior ============
 
-def test_runner_identifier_is_taken_from_executor_config():
+def test_session_name_is_taken_from_executor_config():
     name = "abc123"
 
     r = Session(name=name)
@@ -138,7 +138,7 @@ def test_info_property_returns_rt_state_info(mock_dependencies):
 
 
 # ================= START Session: Check saved data ===============
-def test_runner_saves_data():
+def test_session_saves_data():
     name = "abs53562j12h267"
 
     serialization_mock = {"Key": "Value"}
@@ -156,14 +156,14 @@ def test_runner_saves_data():
         r.__exit__(None, None, None)
 
 
-    path = Path(".railtracks") / f"{r._identifier}.json"
+    path = Path(".railtracks") / f"{r.name}_{r._identifier}.json"
     data = json.loads(path.read_text())
     assert data["runs"] == serialization_mock
     assert "session_id" in data
     assert data["session_name"] == name
 
 
-def test_runner_not_saves_data():
+def test_session_not_saves_data():
     config = MagicMock()
 
     run_id = "Run 2"
@@ -283,7 +283,7 @@ def test_rt_session_decorator_raises_error_on_sync_function():
 @pytest.mark.asyncio
 async def test_session_decorator_returns_session_object(mock_dependencies):
     """Test that decorator returns both result and session object with access to session info."""
-    @session(identifier="test-session-123")
+    @session(name="test-session-123")
     async def test_function():
         return "test_result"
     
@@ -292,7 +292,7 @@ async def test_session_decorator_returns_session_object(mock_dependencies):
     # Verify we get both the result and session
     assert result == "test_result"
     assert isinstance(session_obj, Session)
-    assert session_obj._identifier == "test-session-123"
+    assert session_obj.name == "test-session-123"
     
     # Verify we can access session properties
     assert hasattr(session_obj, 'info')

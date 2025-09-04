@@ -5,7 +5,7 @@ import time
 import uuid
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, Coroutine, Dict, ParamSpec, Tuple, TypeVar
+from typing import Any, Callable, Coroutine, Dict, ParamSpec, Tuple, TypeVar, overload
 
 from .context.central import (
     delete_globals,
@@ -50,7 +50,7 @@ class Session:
     - `logging_setting`: "REGULAR"
     - `log_file`: None (logs will not be written to a file)
     - `broadcast_callback`: None (no callback for broadcast messages)
-    - `run_identifier`: None (a random identifier will be generated)
+    - `name`: None
     - `prompt_injection`: True (the prompt will be automatically injected from context variables)
     - `save_state`: True (the state of the execution will be saved to a file at the end of the run in the `.railtracks` directory)
 
@@ -62,17 +62,9 @@ class Session:
         logging_setting (allowable_log_levels, optional): The setting for the level of logging you would like to have.
         log_file (str | os.PathLike | None, optional): The file to which the logs will be written.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
-        identifier (str | None, optional): A unique identifier for the run. If none one will be generated automatically.
+        name (str | None, optional): Optional name for the session. This name will be included in the saved state file if `save_state` is True.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks` directory.
-
-    Example Usage:
-    ```python
-    import railtracks as rt
-
-    with rt.Session() as run:
-        result = await rt.call(rt.nodes.NodeA, "Hello World")
-    ```
     """
 
     def __init__(
@@ -179,7 +171,11 @@ class Session:
                     exist_ok=True
                 )  # Creates if doesn't exist, skips otherwise.
 
-                file_path = railtracks_dir / f"{self._identifier}.json"
+                file_path = (
+                    railtracks_dir / f"{self.name}_{self._identifier}.json"
+                    if self.name
+                    else railtracks_dir / f"{self._identifier}.json"
+                )
                 if file_path.exists():
                     logger.warning("File %s already exists, overwriting..." % file_path)
 
@@ -249,6 +245,63 @@ class Session:
         return json.loads(json.dumps(full_dict))
 
 
+@overload
+def session(
+    func: Callable[_P, Coroutine[Any, Any, _TOutput]],
+) -> Callable[_P, Coroutine[Any, Any, Tuple[_TOutput, Session]]]:
+    """
+    Decorator for async functions without configuration (used as @session).
+
+    This automatically creates and manages a Session context with default settings.
+    The decorated function returns a tuple of (result, session).
+    """
+    ...
+
+
+@overload
+def session(
+    func: None = None,
+    *,
+    context: Dict[str, Any] | None = None,
+    timeout: float | None = None,
+    end_on_error: bool | None = None,
+    logging_setting: allowable_log_levels | None = None,
+    log_file: str | os.PathLike | None = None,
+    broadcast_callback: (
+        Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
+    ) = None,
+    name: str | None = None,
+    prompt_injection: bool | None = None,
+    save_state: bool | None = None,
+) -> Callable[
+    [Callable[_P, Coroutine[Any, Any, _TOutput]]],
+    Callable[_P, Coroutine[Any, Any, Tuple[_TOutput, Session]]],
+]:
+    """
+    Decorator for async functions with configuration (used as @session(...)).
+
+    This automatically creates and manages a Session context with custom settings.
+    The decorated function returns a tuple of (result, session).
+
+    Note: Do not provide the 'func' parameter - it's handled automatically by Python.
+
+    Args:
+        context: A dictionary of global context variables to be used during execution.
+        timeout: Maximum seconds to wait for responses to your top-level request.
+        end_on_error: If True, execution stops when an exception is encountered.
+        logging_setting: The level of logging you would like to have.
+        log_file: File path where logs will be written.
+        broadcast_callback: Callback function for broadcast messages.
+        name: Optional name for the session (included in saved state).
+        prompt_injection: If True, prompts are automatically injected from context variables.
+        save_state: If True, execution state is saved to file in the .railtracks directory.
+
+    Returns:
+        A decorator that wraps async functions and returns (original_result, session).
+    """
+    ...
+
+
 def session(
     func: Callable[_P, Coroutine[Any, Any, _TOutput]] | None = None,
     *,
@@ -270,10 +323,14 @@ def session(
         Callable[_P, Coroutine[Any, Any, Tuple[_TOutput, Session]]],
     ]
 ):
-    #TODO: update docstring
     """
     This decorator automatically creates and manages a Session context for the decorated function,
     allowing async functions to use RailTracks operations without manually managing the session lifecycle.
+
+    Can be used as:
+    - @session (without parentheses) - uses default settings
+    - @session() (with empty parentheses) - uses default settings
+    - @session(name="my_task", timeout=30) (with configuration parameters)
 
     When using this decorator, the function returns a tuple containing:
     1. The original function's return value
@@ -283,26 +340,20 @@ def session(
     while maintaining the simplicity of decorator usage.
 
     Args:
-        func (Callable, optional): The function to decorate. This is automatically provided when using @session without parentheses.
-        context (Dict[str, Any], optional): A dictionary of global context variables to be used during the execution.
-        timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
-        end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
-        logging_setting (allowable_log_levels, optional): The setting for the level of logging you would like to have.
-        log_file (str | os.PathLike | None, optional): The file to which the logs will be written.
-        broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
-        identifier (str | None, optional): A unique identifier for the run. If none one will be generated automatically.
-        prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
-        save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks` directory.
+        context: A dictionary of global context variables to be used during execution.
+        timeout: Maximum seconds to wait for responses to your top-level request.
+        end_on_error: If True, execution stops when an exception is encountered.
+        logging_setting: The level of logging you would like to have.
+        log_file: File path where logs will be written.
+        broadcast_callback: Callback function for broadcast messages.
+        name: Optional name for the session (included in saved state).
+        prompt_injection: If True, prompts are automatically injected from context variables.
+        save_state: If True, execution state is saved to file in the .railtracks directory.
 
     Returns:
         A decorator function that wraps async functions with a Session context and returns a tuple of (result, session).
     """
-    # func = args[0] if args else None
-    
-    # # Validate args usage
-    # if len(args) > 1:
-    #     raise TypeError(f"session() takes at most 1 positional argument but {len(args)} were given")
-     
+
     def decorator(
         target_func: Callable[_P, Coroutine[Any, Any, _TOutput]],
     ) -> Callable[_P, Coroutine[Any, Any, Tuple[_TOutput, Session]]]:
