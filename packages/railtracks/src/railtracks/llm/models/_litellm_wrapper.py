@@ -358,9 +358,7 @@ class LiteLLMWrapper(ModelBase, ABC):
     ) -> Response:
         """Consume the raw stream immediately, then return a replayable stream."""
 
-        chunks, accumulated_content, mess_info = self._consume_stream(
-            raw, start_time
-        )
+        chunks, accumulated_content, mess_info = self._consume_stream(raw, start_time)
         return self._create_response(chunks, accumulated_content, mess_info)
 
     async def _aconsume_stream(self, raw: CustomStreamWrapper, start_time: float):
