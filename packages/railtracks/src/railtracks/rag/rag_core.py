@@ -47,7 +47,7 @@ class RAG:
         docs: List[str],  # str
         embed_config: Optional[dict] = None,
         store_config: Optional[dict] = None,
-        chunk_config: Optional[dict] = None
+        chunk_config: Optional[dict] = None,
     ):
         """Initialize the RAG system.
 
