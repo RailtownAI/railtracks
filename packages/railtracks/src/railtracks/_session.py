@@ -192,9 +192,6 @@ class Session:
                     )
                     file_path = railtracks_dir / f"{self._identifier}.json"
 
-                if file_path.exists():
-                    logger.warning("File %s already exists, overwriting..." % file_path)
-
                 logger.info("Saving execution info to %s" % file_path)
 
                 file_path.write_text(json.dumps(self.payload()))
