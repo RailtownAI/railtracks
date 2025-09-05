@@ -51,6 +51,7 @@ jobs:
           flit publish
 
       - name: Build and Publish Railtracks Core to PyPI
+        if: false
         env:
           FLIT_INDEX_URL: 'https://pypi.org/simple'
           FLIT_USERNAME: '__token__'
@@ -99,6 +100,7 @@ jobs:
           flit publish
 
       - name: Build and Publish Railtracks CLI to PyPI
+        if: false
         env:
           FLIT_INDEX_URL: 'https://pypi.org/simple'
           FLIT_USERNAME: '__token__'
