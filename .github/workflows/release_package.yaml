@@ -1,4 +1,4 @@
-name: Publish to Azure Artifacts on Release
+name: Publish Packages
 
 on:
   release:
@@ -41,11 +41,21 @@ jobs:
           sed -i -E 's/__version__ = ".+"/__version__ = "'"$VERSION_CLEANED"'"/' packages/railtracks/src/railtracks/__init__.py
           echo "Updated railtracks __init__.py to version $VERSION_CLEANED"
 
-      - name: Build and Publish Railtracks Core
+      - name: Build and Publish Railtracks Core to Azure Artifacts
         env:
           FLIT_INDEX_URL: 'https://pkgs.dev.azure.com/railtownai/ML/_packaging/railtownai_rc/pypi/upload/'
           FLIT_USERNAME: 'AZURE'
           FLIT_PASSWORD: ${{ secrets.AZURE_ARTIFACTS_PAT }}
+        run: |
+          cd packages/railtracks
+          flit publish
+
+      - name: Build and Publish Railtracks Core to PyPI
+        if: false
+        env:
+          FLIT_INDEX_URL: 'https://pypi.org/simple'
+          FLIT_USERNAME: '__token__'
+          FLIT_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
         run: |
           cd packages/railtracks
           flit publish
@@ -85,6 +95,16 @@ jobs:
           FLIT_INDEX_URL: 'https://pkgs.dev.azure.com/railtownai/ML/_packaging/railtownai_rc/pypi/upload/'
           FLIT_USERNAME: 'AZURE'
           FLIT_PASSWORD: ${{ secrets.AZURE_ARTIFACTS_PAT }}
+        run: |
+          cd packages/railtracks-cli
+          flit publish
+
+      - name: Build and Publish Railtracks CLI to PyPI
+        if: false
+        env:
+          FLIT_INDEX_URL: 'https://pypi.org/simple'
+          FLIT_USERNAME: '__token__'
+          FLIT_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
         run: |
           cd packages/railtracks-cli
           flit publish

@@ -78,7 +78,7 @@ def test_runner_context_manager_closes_on_exit(mock_dependencies):
 
 # ================= START Session: Singleton/Instance Id Behavior ============
 
-def test_runner_identifier_is_taken_from_executor_config():
+def test_session_name_is_taken_from_executor_config():
     name = "abc123"
 
     r = Session(name=name)
@@ -138,7 +138,7 @@ def test_info_property_returns_rt_state_info(mock_dependencies):
 
 
 # ================= START Session: Check saved data ===============
-def test_runner_saves_data():
+def test_session_saves_data():
     name = "abs53562j12h267"
 
     serialization_mock = {"Key": "Value"}
@@ -156,14 +156,14 @@ def test_runner_saves_data():
         r.__exit__(None, None, None)
 
 
-    path = Path(".railtracks") / f"{r._identifier}.json"
+    path = Path(".railtracks") / f"{r.name}_{r._identifier}.json"
     data = json.loads(path.read_text())
     assert data["runs"] == serialization_mock
     assert "session_id" in data
     assert data["session_name"] == name
 
 
-def test_runner_not_saves_data():
+def test_session_not_saves_data():
     config = MagicMock()
 
     run_id = "Run 2"
@@ -187,6 +187,51 @@ def test_runner_not_saves_data():
     assert not path.is_file()
 
 
+def test_session_fallback_on_invalid_name():
+    """Test that session falls back to identifier-only filename when name causes issues."""
+    # Use a name that would cause issues in file path creation
+    invalid_name = "test/invalid:name*with|bad<chars>"
+    
+    serialization_mock = {"Key": "Value"}
+    
+    with patch.object(Session, 'info', new_callable=PropertyMock) as mock_runner:
+        mock_runner.return_value.graph_serialization.return_value = serialization_mock
+        
+        # Mock Path.touch to raise an exception when the path contains the invalid name in the filename
+        original_touch = Path.touch
+        def mock_touch(self, *args, **kwargs):
+            # Only raise exception if the invalid name is in the filename part (not just any path)
+            if invalid_name in self.name:
+                raise OSError("Invalid characters in filename")
+            return original_touch(self, *args, **kwargs)
+        
+        with patch.object(Path, 'touch', mock_touch), \
+             patch('railtracks._session.logger') as mock_logger:
+            
+            r = Session(name=invalid_name, save_state=True)
+            r.__exit__(None, None, None)
+            
+            # Verify that a warning was logged about the invalid name
+            mock_logger.warning.assert_called()
+            warning_calls = [call[0][0] for call in mock_logger.warning.call_args_list]
+            fallback_warning = None
+            for call in warning_calls:
+                if "falling back to using the unique identifier only" in call:
+                    fallback_warning = call
+                    break
+            
+            assert fallback_warning is not None, "Expected fallback warning not found"
+            assert invalid_name in fallback_warning
+            
+            # Verify that the fallback file was created (identifier only)
+            fallback_path = Path(".railtracks") / f"{r._identifier}.json"
+            assert fallback_path.exists()
+            
+            # Clean up
+            if fallback_path.exists():
+                fallback_path.unlink()
+
+
 # ================= START Session: Decorator Tests ===============
 
 def test_session_decorator_creates_function():
@@ -206,23 +251,25 @@ def test_session_decorator_with_parameters():
 
 @pytest.mark.asyncio
 async def test_session_decorator_wraps_async_function(mock_dependencies):
-    """Test that the decorator properly wraps an async function."""
+    """Test that the decorator properly wraps an async function and returns tuple."""
     @session(timeout=10)
     async def test_function():
         return "test_result"
     
-    result = await test_function()
+    result, session_obj = await test_function()
     assert result == "test_result"
+    assert isinstance(session_obj, Session)
 
 @pytest.mark.asyncio
 async def test_session_decorator_with_function_args(mock_dependencies):
-    """Test that the decorator preserves function arguments."""
+    """Test that the decorator preserves function arguments and returns tuple."""
     @session()
     async def test_function(arg1, arg2, kwarg1=None):
         return f"{arg1}-{arg2}-{kwarg1}"
     
-    result = await test_function("a", "b", kwarg1="c")
+    result, session_obj = await test_function("a", "b", kwarg1="c")
     assert result == "a-b-c"
+    assert isinstance(session_obj, Session)
 
 @pytest.mark.asyncio
 async def test_session_decorator_context_manager_behavior(mock_dependencies):
@@ -250,7 +297,9 @@ async def test_session_decorator_context_manager_behavior(mock_dependencies):
         async def test_function():
             return "done"
         
-        await test_function()
+        result, session_obj = await test_function()
+        assert result == "done"
+        assert isinstance(session_obj, Session)
     
     assert session_created
     assert session_closed
@@ -275,5 +324,42 @@ def test_rt_session_decorator_raises_error_on_sync_function():
         @session()
         def sync_function():
             return "this should fail"
+
+@pytest.mark.asyncio
+async def test_session_decorator_returns_session_object(mock_dependencies):
+    """Test that decorator returns both result and session object with access to session info."""
+    @session(name="test-session-123")
+    async def test_function():
+        return "test_result"
+    
+    result, session_obj = await test_function()
+    
+    # Verify we get both the result and session
+    assert result == "test_result"
+    assert isinstance(session_obj, Session)
+    assert session_obj.name == "test-session-123"
+    
+    # Verify we can access session properties
+    assert hasattr(session_obj, 'info')
+    assert hasattr(session_obj, 'payload')
+
+@pytest.mark.asyncio 
+async def test_session_decorator_handles_tuple_returns(mock_dependencies):
+    """Test that decorator properly handles functions that return tuples."""
+    @session()
+    async def function_returning_tuple():
+        return "hello", 42, True
+    
+    result, session_obj = await function_returning_tuple()
+    
+    # The result should be the tuple returned by the function
+    assert result == ("hello", 42, True)
+    assert isinstance(session_obj, Session)
+    
+    # The tuple structure is preserved
+    val1, val2, val3 = result
+    assert val1 == "hello"
+    assert val2 == 42
+    assert val3 == True
 
 # ================ END Session: Decorator Tests ===============
