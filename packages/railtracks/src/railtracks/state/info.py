@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from typing import List, Tuple, TypeVar
+from typing import Any, List, Tuple, TypeVar
 
 from railtracks.utils.profiling import Stamp, StampManager
 from railtracks.utils.serialization.graph import Edge, Vertex
@@ -142,7 +142,7 @@ class ExecutionInfo:
         """
         return self.node_forest.to_vertices(), self.request_forest.to_edges()
 
-    def graph_serialization(self, session_id: str) -> str:
+    def graph_serialization(self) -> dict[str, Any]:
         """
                 Creates a string (JSON) representation of this info object designed to be used to construct a graph for this
                 info object.
@@ -163,9 +163,8 @@ class ExecutionInfo:
 
         infos = [self._get_info(parent_node) for parent_node in parent_nodes]
 
-        prepared_obj = [
+        runs = [
             {
-                "session_id": session_id,
                 "name": info.name,
                 "run_id": str(uuid.uuid4()),
                 "nodes": info.node_forest.to_vertices(),
@@ -177,9 +176,11 @@ class ExecutionInfo:
             for info in infos
         ]
 
-        return json.dumps(
-            prepared_obj,
-            cls=RTJSONEncoder,
+        return json.loads(
+            json.dumps(
+                runs,
+                cls=RTJSONEncoder,
+            )
         )
 
 

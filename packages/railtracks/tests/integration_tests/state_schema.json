@@ -1,199 +1,338 @@
 {
-  "type": "array",
-  "items": {
-    "type": "object",
-    "properties": {
-      "session_id": {
-        "type": "string",
-        "description": "The session id is a unique identifier that this run is connected to."
-      },
-      "run_id": {
-        "type": "string",
-        "description": "The run id is a unique identifier for this run."
-      },
-      "name": {
-        "type": "string",
-        "description": "The name of the run."
-      },
-      "nodes": {
-        "type": "array",
-        "items": {
-          "$ref": "#/$defs/Node"
-        }
-      },
-      "edges": {
-        "type": "array",
-        "items": {
-          "$ref": "#/$defs/Edge"
-        }
-      },
-      "steps": {
-        "type": "array",
-        "items": {
-          "$ref": "#/$defs/Stamp"
-        }
-      }
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "description": "The session id is a unique identifier for the session."
     },
-    "required": [
-      "session_id",
-      "name",
-      "run_id",
-      "nodes",
-      "edges",
-      "steps"
-    ]
-  },
-    "$defs": {
-      "Stamp": {
-        "type": "object",
-        "properties": {
-          "step": { "type": "integer" },
-          "time": { "type": "number" },
-          "identifier": { "type": "string" }
+    "session_name": {
+      "anyOf": [
+        {
+          "type": "string"
         },
-        "required": ["step", "time", "identifier"]
-      },
-      "Node": {
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The name of the session."
+    },
+    "start_time": {
+      "type": "number",
+      "description": "The start time of the session."
+    },
+    "end_time": {
+      "type": "number",
+      "description": "The end time of the session."
+    },
+    "runs": {
+      "type": "array",
+      "items": {
         "type": "object",
         "properties": {
-          "identifier": { "type": "string" },
-          "node_type": { "enum": ["Other", "Agent", "Tool"]},
-          "name": { "type": "string" },
-          "stamp": { "$ref": "#/$defs/Stamp" },
-          "details": {
-            "type": "object",
-            "properties": {
-              "internals": {
-                "type": "object",
-                "properties": {
-                  "latency": {
-                    "type": "object",
-                    "properties": {
-                      "total_time": { "type": "number" }
-                    },
-                    "required": ["total_time"]
-                  },
-                  "llm_internals": { "$ref": "#/$defs/LLMInternals" }
-                },
-                "additionalProperties": true
-              }
-            },
-            "required": ["internals"]
+          "session_id": {
+            "type": "string",
+            "description": "The session id is a unique identifier that this run is connected to."
           },
-          "parent": {
-            "anyOf": [
-              { "$ref": "#/$defs/Node" },
-              { "type": "null" }
-            ]
-          }
-        },
-        "required": ["identifier", "node_type", "name", "stamp", "details"]
-      },
-      "Edge": {
-        "type": "object",
-        "properties": {
-          "source": {
-            "anyOf": [
-              { "type": "string" },
-              { "type": "null" }
-            ]
+          "run_id": {
+            "type": "string",
+            "description": "The run id is a unique identifier for this run."
           },
-          "target": { "type": "string" },
-          "identifier": { "type": "string" },
-          "stamp": { "$ref": "#/$defs/Stamp" },
-          "details": {
-            "type": "object",
-            "properties": {
-              "input_args": {
-                "type": "array",
-                "items": {}
-              },
-              "input_kwargs": {
-                "type": "object"
-              },
-              "status": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                    "enum": ["Completed", "Failed", "Open"]
-                  }
-                ]
-              },
-              "output": {}
-            },
-            "required": ["input_args", "input_kwargs", "output", "status"]
+          "name": {
+            "type": "string",
+            "description": "The name of the run."
           },
-          "parent": {
-            "anyOf": [
-              { "$ref": "#/$defs/Edge" },
-              { "type": "null" }
-            ]
-          }
-        },
-        "required": ["target", "identifier", "stamp", "details"]
-      },
-      "LLMInternals": {
-        "type": "object",
-        "properties": {
-          "model_name": { "type": "string" },
-          "model_provider": { "type": "string" },
-          "input": {
+          "nodes": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "role": { "type": "string" },
-                "content": { "type": "string" }
-              },
-              "required": ["role", "content"]
+              "$ref": "#/$defs/Node"
             }
           },
-          "output": {
-            "type": "object",
-            "properties": {
-              "role": { "type": "string" },
-              "content": { "type": "string" }
-            },
-            "required": ["role", "content"]
+          "edges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/Edge"
+            }
           },
-          "input_tokens": {
-            "anyOf": [
-              { "type": "integer" },
-              { "type": "null" }
-            ]
-          },
-          "output_tokens": {
-            "anyOf": [
-              { "type": "integer" },
-              { "type": "null" }
-            ]
-          },
-          "total_cost": {
-            "anyOf": [
-              { "type": "number" },
-              { "type": "null" }
-            ]
-          },
-          "system_fingerprint": {
-            "anyOf": [
-              { "type": "string" },
-              { "type": "null" }
-            ]
-          },
-          "latency": {
-            "anyOf": [
-              { "type": "number" },
-              { "type": "null" }
-            ]
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/Stamp"
+            }
           }
         },
         "required": [
-          "model_name",
-          "model_provider",
-          "input",
-          "output"
+          "name",
+          "run_id",
+          "nodes",
+          "edges",
+          "steps"
         ]
       }
-
+    }
+  },
+  "required": [
+    "session_id",
+    "session_name",
+    "start_time",
+    "end_time",
+    "runs"
+  ],
+  "$defs": {
+    "Stamp": {
+      "type": "object",
+      "properties": {
+        "step": {
+          "type": "integer"
+        },
+        "time": {
+          "type": "number"
+        },
+        "identifier": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "step",
+        "time",
+        "identifier"
+      ]
+    },
+    "Node": {
+      "type": "object",
+      "properties": {
+        "identifier": {
+          "type": "string"
+        },
+        "node_type": {
+          "enum": [
+            "Other",
+            "Agent",
+            "Tool"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "stamp": {
+          "$ref": "#/$defs/Stamp"
+        },
+        "details": {
+          "type": "object",
+          "properties": {
+            "internals": {
+              "type": "object",
+              "properties": {
+                "latency": {
+                  "type": "object",
+                  "properties": {
+                    "total_time": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "total_time"
+                  ]
+                },
+                "llm_internals": {
+                  "$ref": "#/$defs/LLMInternals"
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "required": [
+            "internals"
+          ]
+        },
+        "parent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Node"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "identifier",
+        "node_type",
+        "name",
+        "stamp",
+        "details"
+      ]
+    },
+    "Edge": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "target": {
+          "type": "string"
+        },
+        "identifier": {
+          "type": "string"
+        },
+        "stamp": {
+          "$ref": "#/$defs/Stamp"
+        },
+        "details": {
+          "type": "object",
+          "properties": {
+            "input_args": {
+              "type": "array",
+              "items": {}
+            },
+            "input_kwargs": {
+              "type": "object"
+            },
+            "status": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "Completed",
+                    "Failed",
+                    "Open"
+                  ]
+                }
+              ]
+            },
+            "output": {}
+          },
+          "required": [
+            "input_args",
+            "input_kwargs",
+            "output",
+            "status"
+          ]
+        },
+        "parent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Edge"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "target",
+        "identifier",
+        "stamp",
+        "details"
+      ]
+    },
+    "LLMInternals": {
+      "type": "object",
+      "properties": {
+        "model_name": {
+          "type": "string"
+        },
+        "model_provider": {
+          "type": "string"
+        },
+        "input": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string"
+              },
+              "content": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "role",
+              "content"
+            ]
+          }
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "content": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "role",
+            "content"
+          ]
+        },
+        "input_tokens": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "output_tokens": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "total_cost": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "system_fingerprint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "latency": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "model_name",
+        "model_provider",
+        "input",
+        "output"
+      ]
+    }
   }
 }

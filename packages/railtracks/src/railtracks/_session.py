@@ -1,5 +1,7 @@
 import inspect
+import json
 import os
+import time
 import uuid
 from functools import wraps
 from pathlib import Path
@@ -13,9 +15,6 @@ from .context.central import (
 from .execution.coordinator import Coordinator
 from .execution.execution_strategy import AsyncioExecutionStrategy
 from .pubsub import RTPublisher, stream_subscriber
-from .pubsub.messages import (
-    RequestCompletionMessage,
-)
 from .state.info import (
     ExecutionInfo,
 )
@@ -87,7 +86,7 @@ class Session:
         broadcast_callback: (
             Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
         ) = None,
-        identifier: str = None,
+        name: str | None = None,
         prompt_injection: bool | None = None,
         save_state: bool | None = None,
     ):
@@ -106,16 +105,15 @@ class Session:
         if context is None:
             context = {}
 
-        if identifier is None:
-            identifier = str(uuid.uuid4())
+        self.name = name
 
         prepare_logger(
             setting=self.executor_config.logging_setting,
             path=self.executor_config.log_file,
         )
-        self.publisher: RTPublisher[RequestCompletionMessage] = RTPublisher()
+        self.publisher: RTPublisher = RTPublisher()
 
-        self._identifier = identifier
+        self._identifier = str(uuid.uuid4())
 
         executor_info = ExecutionInfo.create_new()
         self.coordinator = Coordinator(
@@ -134,6 +132,8 @@ class Session:
             executor_config=self.executor_config,
             global_context_vars=context,
         )
+
+        self._start_time = time.time()
 
         logger.debug("Session %s is initialized" % self._identifier)
 
@@ -185,7 +185,7 @@ class Session:
 
                 logger.info("Saving execution info to %s" % file_path)
 
-                file_path.write_text(self.payload())
+                file_path.write_text(json.dumps(self.payload()))
             except Exception as e:
                 logger.error(
                     "Error while saving to execution info to file",
@@ -228,7 +228,7 @@ class Session:
         """
         return self.rt_state.info
 
-    def payload(self):
+    def payload(self) -> Dict[str, Any]:
         """
         Gets the complete json payload tied to this session.
 
@@ -236,7 +236,17 @@ class Session:
         """
         info = self.info
 
-        return info.graph_serialization(self._identifier)
+        run_list = info.graph_serialization()
+
+        full_dict = {
+            "session_id": self._identifier,
+            "session_name": self.name,
+            "start_time": self._start_time,
+            "end_time": time.time(),
+            "runs": run_list,
+        }
+
+        return json.loads(json.dumps(full_dict))
 
 
 def session(
@@ -249,7 +259,7 @@ def session(
     broadcast_callback: (
         Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
     ) = None,
-    identifier: str = None,
+    name: str | None = None,
     prompt_injection: bool | None = None,
     save_state: bool | None = None,
 ):
@@ -307,7 +317,7 @@ def session(
                 logging_setting=logging_setting,
                 log_file=log_file,
                 broadcast_callback=broadcast_callback,
-                identifier=identifier,
+                name=name,
                 prompt_injection=prompt_injection,
                 save_state=save_state,
             ):
