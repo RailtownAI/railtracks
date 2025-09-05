@@ -3,7 +3,6 @@ from typing import Generic, TypeVar
 
 from pydantic import BaseModel
 
-import railtracks.context as context
 from railtracks.exceptions.errors import LLMError
 from railtracks.interaction import call
 from railtracks.llm import (
@@ -93,7 +92,7 @@ class StructuredToolCallLLM(
                 message_history=self.message_hist,
             ) from e
 
-        # Might need to change the logic so that you keep the unstructured 
+        # Might need to change the logic so that you keep the unstructured
         last_message = AssistantMessage(content=structured_output)
         self.message_hist.pop()
         self.message_hist.append(last_message)
