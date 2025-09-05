@@ -1,7 +1,7 @@
 # rag.py
 import os
 import random
-from typing import Any, List, Optional
+from typing import List, Optional
 
 from .chunking_service import TextChunkingService
 from .embedding_service import EmbeddingService
@@ -44,20 +44,18 @@ class RAG:
 
     def __init__(
         self,
-        docs: List[Any],  # str, file path, or raw content
+        docs: List[str],  # str
         embed_config: Optional[dict] = None,
         store_config: Optional[dict] = None,
-        chunk_config: Optional[dict] = None,
-        input_type: str = "text",  # 'text' or 'path'
+        chunk_config: Optional[dict] = None
     ):
         """Initialize the RAG system.
 
         Args:
-            docs (List[Any]): List of documents to process. Can be raw text, file paths, or TextObject instances.
+            docs (List[str]): List of documents to process, raw text.
             embed_config (Optional[dict]): Configuration for embedding service.
             store_config (Optional[dict]): Configuration for vector store.
             chunk_config (Optional[dict]): Configuration for chunking service.
-            input_type (str): Type of input documents ('text' or 'path').
         """
         self.text_objects: List[TextObject] = []
         self.embed_service = EmbeddingService(**(embed_config or {}))
@@ -66,22 +64,9 @@ class RAG:
             **(chunk_config or {}),
             strategy=TextChunkingService.chunk_by_token,
         )
-        if input_type.lower() == "text":
-            for doc in docs:
-                self.text_objects.append(TextObject(doc))
-        elif input_type.lower() == "path":
-            # create TextObjects for file paths
-            for doc in docs:
-                if os.path.exists(doc):
-                    with open(doc, "r", encoding="utf-8") as f:
-                        content = f.read()
-                    self.text_objects.append(TextObject(raw_content=content, path=doc))
-                else:
-                    raise ValueError(f"File path {doc} does not exist.")
-        else:
-            raise ValueError(
-                f"input_type must be 'text' or 'path', instead got '{input_type}'."
-            )
+        # assert is list of str
+        for doc in docs:
+            self.text_objects.append(TextObject(doc))
 
     def embed_all(self):
         """Embed all text objects and store in vector store.

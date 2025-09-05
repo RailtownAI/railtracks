@@ -58,7 +58,7 @@ def test_textobject_to_vectorrecords_basic():
     assert "chunk_index" in records[0].metadata
 
 def test_rag_text_init_and_embed():
-    rag = RAG(docs=["abcdef"], input_type="text")
+    rag = RAG(docs=["abcdef"])
     rag.text_objects[0].chunked_content = None
     rag.text_objects[0].embeddings = None
 
@@ -74,24 +74,10 @@ def test_rag_text_init_and_embed():
     assert rag.vector_store.added  # Some objects were added
 
 def test_rag_search_returns_expected():
-    rag = RAG(docs=["abcdef"], input_type="text")
+    rag = RAG(docs=["abcdef"])
     rag.text_objects[0].chunked_content = ["abc", "def"]
     rag.text_objects[0].embeddings = [[1.0, 1.0], [2.0, 2.0]]
     results = rag.search("query", top_k=2)
     assert len(results) == 2
     assert hasattr(results[0], "score")
     assert hasattr(results[0], "record")
-
-def test_rag_path_input(tmp_path):
-    file_path = tmp_path / "file.txt"
-    file_path.write_text("content")
-    rag = RAG(docs=[str(file_path)], input_type="path")
-    assert rag.text_objects[0].path == str(file_path)
-
-def test_rag_path_input_file_not_exist():
-    with pytest.raises(ValueError):
-        RAG(docs=["notfound.txt"], input_type="path")
-
-def test_rag_bad_input_type():
-    with pytest.raises(ValueError):
-        RAG(docs=["abc"], input_type="BAD")

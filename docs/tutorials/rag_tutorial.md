@@ -1,158 +1,150 @@
-# Tutorial: Using Retrieval-Augmented Generation (RAG)
+# 🔍 Tutorial: Using Retrieval-Augmented Generation (RAG)
 
-Version: 0.0.2
+_Version: 0.1.0_
 
-Welcome to the tutorial on using RAG to ground your LLM applications in your own data. This guide explains why and when to use RAG, what happens under the hood, and how to get started quickly with the prebuilt node. You’ll also find practical tips for quality and performance.
+Ever wished your AI agent could know about your private documents, company policies, or the latest updates to your knowledge base? That's exactly what RAG (Retrieval-Augmented Generation) does!
 
-## Why RAG?
+This tutorial will get you from zero to RAG-powered agent in just a few minutes. We'll cover why RAG is a game-changer, how it works behind the scenes, and most importantly—how to build your first RAG application.
 
-LLMs are powerful, but they:
-- Don’t know your private or proprietary data.
-- Can go out of date as facts change.
-- Sometimes hallucinate.
+## 🤔 Why Should You Care About RAG?
 
-RAG fixes this by retrieving relevant snippets from your documents and injecting them into the prompt so the model answers using real, current context.
+LLMs are incredibly smart, but they have some pretty big limitations:
 
-Use RAG when:
-- You need answers grounded in internal docs, policies, FAQs, knowledge bases, logs.
-- Your knowledge changes frequently and must be reflected immediately.
-- You want traceability and the ability to show the exact source passages.
-- Your prompts would exceed token limits without selective retrieval.
+- 🚫 **No access to your private data** (company docs, internal policies, recent updates)
+- 📅 **Knowledge cutoff dates** mean they miss recent information
+- 🎭 **Hallucinations** when they confidently make up facts
 
-RAG may be overkill when:
-- You only need general world knowledge that your base model already knows.
-- Your corpus is tiny and always fully fits into the prompt.
+RAG solves all of these problems by giving your AI access to real, up-to-date information from your own documents.
 
-## How RAG works (at a glance)
+!!! tip "When RAG Shines ✨"
+    RAG is perfect when you need:
 
-When you construct a RAG node, the system performs these stages for you:
+    - **Grounded answers** from internal docs, policies, FAQs, or knowledge bases
+    - **Real-time accuracy** with frequently changing information
+    - **Source traceability** to show exactly where answers come from
+    - **Smart retrieval** when your knowledge base is too large for prompts
 
-1) Chunk
-- Split each document into manageable text chunks using a token-aware strategy.
+!!! warning "When RAG Might Be Overkill"
+    Skip RAG if:
 
-2) Embed
-- Convert each chunk to a vector with an embedding model.
+    - You only need general world knowledge your model already has
+    - Your entire knowledge base easily fits in a single prompt
+    - You're doing creative writing rather than fact-based responses
 
-3) Store
-- Write vectors and associated text/metadata to a vector store (in-memory by default).
+## 🔧 How RAG Works (Behind the Magic)
 
-4) Search
-- At query time, embed the question and perform a similarity search to retrieve top-k relevant chunks.
+When you create a RAG node, RailTracks automatically handles these stages for you:
 
-5) Compose Prompt
-- Join retrieved snippets into a context string and pass it to an LLM for a grounded answer.
+### RAG Pipeline Steps
+=== "1. 📄 Chunk"
+    Split each document into manageable text chunks using a token-aware strategy.
+=== "2. 🔢 Embed"
+    Convert each chunk to a vector using an embedding model.
+=== "3. 💾 Store"
+    Write vectors and associated text/metadata to a vector store (in-memory by default).
+=== "4. 🔍 Search"
+    At query time, embed the question and perform a similarity search to retrieve top-k relevant chunks.
+=== "5. 🎯 Compose Prompt"
+    Join retrieved snippets into a context string and pass it to an LLM for a grounded answer.
 
-Note: You don’t need to wire these stages yourself when using the prebuilt node—they’re executed during node construction and on each query.
+!!! note "Set It and Forget It"
+    You don't need to wire these stages yourself when using the prebuilt node—they're executed during node construction and on each query automatically!
 
-## Quickstart: Prebuilt RAG Node (recommended)
+## 🚀 Quickstart: Prebuilt RAG Node (Recommended)
 
-This is the easiest way to add RAG to your app.
+This is the easiest way to add RAG to your app. Let's build a simple knowledge base in under 10 lines of code:
 
 ```python
-import railtracks as rt
-from railtracks.prebuilt import rag_node
-from railtracks.nodes.concrete import TerminalLLM
-from railtracks.llm import OpenAILLM
-
-# 1) Build the retrieval node
-retriever = rag_node(
-    ["Steve likes apples", "John likes bananas", "Alice likes oranges"],
-    input_type="text",                      # "text" for raw strings, "path" for file paths
-    embed_model="text-embedding-3-small",   # embedding model
-    # token_count_model="gpt-4o",           # optional, for token-aware chunking
-    # chunk_size=1000,                      # optional
-    # chunk_overlap=200,                    # optional
-)
-
-# 2) Retrieve relevant context
-question = "Who likes apples?"
-search_result = rt.call_sync(retriever, question, top_k=3)  # adjust top_k as needed
-context = "\n\n".join(search_result.to_list_of_texts())
-
-# 3) Ask an LLM with the retrieved context
-llm_node = TerminalLLM(
-    llm_model=OpenAILLM("gpt-4o"),
-    user_input=f"""
-Answer the user question using the context below.
-If the answer is not contained, say "I don't know".
-
-Context:
-{context}
-
-Question:
-{question}
-""",
-)
-
-# you can invoke the LLM node like:
-# answer = rt.call_sync(llm_node)
-# print(answer)
-
-print("Context:")
-print(context)
+--8<-- "docs/scripts/rag_examples.py:simple_rag_example"
 ```
 
-### Some Parameters you’ll care about
+!!! example "Example Output"
+    Your RAG node can now answer questions based on your documents:
 
-- documents: List of texts or file paths.
-- input_type: "text" for raw strings, "path" for UTF-8 text files.
-- embed_model: Embedding model name (e.g., "text-embedding-3-small").
-- token_count_model: Model used for token-aware chunking (affects chunk_size units).
-- chunk_size: Approximate tokens per chunk.
-- chunk_overlap: Token overlap between chunks to preserve context across boundaries.
-- top_k (on query): How many chunks to retrieve for a question.
+    Query: `"Who is Steve?"`
 
-### Working with files
+    Response: `"In our company, Steve is the lead engineer and ..."`
 
-Use input_type="path" to load text files:
+### 🎛️ Key Parameters You'll Want to Tune
+
+!!! tip "Parameter Guide" 
+    - **`documents`**: List of raw text strings to process 
+    - **`embed_model`**: Embedding model name (e.g., "text-embedding-3-small") 
+    - **`token_count_model`**: Model used for token-aware chunking (affects chunk_size units) 
+    - **`chunk_size`**: Approximate tokens per chunk 
+    - **`chunk_overlap`**: Token overlap between chunks to preserve context across boundaries 
+    - **`top_k`** (on query): How many chunks to retrieve for a question
+
+### 📁 Working with Files
+
+To use text files as your data source, read them first, then pass the content to `rag_node`:
+
 ```python
-retriever = rag_node(
-    ["./docs/faq.txt", "./docs/policies.txt"],
-    input_type="path",
-    embed_model="text-embedding-3-small",
-)
+--8<-- "docs/scripts/rag_examples.py:rag_with_files"
 ```
-Notes:
-- Files must be UTF-8 text. For PDFs or other binary formats, extract text first.
-- For large corpora or advanced storage (e.g., FAISS/Qdrant), consider building a custom node (see the Reference guide) to configure a different vector store.
 
-## What happens under the hood
+!!! warning "File Format Requirements" 
+    - Files must be UTF-8 text 
+    - For PDFs or other binary formats, extract text first using appropriate libraries 
+    - For large corpora or advanced storage (e.g., FAISS/Qdrant), consider building a custom node
 
-When you call rag_node(...):
+## 🎯 What Happens Under the Hood?
 
-1) Document ingestion
-- Reads your strings or files and wraps them as TextObjects.
+When you call `rag_node(...)`, here's the magic that happens automatically:
 
-2) Chunking
-- Splits documents into chunks based on chunk_size and chunk_overlap using a token-aware strategy tied to token_count_model.
+### Automated RAG Pipeline
+=== "📖 Document Ingestion"
+    Reads your raw text strings.
 
-3) Embeddings
-- Calls the embedding service to embed each chunk into vectors using embed_model.
+=== "✂️ Chunking"
+    Splits documents into chunks based on `chunk_size` and `chunk_overlap` using a token-aware strategy tied to `token_count_model`.
 
-4) Indexing (store)
-- Writes VectorRecords (vector + text + metadata) into the default vector store (in-memory for quick starts).
+=== "🧠 Embeddings"
+    Calls the embedding service to embed each chunk into vectors using `embed_model`.
 
-5) Retrieval on query
-- Embeds the query and performs a vector similarity search to get the top_k most relevant snippets.
+=== "📚 Storage"
+    Writes VectorRecords (vector + text + metadata) into the default vector store (in-memory for quick starts).
 
-6) Prompt composition
-- You turn the retrieved snippets into a context string and pass it to your LLM.
+=== "🔍 Retrieval on Query"
+    Embeds the query and performs a vector similarity search to get the `top_k` most relevant snippets.
 
-You don’t need to manage these steps yourself with the prebuilt node; they’re executed automatically with sensible defaults.
+=== "📝 Prompt Composition"
+    You turn the retrieved snippets into a context string and pass it to your LLM.
 
-## Choosing good settings
+!!! success "Zero Configuration Required"
+    You don't need to manage these steps yourself with the prebuilt node—they're executed automatically with sensible defaults!
 
-- Chunk size and overlap
-  - Start with 600–1200 tokens; use 10–20% overlap.
-  - Larger chunks capture more context but may reduce retrieval precision; smaller chunks increase precision but may fragment meaning.
+## 🎯 Suggestion for Best Results
 
-- Embedding model
-  - "text-embedding-3-small" is a cost-effective default.
-  - Upgrade to a stronger embedding model if your queries are nuanced or your domain is specialized.
+### 🧩 Chunk Size and Overlap
 
-- top_k
-  - 3–5 is a common starting range. Increase for fragmented content or highly diverse corpora.
+- **Start with**: 600–1200 tokens with 10–20% overlap
+- **Trade-offs**:
+  - **Larger chunks** → More context but less precise retrieval
+  - **Smaller chunks** → More precise but may fragment meaning
 
-- Storage
-  - Default is an in-memory store (great for dev and tests).
-  - For larger datasets or persistence, use a custom node and pass a different store via store_config (see Reference).
+### 🧠 Embedding Model Selection
+
+- **`"text-embedding-3-small"`** → Cost-effective default for most use cases 
+- **Upgrade to stronger models** when dealing with nuanced queries or specialized domains
+
+### 📊 Top-K Retrieval
+
+- **Start with 3–5** for most applications 
+- **Increase for fragmented content** or highly diverse corpora 
+- **Monitor performance** to avoid retrieving too much irrelevant context
+
+### 💾 Storage Options
+
+- **Default**: In-memory store (perfect for development and testing) 
+- **Production**: Consider persistent stores like FAISS/Qdrant for larger datasets 
+- **Custom configuration**: Use `store_config` parameter for advanced setups
+
+---
+
+!!! success "Next Steps"
+    Ready to build something more advanced? Check out:
+
+    - [RAG Reference Documentation](../tools_mcp/RAG.md) for custom implementations
+    - [Tools Documentation](../tools_mcp/tools/tools.md) for integrating RAG with other capabilities
+    - [Advanced Usage Patterns](../advanced_usage/context.md) for complex workflows
