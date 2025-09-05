@@ -1,3 +1,4 @@
+.cursor
 .env
 .idea
 .tox
@@ -19,7 +20,7 @@ test-results.xml
 */.ipynb_checkpoints/*
 
 # virtual environments and other
-myenv 
+myenv
 venv
 .venv
 .ruff_cache

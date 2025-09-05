@@ -1,6 +1,6 @@
 import asyncio
 from typing import Any
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, create_autospec, patch
 
 import pytest
 from railtracks.exceptions import GlobalTimeOutError
@@ -19,6 +19,8 @@ from railtracks.pubsub.messages import (
     RequestCreation,
     RequestFinishedBase,
 )
+
+from packages.railtracks.tests.unit_tests.execution.conftest import mock_node
 
 # ============================ START Helper Classes ============================
 
@@ -112,7 +114,7 @@ async def test_call_with_no_context_creates_runner(
     mock_session_class, mock_context_functions, mock_start
 ):
     """Test that call creates a Session when no context is present."""
-    mock_node = Mock(return_value=MockNode("test_result"))
+    mock_node = MockNode
 
     # Setup mock session context manager
     session_instance = Mock()
@@ -136,7 +138,7 @@ async def test_call_with_inactive_context_calls_start(
     mock_context_functions, mock_start
 ):
     """Test that call uses _start when context is present but inactive."""
-    mock_node = Mock(return_value=MockNode("test_result"))
+    mock_node = MockNode
 
     # Configure the context to simulate present but inactive
     mock_context_functions["is_context_present"].return_value = True
@@ -154,18 +156,17 @@ async def test_call_with_inactive_context_calls_start(
 @pytest.mark.asyncio
 async def test_call_with_active_context_calls_run(mock_context_functions, mock_run):
     """Test that call uses _run when context is active."""
-    mock_node = Mock(return_value=MockNode("test_result"))
 
     # Configure the context to simulate active context
     mock_context_functions["is_context_present"].return_value = True
     mock_context_functions["is_context_active"].return_value = True
     mock_run.return_value = "test_result"
 
-    result = await call(mock_node, "arg1", kwarg1="kwarg1")
+    result = await call(MockNode, "arg1", kwarg1="kwarg1")
 
     assert result == "test_result"
     mock_run.assert_called_once_with(
-        mock_node, args=("arg1",), kwargs={"kwarg1": "kwarg1"}
+        MockNode, args=("arg1",), kwargs={"kwarg1": "kwarg1"}
     )
 
 

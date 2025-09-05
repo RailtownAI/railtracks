@@ -8,7 +8,8 @@ from railtracks.exceptions.messages.exception_messages import (
     get_message,
     get_notes,
 )
-from railtracks.llm import SystemMessage
+from railtracks.llm import Parameter, SystemMessage
+from railtracks.llm.tools.parameter import ParameterType
 from railtracks.utils.logging import get_rt_logger
 
 # Global logger for validation
@@ -302,3 +303,118 @@ def validate_tool_params(parameters: Any, param_type) -> bool:
 
 
 # ================================================================== END Tool init error ===========================================================
+
+
+# ============================================================== START Tool Manifest Verification ===========================================================
+def _check_manifest_params_exist_in_function(
+    func_params: dict, manifest_params: dict
+) -> None:
+    """Check that all manifest parameters exist in function signature."""
+    for param_name in manifest_params:
+        if param_name not in func_params:
+            raise NodeCreationError(
+                message=f"Tool manifest parameter '{param_name}' does not exist in function signature.",
+                notes=[
+                    f"Function parameters are: {list(func_params.keys())}",
+                    "Remove the extra parameter from the tool manifest or add it to the function signature.",
+                ],
+            )
+        if (
+            ParameterType.from_python_type(func_params[param_name].annotation)
+            != manifest_params[param_name]
+        ):
+            raise NodeCreationError(
+                message=f"Type mismatch for parameter '{param_name}': function expects '{ParameterType.from_python_type(func_params[param_name].annotation)}', but manifest specifies '{manifest_params[param_name]}'.",
+                notes=[
+                    "Ensure the parameter types in the tool manifest match the function signature.",
+                    "Refer to the ParameterType enum for valid types.",
+                ],
+            )
+
+
+def _check_required_params_in_manifest(
+    func_params: dict, manifest_params: dict
+) -> None:
+    """Check that required function parameters are present in manifest."""
+    for param_name, func_param in func_params.items():
+        if func_param.default == inspect.Parameter.empty:  # Required parameter
+            if param_name not in manifest_params:
+                raise NodeCreationError(
+                    message=f"Required function parameter '{param_name}' is missing from tool manifest.",
+                    notes=[
+                        "Add the missing parameter to the tool manifest.",
+                        "All required function parameters must be included in the manifest.",
+                    ],
+                )
+            if (
+                ParameterType.from_python_type(func_params[param_name].annotation)
+                != manifest_params[param_name]
+            ):
+                raise NodeCreationError(
+                    message=f"Type mismatch for parameter '{param_name}': function expects '{ParameterType.from_python_type(func_params[param_name].annotation)}', but manifest specifies '{manifest_params[param_name]}'.",
+                    notes=[
+                        "Ensure the parameter types in the tool manifest match the function signature.",
+                        "Refer to the ParameterType enum for valid types.",
+                    ],
+                )
+
+
+def validate_tool_manifest_against_function(
+    func: Callable, manifest_params: Iterable[Parameter] | None
+) -> None:
+    """
+    Validate that tool manifest parameters are compatible with function signature.
+
+    This checks that:
+    1. Manifest parameter names match function parameter names
+    2. Required function parameters are present in manifest (unless they have defaults)
+    3. No extra parameters in manifest that don't exist in function
+    4. Parameter types are broadly compatible considering type mapping
+
+    Args:
+        func: The function to validate against
+        manifest_params: List of Parameter objects from ToolManifest, or None
+
+    Raises:
+        NodeCreationError: If validation fails
+    """
+    try:
+        sig = inspect.signature(func)
+    except ValueError:
+        # For builtin functions, we can't validate - trust the user
+        return
+
+    # Get function parameters (excluding 'self' and 'cls' for methods)
+    func_params = {}
+    for param_name, param in sig.parameters.items():
+        if param_name not in ("self", "cls"):
+            func_params[param_name] = param
+
+    if not manifest_params:
+        if func_params:
+            raise NodeCreationError(
+                message="No Tool manifest parameters are provided but the function passed requires parameters",
+                notes=[
+                    f"Function parameters are: {list(func_params.keys())}",
+                    "Please add the required parameters to the tool manifest.",
+                ],
+            )
+        return
+    else:
+        if not func_params or func_params == {}:
+            raise NodeCreationError(
+                message="Tool manifest parameters are provided but the function passed does not accept any parameters",
+                notes=[
+                    "Please remove the parameters from the tool manifest.",
+                ],
+            )
+
+    # Convert manifest parameters to dict for easier lookup
+    manifest_param_dict = {p.name: p.param_type for p in manifest_params}
+
+    # Perform all validation checks
+    _check_manifest_params_exist_in_function(func_params, manifest_param_dict)
+    _check_required_params_in_manifest(func_params, manifest_param_dict)
+
+
+# ============================================================== END Tool Manifest Verification ===========================================================

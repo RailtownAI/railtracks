@@ -22,7 +22,10 @@ from railtracks.built_nodes.concrete import (
 )
 from railtracks.exceptions import NodeCreationError
 from railtracks.nodes.manifest import ToolManifest
-from railtracks.validation.node_creation.validation import validate_function
+from railtracks.validation.node_creation.validation import (
+    validate_function,
+    validate_tool_manifest_against_function,
+)
 
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
@@ -34,7 +37,7 @@ def function_node(
     /,
     *,
     name: str | None = None,
-    tool_manifest: ToolManifest | None = None,
+    manifest: ToolManifest | None = None,
 ) -> RTAsyncFunction[_P, _TOutput]:
     pass
 
@@ -45,7 +48,7 @@ def function_node(
     /,
     *,
     name: str | None = None,
-    tool_manifest: ToolManifest | None = None,
+    manifest: ToolManifest | None = None,
 ) -> RTSyncFunction[_P, _TOutput]:
     pass
 
@@ -55,7 +58,7 @@ def function_node(
     /,
     *,
     name: str | None = None,
-    tool_manifest: ToolManifest | None = None,
+    manifest: ToolManifest | None = None,
 ):
     """
     Creates a new Node type from a function that can be used in `rt.call()`.
@@ -70,7 +73,7 @@ def function_node(
     Args:
         func (Callable): The function to convert into a Node.
         name (str, optional): Human-readable name for the node/tool.
-        tool_manifest (ToolManifest, optional): The details you would like to override the tool with.
+        manifest (ToolManifest, optional): The details you would like to override the tool with.
     """
 
     if hasattr(func, "node_type"):
@@ -84,6 +87,10 @@ def function_node(
         func, BuiltinFunctionType
     ):  # we don't require dict validation for builtin functions, that is handled separately.
         validate_function(func)  # checks for dict or Dict parameters
+
+    # Validate tool manifest against function signature if manifest is provided
+    if manifest is not None:
+        validate_tool_manifest_against_function(func, manifest.parameters)
 
     if asyncio.iscoroutinefunction(func):
         node_class = AsyncDynamicFunctionNode
@@ -110,8 +117,8 @@ def function_node(
 
     builder.setup_function_node(
         func,
-        tool_details=tool_manifest.description if tool_manifest is not None else None,
-        tool_params=tool_manifest.parameters if tool_manifest is not None else None,
+        tool_details=manifest.description if manifest is not None else None,
+        tool_params=manifest.parameters if manifest is not None else None,
     )
 
     completed_node_type = builder.build()

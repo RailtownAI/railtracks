@@ -1,55 +1,65 @@
-Build your first agentic system in just a few steps.
+Large Language Models (LLMs) are powerful, but they’re not enough on their own.  
+Railtracks gives them structure, tools, and visibility so you can build agents that actually get things done.  
 
-### Step 1: Install the Library
+In this quickstart, you’ll install Railtracks, run your first agent, and visualize its execution — all in a few minutes.
 
-```bash
-# Core library
+### 1. Installation
+
+```bash title="Install Library"
 pip install railtracks
-
-# [Optional] CLI support for development and visualization
 pip install railtracks-cli
 ```
+!!! note 
+    `railtracks-cli` is optional, but required for the visualization step. 
 
-### Step 2: Define Your Modular Components
+
+### 2. Running your Agent
+
+Define an agent with a model and system message, then call it with a prompt:
 
 ```python
 --8<-- "docs/scripts/quickstart.py:setup"
 ```
 
-### Step 3: Run Your Application
+!!! example "Example Output"
+    Your exact output will vary depending on the model.
+    ``` title="Example Response"
+    Hello! I can help you out with a wide range of tasks...
+    ``` 
 
+??? Question "Supported Models"
+    Railtracks supports many of the most popular model providers. See the [full list](../llm_support/providers.md)
 
-=== "Synchronous"
+??? tip "Jupyter Notebooks"
+    If you’re running this in a Jupyter notebook, remember that notebooks already run inside an event loop. In that case, call `await rt.call(...)` directly:
+   
+### 3. Visualize the Run
+Railtracks has a built-in visualizer to inspect and review your agent runs. 
 
-    ```python
-    --8<-- "docs/scripts/quickstart.py:synchronous_call"
-    ```
+```bash title="Initialize Visualizer (Run Once)"
+railtracks init
+```
 
-=== "Asynchronous"
-
-    ```python
-    --8<-- "docs/scripts/quickstart.py:async_main"
-    ```
-!!! tip "Jupyter Notebooks"
-    If you're using Jupyter Notebooks, you can run the code in a cell with `await` directly with the `async main` function.
-    For more info on using `async/await` in RT, see [Async/Await in Python](../tutorials/guides/async_await.md).
-!!! example "Output"
-    ```bash
-    LLMResponse(The word "Tyrannosaurus" contains a total of 5 vowels: 2 'a's, 1 'o', and 2 'u's.)
-    ```
-### Step 4: \[Optional] Visualize the Run
-
-```bash
+```bash title="Run Visualizer"
 railtracks viz
 ```
-??? tip "Initializing the Visualizer"
-    If you haven't run the visualizer before, you will need to initialize the CLI first:
 
-    ```bash
-    railtracks init
-    ```
 ![RailTracks Visualization](../assets/visualizer_photo.png)
 
 This will open a web interface showing the execution flow, node interactions, and performance metrics of your agentic system.
 
-And just like that, you're up and running. The possibilities are endless.
+----
+
+!!! Tip "Next Steps"
+    You’ve got your first agent running! Here’s where to go next:
+
+    **Learn the Basics**
+    
+    - [What is an Agent?](../tutorials/guides/agents.md)
+    - [What is a Tool?](../tutorials/guides/tools.md)
+    
+    **Build Something**
+
+    - [Building your First Agent](../tutorials/byfa.md)
+    - [Running your First Agent](../tutorials/ryfa.md)
+
