@@ -26,6 +26,7 @@ class TerminalLLM(StringOutputMixIn, LLMBase[StringResponse]):
         )
         ```
     """
+
     def __init__(
         self,
         user_input: MessageHistory | UserMessage | str | list[Message],
