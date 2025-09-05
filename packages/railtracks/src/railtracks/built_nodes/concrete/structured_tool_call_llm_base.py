@@ -93,13 +93,8 @@ class StructuredToolCallLLM(
                 message_history=self.message_hist,
             ) from e
 
-        # Might need to change the logic so that you keep the unstructured message
+        # Might need to change the logic so that you keep the unstructured 
+        last_message = AssistantMessage(content=structured_output)
         self.message_hist.pop()
-        self.message_hist.append(AssistantMessage(content=structured_output))
-
-        if (key := self.return_into()) is not None:
-            output = self.return_output()
-            context.put(key, self.format_for_context(output.structured))
-            return self.format_for_return(output.structured)
-
-        return self.return_output()
+        self.message_hist.append(last_message)
+        return self.return_output(last_message)
