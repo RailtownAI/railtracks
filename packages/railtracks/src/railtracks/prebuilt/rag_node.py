@@ -22,7 +22,7 @@ def rag_node(
         chunk_overlap (int): Overlap between chunks.
 
     Returns:
-        callable of type DynamicFunctionNode: A node to be invoked upon request.
+        A node to be invoked upon request.
 
     """
 

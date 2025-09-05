@@ -1,7 +1,5 @@
 # 🔍 Retrieval-Augmented Generation (RAG)
 
-_Version: 0.1.0_
-
 Need your AI agents to access your company's knowledge base, docs, or any private data? RAG is your answer! It enables grounded answering by retrieving relevant snippets from your documents and composing them into LLM prompts.
 
 RAG ingests documents, chunks them, embeds the chunks into vectors, stores those vectors, and retrieves the most relevant snippets at query time—all automatically handled for you.
@@ -47,7 +45,7 @@ For maximum control and customization, build your own RAG implementation:
 ```
 
 !!! note "Pro Tips" 
-    - The callable node accepts `query` and optional `top_k`. Pass `top_k` via `rt.call_sync(retriever, "q", top_k=5)` 
+    - The callable node accepts `query` and optional `top_k` to control number of retrieved chunks. 
     - `SearchResult` can be converted to plain text using `.to_list_of_texts()` 
     - You can inspect the object for similarity scores and metadata
 
@@ -69,57 +67,7 @@ railtracks.prebuilt.rag_node(
 ) -> DynamicFunctionNode
 ```
 
-**Parameters:**
-
-- **`documents`**: List of raw text strings to process and index
-- **`embed_model`**: Embedding model name (default: "text-embedding-3-small")
-- **`token_count_model`**: Model for token counting during chunking (default: "gpt-4o")
-- **`chunk_size`**: Approximate tokens per chunk (default: 1000)
-- **`chunk_overlap`**: Token overlap between chunks (default: 200)
-
-**Behavior:**
-
-- Builds a RAG index from documents
-- Calls `embed_all` once during construction
-- Returns a `DynamicFunctionNode` that you can call with `(query: str, top_k: int = 1)` to obtain a `SearchResult`
-
-### 🔧 RAG Core Class
-
-**Module:** `railtracks.rag.rag_core.RAG`
-
-**Constructor:**
-
-```python
-RAG(
-    docs: List[str],
-    embed_config: Optional[dict] = None,
-    store_config: Optional[dict] = None,
-    chunk_config: Optional[dict] = None
-)
-```
-
-**Important Parameters:**
-
-- **`docs`**: List of raw text strings to process
-- **`embed_config`**: Embedding provider config, e.g., `{"model": "text-embedding-3-small"}`
-- **`store_config`**: Vector store configuration (default is in-memory)
-- **`chunk_config`**: `{"chunk_size": int, "chunk_overlap": int, "model": str}` where model is used for token-based chunking
-
-**Methods:**
-
-- **`embed_all() -> None`**
-
-  - Chunks docs, embeds chunks, and writes VectorRecords into the vector store
-  - **Must be called before search** if you build RAG manually
-
-- **`search(query: str, top_k: int = 3) -> SearchResult`**
-  - Embeds the query and returns the top_k most similar chunks
-
-**Return Types:**
-
-- **`SearchResult`**
-  - Provides convenience helpers such as `.to_list_of_texts()` to extract the retrieved snippet texts
-  - May expose similarity metadata per entry depending on vector store implementation
+This Node is the preferred way to add RAG to your app. It handles chunking, embedding, storing, and retrieval automatically.
 
 ### 🔩 Supporting Components
 
@@ -127,21 +75,21 @@ RAG(
 
 - **TextChunkingService**
 
-  - Strategy: token-based chunking (`chunk_by_token`)
-  - Controlled by `chunk_config`: `chunk_size`, `chunk_overlap`, `model` (for token counting)
+  - Strategy: token-based chunking to control chunk size
 
 - **EmbeddingService**
 
-  - Produces vector embeddings for lists of strings
-  - Configure via `embed_config`
+  - Produces vector embeddings from desired provider or local model
 
 - **Vector Store**
-  - Created via `create_store(**store_config)`
-  - Default: in-memory store suitable for development and tests
+  - Stores embeddings and associated text/metadata
 
 ---
 
 ## ⚙️ Configuration and Performance
+
+!!! API reference
+Considering referencing [rag_node](/api_reference/prebuilt/rag_nodes.html) and [RAG](..\packages\railtracks\src\railtracks\rag\rag_core.py)
 
 ### 🧩 Chunking Strategy
 

@@ -1,7 +1,5 @@
 # 🔍 Tutorial: Using Retrieval-Augmented Generation (RAG)
 
-_Version: 0.1.0_
-
 Ever wished your AI agent could know about your private documents, company policies, or the latest updates to your knowledge base? That's exactly what RAG (Retrieval-Augmented Generation) does!
 
 This tutorial will get you from zero to RAG-powered agent in just a few minutes. We'll cover why RAG is a game-changer, how it works behind the scenes, and most importantly—how to build your first RAG application.
@@ -118,10 +116,10 @@ When you call `rag_node(...)`, here's the magic that happens automatically:
 
 ### 🧩 Chunk Size and Overlap
 
-- **Start with**: 600–1200 tokens with 10–20% overlap
-- **Trade-offs**:
-  - **Larger chunks** → More context but less precise retrieval
-  - **Smaller chunks** → More precise but may fragment meaning
+- **Suggested Range**: 600–1200 tokens with 10–20% overlap
+- **Size Trade-offs**
+    - **Larger chunks** → More context but less precise retrieval
+    - **Smaller chunks** → More precise but may fragment meaning
 
 ### 🧠 Embedding Model Selection
 
