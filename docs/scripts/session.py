@@ -61,7 +61,7 @@ async def second_workflow():
 
 # Run independently
 result1, session1 = asyncio.run(first_workflow())
-result2, session2 = asyncio.run(second_workflow())
+result2, _ = asyncio.run(second_workflow()) # if we don't want to work with Session Object
 print(result1)  # "Hello, Diana!"
 print(result2)  # "Bye, Robert!"
 # --8<-- [end: multiple_sessions_dec]

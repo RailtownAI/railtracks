@@ -50,24 +50,24 @@ class Session:
     3. The default values.
 
     Default Values:
+    - `name`: None
     - `timeout`: 150.0 seconds
     - `end_on_error`: False
     - `logging_setting`: "REGULAR"
     - `log_file`: None (logs will not be written to a file)
     - `broadcast_callback`: None (no callback for broadcast messages)
-    - `name`: None
     - `prompt_injection`: True (the prompt will be automatically injected from context variables)
     - `save_state`: True (the state of the execution will be saved to a file at the end of the run in the `.railtracks` directory)
 
 
     Args:
+        name (str | None, optional): Optional name for the session. This name will be included in the saved state file if `save_state` is True.
         context (Dict[str, Any], optional): A dictionary of global context variables to be used during the execution.
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
         logging_setting (allowable_log_levels, optional): The setting for the level of logging you would like to have.
         log_file (str | os.PathLike | None, optional): The file to which the logs will be written.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
-        name (str | None, optional): Optional name for the session. This name will be included in the saved state file if `save_state` is True.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks` directory.
     """
@@ -76,6 +76,7 @@ class Session:
         self,
         context: Dict[str, Any] | None = None,
         *,
+        name: str | None = None,
         timeout: float | None = None,
         end_on_error: bool | None = None,
         logging_setting: allowable_log_levels | None = None,
@@ -83,7 +84,6 @@ class Session:
         broadcast_callback: (
             Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
         ) = None,
-        name: str | None = None,
         prompt_injection: bool | None = None,
         save_state: bool | None = None,
     ):
@@ -195,7 +195,6 @@ class Session:
                 if file_path.exists():
                     logger.warning("File %s already exists, overwriting..." % file_path)
 
-                # file_path.touch()
                 logger.info("Saving execution info to %s" % file_path)
 
                 file_path.write_text(json.dumps(self.payload()))
@@ -279,6 +278,7 @@ def session(
 def session(
     func: None = None,
     *,
+    name: str | None = None,
     context: Dict[str, Any] | None = None,
     timeout: float | None = None,
     end_on_error: bool | None = None,
@@ -287,7 +287,6 @@ def session(
     broadcast_callback: (
         Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
     ) = None,
-    name: str | None = None,
     prompt_injection: bool | None = None,
     save_state: bool | None = None,
 ) -> Callable[
@@ -303,13 +302,13 @@ def session(
     Note: Do not provide the 'func' parameter - it's handled automatically by Python.
 
     Args:
+        name (str | None, optional): Optional name for the session. This name will be included in the saved state file if `save_state` is True.
         context (Dict[str, Any], optional): A dictionary of global context variables to be used during the execution.
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
         logging_setting (allowable_log_levels, optional): The setting for the level of logging you would like to have.
         log_file (str | os.PathLike | None, optional): The file to which the logs will be written.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
-        name (str | None, optional): Optional name for the session. This name will be included in the saved state file if `save_state` is True.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks` directory.
 
@@ -323,6 +322,7 @@ def session(
 def session(
     func: Callable[_P, Coroutine[Any, Any, _TOutput]] | None = None,
     *,
+    name: str | None = None,
     context: Dict[str, Any] | None = None,
     timeout: float | None = None,
     end_on_error: bool | None = None,
@@ -331,7 +331,6 @@ def session(
     broadcast_callback: (
         Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
     ) = None,
-    name: str | None = None,
     prompt_injection: bool | None = None,
     save_state: bool | None = None,
 ) -> (
@@ -358,13 +357,13 @@ def session(
     while maintaining the simplicity of decorator usage.
 
     Args:
+        name (str | None, optional): Optional name for the session. This name will be included in the saved state file if `save_state` is True.
         context (Dict[str, Any], optional): A dictionary of global context variables to be used during the execution.
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
         logging_setting (allowable_log_levels, optional): The setting for the level of logging you would like to have.
         log_file (str | os.PathLike | None, optional): The file to which the logs will be written.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
-        name (str | None, optional): Optional name for the session. This name will be included in the saved state file if `save_state` is True.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks` directory.
 
