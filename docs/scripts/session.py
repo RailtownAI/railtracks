@@ -15,8 +15,9 @@ async def empty_workflow():
 
 
 # Run your workflow
-result = asyncio.run(empty_workflow())
+result, session = asyncio.run(empty_workflow())
 print(result)  # "Hello, Alice!"
+print(f"Session ID: {session._identifier}")
 # --8<-- [end: empty_session_dec]
 
 
@@ -34,8 +35,9 @@ async def configured_workflow():
     return [result1, result2]
 
 
-result = asyncio.run(configured_workflow())
+result, session = asyncio.run(configured_workflow())
 print(result)  # ['Hello, Bob!', 'Hello, Charlie!']
+print(f"Session ID: {session._identifier}")
 # --8<-- [end: configured_session_dec]
 
 
@@ -58,8 +60,10 @@ async def second_workflow():
 
 
 # Run independently
-print(asyncio.run(first_workflow()))  # "Hello, Diana!"
-print(asyncio.run(second_workflow()))  # "Bye, Robert!"
+result1, session1 = asyncio.run(first_workflow())
+result2, _ = asyncio.run(second_workflow()) # if we don't want to work with Session Object
+print(result1)  # "Hello, Diana!"
+print(result2)  # "Bye, Robert!"
 # --8<-- [end: multiple_sessions_dec]
 
 

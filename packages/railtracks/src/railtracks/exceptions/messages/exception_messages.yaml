@@ -87,3 +87,8 @@ MAX_TOOL_CALLS_UNLIMITED_WARN: "You have set max_tool_calls to None. The llm wil
 NO_SYSTEM_MESSAGE_WARN: "No SystemMessage was provided. This is not recommended. Please provide the first message as a SystemMessage."
 
 ONLY_SYSTEM_MESSAGE_WARN: "Only SystemMessage was provided. This is not recommended. Please provide at least one UserMessage."
+
+INVALID_SESSION_FILE_NAME_WARN: >
+  The session name '{name}' could not be included in the saved json filename,
+  falling back to using the unique identifier only {identifier}. To avoid this in the future,
+  please ensure the session name contains only alphanumeric characters, dashes, and underscores.
