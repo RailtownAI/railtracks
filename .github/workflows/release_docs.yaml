@@ -1,0 +1,23 @@
+name: Deploy MkDocs
+
+on:
+  relase:
+    types: [published]
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install mkdocs>=1.6.1 mkdocs-material>=9.6.15 mkdocs-material-extensions>=1.3.1 mkdocs-mermaid2-plugin>=1.2.0
+
+      - name: Deploy to GitHub Pages
+        run: mkdocs gh-deploy --force
