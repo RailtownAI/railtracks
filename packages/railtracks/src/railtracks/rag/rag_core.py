@@ -1,5 +1,4 @@
 # rag.py
-import os
 import random
 from typing import List, Optional
 
