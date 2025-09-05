@@ -247,11 +247,6 @@ class RTState:
             self.logger.exception(rfa.to_logging_msg())
             raise e
         # you have to run this in a task so it isn't blocking other completions
-        from railtracks.context.central import get_parent_id, get_run_id, get_session_id
-
-        print(
-            f"---- Pre Task - S: {get_session_id()}, R: {get_run_id()}, N: {get_parent_id()} ---- "
-        )
         outputs = asyncio.create_task(self._run_request(request_id))
 
         return outputs
