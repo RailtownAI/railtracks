@@ -1,4 +1,4 @@
-name: Publish to Azure Artifacts on Release
+name: Publish Packages
 
 on:
   release:
