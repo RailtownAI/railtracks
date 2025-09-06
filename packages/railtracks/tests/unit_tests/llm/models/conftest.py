@@ -158,7 +158,7 @@ class MockLiteLLMWrapper(LiteLLMWrapper):
     def model_type(cls) -> str:
         return "mock"
 
-    def _invoke_conntent(self):
+    def _invoke_content(self):
         return (
             ModelResponse(
                 choices=[
@@ -209,7 +209,7 @@ class MockLiteLLMWrapper(LiteLLMWrapper):
                 0.0,
             )
         else:
-            return self._invoke_conntent()
+            return self._invoke_content()
 
     async def _ainvoke(
         self,
@@ -246,7 +246,7 @@ class MockLiteLLMWrapper(LiteLLMWrapper):
                 0.0,
             )
         else:
-            return self._invoke_conntent()
+            return self._invoke_content()
 
 
 @pytest.fixture

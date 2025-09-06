@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, AnyStr, Dict, Generator, List, Union
+from typing import Any, AnyStr, Dict, Generator, List, Union, Generic, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -41,8 +41,9 @@ class ToolResponse(BaseModel):
     def __str__(self):
         return f"{self.name} -> {self.result}"
 
+_TOutput = TypeVar('_TOutput', str, BaseModel)
 
-class Stream:
+class Stream(Generic[_TOutput]):
     """
     A simple object that represents a streaming response from a model.
 
@@ -53,13 +54,14 @@ class Stream:
     def __init__(
         self,
         streamer: Generator[str, None, None],
-        final_message: str | BaseModel,
+        final_message: _TOutput,
     ):
         """
         Creates a new instance of a Stream object.
 
         Args:
             streamer: A generator that streams the response as a collection of chunked Response objects.
+            final_message: The final message or data structure obtained after the streaming ends.
         """
         if streamer is not None and not isinstance(streamer, Generator):
             raise TypeError(
@@ -69,9 +71,9 @@ class Stream:
         self._final_message = final_message
 
     @property
-    def final_message(self) -> str | BaseModel:
+    def final_message(self) -> _TOutput:
         """
-        Gets the Final message that was constructured from the streamer, aftter the streamer has finished. Else returns None.
+        Gets the final message that was constructed from the streamer, after the streamer has finished.
         """
         return self._final_message
 

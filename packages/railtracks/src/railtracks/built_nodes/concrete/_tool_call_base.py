@@ -137,7 +137,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
         self._add_message_to_history(response.message)
         return response.message
 
-    async def _handle_tool_calls(self) -> tuple[bool, Message]:
+    async def _handle_tool_calls(self) -> tuple[bool, Message | None]:
         """
         Handles the execution of tool calls for the node, including LLM interaction and message history updates.
 
@@ -220,9 +220,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                             ToolResponse(identifier=r_id, result=str(resp), name=r_name)
                         )
                     )
-                return True, AssistantMessage(
-                    content=""
-                )  # dummy message since True wont make invoke break out of the loop
+                return True, None
             else:
                 # this means the tool call is finished
                 self._add_message_to_history(response.message)

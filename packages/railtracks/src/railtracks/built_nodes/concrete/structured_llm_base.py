@@ -1,6 +1,6 @@
 import json
 from abc import ABC
-from typing import Generic, TypeVar
+from typing import Generic, TypeVar, Union
 
 from pydantic import BaseModel
 
@@ -15,7 +15,7 @@ from railtracks.validation.node_creation.validation import (
 from ._llm_base import LLMBase, StructuredOutputMixIn
 from .response import StructuredResponse
 
-_TOutput = TypeVar("_TOutput", bound=BaseModel)
+_TOutput = TypeVar("_TOutput", bound=Union[BaseModel, Stream])
 
 
 # note the ordering here does matter, the t
@@ -56,7 +56,7 @@ class StructuredLLM(
     def name(cls) -> str:
         return f"Structured LLM ({cls.output_schema().__name__})"
 
-    async def invoke(self) -> StructuredResponse[_TOutput | Stream]:
+    async def invoke(self) -> StructuredResponse[_TOutput]:
         """Makes a call containing the inputted message and system prompt to the llm model and returns the response
 
         Returns:

@@ -336,7 +336,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         return "Agent"
 
 
-_TStructured = TypeVar("_TStructured", bound=BaseModel)
+_TStructured = TypeVar("_TStructured", bound=Union[BaseModel, Stream])
 
 
 class StructuredOutputMixIn(Generic[_TStructured]):
@@ -344,12 +344,12 @@ class StructuredOutputMixIn(Generic[_TStructured]):
 
     @classmethod
     @abstractmethod
-    def output_schema(cls) -> Type[_TStructured]:
+    def output_schema(cls) -> Type[BaseModel]:
         pass
 
     def return_output(
         self, message: Message
-    ) -> StructuredResponse[Union[_TStructured, Stream]]:
+    ) -> StructuredResponse[_TStructured]:
         content = message.content
 
         assert isinstance(content, self.output_schema() | Stream), (

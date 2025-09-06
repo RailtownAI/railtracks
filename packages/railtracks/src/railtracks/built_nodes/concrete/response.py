@@ -61,12 +61,14 @@ class StructuredResponse(LLMResponse[_TStructured]):
         if isinstance(self.content, BaseModel):
             return self.content
         elif isinstance(self.content, Stream):
-            assert isinstance(self.content.final_message, BaseModel)
+            assert isinstance(self.content.final_message, BaseModel), f"final_message must be a BaseModel. Got {type(self.content.final_message)}"
             return self.content.final_message
-        return self.content
+        else:
+            raise ValueError("Unexpected content type")
 
+_TString = TypeVar("_TString", bound=Union[str, Stream])
 
-class StringResponse(LLMResponse[str | Stream]):
+class StringResponse(LLMResponse[_TString]):
     """
     A specialized response object for string outputs from LLMs.
 
@@ -75,7 +77,7 @@ class StringResponse(LLMResponse[str | Stream]):
         message_history: The history of messages exchanged during the interaction.
     """
 
-    def __init__(self, content: str | Stream, message_history: MessageHistory):
+    def __init__(self, content: _TString, message_history: MessageHistory):
         super().__init__(content, message_history)
 
     @property
@@ -84,7 +86,7 @@ class StringResponse(LLMResponse[str | Stream]):
         if isinstance(self.content, str):
             return self.content
         elif isinstance(self.content, Stream):
-            assert isinstance(self.content.final_message, str)
+            assert isinstance(self.content.final_message, str), f"final_message must be a str. Got {type(self.content.final_message)}"
             return self.content.final_message
         else:
             raise ValueError("Unexpected content type")
