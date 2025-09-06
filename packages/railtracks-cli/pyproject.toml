@@ -23,7 +23,10 @@ dependencies = [
 ]
 
 [project.urls]
-Home = "https://railtown.ai"
+railtracks = "https://railtracks.org"
+repository = "https://github.com/RailtownAI/railtracks"
+ui-repository = "https://github.com/RailtownAI/railtracks-visualizer"
+railtown = "https://railtown.ai"
 
 [tool.flit.module]
 name = "railtracks_cli"
