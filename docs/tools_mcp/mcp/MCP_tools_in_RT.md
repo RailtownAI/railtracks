@@ -122,6 +122,16 @@ github_server = connect_mcp(
 github_tools = github_server.tools
 ```
 
+
+!!! Warning
+    You must set your github token in your .env file or you will see an error like:
+    
+    Exception in thread Thread-1 (_thread_main):
+
+    Traceback (most recent call last):
+    
+    File "C:\Users\rc\.venv\lib\site-packages\anyio\streams\memory.py", line 111, in receive
+
 ### 📘 Notion Server
 
 ```python

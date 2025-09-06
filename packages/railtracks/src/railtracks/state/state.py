@@ -89,7 +89,8 @@ class RTState:
         if isinstance(item, RequestFinishedBase):
             await self.handle_result(item)
         if isinstance(item, RequestCreation):
-            update_parent_id(item.current_node_id)
+            if item.current_node_id is not None:
+                update_parent_id(item.current_node_id, item.current_run_id)
 
             assert item.new_request_id not in self._request_heap.heap().keys()
 
