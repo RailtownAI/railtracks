@@ -347,9 +347,7 @@ class StructuredOutputMixIn(Generic[_TStructured]):
     def output_schema(cls) -> Type[BaseModel]:
         pass
 
-    def return_output(
-        self, message: Message
-    ) -> StructuredResponse[_TStructured]:
+    def return_output(self, message: Message) -> StructuredResponse[_TStructured]:
         content = message.content
 
         assert isinstance(content, self.output_schema() | Stream), (

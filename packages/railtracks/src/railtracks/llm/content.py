@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, AnyStr, Dict, Generator, List, Union, Generic, TypeVar
+from typing import Any, AnyStr, Dict, Generator, Generic, List, TypeVar, Union
 
 from pydantic import BaseModel, Field
 
@@ -41,7 +41,9 @@ class ToolResponse(BaseModel):
     def __str__(self):
         return f"{self.name} -> {self.result}"
 
-_TOutput = TypeVar('_TOutput', str, BaseModel)
+
+_TOutput = TypeVar("_TOutput", str, BaseModel)
+
 
 class Stream(Generic[_TOutput]):
     """

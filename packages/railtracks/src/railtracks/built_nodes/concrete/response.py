@@ -61,12 +61,16 @@ class StructuredResponse(LLMResponse[_TStructured]):
         if isinstance(self.content, BaseModel):
             return self.content
         elif isinstance(self.content, Stream):
-            assert isinstance(self.content.final_message, BaseModel), f"final_message must be a BaseModel. Got {type(self.content.final_message)}"
+            assert isinstance(self.content.final_message, BaseModel), (
+                f"final_message must be a BaseModel. Got {type(self.content.final_message)}"
+            )
             return self.content.final_message
         else:
             raise ValueError("Unexpected content type")
 
+
 _TString = TypeVar("_TString", bound=Union[str, Stream])
+
 
 class StringResponse(LLMResponse[_TString]):
     """
@@ -86,7 +90,9 @@ class StringResponse(LLMResponse[_TString]):
         if isinstance(self.content, str):
             return self.content
         elif isinstance(self.content, Stream):
-            assert isinstance(self.content.final_message, str), f"final_message must be a str. Got {type(self.content.final_message)}"
+            assert isinstance(self.content.final_message, str), (
+                f"final_message must be a str. Got {type(self.content.final_message)}"
+            )
             return self.content.final_message
         else:
             raise ValueError("Unexpected content type")
