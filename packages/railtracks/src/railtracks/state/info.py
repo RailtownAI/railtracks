@@ -161,7 +161,7 @@ class ExecutionInfo:
         parent_nodes = [x.identifier for x in self.insertion_requests]
 
         infos = [self._get_info(parent_node) for parent_node in parent_nodes]
-        
+
         runs = []
 
         for info, parent_node_id in zip(infos, parent_nodes):
@@ -169,7 +169,7 @@ class ExecutionInfo:
 
             assert len(insertion_requests) == 1
             parent_request = insertion_requests[0]
-            
+
             all_parents = parent_request.get_all_parents()
 
             start_time = all_parents[-1].stamp.time
@@ -194,7 +194,6 @@ class ExecutionInfo:
                 "end_time": end_time,
             }
             runs.append(entry)
-
 
         return json.loads(
             json.dumps(
