@@ -62,12 +62,13 @@ nav:
   - Home: index.md
 
   - Quickstart: quickstart/quickstart.md
+
+  - Background:
+      - Agents: background/agents.md
+      - Tools: background/tools.md
+      - Async/Await: background/async_await.md
   
   - Tutorials:
-      - Background:
-          - Agents: tutorials/guides/agents.md
-          - Tools: tutorials/guides/tools.md
-          - Async/Await: tutorials/guides/async_await.md
       - Building your first agent: tutorials/byfa.md
       - Running your first agent: tutorials/ryfa.md
       - Controlling Flows and Wrapping Nodes: tutorials/flows.md
