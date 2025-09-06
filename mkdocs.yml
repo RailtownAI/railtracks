@@ -6,6 +6,8 @@ repo_url: https://github.com/RailtownAI/railtracks
 
 theme:
   name: material
+  logo: assets/Railtracks_logo-01.png
+  favicon: assets/Railtracks_logo-01.png
 
   palette:
     - scheme: default
