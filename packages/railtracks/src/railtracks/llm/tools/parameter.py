@@ -109,10 +109,25 @@ class Parameter:
         """Check if additional properties are allowed for object types."""
         return self._additional_properties
 
+    def _format_param_type(self) -> str:
+        """Format parameter type for string representation, handling both enum and list cases."""
+        if isinstance(self._param_type, list):
+            # Handle list of parameter types (for union types)
+            return [
+                item.value if hasattr(item, "value") else str(item)
+                for item in self._param_type
+            ]
+        elif hasattr(self._param_type, "value"):
+            # Handle single ParameterType enum
+            return self._param_type.value
+        else:
+            # Handle other cases (should not happen in normal usage)
+            return str(self._param_type)
+
     def __str__(self) -> str:
         """String representation of the parameter."""
         return (
-            f"Parameter(name={self._name}, type={self._param_type}, "
+            f"Parameter(name={self._name}, type={self._format_param_type()}, "
             f"description={self._description}, required={self._required}, "
             f"additional_properties={self._additional_properties}, "
             f"enum={self._enum}, "
@@ -160,7 +175,7 @@ class PydanticParameter(Parameter):
 
     def __str__(self) -> str:
         return (
-            f"PydanticParameter(name={self._name}, type={self._param_type}, "
+            f"PydanticParameter(name={self._name}, type={self._format_param_type()}, "
             f"description={self._description}, required={self._required}, "
             f"additional_properties={self._additional_properties}, properties={self._properties}), "
             f"ref_path={self._ref_path})"
@@ -197,7 +212,7 @@ class ArrayParameter(Parameter):
     def __str__(self) -> str:
         """String representation of the parameter with properties."""
         return (
-            f"ArrayParameter(name={self._name}, type={self._param_type}, "
+            f"ArrayParameter(name={self._name}, type={self._format_param_type()}, "
             f"description={self._description}, required={self._required}, "
             f"additional_properties={self._additional_properties}, properties={self._properties}), "
             f"max_items={self._max_items})"
