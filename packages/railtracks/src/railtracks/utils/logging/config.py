@@ -1,11 +1,13 @@
 import logging
 import os
 import re
-from typing import Literal
+from typing import Literal, TypeAlias
 
 from colorama import Fore, init
 
-allowable_log_levels = Literal["VERBOSE", "REGULAR", "QUIET", "NONE"]
+LogLevel: TypeAlias = Literal["VERBOSE", "REGULAR", "QUIET", "NONE"]
+# Legacy alias for backward compatibility
+allowable_log_levels = LogLevel
 # the temporary name for the logger that RT will use.
 rt_logger_name = "RT"
 rt_logger = logging.getLogger(rt_logger_name)
@@ -172,7 +174,7 @@ def setup_file_handler(
 
 def prepare_logger(
     *,
-    setting: allowable_log_levels,
+    setting: LogLevel,
     path: str | os.PathLike | None = None,
 ):
     """

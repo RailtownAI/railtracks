@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from typing import Callable, Coroutine
 
-from railtracks.utils.logging.config import allowable_log_levels
+from railtracks.utils.logging.config import LogLevel
 
 
 class ExecutorConfig:
@@ -12,7 +12,7 @@ class ExecutorConfig:
         *,
         timeout: float = 150.0,
         end_on_error: bool = False,
-        logging_setting: allowable_log_levels = "REGULAR",
+        logging_setting: LogLevel = "REGULAR",
         log_file: str | os.PathLike | None = None,
         broadcast_callback: (
             Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
@@ -26,7 +26,7 @@ class ExecutorConfig:
         Args:
             timeout (float): The maximum number of seconds to wait for a response to your top level request
             end_on_error (bool): If true, the executor will stop execution when an exception is encountered.
-            logging_setting (allowable_log_levels): The setting for the level of logging you would like to have.
+            logging_setting (LogLevel): The setting for the level of logging you would like to have.
             log_file (str | os.PathLike | None): The file to which the logs will be written. If None, no file will be created.
             broadcast_callback (Callable or Coroutine): A function or coroutine that will handle streaming messages.
             prompt_injection (bool): If true, prompts can be injected with global context
@@ -34,7 +34,7 @@ class ExecutorConfig:
         """
         self.timeout = timeout
         self.end_on_error = end_on_error
-        self.logging_setting = logging_setting
+        self.logging_setting: LogLevel = logging_setting
         self.subscriber = broadcast_callback
         self.log_file = log_file
         self.prompt_injection = prompt_injection
@@ -45,7 +45,7 @@ class ExecutorConfig:
         *,
         timeout: float | None = None,
         end_on_error: bool | None = None,
-        logging_setting: allowable_log_levels | None = None,
+        logging_setting: LogLevel | None = None,
         log_file: str | os.PathLike | None = None,
         subscriber: (
             Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
