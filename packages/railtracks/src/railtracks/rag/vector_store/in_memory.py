@@ -311,13 +311,23 @@ class InMemoryVectorStore(AbstractVectorStore):
         if pickle_path.is_dir() or not str(pickle_path).endswith(".pkl"):
             pickle_path /= "in_memory_store.pkl"
         with open(pickle_path, "wb") as f:
+            records_serialized = {
+                rid: {
+                    "id": rec.id,
+                    "vector": rec.vector,
+                    "text": rec.text,
+                    "metadata": getattr(rec, "metadata", None),
+                }
+                for rid, rec in self._record.items()
+            }
+
             pickle.dump(
                 {
                     "metric": getattr(self.metric, "value", self.metric),
                     "dim": self._dim,
                     "normalize": self._normalize,
                     "vectors": self._vectors,
-                    "record": self._record,
+                    "record": records_serialized,
                 },
                 f,
             )
@@ -343,5 +353,19 @@ class InMemoryVectorStore(AbstractVectorStore):
             normalize=data["normalize"],
         )
         store._vectors = data["vectors"]
-        store._record = data["record"]
+        raw_records = data["record"]
+        recs = {}
+        for rid, rec in raw_records.items():
+            if isinstance(rec, dict):
+                recs[rid] = VectorRecord(
+                    id=rec.get("id", rid),
+                    vector=rec.get("vector"),
+                    text=rec.get("text"),
+                    metadata=rec.get("metadata"),
+                )
+            else:
+                # Fallback: already an object (older pickle)
+                recs[rid] = rec
+
+        store._record = recs
         return store

@@ -1,19 +1,20 @@
 import math
-import os
-from pathlib import Path
+from typing import Any, Dict
+from types import SimpleNamespace
 import pytest
 from unittest.mock import MagicMock
+import pickle
 
 # -------------- Auto-patch module dependencies (pytest-style) --------------
 @pytest.fixture(autouse=True)
 def patch_vectorstore_deps(monkeypatch, dummy_embedding_service, dummy_record, dummy_search_result, dummy_metric):
     import railtracks.rag.vector_store.in_memory as vsmem
-    
+
     # Create a mock that returns unique strings on each call
     mock_uuid = MagicMock()
-    mock_uuid.side_effect = [f"uuid{i}" for i in range(1000)]  # Generates uuid0, uuid1, ...
+    mock_uuid.side_effect = [f"uuid{i}" for i in range(1000)]
 
-    # Patch all dependencies in the *module under test's namespace*:
+    # Patch dependencies in the module under test's namespace
     monkeypatch.setattr(vsmem, "uuid_str", mock_uuid)
     monkeypatch.setattr(vsmem, "BaseEmbeddingService", dummy_embedding_service)
     monkeypatch.setattr(vsmem, "VectorRecord", dummy_record)
@@ -39,11 +40,12 @@ def normalize(vec):
 
 @pytest.fixture
 def store_cos(dummy_embedding_service):
-    # cosine metric with default normalization
+    # cosine metric with normalization defaulting to True in real code; but patched Metric may differ
     return InMemoryVectorStore(
         embedding_service=dummy_embedding_service(),
         metric="cosine",
         dim=3,
+        normalize=True,  # explicit to avoid test-dummy metric equality quirks
     )
 
 @pytest.fixture
@@ -246,3 +248,129 @@ def test_uuid_called_once_per_text_add(monkeypatch, store_cos):
     store_cos.add(items)
     # EXPECTED: exactly len(items) uuid_str calls (currently will be double)
     assert vsmem.uuid_str.call_count == len(items)
+    
+
+def test_load_reconstructs_records_with_patched_VectorRecord(tmp_path, store_cos, dummy_record):
+    # Persist with DummyRecord in store, then load and ensure records are reconstructed
+    ids = store_cos.add(
+        [
+            dummy_record(id="r1", vector=[1.0, 0.0, 0.0], text="one"),
+            dummy_record(id="r2", vector=[0.0, 1.0, 0.0], text="two"),
+        ],
+        embed=False,
+    )
+    file_path = tmp_path / "store.pkl"
+    store_cos.persist(file_path)
+
+    loaded = InMemoryVectorStore.load(file_path)
+    assert isinstance(loaded, InMemoryVectorStore)
+
+    for rid in ids:
+        rec = loaded._record[rid]
+        assert isinstance(rec, dummy_record)
+        assert rec.id == rid
+        assert rec.vector == loaded._vectors[rid]
+        assert rec.text in ("one", "two")
+
+def test_load_legacy_object_records(tmp_path):
+    # Backwards-compatibility: load a pickle that contains non-dict record objects.
+    class OldRecord:
+        def __init__(self, id, vector, text, metadata=None):
+            self.id = id
+            self.vector = vector
+            self.text = text
+            self.metadata = metadata or {}
+
+    vectors = {"old1": [1.0, 2.0, 3.0]}
+    legacy_payload = {
+        "metric": "cosine",
+        "dim": 3,
+        "normalize": True,
+        "vectors": vectors,
+        # Use a picklable object type
+        "record": {
+            "old1": SimpleNamespace(
+                id="old1",
+                vector=[1.0, 2.0, 3.0],
+                text="legacy",
+                metadata={"z": 9},
+            )
+        },
+    }
+
+    p = tmp_path / "legacy.pkl"
+    with open(p, "wb") as f:
+        pickle.dump(legacy_payload, f)
+
+    loaded = InMemoryVectorStore.load(p)
+    assert isinstance(loaded, InMemoryVectorStore)
+    assert loaded._vectors["old1"] == [1.0, 2.0, 3.0]
+
+    # Fallback path: loader should preserve non-dict objects as-is
+    rec = loaded._record["old1"]
+    from types import SimpleNamespace as SN
+    assert isinstance(rec, SN)
+    assert rec.id == "old1"
+    assert rec.vector == [1.0, 2.0, 3.0]
+    assert rec.text == "legacy"
+    assert rec.metadata == {"z": 9}
+
+def test_persist_metric_is_string_in_pickle(tmp_path, store_l2, dummy_record):
+    store_l2.add([dummy_record(id="m1", vector=[1, 2, 3], text="t")], embed=False)
+    file_path = tmp_path / "store.pkl"
+    store_l2.persist(file_path)
+
+    with open(file_path, "rb") as f:
+        data: Dict[str, Any] = pickle.load(f)
+    # Metric should be persisted in a value-safe form (typically a string)
+    assert isinstance(data["metric"], str)
+    assert data["metric"].lower() in {"l2", "cosine", "dot"}
+
+def test_persist_has_no_embedding_service_in_pickle(tmp_path, store_cos, dummy_record):
+    store_cos.add([dummy_record(id="p1", vector=[1.0, 0.0, 0.0], text="x")], embed=False)
+    file_path = tmp_path / "store.pkl"
+    store_cos.persist(file_path)
+
+    with open(file_path, "rb") as f:
+        data: Dict[str, Any] = pickle.load(f)
+    # Ensure we don't leak services into persisted payload
+    assert "embedding_service" not in data
+
+def test_add_vectorrecord_merges_metadata(store_cos, dummy_record):
+    base = dummy_record(id="vr1", vector=[1.0, 0.0, 0.0], text="t", metadata={"a": 1, "b": 2})
+    ids = store_cos.add([base], embed=False, metadata=[{"b": 3, "c": 4}])
+    rid = ids[0]
+    rec = store_cos._record[rid]
+    # Merge semantics: provided metadata overrides conflicts, preserves existing keys
+    assert rec.metadata == {"a": 1, "b": 3, "c": 4}
+
+def test_update_merges_metadata_preserving_existing(store_cos, dummy_record):
+    # Seed a record with existing metadata
+    ids = store_cos.add(
+        [dummy_record(id="u1", vector=[1.0, 0.0, 0.0], text="orig", metadata={"a": 1, "b": 2})],
+        embed=False,
+    )
+    rid = ids[0]
+    # Update with new text (embed=True path) and merge metadata
+    store_cos.update(rid, "new text", embed=True, b="x", c=3)
+    rec = store_cos._record[rid]
+    assert rec.text == "new text"
+    # Existing preserved, updated overridden, new added
+    assert rec.metadata == {"a": 1, "b": "x", "c": 3}
+
+def test_record_vector_matches_stored_after_add(store_cos):
+    ids = store_cos.add(["normalize-me"])
+    rid = ids[0]
+    # Record vector should mirror stored vector exactly (including normalization)
+    assert store_cos._record[rid].vector == store_cos._vectors[rid]
+
+def test_record_vector_matches_stored_after_update(store_cos):
+    ids = store_cos.add(["orig"])
+    rid = ids[0]
+    store_cos.update(rid, [3.0, 4.0, 0.0], embed=False)
+    assert store_cos._record[rid].vector == store_cos._vectors[rid]
+
+def test_search_topk_zero_returns_empty(store_l2, dummy_record):
+    store_l2.add([dummy_record(id="a1", vector=[0, 0, 0], text="a")], embed=False)
+    res = store_l2.search([0, 0, 0], top_k=0, embed=False)
+    assert list(res) == []
