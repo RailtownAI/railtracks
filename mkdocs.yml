@@ -12,14 +12,12 @@ theme:
   palette:
     - scheme: default
       primary: white
-      accent: red
       toggle:
         icon: material/brightness-4
         name: Switch to dark mode
 
     - scheme: slate
       primary: black
-      accent: red
       toggle:
         icon: material/brightness-5
         name: Switch to light mode
