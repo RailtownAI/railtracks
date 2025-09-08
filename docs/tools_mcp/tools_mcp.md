@@ -9,7 +9,7 @@ RailTracks provides a comprehensive suite of tools that extend the capabilities 
 
 RailTracks offers multiple ways to access and create tools:
 
-1. **Built-in Tools** - Use our pre-built tools for common tasks
+1. **[Built-in Tools](#built-in-tools)** - Use our pre-built tools for common tasks
 2. **[MCP Tools](mcp/mcp.md)** - Connect to Model Context Protocol servers for additional capabilities
 3. **[Create Your Own](tools/tools.md)** - Build custom tools for your specific needs
 
