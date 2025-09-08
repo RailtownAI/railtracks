@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Sequence, Union
 
+
 from .chunking_service import TextChunkingService
 from .embedding_service import (
     EmbeddingService,
@@ -12,6 +13,9 @@ from .embedding_service import (
 from .text_object import TextObject
 from .vector_store import create_store
 from .vector_store.base import AbstractVectorStore, SearchResult, VectorRecord
+from railtracks.utils.logging import get_rt_logger
+
+logger = get_rt_logger("rag_core")
 
 # If you have a shared uuid utility, you could import/use that.
 # from .vector_store.utils import uuid_str
@@ -50,6 +54,11 @@ def textobject_to_vectorrecords(text_obj: TextObject) -> List[VectorRecord]:
     for i in range(n):
         metadata = dict(base_meta)
         metadata.update({"chunk_index": i, "chunk": chunks[i]})
+        # raise warning if text_obj.hash is empty, generate it on the run
+        if not text_obj.hash:
+            logger.warning("TextObject has no hash; generating a temporarily Hash")
+            text_obj.hash = TextObject.get_resource_hash(text_obj.raw_content)
+
         record_id = f"{text_obj.hash}-{i}"
         vector_records.append(
             VectorRecord(

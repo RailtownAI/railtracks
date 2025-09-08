@@ -1,7 +1,7 @@
 from typing import List
 
 import railtracks as rt
-from railtracks.rag.rag_core import RAG, SearchResult
+from railtracks.rag.rag_core import RAG, SearchResult, RAGConfig
 
 
 def rag_node(
@@ -28,15 +28,15 @@ def rag_node(
 
     rag_core = RAG(
         docs=documents,
-        embed_config={
-            "model": embed_model,
-        },
-        store_config={},
-        chunk_config={
-            "chunk_size": chunk_size,
-            "chunk_overlap": chunk_overlap,
-            "model": token_count_model,
-        },
+        config=RAGConfig(
+            embedding={"model": embed_model},
+            store={},
+            chunking={
+                "chunk_size": chunk_size,
+                "chunk_overlap": chunk_overlap,
+                "model": token_count_model,
+            },
+        ),
     )
     rag_core.embed_all()
 

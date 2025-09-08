@@ -7,24 +7,19 @@ import asyncio
 import railtracks as rt
 from railtracks.prebuilt import rag_node
 
-# Build the retrieval node with raw text documents
 retriever = rag_node([
     "Steve likes apples and enjoys them as snacks",
-    "John prefers bananas for their potassium content", 
-    "Alice loves oranges for vitamin C"
+    "John prefers bananas for their potassium content",
+    "Alice loves oranges for vitamin C",
 ])
 
-# Retrieve relevant context
 question = "What does Steve like?"
-search_result = asyncio.run(rt.call(retriever, question, top_k=3))
-context = ""
-idx = 0
-for result in search_result:
-    idx += 1
-    score = result.score
-    text = result.record.text
-    context += f"Document {idx} (score: {score:.4f}): {text}\n"
-    
+results = asyncio.run(rt.call(retriever, question, top_k=3))
+
+context = "\n".join(
+    f"Document {i+1} (score: {r.score:.4f}): {r.record.text}"
+    for i, r in enumerate(results)
+)
 
 print(f"Question: {question}")
 print(f"Retrieved context:\n{context}")
@@ -58,14 +53,15 @@ with rt.Session(context={
 }):
     response = asyncio.run( rt.call(
         agent,
-        user_input="""Based on the following context, please answer the question.
-
-Context:
-{context}
-
-Question: {question}
-
-Answer based only on the context provided. If the answer is not in the context, say "I don't know"."""
+        user_input=(
+            "Based on the following context, please answer the question.\n"
+            "Context:\n"
+            f"{context}\n"
+            "Question:\n"
+            f"{question}\n"
+            "Answer based only on the context provided."
+            "If the answer is not in the context, say \"I don't know\"."
+        )
     ))
 
 # 4) Run the agent with context
@@ -93,7 +89,7 @@ retriever = rag_node([
 # --8<-- [start:custom_rag_node]
 from typing import List
 import railtracks as rt
-from railtracks.rag.rag_core import RAG, SearchResult
+from railtracks.rag.rag_core import RAG, RAGConfig, SearchResult
 
 def custom_rag_node(
     documents: List[str], 
@@ -109,13 +105,15 @@ def custom_rag_node(
     # packages\railtracks\src\railtracks\rag
     rag_core = RAG(
         docs=documents,
-        embed_config={"model": embed_model},
-        store_config={},
-        chunk_config={
-            "chunk_size": chunk_size,
-            "chunk_overlap": chunk_overlap,
-            "model": token_count_model,
-        },
+        config=RAGConfig(
+            embedding={"model": embed_model},
+            store={},
+            chunking={
+                "chunk_size": chunk_size,
+                "chunk_overlap": chunk_overlap,
+                "model": token_count_model,
+            },
+        )
     )
     rag_core.embed_all()
 
