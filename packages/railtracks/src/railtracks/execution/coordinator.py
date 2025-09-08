@@ -86,7 +86,7 @@ class CoordinatorState:
     The API supports simple operations that will allow you to interact with the jobs.
     """
 
-    def __init__(self, job_list: List[Job] = None):
+    def __init__(self, job_list: List[Job] | None = None):
         if job_list is None:
             job_list = []
 

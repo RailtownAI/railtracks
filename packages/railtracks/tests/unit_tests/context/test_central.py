@@ -2,6 +2,7 @@ import pytest
 from unittest import mock
 
 import railtracks.context.central as central
+from requests import session
 
 # ============ START Session Context Tests ===============
 def test_safe_get_runner_context_raises_when_none():
@@ -44,10 +45,11 @@ async def test_shutdown_publisher(monkeypatch, make_runner_context_vars, make_in
 # ============ END Publisher Tests ===============
 
 # ============ START ID Accessor Tests ===============
-def test_get_runner_id(monkeypatch, make_runner_context_vars):
-    rt = make_runner_context_vars(runner_id="runner-xyz")
+def test_get_runner_id(monkeypatch, make_runner_context_vars, make_internal_context_mock):
+    internal_context = make_internal_context_mock(session_id="runner-xyz")
+    rt = make_runner_context_vars(internal_context=internal_context)
     monkeypatch.setattr(central, "runner_context", mock.Mock(get=mock.Mock(return_value=rt)))
-    assert central.get_runner_id() == "runner-xyz"
+    assert central.get_session_id() == "runner-xyz"
 
 def test_get_parent_id(monkeypatch, make_runner_context_vars, make_internal_context_mock):
     rt = make_runner_context_vars(internal_context=make_internal_context_mock(parent_id="parent-abc"))
@@ -62,7 +64,7 @@ def test_register_globals_sets_context(monkeypatch):
     monkeypatch.setattr(central, "MutableExternalContext", mock.Mock(return_value="ec"))
     monkeypatch.setattr(central, "RunnerContextVars", mock.Mock())
     central.register_globals(
-        runner_id="r1",
+        session_id="r1",
         rt_publisher=None,
         parent_id=None,
         executor_config=mock.Mock(),
@@ -113,7 +115,7 @@ def test_update_parent_id(monkeypatch, make_runner_context_vars):
     monkeypatch.setattr(central, "safe_get_runner_context", mock.Mock(return_value=rt))
     monkeypatch.setattr(central, "runner_context", mock.Mock(set=mock.Mock()))
     central.update_parent_id("new-parent")
-    rt.prepare_new.assert_called_with("new-parent")
+    rt.prepare_new.assert_called_with("new-parent", new_run_id=None)
     central.runner_context.set.assert_called_with("new_ctx")
 
 def test_runner_context_vars_prepare_new(make_external_context_mock, make_internal_context_mock):
@@ -124,14 +126,13 @@ def test_runner_context_vars_prepare_new(make_external_context_mock, make_intern
     # Mock prepare_new to return a new mock with updated parent_id
     new_internal_context = make_internal_context_mock(parent_id=new_parent_id)
     internal_context.prepare_new.return_value = new_internal_context
-    rt = central.RunnerContextVars(
-        runner_id="runner-x",
+    rt = central.RunnerContextVars(    
         internal_context=internal_context,
         external_context=make_external_context_mock(),
     )
     new_rt = rt.prepare_new(new_parent_id)
     assert new_rt.internal_context.parent_id == new_parent_id
-    assert new_rt.runner_id == rt.runner_id
+    assert new_rt.internal_context.session_id == rt.internal_context.session_id
     assert new_rt.external_context == rt.external_context
 # ============ END Parent/Context Update Tests ===============
 
