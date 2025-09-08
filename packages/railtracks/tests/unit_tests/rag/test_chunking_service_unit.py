@@ -3,11 +3,11 @@ from railtracks.rag.chunking_service import (
     BaseChunkingService,
     TextChunkingService,
 )
+from railtracks.rag import chunking_service
 
 # -- Import module and patch DummyTokenizer using monkeypatch fixture --
 @pytest.fixture(autouse=True)
 def patch_tokenizer(monkeypatch):
-    from railtracks.rag import chunking_service as chunking_mod
 
     class DummyTokenizer:
         def __init__(self, model):
@@ -17,7 +17,7 @@ def patch_tokenizer(monkeypatch):
         def decode(self, tokens):
             return ''.join(chr(t) for t in tokens)
 
-    monkeypatch.setattr(chunking_mod, "Tokenizer", DummyTokenizer)
+    monkeypatch.setattr(chunking_service, "Tokenizer", DummyTokenizer)
 
 def test_base_chunking_set_and_call():
     called = {}

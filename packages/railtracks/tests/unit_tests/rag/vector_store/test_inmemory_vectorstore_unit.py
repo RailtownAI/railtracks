@@ -5,11 +5,12 @@ import pytest
 from unittest.mock import MagicMock
 import pickle
 
+import railtracks.rag.vector_store.in_memory as vsmem
+
 # -------------- Auto-patch module dependencies (pytest-style) --------------
 @pytest.fixture(autouse=True)
 def patch_vectorstore_deps(monkeypatch, dummy_embedding_service, dummy_record, dummy_search_result, dummy_metric):
-    import railtracks.rag.vector_store.in_memory as vsmem
-
+    
     # Create a mock that returns unique strings on each call
     mock_uuid = MagicMock()
     mock_uuid.side_effect = [f"uuid{i}" for i in range(1000)]

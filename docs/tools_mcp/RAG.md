@@ -89,7 +89,7 @@ This Node is the preferred way to add RAG to your app. It handles chunking, embe
 ## ⚙️ Configuration and Performance
 
 !!! API reference
-Considering referencing [rag_node](/api_reference/prebuilt/rag_nodes.html) and [RAG](..\packages\railtracks\src\railtracks\rag\rag_core.py)
+    Considering referencing [rag_node](/api_reference/prebuilt/rag_nodes.html) and [RAG](..\packages\railtracks\src\railtracks\rag\rag_core.py)
 
 ### 🧩 Chunking Strategy
 
