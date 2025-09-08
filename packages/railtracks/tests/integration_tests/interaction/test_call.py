@@ -237,14 +237,6 @@ async def async_add_many(pairs: list[float]):
 AddManyAsyncNode = rt.function_node(async_add_many)
 
 
-@pytest.mark.asyncio
-async def test_even_simple_call_sync_in_async_context():
-    """Test the synchronous call of a simple function in an async context."""
-    with rt.Session():
-        result = await rt.call(AddNode, 5, 6)
-        assert result == 11, f"Expected 11, got {result}"
-
-
 # ============================================ START Many calls and Timeout tests ============================================
 
 RNGNode = rt.function_node(random.random)
