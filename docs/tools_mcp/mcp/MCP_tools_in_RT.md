@@ -1,6 +1,6 @@
-# 🔧 Using MCP Tools in RailTracks
+# Using MCP Tools in RailTracks
 
-## 📝 Overview
+## Overview
 
 !!! tip "Quick Summary"
     RailTracks makes it easy to use any MCP-compatible tool with your agents. Just connect to an MCP server, get the tools, and start using them!
@@ -9,7 +9,7 @@ RailTracks supports seamless integration with [Model Context Protocol (MCP)](mcp
 
 RailTracks handles the discovery and invocation of MCP tools, so you can focus on building intelligent agents.
 
-## ✅ Prerequisites
+## Prerequisites
 
 !!! note "Before You Begin"
     Make sure you have the following set up before using MCP tools:
@@ -18,11 +18,11 @@ RailTracks handles the discovery and invocation of MCP tools, so you can focus o
 - **MCP package set up** - Every MCP tool has different requirements (see specific tool documentation)
 - **Authentication credentials** - Many MCP tools require API keys or OAuth tokens
 
-## 🔌 Connecting to MCP Servers
+## Connecting to MCP Servers
 
 RailTracks supports two types of MCP servers:
 
-### 🌐 1. Remote HTTP Servers
+### 1. Remote HTTP Servers
 
 Use `MCPHttpParams` for connecting to remote MCP servers:
 
@@ -41,7 +41,7 @@ fetch_server = connect_mcp(
 )
 ```
 
-### 💻 2. Local Command-Line Servers
+### 2. Local Command-Line Servers
 
 Use `MCPStdioParams` for running local MCP servers:
 
@@ -58,7 +58,7 @@ time_server = connect_mcp(
 )
 ```
 
-## 🤖 Using MCP Tools with RailTracks Agents
+## Using MCP Tools with RailTracks Agents
 
 Once you've connected to an MCP server, you can use the tools with your RailTracks agents:
 
@@ -88,9 +88,9 @@ with rt.Session():
     print(result.content)
 ```
 
-## 🧪 Common MCP Server Examples
+## Common MCP Server Examples
 
-### 🌐 Fetch Server (URL Content Retrieval)
+### Fetch Server (URL Content Retrieval)
 
 ```python
 import railtracks as rt
@@ -102,7 +102,7 @@ fetch_server = connect_mcp(MCPHttpParams(url="https://remote.mcpservers.org/fetc
 fetch_tools = fetch_server.tools
 ```
 
-### 🐙 GitHub Server
+### GitHub Server
 
 ```python
 import os
@@ -132,7 +132,7 @@ github_tools = github_server.tools
     
     File "C:\Users\rc\.venv\lib\site-packages\anyio\streams\memory.py", line 111, in receive
 
-### 📘 Notion Server
+### Notion Server
 
 ```python
 import json
@@ -157,7 +157,7 @@ notion_server = connect_mcp(
 notion_tools = notion_server.tools
 ```
 
-## 🧩 Combining Multiple MCP Tools
+## Combining Multiple MCP Tools
 
 You can combine tools from different MCP servers to create powerful agents:
 
@@ -206,7 +206,7 @@ super_agent = rt.library.tool_call_llm(
 )
 ```
 
-## 📚 Tool-Specific Guides
+## Tool-Specific Guides
 
 For detailed setup and usage instructions for specific MCP tools:
 
@@ -215,7 +215,7 @@ For detailed setup and usage instructions for specific MCP tools:
 - [Slack Tool Guide](../guides/slack.md)
 - [Web Search Integration Guide](../guides/websearch_integration.md)
 
-## 🔗 Related Topics
+## Related Topics
 
 - [What is MCP?](mcp.md)
 - [RailTracks to MCP: Exposing RT Tools as MCP Tools](RTtoMCP.md)
