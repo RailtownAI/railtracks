@@ -27,15 +27,7 @@ Before implementing this integration, you'll need:
 ### Step 1: Import Dependencies and Load Environment
 
 ```python
-from dotenv import load_dotenv
-import os
-from railtracks.nodes.library import connect_mcp, tool_call_llm
-import railtracks as rt
-from railtracks.rt_mcp import MCPHttpParams
-import aiohttp
-from typing import Dict, Any
-
-load_dotenv()
+--8<-- "docs/scripts/tools_mcp_guides.py:websearch_imports"
 ```
 
 ### Step 2: Set Up MCP Tools for URL Fetching
@@ -43,9 +35,7 @@ load_dotenv()
 The MCP server provides tools that can fetch and process content from URLs:
 
 ```python
-# MCP Tools that can fetch data from URLs
-fetch_mcp_server = from_mcp_server(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))
-fetch_mcp_tools = fetch_mcp_server.tools
+--8<-- "docs/scripts/tools_mcp_guides.py:fetch_mcp_server"
 ```
 Read more about the `from_mcp_server` utility [TODO: change this link](../mcp/mcp.md). <br>
 This connects to a [remote MCP server](https://remote-mcp-servers.com/servers/ecc7629a-9f3a-487d-86fb-039f46016621) that provides URL fetching capabilities.
@@ -53,62 +43,13 @@ This connects to a [remote MCP server](https://remote-mcp-servers.com/servers/ec
 ### Step 3: Create Custom Google Search Tool
 
 ```python
-def _format_results(data: Dict[str, Any]) -> Dict[str, Any]:
-   ...
-
-
-@rt.function_node
-async def google_search(query: str, num_results: int = 3) -> Dict[str, Any]:
-   """
-   Tool for searching using Google Custom Search API
-   
-   Args:
-       query (str): The search query
-       num_results (int): The number of results to return (max 5)
-   
-   Returns:
-       Dict[str, Any]: Formatted search results
-   """
-   params = {
-      'key': os.environ['GOOGLE_SEARCH_API_KEY'],
-      'cx': os.environ['GOOGLE_SEARCH_ENGINE_ID'],
-      'q': query,
-      'num': min(num_results, 5)  # Google API maximum is 5
-   }
-
-   async with aiohttp.ClientSession() as session:
-      try:
-         async with session.get("https://www.googleapis.com/customsearch/v1", params=params) as response:
-            if response.status == 200:
-               data = await response.json()
-               return _format_results(data)
-            else:
-               error_text = await response.text()
-               raise Exception(f"Google API error {response.status}: {error_text}")
-      except Exception as e:
-         raise Exception(f"Search failed: {str(e)}")
+--8<-- "docs/scripts/tools_mcp_guides.py:google_search"
 ```
 
 ### Step 4: Create and Use the Search Agent
 
 ```python
-# Combine all tools
-tools = fetch_mcp_tools + [google_search]
-
-# Create the agent with search capabilities
-agent = tool_call_llm(
-    connected_nodes={*tools},
-    system_message="""You are an information gathering agent that can search the web.""",
-    model=rt.llm.OpenAILLM("gpt-4o"),
-)
-
-# Example usage
-user_prompt = """Tell me about Railtown AI."""
-message_history = rt.llm.MessageHistory()
-message_history.append(rt.llm.UserMessage(user_prompt))
-
-result = rt.call_sync(agent, message_history)
-print(result)
+--8<-- "docs/scripts/tools_mcp_guides.py:websearch_agent"
 ```
 
 ## How It Works
