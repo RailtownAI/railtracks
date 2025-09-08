@@ -1,9 +1,5 @@
 <div style="text-align: center;">
-<<<<<<< HEAD
   <img src="assets/logo.svg" alt="RailTracks Logo" width="300">
-=======
-  <img src="assets/Railtracks_logo-01.png" alt="RailTracks Logo" width="300">
->>>>>>> 0bcba9a7588b651c13c9037d716b4c7b5f65a4ac
   <h1> RailTracks Agentic Framework</h1>
 </div>
 
