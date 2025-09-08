@@ -4,16 +4,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Sequence, Union
 
+from railtracks.utils.logging import get_rt_logger
 
 from .chunking_service import TextChunkingService
 from .embedding_service import (
-    EmbeddingService,
     BaseEmbeddingService,
+    EmbeddingService,
 )  # assuming BaseEmbeddingService exists
 from .text_object import TextObject
 from .vector_store import create_store
 from .vector_store.base import AbstractVectorStore, SearchResult, VectorRecord
-from railtracks.utils.logging import get_rt_logger
 
 logger = get_rt_logger("rag_core")
 
