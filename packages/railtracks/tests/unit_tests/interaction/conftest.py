@@ -27,10 +27,12 @@ def mock_context_functions():
          patch('railtracks.interaction._call.shutdown_publisher') as shutdown, \
          patch('railtracks.interaction._call.get_publisher') as get_pub, \
          patch('railtracks.interaction._call.get_parent_id') as get_parent, \
+         patch('railtracks.interaction._call.get_run_id') as get_run, \
          patch('railtracks.interaction._call.get_local_config') as get_config:
         
         # Set default return values
         get_parent.return_value = "parent_123"
+        get_run.return_value = "run_456"
         
         yield {
             'is_context_present': present,

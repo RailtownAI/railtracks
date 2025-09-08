@@ -123,7 +123,7 @@ class Session:
         self.coordinator.start(self.publisher)
         self._setup_subscriber()
         register_globals(
-            runner_id=self._identifier,
+            session_id=self._identifier,
             rt_publisher=self.publisher,
             parent_id=None,
             executor_config=self.executor_config,

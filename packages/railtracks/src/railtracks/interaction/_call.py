@@ -17,6 +17,7 @@ from railtracks.context.central import (
     get_local_config,
     get_parent_id,
     get_publisher,
+    get_run_id,
     is_context_active,
     is_context_present,
     shutdown_publisher,
@@ -214,6 +215,7 @@ async def _execute(
     await publisher.publish(
         RequestCreation(
             current_node_id=get_parent_id(),
+            current_run_id=get_run_id(),
             new_request_id=request_id,
             running_mode="async",
             new_node_type=node,

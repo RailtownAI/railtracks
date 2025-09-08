@@ -2,7 +2,7 @@
 
 ## Overview
 
-You can expose any RT Tool as an MCP-compatible tool, making it accessible to any MCP client or LLM agent that supports the [Model Context Protocol (MCP)](index.md). This allows you to share your custom RT logic with other frameworks, agents, or applications that use MCP.
+You can expose any RT Tool as an MCP-compatible tool, making it accessible to any MCP client or LLM agent that supports the [Model Context Protocol (MCP)](mcp.md). This allows you to share your custom RT logic with other frameworks, agents, or applications that use MCP.
 
 RC provides utilities to convert your Nodes into MCP tools and run a FastMCP server, so your tools are discoverable and callable via standard MCP transports (HTTP, SSE, stdio).
 
@@ -54,5 +54,5 @@ tools = server.tools
 
 ## Related Topics
 
-- [What is MCP?](index.md)
+- [What is MCP?](mcp.md)
 - [Using MCP Tools in RT](MCP_tools_in_RT.md)

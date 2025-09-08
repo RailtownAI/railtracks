@@ -5,7 +5,7 @@
 !!! tip "Quick Summary"
     RailTracks makes it easy to use any MCP-compatible tool with your agents. Just connect to an MCP server, get the tools, and start using them!
 
-RailTracks supports seamless integration with [Model Context Protocol (MCP)](index.md), allowing you to use any MCP-compatible tool as a native RailTracks Tool. This means you can connect your agents to a wide variety of external tools and data sources—without having to implement the tool logic yourself. 
+RailTracks supports seamless integration with [Model Context Protocol (MCP)](mcp.md), allowing you to use any MCP-compatible tool as a native RailTracks Tool. This means you can connect your agents to a wide variety of external tools and data sources—without having to implement the tool logic yourself. 
 
 RailTracks handles the discovery and invocation of MCP tools, so you can focus on building intelligent agents.
 
@@ -217,5 +217,5 @@ For detailed setup and usage instructions for specific MCP tools:
 
 ## 🔗 Related Topics
 
-- [What is MCP?](index.md)
+- [What is MCP?](mcp.md)
 - [RailTracks to MCP: Exposing RT Tools as MCP Tools](RTtoMCP.md)

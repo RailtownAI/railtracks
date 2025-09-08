@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import uuid
 from typing import Any, List, Tuple, TypeVar
 
 from railtracks.utils.profiling import Stamp, StampManager
@@ -166,14 +165,14 @@ class ExecutionInfo:
         runs = [
             {
                 "name": info.name,
-                "run_id": str(uuid.uuid4()),
+                "run_id": parent_node_id,
                 "nodes": info.node_forest.to_vertices(),
                 "edges": info.request_forest.to_edges(),
                 "steps": _get_stamps_from_forests(
                     info.node_forest, info.request_forest
                 ),
             }
-            for info in infos
+            for info, parent_node_id in zip(infos, parent_nodes)
         ]
 
         return json.loads(
