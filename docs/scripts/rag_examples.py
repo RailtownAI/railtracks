@@ -3,6 +3,7 @@ RAG examples for use in documentation via --8<-- includes
 """
 
 # --8<-- [start:simple_rag_example]
+import asyncio
 import railtracks as rt
 from railtracks.prebuilt import rag_node
 
@@ -14,9 +15,16 @@ retriever = rag_node([
 ])
 
 # Retrieve relevant context
-question = "Who likes apples?"
-search_result = rt.call_sync(retriever, question, top_k=3)
-context = "\n\n".join(search_result.to_list_of_texts())
+question = "What does Steve like?"
+search_result = asyncio.run(rt.call(retriever, question, top_k=3))
+context = ""
+idx = 0
+for result in search_result:
+    idx += 1
+    score = result.score
+    text = result.record.text
+    context += f"Document {idx} (score: {score:.4f}): {text}\n"
+    
 
 print(f"Question: {question}")
 print(f"Retrieved context:\n{context}")
@@ -36,14 +44,21 @@ retriever = rag_node([
 
 # 2) Retrieve relevant context
 question = "What is the work from home policy?"
-search_result = rt.call_sync(retriever, question, top_k=2)
+search_result = asyncio.run(rt.call(retriever, question, top_k=2))
 context = "\n\n".join(search_result.to_list_of_texts())
 
-# 3) Create an agent that uses the retrieved context
-@rt.agent_node
-def policy_assistant(question: str, context: str) -> str:
-    """Answer policy questions using retrieved context."""
-    return f"""Based on the following context, please answer the question.
+agent = rt.agent_node(
+    llm=OpenAILLM("gpt-4o"),
+)
+
+# 3) Create and configure the agent
+with rt.Session(context={
+    "context": context,
+    "question": question
+}):
+    response = asyncio.run( rt.call(
+        agent,
+        user_input="""Based on the following context, please answer the question.
 
 Context:
 {context}
@@ -51,23 +66,22 @@ Context:
 Question: {question}
 
 Answer based only on the context provided. If the answer is not in the context, say "I don't know"."""
+    ))
 
-# 4) Create and configure the agent
-agent = policy_assistant.bind(
-    llm=OpenAILLM("gpt-4o"),
-    tools=[]
-)
-
-# 5) Run the agent with context
-# answer = rt.call_sync(agent, question=question, context=context)
+# 4) Run the agent with context
+print(f"Answer: {response.content}")
 # --8<-- [end:rag_with_llm]
 
 # --8<-- [start:rag_with_files]
 from railtracks.rag.utils import read_file
 
 # Read file contents manually
-doc1_content = read_file("./docs/faq.txt")
-doc2_content = read_file("./docs/policies.txt")
+try:
+    doc1_content = read_file("./docs/faq.txt")
+    doc2_content = read_file("./docs/policies.txt")
+except FileNotFoundError:
+    doc1_content = "FAQ file not found. Please ensure docs/faq.txt exists."
+    doc2_content = "Policies file not found. Please ensure docs/policies.txt exists."
 
 # Build retriever with file contents
 retriever = rag_node([
@@ -90,6 +104,9 @@ def custom_rag_node(
 ):
     """Create a custom RAG node with specific configuration."""
     
+    # Optionally, construct custom RAG with provided components, such as 
+    # embed_service, chunk_service, vector_store integration in 
+    # packages\railtracks\src\railtracks\rag
     rag_core = RAG(
         docs=documents,
         embed_config={"model": embed_model},
@@ -116,7 +133,7 @@ retriever = custom_rag_node([
     "Gamma team schedules evening retrospectives"
 ])
 
-result = rt.call_sync(retriever, "When does Alpha team meet?", top_k=1)
+result = asyncio.run(rt.call(retriever, "When does Alpha team meet?", top_k=1))
 texts = result.to_list_of_texts()
 print(texts[0])  # Should contain information about Alpha team's morning meetings
 # --8<-- [end:custom_rag_usage]
