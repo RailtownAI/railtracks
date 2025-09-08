@@ -36,10 +36,10 @@ class LLMResponse(Generic[_T]):
         return self.content.streamer
 
 
-_TStructured = TypeVar("_TStructured", bound=Union[BaseModel, Stream])
+_TStructured = TypeVar("_TStructured", bound=BaseModel)
 
 
-class StructuredResponse(LLMResponse[_TStructured]):
+class StructuredResponse(LLMResponse[_TStructured | Stream[_TStructured]]):
     """
     A specialized response object for structured outputs from LLMs.
 
@@ -50,13 +50,13 @@ class StructuredResponse(LLMResponse[_TStructured]):
 
     def __init__(
         self,
-        content: _TStructured,
+        content: _TStructured | Stream[_TStructured],
         message_history: MessageHistory,
     ):
         super().__init__(content, message_history)
 
     @property
-    def structured(self) -> BaseModel:
+    def structured(self) -> _TStructured:
         """Returns the structured content of the response."""
         if isinstance(self.content, BaseModel):
             return self.content
