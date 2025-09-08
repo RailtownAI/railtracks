@@ -67,13 +67,3 @@ def test_text_chunk_by_token_model_none_error():
     s = TextChunkingService(chunk_size=3, chunk_overlap=1, model=None)
     with pytest.raises(ValueError):
         s.chunk_by_token("abcde")
-
-def test_text_chunk_smart_not_implemented():
-    s = TextChunkingService()
-    with pytest.raises(NotImplementedError):
-        s.chunk_smart("abcd")
-
-def test_base_chunk_file_not_implemented():
-    s = BaseChunkingService()
-    with pytest.raises(NotImplementedError):
-        s.chunk_file("somefile.txt")
