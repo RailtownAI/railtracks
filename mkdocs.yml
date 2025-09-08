@@ -11,14 +11,14 @@ theme:
 
   palette:
     - scheme: default
-      primary: pink
+      primary: white
       accent: red
       toggle:
         icon: material/brightness-4
         name: Switch to dark mode
 
     - scheme: slate
-      primary: pink
+      primary: black
       accent: red
       toggle:
         icon: material/brightness-5
