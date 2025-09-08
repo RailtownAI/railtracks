@@ -20,7 +20,7 @@ import railtracks as rt
 import asyncio
 
 agent = rt.agent_node(
-    tool_nodes={*tools},
+    # tool_nodes={*tools},    # Uncomment this line to use the tools
     system_message="""You are a GitHub Copilot agent that can interact with GitHub repositories.""",
     llm=rt.llm.OpenAILLM("gpt-4o"),
 )
@@ -28,12 +28,12 @@ agent = rt.agent_node(
 user_prompt = """Tell me about the RailtownAI/rc repository on GitHub."""
 
 async def call_node():
-    with rt.Session() as run:
+    with rt.Session():
         result = await rt.call(agent, user_prompt)
 
     print(result.content)
 
-asyncio.run(call_node())
+# asyncio.run(call_node())
 # --8<-- [end: github_call]
 
 # --8<-- [start: notion_mcp]
@@ -68,7 +68,7 @@ tools = server.tools
 import railtracks as rt
 import asyncio
 agent = rt.agent_node(
-    tool_nodes={*tools},
+    # tool_nodes={*tools},    # Uncomment this line to use the tools
     system_message="""You are a master Notion page designer. You love creating beautiful
      and well-structured Notion pages and make sure that everything is correctly formatted.""",
     llm=rt.llm.OpenAILLM("gpt-4o"),
@@ -84,7 +84,7 @@ async def call_node():
 
     print(result.content)
 
-asyncio.run(call_node())
+# asyncio.run(call_node())
 # --8<-- [end: notion_call]
 
 # --8<-- [start: sandbox_setup]
@@ -135,7 +135,7 @@ async def call_node():
 
     print(result.content)
 
-asyncio.run(call_node())
+# asyncio.run(call_node())
 # --8<-- [end: sandbox_call]
 
 # --8<-- [start: bash_tool]
@@ -178,12 +178,11 @@ async def call_node():
 
     print(result.content)
 
-asyncio.run(call_node())
+# asyncio.run(call_node())
 # --8<-- [end: bash_call]
 
 # --8<-- [start: slack_mcp]
 import os
-
 from railtracks import connect_mcp, MCPStdioParams
 
 MCP_COMMAND = "npx"
@@ -210,7 +209,7 @@ import railtracks as rt
 import asyncio
 
 agent = rt.agent_node(
-    tool_nodes={*tools},
+    # tool_nodes={*tools},    # Uncomment this line to use the tools
     system_message="""You are a Slack agent that can interact with Slack channels.""",
     llm=rt.llm.OpenAILLM("gpt-4o"),
 )
@@ -223,7 +222,7 @@ async def call_node():
 
     print(result.content)
 
-asyncio.run(call_node())
+# asyncio.run(call_node())
 # --8<-- [end: slack_call]
 
 # --8<-- [start: websearch_imports]
@@ -288,7 +287,7 @@ tools = fetch_mcp_tools + [google_search]
 
 # Create the agent with search capabilities
 agent = rt.agent_node(
-    tool_nodes={*tools},
+    # tool_nodes={*tools},    # Uncomment this line to use the tools
     system_message="""You are an information gathering agent that can search the web.""",
     llm=rt.llm.OpenAILLM("gpt-4o"),
 )
@@ -299,5 +298,5 @@ async def call_node():
     result = await rt.call(agent, message_history)
     print(result)
 
-asyncio.run(call_node())
+# asyncio.run(call_node())
 # --8<-- [end: websearch_agent]
