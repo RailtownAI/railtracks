@@ -30,7 +30,7 @@ Passing prompt details up the chain can be expensive in both **tokens** and **la
 ### 🔄 How Context Injection Works
 
 1. Define placeholders in your prompts using curly braces: `{variable_name}`
-2. Set values in the RailTracks context (see [Context Management](context_management.md) for details)
+2. Set values in the RailTracks context (see [Context Management](../advanced_usage/context.md) for details)
 3. When the prompt is processed, the placeholders are replaced with the corresponding values from the context
 
 ### 🚀 Basic Example
