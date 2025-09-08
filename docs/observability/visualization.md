@@ -30,7 +30,7 @@ railtracks viz
 This should open up a web browser window where you can see your runs once they have finished.
 
 
-![VizDemo.png](../../assets/visualizer_photo.png)
+![VizDemo.png](../assets/visualizer_photo.png)
 
 !!! tip "Saving State"
     By default, all of your runs will be saved to the `.railtracks` directory. If you don't want things saved, you can set the

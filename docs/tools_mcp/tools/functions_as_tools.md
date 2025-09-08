@@ -40,14 +40,12 @@ Now that we have our tool, we can use it in our agent:
 
 Want to go further with tools in Railtracks?
 
-* [What *are* tools?](../index.md) <br>
+* [What *are* tools?](../tools/tools.md) <br>
   Learn how tools fit into the bigger picture of Railtracks and agent orchestration.
 
 * [How to build your first agent](../../tutorials/byfa.md) <br>
   Follow along with a tutorial to build your first agent.
 
-* [Agents as Tools](./agents_as_tools.md) <br>
+* [Agents as Tools](agents_as_tools.md) <br>
   Discover how you can turn entire agents into callable tools inside other agents.
 
-* [Advanced Tooling](./advanced_usages.md) <br>
-  Explore dynamic tool loading, runtime validation, and other advanced patterns.

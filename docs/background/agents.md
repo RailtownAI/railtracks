@@ -47,15 +47,13 @@ Agents are already being used in real world applications such as:
 
 ## Related Topics
 
-* [Tools](../tools)
+* [Tools](tools.md)
 
 ## Build Your Own
 
 We have build **RailTracks** with developers in mind; with just a simple prompt and a bit of Python, you’re
-already well on your way to building your first agent.
-applications.
-<div style="text-align:center;">
-    <a href="../../byfa" class="md-button" style="margin:3px">Start Building with RailTracks</a>
-</div>
+already well on your way to building your first agent. Get started [Building with RailTracks](../tutorials/byfa.md)
+
+
 
 
