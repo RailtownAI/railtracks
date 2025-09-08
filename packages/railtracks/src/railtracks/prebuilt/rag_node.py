@@ -1,7 +1,7 @@
 from typing import List
 
 import railtracks as rt
-from railtracks.rag.rag_core import RAG, SearchResult, RAGConfig
+from railtracks.rag.rag_core import RAG, RAGConfig, SearchResult
 
 
 def rag_node(

@@ -10,12 +10,14 @@ from .chunking_service import TextChunkingService
 from .embedding_service import (
     BaseEmbeddingService,
     EmbeddingService,
-)  
+)
 from .text_object import TextObject
 from .vector_store import create_store
 from .vector_store.base import AbstractVectorStore, SearchResult, VectorRecord
 
 logger = get_rt_logger("rag_core")
+
+
 @dataclass(frozen=True)
 class RAGConfig:
     """
