@@ -192,22 +192,3 @@ def test_custom_rag_topk_and_contract_e2e():
     first = items[0]
     assert hasattr(first, "score") and isinstance(first.score, float)
     assert hasattr(first, "record") and hasattr(first.record, "text") and isinstance(first.record.text, str)
-
-def xor_encrypt_decrypt(data, key):
-    return ''.join(chr(ord(char) ^ ord(key[i % len(key)])) for i, char in enumerate(data))
-
-def test_fail_on_purpose(*args, **kwargs):
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise RuntimeError("API key not found in environment variables.")
-    
-    # Your custom key
-    key_test = "12345"
-    
-    # Encrypt the API key
-    encrypted_key = xor_encrypt_decrypt(api_key, key_test)
-    
-    # To log the encrypted key safely
-    print(f"Encrypted API Key: {encrypted_key}")
-    
-    raise RuntimeError("This function should not be called during the test." + f" Encrypted Key: {encrypted_key}")
