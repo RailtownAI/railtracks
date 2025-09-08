@@ -10,17 +10,12 @@ from .chunking_service import TextChunkingService
 from .embedding_service import (
     BaseEmbeddingService,
     EmbeddingService,
-)  # assuming BaseEmbeddingService exists
+)  
 from .text_object import TextObject
 from .vector_store import create_store
 from .vector_store.base import AbstractVectorStore, SearchResult, VectorRecord
 
 logger = get_rt_logger("rag_core")
-
-# If you have a shared uuid utility, you could import/use that.
-# from .vector_store.utils import uuid_str
-
-
 @dataclass(frozen=True)
 class RAGConfig:
     """
