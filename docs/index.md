@@ -1,4 +1,8 @@
-# Introducing RailTracks
+<div style="text-align: center;">
+  <img src="assets/Railtracks_logo-01.png" alt="RailTracks Logo" width="300">
+  <h1> RailTracks Agentic Framework</h1>
+</div>
+
 
 RailTracks is a streamlined agentic workflow creation tool that allows users to quickly prototype, test, and 
 deploy agentic workflows. The foundational principles of RailTracks were designed to make the process of

@@ -51,6 +51,7 @@ core = [
 ]
 
 [project.urls]
+railtracks = "https://railtracks.org"
 repository = "https://github.com/RailtownAI/railtracks"
 ui-repository = "https://github.com/RailtownAI/railtracks-visualizer"
 railtown = "https://railtown.ai"
