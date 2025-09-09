@@ -37,3 +37,6 @@ docs/api_reference/railtracks.html
 
 # Documentation build output
 site/
+
+core-licenses.md
+core-licenses-summary.md
