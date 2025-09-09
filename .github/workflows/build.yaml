@@ -9,6 +9,31 @@ on:
       - main
 
 jobs:
+  api-doc:
+    name: Generate API Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Generate API documentation
+        run: |
+          ./scripts/generate_api_docs.sh
+
+      - name: Check if API documentation is up-to-date
+        run: |
+          ./scripts/verify_api_docs.sh
+
   ruff-lint:
     name: Check Code with Ruff
     runs-on: ubuntu-latest
