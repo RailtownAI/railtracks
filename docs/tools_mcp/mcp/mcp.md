@@ -21,16 +21,7 @@ RailTracks allows you to convert MCP tools into Tools that can be used by RailTr
 
 !!! example "Quick Example"
     ```python
-    from railtracks.nodes.library import from_mcp_server
-    from railtracks.rt_mcp import MCPHttpParams
-    
-    # Connect to a remote MCP server
-    server = from_mcp_server(MCPHttpParams(url="https://remote.mcpservers.org/fetch/mcp"))
-    
-    # Get all available tools from the server
-    tools = server.tools
-    
-    # Use these tools with your RailTracks agents
+    --8<-- "docs/scripts/MCP_tools_in_RT.py:http_example"
     ```
 
 For a complete guide and more examples, see [Using MCP Tools in RailTracks](MCP_tools_in_RT.md).
