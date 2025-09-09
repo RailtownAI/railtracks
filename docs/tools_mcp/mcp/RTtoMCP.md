@@ -1,7 +1,7 @@
 # Exposing RT Tools as MCP Tools
 
 !!! Warning 
-    This area of RT is under construction. We would love some contributions to support this effort 
+    This area of RT is under construction. We would love some contributions to support this effort on our [Github](https://github.com/RailtownAI/railtracks)
 
 ## Overview
 
