@@ -35,8 +35,6 @@ Please check the type of change your PR introduces:
 
 ### Documentation
 - [ ] Documentation updated if needed (bot will verify)
-- [ ] API Reference Documentation updated if needed (bot will verify) 
-    (./scripts/generate_api_docs.sh and changes committed)
 
 ### Git & PR Management
 - [ ] PR title clearly describes the change

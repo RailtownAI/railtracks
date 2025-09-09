@@ -29,5 +29,11 @@ venv
 
 experiments
 
+# pdoc output
+docs/api_reference/search.js
+docs/api_reference/railtracks/
+docs/api_reference/index.html
+docs/api_reference/railtracks.html
+
 # Documentation build output
 site/
