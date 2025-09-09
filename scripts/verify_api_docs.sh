@@ -6,6 +6,7 @@ set -e  # Exit on any error
 
 if ! git diff --quiet docs/api_reference/; then
 echo "API documentation is out of date!"
+echo "📋 Using pdoc version: $(pdoc --version)"
 echo "BRANCH #####"
 git branch
 echo "#####"

@@ -28,4 +28,3 @@ pdoc packages/railtracks/src/railtracks \
     # -t pdoc
 
 echo "API documentation generated successfully in docs/api_reference/"
-echo "You can now run 'mkdocs build' to build the complete documentation site"
