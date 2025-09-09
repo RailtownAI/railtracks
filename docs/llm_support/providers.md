@@ -20,11 +20,7 @@ Take a look at the examples below to see how using different providers look for 
         Variable name for the API key: `OPENAI_API_KEY`
     
     ```python
-    import railtracks as rt
-    from dotenv import load_dotenv
-    _ = load_dotenv()
-
-    model = rt.llm.OpenAILLM("gpt-4o")
+    --8<-- "docs/scripts/providers.py:open_ai"
     ```
 
 === "Anthropic"
@@ -33,11 +29,7 @@ Take a look at the examples below to see how using different providers look for 
         Variable name for the API key: `ANTHROPIC_API_KEY`
 
     ```python
-    import railtracks as rt
-    from dotenv import load_dotenv
-    _ = load_dotenv()
-
-    model = rt.llm.AnthropicLLM("claude-sonnet-4")
+    --8<-- "docs/scripts/providers.py:anthropic"
     ```
 
 === "Gemini"
@@ -46,31 +38,19 @@ Take a look at the examples below to see how using different providers look for 
         Variable name for the API key: `GEMINI_API_KEY`
 
     ```python
-    import railtracks as rt
-    from dotenv import load_dotenv
-    _ = load_dotenv()
-
-    model = rt.llm.GeminiLLM("gemini-2.5-flash")
+    --8<-- "docs/scripts/providers.py:gemini"
     ```
 
 === "Azure AI Foundry"
 
     ```python
-    import railtracks as rt
-    from dotenv import load_dotenv
-    _ = load_dotenv()
-
-    model = rt.llm.AzureAILLM("azure_ai/deepseek-r1")
+    --8<-- "docs/scripts/providers.py:azure"
     ```
 
 === "Ollama"
 
     ```python
-    import railtracks as rt
-    from dotenv import load_dotenv
-    _ = load_dotenv()
-
-    model = rt.llm.OllamaLLM("deepseek-r1:8b"),
+    --8<-- "docs/scripts/providers.py:ollama"
     ```
 
 === "HuggingFace"
@@ -81,32 +61,23 @@ Take a look at the examples below to see how using different providers look for 
     !!! caution "Tool Calling Support"
         For HuggingFace serverless inference models, you need to make sure that the model you are using supports tool calling. We **DO NOT**  check for tool calling support in HuggingFace models. If you are using a model that does not support tool calling, it will default to regular chat, even if the `tool_nodes` parameter is provided.
 
-    In case of HuggingFace, `model_name` must be of the format:  <br>
-    - `huggingface/<provider>/<hf_org_or_user>/<hf_model>` or  <br>
-    - `<provider>/<hf_org_or_user>/<hf_model>`"  <br>
-    Here are a few example models that you can use:
-    ```python
-    # same model, different provider: both have tool calling support
-    rt.llm.HuggingFaceLLM("together_ai/meta-llama/Llama-3.3-70B-Instruct") 
-    rt.llm.HuggingFaceLLM("sambanova/meta-llama/Llama-3.3-70B-Instruct")
+    In case of HuggingFace, `model_name` must be of the format:
 
-    # does not support tool calling
-    rt.llm.HuggingFaceLLM("featherless-ai/mistralai/Mistral-7B-Instruct-v0.2")
+    - `huggingface/<provider>/<hf_org_or_user>/<hf_model>`
+    - `<provider>/<hf_org_or_user>/<hf_model>`"
+
+    Here are a few example models that you can use:
+
+    ```python
+    --8<-- "docs/scripts/providers.py:huggingface_models"
     ```
 
     ```python
-    import railtracks as rt
-    from dotenv import load_dotenv
-    _ = load_dotenv()
-
-    model = rt.llm.HuggingFaceLLM("together/deepseek-ai/DeepSeek-R1")
+    --8<-- "docs/scripts/providers.py:huggingface"
     ```
 
 ```python
-GeneralAgent = rt.agent_node(
-    llm=model,
-    system_message="You are a general-purpose AI assistant."
-)
+--8<-- "docs/scripts/providers.py:to_agent"
 ```
 
 !!! info "Tool Calling Capabilities"
@@ -119,5 +90,5 @@ We hope to cover most of the common and widely used LLM providers, but if you ne
 For our implementation, we have benefited from the amazing [LiteLLM](https://github.com/BerriAI/litellm) framework, which provides excellent multi-provider support.
 
 !!! tip "Custom Provider Documentation"
-    Please refer to the **Custom LLM Provider documentation** for detailed instructions on how to implement your own provider.
+    Please check out the `llm` module for more details on how to build a integration.
 
