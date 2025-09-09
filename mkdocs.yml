@@ -6,18 +6,20 @@ repo_url: https://github.com/RailtownAI/railtracks
 
 theme:
   name: material
-  logo: assets/Railtracks_logo-01.png
-  favicon: assets/Railtracks_logo-01.png
+  logo: assets/logo.svg
+  favicon: assets/logo.svg
 
   palette:
     - scheme: default
+      primary: white
       toggle:
-        icon: material/brightness-6
+        icon: material/brightness-4
         name: Switch to dark mode
 
     - scheme: slate
+      primary: black
       toggle:
-        icon: material/brightness-4
+        icon: material/brightness-5
         name: Switch to light mode
 
   features:

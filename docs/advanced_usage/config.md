@@ -1,8 +1,8 @@
-# ⚙️ Configuration
+# Configuration
 
 Railtracks provides flexible configuration options to customize the behavior of your agent executions. You can control timeouts, logging, error handling, and more through a simple configuration system.
 
-## 🔧 Configuration Methods
+## Configuration Methods
 
 Configuration parameters follow a specific precedence order, allowing you to override settings at different levels:
 
@@ -10,7 +10,7 @@ Configuration parameters follow a specific precedence order, allowing you to ove
 2. **Global Configuration** (`rt.set_config()`) - Medium priority  
 3. **Default Values** - Lowest priority
 
-## 📋 Available Configuration Parameters
+## Available Configuration Parameters
 
 ### Core Execution Settings
 
@@ -33,7 +33,7 @@ Configuration parameters follow a specific precedence order, allowing you to ove
 - **`prompt_injection`** (`bool`): Automatically inject prompts from context variables
 - **`save_state`** (`bool`): Save execution state to `.railtracks` directory
 
-## 🎯 Default Values
+## Default Values
 
 ```python
 # Default configuration values
@@ -46,7 +46,7 @@ prompt_injection = True           # enable prompt injection
 save_state = True                 # save execution state
 ```
 
-## 🛠️ Method 1: Session Constructor
+## Method 1: Session Constructor
 
 Configure settings when creating a session for your agent execution:
 
@@ -69,7 +69,7 @@ with rt.session(
     )
 ```
 
-## 🌐 Method 2: Global Configuration
+## Method 2: Global Configuration
 
 Set configuration globally using `rt.set_config()`. This must be called **before** any `rt.call()`:
 
@@ -90,7 +90,7 @@ response1 = await rt.call(agent1, "First request")
 response2 = await rt.call(agent2, "Second request")
 ```
 
-## 🎚️ Configuration Precedence
+## Configuration Precedence
 
 When the same parameter is set in multiple places, Railtracks uses this priority order:
 
@@ -118,9 +118,9 @@ with rt.session(
 # - All other parameters use default values
 ```
 
-## 💡 Best Practices
+## Best Practices
 
-### 🏗️ Development vs Production
+### Development vs Production
 
 ```python
 import railtracks as rt
@@ -145,7 +145,7 @@ else:
     )
 ```
 
-### 🔍 Debugging Configuration
+### Debugging Configuration
 
 ```python
 import railtracks as rt
@@ -159,7 +159,7 @@ rt.set_config(
 )
 
 def debug_callback(message: str):
-    print(f"🔍 Broadcast: {message}")
+    print(f"Broadcast: {message}")
 
 with rt.session(
     broadcast_callback=debug_callback,
@@ -169,7 +169,7 @@ with rt.session(
         "Debug this workflow",
     )
 ```
-## 🚨 Important Notes
+## Important Notes
 
 - `rt.set_config()` must be called **before** any agent execution
 - Session constructor parameters always take highest precedence
