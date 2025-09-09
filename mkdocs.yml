@@ -101,7 +101,6 @@ nav:
       - Visualization: observability/visualization.md
       - Logging: observability/logging.md
       - Broadcasting: observability/broadcasting.md
-      - Local Chat: observability/chat.md
       - Error Handling: observability/error_handling.md
 
   - LLM Support:
