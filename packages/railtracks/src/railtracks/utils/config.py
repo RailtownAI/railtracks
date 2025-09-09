@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from typing import Callable, Coroutine
 
-from railtracks.utils.logging.config import allowable_log_levels
+from railtracks.utils.logging.config import allowable_log_levels, allowable_log_levels_set 
 
 
 class ExecutorConfig:
@@ -39,6 +39,18 @@ class ExecutorConfig:
         self.log_file = log_file
         self.prompt_injection = prompt_injection
         self.save_state = save_state
+
+    @property
+    def logging_setting(self) -> allowable_log_levels:
+        return self._logging_setting
+
+    @logging_setting.setter
+    def logging_setting(self, value: allowable_log_levels):
+        if value not in allowable_log_levels_set:
+            raise ValueError(
+                f"logging_setting must be one of {allowable_log_levels_set}, got {value}"
+            )
+        self._logging_setting = value
 
     def precedence_overwritten(
         self,
