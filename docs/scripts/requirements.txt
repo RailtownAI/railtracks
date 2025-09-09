@@ -1,3 +1,2 @@
 sympy==1.14.0
-railtownai
-loggly
+
