@@ -162,18 +162,38 @@ class ExecutionInfo:
 
         infos = [self._get_info(parent_node) for parent_node in parent_nodes]
 
-        runs = [
-            {
+        runs = []
+
+        for info, parent_node_id in zip(infos, parent_nodes):
+            insertion_requests = info.request_forest.insertion_request
+
+            assert len(insertion_requests) == 1
+            parent_request = insertion_requests[0]
+
+            all_parents = parent_request.get_all_parents()
+
+            start_time = all_parents[-1].stamp.time
+
+            assert len([x for x in all_parents if x.status == "Completed"]) <= 1
+            end_time = None
+            for req in all_parents:
+                if req.status in ["Completed", "Failed"]:
+                    end_time = req.stamp.time
+                    break
+
+            entry = {
                 "name": info.name,
                 "run_id": parent_node_id,
                 "nodes": info.node_forest.to_vertices(),
+                "status": parent_request.status,
                 "edges": info.request_forest.to_edges(),
                 "steps": _get_stamps_from_forests(
                     info.node_forest, info.request_forest
                 ),
+                "start_time": start_time,
+                "end_time": end_time,
             }
-            for info, parent_node_id in zip(infos, parent_nodes)
-        ]
+            runs.append(entry)
 
         return json.loads(
             json.dumps(
