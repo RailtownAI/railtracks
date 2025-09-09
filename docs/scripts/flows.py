@@ -103,11 +103,10 @@ async def code_agent(prompt : str):
     return "Success"
 
 tool_nodes = {rt.function_node(code_agent, manifest=CodeManifest)}
-CoordinatorAgent = rt.chatui_node(
+CoordinatorAgent = rt.agent_node(
     system_message=CoordinatorMessage,
     tool_nodes=tool_nodes,
     llm=rt.llm.OpenAILLM("gpt-4o"),
-    auto_open=False,
     )
 
 async def run():

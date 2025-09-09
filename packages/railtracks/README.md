@@ -73,7 +73,7 @@ TextAnalyzer = rt.agent_node(
 ```python
 import railtracks as rt
 
-result = rt.call_sync(
+result = rt.call(
     TextAnalyzer,
     rt.llm.MessageHistory([
         rt.llm.UserMessage("Hello world! This is a test of the RailTracks framework.")
