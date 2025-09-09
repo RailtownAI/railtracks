@@ -75,6 +75,7 @@ nav:
   - Tutorials:
       - Building your first agent: tutorials/byfa.md
       - Running your first agent: tutorials/ryfa.md
+      - RAG system: tutorials/rag_tutorial.md
       - Controlling Flows and Wrapping Nodes: tutorials/flows.md
 
   - Tools + MCP:
@@ -96,6 +97,7 @@ nav:
           - Shell Bash: tools_mcp/guides/shell_bash.md
           - Slack: tools_mcp/guides/slack.md
           - Web Search: tools_mcp/guides/websearch_integration.md
+      - RAG: tools_mcp/RAG.md
 
   - Observability:
       - Visualization: observability/visualization.md

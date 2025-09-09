@@ -4,8 +4,6 @@ from railtracks.rag.embedding_service import BaseEmbeddingService, EmbeddingServ
 
 @pytest.fixture(autouse=True)
 def patch_litellm(monkeypatch):
-    import types
-
     class DummyLitellm:
         @staticmethod
         def embedding(model, input, **kwargs):

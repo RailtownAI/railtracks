@@ -16,7 +16,7 @@ async def test_node_search_question(get_docs):
     )
 
     query = "What is the color of watermelon?"
-    result = await rt.call(node, query)
+    result = await rt.call(node, query, 2)
     print(query)
     print(result[0].record.text)
     print(result[1].record.text)
@@ -33,7 +33,7 @@ async def test_node_search_confirmation(get_docs):
     )
 
     query = "Pear is yellow"
-    result = await rt.call(node, query)
+    result = await rt.call(node, query, 2)
     print(query)
     print(result[0].record.text)
     print(result[1].record.text)
