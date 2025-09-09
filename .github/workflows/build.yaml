@@ -10,7 +10,7 @@ on:
 
 jobs:
   api-doc:
-    name: Generate API Documentation
+    name: Verify API Documentation
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -37,6 +37,7 @@ jobs:
   ruff-lint:
     name: Check Code with Ruff
     runs-on: ubuntu-latest
+    needs: api-doc
 
     steps:
       - name: Checkout Code
