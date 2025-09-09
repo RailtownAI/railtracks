@@ -44,7 +44,9 @@ jobs:
           python-version: '3.10'
 
       - name: Run License Check
-        run: ./scripts/check_licenses.sh
+        run: |
+          chmod +x scripts/check_licenses.sh
+          ./scripts/check_licenses.sh
 
       - name: License Check Analysis
         if: always()
