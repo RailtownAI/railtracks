@@ -75,7 +75,7 @@ nav:
   - Tutorials:
       - Building your first agent: tutorials/byfa.md
       - Running your first agent: tutorials/ryfa.md
-      - Controlling Flows and Wrapping Nodes: tutorials/flows.md
+      - Flows: tutorials/flows.md
 
   - Tools + MCP:
       - Equip your LLMs: tools_mcp/tools_mcp.md
@@ -117,15 +117,15 @@ nav:
       - Context: advanced_usage/context.md
       - Configuration: advanced_usage/config.md
 
-  - Samples:
-      - samples/index.md
+  # - Samples:
+  #     - samples/index.md
 
-  - System Internals:
-      - Overview: system_internals/overview.md
-      - Core Concepts: system_internals/concepts.md
-      - Node Abstraction: system_internals/node.md
-      - Session Management: system_internals/session.md
-      - PubSub Messaging: system_internals/pubsub.md
-      - Coordinator Orchestration: system_internals/coordinator.md
+  # - System Internals:
+  #     - Overview: system_internals/overview.md
+  #     - Core Concepts: system_internals/concepts.md
+  #     - Node Abstraction: system_internals/node.md
+  #     - Session Management: system_internals/session.md
+  #     - PubSub Messaging: system_internals/pubsub.md
+  #     - Coordinator Orchestration: system_internals/coordinator.md
 
   - API Reference: api_reference/railtracks.html
