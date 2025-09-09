@@ -22,6 +22,7 @@
   <path fill-rule="evenodd" d="M4.146 8.354a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L5.707 7.5H14.5a.5.5 0 0 1 0 1H5.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3z"/>
 </svg>                &nbsp;railtracks</a>
 
+            <img src="https://raw.githubusercontent.com/RailtownAI/railtracks/main/docs/assets/logo.svg" class="logo" alt="project logo"/>
 
             <input type="search" placeholder="Search..." role="searchbox" aria-label="search"
                    pattern=".+" required>
@@ -1289,9 +1290,12 @@ response after they are received, and map exceptions that may occur during the i
 
             <div class="docstring"><p>Note that we only support string input</p>
 
-<p>Args:
-    content (str): The content of the user message.
-    inject_prompt (bool, optional): Whether to inject prompt with context variables. Defaults to True.</p>
+<h6 id="arguments">Arguments:</h6>
+
+<ul>
+<li><strong>content (str):</strong>  The content of the user message.</li>
+<li><strong>inject_prompt (bool, optional):</strong>  Whether to inject prompt with context variables. Defaults to True.</li>
+</ul>
 </div>
 
 
@@ -1312,14 +1316,19 @@ response after they are received, and map exceptions that may occur during the i
 
             <div class="docstring"><p>A simple class that represents a message that an LLM can read.</p>
 
-<p>Args:
-    content: The content of the message. It can take on any of the following types:
-        - str: A simple string message.
-        - List[ToolCall]: A list of tool calls.
-        - ToolResponse: A tool response.
-        - BaseModel: A custom base model object.
-    role: The role of the message (assistant, user, system, tool, etc.).
-    inject_prompt (bool, optional): Whether to inject prompt with context variables. Defaults to True.</p>
+<h6 id="arguments">Arguments:</h6>
+
+<ul>
+<li><strong>content:</strong>  The content of the message. It can take on any of the following types:
+<ul>
+<li>str: A simple string message.</li>
+<li>List[ToolCall]: A list of tool calls.</li>
+<li>ToolResponse: A tool response.</li>
+<li>BaseModel: A custom base model object.</li>
+</ul></li>
+<li><strong>role:</strong>  The role of the message (assistant, user, system, tool, etc.).</li>
+<li><strong>inject_prompt (bool, optional):</strong>  Whether to inject prompt with context variables. Defaults to True.</li>
+</ul>
 </div>
 
 
@@ -1352,9 +1361,12 @@ response after they are received, and map exceptions that may occur during the i
 
             <div class="docstring"><p>A simple class that represents a system message.</p>
 
-<p>Args:
-    content (str): The content of the system message.
-    inject_prompt (bool, optional): Whether to inject prompt with context  variables. Defaults to True.</p>
+<h6 id="arguments">Arguments:</h6>
+
+<ul>
+<li><strong>content (str):</strong>  The content of the system message.</li>
+<li><strong>inject_prompt (bool, optional):</strong>  Whether to inject prompt with context  variables. Defaults to True.</li>
+</ul>
 </div>
 
 
@@ -1375,14 +1387,19 @@ response after they are received, and map exceptions that may occur during the i
 
             <div class="docstring"><p>A simple class that represents a message that an LLM can read.</p>
 
-<p>Args:
-    content: The content of the message. It can take on any of the following types:
-        - str: A simple string message.
-        - List[ToolCall]: A list of tool calls.
-        - ToolResponse: A tool response.
-        - BaseModel: A custom base model object.
-    role: The role of the message (assistant, user, system, tool, etc.).
-    inject_prompt (bool, optional): Whether to inject prompt with context variables. Defaults to True.</p>
+<h6 id="arguments">Arguments:</h6>
+
+<ul>
+<li><strong>content:</strong>  The content of the message. It can take on any of the following types:
+<ul>
+<li>str: A simple string message.</li>
+<li>List[ToolCall]: A list of tool calls.</li>
+<li>ToolResponse: A tool response.</li>
+<li>BaseModel: A custom base model object.</li>
+</ul></li>
+<li><strong>role:</strong>  The role of the message (assistant, user, system, tool, etc.).</li>
+<li><strong>inject_prompt (bool, optional):</strong>  Whether to inject prompt with context variables. Defaults to True.</li>
+</ul>
 </div>
 
 
@@ -1415,9 +1432,12 @@ response after they are received, and map exceptions that may occur during the i
 
             <div class="docstring"><p>A simple class that represents a message from the assistant.</p>
 
-<p>Args:
-    content (_T): The content of the assistant message.
-    inject_prompt (bool, optional): Whether to inject prompt with context  variables. Defaults to True.</p>
+<h6 id="arguments">Arguments:</h6>
+
+<ul>
+<li><strong>content (_T):</strong>  The content of the assistant message.</li>
+<li><strong>inject_prompt (bool, optional):</strong>  Whether to inject prompt with context  variables. Defaults to True.</li>
+</ul>
 </div>
 
 
@@ -1438,14 +1458,19 @@ response after they are received, and map exceptions that may occur during the i
 
             <div class="docstring"><p>A simple class that represents a message that an LLM can read.</p>
 
-<p>Args:
-    content: The content of the message. It can take on any of the following types:
-        - str: A simple string message.
-        - List[ToolCall]: A list of tool calls.
-        - ToolResponse: A tool response.
-        - BaseModel: A custom base model object.
-    role: The role of the message (assistant, user, system, tool, etc.).
-    inject_prompt (bool, optional): Whether to inject prompt with context variables. Defaults to True.</p>
+<h6 id="arguments">Arguments:</h6>
+
+<ul>
+<li><strong>content:</strong>  The content of the message. It can take on any of the following types:
+<ul>
+<li>str: A simple string message.</li>
+<li>List[ToolCall]: A list of tool calls.</li>
+<li>ToolResponse: A tool response.</li>
+<li>BaseModel: A custom base model object.</li>
+</ul></li>
+<li><strong>role:</strong>  The role of the message (assistant, user, system, tool, etc.).</li>
+<li><strong>inject_prompt (bool, optional):</strong>  Whether to inject prompt with context variables. Defaults to True.</li>
+</ul>
 </div>
 
 
@@ -1571,14 +1596,19 @@ response after they are received, and map exceptions that may occur during the i
 
             <div class="docstring"><p>A simple class that represents a message that an LLM can read.</p>
 
-<p>Args:
-    content: The content of the message. It can take on any of the following types:
-        - str: A simple string message.
-        - List[ToolCall]: A list of tool calls.
-        - ToolResponse: A tool response.
-        - BaseModel: A custom base model object.
-    role: The role of the message (assistant, user, system, tool, etc.).
-    inject_prompt (bool, optional): Whether to inject prompt with context variables. Defaults to True.</p>
+<h6 id="arguments">Arguments:</h6>
+
+<ul>
+<li><strong>content:</strong>  The content of the message. It can take on any of the following types:
+<ul>
+<li>str: A simple string message.</li>
+<li>List[ToolCall]: A list of tool calls.</li>
+<li>ToolResponse: A tool response.</li>
+<li>BaseModel: A custom base model object.</li>
+</ul></li>
+<li><strong>role:</strong>  The role of the message (assistant, user, system, tool, etc.).</li>
+<li><strong>inject_prompt (bool, optional):</strong>  Whether to inject prompt with context variables. Defaults to True.</li>
+</ul>
 </div>
 
 
@@ -1700,8 +1730,11 @@ response after they are received, and map exceptions that may occur during the i
 
             <div class="docstring"><p>A simple class that represents a message that is a tool call answer.</p>
 
-<p>Args:
-    content (ToolResponse): The tool response content for the message.</p>
+<h6 id="arguments">Arguments:</h6>
+
+<ul>
+<li><strong>content (ToolResponse):</strong>  The tool response content for the message.</li>
+</ul>
 </div>
 
 
@@ -1726,14 +1759,19 @@ response after they are received, and map exceptions that may occur during the i
 
             <div class="docstring"><p>A simple class that represents a message that an LLM can read.</p>
 
-<p>Args:
-    content: The content of the message. It can take on any of the following types:
-        - str: A simple string message.
-        - List[ToolCall]: A list of tool calls.
-        - ToolResponse: A tool response.
-        - BaseModel: A custom base model object.
-    role: The role of the message (assistant, user, system, tool, etc.).
-    inject_prompt (bool, optional): Whether to inject prompt with context variables. Defaults to True.</p>
+<h6 id="arguments">Arguments:</h6>
+
+<ul>
+<li><strong>content:</strong>  The content of the message. It can take on any of the following types:
+<ul>
+<li>str: A simple string message.</li>
+<li>List[ToolCall]: A list of tool calls.</li>
+<li>ToolResponse: A tool response.</li>
+<li>BaseModel: A custom base model object.</li>
+</ul></li>
+<li><strong>role:</strong>  The role of the message (assistant, user, system, tool, etc.).</li>
+<li><strong>inject_prompt (bool, optional):</strong>  Whether to inject prompt with context variables. Defaults to True.</li>
+</ul>
 </div>
 
 
@@ -2046,10 +2084,13 @@ You pass in key details (name, description, and required parameters).</p>
 
             <div class="docstring"><p>Creates a new Tool instance.</p>
 
-<p>Args:
-    name: The name of the tool.
-    detail: A detailed description of the tool.
-    parameters: Parameters attached to this tool; a set of Parameter objects, or a dict.</p>
+<h6 id="arguments">Arguments:</h6>
+
+<ul>
+<li><strong>name:</strong>  The name of the tool.</li>
+<li><strong>detail:</strong>  A detailed description of the tool.</li>
+<li><strong>parameters:</strong>  Parameters attached to this tool; a set of Parameter objects, or a dict.</li>
+</ul>
 </div>
 
 
@@ -2235,14 +2276,20 @@ Uses the function's docstring and type annotations to extract details and parame
 
 <p>KEY NOTE: No checking is done to ensure that the inserted params match the function signature</p>
 
-<p>Args:
-    func: The function to create a tool from.
-    name: Optional name for the tool. If not provided, uses the function's name.
-    details: Optional detailed description for the tool. If not provided, extracts from the function's docstring.
-    params: Optional parameters for the tool. If not provided, infers from the function's signature and docstring.</p>
+<h6 id="arguments">Arguments:</h6>
 
-<p>Returns:
-    A Tool instance representing the function.</p>
+<ul>
+<li><strong>func:</strong>  The function to create a tool from.</li>
+<li><strong>name:</strong>  Optional name for the tool. If not provided, uses the function's name.</li>
+<li><strong>details:</strong>  Optional detailed description for the tool. If not provided, extracts from the function's docstring.</li>
+<li><strong>params:</strong>  Optional parameters for the tool. If not provided, infers from the function's signature and docstring.</li>
+</ul>
+
+<h6 id="returns">Returns:</h6>
+
+<blockquote>
+  <p>A Tool instance representing the function.</p>
+</blockquote>
 </div>
 
 
@@ -2292,11 +2339,17 @@ Uses the function's docstring and type annotations to extract details and parame
 
             <div class="docstring"><p>Creates a Tool from an MCP tool object.</p>
 
-<p>Args:
-    tool: The MCP tool to create a Tool from.</p>
+<h6 id="arguments">Arguments:</h6>
 
-<p>Returns:
-    A Tool instance representing the MCP tool.</p>
+<ul>
+<li><strong>tool:</strong>  The MCP tool to create a Tool from.</li>
+</ul>
+
+<h6 id="returns">Returns:</h6>
+
+<blockquote>
+  <p>A Tool instance representing the MCP tool.</p>
+</blockquote>
 </div>
 
 
@@ -2453,14 +2506,17 @@ Uses the function's docstring and type annotations to extract details and parame
 
             <div class="docstring"><p>Creates a new instance of a parameter object.</p>
 
-<p>Args:
-    name: The name of the parameter.
-    param_type: The type of the parameter.
-    description: A description of the parameter.
-    required: Whether the parameter is required. Defaults to True.
-    additional_properties: Whether to allow additional properties for object types. Defaults to False.
-    enum: The enum values for the parameter.
-    default: The default value for the parameter.</p>
+<h6 id="arguments">Arguments:</h6>
+
+<ul>
+<li><strong>name:</strong>  The name of the parameter.</li>
+<li><strong>param_type:</strong>  The type of the parameter.</li>
+<li><strong>description:</strong>  A description of the parameter.</li>
+<li><strong>required:</strong>  Whether the parameter is required. Defaults to True.</li>
+<li><strong>additional_properties:</strong>  Whether to allow additional properties for object types. Defaults to False.</li>
+<li><strong>enum:</strong>  The enum values for the parameter.</li>
+<li><strong>default:</strong>  The default value for the parameter.</li>
+</ul>
 </div>
 
 
@@ -3066,23 +3122,33 @@ model of that type.</p>
 
             <div class="docstring"><p>Initialize an Ollama LLM instance.</p>
 
-<p>Args:
-    model_name (str): Name of the Ollama model to use.
-    domain (Literal["default", "auto", "custom"], optional): The domain configuration mode.
-        - "default": Uses the default localhost domain (<a href="http://localhost:11434">http://localhost:11434</a>)
-        - "auto": Uses the OLLAMA_HOST environment variable, raises OllamaError if not set
-        - "custom": Uses the provided custom_domain parameter, raises OllamaError if not provided
-        Defaults to "default".
-    custom_domain (str | None, optional): Custom domain URL to use when domain is set to "custom".
-        Must be provided if domain="custom". Defaults to None.
-    **kwargs: Additional arguments passed to the parent LiteLLMWrapper.</p>
+<h6 id="arguments">Arguments:</h6>
 
-<p>Raises:
-    OllamaError: If:
-        - domain is "auto" and OLLAMA_HOST environment variable is not set
-        - domain is "custom" and custom_domain is not provided
-        - specified model is not available on the server
-    RequestException: If connection to Ollama server fails</p>
+<ul>
+<li><strong>model_name (str):</strong>  Name of the Ollama model to use.</li>
+<li><strong>domain (Literal["default", "auto", "custom"], optional):</strong>  The domain configuration mode.
+<ul>
+<li>"default": Uses the default localhost domain (<a href="http://localhost:11434"><a href="http://localhost:11434">http://localhost:11434</a></a>)</li>
+<li>"auto": Uses the OLLAMA_HOST environment variable, raises OllamaError if not set</li>
+<li>"custom": Uses the provided custom_domain parameter, raises OllamaError if not provided
+Defaults to "default".</li>
+</ul></li>
+<li><strong>custom_domain (str | None, optional):</strong>  Custom domain URL to use when domain is set to "custom".
+Must be provided if domain="custom". Defaults to None.</li>
+<li><strong>**kwargs:</strong>  Additional arguments passed to the parent LiteLLMWrapper.</li>
+</ul>
+
+<h6 id="raises">Raises:</h6>
+
+<ul>
+<li><strong>OllamaError:</strong>  If:
+<ul>
+<li>domain is "auto" and OLLAMA_HOST environment variable is not set</li>
+<li>domain is "custom" and custom_domain is not provided</li>
+<li>specified model is not available on the server</li>
+</ul></li>
+<li><strong>RequestException:</strong>  If connection to Ollama server fails</li>
+</ul>
 </div>
 
 
@@ -3275,12 +3341,18 @@ model of that type.</p>
 
             <div class="docstring"><p>Initialize an Azure AI LLM instance.</p>
 
-<p>Args:
-    model_name (str): Name of the Azure AI model to use.
-    **kwargs: Additional arguments passed to the parent LiteLLMWrapper.</p>
+<h6 id="arguments">Arguments:</h6>
 
-<p>Raises:
-    AzureAIError: If the specified model is not available or if there are issues with the Azure AI service.</p>
+<ul>
+<li><strong>model_name (str):</strong>  Name of the Azure AI model to use.</li>
+<li><strong>**kwargs:</strong>  Additional arguments passed to the parent LiteLLMWrapper.</li>
+</ul>
+
+<h6 id="raises">Raises:</h6>
+
+<ul>
+<li><strong>AzureAIError:</strong>  If the specified model is not available or if there are issues with the Azure AI service.</li>
+</ul>
 </div>
 
 
