@@ -50,8 +50,10 @@ def test_structured_tool_call_llm_return_output_success(mock_tool, mock_llm, sch
         user_input=mh,
         llm=mock_llm(),
     )
-    node.message_hist.append(AssistantMessage(schema(value=123)))
-    assert node.return_output().structured.value == 123
+
+    last_message = AssistantMessage(schema(value=123))
+    node.message_hist.append(last_message)
+    assert node.return_output(last_message).structured.value == 123
 
 def test_structured_message_hist_tool_call_llm_return_output_success(mock_tool, mock_llm, schema):
     class MockStructuredMessHistToolCallLLM(StructuredToolCallLLM):
@@ -73,9 +75,10 @@ def test_structured_message_hist_tool_call_llm_return_output_success(mock_tool, 
         user_input=mh,
         llm=mock_llm(),
     )
-    node.message_hist.append(AssistantMessage(schema(value=123)))
-    assert node.return_output().content.value == 123
-    assert any(x.role is not SystemMessage for x in node.return_output().message_history)
+    last_message = AssistantMessage(schema(value=123))
+    node.message_hist.append(last_message)
+    assert node.return_output(last_message).content.value == 123
+    assert any(x.role is not SystemMessage for x in node.return_output(last_message).message_history)
 
 @pytest.mark.asyncio
 async def test_structured_tool_call_llm_return_output_exception(mock_llm, schema, mock_tool):

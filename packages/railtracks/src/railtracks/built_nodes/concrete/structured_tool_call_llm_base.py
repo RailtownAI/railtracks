@@ -3,7 +3,6 @@ from typing import Generic, TypeVar
 
 from pydantic import BaseModel
 
-import railtracks.context as context
 from railtracks.exceptions.errors import LLMError
 from railtracks.interaction import call
 from railtracks.llm import (
@@ -70,6 +69,10 @@ class StructuredToolCallLLM(
         llm: ModelBase | None = None,
         max_tool_calls: int | None = None,
     ):
+        # as of right now we do not support streaming with structured tool calls.
+        if llm is not None and llm._stream:
+            raise ValueError("StructuredToolCallLLM does not support streaming.")
+
         super().__init__(user_input=user_input, llm=llm, max_tool_calls=max_tool_calls)
         self.structured_output: _TBaseModel | Exception | None = None
 
@@ -93,13 +96,8 @@ class StructuredToolCallLLM(
                 message_history=self.message_hist,
             ) from e
 
-        # Might need to change the logic so that you keep the unstructured message
+        # Might need to change the logic so that you keep the unstructured
+        last_message = AssistantMessage(content=structured_output)
         self.message_hist.pop()
-        self.message_hist.append(AssistantMessage(content=structured_output))
-
-        if (key := self.return_into()) is not None:
-            output = self.return_output()
-            context.put(key, self.format_for_context(output.structured))
-            return self.format_for_return(output.structured)
-
-        return self.return_output()
+        self.message_hist.append(last_message)
+        return self.return_output(last_message)
