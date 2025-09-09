@@ -113,7 +113,7 @@ nav:
   - Advanced Usage:
       - Session: advanced_usage/session.md
       - Context: advanced_usage/context.md
-      - Configuration: advanced_usage/config.md
+      # - Configuration: advanced_usage/config.md
 
   # - Samples:
   #     - samples/index.md
