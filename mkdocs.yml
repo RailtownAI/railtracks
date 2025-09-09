@@ -6,16 +6,20 @@ repo_url: https://github.com/RailtownAI/railtracks
 
 theme:
   name: material
+  logo: assets/logo.svg
+  favicon: assets/logo.svg
 
   palette:
     - scheme: default
+      primary: white
       toggle:
-        icon: material/brightness-6
+        icon: material/brightness-4
         name: Switch to dark mode
 
     - scheme: slate
+      primary: black
       toggle:
-        icon: material/brightness-4
+        icon: material/brightness-5
         name: Switch to light mode
 
   features:
@@ -62,14 +66,16 @@ nav:
   - Home: index.md
 
   - Quickstart: quickstart/quickstart.md
+
+  - Background:
+      - Agents: background/agents.md
+      - Tools: background/tools.md
+      - Async/Await: background/async_await.md
   
   - Tutorials:
-      - Background:
-          - Agents: tutorials/guides/agents.md
-          - Tools: tutorials/guides/tools.md
-          - Async/Await: tutorials/guides/async_await.md
       - Building your first agent: tutorials/byfa.md
       - Running your first agent: tutorials/ryfa.md
+      - RAG system: tutorials/rag_tutorial.md
       - Controlling Flows and Wrapping Nodes: tutorials/flows.md
 
   - Tools + MCP:
@@ -91,6 +97,7 @@ nav:
           - Shell Bash: tools_mcp/guides/shell_bash.md
           - Slack: tools_mcp/guides/slack.md
           - Web Search: tools_mcp/guides/websearch_integration.md
+      - RAG: tools_mcp/RAG.md
 
   - Observability:
       - Visualization: observability/visualization.md
@@ -102,7 +109,7 @@ nav:
   - LLM Support:
       - Supported Providers: llm_support/providers.md
       - Prompts and Context Injection: llm_support/prompts.md
-      - Configuration: llm_support/config.md
+      
 
   - Deployments:
       - Docker: deployments/docker.md
@@ -110,7 +117,7 @@ nav:
   - Advanced Usage:
       - Session: advanced_usage/session.md
       - Context: advanced_usage/context.md
-      - Custom Nodes: advanced_usage/node_builder.md
+      - Configuration: advanced_usage/config.md
 
   - Samples:
       - samples/index.md

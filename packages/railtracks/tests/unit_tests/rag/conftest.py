@@ -5,11 +5,6 @@ import itertools
 
 _uuid_counter = itertools.count()
 
-@pytest.fixture
-def dummy_uuid_str():
-    # Returns a new uuid string every time
-    return f"uuid{next(_uuid_counter)}"
-
 class DummyEmbeddingService:
     def embed(self, texts):
         # If input is str, return 1D vector;
@@ -25,7 +20,7 @@ class DummyRecord:
         self.text = text
         self.metadata = metadata or {}
 
-class DummySearchResult:
+class DummySearchEntry:
     def __init__(self, score, record):
         self.score = score
         self.record = record
@@ -76,7 +71,7 @@ def dummy_record():
 
 @pytest.fixture
 def dummy_search_result():
-    return DummySearchResult
+    return DummySearchEntry
 
 @pytest.fixture
 def dummy_metric():

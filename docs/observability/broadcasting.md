@@ -1,4 +1,4 @@
-# 🚰 Broadcasting
+# Broadcasting
 
 Broadcasting lets you monitor your agents' progress in real time by sending live updates during execution. This can be useful for:
 
@@ -8,7 +8,7 @@ Broadcasting lets you monitor your agents' progress in real time by sending live
 
 Railtracks supports basic **data broadcasting**, enabling you to receive these updates via a callback function.
 
-## ⚙️ Usage
+## Usage
 
 To enable broadcasting, provide a **callback function** to the `subscriber` parameter in `ExecutorConfig`. This function will receive broadcasting updates:
 

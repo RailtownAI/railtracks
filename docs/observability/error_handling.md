@@ -1,8 +1,8 @@
-# 🚨 Error Handling
+# Error Handling
 
 RailTracks (RT) provides a comprehensive error handling system designed to give developers clear, actionable feedback when things go wrong. The framework uses a hierarchy of specialized exceptions that help you understand exactly what went wrong and where.
 
-## 🏗️ Error Hierarchy
+## Error Hierarchy
 
 All RailTracks errors inherit from the base `RTError` class, which provides colored console output and structured error reporting.
 
@@ -16,23 +16,23 @@ RTError (base)
 └── FatalError
 ```
 
-## 🎯 Error Types
+## Error Types
 
-### 🔧 Internally Raised Errors
+### Internally Raised Errors
 
 These errors are automatically raised by RailTracks when issues occur during execution. All inherit from `RTError` and provide colored terminal output with debugging information.
 
-- **`NodeCreationError`** ⚙️ - Raised during node setup and validation
-- **`NodeInvocationError`** ⚡ - Raised during node execution (has `fatal` flag)
-- **`LLMError`** 🤖 - Raised during LLM operations (includes `message_history`)
-- **`GlobalTimeOutError`** ⏰ - Raised when execution exceeds timeout
-- **`ContextError`** 🌐 - Raised for context-related issues
+- **`NodeCreationError`** - Raised during node setup and validation
+- **`NodeInvocationError`** - Raised during node execution (has `fatal` flag)
+- **`LLMError`** - Raised during LLM operations (includes `message_history`)
+- **`GlobalTimeOutError`** - Raised when execution exceeds timeout
+- **`ContextError`** - Raised for context-related issues
 
 All internal errors include helpful debugging notes and formatted error messages to guide troubleshooting.
 
-### ⚠️ User-Raised Errors
+### User-Raised Errors
 
-**`FatalError`** 💀 - The only error type designed for developers to raise manually when encountering unrecoverable situations.
+**`FatalError`** - The only error type designed for developers to raise manually when encountering unrecoverable situations.
 
 **Usage:**
 ```python
@@ -43,9 +43,9 @@ def my_critical_function():
         raise FatalError("Critical system state compromised")
 ```
 
-## 🔄 Error Handling Patterns
+## Error Handling Patterns
 
-### 🔨 Basic Error Handling
+### Basic Error Handling
 
 ```python
 import railtracks as rt
@@ -69,7 +69,7 @@ except LLMError as e:
     # Or fallback to a simpler approach
 ```
 
-### 🔍 Comprehensive Error Handling
+### Comprehensive Error Handling
 
 ```python
 import railtracks as rt
@@ -136,9 +136,9 @@ except Exception as e:
     logger.error(f"Unexpected error: {e}")
 ```
 
-### 🔄 Error Recovery Strategies
+### Error Recovery Strategies
 
-#### 🔁 Retry with Backoff
+#### Retry with Backoff
 
 ```python
 import asyncio
@@ -158,7 +158,7 @@ async def call_with_retry(node, user_input, max_retries=3):
             await asyncio.sleep(wait_time)
 ```
 
-#### 🛡️ Graceful Degradation
+#### Graceful Degradation
 
 ```python
 import railtracks as rt
@@ -174,29 +174,29 @@ async def call_with_fallback(primary_node, fallback_node, user_input):
         raise
 ```
 
-## ✅ Best Practices
+## Best Practices
 
-### 1. 📝 Handle Errors at the Right Level
+### 1. Handle Errors at the Right Level
 - Handle `NodeCreationError` during setup/configuration
 - Handle `NodeInvocationError` during execution with appropriate recovery
 - Handle `LLMError` with retry logic and fallbacks
 - Let `FatalError` bubble up to stop execution
 
-### 2. 📊 Use Error Information
+### 2. Use Error Information
 - Check the `fatal` flag on `NodeInvocationError`
 - Examine `message_history` in `LLMError` for debugging
 - Read the `notes` property for debugging tips
 
-### 3. 🔧 Implement Appropriate Recovery
+### 3. Implement Appropriate Recovery
 - Retry transient errors (network issues, rate limits)
 - Fallback for recoverable errors
 - Fail fast for configuration errors
 - Log appropriately for debugging
 
-### 4. 📈 Monitor and Alert
+### 4. Monitor and Alert
 For detailed logging and monitoring strategies, see [Logging](logging.md).
 
-### 5. 🧪 Testing Error Scenarios
+### 5. Testing Error Scenarios
 ```python
 import pytest
 import railtracks as rt
@@ -211,7 +211,7 @@ def test_node_error_handling():
     assert "expected error message" in str(exc_info.value)
 ```
 
-## 🔍 Debugging Tips
+## Debugging Tips
 
 1. **Enable Debug Logging**: RailTracks errors include colored output and debugging notes
 2. **Check Error Properties**: Many errors include additional context (notes, message_history, etc.)

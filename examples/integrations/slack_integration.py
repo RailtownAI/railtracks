@@ -8,6 +8,7 @@ import os
 
 from railtracks import connect_mcp, MCPStdioParams
 import railtracks as rt
+import asyncio
 
 MCP_COMMAND = "npx"
 MCP_ARGS = ["-y", "@modelcontextprotocol/server-slack"]
@@ -40,7 +41,10 @@ user_prompt = """Send a message to thert-maintainer slack channel saying "Hello 
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
-with rt.Session(logging_setting="VERBOSE"):
-    result = rt.call_sync(agent, message_history)
+async def call_node():
+    with rt.Session(logging_setting="VERBOSE"):
+        result = await rt.call(agent, message_history)
 
-print(result.content)
+    print(result.content)
+
+asyncio.run(call_node())

@@ -1,6 +1,6 @@
 import subprocess
 import railtracks as rt
-
+import asyncio
 
 
 def create_sandbox_container():
@@ -37,11 +37,15 @@ user_prompt = """Create a 3x3 array of random numbers using numpy, and print the
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
-with rt.Session(logging_setting="VERBOSE"):
-    create_sandbox_container()
-    try:
-        result = rt.call_sync(agent, message_history)
-    finally:
-        kill_sandbox()
+async def call_node():
+    with rt.Session(logging_setting="VERBOSE"):
+        create_sandbox_container()
+        try:
+            result = await rt.call(agent, message_history)
+        finally:
+            kill_sandbox()
 
-print(result.content)
+    print(result.content)
+
+asyncio.run(call_node())
+

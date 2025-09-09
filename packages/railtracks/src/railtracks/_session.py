@@ -123,7 +123,7 @@ class Session:
         self.coordinator.start(self.publisher)
         self._setup_subscriber()
         register_globals(
-            runner_id=self._identifier,
+            session_id=self._identifier,
             rt_publisher=self.publisher,
             parent_id=None,
             executor_config=self.executor_config,
@@ -191,9 +191,6 @@ class Session:
                         ).format(name=self.name, identifier=self._identifier)
                     )
                     file_path = railtracks_dir / f"{self._identifier}.json"
-
-                if file_path.exists():
-                    logger.warning("File %s already exists, overwriting..." % file_path)
 
                 logger.info("Saving execution info to %s" % file_path)
 

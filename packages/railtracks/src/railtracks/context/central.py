@@ -22,22 +22,22 @@ class RunnerContextVars:
     def __init__(
         self,
         *,
-        runner_id: str,
         internal_context: InternalContext,
         external_context: ExternalContext,
     ):
-        self.runner_id = runner_id
         self.internal_context = internal_context
         self.external_context = external_context
 
-    def prepare_new(self, new_parent_id: str):
+    def prepare_new(self, new_parent_id: str, new_run_id: str | None = None):
         """
         Update the parent ID of the internal context.
         """
-        new_internal_context = self.internal_context.prepare_new(new_parent_id)
+        new_internal_context = self.internal_context.prepare_new(
+            new_parent_id=new_parent_id,
+            run_id=new_run_id,
+        )
 
         return RunnerContextVars(
-            runner_id=self.runner_id,
             internal_context=new_internal_context,
             external_context=self.external_context,
         )
@@ -105,7 +105,7 @@ def get_publisher() -> RTPublisher:
     return context.internal_context.publisher
 
 
-def get_runner_id() -> str:
+def get_session_id() -> str | None:
     """
     Get the runner ID of the current thread's global variables.
 
@@ -116,7 +116,7 @@ def get_runner_id() -> str:
         RuntimeError: If the global variables have not been registered.
     """
     context = safe_get_runner_context()
-    return context.runner_id
+    return context.internal_context.session_id
 
 
 def get_parent_id() -> str | None:
@@ -133,9 +133,20 @@ def get_parent_id() -> str | None:
     return context.internal_context.parent_id
 
 
+def get_run_id() -> str | None:
+    """
+    Get the run ID of the current thread's global variables.
+
+    Returns:
+        str | None: The run ID associated with the current thread's global variables, or None if not set.
+    """
+    context = safe_get_runner_context()
+    return context.internal_context.run_id
+
+
 def register_globals(
     *,
-    runner_id: str,
+    session_id: str,
     rt_publisher: RTPublisher | None,
     parent_id: str | None,
     executor_config: ExecutorConfig,
@@ -147,13 +158,12 @@ def register_globals(
     i_c = InternalContext(
         publisher=rt_publisher,
         parent_id=parent_id,
-        runner_id=runner_id,
+        session_id=session_id,
         executor_config=executor_config,
     )
     e_c = MutableExternalContext(global_context_vars)
 
     runner_context_vars = RunnerContextVars(
-        runner_id=runner_id,
         internal_context=i_c,
         external_context=e_c,
     )
@@ -240,16 +250,22 @@ def set_global_config(
     global_executor_config.set(executor_config)
 
 
-def update_parent_id(new_parent_id: str):
+def update_parent_id(new_parent_id: str, new_run_id: str | None = None):
     """
     Update the parent ID of the current thread's global variables.
+
+    If no run ID is provided, the current run ID will be used.
     """
     current_context = safe_get_runner_context()
+
+    assert (
+        new_run_id is not None or current_context.internal_context.run_id is not None
+    ), "You cannot update the parent ID while a run ID is inactive"
 
     if current_context is None:
         raise RuntimeError("No global variable set")
 
-    new_context = current_context.prepare_new(new_parent_id)
+    new_context = current_context.prepare_new(new_parent_id, new_run_id=new_run_id)
 
     runner_context.set(new_context)
 
