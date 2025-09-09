@@ -107,9 +107,8 @@ nav:
       - Supported Providers: llm_support/providers.md
       - Prompts and Context Injection: llm_support/prompts.md
       
-
-  - Deployments:
-      - Docker: deployments/docker.md
+  # - Deployments:
+  #     - Docker: deployments/docker.md
 
   - Advanced Usage:
       - Session: advanced_usage/session.md
