@@ -82,7 +82,7 @@ nav:
       - MCP:
           - Model Context Protocol: tools_mcp/mcp/mcp.md
           - Using MCP: tools_mcp/mcp/MCP_tools_in_RT.md
-          - Creating an MCP: tools_mcp/mcp/RTtoMCP.md
+          - Creating an MCP Server: tools_mcp/mcp/RTtoMCP.md
 
       - Tools:
           - What is a Tool: tools_mcp/tools/tools.md
