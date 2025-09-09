@@ -1,4 +1,4 @@
-# 🌐 Supported Providers
+# Supported Providers
 We currently support connecting to different available LLMs through the following providers:
 
 - **OpenAI** - GPT models
@@ -12,7 +12,7 @@ This allows you to use the same codebase to interact with different LLMs, making
 
 Take a look at the examples below to see how using different providers look for achieving the same task.
 
-## 📋 Quick Start Examples
+## Quick Start Examples
 
 === "OpenAI"
     !!! info "Environment Variables Configuration"
@@ -113,10 +113,10 @@ GeneralAgent = rt.agent_node(
     If you want to use tool calling capabilities by passing the `tool_nodes` parameter to the `agent_node`, you can do so with any of the above providers. However, you need to ensure that the provider and the specific LLM model you are using support tool calling.
 
 
-## 🔧 Writing Custom LLM Providers
+## Writing Custom LLM Providers
 We hope to cover most of the common and widely used LLM providers, but if you need to use a provider that is not currently supported, you can implement your own LLM provider by subclassing `LLMProvider` and implementing the required methods. 
 
-For our implementation, we have benefited from the amazing [LiteLLM](https://github.com/BerriAI/litellm) 🚀 framework, which provides excellent multi-provider support.
+For our implementation, we have benefited from the amazing [LiteLLM](https://github.com/BerriAI/litellm) framework, which provides excellent multi-provider support.
 
 !!! tip "Custom Provider Documentation"
     Please refer to the **Custom LLM Provider documentation** for detailed instructions on how to implement your own provider.

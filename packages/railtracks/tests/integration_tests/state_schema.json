@@ -41,6 +41,33 @@
             "type": "string",
             "description": "The name of the run."
           },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Completed",
+                  "Failed",
+                  "Open"
+                ]
+              }
+            ]
+          },
+          "start_time": {
+            "type": "number",
+            "description": "The start time of the run."
+          },
+          "end_time": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The end time of the run."
+          },
           "nodes": {
             "type": "array",
             "items": {
@@ -65,7 +92,10 @@
           "run_id",
           "nodes",
           "edges",
-          "steps"
+          "steps",
+          "status",
+          "start_time",
+          "end_time"
         ]
       }
     }
