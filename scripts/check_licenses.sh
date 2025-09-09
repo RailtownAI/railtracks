@@ -77,9 +77,6 @@ cat "$CORE_LICENSES_FILE"
 # Clean up virtual environment
 echo "Cleaning up virtual environment..."
 
-rm -f "$CORE_LICENSES_FILE"
-rm -f "$CORE_LICENSES_SUMMARY_FILE"
-
 deactivate
 rm -rf "$VENV_DIR"
 
