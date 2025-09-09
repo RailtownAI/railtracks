@@ -1,7 +1,7 @@
 #%%
 import railtracks as rt
 from railtracks.rt_mcp import MCPHttpParams, MCPStdioParams
-
+import asyncio
 
 #%%
 # NOTE: Make sure you have `mcp-server-time` installed in your environment: https://pypi.org/project/mcp-server-time/ 
@@ -29,7 +29,12 @@ parent_tool = rt.agent_node(
 
 #%%
 
-with rt.Session(logging_setting="QUIET", timeout=1000) as runner:
-    response = rt.call_sync(parent_tool, user_input="Tell me about conductr.ai. Then, tell me what time it is.")
-
+async def call_node(user_input: str):
+    with rt.Session(logging_setting="QUIET", timeout=1000) as runner:
+        response = await rt.call(parent_tool, user_input=user_input)
     print("Response:", response.text)
+
+#%%
+
+user_input = "Tell me about conductr.ai. Then, tell me what time it is."
+asyncio.run(call_node(user_input))

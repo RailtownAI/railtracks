@@ -28,7 +28,7 @@ To begin you just have to use **`call`** method from RailTracks. This is an asyn
 
     **Jupyter Notebooks**: If you are using in a notebook, you can run the code in a cell with **`await`** directly.
     
-    For more info on using `async/await` in RT, see [Async/Await in Python](./guides/async_await.md).
+    For more info on using `async/await` in RT, see [Async/Await in Python](../background/async_await.md).
 
 !!! info "Dynamic Runtime Configuration"
 

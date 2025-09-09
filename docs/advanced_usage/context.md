@@ -1,12 +1,12 @@
-# 🌍 Global Context
+# Global Context
 
 RailTracks includes a concept of global context, letting you store and retrieve shared information across the lifecycle of a run. This makes it easy to coordinate data like config settings, environment flags, or shared resources.
 
-## 🧠 What is Global Context?
+## What is Global Context?
 
 The context system gives you a simple and clear API for interacting with shared values. It's scoped to the duration of a run, so everything is neatly contained within that execution lifecycle. One of the key features of the context system is that it can be accessed from within any node in your workflow, making it ideal for sharing data between different parts of your application.
 
-## 🧰 Core Functions
+## Core Functions
 
 You can use the context with the following main functions:
 
@@ -15,7 +15,7 @@ You can use the context with the following main functions:
 * `rt.context.update(dict)` - Updates multiple values in the context at once
 * `rt.context.delete(key)` - Removes a value from the context
 
-## 🚀 Quick Example
+## Quick Example
 
 Here’s how you can use context during a run:
 
@@ -26,8 +26,8 @@ import railtracks as rt
 data = {"var_1": "value_1"}
 
 with rt.Session(context=data):
-    rt.context.get("var_1")  # ➡️ Outputs: value_1
-    rt.context.get("var_2", "default_value")  # ➡️ Outputs: default_value
+    rt.context.get("var_1")  # Outputs: value_1
+    rt.context.get("var_2", "default_value")  # Outputs: default_value
 
     rt.context.put("var_2", "value_2")  # Sets var_2 to value_2
     rt.context.put("var_1", "new_value_1")  # Replaces var_1 with new_value_1
@@ -50,7 +50,7 @@ with rt.Session(context=data):
 !!! warning
     The context only exists while the run is active. After that, it's gone.
 
-## 🧪 Real-World Examples
+## Real-World Examples
 
 ### Prevent Hallucinations in Agentic Systems
 In agentic systems, you can use context to store important facts or constraints that agents will need to use. This helps reduce hallucinations by providing a reliable source of truth.
@@ -125,7 +125,7 @@ In this example, the system message will be expanded to: "You are a friendly and
 !!! tip
     For more details on prompt injection, see the [Prompts and Context Injection](../llm_support/prompts.md) documentation.
 
-## 🔍 Benefits of Using Context
+## Benefits of Using Context
 
 !!! info "Why use the context system?"
     The context system provides several advantages over alternatives like global variables

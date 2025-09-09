@@ -9,7 +9,7 @@ import os
 
 
 from railtracks import connect_mcp, MCPStdioParams
-
+import asyncio
 import railtracks as rt
 
 
@@ -50,7 +50,11 @@ user_prompt = """Create a new page in Notion called 'Jokes' under the parent pag
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
-with rt.Session():
-    result = rt.call_sync(agent, message_history)
+async def call_node():
+    with rt.Session(logging_setting="VERBOSE"):
+        result = await rt.call(agent, message_history)
 
-print(result.content)
+    print(result.content)
+
+asyncio.run(call_node())
+

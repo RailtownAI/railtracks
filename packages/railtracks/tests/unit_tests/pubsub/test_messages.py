@@ -61,6 +61,7 @@ def test_request_creation_failure_repr_and_log_message(dummy_exception):
 def test_request_creation_fields(dummy_node_class):
     m = RequestCreation(
         current_node_id="A",
+        current_run_id="B",
         new_request_id="N",
         running_mode="async",
         new_node_type=dummy_node_class,
@@ -68,6 +69,7 @@ def test_request_creation_fields(dummy_node_class):
         kwargs={'a': 9},
     )
     assert m.current_node_id == "A"
+    assert m.current_run_id == "B"
     assert m.new_request_id == "N"
     assert m.running_mode == "async"
     assert m.new_node_type is dummy_node_class

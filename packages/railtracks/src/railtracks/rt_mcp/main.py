@@ -160,13 +160,17 @@ class MCPServer:
         self._loop = loop
 
         self._shutdown_event = asyncio.Event()
-
-        self._loop.run_until_complete(self._setup())
-        self._ready_event.set()
-
-        loop.run_until_complete(self._shutdown_event.wait())
-
-        self._loop.close()
+        try:
+            self._loop.run_until_complete(self._setup())
+        except asyncio.exceptions.CancelledError as e:
+            # Ensure shutdown event is set so thread can exit
+            loop.call_soon_threadsafe(self._shutdown_event.set)
+            raise e
+            # Optionally log or handle the error
+        finally:
+            self._ready_event.set()
+            loop.run_until_complete(self._shutdown_event.wait())
+            self._loop.close()
 
     async def _setup(self):
         """

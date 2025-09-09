@@ -135,6 +135,7 @@ class RequestCreation(RequestCompletionMessage):
         self,
         *,
         current_node_id: str | None,
+        current_run_id: str | None,
         new_request_id: str,
         running_mode: ExecutionConfigurations,
         new_node_type: Type[Node],
@@ -142,6 +143,7 @@ class RequestCreation(RequestCompletionMessage):
         kwargs,
     ):
         self.current_node_id = current_node_id
+        self.current_run_id = current_run_id
         self.new_request_id = new_request_id
         self.running_mode = running_mode
         self.new_node_type = new_node_type

@@ -1,4 +1,4 @@
-# 🪵 Logging
+# Logging
 
 Railtracks provides built-in logging to help track the execution of your flows. Logs are automatically generated and can be viewed in the terminal or saved to a file.
 
@@ -15,9 +15,9 @@ Railtracks provides built-in logging to help track the execution of your flows. 
 
 ---
 
-## ⚙️ Configuring Logging
+## Configuring Logging
 
-### 🔢 Logging Levels
+### Logging Levels
 
 Railtracks supports four logging levels:
 
@@ -37,13 +37,13 @@ rt.set_config(logging_setting="NONE")
 
 ---
 
-### 📦 Logging Handlers
+### Logging Handlers
 
-#### 🖥️ Console Handler
+#### Console Handler
 
 By default, logs are printed to `stdout` and `stderr`.
 
-#### 🗂️ File Handler
+#### File Handler
 
 To save logs to a file, pass a `log_file` parameter to the config:
 
@@ -53,7 +53,7 @@ import railtracks as rt
 rt.set_config(log_file="my_logs.log")
 ```
 
-#### 🛠️ Custom Handlers
+#### Custom Handlers
 
 Railtracks uses the standard [Python `logging`](https://docs.python.org/3/library/logging.html) module with the `RT` prefix. You can attach custom handlers:
 
@@ -71,11 +71,11 @@ logger.addHandler(CustomHandler())
 
 ---
 
-## 🧪 Example Usage
+## Example Usage
 
 You can configure logging globally or per-run.
 
-### 🌐 Global Configuration
+### Global Configuration
 
 ```python
 import railtracks as rt
@@ -88,7 +88,7 @@ rt.set_config(
 
 Applies to all flows.
 
-### 🔒 Scoped Configuration
+### Scoped Configuration
 
 ```python
 import railtracks as rt
@@ -105,7 +105,7 @@ Applies only within the context of the `Runner`.
 
 ---
 
-## 🌍 Forwarding Logs to External Services
+## Forwarding Logs to External Services
 
 You can forward logs to services like [Loggly](https://www.loggly.com/), [Sentry](https://sentry.io/), or [Conductr](https://conductr.ai) by attaching custom handlers. Refer to each provider's documentation for integration details.
 
@@ -147,16 +147,16 @@ You can forward logs to services like [Loggly](https://www.loggly.com/), [Sentry
 
 ---
 
-## 🧾 Log Message Examples
+## Log Message Examples
 
-??? note "🐞 DEBUG Messages"
+??? note "DEBUG Messages"
     | Type           | Example |
     |----------------|---------|
     | Runner Created | `RT.Runner   : DEBUG    - Runner <RUNNER_ID> is initialized` |
     | Node Created   | `RT.Publisher: DEBUG    - RequestCreation(current_node_id=<PARENT_NODE_ID>, new_request_id=<REQUEST_ID>, running_mode=async, new_node_type=<NODE_NAME>, args=<INPUT_ARGS>, kwargs=<INPUT_KWARGS>)` |
     | Node Completed | `RT.Publisher: DEBUG    - <NODE_NAME> DONE with result <RESULT>` |
 
-??? note "ℹ️ INFO Messages"
+??? note "INFO Messages"
     | Type             | Example |
     |------------------|---------|
     | Initial Request  | `RT          : INFO     - START CREATED <NODE_NAME>` |
@@ -164,12 +164,12 @@ You can forward logs to services like [Loggly](https://www.loggly.com/), [Sentry
     | Node Completed   | `RT          : INFO     - <NODE_NAME> DONE` |
     | Run Data Saved   | `RT.Runner   : INFO     - Saving execution info to .railtracks\<RUNNER_ID>.json` |
 
-??? note "⚠️ WARNING Messages"
+??? note "WARNING Messages"
     | Type              | Example |
     |-------------------|---------|
     | Overwriting File  | `RT.Runner   : WARNING  - File .railtracks\<RUNNER_ID>.json already exists, overwriting...` |
 
-??? note "❌ ERROR Messages"
+??? note "ERROR Messages"
     | Type        | Example |
     |-------------|---------|
     | Node Failed | `RT          : ERROR    - <NODE_NAME> FAILED` |

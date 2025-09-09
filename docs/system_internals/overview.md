@@ -35,4 +35,3 @@ graph TD
     - [Session](session.md)
     - [PubSub System](pubsub.md)
     - [Coordinator](coordinator.md)
-    - [RTState](rtstate.md)

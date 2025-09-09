@@ -37,6 +37,16 @@ failed_scripts=0
 
 # Find all Python scripts in docs/scripts/
 for script in docs/scripts/*.py; do
+    # ======= remove when #673 is completed =======
+    # Skip tools_mcp_guides.py since it requires privileged env setup (Temporary) 
+    if [[ "$(basename "$script")" == "tools_mcp_guides.py" ]]; then
+        echo ""
+        echo "Skipping: $script (requires MCP environment variables)"
+        echo "---"
+        continue
+    fi
+    # =============================================
+
     if [ -f "$script" ]; then
         total_scripts=$((total_scripts + 1))
         echo ""
