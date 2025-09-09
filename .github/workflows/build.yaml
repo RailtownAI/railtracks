@@ -8,9 +8,6 @@ on:
     branches:
       - main
 
-env:
-  DISALLOWED_LICENSES: "GPL|AGPL|EPL"
-
 jobs:
   ruff-lint:
     name: Check Code with Ruff
@@ -41,36 +38,23 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Core - Create isolated venv and install only railtracks + pip-licenses
-        run: |
-          python -m venv .venv
-          . .venv/bin/activate
-          python -m pip install --upgrade pip
-          # Install ONLY the project under packages/railtracks and its deps
-          pip install -e packages/railtracks
-          pip install pip-licenses
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
 
-      - name: Core - Check Railtracks Core Dependencies Licenses
-        run: |
-          set -euo pipefail
-          . .venv/bin/activate
-          pip-licenses --format=markdown > core-licenses.md
-          if grep -E "${{ env.DISALLOWED_LICENSES }}" core-licenses.md; then
-            echo "❌ Disallowed licenses found in dependencies:"
-            grep -E "${{ env.DISALLOWED_LICENSES }}" licenses.md
-            exit 1
-          else
-            echo "✅ No disallowed licenses found in dependencies"
-          fi
-          pip-licenses --summary --format=markdown > core-licenses-summary.md
+      - name: Run License Check
+        run: ./scripts/check_licenses.sh
 
       - name: License Check Analysis
         if: always()
         run: |
-          cat core-licenses-summary.md >> $GITHUB_STEP_SUMMARY
-          echo "### 📦 Licenses Found" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          cat core-licenses.md >> $GITHUB_STEP_SUMMARY
+          if [ -f core-licenses-summary.md ]; then
+            cat core-licenses-summary.md >> $GITHUB_STEP_SUMMARY
+            echo "### 📦 Licenses Found" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            cat core-licenses.md >> $GITHUB_STEP_SUMMARY
+          fi
 
   build:
     name: Build and Test
@@ -102,7 +86,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install tomlkit==0.11.8
           python scripts/check_dependencies_sorted.py
-      
+
       - name: Validate Documentation Scripts
         shell: bash
         env:
