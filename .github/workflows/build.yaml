@@ -31,10 +31,40 @@ jobs:
       - name: Run Ruff Format
         run: ruff format --check .
 
+  check-licenses:
+    name: Check Licenses
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Run License Check
+        run: |
+          chmod +x scripts/check_licenses.sh
+          ./scripts/check_licenses.sh
+
+      - name: License Check Analysis
+        if: always()
+        run: |
+          if [ -f core-licenses-summary.md ]; then
+            cat core-licenses-summary.md >> $GITHUB_STEP_SUMMARY
+            echo "### 📦 Licenses Found" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            cat core-licenses.md >> $GITHUB_STEP_SUMMARY
+          fi
+
   build:
     name: Build and Test
     runs-on: windows-latest
-    needs: ruff-lint
+    needs:
+      - ruff-lint
+      - check-licenses
+
     steps:
       - name: Print System Architecture
         run: uname -m
@@ -58,7 +88,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install tomlkit==0.11.8
           python scripts/check_dependencies_sorted.py
-      
+
       - name: Validate Documentation Scripts
         shell: bash
         env:

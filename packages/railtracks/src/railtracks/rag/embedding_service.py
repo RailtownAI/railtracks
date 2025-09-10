@@ -1,4 +1,3 @@
-# embedding/service.py
 from __future__ import annotations
 
 import logging
@@ -16,7 +15,7 @@ class BaseEmbeddingService(ABC):
     """
 
     @abstractmethod
-    def embed(self, texts: str, **kwargs) -> List[float]:
+    def embed(self, texts: Sequence[str], *, batch_size: int = 8) -> List[List[float]]:
         raise NotImplementedError("Subclasses must implement this method.")
 
     def __repr__(self):
@@ -66,7 +65,17 @@ class EmbeddingService(BaseEmbeddingService):
     def embed(self, texts: Sequence[str], *, batch_size: int = 8) -> List[List[float]]:
         """
         Convenience wrapper to embed many short texts in one go.
+        Accepts either a sequence of strings or a single string.
         """
+        if isinstance(texts, (str, bytes)):
+            texts = [str(texts)]
+
+        if not isinstance(texts, Sequence):
+            raise TypeError("texts must be a sequence of strings or a single string")
+
+        if batch_size <= 0:
+            raise ValueError("batch_size must be a positive integer")
+
         vectors: List[List[float]] = []
         for i in range(0, len(texts), batch_size):
             batch = texts[i : i + batch_size]
@@ -80,13 +89,45 @@ class EmbeddingService(BaseEmbeddingService):
         """
         Low-level wrapper around litellm.embedding
         """
-        response = litellm.embedding(
-            model=self.model,
-            input=list(batch),
-            **{k: v for k, v in self.litellm_extra.items() if v is not None},
-        )
-        # litellm returns a dict w/ 'data' list
-        # We sort by index to maintain order
-        data_sorted = sorted(response["data"], key=lambda x: x["index"])
-        vectors = [d["embedding"] for d in data_sorted]
+        batch_list = list(batch)
+        if not batch_list:
+            return []
+
+        try:
+            response = litellm.embedding(
+                model=self.model,
+                input=batch_list,
+                **{k: v for k, v in self.litellm_extra.items() if v is not None},
+            )
+        except Exception as e:
+            logger.exception("Embedding request failed: %s", e)
+            raise
+
+        # litellm typically returns a dict with 'data' or an object with .data
+        data = getattr(response, "data", None)
+        if data is None and isinstance(response, dict):
+            data = response.get("data")
+
+        if data is None:
+            raise ValueError("Unexpected embedding response format: missing 'data'")
+
+        # Normalize items to (index, embedding) and maintain order
+        indexed: List[tuple[int, List[float]]] = []
+        for i, item in enumerate(data):
+            if isinstance(item, dict):
+                idx = item.get("index", i)
+                emb = item.get("embedding")
+            else:
+                idx = getattr(item, "index", i)
+                emb = getattr(item, "embedding", None)
+
+            if emb is None:
+                raise ValueError(
+                    "Unexpected embedding item format: missing 'embedding'"
+                )
+
+            indexed.append((idx, list(emb)))
+
+        indexed.sort(key=lambda t: t[0])
+        vectors = [emb for _, emb in indexed]
         return vectors

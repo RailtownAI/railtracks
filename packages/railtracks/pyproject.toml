@@ -16,24 +16,20 @@ readme = "README.md"
 license = { file = "LICENSE" }
 dynamic = ["version", "description"]
 dependencies = [
-    "colorama >= 0.4.6",
-    "pydantic >= 2.5.3, <3",
-    "python-dotenv >= 1.0.0",
-    "PyYAML >= 6.0",
+  "colorama >= 0.4.6",
+  "litellm[proxy] >= 1.70.2",
+  "mcp >= 1.9.0",
+  "openai < 1.100.0",
+  "pydantic >= 2.5.3, <3",
+  "python-dotenv >= 1.0.0",
+  "PyYAML >= 6.0"
 ]
 
 [project.optional-dependencies]
-llm = [
-    "litellm[proxy] >= 1.70.2",
-    "openai < 1.100.0"
-]
 chat = [
     "fastapi >= 0.104.0"
 ]
 # For each Integration package depenedcies go here.
-mcp = [
-    "mcp >= 1.9.0",
-]
 rag = [
     "litellm[proxy] >= 1.70.2",
     "openai < 1.100.0"
@@ -43,11 +39,11 @@ integrations = [
     # currently empty
 ]
 all = [
-    "railtracks[llm,chat,rag,mcp,integrations]"
+    "railtracks[chat,rag,integrations]"
 ]
 
 core = [
-    "railtracks[llm,mcp,chat]"
+    "railtracks[chat]"
 ]
 
 [project.urls]
