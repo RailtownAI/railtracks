@@ -15,12 +15,5 @@ fi
 DISABLE_CODES="top-level-await"
 mypy --disable-error-code=top-level-await --disable-error-code=import-untyped docs/scripts/
 
-# Summary
-echo ""
-echo "SUMMARY"
-echo "================================================"
-echo "Total scripts found: $total_scripts"
-echo "Successful: $successful_scripts"
-echo "Failed: $failed_scripts"
 
 
