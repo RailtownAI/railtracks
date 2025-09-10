@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from typing import Callable, Coroutine
 
-from railtracks.utils.logging.config import AllowableLogLevels, allowable_log_levels_set 
+from railtracks.utils.logging.config import AllowableLogLevels, allowable_log_levels_set
 
 
 class ExecutorConfig:
