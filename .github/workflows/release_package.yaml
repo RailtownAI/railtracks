@@ -12,8 +12,6 @@ env:
   RELEASE_TAG: ${{ github.ref_name }}
 
 jobs:
-
-
   publish-railtracks:
     name: Publish Railtracks Core
     runs-on: ubuntu-latest
@@ -54,7 +52,7 @@ jobs:
 
       - name: Build and Publish Railtracks Core to PyPI
         env:
-          FLIT_INDEX_URL: 'https://pypi.org/simple'
+          FLIT_INDEX_URL: 'https://upload.pypi.org/legacy/'
           FLIT_USERNAME: '__token__'
           FLIT_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
         run: |
@@ -102,7 +100,7 @@ jobs:
 
       - name: Build and Publish Railtracks CLI to PyPI
         env:
-          FLIT_INDEX_URL: 'https://pypi.org/simple'
+          FLIT_INDEX_URL: 'https://upload.pypi.org/legacy/'
           FLIT_USERNAME: '__token__'
           FLIT_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
         run: |
