@@ -37,21 +37,19 @@ retriever = rag_node([
     "Employee handbook states vacation requests need 2 weeks advance notice"
 ])
 
-# 2) Retrieve relevant context
-question = "What is the work from home policy?"
-search_result = asyncio.run(rt.call(retriever, question, top_k=2))
-context = "\n\n".join(search_result.to_list_of_texts())
-
+# 2) Create Agent
 agent = rt.agent_node(
     llm=OpenAILLM("gpt-4o"),
 )
 
-# 3) Create and configure the agent
-with rt.Session(context={
-    "context": context,
-    "question": question
-}):
-    response = asyncio.run( rt.call(
+# 3) Run the agent.
+@rt.session()
+async def main():
+    question = "What is the work from home policy?"
+    search_result = await rt.call(retriever, question, top_k=2)
+    context = "\n\n".join(search_result.to_list_of_texts())
+    
+    response = await rt.call(
         agent,
         user_input=(
             "Based on the following context, please answer the question.\n"
@@ -62,10 +60,7 @@ with rt.Session(context={
             "Answer based only on the context provided."
             "If the answer is not in the context, say \"I don't know\"."
         )
-    ))
-
-# 4) Run the agent with context
-print(f"Answer: {response.content}")
+    )
 # --8<-- [end:rag_with_llm]
 
 # --8<-- [start:rag_with_files]
@@ -87,51 +82,26 @@ retriever = rag_node([
 # --8<-- [end:rag_with_files]
 
 # --8<-- [start:custom_rag_node]
-from typing import List
 import railtracks as rt
 from railtracks.rag.rag_core import RAG, RAGConfig, SearchResult
 
-def custom_rag_node(
-    documents: List[str], 
-    embed_model="text-embedding-3-small",
-    token_count_model="gpt-4o",
-    chunk_size=1000,
-    chunk_overlap=200,
-):
-    """Create a custom RAG node with specific configuration."""
-    
-    # Optionally, construct custom RAG with provided components, such as 
-    # embed_service, chunk_service, vector_store integration in 
-    # packages\railtracks\src\railtracks\rag
-    rag_core = RAG(
-        docs=documents,
+rag_core = RAG(
+        docs=["<Your text here>", "..."],
         config=RAGConfig(
-            embedding={"model": embed_model},
+            embedding={"model": "text-embedding-3-small"},
             store={},
             chunking={
-                "chunk_size": chunk_size,
-                "chunk_overlap": chunk_overlap,
-                "model": token_count_model,
+                "chunk_size": 1000,
+                "chunk_overlap": 200,
+                "model": "gpt-4o",
             },
         )
     )
-    rag_core.embed_all()
+rag_core.embed_all()
 
-    def query(query: str, top_k: int = 1) -> SearchResult:
-        return rag_core.search(query, top_k=top_k)
-
-    return rt.function_node(query)
+@rt.function_node
+async def custom_rag_node(query: str) -> SearchResult:
+    """A custom RAG function node that retrieves documents based on a query."""
+    return rag_core.search(query, top_k=5)
 # --8<-- [end:custom_rag_node]
 
-# --8<-- [start:custom_rag_usage]
-# Usage of custom RAG node
-retriever = custom_rag_node([
-    "Alpha team prefers morning meetings", 
-    "Beta team likes afternoon standsups",
-    "Gamma team schedules evening retrospectives"
-])
-
-result = asyncio.run(rt.call(retriever, "When does Alpha team meet?", top_k=1))
-texts = result.to_list_of_texts()
-print(texts[0])  # Should contain information about Alpha team's morning meetings
-# --8<-- [end:custom_rag_usage]

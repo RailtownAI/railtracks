@@ -1,8 +1,11 @@
 site_name: RailTracks Docs
-site_url: https://railtracks/docs.org
+site_url: https://railtownai.github.io/railtracks/
+site_description: "RailTracks is a framework for building LLM-powered agents and applications."
 
 repo_name: railtracks
-repo_url: https://github.com/RailtownAI/railtracks
+repo_url: https://github.com/RailtownAI/railtracks/
+
+
 
 theme:
   name: material
@@ -128,3 +131,10 @@ nav:
   #     - Coordinator Orchestration: system_internals/coordinator.md
 
   - API Reference: api_reference/railtracks.html
+
+extra:
+  generator: false
+  static_templates:
+    - robots.txt
+
+    
