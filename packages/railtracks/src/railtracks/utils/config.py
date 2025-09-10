@@ -42,7 +42,7 @@ class ExecutorConfig:
 
     @property
     def logging_setting(self) -> AllowableLogLevels:
-        return self._logging_setting  # type: ignore
+        return self._logging_setting 
 
     @logging_setting.setter
     def logging_setting(self, value: AllowableLogLevels):
@@ -50,7 +50,7 @@ class ExecutorConfig:
             raise ValueError(
                 f"logging_setting must be one of {allowable_log_levels_set}, got {value}"
             )
-        self._logging_setting = value
+        self._logging_setting : AllowableLogLevels = value
 
     def precedence_overwritten(
         self,
