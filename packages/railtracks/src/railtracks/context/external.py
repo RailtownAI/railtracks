@@ -8,7 +8,7 @@ class ExternalContext(ABC):
         pass
 
     @abstractmethod
-    def get(self, key: str, *, default: Any | None = None):
+    def get(self, key: str, *, default: Any | None = None) -> Any:
         pass
 
     @abstractmethod

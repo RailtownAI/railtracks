@@ -5,27 +5,30 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 from ..embedding_service import BaseEmbeddingService
-from .base import AbstractVectorStore, Metric, SearchResult, VectorRecord
+from .base import AbstractVectorStore, Metric, SearchEntry, SearchResult, VectorRecord
 from .utils import distance, normalize_vector, uuid_str
 
 
 class InMemoryVectorStore(AbstractVectorStore):
     """
-    In-memory, pure-Python/NumPy implementation of the AbstractVectorStore.
-    Stores feature vectors and metadata in standard dicts.
+    In-memory implementation of AbstractVectorStore.
+
+    Stores vectors and records in Python dictionaries. Supports optional embedding
+    of raw texts into vectors via an injected BaseEmbeddingService, multiple
+    similarity metrics, normalization, basic CRUD, and persistence via pickle.
 
     Args:
         embedding_service: Optional embedding service for converting text to vectors.
         metric: Metric used for similarity (e.g., 'cosine', 'l2', 'dot').
-        dim: Optionally restrict vectors to a fixed dimension for fast validation.
-        normalize: Whether to normalize vectors (usually for cosine metric).
+        dim: Optionally restrict vectors to a fixed dimension for validation.
+        normalize: Whether to normalize vectors (default True for cosine metric).
 
     Attributes:
         embedding_service: Used to embed texts into vectors, if provided.
-        metric: Metric used for similarity or distance.
+        metric: Metric used for similarity/distance.
         _dim: Expected dimension of all vectors in the store.
         _normalize: Whether normalization is applied on add/search/update.
-        _vectors: Maps record ids to vectors.
+        _vectors: Maps record ids to vectors (List[float]).
         _record: Maps record ids to VectorRecord objects containing metadata and text.
     """
 
@@ -43,21 +46,33 @@ class InMemoryVectorStore(AbstractVectorStore):
         Args:
             embedding_service: Instance for text embedding.
             metric: Metric ('cosine', 'l2', or 'dot').
-            dim: Expected vector dimensionality (autodetected on first add).
+            dim: Expected vector dimensionality (autodetected on first add if None).
             normalize: Whether to normalize vectors (default: True for cosine).
         """
         self.embedding_service = embedding_service
-        self.metric = Metric(metric)
-        self._dim = dim
-        # Default normalization: cosine --> True, others --> False (unless specified)
-        self._normalize = (
-            normalize if normalize is not None else (self.metric == Metric.cosine)
-        )
 
+        # Normalize incoming metric to the Metric type (if patched in tests, still OK).
+        self.metric = Metric(metric)
+
+        # Determine default normalization robustly, even under patched Metric.
+        if normalize is None:
+            # Try to infer metric name from different potential representations.
+            m_raw = metric  # preserve constructor arg
+            if isinstance(m_raw, str):
+                mname = m_raw.lower()
+            else:
+                # Metric-like: try to use .value, else fallback to its str()
+                mname = str(getattr(m_raw, "value", str(m_raw))).lower()
+            self._normalize = mname == "cosine"
+        else:
+            self._normalize = normalize
+
+        self._dim = dim
         self._vectors: Dict[str, List[float]] = {}
         self._record: Dict[str, VectorRecord] = {}
 
     # ---------- CRUD ----------
+
     def add(
         self,
         texts_or_records: Sequence[Union[str, VectorRecord]],
@@ -66,55 +81,79 @@ class InMemoryVectorStore(AbstractVectorStore):
         metadata: Optional[Sequence[Dict[str, Any]]] = None,
     ) -> List[str]:
         """
-        Add texts or full VectorRecord objects to the store.
+        Add raw texts or prebuilt VectorRecord objects to the store.
 
         Args:
             texts_or_records: Sequence of either raw texts or VectorRecord objects.
             embed: If True, embed provided texts using embedding_service.
-            metadata: Optionally, sequence of metadata dicts to pair with raw texts.
+                   If False, texts are not allowed (must pass VectorRecord).
+            metadata: Optional sequence of metadata dicts to attach/merge per item.
 
         Returns:
             List of string ids of added items.
 
         Raises:
-            ValueError: If metadata list length mismatches or vector dimension mismatches.
-            TypeError: If input items have unsupported type.
+            ValueError: If metadata length mismatches input length; if dimension mismatches;
+                        or if plain text is given with embed=False.
+            TypeError: If an input item has an unsupported type.
             RuntimeError: If embedding is required but embedding_service is not provided.
         """
         ids: List[str] = []
 
-        if metadata and len(metadata) != len(texts_or_records):
+        if metadata is not None and len(metadata) != len(texts_or_records):
             raise ValueError("metadata length must match texts/records length")
 
         for idx, item in enumerate(texts_or_records):
+            # Prepare initial values
+            _id: str
+            vec: List[float]
+            rec_text: Optional[Union[str, List[float]]] = None
+            rec_meta: Optional[Dict[str, Any]] = None
+
             if isinstance(item, VectorRecord):
+                # Use provided id if present; otherwise generate a new one
+                _id = getattr(item, "id", None) or uuid_str()
                 vec = item.vector
-                record = item
-                _id = item.id
+                rec_text = item.text
+                # Start from record's own metadata (if any)
+                rec_meta = getattr(item, "metadata", None)
+                # Merge per-item metadata if provided: test expects to attach metadata
+                if metadata is not None and metadata[idx] is not None:
+                    base_meta = rec_meta or {}
+                    merged = dict(base_meta)
+                    merged.update(metadata[idx])
+                    rec_meta = merged
             elif isinstance(item, str):
-                if embed:
-                    if not self.embedding_service:
-                        raise RuntimeError("BaseEmbeddingService required but missing.")
-                    vec = self.embedding_service.embed(item)
-                else:
+                if not embed:
                     raise ValueError("Plain text given with embed=False")
-                record = VectorRecord(id=uuid_str(), vector=vec, text=item)
+                if not self.embedding_service:
+                    raise RuntimeError("BaseEmbeddingService required but missing.")
                 _id = uuid_str()
+                rec_text = item
+                vec = self.embedding_service.embed(item)
+                rec_meta = metadata[idx] if (metadata is not None) else None
             else:
                 raise TypeError("Unsupported type for add()")
 
+            # Dimension checks and autodetection
             if self._dim is None:
                 self._dim = len(vec)
             if len(vec) != self._dim:
                 raise ValueError(f"Expected dim={self._dim}, got {len(vec)}")
 
-            # Optionally normalize for cosine similarity
-            if self._normalize:
-                vec = normalize_vector(vec)
+            # Optional normalization
+            stored_vec = normalize_vector(vec) if self._normalize else vec
 
-            self._vectors[_id] = vec
+            # Ensure the stored record mirrors the final id/vector/text/metadata
+            record = VectorRecord(
+                id=_id, vector=stored_vec, text=rec_text, metadata=rec_meta
+            )
+
+            # Persist
+            self._vectors[_id] = stored_vec
             self._record[_id] = record
             ids.append(_id)
+
         return ids
 
     def search(
@@ -123,32 +162,34 @@ class InMemoryVectorStore(AbstractVectorStore):
         top_k: int = 5,
         *,
         embed: bool = False,
-    ) -> List[SearchResult]:
+    ) -> SearchResult:
         """
         Find the top-k most similar items to the query.
 
         Args:
             query: Input text (with embed=True) or vector.
             top_k: The number of results to return.
-            embed: Whether to embed the query string (default True).
+            embed: Whether to embed the query string (default False).
 
         Returns:
-            List of SearchResult, ranked by similarity (ascending distance; descending score for dot/cos).
+            A SearchResult object containing SearchEntry items, ranked by ascending
+            distance (or equivalently, descending similarity depending on the metric).
 
         Raises:
-            ValueError: If wrong input type for embed setting, or not enough vectors.
-            RuntimeError: If embedding required but missing service.
+            ValueError: If wrong input type for embed setting.
+            RuntimeError: If embedding is required but missing service.
         """
         if isinstance(query, str):
             if not embed:
                 raise ValueError("embed=False but query is text.")
             if not self.embedding_service:
                 raise RuntimeError("BaseEmbeddingService required but missing.")
-            q = self.embedding_service.embed(query)
+            q: List[float] = self.embedding_service.embed(query)
         else:
-            q = query
+            # Query is a vector
             if embed:
                 raise ValueError("embed=True but raw vector supplied.")
+            q = query
 
         if self._normalize:
             q = normalize_vector(q)
@@ -158,15 +199,15 @@ class InMemoryVectorStore(AbstractVectorStore):
             (vid, distance(q, v, metric=self.metric.value))
             for vid, v in self._vectors.items()
         ]
-        # Lower scores are better for all supported metrics
-        scores.sort(key=lambda t: t[1])
-        results = [
-            SearchResult(
+        scores.sort(key=lambda t: t[1])  # lower is better
+
+        results = SearchResult(
+            SearchEntry(
                 score=score,
                 record=self._record[vid],
             )
-            for vid, score in scores[:top_k]
-        ]
+            for vid, score in scores[: max(0, top_k)]
+        )
         return results
 
     def delete(self, ids: Sequence[str]) -> int:
@@ -202,7 +243,7 @@ class InMemoryVectorStore(AbstractVectorStore):
             id: Id of the record to update.
             new_text_or_vector: The new text (embed=True) or raw vector (embed=False).
             embed: Whether to embed the given text (ignored if a vector is passed).
-            **metadata: Arbitrary keyword arguments to update the item's metadata dict.
+            **metadata: Arbitrary keyword arguments to merge into the item's metadata.
 
         Raises:
             KeyError: If the id to update does not exist.
@@ -212,30 +253,42 @@ class InMemoryVectorStore(AbstractVectorStore):
         if id not in self._vectors:
             raise KeyError(id)
 
+        existing = self._record[id]
+
         if isinstance(new_text_or_vector, str):
             if not embed:
                 raise ValueError("embed=False but given text.")
             if not self.embedding_service:
                 raise RuntimeError("BaseEmbeddingService required but missing.")
             vec = self.embedding_service.embed(new_text_or_vector)
-
+            new_text = new_text_or_vector
         else:
-            vec = new_text_or_vector
+            # Raw vector update; preserve existing text
             if embed:
                 raise ValueError("embed=True but raw vector supplied.")
+            vec = new_text_or_vector
+            new_text = existing.text
 
-        if self._normalize:
-            vec = normalize_vector(vec)
-        record = VectorRecord(
+        # Normalize if needed
+        vec = normalize_vector(vec) if self._normalize else vec
+
+        # Merge/update metadata: preserve existing, apply new fields
+        existing_meta = getattr(existing, "metadata", None) or {}
+        new_meta = dict(existing_meta)
+        new_meta.update(metadata)
+
+        # Rebuild the record with updated vector/text/metadata
+        updated = VectorRecord(
             id=id,
             vector=vec,
-            text=new_text_or_vector,
-            metadata=metadata,
+            text=new_text,
+            metadata=new_meta,
         )
-        self._vectors[id] = vec
-        self._record[id] = record
 
-    # ---------- misc ----------
+        self._vectors[id] = vec
+        self._record[id] = updated
+
+    # ---------- Misc ----------
 
     def count(self) -> int:
         """
@@ -251,25 +304,36 @@ class InMemoryVectorStore(AbstractVectorStore):
         Persist the vector store to disk as a pickle file.
 
         Args:
-            path: Folder or file path (if folder, 'in_memory_store.pkl' is used).
+            path: Folder or file path. If a folder (or not ending with .pkl),
+                  'in_memory_store.pkl' is used within that folder.
         """
         pickle_path = Path(path or ".")
         if pickle_path.is_dir() or not str(pickle_path).endswith(".pkl"):
             pickle_path /= "in_memory_store.pkl"
         with open(pickle_path, "wb") as f:
+            records_serialized = {
+                rid: {
+                    "id": rec.id,
+                    "vector": rec.vector,
+                    "text": rec.text,
+                    "metadata": getattr(rec, "metadata", None),
+                }
+                for rid, rec in self._record.items()
+            }
+
             pickle.dump(
                 {
-                    "metric": self.metric.value,
+                    "metric": getattr(self.metric, "value", self.metric),
                     "dim": self._dim,
                     "normalize": self._normalize,
                     "vectors": self._vectors,
-                    "record": self._record.json(),
+                    "record": records_serialized,
                 },
                 f,
             )
 
     @classmethod
-    def load(cls, path: Union[str, Path]):
+    def load(cls, path: Union[str, Path]) -> "InMemoryVectorStore":
         """
         Load a vector store from a pickle file.
 
@@ -277,16 +341,31 @@ class InMemoryVectorStore(AbstractVectorStore):
             path: Path to the pickle file.
 
         Returns:
-            An `InMemoryVectorStore` instance reloaded from disk.
+            An InMemoryVectorStore instance reloaded from disk.
         """
         path = Path(path)
         with open(path, "rb") as f:
             data = pickle.load(f)
+
         store = cls(
             metric=data["metric"],
             dim=data["dim"],
             normalize=data["normalize"],
         )
         store._vectors = data["vectors"]
-        store._record = {k: VectorRecord(**v) for k, v in data["record"].items()}
+        raw_records = data["record"]
+        recs = {}
+        for rid, rec in raw_records.items():
+            if isinstance(rec, dict):
+                recs[rid] = VectorRecord(
+                    id=rec.get("id", rid),
+                    vector=rec.get("vector"),
+                    text=rec.get("text"),
+                    metadata=rec.get("metadata"),
+                )
+            else:
+                # Fallback: already an object (older pickle)
+                recs[rid] = rec
+
+        store._record = recs
         return store

@@ -1,7 +1,7 @@
 import subprocess
 import platform
 import railtracks as rt
-
+import asyncio
 
 def run_shell(command: str) -> str:
     """Run a bash command and return its output or error."""
@@ -31,7 +31,10 @@ user_prompt = """What directories are in the current directory?"""
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
-with rt.Session(logging_setting="VERBOSE"):
-    result = rt.call_sync(agent, message_history)
+async def call_node():
+    with rt.Session(logging_setting="VERBOSE"):
+        result = await rt.call(agent, message_history)
 
-print(result.content)
+    print(result.content)
+
+asyncio.run(call_node())

@@ -1,4 +1,4 @@
-# 🚰 Broadcasting
+# Broadcasting
 
 Broadcasting lets you monitor your agents' progress in real time by sending live updates during execution. This can be useful for:
 
@@ -8,30 +8,18 @@ Broadcasting lets you monitor your agents' progress in real time by sending live
 
 Railtracks supports basic **data broadcasting**, enabling you to receive these updates via a callback function.
 
-## ⚙️ Usage
+## Usage
 
-To enable broadcasting, provide a **callback function** to the `subscriber` parameter in `ExecutorConfig`. This function will receive broadcasting updates:
+To enable broadcasting, provide a **callback function** to the `broadcast_callback` parameter in `set_config`. This function will receive broadcasting updates:
 
 ```python
-import railtracks as rt
-
-
-def example_broadcasting_handler(data):
-    print(f"Received data: {data}")
-
-
-rt.ExecutorConfig(broadcast_callback=example_broadcasting_handler)
+--8<-- "docs/scripts/broadcast.py:callback_creation"
 ```
 
-With broadcasting enabled, call `rt.broadcast(...)` inside any function decorated with `@rt.to_node` to send updates:
+With broadcasting enabled, call `rt.broadcast(...)` inside any function run in RT to invoke the handler.
 
 ```python
-import railtracks as rt
-
-
-@rt.function_node
-def example_node(data: list[str]):
-    rt.broadcast(f"Handling {len(data)} items")
+--8<-- "docs/scripts/broadcast.py:broadcast_call"
 ```
 
 !!! warning

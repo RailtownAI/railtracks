@@ -4,9 +4,9 @@ import abc
 import enum
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Union
 
-Vector = List[float]  # Alias for readability; represents a numeric vector
+Vector = List[float]  # Alias for readability
 
 
 class Metric(str, enum.Enum):
@@ -52,7 +52,7 @@ class VectorRecord:
 
 
 @dataclass
-class SearchResult:
+class SearchEntry:
     """
     Represents a result from a similarity search in the vector store.
 
@@ -68,16 +68,34 @@ class SearchResult:
 
     def json(self):
         """
-        Convert the SearchResult to a JSON-serializable dictionary.
+        Convert the SearchEntry to a JSON-serializable dictionary.
 
         Returns:
-            A dictionary representation of the SearchResult.
+            A dictionary representation of the SearchEntry.
         """
         return {
             "score": self.score,
             "record": self.record.json(),
             "metadata": self.metadata,
         }
+
+
+class SearchResult(list[SearchEntry]):
+    """
+    A list of SearchEntry with convenience methods.
+    Behaves like a normal list (append, extend, iterate, index, etc.).
+    """
+
+    def __init__(self, entries: Optional[Iterable[SearchEntry]] = None):
+        super().__init__(entries or [])
+
+    def json(self) -> Dict[str, Any]:
+        """Convert to a JSON-serializable dictionary."""
+        return {"results": [entry.json() for entry in self]}
+
+    def to_list_of_texts(self) -> List[str]:
+        """Extract non-empty record.text values."""
+        return [entry.record.text for entry in self if entry.record.text is not None]
 
 
 class AbstractVectorStore(abc.ABC):
@@ -118,7 +136,7 @@ class AbstractVectorStore(abc.ABC):
         top_k: int = 5,
         *,
         embed: bool = True,
-    ) -> List[SearchResult]:
+    ) -> List[SearchEntry]:
         """
         Search for the top-k most similar vectors in the store to a query string or vector.
 

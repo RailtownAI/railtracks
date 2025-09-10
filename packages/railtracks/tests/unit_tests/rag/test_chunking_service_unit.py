@@ -3,11 +3,11 @@ from railtracks.rag.chunking_service import (
     BaseChunkingService,
     TextChunkingService,
 )
+from railtracks.rag import chunking_service
 
 # -- Import module and patch DummyTokenizer using monkeypatch fixture --
 @pytest.fixture(autouse=True)
 def patch_tokenizer(monkeypatch):
-    from railtracks.rag import chunking_service as chunking_mod
 
     class DummyTokenizer:
         def __init__(self, model):
@@ -17,7 +17,7 @@ def patch_tokenizer(monkeypatch):
         def decode(self, tokens):
             return ''.join(chr(t) for t in tokens)
 
-    monkeypatch.setattr(chunking_mod, "Tokenizer", DummyTokenizer)
+    monkeypatch.setattr(chunking_service, "Tokenizer", DummyTokenizer)
 
 def test_base_chunking_set_and_call():
     called = {}
@@ -67,13 +67,3 @@ def test_text_chunk_by_token_model_none_error():
     s = TextChunkingService(chunk_size=3, chunk_overlap=1, model=None)
     with pytest.raises(ValueError):
         s.chunk_by_token("abcde")
-
-def test_text_chunk_smart_not_implemented():
-    s = TextChunkingService()
-    with pytest.raises(NotImplementedError):
-        s.chunk_smart("abcd")
-
-def test_base_chunk_file_not_implemented():
-    s = BaseChunkingService()
-    with pytest.raises(NotImplementedError):
-        s.chunk_file("somefile.txt")

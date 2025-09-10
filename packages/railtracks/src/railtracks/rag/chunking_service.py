@@ -158,19 +158,3 @@ class TextChunkingService(BaseChunkingService):
                 break
 
         return chunks
-
-    def chunk_smart(self, content: str) -> List[str]:
-        """
-        Smart chunking using LLM to determine optimal chunk size.
-
-        Args:
-            content: Text content to be chunked
-            model: Model to use for smart chunking
-
-        Returns:
-            List of text chunks
-        """
-        raise NotImplementedError(
-            "Smart chunking is not implemented yet. "
-            "Please use chunk_by_char or chunk_by_token."
-        )

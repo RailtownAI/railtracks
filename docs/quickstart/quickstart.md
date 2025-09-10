@@ -55,8 +55,8 @@ This will open a web interface showing the execution flow, node interactions, an
 
     **Learn the Basics**
     
-    - [What is an Agent?](../tutorials/guides/agents.md)
-    - [What is a Tool?](../tutorials/guides/tools.md)
+    - [What is an Agent?](../background/agents.md)
+    - [What is a Tool?](../background/tools.md)
     
     **Build Something**
 

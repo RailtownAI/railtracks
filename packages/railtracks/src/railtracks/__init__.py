@@ -22,7 +22,6 @@ __all__ = [
     "context",
     "function_node",
     "agent_node",
-    "chatui_node",
     "integrations",
     "prebuilt",
     "MCPStdioParams",
@@ -35,7 +34,6 @@ __all__ = [
 
 from railtracks.built_nodes.easy_usage_wrappers import (
     agent_node,
-    chatui_node,
     function_node,
 )
 

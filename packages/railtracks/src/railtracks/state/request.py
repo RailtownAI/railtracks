@@ -84,7 +84,7 @@ class RequestTemplate(AbstractLinkedObject):
         else:
             return "Open"
 
-    def get_all_parents(self):
+    def get_all_parents(self) -> List[RequestTemplate]:
         """
         Recursely collects all the parents for the request.
         """

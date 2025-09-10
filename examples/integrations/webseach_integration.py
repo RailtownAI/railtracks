@@ -10,6 +10,7 @@ import railtracks as rt
 from railtracks.rt_mcp import MCPHttpParams
 import aiohttp
 from typing import Dict, Any
+import asyncio
 
 load_dotenv()
 
@@ -83,6 +84,8 @@ agent = rt.agent_node(
     max_tool_calls=10,
 )
 
-result = rt.call_sync(agent, "Tell me about Railtown AI.")
+async def call_node():
+    result = await rt.call(agent, "Tell me about Railtown AI.")
+    print(result)
 
-print(result)
+asyncio.run(call_node())

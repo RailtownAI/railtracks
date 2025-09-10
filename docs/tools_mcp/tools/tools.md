@@ -10,4 +10,3 @@ Whether you're looking to expose your Python functions to agents, wrap other age
 |------|-------------|
 | [Functions as Tools](functions_as_tools.md) | Make Python functions callable by agents. |
 | [Agents as Tools](agents_as_tools.md) | Let one agent act as a tool for another, enabling nested orchestration. | 
-| [Advanced Tooling](advanced_usage.md) | Explore tool behaviour encapsulation, conditional tool loading and advanced integration patterns. |

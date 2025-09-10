@@ -1,4 +1,4 @@
-# Controlling Flows and Wrapping Nodes
+# Flows
 
 RailTracks makes it easy to create custom agents with access to tools they can call to complete tasks. But what if you want to use agents themselves as tools? In this section, we’ll explore more complex flows and how RailTracks gives you control over them.
 

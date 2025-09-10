@@ -107,6 +107,3 @@ Want to go further with tools in Railtracks?
 
 * [How to build your first agent](../../tutorials/byfa.md) <br>
   Start with the basics of agent creation.
-
-* [Advanced Tooling](./advanced_usages.md) <br>
-  Explore additional advanced patterns and techniques for working with tools.
