@@ -1,3 +1,5 @@
+import railtracks as rt
+model: rt.llm.ModelBase
 # --8<-- [start: open_ai]
 import railtracks as rt
 from dotenv import load_dotenv

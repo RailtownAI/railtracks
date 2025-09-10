@@ -78,7 +78,7 @@ user_prompt = """Create a new page in Notion called 'Jokes' under the parent pag
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
-async def call_node():
+async def call_notion():
     with rt.Session():
         result = await rt.call(agent, message_history)
 
@@ -112,7 +112,7 @@ def execute_code(code: str) -> str:
     return exec_result.stdout.decode() + exec_result.stderr.decode()
 
 
-agent = rt.agent_node(
+CodeAgent = rt.agent_node(
     tool_nodes={execute_code},
     system_message="""You are a master python programmer. To execute code, you have access to a sandboxed Python environment.
     You can execute code in it using run_in_sandbox.
@@ -125,11 +125,11 @@ agent = rt.agent_node(
 # --8<-- [start: sandbox_call]
 user_prompt = """Create a 3x3 array of random numbers using numpy, and print the array and its mean"""
 
-async def call_node():
+async def call_code_agent():
     with rt.Session(logging_setting="VERBOSE"):
         create_sandbox_container()
         try:
-            result = await rt.call(agent, user_prompt)
+            result = await rt.call(CodeAgent, user_prompt)
         finally:
             kill_sandbox()
 
@@ -161,7 +161,7 @@ import platform
 import railtracks as rt
 import asyncio
 
-agent = rt.agent_node(
+BashAgent = rt.agent_node(
     tool_nodes={bash_tool},
     system_message=f"You are a useful helper that can run local shell commands. "
                    f"You are on a {platform.system()} machine. Use appropriate shell commands to answer the user's questions.",
@@ -172,9 +172,9 @@ user_prompt = """What directories are in the current directory?"""
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
-async def call_node():
+async def call_bash_agent():
     with rt.Session(logging_setting="VERBOSE"):
-        result = await rt.call(agent, message_history)
+        result = await rt.call(BashAgent, message_history)
 
     print(result.content)
 
@@ -208,7 +208,7 @@ tools = server.tools
 import railtracks as rt
 import asyncio
 
-agent = rt.agent_node(
+SlackAgent = rt.agent_node(
     # tool_nodes={*tools},    # Uncomment this line to use the tools
     system_message="""You are a Slack agent that can interact with Slack channels.""",
     llm=rt.llm.OpenAILLM("gpt-4o"),
@@ -216,9 +216,9 @@ agent = rt.agent_node(
 
 user_prompt = """Send a message to general saying "Hello!"."""
 
-async def call_node():
+async def call_slack_agent():
     with rt.Session(logging_setting="VERBOSE"):
-        result = await rt.call(agent, user_prompt)
+        result = await rt.call(SlackAgent, user_prompt)
 
     print(result.content)
 
@@ -246,7 +246,7 @@ fetch_mcp_tools = fetch_mcp_server.tools
 
 # --8<-- [start: google_search]
 def _format_results(data: Dict[str, Any]) -> Dict[str, Any]:
-   ...
+    return data
 
 
 @rt.function_node
@@ -286,7 +286,7 @@ async def google_search(query: str, num_results: int = 3) -> Dict[str, Any]:
 tools = fetch_mcp_tools + [google_search]
 
 # Create the agent with search capabilities
-agent = rt.agent_node(
+WebSearchAgent = rt.agent_node(
     # tool_nodes={*tools},    # Uncomment this line to use the tools
     system_message="""You are an information gathering agent that can search the web.""",
     llm=rt.llm.OpenAILLM("gpt-4o"),
@@ -294,7 +294,7 @@ agent = rt.agent_node(
 
 # Example usage
 user_prompt = """Tell me about Railtown AI."""
-async def call_node():
+async def call_web_search():
     result = await rt.call(agent, message_history)
     print(result)
 
