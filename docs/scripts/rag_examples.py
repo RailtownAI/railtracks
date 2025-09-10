@@ -7,7 +7,7 @@ import asyncio
 import railtracks as rt
 from railtracks.prebuilt import rag_node
 
-retriever = rag_node([
+retriever = rt.prebuilt.rag_node([
     "Steve likes apples and enjoys them as snacks",
     "John prefers bananas for their potassium content",
     "Alice loves oranges for vitamin C",
