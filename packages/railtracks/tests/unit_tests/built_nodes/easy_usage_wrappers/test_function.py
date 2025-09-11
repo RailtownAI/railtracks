@@ -1,5 +1,3 @@
-
-
 import pytest
 from unittest.mock import patch, MagicMock
 from railtracks.built_nodes.easy_usage_wrappers.function import function_node, _function_preserving_metadata
@@ -8,18 +6,8 @@ from railtracks.built_nodes.easy_usage_wrappers.function import function_node, _
 async def async_func(x):
     return x
 
-@pytest.fixture(autouse=True)
-def mock_nodebuilder_and_validation():
-    with patch("railtracks.built_nodes.easy_usage_wrappers.function.NodeBuilder") as mock_builder, \
-         patch("railtracks.built_nodes.easy_usage_wrappers.function.validate_function"), \
-         patch("railtracks.built_nodes.easy_usage_wrappers.function.validate_tool_manifest_against_function"):
-        mock_instance = MagicMock()
-        mock_instance.build.return_value = type("MockNodeType", (), {})
-        mock_builder.return_value = mock_instance
-        yield
-
-def test_function_node_sync(mock_function):
-    node = function_node(mock_function, name="TestFunc")
+def test_function_node_sync(mock_function, mock_manifest):
+    node = function_node(mock_function, name="TestFunc", manifest=mock_manifest)
     assert hasattr(node, "node_type")
     assert node.__name__ == mock_function.__name__
 
