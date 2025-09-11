@@ -54,3 +54,4 @@ def mock_manifest():
                 param_type="integer",
             )]
             )
+    return tool_manifest
