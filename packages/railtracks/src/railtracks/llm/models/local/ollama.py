@@ -2,13 +2,14 @@ import os
 from typing import Literal
 
 import litellm
+import logging
 import requests
 
-from ....utils.logging.create import get_rt_logger
 from .._litellm_wrapper import LiteLLMWrapper
 from .._model_exception_base import FunctionCallingNotSupportedError, ModelError
 
 LOGGER_NAME = "OLLAMA"
+logger = logging.getLogger(__name__)
 DEFAULT_DOMAIN = "http://localhost:11434"
 
 
