@@ -59,6 +59,8 @@ jobs:
           fi
 
   build:
+    env:
+      UV_SYSTEM_PYTHON: 1
     name: Build and Test
     runs-on: windows-latest
     needs:
@@ -106,6 +108,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.INTEGRATION_TESTS_ANTHROPIC_API_KEY }}
           HF_TOKEN: ${{ secrets.INTEGRATION_TESTS_HUGGINGFACE_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.INTEGRATION_TESTS_GEMINI_API_KEY }}
+        
         run: |
           uv pip list
           uv run pytest -s -v --junit-xml=test-results.xml --timeout=200 --ignore=packages/railtracks-cli
