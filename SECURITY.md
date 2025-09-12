@@ -33,7 +33,7 @@ RailTracks is a lightweight, modular framework for building agentic systems. It 
 - Models and providers: RailTracks can work with many providers (via your selected model or service). If your chosen stack relies on third-party artifacts (models/weights), prefer formats designed to prevent arbitrary code execution (for example, safetensors) and avoid loading unsafe formats (for example, pickle) from untrusted sources.
 - Remote code execution: Do not execute untrusted code or install untrusted tools/plugins. If you import tools or components from external repositories, review their source and supply chain before enabling them in agents. This extends to model-generated code.
 
-## LLM/Provider Con
+## LLM/Provider Considerations
 
 - Data privacy: Understand each provider’s data handling (retention, training usage, residency, access logs). Configure provider privacy settings to match your requirements.
 - Policy and safety: Filter/validate user inputs according to your organization’s policy and each provider’s acceptable use policy. Treat LLM outputs as untrusted until validated.
