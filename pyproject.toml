@@ -71,6 +71,6 @@ lint.ignore = [
 fix = true
 lint.fixable = ["F401", "F841", "I001"]
 
-exclude = [".git", "examples", "docs", ".venv", ".", "tests"]
+exclude = [".git", "examples", "docs", ".venv", "tests"]
 
 lint.mccabe.max-complexity = 10

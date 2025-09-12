@@ -99,7 +99,7 @@ The main SDK with optional dependencies:
 - `all` - All optional dependencies
 
 ### CLI (`packages/railtracks-cli/`)
-Command-line interface that gives you a vizalizer to use with the system. 
+Command-line interface that gives you a visualizer to use with the system. 
 
 ## Testing Guidelines
 

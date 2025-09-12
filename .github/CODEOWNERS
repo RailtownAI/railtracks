@@ -8,4 +8,4 @@
 
 # .github directory - only codeowners can push changes
 # This rule is more specific and will override the global rule above
-/.github/ @soulFood5632 @Amir-R25 
+/.github/ @soulFood5632 @Amir-R25
