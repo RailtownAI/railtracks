@@ -1,4 +1,4 @@
-[RailTracks](../../docs/assets/logo.svg)
+![RailTracks](../../docs/assets/logo.svg)
 
 
 [![PyPI version](https://img.shields.io/pypi/v/railtracks)](https://github.com/RailtownAI/railtracks/releases)
