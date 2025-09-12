@@ -159,4 +159,4 @@ RailTracks does not itself provide compliance guarantees. Deployers are responsi
 
 ## Changes to This Policy
 
-This document may be updated as the project evolves. Material changes will be noted in relea
+This document may be updated as the project evolves. Material changes will be noted in release notes.
