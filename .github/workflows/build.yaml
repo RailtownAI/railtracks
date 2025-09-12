@@ -106,6 +106,7 @@ jobs:
           pip install pytest>=8.4.0 
           pip install pytest-asyncio 
           pip install pytest-timeout
+          pip install pytest-cov
           pip list
           pytest -s -v --junit-xml=test-results.xml --timeout=200 --ignore=packages/railtracks-cli
 

@@ -74,3 +74,7 @@ lint.fixable = ["F401", "F841", "I001"]
 exclude = [".git", "examples", "docs", ".venv", "tests"]
 
 lint.mccabe.max-complexity = 10
+
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
