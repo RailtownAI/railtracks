@@ -2,13 +2,14 @@
     <img alt="Railtracks Logo" src="docs/assets/logo.svg" width="80%">
 </picture>
 
-[![PyPI version](https://img.shields.io/pypi/v/railtracks.svg)](https://pypi.org/project/railtracks/)
-[![Python Versions](https://img.shields.io/pypi/pyversions/railtracks.svg)](https://pypi.org/project/railtracks/)
-[![License](https://img.shields.io/pypi/l/railtracks.svg)](https://github.com/RailtownAI/railtracks/blob/main/LICENSE)
-[![Docs](https://img.shields.io/badge/docs-latest-blue.svg)](https://railtownai.github.io/railtracks/)
-[![Release Notes](https://img.shields.io/github/release/RailtownAI/railtracks.svg)](https://github.com/RailtownAI/railtracks/releases)
-[![GitHub stars](https://img.shields.io/github/stars/RailtownAI/railtracks.svg?style=social&label=Star)](https://github.com/RailtownAI/railtracks)
 
+
+[![PyPI version](https://img.shields.io/pypi/v/railtracks?label=release)](https://github.com/RailtownAI/railtracks/releases)
+[![License](https://img.shields.io/pypi/l/railtracks)](https://opensource.org/licenses/MIT)
+[![PyPI - Downloads](https://img.shields.io/pepy/dt/railtracks)](https://pypistats.org/packages/railtracks)
+[![Docs](https://img.shields.io/badge/docs-latest-00BFFF.svg?logo=openbook)](https://railtownai.github.io/railtracks/)
+[![GitHub stars](https://img.shields.io/github/stars/RailtownAI/railtracks.svg?style=social&label=Star)](https://github.com/RailtownAI/railtracks)
+[![Discord](https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white)](https://discord.gg/h5ZcahDc)
 
 
 
@@ -16,11 +17,11 @@
 
 **RailTracks** is a lightweight framework for building agentic systems; modular, intelligent agents that can be composed to solve complex tasks more effectively than any single module could.
 
-The framework supports the entire lifecycle of agentic development: building, testing, debugging, and deploying. Its core principle is modularity, your systems are constructed from reusable, modular components.
+**Railtracks-CLI** is a command line tool designed to vizualize your railtracks runs. It is designed to be lightweight and run locally with **no sign up required**. 
 
 ---
 
-### Step 1: Installation
+### Installation
 
 ```bash
 # Core library
@@ -32,7 +33,7 @@ pip install railtracks-cli
 
 ## Contributing
 
-We welcome contributions of all kinds! Check out our [contributing guide](./CONTRIBUTING.md) to get started.
+We welcome contributions of all kinds! Get started by checking out our [contributing guide](./CONTRIBUTING.md).
 
 
 ---
