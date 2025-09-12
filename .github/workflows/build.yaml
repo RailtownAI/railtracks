@@ -93,7 +93,7 @@ jobs:
       - name: Check pyproject.toml dependency order
         run: |
           uv pip install tomlkit==0.11.8
-          uv run python scripts/check_dependencies_sorted.py
+          python scripts/check_dependencies_sorted.py
 
       - name: Validate Documentation Scripts
         shell: bash
