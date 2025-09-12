@@ -15,6 +15,34 @@ authors = [
 readme = "README.md"
 license = { file = "LICENSE" }
 dynamic = ["version", "description"]
+requires-python = ">=3.9"
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+
+    "License :: OSI Approved :: MIT License",
+
+    "Operating System :: OS Independent",
+
+    "Development Status :: 4 - Beta",
+
+    "Framework :: AsyncIO",
+
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+
+    "Natural Language :: English",
+
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+
+    "Typing :: Typed"
+]
+
 dependencies = [
   "colorama >= 0.4.6",
   "litellm[proxy] >= 1.70.2",
