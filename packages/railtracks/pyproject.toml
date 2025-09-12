@@ -47,11 +47,11 @@ core = [
 ]
 
 [project.urls]
-documentation = "https://railtown.github.io/railtracks"
-railtracks = "https://railtracks.org"
+documentation = "https://railtownai.github.io/railtracks/"
+"Release Notes" = "https://github.com/RailtownAI/railtracks/releases"
 repository = "https://github.com/RailtownAI/railtracks"
-ui-repository = "https://github.com/RailtownAI/railtracks-visualizer"
-railtown = "https://railtown.ai"
+home = "https://railtracks.org"
+
 
 [tool.flit.module]
 name = "railtracks"
