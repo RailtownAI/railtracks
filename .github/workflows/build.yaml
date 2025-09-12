@@ -97,7 +97,7 @@ jobs:
         shell: bash
         run: |
           uv pip install mypy
-          uv run ./scripts/docs_validation.sh
+          ./scripts/docs_validation.sh
 
       - name: Run tests
         shell: bash
