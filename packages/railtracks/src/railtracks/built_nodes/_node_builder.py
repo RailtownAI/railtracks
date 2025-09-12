@@ -79,21 +79,6 @@ class NodeBuilder(Generic[_TNode]):
         if name is not None:
             self._with_override("name", classmethod(lambda cls: name or cls.__name__))
 
-        if return_into is not None:
-            self._with_override("return_into", classmethod(lambda cls: return_into))
-
-        if format_for_context is not None:
-            self._with_override(
-                "format_for_context",
-                classmethod(lambda cls, x: format_for_context(x)),
-            )
-
-        if format_for_return is not None:
-            self._with_override(
-                "format_for_return",
-                classmethod(lambda cls, x: format_for_return(x)),
-            )
-
     def llm_base(
         self,
         llm: ModelBase | None,
