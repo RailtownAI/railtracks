@@ -13,7 +13,7 @@ if [ ! -d "docs/scripts" ]; then
 fi
 
 DISABLE_CODES="top-level-await"
-uv run mypy --disable-error-code=top-level-await --disable-error-code=import-untyped docs/scripts/
+mypy --disable-error-code=top-level-await --disable-error-code=import-untyped docs/scripts/
 
 
 

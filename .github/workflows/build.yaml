@@ -111,7 +111,7 @@ jobs:
         
         run: |
           uv pip list
-          uv run pytest -s -v --junit-xml=test-results.xml --timeout=200 --ignore=packages/railtracks-cli
+          pytest -s -v --junit-xml=test-results.xml --timeout=200 --ignore=packages/railtracks-cli
 
   build-railtracks-cli:
     name: Build Railtracks CLI
