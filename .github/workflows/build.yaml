@@ -103,8 +103,10 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.INTEGRATION_TESTS_GEMINI_API_KEY }}
         
         run: |
+          pip install pytest>=8.4.0 
+          pip install pytest-asyncio 
+          pip install pytest-timeout
           pip list
-          pip install pytest>=8.4.0 pytest-asyncio pytest-timeout
           pytest -s -v --junit-xml=test-results.xml --timeout=200 --ignore=packages/railtracks-cli
 
   build-railtracks-cli:
