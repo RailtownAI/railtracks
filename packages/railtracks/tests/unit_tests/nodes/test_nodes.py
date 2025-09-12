@@ -23,7 +23,7 @@ class CapitalizeText(Node[str]):
 
     @classmethod
     def tool_info(cls):
-        raise NotImplementedError
+        raise NotImplementedError()
 
     @classmethod
     def prepare_tool(cls, params):
@@ -42,7 +42,7 @@ class ErrorNode(Node[str]):
 def test_node_state_instantiate():
     node = CapitalizeText("abc")
     state = NodeState(node)
-    assert state.instantiate() is node
+    assert state.instantiate() == node
 
 def test_debugdetails_dict():
     d = DebugDetails()
