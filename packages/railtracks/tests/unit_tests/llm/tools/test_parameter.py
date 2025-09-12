@@ -5,7 +5,7 @@ This module contains tests for the Parameter classes and related functionality
 in the railtracks.llm.tools.parameter module.
 """
 
-from railtracks.llm.tools.parameter import (
+from railtracks.llm.tools.parameters.parameter import (
     Parameter,
     PydanticParameter,
 )
