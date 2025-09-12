@@ -91,13 +91,13 @@ jobs:
       - name: Check pyproject.toml dependency order
         run: |
           uv pip install tomlkit==0.11.8
-          python scripts/check_dependencies_sorted.py
+          uv run python scripts/check_dependencies_sorted.py
 
       - name: Validate Documentation Scripts
         shell: bash
         run: |
           uv pip install mypy
-          ./scripts/docs_validation.sh
+          uv run ./scripts/docs_validation.sh
 
       - name: Run tests
         shell: bash
@@ -108,7 +108,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.INTEGRATION_TESTS_GEMINI_API_KEY }}
         run: |
           uv pip list
-          pytest -s -v --junit-xml=test-results.xml --timeout=200 --ignore=packages/railtracks-cli
+          uv run pytest -s -v --junit-xml=test-results.xml --timeout=200 --ignore=packages/railtracks-cli
 
   build-railtracks-cli:
     name: Build Railtracks CLI
