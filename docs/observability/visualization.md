@@ -30,7 +30,9 @@ railtracks viz
 This should open up a web browser window where you can see your runs once they have finished.
 
 
-![VizDemo.png](../assets/visualizer_photo.png)
+<iframe
+    src="https://railtownai.github.io/railtracks-visualizer/iframe.html?globals=&args=&id=components-visualizer-marketing--default&viewMode=story"
+    style="width: 99dvw; min-height: 50dvh; border: none; box-sizing: border-box;"></iframe>
 
 !!! tip "Saving State"
     By default, all of your runs will be saved to the `.railtracks` directory. If you don't want things saved, you can set the
