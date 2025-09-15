@@ -13,6 +13,9 @@
 
 
 
+
+## Installation
+
 ## Overview
 
 **RailTracks** is a lightweight framework for building agentic systems; modular, intelligent agents that can be composed to solve complex tasks more effectively than any single module could.

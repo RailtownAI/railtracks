@@ -27,7 +27,14 @@ Define an agent with a model and system message, then call it with a prompt:
     Hello! I can help you out with a wide range of tasks...
     ``` 
 
-??? Question "Supported Models"
+???+ Warning "No API key set?"
+    Make sure you are calling a model you have an API key set in your `.env` file. 
+
+    ```txt title=".env"
+    OPENAI_API_KEY="..."
+    ANTHROPIC_API_KEY="..."
+    ```
+
     Railtracks supports many of the most popular model providers. See the [full list](../llm_support/providers.md)
 
 ??? tip "Jupyter Notebooks"
@@ -57,12 +64,13 @@ This will open a web interface showing the execution flow, node interactions, an
     You’ve got your first agent running! Here’s where to go next:
 
     **Learn the Basics**
-    
-    - [What is an Agent?](../background/agents.md)
-    - [What is a Tool?](../background/tools.md)
-    
+
     **Build Something**
 
     - [Building your First Agent](../tutorials/byfa.md)
     - [Running your First Agent](../tutorials/ryfa.md)
+    
+    - [What is an Agent?](../background/agents.md)
+    - [What is a Tool?](../background/tools.md)
+    
 
