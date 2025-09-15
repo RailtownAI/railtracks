@@ -28,7 +28,12 @@ Define an agent with a model and system message, then call it with a prompt:
     ``` 
 
 ???+ Warning "No API key set?"
-    Make sure you are calling a model you have an API key set up with. 
+    Make sure you are calling a model you have an API key set in your `.env` file. 
+
+    ```txt title=".env"
+    OPENAI_API_KEY="..."
+    ANTHROPIC_API_KEY="..."
+    ```
 
     Railtracks supports many of the most popular model providers. See the [full list](../llm_support/providers.md)
 

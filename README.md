@@ -1,5 +1,10 @@
 # RailTracks
 
+## Helpful Links
+
+## Installation
+
+
 ## Overview
 
 **RailTracks** is a lightweight framework for building agentic systems; modular, intelligent agents that can be composed to solve complex tasks more effectively than any single module could.
@@ -32,13 +37,7 @@ Build your first agentic system in just a few steps.
 
 ### Step 1: Install the Library
 
-```bash
-# Core library
-pip install railtracks
 
-# [Optional] CLI support for development and visualization
-pip install railtracks-cli
-```
 
 ### Step 2: Define Your Modular Components
 
