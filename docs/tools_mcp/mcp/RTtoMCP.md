@@ -1,8 +1,5 @@
 # Exposing RT Tools as MCP Tools
 
-!!! Warning 
-    This area of RT is under construction. We would love some contributions to support this effort on our [Github](https://github.com/RailtownAI/railtracks)
-
 ## Overview
 
 You can expose any RT Tool as an MCP-compatible tool, making it accessible to any MCP client or LLM agent that supports the [Model Context Protocol (MCP)](mcp.md). This allows you to share your custom RT logic with other frameworks, agents, or applications that use MCP.
@@ -11,7 +8,7 @@ RC provides utilities to convert your Nodes into MCP tools and run a FastMCP ser
 
 ## Prerequisites
 
-- **RC Framework** installed (`pip install railtracks[core]`)
+- **RC Framework** installed (`pip install railtracks`)
 
 ## Basic Usage
 
@@ -20,17 +17,34 @@ RC provides utilities to convert your Nodes into MCP tools and run a FastMCP ser
 Use the `create_mcp_server` utility to expose your RT nodes as MCP tools:
 
 ```python
---8<-- "docs/scripts/RTtoMCP.py:simple_mcp_creation"
+from railtracks.nodes.library import function_node
+from railtracks.integrations.rt_mcp.node_to_mcp import create_mcp_server
+
+
+def add_nums_plus_ten(num1: int, num2: int):
+    """Simple tool example."""
+    return num1 + num2 + 10
+
+
+node = function_node(add_nums_plus_ten)
+
+# Create and run the MCP server
+mcp = create_mcp_server([node], server_name="My MCP Server")
+mcp.run(transport="streamable-http", host="127.0.0.1", port=8000)
 ```
 
 This exposes your RT tool at `http://127.0.0.1:8000/mcp` for any MCP client.
 
 ### 2. Accessing Your MCP Tools
 
-Any MCP-compatible client or LLM agent can now discover and invoke your tool. As an example, you can use Railtracks itself to try your tool:
+Any MCP-compatible client or LLM agent can now discover and invoke your tool. As an example, you can use R C itself to try your tool:
 
 ```python
---8<-- "docs/scripts/RTtoMCP.py:accessing_mcp"
+from railtracks.nodes.library.mcp_tool import from_mcp_server
+from railtracks.integrations.rt_mcp.main import MCPHttpParams
+
+server = from_mcp_server(MCPHttpParams(url="http://127.0.0.1:8000/mcp"))
+tools = server.tools
 ```
 
 ## Advanced Topics

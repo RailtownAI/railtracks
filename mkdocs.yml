@@ -1,11 +1,8 @@
 site_name: RailTracks Docs
-site_url: https://railtownai.github.io/railtracks/
-site_description: "RailTracks is a framework for building LLM-powered agents and applications."
+site_url: https://something
 
 repo_name: railtracks
-repo_url: https://github.com/RailtownAI/railtracks/
-
-
+repo_url: https://github.com/RailtownAI/railtracks
 
 theme:
   name: material
@@ -79,13 +76,14 @@ nav:
       - Building your first agent: tutorials/byfa.md
       - Running your first agent: tutorials/ryfa.md
       - RAG system: tutorials/rag_tutorial.md
+      - Controlling Flows and Wrapping Nodes: tutorials/flows.md
 
   - Tools + MCP:
       - Equip your LLMs: tools_mcp/tools_mcp.md
       - MCP:
           - Model Context Protocol: tools_mcp/mcp/mcp.md
           - Using MCP: tools_mcp/mcp/MCP_tools_in_RT.md
-          - Creating an MCP Server: tools_mcp/mcp/RTtoMCP.md
+          - Creating an MCP: tools_mcp/mcp/RTtoMCP.md
 
       - Tools:
           - What is a Tool: tools_mcp/tools/tools.md
@@ -105,36 +103,31 @@ nav:
       - Visualization: observability/visualization.md
       - Logging: observability/logging.md
       - Broadcasting: observability/broadcasting.md
+      - Local Chat: observability/chat.md
       - Error Handling: observability/error_handling.md
 
   - LLM Support:
       - Supported Providers: llm_support/providers.md
       - Prompts and Context Injection: llm_support/prompts.md
       
-  # - Deployments:
-  #     - Docker: deployments/docker.md
+
+  - Deployments:
+      - Docker: deployments/docker.md
 
   - Advanced Usage:
       - Session: advanced_usage/session.md
       - Context: advanced_usage/context.md
-      # - Configuration: advanced_usage/config.md
+      - Configuration: advanced_usage/config.md
 
-  # - Samples:
-  #     - samples/index.md
+  - Samples:
+      - samples/index.md
 
-  # - System Internals:
-  #     - Overview: system_internals/overview.md
-  #     - Core Concepts: system_internals/concepts.md
-  #     - Node Abstraction: system_internals/node.md
-  #     - Session Management: system_internals/session.md
-  #     - PubSub Messaging: system_internals/pubsub.md
-  #     - Coordinator Orchestration: system_internals/coordinator.md
+  - System Internals:
+      - Overview: system_internals/overview.md
+      - Core Concepts: system_internals/concepts.md
+      - Node Abstraction: system_internals/node.md
+      - Session Management: system_internals/session.md
+      - PubSub Messaging: system_internals/pubsub.md
+      - Coordinator Orchestration: system_internals/coordinator.md
 
   - API Reference: api_reference/railtracks.html
-
-extra:
-  generator: false
-  static_templates:
-    - robots.txt
-
-    

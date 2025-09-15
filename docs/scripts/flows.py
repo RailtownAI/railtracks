@@ -1,6 +1,5 @@
 import asyncio
 # --8<-- [start: hiking_example]
-from distro import info
 import railtracks as rt
 from pydantic import BaseModel
  
@@ -118,32 +117,27 @@ async def run():
     print(resp)
 # --8<-- [end: coding_example]
 
-class StructuredResponse(BaseModel):
-    info: str
 # --8<-- [start: customer_example]
 #Initialize all your system messages, schemas, and tools here.
+...
 
 QualityAssuranceAgent = rt.agent_node(
     name="Quality Assurance Agent",
-    output_schema=StructuredResponse,
     #adding all other arguments as needed
     )
 
 ProductExpertAgent = rt.agent_node(
     name="Product Expert Agent",
-    output_schema=StructuredResponse,
     #adding all other arguments as needed
     )
 
 BillingAgent = rt.agent_node(
     name="Billing Agent",
-    output_schema=StructuredResponse,
     #adding all other arguments as needed
     )
     
 TechnicalAgent = rt.agent_node(
     name="Technical Support Agent",
-    output_schema=StructuredResponse,
     #adding all other arguments as needed
     )
 
@@ -197,7 +191,7 @@ Coordinator = rt.agent_node(
     system_message=CoordinatorMessage,
 )
 
-async def main():
+async def run():
     response = await rt.call(
             CoordinatorAgent,
             user_input=""

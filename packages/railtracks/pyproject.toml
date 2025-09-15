@@ -47,7 +47,6 @@ core = [
 ]
 
 [project.urls]
-documentation = "https://railtown.github.io/railtracks"
 railtracks = "https://railtracks.org"
 repository = "https://github.com/RailtownAI/railtracks"
 ui-repository = "https://github.com/RailtownAI/railtracks-visualizer"
@@ -58,6 +57,3 @@ name = "railtracks"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-
-[tool.setuptools.package-data]
-railtracks = ["py.typed"]
