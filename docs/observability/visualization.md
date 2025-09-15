@@ -4,7 +4,7 @@ One of the number one complaints when working with LLMs is that they can be a bl
 
 We support:
 
-- Local Visualiziation (**no sign up required**) 
+- Local Visualization (**no sign up required**) 
 - Remote Visualization (Ideal for deployed agents)
 
 ## Local Development Visualization
