@@ -11,7 +11,7 @@ from railtracks.llm.tools.schema_parser import (
     parse_json_schema_to_parameter,
     parse_model_properties,
 )
-from railtracks.llm.tools.parameters.parameter import Parameter, PydanticParameter, ArrayParameter
+from railtracks.llm.tools.parameter import Parameter, PydanticParameter, ArrayParameter
 
 
 class TestParseJsonSchemaToParameter:

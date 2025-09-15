@@ -5,7 +5,7 @@ This package provides classes and utilities for creating tools from Python funct
 handling various parameter types, and parsing docstrings.
 """
 
-from .parameters.parameter import ArrayParameter, Parameter, ParameterType, PydanticParameter
+from .parameter import ArrayParameter, Parameter, ParameterType, PydanticParameter
 from .tool import Tool
 
 __all__ = [

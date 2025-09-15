@@ -13,7 +13,7 @@ from typing import Any, List, Tuple, Union
 
 from pydantic import BaseModel
 
-from .parameters.parameter import ArrayParameter, Parameter, ParameterType, PydanticParameter
+from .parameter import ArrayParameter, Parameter, ParameterType, PydanticParameter
 from .schema_parser import parse_model_properties
 
 

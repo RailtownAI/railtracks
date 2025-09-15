@@ -7,7 +7,7 @@ and converting Parameter objects into Pydantic models.
 
 from typing import Dict
 
-from .parameters._base import ArrayParameter, Parameter, PydanticParameter
+from .parameter import ArrayParameter, Parameter, PydanticParameter
 
 
 def _extract_param_type(prop_schema: dict) -> str | list:
