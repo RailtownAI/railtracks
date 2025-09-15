@@ -302,7 +302,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         return result
 
     def safe_copy(self) -> Self:
-        new_instance: LLMBase = super().safe_copy()  # noqa: Type checking broken.
+        new_instance: LLMBase = super().safe_copy()
 
         # This has got to be one of the weirdest things I've seen working with python
         # basically if we don't reattach the hooks, the `self` inserted into the model hooks will be the old memory address
