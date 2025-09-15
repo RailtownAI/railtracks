@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from typing import Callable, Coroutine
 
-from railtracks.utils.logging.config import allowable_log_levels
+from railtracks.utils.logging.config import AllowableLogLevels, allowable_log_levels_set
 
 
 class ExecutorConfig:
@@ -12,7 +12,7 @@ class ExecutorConfig:
         *,
         timeout: float = 150.0,
         end_on_error: bool = False,
-        logging_setting: allowable_log_levels = "REGULAR",
+        logging_setting: AllowableLogLevels = "REGULAR",
         log_file: str | os.PathLike | None = None,
         broadcast_callback: (
             Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
@@ -26,7 +26,7 @@ class ExecutorConfig:
         Args:
             timeout (float): The maximum number of seconds to wait for a response to your top level request
             end_on_error (bool): If true, the executor will stop execution when an exception is encountered.
-            logging_setting (allowable_log_levels): The setting for the level of logging you would like to have.
+            logging_setting (AllowableLogLevels): The setting for the level of logging you would like to have.
             log_file (str | os.PathLike | None): The file to which the logs will be written. If None, no file will be created.
             broadcast_callback (Callable or Coroutine): A function or coroutine that will handle streaming messages.
             prompt_injection (bool): If true, prompts can be injected with global context
@@ -40,12 +40,24 @@ class ExecutorConfig:
         self.prompt_injection = prompt_injection
         self.save_state = save_state
 
+    @property
+    def logging_setting(self) -> AllowableLogLevels:
+        return self._logging_setting
+
+    @logging_setting.setter
+    def logging_setting(self, value: AllowableLogLevels):
+        if value not in allowable_log_levels_set:
+            raise ValueError(
+                f"logging_setting must be one of {allowable_log_levels_set}, got {value}"
+            )
+        self._logging_setting: AllowableLogLevels = value
+
     def precedence_overwritten(
         self,
         *,
         timeout: float | None = None,
         end_on_error: bool | None = None,
-        logging_setting: allowable_log_levels | None = None,
+        logging_setting: AllowableLogLevels | None = None,
         log_file: str | os.PathLike | None = None,
         subscriber: (
             Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None

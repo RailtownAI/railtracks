@@ -29,7 +29,6 @@ railtracks/
 ### Prerequisites
 
 - Python 3.10 or higher
-- [uv](https://docs.astral.sh/uv/) or pip
 
 ### Installation
 
@@ -41,11 +40,12 @@ railtracks/
 
 2. **Install development dependencies**
 
-    Dev dependencies are not required, but will be useful for devs working with the project.
+    Dev dependencies are not all required, but will be useful for devs working with the project.
    ```bash
-
-   # Or using pip
-   pip install -r "requirements-dev.txt"
+   python -m venv .venv
+   source .venv/bin/activate # for mac and linux 
+   pip install uv
+   uv sync --group dev 
    ```
 ```
 
@@ -82,7 +82,6 @@ Individual packages can be installed separately:
 ```bash
 # Core SDK
 pip install railtracks
-pip install "railtracks[llm]"           # With LLM extras
 pip install "railtracks[integrations]"  # With integrations
 pip install "railtracks[all]"           # With all extras
 
@@ -95,23 +94,21 @@ pip install railtracks-cli
 ### Core SDK (`packages/railtracks/`)
 
 The main SDK with optional dependencies:
-- `llm` - LLM integrations (OpenAI, Anthropic, etc.). This is how you use our agents. 
-- `mcp` - Model Context Protocol support
 - `chat` - FastAPI chat interface
 - `integrations` - The integration tooling to connect to various data sources.
 - `all` - All optional dependencies
 
 ### CLI (`packages/railtracks-cli/`)
-Command-line interface that gives you many insights into the system. 
+Command-line interface that gives you a visualizer to use with the system. 
 
 ## Testing Guidelines
 
-- Write tests in the appropriate `tests/` directory
+- Write tests in the appropriate `tests/` directory of the package of intrest
 - Use `pytest` for running tests
 
 ## Submitting Changes
 
-1. **Create a feature branch**
+1. **Create a fork**
    ```bash
    git checkout -b feature/your-feature-name
    ```
@@ -145,14 +142,6 @@ Command-line interface that gives you many insights into the system.
 
 ## Common Issues
 
-### "Module not found" errors
-- Ensure you've installed both packages: `pip install -e packages/railtracks packages/railtracks-cli`
-- Remember: package names use dashes, Python modules use underscores
-
-### Dependency resolution errors
-- Install packages in order: `railtracks` first, then `railtracks-cli`
-- The CLI depends on the SDK, so SDK must be available first
-
 ### Test failures
 - Run tests from the repository root for full test suite
 - Individual package tests can be run from within each package directory
@@ -162,6 +151,7 @@ Command-line interface that gives you many insights into the system.
 If you run into issues:
 1. Check this contributing guide
 2. Look at existing issues on GitHub
-3. Create a new issue with detailed information about your problem
+3. Reach out the maintainers on discord
+4. Create a new issue with detailed information about your problem
 
 Thank you for contributing to RailTracks! 🚂

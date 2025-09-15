@@ -26,7 +26,7 @@ from .state.info import (
 from .state.state import RTState
 from .utils.config import ExecutorConfig
 from .utils.logging.config import (
-    allowable_log_levels,
+    AllowableLogLevels,
     detach_logging_handlers,
     prepare_logger,
 )
@@ -65,7 +65,7 @@ class Session:
         context (Dict[str, Any], optional): A dictionary of global context variables to be used during the execution.
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
-        logging_setting (allowable_log_levels, optional): The setting for the level of logging you would like to have.
+        logging_setting (AllowableLogLevels, optional): The setting for the level of logging you would like to have.
         log_file (str | os.PathLike | None, optional): The file to which the logs will be written.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
@@ -79,7 +79,7 @@ class Session:
         name: str | None = None,
         timeout: float | None = None,
         end_on_error: bool | None = None,
-        logging_setting: allowable_log_levels | None = None,
+        logging_setting: AllowableLogLevels | None = None,
         log_file: str | os.PathLike | None = None,
         broadcast_callback: (
             Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
@@ -139,7 +139,7 @@ class Session:
         cls,
         timeout: float | None,
         end_on_error: bool | None,
-        logging_setting: allowable_log_levels | None,
+        logging_setting: AllowableLogLevels | None,
         log_file: str | os.PathLike | None,
         broadcast_callback: (
             Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
@@ -279,7 +279,7 @@ def session(
     context: Dict[str, Any] | None = None,
     timeout: float | None = None,
     end_on_error: bool | None = None,
-    logging_setting: allowable_log_levels | None = None,
+    logging_setting: AllowableLogLevels | None = None,
     log_file: str | os.PathLike | None = None,
     broadcast_callback: (
         Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
@@ -303,7 +303,7 @@ def session(
         context (Dict[str, Any], optional): A dictionary of global context variables to be used during the execution.
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
-        logging_setting (allowable_log_levels, optional): The setting for the level of logging you would like to have.
+        logging_setting (AllowableLogLevels, optional): The setting for the level of logging you would like to have.
         log_file (str | os.PathLike | None, optional): The file to which the logs will be written.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
@@ -323,7 +323,7 @@ def session(
     context: Dict[str, Any] | None = None,
     timeout: float | None = None,
     end_on_error: bool | None = None,
-    logging_setting: allowable_log_levels | None = None,
+    logging_setting: AllowableLogLevels | None = None,
     log_file: str | os.PathLike | None = None,
     broadcast_callback: (
         Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
@@ -358,7 +358,7 @@ def session(
         context (Dict[str, Any], optional): A dictionary of global context variables to be used during the execution.
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
-        logging_setting (allowable_log_levels, optional): The setting for the level of logging you would like to have.
+        logging_setting (AllowableLogLevels, optional): The setting for the level of logging you would like to have.
         log_file (str | os.PathLike | None, optional): The file to which the logs will be written.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
