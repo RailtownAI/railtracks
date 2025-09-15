@@ -6,7 +6,7 @@ import pytest
 from railtracks.utils.config import ExecutorConfig
 
 # ================= START ExecutorConfig: Fixtures ============
-@pytest.fixture(params=["REGULAR", "DEBUG", "ERROR"])
+@pytest.fixture(params=["REGULAR", "VERBOSE"])
 def log_level(request):
     return request.param
 # ================ END ExecutorConfig: Fixtures ===============
@@ -70,7 +70,7 @@ def test_subscriber_is_none_by_default():
 
 # ================= START ExecutorConfig: logging_setting options tests ============
 
-@pytest.mark.parametrize("log_setting", ["REGULAR", "ERROR", "DEBUG"])
+@pytest.mark.parametrize("log_setting", ["REGULAR", "VERBOSE"])
 def test_logging_setting_accepts_allowable_levels(log_setting):
     config = ExecutorConfig(logging_setting=log_setting)
     assert config.logging_setting == log_setting

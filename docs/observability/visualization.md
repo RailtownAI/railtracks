@@ -26,7 +26,9 @@ railtracks viz
 This will create a `.railtracks` directory in your current working directory setting up the web app in your web browser
 
 
-![VizDemo.png](../assets/visualizer_photo.png)
+<iframe
+    src="https://railtownai.github.io/railtracks-visualizer/iframe.html?globals=&args=&id=components-visualizer-marketing--default&viewMode=story"
+    style="width: 99dvw; min-height: 50dvh; border: none; box-sizing: border-box;"></iframe>
 
 !!! tip "Saving State"
     By default, all of your runs will be saved to the `.railtracks` directory so you can view them locally. If you don't want that, set the

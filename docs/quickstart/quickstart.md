@@ -44,7 +44,10 @@ railtracks init
 railtracks viz
 ```
 
-![RailTracks Visualization](../assets/visualizer_photo.png)
+<iframe
+    src="https://railtownai.github.io/railtracks-visualizer/iframe.html?globals=&args=&id=components-visualizer-marketing--default&viewMode=story"
+    style="width: 99dvw; min-height: 50dvh; border: none; box-sizing: border-box;">
+</iframe>
 
 This will open a web interface showing the execution flow, node interactions, and performance metrics of your agentic system.
 
