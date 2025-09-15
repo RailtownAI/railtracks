@@ -129,7 +129,7 @@ async def test_json_serialization(planner_node, json_state_schema):
 
 async def test_json_serialization_2(planner_with_llm_node, json_state_schema, mock_llm):
     # ============ mock llm config =========
-    async def random_number(messages):
+    def random_number(messages):
         if rt.context.get("already_called", False):
             ret_num = random.randint(0, 2)
         else:
@@ -151,7 +151,7 @@ async def test_json_serialization_2(planner_with_llm_node, json_state_schema, mo
         )
 
     model = mock_llm()
-    model._achat = random_number
+    model._chat = random_number
     # =======================================
 
     with rt.Session(logging_setting="NONE") as session:
