@@ -1,4 +1,3 @@
-
 """
 Defines the supported model providers for LLM integrations in RailTracks.
 
@@ -8,6 +7,7 @@ consistency when selecting or switching between providers.
 """
 
 from enum import Enum
+
 
 class ModelProvider(str, Enum):
     """
@@ -21,6 +21,7 @@ class ModelProvider(str, Enum):
         AZUREAI: Azure OpenAI Service models.
         OLLAMA: Ollama local LLMs.
     """
+
     OPENAI = "OpenAI"
     ANTHROPIC = "Anthropic"
     GEMINI = "Vertex_AI"

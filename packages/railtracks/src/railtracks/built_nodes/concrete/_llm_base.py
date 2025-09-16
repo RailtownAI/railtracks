@@ -13,10 +13,10 @@ from railtracks.llm import (
     Message,
     MessageHistory,
     ModelBase,
+    ModelProvider,
     Parameter,
     SystemMessage,
     UserMessage,
-    ModelProvider,
 )
 from railtracks.llm.response import Response
 from railtracks.nodes.nodes import Node
@@ -33,6 +33,7 @@ from .response import StringResponse, StructuredResponse
 logger = get_rt_logger("Node.LLM")
 
 _T = TypeVar("_T")
+
 
 class RequestDetails:
     """
