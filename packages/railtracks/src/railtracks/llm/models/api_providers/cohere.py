@@ -8,4 +8,4 @@ class CohereLLM(ProviderLLMWrapper):
 
     @classmethod
     def model_type(cls) -> str:
-        return "Cohere"
+        return "cohere_chat"
