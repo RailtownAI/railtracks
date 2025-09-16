@@ -103,7 +103,7 @@ jobs:
     environment:
       name: production
     needs:
-      - test
+      - Test
 
     steps:
       - name: Print System Architecture
