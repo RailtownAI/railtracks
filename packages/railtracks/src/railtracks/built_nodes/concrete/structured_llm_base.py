@@ -1,5 +1,5 @@
-from abc import ABC
 import asyncio
+from abc import ABC
 from typing import Generic, TypeVar
 
 from pydantic import BaseModel
@@ -63,8 +63,8 @@ class StructuredLLM(
             (StructuredlLLM.Output): The response message from the llm model
         """
 
-        returned_mess = await asyncio.to_thread(self.llm_model.structured,
-            self.message_hist, schema=self.output_schema()
+        returned_mess = await asyncio.to_thread(
+            self.llm_model.structured, self.message_hist, schema=self.output_schema()
         )
 
         self.message_hist.append(returned_mess.message)

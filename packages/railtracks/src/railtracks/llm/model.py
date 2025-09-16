@@ -148,7 +148,9 @@ class ModelBase(ABC):
 
         return response
 
-    async def astructured(self, messages: MessageHistory, schema: Type[BaseModel], **kwargs):
+    async def astructured(
+        self, messages: MessageHistory, schema: Type[BaseModel], **kwargs
+    ):
         """Asynchronous structured interaction with the model using the provided messages and output_schema."""
         messages = self._run_pre_hooks(messages)
 
