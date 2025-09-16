@@ -5,11 +5,11 @@ from .model import ModelBase
 from .models import (
     AnthropicLLM,
     AzureAILLM,
+    CohereLLM,
     GeminiLLM,
     HuggingFaceLLM,
     OllamaLLM,
     OpenAILLM,
-    CohereLLM,
 )
 from .tools import Parameter, Tool
 
