@@ -7,14 +7,14 @@ from typing import (
     Coroutine,
     Dict,
     Generic,
+    Iterable,
     ParamSpec,
     Set,
     Type,
     TypeVar,
+    Union,
     cast,
     overload,
-    Iterable,
-    Union,
 )
 
 from pydantic import BaseModel
@@ -126,7 +126,9 @@ class NodeBuilder(Generic[_TNode]):
         self._with_override("output_schema", classmethod(lambda cls: schema))
 
     def tool_calling_llm(
-        self, connected_nodes: Iterable[Union[Type[Node], Callable]], max_tool_calls: int | None = None
+        self,
+        connected_nodes: Iterable[Union[Type[Node], Callable]],
+        max_tool_calls: int | None = None,
     ):
         """
         Configure the node subclass to have a tool_nodes method and max_tool_calls method.
