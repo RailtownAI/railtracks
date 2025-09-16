@@ -33,6 +33,12 @@ logger = get_rt_logger("Node.LLM")
 
 _T = TypeVar("_T")
 
+class ModelProvider(str,Enum):
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
+    GEMINI = "gemini"
+    HUGGINGFACE = "huggingface"
+
 
 class RequestDetails:
     """
@@ -44,7 +50,7 @@ class RequestDetails:
         message_input: MessageHistory,
         output: Message | None,
         model_name: str | None,
-        model_provider: str | None,
+        model_provider: ModelProvider | None,
         input_tokens: int | None = None,
         output_tokens: int | None = None,
         total_cost: float | None = None,
