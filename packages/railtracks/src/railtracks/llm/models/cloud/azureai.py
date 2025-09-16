@@ -2,6 +2,7 @@ import litellm
 
 from ....utils.logging.create import get_rt_logger
 from .._litellm_wrapper import LiteLLMWrapper
+from ..providers import ModelProvider
 
 # litellm.drop_params=True
 from .._model_exception_base import FunctionCallingNotSupportedError, ModelError
@@ -16,7 +17,7 @@ class AzureAIError(ModelError):
 class AzureAILLM(LiteLLMWrapper):
     @classmethod
     def model_type(cls):
-        return "AzureAI"
+        return ModelProvider.AZUREAI
 
     def __init__(
         self,

@@ -1,6 +1,6 @@
 from .._model_exception_base import ModelNotFoundError
 from ._provider_wrapper import ProviderLLMWrapper
-
+from ..providers import ModelProvider
 
 class HuggingFaceLLM(ProviderLLMWrapper):
     def _pre_init_provider_check(self, model_name):
@@ -30,5 +30,5 @@ class HuggingFaceLLM(ProviderLLMWrapper):
         pass
 
     @classmethod
-    def model_type(cls) -> str:
-        return "HuggingFace"
+    def model_type(cls):
+        return ModelProvider.HUGGINGFACE

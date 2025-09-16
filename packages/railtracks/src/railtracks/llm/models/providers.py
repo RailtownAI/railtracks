@@ -12,10 +12,18 @@ from enum import Enum
 class ModelProvider(str, Enum):
     """
     Enum of supported LLM model providers for RailTracks.
+
+    Attributes:
+        OPENAI: OpenAI models (e.g., GPT-3, GPT-4).
+        ANTHROPIC: Anthropic models (e.g., Claude).
+        GEMINI: Google Gemini models.
+        HUGGINGFACE: HuggingFace-hosted models.
+        AZUREAI: Azure OpenAI Service models.
+        OLLAMA: Ollama local LLMs.
     """
-    OPENAI = "openai"
-    ANTHROPIC = "anthropic"
-    GEMINI = "gemini"
-    HUGGINGFACE = "huggingface"
+    OPENAI = "OpenAI"
+    ANTHROPIC = "Anthropic"
+    GEMINI = "Vertex_AI"
+    HUGGINGFACE = "HuggingFace"
     AZUREAI = "AzureAI"
     OLLAMA = "Ollama"

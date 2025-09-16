@@ -1,4 +1,5 @@
 from ._provider_wrapper import ProviderLLMWrapper
+from ..providers import ModelProvider
 
 
 class OpenAILLM(ProviderLLMWrapper):
@@ -7,5 +8,5 @@ class OpenAILLM(ProviderLLMWrapper):
     """
 
     @classmethod
-    def model_type(cls) -> str:
-        return "OpenAI"
+    def model_type(cls):
+        return ModelProvider.OPENAI
