@@ -12,6 +12,8 @@ theme:
   logo: assets/logo.svg
   favicon: assets/logo.svg
 
+  custom_dir: docs/overrides
+
   palette:
     - scheme: default
       primary: white
@@ -132,9 +134,6 @@ nav:
 
   - API Reference: api_reference/railtracks.html
 
-extra:
-  generator: false
-  static_templates:
-    - robots.txt
+
 
     
