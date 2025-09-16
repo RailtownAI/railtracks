@@ -10,6 +10,7 @@ from .models import (
     HuggingFaceLLM,
     OllamaLLM,
     OpenAILLM,
+    CohereLLM,
 )
 from .models.providers import ModelProvider
 from .tools import (
