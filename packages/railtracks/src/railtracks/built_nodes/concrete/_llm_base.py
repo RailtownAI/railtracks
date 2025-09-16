@@ -16,6 +16,7 @@ from railtracks.llm import (
     Parameter,
     SystemMessage,
     UserMessage,
+    ModelProvider,
 )
 from railtracks.llm.response import Response
 from railtracks.nodes.nodes import Node
@@ -32,13 +33,6 @@ from .response import StringResponse, StructuredResponse
 logger = get_rt_logger("Node.LLM")
 
 _T = TypeVar("_T")
-
-class ModelProvider(str,Enum):
-    OPENAI = "openai"
-    ANTHROPIC = "anthropic"
-    GEMINI = "gemini"
-    HUGGINGFACE = "huggingface"
-
 
 class RequestDetails:
     """

@@ -10,6 +10,7 @@ from .models import (
     OllamaLLM,
     OpenAILLM,
 )
+from .models.providers import ModelProvider
 from .tools import Parameter, Tool
 
 __all__ = [
@@ -22,6 +23,7 @@ __all__ = [
     "Message",
     "ToolMessage",
     "MessageHistory",
+    "ModelProvider",
     "Tool",
     "Parameter",
     "AnthropicLLM",
