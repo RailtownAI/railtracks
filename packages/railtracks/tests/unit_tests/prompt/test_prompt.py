@@ -9,11 +9,11 @@ from railtracks.llm.response import Response
 def test_prompt_injection(mock_llm):
     prompt = "{secret}"
 
-    async def return_message(messages: MessageHistory) -> Response:
+    def return_message(messages: MessageHistory) -> Response:
         return Response(message=Message(role="assistant", content=messages[-1].content))
 
     model = mock_llm()
-    model._achat = return_message
+    model._chat = return_message
 
     node = rt.agent_node(system_message=prompt, llm=model)
 
@@ -29,11 +29,11 @@ def test_prompt_injection(mock_llm):
 def test_prompt_injection_bypass(mock_llm):
     prompt = "{{secret_value}}"
 
-    async def return_message(messages: MessageHistory) -> Response:
+    def return_message(messages: MessageHistory) -> Response:
         return Response(message=Message(role="assistant", content=messages[-1].content))
 
     model = mock_llm()
-    model._achat = return_message
+    model._chat = return_message
 
     node = rt.agent_node(system_message=prompt, llm=model)
 
@@ -50,11 +50,11 @@ def test_prompt_injection_bypass(mock_llm):
 def test_prompt_numerical(mock_llm):
     prompt = "{1}"
 
-    async def return_message(messages: MessageHistory) -> Response:
+    def return_message(messages: MessageHistory) -> Response:
         return Response(message=Message(role="assistant", content=messages[-1].content))
 
     model = mock_llm()
-    model._achat = return_message
+    model._chat = return_message
 
     node = rt.agent_node(
         system_message=prompt,
@@ -74,11 +74,11 @@ def test_prompt_numerical(mock_llm):
 def test_prompt_not_in_context(mock_llm):
     prompt = "{secret2}"
 
-    async def return_message(messages: MessageHistory) -> Response:
+    def return_message(messages: MessageHistory) -> Response:
         return Response(message=Message(role="assistant", content=messages[-1].content))
 
     model = mock_llm()
-    model._achat = return_message
+    model._chat = return_message
 
     node = rt.agent_node(
         system_message=prompt,
@@ -100,11 +100,11 @@ def test_prompt_not_in_context(mock_llm):
 def test_prompt_injection_global_config_bypass(mock_llm):
     prompt = "{secret_value}"
 
-    async def return_message(messages: MessageHistory) -> Response:
+    def return_message(messages: MessageHistory) -> Response:
         return Response(message=Message(role="assistant", content=messages[-1].content))
 
     model = mock_llm()
-    model._achat = return_message
+    model._chat = return_message
 
     node = rt.agent_node(
         system_message=prompt,

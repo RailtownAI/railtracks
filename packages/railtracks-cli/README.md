@@ -1,5 +1,13 @@
 # Railtracks CLI
 
+[![PyPI version](https://img.shields.io/pypi/v/railtracks-cli)](https://github.com/RailtownAI/railtracks/releases)
+[![Python Versions](https://img.shields.io/pypi/pyversions/railtracks-cli?logo=python&)](https://pypi.org/project/railtracks/)
+[![License](https://img.shields.io/pypi/l/railtracks-cli)](https://opensource.org/licenses/MIT)
+[![PyPI - Downloads](https://img.shields.io/pepy/dt/railtracks-cli)](https://pypistats.org/packages/railtracks-cli)
+[![Docs](https://img.shields.io/badge/docs-latest-00BFFF.svg?logo=)](https://railtownai.github.io/railtracks/)
+[![GitHub stars](https://img.shields.io/github/stars/RailtownAI/railtracks.svg?style=social&label=Star)](https://github.com/RailtownAI/railtracks)
+[![Discord](https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white)](https://discord.gg/h5ZcahDc)
+
 A simple CLI to help developers visualize and debug their agents.
 
 ## What is Railtracks CLI?

@@ -30,6 +30,11 @@ What if your agent needs real-world data? You will need to give it [tools](../to
 --8<-- "docs/scripts/first_agent.py:first_agent_tools"
 ```
 
+???+ note "Using MCP servers"
+    MCP servers can be used as tools in the RT framework. 
+
+    To connect to an MCP, please refer to our [guide](../tools_mcp/mcp/mcp.md)
+
 ## Adding a Structured Output
 Now that you've seen how to add tools. Let's look at your agent can respond with reliable typed outputs. Schemas give you reliable, machine-checked outputs you can safely consume in code, rather than brittle strings.
 
@@ -53,8 +58,7 @@ Often you will want the best of both worlds, an agent capable of both tool calli
 --8<-- "docs/scripts/first_agent.py:first_agent_all"
 ```
 
-??? note "Connecting to MCP"
-    To connect to MCP, please refer to our [guide](../tools_mcp/mcp/mcp.md)
+
 
 ---
 # Running Agents
