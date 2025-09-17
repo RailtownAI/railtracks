@@ -159,8 +159,7 @@ jobs:
   end_to_end_tests:
     name: End-to-End Tests
     runs-on: windows-latest
-    environment:
-      name: Test
+
     needs:
       - ruff-lint
       - check-licenses
