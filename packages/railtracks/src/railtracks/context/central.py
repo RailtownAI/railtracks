@@ -415,3 +415,13 @@ class RTContextLoggingAdapter(logging.LoggerAdapter):
 
         return msg, kwargs
 
+
+
+def session_id():
+    """
+    Gets the current session ID if it exists, otherwise returns None.
+    """
+    try:
+        return get_session_id()
+    except RuntimeError:
+        return None
