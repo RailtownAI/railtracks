@@ -23,6 +23,8 @@ jobs:
 
       - name: Generate API documentation
         run: |
+          pip install pdoc==15.0.4
+          pip install -e packages/railtracks[all]
           ./scripts/generate_api_docs.sh
 
       - name: Install dependencies
