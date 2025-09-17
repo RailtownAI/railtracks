@@ -60,7 +60,7 @@ class TestLimitedToolCalling:
             return 42
 
         # ============ mock llm config =========
-        async def invoke_tool(messages, tools):
+        def invoke_tool(messages, tools):
             assert len(tools) == 1
             assert tools[0].name == "magic_number"
             tool_response = magic_number()
@@ -71,7 +71,7 @@ class TestLimitedToolCalling:
             )
 
         llm = mock_llm()
-        llm._achat_with_tools = invoke_tool
+        llm._chat_with_tools = invoke_tool
         # =======================================
 
         agent = rt.agent_node(

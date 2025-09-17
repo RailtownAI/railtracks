@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from railtracks.utils.logging.config import allowable_log_levels
 
 from railtracks.utils.config import ExecutorConfig
-
+from railtracks.utils.logging.config import AllowableLogLevels
 
 from .external import ExternalContext, MutableExternalContext
 from .internal import InternalContext
@@ -356,7 +356,7 @@ def set_config(
     *,
     timeout: float | None = None,
     end_on_error: bool | None = None,
-    logging_setting: allowable_log_levels | None = None,
+    logging_setting: AllowableLogLevels | None = None,
     log_file: str | os.PathLike | None = None,
     broadcast_callback: (
         Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None

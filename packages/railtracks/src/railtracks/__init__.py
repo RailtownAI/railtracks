@@ -2,7 +2,7 @@
 #   Copyright (c) Railtown AI. All rights reserved.
 #   Licensed under the MIT License. See LICENSE in project root for information.
 #   -------------------------------------------------------------
-"""Railtown AI RailTracks Framework for building resilient agentic systems"""
+"""The RailTracks Framework for building resilient agentic systems in simple python"""
 
 from __future__ import annotations
 
@@ -46,5 +46,5 @@ from .rt_mcp import MCPHttpParams, MCPStdioParams, connect_mcp, create_mcp_serve
 from .utils.config import ExecutorConfig
 
 load_dotenv()
-# Only change the MAJOR.MINOR if you need to. Do not change the PATCH. (vMAJOR.MINOR.PATCH).
+# Do not worry about changing this version number manually. It will updated on release.
 __version__ = "1.0.0"

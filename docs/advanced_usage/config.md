@@ -19,7 +19,7 @@ Configuration parameters follow a specific precedence order, allowing you to ove
 
 ### Logging Configuration
 
-- **`logging_setting`** (allowable_log_levels | None): Level of logging detail.  <br>Here are the `allowable_log_levels` options:
+- **`logging_setting`** (AllowableLogLevels | None): Level of logging detail.  <br>Here are the `AllowableLogLevels` options:
     - `VERBOSE`
     - `REGULAR`
     - `QUIET`

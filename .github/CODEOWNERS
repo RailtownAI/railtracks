@@ -1,0 +1,11 @@
+# CODEOWNERS file
+# This file defines code ownership for the repository
+# Lines starting with # are comments
+# Each line is a file pattern followed by one or more owners
+
+# Global rule - all files require review by either @soulFood5632 or @Amir-R25
+* @soulFood5632 @Amir-R25
+
+# .github directory - only codeowners can push changes
+# This rule is more specific and will override the global rule above
+/.github/ @soulFood5632 @Amir-R25
