@@ -46,7 +46,7 @@ class ExecutorConfig:
 
     @logging_setting.setter
     def logging_setting(self, value: AllowableLogLevels):
-        if value not in allowable_log_levels_set:
+        if value not in AllowableLogLevels:
             raise ValueError(
                 f"logging_setting must be one of {allowable_log_levels_set}, got {value}"
             )

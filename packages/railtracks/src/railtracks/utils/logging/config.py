@@ -6,6 +6,7 @@ from typing import Literal
 from colorama import Fore, init
 
 AllowableLogLevels = Literal["VERBOSE", "REGULAR", "QUIET", "NONE"]
+allowable_log_levels_set = {"VERBOSE", "REGULAR", "QUIET", "NONE"}
 
 # the temporary name for the logger that RT will use.
 rt_logger_name = "RT"
