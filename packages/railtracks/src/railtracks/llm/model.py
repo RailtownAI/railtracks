@@ -3,7 +3,7 @@
 # route to a given model.
 ###
 from abc import ABC, abstractmethod
-from typing import Callable, List
+from typing import Callable, List, Type
 
 from pydantic import BaseModel
 
@@ -134,7 +134,7 @@ class ModelBase(ABC):
 
         return response
 
-    def structured(self, messages: MessageHistory, schema: BaseModel, **kwargs):
+    def structured(self, messages: MessageHistory, schema: Type[BaseModel], **kwargs):
         """Structured interaction with the model using the provided messages and output_schema."""
         messages = self._run_pre_hooks(messages)
 
@@ -148,7 +148,9 @@ class ModelBase(ABC):
 
         return response
 
-    async def astructured(self, messages: MessageHistory, schema: BaseModel, **kwargs):
+    async def astructured(
+        self, messages: MessageHistory, schema: Type[BaseModel], **kwargs
+    ):
         """Asynchronous structured interaction with the model using the provided messages and output_schema."""
         messages = self._run_pre_hooks(messages)
 
@@ -225,7 +227,7 @@ class ModelBase(ABC):
 
     @abstractmethod
     def _structured(
-        self, messages: MessageHistory, schema: BaseModel, **kwargs
+        self, messages: MessageHistory, schema: Type[BaseModel], **kwargs
     ) -> Response:
         pass
 
@@ -245,7 +247,7 @@ class ModelBase(ABC):
 
     @abstractmethod
     async def _astructured(
-        self, messages: MessageHistory, schema: BaseModel, **kwargs
+        self, messages: MessageHistory, schema: Type[BaseModel], **kwargs
     ) -> Response:
         pass
 
