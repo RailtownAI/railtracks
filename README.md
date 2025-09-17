@@ -1,5 +1,5 @@
 <picture>
-    <img alt="Railtracks Logo" src="docs/assets/logo.svg" width="80%">
+    <img alt="Railtracks Logo" src="docs/assets/logo.svg" width="50%" style="display:block; margin:auto;">
 </picture>
 
 
@@ -12,9 +12,13 @@
 [![Discord](https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white)](https://discord.gg/h5ZcahDc)
 
 
-
-
-## Installation
+## Helpful Links
+<p align="center">
+  <a href="https://railtownai.github.io/railtracks/" style="font-size: 24px; text-decoration: none;">📘 Documentation</a>
+  <a href="https://github.com/RailtownAI/railtracks/tree/main/examples/rt_basics" style="font-size: 24px; text-decoration: none;">🚀 Examples</a>
+  <a href="https://railtownai.github.io/railtracks/api_reference" style="font-size: 24px; text-decoration: none;">🛠 API Reference</a>
+  <a href="https://discord.gg/h5ZcahDc" style="font-size: 24px; text-decoration: none;">💬 Join Discord</a>
+</p>
 
 ## Overview
 
@@ -24,7 +28,7 @@
 
 ---
 
-### Installation
+## Installation
 
 ```bash
 # Core library

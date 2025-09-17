@@ -39,6 +39,9 @@ This will create a `.railtracks` directory in your current working directory set
     --8<-- "docs/scripts/visualization.py:saving_state"
     ```
 
-## Remote Visualization
+## Remote Visualization 
+!!! Note
 
-This product is coming soon :smile:. It's gonna knock your socks off. 
+    Would you be interested in observability for your agents in an all in one platform?
+
+    Please fill out the following [form](https://forms.gle/mEfBHcdK8qa3SdNn8)

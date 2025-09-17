@@ -1,4 +1,4 @@
-name: Build and Test
+name: PR Tests
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
 
 jobs:
   ruff-lint:
-    name: Check Code with Ruff
+    name: Check Code Formatting and Linting with Ruff
     runs-on: ubuntu-latest
 
     steps:
@@ -25,10 +25,10 @@ jobs:
       - name: Install Ruff
         run: pip install ruff
 
-      - name: Run Ruff Check
+      - name: Run Ruff Lint Check
         run: ruff check . --no-fix
 
-      - name: Run Ruff Format
+      - name: Run Ruff Format Check
         run: ruff format --check .
 
   check-licenses:
@@ -58,12 +58,115 @@ jobs:
             cat core-licenses.md >> $GITHUB_STEP_SUMMARY
           fi
 
-  build:
-    name: Build and Test
-    runs-on: windows-latest
+  unit_tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
     needs:
       - ruff-lint
       - check-licenses
+
+    steps:
+      - name: Print System Architecture
+        run: uname -m
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e packages/railtracks[all]
+          pip install -e packages/railtracks-cli
+          pip install -r docs/scripts/requirements.txt
+          pip install tomlkit==0.11.8
+          pip install pytest>=8.4.0 
+          pip install pytest-asyncio 
+          pip install pytest-timeout
+          pip install pytest-cov
+
+      - name: Check pyproject.toml dependency order
+        run: |
+          python scripts/check_dependencies_sorted.py
+
+      - name: Run tests
+        shell: bash
+        run: |
+          pytest -s -v --junit-xml=unit-test-results.xml packages/railtracks/tests/unit_tests/ packages/railtracks/tests/integration_tests/ --ignore=packages/railtracks/tests/integration_tests/rag/
+  
+  documentation_validation:
+    name: Documentation Validation
+    runs-on: ubuntu-latest
+    needs:
+      - ruff-lint
+      - check-licenses
+
+    steps:
+      - name: Print System Architecture
+        run: uname -m
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e packages/railtracks[all]
+          pip install -r docs/scripts/requirements.txt
+          pip install mypy
+
+      - name: Validate documentation
+        run: |
+          ./scripts/docs_validation.sh
+
+  pyproject_dependency_order:
+    name: Validate pyproject.toml Dependency Order
+    runs-on: ubuntu-latest
+    needs:
+      - ruff-lint
+      - check-licenses
+
+    steps:
+      - name: Print System Architecture
+        run: uname -m
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install tomlkit==0.11.8
+
+      - name: Check pyproject.toml dependency order
+        run: |
+          python scripts/check_dependencies_sorted.py
+
+  end_to_end_tests:
+    name: End-to-End Tests
+    runs-on: windows-latest
+    environment:
+      name: Test
+    needs:
+      - ruff-lint
+      - check-licenses
+      - unit_tests
+      - documentation_validation
+      - pyproject_dependency_order
 
     steps:
       - name: Print System Architecture
@@ -82,17 +185,11 @@ jobs:
           pip install -e packages/railtracks[all]
           pip install -e packages/railtracks-cli
           pip install -r docs/scripts/requirements.txt
-
-      - name: Check pyproject.toml dependency order
-        run: |
           pip install tomlkit==0.11.8
-          python scripts/check_dependencies_sorted.py
-
-      - name: Validate Documentation Scripts
-        shell: bash
-        run: |
-          pip install mypy
-          ./scripts/docs_validation.sh
+          pip install pytest>=8.4.0 
+          pip install pytest-asyncio 
+          pip install pytest-timeout
+          pip install pytest-cov
 
       - name: Run tests
         shell: bash
@@ -103,17 +200,15 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.INTEGRATION_TESTS_GEMINI_API_KEY }}
         
         run: |
-          pip install pytest>=8.4.0 
-          pip install pytest-asyncio 
-          pip install pytest-timeout
-          pip install pytest-cov
-          pip list
-          pytest -s -v --junit-xml=test-results.xml --timeout=200 --ignore=packages/railtracks-cli
-
+          pytest -s -v --junit-xml=integration-test-results.xml  packages/railtracks/tests/end_to_end packages/railtracks/tests/llm_live_tests packages/railtracks/tests/integration_tests/rag/
+          
   build-railtracks-cli:
-    name: Build Railtracks CLI
+    name: Test Railtracks CLI
     runs-on: ubuntu-latest
-    needs: ruff-lint
+    needs: 
+      - ruff-lint
+      - check-licenses
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

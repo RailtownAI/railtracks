@@ -1,6 +1,3 @@
-![RailTracks](../../docs/assets/logo.svg)
-
-
 [![PyPI version](https://img.shields.io/pypi/v/railtracks)](https://github.com/RailtownAI/railtracks/releases)
 [![Python Versions](https://img.shields.io/pypi/pyversions/railtracks?logo=python&)](https://pypi.org/project/railtracks/)
 [![License](https://img.shields.io/pypi/l/railtracks)](https://opensource.org/licenses/MIT)
@@ -9,6 +6,14 @@
 [![GitHub stars](https://img.shields.io/github/stars/RailtownAI/railtracks.svg?style=social&label=Star)](https://github.com/RailtownAI/railtracks)
 [![Discord](https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white)](https://discord.gg/h5ZcahDc)
 
+
+## Helpful Links
+<p align="center">
+  <a href="https://railtownai.github.io/railtracks/" style="font-size: 24px; text-decoration: none;">📘 Documentation</a>
+  <a href="https://github.com/RailtownAI/railtracks/tree/main/examples/rt_basics" style="font-size: 24px; text-decoration: none;">🚀 Examples</a>
+  <a href="https://railtownai.github.io/railtracks/api_reference" style="font-size: 24px; text-decoration: none;">🛠 API Reference</a>
+  <a href="https://discord.gg/h5ZcahDc" style="font-size: 24px; text-decoration: none;">💬 Join Discord</a>
+</p>
 
 ## Quick Start
 
