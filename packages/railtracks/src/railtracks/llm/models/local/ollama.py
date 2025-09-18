@@ -64,7 +64,7 @@ class OllamaLLM(LiteLLMWrapper):
                     )
                 self.domain = custom_domain
 
-        self.logger = get_rt_logger(LOGGER_NAME)
+        self.logger = logger
 
         self._run_check(
             "api/tags"
