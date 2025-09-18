@@ -4,4 +4,10 @@ from .gemini import GeminiLLM
 from .huggingface import HuggingFaceLLM
 from .openai import OpenAILLM
 
-__all__ = [OpenAILLM, AnthropicLLM, GeminiLLM, HuggingFaceLLM, CohereLLM]
+__all__ = [
+	"AnthropicLLM",
+	"CohereLLM",
+	"GeminiLLM",
+	"HuggingFaceLLM",
+	"OpenAILLM",
+]
