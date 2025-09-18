@@ -136,14 +136,20 @@ Command-line interface that gives you a visualizer to use with the system.
    ```
 
 5. **Create a Pull Request**
-   - Describe your changes
+   - Describe your changes using the template provided
    - Link any related issues
-   - Ensure CI passes
+   - Ensure CI checks passes
+
+   **Note on Tests: Our repo uses end-to-end testing for ensuring appropriate external API invocations. Once you create a PR, the workflow checks that run on your PR include all the tests that do not require keys or secrets. After the passing of these tests, a maintainer will run the end-to-end tests before giving your PR an approval or providing you with the relevant output of end-to-end failures.
 
 ## Common Issues
 
 ### Test failures
-- Run tests from the repository root for full test suite
+- Run tests from the repository root for full test suite, excluding the `end_to_end` tests with the following:
+```python
+pytest -s -v packages/railtracks/tests/unit_tests/ packages/railtracks/tests/integration_tests/
+
+```
 - Individual package tests can be run from within each package directory
 
 ## Questions?
