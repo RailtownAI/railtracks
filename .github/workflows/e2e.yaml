@@ -7,6 +7,9 @@ on:
         description: 'PR branch ref (e.g. refs/pull/123/head)'
         required: true
 
+env:
+  PYTHON_VERSION: "3.10"
+
 jobs:
   end_to_end_tests:
     runs-on: ubuntu-latest
@@ -18,12 +21,12 @@ jobs:
 
       - uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: "${{ env.PYTHON_VERSION }}"
 
       - name: Install dependencies
         uses: ./.github/workflows/install_deps.yaml
         with:
-          python-version: "3.10"
+          python-version: "${{ env.PYTHON_VERSION }}"
 
       - name: Run E2E tests
         env:

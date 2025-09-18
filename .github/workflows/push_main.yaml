@@ -5,6 +5,9 @@ on:
     branches:
       - main
 
+env:
+  PYTHON_VERSION: "3.10"
+
 jobs:
   ruff-lint:
     name: Check Code Formatting and Linting with Ruff
@@ -17,7 +20,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10" # Specify the Python version you are using
+          python-version: "${{ env.PYTHON_VERSION }}" # Specify the Python version you are using
 
       - name: Install Ruff
         run: pip install ruff
@@ -38,7 +41,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: "${{ env.PYTHON_VERSION }}"
 
       - name: Run License Check
         run: |
@@ -63,21 +66,18 @@ jobs:
       - check-licenses
 
     steps:
-      - name: Print System Architecture
-        run: uname -m
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: "${{ env.PYTHON_VERSION }}"
 
       - name: Install dependencies
         uses: ./.github/actions/install-deps
         with:
-          python-version: "3.10"
+          python-version: "${{ env.PYTHON_VERSION }}"
 
       - name: Validate documentation
         run: |
@@ -100,12 +100,12 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: "${{ env.PYTHON_VERSION }}"
 
       - name: Install dependencies
         uses: ./.github/actions/install-deps
         with:
-          python-version: "3.10"
+          python-version: "${{ env.PYTHON_VERSION }}"
 
       - name: Check pyproject.toml dependency order
         run: |
@@ -130,11 +130,11 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: "${{ env.PYTHON_VERSION }}"
       - name: Install dependencies
         uses: ./.github/actions/install-deps
         with:
-          python-version: "3.10"
+          python-version: "${{ env.PYTHON_VERSION }}"
 
       - name: Run tests
         shell: bash
@@ -161,7 +161,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: "${{ env.PYTHON_VERSION }}"
 
       - name: Install CLI dependencies
         working-directory: packages/railtracks-cli
