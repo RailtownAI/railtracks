@@ -13,7 +13,6 @@ env:
 jobs:
   end_to_end_tests:
     runs-on: ubuntu-latest
-    environment: Test 
     steps:
       - uses: actions/checkout@v4
         with:
