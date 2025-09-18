@@ -1,4 +1,4 @@
-name: PR Tests
+name: Push to Main Tests
 
 on:
   push:
@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: "3.10" # Specify the Python version you are using
 
-        # - name: Install Ruff
+      - name: Install Ruff
         run: pip install ruff
 
       - name: Run Ruff Lint Check
@@ -75,7 +75,7 @@ jobs:
           python-version: "3.10"
 
       - name: Install dependencies
-        uses: ./.github/workflows/install_deps.yaml
+        uses: ./.github/actions/install-deps
         with:
           python-version: "3.10"
 
@@ -103,7 +103,7 @@ jobs:
           python-version: "3.10"
 
       - name: Install dependencies
-        uses: ./.github/workflows/install_deps.yaml
+        uses: ./.github/actions/install-deps
         with:
           python-version: "3.10"
 
@@ -132,7 +132,7 @@ jobs:
         with:
           python-version: "3.10"
       - name: Install dependencies
-        uses: ./.github/workflows/install_deps.yaml
+        uses: ./.github/actions/install-deps
         with:
           python-version: "3.10"
 
