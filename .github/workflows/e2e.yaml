@@ -1,0 +1,35 @@
+name: Run E2E Tests (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_ref:
+        description: 'PR branch ref (e.g. refs/pull/123/head)'
+        required: true
+
+jobs:
+  end_to_end_tests:
+    runs-on: ubuntu-latest
+    environment: Test 
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.pr_ref }}
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        uses: ./.github/workflows/install_deps.yaml
+        with:
+          python-version: "3.10"
+
+      - name: Run E2E tests
+        env:
+          OPENAI_API_KEY: ${{ secrets.INTEGRATION_TESTS_OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.INTEGRATION_TESTS_ANTHROPIC_API_KEY }}
+          HF_TOKEN: ${{ secrets.INTEGRATION_TESTS_HUGGINGFACE_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.INTEGRATION_TESTS_GEMINI_API_KEY }}
+        run: |
+          pytest -s -v --junit-xml=end-to-end-test-results.xml  packages/railtracks/tests/end_to_end packages/railtracks/tests/llm_live_tests packages/railtracks/tests/integration_tests/rag/
