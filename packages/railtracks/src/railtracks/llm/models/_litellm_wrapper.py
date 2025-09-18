@@ -117,7 +117,7 @@ def _set_parameter_defaults(prop_dict: Dict[str, Any], p: "Parameter") -> None:
         prop_dict["enum"] = p.enum
 
 
-def _process_single_parameter(p: "Parameter") -> tuple[str, Dict[str, Any], bool]:
+def _process_single_parameter(p: Parameter) -> tuple[str, Dict[str, Any], bool]:
     """Process a single parameter and return (name, prop_dict, is_required)."""
     prop_dict = _create_base_prop_dict(p)
 
@@ -158,7 +158,7 @@ def _build_final_schema(
 
 
 def _handle_set_of_parameters(
-    parameters: List[Parameter | PydanticParameter | ArrayParameter],
+    parameters: List[Type[Parameter]],
     sub_property: bool = False,
 ) -> Dict[str, Any]:
     """Handle the case where parameters are a set of Parameter instances."""
