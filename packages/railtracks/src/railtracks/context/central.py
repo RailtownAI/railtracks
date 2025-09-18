@@ -10,7 +10,6 @@ from railtracks.exceptions import ContextError
 
 if TYPE_CHECKING:
     from railtracks.pubsub.publisher import RTPublisher
-    from railtracks.utils.logging.config import allowable_log_levels
 
 from railtracks.utils.config import ExecutorConfig
 from railtracks.utils.logging.config import AllowableLogLevels
@@ -145,7 +144,7 @@ def get_run_id() -> str | None:
     Returns:
         str | None: The run ID associated with the current thread's global variables, or None if not set.
 
-    
+
     Raises:
         ContextError: If the global variables have not been registered.
     """
@@ -402,7 +401,7 @@ class RTContextLoggingAdapter(logging.LoggerAdapter):
             parent_id = get_parent_id()
             run_id = get_run_id()
             session_id = get_session_id()
-            
+
         except ContextError:
             parent_id = None
             run_id = None
@@ -417,7 +416,6 @@ class RTContextLoggingAdapter(logging.LoggerAdapter):
         kwargs["extra"] = {**kwargs.get("extra", {}), **new_variables}
 
         return msg, kwargs
-
 
 
 def session_id():

@@ -62,13 +62,13 @@ class ColorfulFormatter(logging.Formatter):
         record.default_color = self.default_color
 
         if not hasattr(record, "session_id"):
-            record.session_id = f"Unknown"
+            record.session_id = "Unknown"
 
         if not hasattr(record, "run_id"):
-            record.run_id = f"Unknown"
+            record.run_id = "Unknown"
 
         if not hasattr(record, "node_id"):
-            record.node_id = f"Unknown"
+            record.node_id = "Unknown"
 
         # record.levelname = f"{level_color}{record.levelname}{self.default_color}"
         record.relative_seconds = f"{record.relativeCreated / 1000:.3f}"

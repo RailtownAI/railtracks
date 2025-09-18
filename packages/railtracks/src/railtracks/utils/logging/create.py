@@ -1,7 +1,8 @@
 import logging
 
-from .config import rt_logger_name
 from railtracks.context.central import RTContextLoggingAdapter
+
+from .config import rt_logger_name
 
 
 def get_rt_logger(name: str | None = None):
