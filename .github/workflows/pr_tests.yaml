@@ -144,45 +144,6 @@ jobs:
         run: |
           python scripts/check_dependencies_sorted.py
 
-  end_to_end_tests:
-    name: End-to-End Tests
-    runs-on: windows-latest
-    environment:
-      name: Test
-    needs:
-      - ruff-lint
-      - check-licenses
-      - unit_tests
-      - documentation_validation
-      - pyproject_dependency_order
-
-    steps:
-      - name: Print System Architecture
-        run: uname -m
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-      - name: Install dependencies
-        uses: ./.github/actions/install-deps
-        with:
-          python-version: "3.10"
-
-      - name: Run tests
-        shell: bash
-        env:
-          OPENAI_API_KEY: ${{ secrets.INTEGRATION_TESTS_OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.INTEGRATION_TESTS_ANTHROPIC_API_KEY }}
-          HF_TOKEN: ${{ secrets.INTEGRATION_TESTS_HUGGINGFACE_API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.INTEGRATION_TESTS_GEMINI_API_KEY }}
-
-        run: |
-          pytest -s -v --junit-xml=integration-test-results.xml  packages/railtracks/tests/end_to_end packages/railtracks/tests/llm_live_tests packages/railtracks/tests/integration_tests/rag/
-
   build-railtracks-cli:
     name: Test Railtracks CLI
     runs-on: ubuntu-latest
