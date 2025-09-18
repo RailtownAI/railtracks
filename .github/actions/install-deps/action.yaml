@@ -1,5 +1,5 @@
-name: 'Install RailTracks Dependencies'
-description: 'Install all RailTracks dependencies for testing and development'
+name: 'Install Railtracks Dependencies'
+description: 'Install all Railtracks dependencies for testing and development'
 
 inputs:
   python-version:

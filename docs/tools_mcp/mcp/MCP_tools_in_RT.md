@@ -1,26 +1,26 @@
-# Using MCP Tools in RailTracks
+# Using MCP Tools in Railtracks
 
 ## Overview
 
 !!! tip "Quick Summary"
-    RailTracks makes it easy to use any MCP-compatible tool with your agents. Just connect to an MCP server, get the tools, and start using them!
+    Railtracks makes it easy to use any MCP-compatible tool with your agents. Just connect to an MCP server, get the tools, and start using them!
 
-RailTracks supports seamless integration with [Model Context Protocol (MCP)](mcp.md), allowing you to use any MCP-compatible tool as a native RailTracks Tool. This means you can connect your agents to a wide variety of external tools and data sources—without having to implement the tool logic yourself. 
+Railtracks supports seamless integration with [Model Context Protocol (MCP)](mcp.md), allowing you to use any MCP-compatible tool as a native Railtracks Tool. This means you can connect your agents to a wide variety of external tools and data sources—without having to implement the tool logic yourself. 
 
-RailTracks handles the discovery and invocation of MCP tools, so you can focus on building intelligent agents.
+Railtracks handles the discovery and invocation of MCP tools, so you can focus on building intelligent agents.
 
 ## Prerequisites
 
 !!! note "Before You Begin"
     Make sure you have the following set up before using MCP tools:
 
-    - **RailTracks Framework** installed (`pip install railtracks[core]`)
+    - **Railtracks Framework** installed (`pip install railtracks[core]`)
     - **MCP package set up** - Every MCP tool has different requirements (see specific tool documentation)
     - **Authentication credentials** - Many MCP tools require API keys or OAuth tokens
 
 ## Connecting to MCP Server Types
 
-RailTracks supports two types of MCP servers
+Railtracks supports two types of MCP servers
 
 !!! Tip "Remote HTTP Servers"
 
@@ -38,9 +38,9 @@ RailTracks supports two types of MCP servers
     --8<-- "docs/scripts/MCP_tools_in_RT.py:stdio_example"
     ```
 
-## Using MCP Tools with RailTracks Agents
+## Using MCP Tools with Railtracks Agents
 
-Once you've connected to an MCP server, you can use the tools with your RailTracks agents:
+Once you've connected to an MCP server, you can use the tools with your Railtracks agents:
 
 ```python
 --8<-- "docs/scripts/MCP_tools_in_RT.py:stdio_example"
@@ -103,4 +103,4 @@ For detailed setup and usage instructions for specific MCP tools:
 ## Related Topics
 
 - [What is MCP?](mcp.md)
-- [RailTracks to MCP: Exposing RT Tools as MCP Tools](RTtoMCP.md)
+- [Railtracks to MCP: Exposing RT Tools as MCP Tools](RTtoMCP.md)

@@ -1,6 +1,6 @@
 # Flows
 
-RailTracks makes it easy to create custom agents with access to tools they can call to complete tasks. But what if you want to use agents themselves as tools? In this section, we’ll explore more complex flows and how RailTracks gives you control over them.
+Railtracks makes it easy to create custom agents with access to tools they can call to complete tasks. But what if you want to use agents themselves as tools? In this section, we’ll explore more complex flows and how Railtracks gives you control over them.
 
 To start, let’s look at the simplest case: an agent that uses another agent as a tool.
 
@@ -25,9 +25,9 @@ graph LR
 
 Specialized agents perform better than generalist ones. For the simplest of coding projects, you might use a Top Level Agent for ideation and dialogue, a Coding Agent for the code itself, and a Static Checker for validation. It would be important that once the Static Checker approves code, no agents modify it further though. 
 
-One important aspect of RailTracks is that it handles these complex flows through wrappers. All functions and flows can become nodes that you can run by wrapping them with `function_node`.
+One important aspect of Railtracks is that it handles these complex flows through wrappers. All functions and flows can become nodes that you can run by wrapping them with `function_node`.
 
- In the following example you'll see an example of how RailTracks deals with mid-flow validation.
+ In the following example you'll see an example of how Railtracks deals with mid-flow validation.
 
 ### Example
 ```python
@@ -53,7 +53,7 @@ graph TD
 
 ## Handling More Complex Flows
 While `function_node` works well for linear flows, some scenarios require transferring between different agents like moving from technical support to billing in a customer service system.
-In these cases, you need to pass data directly between agents without mutations or the "telephone game" effect of traditional handoffs. RailTracks solves this with [context](../advanced_usage/context.md), a mechanism for sharing data across agent transfers while preserving integrity.
+In these cases, you need to pass data directly between agents without mutations or the "telephone game" effect of traditional handoffs. Railtracks solves this with [context](../advanced_usage/context.md), a mechanism for sharing data across agent transfers while preserving integrity.
 Let's see how context enables reliable multi-agent workflows.
 
 ### Customer Service Agents

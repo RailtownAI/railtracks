@@ -1,6 +1,6 @@
-# Contributing to RailTracks
+# Contributing to Railtracks
 
-Thank you for your interest in contributing to RailTracks! This guide will help you get set up for development.
+Thank you for your interest in contributing to Railtracks! This guide will help you get set up for development.
 
 ## Repository Structure
 
@@ -160,4 +160,4 @@ If you run into issues:
 3. Reach out the maintainers on discord
 4. Create a new issue with detailed information about your problem
 
-Thank you for contributing to RailTracks! 🚂
+Thank you for contributing to Railtracks! 🚂
