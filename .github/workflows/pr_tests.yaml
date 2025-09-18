@@ -86,7 +86,7 @@ jobs:
       - name: Run tests
         shell: bash
         run: |
-          pytest -s -v --junit-xml=unit-test-results.xml packages/railtracks/tests/unit_tests/ packages/railtracks/tests/integration_tests/ --ignore=packages/railtracks/tests/integration_tests/rag/
+          pytest -s -v --junit-xml=unit-test-results.xml packages/railtracks/tests/unit_tests/ packages/railtracks/tests/integration_tests/
 
   documentation_validation:
     name: Documentation Validation
