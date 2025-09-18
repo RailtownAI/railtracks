@@ -34,5 +34,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.E2E_TESTS_ANTHROPIC_API_KEY }}
           HF_TOKEN: ${{ secrets.E2E_TESTS_HUGGINGFACE_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.E2E_TESTS_GEMINI_API_KEY }}
+          COHERE_API_KEY: ${{ secrets.E2E_TESTS_COHERE_API_KEY }}
+
         run: |
           pytest -s -v --junit-xml=end-to-end-test-results.xml  packages/railtracks/tests/end_to_end packages/railtracks/tests/llm_live_tests

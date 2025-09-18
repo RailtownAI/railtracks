@@ -143,7 +143,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.E2E_TESTS_ANTHROPIC_API_KEY }}
           HF_TOKEN: ${{ secrets.E2E_TESTS_HUGGINGFACE_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.E2E_TESTS_GEMINI_API_KEY }}
-
+          COHERE_API_KEY: ${{ secrets.E2E_TESTS_COHERE_API_KEY }}
         run: |
           pytest -s -v --junit-xml=all-test-results.xml --ignore=packages/railtracks-cli 
 
