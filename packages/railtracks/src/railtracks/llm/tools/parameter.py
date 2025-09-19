@@ -129,7 +129,7 @@ class PydanticParameter(Parameter):
         param_type: ParameterType | list[ParameterType],
         description: str = "",
         required: bool = True,
-        properties: Optional[set[str, Parameter]] = None,
+        properties: Optional[list[Parameter]] = None,
         additional_properties: bool = False,
         ref_path: Optional[str] = None,
     ):
