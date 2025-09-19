@@ -28,25 +28,6 @@
 | Built-in visualization | ✅ Yes      | ✅ Yes      | ⚠️ Limited|
 | Simple Running         | ✅ Yes      | ✅ Yes     | ❌ No       |
 | LLM-agnostic           | ✅ Yes      | ✅ Yes      | ✅ Yes      |
-<<<<<<< Updated upstream
-<!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
-
-<!-- code_chunk_output -->
-
-  - [Helpful Links](#helpful-links)
-  - [What is Railtracks?](#what-is-railtracks)
-  - [Quick Start](#quick-start)
-    - [Step 1: Install the Library](#step-1-install-the-library)
-    - [Step 2: Define a Tool](#step-2-define-a-tool)
-    - [Step 3: Create your agent (connecting your LLM)](#step-3-create-your-agent-connecting-your-llm)
-    - [Step 4: Run Your Application](#step-4-run-your-application)
-    - [Optional: Visualize the Run](#optional-visualize-the-run)
-
-<!-- /code_chunk_output -->
-
-
-=======
->>>>>>> Stashed changes
 
 
 Get started with either the quick start or via the [docs](https://railtownai.github.io/railtracks/)
@@ -116,11 +97,12 @@ railtracks init
 railtracks viz
 ```
 
----
+
 
 And just like that, you're up and running. The possibilities are endless.
 
 ---
+
 
 ## Contributing
 
