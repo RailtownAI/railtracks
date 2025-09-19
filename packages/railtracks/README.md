@@ -1,6 +1,19 @@
-# RailTracks
+[![PyPI version](https://img.shields.io/pypi/v/railtracks)](https://github.com/RailtownAI/railtracks/releases)
+[![Python Versions](https://img.shields.io/pypi/pyversions/railtracks?logo=python&)](https://pypi.org/project/railtracks/)
+[![License](https://img.shields.io/pypi/l/railtracks)](https://opensource.org/licenses/MIT)
+[![PyPI - Downloads](https://img.shields.io/pepy/dt/railtracks)](https://pypistats.org/packages/railtracks)
+[![Docs](https://img.shields.io/badge/docs-latest-00BFFF.svg?logo=)](https://railtownai.github.io/railtracks/)
+[![GitHub stars](https://img.shields.io/github/stars/RailtownAI/railtracks.svg?style=social&label=Star)](https://github.com/RailtownAI/railtracks)
+[![Discord](https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white)](https://discord.gg/h5ZcahDc)
 
-![RailTracks](../../docs/assets/logo.svg)
+
+## Helpful Links
+<p align="center">
+  <a href="https://railtownai.github.io/railtracks/" style="font-size: 24px; text-decoration: none;">📘 Documentation</a>
+  <a href="https://github.com/RailtownAI/railtracks/tree/main/examples/rt_basics" style="font-size: 24px; text-decoration: none;">🚀 Examples</a>
+  <a href="https://railtownai.github.io/railtracks/api_reference" style="font-size: 24px; text-decoration: none;">🛠 API Reference</a>
+  <a href="https://discord.gg/h5ZcahDc" style="font-size: 24px; text-decoration: none;">💬 Join Discord</a>
+</p>
 
 ## Quick Start
 
@@ -45,7 +58,7 @@ async def main():
     result = await rt.call(
         TextAnalyzer,
         rt.llm.MessageHistory([
-            rt.llm.UserMessage("Hello world! This is a test of the RailTracks framework.")
+            rt.llm.UserMessage("Hello world! This is a test of the Railtracks framework.")
         ])
     )
     print(result)

@@ -1,5 +1,5 @@
-# Running python code with RailTracks
-This is a simple guide to running Python code with RailTracks, using a Docker container as a sandboxed environment.
+# Running python code with Railtracks
+This is a simple guide to running Python code with Railtracks, using a Docker container as a sandboxed environment.
 Before running the code, make sure you have Docker installed and running on your machine.
 
 ```python

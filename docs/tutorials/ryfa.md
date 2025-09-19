@@ -3,7 +3,7 @@
 ## Calling the Agent directly
 Once you have defined your agent class ([Build Your First Agent](byfa.md)) you can then run your workflow and see results!
 
-To begin you just have to use **`call`** method from RailTracks. This is an asynchronous method so you will need to run it in an async context.
+To begin you just have to use **`call`** method from Railtracks. This is an asynchronous method so you will need to run it in an async context.
 
 === "Asynchronous"
     ```python
@@ -32,7 +32,7 @@ To begin you just have to use **`call`** method from RailTracks. This is an asyn
 
 !!! info "Dynamic Runtime Configuration"
 
-    If you pass `llm` to `agent_node` and then a different llm model to `call` function, RailTracks will use the latter one. If you pass `system_message` to `agent_node` and then another `system_message` to `call`, the system messages will be stacked.
+    If you pass `llm` to `agent_node` and then a different llm model to `call` function, Railtracks will use the latter one. If you pass `system_message` to `agent_node` and then another `system_message` to `call`, the system messages will be stacked.
 
     ??? example
         ```python
@@ -44,7 +44,7 @@ To begin you just have to use **`call`** method from RailTracks. This is an asyn
 
             --8<-- "docs/scripts/first_agent.py:dynamic_prompts"
         ```
-        In this example RailTracks will use claude rather than chatgpt and the `system_message` will become
+        In this example Railtracks will use claude rather than chatgpt and the `system_message` will become
         `"You are a helpful assistant that answers weather-related questions. If not specified, the user is talking about Vancouver."`
 
 Just like that you have run your first agent!

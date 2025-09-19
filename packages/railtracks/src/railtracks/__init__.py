@@ -2,7 +2,7 @@
 #   Copyright (c) Railtown AI. All rights reserved.
 #   Licensed under the MIT License. See LICENSE in project root for information.
 #   -------------------------------------------------------------
-"""Railtown AI RailTracks Framework for building resilient agentic systems"""
+"""The Railtracks Framework for building resilient agentic systems in simple python"""
 
 from __future__ import annotations
 
@@ -29,6 +29,7 @@ __all__ = [
     "connect_mcp",
     "create_mcp_server",
     "ToolManifest",
+    "session_id",
 ]
 
 
@@ -39,12 +40,12 @@ from railtracks.built_nodes.easy_usage_wrappers import (
 
 from . import context, integrations, llm, prebuilt
 from ._session import ExecutionInfo, Session, session
-from .context.central import set_config
+from .context.central import session_id, set_config
 from .interaction import broadcast, call, call_batch
 from .nodes.manifest import ToolManifest
 from .rt_mcp import MCPHttpParams, MCPStdioParams, connect_mcp, create_mcp_server
 from .utils.config import ExecutorConfig
 
 load_dotenv()
-# Only change the MAJOR.MINOR if you need to. Do not change the PATCH. (vMAJOR.MINOR.PATCH).
+# Do not worry about changing this version number manually. It will updated on release.
 __version__ = "1.0.0"

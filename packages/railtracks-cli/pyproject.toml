@@ -14,19 +14,44 @@ authors = [
 ]
 readme = "README.md"
 license = { file = "LICENSE" }
-classifiers = ["License :: OSI Approved :: MIT License"]
-dynamic = ["version", "description"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 
+    "License :: OSI Approved :: MIT License",
+
+    "Operating System :: OS Independent",
+
+    "Development Status :: 4 - Beta",
+
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+
+    "Natural Language :: English",
+
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+
+    "Environment :: Console",
+
+    "Typing :: Typed"
+]
+dynamic = ["version", "description"]
+requires-python = ">=3.10"
 dependencies = [
     "railtracks",
     "watchdog >= 3.0.0"
 ]
 
+
 [project.urls]
-railtracks = "https://railtracks.org"
+documentation = "https://railtownai.github.io/railtracks/"
+"Release Notes" = "https://github.com/RailtownAI/railtracks/releases"
 repository = "https://github.com/RailtownAI/railtracks"
-ui-repository = "https://github.com/RailtownAI/railtracks-visualizer"
-railtown = "https://railtown.ai"
+home = "https://railtracks.org"
 
 [tool.flit.module]
 name = "railtracks_cli"

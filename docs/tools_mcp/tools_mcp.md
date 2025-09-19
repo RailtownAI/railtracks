@@ -1,19 +1,19 @@
-# RailTracks Tools
+# Railtracks Tools
 
 !!! tip "Extend Your Agents' Capabilities"
     Tools transform LLMs from chatbots into true agents that can take action in the world.
 
-RailTracks provides a comprehensive suite of tools that extend the capabilities of your agents, allowing them to interact with external systems and services. These tools are the "hands and eyes" of your agents, enabling them to perform actions beyond just generating text.
+Railtracks provides a comprehensive suite of tools that extend the capabilities of your agents, allowing them to interact with external systems and services. These tools are the "hands and eyes" of your agents, enabling them to perform actions beyond just generating text.
 
 ## Ways to Get Tools
 
-RailTracks offers multiple ways to access and create tools:
+Railtracks offers multiple ways to access and create tools:
 
 1. **Built-in Tools** - Use our pre-built tools for common tasks
 2. **[MCP Tools](mcp/mcp.md)** - Connect to Model Context Protocol servers for additional capabilities
 3. **[Create Your Own](tools/tools.md)** - Build custom tools for your specific needs
 
-For a conceptual overview of tools in RailTracks, see the [Tools Guide](tools/tools.md).
+For a conceptual overview of tools in Railtracks, see the [Tools Guide](tools/tools.md).
 
 ## Available Tools
 
@@ -35,7 +35,7 @@ For a conceptual overview of tools in RailTracks, see the [Tools Guide](tools/to
 
 ## Getting Started
 
-To use tools in your RailTracks agents, you'll typically follow these steps:
+To use tools in your Railtracks agents, you'll typically follow these steps:
 
 1. **Import the tools** you want to use
 2. **Create an agent** that can access these tools
@@ -62,7 +62,7 @@ Agent = rt.agent_node(
 with rt.Session():
     result = await rt.call(
         Agent,
-        "Find information about RailTracks"
+        "Find information about Railtracks"
     )
 ```
 

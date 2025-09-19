@@ -1,6 +1,6 @@
 # Global Context
 
-RailTracks includes a concept of global context, letting you store and retrieve shared information across the lifecycle of a run. This makes it easy to coordinate data like config settings, environment flags, or shared resources.
+Railtracks includes a concept of global context, letting you store and retrieve shared information across the lifecycle of a run. This makes it easy to coordinate data like config settings, environment flags, or shared resources.
 
 ## What is Global Context?
 
@@ -24,7 +24,7 @@ Here’s how you can use context during a run:
 ```
 
 !!! tip "Context in a Node"
-    The context can be accessed from within **any node** in your RailTracks workflow, regardless of where the node is defined or how it's called:
+    The context can be accessed from within **any node** in your Railtracks workflow, regardless of where the node is defined or how it's called:
     
     ```python
     --8<-- "docs/scripts/context.py:context_in_node"

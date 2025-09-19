@@ -46,10 +46,12 @@ async def test_shutdown_publisher(monkeypatch, make_runner_context_vars, make_in
 
 # ============ START ID Accessor Tests ===============
 def test_get_runner_id(monkeypatch, make_runner_context_vars, make_internal_context_mock):
+    assert central.session_id() is None
     internal_context = make_internal_context_mock(session_id="runner-xyz")
     rt = make_runner_context_vars(internal_context=internal_context)
     monkeypatch.setattr(central, "runner_context", mock.Mock(get=mock.Mock(return_value=rt)))
     assert central.get_session_id() == "runner-xyz"
+    assert central.session_id() == "runner-xyz"
 
 def test_get_parent_id(monkeypatch, make_runner_context_vars, make_internal_context_mock):
     rt = make_runner_context_vars(internal_context=make_internal_context_mock(parent_id="parent-abc"))

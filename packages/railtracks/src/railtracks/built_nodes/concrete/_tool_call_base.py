@@ -153,8 +153,8 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
             return False
 
         # collect the response from the llm model
-        returned_mess = await self.llm_model.achat_with_tools(
-            self.message_hist, tools=self.tools()
+        returned_mess = await asyncio.to_thread(
+            self.llm_model.chat_with_tools, self.message_hist, tools=self.tools()
         )
 
         if returned_mess.message.role == "assistant":
