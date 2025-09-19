@@ -9,6 +9,7 @@ from ...response import Response
 from ...tools import Tool
 from .._litellm_wrapper import LiteLLMWrapper
 from .._model_exception_base import FunctionCallingNotSupportedError, ModelNotFoundError
+from ..providers import ModelProvider
 
 
 class ProviderLLMWrapper(LiteLLMWrapper, ABC):
@@ -50,12 +51,12 @@ class ProviderLLMWrapper(LiteLLMWrapper, ABC):
 
     @classmethod
     @abstractmethod
-    def model_type(cls) -> str:
+    def model_type(cls) -> ModelProvider:
         """Returns the name of the provider"""
         pass
 
     def _validate_tool_calling_support(self):
-        if not litellm.supports_function_calling(model=self._model_name):
+        if not litellm.utils.supports_function_calling(model=self._model_name):
             raise FunctionCallingNotSupportedError(self._model_name)
 
     def _chat_with_tools(
