@@ -13,15 +13,13 @@
 
 ## Helpful Links
 <p align="center">
-  <a href="https://railtownai.github.io/railtracks/" style="font-size: 24px; text-decoration: none;">📘 Documentation</a>
-  <a href="https://github.com/RailtownAI/railtracks/tree/main/examples/rt_basics" style="font-size: 24px; text-decoration: none;">🚀 Examples</a>
-  <a href="https://railtownai.github.io/railtracks/api_reference" style="font-size: 24px; text-decoration: none;">🛠 API Reference</a>
-  <a href="https://discord.gg/h5ZcahDc" style="font-size: 24px; text-decoration: none;">💬 Join Discord</a>
+  <a href="https://railtownai.github.io/railtracks/" style="font-size: 30px; text-decoration: none;">📘 Documentation</a>
+  <a href="https://github.com/RailtownAI/railtracks/tree/main/examples/rt_basics" style="font-size: 30px; text-decoration: none;">🚀 Examples</a>
 </p>
 
 ## Overview
 
-**Railtracks** is a lightweight framework for building agentic systems—modular, intelligent agents that can work together to solve complex tasks more effectively than any single module could.
+**Railtracks** is a lightweight framework for building agentic systems - modular, intelligent agents that can work together to solve complex tasks more effectively than any single module could.
 
 **Railtracks-CLI** is a command-line tool designed to visualize your Railtracks runs. It's lightweight and can be run locally with **no sign-up required**.
 
