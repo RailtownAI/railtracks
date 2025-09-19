@@ -83,7 +83,7 @@ TextAnalyzer = rt.agent_node(
     tool_nodes={number_of_chars, word_count},
     llm=rt.llm.OpenAILLM("gpt-4o"), # use any model you want
     system_message=(
-        "You are a text analyzer. You will be given a text and you should utilie the tools available to analyze it."
+        "You are a text analyzer. You will be given a text and you should utilize the tools available to analyze it."
     ),
 )
 ```
