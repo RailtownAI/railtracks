@@ -118,3 +118,7 @@ railtracks viz
 And just like that, you're up and running. The possibilities are endless.
 
 ---
+
+## Contributing
+
+See [CONTRIBUTING.md](../../CONTRIBUTING.md) for guidelines.
