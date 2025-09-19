@@ -2,8 +2,8 @@
 from typing import Callable, ParamSpec, TypeVar, Type, overload
 
 from ..nodes.nodes import Node
-from .local_chat_ui import ChatUI
-from .human_in_the_loop import HIL
+from .local_chat_ui_clean import ChatUI
+from .human_in_the_loop import HIL, HILMessage
 from ._call import call
 
 _P = ParamSpec("_P")
@@ -50,6 +50,12 @@ async def interactive(
             chat_ui.connect()
 
             first_message = await chat_ui.receive_message()
+            while True:
+                response = await call(node, first_message.content)
+                print(f"Got response: {response}")
+                await chat_ui.send_message(HILMessage("HELLOOOOOOO"))
+
+                first_message = await chat_ui.receive_message()
 
             print(f"Got first message: {first_message}")
         except Exception as e:

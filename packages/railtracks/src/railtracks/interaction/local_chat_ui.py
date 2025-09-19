@@ -9,8 +9,6 @@ Clean implementation that properly follows the HIL contract.
 
 import asyncio
 import json
-import queue
-import threading
 import webbrowser
 from datetime import datetime
 from importlib.resources import files
@@ -57,9 +55,9 @@ class ChatUI(HIL):
         self.host = host
         self.auto_open = auto_open
         
-        # Thread-safe message queues
-        self.outgoing_messages = queue.Queue()  # For SSE to UI
-        self.incoming_messages = queue.Queue()  # From UI to Python
+        # Simple message queues with reasonable size limits
+        self.outgoing_messages = asyncio.Queue(maxsize=100)  # For SSE to UI
+        self.incoming_messages = asyncio.Queue(maxsize=100)  # From UI to Python
         
         # Server state
         self.app = None
@@ -98,14 +96,14 @@ class ChatUI(HIL):
                 content=user_message.message,
                 metadata={"timestamp": user_message.timestamp or datetime.now().isoformat()}
             )
-            self.incoming_messages.put(message_data)  # Use thread-safe put
+            await self.incoming_messages.put(message_data)
             return {"status": "success", "message": "Message received"}
 
         @app.post("/update_tools")
         async def update_tools(tool_invocation: ToolInvocation):
             """Update the tools tab with a new tool invocation"""
             message = {"type": "tool_invoked", "data": tool_invocation.dict()}
-            self.outgoing_messages.put(message)  # Use thread-safe put
+            await self.outgoing_messages.put(message)
             return {"status": "success", "message": "Tool updated"}
 
         @app.get("/events")
@@ -113,44 +111,16 @@ class ChatUI(HIL):
             """SSE endpoint for real-time updates"""
 
             async def event_generator():
-                try:
-                    while self.is_connected:
-                        try:
-                            # Check if event loop is still running before scheduling
-                            try:
-                                loop = asyncio.get_running_loop()
-                                if loop.is_closed():
-                                    return
-                            except RuntimeError:
-                                return
-                            
-                            # Use asyncio.to_thread to safely call blocking queue.get
-                            message = await asyncio.wait_for(
-                                asyncio.to_thread(self.outgoing_messages.get, timeout=1.0),
-                                timeout=2.0
-                            )
-                            yield f"data: {json.dumps(message)}\n\n"
-                        except queue.Empty:
-                            # Send heartbeat when no messages
-                            heartbeat = {"type": "heartbeat", "timestamp": datetime.now().isoformat()}
-                            yield f"data: {json.dumps(heartbeat)}\n\n"
-                        except asyncio.TimeoutError:
-                            # Send heartbeat on timeout
-                            heartbeat = {"type": "heartbeat", "timestamp": datetime.now().isoformat()}
-                            yield f"data: {json.dumps(heartbeat)}\n\n"
-                except asyncio.CancelledError:
-                    # Connection was closed, exit gracefully
-                    return
-                except RuntimeError as e:
-                    if "cannot schedule new futures after shutdown" in str(e):
-                        # Event loop is shutting down, exit gracefully
-                        return
-                    print(f"SSE error: {e}")
-                    return
-                except Exception as e:
-                    # Log error but don't crash
-                    print(f"SSE error: {e}")
-                    return
+                while self.is_connected:
+                    try:
+                        message = await asyncio.wait_for(
+                            self.outgoing_messages.get(), timeout=1.0
+                        )
+                        yield f"data: {json.dumps(message)}\n\n"
+                    except asyncio.TimeoutError:
+                        # Send heartbeat
+                        heartbeat = {"type": "heartbeat", "timestamp": datetime.now().isoformat()}
+                        yield f"data: {json.dumps(heartbeat)}\n\n"
 
             return StreamingResponse(
                 event_generator(),
@@ -198,55 +168,48 @@ class ChatUI(HIL):
             self.app = self._create_app()
             self.is_connected = True
             
-            # Always use thread-based approach for simplicity
-            import threading
-            import time
+            # Start the server in a background task
+            async def run_server():
+                if self.app is None:
+                    raise RuntimeError("App not initialized")
+                    
+                config = uvicorn.Config(
+                    app=self.app,
+                    host=self.host,
+                    port=self.port,
+                    log_level="error",
+                    access_log=False
+                )
+                server = uvicorn.Server(config)
+                await server.serve()
             
-            def start_server():
-                async def run_server():
-                    if self.app is None:
-                        raise RuntimeError("App not initialized")
-                        
-                    config = uvicorn.Config(
-                        app=self.app,
-                        host=self.host,
-                        port=self.port,
-                        log_level="error",
-                        access_log=False
-                    )
-                    server = uvicorn.Server(config)
-                    
-                    # Store server reference for potential shutdown
-                    self.server_task = server
-                    
-                    await server.serve()
+            # Get or create event loop
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                # We're not in an async context, create a new loop
+                import threading
+                import time
                 
-                # Create new event loop for this thread
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                
-                try:
-                    # Send initial message if provided
-                    if content is not None:
-                        initial_content = content  # Capture for closure
-                        async def send_initial():
-                            await asyncio.sleep(0.5)  # Wait for server to be ready
-                            await self.send_message(initial_content)
-                        
-                        # Start both server and initial message sender
-                        loop.create_task(send_initial())
-                    
+                def start_server():
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
                     loop.run_until_complete(run_server())
-                except Exception as e:
-                    print(f"Server error: {e}")
-                finally:
-                    loop.close()
+                
+                server_thread = threading.Thread(target=start_server, daemon=True)
+                server_thread.start()
+                
+                # Open browser if requested
+                if self.auto_open:
+                    webbrowser.open(f"http://{self.host}:{self.port}")
+                return
             
-            server_thread = threading.Thread(target=start_server, daemon=True)
-            server_thread.start()
-            
-            # Give server a moment to start
-            time.sleep(1)
+            # We're in an async context, create task
+            self.server_task = loop.create_task(run_server())
+
+            # Send initial message if provided
+            if content:
+                loop.create_task(self.send_message(content))
             
             # Open browser if requested
             if self.auto_open:
@@ -264,32 +227,24 @@ class ChatUI(HIL):
             ConnectionError: If the interface cannot be properly closed.
         """
         try:
-            # Signal all components to stop
             self.is_connected = False
             
-            # Send a shutdown message to any active SSE streams
-            try:
-                shutdown_msg = {"type": "shutdown", "timestamp": datetime.now().isoformat()}
-                self.outgoing_messages.put(shutdown_msg, timeout=1.0)
-            except:
-                pass
+            # Cancel server task if it exists
+            if self.server_task and not self.server_task.done():
+                self.server_task.cancel()
             
-            # Stop the server if it exists and has a shutdown method
-            if self.server_task and hasattr(self.server_task, 'should_exit'):
-                self.server_task.should_exit = True
-            
-            # Clear queues safely
-            try:
-                while not self.outgoing_messages.empty():
+            # Clear queues
+            while not self.outgoing_messages.empty():
+                try:
                     self.outgoing_messages.get_nowait()
-            except:
-                pass
+                except asyncio.QueueEmpty:
+                    break
                     
-            try:
-                while not self.incoming_messages.empty():
+            while not self.incoming_messages.empty():
+                try:
                     self.incoming_messages.get_nowait()
-            except:
-                pass
+                except asyncio.QueueEmpty:
+                    break
             
             self.server_task = None
             self.app = None
@@ -297,7 +252,7 @@ class ChatUI(HIL):
         except Exception as e:
             raise ConnectionError(f"Failed to disconnect ChatUI server: {e}")
 
-    async def send_message(self, content: HILMessage, timeout: float | None = None) -> bool:
+    async def send_message(self, content: HILMessage, timeout: float | None = 5.0) -> bool:
         """
         Sends a message to the user through the interface.
 
@@ -309,15 +264,13 @@ class ChatUI(HIL):
             True if the message was sent successfully, False otherwise.
         """
         if not self.is_connected:
+            print(f"ChatUI: Cannot send message - not connected")
             return False
             
         # Prepare message for UI
         message = {
             "type": "assistant_response",
-            "data": {
-                "content": content.content,
-                "metadata": content.metadata
-            },
+            "data": content.content,  # JavaScript expects data to be the content string directly
             "timestamp": datetime.now().strftime("%H:%M:%S"),
         }
         
@@ -326,18 +279,17 @@ class ChatUI(HIL):
             message["timestamp"] = content.metadata["timestamp"]
         
         try:
-            if timeout is not None:
-                # Use asyncio.to_thread for blocking queue operation
-                await asyncio.wait_for(
-                    asyncio.to_thread(self.outgoing_messages.put, message, timeout=timeout),
-                    timeout=timeout + 1
-                )
-            else:
-                await asyncio.to_thread(self.outgoing_messages.put, message)
+            # Use put_nowait for immediate, non-blocking operation
+            self.outgoing_messages.put_nowait(message)
+            print(f"ChatUI: Message sent successfully")
             return True
-        except (asyncio.TimeoutError, queue.Full):
+        except asyncio.QueueFull:
+            print(f"ChatUI: Outgoing queue is full - likely no browser connected to consume messages")
+            # Don't wait indefinitely - just return False if queue is full
+            # This prevents hanging when no browser is connected to the SSE endpoint
             return False
-        except Exception:
+        except Exception as e:
+            print(f"ChatUI: Error sending message: {e}")
             return False
 
     async def receive_message(self, timeout: float | None = None) -> HILMessage | None:
@@ -358,15 +310,15 @@ class ChatUI(HIL):
         try:
             if timeout is not None:
                 message = await asyncio.wait_for(
-                    asyncio.to_thread(self.incoming_messages.get, timeout=timeout),
-                    timeout=timeout + 1
+                    self.incoming_messages.get(),
+                    timeout=timeout
                 )
             else:
-                message = await asyncio.to_thread(self.incoming_messages.get)
+                message = await self.incoming_messages.get()
             
             return message
             
-        except (asyncio.TimeoutError, queue.Empty):
+        except asyncio.TimeoutError:
             return None
         except Exception:
             return None
@@ -399,4 +351,4 @@ class ChatUI(HIL):
                 "success": success,
             },
         }
-        await asyncio.to_thread(self.outgoing_messages.put, message)
+        await self.outgoing_messages.put(message)
