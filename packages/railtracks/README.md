@@ -37,7 +37,7 @@
   - [Quick Start](#quick-start)
     - [Step 1: Install the Library](#step-1-install-the-library)
     - [Step 2: Define a Tool](#step-2-define-a-tool)
-- [Step 3. Create your agent (connecting your LLM)](#step-3-create-your-agent-connecting-your-llm)
+    - [Step 3: Create your agent (connecting your LLM)](#step-3-create-your-agent-connecting-your-llm)
     - [Step 4: Run Your Application](#step-4-run-your-application)
     - [Optional: Visualize the Run](#optional-visualize-the-run)
 
