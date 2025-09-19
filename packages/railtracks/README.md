@@ -28,6 +28,7 @@
 | Built-in visualization | ✅ Yes      | ✅ Yes      | ⚠️ Limited|
 | Simple Running         | ✅ Yes      | ✅ Yes     | ❌ No       |
 | LLM-agnostic           | ✅ Yes      | ✅ Yes      | ✅ Yes      |
+<<<<<<< Updated upstream
 <!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
 
 <!-- code_chunk_output -->
@@ -44,6 +45,8 @@
 <!-- /code_chunk_output -->
 
 
+=======
+>>>>>>> Stashed changes
 
 
 Get started with either the quick start or via the [docs](https://railtownai.github.io/railtracks/)
