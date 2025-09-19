@@ -31,7 +31,7 @@ RAG solves all of these problems by giving your AI access to real, up-to-date in
 
 ## How RAG Works
 
-When you create a RAG node, RailTracks automatically handles these stages for you:
+When you create a RAG node, Railtracks automatically handles these stages for you:
 
 ### RAG Pipeline Steps
 === "1. 📄 Chunk"

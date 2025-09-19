@@ -1,15 +1,15 @@
 # Prompts and Context Injection
 
-Prompts are a fundamental part of working with LLMs in the RailTracks framework. This guide explains how to create dynamic prompts that use our context injection feature to make your prompts more flexible and powerful.
+Prompts are a fundamental part of working with LLMs in the Railtracks framework. This guide explains how to create dynamic prompts that use our context injection feature to make your prompts more flexible and powerful.
 
-## Understanding Prompts in RailTracks
+## Understanding Prompts in Railtracks
 
-In RailTracks, prompts are provided as system messages or user messages when interacting with LLMs. These messages guide the LLM's behavior and responses.
+In Railtracks, prompts are provided as system messages or user messages when interacting with LLMs. These messages guide the LLM's behavior and responses.
 
 
 ## Context Injection
 
-RailTracks provides a powerful feature called "context injection" (also referred to as "prompt injection") that allows you to dynamically insert values from the global context into your prompts. This makes your prompts more flexible and reusable across different scenarios.
+Railtracks provides a powerful feature called "context injection" (also referred to as "prompt injection") that allows you to dynamically insert values from the global context into your prompts. This makes your prompts more flexible and reusable across different scenarios.
 
 ### What is Context Injection?
 
@@ -20,7 +20,7 @@ Passing prompt details up the chain can be expensive in both **tokens** and **la
 ### How Context Injection Works
 
 1. Define placeholders in your prompts using curly braces: `{variable_name}`
-2. Set values in the RailTracks context (see [Context Management](../advanced_usage/context.md) for details)
+2. Set values in the Railtracks context (see [Context Management](../advanced_usage/context.md) for details)
 3. When the prompt is processed, the placeholders are replaced with the corresponding values from the context
 
 ### Basic Example

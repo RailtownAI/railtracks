@@ -16,6 +16,9 @@ Railtracks provides built-in logging to help track the execution of your flows. 
 
 ---
 
+!!! Critical
+    Every log sent by Railtracks will contain a parameter in `extras` for `session_id` which will be uuid tied to the session the error was thrown in. 
+
 ## Configuring Logging
 
 ### Logging Levels

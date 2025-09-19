@@ -1,10 +1,10 @@
 # Error Handling
 
-RailTracks (RT) provides a comprehensive error handling system designed to give developers clear, actionable feedback when things go wrong. The framework uses a hierarchy of specialized exceptions that help you understand exactly what went wrong and where.
+Railtracks (RT) provides a comprehensive error handling system designed to give developers clear, actionable feedback when things go wrong. The framework uses a hierarchy of specialized exceptions that help you understand exactly what went wrong and where.
 
 ## Error Hierarchy
 
-All RailTracks errors inherit from the base `RTError` class, which provides colored console output and structured error reporting.
+All Railtracks errors inherit from the base `RTError` class, which provides colored console output and structured error reporting.
 
 ```
 RTError (base)
@@ -20,7 +20,7 @@ RTError (base)
 
 ### Internally Raised Errors
 
-These errors are automatically raised by RailTracks when issues occur during execution. All inherit from `RTError` and provide colored terminal output with debugging information.
+These errors are automatically raised by Railtracks when issues occur during execution. All inherit from `RTError` and provide colored terminal output with debugging information.
 
 - **`NodeCreationError`** - Raised during node setup and validation
 - **`NodeInvocationError`** - Raised during node execution (has `fatal` flag)
@@ -94,10 +94,10 @@ For detailed logging and monitoring strategies, see [Logging](logging.md).
 
 ## Debugging Tips
 
-1. **Enable Debug Logging**: RailTracks errors include colored output and debugging notes
+1. **Enable Debug Logging**: Railtracks errors include colored output and debugging notes
 2. **Check Error Properties**: Many errors include additional context (notes, message_history, etc.)
 3. **Use Message History**: LLMError includes conversation context for debugging
 4. **Examine Stack Traces**: RT errors preserve the full stack trace for debugging
 5. **Test Error Scenarios**: Write tests that verify your error handling works correctly
 
-The RailTracks error system is designed to fail fast when appropriate, provide clear feedback, and enable robust error recovery strategies.
+The Railtracks error system is designed to fail fast when appropriate, provide clear feedback, and enable robust error recovery strategies.

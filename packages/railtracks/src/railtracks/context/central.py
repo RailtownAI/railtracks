@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import contextvars
+import logging
 import os
 import warnings
-from typing import Any, Callable, Coroutine, KeysView
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, KeysView
 
 from railtracks.exceptions import ContextError
-from railtracks.pubsub.publisher import RTPublisher
+
+if TYPE_CHECKING:
+    from railtracks.pubsub.publisher import RTPublisher
+
 from railtracks.utils.config import ExecutorConfig
 from railtracks.utils.logging.config import AllowableLogLevels
 
@@ -60,7 +64,7 @@ def safe_get_runner_context() -> RunnerContextVars:
             RunnerContextVars: The runner context associated with the current thread.
 
         Raises:
-            RuntimeError: If the global variables have not been registered.
+            ContextError: If the global variables have not been registered.
     """
     context = runner_context.get()
     if context is None:
@@ -113,7 +117,7 @@ def get_session_id() -> str | None:
         str: The runner ID associated with the current thread's global variables.
 
     Raises:
-        RuntimeError: If the global variables have not been registered.
+        ContextError: If the global variables have not been registered.
     """
     context = safe_get_runner_context()
     return context.internal_context.session_id
@@ -127,7 +131,7 @@ def get_parent_id() -> str | None:
         str | None: The parent ID associated with the current thread's global variables, or None if not set.
 
     Raises:
-        RuntimeError: If the global variables have not been registered.
+        ContextError: If the global variables have not been registered.
     """
     context = safe_get_runner_context()
     return context.internal_context.parent_id
@@ -139,6 +143,10 @@ def get_run_id() -> str | None:
 
     Returns:
         str | None: The run ID associated with the current thread's global variables, or None if not set.
+
+
+    Raises:
+        ContextError: If the global variables have not been registered.
     """
     context = safe_get_runner_context()
     return context.internal_context.run_id
@@ -385,3 +393,36 @@ def set_config(
     )
 
     global_executor_config.set(new_config)
+
+
+class RTContextLoggingAdapter(logging.LoggerAdapter):
+    def process(self, msg, kwargs):
+        try:
+            parent_id = get_parent_id()
+            run_id = get_run_id()
+            session_id = get_session_id()
+
+        except ContextError:
+            parent_id = None
+            run_id = None
+            session_id = None
+
+        new_variables = {
+            "node_id": parent_id,
+            "run_id": run_id,
+            "session_id": session_id,
+        }
+
+        kwargs["extra"] = {**kwargs.get("extra", {}), **new_variables}
+
+        return msg, kwargs
+
+
+def session_id():
+    """
+    Gets the current session ID if it exists, otherwise returns None.
+    """
+    try:
+        return get_session_id()
+    except ContextError:
+        return None

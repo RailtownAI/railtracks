@@ -1,13 +1,13 @@
 # Custom Class Building with NodeBuilder
 
-RailTracks' `define_agent` provides a robust foundation for configuring agent classes with predefined parameters that handle most use cases. However, when you need agents or nodes with specialized functionality beyond these standard configurations, the **NodeBuilder** class offers the flexibility to create custom implementations while maintaining the core RailTracks functionality.
+Railtracks' `define_agent` provides a robust foundation for configuring agent classes with predefined parameters that handle most use cases. However, when you need agents or nodes with specialized functionality beyond these standard configurations, the **NodeBuilder** class offers the flexibility to create custom implementations while maintaining the core Railtracks functionality.
 
 ## Overview
 
 NodeBuilder enables you to:
-- Inherit from existing RailTracks node classes
+- Inherit from existing Railtracks node classes
 - Add custom class methods and attributes
-- Maintain compatibility with the RailTracks ecosystem
+- Maintain compatibility with the Railtracks ecosystem
 - Create specialized agents tailored to your specific requirements
 
 ---
@@ -26,7 +26,7 @@ Begin by selecting the appropriate base node class for inheritance.
 
 When initializing NodeBuilder, you'll specify both a `name` and `class_name`:
 - **`name`**: User-friendly identifier for differentiation in multi-node scenarios
-- **`class_name`**: Internal identifier used by RailTracks and Python
+- **`class_name`**: Internal identifier used by Railtracks and Python
 
 ```python
 builder = NodeBuilder[StructuredLLM[_TOutput]](

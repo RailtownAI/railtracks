@@ -1,6 +1,7 @@
+import logging
+
 import litellm
 
-from ....utils.logging.create import get_rt_logger
 from .._litellm_wrapper import LiteLLMWrapper
 
 # litellm.drop_params=True
@@ -8,6 +9,7 @@ from .._model_exception_base import FunctionCallingNotSupportedError, ModelError
 from ..providers import ModelProvider
 
 LOGGER_NAME = "AZURE_AI"
+logger = logging.getLogger(__name__)
 
 
 class AzureAIError(ModelError):
@@ -39,7 +41,7 @@ class AzureAILLM(LiteLLMWrapper):
         self._available_models = [model.lower() for model in litellm.azure_ai_models]
         self._is_model_available()
 
-        self.logger = get_rt_logger(LOGGER_NAME)
+        self.logger = logger
 
     def chat(self, messages, **kwargs):
         try:

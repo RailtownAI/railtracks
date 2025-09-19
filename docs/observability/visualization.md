@@ -1,6 +1,6 @@
 # Visualization
 
-One of the number one complaints when working with LLMs is that they can be a black box. Agentic applications exacerbate this problem by adding even more complexity. RailTracks aims to make it easier than ever to visualize your runs. 
+One of the number one complaints when working with LLMs is that they can be a black box. Agentic applications exacerbate this problem by adding even more complexity. Railtracks aims to make it easier than ever to visualize your runs. 
 
 We support:
 
@@ -9,7 +9,7 @@ We support:
 
 ## Local Development Visualization
 
-RailTracks comes with a built-in visualization tool that runs locally with **no sign up required**.
+Railtracks comes with a built-in visualization tool that runs locally with **no sign up required**.
 
 ### Usage
     
