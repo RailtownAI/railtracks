@@ -19,7 +19,7 @@
 **Railtracks** is a lightweight agentic LLM framework for building modular, multi-LLM workflows. Unlike other frameworks like **Langgraph** and **Google ADK**. Railtracks instead focuses on:
 
 - Simple Python-first APIs -> no graphs, just regular Python code
-- Built in visualization and debugging tools -> understand and trace your agent flows visually
+- Built-in visualization and debugging tools -> understand and trace your agent flows visually
 - Zero setup overhead -> run it like any other Python script without special directories or configs
 
 | Feature                | Railtracks | LangGraph  | Google ADK |
