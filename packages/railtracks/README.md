@@ -58,7 +58,7 @@ async def main():
     result = await rt.call(
         TextAnalyzer,
         rt.llm.MessageHistory([
-            rt.llm.UserMessage("Hello world! This is a test of the RailTracks framework.")
+            rt.llm.UserMessage("Hello world! This is a test of the Railtracks framework.")
         ])
     )
     print(result)

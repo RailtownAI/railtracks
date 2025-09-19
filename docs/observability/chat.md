@@ -1,5 +1,5 @@
 ## Overview
-Conversational interactions with agents is currently one of the most common methods. This guide will go over how to quickly visualize and come up with a proof of concept assessing how the potential user experience would look using `RailTracks`.
+Conversational interactions with agents is currently one of the most common methods. This guide will go over how to quickly visualize and come up with a proof of concept assessing how the potential user experience would look using `Railtracks`.
 
 ```python
 import random

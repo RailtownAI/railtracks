@@ -1,6 +1,6 @@
-site_name: RailTracks Docs
+site_name: Railtracks Docs
 site_url: https://railtownai.github.io/railtracks/
-site_description: "RailTracks is a framework for building LLM-powered agents and applications."
+site_description: "Railtracks is a framework for building LLM-powered agents and applications."
 
 repo_name: railtracks
 repo_url: https://github.com/RailtownAI/railtracks/

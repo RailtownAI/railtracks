@@ -1,8 +1,8 @@
 # Security Policy
 
-This SECURITY.md describes safe usage, best practices, risk management and how to report vulnerabilities for the RailTracks project.
+This SECURITY.md describes safe usage, best practices, risk management and how to report vulnerabilities for the Railtracks project.
 
-RailTracks is a lightweight, modular framework for building agentic systems. It orchestrates agents, tools, and LLM calls but does not itself provide infrastructure hardening, network egress controls, or secret management.
+Railtracks is a lightweight, modular framework for building agentic systems. It orchestrates agents, tools, and LLM calls but does not itself provide infrastructure hardening, network egress controls, or secret management.
 
 ## Audience
 
@@ -14,7 +14,7 @@ RailTracks is a lightweight, modular framework for building agentic systems. It 
 ## Scope
 
 - In scope:
-  - RailTracks core (PyPI: railtracks)
+  - Railtracks core (PyPI: railtracks)
   - Optional CLI (railtracks-cli) and visualization features
   - First-party example/demo tools and MCP tools included in this repository
 - Out of scope:
@@ -23,14 +23,14 @@ RailTracks is a lightweight, modular framework for building agentic systems. It 
   - Your runtime and hosting environment (OS, containers, Kubernetes, serverless)
   - Organization-specific data policies and compliance obligations
 
-## What RailTracks Is and Is Not
+## What Railtracks Is and Is Not
 
 - Is: a framework to compose agents, call tools, and interact with Machine Learning Models; provides logging, execution history, debugging tools, and a API with optional CLI and visualization.
-- Is not: a security sandbox, a secrets manager, a network firewall, a model training framework or a data loss prevention system. RailTracks does not enforce allow/deny-lists for network/filesystem access and does not implement provider-side data privacy controls.
+- Is not: a security sandbox, a secrets manager, a network firewall, a model training framework or a data loss prevention system. Railtracks does not enforce allow/deny-lists for network/filesystem access and does not implement provider-side data privacy controls.
 
 ## Remote Artifacts and Remote Code
 
-- Models and providers: RailTracks can work with many providers (via your selected model or service). If your chosen stack relies on third-party artifacts (models/weights), prefer formats designed to prevent arbitrary code execution (for example, safetensors) and avoid loading unsafe formats (for example, pickle) from untrusted sources.
+- Models and providers: Railtracks can work with many providers (via your selected model or service). If your chosen stack relies on third-party artifacts (models/weights), prefer formats designed to prevent arbitrary code execution (for example, safetensors) and avoid loading unsafe formats (for example, pickle) from untrusted sources.
 - Remote code execution: Do not execute untrusted code or install untrusted tools/plugins. If you import tools or components from external repositories, review their source and supply chain before enabling them in agents. This extends to model-generated code.
 
 ## LLM/Provider Considerations
@@ -48,7 +48,7 @@ RailTracks is a lightweight, modular framework for building agentic systems. It 
 ## Configuration and Data Handling
 
 - Execution state directory:
-  - RailTracks can persist execution data to a local `.railtracks` directory to aid debugging and visualization.
+  - Railtracks can persist execution data to a local `.railtracks` directory to aid debugging and visualization.
   - This data may include inputs/outputs, prompts/responses, intermediate messages, tool inputs/outputs, runtime traces, and potentially secrets/tokens if passed through messages or tool params.
   - This directory is not automatically cleaned or redacted.
   - Recommendations:
@@ -58,7 +58,7 @@ RailTracks is a lightweight, modular framework for building agentic systems. It 
   - Local logging may capture sensitive information (including prompts, tool I/O, and environment-derived values).
   - The CLI offers optional configuration to forward logs/execution data. Only enable forwarding when you have appropriate agreements and controls for the destination.
 - Not a secret store:
-  - Do not rely on RailTracks to protect secrets.
+  - Do not rely on Railtracks to protect secrets.
   - Inject provider/API keys via secure means (for example, environment variables or a proper secret manager).
   - Avoid printing or embedding secrets into logs, messages, or persisted state.
   - Avoid executing user or generated code in the same environment that has access to sensitive files or credentials.
@@ -71,7 +71,7 @@ Defaults (consult docs for the exact version you use; defaults may change):
 
 ## Network Egress and Environment Security
 
-- RailTracks does not enforce network allow/deny-lists. Control egress at your network, container, or host layer (for example, proxies, firewall rules, VPC egress controls).
+- Railtracks does not enforce network allow/deny-lists. Control egress at your network, container, or host layer (for example, proxies, firewall rules, VPC egress controls).
 - Run untrusted or experimental tools in isolated environments (containers/VMs) with:
   - Non-root users and minimal filesystem access
   - Limited outbound network access (only required endpoints)
@@ -117,9 +117,9 @@ Defaults (consult docs for the exact version you use; defaults may change):
 
 ## In-Scope for Security Reports
 
-Vulnerabilities in the RailTracks core library, CLI, and first-party tools included in this repository that could lead to:
-- Code execution, privilege escalation, or sandbox escape within the RailTracks process
-- Unauthorized access or disclosure of data persisted by RailTracks (for example, `.railtracks`) when used as documented
+Vulnerabilities in the Railtracks core library, CLI, and first-party tools included in this repository that could lead to:
+- Code execution, privilege escalation, or sandbox escape within the Railtracks process
+- Unauthorized access or disclosure of data persisted by Railtracks (for example, `.railtracks`) when used as documented
 - Integrity issues that allow an attacker to subvert tool invocation or agent routing without user authorization
 - Documentation inaccuracies that materially mislead users about security behavior
 
@@ -128,7 +128,7 @@ Vulnerabilities in the RailTracks core library, CLI, and first-party tools inclu
 - Misuse or insecure configuration of third-party tools, services, or providers
 - Vulnerabilities in external LLM/model providers or MCP servers not maintained by this project
 - Risks arising from user-authored tools or example code not included in this repository
-- Insecure host or network environments, missing OS patches, or lack of hardening outside RailTracks
+- Insecure host or network environments, missing OS patches, or lack of hardening outside Railtracks
 - Findings that require unrealistic attacker capabilities or non-default, undocumented configurations
 
 ## Open Source and Licensing Notice
@@ -139,7 +139,7 @@ This repository is open source and accepts public contributions. All code, issue
 
 ## Privacy and Compliance
 
-RailTracks does not itself provide compliance guarantees. Deployers are responsible for meeting regulatory obligations, including data minimization, retention, and residency. If you forward logs or store execution data, ensure your usage aligns with applicable laws and your provider agreements.
+Railtracks does not itself provide compliance guarantees. Deployers are responsible for meeting regulatory obligations, including data minimization, retention, and residency. If you forward logs or store execution data, ensure your usage aligns with applicable laws and your provider agreements.
 
 ## Safe-by-Practice Checklist
 
@@ -154,7 +154,7 @@ RailTracks does not itself provide compliance guarantees. Deployers are responsi
 ## Contact
 
 - Security contact: [Security Email](mailto:security.railtracks@railtown.ai)
-- Please include "[RailTracks Security]" in the subject line.
+- Please include "[Railtracks Security]" in the subject line.
 - If you require an encrypted channel, please indicate so in your initial email. We can coordinate an alternative secure method of communication.
 
 ## Changes to This Policy

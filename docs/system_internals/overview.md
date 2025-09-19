@@ -1,11 +1,11 @@
-# RailTracks Internal Architecture Overview
+# Railtracks Internal Architecture Overview
 
-Welcome to the internal architecture overview of RailTracks, our framework for building agentic workflows. This document provides a high-level understanding of how the system is structured and how its different components interact with each other.
+Welcome to the internal architecture overview of Railtracks, our framework for building agentic workflows. This document provides a high-level understanding of how the system is structured and how its different components interact with each other.
 
 ## Execution Flow
-# RailTracks Internal Architecture Overview
+# Railtracks Internal Architecture Overview
 
-Welcome to the internal architecture overview of RailTracks, our framework for building agentic workflows. This document provides a high-level understanding of how the system is structured and how its different components interact with each other.
+Welcome to the internal architecture overview of Railtracks, our framework for building agentic workflows. This document provides a high-level understanding of how the system is structured and how its different components interact with each other.
 
 ## Execution Flow
 
@@ -30,7 +30,7 @@ graph TD
 
 ## Developer Journey
 
-1. **Start Here**: [Core Concepts](concepts.md) - Understand the mental model behind RailTracks
+1. **Start Here**: [Core Concepts](concepts.md) - Understand the mental model behind Railtracks
 2. **Core Components**
     - [Session](session.md)
     - [PubSub System](pubsub.md)

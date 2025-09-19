@@ -1,4 +1,4 @@
-# RailTracks
+# Railtracks
 
 <p align="center">
     <img alt="Railtracks Logo" src="docs/assets/logo.svg" width="50%">
@@ -21,9 +21,9 @@
 
 ## Overview
 
-**RailTracks** is a lightweight framework for building agentic systems—modular, intelligent agents that can work together to solve complex tasks more effectively than any single module could.
+**Railtracks** is a lightweight framework for building agentic systems—modular, intelligent agents that can work together to solve complex tasks more effectively than any single module could.
 
-**Railtracks-CLI** is a command-line tool designed to visualize your RailTracks runs. It's lightweight and can be run locally with **no sign-up required**.
+**Railtracks-CLI** is a command-line tool designed to visualize your Railtracks runs. It's lightweight and can be run locally with **no sign-up required**.
 
 ---
 
@@ -43,18 +43,18 @@ We welcome contributions of all kinds! Get started by checking out our [contribu
 
 ---
 
-## Why RailTracks?
+## Why Railtracks?
 
 Many frameworks for building LLM-powered applications focus on pipelines, chains, or prompt orchestration. While effective for simple use cases, they can become brittle or overly complex when handling asynchronous tasks, multi-step reasoning, and heterogeneous agents.
 
-**RailTracks is designed with developers in mind to support real-world agentic systems** with an emphasis on:
+**Railtracks is designed with developers in mind to support real-world agentic systems** with an emphasis on:
 
-* **Programmatic structure without rigidity** – Unlike declarative workflows (e.g., LangChain), RailTracks encourages clean, Pythonic control flow.
-* **Agent-first abstraction** – Inspired by real-world coordination, RailTracks focuses on defining smart agents that collaborate via tools, not just chaining LLM calls.
+* **Programmatic structure without rigidity** – Unlike declarative workflows (e.g., LangChain), Railtracks encourages clean, Pythonic control flow.
+* **Agent-first abstraction** – Inspired by real-world coordination, Railtracks focuses on defining smart agents that collaborate via tools, not just chaining LLM calls.
 * **Automatic Parallelism** – Executions are automatically parallelized when possible, freeing you from managing threading or async manually.
 * **Transparent Execution** – Integrated logging, history tracing, and built-in visualizations show exactly how your system behaves.
 * **Minimal API** – The small, configurable API simplifies your workflow compared to other tools. No magic.
 * **Visual Insights** – Graph-based visualizations help you understand data flow and agent interactions at a glance.
 * **Pluggable Models** – Use any LLM provider: OpenAI, open-weight models, or your own local inference engine.
 
-While frameworks like LangGraph emphasize pipelines, RailTracks aims to strike the perfect balance: powerful enough for complex systems, yet simple enough to understand, extend, and debug.
+While frameworks like LangGraph emphasize pipelines, Railtracks aims to strike the perfect balance: powerful enough for complex systems, yet simple enough to understand, extend, and debug.

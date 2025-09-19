@@ -1,7 +1,7 @@
 # What is an Agent?
 
 The news around AI terms can be pretty overwhelming and sound more like a buzzword than something useful. Before we dive
-deep into how you can build agents in **RailTracks**, let's first understand what an agent is.
+deep into how you can build agents in **Railtracks**, let's first understand what an agent is.
 
 An agent is a self-contained unit that can perform a specific task or set of tasks autonomously. It has the ability to
 make decisions, take actions, and act within its environment to achieve its goals.
@@ -51,8 +51,8 @@ Agents are already being used in real world applications such as:
 
 ## Build Your Own
 
-We have build **RailTracks** with developers in mind; with just a simple prompt and a bit of Python, you’re
-already well on your way to building your first agent. Get started [Building with RailTracks](../tutorials/byfa.md)
+We have build **Railtracks** with developers in mind; with just a simple prompt and a bit of Python, you’re
+already well on your way to building your first agent. Get started [Building with Railtracks](../tutorials/byfa.md)
 
 
 
