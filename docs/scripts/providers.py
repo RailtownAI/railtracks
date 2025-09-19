@@ -16,6 +16,14 @@ load_dotenv()  # Load environment variables from .env file
 model = rt.llm.AnthropicLLM("claude-sonnet-4")
 # --8<-- [end: anthropic]
 
+# --8<-- [start: cohere]
+import railtracks as rt
+from dotenv import load_dotenv
+load_dotenv()  # Load environment variables from .env file
+
+model = rt.llm.CohereLLM("command-a-03-2025")
+# --8<-- [end: cohere]
+
 # --8<-- [start: gemini]
 import railtracks as rt
 from dotenv import load_dotenv
