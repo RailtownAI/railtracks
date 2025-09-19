@@ -77,7 +77,7 @@ def word_count(text: str) -> int:
     return len(text.split())
 ```
 
-# Step 3. Create your agent (connecting your LLM)
+### Step 3: Create your agent (connecting your LLM)
 ```python
 TextAnalyzer = rt.agent_node(
     tool_nodes={number_of_chars, word_count},
