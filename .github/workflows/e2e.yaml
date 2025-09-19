@@ -2,10 +2,6 @@ name: Run E2E Tests (Manual)
 
 on:
   workflow_dispatch:
-    inputs:
-      pr_ref:
-        description: 'PR branch ref (e.g. refs/pull/123/head)'
-        required: true
 
 env:
   PYTHON_VERSION: "3.10"
@@ -16,8 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.pr_ref }}
 
       - uses: actions/setup-python@v4
         with:
