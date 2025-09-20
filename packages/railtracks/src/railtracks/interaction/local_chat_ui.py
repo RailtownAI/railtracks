@@ -59,8 +59,6 @@ class ChatUI(HIL):
         self.outgoing_messages = asyncio.Queue(maxsize=100)  # For SSE to UI
         self.incoming_messages = asyncio.Queue(maxsize=100)  # From UI to Python
         
-        self.shutdown_event = asyncio.Event()  # For clean shutdown
-
         # Server state
         self.app = None
         self.server_task = None
@@ -93,6 +91,7 @@ class ChatUI(HIL):
 
         @app.post("/send_message")
         async def send_message(user_message: UIUserMessage):
+            user_message.timestamp = user_message.timestamp or datetime.now().isoformat()
             """Receive user input from chat interface"""
             message_data = HILMessage(
                 content=user_message.message,
@@ -100,6 +99,8 @@ class ChatUI(HIL):
             )
             await self.incoming_messages.put(message_data)
             return {"status": "success", "message": "Message received"}
+
+
 
         @app.post("/update_tools")
         async def update_tools(tool_invocation: ToolInvocation):
@@ -123,6 +124,8 @@ class ChatUI(HIL):
                         # Send heartbeat
                         heartbeat = {"type": "heartbeat", "timestamp": datetime.now().isoformat()}
                         yield f"data: {json.dumps(heartbeat)}\n\n"
+                    except asyncio.CancelledError:
+                        break
 
             return StreamingResponse(
                 event_generator(),
@@ -228,7 +231,6 @@ class ChatUI(HIL):
         Raises:
             ConnectionError: If the interface cannot be properly closed.
         """
-        self.shutdown_event.set()  # Signal shutdown
 
         try:
             self.is_connected = False

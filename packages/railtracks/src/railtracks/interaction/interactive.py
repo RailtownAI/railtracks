@@ -3,7 +3,8 @@ import asyncio
 from typing import TYPE_CHECKING, Callable, ParamSpec, TypeVar, Type, overload
 
 from ..nodes.nodes import Node
-from .local_chat_ui import ChatUI
+# from .local_chat_ui import ChatUI
+from .local_http_chat import ChatUI
 from .human_in_the_loop import HIL, HILMessage
 from ._call import call
 from ..llm.history import MessageHistory
@@ -57,30 +58,12 @@ async def interactive(
 
             msg_history = MessageHistory([])
             
-            while chat_ui.is_connected:
+            while True:
                 
-                # message = await chat_ui.receive_message()
-                receive_task = asyncio.create_task(chat_ui.receive_message())
-                shutdown_task = asyncio.create_task(chat_ui.shutdown_event.wait())
-    
-                # Wait for either message or shutdown
-                done, pending = await asyncio.wait(
-                    [receive_task, shutdown_task], 
-                    return_when=asyncio.FIRST_COMPLETED
-                )
-                
-                # Cancel pending tasks
-                for task in pending:
-                    task.cancel()
-                
-                # Check what completed
-                if shutdown_task in done:
-                    break  # Clean shutdown
-                    
-                if receive_task in done:
-                    message = receive_task.result()
-                    if message is None:  # Handle disconnection
-                        break
+                message = await chat_ui.receive_message()
+                if message is None or message.content.upper() == "EXIT":
+                    chat_ui.disconnect()
+                    break
 
                 msg_history.append(UserMessage(message.content))
 
@@ -91,8 +74,6 @@ async def interactive(
 
         except Exception as e:
             print(f"Error during interactive session: {e}")  
-        finally:
-            # Always disconnect to clean up resources
-            chat_ui.disconnect()
+
     else:
         raise NotImplementedError(f"HIL interface {HIL_interface.__name__} is not yet implemented. Only ChatUI is currently supported.")
