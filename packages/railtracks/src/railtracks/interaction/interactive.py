@@ -1,10 +1,13 @@
+import asyncio
 
-from typing import Callable, ParamSpec, TypeVar, Type, overload
+from typing import TYPE_CHECKING, Callable, ParamSpec, TypeVar, Type, overload
 
 from ..nodes.nodes import Node
-from .local_chat_ui_clean import ChatUI
+from .local_chat_ui import ChatUI
 from .human_in_the_loop import HIL, HILMessage
 from ._call import call
+from ..llm.history import MessageHistory
+from ..llm.message import UserMessage, AssistantMessage
 
 _P = ParamSpec("_P")
 _TOutput = TypeVar("_TOutput")
@@ -13,6 +16,7 @@ _TOutput = TypeVar("_TOutput")
 async def interactive(
         node: Callable[_P, Node[_TOutput]],
         HIL_interface: Type[ChatUI],
+        first_message: str | None = None,
         port: int | None = None,
         host: str | None = None,
         auto_open: bool | None = True,
@@ -22,6 +26,7 @@ async def interactive(
 async def interactive(
         node: Callable[_P, Node[_TOutput]],
         HIL_interface: Type[HIL],
+        first_message: str | None = None,
         port: int | None = None,
         host: str | None = None,
         auto_open: bool | None = True,
@@ -30,6 +35,7 @@ async def interactive(
 async def interactive(
         node: Callable[_P, Node[_TOutput]],
         HIL_interface: Type[ChatUI] | Type[HIL] = ChatUI,
+        first_message: str | None = None,
         port: int | None = None,
         host: str | None = None,
         auto_open: bool | None = True,
@@ -49,15 +55,40 @@ async def interactive(
         try:
             chat_ui.connect()
 
-            first_message = await chat_ui.receive_message()
-            while True:
-                response = await call(node, first_message.content)
-                print(f"Got response: {response}")
-                await chat_ui.send_message(HILMessage("HELLOOOOOOO"))
+            msg_history = MessageHistory([])
+            
+            while chat_ui.is_connected:
+                
+                # message = await chat_ui.receive_message()
+                receive_task = asyncio.create_task(chat_ui.receive_message())
+                shutdown_task = asyncio.create_task(chat_ui.shutdown_event.wait())
+    
+                # Wait for either message or shutdown
+                done, pending = await asyncio.wait(
+                    [receive_task, shutdown_task], 
+                    return_when=asyncio.FIRST_COMPLETED
+                )
+                
+                # Cancel pending tasks
+                for task in pending:
+                    task.cancel()
+                
+                # Check what completed
+                if shutdown_task in done:
+                    break  # Clean shutdown
+                    
+                if receive_task in done:
+                    message = receive_task.result()
+                    if message is None:  # Handle disconnection
+                        break
 
-                first_message = await chat_ui.receive_message()
+                msg_history.append(UserMessage(message.content))
 
-            print(f"Got first message: {first_message}")
+                response = await call(node, msg_history)
+
+                await chat_ui.send_message(HILMessage(content=response.text))
+
+
         except Exception as e:
             print(f"Error during interactive session: {e}")  
         finally:

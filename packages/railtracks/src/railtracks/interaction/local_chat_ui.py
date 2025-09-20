@@ -59,6 +59,8 @@ class ChatUI(HIL):
         self.outgoing_messages = asyncio.Queue(maxsize=100)  # For SSE to UI
         self.incoming_messages = asyncio.Queue(maxsize=100)  # From UI to Python
         
+        self.shutdown_event = asyncio.Event()  # For clean shutdown
+
         # Server state
         self.app = None
         self.server_task = None
@@ -226,6 +228,8 @@ class ChatUI(HIL):
         Raises:
             ConnectionError: If the interface cannot be properly closed.
         """
+        self.shutdown_event.set()  # Signal shutdown
+
         try:
             self.is_connected = False
             
