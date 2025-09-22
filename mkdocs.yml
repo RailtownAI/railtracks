@@ -75,6 +75,7 @@ nav:
   - Background:
       - Agents: background/agents.md
       - Tools: background/tools.md
+      - RAG: background/RAG.md
       - Async/Await: background/async_await.md
   
   - Tutorials:

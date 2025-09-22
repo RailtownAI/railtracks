@@ -2,8 +2,6 @@
 
 Need your AI agents to access your company's knowledge base, docs, or any private data? RAG is your answer! It enables grounded answering by retrieving relevant snippets from your documents and composing them into LLM prompts.
 
-RAG ingests documents, chunks them, embeds the chunks into vectors, stores those vectors, and retrieves the most relevant snippets at query time—all automatically handled for you.
-
 ---
 
 ## Two Ways to Get Started
