@@ -14,7 +14,7 @@ from typing_extensions import Self
 
 from .._exception_base import RTLLMError
 from .docstring_parser import extract_main_description, parse_docstring_args
-from .parameter import Parameter
+from .parameters import Parameter
 from .parameter_handlers import (
     DefaultParameterHandler,
     ParameterHandler,

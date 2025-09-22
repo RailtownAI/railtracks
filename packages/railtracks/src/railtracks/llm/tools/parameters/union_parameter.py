@@ -1,5 +1,5 @@
 from typing import List, Optional, Dict, Any
-from .default_parameter import SimpleParameter
+from .simple_parameter import SimpleParameter
 from ._base import Parameter
 
 class UnionParameter(Parameter):

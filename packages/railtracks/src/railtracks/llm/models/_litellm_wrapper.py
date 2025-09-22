@@ -26,7 +26,7 @@ from ..history import MessageHistory
 from ..message import AssistantMessage, Message, ToolMessage
 from ..model import ModelBase
 from ..response import MessageInfo, Response
-from ..tools import ArrayParameter, PydanticParameter, Tool
+from ..tools import Tool
 from ..tools.parameters import Parameter
 
 

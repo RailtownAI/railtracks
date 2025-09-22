@@ -11,7 +11,7 @@ from railtracks.llm.tools.schema_parser import (
     parse_json_schema_to_parameter,
     parse_model_properties,
 )
-from railtracks.llm.tools.parameter import Parameter, PydanticParameter, ArrayParameter
+from railtracks.llm.tools import Parameter, ArrayParameter, ObjectParameter
 
 
 class TestParseJsonSchemaToParameter:
@@ -125,7 +125,7 @@ class TestParseJsonSchemaToParameter:
         }
         param = parse_json_schema_to_parameter("test_param", schema, True)
 
-        assert isinstance(param, PydanticParameter)
+        assert isinstance(param, ObjectParameter)
         assert param.name == "test_param"
         assert param.param_type == "object"
         assert param.description == "An object parameter"
@@ -174,7 +174,7 @@ class TestParseJsonSchemaToParameter:
         }
         param = parse_json_schema_to_parameter("test_param", schema, True)
 
-        assert isinstance(param, PydanticParameter)
+        assert isinstance(param, ObjectParameter)
         assert param.name == "test_param"
         assert param.param_type == "object"
 
@@ -210,7 +210,7 @@ class TestParseJsonSchemaToParameter:
         }
         param = parse_json_schema_to_parameter("test_param", schema, True)
 
-        assert isinstance(param, PydanticParameter)
+        assert isinstance(param, ObjectParameter)
         assert param.name == "test_param"
         assert param.param_type == "object"
         assert param.description == "A reference to Person output_schema"
@@ -309,7 +309,7 @@ class TestParseModelProperties:
         assert "address" in result
 
         # Check that address is a PydanticParameter with properties
-        assert isinstance(result["address"], PydanticParameter)
+        assert isinstance(result["address"], ObjectParameter)
         assert result["address"].param_type == "object"
         assert "street" in result["address"].properties
         assert "city" in result["address"].properties
@@ -359,7 +359,7 @@ class TestParseModelProperties:
 
         # Check that address is a PydanticParameter with properties from the $ref
         address_param = result["address"]
-        assert isinstance(address_param, PydanticParameter)
+        assert isinstance(address_param, ObjectParameter)
         assert address_param.param_type == "object"
         address_properties = address_param.properties
         address_properties = {p.name: p for p in list(address_properties)}
@@ -401,7 +401,7 @@ class TestParseModelProperties:
         assert "user" in result
 
         # Check that user is a PydanticParameter with properties from the $ref
-        assert isinstance(result["user"], PydanticParameter)
+        assert isinstance(result["user"], ObjectParameter)
         assert result["user"].param_type == "object"
         sub_params = list(result["user"].properties)
         sub_params = {p.name: p for p in sub_params}

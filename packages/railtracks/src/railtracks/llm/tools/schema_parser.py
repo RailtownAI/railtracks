@@ -9,7 +9,6 @@ from .parameters import (
     RefParameter,
 )
 
-from .parameter import PydanticParameter
 
 def _extract_param_type(prop_schema: dict) -> str | list:
     param_type = prop_schema.get("type", None)
@@ -257,7 +256,7 @@ def parse_json_schema_to_parameter(name: str, prop_schema: dict, required: bool)
                 default_present=default_present,
             )
         
-def parse_model_properties(schema: dict) -> Set[Parameter]:
+def parse_model_properties(schema: dict) -> list[Parameter]:
     """
     Given a JSON schema (usually from BaseModel.model_json_schema()),
     returns a set of Parameter objects representing the top-level properties.
@@ -268,7 +267,7 @@ def parse_model_properties(schema: dict) -> Set[Parameter]:
     Returns:
         Set of Parameter instances corresponding to schema properties.
     """
-    result: Set[Parameter] = set()
+    result = []
     required_fields = schema.get("required", [])
 
     # Parse $defs (nested model definitions)
@@ -297,10 +296,9 @@ def parse_model_properties(schema: dict) -> Set[Parameter]:
             if ref.startswith("#/$defs/"):
                 model_name = ref[len("#/$defs/") :]
                 if model_name in nested_models:
-                    result.add(
-                        PydanticParameter(
+                    result.append(
+                        ObjectParameter(
                             name=prop_name,
-                            param_type="object",
                             description=prop_schema.get("description", ""),
                             required=prop_name in required_fields,
                             properties=nested_models[model_name]["properties"],
@@ -318,10 +316,9 @@ def parse_model_properties(schema: dict) -> Set[Parameter]:
                     if ref.startswith("#/$defs/"):
                         model_name = ref[len("#/$defs/") :]
                         if model_name in nested_models:
-                            result.add(
-                                PydanticParameter(
+                            result.append(
+                                ObjectParameter(
                                     name=prop_name,
-                                    param_type="object",
                                     description=prop_schema.get("description", ""),
                                     required=prop_name in required_fields,
                                     properties=nested_models[model_name]["properties"],
@@ -342,17 +339,16 @@ def parse_model_properties(schema: dict) -> Set[Parameter]:
         # If object with properties, parse as PydanticParameter
         if param_type == "object" and "properties" in prop_schema:
             inner_required = prop_schema.get("required", [])
-            inner_props: Set[Parameter] = set()
+            inner_props= []
             for inner_name, inner_schema in prop_schema["properties"].items():
-                inner_props.add(
+                inner_props.append(
                     parse_json_schema_to_parameter(
                         inner_name, inner_schema, inner_name in inner_required
                     )
                 )
-            result.add(
-                PydanticParameter(
+            result.append(
+                ObjectParameter(
                     name=prop_name,
-                    param_type=param_type,
                     description=prop_schema.get("description", ""),
                     required=prop_name in required_fields,
                     properties=inner_props,
@@ -361,7 +357,7 @@ def parse_model_properties(schema: dict) -> Set[Parameter]:
             )
         else:
             # Fallback to parsing as a simple parameter
-            result.add(
+            result.append(
                 parse_json_schema_to_parameter(
                     prop_name, prop_schema, prop_name in required_fields
                 )

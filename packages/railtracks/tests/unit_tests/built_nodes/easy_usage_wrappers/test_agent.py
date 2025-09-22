@@ -1,7 +1,7 @@
 import pytest
 from railtracks.built_nodes.easy_usage_wrappers.agent import agent_node
 from railtracks import ToolManifest
-from railtracks.llm import Parameter
+from railtracks.llm import SimpleParameter
 from railtracks.built_nodes.concrete import LLMBase
 from railtracks.built_nodes._node_builder import NodeBuilder
 
@@ -14,7 +14,7 @@ class DummyNode(LLMBase):
 
 tool_manifest = ToolManifest(
             description="A tool to be called",
-            parameters=[Parameter(
+            parameters=[SimpleParameter(
                 name="x",
                 description="Input to the tool",
                 param_type="integer",
