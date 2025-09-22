@@ -15,11 +15,11 @@ from typing import Generator
 # =================================== START _parameters_to_json_schema Tests ==================================
 # parameters_to_json_schema is guaranteed to get only a set of Parameter objects
 
-def test_parameters_to_json_schema_with_parameters_set(tool_with_parameters_set):
+def test_parameters_to_json_schema_with_parameters_set(tool):
     """
     Test _parameters_to_json_schema with a set of Parameter objects.
     """
-    schema = _parameters_to_json_schema(tool_with_parameters_set.parameters)
+    schema = _parameters_to_json_schema(tool.parameters)
     assert schema["type"] == "object"
     assert "properties" in schema
     assert "param1" in schema["properties"]
@@ -30,7 +30,7 @@ def test_parameters_to_json_schema_with_parameters_set(tool_with_parameters_set)
 
 
 def test_parameters_to_json_schema_with_empty_set():
-    schema = _parameters_to_json_schema(set())
+    schema = _parameters_to_json_schema([])
     assert schema == {"type": "object", "properties": {}}
 
 

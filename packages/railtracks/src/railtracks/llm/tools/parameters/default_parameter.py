@@ -1,7 +1,7 @@
 from typing import Any, Dict, Optional
 from ._base import Parameter, ParameterType
 
-class DefaultParameter(Parameter):
+class SimpleParameter(Parameter):
     """
     Parameter subclass for simple (primitive) JSON schema types: string, integer, number, boolean, null.
     """
@@ -16,13 +16,14 @@ class DefaultParameter(Parameter):
         description: Optional[str] = None,
         required: bool = True,
         default: Any = None,
-        enum: Optional[list] = None
+        enum: Optional[list] = None,
+        default_present: bool = False
     ):
         # Convert strings to ParameterType if needed
         if isinstance(param_type, str):
             param_type = ParameterType(param_type)
         self.param_type = param_type
-        super().__init__(name, description, required, default, enum)
+        super().__init__(name, description, required, default, enum, default_present)
 
     def to_json_schema(self) -> Dict[str, Any]:
         # Base dictionary with type and optional description
@@ -38,7 +39,7 @@ class DefaultParameter(Parameter):
 
         # Handle default
         # default can be None, 0, False; None means optional parameter
-        if self.default is not None:
+        if self.default_present:
             schema_dict["default"] = self.default
         elif isinstance(self.param_type, list) and "none" in self.param_type:
             schema_dict["default"] = None
@@ -47,7 +48,7 @@ class DefaultParameter(Parameter):
 
     def __repr__(self) -> str:
         return (
-            f"DefaultParameter(name={self.name!r}, param_type={self.param_type!r}, "
+            f"SimpleParameter(name={self.name!r}, param_type={self.param_type!r}, "
             f"description={self.description!r}, required={self.required!r}, "
             f"default={self.default!r}, enum={self.enum!r})"
         )

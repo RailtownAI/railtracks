@@ -38,8 +38,8 @@ def test_jsonschema_roundtrip(input_schema):
     regenerated_.pop("$schema", None)
 
     ######## INCASE YOU WANT TO DEBUG ########
-    # print(json.dumps(schema_, indent=2))
-    # print(json.dumps(regenerated_, indent=2))
+    print(json.dumps(schema_, indent=2))
+    print(json.dumps(regenerated_, indent=2))
     ##########################################
 
     # Step 3: Deep equality check

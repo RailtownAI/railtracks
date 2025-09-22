@@ -44,12 +44,14 @@ class Parameter(ABC):
         required: bool = True,
         default: Any = None,
         enum: Optional[List[Any]] = None,
+        default_present: bool = False,
     ):
         self.name = name
         self.description = description or ""
         self.required = required
         self.default = default
         self.enum = enum
+        self.default_present = default_present
 
     @abstractmethod
     def to_json_schema(self) -> Dict[str, Any]:

@@ -2,7 +2,7 @@ from typing import Set
 
 from .parameters import (
     Parameter,
-    DefaultParameter,
+    SimpleParameter,
     ArrayParameter,
     UnionParameter,
     ObjectParameter,
@@ -32,9 +32,11 @@ def _extract_param_type(prop_schema: dict) -> str | list:
 def _extract_basic_properties(prop_schema: dict):
     description = prop_schema.get("description", "")
     enum = prop_schema.get("enum", None)
+    # Detect presence of "default" key alongside its value, including explicit null
+    default_present = "default" in prop_schema
     default = prop_schema.get("default", None)
     additional_properties = prop_schema.get("additionalProperties", False)
-    return description, enum, default, additional_properties
+    return description, enum, default, additional_properties, default_present
 
 
 def _handle_ref_schema(name: str, prop_schema: dict, required: bool, description: str) -> RefParameter:
@@ -46,15 +48,13 @@ def _handle_ref_schema(name: str, prop_schema: dict, required: bool, description
     )
 
 
-def _handle_all_of_schema(name: str, prop_schema: dict, required: bool, description: str, additional_properties: bool) -> tuple[PydanticParameter | None, str | list | None]:
+def _handle_all_of_schema(name: str, prop_schema: dict, required: bool, description: str, additional_properties: bool) -> tuple[Parameter | None, str | list | None]:
     param_type = None
     for item in prop_schema["allOf"]:
         if "$ref" in item:
-            # For allOf with $ref - instantiate PydanticParameter with empty props (you can customize this)
             return (
-                PydanticParameter(
+                ObjectParameter(
                     name=name,
-                    param_type="object",
                     description=description,
                     required=required,
                     properties=[],
@@ -67,75 +67,74 @@ def _handle_all_of_schema(name: str, prop_schema: dict, required: bool, descript
     return None, param_type
 
 
-def _handle_any_of_schema(name: str, prop_schema: dict, required: bool, description: str, enum, default, additional_properties: bool) -> Parameter:
-    types_list = []
-    inner_props = []
-    for item in prop_schema["anyOf"]:
-        t = item.get("type", "string")
-        types_list.append(t if t != "null" else "none")
+def _handle_any_of_schema(
+    name: str,
+    prop_schema: dict,
+    required: bool,
+    description: str,
+    default= None,
+    default_present: bool = False,
+) -> Parameter:
+    options = []
+    for idx, option_schema in enumerate(prop_schema.get("anyOf", [])):
+        # Generate a unique, descriptive name for this option
+        option_name = f"{name}_option_{idx}"
+        option_param = parse_json_schema_to_parameter(option_name, option_schema, required=True)
+        options.append(option_param)
+    
+    # Defensive: avoid nested UnionParameter in options; flatten if found
+    flattened_options = []
+    for opt in options:
+        if isinstance(opt, UnionParameter):
+            flattened_options.extend(opt.options)
+        else:
+            flattened_options.append(opt)
+    
+    # If only one option, do not wrap in UnionParameter unnecessarily
+    if len(flattened_options) == 1:
+        return flattened_options[0]
 
-        if t == "object" and "properties" in item:
-            inner_required = item.get("required", [])
-            for inner_name, inner_schema in item["properties"].items():
-                inner_props.append(
-                    parse_json_schema_to_parameter(
-                        inner_name, inner_schema, inner_name in inner_required
-                    )
-                )
-
-    if inner_props:
-        # return PydanticParameter(
-        #     name=name,
-        #     param_type=types_list,
-        #     description=description,
-        #     required=required,
-        #     properties=inner_props,
-        #     additional_properties=additional_properties,
-        # )
-        return ObjectParameter(
-            name=name,
-            properties=inner_props,
-            description=description,
-            required=required,
-            additional_properties=additional_properties,
-        )
-
-    else:
-        return UnionParameter(
-            name=name,
-            options=types_list,
-            description=description,
-            required=required,
-            default=default,
-        )
-
-
-def _handle_object_schema(name: str, prop_schema: dict, required: bool, description: str, additional_properties: bool) -> PydanticParameter:
-    inner_required = prop_schema.get("required", [])
-    inner_props = []
-    for inner_name, inner_schema in prop_schema["properties"].items():
-        inner_props.append(
-            parse_json_schema_to_parameter(
-                inner_name, inner_schema, inner_name in inner_required
-            )
-        )
-
-    return PydanticParameter(
+    return UnionParameter(
         name=name,
-        param_type="object",
+        options=flattened_options,
         description=description,
         required=required,
-        properties=inner_props,
-        additional_properties=additional_properties,
+        default=default,
+        default_present=default_present,
     )
 
+def _handle_object_schema(
+    name: str,
+    prop_schema: dict,
+    required: bool,
+    description: str,
+    additional_properties: bool = False,
+    default = None,
+) -> Parameter:
+    inner_required = prop_schema.get("required", [])
+    inner_props = [
+        parse_json_schema_to_parameter(
+            inner_name,
+            inner_schema,
+            inner_name in inner_required
+        )
+        for inner_name, inner_schema in prop_schema.get("properties", {}).items()
+    ]
+
+    return ObjectParameter(
+        name=name,
+        description=description or prop_schema.get("description"),
+        required=required,
+        properties=inner_props,
+        additional_properties=prop_schema.get("additionalProperties", additional_properties),
+        default=default or prop_schema.get("default"),
+    )
 
 def _handle_array_schema(
     name: str,
     prop_schema: dict,
     required: bool,
     description: str,
-    enum,
     default,
     additional_properties: bool,
 ) -> Parameter:
@@ -169,7 +168,7 @@ def _handle_array_schema(
     else:
         # Handle primitive items as before
         item_type = items_schema.get("type", "string")
-        item_param = DefaultParameter(
+        item_param = SimpleParameter(
             name=f"{name}_item",
             param_type=item_type,
             description=items_schema.get("description", ""),
@@ -192,11 +191,12 @@ def parse_json_schema_to_parameter(name: str, prop_schema: dict, required: bool)
     Parse a JSON schema property dict into a Parameter subclass instance properly.
     """
     param_type = _extract_param_type(prop_schema)
-    description, enum, default, additional_properties = _extract_basic_properties(prop_schema)
+    description, enum, default, additional_properties, default_present = _extract_basic_properties(prop_schema)
 
     # Patch additionalProperties dict into schema if needed (you can adjust based on your needs)
     if isinstance(additional_properties, dict):
         prop_schema.update(additional_properties)
+        additional_properties = True
 
     if "$ref" in prop_schema:
         return _handle_ref_schema(name, prop_schema, required, description)
@@ -216,9 +216,8 @@ def parse_json_schema_to_parameter(name: str, prop_schema: dict, required: bool)
             prop_schema,
             required,
             description,
-            enum,
             default,
-            additional_properties,
+            default_present,
         )
 
     if (param_type == "object" or (isinstance(param_type, list) and "object" in param_type)) and "properties" in prop_schema:
@@ -230,13 +229,12 @@ def parse_json_schema_to_parameter(name: str, prop_schema: dict, required: bool)
             prop_schema,
             required,
             description,
-            enum,
             default,
             additional_properties,
         )
 
     else:
-        # For simple types, use DefaultParameter
+        # For simple types, use SimpleParameter
         if isinstance(param_type, list):
             # If type is a list, create UnionParameter (e.g. ["string","none"])
             return UnionParameter(
@@ -245,15 +243,18 @@ def parse_json_schema_to_parameter(name: str, prop_schema: dict, required: bool)
                 description=description,
                 required=required,
                 default=default,
+                enum=enum,
+                default_present=default_present,
             )
         else:
-            return DefaultParameter(
+            return SimpleParameter(
                 name=name,
                 param_type=param_type,
                 description=description,
                 required=required,
                 enum=enum,
                 default=default,
+                default_present=default_present,
             )
         
 def parse_model_properties(schema: dict) -> Set[Parameter]:

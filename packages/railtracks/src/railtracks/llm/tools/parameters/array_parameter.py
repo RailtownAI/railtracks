@@ -24,15 +24,14 @@ class ArrayParameter(Parameter):
         # Base property for items inside the array
         items_schema = self.items.to_json_schema()
 
-        # If this array parameter has a description, put it on the items_schema and 
-        # remove it from the parent to avoid duplication
-        if self.description:
-            items_schema["description"] = self.description
-            # normally, array description is on the array itself, but from your logic it seems it moves to items
+        
         schema = {
             "type": "array",
             "items": items_schema,
         }
+        if self.description:
+            schema["description"] = self.description
+            
         if self.max_items is not None:
             schema["maxItems"] = self.max_items
 

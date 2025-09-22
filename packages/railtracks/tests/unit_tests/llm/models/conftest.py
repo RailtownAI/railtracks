@@ -16,40 +16,16 @@ def tool():
     return Tool(
         name="example_tool",
         detail="This is an example tool.",
-        parameters={
+        parameters=[
             Parameter(
                 name="param1", param_type="string", description="A string parameter."
             ),
             Parameter(
                 name="param2", param_type="integer", description="An integer parameter."
             ),
-        },
+        ],
     )
 
-
-@pytest.fixture
-def tool_with_parameters_set():
-    """
-    Fixture to provide a Tool instance with Parameter objects.
-    """
-    return Tool(
-        name="example_tool",
-        detail="This is an example tool with parameters.",
-        parameters={
-            Parameter(
-                name="param1",
-                param_type="string",
-                description="A string parameter.",
-                required=True,
-            ),
-            Parameter(
-                name="param2",
-                param_type="integer",
-                description="An integer parameter.",
-                required=False,
-            ),
-        },
-    )
 
 # ====================================== END Tool Fixtures ======================================
 

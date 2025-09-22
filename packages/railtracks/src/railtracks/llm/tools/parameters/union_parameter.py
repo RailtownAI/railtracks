@@ -1,5 +1,5 @@
 from typing import List, Optional, Dict, Any
-from .default_parameter import DefaultParameter
+from .default_parameter import SimpleParameter
 from ._base import Parameter
 
 class UnionParameter(Parameter):
@@ -8,12 +8,14 @@ class UnionParameter(Parameter):
     def __init__(
         self,
         name: str,
-        options: List[DefaultParameter],
+        options: List[SimpleParameter],
         description: Optional[str] = None,
         required: bool = True,
         default: Any = None,
+        enum: Optional[list] = None,
+        default_present: bool = False,
     ):
-        super().__init__(name, description, required, default)
+        super().__init__(name, description, required, default, enum, default_present)
         self.options = options
         for opt in options:
             if isinstance(opt, UnionParameter):
@@ -23,10 +25,17 @@ class UnionParameter(Parameter):
         self.param_type = [opt.param_type if hasattr(opt.param_type, 'value') else opt.param_type for opt in options]
 
     def to_json_schema(self) -> Dict[str, Any]:
-        return {
+        schema = {
             "anyOf": [opt.to_json_schema() for opt in self.options],
-            "description": self.description,
         }
+
+        if self.description:
+            schema["description"] = self.description        # type: ignore
+
+        if self.default_present:
+            schema["default"] = self.default
+        
+        return schema
 
 
     def __repr__(self) -> str:

@@ -13,6 +13,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    Iterable,
 )
 
 import litellm
