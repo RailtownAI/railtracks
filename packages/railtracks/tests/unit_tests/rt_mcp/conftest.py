@@ -1,3 +1,4 @@
+from typing import Any
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import timedelta
@@ -96,6 +97,13 @@ def fake_tool():
 class DummyNode(Node):
     @classmethod
     def name(cls):
+        return "DummyNode"
+    
+    def invoke(self):
+        return super().invoke()
+    
+    @classmethod
+    def type(cls) -> str:
         return "DummyNode"
 
 @pytest.fixture
