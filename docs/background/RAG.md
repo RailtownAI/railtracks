@@ -20,19 +20,19 @@ When people talk about using RAG (Retrieval-Augmented Generation), they mean a s
 
 The process often looks like this:
 
-1. 📄 **Chunk**  
+1. **Chunk**  
    Split each document into manageable text chunks.
 
-2. 🔢 **Embed**  
+2. **Embed**  
    Convert each chunk to a vector using an embedding model.
 
-3. 💾 **Store**  
+3. **Store**  
    Write vectors and associated text/metadata to a vector store.
 
-4. 🔍 **Search**  
+4. **Search**  
    At query time, embed the question and perform a similarity search to retrieve relevant chunks of information.
 
-5. 🎯 **Compose Prompt**  
+5. **Compose Prompt**  
    Join retrieved snippets into a context string and pass it to an LLM for a more informed answer.
 
 # What It Looks Like?
@@ -42,9 +42,9 @@ The process often looks like this:
 ```mermaid
 sequenceDiagram
     participant U as Knowledge Base
-    participant A as 📄 Chunk
-    participant B as 🔢 Embed
-    participant C as 💾 Store
+    participant A as  Chunk
+    participant B as  Embed
+    participant C as  Store
 
     U->>A: Provide documents
     A->>B: Send chunks
@@ -55,9 +55,9 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant U as User Prompt
-    participant C as 💾 Store
-    participant E as 🎯 Prompt Injection
-    participant L as 🤖 LLM
+    participant C as  Store
+    participant E as  Prompt Injection
+    participant L as  LLM
 
     U->>C: Search Store for similarity 
     C->>E: Return most relevent results
