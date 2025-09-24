@@ -10,15 +10,9 @@ class HILMessage:
 
 class HIL(ABC):
     @abstractmethod
-    async def connect(self) -> None:
+    def connect(self) -> None:
         """
         Creates or initializes the user interface component.
-
-        Args:
-            content: The initial content or prompt to display to the user.
-
-        Raises:
-            ConnectionError: If the interface cannot be established.
         """
         pass
 
@@ -26,9 +20,6 @@ class HIL(ABC):
     def disconnect(self) -> None:
         """
         Disconnects the user interface component.
-
-        Raises:
-            ConnectionError: If the interface cannot be properly closed.
         """
         pass
 

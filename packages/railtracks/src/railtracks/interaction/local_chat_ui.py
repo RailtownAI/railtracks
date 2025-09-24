@@ -18,11 +18,14 @@ from typing import Optional
 import uvicorn
 import time
 import os
-import signal
 from fastapi import FastAPI, Response
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
+from ..utils.logging.create import get_rt_logger
+from ..llm import ToolResponse, ToolCall
+
+logger = get_rt_logger("ChatUI")
 
 class UIUserMessage(BaseModel):
     message: str
@@ -138,7 +141,7 @@ class ChatUI(HIL):
                         heartbeat = {"type": "heartbeat", "timestamp": datetime.now().isoformat()}
                         yield f"data: {json.dumps(heartbeat)}\n\n"
                     except asyncio.CancelledError:
-                        print(f"SSE event generator cancelled {self.is_connected} {os.getpid()}")
+                        logger.info(f"SSE event generator cancelled, this is expected.")
                         break
 
             return StreamingResponse(
@@ -185,19 +188,15 @@ class ChatUI(HIL):
         )
         self.server = uvicorn.Server(config)
         await self.server.serve()      
-        await asyncio.sleep(1)
 
-    async def connect(self) -> None:
+    def connect(self) -> None:
         localhost_url = f"http://{self.host}:{self.port}"
 
-        # if self.server_thread is None:
-        #     self.server_thread = threading.Thread(target=self._run_server, daemon=True)
-        #     self.server_thread.start()
         self.loop = asyncio.get_running_loop()
         self.server_task = self.loop.create_task(self._run_server())
-        await asyncio.sleep(1)  # Give server time to start
 
         if self.auto_open:
+            time.sleep(2)
             webbrowser.open(localhost_url)
 
         self.is_connected = True
@@ -221,7 +220,7 @@ class ChatUI(HIL):
             True if the message was sent successfully, False otherwise.
         """
         if not self.is_connected:
-            print(f"ChatUI: Cannot send message - not connected")
+            logger.warning(f"Cannot send message - not connected")
             return False
             
         # Prepare message for UI
@@ -238,15 +237,15 @@ class ChatUI(HIL):
         try:
             # Use put_nowait for immediate, non-blocking operation
             await self.sse_queue.put(message)
-            print(f"ChatUI: Message sent successfully")
+            logger.info(f"Message sent successfully")
             return True
         except asyncio.QueueFull:
-            print(f"ChatUI: Outgoing queue is full - likely no browser connected to consume messages")
+            logger.warning(f"Outgoing queue is full - likely no browser connected to consume messages")
             # Don't wait indefinitely - just return False if queue is full
             # This prevents hanging when no browser is connected to the SSE endpoint
             return False
         except Exception as e:
-            print(f"ChatUI: Error sending message: {e}")
+            logger.error(f"Error sending message: {e}")
             return False
 
     async def receive_message(self, timeout: float | None = None) -> HILMessage | None:
@@ -295,12 +294,8 @@ class ChatUI(HIL):
 
     async def update_tools(
         self,
-        tool_name: str,
-        tool_id: str,
-        arguments: dict,
-        result: str,
-        success: bool = True,
-    ) -> None:
+        tool_invocations: list[tuple[ToolCall, ToolResponse]]
+    ) -> bool:
         """
         Send a tool invocation update to the chat interface.
 
@@ -311,14 +306,27 @@ class ChatUI(HIL):
             result: Result returned by the tool
             success: Whether the tool call was successful
         """
-        message = {
-            "type": "tool_invoked",
-            "data": {
-                "name": tool_name,
-                "identifier": tool_id,
-                "arguments": arguments,
-                "result": result,
-                "success": success,
-            },
-        }
-        await self.sse_queue.put(message)
+        try:
+            for tc, tr in tool_invocations:
+                success = not str(tr.result).startswith("There was an error running the tool")
+
+                message = {
+                    "type": "tool_invoked",
+                    "data": {
+                        "name": tc.name,
+                        "identifier": tc.identifier,
+                        "arguments": tc.arguments,
+                        "result": str(tr.result),
+                        "success": success,
+                    },
+                }
+                await self.sse_queue.put(message)
+            
+            logger.info(f"Tool Messages sent successfully")
+            return True
+        except asyncio.QueueFull:
+            logger.warning(f"Outgoing queue is full - likely no browser connected to consume or there are too many tool updates")
+            return False
+        except Exception as e:
+            logger.error(f"Error sending message: {e}")
+            return False
