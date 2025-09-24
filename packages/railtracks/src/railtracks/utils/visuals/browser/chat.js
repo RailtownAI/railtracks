@@ -39,8 +39,13 @@ function switchTab(tabName) {
     currentTab = tabName;
 }
 
+let keepSSEAlive = true; // new global flag
+
 // Initialize SSE connection
 function initializeSSE() {
+
+    if (!keepSSEAlive) return; 
+
     eventSource = new EventSource('/events');
     
     eventSource.onopen = function(event) {
@@ -241,12 +246,20 @@ async function sendMessage() {
 }
 
 async function endSession(event) {
+    keepSSEAlive = false;
+    updateConnectionStatus(false);
     event.preventDefault();
-    if (isProcessing) return;
     
     const endButton = document.getElementById('endSessionButton');
     const messageInput = document.getElementById('messageInput');
     const sendButton = document.getElementById('sendButton');
+    
+    if (isProcessing) return;
+    
+    if (eventSource) {
+        eventSource.close();
+    }
+
     
     // Disable UI elements
     endButton.disabled = true;
@@ -257,29 +270,19 @@ async function endSession(event) {
     addMessage('system', '🔚 Session ending...', new Date().toLocaleTimeString());
     
     try {
-        const response = await fetch('/send_message', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                message: 'EXIT',
-                timestamp: new Date().toISOString()
-            })
-        });
-        
+        const response = await fetch('/shutdown', { method: 'POST' });
         const result = await response.json();
         
         if (!response.ok) {
-            throw new Error(result.detail || 'Failed to end session');
+            throw new Error(result.detail || 'Failed to shut down server');
         }
         
-        console.log('Session ended successfully:', result);
-        addMessage('system', '<i class="fa-solid fa-circle-check" style="color: green;"></i> Session ended successfully', new Date().toLocaleTimeString());
+        console.log('Shutdown triggered successfully:', result);
+        addMessage('system', '<i class="fa-solid fa-circle-check" style="color: green;"></i> Server shutting down', new Date().toLocaleTimeString());
         
     } catch (error) {
-        console.error('Error ending session:', error);
-        addMessage('system', `<i class="fa-solid fa-circle-xmark" style="color:red;"></i> Error ending session: ${error.message}`, new Date().toLocaleTimeString());
+        console.error('Error shutting down:', error);
+        addMessage('system', `<i class="fa-solid fa-circle-xmark" style="color:red;"></i> Error shutting down: ${error.message}`, new Date().toLocaleTimeString());
         
         // Re-enable UI elements on error
         endButton.disabled = false;

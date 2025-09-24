@@ -111,9 +111,16 @@ class ChatUI(HIL):
         @app.post("/update_tools")
         async def update_tools(tool_invocation: ToolInvocation):
             """Update the tools tab with a new tool invocation"""
-            message = {"type": "tool_invoked", "data": tool_invocation.dict()}
+            message = {"type": "tool_invoked", "data": tool_invocation.model_dump()}
             await self.sse_queue.put(message)
             return {"status": "success", "message": "Tool updated"}
+
+        @app.post("/shutdown")
+        async def shutdown():
+            """Shutdown the chat interface"""
+            self.is_connected = False
+            self.disconnect()
+            return {"status": "success", "message": "Chat interface shutting down"}
 
         @app.get("/events")
         async def stream_events():
@@ -178,10 +185,7 @@ class ChatUI(HIL):
         )
         self.server = uvicorn.Server(config)
         await self.server.serve()      
-
-    async def shutdown(self):
-        self.server.force_exit = True
-        await self.server.shutdown()
+        await asyncio.sleep(1)
 
     async def connect(self) -> None:
         localhost_url = f"http://{self.host}:{self.port}"
@@ -201,22 +205,9 @@ class ChatUI(HIL):
     def disconnect(self) -> None:
         """
         Disconnects the user interface component.
-
-        Raises:
-            ConnectionError: If the interface cannot be properly closed.
         """
-        self.loop.create_task(self.shutdown())
-        # self.shutdown_event.set()  # Signal shutdown
-        # print("TRIED CANCELLING")
-        # try:
-        #     self.is_connected = False
-        #     self.loop.create_task(self.shutdown())
-        #     # if self.server_task is not None:
-        #     #     self.server_task.cancel()
-        #     #     self.server_task = None
-                        
-        # except Exception as e:
-        #     raise ConnectionError(f"Failed to disconnect ChatUI server: {e}")
+        self.is_connected = False
+        self.shutdown_event.set()
 
     async def send_message(self, content: HILMessage, timeout: float | None = 5.0) -> bool:
         """
@@ -272,17 +263,30 @@ class ChatUI(HIL):
         """
         if not self.is_connected:
             return None
-            
-        try:
-            if timeout is not None:
-                message = await asyncio.wait_for(
-                    self.user_input_queue.get(),
-                    timeout=timeout
-                )
-            else:
-                message = await self.user_input_queue.get()
+        
+        tasks = [
+            asyncio.create_task(self.user_input_queue.get()),
+            asyncio.create_task(self.shutdown_event.wait())
+        ]
 
-            return message
+        try:
+            done, pending = await asyncio.wait(
+                tasks,
+                return_when=asyncio.FIRST_COMPLETED,
+                timeout=timeout
+            )
+
+            for task in pending:
+                task.cancel()
+
+            for task in done:
+                if task is tasks[0]:  # user_input_queue.get()
+                    message = task.result()
+                    return message
+                elif task is tasks[1]:  # shutdown_event.wait()
+                    return None
+
+            return None  # Timeout occurred
             
         except asyncio.TimeoutError:
             return None

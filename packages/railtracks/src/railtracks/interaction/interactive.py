@@ -61,37 +61,34 @@ async def interactive(
             await chat_ui.connect()
             msg_history = MessageHistory([])
             last_tool_idx = 0  # To track the last processed tool response, not sure how efficient this makes things
-            message = await chat_ui.receive_message()
-            # await chat_ui.shutdown()
-            return ""
-            # while True:
 
-            #     message = await chat_ui.receive_message()
-            #     if message is None or message.content.upper() == "EXIT":
-            #         # chat_ui.disconnect()
-            #         break
+            while chat_ui.is_connected:
 
-            #     msg_history.append(UserMessage(message.content))
+                message = await chat_ui.receive_message()
+                if message is None:
+                    continue # This should exit the loop since is_connected will be false
 
-            #     response = await call(node, msg_history)
-            #     msg_history = response.message_history.copy()
+                msg_history.append(UserMessage(message.content))
 
-            #     await chat_ui.send_message(HILMessage(content=response.text))
-            #     for tc, tr in response.tool_invocations[last_tool_idx:]:
+                response = await call(node, msg_history)
+                msg_history = response.message_history.copy()
 
-            #         success = not tr.result.startswith(
-            #             "There was an error running the tool"
-            #         )
+                await chat_ui.send_message(HILMessage(content=response.text))
+                for tc, tr in response.tool_invocations[last_tool_idx:]:
 
-            #         await chat_ui.update_tools(
-            #             tool_name=tc.name,
-            #             tool_id=tc.identifier,
-            #             arguments=tc.arguments,
-            #             result=str(tr.result),
-            #             success=success,
-            #         )
+                    success = not tr.result.startswith(
+                        "There was an error running the tool"
+                    )
 
-            #     last_tool_idx = len(response.tool_invocations)
+                    await chat_ui.update_tools(
+                        tool_name=tc.name,
+                        tool_id=tc.identifier,
+                        arguments=tc.arguments,
+                        result=str(tr.result),
+                        success=success,
+                    )
+
+                last_tool_idx = len(response.tool_invocations)
 
             logger.info("ChatUI session ended.")
         except Exception as e:
