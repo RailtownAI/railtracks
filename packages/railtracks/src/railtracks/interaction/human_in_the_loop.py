@@ -10,7 +10,7 @@ class HILMessage:
 
 class HIL(ABC):
     @abstractmethod
-    def connect(self, content: HILMessage | None = None) -> None:
+    async def connect(self) -> None:
         """
         Creates or initializes the user interface component.
 

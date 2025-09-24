@@ -10,11 +10,15 @@ Clean implementation that properly follows the HIL contract.
 import asyncio
 import json
 import webbrowser
+import threading
 from datetime import datetime
 from importlib.resources import files
 from typing import Optional
 
 import uvicorn
+import time
+import os
+import signal
 from fastapi import FastAPI, Response
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
@@ -56,14 +60,16 @@ class ChatUI(HIL):
         self.auto_open = auto_open
         
         # Simple message queues with reasonable size limits
-        self.outgoing_messages = asyncio.Queue(maxsize=100)  # For SSE to UI
-        self.incoming_messages = asyncio.Queue(maxsize=100)  # From UI to Python
+        self.sse_queue = asyncio.Queue(maxsize=100)  # For SSE to UI
+        self.user_input_queue = asyncio.Queue(maxsize=100)  # From UI to Python
         
         self.shutdown_event = asyncio.Event()  # For clean shutdown
 
         # Server state
-        self.app = None
+        self.app = self._create_app()
+        self.server_thread = None
         self.server_task = None
+        self.server_started = threading.Event()
         self.is_connected = False
 
     def _get_static_file_content(self, filename: str) -> str:
@@ -98,14 +104,15 @@ class ChatUI(HIL):
                 content=user_message.message,
                 metadata={"timestamp": user_message.timestamp or datetime.now().isoformat()}
             )
-            await self.incoming_messages.put(message_data)
+            await self.user_input_queue.put(message_data)
+            
             return {"status": "success", "message": "Message received"}
 
         @app.post("/update_tools")
         async def update_tools(tool_invocation: ToolInvocation):
             """Update the tools tab with a new tool invocation"""
             message = {"type": "tool_invoked", "data": tool_invocation.dict()}
-            await self.outgoing_messages.put(message)
+            await self.sse_queue.put(message)
             return {"status": "success", "message": "Tool updated"}
 
         @app.get("/events")
@@ -116,13 +123,16 @@ class ChatUI(HIL):
                 while self.is_connected:
                     try:
                         message = await asyncio.wait_for(
-                            self.outgoing_messages.get(), timeout=1.0
+                            self.sse_queue.get(), timeout=2.0
                         )
                         yield f"data: {json.dumps(message)}\n\n"
                     except asyncio.TimeoutError:
                         # Send heartbeat
                         heartbeat = {"type": "heartbeat", "timestamp": datetime.now().isoformat()}
                         yield f"data: {json.dumps(heartbeat)}\n\n"
+                    except asyncio.CancelledError:
+                        print(f"SSE event generator cancelled {self.is_connected} {os.getpid()}")
+                        break
 
             return StreamingResponse(
                 event_generator(),
@@ -154,73 +164,40 @@ class ChatUI(HIL):
             return Response(content, media_type="application/javascript")
 
         return app
-
-    def connect(self, content: HILMessage | None = None) -> None:
-        """
-        Creates or initializes the user interface component.
-
-        Args:
-            content: The initial content or prompt to display to the user.
-
-        Raises:
-            ConnectionError: If the interface cannot be established.
-        """
-        try:
-            # Create the FastAPI app
-            self.app = self._create_app()
-            self.is_connected = True
+    
+    async def _run_server(self):
+        if self.app is None:
+            raise RuntimeError("App not initialized")
             
-            # Start the server in a background task
-            async def run_server():
-                if self.app is None:
-                    raise RuntimeError("App not initialized")
-                    
-                config = uvicorn.Config(
-                    app=self.app,
-                    host=self.host,
-                    port=self.port,
-                    log_level="error",
-                    access_log=False
-                )
-                server = uvicorn.Server(config)
-                await server.serve()
-            
-            # Get or create event loop
-            try:
-                loop = asyncio.get_running_loop()
-            except RuntimeError:
-                # We're not in an async context, create a new loop
-                import threading
-                import time
-                
-                def start_server():
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    loop.run_until_complete(run_server())
-                
-                server_thread = threading.Thread(target=start_server, daemon=True)
-                server_thread.start()
-                
-                # Open browser if requested
-                if self.auto_open:
-                    webbrowser.open(f"http://{self.host}:{self.port}")
-                return
-            
-            # We're in an async context, create task
-            self.server_task = loop.create_task(run_server())
+        config = uvicorn.Config(
+            app=self.app,
+            host=self.host,
+            port=self.port,
+            log_level="critical",
+            access_log=False
+        )
+        self.server = uvicorn.Server(config)
+        await self.server.serve()      
 
-            # Send initial message if provided
-            if content:
-                loop.create_task(self.send_message(content))
-            
-            # Open browser if requested
-            if self.auto_open:
-                webbrowser.open(f"http://{self.host}:{self.port}")
-                
-        except Exception as e:
-            self.is_connected = False
-            raise ConnectionError(f"Failed to start ChatUI server: {e}")
+    async def shutdown(self):
+        self.server.force_exit = True
+        await self.server.shutdown()
 
+    async def connect(self) -> None:
+        localhost_url = f"http://{self.host}:{self.port}"
+
+        # if self.server_thread is None:
+        #     self.server_thread = threading.Thread(target=self._run_server, daemon=True)
+        #     self.server_thread.start()
+        self.loop = asyncio.get_running_loop()
+        self.server_task = self.loop.create_task(self._run_server())
+        await asyncio.sleep(1)  # Give server time to start
+
+        if self.auto_open:
+            webbrowser.open(localhost_url)
+
+        self.is_connected = True
+              
     def disconnect(self) -> None:
         """
         Disconnects the user interface component.
@@ -228,33 +205,18 @@ class ChatUI(HIL):
         Raises:
             ConnectionError: If the interface cannot be properly closed.
         """
-        self.shutdown_event.set()  # Signal shutdown
-
-        try:
-            self.is_connected = False
-            
-            # Cancel server task if it exists
-            if self.server_task and not self.server_task.done():
-                self.server_task.cancel()
-            
-            # Clear queues
-            while not self.outgoing_messages.empty():
-                try:
-                    self.outgoing_messages.get_nowait()
-                except asyncio.QueueEmpty:
-                    break
-                    
-            while not self.incoming_messages.empty():
-                try:
-                    self.incoming_messages.get_nowait()
-                except asyncio.QueueEmpty:
-                    break
-            
-            self.server_task = None
-            self.app = None
-            
-        except Exception as e:
-            raise ConnectionError(f"Failed to disconnect ChatUI server: {e}")
+        self.loop.create_task(self.shutdown())
+        # self.shutdown_event.set()  # Signal shutdown
+        # print("TRIED CANCELLING")
+        # try:
+        #     self.is_connected = False
+        #     self.loop.create_task(self.shutdown())
+        #     # if self.server_task is not None:
+        #     #     self.server_task.cancel()
+        #     #     self.server_task = None
+                        
+        # except Exception as e:
+        #     raise ConnectionError(f"Failed to disconnect ChatUI server: {e}")
 
     async def send_message(self, content: HILMessage, timeout: float | None = 5.0) -> bool:
         """
@@ -284,7 +246,7 @@ class ChatUI(HIL):
         
         try:
             # Use put_nowait for immediate, non-blocking operation
-            self.outgoing_messages.put_nowait(message)
+            await self.sse_queue.put(message)
             print(f"ChatUI: Message sent successfully")
             return True
         except asyncio.QueueFull:
@@ -314,17 +276,17 @@ class ChatUI(HIL):
         try:
             if timeout is not None:
                 message = await asyncio.wait_for(
-                    self.incoming_messages.get(),
+                    self.user_input_queue.get(),
                     timeout=timeout
                 )
             else:
-                message = await self.incoming_messages.get()
-            
+                message = await self.user_input_queue.get()
+
             return message
             
         except asyncio.TimeoutError:
             return None
-        except Exception:
+        except asyncio.CancelledError:
             return None
 
     async def update_tools(
@@ -355,4 +317,4 @@ class ChatUI(HIL):
                 "success": success,
             },
         }
-        await self.outgoing_messages.put(message)
+        await self.sse_queue.put(message)

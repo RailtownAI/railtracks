@@ -1,4 +1,5 @@
 import asyncio
+import os
 
 from typing import TYPE_CHECKING, Callable, ParamSpec, TypeVar, Type, overload
 
@@ -23,7 +24,7 @@ async def interactive(
     port: int | None = None,
     host: str | None = None,
     auto_open: bool | None = True,
-) -> None: ...
+) -> _TOutput: ...
 
 
 @overload
@@ -33,7 +34,7 @@ async def interactive(
     port: int | None = None,
     host: str | None = None,
     auto_open: bool | None = True,
-) -> None: ...
+) -> _TOutput: ...
 
 
 async def interactive(
@@ -42,7 +43,7 @@ async def interactive(
     port: int | None = None,
     host: str | None = None,
     auto_open: bool | None = True,
-) -> None:
+) -> str:#_TOutput:
 
     chat_ui_kwargs = {}
     if port is not None:
@@ -56,39 +57,43 @@ async def interactive(
         chat_ui = HIL_interface(**chat_ui_kwargs)
 
         try:
-            logger.info("Launching Local ChatUI")
-            chat_ui.connect()
+            logger.info(f"Launching Local ChatUI {os.getpid()}")
+            await chat_ui.connect()
             msg_history = MessageHistory([])
             last_tool_idx = 0  # To track the last processed tool response, not sure how efficient this makes things
-            while True:
+            message = await chat_ui.receive_message()
+            # await chat_ui.shutdown()
+            return ""
+            # while True:
 
-                message = await chat_ui.receive_message()
-                if message is None or message.content.upper() == "EXIT":
-                    chat_ui.disconnect()
-                    break
+            #     message = await chat_ui.receive_message()
+            #     if message is None or message.content.upper() == "EXIT":
+            #         # chat_ui.disconnect()
+            #         break
 
-                msg_history.append(UserMessage(message.content))
+            #     msg_history.append(UserMessage(message.content))
 
-                response = await call(node, msg_history)
-                msg_history = response.message_history.copy()
+            #     response = await call(node, msg_history)
+            #     msg_history = response.message_history.copy()
 
-                await chat_ui.send_message(HILMessage(content=response.text))
-                for tc, tr in response.tool_invocations[last_tool_idx:]:
+            #     await chat_ui.send_message(HILMessage(content=response.text))
+            #     for tc, tr in response.tool_invocations[last_tool_idx:]:
 
-                    success = not tr.result.startswith(
-                        "There was an error running the tool"
-                    )
+            #         success = not tr.result.startswith(
+            #             "There was an error running the tool"
+            #         )
 
-                    await chat_ui.update_tools(
-                        tool_name=tc.name,
-                        tool_id=tc.identifier,
-                        arguments=tc.arguments,
-                        result=str(tr.result),
-                        success=success,
-                    )
+            #         await chat_ui.update_tools(
+            #             tool_name=tc.name,
+            #             tool_id=tc.identifier,
+            #             arguments=tc.arguments,
+            #             result=str(tr.result),
+            #             success=success,
+            #         )
 
-                last_tool_idx = len(response.tool_invocations)
+            #     last_tool_idx = len(response.tool_invocations)
 
+            logger.info("ChatUI session ended.")
         except Exception as e:
             logger.error(f"Error during interactive session: {e}")
 
