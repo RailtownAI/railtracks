@@ -1,31 +1,22 @@
-from .human_in_the_loop import HIL, HILMessage
-
-#!/usr/bin/env python3
-"""
-ChatUI - Simple interface for chatbot interaction with the web UI
-
-Clean implementation that properly follows the HIL contract.
-"""
-
 import asyncio
 import json
-import webbrowser
 import threading
+import webbrowser
 from datetime import datetime
 from importlib.resources import files
 from typing import Optional
 
 import uvicorn
-import time
-import os
 from fastapi import FastAPI, Response
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
+from ..llm import ToolCall, ToolResponse
 from ..utils.logging.create import get_rt_logger
-from ..llm import ToolResponse, ToolCall
+from .human_in_the_loop import HIL, HILMessage
 
 logger = get_rt_logger("ChatUI")
+
 
 class UIUserMessage(BaseModel):
     message: str
@@ -43,7 +34,7 @@ class ToolInvocation(BaseModel):
 class ChatUI(HIL):
     """
     Simple interface for chatbot interaction with the web UI.
-    
+
     Clean implementation that properly follows the HIL contract.
     """
 
@@ -61,11 +52,11 @@ class ChatUI(HIL):
         self.port = port
         self.host = host
         self.auto_open = auto_open
-        
+
         # Simple message queues with reasonable size limits
         self.sse_queue = asyncio.Queue(maxsize=100)  # For SSE to UI
         self.user_input_queue = asyncio.Queue(maxsize=100)  # From UI to Python
-        
+
         self.shutdown_event = asyncio.Event()  # For clean shutdown
 
         # Server state
@@ -96,19 +87,20 @@ class ChatUI(HIL):
                 f"Exception occurred loading static '{filename}' for Chat UI"
             ) from e
 
-    def _create_app(self) -> FastAPI:
-        """Create and configure the FastAPI application."""
-        app = FastAPI(title="ChatUI Server")
+    def _define_endpoints(self, app: FastAPI):
+        """Define the FastAPI endpoints."""
 
         @app.post("/send_message")
         async def send_message(user_message: UIUserMessage):
             """Receive user input from chat interface"""
             message_data = HILMessage(
                 content=user_message.message,
-                metadata={"timestamp": user_message.timestamp or datetime.now().isoformat()}
+                metadata={
+                    "timestamp": user_message.timestamp or datetime.now().isoformat()
+                },
             )
             await self.user_input_queue.put(message_data)
-            
+
             return {"status": "success", "message": "Message received"}
 
         @app.post("/update_tools")
@@ -138,10 +130,13 @@ class ChatUI(HIL):
                         yield f"data: {json.dumps(message)}\n\n"
                     except asyncio.TimeoutError:
                         # Send heartbeat
-                        heartbeat = {"type": "heartbeat", "timestamp": datetime.now().isoformat()}
+                        heartbeat = {
+                            "type": "heartbeat",
+                            "timestamp": datetime.now().isoformat(),
+                        }
                         yield f"data: {json.dumps(heartbeat)}\n\n"
                     except asyncio.CancelledError:
-                        logger.info(f"SSE event generator cancelled, this is expected.")
+                        logger.info("SSE event generator cancelled, this is expected.")
                         break
 
             return StreamingResponse(
@@ -154,6 +149,11 @@ class ChatUI(HIL):
                     "Access-Control-Allow-Headers": "Cache-Control",
                 },
             )
+
+    def _create_app(self) -> FastAPI:
+        """Create and configure the FastAPI application."""
+        app = FastAPI(title="ChatUI Server")
+        self._define_endpoints(app)
 
         @app.get("/", response_class=HTMLResponse)
         async def get_chat_interface():
@@ -174,20 +174,20 @@ class ChatUI(HIL):
             return Response(content, media_type="application/javascript")
 
         return app
-    
+
     async def _run_server(self):
         if self.app is None:
             raise RuntimeError("App not initialized")
-            
+
         config = uvicorn.Config(
             app=self.app,
             host=self.host,
             port=self.port,
             log_level="critical",
-            access_log=False
+            access_log=False,
         )
         self.server = uvicorn.Server(config)
-        await self.server.serve()      
+        await self.server.serve()
 
     async def connect(self) -> None:
         localhost_url = f"http://{self.host}:{self.port}"
@@ -196,7 +196,7 @@ class ChatUI(HIL):
         self.server_task = self.loop.create_task(self._run_server())
 
         if self.auto_open:
-            await asyncio.sleep(1) # wait a bit before openning the browser
+            await asyncio.sleep(1)  # wait a bit before openning the browser
             webbrowser.open(localhost_url)
 
         self.is_connected = True
@@ -209,7 +209,9 @@ class ChatUI(HIL):
         self.is_connected = False
         self.shutdown_event.set()
 
-    async def send_message(self, content: HILMessage, timeout: float | None = 5.0) -> bool:
+    async def send_message(
+        self, content: HILMessage, timeout: float | None = 5.0
+    ) -> bool:
         """
         Sends a message to the user through the interface.
 
@@ -221,27 +223,29 @@ class ChatUI(HIL):
             True if the message was sent successfully, False otherwise.
         """
         if not self.is_connected:
-            logger.warning(f"Cannot send message - not connected")
+            logger.warning("Cannot send message - not connected")
             return False
-            
+
         # Prepare message for UI
         message = {
             "type": "assistant_response",
             "data": content.content,  # JavaScript expects data to be the content string directly
             "timestamp": datetime.now().strftime("%H:%M:%S"),
         }
-        
+
         # Override timestamp if provided in metadata
         if content.metadata and "timestamp" in content.metadata:
             message["timestamp"] = content.metadata["timestamp"]
-        
+
         try:
             # Use put_nowait for immediate, non-blocking operation
             await self.sse_queue.put(message)
-            logger.info(f"Message sent successfully")
+            logger.debug(f"Message sent successfully:\n {message}")
             return True
         except asyncio.QueueFull:
-            logger.warning(f"Outgoing queue is full - likely no browser connected to consume messages")
+            logger.warning(
+                "Outgoing queue is full - likely no browser connected to consume messages"
+            )
             # Don't wait indefinitely - just return False if queue is full
             # This prevents hanging when no browser is connected to the SSE endpoint
             return False
@@ -263,17 +267,15 @@ class ChatUI(HIL):
         """
         if not self.is_connected:
             return None
-        
+
         tasks = [
             asyncio.create_task(self.user_input_queue.get()),
-            asyncio.create_task(self.shutdown_event.wait())
+            asyncio.create_task(self.shutdown_event.wait()),
         ]
 
         try:
             done, pending = await asyncio.wait(
-                tasks,
-                return_when=asyncio.FIRST_COMPLETED,
-                timeout=timeout
+                tasks, return_when=asyncio.FIRST_COMPLETED, timeout=timeout
             )
 
             for task in pending:
@@ -287,15 +289,14 @@ class ChatUI(HIL):
                     return None
 
             return None  # Timeout occurred
-            
+
         except asyncio.TimeoutError:
             return None
         except asyncio.CancelledError:
             return None
 
     async def update_tools(
-        self,
-        tool_invocations: list[tuple[ToolCall, ToolResponse]]
+        self, tool_invocations: list[tuple[ToolCall, ToolResponse]]
     ) -> bool:
         """
         Send a tool invocation update to the chat interface.
@@ -309,7 +310,9 @@ class ChatUI(HIL):
         """
         try:
             for tc, tr in tool_invocations:
-                success = not str(tr.result).startswith("There was an error running the tool")
+                success = not str(tr.result).startswith(
+                    "There was an error running the tool"
+                )
 
                 message = {
                     "type": "tool_invoked",
@@ -322,11 +325,13 @@ class ChatUI(HIL):
                     },
                 }
                 await self.sse_queue.put(message)
-            
-            logger.info(f"Tool Messages sent successfully")
+                logger.debug(f"Tool Message sent successfully:\n {message}")
+
             return True
         except asyncio.QueueFull:
-            logger.warning(f"Outgoing queue is full - likely no browser connected to consume or there are too many tool updates")
+            logger.warning(
+                "Outgoing queue is full - likely no browser connected to consume or there are too many tool updates"
+            )
             return False
         except Exception as e:
             logger.error(f"Error sending message: {e}")

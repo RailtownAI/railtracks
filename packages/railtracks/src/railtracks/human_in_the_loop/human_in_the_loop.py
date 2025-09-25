@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Any, Dict
 
-from typing import Dict, Any
 
 @dataclass
 class HILMessage:
     content: str
     metadata: Dict[str, Any] | None = None
+
 
 class HIL(ABC):
     @abstractmethod
@@ -24,7 +25,9 @@ class HIL(ABC):
         pass
 
     @abstractmethod
-    async def send_message(self, content: HILMessage, timeout: float | None = None) -> bool:
+    async def send_message(
+        self, content: HILMessage, timeout: float | None = None
+    ) -> bool:
         """
         Sends a message to the user through the interface.
 

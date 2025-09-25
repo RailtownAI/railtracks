@@ -1,13 +1,13 @@
-import os
-from typing import Callable, ParamSpec, TypeVar, Type, Union
+from typing import Callable, ParamSpec, Type, TypeVar
 
-from ..human_in_the_loop import ChatUI, HIL, HILMessage
-from ._call import call
+from ..built_nodes.concrete._llm_base import LLMBase
+from ..built_nodes.concrete.response import LLMResponse
+from ..human_in_the_loop import HIL, ChatUI, HILMessage
 from ..llm.history import MessageHistory
 from ..llm.message import UserMessage
-from ..utils.logging.create import get_rt_logger
-from ..built_nodes.concrete.response import LLMResponse
 from ..nodes.nodes import Node
+from ..utils.logging.create import get_rt_logger
+from ._call import call
 
 logger = get_rt_logger("Interactive")
 
@@ -17,13 +17,32 @@ _TOutput = TypeVar("_TOutput")
 
 async def interactive(
     node: Callable[_P, Node[_TOutput]],
-    HIL_interface: Type[ChatUI] | Type[HIL] = ChatUI,
+    interactive_interface: Type[ChatUI] | Type[HIL] = ChatUI,
     port: int | None = None,
     host: str | None = None,
     auto_open: bool | None = True,
     *args: _P.args,
     **kwargs: dict[str, any],  # I dislike this but it's needed for typing to work
 ) -> LLMResponse:
+    """
+    An interactive session with a LLMBase child node. Default behaviour will launch a local web server
+    and provide a chat interface for interacting with the node.
+
+    Args:
+        node (Callable): The node to interact with. This should be a callable that returns a
+            Node instance, typically an agent node.
+        interactive_interface (Type[ChatUI] | Type[HIL]): The type of interactive interface to use.
+            Currently only ChatUI is supported.
+        port (int | None): The port to run the interactive interface on. If None, a random port will be chosen.
+        host (str | None): The host to run the interactive interface on. If None, 'localhost' will be used.
+        auto_open (bool | None): Whether to automatically open the interactive interface in a web browser.
+        *args: Additional positional arguments to pass to the node.
+        **kwargs: Additional keyword arguments to pass to the node.
+
+        Returns:
+        LLMResponse: The final response from the node after the interactive session ends.
+
+    """
 
     chat_ui_kwargs = {}
     if port is not None:
@@ -33,20 +52,26 @@ async def interactive(
     if auto_open is not None:
         chat_ui_kwargs["auto_open"] = auto_open
 
-    if HIL_interface is ChatUI:
-        chat_ui = HIL_interface(**chat_ui_kwargs)
+    if interactive_interface is ChatUI:
+        if not issubclass(node, LLMBase):
+            raise ValueError(
+                "Interactive sessions only support nodes that are children of LLMBase."
+            )
+
+        chat_ui = interactive_interface(**chat_ui_kwargs)
         msg_history = MessageHistory([])
-        response = LLMResponse("", msg_history) # typing shenanigans
+        response = LLMResponse("", msg_history)  # typing shenanigans
 
         try:
-            logger.info(f"Connecting with Local Chat Session")
+            logger.info("Connecting with Local Chat Session")
+
             await chat_ui.connect()
             last_tool_idx = 0  # To track the last processed tool response, not sure how efficient this makes things
-            while chat_ui.is_connected:
 
+            while chat_ui.is_connected:
                 message = await chat_ui.receive_message()
                 if message is None:
-                    continue  # This should exit the loop since is_connected will be false
+                    continue  # could be `break` but I want to ensure chat_ui.is_connected is updated properly
 
                 msg_history.append(UserMessage(message.content))
 
@@ -59,7 +84,8 @@ async def interactive(
 
                 last_tool_idx = len(response.tool_invocations)
 
-            logger.info(f"Ended Local Chat Session")
+            logger.info("Ended Local Chat Session")
+
         except Exception as e:
             logger.error(f"Error during interactive session: {e}")
         finally:
@@ -67,5 +93,5 @@ async def interactive(
 
     else:
         raise NotImplementedError(
-            f"HIL interface {HIL_interface.__name__} is not yet implemented. Only ChatUI is currently supported."
+            f"HIL interface {interactive_interface.__name__} is not yet implemented. Only ChatUI is currently supported."
         )
