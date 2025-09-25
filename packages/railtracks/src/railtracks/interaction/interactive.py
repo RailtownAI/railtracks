@@ -1,8 +1,7 @@
 import os
 from typing import Callable, ParamSpec, TypeVar, Type, Union
 
-from .local_chat_ui import ChatUI
-from .human_in_the_loop import HIL, HILMessage
+from ..human_in_the_loop import ChatUI, HIL, HILMessage
 from ._call import call
 from ..llm.history import MessageHistory
 from ..llm.message import UserMessage
