@@ -77,8 +77,8 @@ def _parameters_to_json_schema(
     """
     if parameters is None:
         return {}
-
-    if all(isinstance(x, Parameter) for x in parameters):
+    
+    if isinstance(parameters, Iterable) and all(isinstance(x, Parameter) for x in parameters):
         return _handle_set_of_parameters(list(parameters))
 
     raise NodeInvocationError(
