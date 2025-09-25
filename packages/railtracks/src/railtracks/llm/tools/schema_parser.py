@@ -2,7 +2,6 @@ from typing import Set
 
 from .parameters import (
     Parameter,
-    SimpleParameter,
     ArrayParameter,
     UnionParameter,
     ObjectParameter,
@@ -167,7 +166,7 @@ def _handle_array_schema(
     else:
         # Handle primitive items as before
         item_type = items_schema.get("type", "string")
-        item_param = SimpleParameter(
+        item_param = Parameter(
             name=f"{name}_item",
             param_type=item_type,
             description=items_schema.get("description", ""),
@@ -233,7 +232,7 @@ def parse_json_schema_to_parameter(name: str, prop_schema: dict, required: bool)
         )
 
     else:
-        # For simple types, use SimpleParameter
+        # For simple types, use Parameter
         if isinstance(param_type, list):
             # If type is a list, create UnionParameter (e.g. ["string","none"])
             return UnionParameter(
@@ -246,7 +245,7 @@ def parse_json_schema_to_parameter(name: str, prop_schema: dict, required: bool)
                 default_present=default_present,
             )
         else:
-            return SimpleParameter(
+            return Parameter(
                 name=name,
                 param_type=param_type,
                 description=description,

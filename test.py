@@ -3,17 +3,17 @@ from typing import List
 
 # Import your Parameter classes and the conversion function
 # Adjust these import paths based on your project structure
-from railtracks.llm.tools.parameters import Parameter, SimpleParameter, ArrayParameter, ObjectParameter, UnionParameter, RefParameter
+from railtracks.llm.tools.parameters import Parameter, ArrayParameter, ObjectParameter, UnionParameter, RefParameter
 from railtracks.llm.models._litellm_wrapper import _parameters_to_json_schema  # adjust this import to your actual location
 
 
 def main():
     # Example default parameters
-    param_name = SimpleParameter(name="username", param_type="string", description="User's login name", required=True)
-    param_age = SimpleParameter(name="age", param_type="integer", description="User's age", required=False, default=18)
+    param_name = Parameter(name="username", param_type="string", description="User's login name", required=True)
+    param_age = Parameter(name="age", param_type="integer", description="User's age", required=False, default=18)
 
     # Example array parameter: array of strings
-    inside_array = SimpleParameter(name="tag_item", param_type="string")
+    inside_array = Parameter(name="tag_item", param_type="string")
     array_param = ArrayParameter(
         name="tags",
         description="List of tags",
@@ -28,9 +28,9 @@ def main():
         description="User address",
         required=True,
         properties=[
-            SimpleParameter(name="street", param_type="string", description="Street address"),
-            SimpleParameter(name="city", param_type="string", description="City name", required=True),
-            SimpleParameter(name="postal_code", param_type="string", description="Postal code")
+            Parameter(name="street", param_type="string", description="Street address"),
+            Parameter(name="city", param_type="string", description="City name", required=True),
+            Parameter(name="postal_code", param_type="string", description="Postal code")
         ],
         additional_properties=False
     )
@@ -40,8 +40,8 @@ def main():
         name="middle_name",
         description="User middle name or null",
         options=[
-            SimpleParameter(name="middle_name", param_type="string", description="User middle name"),
-            SimpleParameter(name="middle_name", param_type="null", description="User param type is null")
+            Parameter(name="middle_name", param_type="string", description="User middle name"),
+            Parameter(name="middle_name", param_type="null", description="User param type is null")
         ],
         required=False,
         default=None

@@ -1,7 +1,7 @@
-from railtracks.llm.tools.parameters import SimpleParameter, UnionParameter
+from railtracks.llm.tools.parameters import UnionParameter, Parameter
 
 # Test DefaultParameter
-param = SimpleParameter(
+param = Parameter(
     name="test_param",
     param_type="string",
     description="Test parameter",
@@ -37,21 +37,21 @@ x = {
 # ==========
 # Test UnionParameter
 options = [
-    SimpleParameter(
+    Parameter(
         name="page",
         param_type="number",
         description="The page number of the result set to fetch.",
         required=True,
         default=1,
     ),
-    SimpleParameter(
+    Parameter(
         name="page_size",
         param_type="number",
         description="The number of records to return per page (maximum 100).",
         required=True,
         default=100,
     ),
-    SimpleParameter(
+    Parameter(
         name="total_required",
         param_type="boolean",
         description="Indicates whether the response should include the total count of items.",

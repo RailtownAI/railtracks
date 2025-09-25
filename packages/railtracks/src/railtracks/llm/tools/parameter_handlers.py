@@ -7,7 +7,6 @@ from pydantic import BaseModel
 
 from .parameters import (
     ArrayParameter,
-    SimpleParameter,
     ParameterType,
     Parameter,
     ObjectParameter,
@@ -17,9 +16,9 @@ from .parameters import (
 from .schema_parser import parse_model_properties
 
 # HELPER
-def simple_param_from_python_type(py_type, name: str = "", description: str | None = None, required: bool = True) -> SimpleParameter:
+def param_from_python_type(py_type, name: str = "", description: str | None = None, required: bool = True) -> Parameter:
     mapped_type = ParameterType.from_python_type(py_type).value
-    return SimpleParameter(name=name, param_type=mapped_type, description=description, required=required)
+    return Parameter(name=name, param_type=mapped_type, description=description, required=required)
 
 
 class ParameterHandler(ABC):
@@ -61,12 +60,12 @@ class UnionParameterHandler(ParameterHandler):
                 is_optional = True
             else:
                 # Recursively parse each option as a Parameter instance
-                option_param = simple_param_from_python_type(t)
+                option_param = param_from_python_type(t)
                 options.append(option_param)
 
         # If no options parsed (e.g. all None?), fallback to DefaultParameter 'none'
         if not options:
-            options.append(SimpleParameter(param_name, "none", description, required))
+            options.append(Parameter(name=param_name, param_type="none", description=description, required=required))
 
         return UnionParameter(
             name=param_name,
@@ -125,7 +124,7 @@ class SequenceParameterHandler(ParameterHandler):
             options = []
             for idx, t in enumerate(sequence_args):
                 type_name = t.__name__ if hasattr(t, "__name__") else str(t)
-                options.append(simple_param_from_python_type(t, f"{param_name}_tuple_option_{idx}", f"Option {idx} of tuple", True))
+                options.append(param_from_python_type(t, f"{param_name}_tuple_option_{idx}", f"Option {idx} of tuple", True))
             # Create UnionParameter to capture all possible tuple element types
             return UnionParameter(
                 name=f"{param_name}_tuple_options",
@@ -158,7 +157,7 @@ class SequenceParameterHandler(ParameterHandler):
                     )
                 else:
                     # Primitive or other single type element
-                    item_param = simple_param_from_python_type(element_type, f"{param_name}_item", description, True)
+                    item_param = param_from_python_type(element_type, f"{param_name}_item", description, True)
                     return ArrayParameter(
                         name=param_name,
                         items=item_param,
@@ -171,7 +170,7 @@ class SequenceParameterHandler(ParameterHandler):
                 # No specified element type, generic array
                 return ArrayParameter(
                     name=param_name,
-                    items=SimpleParameter(param_name + "_item", "string", description, True),
+                    items=Parameter(name=param_name + "_item", param_type=ParameterType.STRING.value, description=description, required=True),
                     description=description,
                     required=required,
                     max_items=None,
@@ -192,7 +191,7 @@ class DefaultParameterHandler(ParameterHandler):
             return param_annotation  # pass-through if already a Parameter
 
         mapped_type = ParameterType.from_python_type(param_annotation).value
-        return SimpleParameter(
+        return Parameter(
             name=param_name,
             param_type=mapped_type,
             description=description,

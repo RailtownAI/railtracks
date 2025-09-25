@@ -29,14 +29,16 @@ class ParameterType(str, Enum):
 # Generic Type for subclass methods that return Parameter
 T = TypeVar("T", bound="Parameter")
 
+from typing import Any, List, Optional, Dict, Union, ClassVar
+from abc import ABC, abstractmethod
+
 class Parameter(ABC):
     """
-    Abstract Base Parameter class.
+    Abstract Base Parameter class with default simple parameter behavior.
     """
-
-    # The parameter type(s) that subclass represents; override in subclass
-    param_type: ClassVar[Union[str, List[str], None]] = None
-
+    
+    param_type: Optional[Union[str, List[str]]] = None  # class var for default type
+    
     def __init__(
         self,
         name: str,
@@ -45,6 +47,7 @@ class Parameter(ABC):
         default: Any = None,
         enum: Optional[List[Any]] = None,
         default_present: bool = False,
+        param_type: Optional[Union[str, List[str]]] = None,
     ):
         self.name = name
         self.description = description or ""
@@ -52,19 +55,46 @@ class Parameter(ABC):
         self.default = default
         self.enum = enum
         self.default_present = default_present
+        if param_type is not None:
+            # Accept either list[str], str, or ParameterType enum or list of them
+            # Normalize to str or List[str]
+            if isinstance(param_type, list):
+                self.param_type = [
+                    pt.value if isinstance(pt, ParameterType) else pt for pt in param_type
+                ]
+            else:
+                self.param_type = (
+                    param_type.value if isinstance(param_type, ParameterType) else param_type
+                )
+        elif hasattr(self, "param_type") and self.param_type is None:
+            self.param_type = None
 
-    @abstractmethod
     def to_json_schema(self) -> Dict[str, Any]:
-        """
-        Convert the Parameter instance back to a JSON Schema dict.
-        Subclasses must implement this.
-        """
-        pass
+        # Base dictionary with type and optional description
+        schema_dict: Dict[str, Any] = {
+            "type": self.param_type.value if isinstance(self.param_type, ParameterType) else self.param_type
+        }
+        if self.description:
+            schema_dict["description"] = self.description
 
+        # Handle enum
+        if self.enum:
+            schema_dict["enum"] = self.enum
 
-    def __repr__(self):
-        cls_name = self.__class__.__name__
+        # Handle default
+        # default can be None, 0, False; None means optional parameter
+        if self.default_present:
+            schema_dict["default"] = self.default
+        elif isinstance(self.param_type, list) and "none" in self.param_type:
+            schema_dict["default"] = None
+
+        return schema_dict
+
+    def __repr__(self) -> str:
         return (
-            f"{cls_name}(name={self.name!r}, description={self.description!r}, "
-            f"required={self.required!r}, default={self.default!r}, enum={self.enum!r})"
+            f"Parameter(name={self.name!r}, param_type={self.param_type!r}, "
+            f"description={self.description!r}, required={self.required!r}, "
+            f"default={self.default!r}, enum={self.enum!r})"
         )
+    
+    
