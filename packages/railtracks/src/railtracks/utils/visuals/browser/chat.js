@@ -91,6 +91,7 @@ function handleSSEMessage(data) {
     console.log('SSE Message:', data.type);
     const messagesContainer = document.getElementById('chatMessages');
     const statusBar = document.getElementById('statusBar');
+    const endButton = document.getElementById('endSessionButton');
     
     switch(data.type) {
         case 'background_update':
@@ -120,6 +121,7 @@ function handleSSEMessage(data) {
         case 'assistant_response':
             addMessage('assistant', data.data, data.timestamp);
             setProcessing(false);
+            endButton.disabled = false;
             statusBar.innerHTML = '';
             statusBar.className = 'status';
             break;
@@ -127,6 +129,7 @@ function handleSSEMessage(data) {
         case 'error':
             addMessage('system', `<i class="fa-solid fa-circle-xmark" style="color:red;"></i> ${data.data}`, data.timestamp);
             setProcessing(false);
+            endButton.disabled = false;
             break;
             
         case 'tool_invoked':
@@ -206,7 +209,8 @@ function setProcessing(processing) {
 async function sendMessage() {
     const messageInput = document.getElementById('messageInput');
     const message = messageInput.value.trim();
-    
+    const endButton = document.getElementById('endSessionButton');
+
     if (!message || isProcessing) return;
     
     // Add user message to chat
@@ -217,6 +221,7 @@ async function sendMessage() {
     messageInput.style.height = '40px';
     
     setProcessing(true);
+    endButton.disabled=true;
     
     try {
         const response = await fetch('/send_message', {
@@ -242,6 +247,7 @@ async function sendMessage() {
         console.error('Error sending message:', error);
         addMessage('system', `<i class="fa-solid fa-circle-xmark" style="color:red;"></i> Error: ${error.message}`, new Date().toLocaleTimeString());
         setProcessing(false);
+        endButton.disabled = false;
     }
 }
 

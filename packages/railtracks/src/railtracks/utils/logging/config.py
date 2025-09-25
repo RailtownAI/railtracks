@@ -13,7 +13,8 @@ rt_logger_name = "RT"
 rt_logger = logging.getLogger(rt_logger_name)
 rt_logger.setLevel(logging.INFO)
 
-_default_format_string = "%(timestamp_color)s[+%(relative_seconds)-7ss] %(level_color)s%(name)-12s: %(levelname)-8s - %(message)s%(default_color)s %(session_id)s %(run_id)s %(node_id)s"
+_default_format_string = "%(timestamp_color)s[+%(relative_seconds)-7ss] %(level_color)s%(name)-12s: %(levelname)-8s - %(message)s%(default_color)s"
+
 
 _file_format_string = "%(asctime)s %(levelname)s - %(message)s"
 # Initialize colorama

@@ -122,7 +122,7 @@ class ChatUI(HIL):
         async def shutdown():
             """Shutdown the chat interface"""
             self.is_connected = False
-            self.disconnect()
+            await self.disconnect()
             return {"status": "success", "message": "Chat interface shutting down"}
 
         @app.get("/events")
@@ -189,19 +189,20 @@ class ChatUI(HIL):
         self.server = uvicorn.Server(config)
         await self.server.serve()      
 
-    def connect(self) -> None:
+    async def connect(self) -> None:
         localhost_url = f"http://{self.host}:{self.port}"
 
         self.loop = asyncio.get_running_loop()
         self.server_task = self.loop.create_task(self._run_server())
 
         if self.auto_open:
-            time.sleep(2)
+            await asyncio.sleep(1) # wait a bit before openning the browser
             webbrowser.open(localhost_url)
 
         self.is_connected = True
-              
-    def disconnect(self) -> None:
+        logger.info(f"ChatUI server started at {localhost_url}")
+
+    async def disconnect(self) -> None:
         """
         Disconnects the user interface component.
         """

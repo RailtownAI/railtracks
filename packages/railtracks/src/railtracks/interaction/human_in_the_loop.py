@@ -10,14 +10,14 @@ class HILMessage:
 
 class HIL(ABC):
     @abstractmethod
-    def connect(self) -> None:
+    async def connect(self) -> None:
         """
         Creates or initializes the user interface component.
         """
         pass
 
     @abstractmethod
-    def disconnect(self) -> None:
+    async def disconnect(self) -> None:
         """
         Disconnects the user interface component.
         """
