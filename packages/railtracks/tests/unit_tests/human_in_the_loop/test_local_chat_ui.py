@@ -1,7 +1,5 @@
 import asyncio
-import json
-from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -13,17 +11,21 @@ from railtracks.human_in_the_loop import (
 )
 from railtracks.llm import ToolCall, ToolResponse
 
+
 @pytest.fixture
 def chat_ui():
     """Fixture to create a ChatUI instance for testing."""
     return ChatUI(port=8001, auto_open=False)
+
 
 @pytest.fixture
 def client(chat_ui):
     """Fixture to create a FastAPI TestClient."""
     return TestClient(chat_ui.app)
 
+
 # ---- Initialization Tests ----
+
 
 def test_chat_ui_initialization_defaults():
     """Test ChatUI initializes with default values."""
@@ -35,6 +37,7 @@ def test_chat_ui_initialization_defaults():
     assert isinstance(ui.user_input_queue, asyncio.Queue)
     assert ui.is_connected is False
 
+
 def test_chat_ui_initialization_custom():
     """Test ChatUI initializes with custom values."""
     ui = ChatUI(port=9999, host="0.0.0.0", auto_open=False)
@@ -42,7 +45,9 @@ def test_chat_ui_initialization_custom():
     assert ui.host == "0.0.0.0"
     assert ui.auto_open is False
 
+
 # ---- Static File Loading Tests ----
+
 
 def test_get_static_file_content_success(chat_ui):
     """Test successful loading of a static file."""
@@ -54,6 +59,7 @@ def test_get_static_file_content_success(chat_ui):
         content = chat_ui._get_static_file_content("chat.html")
         assert content == "<html>Mock HTML</html>"
 
+
 def test_get_static_file_content_failure(chat_ui):
     """Test exception handling when a static file cannot be loaded."""
     with patch(
@@ -63,7 +69,9 @@ def test_get_static_file_content_failure(chat_ui):
         with pytest.raises(Exception, match="Exception occurred loading static"):
             chat_ui._get_static_file_content("nonexistent.file")
 
+
 # ---- FastAPI Endpoint Tests ----
+
 
 def test_get_root_endpoint(client, chat_ui):
     """Test the root '/' endpoint serves HTML."""
@@ -77,6 +85,7 @@ def test_get_root_endpoint(client, chat_ui):
         assert "<h1>Chat</h1>" in response.text
         mock_get_content.assert_called_once_with("chat.html")
 
+
 def test_post_send_message_endpoint(client, chat_ui):
     """Test the '/send_message' endpoint."""
     test_message = "Hello from the user"
@@ -88,13 +97,21 @@ def test_post_send_message_endpoint(client, chat_ui):
     assert isinstance(queued_message, HILMessage)
     assert queued_message.content == test_message
 
+
 def test_post_update_tools_endpoint(client, chat_ui):
     """Test the '/update_tools' endpoint."""
-    tool_data = { "name": "test_tool", "identifier": "tool_123", "arguments": {}, "result": "Success!", "success": True }
+    tool_data = {
+        "name": "test_tool",
+        "identifier": "tool_123",
+        "arguments": {},
+        "result": "Success!",
+        "success": True,
+    }
     response = client.post("/update_tools", json=tool_data)
     assert response.status_code == 200
     sse_message = chat_ui.sse_queue.get_nowait()
     assert sse_message["type"] == "tool_invoked"
+
 
 @pytest.mark.asyncio
 async def test_post_shutdown_endpoint(client, chat_ui):
@@ -105,12 +122,17 @@ async def test_post_shutdown_endpoint(client, chat_ui):
         assert response.status_code == 200
         mock_disconnect.assert_awaited_once()
 
+
 # ---- Connection Management Tests ----
+
 
 @pytest.mark.asyncio
 async def test_connect(chat_ui):
     """Test the connect method starts the server and sets state."""
-    with patch.object(chat_ui, "_run_server", new_callable=AsyncMock), patch("webbrowser.open"):
+    with (
+        patch.object(chat_ui, "_run_server", new_callable=AsyncMock),
+        patch("webbrowser.open"),
+    ):
         await chat_ui.connect()
         assert chat_ui.is_connected is True
         chat_ui.server_task.cancel()
@@ -118,6 +140,7 @@ async def test_connect(chat_ui):
             await chat_ui.server_task
         except asyncio.CancelledError:
             pass
+
 
 @pytest.mark.asyncio
 async def test_disconnect(chat_ui):
@@ -127,7 +150,9 @@ async def test_disconnect(chat_ui):
     assert chat_ui.is_connected is False
     assert chat_ui.shutdown_event.is_set()
 
+
 # ---- Message Handling Tests ----
+
 
 @pytest.mark.asyncio
 async def test_send_message_success(chat_ui):
@@ -136,6 +161,7 @@ async def test_send_message_success(chat_ui):
     await chat_ui.send_message(HILMessage(content="Hello AI"))
     sent_message = await chat_ui.sse_queue.get()
     assert sent_message["data"] == "Hello AI"
+
 
 @pytest.mark.asyncio
 async def test_receive_message_success(chat_ui):
@@ -146,14 +172,20 @@ async def test_receive_message_success(chat_ui):
     received_message = await chat_ui.receive_message(timeout=1)
     assert received_message == expected_message
 
+
 # ---- Tool Update Tests ----
+
 
 @pytest.mark.asyncio
 async def test_update_tools_success(chat_ui):
     """Test updating tools successfully."""
     chat_ui.is_connected = True
-    tool_call = ToolCall(name="get_weather", identifier="t1", arguments={"city": "Vancouver"})
-    tool_response = ToolResponse(name="get_weather", identifier="t1", result="Sunny, 20°C")
+    tool_call = ToolCall(
+        name="get_weather", identifier="t1", arguments={"city": "Vancouver"}
+    )
+    tool_response = ToolResponse(
+        name="get_weather", identifier="t1", result="Sunny, 20°C"
+    )
     invocations = [(tool_call, tool_response)]
 
     result = await chat_ui.update_tools(invocations)
@@ -162,11 +194,14 @@ async def test_update_tools_success(chat_ui):
     assert message["data"]["name"] == "get_weather"
     assert message["data"]["success"] is True
 
+
 @pytest.mark.asyncio
 async def test_update_tools_failure(chat_ui):
     """Test updating tools with a failed tool response."""
     chat_ui.is_connected = True
-    tool_call = ToolCall(name="get_weather", identifier="t2", arguments={"city": "Invalid"})
+    tool_call = ToolCall(
+        name="get_weather", identifier="t2", arguments={"city": "Invalid"}
+    )
     tool_response = ToolResponse(
         name="get_weather",
         identifier="t2",
@@ -178,6 +213,7 @@ async def test_update_tools_failure(chat_ui):
     assert result is True
     message = await chat_ui.sse_queue.get()
     assert message["data"]["success"] is False
+
 
 @pytest.mark.asyncio
 async def test_update_tools_queue_full(chat_ui):
