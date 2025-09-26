@@ -339,7 +339,7 @@ def session(
 ):
     """
     This decorator automatically creates and manages a Session context for the decorated function,
-    allowing async functions to use RailTracks operations without manually managing the session lifecycle.
+    allowing async functions to use Railtracks operations without manually managing the session lifecycle.
 
     Can be used as:
     - @session (without parentheses) - uses default settings

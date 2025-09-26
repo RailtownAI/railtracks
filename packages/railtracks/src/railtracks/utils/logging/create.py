@@ -1,5 +1,7 @@
 import logging
 
+from railtracks.context.central import RTContextLoggingAdapter
+
 from .config import rt_logger_name
 
 
@@ -13,8 +15,9 @@ def get_rt_logger(name: str | None = None):
     If the name is not provided it returns the root RT logger.
     """
     if name is None:
-        return logging.getLogger(rt_logger_name)
+        logger = logging.getLogger(rt_logger_name)
+    else:
+        logger = logging.getLogger(f"{rt_logger_name}.{name}")
 
-    logger = logging.getLogger(f"{rt_logger_name}.{name}")
-
-    return logger
+    adapter = RTContextLoggingAdapter(logger, {})
+    return adapter

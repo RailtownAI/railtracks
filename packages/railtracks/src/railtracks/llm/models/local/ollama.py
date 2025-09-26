@@ -1,14 +1,15 @@
+import logging
 import os
 from typing import Literal
 
 import litellm
 import requests
 
-from ....utils.logging.create import get_rt_logger
 from .._litellm_wrapper import LiteLLMWrapper
 from .._model_exception_base import FunctionCallingNotSupportedError, ModelError
 
 LOGGER_NAME = "OLLAMA"
+logger = logging.getLogger(__name__)
 DEFAULT_DOMAIN = "http://localhost:11434"
 
 
@@ -63,7 +64,7 @@ class OllamaLLM(LiteLLMWrapper):
                     )
                 self.domain = custom_domain
 
-        self.logger = get_rt_logger(LOGGER_NAME)
+        self.logger = logger
 
         self._run_check(
             "api/tags"

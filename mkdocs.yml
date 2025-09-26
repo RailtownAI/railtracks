@@ -1,5 +1,6 @@
-site_name: RailTracks Docs
-site_url: https://something
+site_name: Railtracks Docs
+site_url: https://railtownai.github.io/railtracks/
+site_description: "Railtracks is a framework for building LLM-powered agents and applications."
 
 repo_name: railtracks
 repo_url: https://github.com/RailtownAI/railtracks
@@ -8,6 +9,8 @@ theme:
   name: material
   logo: assets/logo.svg
   favicon: assets/logo.svg
+
+  custom_dir: docs/overrides
 
   palette:
     - scheme: default
@@ -70,6 +73,7 @@ nav:
   - Background:
       - Agents: background/agents.md
       - Tools: background/tools.md
+      - RAG: background/RAG.md
       - Async/Await: background/async_await.md
   
   - Tutorials:
@@ -131,3 +135,7 @@ nav:
       - Coordinator Orchestration: system_internals/coordinator.md
 
   - API Reference: api_reference/railtracks.html
+
+
+
+    
