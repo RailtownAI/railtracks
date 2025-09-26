@@ -10,16 +10,28 @@ Railtracks supports basic **data broadcasting**, enabling you to receive these u
 
 ## Usage
 
-To enable broadcasting, provide a **callback function** to the `broadcast_callback` parameter in `set_config`. This function will receive broadcasting updates:
+To enable broadcasting, provide a **callback function** to the `subscriber` parameter in `ExecutorConfig`. This function will receive broadcasting updates:
 
 ```python
---8<-- "docs/scripts/broadcast.py:callback_creation"
+import railtracks as rt
+
+
+def example_broadcasting_handler(data):
+    print(f"Received data: {data}")
+
+
+rt.ExecutorConfig(broadcast_callback=example_broadcasting_handler)
 ```
 
-With broadcasting enabled, call `rt.broadcast(...)` inside any function run in RT to invoke the handler.
+With broadcasting enabled, call `rt.broadcast(...)` inside any function decorated with `@rt.to_node` to send updates:
 
 ```python
---8<-- "docs/scripts/broadcast.py:broadcast_call"
+import railtracks as rt
+
+
+@rt.function_node
+def example_node(data: list[str]):
+    rt.broadcast(f"Handling {len(data)} items")
 ```
 
 !!! warning

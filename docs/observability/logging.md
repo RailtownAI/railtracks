@@ -2,17 +2,16 @@
 
 Railtracks provides built-in logging to help track the execution of your flows. Logs are automatically generated and can be viewed in the terminal or saved to a file.
 
-??? example "Example Logs"
-    ```
-    [+3.525  s] RT          : INFO     - START CREATED Github Agent
-    [+8.041  s] RT          : INFO     - Github Agent CREATED create_issue
-    [+8.685  s] RT          : INFO     - create_issue DONE
-    [+14.333 s] RT          : INFO     - Github Agent CREATED assign_copilot_to_issue
-    [+14.760 s] RT          : INFO     - assign_copilot_to_issue DONE
-    [+17.540 s] RT          : INFO     - Github Agent CREATED assign_copilot_to_issue
-    [+18.961 s] RT          : INFO     - assign_copilot_to_issue DONE
-    [+23.401 s] RT          : INFO     - Github Agent DONE
-    ```
+```
+[+3.525  s] RT          : INFO     - START CREATED Github Agent
+[+8.041  s] RT          : INFO     - Github Agent CREATED create_issue
+[+8.685  s] RT          : INFO     - create_issue DONE
+[+14.333 s] RT          : INFO     - Github Agent CREATED assign_copilot_to_issue
+[+14.760 s] RT          : INFO     - assign_copilot_to_issue DONE
+[+17.540 s] RT          : INFO     - Github Agent CREATED assign_copilot_to_issue
+[+18.961 s] RT          : INFO     - assign_copilot_to_issue DONE
+[+23.401 s] RT          : INFO     - Github Agent DONE
+```
 
 ---
 
@@ -38,21 +37,22 @@ Railtracks supports four logging levels:
 
 ### Logging Handlers
 
-!!! tip "Console Handler"
+#### Console Handler
 
-    By default, logs are printed to `stdout` and `stderr`.
+By default, logs are printed to `stdout` and `stderr`.
 
-!!! tip "File Handler"
+#### File Handler
 
-    To save logs to a file, pass a `log_file` parameter to the config:
+To save logs to a file, pass a `log_file` parameter to the config:
 
     ```python
     --8<-- "docs/scripts/_logging.py:logging_to_file"
     ```
 
-!!! tip "Custom Handlers"
+rt.set_config(log_file="my_logs.log")
+```
 
-    Railtracks uses the standard [Python `logging`](https://docs.python.org/3/library/logging.html) module with the `RT` prefix. You can attach custom handlers:
+#### Custom Handlers
 
     ```python
     --8<-- "docs/scripts/_logging.py:logging_custom_handler"
@@ -64,21 +64,35 @@ Railtracks supports four logging levels:
 
 You can configure logging globally or per-run.
 
-!!! example "Global Configuration"
+### Global Configuration
 
     ```python
     --8<-- "docs/scripts/_logging.py:logging_global"
     ```
 
-    This will apply to all flows.
+rt.set_config(
+    logging_setting="VERBOSE",
+    log_file="my_logs.log"
+)
+```
 
-!!! example "Scoped Configuration"
+Applies to all flows.
 
     ```python
     --8<-- "docs/scripts/_logging.py:logging_scoped"
 
-    ```
-    Applies only within the context of the `Session`.
+```python
+import railtracks as rt
+
+with rt.Session(    
+    logging_setting="VERBOSE",
+    log_file="my_logs.log"
+) as runner:
+    # Your code here
+    pass
+```
+
+Applies only within the context of the `Runner`.
 
 ---
 

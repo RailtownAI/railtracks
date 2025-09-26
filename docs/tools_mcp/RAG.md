@@ -1,18 +1,20 @@
-# Retrieval-Augmented Generation (RAG)
+# 🔍 Retrieval-Augmented Generation (RAG)
 
 Need your AI agents to access your company's knowledge base, docs, or any private data? RAG is your answer! It enables grounded answering by retrieving relevant snippets from your documents and composing them into LLM prompts.
 
+RAG ingests documents, chunks them, embeds the chunks into vectors, stores those vectors, and retrieves the most relevant snippets at query time—all automatically handled for you.
+
 ---
 
-## Two Ways to Get Started
+## 🎯 Two Ways to Get Started
 
 We offer **two approaches** to integrate RAG into your application:
 
-!!! tip "Choose Your Adventure" 
-    1. **Quick & Easy**: Use the prebuilt `rag_node` for instant setup 
-    2. **Full Control**: Build a custom RAG node using the `RAG` class for maximum flexibility
+!!! tip "Choose Your Adventure 🚀" 
+    1. **🏃‍♀️ Quick & Easy**: Use the prebuilt `rag_node` for instant setup 
+    2. **🔧 Full Control**: Build a custom RAG node using the `RAG` class for maximum flexibility
 
-### Option 1: Prebuilt RAG Node (Recommended)
+### 🚀 Option 1: Prebuilt RAG Node (Recommended)
 
 Perfect for getting started quickly! Wrap your RAG index into a callable node so other nodes and LLMs can retrieve relevant context and compose prompts.
 
@@ -28,23 +30,68 @@ The `rag_node` function accepts raw text content only. For file loading, read th
 --8<-- "docs/scripts/rag_examples.py:rag_with_files"
 ```
 
-### Option 2: Custom RAG Node (Advanced)
+### 🔧 Option 2: Custom RAG Node (Advanced)
 
-For maximum control and customization, build your own RAG node.
+For maximum control and customization, build your own RAG implementation:
 
 ```python
 --8<-- "docs/scripts/rag_examples.py:custom_rag_node"
 ```
 
+**Usage:**
+
+```python
+--8<-- "docs/scripts/rag_examples.py:custom_rag_usage"
+```
 
 !!! note "Pro Tips" 
     - The callable node accepts `query` and optional `top_k` to control number of retrieved chunks. 
     - `SearchResult` can be converted to plain text using `.to_list_of_texts()` 
     - You can inspect the object for similarity scores and metadata
 
+---
 
+## 📚 API Reference
 
-### Chunking Strategy
+### 🚀 Prebuilt RAG Node
+
+**Function Signature:**
+
+```python
+railtracks.prebuilt.rag_node(
+    documents: List[str],
+    embed_model: str = "text-embedding-3-small",
+    token_count_model: str = "gpt-4o",
+    chunk_size: int = 1000,
+    chunk_overlap: int = 200
+) -> DynamicFunctionNode
+```
+
+This Node is the preferred way to add RAG to your app. It handles chunking, embedding, storing, and retrieval automatically.
+
+### 🔩 Supporting Components
+
+**Under the Hood Components:**
+
+- **TextChunkingService**
+
+  - Strategy: token-based chunking to control chunk size
+
+- **EmbeddingService**
+
+  - Produces vector embeddings from desired provider or local model
+
+- **Vector Store**
+  - Stores embeddings and associated text/metadata
+
+---
+
+## ⚙️ Configuration and Performance
+
+!!! API reference
+    Considering referencing [rag_node](/api_reference/prebuilt/rag_nodes.html) and [RAG](..\packages\railtracks\src\railtracks\rag\rag_core.py)
+
+### 🧩 Chunking Strategy
 
 **Best Practices:**
 
@@ -52,7 +99,7 @@ For maximum control and customization, build your own RAG node.
 - **`chunk_overlap`**: Number of tokens to overlap between adjacent chunks
 - **Sweet spot**: Start with 600-1200 tokens with 10-20% overlap
 
-### Embeddings
+### 🧠 Embeddings
 
 **Model Selection:**
 
@@ -60,7 +107,7 @@ For maximum control and customization, build your own RAG node.
 - **Upgrade to stronger models** for nuanced or specialized domains
 - Configure via `embed_config`
 
-### Vector Store Options
+### 💾 Vector Store Options
 
 **Storage Recommendations:**
 
@@ -68,7 +115,7 @@ For maximum control and customization, build your own RAG node.
 - **For larger corpora**: Consider FAISS/Qdrant or other backends supported by `create_store`
 - **Production**: Use persistent storage for better performance
 
-### Top-k Retrieval
+### 📊 Top-k Retrieval
 
 **Finding the Right Balance:**
 
@@ -78,14 +125,15 @@ For maximum control and customization, build your own RAG node.
 
 ---
 
-## Related Documentation
+## 🔗 Related Documentation
 
-### Features & Concepts
+### 📖 Features & Concepts
 
+- [Node Authoring & Orchestration](../system_internals/node.md)
 - [Tool Usage Patterns](tools/tools.md)
 - [Advanced Context Management](../advanced_usage/context.md)
 
-### External Libraries
+### 🛠️ External Libraries
 
 **Powered By:**
 

@@ -1,10 +1,10 @@
-# Railtracks Development Instructions
+# RailTracks Development Instructions
 
 **Always reference these instructions first and fallback to search or bash commands only when you encounter unexpected information that does not match the info here.**
 
 ## Repository Overview
 
-Railtracks is a Python framework for building agentic systems. This is a monorepo with two packages:
+RailTracks is a Python framework for building agentic systems. This is a monorepo with two packages:
 - `packages/railtracks/` - Core SDK with optional LLM, MCP, and integration features
 - `packages/railtracks-cli/` - Command-line visualization and development tools
 
@@ -102,7 +102,7 @@ railtracks viz
 
 ### Core Functionality Validation
 
-#### Test Basic Railtracks Operations
+#### Test Basic RailTracks Operations
 ```bash
 # Test basic function nodes
 python -c "

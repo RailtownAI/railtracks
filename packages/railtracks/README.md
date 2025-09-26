@@ -34,7 +34,7 @@ Get started with either the quick start or via the [docs](https://railtownai.git
 
 ## Quick Start
 
-Build your first agentic system in just a few steps. Start by building an agent which solves the "how many `r`'s are in Strawberry?" problem. 
+Build your first agentic system in just a few steps.
 
 ### Step 1: Install the Library
 

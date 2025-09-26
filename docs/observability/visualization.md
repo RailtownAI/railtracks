@@ -13,18 +13,24 @@ Railtracks comes with a built-in visualization tool that runs locally with **no 
 
 ### Usage
     
-
-```bash title="Install CLI tTool"
+First install the CLI tool if you haven't already:
+```bash
 pip install railtracks-cli
 ```
 
 
-```bash title="Initialize UI and Start"
+```bash
 railtracks init
+```
+
+This will create a `.railtracks` directory in your current working directory setting up the web app.
+You can then run your application
+
+```bash
 railtracks viz
 ```
 
-This will create a `.railtracks` directory in your current working directory setting up the web app in your web browser
+This should open up a web browser window where you can see your runs once they have finished.
 
 
 <iframe
@@ -32,11 +38,15 @@ This will create a `.railtracks` directory in your current working directory set
     style="width: 99dvw; min-height: 50dvh; border: none; box-sizing: border-box;"></iframe>
 
 !!! tip "Saving State"
-    By default, all of your runs will be saved to the `.railtracks` directory so you can view them locally. If you don't want that, set the
+    By default, all of your runs will be saved to the `.railtracks` directory. If you don't want things saved, you can set the
     flag to `False`:
     
     ```python
-    --8<-- "docs/scripts/visualization.py:saving_state"
+    import railtracks as rt
+    
+    rt.set_config(save_state=False)
+    # or if you want it scoped to a session
+    with rt.Session(save_state=False): ...
     ```
 
 ## Remote Visualization 
