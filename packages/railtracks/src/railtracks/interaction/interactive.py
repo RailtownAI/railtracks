@@ -1,29 +1,28 @@
 from typing import Callable, ParamSpec, Type, TypeVar
 
 from ..built_nodes.concrete._llm_base import LLMBase
-from ..built_nodes.concrete.response import LLMResponse
 from ..human_in_the_loop import HIL, ChatUI, HILMessage
 from ..llm.history import MessageHistory
-from ..llm.message import UserMessage
-from ..nodes.nodes import Node
+from ..llm.message import UserMessage, AssistantMessage
 from ..utils.logging.create import get_rt_logger
 from ._call import call
 
 logger = get_rt_logger("Interactive")
 
-_P = ParamSpec("_P")
 _TOutput = TypeVar("_TOutput")
 
 
 async def interactive(
-    node: Callable[_P, Node[_TOutput]],
+    node: type[LLMBase[_TOutput]],
     interactive_interface: Type[ChatUI] | Type[HIL] = ChatUI,
+    initial_message_to_user: str | None = None,
+    initial_message_to_agent: str | None = None,
     port: int | None = None,
     host: str | None = None,
     auto_open: bool | None = True,
-    *args: _P.args,
-    **kwargs: dict[str, any],  # I dislike this but it's needed for typing to work
-) -> LLMResponse:
+    *args,
+    **kwargs,
+) -> _TOutput:
     """
     An interactive session with a LLMBase child node. Default behaviour will launch a local web server
     and provide a chat interface for interacting with the node.
@@ -57,15 +56,18 @@ async def interactive(
             raise ValueError(
                 "Interactive sessions only support nodes that are children of LLMBase."
             )
-
-        chat_ui = interactive_interface(**chat_ui_kwargs)
-        msg_history = MessageHistory([])
-        response = LLMResponse("", msg_history)  # typing shenanigans
-
         try:
             logger.info("Connecting with Local Chat Session")
-
+            chat_ui = interactive_interface(**chat_ui_kwargs)
+            msg_history = MessageHistory([])
             await chat_ui.connect()
+
+            if initial_message_to_user is not None:
+                await chat_ui.send_message(HILMessage(content=initial_message_to_user))
+                msg_history.append(AssistantMessage(content=initial_message_to_user))
+            if initial_message_to_agent is not None:
+                msg_history.append(UserMessage(content=initial_message_to_agent))
+
             last_tool_idx = 0  # To track the last processed tool response, not sure how efficient this makes things
 
             while chat_ui.is_connected:
@@ -75,9 +77,9 @@ async def interactive(
 
                 msg_history.append(UserMessage(message.content))
 
-                response: LLMResponse = await call(node, msg_history, *args, **kwargs)
+                response = await call(node, msg_history, *args, **kwargs)
 
-                msg_history: MessageHistory = response.message_history.copy()
+                msg_history = response.message_history.copy()
 
                 await chat_ui.send_message(HILMessage(content=response.content))
                 await chat_ui.update_tools(response.tool_invocations[last_tool_idx:])
@@ -85,11 +87,10 @@ async def interactive(
                 last_tool_idx = len(response.tool_invocations)
 
             logger.info("Ended Local Chat Session")
-
         except Exception as e:
             logger.error(f"Error during interactive session: {e}")
         finally:
-            return response
+            return response # type: ignore
 
     else:
         raise NotImplementedError(
