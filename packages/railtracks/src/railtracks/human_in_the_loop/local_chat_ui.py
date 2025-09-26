@@ -240,7 +240,7 @@ class ChatUI(HIL):
         try:
             # Use put_nowait for immediate, non-blocking operation
             await self.sse_queue.put(message)
-            logger.debug(f"Message sent successfully:\n {message}")
+            logger.debug(f"Message sent successfully: {message}")
             return True
         except asyncio.QueueFull:
             logger.warning(

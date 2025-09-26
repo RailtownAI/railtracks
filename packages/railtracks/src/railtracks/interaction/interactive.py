@@ -17,30 +17,40 @@ async def interactive(
     interactive_interface: Type[ChatUI] | Type[HIL] = ChatUI,
     initial_message_to_user: str | None = None,
     initial_message_to_agent: str | None = None,
+    turns: int | None = None,
     port: int | None = None,
     host: str | None = None,
     auto_open: bool | None = True,
     *args,
     **kwargs,
 ) -> _TOutput:
-    """
-    An interactive session with a LLMBase child node. Default behaviour will launch a local web server
-    and provide a chat interface for interacting with the node.
+    """Starts an interactive session with an LLM-based agent.
+
+    This function launches a local web server, providing a chat interface for
+    real-time interaction with a specified `LLMBase` node. It facilitates a
+    turn-by-turn conversation with the agent.
 
     Args:
-        node (Callable): The node to interact with. This should be a callable that returns a
-            Node instance, typically an agent node.
-        interactive_interface (Type[ChatUI] | Type[HIL]): The type of interactive interface to use.
-            Currently only ChatUI is supported.
-        port (int | None): The port to run the interactive interface on. If None, a random port will be chosen.
-        host (str | None): The host to run the interactive interface on. If None, 'localhost' will be used.
-        auto_open (bool | None): Whether to automatically open the interactive interface in a web browser.
-        *args: Additional positional arguments to pass to the node.
-        **kwargs: Additional keyword arguments to pass to the node.
+        node: The `LLMBase` class to interact with.
+        interactive_interface: The user interface class for the session.
+            Defaults to `ChatUI`.
+        initial_message_to_user: An optional message to display to the user
+            at the start of the chat session.
+        initial_message_to_agent: An optional message to send to the agent to
+            initiate the conversation.
+        turns: The maximum number of conversational turns before the session
+            terminates. If `None`, the session continues until manually closed.
+        port: The network port for the web server. If `None`, a random
+            available port is selected.
+        host: The network host for the web server. Defaults to 'localhost'.
+        auto_open: If `True`, automatically opens the chat interface in a
+            web browser.
+        *args: Additional positional arguments to pass to the `node` constructor.
+        **kwargs: Additional keyword arguments to pass to the `node` constructor.
 
-        Returns:
-        LLMResponse: The final response from the node after the interactive session ends.
-
+    Returns:
+        The final output from the node after the interactive session concludes.
+        The return type matches the node's `_TOutput` generic type.
     """
 
     chat_ui_kwargs = {}
@@ -85,12 +95,16 @@ async def interactive(
                 await chat_ui.update_tools(response.tool_invocations[last_tool_idx:])
 
                 last_tool_idx = len(response.tool_invocations)
+                if turns is not None:
+                    turns -= 1
+                    if turns <= 0:
+                        await chat_ui.disconnect()
 
             logger.info("Ended Local Chat Session")
         except Exception as e:
             logger.error(f"Error during interactive session: {e}")
         finally:
-            return response # type: ignore
+            return response  # type: ignore
 
     else:
         raise NotImplementedError(
