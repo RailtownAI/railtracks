@@ -1,5 +1,7 @@
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
+
 from ._base import Parameter, ParameterType
+
 
 class ObjectParameter(Parameter):
     param_type: ParameterType = ParameterType.OBJECT
@@ -43,7 +45,6 @@ class ObjectParameter(Parameter):
             schema["enum"] = self.enum
 
         return schema
-
 
     def __repr__(self) -> str:
         return (

@@ -1,5 +1,7 @@
-from typing import List, Optional, Dict, Any
-from ._base import Parameter, ParameterType
+from typing import Any, Dict, List, Optional
+
+from ._base import Parameter
+
 
 class UnionParameter(Parameter):
     param_type: List[str]
@@ -18,8 +20,10 @@ class UnionParameter(Parameter):
         self.options = options
         for opt in options:
             if isinstance(opt, UnionParameter):
-                raise TypeError("UnionParameter cannot contain another UnionParameter in its options")
-        
+                raise TypeError(
+                    "UnionParameter cannot contain another UnionParameter in its options"
+                )
+
         # param_type here is the list of inner types as strings, e.g. ["string", "null"]
         # flattening incase someone tries to make UnionParameter(options=[UnionParameter(options=[...])])
         flattened_types = []
@@ -41,13 +45,12 @@ class UnionParameter(Parameter):
         }
 
         if self.description:
-            schema["description"] = self.description        # type: ignore
+            schema["description"] = self.description  # type: ignore
 
         if self.default_present:
             schema["default"] = self.default
-        
-        return schema
 
+        return schema
 
     def __repr__(self) -> str:
         return (

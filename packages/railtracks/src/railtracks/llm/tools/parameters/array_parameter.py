@@ -1,5 +1,7 @@
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, Optional
+
 from ._base import Parameter, ParameterType
+
 
 class ArrayParameter(Parameter):
     param_type: ParameterType = ParameterType.ARRAY
@@ -17,21 +19,21 @@ class ArrayParameter(Parameter):
         super().__init__(name, description, required, default)
         self.items = items
         self.max_items = max_items
-        self.additional_properties = additional_properties  # might be relevant if items is object type
-
+        self.additional_properties = (
+            additional_properties  # might be relevant if items is object type
+        )
 
     def to_json_schema(self) -> Dict[str, Any]:
         # Base property for items inside the array
         items_schema = self.items.to_json_schema()
 
-        
         schema = {
             "type": "array",
             "items": items_schema,
         }
         if self.description:
             schema["description"] = self.description
-            
+
         if self.max_items is not None:
             schema["maxItems"] = self.max_items
 

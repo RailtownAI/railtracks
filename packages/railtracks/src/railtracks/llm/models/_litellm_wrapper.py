@@ -7,17 +7,17 @@ from typing import (
     Callable,
     Dict,
     Generator,
+    Iterable,
     List,
     Optional,
     Tuple,
     Type,
     TypeVar,
     Union,
-    Iterable,
 )
 
 import litellm
-from litellm.utils import CustomStreamWrapper, ModelResponse    # type: ignore
+from litellm.utils import CustomStreamWrapper, ModelResponse  # type: ignore
 from pydantic import BaseModel, ValidationError
 
 from ...exceptions.errors import LLMError, NodeInvocationError
@@ -77,8 +77,10 @@ def _parameters_to_json_schema(
     """
     if parameters is None:
         return {}
-    
-    if isinstance(parameters, Iterable) and all(isinstance(x, Parameter) for x in parameters):
+
+    if isinstance(parameters, Iterable) and all(
+        isinstance(x, Parameter) for x in parameters
+    ):
         return _handle_set_of_parameters(list(parameters))
 
     raise NodeInvocationError(

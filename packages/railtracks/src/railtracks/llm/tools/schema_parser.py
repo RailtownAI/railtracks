@@ -1,11 +1,11 @@
 from typing import Set
 
 from .parameters import (
-    Parameter,
     ArrayParameter,
-    UnionParameter,
     ObjectParameter,
+    Parameter,
     RefParameter,
+    UnionParameter,
 )
 
 
@@ -37,7 +37,9 @@ def _extract_basic_properties(prop_schema: dict):
     return description, enum, default, additional_properties, default_present
 
 
-def _handle_ref_schema(name: str, prop_schema: dict, required: bool, description: str) -> RefParameter:
+def _handle_ref_schema(
+    name: str, prop_schema: dict, required: bool, description: str
+) -> RefParameter:
     return RefParameter(
         name=name,
         description=description,
@@ -46,7 +48,13 @@ def _handle_ref_schema(name: str, prop_schema: dict, required: bool, description
     )
 
 
-def _handle_all_of_schema(name: str, prop_schema: dict, required: bool, description: str, additional_properties: bool) -> tuple[Parameter | None, str | list | None]:
+def _handle_all_of_schema(
+    name: str,
+    prop_schema: dict,
+    required: bool,
+    description: str,
+    additional_properties: bool,
+) -> tuple[Parameter | None, str | list | None]:
     param_type = None
     for item in prop_schema["allOf"]:
         if "$ref" in item:
@@ -70,16 +78,18 @@ def _handle_any_of_schema(
     prop_schema: dict,
     required: bool,
     description: str,
-    default= None,
+    default=None,
     default_present: bool = False,
 ) -> Parameter:
     options = []
     for idx, option_schema in enumerate(prop_schema.get("anyOf", [])):
         # Generate a unique, descriptive name for this option
         option_name = f"{name}_option_{idx}"
-        option_param = parse_json_schema_to_parameter(option_name, option_schema, required=True)
+        option_param = parse_json_schema_to_parameter(
+            option_name, option_schema, required=True
+        )
         options.append(option_param)
-    
+
     # Defensive: avoid nested UnionParameter in options; flatten if found
     flattened_options = []
     for opt in options:
@@ -87,7 +97,7 @@ def _handle_any_of_schema(
             flattened_options.extend(opt.options)
         else:
             flattened_options.append(opt)
-    
+
     # If only one option, do not wrap in UnionParameter unnecessarily
     if len(flattened_options) == 1:
         return flattened_options[0]
@@ -101,20 +111,19 @@ def _handle_any_of_schema(
         default_present=default_present,
     )
 
+
 def _handle_object_schema(
     name: str,
     prop_schema: dict,
     required: bool,
     description: str,
     additional_properties: bool = False,
-    default = None,
+    default=None,
 ) -> Parameter:
     inner_required = prop_schema.get("required", [])
     inner_props = [
         parse_json_schema_to_parameter(
-            inner_name,
-            inner_schema,
-            inner_name in inner_required
+            inner_name, inner_schema, inner_name in inner_required
         )
         for inner_name, inner_schema in prop_schema.get("properties", {}).items()
     ]
@@ -124,9 +133,12 @@ def _handle_object_schema(
         description=description or prop_schema.get("description"),
         required=required,
         properties=inner_props,
-        additional_properties=prop_schema.get("additionalProperties", additional_properties),
+        additional_properties=prop_schema.get(
+            "additionalProperties", additional_properties
+        ),
         default=default or prop_schema.get("default"),
     )
+
 
 def _handle_array_schema(
     name: str,
@@ -184,12 +196,17 @@ def _handle_array_schema(
             default=default,
         )
 
-def parse_json_schema_to_parameter(name: str, prop_schema: dict, required: bool) -> Parameter:
+
+def parse_json_schema_to_parameter(
+    name: str, prop_schema: dict, required: bool
+) -> Parameter:
     """
     Parse a JSON schema property dict into a Parameter subclass instance properly.
     """
     param_type = _extract_param_type(prop_schema)
-    description, enum, default, additional_properties, default_present = _extract_basic_properties(prop_schema)
+    description, enum, default, additional_properties, default_present = (
+        _extract_basic_properties(prop_schema)
+    )
 
     # Patch additionalProperties dict into schema if needed (you can adjust based on your needs)
     if isinstance(additional_properties, dict):
@@ -218,8 +235,13 @@ def parse_json_schema_to_parameter(name: str, prop_schema: dict, required: bool)
             default_present,
         )
 
-    if (param_type == "object" or (isinstance(param_type, list) and "object" in param_type)) and "properties" in prop_schema:
-        return _handle_object_schema(name, prop_schema, required, description, additional_properties)
+    if (
+        param_type == "object"
+        or (isinstance(param_type, list) and "object" in param_type)
+    ) and "properties" in prop_schema:
+        return _handle_object_schema(
+            name, prop_schema, required, description, additional_properties
+        )
 
     elif param_type == "array" and "items" in prop_schema:
         return _handle_array_schema(
@@ -254,25 +276,23 @@ def parse_json_schema_to_parameter(name: str, prop_schema: dict, required: bool)
                 default=default,
                 default_present=default_present,
             )
-        
+
+
 def parse_model_properties(schema: dict) -> list[Parameter]:
     """
     Given a JSON schema (usually from BaseModel.model_json_schema()),
     returns a set of Parameter objects representing the top-level properties.
-
-    Args:
-        schema: The JSON schema dictionary.
-
-    Returns:
-        Set of Parameter instances corresponding to schema properties.
     """
-    result = []
     required_fields = schema.get("required", [])
+    nested_models = _parse_model_defs(schema.get("$defs", {}))
+    return _parse_main_properties(
+        schema.get("properties", {}), required_fields, nested_models
+    )
 
-    # Parse $defs (nested model definitions)
-    defs = schema.get("$defs", {})
+
+# --- Helper functions for parse_model_properties ---
+def _parse_model_defs(defs: dict) -> dict:
     nested_models = {}
-
     for def_name, def_schema in defs.items():
         nested_required = def_schema.get("required", [])
         nested_props: Set[Parameter] = set()
@@ -286,73 +306,90 @@ def parse_model_properties(schema: dict) -> list[Parameter]:
             "properties": nested_props,
             "required": nested_required,
         }
+    return nested_models
 
-    # Process main properties
-    for prop_name, prop_schema in schema.get("properties", {}).items():
-        # Handle references to nested models in $defs
-        if "$ref" in prop_schema:
-            ref = prop_schema["$ref"]
+
+def _handle_ref_property(prop_name, prop_schema, required_fields, nested_models):
+    ref = prop_schema["$ref"]
+    if ref.startswith("#/$defs/"):
+        model_name = ref[len("#/$defs/") :]
+        if model_name in nested_models:
+            return ObjectParameter(
+                name=prop_name,
+                description=prop_schema.get("description", ""),
+                required=prop_name in required_fields,
+                properties=nested_models[model_name]["properties"],
+                additional_properties=False,
+            )
+    return None
+
+
+def _handle_allof_property(prop_name, prop_schema, required_fields, nested_models):
+    for item in prop_schema.get("allOf", []):
+        if "$ref" in item:
+            ref = item["$ref"]
             if ref.startswith("#/$defs/"):
                 model_name = ref[len("#/$defs/") :]
                 if model_name in nested_models:
-                    result.append(
-                        ObjectParameter(
-                            name=prop_name,
-                            description=prop_schema.get("description", ""),
-                            required=prop_name in required_fields,
-                            properties=nested_models[model_name]["properties"],
-                            additional_properties=False,
-                        )
+                    return ObjectParameter(
+                        name=prop_name,
+                        description=prop_schema.get("description", ""),
+                        required=prop_name in required_fields,
+                        properties=nested_models[model_name]["properties"],
+                        additional_properties=False,
                     )
-                    continue
+    return None
+
+
+def _handle_object_property(prop_name, prop_schema, required_fields):
+    inner_required = prop_schema.get("required", [])
+    inner_props = [
+        parse_json_schema_to_parameter(
+            inner_name, inner_schema, inner_name in inner_required
+        )
+        for inner_name, inner_schema in prop_schema["properties"].items()
+    ]
+    return ObjectParameter(
+        name=prop_name,
+        description=prop_schema.get("description", ""),
+        required=prop_name in required_fields,
+        properties=inner_props,
+        additional_properties=prop_schema.get("additionalProperties", False),
+    )
+
+
+def _parse_main_properties(
+    properties: dict, required_fields: list, nested_models: dict
+) -> list[Parameter]:
+    result = []
+    for prop_name, prop_schema in properties.items():
+        # Handle references to nested models in $defs
+        if "$ref" in prop_schema:
+            ref_obj = _handle_ref_property(
+                prop_name, prop_schema, required_fields, nested_models
+            )
+            if ref_obj is not None:
+                result.append(ref_obj)
+                continue
 
         # Handle allOf references to nested models
         if "allOf" in prop_schema:
-            resolved = False
-            for item in prop_schema.get("allOf", []):
-                if "$ref" in item:
-                    ref = item["$ref"]
-                    if ref.startswith("#/$defs/"):
-                        model_name = ref[len("#/$defs/") :]
-                        if model_name in nested_models:
-                            result.append(
-                                ObjectParameter(
-                                    name=prop_name,
-                                    description=prop_schema.get("description", ""),
-                                    required=prop_name in required_fields,
-                                    properties=nested_models[model_name]["properties"],
-                                    additional_properties=False,
-                                )
-                            )
-                            resolved = True
-                            break
-            if resolved:
+            allof_obj = _handle_allof_property(
+                prop_name, prop_schema, required_fields, nested_models
+            )
+            if allof_obj is not None:
+                result.append(allof_obj)
                 continue
 
         # If not processed by ref/allOf above:
-        # Determine param type with special handling for number -> float
         param_type = prop_schema.get("type", "object")
         if param_type == "number":
             param_type = "float"
 
-        # If object with properties, parse as PydanticParameter
+        # If object with properties, parse as ObjectParameter
         if param_type == "object" and "properties" in prop_schema:
-            inner_required = prop_schema.get("required", [])
-            inner_props= []
-            for inner_name, inner_schema in prop_schema["properties"].items():
-                inner_props.append(
-                    parse_json_schema_to_parameter(
-                        inner_name, inner_schema, inner_name in inner_required
-                    )
-                )
             result.append(
-                ObjectParameter(
-                    name=prop_name,
-                    description=prop_schema.get("description", ""),
-                    required=prop_name in required_fields,
-                    properties=inner_props,
-                    additional_properties=prop_schema.get("additionalProperties", False),
-                )
+                _handle_object_property(prop_name, prop_schema, required_fields)
             )
         else:
             # Fallback to parsing as a simple parameter
@@ -361,5 +398,4 @@ def parse_model_properties(schema: dict) -> list[Parameter]:
                     prop_name, prop_schema, prop_name in required_fields
                 )
             )
-
     return result

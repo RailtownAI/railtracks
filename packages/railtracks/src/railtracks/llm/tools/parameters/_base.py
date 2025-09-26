@@ -1,6 +1,7 @@
+from abc import ABC
 from enum import Enum
-from typing import Any, List, Union, Optional, Dict, Type, Literal, ClassVar, TypeVar
-from abc import ABC, abstractmethod
+from typing import Any, Dict, List, Optional, TypeVar, Union
+
 
 class ParameterType(str, Enum):
     STRING = "string"
@@ -26,19 +27,18 @@ class ParameterType(str, Enum):
         }
         return mapping.get(py_type, cls.OBJECT)
 
+
 # Generic Type for subclass methods that return Parameter
 T = TypeVar("T", bound="Parameter")
 
-from typing import Any, List, Optional, Dict, Union, ClassVar
-from abc import ABC, abstractmethod
 
 class Parameter(ABC):
     """
     Abstract Base Parameter class with default simple parameter behavior.
     """
-    
+
     param_type: Optional[Union[str, List[str]]] = None  # class var for default type
-    
+
     def __init__(
         self,
         name: str,
@@ -60,11 +60,14 @@ class Parameter(ABC):
             # Normalize to str or List[str]
             if isinstance(param_type, list):
                 self.param_type = [
-                    pt.value if isinstance(pt, ParameterType) else pt for pt in param_type
+                    pt.value if isinstance(pt, ParameterType) else pt
+                    for pt in param_type
                 ]
             else:
                 self.param_type = (
-                    param_type.value if isinstance(param_type, ParameterType) else param_type
+                    param_type.value
+                    if isinstance(param_type, ParameterType)
+                    else param_type
                 )
         elif hasattr(self, "param_type") and self.param_type is None:
             self.param_type = None
@@ -72,7 +75,9 @@ class Parameter(ABC):
     def to_json_schema(self) -> Dict[str, Any]:
         # Base dictionary with type and optional description
         schema_dict: Dict[str, Any] = {
-            "type": self.param_type.value if isinstance(self.param_type, ParameterType) else self.param_type
+            "type": self.param_type.value
+            if isinstance(self.param_type, ParameterType)
+            else self.param_type
         }
         if self.description:
             schema_dict["description"] = self.description
@@ -96,5 +101,3 @@ class Parameter(ABC):
             f"description={self.description!r}, required={self.required!r}, "
             f"default={self.default!r}, enum={self.enum!r})"
         )
-    
-    

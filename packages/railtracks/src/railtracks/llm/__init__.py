@@ -10,7 +10,14 @@ from .models import (
     OllamaLLM,
     OpenAILLM,
 )
-from .tools import UnionParameter, ArrayParameter, ObjectParameter, RefParameter, Parameter, Tool
+from .tools import (
+    ArrayParameter,
+    ObjectParameter,
+    Parameter,
+    RefParameter,
+    Tool,
+    UnionParameter,
+)
 
 __all__ = [
     "ModelBase",
