@@ -3,7 +3,7 @@
 <script src="/system_internals/js/class_diagram.js"></script>
 ## Overview
 
-The PubSub (Publisher-Subscriber) system is a messaging pattern that allows different parts of the **RailTracks** system to communicate asynchronously. Think of it like a radio station: publishers broadcast messages (like radio shows), and subscribers listen for messages they're interested in (like tuning into specific stations).
+The PubSub (Publisher-Subscriber) system is a messaging pattern that allows different parts of the **Railtracks** system to communicate asynchronously. Think of it like a radio station: publishers broadcast messages (like radio shows), and subscribers listen for messages they're interested in (like tuning into specific stations).
 
 ## What is PubSub?
 
@@ -175,12 +175,12 @@ except Exception as error:
     print(f"Failed: {error}")
 ```
 
-## RailTracks Publisher (RTPublisher)
+## Railtracks Publisher (RTPublisher)
 
-`RTPublisher` is a specialized publisher for the RailTracks system that:
+`RTPublisher` is a specialized publisher for the Railtracks system that:
 
 - Automatically logs all messages for debugging
-- Handles RailTracks specific message types
+- Handles Railtracks specific message types
 - Provides built-in error logging with stack traces
 
 ```python

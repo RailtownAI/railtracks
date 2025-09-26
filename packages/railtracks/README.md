@@ -1,6 +1,3 @@
-![RailTracks](../../docs/assets/logo.svg)
-
-
 [![PyPI version](https://img.shields.io/pypi/v/railtracks)](https://github.com/RailtownAI/railtracks/releases)
 [![Python Versions](https://img.shields.io/pypi/pyversions/railtracks?logo=python&)](https://pypi.org/project/railtracks/)
 [![License](https://img.shields.io/pypi/l/railtracks)](https://opensource.org/licenses/MIT)
@@ -9,6 +6,31 @@
 [![GitHub stars](https://img.shields.io/github/stars/RailtownAI/railtracks.svg?style=social&label=Star)](https://github.com/RailtownAI/railtracks)
 [![Discord](https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white)](https://discord.gg/h5ZcahDc)
 
+
+## Helpful Links
+<p align="center">
+  <a href="https://railtownai.github.io/railtracks/" style="font-size: 30px; text-decoration: none;">📘 Documentation</a> <br>
+  <a href="https://github.com/RailtownAI/railtracks/tree/main/examples/rt_basics" style="font-size: 30px; text-decoration: none;">🚀 Examples</a> <br>
+  <a href="https://railtownai.github.io/railtracks/api_reference" style="font-size: 30px; text-decoration: none;">🛠 API Reference</a> <br>
+  <a href="https://discord.gg/h5ZcahDc" style="font-size: 30px; text-decoration: none;">💬 Join Discord</a> <br>
+</p>
+
+## What is Railtracks?
+**Railtracks** is a lightweight agentic LLM framework for building modular, multi-LLM workflows. Unlike other frameworks like **LangGraph** and **Google ADK**, Railtracks focuses on:
+
+- Simple Python-first APIs -> no graphs, just regular Python code
+- Built-in visualization and debugging tools -> understand and trace your agent flows visually
+- Zero setup overhead -> run it like any other Python script without special directories or configs
+
+| Feature                | Railtracks | LangGraph  | Google ADK |
+| ---------------------- | ---------- | ---------- | ---------- |
+| Python-first, no DSL   | ✅ Yes      | ❌ No       | ✅ Yes       |
+| Built-in visualization | ✅ Yes      | ✅ Yes      | ⚠️ Limited|
+| Simple Running         | ✅ Yes      | ✅ Yes     | ❌ No       |
+| LLM-agnostic           | ✅ Yes      | ✅ Yes      | ✅ Yes      |
+
+
+Get started with either the quick start or via the [docs](https://railtownai.github.io/railtracks/)
 
 ## Quick Start
 
@@ -24,61 +46,64 @@ pip install railtracks
 pip install railtracks-cli
 ```
 
-### Step 2: Define Your Modular Components
+### Step 2: Define a Tool
 
 ```python
 import railtracks as rt
 
-def number_of_chars(text: str) -> int:
-    return len(text)
-
-def number_of_words(text: str) -> int:
-    return len(text.split())
-
-def number_of_characters(text: str, character_of_interest: str) -> int:
+# Create your tool
+@rt.function_node
+def number_of_chars(text: str, character_of_interest: str) -> int:
     return text.count(character_of_interest)
 
-TotalNumberChars = rt.function_node(number_of_chars)
-TotalNumberWords = rt.function_node(number_of_words)
-CharacterCount = rt.function_node(number_of_characters)
+@rt.function_node
+def word_count(text: str) -> int:
+    return len(text.split())
+```
 
+### Step 3: Create your agent (connecting your LLM)
+```python
 TextAnalyzer = rt.agent_node(
-    tool_nodes={TotalNumberChars, TotalNumberWords, CharacterCount},
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    tool_nodes={number_of_chars, word_count},
+    llm=rt.llm.OpenAILLM("gpt-4o"), # use any model you want
     system_message=(
-        "You are a text analyzer. You will be given a text and return the number of characters, "
-        "the number of words, and the number of occurrences of a specific character."
+        "You are a text analyzer. You will be given a text and you should utilize the tools available to analyze it."
     ),
 )
 ```
 
-### Step 3: Run Your Application
+### Step 4: Run Your Application
 
 ```python
-import railtracks as rt
+import asyncio
 
-result = rt.call(
-    TextAnalyzer,
-    rt.llm.MessageHistory([
-        rt.llm.UserMessage("Hello world! This is a test of the RailTracks framework.")
-    ])
-)
-print(result)
+@rt.session
+async def main():
+    result = await rt.call(
+        TextAnalyzer,
+        rt.llm.MessageHistory([
+            rt.llm.UserMessage("Hello world! This is a test of the Railtracks framework.")
+        ])
+    )
+    print(result)
+
+asyncio.run(main())
 ```
 
-### Step 4: \[Optional] Visualize the Run
+### Optional: Visualize the Run
 
 ```bash
 railtracks init
 railtracks viz
 ```
 
-> *(Insert example visualization image here)*
+
 
 And just like that, you're up and running. The possibilities are endless.
 
 ---
 
+
 ## Contributing
 
-We welcome contributions of all kinds! Check out our [contributing guide](./CONTRIBUTING.md) to get started.
+See [CONTRIBUTING.md](../../CONTRIBUTING.md) for guidelines.

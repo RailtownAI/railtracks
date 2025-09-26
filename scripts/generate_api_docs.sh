@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# RailTracks API Documentation Generator
+# Railtracks API Documentation Generator
 
 set -e  # Exit on any error
 
-echo "Generating RailTracks API Documentation..."
+echo "Generating Railtracks API Documentation..."
 
 # Check if pdoc is installed
 if ! command -v pdoc &> /dev/null; then

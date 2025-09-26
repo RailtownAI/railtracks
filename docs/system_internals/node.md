@@ -1,8 +1,8 @@
 ## Overview
 ## Overview
 
-**Nodes** are the main components of **RailTracks** core of our abstractions. Looking at the abstract class, we can see that each Node needs the following methods implemented:
-**Nodes** are the main components of **RailTracks** core of our abstractions. Looking at the abstract class, we can see that each Node needs the following methods implemented:
+**Nodes** are the main components of **Railtracks** core of our abstractions. Looking at the abstract class, we can see that each Node needs the following methods implemented:
+**Nodes** are the main components of **Railtracks** core of our abstractions. Looking at the abstract class, we can see that each Node needs the following methods implemented:
 
 ## Execution Flow
 After the creation of a Node, execution primarily happens through the `call` method, which is responsible for invoking the node's logic and handling its execution flow. The `call` method can be called synchronously or asynchronously, depending on the node's configuration and the execution strategy in use.

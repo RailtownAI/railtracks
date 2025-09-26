@@ -16,7 +16,7 @@ Take a look at the examples below to see how using different providers look for 
 
 === "OpenAI"
     !!! info "Environment Variables Configuration"
-        Make sure you set the appropriate environment variable keys for your specific provider. By default, RailTracks uses the `dotenv` framework to load environment variables from a `.env` file.
+        Make sure you set the appropriate environment variable keys for your specific provider. By default, Railtracks uses the `dotenv` framework to load environment variables from a `.env` file.
         Variable name for the API key: `OPENAI_API_KEY`
     
     ```python
@@ -29,7 +29,7 @@ Take a look at the examples below to see how using different providers look for 
 
 === "Anthropic"
     !!! info "Environment Variables Configuration"
-        Make sure you set the appropriate environment variable keys for your specific provider. By default, RailTracks uses the `dotenv` framework to load environment variables from a `.env` file.
+        Make sure you set the appropriate environment variable keys for your specific provider. By default, Railtracks uses the `dotenv` framework to load environment variables from a `.env` file.
         Variable name for the API key: `ANTHROPIC_API_KEY`
 
     ```python
@@ -42,7 +42,7 @@ Take a look at the examples below to see how using different providers look for 
 
 === "Gemini"
     !!! info "Environment Variables Configuration"
-        Make sure you set the appropriate environment variable keys for your specific provider. By default, RailTracks uses the `dotenv` framework to load environment variables from a `.env` file.
+        Make sure you set the appropriate environment variable keys for your specific provider. By default, Railtracks uses the `dotenv` framework to load environment variables from a `.env` file.
         Variable name for the API key: `GEMINI_API_KEY`
 
     ```python
@@ -75,7 +75,7 @@ Take a look at the examples below to see how using different providers look for 
 
 === "HuggingFace"
     !!! info "Environment Variables Configuration"
-        Make sure you set the appropriate environment variable keys for your specific provider. By default, RailTracks uses the `dotenv` framework to load environment variables from a `.env` file.
+        Make sure you set the appropriate environment variable keys for your specific provider. By default, Railtracks uses the `dotenv` framework to load environment variables from a `.env` file.
         Variable name for the API key: `HF_TOKEN`
 
     !!! caution "Tool Calling Support"

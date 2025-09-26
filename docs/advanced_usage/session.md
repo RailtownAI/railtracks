@@ -1,10 +1,10 @@
 # Session Management
 
-Sessions in RailTracks manage the execution environment for your flows. The recommended approach is using the `@rt.session` decorator for clean, automatic session management.
+Sessions in Railtracks manage the execution environment for your flows. The recommended approach is using the `@rt.session` decorator for clean, automatic session management.
 
 ## The `@rt.session` Decorator
 
-The decorator automatically wraps your __top level__ async functions with a RailTracks session:
+The decorator automatically wraps your __top level__ async functions with a Railtracks session:
 
 ```python
 --8<-- "docs/scripts/session.py:empty_session_dec"

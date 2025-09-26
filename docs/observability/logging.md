@@ -15,6 +15,9 @@ Railtracks provides built-in logging to help track the execution of your flows. 
 
 ---
 
+!!! Critical
+    Every log sent by Railtracks will contain a parameter in `extras` for `session_id` which will be uuid tied to the session the error was thrown in.
+
 ## Configuring Logging
 
 ### Logging Levels
@@ -27,12 +30,7 @@ Railtracks supports four logging levels:
 4. `NONE`: Disables all logging.
 
 ```python
-import railtracks as rt
-
-rt.set_config(logging_setting="VERBOSE")
-rt.set_config(logging_setting="REGULAR")
-rt.set_config(logging_setting="QUIET")
-rt.set_config(logging_setting="NONE")
+--8<-- "docs/scripts/_logging.py:logging_setup"
 ```
 
 ---
@@ -47,27 +45,18 @@ By default, logs are printed to `stdout` and `stderr`.
 
 To save logs to a file, pass a `log_file` parameter to the config:
 
-```python
-import railtracks as rt
+    ```python
+    --8<-- "docs/scripts/_logging.py:logging_to_file"
+    ```
 
 rt.set_config(log_file="my_logs.log")
 ```
 
 #### Custom Handlers
 
-Railtracks uses the standard [Python `logging`](https://docs.python.org/3/library/logging.html) module with the `RT` prefix. You can attach custom handlers:
-
-```python
-import logging
-
-class CustomHandler(logging.Handler):
-    def emit(self, record):
-        # Custom logging logic
-        pass
-
-logger = logging.getLogger()
-logger.addHandler(CustomHandler())
-```
+    ```python
+    --8<-- "docs/scripts/_logging.py:logging_custom_handler"
+    ```
 
 ---
 
@@ -77,8 +66,9 @@ You can configure logging globally or per-run.
 
 ### Global Configuration
 
-```python
-import railtracks as rt
+    ```python
+    --8<-- "docs/scripts/_logging.py:logging_global"
+    ```
 
 rt.set_config(
     logging_setting="VERBOSE",
@@ -88,7 +78,8 @@ rt.set_config(
 
 Applies to all flows.
 
-### Scoped Configuration
+    ```python
+    --8<-- "docs/scripts/_logging.py:logging_scoped"
 
 ```python
 import railtracks as rt
@@ -112,37 +103,19 @@ You can forward logs to services like [Loggly](https://www.loggly.com/), [Sentry
 === "Conductr"
 
     ```python
-    import logging
-    import railtownai
-    
-    RAILTOWN_API_KEY = 'YOUR_RAILTOWN_API_KEY'
-    railtownai.init(RAILTOWN_API_KEY)
+    --8<-- "docs/scripts/_logging.py:logging_railtown"
     ```
 
 === "Loggly"
 
     ```python
-    import logging
-    from loggly.handlers import HTTPSHandler
-    
-    LOGGLY_TOKEN = 'YOUR_LOGGLY_TOKEN'
-    https_handler = HTTPSHandler(
-        url=f'https://logs-01.loggly.com/inputs/{LOGGLY_TOKEN}/tag/python'
-    )
-    
-    logger = logging.getLogger()
-    logger.addHandler(https_handler)
+    --8<-- "docs/scripts/_logging.py:logging_loggly"
     ```
 
 === "Sentry"
 
     ```python
-    import sentry_sdk
-    
-    sentry_sdk.init(
-        dsn="https://examplePublicKey@o0.ingest.sentry.io/0",
-        send_default_pii=True,  # Collects additional metadata
-    )
+    --8<-- "docs/scripts/_logging.py:logging_sentry"
     ```
 
 ---

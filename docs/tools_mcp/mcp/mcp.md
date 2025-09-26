@@ -15,9 +15,9 @@ Model Context Protocol (MCP) provides a unified interface, making it easy for LL
 - **Simplified Architecture**: Uniform approach to tool integration reduces complexity
 
 
-## Using MCP Tools in RailTracks
+## Using MCP Tools in Railtracks
 
-RailTracks allows you to convert MCP tools into Tools that can be used by RailTracks agents just like any other Tool. We handle the conversion and server setup for you, so you can focus on building your agents without worrying about the underlying complexities of MCP.
+Railtracks allows you to convert MCP tools into Tools that can be used by Railtracks agents just like any other Tool. We handle the conversion and server setup for you, so you can focus on building your agents without worrying about the underlying complexities of MCP.
 
 !!! example "Quick Example"
     ```python
@@ -33,11 +33,11 @@ RailTracks allows you to convert MCP tools into Tools that can be used by RailTr
     # Use these tools with your RailTracks agents
     ```
 
-For a complete guide and more examples, see [Using MCP Tools in RailTracks](MCP_tools_in_RT.md).
+For a complete guide and more examples, see [Using MCP Tools in Railtracks](MCP_tools_in_RT.md).
 
-## RailTracks to MCP
+## Railtracks to MCP
 
-RailTracks also provides a way to convert RailTracks Tools into MCP tools using FastMCP, allowing you to use your existing RailTracks tools in any MCP-compatible environment.
+Railtracks also provides a way to convert Railtracks Tools into MCP tools using FastMCP, allowing you to use your existing Railtracks tools in any MCP-compatible environment.
 
 This enables you to:
 
@@ -45,11 +45,11 @@ This enables you to:
 - Use your tools in other MCP-compatible frameworks
 - Create a unified toolset across different AI systems
 
-See the [RailTracks to MCP](RTtoMCP.md) page for more details on how to set this up.
+See the [Railtracks to MCP](RTtoMCP.md) page for more details on how to set this up.
 
 ## Available MCP Servers
 
-RailTracks supports pre-built integrations with various MCP servers, including:
+Railtracks supports pre-built integrations with various MCP servers, including:
 
 | MCP Server    | Description | Setup Guide                                 |
 |---------------|-------------|---------------------------------------------|
