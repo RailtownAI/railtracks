@@ -184,3 +184,42 @@ class TestStructuredToolCalling:
             assert response.content.text == "Constantinople"
             assert response.content.number == 42
             assert rt.context.get("secrets_called")
+
+class TestFunctionNodeCallWithFunctionList:
+    @pytest.mark.asyncio
+    async def test_function_node_call_with_function_list_parameter(
+        self, mock_llm
+    ):
+        def get_number() -> int:
+            """
+            Creates a random number between 0 and the specified range.
+            """
+            return 42
+
+        def add_value(number: int, value: int) -> int:
+            """
+            Creates a random number between 0 and the specified range.
+            """
+
+            return number + value
+
+        tool_nodes = rt.function_node([get_number, add_value])
+
+        AgentHandler = rt.agent_node(
+        name="Random Number Generator Agent",
+        tool_nodes=tool_nodes,
+        system_message="""You are a number generator agent that can generate numbers and add a value to it""",
+        llm=rt.llm.OpenAILLM("gpt-4o"),
+        max_tool_calls=3,
+    )
+
+        with rt.Session(name="AgentHandlerNode") as run:
+            result =  await rt.call(AgentHandler, rt.llm.MessageHistory([
+                rt.llm.UserMessage("Give me a number and add 50 to it please"),
+                ]))
+            
+        print(result.content)
+        assert isinstance(result.content, str)
+        assert "92" in result.content
+        
+
