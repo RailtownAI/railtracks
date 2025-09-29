@@ -5,14 +5,7 @@ import functools
 import inspect
 import warnings
 from types import BuiltinFunctionType
-from typing import (
-    Callable,
-    Coroutine,
-    ParamSpec,
-    TypeVar,
-    overload,
-    List
-)
+from typing import Callable, Coroutine, List, ParamSpec, TypeVar, overload
 
 from railtracks.built_nodes._node_builder import NodeBuilder
 from railtracks.built_nodes.concrete import (
@@ -59,7 +52,7 @@ def function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-) -> List[Union[RTAsyncFunction[_P, _TOutput], RTSyncFunction[_P, _TOutput]]]:
+) -> List[RTAsyncFunction[_P, _TOutput] | RTSyncFunction[_P, _TOutput]]:
     pass
 
 
