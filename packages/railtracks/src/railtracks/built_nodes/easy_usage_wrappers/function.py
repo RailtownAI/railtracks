@@ -35,6 +35,7 @@ def function_node(
 ) -> RTAsyncFunction[_P, _TOutput]:
     pass
 
+
 @overload
 def function_node(
     func: Callable[_P, _TOutput],
@@ -44,6 +45,7 @@ def function_node(
     manifest: ToolManifest | None = None,
 ) -> RTSyncFunction[_P, _TOutput]:
     pass
+
 
 @overload
 def function_node(
@@ -56,7 +58,10 @@ def function_node(
     pass
 
 
-def validate_function_parameters(func: Callable[_P, Coroutine[None, None, _TOutput] | _TOutput], manifest: ToolManifest | None = None):
+def validate_function_parameters(
+    func: Callable[_P, Coroutine[None, None, _TOutput] | _TOutput],
+    manifest: ToolManifest | None = None,
+):
     """
     Validates that the parameters of the function are valid for use in a node.
     """
@@ -76,8 +81,10 @@ def validate_function_parameters(func: Callable[_P, Coroutine[None, None, _TOutp
     if manifest is not None:
         validate_tool_manifest_against_function(func, manifest.parameters)
 
+
 def function_node_(
-    func: Callable[_P, Coroutine[None, None, _TOutput] | _TOutput] | List[Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]],
+    func: Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]
+    | List[Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]],
     /,
     *,
     name: str | None = None,
@@ -160,15 +167,20 @@ def function_node_(
                 "Please make a github issue with the details of what went wrong.",
             ],
         )
-    
+
 
 def function_node(
-    func: Callable[_P, Coroutine[None, None, _TOutput] | _TOutput] | List[Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]],
+    func: Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]
+    | List[Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]],
     /,
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-) -> Callable[_P, Coroutine[None, None, _TOutput] | _TOutput] | List[Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]] | None:
+) -> (
+    Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]
+    | List[Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]]
+    | None
+):
     """
     Creates a new Node type from a function that can be used in `rt.call()`.
 
@@ -187,10 +199,10 @@ def function_node(
 
     # handle the case where a list of functions is provided
     if isinstance(func, list):
-        print("List of functions provided, creating nodes for each function. ----------->")
-        return [
-            function_node(f, name=name, manifest=manifest) for f in func
-        ]
+        print(
+            "List of functions provided, creating nodes for each function. ----------->"
+        )
+        return [function_node(f, name=name, manifest=manifest) for f in func]
 
     # check if the function has already been converted to a node
     if hasattr(func, "node_type"):
@@ -203,7 +215,7 @@ def function_node(
     # validate_function_parameters is separated out to allow for easier testing.
     validate_function_parameters(func, manifest)
 
-    # assign the correct node class based on whether the function is async or sync 
+    # assign the correct node class based on whether the function is async or sync
     if asyncio.iscoroutinefunction(func):
         node_class = AsyncDynamicFunctionNode
     elif inspect.isfunction(func):
@@ -250,6 +262,7 @@ def function_node(
                 "Please make a github issue with the details of what went wrong.",
             ],
         )
+
 
 def _function_preserving_metadata(
     func: Callable[_P, _TOutput],
