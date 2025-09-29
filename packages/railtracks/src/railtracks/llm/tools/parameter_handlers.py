@@ -13,16 +13,9 @@ from .parameters import (
     UnionParameter,
 )
 from .schema_parser import parse_model_properties
+from .docstring_parser import param_from_python_type
 
 
-# HELPER
-def param_from_python_type(
-    py_type, name: str = "", description: str | None = None, required: bool = True
-) -> Parameter:
-    mapped_type = ParameterType.from_python_type(py_type).value
-    return Parameter(
-        name=name, param_type=mapped_type, description=description, required=required
-    )
 
 
 class ParameterHandler(ABC):

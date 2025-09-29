@@ -8,6 +8,8 @@ from .parameters import (
     UnionParameter,
 )
 
+from .docstring_parser import param_from_python_type
+
 
 def _extract_param_type(prop_schema: dict) -> str | list:
     param_type = prop_schema.get("type", None)
@@ -257,9 +259,10 @@ def parse_json_schema_to_parameter(
         # For simple types, use Parameter
         if isinstance(param_type, list):
             # If type is a list, create UnionParameter (e.g. ["string","none"])
+            options = [param_from_python_type(t) for t in param_type]
             return UnionParameter(
                 name=name,
-                options=param_type,
+                options=options,
                 description=description,
                 required=required,
                 default=default,
