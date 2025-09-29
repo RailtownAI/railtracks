@@ -7,7 +7,9 @@ parameter descriptions and other documentation.
 
 import re
 from typing import Dict
+
 from .parameters import Parameter, ParameterType
+
 
 # HELPER
 def param_from_python_type(

@@ -24,7 +24,7 @@ class ParameterType(str, Enum):
             set: cls.ARRAY,
             dict: cls.OBJECT,
             type(None): cls.NONE,
-            "none": cls.NONE,   # in case of recieving a list of string (type = ["object", "none"])
+            "none": cls.NONE,  # in case of recieving a list of string (type = ["object", "none"])
         }
         return mapping.get(py_type, cls.OBJECT)
 

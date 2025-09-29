@@ -1,5 +1,6 @@
 from typing import Set
 
+from .docstring_parser import param_from_python_type
 from .parameters import (
     ArrayParameter,
     ObjectParameter,
@@ -7,8 +8,6 @@ from .parameters import (
     RefParameter,
     UnionParameter,
 )
-
-from .docstring_parser import param_from_python_type
 
 
 def _extract_param_type(prop_schema: dict) -> str | list:

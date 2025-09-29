@@ -5,6 +5,7 @@ from typing import Any, List, Optional, Union
 
 from pydantic import BaseModel
 
+from .docstring_parser import param_from_python_type
 from .parameters import (
     ArrayParameter,
     ObjectParameter,
@@ -13,9 +14,6 @@ from .parameters import (
     UnionParameter,
 )
 from .schema_parser import parse_model_properties
-from .docstring_parser import param_from_python_type
-
-
 
 
 class ParameterHandler(ABC):
