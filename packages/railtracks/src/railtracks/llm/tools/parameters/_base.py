@@ -43,12 +43,12 @@ class Parameter(ABC):
     def __init__(
         self,
         name: str,
-        param_type: Optional[Union[str, List[str]]] = None,
         description: Optional[str] = None,
         required: bool = True,
         default: Any = None,
         enum: Optional[List[Any]] = None,
         default_present: bool = False,
+        param_type: Optional[Union[str, List[str]]] = None,
     ):
         self.name = name
         self.description = description or ""
