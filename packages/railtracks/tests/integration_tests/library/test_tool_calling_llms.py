@@ -188,7 +188,7 @@ class TestStructuredToolCalling:
 class TestFunctionNodeCallWithFunctionList:
     @pytest.mark.asyncio
     async def test_function_node_call_with_function_list_parameter(
-        self, mock_llm
+        self, mock_llm, simple_output_model
     ):
         def get_number() -> int:
             """
@@ -209,7 +209,8 @@ class TestFunctionNodeCallWithFunctionList:
         name="Random Number Generator Agent",
         tool_nodes=tool_nodes,
         system_message="""You are a number generator agent that can generate numbers and add a value to it""",
-        llm=rt.llm.OpenAILLM("gpt-4o"),
+        llm=mock_llm('{"text": "Successfully added 50 to 42 to get 92", "number": 92}'),
+        output_schema=simple_output_model,
         max_tool_calls=3,
     )
 
@@ -219,7 +220,10 @@ class TestFunctionNodeCallWithFunctionList:
                 ]))
             
         print(result.content)
-        assert isinstance(result.content, str)
-        assert "92" in result.content
+        assert isinstance(result.content, simple_output_model)
+        assert isinstance(result.content.text, str)
+        assert isinstance(result.content.number, int)
+        assert result.content.text == "Successfully added 50 to 42 to get 92"
+        assert result.content.number == 92
         
 
