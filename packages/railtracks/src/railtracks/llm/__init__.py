@@ -10,7 +10,14 @@ from .models import (
     OllamaLLM,
     OpenAILLM,
 )
-from .tools import Parameter, Tool
+from .tools import (
+    ArrayParameter,
+    ObjectParameter,
+    Parameter,
+    RefParameter,
+    Tool,
+    UnionParameter,
+)
 
 __all__ = [
     "ModelBase",
@@ -23,7 +30,6 @@ __all__ = [
     "ToolMessage",
     "MessageHistory",
     "Tool",
-    "Parameter",
     "AnthropicLLM",
     "HuggingFaceLLM",
     "OpenAILLM",
@@ -31,4 +37,10 @@ __all__ = [
     "OllamaLLM",
     "AzureAILLM",
     "GeminiLLM",
+    # Parameter types
+    "Parameter",
+    "UnionParameter",
+    "ArrayParameter",
+    "ObjectParameter",
+    "RefParameter",
 ]
