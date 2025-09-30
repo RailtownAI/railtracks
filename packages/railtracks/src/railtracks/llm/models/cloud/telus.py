@@ -1,6 +1,6 @@
 import os
 
-from ._openai_compatable_provider_wrapper import OpenAICompatibleProviderWrapper
+from ..api_providers._openai_compatable_provider_wrapper import OpenAICompatibleProviderWrapper
 
 class TelusLLM(OpenAICompatibleProviderWrapper):
     def __init__(self, model_name: str, api_base: str, api_key: str | None = None):

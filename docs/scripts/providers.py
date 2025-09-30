@@ -31,6 +31,14 @@ import railtracks as rt
 model = rt.llm.AzureAILLM("azure_ai/deepseek-r1")
 # --8<-- [end: azure]
 
+# --8<-- [start: telus]
+import railtracks as rt
+from dotenv import load_dotenv
+load_dotenv()  # Load environment variables from .env file
+
+model = rt.llm.TelusLLM("deepseek-r1", api_base="https://api.telus.ai/v1")
+# --8<-- [end: telus]
+
 # --8<-- [start: ollama]
 import railtracks as rt
 # make sure to configure your environment variables for Ollama

@@ -9,6 +9,7 @@ from .models import (
     HuggingFaceLLM,
     OllamaLLM,
     OpenAILLM,
+    TelusLLM,
 )
 from .tools import Parameter, Tool
 
@@ -31,4 +32,5 @@ __all__ = [
     "OllamaLLM",
     "AzureAILLM",
     "GeminiLLM",
+    "TelusLLM",
 ]
