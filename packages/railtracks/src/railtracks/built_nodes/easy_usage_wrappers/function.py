@@ -199,9 +199,6 @@ def function_node(
 
     # handle the case where a list of functions is provided
     if isinstance(func, list):
-        print(
-            "List of functions provided, creating nodes for each function. ----------->"
-        )
         return [function_node(f, name=name, manifest=manifest) for f in func]
 
     # check if the function has already been converted to a node
