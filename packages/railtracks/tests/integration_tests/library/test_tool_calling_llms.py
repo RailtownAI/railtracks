@@ -192,13 +192,13 @@ class TestFunctionNodeCallWithFunctionList:
     ):
         def get_number() -> int:
             """
-            Creates a random number between 0 and the specified range.
+            Returns the number 42
             """
             return 42
 
         def add_value(number: int, value: int) -> int:
             """
-            Creates a random number between 0 and the specified range.
+            Adds 50 to a number and returns the result
             """
 
             return number + value
