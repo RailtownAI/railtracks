@@ -41,6 +41,15 @@ Take a look at the examples below to see how using different providers look for 
     --8<-- "docs/scripts/providers.py:gemini"
     ```
 
+=== "Telus"
+    !!! info "Environment Variables Configuration"
+        Make sure you set the appropriate environment variable keys for your specific provider. By default, Railtracks uses the `dotenv` framework to load environment variables from a `.env` file.
+        Variable name for the API key: `TELUS_API_KEY`
+
+    ```python
+    --8<-- "docs/scripts/providers.py:telus"
+    ```
+
 === "Azure AI Foundry"
 
     ```python
