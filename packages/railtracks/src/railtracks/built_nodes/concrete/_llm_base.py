@@ -336,7 +336,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         return "Agent"
 
 
-_TStructured = TypeVar("_TStructured", bound=Union[BaseModel, Stream])
+_TStructured = TypeVar("_TStructured", bound=BaseModel)
 
 
 class StructuredOutputMixIn(Generic[_TStructured]):
@@ -350,7 +350,7 @@ class StructuredOutputMixIn(Generic[_TStructured]):
     def return_output(self, message: Message) -> StructuredResponse[_TStructured]:
         content = message.content
 
-        assert isinstance(content, self.output_schema() | Stream), (
+        assert isinstance(content, self.output_schema()), (
             f"The final output must be a pydantic {self.output_schema()} or Stream instance. Instead it was {type(content)}"
         )
 
@@ -370,8 +370,8 @@ class StringOutputMixIn:
         ):  # if no message is provided, use the last message from message history
             message = self.message_hist[-1]
 
-        assert isinstance(message.content, str | Stream), (
-            "The final output must be a string or stream"
+        assert isinstance(message.content, str), (
+            "The final output must be a string"
         )
         return StringResponse(
             content=message.content,

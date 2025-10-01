@@ -406,6 +406,7 @@ class LiteLLMWrapper(ModelBase, ABC):
                 
 
             if choice.delta.tool_calls:
+                # TODO: determine if it would be useful to stream tools
                 self._handle_tool_call_delta(
                     choice.delta.tool_calls[0], active_tool_calls
                 )
@@ -417,7 +418,7 @@ class LiteLLMWrapper(ModelBase, ABC):
                 yield content
 
         if structured_response is not None:
-            print("response", structured_response)
+            
             r = Response(
                 message=AssistantMessage(content=structured_response),
                 message_info=message_info,
@@ -434,11 +435,7 @@ class LiteLLMWrapper(ModelBase, ABC):
 
         yield r
         return r
-    
-    def _structured_stream_handler_base(
-        self, raw: CustomStreamWrapper, start_time: float, schema: Type[BaseModel]
-    ):
-        accumulated_content = ""
+
 
 
     async def _aconsume_stream(self, raw: CustomStreamWrapper, start_time: float):
@@ -449,7 +446,7 @@ class LiteLLMWrapper(ModelBase, ABC):
         """Check if the stream has finished."""
         return choice.finish_reason in ("stop", "tool_calls")
 
-    def _finalize_remaining_tool_calls(self, active_tool_calls: dict):
+    def _finalize_remaining_tool_calls(self, active_tool_calls: dict[int, StreamedToolCall]) -> list[ToolCall]:
         """
 
         Finalize any remaining active tool calls and return them.
@@ -716,7 +713,7 @@ class LiteLLMWrapper(ModelBase, ABC):
 _T = TypeVar("_T")
 
 
-def _return_none_on_error(func: Callable[[], _T]) -> _T:
+def _return_none_on_error(func: Callable[[], _T]) -> _T | None:
     try:
         return func()
     except:  # noqa: E722

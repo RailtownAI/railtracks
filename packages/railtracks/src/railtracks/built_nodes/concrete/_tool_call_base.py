@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from typing import (
     Any,
     Dict,
+    Generator,
     Generic,
     ParamSpec,
     Set,
@@ -132,7 +133,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
 
     async def _on_max_tool_calls_exceeded(self):
         """force a final response"""
-        response = await self.llm_model.achat_with_tools(self.message_hist, tools=[])
+        response = await asyncio.to_thread(self.llm_model.chat_with_tools, self.message_hist, tools=[])
         assert isinstance(response.message, AssistantMessage)
         self._add_message_to_history(response.message)
         return response.message
@@ -170,6 +171,11 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
         response = await asyncio.to_thread(
             self.llm_model.chat_with_tools, self.message_hist, tools=self.tools()
         )
+
+        if isinstance(response, Generator):
+            # TODO finish up this logic. 
+            pass
+            
 
         assert isinstance(response.message, AssistantMessage)
         if response.message.role == "assistant":

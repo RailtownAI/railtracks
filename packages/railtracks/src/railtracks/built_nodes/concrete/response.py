@@ -1,4 +1,4 @@
-from typing import Generator, Generic, TypeVar, Union
+from typing import Generator, Generic, Type, TypeVar, Union
 
 from pydantic import BaseModel
 
@@ -39,7 +39,7 @@ class LLMResponse(Generic[_T]):
 _TStructured = TypeVar("_TStructured", bound=BaseModel)
 
 
-class StructuredResponse(LLMResponse[_TStructured | Stream[_TStructured]]):
+class StructuredResponse(LLMResponse[_TStructured]):
     """
     A specialized response object for structured outputs from LLMs.
 
@@ -50,7 +50,7 @@ class StructuredResponse(LLMResponse[_TStructured | Stream[_TStructured]]):
 
     def __init__(
         self,
-        content: _TStructured | Stream[_TStructured],
+        content: _TStructured,
         message_history: MessageHistory,
     ):
         super().__init__(content, message_history)
@@ -60,19 +60,12 @@ class StructuredResponse(LLMResponse[_TStructured | Stream[_TStructured]]):
         """Returns the structured content of the response."""
         if isinstance(self.content, BaseModel):
             return self.content
-        elif isinstance(self.content, Stream):
-            assert isinstance(self.content.final_message, BaseModel), (
-                f"final_message must be a BaseModel. Got {type(self.content.final_message)}"
-            )
-            return self.content.final_message
         else:
-            raise ValueError("Unexpected content type")
+            raise TypeError("Unexpected content type")
 
 
-_TString = TypeVar("_TString", bound=Union[str, Stream])
 
-
-class StringResponse(LLMResponse[_TString]):
+class StringResponse(LLMResponse[str]):
     """
     A specialized response object for string outputs from LLMs.
 
@@ -81,7 +74,7 @@ class StringResponse(LLMResponse[_TString]):
         message_history: The history of messages exchanged during the interaction.
     """
 
-    def __init__(self, content: _TString, message_history: MessageHistory):
+    def __init__(self, content: str, message_history: MessageHistory):
         super().__init__(content, message_history)
 
     @property
@@ -89,10 +82,5 @@ class StringResponse(LLMResponse[_TString]):
         """Returns the text content of the response."""
         if isinstance(self.content, str):
             return self.content
-        elif isinstance(self.content, Stream):
-            assert isinstance(self.content.final_message, str), (
-                f"final_message must be a str. Got {type(self.content.final_message)}"
-            )
-            return self.content.final_message
         else:
-            raise ValueError("Unexpected content type")
+            raise TypeError("Unexpected content type")
