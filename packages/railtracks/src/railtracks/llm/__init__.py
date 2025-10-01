@@ -5,6 +5,7 @@ from .model import ModelBase
 from .models import (
     AnthropicLLM,
     AzureAILLM,
+    CohereLLM,
     GeminiLLM,
     HuggingFaceLLM,
     OllamaLLM,
@@ -31,6 +32,8 @@ __all__ = [
     "MessageHistory",
     "Tool",
     "AnthropicLLM",
+    "AzureAILLM",
+    "CohereLLM",
     "HuggingFaceLLM",
     "OpenAILLM",
     "GeminiLLM",
