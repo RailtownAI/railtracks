@@ -1,7 +1,7 @@
 import inspect
 import types
 from abc import ABC, abstractmethod
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional, Union, Tuple
 
 from pydantic import BaseModel
 
@@ -133,7 +133,7 @@ class SequenceParameterHandler(ParameterHandler):
         if hasattr(param_annotation, "__origin__"):
             is_tuple = param_annotation.__origin__ is tuple
         else:
-            is_tuple = param_annotation in (tuple,)
+            is_tuple = param_annotation in (tuple, Tuple)
 
         sequence_args = getattr(param_annotation, "__args__", [])
 
