@@ -9,4 +9,4 @@ class CohereLLM(ProviderLLMWrapper):
 
     @classmethod
     def model_type(cls):
-        return ModelProvider.HUGGINGFACE
+        return ModelProvider.COHERE
