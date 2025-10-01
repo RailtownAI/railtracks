@@ -4,12 +4,13 @@ from typing import Literal
 import requests
 from litellm.utils import supports_function_calling
 
-from ....utils.logging.create import get_rt_logger
+from ...logging import setup_logger
 from .._litellm_wrapper import LiteLLMWrapper
 from .._model_exception_base import FunctionCallingNotSupportedError, ModelError
 
 LOGGER_NAME = "OLLAMA"
-logger = get_rt_logger(LOGGER_NAME)
+logger = setup_logger(__name__)
+
 DEFAULT_DOMAIN = "http://localhost:11434"
 
 
@@ -47,6 +48,9 @@ class OllamaLLM(LiteLLMWrapper):
             RequestException: If connection to Ollama server fails
         """
         if not model_name.startswith("ollama/"):
+            logger.warning(
+                f"Prepending 'ollama/' to model name '{model_name}' for Ollama"
+            )
             model_name = f"ollama/{model_name}"
         super().__init__(model_name, **kwargs)
 
