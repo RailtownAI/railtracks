@@ -184,3 +184,46 @@ class TestStructuredToolCalling:
             assert response.content.text == "Constantinople"
             assert response.content.number == 42
             assert rt.context.get("secrets_called")
+
+class TestFunctionNodeCallWithFunctionList:
+    @pytest.mark.asyncio
+    async def test_function_node_call_with_function_list_parameter(
+        self, mock_llm, simple_output_model
+    ):
+        def get_number() -> int:
+            """
+            Returns the number 42
+            """
+            return 42
+
+        def add_value(number: int, value: int) -> int:
+            """
+            Adds 50 to a number and returns the result
+            """
+
+            return number + value
+
+        tool_nodes = rt.function_node([get_number, add_value])
+
+        AgentHandler = rt.agent_node(
+        name="Random Number Generator Agent",
+        tool_nodes=tool_nodes,
+        system_message="""You are a number generator agent that can generate numbers and add a value to it""",
+        llm=mock_llm('{"text": "Successfully added 50 to 42 to get 92", "number": 92}'),
+        output_schema=simple_output_model,
+        max_tool_calls=3,
+    )
+
+        with rt.Session(name="AgentHandlerNode") as run:
+            result =  await rt.call(AgentHandler, rt.llm.MessageHistory([
+                rt.llm.UserMessage("Give me a number and add 50 to it please"),
+                ]))
+            
+        print(result.content)
+        assert isinstance(result.content, simple_output_model)
+        assert isinstance(result.content.text, str)
+        assert isinstance(result.content.number, int)
+        assert result.content.text == "Successfully added 50 to 42 to get 92"
+        assert result.content.number == 92
+        
+
