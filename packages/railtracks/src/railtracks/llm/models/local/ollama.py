@@ -1,13 +1,12 @@
-import logging
 import os
 from typing import Literal
 
 import requests
 from litellm.utils import supports_function_calling
 
+from ....utils.logging.create import get_rt_logger
 from .._litellm_wrapper import LiteLLMWrapper
 from .._model_exception_base import FunctionCallingNotSupportedError, ModelError
-from ....utils.logging.create import get_rt_logger
 
 LOGGER_NAME = "OLLAMA"
 logger = get_rt_logger(LOGGER_NAME)
@@ -77,8 +76,10 @@ class OllamaLLM(LiteLLMWrapper):
             models = response.json()
 
             model_names = {model["name"] for model in models["models"]}
-            
-            model_name = self.model_name().rsplit("/", 1)[-1] # extract the model name if the provider is also included
+
+            model_name = self.model_name().rsplit("/", 1)[
+                -1
+            ]  # extract the model name if the provider is also included
 
             if model_name not in model_names:
                 error_msg = f"{self.model_name()} not available on server {self.domain}. Avaiable models are: {model_names}"
