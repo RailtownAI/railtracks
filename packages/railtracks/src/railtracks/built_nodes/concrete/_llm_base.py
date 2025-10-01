@@ -344,10 +344,13 @@ class StructuredOutputMixIn(Generic[_TStructured]):
 
     @classmethod
     @abstractmethod
-    def output_schema(cls) -> Type[BaseModel]:
+    def output_schema(cls) -> type[_TStructured]:
         pass
 
-    def return_output(self, message: Message) -> StructuredResponse[_TStructured]:
+    def return_output(self, message: Message | None = None) -> StructuredResponse[_TStructured]:
+        if message is None:
+            message = self.message_hist[-1]
+
         content = message.content
 
         assert isinstance(content, self.output_schema()), (

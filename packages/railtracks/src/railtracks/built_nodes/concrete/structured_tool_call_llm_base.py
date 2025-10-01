@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Generic, TypeVar
+from typing import Generator, Generic, TypeVar
 
 from pydantic import BaseModel
 
@@ -19,13 +19,13 @@ from ._tool_call_base import (
 )
 from .response import StructuredResponse
 
-_TReturn = TypeVar("_TReturn")
+
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 
 
 class StructuredToolCallLLM(
     StructuredOutputMixIn[_TBaseModel],
-    OutputLessToolCallLLM[StructuredResponse[_TBaseModel]],
+    OutputLessToolCallLLM[StructuredResponse[_TBaseModel] | Generator[str | StructuredResponse[_TBaseModel], None, StructuredResponse[_TBaseModel]]],
     ABC,
     Generic[_TBaseModel],
 ):
@@ -88,7 +88,32 @@ class StructuredToolCallLLM(
                 llm=self.llm_model,
             )
 
-            structured_output = response.structured
+            if isinstance(response, Generator):
+                def gen_wrapper():
+                    for r in response:
+                        if isinstance(r, StructuredResponse):
+                            
+                            result: StructuredResponse[_TBaseModel] = self._handle_structured_output(r)
+                            yield result
+                            return result
+                            
+                        elif isinstance(r, str):
+                            yield r
+                        else:
+                            raise LLMError(
+                                reason=f"ModelLLM returned unexpected type in generator. Expected str or StructuredResponse, got {type(r)}",
+                                message_history=self.message_hist,
+                            )
+                    
+                    raise LLMError(
+                        reason="The generator did not yield a final Response object",
+                        message_history=self.message_hist,
+                    )
+                
+                          
+                return gen_wrapper()        
+
+            structured_output = response
         except Exception as e:
             # the original exception will be presented with our wrapped one.
             raise LLMError(
@@ -96,8 +121,20 @@ class StructuredToolCallLLM(
                 message_history=self.message_hist,
             ) from e
 
-        # Might need to change the logic so that you keep the unstructured
-        last_message = AssistantMessage(content=structured_output)
+        return self._handle_structured_output(structured_output)
+
+        
+    
+    def _handle_structured_output(self, output: StructuredResponse[_TBaseModel]):
+        structured = output.structured
+
+        assert isinstance(structured, self.output_schema())
+        last_message = AssistantMessage(content=structured)
         self.message_hist.pop()
         self.message_hist.append(last_message)
         return self.return_output(last_message)
+
+
+
+        
+
