@@ -72,15 +72,13 @@ class Stream(Generic[_TOutput]):
         self._streamer = streamer
         self._final_message = final_message
 
-    
-    
     @property
     def final_message(self):
         """
         Gets the final message that was constructed from the streamer, after the streamer has finished.
         """
         return self._final_message
-    
+
     @final_message.setter
     def final_message(self, value: _TOutput):
         self._final_message = value

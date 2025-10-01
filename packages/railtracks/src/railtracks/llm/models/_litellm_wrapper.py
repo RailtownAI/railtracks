@@ -1,4 +1,4 @@
-from itertools import tee
+from itertools import accumulate
 import json
 import time
 import warnings
@@ -10,16 +10,18 @@ from typing import (
     Dict,
     Generator,
     List,
+    NamedTuple,
     Optional,
     Tuple,
     Type,
     TypeVar,
     Union,
+    overload,
 )
 
 import litellm
 from litellm.utils import CustomStreamWrapper, ModelResponse  # type: ignore
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ...exceptions.errors import LLMError, NodeInvocationError
 from ..content import Stream, ToolCall
@@ -28,6 +30,8 @@ from ..message import AssistantMessage, Message, ToolMessage
 from ..model import ModelBase
 from ..response import MessageInfo, Response
 from ..tools import ArrayParameter, Parameter, PydanticParameter, Tool
+
+_TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 
 
 # ================ START Parameter to JSON Schema parsing ===============
@@ -254,6 +258,21 @@ def _to_litellm_message(msg: Message) -> Dict[str, Any]:
     return base
 
 
+
+class StreamedToolCall(BaseModel):
+    tool: ToolCall
+    args: str | None = Field(default=None)  # accumulating string of arguments (in json)
+
+    def load_args(self):
+        try:
+            self.tool.arguments = json.loads(self.args) if self.args else {}
+        except JSONDecodeError as e:
+            raise ValueError(
+                f"Failed to decode tool call arguments: {str(e)}",
+            )
+
+
+
 class LiteLLMWrapper(ModelBase, ABC):
     """
     A large base class that wraps around a litellm model.
@@ -351,200 +370,134 @@ class LiteLLMWrapper(ModelBase, ABC):
 
     # ================ START Streaming Handlers ===============
     async def _astream_handler_base(
-        self, raw: CustomStreamWrapper, start_time: float
-    ) -> Response:
+        self, raw: CustomStreamWrapper, start_time: float, output_schema: Type[BaseModel] | None = None
+    ):
         """Consume the raw stream immediately, then return a replayable stream."""
 
-        chunks, accumulated_content, mess_info = await self._aconsume_stream(
-            raw, start_time
-        )
-        return self._create_response(chunks, accumulated_content, mess_info)
-
-    def _stream_handler_base(
-        self, raw: CustomStreamWrapper, start_time: float
-    ) -> Response:
-        """Consume the raw stream immediately, then return a replayable stream."""
-        def stream_handler() -> Generator[str, None, Response]:
-            chunks = []
-            accumulated_content = ""
-            message_info = MessageInfo()
-            active_tool_calls = {}
-            stream_finished = False
-
-            for chunk in raw.completion_stream:
-                if stream_finished:
-                    message_info = self.extract_message_info(
-                        chunk, time.time() - start_time
-                    )
-                    continue
-
-                choice = chunk.choices[0]
-
-                if self._is_stream_finished(choice):
-                    stream_finished = True
-                    self._finalize_remaining_tool_calls(active_tool_calls, chunks)
-                    continue
-
-                if choice.delta.tool_calls:
-                    self._handle_tool_call_delta(
-                        choice.delta.tool_calls[0], active_tool_calls, chunks
-                    )
-                elif choice.delta.content:
-                    content = self._handle_content_delta(choice.delta.content)
-                    accumulated_content += content
-                    chunks.append(content)
-                    yield content
-            
-            return self._create_response(chunks, accumulated_content, message_info)
-        
-        
+        return self._stream_handler_base(raw, start_time, output_schema)
 
 
-        r = Response(message=AssistantMessage(content=Stream(streamer=raw.completion_stream)))
-
-        chunks, accumulated_content, mess_info = self._consume_stream(raw, start_time)
-        return self._create_response(chunks, accumulated_content, mess_info)
-    
-
-    async def _aconsume_stream(self, raw: CustomStreamWrapper, start_time: float):
-        """Consume the entire async stream and extract chunks, content, and metadata."""
-        chunks = []
+    def _stream_handler_base(self, raw: CustomStreamWrapper, start_time: float, output_schema: Type[BaseModel] | None = None):
+        """Modifies the stream to handler to yield chunks as they come in. It provides a complete response at the end."""
+        tools: List[ToolCall] = []
         accumulated_content = ""
+        structured_response: BaseModel | None = None
+        # fall back on empty message info if we don't get one from the stream.
         message_info = MessageInfo()
-        active_tool_calls = {}
-        stream_finished = False
-
-        async for chunk in raw.completion_stream:
-            if stream_finished:
-                message_info = self.extract_message_info(
-                    chunk, time.time() - start_time
-                )
-                continue
-
-            choice = chunk.choices[0]
-
-            if self._is_stream_finished(choice):
-                stream_finished = True
-                self._finalize_remaining_tool_calls(active_tool_calls, chunks)
-                continue
-
-            if choice.delta.tool_calls:
-                self._handle_tool_call_delta(
-                    choice.delta.tool_calls[0], active_tool_calls, chunks
-                )
-            elif choice.delta.content:
-                content = self._handle_content_delta(choice.delta.content)
-                accumulated_content += content
-                chunks.append(content)
-
-        return chunks, accumulated_content, message_info
-
-    def _consume_stream(self, raw: CustomStreamWrapper, start_time: float):
-        """Consume the entire sync stream and extract chunks, content, and metadata."""
-        chunks = []
-        accumulated_content = ""
-        message_info = MessageInfo()
-        active_tool_calls = {}
+        active_tool_calls: Dict[int, StreamedToolCall] = {}
         stream_finished = False
 
         for chunk in raw.completion_stream:
             if stream_finished:
+                # the last chunk will contain the full message info
                 message_info = self.extract_message_info(
                     chunk, time.time() - start_time
                 )
-                continue
+                if output_schema is not None:
+                    structured_response = output_schema(**json.loads(accumulated_content))
+                break
 
             choice = chunk.choices[0]
 
             if self._is_stream_finished(choice):
                 stream_finished = True
-                self._finalize_remaining_tool_calls(active_tool_calls, chunks)
+                tools = self._finalize_remaining_tool_calls(active_tool_calls)
                 continue
+                
 
             if choice.delta.tool_calls:
                 self._handle_tool_call_delta(
-                    choice.delta.tool_calls[0], active_tool_calls, chunks
+                    choice.delta.tool_calls[0], active_tool_calls
                 )
+                
+
             elif choice.delta.content:
                 content = self._handle_content_delta(choice.delta.content)
                 accumulated_content += content
-                chunks.append(content)
+                yield content
 
-        return chunks, accumulated_content, message_info
-
-    def _create_response(
-        self, chunks: list, accumulated_content: str, mess_info: MessageInfo
-    ) -> Response:
-        """Create the appropriate response based on chunk types."""
-        # If we only have tool calls, return them directly
-        if chunks and all(isinstance(x, ToolCall) for x in chunks):
-            return Response(
-                message=AssistantMessage(content=chunks), message_info=mess_info
+        if structured_response is not None:
+            print("response", structured_response)
+            r = Response(
+                message=AssistantMessage(content=structured_response),
+                message_info=message_info,
+            )
+        elif len(tools) > 0:
+            r = Response(
+                message=AssistantMessage(content=tools), message_info=message_info
+            )
+        else:
+            r = Response(
+                message=AssistantMessage(content=accumulated_content),
+                message_info=message_info,
             )
 
-        # Create replay streamer for mixed content
-        stream_response = Stream(
-            streamer=self._create_replay_streamer(chunks),
-            final_message=accumulated_content,
-        )
+        yield r
+        return r
+    
+    def _structured_stream_handler_base(
+        self, raw: CustomStreamWrapper, start_time: float, schema: Type[BaseModel]
+    ):
+        accumulated_content = ""
 
-        return Response(
-            message=AssistantMessage(content=stream_response),
-            message_info=mess_info,
-        )
+
+    async def _aconsume_stream(self, raw: CustomStreamWrapper, start_time: float):
+        """Consume the entire async stream and extract chunks, content, and metadata."""
+        return self._stream_handler_base(raw, start_time)
 
     def _is_stream_finished(self, choice) -> bool:
         """Check if the stream has finished."""
         return choice.finish_reason in ("stop", "tool_calls")
 
-    def _finalize_remaining_tool_calls(self, active_tool_calls: dict, chunks: list):
+    def _finalize_remaining_tool_calls(self, active_tool_calls: dict):
         """
-        
-        Finalize any remaining active tool calls and add them to chunks.
 
-        This will mutate the `chunks` parameter.
-        
+        Finalize any remaining active tool calls and return them.
+
         """
+        tools: list[ToolCall] = []
         for tool_data in active_tool_calls.values():
-            if tool_data["args_buffer"]:
-                tool_data["tool_call"].arguments = json.loads(tool_data["args_buffer"])
-            chunks.append(tool_data["tool_call"])
-        active_tool_calls.clear()
+            if tool_data.args is not None:
+                tool_data.load_args()
+            tools.append(tool_data.tool)
+        
+        return tools
 
-    def _handle_tool_call_delta(self, call, active_tool_calls: dict, chunks: list):
+        
+
+    def _handle_tool_call_delta(self, call, active_tool_calls: dict[int, StreamedToolCall]):
         """Process a tool call delta from the stream."""
         call_index = getattr(call, "index", 0)
 
         if call.id:  # New tool call starting
-            self._start_new_tool_call(call, call_index, active_tool_calls, chunks)
+            self._start_new_tool_call(call, call_index, active_tool_calls)
         else:  # Continue streaming arguments
             self._continue_tool_call_arguments(call, call_index, active_tool_calls)
 
     def _start_new_tool_call(
-        self, call, call_index: int, active_tool_calls: dict, chunks: list
+        self, call, call_index: int, active_tool_calls: dict[int, StreamedToolCall]
     ):
         """Start a new tool call, finalizing any previous one at the same index."""
         # Finalize previous tool call at this index if exists
         if call_index in active_tool_calls:
             prev_data = active_tool_calls[call_index]
-            if prev_data["args_buffer"]:
-                prev_data["tool_call"].arguments = json.loads(prev_data["args_buffer"])
-            chunks.append(prev_data["tool_call"])
+            if prev_data.args:
+                prev_data.tool.arguments = json.loads(prev_data.args)
 
         # Start new tool call
-        active_tool_calls[call_index] = {
-            "tool_call": ToolCall(
+        active_tool_calls[call_index] = StreamedToolCall(
+            tool=ToolCall(
                 identifier=call.id, name=call.function.name, arguments={}
             ),
-            "args_buffer": "",
-        }
+            args="",
+        )
 
     def _continue_tool_call_arguments(
-        self, call, call_index: int, active_tool_calls: dict
+        self, call, call_index: int, active_tool_calls: dict[int, StreamedToolCall]
     ):
         """Continue accumulating arguments for an existing tool call."""
         if call_index in active_tool_calls and call.function.arguments:
-            active_tool_calls[call_index]["args_buffer"] += call.function.arguments
+            active_tool_calls[call_index].args += call.function.arguments
 
     def _handle_content_delta(self, content) -> str:
         """Process content delta and return validated content string."""
@@ -603,10 +556,11 @@ class LiteLLMWrapper(ModelBase, ABC):
     # ================ END Base Handlers ===============
 
     # ================ START Sync LLM calls ===============
-    def _chat(self, messages: MessageHistory) -> Response:
+    def _chat(self, messages: MessageHistory):
         response, time = self._invoke(messages=messages)
         if isinstance(response, CustomStreamWrapper):
             return self._stream_handler_base(response, time)
+
         elif isinstance(response, ModelResponse):
             return self._chat_handle_base(
                 response, self.extract_message_info(response, time)
@@ -616,11 +570,11 @@ class LiteLLMWrapper(ModelBase, ABC):
 
     def _structured(
         self, messages: MessageHistory, schema: Type[BaseModel]
-    ) -> Response:
+    ):
         try:
             model_resp, time = self._invoke(messages, response_format=schema)
             if isinstance(model_resp, CustomStreamWrapper):
-                return self._stream_handler_base(model_resp, time)
+                return self._stream_handler_base(model_resp, time, schema)
             elif isinstance(model_resp, ModelResponse):
                 return self._structured_handle_base(
                     model_resp,
@@ -637,7 +591,7 @@ class LiteLLMWrapper(ModelBase, ABC):
                 message_history=messages,
             ) from e
 
-    def _chat_with_tools(self, messages: MessageHistory, tools: List[Tool]) -> Response:
+    def _chat_with_tools(self, messages: MessageHistory, tools: List[Tool]):
         """
         Chat with the model using tools.
 
@@ -662,7 +616,7 @@ class LiteLLMWrapper(ModelBase, ABC):
     # ================ END Sync LLM calls ===============
 
     # ================ START Async LLM calls ===============
-    async def _achat(self, messages: MessageHistory) -> Response:
+    async def _achat(self, messages: MessageHistory):
         response, time = await self._ainvoke(messages=messages)
         if isinstance(response, CustomStreamWrapper):
             return await self._astream_handler_base(response, time)
@@ -675,11 +629,11 @@ class LiteLLMWrapper(ModelBase, ABC):
 
     async def _astructured(
         self, messages: MessageHistory, schema: Type[BaseModel]
-    ) -> Response:
+    ):
         try:
             model_resp, time = await self._ainvoke(messages, response_format=schema)
             if isinstance(model_resp, CustomStreamWrapper):
-                return await self._astream_handler_base(model_resp, time)
+                return await self._astream_handler_base(model_resp, time, schema)
             elif isinstance(model_resp, ModelResponse):
                 return self._structured_handle_base(
                     model_resp,
@@ -698,7 +652,7 @@ class LiteLLMWrapper(ModelBase, ABC):
 
     async def _achat_with_tools(
         self, messages: MessageHistory, tools: List[Tool]
-    ) -> Response:
+    ):
         resp, time = await self._ainvoke(messages, tools=tools)
         if isinstance(resp, CustomStreamWrapper):
             return await self._astream_handler_base(resp, time)

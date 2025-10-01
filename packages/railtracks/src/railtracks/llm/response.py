@@ -61,7 +61,7 @@ class Response:
 
     def __init__(
         self,
-        message: Message | None = None,
+        message: Message,
         message_info: MessageInfo = MessageInfo(),
     ):
         """

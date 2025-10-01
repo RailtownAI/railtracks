@@ -4,7 +4,7 @@
 ###
 
 from abc import ABC, abstractmethod
-from typing import Callable, List, Type
+from typing import Callable, Generator, List, Type, TypeVar
 
 from pydantic import BaseModel
 
@@ -12,6 +12,8 @@ from .history import MessageHistory
 from .response import Response
 from .tools import Tool
 
+
+_T = TypeVar("_T", Response, Generator[str | Response, None, Response])
 
 class ModelBase(ABC):
     """
@@ -34,12 +36,19 @@ class ModelBase(ABC):
     ):
         if __pre_hooks is None:
             pre_hooks: List[Callable[[MessageHistory], MessageHistory]] = []
+        else:
+            pre_hooks = __pre_hooks
 
         if __post_hooks is None:
             post_hooks: List[Callable[[MessageHistory, Response], Response]] = []
+        else:
+            post_hooks = __post_hooks
 
         if __exception_hooks is None:
             exception_hooks: List[Callable[[MessageHistory, Exception], None]] = []
+        else:
+            exception_hooks = __exception_hooks
+
 
         self._pre_hooks = pre_hooks
         self._post_hooks = post_hooks
@@ -110,7 +119,28 @@ class ModelBase(ABC):
         for hook in self._exception_hooks:
             hook(message_history, exception)
 
-    def chat(self, messages: MessageHistory):
+    def wrapper_generator(
+            self,
+            generator: Generator[str | Response, None, Response],
+            message_history: MessageHistory
+    ) -> Generator[str | Response, None, Response]:
+        new_response: Response | None = None
+        for g in generator:
+            if isinstance(g, Response):
+                g.message_info
+                new_response = self._run_post_hooks(message_history, g)
+                yield new_response
+            
+            yield g
+
+        assert new_response is not None, "The generator did not yield a final Response object so nothing could be done."
+
+        return new_response
+
+
+    def chat(
+        self, messages: MessageHistory
+    ) -> Response | Generator[str | Response, None, Response]:
         """Chat with the model using the provided messages."""
 
         messages = self._run_pre_hooks(messages)
@@ -121,8 +151,12 @@ class ModelBase(ABC):
             self._run_exception_hooks(messages, e)
             raise e
 
+        if isinstance(response, Generator):
+            return self.wrapper_generator(response, messages)
+        
         response = self._run_post_hooks(messages, response)
         return response
+    
 
     async def achat(self, messages: MessageHistory):
         """Asynchronous chat with the model using the provided messages."""
@@ -133,6 +167,9 @@ class ModelBase(ABC):
         except Exception as e:
             self._run_exception_hooks(messages, e)
             raise e
+
+        if isinstance(response, Generator):
+            return self.wrapper_generator(response, messages)
 
         response = self._run_post_hooks(messages, response)
 
@@ -148,13 +185,14 @@ class ModelBase(ABC):
             self._run_exception_hooks(messages, e)
             raise e
 
+        if isinstance(response, Generator):
+                return self.wrapper_generator(response, messages)
+        
         response = self._run_post_hooks(messages, response)
 
         return response
 
-    async def astructured(
-        self, messages: MessageHistory, schema: Type[BaseModel]
-    ):
+    async def astructured(self, messages: MessageHistory, schema: Type[BaseModel]):
         """Asynchronous structured interaction with the model using the provided messages and output_schema."""
         messages = self._run_pre_hooks(messages)
 
@@ -164,6 +202,9 @@ class ModelBase(ABC):
             self._run_exception_hooks(messages, e)
             raise e
 
+        if isinstance(response, Generator):
+            return self.wrapper_generator(response, messages)
+        
         response = self._run_post_hooks(messages, response)
 
         return response
@@ -178,6 +219,9 @@ class ModelBase(ABC):
             self._run_exception_hooks(messages, e)
             raise e
 
+        if isinstance(response, Generator):
+            return self.wrapper_generator(response, messages)
+        
         response = self._run_post_hooks(messages, response)
         return response
 
@@ -191,36 +235,41 @@ class ModelBase(ABC):
             self._run_exception_hooks(messages, e)
             raise e
 
+        if isinstance(response, Generator):
+            return self.wrapper_generator(response, messages)
+        
         response = self._run_post_hooks(messages, response)
 
         return response
 
     @abstractmethod
-    def _chat(self, messages: MessageHistory) -> Response:
+    def _chat(
+        self, messages: MessageHistory
+    ) -> Response | Generator[str | Response, None, Response]:
         pass
 
     @abstractmethod
     def _structured(
         self, messages: MessageHistory, schema: Type[BaseModel]
-    ) -> Response:
+    ) -> Response | Generator[str | Response, None, Response]:
         pass
 
     @abstractmethod
-    def _chat_with_tools(self, messages: MessageHistory, tools: List[Tool]) -> Response:
+    def _chat_with_tools(self, messages: MessageHistory, tools: List[Tool]) -> Response | Generator[str | Response, None, Response]:
         pass
 
     @abstractmethod
-    async def _achat(self, messages: MessageHistory) -> Response:
+    async def _achat(self, messages: MessageHistory) -> Response | Generator[str | Response, None, Response]:
         pass
 
     @abstractmethod
     async def _astructured(
-        self, messages: MessageHistory, schema: Type[BaseModel], **kwargs
-    ) -> Response:
+        self, messages: MessageHistory, schema: Type[BaseModel],
+    ) -> Response | Generator[str | Response, None, Response]:
         pass
 
     @abstractmethod
     async def _achat_with_tools(
         self, messages: MessageHistory, tools: List[Tool]
-    ) -> Response:
+    ) -> Response | Generator[str | Response, None, Response]:
         pass
