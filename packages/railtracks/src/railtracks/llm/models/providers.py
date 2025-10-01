@@ -29,4 +29,4 @@ class ModelProvider(str, Enum):
     HUGGINGFACE = "HuggingFace"
     AZUREAI = "AzureAI"
     OLLAMA = "Ollama"
-    COHERE = "cohere_chat"
+    COHERE = "Cohere"
