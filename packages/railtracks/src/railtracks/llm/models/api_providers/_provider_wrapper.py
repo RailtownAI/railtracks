@@ -56,7 +56,7 @@ class ProviderLLMWrapper(LiteLLMWrapper, ABC):
         pass
 
     def _validate_tool_calling_support(self):
-        if not litellm.utils.supports_function_calling(model=self._model_name):
+        if not litellm.supports_function_calling(model=self._model_name):
             raise FunctionCallingNotSupportedError(self._model_name)
 
     def _chat_with_tools(
