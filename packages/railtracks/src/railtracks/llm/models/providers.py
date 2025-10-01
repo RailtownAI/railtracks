@@ -20,6 +20,7 @@ class ModelProvider(str, Enum):
         HUGGINGFACE: HuggingFace-hosted models.
         AZUREAI: Azure OpenAI Service models.
         OLLAMA: Ollama local LLMs.
+        COHERE: Cohere models.
     """
 
     OPENAI = "OpenAI"
@@ -28,3 +29,4 @@ class ModelProvider(str, Enum):
     HUGGINGFACE = "HuggingFace"
     AZUREAI = "AzureAI"
     OLLAMA = "Ollama"
+    COHERE = "cohere_chat"
