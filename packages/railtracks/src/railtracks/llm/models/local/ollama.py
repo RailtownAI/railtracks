@@ -46,6 +46,8 @@ class OllamaLLM(LiteLLMWrapper):
                 - specified model is not available on the server
             RequestException: If connection to Ollama server fails
         """
+        if not model_name.startswith("ollama/"):
+            model_name = f"ollama/{model_name}"
         super().__init__(model_name, **kwargs)
 
         match domain:
