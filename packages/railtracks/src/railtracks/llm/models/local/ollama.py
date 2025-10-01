@@ -7,6 +7,7 @@ from litellm.utils import supports_function_calling
 from ...logging import setup_logger
 from .._litellm_wrapper import LiteLLMWrapper
 from .._model_exception_base import FunctionCallingNotSupportedError, ModelError
+from ..providers import ModelProvider
 
 LOGGER_NAME = "OLLAMA"
 logger = setup_logger(__name__)
@@ -107,5 +108,5 @@ class OllamaLLM(LiteLLMWrapper):
         return super().chat_with_tools(messages, tools, **kwargs)
 
     @classmethod
-    def model_type(cls) -> str:
-        return "Ollama"
+    def model_type(cls):
+        return ModelProvider.OLLAMA
