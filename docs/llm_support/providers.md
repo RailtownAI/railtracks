@@ -3,6 +3,7 @@ We currently support connecting to different available LLMs through the followin
 
 - **OpenAI** - GPT models
 - **Anthropic** - Claude models
+- **Cohere** - Cohere models
 - **Gemini** - Google's Gemini models
 - **Azure AI Foundry** - Azure-hosted models
 - **Ollama** - Local and self-hosted models
@@ -30,6 +31,15 @@ Take a look at the examples below to see how using different providers look for 
 
     ```python
     --8<-- "docs/scripts/providers.py:anthropic"
+    ```
+
+=== "Cohere"
+    !!! info "Environment Variables Configuration"
+        Make sure you set the appropriate environment variable keys for your specific provider. By default, RailTracks uses the `dotenv` framework to load environment variables from a `.env` file.
+        Variable name for the API key: `COHERE_API_KEY`
+    
+    ```python
+    --8<-- "docs/scripts/providers.py:cohere"
     ```
 
 === "Gemini"
