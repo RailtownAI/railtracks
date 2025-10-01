@@ -30,7 +30,7 @@ import webbrowser
 import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse, unquote
+from urllib.parse import unquote, urlparse
 
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
