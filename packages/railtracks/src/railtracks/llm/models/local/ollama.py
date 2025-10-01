@@ -2,14 +2,15 @@ import logging
 import os
 from typing import Literal
 
-import litellm
 import requests
+from litellm.utils import supports_function_calling
 
 from .._litellm_wrapper import LiteLLMWrapper
 from .._model_exception_base import FunctionCallingNotSupportedError, ModelError
+from ....utils.logging.create import get_rt_logger
 
 LOGGER_NAME = "OLLAMA"
-logger = logging.getLogger(__name__)
+logger = get_rt_logger(LOGGER_NAME)
 DEFAULT_DOMAIN = "http://localhost:11434"
 
 
@@ -46,7 +47,6 @@ class OllamaLLM(LiteLLMWrapper):
                 - specified model is not available on the server
             RequestException: If connection to Ollama server fails
         """
-        model_name = model_name.rsplit("/", 1)[-1]  # Extract model name from full path
         super().__init__(model_name, **kwargs)
 
         match domain:
@@ -64,8 +64,6 @@ class OllamaLLM(LiteLLMWrapper):
                     )
                 self.domain = custom_domain
 
-        self.logger = logger
-
         self._run_check(
             "api/tags"
         )  # This will crash the workflow if Ollama is not setup properly
@@ -79,20 +77,24 @@ class OllamaLLM(LiteLLMWrapper):
             models = response.json()
 
             model_names = {model["name"] for model in models["models"]}
+            
+            model_name = self.model_name().rsplit("/", 1)[-1] # extract the model name if the provider is also included
 
-            if self.model_name() not in model_names:
+            if model_name not in model_names:
                 error_msg = f"{self.model_name()} not available on server {self.domain}. Avaiable models are: {model_names}"
+                logger.error(error_msg)
                 raise OllamaError(error_msg)
 
         except OllamaError as e:
-            self.logger.critical(e)
+            logger.error(e)
             raise
+
         except requests.exceptions.RequestException as e:
-            self.logger.critical(e)
+            logger.error(e)
             raise
 
     def chat_with_tools(self, messages, tools, **kwargs):
-        if not litellm.supports_function_calling(model=self._model_name):
+        if not supports_function_calling(model=self._model_name):
             raise FunctionCallingNotSupportedError(self._model_name)
 
         return super().chat_with_tools(messages, tools, **kwargs)
