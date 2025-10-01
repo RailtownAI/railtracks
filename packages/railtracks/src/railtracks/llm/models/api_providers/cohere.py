@@ -1,3 +1,4 @@
+from ..providers import ModelProvider
 from ._provider_wrapper import ProviderLLMWrapper
 
 
@@ -7,5 +8,5 @@ class CohereLLM(ProviderLLMWrapper):
     """
 
     @classmethod
-    def model_type(cls) -> str:
-        return "cohere_chat"
+    def model_type(cls):
+        return ModelProvider.HUGGINGFACE
