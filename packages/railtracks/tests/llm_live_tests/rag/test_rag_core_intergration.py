@@ -1,5 +1,5 @@
 import pytest
-from railtracks.rag import RAG
+from railtracks.rag import RAG, RAGConfig
 
 
 @pytest.fixture(scope="module")
@@ -7,11 +7,13 @@ def set_docs(get_docs) -> RAG:
     docs = get_docs
     rag = RAG(
         docs,
-        embed_config={
-            "model": "text-embedding-3-small",
-        },
-        store_config={},
-        chunk_config={"chunk_size": 100, "chunk_overlap": 20, "model": "gpt-4o"},
+        config=RAGConfig(
+            embedding={"model": "text-embedding-3-small"},
+            store={},
+            chunking={
+                "chunk_size": 100, "chunk_overlap": 20, "model": "gpt-4o",
+            },
+        )
     )
 
     rag.embed_all()

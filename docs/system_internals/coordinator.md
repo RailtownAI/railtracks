@@ -1,15 +1,15 @@
-# 🎯 Coordinator
+# Coordinator
 
 <link rel="stylesheet" href="/system_internals/css/class_diagram.css">
 <script src="/system_internals/js/class_diagram.js"></script>
 
-## 🌟 Overview
+## Overview
 
 The `Coordinator` is the central component responsible for invoking and managing the execution of tasks within the Railtracks system. It acts as the concrete invoker, receiving tasks and delegating them to the appropriate execution strategies. It ensures that every task is tracked from submission to completion, maintaining a comprehensive state of all ongoing and completed jobs.
 
-## 🔧 Key Components
+## Key Components
 
-### 🎮 `Coordinator`
+### `Coordinator`
 
 This class orchestrates task execution. It maintains the system's state via `CoordinatorState`, uses different `AsyncioExecutionStrategy` implementations to run tasks, and listens for task completion events through the pub/sub system to keep the state up-to-date.
 
@@ -33,7 +33,7 @@ This class orchestrates task execution. It maintains the system's state via `Coo
     }
   ]
 }'></div>
-### 📊 `CoordinatorState`
+### `CoordinatorState`
 
 A state container that holds a list of all `Job` objects. It tracks every task that is currently running or has been completed, providing a complete history of work handled by the `Coordinator`.
 
@@ -55,7 +55,7 @@ A state container that holds a list of all `Job` objects. It tracks every task t
     }
   ]
 }'></div>
-### 📝 `Job`
+### `Job`
 
 Represents a single unit of work. A `Job` is created when a task is submitted, and its lifecycle is tracked from an `opened` to a `closed` state. It records the task's identifiers, status, result, and timing information, offering a detailed view of each task's execution.
 
@@ -84,7 +84,7 @@ Represents a single unit of work. A `Job` is created when a task is submitted, a
   ]
 }'></div>
 
-### ⚡ `AsyncioExecutionStrategy`
+### `AsyncioExecutionStrategy`
 
 An execution strategy that uses asyncio for task execution. This strategy provides async-await style execution for tasks, allowing for efficient concurrent processing without the need for threads or processes. It handles task invocation, result processing, and error handling while publishing completion messages through the pub/sub system.
 
@@ -133,7 +133,7 @@ classDiagram
     Coordinator "1" *-- "1" CoordinatorState : contains
     CoordinatorState "1" *-- "0..*" Job : manages
 ``` -->
-## 🔄 Execution Flow
+## Execution Flow
 
 The execution of a task follows a well-defined sequence of events, ensuring reliable processing and state management:
 
@@ -145,7 +145,7 @@ The execution of a task follows a well-defined sequence of events, ensuring reli
 6.  **Handling Completion**: The `Coordinator`, being a subscriber to these messages, receives the notification in its `handle_item` method.
 7.  **Finalizing the Job**: The `Coordinator` finds the corresponding `Job` in its `CoordinatorState` using the `request_id` from the message and updates its status to `closed`, recording the final result and end time.
 
-## 📊 Diagrams
+## Diagrams
 
 This diagram shows the sequence of interactions when a task is submitted and processed.
 

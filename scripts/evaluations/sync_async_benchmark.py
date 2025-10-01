@@ -1,3 +1,4 @@
+import asyncio
 import time
 
 import railtracks as rt
@@ -22,8 +23,15 @@ async def top_level_sync_blocking():
 
 TopLevel = rt.function_node(top_level_sync_blocking)
 
-with rt.Session() as runner:
+
+async def test_sync_blocking():
+    """
+    Test the sync blocking function.
+    """
     start_time = time.time()
-    rt.call_sync(TopLevel)
+    await rt.call(TopLevel)
     end_time = time.time()
     print(f"Sync blocking task {lengths} took {end_time - start_time:.2f} seconds")
+
+
+asyncio.run(test_sync_blocking())

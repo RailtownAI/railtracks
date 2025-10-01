@@ -1,21 +1,31 @@
-# Introducing RailTracks
+---
+hide:
+  - toc
+---
 
-RailTracks is a streamlined agentic workflow creation tool that allows users to quickly prototype, test, and 
-deploy agentic workflows. The foundational principles of RailTracks were designed to make the process of
+
+
+<div style="text-align: center;">
+  <img src="assets/logo.svg" alt="Railtracks Logo" width="300">
+  <h1> Railtracks Agentic Framework</h1>
+</div>
+
+
+Railtracks is a streamlined agentic workflow creation tool that allows users to quickly prototype, test, and 
+deploy agentic workflows. The foundational principles of Railtracks were designed to make the process of
 creating agents an exercise in writing code, not writing a configuration file.
 
 <p style="text-align:center">
   <a href="quickstart/quickstart" class="md-button" style="margin:1px">Quick Start</a>
-  <a href="tutorials/byfa" class="md-button" style="margin:1px">Your First Agent</a>
-  <a href="advanced_usage/context" class="md-button" style="margin:1px">Advanced Usage</a>
   <a href="api_reference/railtracks.html" class="md-button" style="margin:1px">API Reference</a>
   <a href="https://github.com/RailtownAI/railtracks/discussions" class="md-button" style="margin:1px">Community Discussions</a>
+  <a href="https://github.com/RailtownAI/railtracks/blob/main/CONTRIBUTING.md" class="md-button" style="margain:1px">Contributing</a>
 </p>
 
-## Why RailTracks?
+## Why Railtracks?
 
 The space of agentic AI frameworks is vast and diverse, with many frameworks offering many features it can be hard to decide which one to use. 
-RailTracks offers a unique approach that focuses on simplicity and developer experience.
+Railtracks offers a unique approach that focuses on simplicity and developer experience.
 
 <div class="grid cards">
     <a href="tutorials/byfa/" class="card" style="color: inherit; text-decoration: none;">
@@ -28,11 +38,11 @@ RailTracks offers a unique approach that focuses on simplicity and developer exp
     </a>
     <a href="tools_mcp/tools_mcp/" class="card" style="color: inherit; text-decoration: none;">
         <h3>Tool Ecosystem</h3>
-        <p>RailTracks is modular to its core. Your tools and components should be reusable for any system.</p>
+        <p>Railtracks is modular to its core. Your tools and components should be reusable for any system.</p>
     </a>
-    <a href="system_internals/concepts/" class="card" style="color: inherit; text-decoration: none;">
+    <a href="tutorials/flows/" class="card" style="color: inherit; text-decoration: none;">
         <h3>Multi Agent Flows</h3>
-        <p>For complex applications, RailTracks provides a simple interface for coordinating multiple agents with built-in logging.</p>
+        <p>For complex applications, Railtracks provides a simple interface for coordinating multiple agents with built-in logging.</p>
     </a>
 </div>
 

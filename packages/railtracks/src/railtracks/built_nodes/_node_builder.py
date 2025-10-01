@@ -7,10 +7,12 @@ from typing import (
     Coroutine,
     Dict,
     Generic,
+    Iterable,
     ParamSpec,
     Set,
     Type,
     TypeVar,
+    Union,
     cast,
     overload,
 )
@@ -79,21 +81,6 @@ class NodeBuilder(Generic[_TNode]):
         if name is not None:
             self._with_override("name", classmethod(lambda cls: name or cls.__name__))
 
-        if return_into is not None:
-            self._with_override("return_into", classmethod(lambda cls: return_into))
-
-        if format_for_context is not None:
-            self._with_override(
-                "format_for_context",
-                classmethod(lambda cls, x: format_for_context(x)),
-            )
-
-        if format_for_return is not None:
-            self._with_override(
-                "format_for_return",
-                classmethod(lambda cls, x: format_for_return(x)),
-            )
-
     def llm_base(
         self,
         llm: ModelBase | None,
@@ -139,7 +126,9 @@ class NodeBuilder(Generic[_TNode]):
         self._with_override("output_schema", classmethod(lambda cls: schema))
 
     def tool_calling_llm(
-        self, connected_nodes: Set[Type[Node] | Callable], max_tool_calls: int
+        self,
+        connected_nodes: Iterable[Union[Type[Node], Callable]],
+        max_tool_calls: int | None = None,
     ):
         """
         Configure the node subclass to have a tool_nodes method and max_tool_calls method.

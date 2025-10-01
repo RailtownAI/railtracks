@@ -5,13 +5,15 @@ from typing import Literal
 
 from colorama import Fore, init
 
-allowable_log_levels = Literal["VERBOSE", "REGULAR", "QUIET", "NONE"]
+AllowableLogLevels = Literal["VERBOSE", "REGULAR", "QUIET", "NONE"]
+allowable_log_levels_set = {"VERBOSE", "REGULAR", "QUIET", "NONE"}
+
 # the temporary name for the logger that RT will use.
 rt_logger_name = "RT"
 rt_logger = logging.getLogger(rt_logger_name)
 rt_logger.setLevel(logging.INFO)
 
-_default_format_string = "%(timestamp_color)s[+%(relative_seconds)-7ss] %(level_color)s%(name)-12s: %(levelname)-8s - %(message)s%(default_color)s"
+_default_format_string = "%(timestamp_color)s[+%(relative_seconds)-7ss] %(level_color)s%(name)-12s: %(levelname)-8s - %(message)s%(default_color)s %(session_id)s %(run_id)s %(node_id)s"
 
 _file_format_string = "%(asctime)s %(levelname)s - %(message)s"
 # Initialize colorama
@@ -58,6 +60,15 @@ class ColorfulFormatter(logging.Formatter):
         record.timestamp_color = self.timestamp_color
         record.level_color = level_color
         record.default_color = self.default_color
+
+        if not hasattr(record, "session_id"):
+            record.session_id = "Unknown"
+
+        if not hasattr(record, "run_id"):
+            record.run_id = "Unknown"
+
+        if not hasattr(record, "node_id"):
+            record.node_id = "Unknown"
 
         # record.levelname = f"{level_color}{record.levelname}{self.default_color}"
         record.relative_seconds = f"{record.relativeCreated / 1000:.3f}"
@@ -172,7 +183,7 @@ def setup_file_handler(
 
 def prepare_logger(
     *,
-    setting: allowable_log_levels,
+    setting: AllowableLogLevels,
     path: str | os.PathLike | None = None,
 ):
     """

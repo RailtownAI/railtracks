@@ -1,13 +1,13 @@
 # Custom Class Building with NodeBuilder
 
-RailTracks' `define_agent` provides a robust foundation for configuring agent classes with predefined parameters that handle most use cases. However, when you need agents or nodes with specialized functionality beyond these standard configurations, the **NodeBuilder** class offers the flexibility to create custom implementations while maintaining the core RailTracks functionality.
+Railtracks' `define_agent` provides a robust foundation for configuring agent classes with predefined parameters that handle most use cases. However, when you need agents or nodes with specialized functionality beyond these standard configurations, the **NodeBuilder** class offers the flexibility to create custom implementations while maintaining the core Railtracks functionality.
 
 ## Overview
 
 NodeBuilder enables you to:
-- Inherit from existing RailTracks node classes
+- Inherit from existing Railtracks node classes
 - Add custom class methods and attributes
-- Maintain compatibility with the RailTracks ecosystem
+- Maintain compatibility with the Railtracks ecosystem
 - Create specialized agents tailored to your specific requirements
 
 ---
@@ -16,18 +16,17 @@ NodeBuilder enables you to:
 
 ### 1. Initialize NodeBuilder
 
-Begin by selecting the appropriate base node class for inheritance. The most commonly used classes include:
+Begin by selecting the appropriate base node class for inheritance. 
+!!! Note "Common Classes"
 
-- **Terminal** - For endpoint nodes
-- **Structured** - For nodes with structured outputs
-- **ToolCall** - For nodes that can call tools
-- **StructuredToolCall** - For nodes combining structured outputs with tool calling
-
-See [Types of Nodes](LINK_HERE) for a complete list of available base classes.
+    - **Terminal** - For endpoint nodes
+    - **Structured** - For nodes with structured outputs
+    - **ToolCall** - For nodes that can call tools
+    - **StructuredToolCall** - For nodes combining structured outputs with tool calling
 
 When initializing NodeBuilder, you'll specify both a `name` and `class_name`:
 - **`name`**: User-friendly identifier for differentiation in multi-node scenarios
-- **`class_name`**: Internal identifier used by RailTracks and Python
+- **`class_name`**: Internal identifier used by Railtracks and Python
 
 ```python
 builder = NodeBuilder[StructuredLLM[_TOutput]](
@@ -45,7 +44,8 @@ For nodes that utilize Large Language Models, use the `llm_base` method to speci
 builder.llm_base(your_llm_model, your_system_message)
 ```
 
-> ⚠️ **Note**: While LLM configuration is technically optional, it's highly recommended. If you are making a non-LLM node, consider using [function nodes](LINK_HERE) instead.
+!!! Warning
+    While LLM configuration is technically optional, it's highly recommended. If you are making a non-LLM node, consider using function nodes instead.
 
 ---
 

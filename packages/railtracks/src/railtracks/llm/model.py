@@ -4,7 +4,7 @@
 ###
 
 from abc import ABC, abstractmethod
-from typing import Callable, List
+from typing import Callable, List, Type
 
 from pydantic import BaseModel
 
@@ -138,7 +138,7 @@ class ModelBase(ABC):
 
         return response
 
-    def structured(self, messages: MessageHistory, schema: BaseModel):
+    def structured(self, messages: MessageHistory, schema: Type[BaseModel]):
         """Structured interaction with the model using the provided messages and output_schema."""
         messages = self._run_pre_hooks(messages)
 
@@ -152,7 +152,9 @@ class ModelBase(ABC):
 
         return response
 
-    async def astructured(self, messages: MessageHistory, schema: BaseModel):
+    async def astructured(
+        self, messages: MessageHistory, schema: Type[BaseModel]
+    ):
         """Asynchronous structured interaction with the model using the provided messages and output_schema."""
         messages = self._run_pre_hooks(messages)
 
@@ -198,7 +200,9 @@ class ModelBase(ABC):
         pass
 
     @abstractmethod
-    def _structured(self, messages: MessageHistory, schema: BaseModel) -> Response:
+    def _structured(
+        self, messages: MessageHistory, schema: Type[BaseModel]
+    ) -> Response:
         pass
 
     @abstractmethod
@@ -211,7 +215,7 @@ class ModelBase(ABC):
 
     @abstractmethod
     async def _astructured(
-        self, messages: MessageHistory, schema: BaseModel
+        self, messages: MessageHistory, schema: Type[BaseModel], **kwargs
     ) -> Response:
         pass
 

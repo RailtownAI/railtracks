@@ -42,11 +42,11 @@ class ResourceInstance:
         return os.path.splitext(name)[0]
 
     @staticmethod
-    def get_resource_hash(file_path: str, _hash_type="sha256") -> str:
+    def get_resource_hash(file_content: str, _hash_type="sha256") -> str:
         hash_obj = hashlib.new(_hash_type)
-        with open(file_path, "rb") as f:
-            while chunk := f.read(8192):
-                hash_obj.update(chunk)
+        # hash on first 8192 bytes to avoid very large files
+        hash_obj.update(file_content[:8192].encode("utf-8"))
+
         return hash_obj.hexdigest()
 
     def get_metadata(self) -> dict:
@@ -72,6 +72,7 @@ class TextObject(ResourceInstance):
     def __init__(self, raw_content: str, path: Optional[str] = None, **kwargs):
         super().__init__(path=path, type="text", **kwargs)
         self.raw_content: str = raw_content
+        self.hash: str = self.get_resource_hash(raw_content)
         self.chunked_content: List[str] = []
         self.embeddings: List[List[float]] = []
 

@@ -1,10 +1,10 @@
 # Deployment Guide
 
-This guide covers deploying RailTracks AI agents as dockerized containers. Agents can be deployed for various use cases including web APIs, batch processing, scheduled tasks, and one-time runs.
+This guide covers deploying Railtracks AI agents as dockerized containers. Agents can be deployed for various use cases including web APIs, batch processing, scheduled tasks, and one-time runs.
 
 ## Overview
 
-RailTracks agents are Python applications that can be containerized and deployed in multiple patterns:
+Railtracks agents are Python applications that can be containerized and deployed in multiple patterns:
 
 - **API Services**: Expose agents as REST APIs for real-time interactions
 - **Batch Processing**: Run agents on datasets or queues
@@ -63,7 +63,7 @@ from pydantic import BaseModel
 import railtracks as rt
 from agent_file_name import MyAgent  # Your agent definition
 
-app = FastAPI(title="RailTracks Agent API")
+app = FastAPI(title="Railtracks Agent API")
 
 class AgentRequest(BaseModel):
     prompt: str

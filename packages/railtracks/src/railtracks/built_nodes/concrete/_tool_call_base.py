@@ -167,8 +167,8 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
             return False, message
 
         # collect the response from the llm model
-        response = await self.llm_model.achat_with_tools(
-            self.message_hist, tools=self.tools()
+        response = await asyncio.to_thread(
+            self.llm_model.chat_with_tools, self.message_hist, tools=self.tools()
         )
 
         assert isinstance(response.message, AssistantMessage)

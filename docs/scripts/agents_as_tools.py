@@ -43,7 +43,7 @@ def divide(a: float, b: float) -> float:
         ZeroDivisionError: When b is zero, returns an error message string instead.
     """
     if b == 0:
-        return "Error: Cannot divide by zero"
+        raise ZeroDivisionError("Error: Cannot divide by zero")
     return a / b
 # --8<-- [end: calculation_tools]
 
@@ -113,7 +113,7 @@ ShoppingAssistant = rt.agent_node(
 # --8<-- [end: shopping_agent]
 
 # --8<-- [start: shop_call]
-async def top_level():
+async def shopping_assistant():
     response = await rt.call(
         ShoppingAssistant,
         "I want to buy 3 laptops. Can you calculate the total cost including tax?",
