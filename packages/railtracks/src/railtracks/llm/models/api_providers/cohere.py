@@ -8,5 +8,5 @@ class CohereLLM(ProviderLLMWrapper):
     """
 
     @classmethod
-    def model_type(cls):
-        return ModelProvider.COHERE
+    def model_type(cls) -> str:
+        return "cohere_chat"
