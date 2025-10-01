@@ -1,3 +1,4 @@
+from itertools import tee
 import json
 import time
 import warnings
@@ -7,6 +8,7 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Generator,
     List,
     Optional,
     Tuple,
@@ -276,7 +278,7 @@ class LiteLLMWrapper(ModelBase, ABC):
         *,
         response_format: Optional[Any] = None,
         tools: Optional[list[Tool]] = None,
-    ) -> Tuple[Union[CustomStreamWrapper, ModelResponse], float]:
+    ) -> Tuple[CustomStreamWrapper | ModelResponse, float]:
         """
         Internal helper that:
           1. Converts MessageHistory
@@ -286,20 +288,25 @@ class LiteLLMWrapper(ModelBase, ABC):
         start_time = time.time()
         litellm_messages = [_to_litellm_message(m) for m in messages]
         merged = {}
+
         if response_format is not None:
             merged["response_format"] = response_format
+
         if tools is not None:
             litellm_tools = [_to_litellm_tool(t) for t in tools]
             merged["tools"] = litellm_tools
+
         warnings.filterwarnings(
             "ignore", category=UserWarning, module="pydantic.*"
         )  # Supress pydantic warnings. See issue #204 for more deatils.
+
         completion = litellm.completion(
             model=self._model_name,
             messages=litellm_messages,
             stream=self._stream,
             **merged,
         )
+
         if isinstance(completion, CustomStreamWrapper):
             return completion, start_time
         else:
@@ -357,9 +364,47 @@ class LiteLLMWrapper(ModelBase, ABC):
         self, raw: CustomStreamWrapper, start_time: float
     ) -> Response:
         """Consume the raw stream immediately, then return a replayable stream."""
+        def stream_handler() -> Generator[str, None, Response]:
+            chunks = []
+            accumulated_content = ""
+            message_info = MessageInfo()
+            active_tool_calls = {}
+            stream_finished = False
+
+            for chunk in raw.completion_stream:
+                if stream_finished:
+                    message_info = self.extract_message_info(
+                        chunk, time.time() - start_time
+                    )
+                    continue
+
+                choice = chunk.choices[0]
+
+                if self._is_stream_finished(choice):
+                    stream_finished = True
+                    self._finalize_remaining_tool_calls(active_tool_calls, chunks)
+                    continue
+
+                if choice.delta.tool_calls:
+                    self._handle_tool_call_delta(
+                        choice.delta.tool_calls[0], active_tool_calls, chunks
+                    )
+                elif choice.delta.content:
+                    content = self._handle_content_delta(choice.delta.content)
+                    accumulated_content += content
+                    chunks.append(content)
+                    yield content
+            
+            return self._create_response(chunks, accumulated_content, message_info)
+        
+        
+
+
+        r = Response(message=AssistantMessage(content=Stream(streamer=raw.completion_stream)))
 
         chunks, accumulated_content, mess_info = self._consume_stream(raw, start_time)
         return self._create_response(chunks, accumulated_content, mess_info)
+    
 
     async def _aconsume_stream(self, raw: CustomStreamWrapper, start_time: float):
         """Consume the entire async stream and extract chunks, content, and metadata."""
@@ -453,7 +498,13 @@ class LiteLLMWrapper(ModelBase, ABC):
         return choice.finish_reason in ("stop", "tool_calls")
 
     def _finalize_remaining_tool_calls(self, active_tool_calls: dict, chunks: list):
-        """Finalize any remaining active tool calls and add them to chunks."""
+        """
+        
+        Finalize any remaining active tool calls and add them to chunks.
+
+        This will mutate the `chunks` parameter.
+        
+        """
         for tool_data in active_tool_calls.values():
             if tool_data["args_buffer"]:
                 tool_data["tool_call"].arguments = json.loads(tool_data["args_buffer"])

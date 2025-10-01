@@ -56,7 +56,7 @@ class Stream(Generic[_TOutput]):
     def __init__(
         self,
         streamer: Generator[str, None, None],
-        final_message: _TOutput,
+        final_message: _TOutput | None = None,
     ):
         """
         Creates a new instance of a Stream object.
@@ -72,12 +72,18 @@ class Stream(Generic[_TOutput]):
         self._streamer = streamer
         self._final_message = final_message
 
+    
+    
     @property
-    def final_message(self) -> _TOutput:
+    def final_message(self):
         """
         Gets the final message that was constructed from the streamer, after the streamer has finished.
         """
         return self._final_message
+    
+    @final_message.setter
+    def final_message(self, value: _TOutput):
+        self._final_message = value
 
     @property
     def streamer(self):
@@ -93,4 +99,4 @@ class Stream(Generic[_TOutput]):
         return f"Stream(streamer={self._streamer})"
 
 
-Content = Union[str, List[ToolCall], ToolResponse, BaseModel, Stream]
+Content = Union[str, List[ToolCall], ToolResponse, BaseModel]
