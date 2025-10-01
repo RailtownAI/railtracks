@@ -15,6 +15,7 @@ import time
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, mock_open, patch
+from urllib.parse import quote
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
@@ -299,6 +300,192 @@ class TestFileChangeHandler(unittest.TestCase):
         self.handler.on_modified(mock_event)
         self.assertEqual(mock_print.call_count, 2)
         self.assertEqual(mock_stream.call_count, 2)
+
+
+class TestRailtracksHTTPHandler(unittest.TestCase):
+    """Test RailtracksHTTPHandler API endpoints"""
+
+    def setUp(self):
+        """Set up test environment"""
+        self.test_dir = tempfile.mkdtemp()
+        self.original_cwd = os.getcwd()
+        os.chdir(self.test_dir)
+
+        # Create .railtracks directory
+        railtracks_dir = Path(".railtracks")
+        railtracks_dir.mkdir()
+
+        # Create test JSON files
+        self.test_files = {
+            "simple.json": {"test": "data"},
+            "my agent session.json": {"agent": "session", "data": "test"},
+            "file with spaces.json": {"spaces": "test"},
+            "special-chars!@#.json": {"special": "chars"}
+        }
+
+        for filename, content in self.test_files.items():
+            file_path = railtracks_dir / filename
+            with open(file_path, "w") as f:
+                json.dump(content, f)
+
+    def tearDown(self):
+        """Clean up test environment"""
+        os.chdir(self.original_cwd)
+        shutil.rmtree(self.test_dir)
+
+    def create_mock_handler(self, path="/api/json/test.json"):
+        """Create a mock HTTP handler for testing"""
+        # Create a mock handler without calling the parent constructor
+        handler = MagicMock(spec=railtracks_cli.RailtracksHTTPHandler)
+        handler.path = path
+        handler.railtracks_dir = Path(".railtracks")
+        handler.ui_dir = Path(".railtracks/ui")
+
+        # Mock the response methods
+        handler.send_response = MagicMock()
+        handler.send_header = MagicMock()
+        handler.end_headers = MagicMock()
+        handler.send_error = MagicMock()
+        handler.wfile = MagicMock()
+
+        # Add the methods we want to test
+        handler.handle_api_json = railtracks_cli.RailtracksHTTPHandler.handle_api_json.__get__(handler, railtracks_cli.RailtracksHTTPHandler)
+        handler.handle_api_files = railtracks_cli.RailtracksHTTPHandler.handle_api_files.__get__(handler, railtracks_cli.RailtracksHTTPHandler)
+
+        return handler
+
+    def test_handle_api_json_simple_filename(self):
+        """Test handling simple JSON filename"""
+        handler = self.create_mock_handler("/api/json/simple.json")
+
+        handler.handle_api_json("/api/json/simple.json")
+
+        # Should succeed
+        handler.send_response.assert_called_with(200)
+        handler.send_header.assert_any_call("Content-Type", "application/json")
+        handler.send_header.assert_any_call("Access-Control-Allow-Origin", "*")
+        handler.end_headers.assert_called_once()
+
+        # Should write JSON content
+        handler.wfile.write.assert_called_once()
+        written_content = handler.wfile.write.call_args[0][0]
+        parsed_content = json.loads(written_content.decode())
+        self.assertEqual(parsed_content, {"test": "data"})
+
+    def test_handle_api_json_urlencoded_filename(self):
+        """Test handling URL-encoded filename with spaces"""
+        encoded_filename = quote("my agent session.json")
+        handler = self.create_mock_handler(f"/api/json/{encoded_filename}")
+
+        handler.handle_api_json(f"/api/json/{encoded_filename}")
+
+        # Should succeed
+        handler.send_response.assert_called_with(200)
+        handler.send_header.assert_any_call("Content-Type", "application/json")
+        handler.send_header.assert_any_call("Access-Control-Allow-Origin", "*")
+        handler.end_headers.assert_called_once()
+
+        # Should write JSON content
+        handler.wfile.write.assert_called_once()
+        written_content = handler.wfile.write.call_args[0][0]
+        parsed_content = json.loads(written_content.decode())
+        self.assertEqual(parsed_content, {"agent": "session", "data": "test"})
+
+    def test_handle_api_json_urlencoded_spaces(self):
+        """Test handling URL-encoded filename with multiple spaces"""
+        encoded_filename = quote("file with spaces.json")
+        handler = self.create_mock_handler(f"/api/json/{encoded_filename}")
+
+        handler.handle_api_json(f"/api/json/{encoded_filename}")
+
+        # Should succeed
+        handler.send_response.assert_called_with(200)
+        handler.wfile.write.assert_called_once()
+        written_content = handler.wfile.write.call_args[0][0]
+        parsed_content = json.loads(written_content.decode())
+        self.assertEqual(parsed_content, {"spaces": "test"})
+
+    def test_handle_api_json_special_characters(self):
+        """Test handling URL-encoded special characters"""
+        encoded_filename = quote("special-chars!@#.json")
+        handler = self.create_mock_handler(f"/api/json/{encoded_filename}")
+
+        handler.handle_api_json(f"/api/json/{encoded_filename}")
+
+        # Should succeed
+        handler.send_response.assert_called_with(200)
+        handler.wfile.write.assert_called_once()
+        written_content = handler.wfile.write.call_args[0][0]
+        parsed_content = json.loads(written_content.decode())
+        self.assertEqual(parsed_content, {"special": "chars"})
+
+    def test_handle_api_json_file_not_found(self):
+        """Test handling non-existent file"""
+        handler = self.create_mock_handler("/api/json/nonexistent.json")
+
+        handler.handle_api_json("/api/json/nonexistent.json")
+
+        # Should return 404
+        handler.send_error.assert_called_with(404, "File nonexistent.json not found")
+
+    def test_handle_api_json_invalid_json(self):
+        """Test handling invalid JSON file"""
+        # Create invalid JSON file
+        invalid_file = Path(".railtracks/invalid.json")
+        with open(invalid_file, "w") as f:
+            f.write("{ invalid json }")
+
+        handler = self.create_mock_handler("/api/json/invalid.json")
+
+        handler.handle_api_json("/api/json/invalid.json")
+
+        # Should return 400
+        handler.send_error.assert_called()
+        args = handler.send_error.call_args[0]
+        self.assertEqual(args[0], 400)
+        self.assertTrue("Invalid JSON" in args[1])
+
+    def test_handle_api_json_auto_add_extension(self):
+        """Test auto-adding .json extension"""
+        # Create file with .json extension (the code adds .json to the filename)
+        test_file = Path(".railtracks/testfile.json")
+        with open(test_file, "w") as f:
+            json.dump({"test": "data"}, f)
+
+        handler = self.create_mock_handler("/api/json/testfile")
+
+        handler.handle_api_json("/api/json/testfile")
+
+        # Should succeed - the method should find the file and add .json extension
+        handler.send_response.assert_called_with(200)
+        handler.wfile.write.assert_called_once()
+        written_content = handler.wfile.write.call_args[0][0]
+        parsed_content = json.loads(written_content.decode())
+        self.assertEqual(parsed_content, {"test": "data"})
+
+    def test_handle_api_files(self):
+        """Test /api/files endpoint"""
+        handler = self.create_mock_handler("/api/files")
+
+        handler.handle_api_files()
+
+        # Should succeed
+        handler.send_response.assert_called_with(200)
+        handler.send_header.assert_any_call("Content-Type", "application/json")
+        handler.send_header.assert_any_call("Access-Control-Allow-Origin", "*")
+        handler.end_headers.assert_called_once()
+
+        # Should write file list
+        handler.wfile.write.assert_called_once()
+        written_content = handler.wfile.write.call_args[0][0]
+        file_list = json.loads(written_content.decode())
+
+        # Should contain our test files
+        file_names = [f["name"] for f in file_list]
+        self.assertIn("simple.json", file_names)
+        self.assertIn("my agent session.json", file_names)
+        self.assertIn("file with spaces.json", file_names)
+        self.assertIn("special-chars!@#.json", file_names)
 
 
 if __name__ == "__main__":

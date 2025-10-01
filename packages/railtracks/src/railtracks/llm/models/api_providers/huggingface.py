@@ -1,4 +1,5 @@
 from .._model_exception_base import ModelNotFoundError
+from ..providers import ModelProvider
 from ._provider_wrapper import ProviderLLMWrapper
 
 
@@ -30,5 +31,5 @@ class HuggingFaceLLM(ProviderLLMWrapper):
         pass
 
     @classmethod
-    def model_type(cls) -> str:
-        return "HuggingFace"
+    def model_type(cls):
+        return ModelProvider.HUGGINGFACE

@@ -5,11 +5,13 @@ from .model import ModelBase
 from .models import (
     AnthropicLLM,
     AzureAILLM,
+    CohereLLM,
     GeminiLLM,
     HuggingFaceLLM,
     OllamaLLM,
     OpenAILLM,
 )
+from .models.providers import ModelProvider
 from .tools import Parameter, Tool
 
 __all__ = [
@@ -22,13 +24,14 @@ __all__ = [
     "Message",
     "ToolMessage",
     "MessageHistory",
+    "ModelProvider",
     "Tool",
     "Parameter",
     "AnthropicLLM",
+    "AzureAILLM",
+    "CohereLLM",
     "HuggingFaceLLM",
     "OpenAILLM",
     "GeminiLLM",
     "OllamaLLM",
-    "AzureAILLM",
-    "GeminiLLM",
 ]

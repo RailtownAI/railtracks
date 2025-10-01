@@ -39,7 +39,7 @@ def test_init_success(mock_response):
     """Test successful initialization of Ollama"""
     with patch('requests.get', return_value=mock_response):
         ollama = OllamaLLM("test-model")
-        assert ollama.model_name() == "test-model"
+        assert ollama.model_name() == "ollama/test-model"
         assert ollama.domain == "http://localhost:11434"
 
 
@@ -97,8 +97,10 @@ def test_chat_with_tools_unsupported(mock_response):
 def test_model_name_extraction(mock_response):
     """Test model name extraction from full path"""
     with patch('requests.get', return_value=mock_response):
-        ollama = OllamaLLM("organization/test-model")
-        assert ollama.model_name() == "test-model"
+        ollama = OllamaLLM("ollama/test-model")
+        assert ollama.model_name() == "ollama/test-model"
+        ollama2 = OllamaLLM("test-model")
+        assert ollama2.model_name() == "ollama/test-model"
 
 
 def test_init_with_auto_domain_missing_env(mock_response):

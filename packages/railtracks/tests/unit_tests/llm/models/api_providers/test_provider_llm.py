@@ -1,5 +1,5 @@
 import pytest 
-from railtracks.llm import OpenAILLM, GeminiLLM, AnthropicLLM, HuggingFaceLLM
+from railtracks.llm import OpenAILLM, GeminiLLM, AnthropicLLM, HuggingFaceLLM, CohereLLM
 from railtracks.llm.history import MessageHistory
 from railtracks.llm._exception_base import RTLLMError
 from unittest.mock import patch
@@ -11,6 +11,7 @@ class TestInvalidModelNames:
     @pytest.mark.parametrize("provider_class,model_name", [
         (OpenAILLM, "claude-3-5-sonnet-20240620"),  # Anthropic model for OpenAI
         (AnthropicLLM, "gpt-4o"),  # OpenAI model for Anthropic
+        (CohereLLM, "gpt-4o"),  # OpenAI model for Cohere
         (GeminiLLM, "gpt-4o"),  # OpenAI model for Gemini
         (OpenAILLM, "gemini-pro"),  # Gemini model for OpenAI
         (AnthropicLLM, "gemini-pro"),  # Gemini model for Anthropic
@@ -50,6 +51,7 @@ class TestFunctionCallingSupport:
         (OpenAILLM, "openai/ada-001", "openai"),
         (AnthropicLLM, "anthropic/claude-v1", "anthropic"),
         (GeminiLLM, "gemini/gemini-2.0-flash-exp-image-generation", "vertex_ai"),   # gemini models return "vertex_ai" as the provider when we call get_llm_provider
+        (CohereLLM, "cohere/command-a-03-2025", "cohere_chat"),
     ])
     def test_no_function_calling_support(self, provider_class, model_name, expected_provider):
         """Test that models without function calling support raise appropriate errors."""
