@@ -1,7 +1,7 @@
 import inspect
 import types
 from abc import ABC, abstractmethod
-from typing import Any, List, Optional, Union, Tuple
+from typing import Any, List, Optional, Tuple, Union
 
 from pydantic import BaseModel
 

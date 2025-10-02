@@ -1,3 +1,5 @@
+"""Parameter module init file."""
+
 from ._base import Parameter, ParameterType
 from .array_parameter import ArrayParameter
 from .object_parameter import ObjectParameter

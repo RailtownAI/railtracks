@@ -1,9 +1,13 @@
+"""Parameter class for array types."""
+
 from typing import Any, Dict, Optional
 
 from ._base import Parameter, ParameterType
 
 
 class ArrayParameter(Parameter):
+    """Parameter representing an array type."""
+
     param_type: ParameterType = ParameterType.ARRAY
 
     def __init__(
@@ -16,6 +20,17 @@ class ArrayParameter(Parameter):
         max_items: Optional[int] = None,
         additional_properties: bool = False,
     ):
+        """Initialize an ArrayParameter instance.
+
+        Args:
+            name (str): Name of the parameter.
+            items (Parameter): Parameter instance describing the type of array elements.
+            description (Optional[str]): Description of the parameter.
+            required (bool): Whether the parameter is required.
+            default (Any): Default value for the parameter.
+            max_items (Optional[int]): Maximum number of items allowed in the array.
+            additional_properties (bool): Whether additional properties are allowed (relevant if items are objects).
+        """
         super().__init__(name, description, required, default)
         self.items = items
         self.max_items = max_items
@@ -24,6 +39,7 @@ class ArrayParameter(Parameter):
         )
 
     def to_json_schema(self) -> Dict[str, Any]:
+        """Convert the array parameter to a JSON schema representation."""
         # Base property for items inside the array
         items_schema = self.items.to_json_schema()
 
@@ -48,6 +64,7 @@ class ArrayParameter(Parameter):
         return schema
 
     def __repr__(self) -> str:
+        """Return a string representation of the ArrayParameter."""
         return (
             f"ArrayParameter(name={self.name!r}, items={self.items!r}, "
             f"description={self.description!r}, required={self.required!r}, "

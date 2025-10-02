@@ -50,6 +50,18 @@ class Parameter(ABC):
         default_present: bool = False,
         param_type: Optional[Union[str, List[str]]] = None,
     ):
+        """
+        Initialize a Parameter instance.
+
+        Args:
+            name (str): Name of the parameter.
+            description (Optional[str]): Description of the parameter.
+            required (bool): Whether the parameter is required.
+            default (Any): Default value for the parameter.
+            enum (Optional[List[Any]]): Allowed values for the parameter.
+            default_present (bool): Whether a default value is explicitly set.
+            param_type (Optional[Union[str, List[str]]]): The type or types of the parameter.
+        """
         self.name = name
         self.description = description or ""
         self.required = required
