@@ -5,8 +5,8 @@ from pydantic import BaseModel
 from railtracks.llm import MessageHistory
 from railtracks.llm.content import Content
 
+from ...llm import ToolCall, ToolResponse
 from ...llm.message import Role
-from ...llm import ToolResponse, ToolCall
 
 _T = TypeVar("_T", bound=Content)
 
@@ -31,20 +31,16 @@ class LLMResponse(Generic[_T]):
     def tool_invocations(self) -> list[tuple[ToolCall, ToolResponse]]:
         """Returns the text content of the response."""
         self._tool_invocations = []
-        
-        for idx, msg in enumerate(self.message_history):
-            
-            if msg.role == Role.assistant and isinstance(msg.content, list):
 
+        for idx, msg in enumerate(self.message_history):
+            if msg.role == Role.assistant and isinstance(msg.content, list):
                 for tr_idx, tc in enumerate(msg.content):
                     self._tool_invocations.append(
-                        (
-                            tc,
-                            self.message_history[idx+tr_idx+1].content
-                        )
+                        (tc, self.message_history[idx + tr_idx + 1].content)
                     )
-        
+
         return self._tool_invocations
+
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 

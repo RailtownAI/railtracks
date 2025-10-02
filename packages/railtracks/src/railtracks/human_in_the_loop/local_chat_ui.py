@@ -1,11 +1,11 @@
 import asyncio
 import json
+import socket
 import threading
 import webbrowser
 from datetime import datetime
 from importlib.resources import files
 from typing import Optional
-import socket
 
 import uvicorn
 from fastapi import FastAPI, Response
@@ -197,14 +197,13 @@ class ChatUI(HIL):
         """Checks if a port is already in use on the given host."""
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             return s.connect_ex((host, port)) == 0
-        
+
     async def connect(self) -> None:
-        
         if self._is_port_in_use(self.port, self.host):
             error_msg = f"Port {self.port} is already in use. Cannot start ChatUI."
             logger.error(error_msg)
             raise ConnectionError(error_msg)
-        
+
         localhost_url = f"http://{self.host}:{self.port}"
 
         self.loop = asyncio.get_running_loop()
