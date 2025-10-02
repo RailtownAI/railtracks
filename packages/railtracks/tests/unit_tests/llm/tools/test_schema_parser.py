@@ -11,7 +11,7 @@ from railtracks.llm.tools.schema_parser import (
     parse_json_schema_to_parameter,
     parse_model_properties,
 )
-from railtracks.llm.tools.parameter import Parameter, PydanticParameter, ArrayParameter
+from railtracks.llm.tools import Parameter, ArrayParameter, ObjectParameter, RefParameter
 
 
 class TestParseJsonSchemaToParameter:
@@ -94,14 +94,11 @@ class TestParseJsonSchemaToParameter:
 
         assert isinstance(param, ArrayParameter)
         assert param.name == "test_param"
-        assert (
-            param.param_type == "object"
-        )  # so that the subprops can be parsed the same way we treat objects
         assert param.description == "An array of objects"
         assert param.required is True
-
+        assert isinstance(param.items, ObjectParameter)
         # Check nested properties
-        for prop in param.properties:
+        for prop in param.items.properties:
             assert isinstance(prop, Parameter), "Expected Parameter object"
             if prop.name == "name":
                 assert prop.param_type == "string"
@@ -125,7 +122,7 @@ class TestParseJsonSchemaToParameter:
         }
         param = parse_json_schema_to_parameter("test_param", schema, True)
 
-        assert isinstance(param, PydanticParameter)
+        assert isinstance(param, ObjectParameter)
         assert param.name == "test_param"
         assert param.param_type == "object"
         assert param.description == "An object parameter"
@@ -174,7 +171,7 @@ class TestParseJsonSchemaToParameter:
         }
         param = parse_json_schema_to_parameter("test_param", schema, True)
 
-        assert isinstance(param, PydanticParameter)
+        assert isinstance(param, ObjectParameter)
         assert param.name == "test_param"
         assert param.param_type == "object"
 
@@ -210,12 +207,11 @@ class TestParseJsonSchemaToParameter:
         }
         param = parse_json_schema_to_parameter("test_param", schema, True)
 
-        assert isinstance(param, PydanticParameter)
+        assert isinstance(param, RefParameter)
         assert param.name == "test_param"
         assert param.param_type == "object"
         assert param.description == "A reference to Person output_schema"
         assert param.required is True
-        assert param.properties == {}  # Empty properties for now
 
     def test_default_type_is_object(self):
         """Test that the default type is 'object' when not specified."""
@@ -309,12 +305,16 @@ class TestParseModelProperties:
         assert "address" in result
 
         # Check that address is a PydanticParameter with properties
-        assert isinstance(result["address"], PydanticParameter)
+        assert isinstance(result["address"], ObjectParameter)
         assert result["address"].param_type == "object"
-        assert "street" in result["address"].properties
-        assert "city" in result["address"].properties
-        assert result["address"].properties["street"].required is True
-        assert result["address"].properties["city"].required is False
+        for param in result["address"].properties:
+            assert isinstance(param, Parameter)
+            if param.name == "street":
+                assert param.required is True
+            elif param.name == "city":
+                assert param.required is False
+            else:
+                assert False, f"Unexpected property name: {param.name}"
 
     def test_schema_with_number_type(self):
         """Test parsing a output_schema with number type that should convert to float."""
@@ -359,7 +359,7 @@ class TestParseModelProperties:
 
         # Check that address is a PydanticParameter with properties from the $ref
         address_param = result["address"]
-        assert isinstance(address_param, PydanticParameter)
+        assert isinstance(address_param, ObjectParameter)
         assert address_param.param_type == "object"
         address_properties = address_param.properties
         address_properties = {p.name: p for p in list(address_properties)}
@@ -401,7 +401,7 @@ class TestParseModelProperties:
         assert "user" in result
 
         # Check that user is a PydanticParameter with properties from the $ref
-        assert isinstance(result["user"], PydanticParameter)
+        assert isinstance(result["user"], ObjectParameter)
         assert result["user"].param_type == "object"
         sub_params = list(result["user"].properties)
         sub_params = {p.name: p for p in sub_params}
@@ -416,7 +416,7 @@ class TestParseModelProperties:
 
         result = parse_model_properties(schema)
 
-        assert result == set()
+        assert result == []
 
     def test_schema_without_properties(self):
         """Test parsing a output_schema without properties."""
@@ -427,4 +427,4 @@ class TestParseModelProperties:
 
         result = parse_model_properties(schema)
 
-        assert result == set()
+        assert result == []

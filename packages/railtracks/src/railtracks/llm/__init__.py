@@ -12,7 +12,14 @@ from .models import (
     OpenAILLM,
 )
 from .models.providers import ModelProvider
-from .tools import Parameter, Tool
+from .tools import (
+    ArrayParameter,
+    ObjectParameter,
+    Parameter,
+    RefParameter,
+    Tool,
+    UnionParameter,
+)
 
 __all__ = [
     "ModelBase",
@@ -26,7 +33,6 @@ __all__ = [
     "MessageHistory",
     "ModelProvider",
     "Tool",
-    "Parameter",
     "AnthropicLLM",
     "AzureAILLM",
     "CohereLLM",
@@ -34,4 +40,12 @@ __all__ = [
     "OpenAILLM",
     "GeminiLLM",
     "OllamaLLM",
+    "AzureAILLM",
+    "GeminiLLM",
+    # Parameter types
+    "Parameter",
+    "UnionParameter",
+    "ArrayParameter",
+    "ObjectParameter",
+    "RefParameter",
 ]

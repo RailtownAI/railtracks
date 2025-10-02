@@ -64,6 +64,15 @@ def test_create_mcp_server_new_server_registers_tools(
     mock_MCPTool.return_value = "mcp-tool" # so value is easy to check
     mock_func_metadata.return_value = "meta"
 
+    # Patch .to_json_schema to return real dicts for each param, otherwise it'll be a MagicMock
+    foo_schema = {"type": "integer", "description": "A foo parameter"}
+    bar_schema = {"type": "string", "description": "A bar parameter"}
+    for param in mock_node_info.parameters:
+        if param.name == "foo":
+            param.to_json_schema.return_value = foo_schema
+        elif param.name == "bar":
+            param.to_json_schema.return_value = bar_schema
+
     # Call
     result = create_mcp_server(
         nodes=[mock_node_cls],
@@ -78,6 +87,8 @@ def test_create_mcp_server_new_server_registers_tools(
     # MCPTool is called with correct fields
     assert tool_args["name"] == mock_node_info.name
     assert tool_args["description"] == mock_node_info.detail
+    print(tool_args["parameters"])
+    print(mock_params_schema)
     assert tool_args["parameters"] == mock_params_schema
     assert tool_args["fn_metadata"] == "meta"
     assert tool_args["fn"]

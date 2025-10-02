@@ -1,19 +1,18 @@
-"""
-Parameter type handlers.
-
-This module contains handler classes for different parameter types using the strategy pattern.
-Each handler is responsible for determining if it can handle a specific parameter type
-and creating the appropriate Parameter object.
-"""
-
 import inspect
 import types
 from abc import ABC, abstractmethod
-from typing import Any, List, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 from pydantic import BaseModel
 
-from .parameter import ArrayParameter, Parameter, ParameterType, PydanticParameter
+from .docstring_parser import param_from_python_type
+from .parameters import (
+    ArrayParameter,
+    ObjectParameter,
+    Parameter,
+    ParameterType,
+    UnionParameter,
+)
 from .schema_parser import parse_model_properties
 
 
@@ -22,69 +21,65 @@ class ParameterHandler(ABC):
 
     @abstractmethod
     def can_handle(self, param_annotation: Any) -> bool:
-        """
-        Determines if this handler can process the given parameter annotation.
-
-        Args:
-            param_annotation: The parameter annotation to check.
-
-        Returns:
-            True if this handler can process the annotation, False otherwise.
-        """
         pass
 
     @abstractmethod
     def create_parameter(
-        self, param_name: str, param_annotation: Any, description: str, required: bool
+        self,
+        param_name: str,
+        param_annotation: Any,
+        description: Optional[str],
+        required: bool,
     ) -> Parameter:
-        """
-        Creates a Parameter object for the given parameter.
-
-        Args:
-            param_name: The name of the parameter.
-            param_annotation: The parameter's type annotation.
-            description: The parameter's description.
-            required: Whether the parameter is required.
-
-        Returns:
-            A Parameter object representing the parameter.
-        """
         pass
 
 
 class UnionParameterHandler(ParameterHandler):
     """Handler for Union parameters. Since Optional[x] = Union[x, None]."""
 
-    def can_handle(self, param_annotation):
-        # this is the Check for Union / Optional
+    def can_handle(self, param_annotation: Any) -> bool:
+        # Check for typing.Union or Python 3.10+ union (e.g. str | int)
         if (
             hasattr(param_annotation, "__origin__")
             and param_annotation.__origin__ is Union
         ):
             return True
-        if isinstance(
-            param_annotation, types.UnionType
-        ):  # this handles typing.Union and the new Python 3.10+ UnionType (str | int)
+        if isinstance(param_annotation, types.UnionType):
             return True
         return False
 
     def create_parameter(
-        self, param_name: str, param_annotation: Any, description: str, required: bool
+        self,
+        param_name: str,
+        param_annotation: Any,
+        description: Optional[str],
+        required: bool,
     ) -> Parameter:
-        """Create a Parameter for a Union parameter (including Optional)."""
         union_args = getattr(param_annotation, "__args__", [])
-        param_type = []
+        options = []
         is_optional = False
-
         for t in union_args:
             if t is type(None):
                 is_optional = True
             else:
-                param_type.append(ParameterType.from_python_type(t).value)
+                # Recursively parse each option as a Parameter instance
+                option_param = param_from_python_type(t)
+                options.append(option_param)
 
-        return Parameter(
+        # If no options parsed (e.g. all None?), fallback to DefaultParameter 'none'
+        if not options:
+            options.append(
+                Parameter(
+                    name=param_name,
+                    param_type="none",
+                    description=description,
+                    required=required,
+                )
+            )
+
+        return UnionParameter(
             name=param_name,
-            param_type=param_type,
+            options=options,
             description=description,
             required=required and not is_optional,
         )
@@ -94,28 +89,28 @@ class PydanticModelHandler(ParameterHandler):
     """Handler for Pydantic model parameters."""
 
     def can_handle(self, param_annotation: Any) -> bool:
-        """Check if the annotation is a Pydantic model."""
         return inspect.isclass(param_annotation) and issubclass(
             param_annotation, BaseModel
         )
 
     def create_parameter(
-        self, param_name: str, param_annotation: Any, description: str, required: bool
+        self,
+        param_name: str,
+        param_annotation: Any,
+        description: Optional[str],
+        required: bool,
     ) -> Parameter:
-        """Create a PydanticParameter for a Pydantic model."""
-        # Get the JSON output_schema for the Pydantic model
         schema = param_annotation.model_json_schema()
-
-        # Process the output_schema to extract parameter information
         inner_params = parse_model_properties(schema)
 
-        # Create a PydanticParameter with the extracted information
-        return PydanticParameter(
+        # Use ObjectParameter instead of deprecated PydanticParameter
+        return ObjectParameter(
             name=param_name,
-            param_type="object",
+            properties=inner_params,
             description=description,
             required=required,
-            properties=inner_params,
+            additional_properties=schema.get("additionalProperties", False),
+            default=schema.get("default"),
         )
 
 
@@ -123,105 +118,117 @@ class SequenceParameterHandler(ParameterHandler):
     """Handler for sequence parameters (lists and tuples)."""
 
     def can_handle(self, param_annotation: Any) -> bool:
-        """Check if the annotation is a list or tuple type."""
-        # Handle typing.List and typing.Tuple
         if hasattr(param_annotation, "__origin__"):
             return param_annotation.__origin__ in (list, tuple)
-
-        # Handle direct list and tuple types
-        return param_annotation in (list, tuple, List, Tuple)
+        return param_annotation in (list, tuple, List, tuple)
 
     def create_parameter(
-        self, param_name: str, param_annotation: Any, description: str, required: bool
+        self,
+        param_name: str,
+        param_annotation: Any,
+        description: Optional[str],
+        required: bool,
     ) -> Parameter:
-        """Create a Parameter for a list or tuple."""
-        # Determine if it's a list or tuple
         is_tuple = False
         if hasattr(param_annotation, "__origin__"):
             is_tuple = param_annotation.__origin__ is tuple
         else:
             is_tuple = param_annotation in (tuple, Tuple)
 
-        sequence_type = "tuple" if is_tuple else "list"
+        sequence_args = getattr(param_annotation, "__args__", [])
 
-        # Get the element types if available
-        sequence_args = []
-        if hasattr(param_annotation, "__args__"):
-            sequence_args = getattr(param_annotation, "__args__", [])
-
-        # For tuples, we have multiple types (potentially)
         if is_tuple:
-            type_names = [
-                t.__name__ if hasattr(t, "__name__") else str(t) for t in sequence_args
-            ]
-            type_desc = (
-                f"{sequence_type} of {', '.join(type_names)}"
-                if type_names
-                else sequence_type
+            # For tuple of multiple types, fallback to UnionParameter of those types
+            options = []
+            for idx, t in enumerate(sequence_args):
+                options.append(
+                    param_from_python_type(
+                        t,
+                        f"{param_name}_tuple_option_{idx}",
+                        f"Option {idx} of tuple",
+                        True,
+                    )
+                )
+            # Create UnionParameter to capture all possible tuple element types
+            return UnionParameter(
+                name=f"{param_name}_tuple_options",
+                options=options,
+                description=f"{description} (tuple of multiple types)"
+                if description
+                else None,
+                required=required,
             )
-        # For lists, we have a single type
         else:
+            # For lists, single element type
             if sequence_args:
                 element_type = sequence_args[0]
-                type_name = (
-                    element_type.__name__
-                    if hasattr(element_type, "__name__")
-                    else str(element_type)
-                )
-                type_desc = f"{sequence_type} of {type_name}"
 
-                # Check if the element type is a Pydantic model
+                # If element type is a Pydantic model:
                 if inspect.isclass(element_type) and issubclass(
                     element_type, BaseModel
                 ):
-                    # Get the JSON output_schema for the Pydantic model
                     schema = element_type.model_json_schema()
-
-                    # Process the output_schema to extract parameter information
                     inner_params = parse_model_properties(schema)
-
-                    # Create a PydanticParameter with the extracted information
-                    if description:
-                        description += f" (Expected format: {type_desc})"
-                    else:
-                        description = f"Expected format: {type_desc}"
 
                     return ArrayParameter(
                         name=param_name,
-                        param_type="object",
-                        max_items=None,
+                        items=ObjectParameter(
+                            name=f"{param_name}_item",
+                            properties=inner_params,
+                            description=f"Item of type {element_type.__name__}",
+                            required=True,
+                        ),
                         description=description,
                         required=required,
-                        properties=inner_params,
+                        max_items=None,
+                        additional_properties=False,
+                    )
+                else:
+                    # Primitive or other single type element
+                    item_param = param_from_python_type(
+                        element_type, f"{param_name}_item", description, True
+                    )
+                    return ArrayParameter(
+                        name=param_name,
+                        items=item_param,
+                        description=description,
+                        required=required,
+                        max_items=None,
+                        additional_properties=False,
                     )
             else:
-                type_desc = sequence_type
-
-        if description:
-            description += f" (Expected format: {type_desc})"
-        else:
-            description = f"Expected format: {type_desc}"
-
-        # For regular sequences, use the array type
-        return Parameter(
-            name=param_name,
-            param_type="array",
-            description=description,
-            required=required,
-        )
+                # No specified element type, generic array
+                return ArrayParameter(
+                    name=param_name,
+                    items=Parameter(
+                        name=param_name + "_item",
+                        param_type=ParameterType.STRING.value,
+                        description=description,
+                        required=True,
+                    ),
+                    description=description,
+                    required=required,
+                    max_items=None,
+                    additional_properties=False,
+                )
 
 
 class DefaultParameterHandler(ParameterHandler):
     """Default handler for primitive types and unknown types."""
 
     def can_handle(self, param_annotation: Any) -> bool:
-        """This handler can handle any parameter type as a fallback."""
-        return True
+        return True  # fallback always true
 
     def create_parameter(
-        self, param_name: str, param_annotation: Any, description: str, required: bool
+        self,
+        param_name: str,
+        param_annotation: Any,
+        description: Optional[str],
+        required: bool,
     ) -> Parameter:
-        """Create a Parameter for a primitive or unknown type."""
+        if isinstance(param_annotation, Parameter):
+            return param_annotation  # pass-through if already a Parameter
+
         mapped_type = ParameterType.from_python_type(param_annotation).value
         return Parameter(
             name=param_name,

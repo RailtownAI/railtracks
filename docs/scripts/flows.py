@@ -20,7 +20,7 @@ def weather_tool(city: str):
 
 weather_manifest = rt.ToolManifest(
 description="A tool you can call to see what the weather in a specified city",
-    parameters=[rt.llm.Parameter("prompt", "string", "Specify the city you want to know about here")]
+    parameters=[rt.llm.Parameter(name="prompt", param_type="string", description="This is the prompt that you should provide that tells the CodeAgent what you would like to code.")]
 )
 
 #As before, we will create our Weather Agent with the additional tool manifest so that other agents know how to use it

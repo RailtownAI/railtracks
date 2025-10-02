@@ -26,10 +26,10 @@ def test_jsonschema_roundtrip(input_schema):
         parameters.append(param)
 
     # make a param set 
-    param_set = set(parameters) 
+    params = list(parameters) 
 
     # Step 2: Convert back to schema
-    regenerated = _parameters_to_json_schema(param_set)
+    regenerated = _parameters_to_json_schema(params)
     # regenerated.pop("additionalProperties", None)   # this is needed by litellm
 
     schema_ = copy.deepcopy(schema)
