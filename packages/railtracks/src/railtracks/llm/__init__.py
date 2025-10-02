@@ -11,6 +11,7 @@ from .models import (
     OllamaLLM,
     OpenAILLM,
 )
+from .models.providers import ModelProvider
 from .tools import (
     ArrayParameter,
     ObjectParameter,
@@ -19,7 +20,6 @@ from .tools import (
     Tool,
     UnionParameter,
 )
-from .models.providers import ModelProvider
 
 __all__ = [
     "ModelBase",
