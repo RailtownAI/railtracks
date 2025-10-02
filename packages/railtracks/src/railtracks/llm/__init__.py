@@ -19,6 +19,7 @@ from .tools import (
     Tool,
     UnionParameter,
 )
+from .models.providers import ModelProvider
 
 __all__ = [
     "ModelBase",
@@ -30,6 +31,7 @@ __all__ = [
     "Message",
     "ToolMessage",
     "MessageHistory",
+    "ModelProvider",
     "Tool",
     "AnthropicLLM",
     "AzureAILLM",

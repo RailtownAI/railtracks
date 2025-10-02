@@ -30,7 +30,7 @@ import webbrowser
 import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
@@ -284,8 +284,10 @@ class RailtracksHTTPHandler(BaseHTTPRequestHandler):
     def handle_api_json(self, path):
         """Handle /api/json/{filename} endpoint - load specific JSON file"""
         try:
-            # Extract filename from path
+            # Extract filename from path and URL decode it
             filename = path.replace("/api/json/", "")
+            # URL decode the filename to handle spaces and special characters
+            filename = unquote(filename)
             if not filename.endswith(".json"):
                 filename += ".json"
 
