@@ -589,7 +589,6 @@ def main():
         # Check if port is already in use
         if is_port_in_use(DEFAULT_PORT):
             print_error(f"Port {DEFAULT_PORT} is already in use!")
-            print_warning("You already have a railtracks viz server running.")
             print_status("Please stop the existing server.")
             sys.exit(1)
 
