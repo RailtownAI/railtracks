@@ -15,6 +15,7 @@ from typing import (
 )
 
 from railtracks.exceptions import LLMError, NodeCreationError
+from railtracks.exceptions.errors import NodeInvocationError
 from railtracks.interaction._call import call
 from railtracks.llm import (
     AssistantMessage,
@@ -27,6 +28,7 @@ from railtracks.llm import (
     UserMessage,
 )
 from railtracks.llm.content import Stream
+from railtracks.llm.response import Response
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_creation.validation import check_connected_nodes
 from railtracks.validation.node_invocation.validation import check_max_tool_calls
@@ -62,6 +64,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                     node_set = method(dummy)
                 # Validate that the returned node_set is correct and contains only Node/function instances
                 check_connected_nodes(node_set, Node)
+
 
     def __init__(
         self,
@@ -118,24 +121,21 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
         return [x.tool_info() for x in self.tool_nodes()]
 
     def _add_message_to_history(self, message: Message):
-        cont = message.content
-        if isinstance(
-            cont, Stream
-        ):  # if the AssistantMessage is a stream, we need to add the final message to the message history instead of the generator
-            assert isinstance(cont.final_message, str), (
-                "The _stream_handler_base in _litellm_wrapper should have ensured that the final message is populated"
-            )
-            self.message_hist.append(  # add final message to the message history
-                Message(content=cont.final_message, role="assistant")
-            )
-        else:
-            self.message_hist.append(AssistantMessage(content=cont))
+        """A simple helper function to add a message to the message history"""
+        self.message_hist.append(message)
 
     async def _on_max_tool_calls_exceeded(self):
-        """force a final response"""
-        response = await asyncio.to_thread(self.llm_model.chat_with_tools, self.message_hist, tools=[])
-        assert isinstance(response.message, AssistantMessage)
-        self._add_message_to_history(response.message)
+        """force a final response. This function will add it to the message history and return the message. This function shoudld only be called on non streaming llms."""
+        response = await asyncio.to_thread(
+            self.llm_model.chat, self.message_hist,
+        )
+            
+        if not isinstance(response.message, AssistantMessage):
+            raise LLMError(
+                reason=f"The LLM returned an unexpected message type. Expected AssistantMessage but got {type(response.message)}",
+                message_history=self.message_hist,
+            )
+
         return response.message
 
     async def _handle_tool_calls(self) -> tuple[bool, Message | None]:
@@ -172,73 +172,92 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
             self.llm_model.chat_with_tools, self.message_hist, tools=self.tools()
         )
 
-        if isinstance(response, Generator):
-            # TODO finish up this logic. 
-            pass
-            
+        response: Response
 
-        assert isinstance(response.message, AssistantMessage)
-        if response.message.role == "assistant":
-            # if the returned item is a list then it is a list of tool calls
-            if isinstance(response.message.content, list):
-                assert all(isinstance(x, ToolCall) for x in response.message.content)
-
-                tool_calls = response.message.content
-                if (
-                    allowed_tool_calls is not None
-                    and len(tool_calls) > allowed_tool_calls
-                ):
-                    tool_calls = tool_calls[:allowed_tool_calls]
-
-                # append the requested tool calls assistant message, once the tool calls have been verified and truncated (if needed)
-                self.message_hist.append(AssistantMessage(content=tool_calls))
-
-                contracts = []
-                for t_c in tool_calls:
-                    contract = call(
-                        self.create_node,
-                        t_c.name,
-                        t_c.arguments,
-                    )
-                    contracts.append(contract)
-
-                tool_responses = await asyncio.gather(
-                    *contracts, return_exceptions=True
-                )
-                tool_responses = [
-                    (
-                        x
-                        if not isinstance(x, Exception)
-                        else f"There was an error running the tool: \n Exception message: {x} "
-                    )
-                    for x in tool_responses
-                ]
-                tool_ids = [x.identifier for x in tool_calls]
-                tool_names = [x.name for x in tool_calls]
-
-                for r_id, r_name, resp in zip(
-                    tool_ids,
-                    tool_names,
-                    tool_responses,
-                ):
-                    self.message_hist.append(
-                        ToolMessage(
-                            ToolResponse(identifier=r_id, result=str(resp), name=r_name)
-                        )
-                    )
-                return True, None
-            else:
-                # this means the tool call is finished
-                self._add_message_to_history(response.message)
-                return False, response.message
-        else:
-            # the message is malformed from the llm model
+        if not isinstance(response.message, AssistantMessage):
             raise LLMError(
-                reason="ModelLLM returned an unexpected message type.",
+                reason=f"The LLM returned an unexpected message type. Expected AssistantMessage but got {type(response.message)}",
                 message_history=self.message_hist,
             )
 
+        return await self._handle_response(response.message, allowed_tool_calls)
+
+    async def _handle_response(
+        self, message: AssistantMessage, allowed_tool_calls: int | None
+    ):
+        # if the returned item is a list then it is a list of tool calls
+        if isinstance(message.content, list):
+            assert all(isinstance(x, ToolCall) for x in message.content)
+
+            tool_calls = message.content
+            if allowed_tool_calls is not None and len(tool_calls) > allowed_tool_calls:
+                tool_calls = tool_calls[:allowed_tool_calls]
+
+            # append the requested tool calls assistant message, once the tool calls have been verified and truncated (if needed)
+            self.message_hist.append(AssistantMessage(content=tool_calls))
+
+            tool_messages = await self._call_tools(tool_calls)
+            for t_m in tool_messages:
+                self.message_hist.append(t_m)
+
+            return True, None
+        else:
+            # this means the tool call is finished
+            self._add_message_to_history(message)
+            return False, message
+
+    async def _call_tools(self, tool_calls: list[ToolCall]) -> list[ToolMessage]:
+        contracts = []
+        for t_c in tool_calls:
+            contract = call(
+                self.create_node,
+                t_c.name,
+                t_c.arguments,
+            )
+            contracts.append(contract)
+
+        tool_responses = await asyncio.gather(*contracts, return_exceptions=True)
+        tool_responses = [
+            (
+                x
+                if not isinstance(x, Exception)
+                else f"There was an error running the tool: \n Exception message: {x} "
+            )
+            for x in tool_responses
+        ]
+        tool_ids = [x.identifier for x in tool_calls]
+        tool_names = [x.name for x in tool_calls]
+
+        tool_messages = []
+
+        for r_id, r_name, resp in zip(
+            tool_ids,
+            tool_names,
+            tool_responses,
+        ):
+            tool_messages.append(
+                ToolMessage(
+                    ToolResponse(identifier=r_id, result=str(resp), name=r_name)
+                )
+            )
+
+        return tool_messages
+
+
+
+
+
     async def invoke(self) -> _T:
+
+        if self.llm_model._stream:
+            raise NodeInvocationError(
+                "Streaming is not supported in ToolCallLLM nodes"
+                notes=[
+                    "See issue #___ for details.",
+                ],
+            )
+        
+
         message = None
         while True:
             still_tool_calls, message = await self._handle_tool_calls()

@@ -15,6 +15,7 @@ from .tools import Tool
 
 _T = TypeVar("_T", Response, Generator[str | Response, None, Response])
 
+
 class ModelBase(ABC):
     """
     A simple base that represents the behavior of a model that can be used for chat, structured interactions, and streaming.
@@ -48,7 +49,6 @@ class ModelBase(ABC):
             exception_hooks: List[Callable[[MessageHistory, Exception], None]] = []
         else:
             exception_hooks = __exception_hooks
-
 
         self._pre_hooks = pre_hooks
         self._post_hooks = post_hooks
@@ -120,9 +120,9 @@ class ModelBase(ABC):
             hook(message_history, exception)
 
     def wrapper_generator(
-            self,
-            generator: Generator[str | Response, None, Response],
-            message_history: MessageHistory
+        self,
+        generator: Generator[str | Response, None, Response],
+        message_history: MessageHistory,
     ) -> Generator[str | Response, None, Response]:
         new_response: Response | None = None
         for g in generator:
@@ -130,13 +130,14 @@ class ModelBase(ABC):
                 g.message_info
                 new_response = self._run_post_hooks(message_history, g)
                 yield new_response
-            
+
             yield g
 
-        assert new_response is not None, "The generator did not yield a final Response object so nothing could be done."
+        assert new_response is not None, (
+            "The generator did not yield a final Response object so nothing could be done."
+        )
 
         return new_response
-
 
     def chat(
         self, messages: MessageHistory
@@ -153,10 +154,9 @@ class ModelBase(ABC):
 
         if isinstance(response, Generator):
             return self.wrapper_generator(response, messages)
-        
+
         response = self._run_post_hooks(messages, response)
         return response
-    
 
     async def achat(self, messages: MessageHistory):
         """Asynchronous chat with the model using the provided messages."""
@@ -186,8 +186,8 @@ class ModelBase(ABC):
             raise e
 
         if isinstance(response, Generator):
-                return self.wrapper_generator(response, messages)
-        
+            return self.wrapper_generator(response, messages)
+
         response = self._run_post_hooks(messages, response)
 
         return response
@@ -204,7 +204,7 @@ class ModelBase(ABC):
 
         if isinstance(response, Generator):
             return self.wrapper_generator(response, messages)
-        
+
         response = self._run_post_hooks(messages, response)
 
         return response
@@ -221,7 +221,7 @@ class ModelBase(ABC):
 
         if isinstance(response, Generator):
             return self.wrapper_generator(response, messages)
-        
+
         response = self._run_post_hooks(messages, response)
         return response
 
@@ -237,7 +237,7 @@ class ModelBase(ABC):
 
         if isinstance(response, Generator):
             return self.wrapper_generator(response, messages)
-        
+
         response = self._run_post_hooks(messages, response)
 
         return response
@@ -255,16 +255,22 @@ class ModelBase(ABC):
         pass
 
     @abstractmethod
-    def _chat_with_tools(self, messages: MessageHistory, tools: List[Tool]) -> Response | Generator[str | Response, None, Response]:
+    def _chat_with_tools(
+        self, messages: MessageHistory, tools: List[Tool]
+    ) -> Response | Generator[str | Response, None, Response]:
         pass
 
     @abstractmethod
-    async def _achat(self, messages: MessageHistory) -> Response | Generator[str | Response, None, Response]:
+    async def _achat(
+        self, messages: MessageHistory
+    ) -> Response | Generator[str | Response, None, Response]:
         pass
 
     @abstractmethod
     async def _astructured(
-        self, messages: MessageHistory, schema: Type[BaseModel],
+        self,
+        messages: MessageHistory,
+        schema: Type[BaseModel],
     ) -> Response | Generator[str | Response, None, Response]:
         pass
 

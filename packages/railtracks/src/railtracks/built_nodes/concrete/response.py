@@ -64,7 +64,6 @@ class StructuredResponse(LLMResponse[_TStructured]):
             raise TypeError("Unexpected content type")
 
 
-
 class StringResponse(LLMResponse[str]):
     """
     A specialized response object for string outputs from LLMs.

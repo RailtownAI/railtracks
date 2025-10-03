@@ -347,7 +347,9 @@ class StructuredOutputMixIn(Generic[_TStructured]):
     def output_schema(cls) -> type[_TStructured]:
         pass
 
-    def return_output(self, message: Message | None = None) -> StructuredResponse[_TStructured]:
+    def return_output(
+        self, message: Message | None = None
+    ) -> StructuredResponse[_TStructured]:
         if message is None:
             message = self.message_hist[-1]
 
@@ -373,9 +375,7 @@ class StringOutputMixIn:
         ):  # if no message is provided, use the last message from message history
             message = self.message_hist[-1]
 
-        assert isinstance(message.content, str), (
-            "The final output must be a string"
-        )
+        assert isinstance(message.content, str), "The final output must be a string"
         return StringResponse(
             content=message.content,
             message_history=self.message_hist.removed_system_messages(),

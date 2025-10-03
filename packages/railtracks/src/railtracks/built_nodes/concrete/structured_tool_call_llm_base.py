@@ -25,7 +25,12 @@ _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 
 class StructuredToolCallLLM(
     StructuredOutputMixIn[_TBaseModel],
-    OutputLessToolCallLLM[StructuredResponse[_TBaseModel] | Generator[str | StructuredResponse[_TBaseModel], None, StructuredResponse[_TBaseModel]]],
+    OutputLessToolCallLLM[
+        StructuredResponse[_TBaseModel]
+        | Generator[
+            str | StructuredResponse[_TBaseModel], None, StructuredResponse[_TBaseModel]
+        ]
+    ],
     ABC,
     Generic[_TBaseModel],
 ):
@@ -89,14 +94,16 @@ class StructuredToolCallLLM(
             )
 
             if isinstance(response, Generator):
+
                 def gen_wrapper():
                     for r in response:
                         if isinstance(r, StructuredResponse):
-                            
-                            result: StructuredResponse[_TBaseModel] = self._handle_structured_output(r)
+                            result: StructuredResponse[_TBaseModel] = (
+                                self._handle_structured_output(r)
+                            )
                             yield result
                             return result
-                            
+
                         elif isinstance(r, str):
                             yield r
                         else:
@@ -104,14 +111,13 @@ class StructuredToolCallLLM(
                                 reason=f"ModelLLM returned unexpected type in generator. Expected str or StructuredResponse, got {type(r)}",
                                 message_history=self.message_hist,
                             )
-                    
+
                     raise LLMError(
                         reason="The generator did not yield a final Response object",
                         message_history=self.message_hist,
                     )
-                
-                          
-                return gen_wrapper()        
+
+                return gen_wrapper()
 
             structured_output = response
         except Exception as e:
@@ -123,8 +129,6 @@ class StructuredToolCallLLM(
 
         return self._handle_structured_output(structured_output)
 
-        
-    
     def _handle_structured_output(self, output: StructuredResponse[_TBaseModel]):
         structured = output.structured
 
@@ -133,8 +137,3 @@ class StructuredToolCallLLM(
         self.message_hist.pop()
         self.message_hist.append(last_message)
         return self.return_output(last_message)
-
-
-
-        
-

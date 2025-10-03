@@ -7,5 +7,9 @@ from ._tool_call_base import OutputLessToolCallLLM
 from .response import StringResponse
 
 
-class ToolCallLLM(StringOutputMixIn, OutputLessToolCallLLM[StringResponse | Generator[str | Response, None, Response]], ABC):
+class ToolCallLLM(
+    StringOutputMixIn,
+    OutputLessToolCallLLM[StringResponse | Generator[str | Response, None, Response]],
+    ABC,
+):
     pass

@@ -23,7 +23,12 @@ _TOutput = TypeVar("_TOutput", bound=BaseModel)
 # note the ordering here does matter, the t
 class StructuredLLM(
     StructuredOutputMixIn[_TOutput],
-    LLMBase[StructuredResponse[_TOutput] | Generator[str | StructuredResponse[_TOutput], None, StructuredResponse[_TOutput]]],
+    LLMBase[
+        StructuredResponse[_TOutput]
+        | Generator[
+            str | StructuredResponse[_TOutput], None, StructuredResponse[_TOutput]
+        ]
+    ],
     ABC,
     Generic[_TOutput],
 ):
@@ -70,6 +75,7 @@ class StructuredLLM(
         )
 
         if isinstance(returned_mess, Generator):
+
             def gen_wrapper():
                 for r in returned_mess:
                     if isinstance(r, Response):
@@ -88,25 +94,23 @@ class StructuredLLM(
                     reason="The generator did not yield a final Response object",
                     message_history=self.message_hist,
                 )
-            
+
             return gen_wrapper()
         else:
             return self._handle_output(returned_mess.message)
-                        
-                        
-    
+
     def _handle_output(self, output: Message):
         if output.role != "assistant":
             raise LLMError(
                 reason="ModelLLM returned an unexpected message type.",
                 message_history=self.message_hist,
             )
-        
+
         if not isinstance(output.content, self.output_schema()):
             raise LLMError(
                 reason=f"ModelLLM returned unexpected content. Expected {self.output_schema().__name__} got {type(output.content)}",
                 message_history=self.message_hist,
             )
-        
+
         self.message_hist.append(output)
         return self.return_output(output)
