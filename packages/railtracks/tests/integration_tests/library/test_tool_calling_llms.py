@@ -3,6 +3,7 @@ import railtracks as rt
 from railtracks.exceptions import NodeCreationError
 from railtracks.llm import AssistantMessage, ToolCall
 from railtracks.llm.response import Response
+from typing import Generator
 
 
 # NOTE: Simple successful tool calls are already tested in test_function.py
@@ -22,7 +23,8 @@ class TestSimpleToolCalling:
             )
 
     @pytest.mark.asyncio
-    async def test_simple_tool(self, mock_llm):
+    @pytest.mark.parametrize("stream", [False])
+    async def test_simple_tool(self, mock_llm, stream):
         def secret_phrase():
             rt.context.put("secret_phrase_called", True)
             return "Constantinople"
@@ -30,7 +32,8 @@ class TestSimpleToolCalling:
         llm = mock_llm(
             requested_tool_calls=[
                 ToolCall(name="secret_phrase", identifier="id_42424242", arguments={})
-            ]
+            ],
+            stream=stream,
         )
 
         agent = rt.agent_node(
@@ -45,8 +48,11 @@ class TestSimpleToolCalling:
                 agent,
                 user_input="What is the secret phrase? Only return the secret phrase, no other text.",
             )
-            assert "Constantinople" in response.content
+            assert "Constantinople" in response.text
             assert rt.context.get("secret_phrase_called")
+            if stream:
+                pass
+
 
 
 class TestLimitedToolCalling:

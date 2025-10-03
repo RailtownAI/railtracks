@@ -139,7 +139,6 @@ async def test_json_serialization_2(planner_with_llm_node, json_state_schema, mo
 
         return Response(
             message=rt.llm.AssistantMessage(content=str(ret_num)),
-            streamer=None,
             message_info=MessageInfo(
                 input_tokens=42,
                 output_tokens=42,

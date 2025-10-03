@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Dict, Generic, Iterable, Type, TypeVar
+from typing import Any, Dict, Generic, Iterable, TypeVar
 
 from pydantic import BaseModel
 from typing_extensions import Self
@@ -10,6 +10,7 @@ from typing_extensions import Self
 from railtracks.exceptions.errors import NodeInvocationError
 from railtracks.exceptions.messages.exception_messages import get_message
 from railtracks.llm import (
+    AssistantMessage,
     Message,
     MessageHistory,
     ModelBase,
@@ -18,6 +19,7 @@ from railtracks.llm import (
     SystemMessage,
     UserMessage,
 )
+from railtracks.llm.content import Stream
 from railtracks.llm.response import Response
 from railtracks.nodes.nodes import Node
 from railtracks.prompts.prompt import inject_context
@@ -116,9 +118,11 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
                 )
             message_history_copy.insert(
                 0,
-                SystemMessage(self.system_message())
-                if isinstance(self.system_message(), str)
-                else self.system_message(),
+                (
+                    SystemMessage(self.system_message())
+                    if isinstance(self.system_message(), str)
+                    else self.system_message()
+                ),
             )
 
         instance_injected_llm_model = self.get_llm()
@@ -194,7 +198,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         return MessageHistory([UserMessage("\n".join(instruction_parts))])
 
     @abstractmethod
-    def return_output(self) -> _T: ...
+    def return_output(self, message: Message | None = None) -> _T: ...
 
     @classmethod
     def _verify_message_history(cls, message_history: MessageHistory):
@@ -232,13 +236,27 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
 
     def _post_llm_hook(self, message_history: MessageHistory, response: Response):
         """Hook to store the response details after invoking the llm model."""
+        if isinstance(response.message, AssistantMessage) and isinstance(
+            response.message.content, Stream
+        ):
+            assert response.message.content.final_message, (
+                "The _stream_handler_base should have ensured that the final message is populated"
+            )
+            output_message = Message(
+                content=response.message.content.final_message, role="assistant"
+            )  # instead of the generator we give the final_message for the RequestDetails
+        else:
+            output_message = deepcopy(response.message)
+
         self._details["llm_details"].append(
             RequestDetails(
                 message_input=deepcopy(message_history),
-                output=deepcopy(response.message),
-                model_name=response.message_info.model_name
-                if response.message_info.model_name is not None
-                else self.llm_model.model_name(),
+                output=output_message,
+                model_name=(
+                    response.message_info.model_name
+                    if response.message_info.model_name is not None
+                    else self.llm_model.model_name()
+                ),
                 model_provider=self.llm_model.model_type(),
                 input_tokens=response.message_info.input_tokens,
                 output_tokens=response.message_info.output_tokens,
@@ -319,26 +337,31 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         return "Agent"
 
 
-_TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
+_TStructured = TypeVar("_TStructured", bound=BaseModel)
 
 
-class StructuredOutputMixIn(Generic[_TBaseModel]):
+class StructuredOutputMixIn(Generic[_TStructured]):
     message_hist: MessageHistory
 
     @classmethod
     @abstractmethod
-    def output_schema(cls) -> Type[_TBaseModel]:
+    def output_schema(cls) -> type[_TStructured]:
         pass
 
-    def return_output(self) -> StructuredResponse[_TBaseModel]:
-        structured_output = self.message_hist[-1].content
+    def return_output(
+        self, message: Message | None = None
+    ) -> StructuredResponse[_TStructured]:
+        if message is None:
+            message = self.message_hist[-1]
 
-        assert isinstance(structured_output, self.output_schema()), (
-            f"The final output must be a pydantic {self.output_schema()} instance. Instead it was {type(structured_output)}"
+        content = message.content
+
+        assert isinstance(content, self.output_schema()), (
+            f"The final output must be a pydantic {self.output_schema()} or Stream instance. Instead it was {type(content)}"
         )
 
         return StructuredResponse(
-            model=structured_output,
+            content=content,
             message_history=self.message_hist.removed_system_messages(),
         )
 
@@ -346,14 +369,15 @@ class StructuredOutputMixIn(Generic[_TBaseModel]):
 class StringOutputMixIn:
     message_hist: MessageHistory
 
-    def return_output(self) -> StringResponse:
-        """Returns the last message content as a string."""
-        last_message = self.message_hist[-1]
-        assert isinstance(last_message.content, str), (
-            "The final output must be a string"
-        )
+    def return_output(self, message: Message | None = None) -> StringResponse:
+        """Returns the String response."""
+        if (
+            message is None
+        ):  # if no message is provided, use the last message from message history
+            message = self.message_hist[-1]
 
+        assert isinstance(message.content, str), "The final output must be a string"
         return StringResponse(
-            content=last_message.content,
+            content=message.content,
             message_history=self.message_hist.removed_system_messages(),
         )

@@ -2,14 +2,17 @@
 # In the following document, we will use the interface types defined in this module to interact with the llama index to
 # route to a given model.
 ###
+
 from abc import ABC, abstractmethod
-from typing import Callable, List, Type
+from typing import AsyncGenerator, Callable, Generator, List, Type, TypeVar
 
 from pydantic import BaseModel
 
 from .history import MessageHistory
 from .response import Response
 from .tools import Tool
+
+_T = TypeVar("_T", Response, Generator[str | Response, None, Response])
 
 
 class ModelBase(ABC):
@@ -24,23 +27,32 @@ class ModelBase(ABC):
 
     def __init__(
         self,
-        pre_hooks: List[Callable[[MessageHistory], MessageHistory]] | None = None,
-        post_hooks: List[Callable[[MessageHistory, Response], Response]] | None = None,
-        exception_hooks: List[Callable[[MessageHistory, Exception], None]]
+        __pre_hooks: List[Callable[[MessageHistory], MessageHistory]] | None = None,
+        __post_hooks: List[Callable[[MessageHistory, Response], Response]]
         | None = None,
+        __exception_hooks: List[Callable[[MessageHistory, Exception], None]]
+        | None = None,
+        _stream: bool = False,
     ):
-        if pre_hooks is None:
+        if __pre_hooks is None:
             pre_hooks: List[Callable[[MessageHistory], MessageHistory]] = []
+        else:
+            pre_hooks = __pre_hooks
 
-        if post_hooks is None:
+        if __post_hooks is None:
             post_hooks: List[Callable[[MessageHistory, Response], Response]] = []
+        else:
+            post_hooks = __post_hooks
 
-        if exception_hooks is None:
+        if __exception_hooks is None:
             exception_hooks: List[Callable[[MessageHistory, Exception], None]] = []
+        else:
+            exception_hooks = __exception_hooks
 
         self._pre_hooks = pre_hooks
         self._post_hooks = post_hooks
         self._exception_hooks = exception_hooks
+        self._stream = _stream
 
     def add_pre_hook(self, hook: Callable[[MessageHistory], MessageHistory]) -> None:
         """Adds a pre-hook to modify messages before sending them to the model."""
@@ -106,157 +118,163 @@ class ModelBase(ABC):
         for hook in self._exception_hooks:
             hook(message_history, exception)
 
-    def chat(self, messages: MessageHistory, **kwargs):
+    def wrapper_generator(
+        self,
+        generator: Generator[str | Response, None, Response],
+        message_history: MessageHistory,
+    ) -> Generator[str | Response, None, Response]:
+        new_response: Response | None = None
+        for g in generator:
+            if isinstance(g, Response):
+                g.message_info
+                new_response = self._run_post_hooks(message_history, g)
+                yield new_response
+
+            yield g
+
+        assert new_response is not None, (
+            "The generator did not yield a final Response object so nothing could be done."
+        )
+
+        return new_response
+
+    def chat(
+        self, messages: MessageHistory
+    ) -> Response | Generator[str | Response, None, Response]:
         """Chat with the model using the provided messages."""
 
         messages = self._run_pre_hooks(messages)
 
         try:
-            response = self._chat(messages, **kwargs)
+            response = self._chat(messages)
         except Exception as e:
             self._run_exception_hooks(messages, e)
             raise e
 
+        if isinstance(response, Generator):
+            return self.wrapper_generator(response, messages)
+
         response = self._run_post_hooks(messages, response)
         return response
 
-    async def achat(self, messages: MessageHistory, **kwargs):
+    async def achat(self, messages: MessageHistory):
         """Asynchronous chat with the model using the provided messages."""
         messages = self._run_pre_hooks(messages)
 
         try:
-            response = await self._achat(messages, **kwargs)
+            response = await self._achat(messages)
         except Exception as e:
             self._run_exception_hooks(messages, e)
             raise e
+
+        if isinstance(response, Generator):
+            return self.wrapper_generator(response, messages)
 
         response = self._run_post_hooks(messages, response)
 
         return response
 
-    def structured(self, messages: MessageHistory, schema: Type[BaseModel], **kwargs):
+    def structured(self, messages: MessageHistory, schema: Type[BaseModel]):
         """Structured interaction with the model using the provided messages and output_schema."""
         messages = self._run_pre_hooks(messages)
 
         try:
-            response = self._structured(messages, schema, **kwargs)
+            response = self._structured(messages, schema)
         except Exception as e:
             self._run_exception_hooks(messages, e)
             raise e
+
+        if isinstance(response, Generator):
+            return self.wrapper_generator(response, messages)
 
         response = self._run_post_hooks(messages, response)
 
         return response
 
-    async def astructured(
-        self, messages: MessageHistory, schema: Type[BaseModel], **kwargs
-    ):
+    async def astructured(self, messages: MessageHistory, schema: Type[BaseModel]):
         """Asynchronous structured interaction with the model using the provided messages and output_schema."""
         messages = self._run_pre_hooks(messages)
 
         try:
-            response = await self._astructured(messages, schema, **kwargs)
+            response = await self._astructured(messages, schema)
         except Exception as e:
             self._run_exception_hooks(messages, e)
             raise e
+
+        if isinstance(response, Generator):
+            return self.wrapper_generator(response, messages)
 
         response = self._run_post_hooks(messages, response)
 
         return response
 
-    def stream_chat(self, messages: MessageHistory, **kwargs):
-        """Stream chat with the model using the provided messages."""
-        messages = self._run_pre_hooks(messages)
-
-        try:
-            response = self._stream_chat(messages, **kwargs)
-        except Exception as e:
-            self._run_exception_hooks(messages, e)
-            raise e
-
-        response = self._run_post_hooks(messages, response)
-
-        return response
-
-    async def astream_chat(self, messages: MessageHistory, **kwargs):
-        """Asynchronous stream chat with the model using the provided messages."""
-        messages = self._run_pre_hooks(messages)
-
-        try:
-            response = await self._astream_chat(messages, **kwargs)
-        except Exception as e:
-            self._run_exception_hooks(messages, e)
-            raise e
-
-        response = self._run_post_hooks(messages, response)
-
-        return response
-
-    def chat_with_tools(self, messages: MessageHistory, tools: List[Tool], **kwargs):
+    def chat_with_tools(self, messages: MessageHistory, tools: List[Tool]):
         """Chat with the model using the provided messages and tools."""
         messages = self._run_pre_hooks(messages)
 
         try:
-            response = self._chat_with_tools(messages, tools, **kwargs)
+            response = self._chat_with_tools(messages, tools)
         except Exception as e:
             self._run_exception_hooks(messages, e)
             raise e
 
+        if isinstance(response, Generator):
+            return self.wrapper_generator(response, messages)
+
         response = self._run_post_hooks(messages, response)
         return response
 
-    async def achat_with_tools(
-        self, messages: MessageHistory, tools: List[Tool], **kwargs
-    ):
+    async def achat_with_tools(self, messages: MessageHistory, tools: List[Tool]):
         """Asynchronous chat with the model using the provided messages and tools."""
         messages = self._run_pre_hooks(messages)
 
         try:
-            response = await self._achat_with_tools(messages, tools, **kwargs)
+            response = await self._achat_with_tools(messages, tools)
         except Exception as e:
             self._run_exception_hooks(messages, e)
             raise e
+
+        if isinstance(response, Generator):
+            return self.wrapper_generator(response, messages)
 
         response = self._run_post_hooks(messages, response)
 
         return response
 
     @abstractmethod
-    def _chat(self, messages: MessageHistory, **kwargs) -> Response:
+    def _chat(
+        self, messages: MessageHistory
+    ) -> Response | Generator[str | Response, None, Response]:
         pass
 
     @abstractmethod
     def _structured(
-        self, messages: MessageHistory, schema: Type[BaseModel], **kwargs
-    ) -> Response:
-        pass
-
-    @abstractmethod
-    def _stream_chat(self, messages: MessageHistory, **kwargs) -> Response:
+        self, messages: MessageHistory, schema: Type[BaseModel]
+    ) -> Response | Generator[str | Response, None, Response]:
         pass
 
     @abstractmethod
     def _chat_with_tools(
-        self, messages: MessageHistory, tools: List[Tool], **kwargs
-    ) -> Response:
+        self, messages: MessageHistory, tools: List[Tool]
+    ) -> Response | Generator[str | Response, None, Response]:
         pass
 
     @abstractmethod
-    async def _achat(self, messages: MessageHistory, **kwargs) -> Response:
+    async def _achat(
+        self, messages: MessageHistory
+    ) -> Response | AsyncGenerator[str | Response, None]:
         pass
 
     @abstractmethod
     async def _astructured(
-        self, messages: MessageHistory, schema: Type[BaseModel], **kwargs
-    ) -> Response:
-        pass
-
-    @abstractmethod
-    async def _astream_chat(self, messages: MessageHistory, **kwargs) -> Response:
+        self,
+        messages: MessageHistory,
+        schema: Type[BaseModel],
+    ) -> Response | AsyncGenerator[str | Response, None]:
         pass
 
     @abstractmethod
     async def _achat_with_tools(
-        self, messages: MessageHistory, tools: List[Tool], **kwargs
-    ) -> Response:
+        self, messages: MessageHistory, tools: List[Tool]
+    ) -> Response | AsyncGenerator[str | Response, None]:
         pass

@@ -1,12 +1,12 @@
 import asyncio
 from abc import ABC
-from typing import Generic, TypeVar
+from typing import Generator, Generic, TypeVar
 
 from pydantic import BaseModel
 
-import railtracks.context as context
 from railtracks.exceptions import LLMError
 from railtracks.llm import Message, MessageHistory, ModelBase, UserMessage
+from railtracks.llm.response import Response
 from railtracks.validation.node_creation.validation import (
     check_classmethod,
     check_schema,
@@ -21,7 +21,12 @@ _TOutput = TypeVar("_TOutput", bound=BaseModel)
 # note the ordering here does matter, the t
 class StructuredLLM(
     StructuredOutputMixIn[_TOutput],
-    LLMBase[StructuredResponse[_TOutput]],
+    LLMBase[
+        StructuredResponse[_TOutput]
+        | Generator[
+            str | StructuredResponse[_TOutput], None, StructuredResponse[_TOutput]
+        ]
+    ],
     ABC,
     Generic[_TOutput],
 ):
@@ -56,7 +61,7 @@ class StructuredLLM(
     def name(cls) -> str:
         return f"Structured LLM ({cls.output_schema().__name__})"
 
-    async def invoke(self) -> StructuredResponse[_TOutput]:
+    async def invoke(self):
         """Makes a call containing the inputted message and system prompt to the llm model and returns the response
 
         Returns:
@@ -67,26 +72,43 @@ class StructuredLLM(
             self.llm_model.structured, self.message_hist, schema=self.output_schema()
         )
 
-        self.message_hist.append(returned_mess.message)
+        if isinstance(returned_mess, Generator):
 
-        if returned_mess.message.role == "assistant":
-            cont = returned_mess.message.content
-            if cont is None:
+            def gen_wrapper():
+                for r in returned_mess:
+                    if isinstance(r, Response):
+                        message = r.message
+                        r = self._handle_output(message)
+                        yield r
+                        return r
+                    elif isinstance(r, str):
+                        yield r
+                    else:
+                        raise LLMError(
+                            reason=f"ModelLLM returned unexpected type in generator. Expected str or Response, got {type(r)}",
+                            message_history=self.message_hist,
+                        )
                 raise LLMError(
-                    reason="ModelLLM returned None content",
+                    reason="The generator did not yield a final Response object",
                     message_history=self.message_hist,
                 )
-            if isinstance(cont, self.output_schema()):
-                if (key := self.return_into()) is not None:
-                    context.put(key, self.format_for_context(cont))
-                    return self.format_for_return(cont)
-                return self.return_output()
+
+            return gen_wrapper()
+        else:
+            return self._handle_output(returned_mess.message)
+
+    def _handle_output(self, output: Message):
+        if output.role != "assistant":
             raise LLMError(
-                reason="The LLM returned content does not match the expected return type",
+                reason="ModelLLM returned an unexpected message type.",
                 message_history=self.message_hist,
             )
 
-        raise LLMError(
-            reason="ModelLLM returned an unexpected message type.",
-            message_history=self.message_hist,
-        )
+        if not isinstance(output.content, self.output_schema()):
+            raise LLMError(
+                reason=f"ModelLLM returned unexpected content. Expected {self.output_schema().__name__} got {type(output.content)}",
+                message_history=self.message_hist,
+            )
+
+        self.message_hist.append(output)
+        return self.return_output(output)

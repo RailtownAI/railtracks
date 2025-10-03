@@ -1,9 +1,9 @@
-from typing import Generic, TypeVar
+from typing import Generator, Generic, TypeVar
 
 from pydantic import BaseModel
 
 from railtracks.llm import MessageHistory
-from railtracks.llm.content import Content
+from railtracks.llm.content import Content, Stream
 
 _T = TypeVar("_T", bound=Content)
 
@@ -24,11 +24,22 @@ class LLMResponse(Generic[_T]):
     def __repr__(self):
         return f"LLMResponse({self.content})"
 
+    @property
+    def streamer(self) -> Generator[str, None, None]:
+        """Returns the streamer that was returned as part of this response.
 
-_TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
+        Note that this is a generator that yields strings.
+        """
+        assert isinstance(self.content, Stream), (
+            "For this property to be usable, the llm should have stream=True"
+        )
+        return self.content.streamer
 
 
-class StructuredResponse(LLMResponse[_TBaseModel]):
+_TStructured = TypeVar("_TStructured", bound=BaseModel)
+
+
+class StructuredResponse(LLMResponse[_TStructured]):
     """
     A specialized response object for structured outputs from LLMs.
 
@@ -37,13 +48,20 @@ class StructuredResponse(LLMResponse[_TBaseModel]):
         message_history: The history of messages exchanged during the interaction.
     """
 
-    def __init__(self, model: _TBaseModel, message_history: MessageHistory):
-        super().__init__(model, message_history)
+    def __init__(
+        self,
+        content: _TStructured,
+        message_history: MessageHistory,
+    ):
+        super().__init__(content, message_history)
 
     @property
-    def structured(self) -> _TBaseModel:
+    def structured(self) -> _TStructured:
         """Returns the structured content of the response."""
-        return self.content
+        if isinstance(self.content, BaseModel):
+            return self.content
+        else:
+            raise TypeError("Unexpected content type")
 
 
 class StringResponse(LLMResponse[str]):
@@ -61,4 +79,7 @@ class StringResponse(LLMResponse[str]):
     @property
     def text(self) -> str:
         """Returns the text content of the response."""
-        return self.content
+        if isinstance(self.content, str):
+            return self.content
+        else:
+            raise TypeError("Unexpected content type")

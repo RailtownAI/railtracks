@@ -1,34 +1,31 @@
 import asyncio
-from typing import TypeVar
+from typing import Generator
 
-import railtracks.context as context
 from railtracks.exceptions import LLMError
 from railtracks.llm import Message, MessageHistory, ModelBase, UserMessage
+from railtracks.llm.response import Response
 
 from ._llm_base import LLMBase, StringOutputMixIn
 from .response import StringResponse
 
-_T = TypeVar("_T")
 
-
-class TerminalLLM(StringOutputMixIn, LLMBase[StringResponse]):
+class TerminalLLM(
+    StringOutputMixIn,
+    LLMBase[StringResponse | Generator[str | StringResponse, None, StringResponse]],
+):
     """A simple LLM node that takes in a message and returns a response. It is the simplest of all LLMs.
-
     This node accepts message_history in the following formats:
     - MessageHistory: A list of Message objects
     - UserMessage: A single UserMessage object
     - str: A string that will be converted to a UserMessage
-
     Examples:
         ```python
         # Using MessageHistory
         mh = MessageHistory([UserMessage("Tell me about the world around us")])
         result = await rc.call(TerminalLLM, user_input=mh)
-
         # Using UserMessage
         user_msg = UserMessage("Tell me about the world around us")
         result = await rc.call(TerminalLLM, user_input=user_msg)
-
         # Using string
         result = await rc.call(
             TerminalLLM, user_input="Tell me about the world around us"
@@ -47,9 +44,8 @@ class TerminalLLM(StringOutputMixIn, LLMBase[StringResponse]):
     def name(cls) -> str:
         return "Terminal LLM"
 
-    async def invoke(self) -> StringResponse:
+    async def invoke(self):
         """Makes a call containing the inputted message and system prompt to the llm model and returns the response
-
         Returns:
             (TerminalLLM.Output): The response message from the llm model
         """
@@ -63,20 +59,54 @@ class TerminalLLM(StringOutputMixIn, LLMBase[StringResponse]):
                 message_history=self.message_hist,
             )
 
-        self.message_hist.append(returned_mess.message)
-        if returned_mess.message.role == "assistant":
-            cont = returned_mess.message.content
-            if cont is None:
+        if isinstance(returned_mess, Generator):
+
+            def gen_wrapper():
+                for r in returned_mess:
+                    if isinstance(r, Response):
+                        message = r.message
+
+                        self._handle_output(message)
+                        string_response = self.return_output(message)
+                        yield string_response
+                        return string_response
+                    elif isinstance(r, str):
+                        yield r
+                    else:
+                        raise LLMError(
+                            reason=f"ModelLLM returned unexpected type in generator. Expected str or Response, got {type(r)}",
+                            message_history=self.message_hist,
+                        )
+
                 raise LLMError(
-                    reason="ModelLLM returned None content",
+                    reason="The generator did not yield a final Response object",
                     message_history=self.message_hist,
                 )
-            if (key := self.return_into()) is not None:
-                context.put(key, self.format_for_context(cont))
-                return self.format_for_return(cont)
-            return self.return_output()
 
-        raise LLMError(
-            reason="ModelLLM returned an unexpected message type.",
-            message_history=self.message_hist,
-        )
+            return gen_wrapper()
+        elif isinstance(returned_mess, Response):
+            self._handle_output(returned_mess.message)
+
+            return self.return_output(returned_mess.message)
+        else:
+            raise LLMError(
+                reason="ModelLLM returned an unexpected message type.",
+                message_history=self.message_hist,
+            )
+
+    def _handle_output(self, output: Message):
+        if output.role != "assistant":
+            raise LLMError(
+                reason="ModelLLM returned an unexpected message type.",
+                message_history=self.message_hist,
+            )
+
+        if not isinstance(output.content, str):
+            raise LLMError(
+                reason=f"ModelLLM returned unexpected content. Expected a string, got {type(output.content)}",
+                message_history=self.message_hist,
+            )
+
+        self.message_hist.append(output)
+
+        return output
