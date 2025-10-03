@@ -127,7 +127,7 @@ class MockLogger(logging.Logger):
 
 
 class MockDelta(BaseModel):
-    content: str
+    content: str | None
     tool_calls: list | None
 
 
@@ -193,12 +193,28 @@ class MockLiteLLMWrapper(LiteLLMWrapper):
                                     content=char,
                                     tool_calls=self.tool_calls,
                                 ),
-                                finish_reason=(
-                                    "stop" if i == len(self.content) else ""
-                                ),
+                                finish_reason="",
                             )
                         ],
                     )
+
+                yield ChatCompletionChunk(
+                    id=str(len(self.content)),
+                    choices=[
+                        MockChoice(
+                            delta=MockDelta(
+                                content=None,
+                                tool_calls=None,
+                            ),
+                            finish_reason="stop",
+                        )
+                    ],
+                )
+
+                yield ChatCompletionChunk(
+                    id=str(len(self.content) + 1),
+                    choices=[],
+                )
 
             return (
                 CustomStreamWrapper(
@@ -236,6 +252,11 @@ class MockLiteLLMWrapper(LiteLLMWrapper):
                             )
                         ],
                     )
+                
+                yield ChatCompletionChunk(
+                    id=str(len(self.content) + 1),
+                    choices=[],
+                )
 
             return (
                 CustomStreamWrapper(

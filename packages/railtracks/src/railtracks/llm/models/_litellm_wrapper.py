@@ -354,7 +354,7 @@ class LiteLLMWrapper(ModelBase, ABC):
         warnings.filterwarnings(
             "ignore", category=UserWarning, module="pydantic.*"
         )  # Supress pydantic warnings. See issue #204 for more deatils.
-        completion = await litellm.acompletion(  # override stream to always be false
+        completion = await litellm.acompletion(
             model=self._model_name,
             messages=litellm_messages,
             stream=self._stream,
@@ -374,8 +374,62 @@ class LiteLLMWrapper(ModelBase, ABC):
         output_schema: Type[BaseModel] | None = None,
     ):
         """Consume the raw stream immediately, then return a replayable stream."""
+        tools: List[ToolCall] = []
+        accumulated_content = ""
+        structured_response: BaseModel | None = None
+        # fall back on empty message info if we don't get one from the stream.
+        message_info = MessageInfo()
+        active_tool_calls: Dict[int, StreamedToolCall] = {}
+        stream_finished = False
 
-        return self._stream_handler_base(raw, start_time, output_schema)
+        async for chunk in raw.completion_stream:
+            
+            if stream_finished:
+                # the last chunk will contain the full message info
+                message_info = self.extract_message_info(
+                    chunk, time.time() - start_time
+                )
+                
+                if output_schema is not None:
+                    structured_response = output_schema(
+                        **json.loads(accumulated_content)
+                    )
+                break
+
+            choice = chunk.choices[0]
+
+            if self._is_stream_finished(choice):
+                stream_finished = True
+                tools = self._finalize_remaining_tool_calls(active_tool_calls)
+                continue
+
+            if choice.delta.tool_calls:
+                # TODO: determine if it would be useful to stream tools
+                self._handle_tool_call_delta(
+                    choice.delta.tool_calls[0], active_tool_calls
+                )
+
+            elif choice.delta.content:
+                content = self._handle_content_delta(choice.delta.content)
+                accumulated_content += content
+                yield content
+
+        if structured_response is not None:
+            r = Response(
+                message=AssistantMessage(content=structured_response),
+                message_info=message_info,
+            )
+        elif len(tools) > 0:
+            r = Response(
+                message=AssistantMessage(content=tools), message_info=message_info
+            )
+        else:
+            r = Response(
+                message=AssistantMessage(content=accumulated_content),
+                message_info=message_info,
+            )
+
+        yield r
 
     def _stream_handler_base(
         self,
@@ -393,11 +447,13 @@ class LiteLLMWrapper(ModelBase, ABC):
         stream_finished = False
 
         for chunk in raw.completion_stream:
+            
             if stream_finished:
                 # the last chunk will contain the full message info
                 message_info = self.extract_message_info(
                     chunk, time.time() - start_time
                 )
+                
                 if output_schema is not None:
                     structured_response = output_schema(
                         **json.loads(accumulated_content)
@@ -616,7 +672,7 @@ class LiteLLMWrapper(ModelBase, ABC):
     async def _achat(self, messages: MessageHistory):
         response, time = await self._ainvoke(messages=messages)
         if isinstance(response, CustomStreamWrapper):
-            return await self._astream_handler_base(response, time)
+            return self._astream_handler_base(response, time)
         elif isinstance(response, ModelResponse):
             return self._chat_handle_base(
                 response, self.extract_message_info(response, time)
@@ -628,7 +684,7 @@ class LiteLLMWrapper(ModelBase, ABC):
         try:
             model_resp, time = await self._ainvoke(messages, response_format=schema)
             if isinstance(model_resp, CustomStreamWrapper):
-                return await self._astream_handler_base(model_resp, time, schema)
+                return self._astream_handler_base(model_resp, time, schema)
             elif isinstance(model_resp, ModelResponse):
                 return self._structured_handle_base(
                     model_resp,
@@ -648,7 +704,7 @@ class LiteLLMWrapper(ModelBase, ABC):
     async def _achat_with_tools(self, messages: MessageHistory, tools: List[Tool]):
         resp, time = await self._ainvoke(messages, tools=tools)
         if isinstance(resp, CustomStreamWrapper):
-            return await self._astream_handler_base(resp, time)
+            return self._astream_handler_base(resp, time)
         elif isinstance(resp, ModelResponse):
             return self._chat_with_tools_handler_base(
                 resp, self.extract_message_info(resp, time)

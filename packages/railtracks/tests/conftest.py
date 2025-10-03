@@ -1,4 +1,5 @@
 from typing import Type, Literal
+from urllib import response
 
 import pytest
 import railtracks as rt
@@ -58,12 +59,17 @@ class MockLLM(rt.llm.ModelBase):
         # Streaming case
         if self._stream:
             def make_generator():
-                for char in return_message:
-                    yield char
-            return Response(
-                message=AssistantMessage(content=Stream(streamer=make_generator(), final_message=return_message)),
-                message_info=self.mocked_message_info,
-            )
+                    for char in return_message:
+                        yield char
+
+                    r = Response(
+                        message=AssistantMessage(content=return_message),
+                        message_info=self.mocked_message_info,
+                    )
+                    yield r 
+                    return r
+                
+            return make_generator()
         
         # general case 
         return Response(
@@ -83,14 +89,17 @@ class MockLLM(rt.llm.ModelBase):
         # Streaming case
         if self._stream:
             def make_generator():
-                for char in response_model.json():
-                    yield char
+                    for char in response_model.model_dump_json():
+                        yield char
 
-            _final_message = self.custom_response if self.custom_response else response_model.json()
-            return Response(
-                message=AssistantMessage(content=Stream(streamer=make_generator(), final_message=_final_message)),
-                message_info=self.mocked_message_info,
-            )
+                    r = Response(
+                        message=AssistantMessage(content=response_model),
+                        message_info=self.mocked_message_info,
+                    )
+                    yield r 
+                    return r
+                
+            return make_generator()
 
         return Response(
             message=AssistantMessage(response_model),
@@ -112,10 +121,15 @@ class MockLLM(rt.llm.ModelBase):
                 def make_generator():
                     for char in final_message:
                         yield char
-                return Response(
-                    message=AssistantMessage(content=Stream(streamer=make_generator(), final_message=final_message)),
-                    message_info=self.mocked_message_info,
-                )
+
+                    r = Response(
+                        message=AssistantMessage(content=final_message),
+                        message_info=self.mocked_message_info,
+                    )
+                    yield r 
+                    return r
+                
+                return make_generator()
             return Response(    # no changes in this response in case of streaming
                 message=AssistantMessage(content=final_message),
                 message_info=self.mocked_message_info,

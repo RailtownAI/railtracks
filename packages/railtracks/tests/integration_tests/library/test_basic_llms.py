@@ -3,6 +3,8 @@ import railtracks as rt
 from typing import Generator
 import json
 
+from railtracks.built_nodes.concrete.response import LLMResponse, StringResponse, StructuredResponse
+
 
 @pytest.mark.parametrize("user_input_factory", [
     lambda: rt.llm.MessageHistory([rt.llm.UserMessage("hello world")]),
@@ -65,15 +67,17 @@ async def test_terminal_llm_streaming(mock_llm):
 
     with rt.Session(logging_setting="NONE"):
         response = await rt.call(agent, user_input=rt.llm.MessageHistory([rt.llm.UserMessage("hello world")]))
-
-        assert isinstance(response.streamer, Generator)
-        assert response.text == "hello world"
-
         accumulated_text = ""
-        for chunk in response.streamer:
-            accumulated_text += chunk
-            assert isinstance(chunk, str)
-        assert accumulated_text == response.text
+        for chunk in response:
+            assert isinstance(chunk, (str, StringResponse))
+            if isinstance(chunk, StringResponse):
+                assert isinstance(chunk.text, str)
+                assert chunk.text == "hello world"
+            if isinstance(chunk, str):
+                accumulated_text += chunk
+            
+        assert accumulated_text == "hello world"
+
 
 @pytest.mark.asyncio
 async def test_structured_llm_streaming(mock_llm, simple_output_model):
@@ -89,17 +93,21 @@ async def test_structured_llm_streaming(mock_llm, simple_output_model):
 
     with rt.Session(logging_setting="NONE"):
         response = await rt.call(agent, user_input=rt.llm.MessageHistory([rt.llm.UserMessage("hello world")]))
-
-        assert isinstance(response.streamer, Generator)
-        assert isinstance(response.structured, simple_output_model)
-
         accumulated_text = ""
-        for chunk in response.streamer:
-            accumulated_text += chunk
-            assert isinstance(chunk, str)
+        for chunk in response:
+            assert isinstance(chunk, (str, StructuredResponse))
 
-        model = json.loads(accumulated_text)
-        assert model["text"] == "hello world"
-        assert model["number"] == 42
+            if isinstance(chunk, StructuredResponse):
+                assert isinstance(chunk.structured, simple_output_model)
+                assert chunk.structured.text == "hello world"
+                assert chunk.structured.number == 42
+
+            if isinstance(chunk, str):
+                accumulated_text += chunk
+
+        assert accumulated_text == '{"text":"hello world", "number":42}'
+
+
+
 
 

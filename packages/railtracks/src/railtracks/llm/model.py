@@ -4,7 +4,7 @@
 ###
 
 from abc import ABC, abstractmethod
-from typing import Callable, Generator, List, Type, TypeVar
+from typing import AsyncGenerator, Callable, Generator, List, Type, TypeVar
 
 from pydantic import BaseModel
 
@@ -263,7 +263,7 @@ class ModelBase(ABC):
     @abstractmethod
     async def _achat(
         self, messages: MessageHistory
-    ) -> Response | Generator[str | Response, None, Response]:
+    ) -> Response | AsyncGenerator[str | Response, None]:
         pass
 
     @abstractmethod
@@ -271,11 +271,11 @@ class ModelBase(ABC):
         self,
         messages: MessageHistory,
         schema: Type[BaseModel],
-    ) -> Response | Generator[str | Response, None, Response]:
+    ) -> Response | AsyncGenerator[str | Response, None]:
         pass
 
     @abstractmethod
     async def _achat_with_tools(
         self, messages: MessageHistory, tools: List[Tool]
-    ) -> Response | Generator[str | Response, None, Response]:
+    ) -> Response | AsyncGenerator[str | Response, None]:
         pass

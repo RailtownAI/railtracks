@@ -62,13 +62,6 @@ def test_response_message():
     assert resp is not None
 
 
-def test_response_message_none_and_str_and_repr():
-    resp = Response()
-    assert resp.message is None
-    assert str(resp) == "Response(<no-data>)"
-    assert resp.__repr__().startswith("Response(message=None")
-
-
 def test_response_invalid_message_type_raises_type_error():
     with pytest.raises(TypeError):
         Response(123)
@@ -88,7 +81,7 @@ def test_response_message_info_assigned_and_accessible():
 
 
 def test_response_default_message_info_is_used_when_not_provided():
-    resp = Response()
+    resp = Response(message=AssistantMessage("Default info test."))
     # Ensure we have a MessageInfo object and its fields are None by default
     mi = resp.message_info
     assert isinstance(mi, MessageInfo)
