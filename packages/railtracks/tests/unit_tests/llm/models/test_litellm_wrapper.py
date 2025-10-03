@@ -129,7 +129,7 @@ class TestCompletionMethods:
         ("_chat", False, False),
         ("_achat", True, False),
         ("_chat", False, True),
-    ], ids=["sync_chat", "async_chat", "sync_chat_streaming", "async_chat_streaming"])
+    ], ids=["sync_chat", "async_chat", "sync_chat_streaming"])
     @pytest.mark.asyncio
     async def test_chat(self, mock_litellm_wrapper, message_history, method_name, is_async, stream):
         content = "Mission: Impossible" if stream else "Mocked response"
@@ -154,7 +154,7 @@ class TestCompletionMethods:
         ("_structured", False, False),
         ("_astructured", True, False),
         ("_structured", False, True),
-    ], ids=["sync_structured", "async_structured", "sync_structured_streaming", "async_structured_streaming"])
+    ], ids=["sync_structured", "async_structured", "sync_structured_streaming"])
     @pytest.mark.asyncio
     async def test_structured(self, mock_litellm_wrapper, message_history, method_name, is_async, stream):
         class ExampleSchema(BaseModel):
