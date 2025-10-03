@@ -20,8 +20,9 @@ from typing import (
 )
 
 import litellm
-from litellm.utils import CustomStreamWrapper, ModelResponse  # type: ignore
-from pydantic import BaseModel, Field
+from litellm.litellm_core_utils.streaming_handler import CustomStreamWrapper
+from litellm.types.utils import ModelResponse
+from pydantic import BaseModel, ValidationError
 
 from ...exceptions.errors import LLMError, NodeInvocationError
 from ..content import Stream, ToolCall

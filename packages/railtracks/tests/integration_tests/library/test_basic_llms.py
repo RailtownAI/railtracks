@@ -105,7 +105,7 @@ async def test_structured_llm_streaming(mock_llm, simple_output_model):
             if isinstance(chunk, str):
                 accumulated_text += chunk
 
-        assert accumulated_text == '{"text":"hello world", "number":42}'
+        assert accumulated_text == '{"text":"hello world","number":42}'
 
 
 

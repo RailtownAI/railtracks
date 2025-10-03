@@ -9,6 +9,7 @@ from ...response import Response
 from ...tools import Tool
 from .._litellm_wrapper import LiteLLMWrapper
 from .._model_exception_base import FunctionCallingNotSupportedError, ModelNotFoundError
+from ..providers import ModelProvider
 
 
 class ProviderLLMWrapper(LiteLLMWrapper, ABC):
@@ -50,7 +51,7 @@ class ProviderLLMWrapper(LiteLLMWrapper, ABC):
 
     @classmethod
     @abstractmethod
-    def model_type(cls) -> str:
+    def model_type(cls) -> ModelProvider:
         """Returns the name of the provider"""
         pass
 
