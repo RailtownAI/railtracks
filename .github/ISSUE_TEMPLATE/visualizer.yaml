@@ -1,0 +1,118 @@
+name: 🎨 Visualizer Issue
+description: Report issues, bugs, or feature requests for the railtracks CLI visualization tool.
+title: "[Visualizer] "
+labels: [visualizer]
+
+body:
+  - type: dropdown
+    id: issue_type
+    attributes:
+      label: Issue Type
+      description: Select the type of visualizer issue you're reporting.
+      options:
+        - Bug/Error
+        - Feature Request
+        - UI/UX Improvement
+        - Performance Issue
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe the issue, feature request, or improvement you'd like to see in the visualizer.
+      placeholder: |
+        For bugs: Describe what you expected to happen and what happened instead.
+        For features: Describe the feature you'd like to see added and why it would be useful.
+        For improvements: Describe what could be better about the current visualization experience.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproducing_steps
+    attributes:
+      label: Steps to Reproduce (for bugs)
+      description: If reporting a bug, provide step-by-step instructions to reproduce the issue.
+      placeholder: |
+        1. Run `railtracks viz`
+        2. Open the visualizer in browser
+        3. Click on a specific node
+        4. Error occurs...
+        
+        ```python
+        # Include relevant code if applicable
+        ```
+    validations:
+      required: false
+
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: Expected Behavior (for bugs)
+      description: What did you expect to happen in the visualizer?
+      placeholder: The node should display its execution details when clicked.
+    validations:
+      required: false
+
+  - type: textarea
+    id: actual_behavior
+    attributes:
+      label: Actual Behavior (for bugs)
+      description: What actually happened? Include any error messages or screenshots.
+      placeholder: |
+        The visualizer freezes when clicking on the node.
+        Console error: "TypeError: Cannot read property 'id' of undefined"
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots/Screen Recordings
+      description: If applicable, add screenshots or screen recordings to help explain the visualizer issue.
+      placeholder: Drag and drop images or paste URLs here.
+    validations:
+      required: false
+
+  - type: textarea
+    id: browser_info
+    attributes:
+      label: Browser Information (for UI issues)
+      description: Which browser and version are you using to access the visualizer?
+      placeholder: e.g. Chrome 120.0, Firefox 121.0, Safari 17.0
+    validations:
+      required: false
+
+  - type: input
+    id: operating_system
+    attributes:
+      label: Operating System
+      placeholder: e.g. Windows 11, macOS 14, Ubuntu 22.04
+
+  - type: input
+    id: railtracks_version
+    attributes:
+      label: railtracks Version
+      placeholder: e.g. 0.1.0
+
+  - type: input
+    id: python_version
+    attributes:
+      label: Python Version
+      placeholder: e.g. 3.10.8
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Any other information that will help us understand the visualizer issue.
+      placeholder: |
+        - Flow complexity (number of nodes, edges)
+        - Specific visualizer features being used
+        - Related issues or documentation
+        - Environment details (docker, local, etc.)
+    validations:
+      required: false
