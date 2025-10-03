@@ -1,4 +1,3 @@
-from itertools import accumulate
 import json
 import time
 import warnings
@@ -8,24 +7,21 @@ from typing import (
     Any,
     Callable,
     Dict,
-    Generator,
     List,
-    NamedTuple,
     Optional,
     Tuple,
     Type,
     TypeVar,
     Union,
-    overload,
 )
 
 import litellm
 from litellm.litellm_core_utils.streaming_handler import CustomStreamWrapper
 from litellm.types.utils import ModelResponse
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field
 
 from ...exceptions.errors import LLMError, NodeInvocationError
-from ..content import Stream, ToolCall
+from ..content import ToolCall
 from ..history import MessageHistory
 from ..message import AssistantMessage, Message, ToolMessage
 from ..model import ModelBase
@@ -384,13 +380,12 @@ class LiteLLMWrapper(ModelBase, ABC):
         stream_finished = False
 
         async for chunk in raw.completion_stream:
-            
             if stream_finished:
                 # the last chunk will contain the full message info
                 message_info = self.extract_message_info(
                     chunk, time.time() - start_time
                 )
-                
+
                 if output_schema is not None:
                     structured_response = output_schema(
                         **json.loads(accumulated_content)
@@ -448,13 +443,12 @@ class LiteLLMWrapper(ModelBase, ABC):
         stream_finished = False
 
         for chunk in raw.completion_stream:
-            
             if stream_finished:
                 # the last chunk will contain the full message info
                 message_info = self.extract_message_info(
                     chunk, time.time() - start_time
                 )
-                
+
                 if output_schema is not None:
                     structured_response = output_schema(
                         **json.loads(accumulated_content)

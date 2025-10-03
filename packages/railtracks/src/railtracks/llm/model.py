@@ -12,7 +12,6 @@ from .history import MessageHistory
 from .response import Response
 from .tools import Tool
 
-
 _T = TypeVar("_T", Response, Generator[str | Response, None, Response])
 
 

@@ -19,7 +19,6 @@ from ._tool_call_base import (
 )
 from .response import StructuredResponse
 
-
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 
 

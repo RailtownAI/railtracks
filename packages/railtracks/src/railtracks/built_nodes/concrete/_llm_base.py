@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Dict, Generic, Iterable, Type, TypeVar, Union
+from typing import Any, Dict, Generic, Iterable, TypeVar
 
 from pydantic import BaseModel
 from typing_extensions import Self

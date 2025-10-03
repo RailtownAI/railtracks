@@ -6,7 +6,6 @@ from abc import ABC, abstractmethod
 from typing import (
     Any,
     Dict,
-    Generator,
     Generic,
     ParamSpec,
     Set,
@@ -27,7 +26,6 @@ from railtracks.llm import (
     ToolResponse,
     UserMessage,
 )
-from railtracks.llm.content import Stream
 from railtracks.llm.response import Response
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_creation.validation import check_connected_nodes
@@ -64,7 +62,6 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                     node_set = method(dummy)
                 # Validate that the returned node_set is correct and contains only Node/function instances
                 check_connected_nodes(node_set, Node)
-
 
     def __init__(
         self,
@@ -127,9 +124,10 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
     async def _on_max_tool_calls_exceeded(self):
         """force a final response. This function will add it to the message history and return the message. This function shoudld only be called on non streaming llms."""
         response = await asyncio.to_thread(
-            self.llm_model.chat, self.message_hist,
+            self.llm_model.chat,
+            self.message_hist,
         )
-            
+
         if not isinstance(response.message, AssistantMessage):
             raise LLMError(
                 reason=f"The LLM returned an unexpected message type. Expected AssistantMessage but got {type(response.message)}",
@@ -243,12 +241,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
 
         return tool_messages
 
-
-
-
-
     async def invoke(self) -> _T:
-
         if self.llm_model._stream:
             raise NodeInvocationError(
                 "Streaming is not supported in ToolCallLLM nodes",
@@ -256,7 +249,6 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                     "See issue #___ for details.",
                 ],
             )
-        
 
         message = None
         while True:
