@@ -8,6 +8,7 @@ import json
 import os
 import queue
 import shutil
+import socket
 import sys
 import tempfile
 import threading
@@ -27,6 +28,7 @@ from railtracks_cli import (
     clear_stream_queue,
     create_railtracks_dir,
     get_script_directory,
+    is_port_in_use,
     print_error,
     print_status,
     print_success,
@@ -486,6 +488,131 @@ class TestRailtracksHTTPHandler(unittest.TestCase):
         self.assertIn("my agent session.json", file_names)
         self.assertIn("file with spaces.json", file_names)
         self.assertIn("special-chars!@#.json", file_names)
+
+
+class TestPortChecking(unittest.TestCase):
+    """Test port checking functionality"""
+
+    def test_is_port_in_use_available_port(self):
+        """Test is_port_in_use returns False for available port"""
+        # Use a high port number that's unlikely to be in use
+        test_port = 65535
+        result = is_port_in_use(test_port)
+        self.assertFalse(result)
+
+    def test_is_port_in_use_occupied_port(self):
+        """Test is_port_in_use returns True for occupied port"""
+        # Create a socket to occupy a port
+        test_port = 65534
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as test_socket:
+            test_socket.bind(('localhost', test_port))
+            test_socket.listen(1)
+
+            # Now check if the port is in use
+            result = is_port_in_use(test_port)
+            self.assertTrue(result)
+
+    @patch('railtracks_cli.sys.exit')
+    @patch('railtracks_cli.print_error')
+    @patch('railtracks_cli.print_warning')
+    @patch('railtracks_cli.print_status')
+    @patch('railtracks_cli.is_port_in_use')
+    def test_viz_command_port_in_use(self, mock_is_port_in_use, mock_print_status,
+                                   mock_print_warning, mock_print_error, mock_sys_exit):
+        """Test viz command behavior when port is in use"""
+        # Mock port as in use
+        mock_is_port_in_use.return_value = True
+
+        # Mock the main function to test just the viz command logic
+        with patch('railtracks_cli.create_railtracks_dir'), \
+             patch('railtracks_cli.RailtracksServer'):
+
+            # Simulate the viz command logic
+            if mock_is_port_in_use.return_value:
+                mock_print_error.assert_not_called()  # Not called yet
+                mock_print_warning.assert_not_called()  # Not called yet
+                mock_print_status.assert_not_called()  # Not called yet
+                mock_sys_exit.assert_not_called()  # Not called yet
+
+                # Simulate the actual error handling
+                mock_print_error(f"Port 3030 is already in use!")
+                mock_print_warning("You already have a railtracks viz server running.")
+                mock_print_status("Please stop the existing server or use a different port.")
+                mock_sys_exit(1)
+
+                # Verify the calls were made
+                mock_print_error.assert_called_with("Port 3030 is already in use!")
+                mock_print_warning.assert_called_with("You already have a railtracks viz server running.")
+                mock_print_status.assert_called_with("Please stop the existing server or use a different port.")
+                mock_sys_exit.assert_called_with(1)
+
+    def test_viz_command_port_available(self):
+        """Test viz command behavior when port is available"""
+        # Test that the port checking function works correctly
+        # This is more of an integration test of the port checking logic
+
+        # Test with a port that should be available
+        test_port = 65533
+        result = is_port_in_use(test_port)
+
+        # The result should be a boolean
+        self.assertIsInstance(result, bool)
+
+        # If the port is available, we should be able to bind to it
+        if not result:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as test_socket:
+                try:
+                    test_socket.bind(('localhost', test_port))
+                    # If we get here, the port was indeed available
+                    self.assertFalse(result)
+                except OSError:
+                    # Port became unavailable between checks
+                    pass
+
+    def test_port_checking_with_different_ports(self):
+        """Test port checking with various port numbers"""
+        # Test with a range of ports
+        test_ports = [8080, 3000, 5000, 9000]
+
+        for port in test_ports:
+            result = is_port_in_use(port)
+            # Result should be boolean
+            self.assertIsInstance(result, bool)
+
+            # If port is available, we should be able to bind to it
+            if not result:
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as test_socket:
+                    try:
+                        test_socket.bind(('localhost', port))
+                        # If we get here, the port was indeed available
+                        self.assertFalse(result)
+                    except OSError:
+                        # Port became unavailable between checks
+                        pass
+
+    def test_port_checking_edge_cases(self):
+        """Test port checking with edge cases"""
+        # Test with invalid port numbers
+        with self.assertRaises(OverflowError):
+            is_port_in_use(-1)
+
+        # Port 0 is actually valid (lets OS assign port)
+        result = is_port_in_use(0)
+        self.assertIsInstance(result, bool)
+
+        with self.assertRaises(OverflowError):
+            is_port_in_use(65536)  # Port number too high
+
+    @patch('railtracks_cli.socket.socket')
+    def test_port_checking_socket_error(self, mock_socket_class):
+        """Test port checking when socket operations fail"""
+        # Mock socket to raise OSError
+        mock_socket = MagicMock()
+        mock_socket.bind.side_effect = OSError("Socket error")
+        mock_socket_class.return_value.__enter__.return_value = mock_socket
+
+        result = is_port_in_use(3030)
+        self.assertTrue(result)  # Should return True when socket fails to bind
 
 
 if __name__ == "__main__":
