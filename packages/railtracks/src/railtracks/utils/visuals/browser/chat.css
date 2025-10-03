@@ -449,10 +449,11 @@ body {
     cursor: pointer;
     min-width: 90px;
     text-align: center;
+    border: 1px solid #ffa500; /* Added solid orange border */
 }
 
-.end-session-button:hover {
-    opacity: .8;
+.end-session-button:hover:not(:disabled) {
+    opacity: 0.8; /* Fixed hover effect to increase opacity */
 }
 
 .end-session-button:disabled {

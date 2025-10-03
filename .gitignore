@@ -40,3 +40,6 @@ site/
 
 core-licenses.md
 core-licenses-summary.md
+
+# OS generated files
+.DS_Store
