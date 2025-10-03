@@ -42,7 +42,8 @@ def test_structured_tool_call_llm_return_output_success(mock_tool, mock_llm, sch
         def name(cls):
             return "Mock Structured ToolCallLLM"
         
-        def tool_nodes(self):
+        @classmethod
+        def tool_nodes(cls):
             return {mock_tool}
     
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("extract value")])

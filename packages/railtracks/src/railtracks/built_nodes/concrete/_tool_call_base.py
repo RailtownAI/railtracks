@@ -251,7 +251,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
 
         if self.llm_model._stream:
             raise NodeInvocationError(
-                "Streaming is not supported in ToolCallLLM nodes"
+                "Streaming is not supported in ToolCallLLM nodes",
                 notes=[
                     "See issue #___ for details.",
                 ],
