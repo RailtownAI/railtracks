@@ -29,7 +29,7 @@ class HIL(ABC):
         self, content: HILMessage, timeout: float | None = None
     ) -> bool:
         """
-        Sends a message to the user through the interface.
+        HIL uses this function to send a message to the user through the interface.
 
         Args:
             content: The message content to send.
@@ -43,7 +43,7 @@ class HIL(ABC):
     @abstractmethod
     async def receive_message(self, timeout: float | None = None) -> HILMessage | None:
         """
-        Waits for the user to provide input.
+        HIL uses this function to wait for the user to provide input.
 
         This method should block until input is received or the timeout is reached.
 

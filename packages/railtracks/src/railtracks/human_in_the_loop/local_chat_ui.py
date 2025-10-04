@@ -12,7 +12,7 @@ from fastapi import FastAPI, Response
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
-from ..llm import ToolCall, ToolResponse
+from railtracks.llm import ToolCall, ToolResponse
 from ..utils.logging.create import get_rt_logger
 from .human_in_the_loop import HIL, HILMessage
 
@@ -83,9 +83,14 @@ class ChatUI(HIL):
         try:
             package_files = files("railtracks.utils.visuals.browser")
             return (package_files / filename).read_text(encoding="utf-8")
+        except FileNotFoundError as e:
+            raise FileNotFoundError(
+                f"Static file '{filename}' not found in package 'railtracks.utils.visuals.browser'. "
+                f"Ensure the file exists in the package resources."
+            ) from e
         except Exception as e:
             raise Exception(
-                f"Exception occurred loading static '{filename}' for Chat UI"
+                f"Failed to load static file '{filename}' for Chat UI: {type(e).__name__}: {str(e)}"
             ) from e
 
     def _define_endpoints(self, app: FastAPI):
@@ -206,8 +211,7 @@ class ChatUI(HIL):
 
         localhost_url = f"http://{self.host}:{self.port}"
 
-        self.loop = asyncio.get_running_loop()
-        self.server_task = self.loop.create_task(self._run_server())
+        self.server_task = asyncio.create_task(self._run_server())
 
         if self.auto_open:
             await asyncio.sleep(1)  # wait a bit before openning the browser

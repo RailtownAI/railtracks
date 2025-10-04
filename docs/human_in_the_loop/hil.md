@@ -115,11 +115,10 @@ The `ChatUI` implementation demonstrates:
         return input("Enter message: ")  # WRONG: Blocks event loop
     ```
 
-    **Use executor for blocking I/O:**
+    **Use asyncio.to_thread for blocking I/O:**
     ```python
     async def receive_message(self, timeout=None):
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(None, input, "Enter message: ")
+        return await asyncio.to_thread(input, "Enter message: ")
     ```
 
     ### 2. Not Handling Disconnection
