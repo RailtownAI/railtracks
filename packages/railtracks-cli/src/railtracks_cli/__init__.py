@@ -20,6 +20,7 @@ import json
 import mimetypes
 import os
 import queue
+import socket
 import sys
 import tempfile
 import threading
@@ -69,6 +70,16 @@ def print_warning(message):
 
 def print_error(message):
     print(f"[{cli_name}] {message}")
+
+
+def is_port_in_use(port):
+    """Check if a port is already in use"""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        try:
+            sock.bind(("localhost", port))
+            return False  # Port is available
+        except OSError:
+            return True  # Port is in use
 
 
 def set_stream_queue(stream_queue):
@@ -575,6 +586,12 @@ def main():
     if command == "init":
         init_railtracks()
     elif command == "viz":
+        # Check if port is already in use
+        if is_port_in_use(DEFAULT_PORT):
+            print_error(f"Port {DEFAULT_PORT} is already in use!")
+            print_status("Please stop the existing server.")
+            sys.exit(1)
+
         # Setup directories
         create_railtracks_dir()
 
