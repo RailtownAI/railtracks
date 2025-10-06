@@ -17,5 +17,5 @@ graph LR
 
 To allow this for the users of the framework, we have designed an extendible abstract class called `HIL` (*Human In the Loop*). Additionally we have implemented a local chat server for quick development and prototyping of such behaviours. Please refer to the following sections for futher information:
 
-* [Local ChatUI](tools.md)
+* [Local ChatUI](local_chat_ui.md)
 * [Custom HIL Behaviour](hil.md)
