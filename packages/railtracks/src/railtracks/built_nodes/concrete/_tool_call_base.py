@@ -117,10 +117,6 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
     def tools(self):
         return [x.tool_info() for x in self.tool_nodes()]
 
-    def _add_message_to_history(self, message: Message):
-        """A simple helper function to add a message to the message history"""
-        self.message_hist.append(message)
-
     async def _on_max_tool_calls_exceeded(self):
         """force a final response. This function will add it to the message history and return the message. This function shoudld only be called on non streaming llms."""
         response = await asyncio.to_thread(
@@ -201,7 +197,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
             return True, None
         else:
             # this means the tool call is finished
-            self._add_message_to_history(message)
+            self.message_hist.append(message)
             return False, message
 
     async def _call_tools(self, tool_calls: list[ToolCall]) -> list[ToolMessage]:
