@@ -60,14 +60,32 @@ def test_get_static_file_content_success(chat_ui):
         assert content == "<html>Mock HTML</html>"
 
 
-def test_get_static_file_content_failure(chat_ui):
-    """Test exception handling when a static file cannot be loaded."""
-    with patch(
-        "railtracks.human_in_the_loop.local_chat_ui.files",
-        side_effect=FileNotFoundError("File not found"),
-    ):
-        with pytest.raises(Exception, match="Exception occurred loading static"):
-            chat_ui._get_static_file_content("nonexistent.file")
+def test_get_static_file_content_file_not_found(chat_ui):
+    """Test FileNotFoundError handling when a static file cannot be found."""
+    with patch("railtracks.human_in_the_loop.local_chat_ui.files") as mock_files:
+        # Simulate FileNotFoundError when accessing the file
+        mock_files.return_value.__truediv__.return_value.read_text.side_effect = (
+            FileNotFoundError("File not found")
+        )
+        with pytest.raises(
+            FileNotFoundError,
+            match=r"Static file 'nonexistent\.html' not found in package 'railtracks\.utils\.visuals\.browser'\.",
+        ):
+            chat_ui._get_static_file_content("nonexistent.html")
+
+
+def test_get_static_file_content_generic_exception(chat_ui):
+    """Test generic exception handling when loading a static file fails."""
+    with patch("railtracks.human_in_the_loop.local_chat_ui.files") as mock_files:
+        # Simulate a generic exception (not FileNotFoundError)
+        mock_files.return_value.__truediv__.return_value.read_text.side_effect = (
+            PermissionError("Permission denied")
+        )
+        with pytest.raises(
+            Exception,
+            match=r"Failed to load static file 'restricted\.html' for Chat UI: PermissionError: Permission denied",
+        ):
+            chat_ui._get_static_file_content("restricted.html")
 
 
 # ---- FastAPI Endpoint Tests ----

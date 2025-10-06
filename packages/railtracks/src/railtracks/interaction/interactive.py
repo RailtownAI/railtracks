@@ -1,7 +1,7 @@
 from typing import Type, TypeVar
 
 from ..built_nodes.concrete._llm_base import LLMBase
-from ..human_in_the_loop import HIL, ChatUI, HILMessage
+from ..human_in_the_loop import ChatUI, HILMessage
 from ..llm.history import MessageHistory
 from ..llm.message import AssistantMessage, UserMessage
 from ..utils.logging.create import get_rt_logger
@@ -69,9 +69,8 @@ async def _chat_ui_interactive(
     return response  # type: ignore
 
 
-async def interactive(
+async def local_chat(
     node: type[LLMBase[_TOutput]],
-    interactive_interface: Type[ChatUI] | Type[HIL] = ChatUI,
     initial_message_to_user: str | None = None,
     initial_message_to_agent: str | None = None,
     turns: int | None = None,
@@ -89,8 +88,6 @@ async def interactive(
 
     Args:
         node: The `LLMBase` class to interact with.
-        interactive_interface: The user interface class for the session.
-            Defaults to `ChatUI`.
         initial_message_to_user: An optional message to display to the user
             at the start of the chat session.
         initial_message_to_agent: An optional message to send to the agent to
@@ -118,35 +115,29 @@ async def interactive(
     if auto_open is not None:
         chat_ui_kwargs["auto_open"] = auto_open
 
-    if interactive_interface is ChatUI:
-        if not issubclass(node, LLMBase):
-            raise ValueError(
-                "Interactive sessions only support nodes that are children of LLMBase."
-            )
-        response = None
-        try:
-            logger.info("Connecting with Local Chat Session")
-
-            chat_ui = interactive_interface(**chat_ui_kwargs)
-
-            await chat_ui.connect()
-
-            response = await _chat_ui_interactive(
-                chat_ui,
-                node,
-                initial_message_to_user,
-                initial_message_to_agent,
-                turns,
-                *args,
-                **kwargs,
-            )
-
-        except Exception as e:
-            logger.error(f"Error during interactive session: {e}")
-        finally:
-            return response  # type: ignore
-
-    else:
-        raise NotImplementedError(
-            f"HIL interface {interactive_interface.__name__} is not yet implemented. Only ChatUI is currently supported."
+    if not issubclass(node, LLMBase):
+        raise ValueError(
+            "Interactive sessions only support nodes that are children of LLMBase."
         )
+    response = None
+    try:
+        logger.info("Connecting with Local Chat Session")
+
+        chat_ui = ChatUI(**chat_ui_kwargs)
+
+        await chat_ui.connect()
+
+        response = await _chat_ui_interactive(
+            chat_ui,
+            node,
+            initial_message_to_user,
+            initial_message_to_agent,
+            turns,
+            *args,
+            **kwargs,
+        )
+
+    except Exception as e:
+        logger.error(f"Error during interactive session: {e}")
+    finally:
+        return response  # type: ignore

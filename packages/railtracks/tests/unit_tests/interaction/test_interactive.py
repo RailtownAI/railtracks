@@ -2,8 +2,7 @@ import sys
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
 
-# Get the module directly from Python's cache for unambiguous patching. Note `import railtracks.interaction.interactive as interacative_module` causes issues with patching.
-interactive_module = sys.modules["railtracks.interaction.interactive"]
+from railtracks import interactive
 
 from railtracks.built_nodes.concrete._llm_base import LLMBase
 from railtracks.built_nodes.concrete.response import LLMResponse
@@ -37,7 +36,7 @@ def mock_chat_ui_class(mock_chat_ui_instance: AsyncMock) -> MagicMock:
 
 @pytest.mark.asyncio
 async def test_interactive_with_invalid_node():
-    """Verifies `interactive` raises ValueError for non-LLMBase nodes."""
+    """Verifies `interactive.local_chat` raises ValueError for non-LLMBase nodes."""
 
     class InvalidNode(Node):
         pass
@@ -46,11 +45,11 @@ async def test_interactive_with_invalid_node():
         ValueError,
         match="Interactive sessions only support nodes that are children of LLMBase.",
     ):
-        await interactive_module.interactive(node=InvalidNode)
+        await interactive.local_chat(node=InvalidNode)
 
 
 @pytest.mark.asyncio
-async def test_interactive_session_success_path(
+async def test_local_chat_session_success_path(
     mock_chat_ui_class: MagicMock, mock_chat_ui_instance: AsyncMock
 ):
     """Tests the main success path of an interactive session for one turn."""
@@ -70,10 +69,10 @@ async def test_interactive_session_success_path(
     mock_agent_call = AsyncMock(return_value=mock_response)
 
     with (
-        patch.object(interactive_module, "ChatUI", mock_chat_ui_class),
-        patch.object(interactive_module, "call", mock_agent_call),
+        patch.object(interactive, "ChatUI", mock_chat_ui_class),
+        patch.object(interactive, "call", mock_agent_call),
     ):
-        final_response = await interactive_module.interactive(
+        final_response = await interactive.local_chat(
             node=MockLLMNode,
             interactive_interface=mock_chat_ui_class,  # Pass the mock class here
             initial_message_to_user="Welcome!",
@@ -99,7 +98,7 @@ async def test_interactive_session_success_path(
 
 
 @pytest.mark.asyncio
-async def test_interactive_loop_never_runs(
+async def test_local_chat_loop_never_runs(
     mock_chat_ui_class: MagicMock, mock_chat_ui_instance: AsyncMock
 ):
     """Tests that the function returns None if the UI is never connected."""
@@ -108,10 +107,10 @@ async def test_interactive_loop_never_runs(
     mock_agent_call = AsyncMock()
 
     with (
-        patch.object(interactive_module, "ChatUI", mock_chat_ui_class),
-        patch.object(interactive_module, "call", mock_agent_call),
+        patch.object(interactive, "ChatUI", mock_chat_ui_class),
+        patch.object(interactive, "call", mock_agent_call),
     ):
-        final_response = await interactive_module.interactive(
+        final_response = await interactive.local_chat(
             node=MockLLMNode, interactive_interface=mock_chat_ui_class
         )
 
@@ -122,7 +121,7 @@ async def test_interactive_loop_never_runs(
 
 
 @pytest.mark.asyncio
-async def test_interactive_terminates_on_turns(
+async def test_local_chat_terminates_on_turns(
     mock_chat_ui_class: MagicMock, mock_chat_ui_instance: AsyncMock
 ):
     """Tests that the session terminates after the specified number of turns."""
@@ -142,24 +141,11 @@ async def test_interactive_terminates_on_turns(
     mock_agent_call = AsyncMock(return_value=mock_response)
 
     with (
-        patch.object(interactive_module, "ChatUI", mock_chat_ui_class),
-        patch.object(interactive_module, "call", mock_agent_call),
+        patch.object(interactive, "ChatUI", mock_chat_ui_class),
+        patch.object(interactive, "call", mock_agent_call),
     ):
-        await interactive_module.interactive(
+        await interactive.local_chat(
             node=MockLLMNode, turns=1, interactive_interface=mock_chat_ui_class
         )
 
     mock_chat_ui_instance.disconnect.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_unsupported_hil_interface():
-    """Tests that a non-ChatUI interface raises NotImplementedError."""
-
-    class OtherHIL(HIL):
-        pass
-
-    with pytest.raises(NotImplementedError):
-        await interactive_module.interactive(
-            node=MockLLMNode, interactive_interface=OtherHIL
-        )

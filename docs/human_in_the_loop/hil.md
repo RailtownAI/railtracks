@@ -177,4 +177,3 @@ We're excited to see what implemenations you come up with and welcome incorporat
 
 - See [Local Chat UI](local_chat_ui.md) for documentation on using the built-in ChatUI
 - Check the [Human-in-the-Loop Overview](overview.md) for integration patterns
-- Explore the examples in `examples/` for more use cases

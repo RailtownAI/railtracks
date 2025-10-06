@@ -1,7 +1,7 @@
 In this tutorial, we'll quickly cover how you can interact with any previous made agents in a multi-turn style chat.
 
-## 1. `interactive` function
-Simply pass any of the agents you've made so far to the `interactive` method as follows:
+## 1. `local_chat` from `interactive` module
+Simply pass any of the agents you've made so far to the `local_chat` method as follows:
 ```python
 --8<-- "docs/scripts/chatui.py:interactive"
 ```
@@ -12,6 +12,9 @@ Additionally, you can also view the tool invocations that happened throughout yo
 After you are finished with talking interactive with the model, you can press **`END SESSION`** and the rest of your workflow will continue to execute.
 
 The possibilities from here on are endless. For instance you can replace the `llm` parameter with a locally running `Ollama` model and have your own locally run agent that you can chat with at your leisure! Give it tools to empower it even more.
+
+???+ warning "Streaming"
+    Currently for the local chat streaming LLM responses is not supported.
 
 ## 2. Customizing the UI
 
