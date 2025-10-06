@@ -2,10 +2,8 @@ from typing import Generic, TypeVar
 
 from pydantic import BaseModel
 
-from railtracks.llm import MessageHistory
+from railtracks.llm import MessageHistory, ToolCall, ToolResponse
 from railtracks.llm.content import Content
-
-from railtracks.llm import ToolCall, ToolResponse
 from railtracks.llm.message import Role
 
 _T = TypeVar("_T", bound=Content)
