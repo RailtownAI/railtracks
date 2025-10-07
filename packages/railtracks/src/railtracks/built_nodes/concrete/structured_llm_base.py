@@ -27,6 +27,15 @@ class StructuredLLM(
     ABC,
     Generic[_TOutput],
 ):
+    """Creates a new instance of the StructuredlLLM class
+
+        Args:
+            user_input (MessageHistory | UserMessage | str | list[Message]): The input to use for the LLM. Can be a MessageHistory object, a UserMessage object, or a string.
+                If a string is provided, it will be converted to a MessageHistory with a UserMessage.
+                If a UserMessage is provided, it will be converted to a MessageHistory.
+            llm_model (ModelBase | None, optional): The LLM model to use. Defaults to None.
+
+    """
     # TODO: allow for more general (non-pydantic) outputs
 
     def __init_subclass__(cls):
@@ -43,15 +52,7 @@ class StructuredLLM(
         user_input: MessageHistory | UserMessage | str | list[Message],
         llm: ModelBase | None = None,
     ):
-        """Creates a new instance of the StructuredlLLM class
-
-        Args:
-            user_input (MessageHistory | UserMessage | str | list[Message]): The input to use for the LLM. Can be a MessageHistory object, a UserMessage object, or a string.
-                If a string is provided, it will be converted to a MessageHistory with a UserMessage.
-                If a UserMessage is provided, it will be converted to a MessageHistory.
-            llm_model (ModelBase | None, optional): The LLM model to use. Defaults to None.
-
-        """
+        
         super().__init__(llm=llm, user_input=user_input)
 
     @classmethod
