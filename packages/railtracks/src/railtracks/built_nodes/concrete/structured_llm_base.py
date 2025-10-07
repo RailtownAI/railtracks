@@ -4,9 +4,7 @@ from typing import Generator, Generic, TypeVar
 
 from pydantic import BaseModel
 
-from railtracks.exceptions import LLMError
 from railtracks.llm import Message, MessageHistory, ModelBase, UserMessage
-from railtracks.llm.response import Response
 from railtracks.validation.node_creation.validation import (
     check_classmethod,
     check_schema,
@@ -21,21 +19,20 @@ _TOutput = TypeVar("_TOutput", bound=BaseModel)
 # note the ordering here does matter, the t
 class StructuredLLM(
     StructuredOutputMixIn[_TOutput],
-    LLMBase[
-        StructuredResponse[_TOutput]
-    ],
+    LLMBase[StructuredResponse[_TOutput]],
     ABC,
     Generic[_TOutput],
 ):
     """Creates a new instance of the StructuredlLLM class
 
-        Args:
-            user_input (MessageHistory | UserMessage | str | list[Message]): The input to use for the LLM. Can be a MessageHistory object, a UserMessage object, or a string.
-                If a string is provided, it will be converted to a MessageHistory with a UserMessage.
-                If a UserMessage is provided, it will be converted to a MessageHistory.
-            llm_model (ModelBase | None, optional): The LLM model to use. Defaults to None.
+    Args:
+        user_input (MessageHistory | UserMessage | str | list[Message]): The input to use for the LLM. Can be a MessageHistory object, a UserMessage object, or a string.
+            If a string is provided, it will be converted to a MessageHistory with a UserMessage.
+            If a UserMessage is provided, it will be converted to a MessageHistory.
+        llm_model (ModelBase | None, optional): The LLM model to use. Defaults to None.
 
     """
+
     # TODO: allow for more general (non-pydantic) outputs
 
     def __init_subclass__(cls):
@@ -52,7 +49,6 @@ class StructuredLLM(
         user_input: MessageHistory | UserMessage | str | list[Message],
         llm: ModelBase | None = None,
     ):
-        
         super().__init__(llm=llm, user_input=user_input)
 
     @classmethod
@@ -71,7 +67,6 @@ class StructuredLLM(
         )
 
         if isinstance(returned_mess, Generator):
-
             return self._gen_wrapper(returned_mess)
         else:
             self._handle_output(returned_mess.message)
@@ -80,4 +75,3 @@ class StructuredLLM(
     def _handle_output(self, output: Message):
         assert isinstance(output.content, self.output_schema())
         super()._handle_output(output)
-        

@@ -9,7 +9,7 @@ from railtracks.exceptions.messages.exception_messages import (
     get_notes,
 )
 from railtracks.llm import Parameter, SystemMessage
-from railtracks.llm.tools.parameter import ParameterType
+from railtracks.llm.tools.parameters import ParameterType
 from railtracks.utils.logging import get_rt_logger
 
 # Global logger for validation

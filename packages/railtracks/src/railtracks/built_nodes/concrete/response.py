@@ -2,8 +2,9 @@ from typing import Generator, Generic, TypeVar
 
 from pydantic import BaseModel
 
-from railtracks.llm import MessageHistory
+from railtracks.llm import MessageHistory, ToolCall, ToolResponse
 from railtracks.llm.content import Content, Stream
+from railtracks.llm.message import Role
 
 _T = TypeVar("_T", bound=Content)
 
@@ -23,17 +24,6 @@ class LLMResponse(Generic[_T]):
 
     def __repr__(self):
         return f"LLMResponse({self.content})"
-
-    @property
-    def streamer(self) -> Generator[str, None, None]:
-        """Returns the streamer that was returned as part of this response.
-
-        Note that this is a generator that yields strings.
-        """
-        assert isinstance(self.content, Stream), (
-            "For this property to be usable, the llm should have stream=True"
-        )
-        return self.content.streamer
 
 
 _TStructured = TypeVar("_TStructured", bound=BaseModel)

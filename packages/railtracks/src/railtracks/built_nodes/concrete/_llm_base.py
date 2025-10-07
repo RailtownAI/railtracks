@@ -336,7 +336,9 @@ class LLMBase(Node[_T | Generator[str | _T, None, _T]], ABC, Generic[_T]):
     def type(cls):
         return "Agent"
 
-    def _gen_wrapper(self, returned_mess: Generator[str | Response, None, Response]) -> Generator[str | _T, None, _T]:
+    def _gen_wrapper(
+        self, returned_mess: Generator[str | Response, None, Response]
+    ) -> Generator[str | _T, None, _T]:
         for r in returned_mess:
             if isinstance(r, Response):
                 message = r.message

@@ -70,4 +70,3 @@ class TerminalLLM(
                 reason="ModelLLM returned an unexpected message type.",
                 message_history=self.message_hist,
             )
-

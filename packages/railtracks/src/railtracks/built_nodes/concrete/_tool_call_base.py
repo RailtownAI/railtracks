@@ -38,7 +38,9 @@ _T = TypeVar("_T")
 _P = ParamSpec("_P")
 
 
-class OutputLessToolCallLLM(LLMBase[_T | Generator[_T | str, None, _T]], ABC, Generic[_T]):
+class OutputLessToolCallLLM(
+    LLMBase[_T | Generator[_T | str, None, _T]], ABC, Generic[_T]
+):
     """A base class that is a node which contains
      an LLm that can make tool calls. The tool calls will be returned
     as calls or if there is a response, the response will be returned as an output"""

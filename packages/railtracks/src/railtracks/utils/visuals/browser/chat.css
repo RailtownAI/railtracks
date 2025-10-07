@@ -354,8 +354,8 @@ body {
     border-top: 1px solid #4a5568;
     display: flex;
     gap: 12px;
-    align-items: flex-end; /* Align items to bottom so button aligns with textarea bottom */
-    flex-shrink: 0; /* Prevent shrinking */
+    align-items: flex-end;
+    flex-shrink: 0;
     position: sticky;
     bottom: 0;
 }
@@ -370,11 +370,11 @@ body {
     outline: none;
     font-size: 14px;
     transition: all 0.3s ease;
-    resize: none; /* Disable manual resize for auto-resize */
-    min-height: 32px; /* Minimum height for single line */
-    max-height: 320px; /* Maximum height before scrolling */
+    resize: none;
+    min-height: 32px;
+    max-height: 320px;
     line-height: 1.4;
-    overflow-y: auto; /* Enable scrolling when content exceeds max-height */
+    overflow-y: auto;
 }
 
 .message-input:focus {
@@ -408,7 +408,7 @@ body {
 .status {
     font-size: 13px;
     text-align: center;
-    flex-shrink: 0; /* Prevent shrinking */
+    flex-shrink: 0;
 }
 
 .status-inner {
@@ -449,10 +449,11 @@ body {
     cursor: pointer;
     min-width: 90px;
     text-align: center;
+    border: 1px solid #ffa500;
 }
 
-.end-session-button:hover {
-    opacity: .8;
+.end-session-button:hover:not(:disabled) {
+    opacity: 0.8;
 }
 
 .end-session-button:disabled {

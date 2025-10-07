@@ -14,7 +14,6 @@ from typing_extensions import Self
 
 from .._exception_base import RTLLMError
 from .docstring_parser import extract_main_description, parse_docstring_args
-from .parameter import Parameter
 from .parameter_handlers import (
     DefaultParameterHandler,
     ParameterHandler,
@@ -22,6 +21,7 @@ from .parameter_handlers import (
     SequenceParameterHandler,
     UnionParameterHandler,
 )
+from .parameters import Parameter
 from .schema_parser import parse_json_schema_to_parameter
 
 
