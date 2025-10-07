@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Dict, Generic, Iterable, TypeVar
+from typing import Any, Dict, Generator, Generic, Iterable, TypeVar
 
 from pydantic import BaseModel
 from typing_extensions import Self
 
-from railtracks.exceptions.errors import NodeInvocationError
+from railtracks.exceptions.errors import LLMError, NodeInvocationError
 from railtracks.exceptions.messages.exception_messages import get_message
 from railtracks.llm import (
     AssistantMessage,
@@ -68,7 +68,7 @@ class RequestDetails:
         return f"RequestDetails(model_name={self.model_name}, model_provider={self.model_provider}, input={self.input}, output={self.output})"
 
 
-class LLMBase(Node[_T], ABC, Generic[_T]):
+class LLMBase(Node[_T | Generator[str | _T, None, _T]], ABC, Generic[_T]):
     """
     A basic LLM base class that encapsulates the attaching of an LLM model and message history object.
 
@@ -335,6 +335,37 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
     @classmethod
     def type(cls):
         return "Agent"
+
+    def _gen_wrapper(self, returned_mess: Generator[str | Response, None, Response]) -> Generator[str | _T, None, _T]:
+        for r in returned_mess:
+            if isinstance(r, Response):
+                message = r.message
+
+                self._handle_output(message)
+                response = self.return_output(message)
+                yield response
+                return response
+            elif isinstance(r, str):
+                yield r
+            else:
+                raise LLMError(
+                    reason=f"ModelLLM returned unexpected type in generator. Expected str or Response, got {type(r)}",
+                    message_history=self.message_hist,
+                )
+
+        raise LLMError(
+            reason="The generator did not yield a final Response object",
+            message_history=self.message_hist,
+        )
+
+    def _handle_output(self, output: Message):
+        if output.role != "assistant":
+            raise LLMError(
+                reason="ModelLLM returned an unexpected message type.",
+                message_history=self.message_hist,
+            )
+
+        self.message_hist.append(output)
 
 
 _TStructured = TypeVar("_TStructured", bound=BaseModel)

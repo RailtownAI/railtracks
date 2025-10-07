@@ -23,9 +23,6 @@ class StructuredLLM(
     StructuredOutputMixIn[_TOutput],
     LLMBase[
         StructuredResponse[_TOutput]
-        | Generator[
-            str | StructuredResponse[_TOutput], None, StructuredResponse[_TOutput]
-        ]
     ],
     ABC,
     Generic[_TOutput],
@@ -74,41 +71,12 @@ class StructuredLLM(
 
         if isinstance(returned_mess, Generator):
 
-            def gen_wrapper():
-                for r in returned_mess:
-                    if isinstance(r, Response):
-                        message = r.message
-                        r = self._handle_output(message)
-                        yield r
-                        return r
-                    elif isinstance(r, str):
-                        yield r
-                    else:
-                        raise LLMError(
-                            reason=f"ModelLLM returned unexpected type in generator. Expected str or Response, got {type(r)}",
-                            message_history=self.message_hist,
-                        )
-                raise LLMError(
-                    reason="The generator did not yield a final Response object",
-                    message_history=self.message_hist,
-                )
-
-            return gen_wrapper()
+            return self._gen_wrapper(returned_mess)
         else:
-            return self._handle_output(returned_mess.message)
+            self._handle_output(returned_mess.message)
+            return self.return_output(returned_mess.message)
 
     def _handle_output(self, output: Message):
-        if output.role != "assistant":
-            raise LLMError(
-                reason="ModelLLM returned an unexpected message type.",
-                message_history=self.message_hist,
-            )
-
-        if not isinstance(output.content, self.output_schema()):
-            raise LLMError(
-                reason=f"ModelLLM returned unexpected content. Expected {self.output_schema().__name__} got {type(output.content)}",
-                message_history=self.message_hist,
-            )
-
-        self.message_hist.append(output)
-        return self.return_output(output)
+        assert isinstance(output.content, self.output_schema())
+        super()._handle_output(output)
+        

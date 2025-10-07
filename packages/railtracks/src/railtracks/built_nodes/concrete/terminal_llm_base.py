@@ -11,7 +11,7 @@ from .response import StringResponse
 
 class TerminalLLM(
     StringOutputMixIn,
-    LLMBase[StringResponse | Generator[str | StringResponse, None, StringResponse]],
+    LLMBase[StringResponse],
 ):
     """A simple LLM node that takes in a message and returns a response. It is the simplest of all LLMs.
     This node accepts message_history in the following formats:
@@ -60,30 +60,7 @@ class TerminalLLM(
             )
 
         if isinstance(returned_mess, Generator):
-
-            def gen_wrapper():
-                for r in returned_mess:
-                    if isinstance(r, Response):
-                        message = r.message
-
-                        self._handle_output(message)
-                        string_response = self.return_output(message)
-                        yield string_response
-                        return string_response
-                    elif isinstance(r, str):
-                        yield r
-                    else:
-                        raise LLMError(
-                            reason=f"ModelLLM returned unexpected type in generator. Expected str or Response, got {type(r)}",
-                            message_history=self.message_hist,
-                        )
-
-                raise LLMError(
-                    reason="The generator did not yield a final Response object",
-                    message_history=self.message_hist,
-                )
-
-            return gen_wrapper()
+            return self._gen_wrapper(returned_mess)
         elif isinstance(returned_mess, Response):
             self._handle_output(returned_mess.message)
 
@@ -94,19 +71,3 @@ class TerminalLLM(
                 message_history=self.message_hist,
             )
 
-    def _handle_output(self, output: Message):
-        if output.role != "assistant":
-            raise LLMError(
-                reason="ModelLLM returned an unexpected message type.",
-                message_history=self.message_hist,
-            )
-
-        if not isinstance(output.content, str):
-            raise LLMError(
-                reason=f"ModelLLM returned unexpected content. Expected a string, got {type(output.content)}",
-                message_history=self.message_hist,
-            )
-
-        self.message_hist.append(output)
-
-        return output

@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from typing import (
     Any,
     Dict,
+    Generator,
     Generic,
     ParamSpec,
     Set,
@@ -37,7 +38,7 @@ _T = TypeVar("_T")
 _P = ParamSpec("_P")
 
 
-class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
+class OutputLessToolCallLLM(LLMBase[_T | Generator[_T | str, None, _T]], ABC, Generic[_T]):
     """A base class that is a node which contains
      an LLm that can make tool calls. The tool calls will be returned
     as calls or if there is a response, the response will be returned as an output"""
@@ -237,7 +238,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
 
         return tool_messages
 
-    async def invoke(self) -> _T:
+    async def invoke(self):
         if self.llm_model._stream:
             raise NodeInvocationError(
                 "Streaming is not supported in ToolCallLLM nodes",
