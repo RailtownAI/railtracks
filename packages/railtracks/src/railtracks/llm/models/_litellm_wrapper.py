@@ -7,11 +7,8 @@ from typing import (
     Any,
     Callable,
     Dict,
-<<<<<<< HEAD
-=======
     Generator,
     Iterable,
->>>>>>> edf62a978f64ef03c72e57e3587302706feee57b
     List,
     Optional,
     Tuple,
