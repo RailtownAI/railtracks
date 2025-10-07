@@ -243,7 +243,7 @@ class OutputLessToolCallLLM(LLMBase[_T | Generator[_T | str, None, _T]], ABC, Ge
             raise NodeInvocationError(
                 "Streaming is not supported in ToolCallLLM nodes",
                 notes=[
-                    "See issue #___ for details.",
+                    "See issue #756 for details.",
                 ],
             )
 
