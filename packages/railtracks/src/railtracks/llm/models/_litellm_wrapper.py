@@ -370,7 +370,9 @@ class LiteLLMWrapper(ModelBase, ABC):
         start_time: float,
         output_schema: Type[BaseModel] | None = None,
     ):
-        """Consume the raw stream immediately, then return a replayable stream."""
+        """
+        Add handler to the streamed response so that we preoperly construct the response object at the end of the stream.
+        """
         tools: List[ToolCall] = []
         accumulated_content = ""
         structured_response: BaseModel | None = None
@@ -554,13 +556,6 @@ class LiteLLMWrapper(ModelBase, ABC):
         assert isinstance(content, str)
         return content or ""
 
-    def _create_replay_streamer(self, chunks):
-        """Create a generator function for replaying chunks."""
-
-        def _replay_streamer():
-            yield from chunks
-
-        return _replay_streamer()
 
     # ================ END Streaming Handlers ===============
 
