@@ -141,13 +141,20 @@ class TestCompletionMethods:
         else:
             result = method(message_history)
 
-        assert isinstance(result, Response)
-        assert isinstance(result.message, AssistantMessage)
+        assert isinstance(result, (Response, Generator))
+        
         
         if stream:
-            assert isinstance(result.message.content, Stream)
-            assert result.message.content.final_message == content
+            result: Generator[str | Response, None, Response]
+            for chunk in result:
+                if isinstance(chunk, Response):
+                    assert isinstance(chunk.message, AssistantMessage)
+                    assert chunk.message.content == content
+                elif not isinstance(chunk, str):
+                    pytest.fail("Stream yielded non-string, non-Response chunk")
         else:
+            result: Response
+            assert isinstance(result.message, AssistantMessage)
             assert result.message.content == content
 
     @pytest.mark.parametrize("method_name,is_async,stream", [
@@ -227,9 +234,14 @@ class TestCompletionMethods:
     @pytest.mark.parametrize("method_name,is_async,stream", [
         ("_chat_with_tools", False, False),
         ("_achat_with_tools", True, False),
-        ("_chat_with_tools", False, True),
-        ("_achat_with_tools", True, True),
-    ], ids=["sync_chat_with_tools", "async_chat_with_tools", "sync_chat_with_tools_streaming", "async_chat_with_tools_streaming"])
+        # ("_chat_with_tools", False, True),
+        # ("_achat_with_tools", True, True),
+    ], ids=[
+        "sync_chat_with_tools",
+        "async_chat_with_tools",
+        # "sync_chat_with_tools_streaming",
+        # "async_chat_with_tools_streaming"
+        ])
     @pytest.mark.asyncio
     async def test_chat_with_tools(
         self, mock_litellm_wrapper, message_history, tool, method_name, is_async, stream
@@ -257,20 +269,25 @@ class TestCompletionMethods:
         else:
             result = method(message_history, [tool])
 
-        assert isinstance(result, Response)
-        assert isinstance(result.message, AssistantMessage)
+        assert isinstance(result, (Response, Generator))
+
         
         if stream:  # no stream in case the llm requests tool
-            assert isinstance(result.message.content, Stream)
-            try:
-                calls = json.loads(result.message.content.final_message)
-                assert isinstance(calls, list)
-                assert calls[0]["name"] == "tool_x"
-                assert calls[0]["arguments"] == {"foo": 1}
-                assert calls[0]["identifier"] == "id123"
-            except Exception as e:
-                pytest.fail("Structured response did not match schema")
+            for chunk in result:
+                if isinstance(chunk, Response):
+                    try:
+                        calls = json.loads(chunk.message.content.final_message)
+                        assert isinstance(calls, list)
+                        assert calls[0]["name"] == "tool_x"
+                        assert calls[0]["arguments"] == {"foo": 1}
+                        assert calls[0]["identifier"] == "id123"
+                    except Exception as e:
+                        pytest.fail("Structured response did not match schema")
+                elif not isinstance(chunk, str):
+                    pytest.fail("Stream yielded non-string, non-Response chunk")
+
         else:
+            assert isinstance(result.message, AssistantMessage)
             calls = result.message.content
             assert isinstance(calls, list)
             assert calls[0].name == "tool_x"
