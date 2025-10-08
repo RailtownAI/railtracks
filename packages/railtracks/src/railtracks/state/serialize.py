@@ -144,6 +144,7 @@ def encode_message(message: Message) -> dict[str, Any]:
     """
     if isinstance(message, UserMessage) and message.attachment is not None:
         attachment = [{
+            "modality": msg_attachment.modality,
             "type": msg_attachment.type,
             "info": msg_attachment.url,
         } for msg_attachment in message.attachment]

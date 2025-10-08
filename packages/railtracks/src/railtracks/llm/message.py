@@ -4,7 +4,7 @@ from typing import Generic, Literal, TypeVar
 from pydantic import BaseModel
 
 from .content import Content, ToolResponse
-from .multimodal import encode_image, detect_source
+from .multimodal import encode, detect_source
 from .prompt_injection_utils import KeyOnlyFormatter, ValueDict
 
 _T = TypeVar("_T", bound=Content)
@@ -24,7 +24,7 @@ class Attachment:
         self.url = url
         self.file_extension = None
         self.encoding = None
-        self.type = "Unknown"
+        self.modality = "image" # we currently only support image attachments but this could be extended in the future
 
         if not isinstance(url, str):
             raise TypeError(f"The url parameter must be a string representing a file path or URL, but got {type(url)}")
@@ -42,7 +42,7 @@ class Attachment:
                     }
                 if file_extension not in mime_type_map:
                     raise ValueError(f"Unsupported attachment format: {file_extension}. Supported formats: {', '.join(mime_type_map.keys())}")
-                self.encoding = f"data:image/{mime_type_map[file_extension]};base64,{encode_image(url)}"
+                self.encoding = f"data:{self.modality}/{mime_type_map[file_extension]};base64,{encode(url)}"
                 self.type = "local"
             case "url":
                 self.url = url
