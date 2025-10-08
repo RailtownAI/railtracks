@@ -1,5 +1,6 @@
 import string
 
+
 class KeyOnlyFormatter(string.Formatter):
     """
     A simple formatter which will only use keyword arguments to fill placeholders.

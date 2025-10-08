@@ -109,6 +109,7 @@ def _to_litellm_tool(tool: Tool) -> Dict[str, Any]:
     }
     return litellm_tool
 
+
 class LiteLLMWrapper(ModelBase, ABC):
     """
     A large base class that wraps around a litellm model.
@@ -324,36 +325,37 @@ class LiteLLMWrapper(ModelBase, ABC):
         Returns the model name.
         """
         return self._model_name
-    
+
     def _to_litellm_message(self, msg: Message) -> Dict[str, Any]:
         """
         Convert your Message (UserMessage, AssistantMessage, ToolMessage) into
         the simple dict format that litellm.completion expects.
         """
-        base = {"role": msg.role}
+        base: Dict[str, Any] = {"role": msg.role}
         # handle the special case where the message is a tool so we have to link it to the tool id.
         if isinstance(msg, UserMessage) and msg.attachment is not None:
             if litellm.utils.supports_vision(self._model_name) is False:
                 raise LLMError(
                     reason=f"Model {self._model_name} does not support vision capabilities.",
                 )
-            # for image
-            
-            attachment = [{
-                "type": "image_url",
-                "image_url": {
-                    "url": msg_attachment.encoding if msg_attachment.encoding is not None else msg_attachment.url,
-                }
-            } for msg_attachment in msg.attachment]
-            
-            # for audio
-            ### Fill Later ###
 
-            base["content"] = [
-                {"type": "text", "text": msg.content},
-                *attachment,
-            ]
+            # Initiate content list with text component
+            content_list: List[Dict[str, Any]] = [{"type": "text", "text": msg.content}]
 
+            # Add image attachments
+            for msg_attachment in msg.attachment:
+                content_list.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": msg_attachment.encoding
+                            if msg_attachment.encoding is not None
+                            else msg_attachment.url,
+                        },
+                    }
+                )
+
+            base["content"] = content_list
 
         elif isinstance(msg, ToolMessage):
             base["name"] = msg.content.name
