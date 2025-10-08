@@ -22,14 +22,23 @@ class TestDetectSource:
             ("images/photo.jpg", "local"),
             ("./local/image.png", "local"),
             ("../images/photo.jpg", "local"),
+            ("~/images/photo.jpg", "local"),
         ],
     )
     def test_detect_source_types(self, path, expected):
         assert detect_source(path) == expected
 
     @patch("os.name", "nt")
-    def test_detect_windows_path(self):
+    def test_detect_windows_forward_slash(self):
         assert detect_source("C:/Users/image.png") == "local"
+
+    @patch("os.name", "nt")
+    def test_detect_windows_backslash(self):
+        assert detect_source("C:\\Users\\image.png") == "local"
+
+    @patch("os.name", "nt")
+    def test_detect_windows_unc_path(self):
+        assert detect_source("\\\\server\\share\\image.png") == "local"
 
     def test_invalid_scheme_raises_error(self):
         with pytest.raises(ValueError, match="Could not determine image source type"):
