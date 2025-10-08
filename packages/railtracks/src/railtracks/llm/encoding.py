@@ -80,23 +80,3 @@ def encode(path: str) -> str:
         raise ValueError("Failed to encode image.")
     else:
         return encoding
-
-
-def decode_image(base64_string, output_path):
-    """
-    Decodes a Base64 string back to an image file.
-
-    Args:
-        base64_string (str): The Base64 encoded string.
-        output_path (str): The path to save the decoded image file.
-    """
-    with open(output_path, "wb") as image_file:
-        image_file.write(base64.b64decode(base64_string))
-
-
-if __name__ == "__main__":
-    # Example usage
-    image_path = "https://cdn.britannica.com/39/226539-050-D21D7721/Portrait-of-a-cat-with-whiskers-visible.jpg"  # Replace with your image path
-    print(encode(image_path)[:20])
-    # image_path = "image.png"
-    print(encode("image.png")[:20])

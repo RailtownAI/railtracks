@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Generic, Literal, TypeVar
 
 from .content import Content, ToolResponse
-from .multimodal import detect_source, encode
+from .encoding import detect_source, encode
 from .prompt_injection_utils import KeyOnlyFormatter, ValueDict
 
 _T = TypeVar("_T", bound=Content)
