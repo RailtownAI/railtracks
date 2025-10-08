@@ -143,22 +143,23 @@ def encode_message(message: Message) -> dict[str, Any]:
     Encodes a Message object to a dictionary representation.
     """
     if isinstance(message, UserMessage) and message.attachment is not None:
+        attachment = [{
+            "type": msg_attachment.type,
+            "info": msg_attachment.url,
+        } for msg_attachment in message.attachment]
+
         return {
             "role": message.role.value,
             "content":[
                 {"type": "text", "text": message.content},
-                {
-                    "type": "image_url",
-                    "image_url": {
-                        "url": message.attachment.url,
-                    },
-                },
+                *attachment
             ]
         }
-    return {
-        "role": message.role.value,
-        "content": message.content,
-    }
+    else:
+        return {
+            "role": message.role.value,
+            "content": message.content,
+        }
 
 
 def encode_content(content: ToolResponse):

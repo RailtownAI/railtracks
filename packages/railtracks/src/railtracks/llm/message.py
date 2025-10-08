@@ -24,6 +24,7 @@ class Attachment:
         self.url = url
         self.file_extension = None
         self.encoding = None
+        self.type = "Unknown"
 
         if not isinstance(url, str):
             raise TypeError(f"The url parameter must be a string representing a file path or URL, but got {type(url)}")
@@ -42,12 +43,14 @@ class Attachment:
                 if file_extension not in mime_type_map:
                     raise ValueError(f"Unsupported attachment format: {file_extension}. Supported formats: {', '.join(mime_type_map.keys())}")
                 self.encoding = f"data:image/{mime_type_map[file_extension]};base64,{encode_image(url)}"
-
+                self.type = "local"
             case "url":
                 self.url = url
+                self.type = "url"
             case "data_uri":
                 self.url = "..." # if the user provides a data uri we just use it as is 
                 self.encoding = url
+                self.type = "data_uri"
 
 
 class Role(str, Enum):
@@ -150,17 +153,22 @@ class UserMessage(_StringOnlyContent):
     Note that we only support string input
 
     Args:
-        content (str): The content of the user message.
-        attachment (str): The path to the image file to be encoded and included in the message.
-                     This can be a local file path and a Base64 string will be generated.
-                     Or it can be a URL to publicly available image.
-        inject_prompt (bool, optional): Whether to inject prompt with context variables. Defaults to True.
+        content: The content of the user message.
+        attachment: The file attachment(s) for the user message. Can be a single string or a list of strings,
+                    containing file paths, URLs, or data URIs. Defaults to None.
+        inject_prompt: Whether to inject prompt with context variables. Defaults to True.
     """
 
-    def __init__(self, content: str, attachment: str | None = None, inject_prompt: bool = True):
+    def __init__(self, content: str, attachment: str | list[str] | None = None, inject_prompt: bool = True):
         super().__init__(content=content, role="user", inject_prompt=inject_prompt)
-        
-        self.attachment = Attachment(attachment) if attachment is not None else None
+
+        if attachment is not None:
+            if isinstance(attachment, list):
+                self.attachment = [Attachment(att) for att in attachment]
+            else:
+                self.attachment = [Attachment(attachment)]
+        else:
+            self.attachment = None
 
         # self.image_url = image_url
         

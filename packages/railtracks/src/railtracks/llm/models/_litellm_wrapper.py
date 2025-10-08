@@ -338,18 +338,20 @@ class LiteLLMWrapper(ModelBase, ABC):
                     reason=f"Model {self._model_name} does not support vision capabilities.",
                 )
             # for image
-            attachment = {
+            
+            attachment = [{
                 "type": "image_url",
                 "image_url": {
-                    "url": msg.attachment.encoding if msg.attachment.encoding is not None else msg.attachment.url,
+                    "url": msg_attachment.encoding if msg_attachment.encoding is not None else msg_attachment.url,
                 }
-            }
+            } for msg_attachment in msg.attachment]
+            
             # for audio
             ### Fill Later ###
 
             base["content"] = [
                 {"type": "text", "text": msg.content},
-                attachment,
+                *attachment,
             ]
 
 
