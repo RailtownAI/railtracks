@@ -24,7 +24,7 @@ from pydantic import BaseModel, ValidationError
 from ...exceptions.errors import LLMError, NodeInvocationError
 from ..content import ToolCall
 from ..history import MessageHistory
-from ..message import AssistantMessage, Message, ToolMessage
+from ..message import AssistantMessage, Message, ToolMessage, UserMessage
 from ..model import ModelBase
 from ..response import MessageInfo, Response
 from ..tools import Tool
@@ -109,37 +109,6 @@ def _to_litellm_tool(tool: Tool) -> Dict[str, Any]:
     }
     return litellm_tool
 
-
-def _to_litellm_message(msg: Message) -> Dict[str, Any]:
-    """
-    Convert your Message (UserMessage, AssistantMessage, ToolMessage) into
-    the simple dict format that litellm.completion expects.
-    """
-    base = {"role": msg.role}
-    # handle the special case where the message is a tool so we have to link it to the tool id.
-    if isinstance(msg, ToolMessage):
-        base["name"] = msg.content.name
-        base["tool_call_id"] = msg.content.identifier
-        base["content"] = msg.content.result
-    # only time this is true is tool calls, need to return litellm.utils.Message
-    elif isinstance(msg.content, list):
-        assert all(isinstance(t_c, ToolCall) for t_c in msg.content)
-        base["content"] = ""
-        base["tool_calls"] = [
-            litellm.utils.ChatCompletionMessageToolCall(
-                function=litellm.utils.Function(
-                    arguments=tool_call.arguments, name=tool_call.name
-                ),
-                id=tool_call.identifier,
-                type="function",
-            )
-            for tool_call in msg.content
-        ]
-    else:
-        base["content"] = msg.content
-    return base
-
-
 class LiteLLMWrapper(ModelBase, ABC):
     """
     A large base class that wraps around a litellm model.
@@ -174,7 +143,7 @@ class LiteLLMWrapper(ModelBase, ABC):
           3. Calls litellm.completion
         """
         start_time = time.time()
-        litellm_messages = [_to_litellm_message(m) for m in messages]
+        litellm_messages = [self._to_litellm_message(m) for m in messages]
         merged = {**self._default_kwargs, **call_kwargs}
         if response_format is not None:
             merged["response_format"] = response_format
@@ -202,7 +171,7 @@ class LiteLLMWrapper(ModelBase, ABC):
           3. Calls litellm.completion
         """
         start_time = time.time()
-        litellm_messages = [_to_litellm_message(m) for m in messages]
+        litellm_messages = [self._to_litellm_message(m) for m in messages]
         merged = {**self._default_kwargs, **call_kwargs}
         if response_format is not None:
             merged["response_format"] = response_format
@@ -355,6 +324,56 @@ class LiteLLMWrapper(ModelBase, ABC):
         Returns the model name.
         """
         return self._model_name
+    
+    def _to_litellm_message(self, msg: Message) -> Dict[str, Any]:
+        """
+        Convert your Message (UserMessage, AssistantMessage, ToolMessage) into
+        the simple dict format that litellm.completion expects.
+        """
+        base = {"role": msg.role}
+        # handle the special case where the message is a tool so we have to link it to the tool id.
+        if isinstance(msg, UserMessage) and msg.attachment is not None:
+            if litellm.utils.supports_vision(self._model_name) is False:
+                raise LLMError(
+                    reason=f"Model {self._model_name} does not support vision capabilities.",
+                )
+            # for image
+            attachment = {
+                "type": "image_url",
+                "image_url": {
+                    "url": msg.attachment.encoding if msg.attachment.encoding is not None else msg.attachment.url,
+                }
+            }
+            # for audio
+            ### Fill Later ###
+
+            base["content"] = [
+                {"type": "text", "text": msg.content},
+                attachment,
+            ]
+
+
+        elif isinstance(msg, ToolMessage):
+            base["name"] = msg.content.name
+            base["tool_call_id"] = msg.content.identifier
+            base["content"] = msg.content.result
+        # only time this is true is tool calls, need to return litellm.utils.Message
+        elif isinstance(msg.content, list):
+            assert all(isinstance(t_c, ToolCall) for t_c in msg.content)
+            base["content"] = ""
+            base["tool_calls"] = [
+                litellm.utils.ChatCompletionMessageToolCall(
+                    function=litellm.utils.Function(
+                        arguments=tool_call.arguments, name=tool_call.name
+                    ),
+                    id=tool_call.identifier,
+                    type="function",
+                )
+                for tool_call in msg.content
+            ]
+        else:
+            base["content"] = msg.content
+        return base
 
     @classmethod
     def extract_message_info(
