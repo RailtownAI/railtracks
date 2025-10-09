@@ -45,8 +45,6 @@
 
 <div align="center">
 
-### 💬 [Join Our Discord](https://discord.gg/h5ZcahDc) • 📖 [Read the Docs](https://railtownai.github.io/railtracks/) • 🌟 [Star Us on GitHub](https://github.com/RailtownAI/railtracks)
-
 </div>
 
 ---
@@ -195,9 +193,6 @@ import asyncio
 asyncio.run(main())
 ```
 
-> [!TIP]
-> The agent correctly solves the famous "strawberry problem" by using tools to count characters!
-
 </details>
 
 <details open>
@@ -297,7 +292,7 @@ rt.llm.AnthropicLLM("claude-3-5-sonnet")
 rt.llm.OllamaLLM("llama3")
 ```
 
-Works with **OpenAI**, **Anthropic**, **Google**, **Azure**, and more!
+Works with **OpenAI**, **Anthropic**, **Google**, **Azure**, and more! Check out our neatly crafted [docs](https://railtownai.github.io/railtracks/llm/).
 
 ## 🛠️ Powerful Features
 
@@ -393,17 +388,18 @@ Debug and monitor with ease:
 
 ---
 
-<div align="center">
+
 
 ## 🚀 Ready to Build?
 
 ```bash
 pip install railtracks railtracks-cli
 ```
+<div align="center">
 
 <br>
 
-### ✨ Join thousands of developers building the future with AI agents
+## ✨ Join thousands of developers building the future with AI agents
 
 <br>
 
@@ -413,12 +409,12 @@ pip install railtracks railtracks-cli
 
 <br><br>
 
-**From simple chatbots to complex multi-agent systems—Railtracks scales with your ambitions.**
+**You grow, we grow — Railtracks will expand with your ambitions.**
 
 <br>
 
 ---
 
-<sub>Made with ❤️ by the Railtracks team • Licensed under MIT • [Report Bug](https://github.com/RailtownAI/railtracks/issues) • [Request Feature](https://github.com/RailtownAI/railtracks/issues)</sub>
+<sub>Made with lots of ❤️ and ☕ by the Railtracks team • Licensed under MIT • [Report Bug](https://github.com/RailtownAI/railtracks/issues) • [Request Feature](https://github.com/RailtownAI/railtracks/issues)</sub>
 
 </div>
