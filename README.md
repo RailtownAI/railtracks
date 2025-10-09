@@ -1,5 +1,7 @@
 # <span style="color: #4967EF">R</span>ailtracks
 
+<!--Happy Coding ◊-->
+
 <p align="center">
   <img alt="Railtracks Space Banner" src="docs/assets/hero-banner.svg" width="100%">
 </p>
@@ -52,7 +54,7 @@
 ## ✨ What is Railtracks?
 
 > [!NOTE]
-> Transform how you build AI agents — While other frameworks force you into rigid workflows or complex APIs, Railtracks lets you create intelligent agents using simple Python functions and natural control flow.
+> Transform how you build AI agents: While other frameworks force you into rigid workflows or complex APIs, Railtracks lets you create intelligent agents using simple Python functions and natural control flow.
 
 ```python
 import railtracks as rt
@@ -157,7 +159,7 @@ pip install railtracks railtracks-cli
 </details>
 
 <details open>
-<summary><b>⚡ Your First Agent in 30 Seconds</b></summary>
+<summary><b>⚡ Your First Agent in 5 Min</b></summary>
 
 
 ```python
@@ -196,7 +198,7 @@ asyncio.run(main())
 </details>
 
 <details open>
-<summary><b>📊 Visualize Your Agent</b></summary>
+<summary><b>📊 Visualize Agent in 5 second</b></summary>
 
 
 ```bash
@@ -217,7 +219,7 @@ railtracks viz   # See your agent in action
 ## 💡 Real-World Examples
 
 <details open>
-<summary><b>📊 Multi-Agent Research System</b></summary>
+<summary><b>🔍 Multi-Agent Research System</b></summary>
 
 ```python
 # Research coordinator that uses specialized agents
@@ -409,12 +411,12 @@ pip install railtracks railtracks-cli
 
 <br><br>
 
-**You grow, we grow — Railtracks will expand with your ambitions.**
+**You grow, we grow - Railtracks will expand with your ambitions.**
 
 <br>
 
 ---
 
-<sub>Made with lots of ❤️ and ☕ by the Railtracks team • Licensed under MIT • [Report Bug](https://github.com/RailtownAI/railtracks/issues) • [Request Feature](https://github.com/RailtownAI/railtracks/issues)</sub>
+<sub>Made with lots of ❤️ and ☕ by the ◊Railtracks◊ team • Licensed under MIT • [Report Bug](https://github.com/RailtownAI/railtracks/issues) • [Request Feature](https://github.com/RailtownAI/railtracks/issues)</sub>
 
 </div>
