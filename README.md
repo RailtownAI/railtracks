@@ -53,7 +53,7 @@
 
 ## ✨ What is Railtracks?
 
-> **Transform how you build AI agents** — While other frameworks force you into rigid workflows or complex APIs, Railtracks lets you create intelligent agents using simple Python functions and natural control flow.
+**Transform how you build AI agents** — While other frameworks force you into rigid workflows or complex APIs, Railtracks lets you create intelligent agents using simple Python functions and natural control flow.
 
 ```python
 import railtracks as rt
@@ -76,6 +76,9 @@ print(result.text)  # "Based on the current data, it's sunny in Paris!"
 ```
 
 **That's it.** No complex configurations, no learning proprietary syntax. Just Python.
+
+> [!NOTE]
+> **Sample:** This is a red-colored tip section using GitHub's alert syntax. You can put important warnings or critical information here!
 
 ---
 
