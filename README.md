@@ -1,15 +1,12 @@
-# Railtracks
+# <span style="color: #4967EF">R</span>ailtracks
 
 <p align="center">
   <img alt="Railtracks Space Banner" src="docs/assets/hero-banner.svg" width="100%">
 </p>
 
-<!-- Tip bar -->
-<div align="center">
-  <div style="display:inline-block; padding: 10px 18px; border-radius: 999px; background: linear-gradient(90deg, #4f78ec, #6d7cff, #00C2FF); color: #ffffff; font-weight: 600;">
-    Build AI agents in minutes • Zero config • Local visualization • Pure Python
-  </div>
-</div>
+<h3 align="center">
+  Agents in minutes • Zero config • Local visualization • Pure Python
+</h3>
 
 <br>
 
@@ -46,11 +43,17 @@
   </a>
 </p>
 
+<div align="center">
+
+### 💬 [Join Our Discord](https://discord.gg/h5ZcahDc) • 📖 [Read the Docs](https://railtownai.github.io/railtracks/) • 🌟 [Star Us on GitHub](https://github.com/RailtownAI/railtracks)
+
+</div>
+
 ---
 
 ## ✨ What is Railtracks?
 
-**Railtracks** transforms how you build AI agents. While other frameworks force you into rigid workflows or complex APIs, Railtracks lets you create intelligent agents using simple Python functions and natural control flow.
+> **Transform how you build AI agents** — While other frameworks force you into rigid workflows or complex APIs, Railtracks lets you create intelligent agents using simple Python functions and natural control flow.
 
 ```python
 import railtracks as rt
@@ -80,30 +83,58 @@ print(result.text)  # "Based on the current data, it's sunny in Paris!"
 
 <table>
 <tr>
-<td width="50%">
+<td width="50%" valign="top">
 
-### 🐍 **Pure Python Experience**
-- Write agents like regular Python functions
-- No YAML, no DSLs, no magic strings
-- Use your existing debugging tools and IDE features
-
-### 🔧 **Tool-First Architecture**
-- Any Python function becomes a tool instantly
-- Seamless integration with APIs, databases, files
-- Built-in support for MCP (Model Context Protocol)
+#### 🐍 **Pure Python Experience**
+```python
+# Write agents like regular functions
+@rt.function_node
+def my_tool(text: str) -> str:
+    return process(text)
+```
+- ✅ No YAML, no DSLs, no magic strings
+- ✅ Use your existing debugging tools
+- ✅ IDE autocomplete & type checking
 
 </td>
-<td width="50%">
+<td width="50%" valign="top">
 
-### ⚡ **Automatic Intelligence**
-- Smart parallelization without async/await complexity
-- Built-in error handling and retries
-- Automatic tool discovery and validation
+#### 🔧 **Tool-First Architecture**
+```python
+# Any function becomes a tool
+agent = rt.agent_node(
+    "Assistant",
+    tool_nodes={my_tool, api_call}
+)
+```
+- ✅ Instant function-to-tool conversion
+- ✅ Seamless API/database integration
+- ✅ MCP protocol support
 
-### 👁️ **Transparent by Design**
-- Real-time visualization of agent execution
-- Complete execution history and logging
-- Debug agents like you debug regular code
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+#### ⚡ **Automatic Intelligence**
+```python
+# Smart parallelization built-in
+result = await rt.call(agent, query)
+```
+- ✅ Auto-parallelization
+- ✅ Built-in error handling & retries
+- ✅ Automatic tool validation
+
+</td>
+<td width="50%" valign="top">
+
+#### 👁️ **Transparent by Design**
+```bash
+railtracks viz  # See everything
+```
+- ✅ Real-time execution visualization
+- ✅ Complete execution history
+- ✅ Debug like regular Python code
 
 </td>
 </tr>
@@ -113,12 +144,19 @@ print(result.text)  # "Based on the current data, it's sunny in Paris!"
 
 ## 🚀 Quick Start
 
-### Installation
+<details open>
+<summary><b>📦 Installation</b></summary>
+
 ```bash
 pip install railtracks railtracks-cli
 ```
 
-### Your First Agent in 30 Seconds
+</details>
+
+<details open>
+<summary><b>⚡ Your First Agent in 30 Seconds</b></summary>
+
+<br>
 
 ```python
 import railtracks as rt
@@ -153,21 +191,36 @@ import asyncio
 asyncio.run(main())
 ```
 
-### Visualize Your Agent
+> 💡 **Pro Tip:** The agent correctly solves the famous "strawberry problem" by using tools to count characters!
+
+</details>
+
+<details open>
+<summary><b>📊 Visualize Your Agent</b></summary>
+
+<br>
+
 ```bash
 railtracks init  # Setup visualization (one-time)
 railtracks viz   # See your agent in action
 ```
 
 <p align="center">
-  <img src="docs/assets/visualizer_photo.png" alt="Railtracks Visualizer" width="80%">
+  <img src="docs/assets/visualizer_photo.png" alt="Railtracks Visualizer" width="90%">
+  <br>
+  <em>🔍 See every step of your agent's execution in real-time</em>
 </p>
+
+</details>
 
 ---
 
 ## 💡 Real-World Examples
 
-### 📊 Multi-Agent Research System
+<details open>
+<summary><b>📊 Multi-Agent Research System</b></summary>
+
+<br>
 ```python
 # Research coordinator that uses specialized agents
 researcher = rt.agent_node("Researcher", tool_nodes={web_search, summarize})
@@ -181,7 +234,12 @@ coordinator = rt.agent_node(
 )
 ```
 
-### 🔄 Complex Workflows Made Simple
+</details>
+
+<details open>
+<summary><b>🔄 Complex Workflows Made Simple</b></summary>
+
+<br>
 ```python
 # Customer service system with context sharing
 def handle_customer_request(query: str):
@@ -198,59 +256,140 @@ def handle_customer_request(query: str):
         return technical_result
 ```
 
+</details>
+
 ---
 
 ## 🌟 What Makes Railtracks Special?
 
-**Railtracks** is a lightweight agentic LLM framework for building modular, multi-LLM workflows. Unlike other frameworks like **LangGraph** and **Google ADK**, Railtracks focuses on simplicity and developer experience.
+> **A lightweight agentic LLM framework** for building modular, multi-LLM workflows with a focus on simplicity and developer experience.
+
+<div align="center">
 
 | Feature | Railtracks | LangGraph | Google ADK |
-|---------|------------|-----------|------------|
-| **Python-first, no DSL** | ✅ Yes | ❌ No | ✅ Yes |
-| **Built-in visualization** | ✅ Yes | ✅ Yes | ⚠️ Limited |
-| **Zero setup overhead** | ✅ Yes | ✅ Yes | ❌ No |
-| **LLM-agnostic** | ✅ Yes | ✅ Yes | ✅ Yes |
-| **Pure Python functions** | ✅ Yes | ❌ Complex graphs | ⚠️ Mixed |
-| **Automatic optimization** | ✅ Yes | ⚠️ Manual | ⚠️ Manual |
+|:--------|:----------:|:---------:|:----------:|
+| **🐍 Python-first, no DSL** | ✅ | ❌ | ✅ |
+| **📊 Built-in visualization** | ✅ | ✅ | ⚠️ |
+| **⚡ Zero setup overhead** | ✅ | ✅ | ❌ |
+| **🔄 LLM-agnostic** | ✅ | ✅ | ✅ |
+| **🎯 Pure Python functions** | ✅ | ❌ | ⚠️ |
+| **🚀 Automatic optimization** | ✅ | ⚠️ | ⚠️ |
+
+</div>
 
 ---
 
 ## 🛠️ Powerful Features
 
-### **🔗 Universal LLM Support**
-Works with OpenAI, Anthropic, Google, local models, and more:
+<table>
+<tr>
+<td width="33%" valign="top">
+
+### 🔗 Universal LLM Support
+
+Switch between providers effortlessly:
+
 ```python
-# Switch providers effortlessly
-openai_agent = rt.agent_node("Assistant", llm_model=rt.llm.OpenAILLM("gpt-4o"))
-claude_agent = rt.agent_node("Assistant", llm_model=rt.llm.AnthropicLLM("claude-3-5-sonnet"))
-local_agent = rt.agent_node("Assistant", llm_model=rt.llm.OllamaLLM("llama3"))
+# OpenAI
+rt.llm.OpenAILLM("gpt-4o")
+
+# Anthropic
+rt.llm.AnthropicLLM("claude-3-5-sonnet")
+
+# Local models
+rt.llm.OllamaLLM("llama3")
 ```
 
-### **📦 Rich Tool Ecosystem** 
-- **Functions**: Any Python function becomes a tool
-- **MCP Integration**: Use Model Context Protocol tools
-- **Agent Tools**: Use agents as tools in other agents
-- **Structured Outputs**: Type-safe responses with Pydantic
+Works with **OpenAI**, **Anthropic**, **Google**, **Azure**, and more!
 
-### **🔍 Built-in Observability**
-- Real-time execution graphs
-- Performance metrics
-- Error tracking and debugging
-- Local visualization (no signup required!)
+</td>
+<td width="33%" valign="top">
+
+### 📦 Rich Tool Ecosystem
+
+Build with powerful abstractions:
+
+- ✅ **Functions** → Tools automatically
+- ✅ **MCP Integration** for protocols
+- ✅ **Agents as Tools** composition
+- ✅ **Structured Outputs** with Pydantic
+- ✅ **Async/Await** support
+- ✅ **Error Handling** built-in
+
+</td>
+<td width="33%" valign="top">
+
+### 🔍 Built-in Observability
+
+Debug and monitor with ease:
+
+- ✅ Real-time execution graphs
+- ✅ Performance metrics
+- ✅ Error tracking & debugging
+- ✅ Local visualization
+- ✅ Session management
+- ✅ **No signup required!**
+
+</td>
+</tr>
+</table>
 
 ---
 
 ## 📚 Learn More
 
-| Resource | Description |
-|----------|-------------|
-| [📖 **Documentation**](https://railtownai.github.io/railtracks/) | Complete guides and API reference |
-| [🎯 **Quickstart Tutorial**](https://railtownai.github.io/railtracks/quickstart/quickstart/) | Get up and running in 5 minutes |
-| [💼 **Example Gallery**](https://github.com/RailtownAI/railtracks/tree/main/examples) | Real-world agent implementations |
-| [💬 **Discord Community**](https://discord.gg/h5ZcahDc) | Get help and share your creations |
-| [🤝 **Contributing Guide**](./CONTRIBUTING.md) | Help make Railtracks better |
+<div align="center">
+
+<table>
+<tr>
+<td align="center" width="20%">
+<a href="https://railtownai.github.io/railtracks/">
+<img src="https://img.icons8.com/fluency/96/000000/book.png" width="64" height="64" alt="Documentation"/>
+<br><b>Documentation</b>
+</a>
+<br>
+<sub>Complete guides & API reference</sub>
+</td>
+<td align="center" width="20%">
+<a href="https://railtownai.github.io/railtracks/quickstart/quickstart/">
+<img src="https://img.icons8.com/fluency/96/000000/rocket.png" width="64" height="64" alt="Quickstart"/>
+<br><b>Quickstart</b>
+</a>
+<br>
+<sub>Up and running in 5 minutes</sub>
+</td>
+<td align="center" width="20%">
+<a href="https://github.com/RailtownAI/railtracks/tree/main/examples">
+<img src="https://img.icons8.com/fluency/96/000000/code.png" width="64" height="64" alt="Examples"/>
+<br><b>Examples</b>
+</a>
+<br>
+<sub>Real-world implementations</sub>
+</td>
+<td align="center" width="20%">
+<a href="https://discord.gg/h5ZcahDc">
+<img src="https://img.icons8.com/fluency/96/000000/discord-logo.png" width="64" height="64" alt="Discord"/>
+<br><b>Discord</b>
+</a>
+<br>
+<sub>Get help & share creations</sub>
+</td>
+<td align="center" width="20%">
+<a href="./CONTRIBUTING.md">
+<img src="https://img.icons8.com/fluency/96/000000/handshake.png" width="64" height="64" alt="Contributing"/>
+<br><b>Contributing</b>
+</a>
+<br>
+<sub>Help make us better</sub>
+</td>
+</tr>
+</table>
+
+</div>
 
 ---
+
+<div align="center">
 
 ## 🚀 Ready to Build?
 
@@ -258,22 +397,24 @@ local_agent = rt.agent_node("Assistant", llm_model=rt.llm.OllamaLLM("llama3"))
 pip install railtracks railtracks-cli
 ```
 
-<div align="center">
-  <div style="display:inline-block; padding: 10px 16px; border-radius: 10px; background: rgba(79,120,236,0.08); border: 1px solid rgba(79,120,236,0.35); color: #2f3b66; font-weight: 600;">
-    ✨ Join thousands of developers building the future with AI agents
-  </div>
-</div>
+<br>
+
+### ✨ Join thousands of developers building the future with AI agents
 
 <br>
 
-<div align="center">
-  <a href="https://github.com/RailtownAI/railtracks/stargazers">
-    <img src="https://img.shields.io/badge/⭐_STAR_THIS_REPO-FFD700?style=for-the-badge&logo=github&logoColor=000" alt="Star this repo" />
-  </a>
-</div>
+<a href="https://github.com/RailtownAI/railtracks/stargazers">
+  <img src="https://img.shields.io/badge/⭐_STAR_THIS_REPO-FFD700?style=for-the-badge&logo=github&logoColor=000" alt="Star this repo" />
+</a>
+
+<br><br>
+
+**From simple chatbots to complex multi-agent systems—Railtracks scales with your ambitions.**
 
 <br>
 
-<p align="center">
-  <strong>From simple chatbots to complex multi-agent systems—Railtracks scales with your ambitions.</strong>
-</p>
+---
+
+<sub>Made with ❤️ by the Railtracks team • Licensed under MIT • [Report Bug](https://github.com/RailtownAI/railtracks/issues) • [Request Feature](https://github.com/RailtownAI/railtracks/issues)</sub>
+
+</div>
