@@ -62,7 +62,6 @@ class StructuredLLM(
         Returns:
             (StructuredlLLM.Output): The response message from the llm model
         """
-
         returned_mess = await asyncio.to_thread(
             self.llm_model.structured, self.message_hist, schema=self.output_schema()
         )

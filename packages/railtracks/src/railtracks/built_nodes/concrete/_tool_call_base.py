@@ -156,7 +156,6 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
         returned_mess = await asyncio.to_thread(
             self.llm_model.chat_with_tools, self.message_hist, tools=self.tools()
         )
-
         if returned_mess.message.role == "assistant":
             # if the returned item is a list then it is a list of tool calls
             if isinstance(returned_mess.message.content, list):
