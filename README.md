@@ -82,6 +82,8 @@ print(result.text)  # "Based on the current data, it's sunny in Paris!"
 
 ## 🎯 Why Choose Railtracks?
 
+<div align="center">
+
 <table>
 <tr>
 <td width="50%" valign="top">
@@ -140,6 +142,8 @@ railtracks viz  # See everything
 </td>
 </tr>
 </table>
+
+</div>
 
 ---
 
@@ -296,6 +300,9 @@ rt.llm.OllamaLLM("llama3")
 Works with **OpenAI**, **Anthropic**, **Google**, **Azure**, and more!
 
 ## 🛠️ Powerful Features
+
+<div align="center">
+
 <table>
 <tr>
 <td width="50%" valign="top">
@@ -328,6 +335,8 @@ Debug and monitor with ease:
 </td>
 </tr>
 </table>
+
+</div>
 
 ---
 
