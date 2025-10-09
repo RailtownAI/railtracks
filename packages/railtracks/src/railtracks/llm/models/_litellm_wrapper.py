@@ -1,4 +1,5 @@
 import json
+import re
 import time
 import warnings
 from abc import ABC
@@ -15,7 +16,6 @@ from typing import (
     TypeVar,
     Union,
 )
-import re
 
 import litellm
 from litellm.litellm_core_utils.streaming_handler import CustomStreamWrapper
@@ -163,16 +163,16 @@ class LiteLLMWrapper(ModelBase, ABC):
     def _generate_cohere_system_prompt(self, schema: Type[BaseModel]) -> str:
         """Generate an optimized system prompt for Cohere based on the schema."""
         schema_info = schema.schema()
-        
+
         # Build field descriptions
         field_descriptions = []
         for field_name, field_info in schema_info["properties"].items():
             field_type = field_info.get("type", "unknown")
             description = field_info.get("description", "")
             field_descriptions.append(f"- {field_name} ({field_type}): {description}")
-        
+
         fields_text = "\n".join(field_descriptions)
-        
+
         prompt = f"""
         You are a structured data API. You MUST respond with ONLY valid JSON that matches this exact schema:
         
@@ -216,13 +216,13 @@ class LiteLLMWrapper(ModelBase, ABC):
         2. **247** 
         3. **290**
         """
-        
+
         return prompt
 
     def _get_example_value(self, field_info: Dict) -> Any:
         """Generate example values for the schema."""
         field_type = field_info.get("type")
-        
+
         if field_type == "string":
             return "example_string"
         elif field_type == "integer":
@@ -263,12 +263,11 @@ class LiteLLMWrapper(ModelBase, ABC):
 
         if response_format is not None and "cohere" in self._model_name.lower():
             # Add schema hint to the prompt (Cohere needs instruction to return JSON)
-            if isinstance(response_format, type) and issubclass(response_format, BaseModel):
+            if isinstance(response_format, type) and issubclass(
+                response_format, BaseModel
+            ):
                 system_prompt = self._generate_cohere_system_prompt(response_format)
-                litellm_messages.insert(0, {
-                    "role": "system",
-                    "content": system_prompt
-                })
+                litellm_messages.insert(0, {"role": "system", "content": system_prompt})
             merged["drop_params"] = True
         else:
             # For OpenAI etc.
@@ -283,7 +282,9 @@ class LiteLLMWrapper(ModelBase, ABC):
             content = completion.choices[0].message.content
             try:
                 # If schema is a Pydantic model
-                if isinstance(response_format, type) and hasattr(response_format, "__fields__"):
+                if isinstance(response_format, type) and hasattr(
+                    response_format, "__fields__"
+                ):
                     extracted_content = self.extract_json(content)
                     parsed = response_format(**json.loads(extracted_content))
                     completion.choices[0].message.content = json.dumps(parsed.dict())
@@ -360,13 +361,15 @@ class LiteLLMWrapper(ModelBase, ABC):
                 try:
                     cleaned_text = self._clean_text_response(content_str)
                     parsed = schema(**json.loads(cleaned_text))
-                except:
-                    raise ValueError(f"Could not extract structured data: {content_str}")
+                except Exception as e:
+                    raise ValueError(
+                        f"Could not extract structured data: {content_str}, {e}"
+                    )
         else:
             # For OpenAI and others, we assume response_format handled it
             try:
                 parsed = schema(**json.loads(content_str))
-            except Exception as e:
+            except Exception:
                 raise ValueError(f"Could not parse structured data: {content_str}")
 
         return Response(message=AssistantMessage(content=parsed), message_info=info)
@@ -443,7 +446,7 @@ class LiteLLMWrapper(ModelBase, ABC):
             calls.append(
                 ToolCall(identifier=tc.id, name=tc.function.name, arguments=args)
             )
-        
+
         return Response(message=AssistantMessage(content=calls), message_info=info)
 
     def _chat_with_tools(
@@ -523,104 +526,107 @@ class LiteLLMWrapper(ModelBase, ABC):
             system_fingerprint=system_fingerprint,
         )
 
-
-    def extract_structured_response(self, text: str, schema: Type[BaseModel]) -> Dict[str, Any]:
+    def extract_structured_response(
+        self, text: str, schema: Type[BaseModel]
+    ) -> Dict[str, Any]:
         """
         Extract structured data from Cohere's text response for any schema.
-        
+
         Args:
             text: Raw text response from Cohere
             schema: Pydantic model class defining the expected structure
-            
+
         Returns:
             Dictionary with extracted data matching the schema
         """
 
         # Clean the text response
         cleaned_text = self._clean_text_response(text)
-        
+
         # Try to extract JSON first
         json_data = self._extract_json(cleaned_text)
         if json_data and self._validate_against_schema(json_data, schema):
             print("Successfully extracted JSON matching schema")
             return json_data
-        
+
         # Text-based extraction for the schema
         extracted_data = self._extract_from_text_by_schema(cleaned_text, schema)
         if extracted_data and self._validate_against_schema(extracted_data, schema):
             print("Successfully extracted data from text")
             return extracted_data
-        
-         # Strategy 3: Fallback - use original text with enhanced parsing
+
+        # Strategy 3: Fallback - use original text with enhanced parsing
         enhanced_data = self._enhanced_text_parsing(text, schema)
         if enhanced_data:
             print("Successfully parsed with enhanced parsing")
             return enhanced_data
-        
+
         # Fallback - use LLM to fix the response (advanced)
         fixed_data = self._fix_response_with_llm(text, schema)
         if fixed_data:
             print("Successfully fixed response with LLM")
             return fixed_data
-            
-        raise ValueError(f"Could not extract structured data from response: {text}")
-    
-    #======================================================
 
-    def _enhanced_text_parsing(self, text: str, schema: Type[BaseModel]) -> Optional[Dict[str, Any]]:
+        raise ValueError(f"Could not extract structured data from response: {text}")
+
+    # ======================================================
+
+    def _enhanced_text_parsing(
+        self, text: str, schema: Type[BaseModel]
+    ) -> Optional[Dict[str, Any]]:
         """
         Enhanced parsing that handles markdown-formatted responses specifically.
         """
         schema_info = schema.schema()
         properties = schema_info["properties"]
         extracted_data = {}
-        
+
         for field_name, field_info in properties.items():
             field_type = field_info.get("type")
-            
+
             if field_type == "array":
                 # Enhanced array extraction that handles markdown lists
                 items = self._extract_array_enhanced(text, field_info)
                 extracted_data[field_name] = items
-                
+
             elif field_type in ["integer", "number"]:
                 # Enhanced number extraction that ignores markdown
                 numbers = self._extract_numbers_ignoring_markdown(text)
                 if numbers:
                     extracted_data[field_name] = numbers[0]  # Take first number
-                
+
             elif field_type == "string":
                 # Enhanced string extraction
                 value = self._extract_string_ignoring_markdown(text, field_name)
                 extracted_data[field_name] = value
-        
+
         return extracted_data if extracted_data else None
 
     def _extract_array_enhanced(self, text: str, field_info: Dict) -> List:
         """Enhanced array extraction that handles markdown lists."""
         items_info = field_info.get("items", {})
         item_type = items_info.get("type")
-        
+
         # Extract all potential items using multiple patterns
         all_items = []
-        
+
         # Pattern 1: Numbered lists with markdown (1. **value**)
-        numbered_markdown = re.findall(r'(?:\d+[\.\)]\s*)\*?\*?([^*\n]+)\*?\*?', text)
+        numbered_markdown = re.findall(r"(?:\d+[\.\)]\s*)\*?\*?([^*\n]+)\*?\*?", text)
         all_items.extend([item.strip() for item in numbered_markdown])
-        
+
         # Pattern 2: Bullet points with markdown (- **value**)
-        bullet_markdown = re.findall(r'(?:[-•*]\s*)\*?\*?([^*\n]+)\*?\*?', text)
+        bullet_markdown = re.findall(r"(?:[-•*]\s*)\*?\*?([^*\n]+)\*?\*?", text)
         all_items.extend([item.strip() for item in bullet_markdown])
-        
+
         # Pattern 3: Items in quotes or other formatting
         quoted_items = re.findall(r'["\']([^"\']+)["\']', text)
         all_items.extend(quoted_items)
-        
+
         # Pattern 4: Plain numbers (for numeric arrays)
         if item_type in ["integer", "number"]:
-            numbers = re.findall(r'\b\d+\b', text)
+            numbers = re.findall(r"\b\d+\b", text)
             all_items.extend(numbers)
-        
+
         # Convert to appropriate types
         if item_type == "integer":
             return [int(item) for item in all_items if item.strip().isdigit()]
@@ -633,19 +639,19 @@ class LiteLLMWrapper(ModelBase, ABC):
         """Extract numbers while ignoring markdown formatting."""
         # Remove markdown first, then extract numbers
         clean_text = self._remove_markdown_formatting(text)
-        numbers = re.findall(r'\b\d+\b', clean_text)
+        numbers = re.findall(r"\b\d+\b", clean_text)
         return [int(num) for num in numbers]
 
     def _extract_string_ignoring_markdown(self, text: str, field_name: str) -> str:
         """Extract strings while ignoring markdown formatting."""
         clean_text = self._remove_markdown_formatting(text)
-        
+
         # Look for field name followed by value
         pattern = rf"{field_name}[\s:]+([^\n\.]+)"
         match = re.search(pattern, clean_text, re.IGNORECASE)
         if match:
             return match.group(1).strip()
-        
+
         return ""
 
     def _is_numeric(self, text: str) -> bool:
@@ -655,9 +661,8 @@ class LiteLLMWrapper(ModelBase, ABC):
             return True
         except ValueError:
             return False
-    
-    #======================================================
 
+    # ======================================================
 
     def _extract_json(self, text: str) -> Optional[Dict[str, Any]]:
         """Extract JSON from text using multiple strategies."""
@@ -666,15 +671,15 @@ class LiteLLMWrapper(ModelBase, ABC):
             return json.loads(text.strip())
         except json.JSONDecodeError:
             pass
-        
+
         # Extract JSON object/array using regex
         json_patterns = [
-            r'\{[^{}]*\{[^{}]*\}[^{}]*\}',  # Nested objects
-            r'\{[^{}]*\[[^]]*\][^{}]*\}',   # Objects with arrays
-            r'\{.*\}',                      # Simple objects
-            r'\[.*\]',                      # Arrays
+            r"\{[^{}]*\{[^{}]*\}[^{}]*\}",  # Nested objects
+            r"\{[^{}]*\[[^]]*\][^{}]*\}",  # Objects with arrays
+            r"\{.*\}",  # Simple objects
+            r"\[.*\]",  # Arrays
         ]
-        
+
         for pattern in json_patterns:
             matches = re.findall(pattern, text, re.DOTALL)
             for match in matches:
@@ -682,139 +687,172 @@ class LiteLLMWrapper(ModelBase, ABC):
                     return json.loads(match)
                 except json.JSONDecodeError:
                     continue
-        
+
         return None
-    
-    def _extract_from_text_by_schema(self, text: str, schema: Type[BaseModel]) -> Dict[str, Any]:
+
+    def _extract_from_text_by_schema(
+        self, text: str, schema: Type[BaseModel]
+    ) -> Dict[str, Any]:
         """
         Extract data from text based on schema field types and names.
         """
         schema_info = schema.schema()
         properties = schema_info["properties"]
         extracted_data = {}
-        
+
         for field_name, field_info in properties.items():
             field_type = field_info.get("type")
-            field_description = field_info.get("description", "")
-            
+
             print(f"Extracting field: {field_name} (type: {field_type})")
-            
+
             # Extract based on field type
             if field_type == "array":
-                extracted_data[field_name] = self._extract_array_field(text, field_name, field_info)
+                extracted_data[field_name] = self._extract_array_field(
+                    text, field_name, field_info
+                )
             elif field_type == "string":
-                extracted_data[field_name] = self._extract_string_field(text, field_name, field_info)
+                extracted_data[field_name] = self._extract_string_field(
+                    text, field_name, field_info
+                )
             elif field_type in ["integer", "number"]:
-                extracted_data[field_name] = self._extract_numeric_field(text, field_name, field_info)
+                extracted_data[field_name] = self._extract_numeric_field(
+                    text, field_name, field_info
+                )
             elif field_type == "boolean":
-                extracted_data[field_name] = self._extract_boolean_field(text, field_name, field_info)
+                extracted_data[field_name] = self._extract_boolean_field(
+                    text, field_name, field_info
+                )
             elif field_type == "object":
-                extracted_data[field_name] = self._extract_object_field(text, field_name, field_info)
+                extracted_data[field_name] = self._extract_object_field(
+                    text, field_name, field_info
+                )
             else:
                 # Try generic extraction
-                extracted_data[field_name] = self._extract_generic_field(text, field_name, field_info)
-        
+                extracted_data[field_name] = self._extract_generic_field(
+                    text, field_name, field_info
+                )
+
         return extracted_data
-    
-    def _extract_array_field(self, text: str, field_name: str, field_info: Dict) -> List:
+
+    def _extract_array_field(
+        self, text: str, field_name: str, field_info: Dict
+    ) -> List:
         """Extract array fields based on context."""
         items_info = field_info.get("items", {})
-        
+
         # Look for numbered lists
-        numbered_items = re.findall(r'(?:\d+\.\s*)([^\n\.]+)', text)
+        numbered_items = re.findall(r"(?:\d+\.\s*)([^\n\.]+)", text)
         if numbered_items:
             return [item.strip() for item in numbered_items]
-        
+
         # Look for bullet points
-        bullet_items = re.findall(r'(?:[-•*]\s*)([^\n]+)', text)
+        bullet_items = re.findall(r"(?:[-•*]\s*)([^\n]+)", text)
         if bullet_items:
             return [item.strip() for item in bullet_items]
-        
+
         # Look for items in brackets
-        bracket_items = re.findall(r'\[([^]]+)\]', text)
+        bracket_items = re.findall(r"\[([^]]+)\]", text)
         if bracket_items:
-            items = [item.strip() for item in bracket_items[0].split(',')]
+            items = [item.strip() for item in bracket_items[0].split(",")]
             return items
-        
+
         # Extract based on item type
         if items_info.get("type") == "integer":
-            numbers = re.findall(r'\b\d+\b', text)
+            numbers = re.findall(r"\b\d+\b", text)
             return [int(n) for n in numbers[:10]]  # Limit to first 10
         elif items_info.get("type") == "number":
             # Match floats and integers (e.g., 3, 3.14, .5, 0.001)
-            floats = re.findall(r'\b\d+\.\d+|\b\d+\b', text)
+            floats = re.findall(r"\b\d+\.\d+|\b\d+\b", text)
             return [float(n) for n in floats[:10]]
-        
+
         return []
-    
-    def _extract_string_field(self, text: str, field_name: str, field_info: Dict) -> str:
+
+    def _extract_string_field(
+        self, text: str, field_name: str, field_info: Dict
+    ) -> str:
         """Extract string fields based on context."""
         # Look for field name followed by value
         pattern = rf"{field_name}[\s:]+([^\n\.]+)"
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
             return match.group(1).strip()
-        
+
         # For names, look for capitalized words
         if "name" in field_name.lower():
-            name_pattern = r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)'
+            name_pattern = r"([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)"
             names = re.findall(name_pattern, text)
             if names:
                 return names[0]
-        
+
         return ""
-    
-    def _extract_numeric_field(self, text: str, field_name: str, field_info: Dict) -> Optional[float]:
+
+    def _extract_numeric_field(
+        self, text: str, field_name: str, field_info: Dict
+    ) -> Optional[float]:
         """Extract numeric fields."""
         # Look for field name followed by number
         pattern = rf"{field_name}[\s:]+(\d+)"
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
             return float(match.group(1))
-        
+
         # Extract all numbers and take the most relevant one
-        numbers = re.findall(r'\b\d+\b', text)
+        numbers = re.findall(r"\b\d+\b", text)
         if numbers:
             return float(numbers[0])
-        
+
         return None
-    
-    def _extract_boolean_field(self, text: str, field_name: str, field_info: Dict) -> bool:
+
+    def _extract_boolean_field(
+        self, text: str, field_name: str, field_info: Dict
+    ) -> bool:
         """Extract boolean fields."""
         # Look for yes/no, true/false patterns
-        true_patterns = [r'\byes\b', r'\btrue\b', r'\bcorrect\b', r'\baccurate\b', r'\bright\b']
-        false_patterns = [r'\bno\b', r'\bfalse\b', r'\bincorrect\b', r'\bwrong\b']
-        
+        true_patterns = [
+            r"\byes\b",
+            r"\btrue\b",
+            r"\bcorrect\b",
+            r"\baccurate\b",
+            r"\bright\b",
+        ]
+        false_patterns = [r"\bno\b", r"\bfalse\b", r"\bincorrect\b", r"\bwrong\b"]
+
         for pattern in true_patterns:
             if re.search(pattern, text, re.IGNORECASE):
                 return True
-        
+
         for pattern in false_patterns:
             if re.search(pattern, text, re.IGNORECASE):
                 return False
-        
+
         return False
-    
-    def _extract_object_field(self, text: str, field_name: str, field_info: Dict) -> Dict:
+
+    def _extract_object_field(
+        self, text: str, field_name: str, field_info: Dict
+    ) -> Dict:
         """Extract nested object fields."""
         # Look for JSON-like structures for the object
         json_data = self._extract_json(text)
         if json_data and field_name in json_data:
             return json_data[field_name]
-        
+
         return {}
-    
-    def _extract_generic_field(self, text: str, field_name: str, field_info: Dict) -> Any:
+
+    def _extract_generic_field(
+        self, text: str, field_name: str, field_info: Dict
+    ) -> Any:
         """Generic field extraction as fallback."""
         # Try to find the field name followed by some value
         pattern = rf"{field_name}[\s:]+([^\n\.]+)"
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
             return match.group(1).strip()
-        
+
         return None
-    
-    def _validate_against_schema(self, data: Dict[str, Any], schema: Type[BaseModel]) -> bool:
+
+    def _validate_against_schema(
+        self, data: Dict[str, Any], schema: Type[BaseModel]
+    ) -> bool:
         """Validate extracted data against schema."""
         try:
             # Try to create an instance of the schema
@@ -823,14 +861,16 @@ class LiteLLMWrapper(ModelBase, ABC):
         except Exception as e:
             print(f"Validation failed: {e}")
             return False
-    
-    def _fix_response_with_llm(self, text: str, schema: Type[BaseModel]) -> Optional[Dict[str, Any]]:
+
+    def _fix_response_with_llm(
+        self, text: str, schema: Type[BaseModel]
+    ) -> Optional[Dict[str, Any]]:
         """
         Use the LLM itself to fix malformed responses (advanced fallback).
         """
         try:
             schema_json = schema.schema_json(indent=2)
-            
+
             fix_prompt = f"""
             The following text was supposed to be a response matching this JSON schema:
             {schema_json}
@@ -841,56 +881,56 @@ class LiteLLMWrapper(ModelBase, ABC):
             Please extract the relevant information and return ONLY valid JSON that matches the schema exactly.
             Do not include any explanations or additional text.
             """
-            
+
             # Use a quick LLM call to fix the response
             fixed_response = litellm.completion(
                 model=self._model_name,
                 messages=[{"role": "user", "content": fix_prompt}],
                 max_tokens=500,
-                temperature=0.1
+                temperature=0.1,
             )
-            
+
             fixed_content = fixed_response.choices[0].message.content
             return json.loads(fixed_content)
-            
+
         except Exception as e:
             print(f"LLM fixing failed: {e}")
-            return None 
-        
+            return None
+
     def _clean_text_response(self, text: str) -> str:
         """
         Remove markdown formatting and clean text for better parsing.
-        
+
         Handles:
         - **bold** text → removes asterisks
-        - *italic* text → removes asterisks  
+        - *italic* text → removes asterisks
         - Numbered lists (1. 2. 3.) → extracts values
         - Bullet points (-, •, *) → extracts values
         - Markdown code blocks (```json ```) → extracts content
         - Extra whitespace and newlines
         """
-        
+
         # Remove markdown code blocks and extract content
         text = self._remove_markdown_code_blocks(text)
-        
+
         # Remove bold and italic formatting (**text** -> text)
         text = self._remove_markdown_formatting(text)
-        
+
         # Extract content from numbered lists
         text = self._extract_from_numbered_lists(text)
-        
-        # Extract content from bullet points  
+
+        # Extract content from bullet points
         text = self._extract_from_bullet_points(text)
-        
+
         # Clean whitespace
         text = self._clean_whitespace(text)
-        
+
         return text
 
     def _remove_markdown_code_blocks(self, text: str) -> str:
         """Remove markdown code blocks and extract content."""
         # Remove ```json ... ``` blocks and extract content
-        code_block_pattern = r'```(?:json)?\s*(.*?)\s*```'
+        code_block_pattern = r"```(?:json)?\s*(.*?)\s*```"
         matches = re.findall(code_block_pattern, text, re.DOTALL)
         if matches:
             # If we found code blocks, use the first one's content
@@ -900,49 +940,53 @@ class LiteLLMWrapper(ModelBase, ABC):
     def _remove_markdown_formatting(self, text: str) -> str:
         """Remove bold (**) and italic (*) markdown formatting."""
         # Remove **bold** but keep the text
-        text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
-        
-        # Remove *italic* but keep the text  
-        text = re.sub(r'\*(.*?)\*', r'\1', text)
-        
+        text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
+
+        # Remove *italic* but keep the text
+        text = re.sub(r"\*(.*?)\*", r"\1", text)
+
         # Remove other common markdown
-        text = re.sub(r'__([^_]+)__', r'\1', text)  # __underline__
-        text = re.sub(r'~~([^~]+)~~', r'\1', text)  # ~~strikethrough~~
-        
+        text = re.sub(r"__([^_]+)__", r"\1", text)  # __underline__
+        text = re.sub(r"~~([^~]+)~~", r"\1", text)  # ~~strikethrough~~
+
         return text
 
     def _extract_from_numbered_lists(self, text: str) -> str:
         """Extract values from numbered lists and format as array."""
         # Find numbered list patterns: "1. value", "2) value", etc.
-        numbered_pattern = r'(?:\d+[\.\)]\s*)([^\n]+)'
+        numbered_pattern = r"(?:\d+[\.\)]\s*)([^\n]+)"
         matches = re.findall(numbered_pattern, text)
-        
+
         if matches:
             # If we find a numbered list, create a JSON array
-            cleaned_items = [self._clean_text_response(item.strip()) for item in matches]
+            cleaned_items = [
+                self._clean_text_response(item.strip()) for item in matches
+            ]
             return json.dumps(cleaned_items)
-        
+
         return text
 
     def _extract_from_bullet_points(self, text: str) -> str:
         """Extract values from bullet points and format as array."""
         # Find bullet points: "- item", "• item", "* item"
-        bullet_pattern = r'(?:[-•*]\s*)([^\n]+)'
+        bullet_pattern = r"(?:[-•*]\s*)([^\n]+)"
         matches = re.findall(bullet_pattern, text)
-        
+
         if matches:
             # If we find bullet points, create a JSON array
-            cleaned_items = [self._clean_text_response(item.strip()) for item in matches]
+            cleaned_items = [
+                self._clean_text_response(item.strip()) for item in matches
+            ]
             return json.dumps(cleaned_items)
-        
+
         return text
 
     def _clean_whitespace(self, text: str) -> str:
         """Clean up excessive whitespace."""
         # Replace multiple newlines with single space
-        text = re.sub(r'\n+', ' ', text)
+        text = re.sub(r"\n+", " ", text)
         # Replace multiple spaces with single space
-        text = re.sub(r'\s+', ' ', text)
+        text = re.sub(r"\s+", " ", text)
         return text.strip()
 
 

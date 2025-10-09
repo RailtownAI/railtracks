@@ -77,11 +77,11 @@ class StructuredToolCallLLM(
         await self._handle_tool_calls()
 
         try:
-            print('===========BEFORE AWAIT CALL==========================')
+            print("===========BEFORE AWAIT CALL==========================")
             print(self.structured_resp_node)
             print(self.message_hist)
             print(self.llm_model)
-            print('=====================================')
+            print("=====================================")
             response = await call(
                 self.structured_resp_node,
                 user_input=MessageHistory(
@@ -90,9 +90,9 @@ class StructuredToolCallLLM(
                 llm=self.llm_model,
             )
 
-            print('===========RESULT FROM AWAIT CALL==========================')
+            print("===========RESULT FROM AWAIT CALL==========================")
             print(response)
-            print('=====================================')
+            print("=====================================")
 
             structured_output = response.structured
         except Exception as e:
