@@ -262,50 +262,28 @@ class LiteLLMWrapper(ModelBase, ABC):
         )  # Supress pydantic warnings. See issue #204 for more deatils.
 
         if response_format is not None and "cohere" in self._model_name.lower():
-            print('===========COHERE RESPONSE FORMAT==========================')
-            print(f'response_format {response_format}')
-            print('=====================================')
             # Add schema hint to the prompt (Cohere needs instruction to return JSON)
             if isinstance(response_format, type) and issubclass(response_format, BaseModel):
                 system_prompt = self._generate_cohere_system_prompt(response_format)
-                print('===========COHERE RESPONSE FORMAT==========================')
-                print(f'system_prompt {system_prompt}')
-                print('=====================================')
                 litellm_messages.insert(0, {
                     "role": "system",
                     "content": system_prompt
                 })
+            merged["drop_params"] = True
         else:
             # For OpenAI etc.
             merged["response_format"] = response_format
 
-
-        if self.model_type != "OpenAI":
-            # Temporary workaround for issue where litellm is looking for response_format in cohere model which is only supported in openai models.
-            merged["drop_params"] = True
-        print('===========BEFORE LITELLM.COMPLETION==========================')
-        print(f'model={self._model_name}, messages={litellm_messages}, stream={stream}, merged={merged}')
-        print('=====================================')
         completion = litellm.completion(
             model=self._model_name, messages=litellm_messages, stream=stream, **merged
         )
-        print('===========AFTER LITELLM.COMPLETION==========================')
-        print(f'completion {completion}')
-        print(completion.choices[0].message)
-        print('=====================================')
 
-
-        # 🧩 Handle custom response_format for non-OpenAI models
+        # Handle custom response_format for non-OpenAI models
         if response_format is not None and "cohere" in self._model_name.lower():
             content = completion.choices[0].message.content
             try:
                 # If schema is a Pydantic model
                 if isinstance(response_format, type) and hasattr(response_format, "__fields__"):
-                    import json
-                    print('===========BEFORE PARSING CONTENT WHEN PYDANTIC MODEL==========================')
-                    print(f'content {content}')
-                    print('=====================================')
-                    # parsed = response_format(**json.loads(content))
                     extracted_content = self.extract_json(content)
                     parsed = response_format(**json.loads(extracted_content))
                     completion.choices[0].message.content = json.dumps(parsed.dict())
@@ -318,20 +296,7 @@ class LiteLLMWrapper(ModelBase, ABC):
                 print(f"[WARN] Failed to apply response_format for Cohere: {e}")
 
         content = completion.choices[0].message.content
-        print('===========CONTENT==========================')
-        print(content)
-        print("============================================")        # Parse the response
-        # import re
-        # numbers = None
-        # if content is not None:
-        #     numbers = re.findall(r'\b(\d{3})\b', content)
-        # print('===========NUMBERS==========================')
-        # print(numbers)
-        # print('=====================================')
         mess_info = self.extract_message_info(completion, time.time() - start_time)
-        print('===========MESS INFO==========================')
-        print(mess_info)
-        print('=====================================')
         return completion, mess_info
 
     async def _ainvoke(
@@ -348,9 +313,6 @@ class LiteLLMWrapper(ModelBase, ABC):
           2. Merges default kwargs
           3. Calls litellm.completion
         """
-        print('===========IN AINVOKE==========================')
-        print('===========IN AINVOKE==========================')
-        print('===========IN AINVOKE==========================')
         start_time = time.time()
         litellm_messages = [_to_litellm_message(m) for m in messages]
         merged = {**self._default_kwargs, **call_kwargs}
@@ -385,23 +347,12 @@ class LiteLLMWrapper(ModelBase, ABC):
         info: MessageInfo,
         schema: Type[BaseModel],
     ) -> Response:
-        print('===========IN STRUCTURED HANDLE BASE==========================')
-        print(raw)
-        print(info)
-        print(schema)
-        print('=====================================')
         content_str = raw["choices"][0]["message"]["content"]
-        print('===========CONTENT STR==========================')
-        print(content_str)
-        print('=====================================')
 
         if "cohere" in self._model_name.lower():
             try:
                 # Use our generic extraction system
                 extracted_data = self.extract_structured_response(content_str, schema)
-                print('===========EXTRACTED DATA==========================')
-                print(extracted_data)
-                print('=====================================')
                 parsed = schema(**extracted_data)
             except Exception as e:
                 print(f"Structured extraction failed: {e}")
@@ -418,26 +369,13 @@ class LiteLLMWrapper(ModelBase, ABC):
             except Exception as e:
                 raise ValueError(f"Could not parse structured data: {content_str}")
 
-        # parsed = schema(**json.loads('{"numbers": [12, 34, 56]}'))
-        # parsed = str(content_str)
-        print('===========PARSED==========================')
-        print(parsed)
-        print('=====================================')
         return Response(message=AssistantMessage(content=parsed), message_info=info)
 
     def _structured(
         self, messages: MessageHistory, schema: Type[BaseModel], **kwargs
     ) -> Response:
         try:
-            print('===========IN STRUCTURED==========================')
-            print(f'messages {messages}')
-            print(f'schema {schema}')
-            print(f'kwargs {kwargs}')
-            print('=====================================')
             model_resp, info = self._invoke(messages, response_format=schema, **kwargs)
-            print('===========AFTER INVOKE==========================')
-            print(f'model_resp {model_resp}')
-            print(f'info {info}')
             return self._structured_handle_base(model_resp, info, schema)
         except ValidationError as ve:
             raise ve
@@ -506,11 +444,6 @@ class LiteLLMWrapper(ModelBase, ABC):
                 ToolCall(identifier=tc.id, name=tc.function.name, arguments=args)
             )
         
-        
-        print('=====================================')
-        print(calls)
-        print('=====================================')
-
         return Response(message=AssistantMessage(content=calls), message_info=info)
 
     def _chat_with_tools(
@@ -602,13 +535,9 @@ class LiteLLMWrapper(ModelBase, ABC):
         Returns:
             Dictionary with extracted data matching the schema
         """
-        print('===========EXTRACTING STRUCTURED RESPONSE==========================')
-        print(f"Input text: {text}")
-        print(f"Target schema: {schema.__name__}")
 
         # Clean the text response
         cleaned_text = self._clean_text_response(text)
-        print(f"Cleaned text: {cleaned_text}")
         
         # Try to extract JSON first
         json_data = self._extract_json(cleaned_text)
@@ -940,8 +869,6 @@ class LiteLLMWrapper(ModelBase, ABC):
         - Markdown code blocks (```json ```) → extracts content
         - Extra whitespace and newlines
         """
-        print('===========CLEANING TEXT RESPONSE==========================')
-        print(f"Original text: {repr(text)}")
         
         # Remove markdown code blocks and extract content
         text = self._remove_markdown_code_blocks(text)
@@ -958,8 +885,6 @@ class LiteLLMWrapper(ModelBase, ABC):
         # Clean whitespace
         text = self._clean_whitespace(text)
         
-        print(f"Cleaned text: {repr(text)}")
-        print('=====================================')
         return text
 
     def _remove_markdown_code_blocks(self, text: str) -> str:

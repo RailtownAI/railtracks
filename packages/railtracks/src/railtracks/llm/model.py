@@ -139,7 +139,6 @@ class ModelBase(ABC):
         messages = self._run_pre_hooks(messages)
 
         try:
-            print('===========BEFORE CALLING _STRUCTURED==========================')
             response = self._structured(messages, schema, **kwargs)
         except Exception as e:
             self._run_exception_hooks(messages, e)
@@ -199,17 +198,12 @@ class ModelBase(ABC):
 
         try:
             response = self._chat_with_tools(messages, tools, **kwargs)
-            print('=====================================')
             print(response)
-            print('=====================================')
         except Exception as e:
             self._run_exception_hooks(messages, e)
             raise e
 
         response = self._run_post_hooks(messages, response)
-        print('=====================================')
-        print(response)
-        print('=====================================')
         return response
 
     async def achat_with_tools(
