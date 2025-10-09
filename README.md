@@ -77,9 +77,6 @@ print(result.text)  # "Based on the current data, it's sunny in Paris!"
 
 **That's it.** No complex configurations, no learning proprietary syntax. Just Python.
 
-> [!NOTE]
-> **Sample:** This is a red-colored tip section using GitHub's alert syntax. You can put important warnings or critical information here!
-
 ---
 
 ## 🎯 Why Choose Railtracks?
@@ -194,7 +191,8 @@ import asyncio
 asyncio.run(main())
 ```
 
-> 💡 **Pro Tip:** The agent correctly solves the famous "strawberry problem" by using tools to count characters!
+> [!TIP]
+> **Pro Tip:** The agent correctly solves the famous "strawberry problem" by using tools to count characters!
 
 </details>
 
@@ -265,6 +263,7 @@ def handle_customer_request(query: str):
 
 ## 🌟 What Makes Railtracks Special?
 
+> [!IMPORTANT]
 > **A lightweight agentic LLM framework** for building modular, multi-LLM workflows with a focus on simplicity and developer experience.
 
 <div align="center">
