@@ -157,7 +157,6 @@ pip install railtracks railtracks-cli
 <details open>
 <summary><b>⚡ Your First Agent in 30 Seconds</b></summary>
 
-<br>
 
 ```python
 import railtracks as rt
@@ -200,7 +199,6 @@ asyncio.run(main())
 <details open>
 <summary><b>📊 Visualize Your Agent</b></summary>
 
-<br>
 
 ```bash
 railtracks init  # Setup visualization (one-time)
@@ -222,7 +220,6 @@ railtracks viz   # See your agent in action
 <details open>
 <summary><b>📊 Multi-Agent Research System</b></summary>
 
-<br>
 ```python
 # Research coordinator that uses specialized agents
 researcher = rt.agent_node("Researcher", tool_nodes={web_search, summarize})
@@ -241,7 +238,6 @@ coordinator = rt.agent_node(
 <details open>
 <summary><b>🔄 Complex Workflows Made Simple</b></summary>
 
-<br>
 ```python
 # Customer service system with context sharing
 def handle_customer_request(query: str):
@@ -282,13 +278,7 @@ def handle_customer_request(query: str):
 
 ---
 
-## 🛠️ Powerful Features
-
-<table>
-<tr>
-<td width="33%" valign="top">
-
-### 🔗 Universal LLM Support
+## 🔗 Universal LLM Support
 
 Switch between providers effortlessly:
 
@@ -305,8 +295,10 @@ rt.llm.OllamaLLM("llama3")
 
 Works with **OpenAI**, **Anthropic**, **Google**, **Azure**, and more!
 
-</td>
-<td width="33%" valign="top">
+## 🛠️ Powerful Features
+<table>
+<tr>
+<td width="50%" valign="top">
 
 ### 📦 Rich Tool Ecosystem
 
@@ -320,7 +312,7 @@ Build with powerful abstractions:
 - ✅ **Error Handling** built-in
 
 </td>
-<td width="33%" valign="top">
+<td width="50%" valign="top">
 
 ### 🔍 Built-in Observability
 
