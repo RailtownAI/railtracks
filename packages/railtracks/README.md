@@ -1,4 +1,4 @@
-# <strong><span style="color:#4967EF">R</span>ailtracks</strong>
+# Railtracks
 
 The Python framework that makes building AI agents as simple as writing functions.
 

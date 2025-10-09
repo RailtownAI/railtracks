@@ -1,4 +1,4 @@
-# <strong><span style="color:#4967EF">R</span>ailtracks</strong> CLI
+# Railtracks CLI
 
 [![PyPI version](https://img.shields.io/pypi/v/railtracks-cli)](https://github.com/RailtownAI/railtracks/releases)
 [![Python Versions](https://img.shields.io/pypi/pyversions/railtracks-cli?logo=python&)](https://pypi.org/project/railtracks/)
@@ -10,9 +10,9 @@
 
 A simple CLI to help developers visualize and debug their agents.
 
-## What is <strong><span style="color:#4967EF">R</span>ailtracks</strong> CLI?
+## What is Railtracks CLI?
 
-<strong><span style="color:#4967EF">R</span>ailtracks</strong> CLI is a development tool that provides:
+Railtracks CLI is a development tool that provides:
 
 - **Local Development Server**: A web-based visualizer for your railtracks projects
 - **File Watching**: Automatic detection of JSON file changes in your project

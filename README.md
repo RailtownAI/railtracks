@@ -1,4 +1,4 @@
-# <strong><span style="color:#4967EF">R</span>ailtracks</strong>
+# Railtracks
 
 <p align="center">
   <img alt="Railtracks Space Banner" src="docs/assets/hero-banner.svg" width="100%">
@@ -48,9 +48,9 @@
 
 ---
 
-## ✨ What is <strong><span style="color:#4967EF">R</span>ailtracks</strong>?
+## ✨ What is Railtracks?
 
-<strong><span style="color:#4967EF">R</span>ailtracks</strong> transforms how you build AI agents. While other frameworks force you into rigid workflows or complex APIs, <strong><span style="color:#4967EF">R</span>ailtracks</strong> lets you create intelligent agents using simple Python functions and natural control flow.
+**Railtracks** transforms how you build AI agents. While other frameworks force you into rigid workflows or complex APIs, Railtracks lets you create intelligent agents using simple Python functions and natural control flow.
 
 ```python
 import railtracks as rt
@@ -76,7 +76,7 @@ print(result.text)  # "Based on the current data, it's sunny in Paris!"
 
 ---
 
-## 🎯 Why Choose <strong><span style="color:#4967EF">R</span></strong>ailtracks?
+## 🎯 Why Choose Railtracks?
 
 <table>
 <tr>
@@ -200,11 +200,11 @@ def handle_customer_request(query: str):
 
 ---
 
-## 🌟 What Makes <strong><span style="color:#4967EF">R</span>ailtracks</strong> Special?
+## 🌟 What Makes Railtracks Special?
 
-<strong><span style="color:#4967EF">R</span>ailtracks</strong> is a lightweight agentic LLM framework for building modular, multi-LLM workflows. Unlike other frameworks like **LangGraph** and **Google ADK**, <strong><span style="color:#4967EF">R</span>ailtracks</strong> focuses on simplicity and developer experience.
+**Railtracks** is a lightweight agentic LLM framework for building modular, multi-LLM workflows. Unlike other frameworks like **LangGraph** and **Google ADK**, Railtracks focuses on simplicity and developer experience.
 
-| Feature | <strong><span style="color:#4967EF">R</span>ailtracks</strong> | LangGraph | Google ADK |
+| Feature | Railtracks | LangGraph | Google ADK |
 |---------|------------|-----------|------------|
 | **Python-first, no DSL** | ✅ Yes | ❌ No | ✅ Yes |
 | **Built-in visualization** | ✅ Yes | ✅ Yes | ⚠️ Limited |
@@ -248,7 +248,7 @@ local_agent = rt.agent_node("Assistant", llm_model=rt.llm.OllamaLLM("llama3"))
 | [🎯 **Quickstart Tutorial**](https://railtownai.github.io/railtracks/quickstart/quickstart/) | Get up and running in 5 minutes |
 | [💼 **Example Gallery**](https://github.com/RailtownAI/railtracks/tree/main/examples) | Real-world agent implementations |
 | [💬 **Discord Community**](https://discord.gg/h5ZcahDc) | Get help and share your creations |
-| [🤝 **Contributing Guide**](./CONTRIBUTING.md) | Help make <strong><span style="color:#4967EF">R</span>ailtracks</strong> better |
+| [🤝 **Contributing Guide**](./CONTRIBUTING.md) | Help make Railtracks better |
 
 ---
 
@@ -275,5 +275,5 @@ pip install railtracks railtracks-cli
 <br>
 
 <p align="center">
-  <strong>From simple chatbots to complex multi-agent systems—<span style="color:#4967EF">R</span>ailtracks scales with your ambitions.</strong>
+  <strong>From simple chatbots to complex multi-agent systems—Railtracks scales with your ambitions.</strong>
 </p>
