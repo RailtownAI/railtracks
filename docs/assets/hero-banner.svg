@@ -91,9 +91,6 @@
     </g>
   </g>
 
-  <!-- Center panel behind logo/tagline -->
-  <rect x="250" y="40" width="700" height="320" rx="28" fill="url(#panelGradient)" stroke="#6d7cff" stroke-opacity="0.22"/>
-
   <!-- Railtracks logo (paths from docs/assets/logo.svg), scaled and centered -->
   <g transform="translate(600,175) scale(0.9) translate(-180,-180)">
     <g fill="#4f78ec">
@@ -105,10 +102,10 @@
   </g>
 
   <!-- Tagline (larger) with subtle glow (duplicate text for glow effect) -->
-  <text x="600" y="312" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="22" fill="#91a6ff" opacity="0.35">
+  <text x="600" y="314" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="28" fill="#91a6ff" opacity="0.35">
     Build AI agents as simple as writing functions
   </text>
-  <text x="600" y="312" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="22" fill="#d6daff">
+  <text x="600" y="312" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="28" fill="#e7e9ffff">
     Build AI agents as simple as writing functions
   </text>
 
