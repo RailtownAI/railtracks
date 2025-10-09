@@ -133,8 +133,6 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
         """
         start_time = time.time()
         try:
-            print("-----------INVOKE IN NODE==========================")
-            print("-----------UUID----------------")
             return await self.invoke()
         except Exception as e:
             raise e

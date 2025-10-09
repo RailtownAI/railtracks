@@ -198,7 +198,6 @@ class ModelBase(ABC):
 
         try:
             response = self._chat_with_tools(messages, tools, **kwargs)
-            print(response)
         except Exception as e:
             self._run_exception_hooks(messages, e)
             raise e
