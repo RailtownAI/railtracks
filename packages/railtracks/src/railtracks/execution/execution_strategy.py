@@ -94,11 +94,17 @@ class ConcurrentFuturesExecutor(TaskExecutionStrategy):
             update_parent_id(task.node.uuid)
             try:
                 result = invoke_func()
+                print("==================== IN EXECUTE CONCURRENTFUTURESEXECUTOR==============================")
+                print(f"Result from {task.node.name}: {result}")
+                print("==================================================")
                 response = RequestSuccess(
                     request_id=task.request_id,
                     node_state=NodeState(task.node),
                     result=result,
                 )
+                print("==================AFTER CREATING REQUESTSUCCESS================================")
+                print(f"Response from {task.node.name}: {response}")
+                print("==================================================")
             except Exception as e:
                 response = RequestFailure(
                     request_id=task.request_id, node_state=NodeState(task.node), error=e

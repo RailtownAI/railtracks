@@ -88,6 +88,7 @@ async def call(
         *args: The arguments to pass to the node
         **kwargs: The keyword arguments to pass to the node
     """
+    print('===========INSIDE INTERATION CALL==========================')
     node: Callable[_P, Node[_TOutput]]
     # this entire section is a bit of a typing nightmare becuase all overloads we provide.
     if isinstance(node_, FunctionType):
@@ -109,8 +110,12 @@ async def call(
         result = await _start(node, args=args, kwargs=kwargs)
         return result
 
+    print('===========BEFORE _RUN==========================')
     # if the context is active then we can just run the node
     result = await _run(node, args=args, kwargs=kwargs)
+    print(f'RESULT IS {result}')
+    print(f'RESULT IS OF TYPE {type(result)}')
+    print('===========AFTER _RUN==========================')
     return result
 
 
@@ -202,6 +207,7 @@ async def _execute(
     kwargs,
     message_filter: Callable[[str], Callable[[RequestCompletionMessage], bool]],
 ) -> _TOutput:
+    print('===========INSIDE _EXECUTE==========================')
     publisher = get_publisher()
 
     # generate a unique request ID for this request. We need to hold this reference here because we will use it to
@@ -212,6 +218,7 @@ async def _execute(
     # I am actually a bit worried about this logic and I think there is a chance of a bug popping up here.
     f = publisher.listener(message_filter(request_id), output_mapping)
 
+    print('===========AFTER LISTENER==========================')
     await publisher.publish(
         RequestCreation(
             current_node_id=get_parent_id(),
@@ -224,4 +231,5 @@ async def _execute(
         )
     )
 
+    print('===========AFTER PUBLISH==========================')
     return await f

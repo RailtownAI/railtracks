@@ -140,6 +140,7 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
         Raises:
             LLMError: If the LLM returns an unexpected message type or the message is malformed.
         """
+        print("=================================Handling tool calls...")
         current_tool_calls = len(
             [m for m in self.message_hist if isinstance(m, ToolMessage)]
         )
@@ -156,7 +157,9 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
         returned_mess = await asyncio.to_thread(
             self.llm_model.chat_with_tools, self.message_hist, tools=self.tools()
         )
-
+        print("==================================LLM returned message...")
+        print("LLM returned message:", returned_mess)
+        print("==================================End LLM returned message")
         if returned_mess.message.role == "assistant":
             # if the returned item is a list then it is a list of tool calls
             if isinstance(returned_mess.message.content, list):
@@ -165,6 +168,9 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                 )
 
                 tool_calls = returned_mess.message.content
+                print("==================================LLM returned tool calls...")
+                print("LLM returned tool calls:", tool_calls)
+                print("==================================End LLM returned tool calls")
                 if (
                     allowed_tool_calls is not None
                     and len(tool_calls) > allowed_tool_calls
@@ -202,14 +208,32 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
                     tool_names,
                     tool_responses,
                 ):
+                    print(
+                        "==================================Tool response message..."
+                    )
+                    # resp = {'result': resp}
+                    print(f"Tool name: {r_name}, Tool id: {r_id}, Tool response: {resp}")
+                    print(f'resp type is {type(resp)}')
+                    print("==================================End Tool response message")
+                    import json
+                    # json_s = json.dumps(resp)
+                    json_s = str(resp)
                     self.message_hist.append(
                         ToolMessage(
-                            ToolResponse(identifier=r_id, result=str(resp), name=r_name)
+                            ToolResponse(identifier=r_id, result=json_s, name=r_name)
                         )
                     )
+                    print("==================================Appended tool response to message history...")
+                    print(f"Current message history: {self.message_hist}")
+                    print("==================================End appended tool response to message history")
                 return True
             else:
                 # this means the tool call is finished
+                print(
+                    "==================================LLM returned final answer message..."
+                )
+                print("LLM returned final answer message:", returned_mess.message.content)
+                print("==================================End LLM returned final answer message")
                 self.message_hist.append(
                     AssistantMessage(content=returned_mess.message.content)
                 )
@@ -223,7 +247,10 @@ class OutputLessToolCallLLM(LLMBase[_T], ABC, Generic[_T]):
 
     async def invoke(self) -> _T:
         while True:
+            print("=================================Tool call loop in invoke...=====================")
             still_tool_calls = await self._handle_tool_calls()
+            print(f'still_tool_calls: {still_tool_calls}')
+            print("=================================End Tool call loop in invoke...=====================")
             if not still_tool_calls:
                 break
 

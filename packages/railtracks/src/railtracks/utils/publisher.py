@@ -181,6 +181,9 @@ class Publisher(Generic[_T]):
                 nonlocal returnable_result
                 if message_filter(message):
                     # this will trigger the end of the listener loop
+                    print('===========INSIDE SPECIAL SUBSCRIBER==========================')
+                    print(f'message that passed the filter: {message}')
+                    print('=====================================')
                     returnable_result.set_result(message)
                     listener_event.set()
                     return
@@ -204,6 +207,9 @@ class Publisher(Generic[_T]):
 
             unwrapped_returned_result: _T = returnable_result.result()
             self.unsubscribe(sub_id)
+            print('===========BEFORE RESULT_MAPPING==========================')
+            print(f'unwrapped_returned_result {unwrapped_returned_result}')
+            print('=====================================')
             return result_mapping(unwrapped_returned_result)
 
         return await single_listener()

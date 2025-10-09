@@ -62,14 +62,17 @@ class StructuredLLM(
         Returns:
             (StructuredlLLM.Output): The response message from the llm model
         """
-
+        print('===========INVOKE IN STRUCTUREDLLM==========================')
         returned_mess = await asyncio.to_thread(
             self.llm_model.structured, self.message_hist, schema=self.output_schema()
         )
+        print('===========AFTER ASYNCIO TO THREAD==========================')
+        print(f'returned_mess {returned_mess}')
 
         self.message_hist.append(returned_mess.message)
 
         if returned_mess.message.role == "assistant":
+            print('===========IN ASSISTANT==========================')
             cont = returned_mess.message.content
             if cont is None:
                 raise LLMError(

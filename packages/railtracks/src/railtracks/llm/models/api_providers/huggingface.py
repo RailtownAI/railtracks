@@ -7,7 +7,7 @@ class HuggingFaceLLM(ProviderLLMWrapper):
     def _pre_init_provider_check(self, model_name):
         """called by __init__ before the super call in ProviderLLMWrapper"""
         # for huggingface models there is no good way of using `get_llm_provider` to check if the model is valid.
-        # so we are just goinog to add `huggingface/` to the model name in case it is not there.
+        # so we are just going to add `huggingface/` to the model name in case it is not there.
         # if the model name happens to be invalid, the error will be generated at runtime during `litellm.completion`. See `_litellm_wrapper.py`
         if model_name.startswith(self.model_type().lower()):
             model_name = "/".join(model_name.split("/")[1:])
