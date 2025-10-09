@@ -1,8 +1,17 @@
-# Railtracks
+# <strong><span style="color:#4967EF">R</span>ailtracks</strong>
 
 <p align="center">
   <img alt="Railtracks Space Banner" src="docs/assets/hero-banner.svg" width="100%">
 </p>
+
+<!-- Tip bar -->
+<div align="center">
+  <div style="display:inline-block; padding: 10px 18px; border-radius: 999px; background: linear-gradient(90deg, #4f78ec, #6d7cff, #00C2FF); color: #ffffff; font-weight: 600;">
+    Build AI agents in minutes • Zero config • Local visualization • Pure Python
+  </div>
+</div>
+
+<br>
 
 <p align="center">
   <a href="#-quick-start">
@@ -19,18 +28,29 @@
   </a>
 </p>
 
-[![PyPI version](https://img.shields.io/pypi/v/railtracks?label=release)](https://github.com/RailtownAI/railtracks/releases)
-[![License](https://img.shields.io/pypi/l/railtracks)](https://opensource.org/licenses/MIT)
-[![PyPI - Downloads](https://img.shields.io/pepy/dt/railtracks)](https://pypistats.org/packages/railtracks)
-[![Docs](https://img.shields.io/badge/docs-latest-00BFFF.svg?logo=openbook)](https://railtownai.github.io/railtracks/)
-[![GitHub stars](https://img.shields.io/github/stars/RailtownAI/railtracks.svg?style=social&label=Star)](https://github.com/RailtownAI/railtracks)
-[![Discord](https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white)](https://discord.gg/h5ZcahDc)
+<p align="center">
+  <a href="https://pypi.org/project/railtracks/">
+    <img src="https://img.shields.io/pypi/v/railtracks?color=brightgreen&style=for-the-badge" alt="PyPI Version" />
+  </a>
+  <a href="https://pypi.org/project/railtracks/">
+    <img src="https://img.shields.io/pypi/pyversions/railtracks?style=for-the-badge&logo=python&logoColor=white" alt="Python Versions" />
+  </a>
+  <a href="https://pypistats.org/packages/railtracks">
+    <img src="https://img.shields.io/pypi/dm/railtracks?style=for-the-badge&color=blue" alt="Monthly Downloads" />
+  </a>
+  <a href="https://opensource.org/licenses/MIT">
+    <img src="https://img.shields.io/pypi/l/railtracks?style=for-the-badge&color=lightgrey" alt="License" />
+  </a>
+  <a href="https://github.com/RailtownAI/railtracks/stargazers">
+    <img src="https://img.shields.io/github/stars/RailtownAI/railtracks?style=for-the-badge&logo=github" alt="GitHub Stars" />
+  </a>
+</p>
 
 ---
 
-## ✨ What is Railtracks?
+## ✨ What is <strong><span style="color:#4967EF">R</span>ailtracks</strong>?
 
-**Railtracks** transforms how you build AI agents. While other frameworks force you into rigid workflows or complex APIs, Railtracks lets you create intelligent agents using simple Python functions and natural control flow.
+<strong><span style="color:#4967EF">R</span>ailtracks</strong> transforms how you build AI agents. While other frameworks force you into rigid workflows or complex APIs, <strong><span style="color:#4967EF">R</span>ailtracks</strong> lets you create intelligent agents using simple Python functions and natural control flow.
 
 ```python
 import railtracks as rt
@@ -56,7 +76,7 @@ print(result.text)  # "Based on the current data, it's sunny in Paris!"
 
 ---
 
-## 🎯 Why Choose Railtracks?
+## 🎯 Why Choose <strong><span style="color:#4967EF">R</span></strong>ailtracks?
 
 <table>
 <tr>
@@ -180,11 +200,11 @@ def handle_customer_request(query: str):
 
 ---
 
-## 🌟 What Makes Railtracks Special?
+## 🌟 What Makes <strong><span style="color:#4967EF">R</span>ailtracks</strong> Special?
 
-**Railtracks** is a lightweight agentic LLM framework for building modular, multi-LLM workflows. Unlike other frameworks like **LangGraph** and **Google ADK**, Railtracks focuses on simplicity and developer experience.
+<strong><span style="color:#4967EF">R</span>ailtracks</strong> is a lightweight agentic LLM framework for building modular, multi-LLM workflows. Unlike other frameworks like **LangGraph** and **Google ADK**, <strong><span style="color:#4967EF">R</span>ailtracks</strong> focuses on simplicity and developer experience.
 
-| Feature | Railtracks | LangGraph | Google ADK |
+| Feature | <strong><span style="color:#4967EF">R</span>ailtracks</strong> | LangGraph | Google ADK |
 |---------|------------|-----------|------------|
 | **Python-first, no DSL** | ✅ Yes | ❌ No | ✅ Yes |
 | **Built-in visualization** | ✅ Yes | ✅ Yes | ⚠️ Limited |
@@ -228,7 +248,7 @@ local_agent = rt.agent_node("Assistant", llm_model=rt.llm.OllamaLLM("llama3"))
 | [🎯 **Quickstart Tutorial**](https://railtownai.github.io/railtracks/quickstart/quickstart/) | Get up and running in 5 minutes |
 | [💼 **Example Gallery**](https://github.com/RailtownAI/railtracks/tree/main/examples) | Real-world agent implementations |
 | [💬 **Discord Community**](https://discord.gg/h5ZcahDc) | Get help and share your creations |
-| [🤝 **Contributing Guide**](./CONTRIBUTING.md) | Help make Railtracks better |
+| [🤝 **Contributing Guide**](./CONTRIBUTING.md) | Help make <strong><span style="color:#4967EF">R</span>ailtracks</strong> better |
 
 ---
 
@@ -238,12 +258,22 @@ local_agent = rt.agent_node("Assistant", llm_model=rt.llm.OllamaLLM("llama3"))
 pip install railtracks railtracks-cli
 ```
 
-**Join thousands of developers building the future with AI agents.** 
+<div align="center">
+  <div style="display:inline-block; padding: 10px 16px; border-radius: 10px; background: rgba(79,120,236,0.08); border: 1px solid rgba(79,120,236,0.35); color: #2f3b66; font-weight: 600;">
+    ✨ Join thousands of developers building the future with AI agents
+  </div>
+</div>
 
-⭐ **Star us on GitHub** if you find Railtracks useful!
+<br>
 
----
+<div align="center">
+  <a href="https://github.com/RailtownAI/railtracks/stargazers">
+    <img src="https://img.shields.io/badge/⭐_STAR_THIS_REPO-FFD700?style=for-the-badge&logo=github&logoColor=000" alt="Star this repo" />
+  </a>
+</div>
+
+<br>
 
 <p align="center">
-  <strong>From simple chatbots to complex multi-agent systems—Railtracks scales with your ambitions.</strong>
+  <strong>From simple chatbots to complex multi-agent systems—<span style="color:#4967EF">R</span>ailtracks scales with your ambitions.</strong>
 </p>
