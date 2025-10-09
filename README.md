@@ -1,82 +1,8 @@
-<div align="center">
-  <div style="
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%);
-    padding: 60px 40px;
-    border-radius: 20px;
-    margin: 20px 0;
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-  ">
-    <!-- Space stars animation -->
-    <div style="
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-image: 
-        radial-gradient(2px 2px at 20px 30px, #fff, transparent),
-        radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.8), transparent),
-        radial-gradient(1px 1px at 90px 40px, #fff, transparent),
-        radial-gradient(1px 1px at 130px 80px, rgba(255,255,255,0.6), transparent),
-        radial-gradient(2px 2px at 160px 30px, #fff, transparent);
-      background-repeat: repeat;
-      background-size: 200px 100px;
-      animation: sparkle 3s ease-in-out infinite alternate;
-      opacity: 0.6;
-    "></div>
-    
-    <!-- Content -->
-    <div style="position: relative; z-index: 2;">
-      <h1 style="
-        color: white;
-        font-size: 4em;
-        font-weight: bold;
-        margin: 0 0 20px 0;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        letter-spacing: 2px;
-      ">🚂 RAILTRACKS</h1>
-    
-      <img alt="Railtracks Logo" src="docs/assets/logo.svg" style="
-        width: 200px;
-        height: 200px;
-        margin: 20px 0;
-        filter: drop-shadow(0 10px 20px rgba(0,0,0,0.2));
-      ">
-      
-      <h2 style="
-        color: white;
-        font-size: 1.8em;
-        font-weight: 300;
-        margin: 30px 0 0 0;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-        max-width: 800px;
-        line-height: 1.4;
-      ">✨ The Python framework that makes building AI agents as simple as writing functions ✨</h2>
-      
-      <div style="
-        margin-top: 30px;
-        padding: 15px 30px;
-        background: rgba(255,255,255,0.1);
-        border-radius: 50px;
-        border: 2px solid rgba(255,255,255,0.2);
-        backdrop-filter: blur(10px);
-      ">
-        <span style="color: white; font-weight: bold; font-size: 1.1em;">
-          🎯 Zero Config • ⚡ Lightning Fast • 🔍 Fully Observable • 🐍 Pure Python
-        </span>
-      </div>
-    </div>
-  </div>
-</div>
+# Railtracks
 
-<style>
-@keyframes sparkle {
-  0% { transform: translateY(0px) rotate(0deg); opacity: 0.6; }
-  100% { transform: translateY(-10px) rotate(5deg); opacity: 1; }
-}
-</style>
+<p align="center">
+  <img alt="Railtracks Space Banner" src="docs/assets/hero-banner.svg" width="100%">
+</p>
 
 <p align="center">
   <a href="#-quick-start">
