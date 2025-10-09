@@ -53,7 +53,8 @@
 
 ## ✨ What is Railtracks?
 
-**Transform how you build AI agents** — While other frameworks force you into rigid workflows or complex APIs, Railtracks lets you create intelligent agents using simple Python functions and natural control flow.
+> [!NOTE]
+> Transform how you build AI agents — While other frameworks force you into rigid workflows or complex APIs, Railtracks lets you create intelligent agents using simple Python functions and natural control flow.
 
 ```python
 import railtracks as rt
@@ -192,7 +193,7 @@ asyncio.run(main())
 ```
 
 > [!TIP]
-> **Pro Tip:** The agent correctly solves the famous "strawberry problem" by using tools to count characters!
+> The agent correctly solves the famous "strawberry problem" by using tools to count characters!
 
 </details>
 
@@ -263,8 +264,8 @@ def handle_customer_request(query: str):
 
 ## 🌟 What Makes Railtracks Special?
 
-> [!IMPORTANT]
-> **A lightweight agentic LLM framework** for building modular, multi-LLM workflows with a focus on simplicity and developer experience.
+> [!NOTE]
+> A lightweight agentic LLM framework for building modular, multi-LLM workflows with a focus on simplicity and developer experience.
 
 <div align="center">
 
