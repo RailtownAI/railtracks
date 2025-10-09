@@ -206,7 +206,7 @@ railtracks viz   # See your agent in action
 ```
 
 <p align="center">
-  <img src="https://railtownai.github.io/railtracks-visualizer/iframe.html?globals=&args=&id=components-visualizer-marketing--default&viewMode=story"" alt="Railtracks Visualizer" width="90%">
+  <img src="docs/assets/visualizer_photo.png" alt="Railtracks Visualizer" width="90%">
   <br>
   <em>🔍 See every step of your agent's execution in real-time</em>
 </p>
