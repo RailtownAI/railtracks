@@ -3,6 +3,7 @@ Quite often an agentic workflow needs further input from a human user (or anothe
 Revisiting the figure from the background on [agents](../background/agents.md), we can take a new view:
 
 ```mermaid
+%%{init: {'themeVariables': {'edgeLabelBackground':'#ffffff'}}}%%
 graph LR
     User[User] <-- "Input/Output" --> LLM[LLM Agent]
     LLM <--> Tools[Tools]
@@ -13,6 +14,8 @@ graph LR
     style User fill:#f3e5f5
     style Tools fill:#fff3e0
     style Environment fill:#e8f5e8
+
+    linkStyle default stroke:grey,stroke-width:1px
 ```
 
 To allow this for the users of the framework, we have designed an extendible abstract class called `HIL` (*Human In the Loop*). Additionally we have implemented a local chat server for quick development and prototyping of such behaviours. Please refer to the following sections for futher information:
