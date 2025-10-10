@@ -1,4 +1,4 @@
-from typing import Any, Callable, Type
+from typing import Any, Callable
 
 from railtracks.built_nodes._node_builder import NodeBuilder
 from railtracks.built_nodes.concrete import TerminalLLM

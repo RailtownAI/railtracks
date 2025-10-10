@@ -54,6 +54,7 @@ def agent_node(
 ) -> Type[StreamingStructuredLLM[_TBaseModel]]:
     pass
 
+
 @overload
 def agent_node(
     name: str | None = None,
@@ -75,6 +76,7 @@ def agent_node(
     manifest: ToolManifest | None = None,
 ) -> Type[TerminalLLM]:
     pass
+
 
 @overload
 def agent_node(

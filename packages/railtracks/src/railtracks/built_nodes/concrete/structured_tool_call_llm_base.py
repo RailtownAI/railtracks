@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Generator, Generic, Literal, TypeVar
+from typing import Generic, Literal, TypeVar
 
 from pydantic import BaseModel
 
@@ -25,9 +25,7 @@ _TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
 class StructuredToolCallLLM(
     StructuredOutputMixIn[_TBaseModel],
-    OutputLessToolCallLLM[
-        StructuredResponse[_TBaseModel]
-    ],
+    OutputLessToolCallLLM[StructuredResponse[_TBaseModel]],
     ABC,
     Generic[_TBaseModel],
 ):

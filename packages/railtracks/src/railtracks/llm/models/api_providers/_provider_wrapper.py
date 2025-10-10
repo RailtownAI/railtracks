@@ -13,6 +13,7 @@ from ..providers import ModelProvider
 
 _TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
+
 class ProviderLLMWrapper(LiteLLMWrapper[_TStream], ABC, Generic[_TStream]):
     def __init__(self, model_name: str, stream: _TStream = False):
         model_name = self._pre_init_provider_check(model_name)

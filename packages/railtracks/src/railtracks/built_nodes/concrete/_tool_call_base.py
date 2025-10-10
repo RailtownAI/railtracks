@@ -6,14 +6,12 @@ from abc import ABC, abstractmethod
 from typing import (
     Any,
     Dict,
-    Generator,
     Generic,
     Literal,
     ParamSpec,
     Set,
     Type,
     TypeVar,
-    overload,
 )
 
 from railtracks.built_nodes.concrete.response import LLMResponse
@@ -42,9 +40,7 @@ _P = ParamSpec("_P")
 _TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
 
-class OutputLessToolCallLLM(
-    LLMBase[_T, _T, Literal[False]], ABC, Generic[_T]
-):
+class OutputLessToolCallLLM(LLMBase[_T, _T, Literal[False]], ABC, Generic[_T]):
     """A base class that is a node which contains
      an LLm that can make tool calls. The tool calls will be returned
     as calls or if there is a response, the response will be returned as an output"""

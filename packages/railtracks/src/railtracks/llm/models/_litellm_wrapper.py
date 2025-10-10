@@ -159,7 +159,9 @@ class StreamedToolCall(BaseModel):
                 f"Failed to decode tool call arguments: {str(e)}",
             )
 
+
 _TStream = TypeVar("_TStream", Literal[True], Literal[False])
+
 
 class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
     """
@@ -198,7 +200,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         tools: Optional[list[Tool]] = None,
     ) -> Tuple[CustomStreamWrapper, float]:
         pass
-    
+
     def _invoke(
         self,
         messages: MessageHistory,
@@ -239,7 +241,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         else:
             completion_time = time.time() - start_time
             return completion, completion_time
-        
+
     @overload
     async def _ainvoke(
         self: LiteLLMWrapper[Literal[False]],
@@ -534,7 +536,6 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
 
     # ================ START Sync LLM calls ===============
 
-    
     def _chat(self, messages: MessageHistory):
         response, time = self._invoke(messages=messages)
         if isinstance(response, CustomStreamWrapper):
@@ -546,7 +547,6 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
             )
         else:
             raise ValueError("Unexpected response type")
-
 
     def _structured(self, messages: MessageHistory, schema: Type[BaseModel]):
         try:

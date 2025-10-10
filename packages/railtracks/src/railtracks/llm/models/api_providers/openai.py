@@ -1,10 +1,10 @@
+from typing import Generic, Literal, TypeVar
+
 from ..providers import ModelProvider
 from ._provider_wrapper import ProviderLLMWrapper
 
-from typing import Generic, Literal, TypeVar
-
-
 _TStream = TypeVar("_TStream", Literal[True], Literal[False])
+
 
 class OpenAILLM(ProviderLLMWrapper[_TStream], Generic[_TStream]):
     """

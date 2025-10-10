@@ -1,4 +1,4 @@
-from typing import Any, Callable, Iterable, Literal, Type, TypeVar, overload
+from typing import Any, Callable, Iterable, Type, TypeVar
 
 from pydantic import BaseModel
 
@@ -12,8 +12,6 @@ from railtracks.llm import (
 from railtracks.llm.tools import Parameter
 
 _TOutput = TypeVar("_TOutput", bound=BaseModel)
-
-
 
 
 def structured_llm(

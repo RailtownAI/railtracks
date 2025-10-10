@@ -1,26 +1,30 @@
 from __future__ import annotations
 
-from abc import ABC
 import asyncio
-from typing import Generator, Literal, overload
+from abc import ABC
+from typing import Generator, Generic, Literal, TypeVar
 
 from railtracks.exceptions import LLMError
-from railtracks.llm import Message, MessageHistory, ModelBase, UserMessage
 from railtracks.llm.response import Response
 
 from ._llm_base import LLMBase, StringOutputMixIn
 from .response import LLMResponse, StringResponse
-from typing import Generic, TypeVar
 
-_T = TypeVar("_T", Generator[str | StringResponse, None, StringResponse], StringResponse)
+_T = TypeVar(
+    "_T", Generator[str | StringResponse, None, StringResponse], StringResponse
+)
 _TStream = TypeVar("_TStream", Literal[True], Literal[False])
 _TCollectedOutput = TypeVar("_TCollectedOutput", bound=LLMResponse)
 
-class TerminalLLMBase(LLMBase[_T, _TCollectedOutput, _TStream], ABC, Generic[_T, _TCollectedOutput, _TStream]):
+
+class TerminalLLMBase(
+    LLMBase[_T, _TCollectedOutput, _TStream],
+    ABC,
+    Generic[_T, _TCollectedOutput, _TStream],
+):
     @classmethod
     def name(cls) -> str:
         return "Terminal LLM"
-
 
 
 class TerminalLLM(
@@ -62,7 +66,6 @@ class TerminalLLM(
                 message_history=self.message_hist,
             )
 
-            
         if isinstance(returned_mess, Response):
             self._handle_output(returned_mess.message)
 
@@ -72,11 +75,15 @@ class TerminalLLM(
                 reason="ModelLLM returned an unexpected message type.",
                 message_history=self.message_hist,
             )
-        
+
 
 class StreamingTerminalLLM(
     StringOutputMixIn,
-    TerminalLLMBase[Generator[str | StringResponse, None, StringResponse], StringResponse, Literal[True]],
+    TerminalLLMBase[
+        Generator[str | StringResponse, None, StringResponse],
+        StringResponse,
+        Literal[True],
+    ],
 ):
     """A simple streaming LLM node that takes in a message and returns a response. It is the simplest of all LLMs.
     This node accepts message_history in the following formats:
@@ -114,8 +121,3 @@ class StreamingTerminalLLM(
             )
 
         return self._gen_wrapper(returned_mess)
-
-    
-        
-
-

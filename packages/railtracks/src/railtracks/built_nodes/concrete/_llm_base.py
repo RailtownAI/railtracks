@@ -2,7 +2,15 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Callable, Dict, Generator, Generic, Iterable, Literal, TypeVar, overload
+from typing import (
+    Any,
+    Dict,
+    Generator,
+    Generic,
+    Iterable,
+    Literal,
+    TypeVar,
+)
 
 from pydantic import BaseModel
 from typing_extensions import Self
@@ -67,8 +75,10 @@ class RequestDetails:
     def __repr__(self):
         return f"RequestDetails(model_name={self.model_name}, model_provider={self.model_provider}, input={self.input}, output={self.output})"
 
+
 _TStream = TypeVar("_TStream", Literal[True], Literal[False])
 _TCollectedOutput = TypeVar("_TCollectedOutput", bound=LLMResponse)
+
 
 class LLMBase(Node[_T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
     """
@@ -337,7 +347,7 @@ class LLMBase(Node[_T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
     @classmethod
     def type(cls):
         return "Agent"
-    
+
     def _gen_wrapper(
         self, returned_mess: Generator[str | Response, None, Response]
     ) -> Generator[str | _TCollectedOutput, None, _TCollectedOutput]:
@@ -370,6 +380,7 @@ class LLMBase(Node[_T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
             )
 
         self.message_hist.append(output)
+
 
 _TStructured = TypeVar("_TStructured", bound=BaseModel)
 
@@ -414,4 +425,4 @@ class StringOutputMixIn:
         return StringResponse(
             content=message.content,
             message_history=self.message_hist.removed_system_messages(),
-        )    
+        )

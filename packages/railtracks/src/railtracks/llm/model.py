@@ -3,8 +3,19 @@
 # route to a given model.
 ###
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import AsyncGenerator, Callable, Generator, Generic, List, Literal, Type, TypeVar, overload
+from typing import (
+    AsyncGenerator,
+    Callable,
+    Generator,
+    Generic,
+    List,
+    Literal,
+    Type,
+    TypeVar,
+    overload,
+)
 
 from pydantic import BaseModel
 
@@ -139,19 +150,15 @@ class ModelBase(ABC, Generic[_TStream]):
         return new_response
 
     @overload
-    def chat(
-        self: ModelBase[Literal[False]],
-        messages: MessageHistory
-    ) -> Response:
+    def chat(self: ModelBase[Literal[False]], messages: MessageHistory) -> Response:
         pass
 
-    @overload 
+    @overload
     def chat(
-        self: ModelBase[Literal[True]],
-        messages: MessageHistory
+        self: ModelBase[Literal[True]], messages: MessageHistory
     ) -> Generator[str | Response, None, Response]:
         pass
-    
+
     def chat(
         self, messages: MessageHistory
     ) -> Response | Generator[str | Response, None, Response]:
@@ -170,18 +177,16 @@ class ModelBase(ABC, Generic[_TStream]):
 
         response = self._run_post_hooks(messages, response)
         return response
-    
+
     @overload
     async def achat(
-        self: ModelBase[Literal[False]],
-        messages: MessageHistory
+        self: ModelBase[Literal[False]], messages: MessageHistory
     ) -> Response:
         pass
 
-    @overload 
+    @overload
     async def achat(
-        self: ModelBase[Literal[True]],
-        messages: MessageHistory
+        self: ModelBase[Literal[True]], messages: MessageHistory
     ) -> Generator[str | Response, None, Response]:
         pass
 
@@ -201,8 +206,8 @@ class ModelBase(ABC, Generic[_TStream]):
         response = self._run_post_hooks(messages, response)
 
         return response
-    
-    @overload 
+
+    @overload
     def structured(
         self: ModelBase[Literal[False]],
         messages: MessageHistory,
@@ -234,7 +239,7 @@ class ModelBase(ABC, Generic[_TStream]):
         response = self._run_post_hooks(messages, response)
 
         return response
-    
+
     @overload
     async def astructured(
         self: ModelBase[Literal[False]],
@@ -267,20 +272,16 @@ class ModelBase(ABC, Generic[_TStream]):
         response = self._run_post_hooks(messages, response)
 
         return response
-    
+
     @overload
     def chat_with_tools(
-        self: ModelBase[Literal[False]],
-        messages: MessageHistory,
-        tools: List[Tool]
+        self: ModelBase[Literal[False]], messages: MessageHistory, tools: List[Tool]
     ) -> Response:
         pass
 
     @overload
     def chat_with_tools(
-        self: ModelBase[Literal[True]],
-        messages: MessageHistory,
-        tools: List[Tool]
+        self: ModelBase[Literal[True]], messages: MessageHistory, tools: List[Tool]
     ) -> Generator[str | Response, None, Response]:
         pass
 
@@ -299,20 +300,16 @@ class ModelBase(ABC, Generic[_TStream]):
 
         response = self._run_post_hooks(messages, response)
         return response
-    
+
     @overload
     async def achat_with_tools(
-        self: ModelBase[Literal[False]],
-        messages: MessageHistory,
-        tools: List[Tool]
+        self: ModelBase[Literal[False]], messages: MessageHistory, tools: List[Tool]
     ) -> Response:
         pass
 
     @overload
     async def achat_with_tools(
-        self: ModelBase[Literal[True]],
-        messages: MessageHistory,
-        tools: List[Tool]
+        self: ModelBase[Literal[True]], messages: MessageHistory, tools: List[Tool]
     ) -> Generator[str | Response, None, Response]:
         pass
 
