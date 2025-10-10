@@ -11,6 +11,5 @@ _TStream = TypeVar("_TStream", Literal[True], Literal[False])
 class ToolCallLLM(
     StringOutputMixIn,
     OutputLessToolCallLLM[StringResponse],
-    ABC,
 ):
     pass

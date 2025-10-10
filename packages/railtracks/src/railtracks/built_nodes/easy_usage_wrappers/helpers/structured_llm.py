@@ -18,7 +18,7 @@ def structured_llm(
     output_schema: Type[_TOutput],
     *,
     system_message: SystemMessage | str | None = None,
-    llm: ModelBase,
+    llm: ModelBase | None = None,
     name: str | None = None,
     tool_details: str | None = None,
     tool_params: Iterable[Parameter] | None = None,
@@ -49,7 +49,7 @@ def structured_llm(
     """
 
     builder = NodeBuilder(
-        StreamingStructuredLLM if llm._stream else StructuredLLM,
+        StreamingStructuredLLM if llm is not None and llm._stream else StructuredLLM,
         name=name,
         class_name="EasyStructuredLastMessageLLM",
         return_into=return_into,

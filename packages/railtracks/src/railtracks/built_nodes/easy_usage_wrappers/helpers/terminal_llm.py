@@ -11,7 +11,7 @@ def terminal_llm(
     name: str | None = None,
     *,
     system_message: SystemMessage | str | None = None,
-    llm: ModelBase,
+    llm: ModelBase | None = None,
     tool_details: str | None = None,
     tool_params: set[Parameter] | None = None,
     return_into: str | None = None,
@@ -39,7 +39,7 @@ def terminal_llm(
         Type[LastMessageTerminalLLM]: The dynamically generated node class with the specified configuration.
     """
     builder = NodeBuilder(
-        StreamingTerminalLLM if llm._stream else TerminalLLM,
+        StreamingTerminalLLM if llm is not None and llm._stream else TerminalLLM,
         name=name,
         class_name="EasyLastMessageTerminalLLM",
         return_into=return_into,

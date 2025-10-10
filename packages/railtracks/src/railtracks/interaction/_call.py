@@ -51,18 +51,18 @@ async def call(
 
 @overload
 async def call(
-    node_: Callable[_P, Node[_TOutput, Literal[False]]],
+    node_: Callable[_P, Node[_TOutput]],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput: ...
 
 
-# @overload
-# async def call(
-#     node_: Callable[_P, _TOutput],
-#     *args: _P.args,
-#     **kwargs: _P.kwargs,
-# ) -> _TOutput: ...
+@overload
+async def call(
+    node_: Callable[_P, _TOutput],
+    *args: _P.args,
+    **kwargs: _P.kwargs,
+) -> _TOutput: ...
 
 
 async def call(
