@@ -4,6 +4,7 @@ from typing import Generator, Generic, Literal, TypeVar
 
 from pydantic import BaseModel
 
+from railtracks.exceptions.errors import LLMError
 from railtracks.llm import Message, MessageHistory, ModelBase, UserMessage
 from railtracks.validation.node_creation.validation import (
     check_classmethod,
@@ -54,7 +55,10 @@ class StructuredLLMBase(
         return f"Structured LLM ({cls.output_schema().__name__})"
 
     def _handle_output(self, output: Message):
-        assert isinstance(output.content, self.output_schema())
+        if not isinstance(output.content, self.output_schema()):
+            raise LLMError(
+                f"Output from LLM is not of the correct type. Got {type(output.content)} instead of {self.output_schema()}."
+            )
         super()._handle_output(output)
 
 
@@ -111,12 +115,12 @@ class StreamingStructuredLLM(
         ```python
         # Using MessageHistory
         mh = MessageHistory([UserMessage("Tell me about the world around us")])
-        result = await rc.call(StreamingStructuredLLM, user_input=mh)
+        result = await rt.call(StreamingStructuredLLM, user_input=mh)
         # Using UserMessage
         user_msg = UserMessage("Tell me about the world around us")
-        result = await rc.call(StreamingStructuredLLM, user_input=user_msg)
+        result = await rt.call(StreamingStructuredLLM, user_input=user_msg)
         # Using string
-        result = await rc.call(
+        result = await rt.call(
             StreamingStructuredLLM, user_input="Tell me about the world around us"
         )
         ```

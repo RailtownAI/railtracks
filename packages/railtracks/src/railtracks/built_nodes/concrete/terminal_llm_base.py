@@ -40,12 +40,12 @@ class TerminalLLM(
         ```python
         # Using MessageHistory
         mh = MessageHistory([UserMessage("Tell me about the world around us")])
-        result = await rc.call(TerminalLLM, user_input=mh)
+        result = await rt.call(TerminalLLM, user_input=mh)
         # Using UserMessage
         user_msg = UserMessage("Tell me about the world around us")
-        result = await rc.call(TerminalLLM, user_input=user_msg)
+        result = await rt.call(TerminalLLM, user_input=user_msg)
         # Using string
-        result = await rc.call(
+        result = await rt.call(
             TerminalLLM, user_input="Tell me about the world around us"
         )
         ```
@@ -94,12 +94,12 @@ class StreamingTerminalLLM(
         ```python
         # Using MessageHistory
         mh = MessageHistory([UserMessage("Tell me about the world around us")])
-        result = await rc.call(StreamingTerminalLLM, user_input=mh)
+        result = await rt.call(StreamingTerminalLLM, user_input=mh)
         # Using UserMessage
         user_msg = UserMessage("Tell me about the world around us")
-        result = await rc.call(StreamingTerminalLLM, user_input=user_msg)
+        result = await rt.call(StreamingTerminalLLM, user_input=user_msg)
         # Using string
-        result = await rc.call(
+        result = await rt.call(
             StreamingTerminalLLM, user_input="Tell me about the world around us"
         )
         ```

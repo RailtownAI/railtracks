@@ -1,8 +1,5 @@
 # --8<-- [start: streaming_flag]
-from typing import Generator
-from railtracks.built_nodes.concrete.response import LLMResponse
 import railtracks.llm as llm
-from railtracks.llm.response import Response 
 
 model = llm.OpenAILLM(model_name="gpt-4o", stream=True)
 # --8<-- [end: streaming_flag]
@@ -45,7 +42,4 @@ async def main():
     
     for chunk in result:
         print(chunk)
-    
-    
-
 # --8<-- [end: streaming_agent_usage]

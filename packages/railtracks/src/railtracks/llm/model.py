@@ -129,7 +129,7 @@ class ModelBase(ABC, Generic[_TStream]):
         for hook in self._exception_hooks:
             hook(message_history, exception)
 
-    def wrapper_generator(
+    def generator_wrapper(
         self,
         generator: Generator[str | Response, None, Response],
         message_history: MessageHistory,
@@ -173,7 +173,7 @@ class ModelBase(ABC, Generic[_TStream]):
             raise e
 
         if isinstance(response, Generator):
-            return self.wrapper_generator(response, messages)
+            return self.generator_wrapper(response, messages)
 
         response = self._run_post_hooks(messages, response)
         return response
@@ -201,7 +201,7 @@ class ModelBase(ABC, Generic[_TStream]):
             raise e
 
         if isinstance(response, Generator):
-            return self.wrapper_generator(response, messages)
+            return self.generator_wrapper(response, messages)
 
         response = self._run_post_hooks(messages, response)
 
@@ -234,7 +234,7 @@ class ModelBase(ABC, Generic[_TStream]):
             raise e
 
         if isinstance(response, Generator):
-            return self.wrapper_generator(response, messages)
+            return self.generator_wrapper(response, messages)
 
         response = self._run_post_hooks(messages, response)
 
@@ -267,7 +267,7 @@ class ModelBase(ABC, Generic[_TStream]):
             raise e
 
         if isinstance(response, Generator):
-            return self.wrapper_generator(response, messages)
+            return self.generator_wrapper(response, messages)
 
         response = self._run_post_hooks(messages, response)
 
@@ -296,7 +296,7 @@ class ModelBase(ABC, Generic[_TStream]):
             raise e
 
         if isinstance(response, Generator):
-            return self.wrapper_generator(response, messages)
+            return self.generator_wrapper(response, messages)
 
         response = self._run_post_hooks(messages, response)
         return response
@@ -324,7 +324,7 @@ class ModelBase(ABC, Generic[_TStream]):
             raise e
 
         if isinstance(response, Generator):
-            return self.wrapper_generator(response, messages)
+            return self.generator_wrapper(response, messages)
 
         response = self._run_post_hooks(messages, response)
 

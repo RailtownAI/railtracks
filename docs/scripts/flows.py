@@ -1,7 +1,4 @@
-import asyncio
-from typing_extensions import reveal_type
 # --8<-- [start: hiking_example]
-from distro import info
 import railtracks as rt
 from pydantic import BaseModel
  
