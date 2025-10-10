@@ -68,7 +68,6 @@ def test_agent_node_output_schema_only(mock_llm, mock_schema, mock_sys_mes):
 def test_agent_node_minimal(mock_llm):
     node_cls = agent_node(
         name="MinimalAgent"
-        llm=mock_llm
     )
     assert isinstance(node_cls, type)
     assert node_cls.name() == "MinimalAgent"

@@ -1,4 +1,5 @@
 import asyncio
+from typing_extensions import reveal_type
 # --8<-- [start: hiking_example]
 from distro import info
 import railtracks as rt
@@ -178,6 +179,8 @@ async def technical_tool(prompt : str):
         TechnicalAgent,
         user_input=prompt
         )
+    reveal_type(TechnicalAgent)
+    reveal_type(response)
     if has_context:
         previous = rt.context.get("info_from_other_agents")
         new = previous + response.structured.info
