@@ -141,14 +141,14 @@ ProductExpertAgent = rt.agent_node(
 BillingAgent = rt.agent_node(
     name="Billing Agent",
     output_schema=StructuredResponse,
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-4o", stream=False),
     #adding all other arguments as needed
     )
     
 TechnicalAgent = rt.agent_node(
     name="Technical Support Agent",
     output_schema=StructuredResponse,
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-4o", stream=False),
     #adding all other arguments as needed
     )
 
@@ -179,8 +179,6 @@ async def technical_tool(prompt : str):
         TechnicalAgent,
         user_input=prompt
         )
-    reveal_type(TechnicalAgent)
-    reveal_type(response)
     if has_context:
         previous = rt.context.get("info_from_other_agents")
         new = previous + response.structured.info
