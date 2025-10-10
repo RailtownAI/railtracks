@@ -24,12 +24,12 @@ def count_chars(text: str, char: str) -> int:
 # Create an agent
 agent = rt.agent_node(
     "Text Analyzer", 
-    tool_nodes={count_chars},
+    tool_nodes=(count_chars),
     llm_model=rt.llm.OpenAILLM("gpt-4o")
 )
 
 # Use it
-result = rt.call_sync(agent, "How many 'r's in 'strawberry'?")
+result = await rt.call(agent, "How many 'r's in 'strawberry'?")
 print(result.text)  # "There are 3 'r's in 'strawberry'!"
 ```
 
