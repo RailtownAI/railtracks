@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import time
 import warnings
@@ -7,12 +9,16 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Generator,
+    Generic,
     Iterable,
     List,
+    Literal,
     Optional,
     Tuple,
     Type,
     TypeVar,
+    overload,
 )
 
 import litellm
@@ -153,8 +159,9 @@ class StreamedToolCall(BaseModel):
                 f"Failed to decode tool call arguments: {str(e)}",
             )
 
+_TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
-class LiteLLMWrapper(ModelBase, ABC):
+class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
     """
     A large base class that wraps around a litellm model.
 
@@ -168,10 +175,30 @@ class LiteLLMWrapper(ModelBase, ABC):
     model of that type.
     """
 
-    def __init__(self, model_name: str, stream: bool = False):
+    def __init__(self, model_name: str, stream: _TStream = False):
         super().__init__(_stream=stream)
         self._model_name = model_name
 
+    @overload
+    def _invoke(
+        self: LiteLLMWrapper[Literal[False]],
+        messages: MessageHistory,
+        *,
+        response_format: Optional[Any] = None,
+        tools: Optional[list[Tool]] = None,
+    ) -> Tuple[ModelResponse, float]:
+        pass
+
+    @overload
+    def _invoke(
+        self: LiteLLMWrapper[Literal[True]],
+        messages: MessageHistory,
+        *,
+        response_format: Optional[Any] = None,
+        tools: Optional[list[Tool]] = None,
+    ) -> Tuple[CustomStreamWrapper, float]:
+        pass
+    
     def _invoke(
         self,
         messages: MessageHistory,
@@ -212,6 +239,26 @@ class LiteLLMWrapper(ModelBase, ABC):
         else:
             completion_time = time.time() - start_time
             return completion, completion_time
+        
+    @overload
+    async def _ainvoke(
+        self: LiteLLMWrapper[Literal[False]],
+        messages: MessageHistory,
+        *,
+        response_format: Any | None = None,
+        tools: Optional[list[Tool]] = None,
+    ) -> Tuple[ModelResponse, float]:
+        pass
+
+    @overload
+    async def _ainvoke(
+        self: LiteLLMWrapper[Literal[True]],
+        messages: MessageHistory,
+        *,
+        response_format: Any | None = None,
+        tools: Optional[list[Tool]] = None,
+    ) -> Tuple[CustomStreamWrapper, float]:
+        pass
 
     async def _ainvoke(
         self,
@@ -320,7 +367,7 @@ class LiteLLMWrapper(ModelBase, ABC):
         raw: CustomStreamWrapper,
         start_time: float,
         output_schema: Type[BaseModel] | None = None,
-    ):
+    ) -> Generator[Response | str, None, Response]:
         """Modifies the stream to handler to yield chunks as they come in. It provides a complete response at the end."""
         tools: List[ToolCall] = []
         accumulated_content = ""
@@ -486,6 +533,8 @@ class LiteLLMWrapper(ModelBase, ABC):
     # ================ END Base Handlers ===============
 
     # ================ START Sync LLM calls ===============
+
+    
     def _chat(self, messages: MessageHistory):
         response, time = self._invoke(messages=messages)
         if isinstance(response, CustomStreamWrapper):
@@ -497,6 +546,7 @@ class LiteLLMWrapper(ModelBase, ABC):
             )
         else:
             raise ValueError("Unexpected response type")
+
 
     def _structured(self, messages: MessageHistory, schema: Type[BaseModel]):
         try:

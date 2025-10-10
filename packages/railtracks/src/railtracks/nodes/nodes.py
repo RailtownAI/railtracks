@@ -5,8 +5,9 @@ import time
 import uuid
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Dict, Generic, Literal, TypeVar
+from typing import Any, Dict, Generator, Generic, Literal, TypeVar, overload
 
+from polars import override
 from typing_extensions import Self
 
 from railtracks.validation.node_creation.validation import (

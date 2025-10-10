@@ -1,9 +1,10 @@
-from typing import Any, Callable, Type, TypeVar
+from typing import Any, Callable, Iterable, Literal, Type, TypeVar, overload
 
 from pydantic import BaseModel
 
 from railtracks.built_nodes._node_builder import NodeBuilder
 from railtracks.built_nodes.concrete import StructuredLLM
+from railtracks.built_nodes.concrete.structured_llm_base import StreamingStructuredLLM
 from railtracks.llm import (
     ModelBase,
     SystemMessage,
@@ -13,18 +14,20 @@ from railtracks.llm.tools import Parameter
 _TOutput = TypeVar("_TOutput", bound=BaseModel)
 
 
+
+
 def structured_llm(
     output_schema: Type[_TOutput],
     *,
     system_message: SystemMessage | str | None = None,
-    llm: ModelBase | None = None,
+    llm: ModelBase,
     name: str | None = None,
     tool_details: str | None = None,
-    tool_params: set[Parameter] | None = None,
+    tool_params: Iterable[Parameter] | None = None,
     return_into: str | None = None,
     format_for_return: Callable[[Any], Any] | None = None,
     format_for_context: Callable[[Any], Any] | None = None,
-) -> Type[StructuredLLM[_TOutput]]:
+) -> Type[StructuredLLM[_TOutput] | StreamingStructuredLLM[_TOutput]]:
     """
     Dynamically create a StructuredLastMessageLLM node class with custom configuration for output_schema.
 
@@ -46,8 +49,9 @@ def structured_llm(
     Returns:
         Type[StructuredLLM]: The dynamically generated node class with the specified configuration.
     """
-    builder = NodeBuilder[StructuredLLM[_TOutput]](
-        StructuredLLM,
+
+    builder = NodeBuilder(
+        StreamingStructuredLLM if llm._stream else StructuredLLM,
         name=name,
         class_name="EasyStructuredLastMessageLLM",
         return_into=return_into,

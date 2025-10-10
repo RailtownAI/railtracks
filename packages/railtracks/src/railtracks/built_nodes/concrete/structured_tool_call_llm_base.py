@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Generator, Generic, TypeVar
+from typing import Generator, Generic, Literal, TypeVar
 
 from pydantic import BaseModel
 
@@ -20,15 +20,13 @@ from ._tool_call_base import (
 from .response import StructuredResponse
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
+_TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
 
 class StructuredToolCallLLM(
     StructuredOutputMixIn[_TBaseModel],
     OutputLessToolCallLLM[
         StructuredResponse[_TBaseModel]
-        | Generator[
-            str | StructuredResponse[_TBaseModel], None, StructuredResponse[_TBaseModel]
-        ]
     ],
     ABC,
     Generic[_TBaseModel],
@@ -70,7 +68,7 @@ class StructuredToolCallLLM(
     def __init__(
         self,
         user_input: MessageHistory | UserMessage | str | list[Message],
-        llm: ModelBase | None = None,
+        llm: ModelBase[Literal[False]] | None = None,
         max_tool_calls: int | None = None,
     ):
         # as of right now we do not support streaming with structured tool calls.
@@ -91,32 +89,6 @@ class StructuredToolCallLLM(
                 ),
                 llm=self.llm_model,
             )
-
-            if isinstance(response, Generator):
-
-                def gen_wrapper():
-                    for r in response:
-                        if isinstance(r, StructuredResponse):
-                            result: StructuredResponse[_TBaseModel] = (
-                                self._handle_structured_output(r)
-                            )
-                            yield result
-                            return result
-
-                        elif isinstance(r, str):
-                            yield r
-                        else:
-                            raise LLMError(
-                                reason=f"ModelLLM returned unexpected type in generator. Expected str or StructuredResponse, got {type(r)}",
-                                message_history=self.message_hist,
-                            )
-
-                    raise LLMError(
-                        reason="The generator did not yield a final Response object",
-                        message_history=self.message_hist,
-                    )
-
-                return gen_wrapper()
 
             structured_output = response
         except Exception as e:

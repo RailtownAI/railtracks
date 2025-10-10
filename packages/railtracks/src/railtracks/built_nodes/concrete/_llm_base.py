@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Dict, Generator, Generic, Iterable, TypeVar
+from typing import Any, Callable, Dict, Generator, Generic, Iterable, Literal, TypeVar, overload
 
 from pydantic import BaseModel
 from typing_extensions import Self
@@ -29,7 +29,7 @@ from railtracks.validation.node_invocation.validation import (
     check_message_history,
 )
 
-from .response import StringResponse, StructuredResponse
+from .response import LLMResponse, StringResponse, StructuredResponse
 
 # Global logger for LLM nodes
 logger = get_rt_logger("Node.LLM")
@@ -67,8 +67,10 @@ class RequestDetails:
     def __repr__(self):
         return f"RequestDetails(model_name={self.model_name}, model_provider={self.model_provider}, input={self.input}, output={self.output})"
 
+_TStream = TypeVar("_TStream", Literal[True], Literal[False])
+_TCollectedOutput = TypeVar("_TCollectedOutput", bound=LLMResponse)
 
-class LLMBase(Node[_T | Generator[str | _T, None, _T]], ABC, Generic[_T]):
+class LLMBase(Node[_T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
     """
     A basic LLM base class that encapsulates the attaching of an LLM model and message history object.
 
@@ -85,7 +87,7 @@ class LLMBase(Node[_T | Generator[str | _T, None, _T]], ABC, Generic[_T]):
     def __init__(
         self,
         user_input: MessageHistory | UserMessage | str | list[Message],
-        llm: ModelBase | None = None,
+        llm: ModelBase[_TStream] | None = None,
     ):
         super().__init__()
 
@@ -198,7 +200,7 @@ class LLMBase(Node[_T | Generator[str | _T, None, _T]], ABC, Generic[_T]):
         return MessageHistory([UserMessage("\n".join(instruction_parts))])
 
     @abstractmethod
-    def return_output(self, message: Message | None = None) -> _T: ...
+    def return_output(self, message: Message | None = None) -> _TCollectedOutput: ...
 
     @classmethod
     def _verify_message_history(cls, message_history: MessageHistory):
@@ -206,12 +208,12 @@ class LLMBase(Node[_T | Generator[str | _T, None, _T]], ABC, Generic[_T]):
         check_message_history(message_history, cls.system_message())
 
     @classmethod
-    def _verify_llm_model(cls, llm: ModelBase | None):
+    def _verify_llm_model(cls, llm: ModelBase[_TStream] | None):
         """Verify the llm model is valid for this LLM."""
         check_llm_model(llm)
 
     @classmethod
-    def get_llm(cls) -> ModelBase | None:
+    def get_llm(cls) -> ModelBase[_TStream] | None:
         return None
 
     @classmethod
@@ -335,10 +337,10 @@ class LLMBase(Node[_T | Generator[str | _T, None, _T]], ABC, Generic[_T]):
     @classmethod
     def type(cls):
         return "Agent"
-
+    
     def _gen_wrapper(
         self, returned_mess: Generator[str | Response, None, Response]
-    ) -> Generator[str | _T, None, _T]:
+    ) -> Generator[str | _TCollectedOutput, None, _TCollectedOutput]:
         for r in returned_mess:
             if isinstance(r, Response):
                 message = r.message
@@ -368,7 +370,6 @@ class LLMBase(Node[_T | Generator[str | _T, None, _T]], ABC, Generic[_T]):
             )
 
         self.message_hist.append(output)
-
 
 _TStructured = TypeVar("_TStructured", bound=BaseModel)
 
@@ -413,4 +414,4 @@ class StringOutputMixIn:
         return StringResponse(
             content=message.content,
             message_history=self.message_hist.removed_system_messages(),
-        )
+        )    

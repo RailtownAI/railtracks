@@ -2,9 +2,9 @@
 # In the following document, we will use the interface types defined in this module to interact with the llama index to
 # route to a given model.
 ###
-
+from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import AsyncGenerator, Callable, Generator, List, Type, TypeVar
+from typing import AsyncGenerator, Callable, Generator, Generic, List, Literal, Type, TypeVar, overload
 
 from pydantic import BaseModel
 
@@ -12,10 +12,10 @@ from .history import MessageHistory
 from .response import Response
 from .tools import Tool
 
-_T = TypeVar("_T", Response, Generator[str | Response, None, Response])
+_TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
 
-class ModelBase(ABC):
+class ModelBase(ABC, Generic[_TStream]):
     """
     A simple base that represents the behavior of a model that can be used for chat, structured interactions, and streaming.
 
@@ -32,7 +32,7 @@ class ModelBase(ABC):
         | None = None,
         __exception_hooks: List[Callable[[MessageHistory, Exception], None]]
         | None = None,
-        _stream: bool = False,
+        _stream: _TStream = False,
     ):
         if __pre_hooks is None:
             pre_hooks: List[Callable[[MessageHistory], MessageHistory]] = []
@@ -138,6 +138,20 @@ class ModelBase(ABC):
 
         return new_response
 
+    @overload
+    def chat(
+        self: ModelBase[Literal[False]],
+        messages: MessageHistory
+    ) -> Response:
+        pass
+
+    @overload 
+    def chat(
+        self: ModelBase[Literal[True]],
+        messages: MessageHistory
+    ) -> Generator[str | Response, None, Response]:
+        pass
+    
     def chat(
         self, messages: MessageHistory
     ) -> Response | Generator[str | Response, None, Response]:
@@ -156,6 +170,20 @@ class ModelBase(ABC):
 
         response = self._run_post_hooks(messages, response)
         return response
+    
+    @overload
+    async def achat(
+        self: ModelBase[Literal[False]],
+        messages: MessageHistory
+    ) -> Response:
+        pass
+
+    @overload 
+    async def achat(
+        self: ModelBase[Literal[True]],
+        messages: MessageHistory
+    ) -> Generator[str | Response, None, Response]:
+        pass
 
     async def achat(self, messages: MessageHistory):
         """Asynchronous chat with the model using the provided messages."""
@@ -173,6 +201,22 @@ class ModelBase(ABC):
         response = self._run_post_hooks(messages, response)
 
         return response
+    
+    @overload 
+    def structured(
+        self: ModelBase[Literal[False]],
+        messages: MessageHistory,
+        schema: Type[BaseModel],
+    ) -> Response:
+        pass
+
+    @overload
+    def structured(
+        self: ModelBase[Literal[True]],
+        messages: MessageHistory,
+        schema: Type[BaseModel],
+    ) -> Generator[str | Response, None, Response]:
+        pass
 
     def structured(self, messages: MessageHistory, schema: Type[BaseModel]):
         """Structured interaction with the model using the provided messages and output_schema."""
@@ -190,6 +234,22 @@ class ModelBase(ABC):
         response = self._run_post_hooks(messages, response)
 
         return response
+    
+    @overload
+    async def astructured(
+        self: ModelBase[Literal[False]],
+        messages: MessageHistory,
+        schema: Type[BaseModel],
+    ) -> Response:
+        pass
+
+    @overload
+    async def astructured(
+        self: ModelBase[Literal[True]],
+        messages: MessageHistory,
+        schema: Type[BaseModel],
+    ) -> Generator[str | Response, None, Response]:
+        pass
 
     async def astructured(self, messages: MessageHistory, schema: Type[BaseModel]):
         """Asynchronous structured interaction with the model using the provided messages and output_schema."""
@@ -207,6 +267,22 @@ class ModelBase(ABC):
         response = self._run_post_hooks(messages, response)
 
         return response
+    
+    @overload
+    def chat_with_tools(
+        self: ModelBase[Literal[False]],
+        messages: MessageHistory,
+        tools: List[Tool]
+    ) -> Response:
+        pass
+
+    @overload
+    def chat_with_tools(
+        self: ModelBase[Literal[True]],
+        messages: MessageHistory,
+        tools: List[Tool]
+    ) -> Generator[str | Response, None, Response]:
+        pass
 
     def chat_with_tools(self, messages: MessageHistory, tools: List[Tool]):
         """Chat with the model using the provided messages and tools."""
@@ -223,6 +299,22 @@ class ModelBase(ABC):
 
         response = self._run_post_hooks(messages, response)
         return response
+    
+    @overload
+    async def achat_with_tools(
+        self: ModelBase[Literal[False]],
+        messages: MessageHistory,
+        tools: List[Tool]
+    ) -> Response:
+        pass
+
+    @overload
+    async def achat_with_tools(
+        self: ModelBase[Literal[True]],
+        messages: MessageHistory,
+        tools: List[Tool]
+    ) -> Generator[str | Response, None, Response]:
+        pass
 
     async def achat_with_tools(self, messages: MessageHistory, tools: List[Tool]):
         """Asynchronous chat with the model using the provided messages and tools."""

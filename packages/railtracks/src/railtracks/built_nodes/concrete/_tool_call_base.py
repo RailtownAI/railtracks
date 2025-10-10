@@ -8,12 +8,15 @@ from typing import (
     Dict,
     Generator,
     Generic,
+    Literal,
     ParamSpec,
     Set,
     Type,
     TypeVar,
+    overload,
 )
 
+from railtracks.built_nodes.concrete.response import LLMResponse
 from railtracks.exceptions import LLMError, NodeCreationError
 from railtracks.exceptions.errors import NodeInvocationError
 from railtracks.interaction._call import call
@@ -34,12 +37,13 @@ from railtracks.validation.node_invocation.validation import check_max_tool_call
 
 from ._llm_base import LLMBase
 
-_T = TypeVar("_T")
+_T = TypeVar("_T", bound=LLMResponse)
 _P = ParamSpec("_P")
+_TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
 
 class OutputLessToolCallLLM(
-    LLMBase[_T | Generator[_T | str, None, _T]], ABC, Generic[_T]
+    LLMBase[_T, _T, Literal[False]], ABC, Generic[_T]
 ):
     """A base class that is a node which contains
      an LLm that can make tool calls. The tool calls will be returned
@@ -69,7 +73,7 @@ class OutputLessToolCallLLM(
     def __init__(
         self,
         user_input: MessageHistory | UserMessage | str | list[Message],
-        llm: ModelBase | None = None,
+        llm: ModelBase[Literal[False]] | None = None,
         max_tool_calls: int | None = None,
     ):
         super().__init__(llm=llm, user_input=user_input)
@@ -160,7 +164,7 @@ class OutputLessToolCallLLM(
             if self.max_tool_calls is not None
             else None
         )
-        if self.max_tool_calls is not None and allowed_tool_calls <= 0:
+        if allowed_tool_calls is not None and allowed_tool_calls <= 0:
             message = await self._on_max_tool_calls_exceeded()
             return False, message
 

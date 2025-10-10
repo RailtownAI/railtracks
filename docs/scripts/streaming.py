@@ -16,9 +16,8 @@ response = model.chat(llm.MessageHistory([
 ]))
 
 # The response object can act as an iterator returning string chunks terminating with the complete message.
-if isinstance(response, Generator):
-    for chunk in response:
-        print(chunk)
+for chunk in response:
+    print(chunk)
 # --8<-- [end: streaming_usage]
 
 # --8<-- [start: streaming_with_agents]
@@ -43,9 +42,9 @@ async def main():
         ]))
     
     # The response object can act as an iterator returning string chunks terminating with the complete message.
-    if isinstance(result, Generator): 
-        for chunk in result:
-            print(chunk)
+    
+    for chunk in result:
+        print(chunk)
     
     
 

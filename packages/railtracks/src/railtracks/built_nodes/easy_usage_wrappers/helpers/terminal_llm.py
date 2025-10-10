@@ -2,6 +2,7 @@ from typing import Any, Callable, Type
 
 from railtracks.built_nodes._node_builder import NodeBuilder
 from railtracks.built_nodes.concrete import TerminalLLM
+from railtracks.built_nodes.concrete.terminal_llm_base import StreamingTerminalLLM
 from railtracks.llm import ModelBase, SystemMessage
 from railtracks.llm.tools import Parameter
 
@@ -10,13 +11,13 @@ def terminal_llm(
     name: str | None = None,
     *,
     system_message: SystemMessage | str | None = None,
-    llm: ModelBase | None = None,
+    llm: ModelBase,
     tool_details: str | None = None,
     tool_params: set[Parameter] | None = None,
     return_into: str | None = None,
     format_for_return: Callable[[Any], Any] | None = None,
     format_for_context: Callable[[Any], Any] | None = None,
-) -> Type[TerminalLLM]:
+):
     """
     Dynamically create a LastMessageTerminalLLM node class with custom configuration.
 
@@ -37,8 +38,8 @@ def terminal_llm(
     Returns:
         Type[LastMessageTerminalLLM]: The dynamically generated node class with the specified configuration.
     """
-    builder = NodeBuilder[TerminalLLM](
-        TerminalLLM,
+    builder = NodeBuilder(
+        StreamingTerminalLLM if llm._stream else TerminalLLM,
         name=name,
         class_name="EasyLastMessageTerminalLLM",
         return_into=return_into,
