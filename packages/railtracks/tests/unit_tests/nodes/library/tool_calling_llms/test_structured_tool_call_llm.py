@@ -24,6 +24,8 @@ def test_structured_tool_call_llm_init(mock_llm, schema, mock_tool):
         
         def tool_nodes(self):
             return {mock_tool}
+        
+        def 
     
     mh = MessageHistory([SystemMessage("system prompt"), UserMessage("extract value")])
     node = MockStructuredToolCallLLM(
