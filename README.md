@@ -66,13 +66,13 @@ def get_weather(location: str) -> str:
 # Create an agent with tools
 agent = rt.agent_node(
     "Weather Assistant",
-    tool_nodes={rt.function_node(get_weather)},
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    tool_nodes=(rt.function_node(get_weather)),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
     system_message="You help users with weather information."
 )
 
 # Run it
-result = rt.call_sync(agent, "What's the weather in Paris?")
+result = await rt.call(agent, "What's the weather in Paris?")
 print(result.text)  # "Based on the current data, it's sunny in Paris!"
 ```
 
@@ -107,7 +107,7 @@ def my_tool(text: str) -> str:
 # Any function becomes a tool
 agent = rt.agent_node(
     "Assistant",
-    tool_nodes={my_tool, api_call}
+    tool_nodes=(my_tool, api_call)
 )
 ```
 - ✅ Instant function-to-tool conversion
@@ -121,7 +121,7 @@ agent = rt.agent_node(
 
 #### ⚡ **Automatic Intelligence**
 ```python
-# Smart parallelization built-in
+# Smart parallelization built-in with interface similar to asyncio
 result = await rt.call(agent, query)
 ```
 - ✅ Auto-parallelization
@@ -179,8 +179,8 @@ def word_count(text: str) -> int:
 # 2. Build an agent with tools
 text_analyzer = rt.agent_node(
     "Text Analyzer",
-    tool_nodes={count_characters, word_count},
-    llm_model=rt.llm.OpenAILLM("gpt-4o"),
+    tool_nodes=(count_characters, word_count),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
     system_message="You analyze text using the available tools."
 )
 
@@ -223,13 +223,13 @@ railtracks viz   # See your agent in action
 
 ```python
 # Research coordinator that uses specialized agents
-researcher = rt.agent_node("Researcher", tool_nodes={web_search, summarize})
-analyst = rt.agent_node("Analyst", tool_nodes={analyze_data, create_charts})
-writer = rt.agent_node("Writer", tool_nodes={draft_report, format_document})
+researcher = rt.agent_node("Researcher", tool_nodes=(web_search, summarize))
+analyst = rt.agent_node("Analyst", tool_nodes=(analyze_data, create_charts))
+writer = rt.agent_node("Writer", tool_nodes=(draft_report, format_document))
 
 coordinator = rt.agent_node(
     "Research Coordinator",
-    tool_nodes={researcher, analyst, writer},  # Agents as tools!
+    tool_nodes=(researcher, analyst, writer),  # Agents as tools!
     system_message="Coordinate research tasks between specialists."
 )
 ```
@@ -244,12 +244,12 @@ coordinator = rt.agent_node(
 def handle_customer_request(query: str):
     with rt.Session() as session:
         # Technical support first
-        technical_result = await rt.call(technical_agent, query)
+        technical_result = rt.call(technical_agent, query)
         
         # Share context with billing if needed
         if "billing" in technical_result.text.lower():
             session.context["technical_notes"] = technical_result.text
-            billing_result = await rt.call(billing_agent, query)
+            billing_result = rt.call(billing_agent, query)
             return billing_result
         
         return technical_result
@@ -272,8 +272,8 @@ def handle_customer_request(query: str):
 | **📊 Built-in visualization** | ✅ | ✅ | ⚠️ |
 | **⚡ Zero setup overhead** | ✅ | ✅ | ❌ |
 | **🔄 LLM-agnostic** | ✅ | ✅ | ✅ |
-| **🎯 Pure Python functions** | ✅ | ❌ | ⚠️ |
-| **🚀 Automatic optimization** | ✅ | ⚠️ | ⚠️ |
+| **🎯 Pythonic style** | ✅ | ❌ | ⚠️ |
+| **🚀 Tools for production** | ✅ | ⚠️ | ⚠️ |
 
 </div>
 
@@ -309,9 +309,9 @@ Works with **OpenAI**, **Anthropic**, **Google**, **Azure**, and more! Check out
 Build with powerful abstractions:
 
 - ✅ **Functions** → Tools automatically
-- ✅ **MCP Integration** for protocols
-- ✅ **Agents as Tools** composition
-- ✅ **Structured Outputs** with Pydantic
+- ✅ **MCP Integration** as client or as server
+- ✅ **Agents as Tools** → agent cluster
+- ✅ **Full Monitoring** of every detail
 - ✅ **Async/Await** support
 - ✅ **Error Handling** built-in
 
