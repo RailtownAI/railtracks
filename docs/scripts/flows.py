@@ -126,24 +126,28 @@ class StructuredResponse(BaseModel):
 QualityAssuranceAgent = rt.agent_node(
     name="Quality Assurance Agent",
     output_schema=StructuredResponse,
+    llm=rt.llm.OpenAILLM("gpt-4o"),
     #adding all other arguments as needed
     )
 
 ProductExpertAgent = rt.agent_node(
     name="Product Expert Agent",
     output_schema=StructuredResponse,
+    llm=rt.llm.OpenAILLM("gpt-4o"),
     #adding all other arguments as needed
     )
 
 BillingAgent = rt.agent_node(
     name="Billing Agent",
     output_schema=StructuredResponse,
+    llm=rt.llm.OpenAILLM("gpt-4o"),
     #adding all other arguments as needed
     )
     
 TechnicalAgent = rt.agent_node(
     name="Technical Support Agent",
     output_schema=StructuredResponse,
+    llm=rt.llm.OpenAILLM("gpt-4o"),
     #adding all other arguments as needed
     )
 
