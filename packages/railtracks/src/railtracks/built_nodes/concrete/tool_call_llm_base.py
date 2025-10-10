@@ -1,4 +1,3 @@
-from abc import ABC
 from typing import Literal, TypeVar
 
 from ._llm_base import StringOutputMixIn

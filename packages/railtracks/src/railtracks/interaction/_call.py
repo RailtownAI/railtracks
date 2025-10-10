@@ -6,7 +6,6 @@ from typing import (
     TYPE_CHECKING,
     Callable,
     Coroutine,
-    Literal,
     ParamSpec,
     TypeVar,
     overload,
