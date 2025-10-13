@@ -41,8 +41,10 @@ classifiers = [
 ]
 dynamic = ["version", "description"]
 requires-python = ">=3.10"
-dependencies = ["railtracks", "watchdog >= 3.0.0"]
+dependencies = ["watchdog >= 3.0.0"]
 
+[project.optional-dependencies]
+full = ["railtracks"]
 
 [project.urls]
 documentation = "https://railtownai.github.io/railtracks/"
