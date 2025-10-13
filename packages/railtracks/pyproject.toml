@@ -45,7 +45,7 @@ classifiers = [
 
 dependencies = [
     "colorama >= 0.4.6",
-    "litellm[proxy] >= 1.70.2",
+    "litellm[proxy] >= 1.78.0",
     "mcp >= 1.16.0",
     "openai >= 1.99.5, < 1.100.0",
     "pydantic >= 2.5.3, <3",
