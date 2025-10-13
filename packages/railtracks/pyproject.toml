@@ -10,7 +10,7 @@ authors = [
     { name = "Jaime Bueza", email = "jaime@railtown.ai" },
     { name = "Amir Refaee", email = "amir@railtown.ai" },
     { name = "Aryan Ballani", email = "aryan@railtown.ai" },
-    { name = "Tristan Brown", email = "tristan@railtown.ai" }
+    { name = "Tristan Brown", email = "tristan@railtown.ai" },
 ]
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -40,40 +40,36 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
 
-    "Typing :: Typed"
+    "Typing :: Typed",
 ]
 
 dependencies = [
-  "colorama >= 0.4.6",
-  "litellm[proxy] >= 1.70.2",
-  "mcp >= 1.16.0",
-  "openai >= 1.99.5, < 1.100.0",
-  "pydantic >= 2.5.3, <3",
-  "python-dotenv >= 1.0.0",
-  "PyYAML >= 6.0"
+    "colorama >= 0.4.6",
+    "litellm[proxy] >= 1.70.2",
+    "mcp >= 1.16.0",
+    "openai >= 1.99.5, < 1.100.0",
+    "pydantic >= 2.5.3, <3",
+    "python-dotenv >= 1.0.0",
+    "PyYAML >= 6.0",
 ]
 
 [project.optional-dependencies]
-chat = [
-    "fastapi >= 0.104.0"
-]
+chat = ["fastapi >= 0.104.0"]
 # For each Integration package depenedcies go here.
 rag = [
-    "litellm[proxy] >= 1.70.2",
-    "openai < 1.100.0"
+    #empty
 ]
 # the integrations submodule will be list a of the above deps
 integrations = [
     # currently empty
 ]
 all = [
-    "railtracks[chat,rag,integrations]"
+    "fastapi >= 0.104.0", # from chat
 ]
 
 core = [
-    "railtracks[chat]"
+    "fastapi >= 0.104.0", # from chat
 ]
-
 
 
 [project.urls]
@@ -91,4 +87,3 @@ asyncio_mode = "auto"
 
 [tool.setuptools.package-data]
 railtracks = ["py.typed"]
-
