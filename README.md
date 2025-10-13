@@ -54,7 +54,7 @@
 ## ✨ What is Railtracks?
 
 > [!NOTE]
-> Transform how you build AI agents: While other frameworks force you into rigid workflows or complex APIs, Railtracks lets you create intelligent agents using simple Python functions and natural control flow.
+> Easier, for no one but **YOU**: While other frameworks force you into rigid workflows or complex APIs, Railtracks lets you create deployable complex agent using pythonic style with natural control flow.
 
 ```python
 import railtracks as rt
@@ -80,7 +80,7 @@ print(result.text)  # "Based on the current data, it's sunny in Paris!"
 
 ---
 
-## 🎯 Why Choose Railtracks?
+## 🎯 Why Railtracks?
 
 <div align="center">
 
@@ -119,14 +119,14 @@ agent = rt.agent_node(
 <tr>
 <td width="50%" valign="top">
 
-#### ⚡ **Automatic Intelligence**
+#### ⚡ **Look Familiar?**
 ```python
 # Smart parallelization built-in with interface similar to asyncio
 result = await rt.call(agent, query)
 ```
-- ✅ Auto-parallelization
-- ✅ Built-in error handling & retries
-- ✅ Automatic tool validation
+- ✅ Easy to learn standardized interface
+- ✅ Built-in validation, error handling & retries
+- ✅ Auto-parallelization management
 
 </td>
 <td width="50%" valign="top">
@@ -306,12 +306,12 @@ Works with **OpenAI**, **Anthropic**, **Google**, **Azure**, and more! Check out
 
 ### 📦 Rich Tool Ecosystem
 
-Build with powerful abstractions:
+Use existing tools or create your own:
 
+- ✅ **Built in Tools** RAG, CoT, etc.
 - ✅ **Functions** → Tools automatically
 - ✅ **MCP Integration** as client or as server
 - ✅ **Agents as Tools** → agent cluster
-- ✅ **Full Monitoring** of every detail
 - ✅ **Async/Await** support
 - ✅ **Error Handling** built-in
 
@@ -401,7 +401,7 @@ pip install railtracks railtracks-cli
 
 <br>
 
-## ✨ Join thousands of developers building the future with AI agents
+## ✨ Join developers across the world building the future with AI agents
 
 <br>
 

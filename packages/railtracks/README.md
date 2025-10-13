@@ -25,7 +25,7 @@ def count_chars(text: str, char: str) -> int:
 agent = rt.agent_node(
     "Text Analyzer", 
     tool_nodes=(count_chars),
-    llm_model=rt.llm.OpenAILLM("gpt-4o")
+    llm=rt.llm.OpenAILLM("gpt-4o")
 )
 
 # Use it
