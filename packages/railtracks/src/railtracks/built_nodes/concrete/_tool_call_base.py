@@ -275,7 +275,6 @@ class StreamingOutputLessToolCallLLM(
     ABC,
     Generic[_TCollectedOutput],
 ):
-    
     async def _handle_tool_calls(self):
         returned_mess = await asyncio.to_thread(
             self.llm_model.chat_with_tools, self.message_hist, tools=self.tools()
@@ -309,7 +308,6 @@ class StreamingOutputLessToolCallLLM(
             return gen_wrapper()
 
         if isinstance(first_item, Response):
-
             assert isinstance(first_item.message, AssistantMessage)
 
             if len(first_item.message.tool_calls) > 0:
@@ -327,7 +325,6 @@ class StreamingOutputLessToolCallLLM(
                     "Message returned did not contain tool calls and it should have.",
                     message_history=self.message_hist,
                 )
-
 
     async def invoke(self):
         """Makes a call containing the inputted message and system prompt to the llm model and returns the response
