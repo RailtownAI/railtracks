@@ -59,6 +59,10 @@
   <strong>Note:</strong> Easier, for no one but <strong>YOU</strong>: While other frameworks force you into rigid workflows or complex APIs, Railtracks lets you create deployable complex agents using Pythonic style with natural control flow.
 </div>
 
+<img src="docs\assets\elements\banner.svg" alt="Vertical orange line" style="vertical-align: middle; margin-right: 10px;">
+Easier, for no one but **YOU**: While other frameworks force you into rigid workflows or complex APIs, Railtracks lets you create deployable complex agents using Pythonic style with natural control flow.
+
+
 
 ```python
 import railtracks as rt
