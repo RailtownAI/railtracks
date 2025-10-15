@@ -1,5 +1,3 @@
-from typing import Generator
-
 from .message import Message
 
 
@@ -63,8 +61,7 @@ class Response:
 
     def __init__(
         self,
-        message: Message | None = None,
-        streamer: Generator[str, None, None] | None = None,
+        message: Message,
         message_info: MessageInfo = MessageInfo(),
     ):
         """
@@ -77,10 +74,7 @@ class Response:
         """
         if message is not None and not isinstance(message, Message):
             raise TypeError(f"message must be of type Message, got {type(message)}")
-        if streamer is not None and not isinstance(streamer, Generator):
-            raise TypeError(f"streamer must be of type Generator, got {type(streamer)}")
         self._message = message
-        self._streamer = streamer
         self._message_info = message_info
 
     @property
@@ -91,17 +85,6 @@ class Response:
         If none exists, this will return None.
         """
         return self._message
-
-    @property
-    def streamer(self):
-        """
-        Gets the streamer that was returned as part of this response.
-
-        This object will only be filled in the case when you asked for a streamed response.
-
-        If none exists, this will return None.
-        """
-        return self._streamer
 
     @property
     def message_info(self) -> MessageInfo:
@@ -119,4 +102,4 @@ class Response:
             return "Response(<no-data>)"
 
     def __repr__(self):
-        return f"Response(message={self._message}, streamer={self._streamer}, message_info={self._message_info})"
+        return f"Response(message={self._message}, message_info={self._message_info})"

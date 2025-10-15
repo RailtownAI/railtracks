@@ -116,6 +116,7 @@ nav:
   - LLM Support:
       - Supported Providers: llm_support/providers.md
       - Prompts and Context Injection: llm_support/prompts.md
+      - Streaming: llm_support/streaming.md
       
   # - Deployments:
   #     - Docker: deployments/docker.md
@@ -123,6 +124,7 @@ nav:
   - Advanced Usage:
       - Session: advanced_usage/session.md
       - Context: advanced_usage/context.md
+
       # - Configuration: advanced_usage/config.md
 
   # - Samples:

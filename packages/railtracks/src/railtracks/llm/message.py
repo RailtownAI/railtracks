@@ -41,6 +41,7 @@ class Message(Generic[_T]):
                 - List[ToolCall]: A list of tool calls.
                 - ToolResponse: A tool response.
                 - BaseModel: A custom base model object.
+                - Stream: A stream object with a final_message and a generator.
             role: The role of the message (assistant, user, system, tool, etc.).
             inject_prompt (bool, optional): Whether to inject prompt with context variables. Defaults to True.
         """

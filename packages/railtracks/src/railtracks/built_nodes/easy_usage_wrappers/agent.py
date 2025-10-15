@@ -1,5 +1,5 @@
 from types import FunctionType
-from typing import Callable, Iterable, Type, TypeVar, overload
+from typing import Callable, Iterable, Literal, Type, TypeVar, overload
 
 from pydantic import BaseModel
 
@@ -10,6 +10,8 @@ from railtracks.built_nodes.concrete import (
     TerminalLLM,
     ToolCallLLM,
 )
+from railtracks.built_nodes.concrete.structured_llm_base import StreamingStructuredLLM
+from railtracks.built_nodes.concrete.terminal_llm_base import StreamingTerminalLLM
 from railtracks.llm.message import SystemMessage
 from railtracks.llm.model import ModelBase
 from railtracks.nodes.manifest import ToolManifest
@@ -24,6 +26,7 @@ from .helpers import (
 )
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
+_TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
 
 @overload
@@ -32,7 +35,7 @@ def agent_node(
     *,
     tool_nodes: Iterable[Type[Node] | Callable | RTFunction],
     output_schema: Type[_TBaseModel],
-    llm: ModelBase | None = None,
+    llm: ModelBase[Literal[False]] | None = None,
     max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
@@ -45,7 +48,19 @@ def agent_node(
     name: str | None = None,
     *,
     output_schema: Type[_TBaseModel],
-    llm: ModelBase | None = None,
+    llm: ModelBase[Literal[True]],
+    system_message: SystemMessage | str | None = None,
+    manifest: ToolManifest | None = None,
+) -> Type[StreamingStructuredLLM[_TBaseModel]]:
+    pass
+
+
+@overload
+def agent_node(
+    name: str | None = None,
+    *,
+    output_schema: Type[_TBaseModel],
+    llm: ModelBase[Literal[False]] | None = None,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
 ) -> Type[StructuredLLM[_TBaseModel]]:
@@ -56,7 +71,7 @@ def agent_node(
 def agent_node(
     name: str | None = None,
     *,
-    llm: ModelBase | None = None,
+    llm: ModelBase[Literal[False]] | None = None,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
 ) -> Type[TerminalLLM]:
@@ -67,8 +82,19 @@ def agent_node(
 def agent_node(
     name: str | None = None,
     *,
+    llm: ModelBase[Literal[True]],
+    system_message: SystemMessage | str | None = None,
+    manifest: ToolManifest | None = None,
+) -> Type[StreamingTerminalLLM]:
+    pass
+
+
+@overload
+def agent_node(
+    name: str | None = None,
+    *,
     tool_nodes: Iterable[Type[Node] | Callable | RTFunction],
-    llm: ModelBase | None = None,
+    llm: ModelBase[Literal[False]] | None = None,
     max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
@@ -81,7 +107,7 @@ def agent_node(
     *,
     tool_nodes: Iterable[Type[Node] | Callable | RTFunction] | None = None,
     output_schema: Type[_TBaseModel] | None = None,
-    llm: ModelBase | None = None,
+    llm: ModelBase[_TStream] | None = None,
     max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
@@ -93,7 +119,7 @@ def agent_node(
         name (str | None): The name of the agent. If none the default will be used.
         tool_nodes (set[Type[Node] | Callable | RTFunction] | None): If your agent is a LLM with access to tools, what does it have access to?
         output_schema (Type[_TBaseModel] | None): If your agent should return a structured output, what is the output_schema?
-        llm (ModelBase | None): The LLM model to use. If None it will need to be passed in at instance time.
+        llm (ModelBase): The LLM model to use. If None it will need to be passed in at instance time.
         max_tool_calls (int | None): Maximum number of tool calls allowed (if it is a ToolCall Agent).
         system_message (SystemMessage | str | None): System message for the agent.
         manifest (ToolManifest | None): If you want to use this as a tool in other agents you can pass in a ToolManifest.
