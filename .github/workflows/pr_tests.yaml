@@ -43,11 +43,6 @@ jobs:
         with:
           python-version: "${{ env.PYTHON_VERSION }}"
 
-      - name: Use root README for PyPI (railtracks)
-        run: |
-          cp README.md packages/railtracks/README.md
-          echo "Copied root README.md into packages/railtracks/"
-
       - name: Run License Check
         run: |
           chmod +x scripts/check_licenses.sh

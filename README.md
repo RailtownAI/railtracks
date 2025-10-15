@@ -53,8 +53,12 @@
 
 ## ✨ What is Railtracks?
 
-> [!NOTE]
-> Easier, for no one but **YOU**: While other frameworks force you into rigid workflows or complex APIs, Railtracks lets you create deployable complex agent using pythonic style with natural control flow.
+
+
+<div style="padding: 10px; border-left: 4px solid #f0ad4e; border-right: 4px solid #f0ad4e;">
+  <strong>Note:</strong> Easier, for no one but <strong>YOU</strong>: While other frameworks force you into rigid workflows or complex APIs, Railtracks lets you create deployable complex agents using Pythonic style with natural control flow.
+</div>
+
 
 ```python
 import railtracks as rt
@@ -121,7 +125,8 @@ agent = rt.agent_node(
 
 #### ⚡ **Look Familiar?**
 ```python
-# Smart parallelization built-in with interface similar to asyncio
+# Smart parallelization built-in 
+# with interface similar to asyncio
 result = await rt.call(agent, query)
 ```
 - ✅ Easy to learn standardized interface
