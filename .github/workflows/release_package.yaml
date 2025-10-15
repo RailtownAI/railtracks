@@ -28,7 +28,7 @@ jobs:
         run: |
           cp README.md packages/railtracks/README.md
           echo "Copied root README.md into packages/railtracks/ for PyPI"
-          cp -r assets packages/railtracks/assets
+          cp -r docs/assets packages/railtracks/docs/assets
           echo "Copied images directory to packages/railtracks/ for PyPI"
 
       - name: Install dependencies
