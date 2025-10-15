@@ -241,15 +241,15 @@ coordinator = rt.agent_node(
 
 ```python
 # Customer service system with context sharing
-def handle_customer_request(query: str):
+async def handle_customer_request(query: str):
     with rt.Session() as session:
         # Technical support first
-        technical_result = rt.call(technical_agent, query)
+        technical_result = await rt.call(technical_agent, query)
         
         # Share context with billing if needed
         if "billing" in technical_result.text.lower():
             session.context["technical_notes"] = technical_result.text
-            billing_result = rt.call(billing_agent, query)
+            billing_result = await rt.call(billing_agent, query)
             return billing_result
         
         return technical_result
@@ -273,7 +273,6 @@ def handle_customer_request(query: str):
 | **⚡ Zero setup overhead** | ✅ | ✅ | ❌ |
 | **🔄 LLM-agnostic** | ✅ | ✅ | ✅ |
 | **🎯 Pythonic style** | ✅ | ❌ | ⚠️ |
-| **🚀 Tools for production** | ✅ | ⚠️ | ⚠️ |
 
 </div>
 
@@ -312,8 +311,6 @@ Use existing tools or create your own:
 - ✅ **Functions** → Tools automatically
 - ✅ **MCP Integration** as client or as server
 - ✅ **Agents as Tools** → agent cluster
-- ✅ **Async/Await** support
-- ✅ **Error Handling** built-in
 
 </td>
 <td width="50%" valign="top">
