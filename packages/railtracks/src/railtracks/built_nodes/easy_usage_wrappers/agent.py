@@ -12,6 +12,7 @@ from railtracks.built_nodes.concrete import (
 )
 from railtracks.built_nodes.concrete.structured_llm_base import StreamingStructuredLLM
 from railtracks.built_nodes.concrete.terminal_llm_base import StreamingTerminalLLM
+from railtracks.built_nodes.concrete.tool_call_llm_base import StreamingToolCallLLM
 from railtracks.llm.message import SystemMessage
 from railtracks.llm.model import ModelBase
 from railtracks.nodes.manifest import ToolManifest
@@ -99,6 +100,19 @@ def agent_node(
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
 ) -> Type[ToolCallLLM]:
+    pass
+
+
+@overload
+def agent_node(
+    name: str | None = None,
+    *,
+    tool_nodes: Iterable[Type[Node] | Callable | RTFunction],
+    llm: ModelBase[Literal[True]],
+    max_tool_calls: int | None = None,
+    system_message: SystemMessage | str | None = None,
+    manifest: ToolManifest | None = None,
+) -> Type[StreamingToolCallLLM]:
     pass
 
 
