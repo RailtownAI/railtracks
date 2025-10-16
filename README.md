@@ -1,4 +1,4 @@
-# <span style="color: #4967EF">R</span>ailtracks
+# Railtracks
 
 <!--Happy Coding ◊-->
 
@@ -51,17 +51,15 @@
 
 ---
 
-## ✨ What is Railtracks?
+## ✨ What is $${{\color{YellowOrange}\huge\textbf{\textsf{Railtracks}}}}$$?
 
-
-
-<div style="padding: 10px; border-left: 4px solid #f0ad4e; border-right: 4px solid #f0ad4e;">
-  <strong>Note:</strong> Easier, for no one but <strong>YOU</strong>: While other frameworks force you into rigid workflows or complex APIs, Railtracks lets you create deployable complex agents using Pythonic style with natural control flow.
+<div style="display: flex; align-items: flex-start;">
+  <img src="docs/assets/elements/banner.svg" align="left" width="4" height="50">
+  Easy agent building, for no one but <strong>YOU</strong>: While other frameworks force you into rigid workflows or complex APIs, Railtracks lets you create deployable complex agents using Pythonic style with natural control flow.
 </div>
 
-<img src="docs\assets\elements\banner.svg" alt="Vertical orange line" style="vertical-align: middle; margin-right: 10px;">
-Easier, for no one but **YOU**: While other frameworks force you into rigid workflows or complex APIs, Railtracks lets you create deployable complex agents using Pythonic style with natural control flow.
-
+<!-- Add an empty line or a horizontal rule to ensure separation -->
+<br>
 
 
 ```python
@@ -270,8 +268,10 @@ async def handle_customer_request(query: str):
 
 ## 🌟 What Makes Railtracks Special?
 
-> [!NOTE]
-> A lightweight agentic LLM framework for building modular, multi-LLM workflows with a focus on simplicity and developer experience.
+<div style="display: flex; align-items: flex-start;">
+  <img src="docs/assets/elements/banner.svg" align="left" width="4" height="20">
+  A lightweight agentic LLM framework for building modular, multi-LLM workflows with a focus on simplicity and developer experience.
+</div>
 
 <div align="center">
 
