@@ -122,7 +122,6 @@ class OutputLessToolCallLLMBase(
                 notes=["Please check the tool names in the connected nodes."],
             )
         return node[0].prepare_tool(arguments)
-    
 
     def get_node_from_name(self, tool_name: str):
         """
@@ -139,14 +138,13 @@ class OutputLessToolCallLLMBase(
                 message=f"Tool {tool_name} has multiple nodes, this is not allowed. Current Node include {[x.tool_info().name for x in self.tool_nodes()]}",
                 notes=["Please check the tool names in the connected nodes."],
             )
-        
+
         return node[0]
-    
+
     async def run_node_from_tool(self, tool_name: str, arguments: dict[str, Any]):
         node = self.get_node_from_name(tool_name)
 
         return await call(node.prepare_tool, **arguments)
-
 
     @classmethod
     def tools(cls):

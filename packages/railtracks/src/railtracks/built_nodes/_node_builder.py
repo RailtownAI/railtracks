@@ -333,9 +333,7 @@ class NodeBuilder(Generic[_TNode]):
 
         def prepare_tool(cls, **kwargs):
             # Use the shared implementation in LLMBase
-            message_hist = cls.prepare_tool_message_history(
-                kwargs, tool_params
-            )
+            message_hist = cls.prepare_tool_message_history(kwargs, tool_params)
             return cls(message_hist)
 
         self._with_override("prepare_tool", classmethod(prepare_tool))
