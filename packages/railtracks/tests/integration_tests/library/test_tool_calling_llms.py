@@ -1,3 +1,4 @@
+from polars import String
 import pytest
 import railtracks as rt
 from railtracks.built_nodes.concrete.response import StringResponse
@@ -49,14 +50,16 @@ class TestSimpleToolCalling:
                 agent,
                 user_input="What is the secret phrase? Only return the secret phrase, no other text.",
             )
+            collected_response: StringResponse | None = None
             if stream:
                 for chunk in response:
                     assert isinstance(chunk, (str, StringResponse))
                     if isinstance(chunk, StringResponse):
-                        collected_response: StringResponse = chunk
+                        collected_response = chunk
             else:
-                collected_response: StringResponse = response
-            assert "Constantinople" in response.text
+                collected_response = response
+            assert collected_response is not None
+            assert "Constantinople" in collected_response.text
             assert rt.context.get("secret_phrase_called")
             
 

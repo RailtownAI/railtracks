@@ -400,7 +400,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
                 continue
 
             if choice.delta.tool_calls:
-                # TODO: determine if it would be useful to stream tools
+                
                 self._handle_tool_call_delta(
                     choice.delta.tool_calls[0], active_tool_calls
                 )

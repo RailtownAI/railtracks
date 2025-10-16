@@ -130,16 +130,25 @@ class MockLLM(rt.llm.ModelBase):
                     return r
                 
                 return make_generator()
+            
             return Response(    # no changes in this response in case of streaming
                 message=AssistantMessage(content=final_message),
                 message_info=self.mocked_message_info,
             )
         else:
             return_message = self.requested_tool_calls or "mocked tool message"
-            return Response(    # no changes in this response in case of streaming
+            r = Response(    # no changes in this response in case of streaming
                 message=AssistantMessage(return_message),
                 message_info=self.mocked_message_info,
             )
+            if self._stream:
+                def tool_generator():
+                    yield r
+                    return r
+                return tool_generator()
+            else:
+                return r
+
 
     # ==========================================================
     # Override all methods that make network calls with mocks
