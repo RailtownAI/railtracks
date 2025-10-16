@@ -1,6 +1,6 @@
 # Railtracks
 
-<!--Happy Coding ◊-->
+<!--Happy Coding ◊ -->
 
 <p align="center">
   <img alt="Railtracks Space Banner" src="docs/assets/hero-banner.svg" width="100%">
