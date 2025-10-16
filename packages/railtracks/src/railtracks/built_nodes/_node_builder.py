@@ -331,10 +331,10 @@ class NodeBuilder(Generic[_TNode]):
             f"You tried to add prepare_tool_llm to a non LLM Node of {type(self._node_class)}."
         )
 
-        def prepare_tool(cls, tool_parameters: Dict[str, Any]):
+        def prepare_tool(cls, **kwargs):
             # Use the shared implementation in LLMBase
             message_hist = cls.prepare_tool_message_history(
-                tool_parameters, tool_params
+                kwargs, tool_params
             )
             return cls(message_hist)
 
