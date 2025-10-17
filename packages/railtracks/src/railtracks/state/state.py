@@ -63,7 +63,7 @@ class RTState:
         execution_info: ExecutionInfo,
         executor_config: ExecutorConfig,
         coordinator: Coordinator,
-        publisher: RTPublisher[RequestCompletionMessage],
+        publisher: RTPublisher,
     ):
         self._node_heap = execution_info.node_forest
         self._request_heap = execution_info.request_forest

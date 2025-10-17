@@ -60,7 +60,7 @@ class DynamicFunctionNode(Node[_TOutput], ABC, Generic[_P, _TOutput]):
         pass
 
     @classmethod
-    def prepare_tool(cls, **kwargs: Dict[str, Any]) -> Self:
+    def prepare_tool(cls, **kwargs) -> Self:
         converted_params = cls.type_mapper().convert_kwargs_to_appropriate_types(kwargs)
         return cls(**converted_params)
 
