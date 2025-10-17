@@ -237,8 +237,8 @@ def from_mcp(
             return Tool.from_mcp(tool)
 
         @classmethod
-        def prepare_tool(cls, tool_parameters: Dict[str, Any]) -> Self:
-            return cls(**tool_parameters)
+        def prepare_tool(cls, **kwargs) -> Self:
+            return cls(**kwargs)
 
         @classmethod
         def type(cls):
