@@ -40,10 +40,10 @@ class LLMResponse(Generic[_T]):
         return self._tool_invocations
 
 
-_TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
+_TStructured = TypeVar("_TStructured", bound=BaseModel)
 
 
-class StructuredResponse(LLMResponse[_TBaseModel]):
+class StructuredResponse(LLMResponse[_TStructured]):
     """
     A specialized response object for structured outputs from LLMs.
 
@@ -52,13 +52,20 @@ class StructuredResponse(LLMResponse[_TBaseModel]):
         message_history: The history of messages exchanged during the interaction.
     """
 
-    def __init__(self, model: _TBaseModel, message_history: MessageHistory):
-        super().__init__(model, message_history)
+    def __init__(
+        self,
+        content: _TStructured,
+        message_history: MessageHistory,
+    ):
+        super().__init__(content, message_history)
 
     @property
-    def structured(self) -> _TBaseModel:
+    def structured(self) -> _TStructured:
         """Returns the structured content of the response."""
-        return self.content
+        if isinstance(self.content, BaseModel):
+            return self.content
+        else:
+            raise TypeError("Unexpected content type")
 
 
 class StringResponse(LLMResponse[str]):
@@ -76,4 +83,7 @@ class StringResponse(LLMResponse[str]):
     @property
     def text(self) -> str:
         """Returns the text content of the response."""
-        return self.content
+        if isinstance(self.content, str):
+            return self.content
+        else:
+            raise TypeError("Unexpected content type")

@@ -1,4 +1,6 @@
-from typing import Type, TypeVar
+from typing import Literal, Type, TypeVar
+
+from railtracks.built_nodes.concrete.response import LLMResponse
 
 from ..built_nodes.concrete._llm_base import LLMBase
 from ..human_in_the_loop import ChatUI, HILMessage
@@ -9,12 +11,12 @@ from ._call import call
 
 logger = get_rt_logger("Interactive")
 
-_TOutput = TypeVar("_TOutput")
+_TOutput = TypeVar("_TOutput", bound=LLMResponse)
 
 
 async def _chat_ui_interactive(
     chat_ui: ChatUI,
-    node: Type[LLMBase[_TOutput]],
+    node: Type[LLMBase[_TOutput, _TOutput, Literal[False]]],
     initial_message_to_user: str | None,
     initial_message_to_agent: str | None,
     turns: int | None,
@@ -70,7 +72,7 @@ async def _chat_ui_interactive(
 
 
 async def local_chat(
-    node: type[LLMBase[_TOutput]],
+    node: type[LLMBase[_TOutput, _TOutput, Literal[False]]],
     initial_message_to_user: str | None = None,
     initial_message_to_agent: str | None = None,
     turns: int | None = None,

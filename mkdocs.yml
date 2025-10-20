@@ -119,6 +119,7 @@ nav:
       - Multimodal:
           - Overview: llm_support/multimodal/overview.md
 
+      - Streaming: llm_support/streaming.md
       
   # - Deployments:
   #     - Docker: deployments/docker.md
@@ -126,6 +127,7 @@ nav:
   - Advanced Usage:
       - Session: advanced_usage/session.md
       - Context: advanced_usage/context.md
+
       # - Configuration: advanced_usage/config.md
 
   # - Samples:

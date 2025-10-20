@@ -57,3 +57,4 @@ This connects to a [remote MCP server](https://remote-mcp-servers.com/servers/ec
 1. **Google Search Tool**: Uses the Google Custom Search API to find relevant web pages based on user queries
 2. **MCP Fetch Tools**: Retrieves and processes content from the URLs found in search results
 3. **Agent Integration**: Combines both tools to create a comprehensive web search and content analysis system
+ 

@@ -1,112 +1,108 @@
+from typing import Generator
 import pytest
+import types
 from railtracks.llm.models._litellm_wrapper import (
     _parameters_to_json_schema,
     _to_litellm_tool,
     _to_litellm_message,
 )
 from railtracks.exceptions import NodeInvocationError, LLMError
-from railtracks.llm.message import AssistantMessage
-from railtracks.llm.history import MessageHistory
+from railtracks.llm import AssistantMessage
 from pydantic import BaseModel
+from railtracks.llm.response import Response
+from json import JSONDecodeError
 import litellm
-from typing import Generator
+from railtracks.llm.content import Stream
+import json
+
+class TestHelpers:
+
+    # =================================== START _parameters_to_json_schema Tests ==================================
+    # parameters_to_json_schema is guaranteed to get only a set of Parameter objects
+    def test_parameters_to_json_schema_with_parameters_set(
+        self, tool_with_parameters_set
+    ):
+        """
+        Test _parameters_to_json_schema with a set of Parameter objects.
+        """
+        schema = _parameters_to_json_schema(tool_with_parameters_set.parameters)
+        assert schema["type"] == "object"
+        assert "properties" in schema
+        assert "param1" in schema["properties"]
+        assert schema["properties"]["param1"]["type"] == "string"
+        assert schema["properties"]["param1"]["description"] == "A string parameter."
+        assert "required" in schema
+        assert "param1" in schema["required"]
+
+    def test_parameters_to_json_schema_with_empty_set(self):
+        schema = _parameters_to_json_schema(set())
+        assert schema == {"type": "object", "properties": {}}
+
+    def test_parameters_to_json_schema_invalid_input(self):
+        """
+        Test _parameters_to_json_schema with invalid input.
+        """
+        with pytest.raises(NodeInvocationError):
+            _parameters_to_json_schema(123)  # type: ignore
+
+    # =================================== END _parameters_to_json_schema Tests ====================================
+
+    # =================================== START _to_litellm_tool Tests ==================================
+    def test_to_litellm_tool(self, tool):
+        """
+        Test _to_litellm_tool with a valid Tool instance.
+        """
+        litellm_tool = _to_litellm_tool(tool)
+        assert litellm_tool["type"] == "function"
+        assert "function" in litellm_tool
+        assert litellm_tool["function"]["name"] == "example_tool"
+        assert litellm_tool["function"]["description"] == "This is an example tool."
+        assert "parameters" in litellm_tool["function"]
+
+    # =================================== END _to_litellm_tool Tests ====================================
+
+    # =================================== START _to_litellm_message Tests ==================================
+    def test_to_litellm_message_user_message(self, user_message):
+        """
+        Test _to_litellm_message with a UserMessage instance.
+        """
+        litellm_message = _to_litellm_message(user_message)
+        assert litellm_message["role"] == "user"
+        assert litellm_message["content"] == "This is a user message."
+
+    def test_to_litellm_message_assistant_message(self, assistant_message):
+        """
+        Test _to_litellm_message with an AssistantMessage instance.
+        """
+        litellm_message = _to_litellm_message(assistant_message)
+        assert litellm_message["role"] == "assistant"
+        assert litellm_message["content"] == "This is an assistant message."
+
+    def test_to_litellm_message_tool_message(self, tool_message):
+        """
+        Test _to_litellm_message with a ToolMessage instance.
+        """
+        litellm_message = _to_litellm_message(tool_message)
+        assert litellm_message["role"] == "tool"
+        assert litellm_message["name"] == "example_tool"
+        assert litellm_message["tool_call_id"] == "123"
+        assert litellm_message["content"] == "success"
+
+    def test_to_litellm_message_tool_call_list(self, tool_call):
+        """
+        Test _to_litellm_message with a list of ToolCall instances.
+        """
+        tool_calls = [tool_call]
+        message = AssistantMessage(content=tool_calls)
+        litellm_message = _to_litellm_message(message)
+        assert litellm_message["role"] == "assistant"
+        assert len(litellm_message["tool_calls"]) == 1
+        assert litellm_message["tool_calls"][0].function.name == "example_tool"
+
+    # =================================== END _to_litellm_message Tests ====================================
 
 
-# =================================== START _parameters_to_json_schema Tests ==================================
-# parameters_to_json_schema is guaranteed to get only a set of Parameter objects
-
-def test_parameters_to_json_schema_with_parameters_set(tool_with_parameters_set):
-    """
-    Test _parameters_to_json_schema with a set of Parameter objects.
-    """
-    schema = _parameters_to_json_schema(tool_with_parameters_set.parameters)
-    assert schema["type"] == "object"
-    assert "properties" in schema
-    assert "param1" in schema["properties"]
-    assert schema["properties"]["param1"]["type"] == "string"
-    assert schema["properties"]["param1"]["description"] == "A string parameter."
-    assert "required" in schema
-    assert "param1" in schema["required"]
-
-
-def test_parameters_to_json_schema_with_empty_set():
-    schema = _parameters_to_json_schema(set())
-    assert schema == {"type": "object", "properties": {}}
-
-
-def test_parameters_to_json_schema_invalid_input():
-    """
-    Test _parameters_to_json_schema with invalid input.
-    """
-    with pytest.raises(NodeInvocationError):
-        _parameters_to_json_schema(123)
-
-
-# =================================== END _parameters_to_json_schema Tests ====================================
-
-
-# =================================== START _to_litellm_tool Tests ==================================
-def test_to_litellm_tool(tool):
-    """
-    Test _to_litellm_tool with a valid Tool instance.
-    """
-    litellm_tool = _to_litellm_tool(tool)
-    assert litellm_tool["type"] == "function"
-    assert "function" in litellm_tool
-    assert litellm_tool["function"]["name"] == "example_tool"
-    assert litellm_tool["function"]["description"] == "This is an example tool."
-    assert "parameters" in litellm_tool["function"]
-
-
-# =================================== END _to_litellm_tool Tests ====================================
-
-
-# =================================== START _to_litellm_message Tests ==================================
-def test_to_litellm_message_user_message(user_message):
-    """
-    Test _to_litellm_message with a UserMessage instance.
-    """
-    litellm_message = _to_litellm_message(user_message)
-    assert litellm_message["role"] == "user"
-    assert litellm_message["content"] == "This is a user message."
-
-
-def test_to_litellm_message_assistant_message(assistant_message):
-    """
-    Test _to_litellm_message with an AssistantMessage instance.
-    """
-    litellm_message = _to_litellm_message(assistant_message)
-    assert litellm_message["role"] == "assistant"
-    assert litellm_message["content"] == "This is an assistant message."
-
-
-def test_to_litellm_message_tool_message(tool_message):
-    """
-    Test _to_litellm_message with a ToolMessage instance.
-    """
-    litellm_message = _to_litellm_message(tool_message)
-    assert litellm_message["role"] == "tool"
-    assert litellm_message["name"] == "example_tool"
-    assert litellm_message["tool_call_id"] == "123"
-    assert litellm_message["content"] == "success"
-
-
-def test_to_litellm_message_tool_call_list(tool_call):
-    """
-    Test _to_litellm_message with a list of ToolCall instances.
-    """
-    tool_calls = [tool_call]
-    message = AssistantMessage(content=tool_calls)
-    litellm_message = _to_litellm_message(message)
-    assert litellm_message["role"] == "assistant"
-    assert len(litellm_message["tool_calls"]) == 1
-    assert litellm_message["tool_calls"][0].function.name == "example_tool"
-
-
-# =================================== END _to_litellm_message Tests ====================================
-
-
-# =================================== START LiteLLMWrapper Tests ==================================
+# ================= BEGIN str/model_name (smoke) ==================
 @pytest.mark.parametrize(
     "model_name, expected_str",
     [
@@ -119,133 +115,183 @@ def test_litellm_wrapper_str(model_name, expected_str, mock_litellm_wrapper):
     assert str(wrapper) == expected_str
 
 
-def test_litellm_wrapper_invoke_with_empty_messages(mock_litellm_wrapper):
-    empty_history = MessageHistory([])
-    litellm_model = mock_litellm_wrapper(model_name="mock-model")
-    result = litellm_model._invoke(empty_history)
-    # Validate that the structure of the returned result is correct
-    assert "choices" in result
-    assert len(result["choices"]) == 1
-    assert "message" in result["choices"][0]
+def test_litellm_wrapper_model_name_property(mock_litellm_wrapper):
+    wrapper = mock_litellm_wrapper(model_name="mock-model")
+    assert wrapper.model_name() == "mock-model"
 
 
-def test_litellm_wrapper_structured_schema_mismatch(mock_litellm_wrapper, message_history):
-    class ExampleSchema(BaseModel):
-        required_value: int
-
-    # Force a response that won't match the output_schema (string instead of int)
-    def _invoke_override(*args, **kwargs):
-        return ({
-            "choices": [
-                {
-                    "message": {"content": '{"required_value": "not_an_int"}'},
-                }
-            ]
-        }, None)
-
-    litellm_model = mock_litellm_wrapper(model_name="mock-model")
-    litellm_model._invoke = _invoke_override
-
-    with pytest.raises(ValueError) as exc_info:
-        litellm_model.structured(message_history, ExampleSchema)
+# ================= END str/model_name (smoke) ==================
 
 
-def test_litellm_wrapper_structured_invalid_json(mock_litellm_wrapper, message_history):
-    class ExampleSchema(BaseModel):
-        required_value: int
+# ================= START completion methods tests =========================
+class TestCompletionMethods:
+    @pytest.mark.parametrize("method_name,is_async,stream", [
+        ("_chat", False, False),
+        ("_achat", True, False),
+        ("_chat", False, True),
+    ], ids=["sync_chat", "async_chat", "sync_chat_streaming"])
+    @pytest.mark.asyncio
+    async def test_chat(self, mock_litellm_wrapper, message_history, method_name, is_async, stream):
+        content = "Mission: Impossible" if stream else "Mocked response"
+        wrapper = mock_litellm_wrapper(content=content, stream=stream)
+        method = getattr(wrapper, method_name)
+        
+        if is_async:
+            result = await method(message_history)
+        else:
+            result = method(message_history)
 
-    # Force a response that's not valid JSON
-    def _invoke_override(*args, **kwargs):
-        return {
-            "choices": [
-                {
-                    "message": {"content": "Not valid JSON at all"},
-                }
-            ]
-        }
+        assert isinstance(result, (Response, Generator))
+        
+        
+        if stream:
+            result: Generator[str | Response, None, Response]
+            for chunk in result:
+                if isinstance(chunk, Response):
+                    assert isinstance(chunk.message, AssistantMessage)
+                    assert chunk.message.content == content
+                elif not isinstance(chunk, str):
+                    pytest.fail("Stream yielded non-string, non-Response chunk")
+        else:
+            result: Response
+            assert isinstance(result.message, AssistantMessage)
+            assert result.message.content == content
 
-    litellm_model = mock_litellm_wrapper(model_name="mock-model")
-    litellm_model._invoke = _invoke_override
+    @pytest.mark.parametrize("method_name,is_async,stream", [
+        ("_structured", False, False),
+        ("_astructured", True, False),
+        ("_structured", False, True),
+    ], ids=["sync_structured", "async_structured", "sync_structured_streaming"])
+    @pytest.mark.asyncio
+    async def test_structured(self, mock_litellm_wrapper, message_history, method_name, is_async, stream):
+        class ExampleSchema(BaseModel):
+            field: str
 
-    with pytest.raises(LLMError) as exc_info:
-        litellm_model.structured(message_history, ExampleSchema)
-    assert "Structured LLM call failed" in str(exc_info.value)
+        wrapper = mock_litellm_wrapper(content='{"field": "VAL"}', stream=stream)
+        method = getattr(wrapper, method_name)
+        
+        if is_async:
+            result = await method(message_history, schema=ExampleSchema)
+        else:
+            result = method(message_history, schema=ExampleSchema)
 
+        assert isinstance(result, (Response, Generator))
+        
+        
+        if stream:
+            for chunk in result:
+                if isinstance(chunk, Response):
+                    print(chunk)
+                    assert isinstance(chunk.message, AssistantMessage)
+                    assert isinstance(chunk.message.content, ExampleSchema)
+                    assert chunk.message.content.field == "VAL"
+                elif not isinstance(chunk, str):
+                    pytest.fail("Stream yielded non-string, non-Response chunk")
 
-def test_litellm_wrapper_stream_chat(mock_litellm_wrapper, message_history):
-    # Make a mock streaming response
-    def _invoke_override(*args, **kwargs):
-        def gen():
-            # Simulate streaming parts
-            yield litellm.utils.ModelResponse(
-                choices=[
-                    {"delta": litellm.utils.StreamingChoices(content="Hello")},
-                ]
+            
+        else:
+            assert isinstance(result.message, AssistantMessage)
+            assert isinstance(result.message.content, ExampleSchema)
+            assert result.message.content.field == "VAL"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("method_name,is_async", [
+        ("_structured", False),
+        ("_astructured", True),
+    ], ids=["sync_structured", "async_structured"])
+    async def test_structured_schema_jsondecode_error(
+        self, mock_litellm_wrapper, message_history, method_name, is_async
+    ):
+        class Schema(BaseModel):
+            val: int
+
+        with pytest.raises(JSONDecodeError):
+            wrapper = mock_litellm_wrapper(content="Invalid JSON")
+            method = getattr(wrapper, method_name)
+            if is_async:
+                result = await method(message_history, schema=Schema)
+            else:
+                result = method(message_history, schema=Schema)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("method_name,is_async", [
+        ("_structured", False),
+        ("_astructured", True),
+    ], ids=["sync_structured", "async_structured"])
+    async def test_structured_invalid_json_raises_llm_error(
+        self, mock_litellm_wrapper, message_history, method_name, is_async
+    ):
+        class Schema(BaseModel):
+            val: int
+        with pytest.raises(LLMError, match="Structured LLM call failed"):
+            wrapper = mock_litellm_wrapper(content='{"field": "VAL", "invalid": "json"}')
+            method = getattr(wrapper, method_name)
+            if is_async:
+                result = await method(message_history, schema=Schema)
+            else:
+                result = method(message_history, schema=Schema)
+
+    @pytest.mark.parametrize("method_name,is_async,stream", [
+        ("_chat_with_tools", False, False),
+        ("_achat_with_tools", True, False),
+        # ("_chat_with_tools", False, True),
+        # ("_achat_with_tools", True, True),
+    ], ids=[
+        "sync_chat_with_tools",
+        "async_chat_with_tools",
+        # "sync_chat_with_tools_streaming",
+        # "async_chat_with_tools_streaming"
+        ])
+    @pytest.mark.asyncio
+    async def test_chat_with_tools(
+        self, mock_litellm_wrapper, message_history, tool, method_name, is_async, stream
+    ):
+        if stream:
+            wrapper = mock_litellm_wrapper(
+                content='[{"name": "tool_x", "arguments": {"foo": 1}, "identifier": "id123"}]',
+                stream=True,
             )
-            yield litellm.utils.ModelResponse(
-                choices=[
-                    {"delta": litellm.utils.StreamingChoices(content=" World")},
-                ]
+        else:
+            wrapper = mock_litellm_wrapper(
+                content=None,
+                tool_calls=[
+                    litellm.ChatCompletionMessageToolCall(
+                        function=litellm.Function(arguments='{"foo": 1}', name="tool_x"),
+                        id="id123",
+                        type="function",
+                    )
+                ],
             )
+        
+        method = getattr(wrapper, method_name)
+        if is_async:
+            result = await method(message_history, [tool])
+        else:
+            result = method(message_history, [tool])
 
-        return gen(), None
+        assert isinstance(result, (Response, Generator))
 
-    litellm_model = mock_litellm_wrapper(model_name="mock-model")
-    litellm_model._invoke = _invoke_override
+        
+        if stream:  # no stream in case the llm requests tool
+            for chunk in result:
+                if isinstance(chunk, Response):
+                    try:
+                        calls = json.loads(chunk.message.content.final_message)
+                        assert isinstance(calls, list)
+                        assert calls[0]["name"] == "tool_x"
+                        assert calls[0]["arguments"] == {"foo": 1}
+                        assert calls[0]["identifier"] == "id123"
+                    except Exception as e:
+                        pytest.fail("Structured response did not match schema")
+                elif not isinstance(chunk, str):
+                    pytest.fail("Stream yielded non-string, non-Response chunk")
 
-    response = litellm_model.stream_chat(message_history)
-    assert response.message is None
-    assert isinstance(response.streamer, Generator)
-    chunks = [chunk for chunk in response.streamer]
-    assert "".join(chunks) == "Hello World"
+        else:
+            assert isinstance(result.message, AssistantMessage)
+            calls = result.message.content
+            assert isinstance(calls, list)
+            assert calls[0].name == "tool_x"
+            assert calls[0].arguments == {"foo": 1}
+            assert calls[0].identifier == "id123"
 
-
-def test_litellm_wrapper_chat_with_tools_no_tool_call(mock_litellm_wrapper, message_history, tool):
-    def _invoke_override(*args, **kwargs):
-        return (litellm.utils.ModelResponse(
-            choices=[
-                {
-                    "message": {"content": "No tool call here"},
-                    "finish_reason": "stop",
-                }
-            ]
-        ), None)
-
-    litellm_model = mock_litellm_wrapper(model_name="mock-model")
-    litellm_model._invoke = _invoke_override
-
-    response = litellm_model.chat_with_tools(message_history, [tool])
-    assert response.message.content == "No tool call here"
-
-
-def test_litellm_wrapper_chat_with_tools_single_tool_call(mock_litellm_wrapper, message_history, tool):
-    def _invoke_override(*args, **kwargs):
-        return (litellm.utils.ModelResponse(
-            choices=[
-                {
-                    "message": {
-                        "content": "",
-                        "tool_calls": [
-                            {
-                                "function": {"name": "example_tool", "arguments": '{"arg1": "val1"}'},
-                                "id": "toolcall-abc",
-                            }
-                        ],
-                    },
-                    "finish_reason": "function_call",
-                }
-            ]
-        ), None)
-
-    litellm_model = mock_litellm_wrapper(model_name="mock-model")
-    litellm_model._invoke = _invoke_override
-
-    response = litellm_model.chat_with_tools(message_history, [tool])
-    calls = response.message.content
-    assert len(calls) == 1
-    assert calls[0].name == "example_tool"
-    assert calls[0].arguments == {"arg1": "val1"}
-    assert calls[0].identifier == "toolcall-abc"
-
-
-# =================================== END LiteLLMWrapper Tests ==================================
+# ================= END completion methods tests =========================
