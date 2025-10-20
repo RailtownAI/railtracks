@@ -92,7 +92,11 @@ class OutputLessToolCallLLMBase(
         super().__init__(llm=llm, user_input=user_input)
         model = self.get_llm()
         # we only support Openai for streaming calls atm.
-        if model is not None and model._stream and model.model_type() in self.streaming_blacklist():
+        if (
+            model is not None
+            and model._stream
+            and model.model_type() in self.streaming_blacklist()
+        ):
             raise NodeCreationError(
                 f"Currently we do not allow streaming with {model.model_type()} (specifically for tool calling)",
                 notes=[

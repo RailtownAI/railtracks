@@ -19,9 +19,8 @@ from typing import (
 
 from pydantic import BaseModel
 
-from .providers import ModelProvider
-
 from .history import MessageHistory
+from .providers import ModelProvider
 from .response import Response
 from .tools import Tool
 
