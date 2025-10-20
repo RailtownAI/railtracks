@@ -55,7 +55,7 @@
 
 <div style="display: flex; align-items: flex-start;">
   <img src="docs/assets/elements/banner.svg" align="left" width="4" height="50">
-  Easy agent building, for no one but <strong>YOU</strong>: While other frameworks force you into rigid workflows or complex APIs, Railtracks lets you create deployable complex agents using Pythonic style with natural control flow.
+  Easy agent building, for no one but <strong>YOU</strong>: Create deployable complex agents using simple, Pythonic style interface with natural control flow.
 </div>
 
 <!-- Add an empty line or a horizontal rule to ensure separation -->
