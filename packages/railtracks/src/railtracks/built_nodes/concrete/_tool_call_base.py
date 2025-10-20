@@ -29,6 +29,7 @@ from railtracks.llm import (
     UserMessage,
 )
 from railtracks.llm.message import Role
+from railtracks.llm.providers import ModelProvider
 from railtracks.llm.response import Response
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_creation.validation import check_connected_nodes
@@ -79,6 +80,15 @@ class OutputLessToolCallLLMBase(
         max_tool_calls: int | None = None,
     ):
         super().__init__(llm=llm, user_input=user_input)
+        model = self.get_llm()
+        # we only support Openai for streaming calls atm.
+        if model is not None and model._stream and model.model_type() != ModelProvider.OPENAI:
+            raise NodeCreationError(
+                f"Currently we only support streaming in tool calling agents with openai, not from {model.model_type()}",
+                notes=[
+                    "Create a new issue on the railtracks repo or switch to openai's models"
+                ],
+            )
         # Set max_tool_calls for non easy usage wrappers
         if not hasattr(self, "max_tool_calls"):
             # Check max_tool_calls (including warning for None)

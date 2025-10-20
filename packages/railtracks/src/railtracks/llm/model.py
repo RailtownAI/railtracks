@@ -19,6 +19,8 @@ from typing import (
 
 from pydantic import BaseModel
 
+from .providers import ModelProvider
+
 from .history import MessageHistory
 from .response import Response
 from .tools import Tool
@@ -104,7 +106,7 @@ class ModelBase(ABC, Generic[_TStream]):
 
     @classmethod
     @abstractmethod
-    def model_type(cls) -> str:
+    def model_type(cls) -> ModelProvider:
         """The name of the provider of this model or the model type."""
         pass
 
