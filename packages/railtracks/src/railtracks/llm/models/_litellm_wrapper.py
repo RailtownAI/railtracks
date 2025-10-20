@@ -116,37 +116,6 @@ def _to_litellm_tool(tool: Tool) -> Dict[str, Any]:
     }
     return litellm_tool
 
-
-def _to_litellm_message(msg: Message) -> Dict[str, Any]:
-    """
-    Convert your Message (UserMessage, AssistantMessage, ToolMessage) into
-    the simple dict format that litellm.completion expects.
-    """
-    base = {"role": msg.role}
-    # handle the special case where the message is a tool so we have to link it to the tool id.
-    if isinstance(msg, ToolMessage):
-        base["name"] = msg.content.name
-        base["tool_call_id"] = msg.content.identifier
-        base["content"] = msg.content.result
-    # only time this is true is tool calls, need to return litellm.utils.Message
-    elif isinstance(msg.content, list):
-        assert all(isinstance(t_c, ToolCall) for t_c in msg.content)
-        base["content"] = ""
-        base["tool_calls"] = [
-            litellm.utils.ChatCompletionMessageToolCall(
-                function=litellm.utils.Function(
-                    arguments=tool_call.arguments, name=tool_call.name
-                ),
-                id=tool_call.identifier,
-                type="function",
-            )
-            for tool_call in msg.content
-        ]
-    else:
-        base["content"] = msg.content
-    return base
-
-
 class StreamedToolCall(BaseModel):
     tool: ToolCall
     args: str | None = Field(default=None)  # accumulating string of arguments (in json)
@@ -215,7 +184,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
           3. Calls litellm.completion
         """
         start_time = time.time()
-        litellm_messages = [_to_litellm_message(m) for m in messages]
+        litellm_messages = [self._to_litellm_message(m) for m in messages]
         merged = {}
 
         if response_format is not None:
@@ -276,7 +245,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
           3. Calls litellm.completion
         """
         start_time = time.time()
-        litellm_messages = [_to_litellm_message(m) for m in messages]
+        litellm_messages = [self._to_litellm_message(m) for m in messages]
         merged = {}
         if response_format is not None:
             merged["response_format"] = response_format
