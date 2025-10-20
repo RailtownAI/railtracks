@@ -128,6 +128,7 @@ class MockLogger(logging.Logger):
 
 class MockDelta(BaseModel):
     content: str | None
+    function_call: list | None = None
     tool_calls: list | None
 
 
@@ -139,6 +140,7 @@ class MockChoice(BaseModel):
 class ChatCompletionChunk(BaseModel):
     id: str
     choices: list[MockChoice]
+    system_fingerprint = None
 
 
 class MockLiteLLMWrapper(LiteLLMWrapper):
