@@ -180,42 +180,6 @@ class UserMessage(_StringOnlyContent):
         else:
             self.attachment = None
 
-        # self.image_url = image_url
-
-        # if self.image_url is not None:
-        #     if not isinstance(image_url, str):
-        #         raise TypeError(f"The image parameter must be a string representing a file path or URL, but got {type(image_url)}")
-
-        #     try:
-        #         match detect_image_source(image_url):
-        #             case "local":
-        #                 encoded_image = encode_image(image_url)
-        #                 _, file_extension = os.path.splitext(image_url)
-        #                 file_extension = file_extension.lower()  # Normalize to lowercase
-
-        #                 # Map file extensions to MIME types
-        #                 mime_type_map = {
-        #                     ".jpg": "jpeg",
-        #                     ".jpeg": "jpeg",
-        #                     ".png": "png",
-        #                     ".gif": "gif",
-        #                     ".webp": "webp"
-        #                 }
-
-        #                 if file_extension in mime_type_map:
-        #                     mime_type = mime_type_map[file_extension]
-        #                     self.image_url = f"data:image/{mime_type};base64,{encoded_image}"
-        #                 else:
-        #                     raise ValueError(f"Unsupported image format: {file_extension}. Supported formats: {', '.join(mime_type_map.keys())}")
-        #             case "url":
-        #                 self.image_url = image_url
-        #             case "data_uri":
-        #                 # Already a data URI, use as-is
-        #                 self.image_url = image_url
-
-        #     except Exception as e:
-        #         raise ValueError(f"Failed to process image: {e}")
-
 
 class SystemMessage(_StringOnlyContent):
     """

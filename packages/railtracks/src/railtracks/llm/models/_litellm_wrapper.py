@@ -116,6 +116,7 @@ def _to_litellm_tool(tool: Tool) -> Dict[str, Any]:
     }
     return litellm_tool
 
+
 class StreamedToolCall(BaseModel):
     tool: ToolCall
     args: str | None = Field(default=None)  # accumulating string of arguments (in json)
@@ -628,7 +629,6 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         base: Dict[str, Any] = {"role": msg.role}
         # handle the special case where the message is a tool so we have to link it to the tool id.
         if isinstance(msg, UserMessage) and msg.attachment is not None:
-
             # Initiate content list with text component
             content_list: List[Dict[str, Any]] = [{"type": "text", "text": msg.content}]
 

@@ -17,6 +17,7 @@ def inject_values(message_history: MessageHistory, value_dict: ValueDict):
             try:
                 if isinstance(message, (UserMessage, SystemMessage)):
                     message.fill_prompt(value_dict)
+                    message.inject_prompt = False
             except ValueError:
                 pass
 

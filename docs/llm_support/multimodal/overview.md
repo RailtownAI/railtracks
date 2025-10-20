@@ -42,11 +42,11 @@ flowchart LR
     %% === COLOR THEMING ===
     %% (Separate comments — not inline)
 
-    classDef text fill:#60A5FA
-    classDef image fill:#34D399
-    classDef audio fill:#FBBF24
-    classDef model fill:#FECACA
-    classDef add fill:#BFDBFE
+    classDef text fill:#60A5FA,fill-opacity:0.3
+    classDef image fill:#34D399,fill-opacity:0.3
+    classDef audio fill:#FBBF24,fill-opacity:0.3
+    classDef model fill:#FECACA,fill-opacity:0.3
+    classDef add fill:#BFDBFE,fill-opacity:0.3
 
     %% Apply consistent color classes
     class T_IN,T_OUT,T_OUT2 text;
@@ -55,7 +55,6 @@ flowchart LR
     class ADD add;
     class LLM,VLM,T2I,TTS,TTS2,A2T,MLLM_TI,MLLM_TA,MLLM,DIFF,I2I model;
 
-    linkStyle default stroke:grey,stroke-width:1px
 ```
 
 As you can imagine, covering all of these different paths while maintaining a relatively flexbile and developer friendly public API for any framework would be challening. Therefore, currently for the agents built using our framework we support **text** and **vision** for input and **only text** as output. This won't prevent users from having an image generation model wrapped inside a **`Tool`** and giving the agent access to this.

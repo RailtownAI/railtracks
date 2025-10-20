@@ -40,7 +40,6 @@ theme:
 
 plugins:
   - search
-  - mermaid2
 
 markdown_extensions:
   - pymdownx.emoji:
@@ -49,7 +48,11 @@ markdown_extensions:
   - pymdownx.details
   - pymdownx.tabbed:
       alternate_style: true
-          
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:mermaid2.fence_mermaid_custom
   - pymdownx.inlinehilite
   - pymdownx.snippets
   - pymdownx.highlight:
@@ -118,6 +121,7 @@ nav:
 
       - Multimodal:
           - Overview: llm_support/multimodal/overview.md
+          - Vision: llm_support/multimodal/vision.md
 
       - Streaming: llm_support/streaming.md
       
