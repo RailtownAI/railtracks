@@ -1,4 +1,6 @@
-# Railtracks
+# <span style="color: #4967EF">R</span>ailtracks
+
+<!--Happy Coding ◊-->
 
 <!--Happy Coding ◊ -->
 
@@ -159,6 +161,56 @@ railtracks viz  # See everything
 <details open>
 <summary><b>📦 Installation</b></summary>
 
+<div align="center">
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+#### 🐍 **Pure Python Experience**
+```python
+# Write agents like regular functions
+@rt.function_node
+def my_tool(text: str) -> str:
+    return process(text)
+```
+- ✅ No YAML, no DSLs, no magic strings
+- ✅ Use your existing debugging tools
+- ✅ IDE autocomplete & type checking
+
+</td>
+<td width="50%" valign="top">
+
+#### 🔧 **Tool-First Architecture**
+```python
+# Any function becomes a tool
+agent = rt.agent_node(
+    "Assistant",
+    tool_nodes=(my_tool, api_call)
+)
+```
+- ✅ Instant function-to-tool conversion
+- ✅ Seamless API/database integration
+- ✅ MCP protocol support
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+#### ⚡ **Look Familiar?**
+```python
+# Smart parallelization built-in with interface similar to asyncio
+result = await rt.call(agent, query)
+```
+- ✅ Easy to learn standardized interface
+- ✅ Built-in validation, error handling & retries
+- ✅ Auto-parallelization management
+
+</td>
+<td width="50%" valign="top">
+
+#### 👁️ **Transparent by Design**
 ```bash
 pip install railtracks railtracks-cli
 ```
