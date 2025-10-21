@@ -22,7 +22,7 @@ class MockLLM(rt.llm.ModelBase):
         Args:
             custom_response_message (Message | None, optional): The custom response message to use for the LLM. Defaults to None.
         """
-        super().__init__(_stream=stream)
+        super().__init__(stream=stream)
         self.custom_response = custom_response
         self.requested_tool_calls = requested_tool_calls
         self.mocked_message_info = MessageInfo(

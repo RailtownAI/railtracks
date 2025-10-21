@@ -168,8 +168,7 @@ class MockLiteLLMWrapper(LiteLLMWrapper):
     ):
         self.content = content or "mock response"
         self.tool_calls = tool_calls
-        self.stream = stream
-        super().__init__(model_name=model_name or "mock-model")
+        super().__init__(model_name=model_name or "mock-model", stream=stream)
 
     @classmethod
     def model_type(cls):
