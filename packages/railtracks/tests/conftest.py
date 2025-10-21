@@ -57,7 +57,7 @@ class MockLLM(rt.llm.ModelBase):
             assert isinstance(self.custom_response, str), "custom_response must be a string for terminal LLMs"
         return_message = self.custom_response or "mocked Message"
         # Streaming case
-        if self._stream:
+        if self.stream:
             def make_generator():
                     for char in return_message:
                         yield char
@@ -87,7 +87,7 @@ class MockLLM(rt.llm.ModelBase):
             response_model = DummyStructured()
 
         # Streaming case
-        if self._stream:
+        if self.stream:
             def make_generator():
                     for char in response_model.model_dump_json():
                         yield char
@@ -117,7 +117,7 @@ class MockLLM(rt.llm.ModelBase):
                     + "\n"
                 )
             # Streaming case
-            if self._stream:
+            if self.stream:
                 def make_generator():
                     for char in final_message:
                         yield char
@@ -141,7 +141,7 @@ class MockLLM(rt.llm.ModelBase):
                 message=AssistantMessage(return_message),
                 message_info=self.mocked_message_info,
             )
-            if self._stream:
+            if self.stream:
                 def tool_generator():
                     yield r
                     return r

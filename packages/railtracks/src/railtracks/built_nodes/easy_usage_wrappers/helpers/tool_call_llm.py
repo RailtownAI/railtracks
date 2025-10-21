@@ -48,7 +48,7 @@ def tool_call_llm(
         Type[ToolCallLLM]: The dynamically generated node class with the specified configuration.
     """
     builder = NodeBuilder(
-        StreamingToolCallLLM if llm is not None and llm._stream else ToolCallLLM,
+        StreamingToolCallLLM if llm is not None and llm.stream else ToolCallLLM,
         name=name,
         class_name="EasyToolCallLLM",
         return_into=return_into,

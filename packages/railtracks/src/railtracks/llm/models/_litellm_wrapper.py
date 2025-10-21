@@ -178,7 +178,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
     """
 
     def __init__(self, model_name: str, stream: _TStream = False):
-        super().__init__(_stream=stream)
+        super().__init__(stream=stream)
         self._model_name = model_name
 
     @overload
@@ -232,7 +232,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         completion = litellm.completion(
             model=self._model_name,
             messages=litellm_messages,
-            stream=self._stream,
+            stream=self.stream,
             **merged,
         )
 
@@ -289,7 +289,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         completion = await litellm.acompletion(
             model=self._model_name,
             messages=litellm_messages,
-            stream=self._stream,
+            stream=self.stream,
             **merged,
         )
         if isinstance(completion, CustomStreamWrapper):

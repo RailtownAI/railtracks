@@ -94,7 +94,7 @@ class OutputLessToolCallLLMBase(
         # we only support Openai for streaming calls atm.
         if (
             model is not None
-            and model._stream
+            and model.stream
             and model.model_type() in self.streaming_blacklist()
         ):
             raise NodeCreationError(
