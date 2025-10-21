@@ -38,7 +38,7 @@ The output of the agent will be a generator containing a sequence of strings, fo
     When using streaming, you should fully exhaust the returned object within the session. If you do this outside of the session, the visualizer suite will not work as expected.
 
 !!! Warning 
-    Streaming is only supported for tool-calling agents if you are openai.
+    Streaming is only supported for tool-calling agents if you are using openai.
 
 
 
