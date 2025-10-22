@@ -23,13 +23,13 @@ def test_tool_info_implemented_in_subclass():
 
 def test_prepare_tool_creates_instance_from_parameters():
     params = {"value": 42, "other": "abc"}
-    instance = DummyToolCallable.prepare_tool(params)
+    instance = DummyToolCallable.prepare_tool(**params)
     assert isinstance(instance, DummyToolCallable)
     assert instance.value == 42
     assert instance.other == "abc"
 
 def test_prepare_tool_with_no_parameters():
-    instance = DummyToolCallable.prepare_tool({})
+    instance = DummyToolCallable.prepare_tool()
     assert isinstance(instance, DummyToolCallable)
     assert instance.value is None
     assert instance.other is None
