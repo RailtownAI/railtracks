@@ -1,7 +1,5 @@
 # <span style="color: #4967EF">R</span>ailtracks
 
-<!--Happy Coding ◊-->
-
 <!--Happy Coding ◊ -->
 
 <p align="center">
