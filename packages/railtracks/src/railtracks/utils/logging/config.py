@@ -194,7 +194,7 @@ def initialize_module_logging() -> None:
     )
 
 def configure_module_logging(
-    level: AllowableLogLevels,
+    level: AllowableLogLevels | None = None,
     log_file: str | os.PathLike | None = None
 ) -> None:
     """
@@ -216,9 +216,14 @@ def configure_module_logging(
     _module_logging_config["level"] = level
     _module_logging_config["log_file"] = log_file
 
+    _pre__config = {
+        "level": _module_logging_config["level"],
+        "log_file": _module_logging_config["log_file"],
+    }
+
     if not _session_has_override:
         prepare_logger(
-            setting=_module_logging_config["level"],
+            setting=level if level is not None else cast(AllowableLogLevels, _module_logging_config["level"]),
             path=_module_logging_config["log_file"]
         )
 
