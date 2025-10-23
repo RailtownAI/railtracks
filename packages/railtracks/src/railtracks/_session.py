@@ -29,6 +29,8 @@ from .utils.logging.config import (
     AllowableLogLevels,
     detach_logging_handlers,
     prepare_logger,
+    mark_session_logging_override,
+    restore_module_logging,
 )
 from .utils.logging.create import get_rt_logger
 
@@ -104,10 +106,16 @@ class Session:
 
         self.name = name
 
-        prepare_logger(
-            setting=self.executor_config.logging_setting,
-            path=self.executor_config.log_file,
+        self._has_custom_logging = (
+            logging_setting is not None or log_file is not None
         )
+
+        if self._has_custom_logging:
+            mark_session_logging_override(
+                session_level=self.executor_config.logging_setting,
+                session_log_file=self.executor_config.log_file,
+            )
+
         self.publisher: RTPublisher = RTPublisher()
 
         self._identifier = str(uuid.uuid4())
@@ -224,7 +232,10 @@ class Session:
         """
         # the publisher should have already been closed in `_run_base`
         self.rt_state.shutdown()
-        detach_logging_handlers()
+        
+        if self._has_custom_logging:
+            restore_module_logging()
+            
         delete_globals()
         # by deleting all of the state variables we are ensuring that the next time we create a runner it is fresh
 

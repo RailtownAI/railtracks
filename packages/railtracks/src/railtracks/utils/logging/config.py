@@ -198,6 +198,7 @@ def prepare_logger(
     """
     Prepares the logger based on the setting and optionally sets up the file handler if a path is provided.
     """
+    detach_logging_handlers()
     if path is not None:
         setup_file_handler(file_name=path, file_logging_level=logging.INFO)
 
