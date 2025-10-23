@@ -27,8 +27,6 @@ from .state.state import RTState
 from .utils.config import ExecutorConfig
 from .utils.logging.config import (
     AllowableLogLevels,
-    detach_logging_handlers,
-    prepare_logger,
     mark_session_logging_override,
     restore_module_logging,
 )

@@ -94,85 +94,20 @@ def level_filter(value: int):
 
     return filter_func
 
-
-def setup_verbose_logger_config():
-    """
-    Sets up the logger configuration in verbose mode.
-
-    Specifically that means:
-    - The console will log all messages (including debug)
-    """
-    console_handler = logging.StreamHandler()
-    # in the verbose case we would like to use the debug level.
-    console_handler.setLevel(logging.DEBUG)
-
-    verbose_formatter = ColorfulFormatter(
-        fmt=_default_format_string,
-    )
-
-    console_handler.setFormatter(verbose_formatter)
-
-    logger = logging.getLogger(rt_logger_name)
-    logger.addHandler(console_handler)
-    # only in verbose do we want to handle the debugging logs
-    logger.setLevel(logging.DEBUG)
-
-
-def setup_regular_logger_config():
-    """
-    Setups the logger in the regular mode. This mode will print all messages except debug messages to the console.
-    """
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-
-    regular_formatter = ColorfulFormatter(
-        fmt=_default_format_string,
-    )
-
-    console_handler.setFormatter(regular_formatter)
-
-    logger = logging.getLogger(rt_logger_name)
-    logger.addHandler(console_handler)
-
-
-def setup_quiet_logger_config():
-    """
-    Set up the logger to only log warning and above messages.
-    """
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.WARNING)
-
-    quiet_formatter = ColorfulFormatter(fmt=_default_format_string)
-
-    console_handler.setFormatter(quiet_formatter)
-
-    logger = logging.getLogger(rt_logger_name)
-    logger.addHandler(console_handler)
-
-
-def setup_none_logger_config():
-    """
-    Set up the logger to print nothing. This can be a useful optimization technique.
-    """
-    # set up a logger which does not do anything.
-    logger = logging.getLogger(rt_logger_name)
-    # a slightly hacky way to get it so nothing makes it through
-    logger.addFilter(lambda x: False)
-    logger.addHandler(logging.NullHandler())
-
-
 # TODO Complete the file integration.
 def setup_file_handler(
     *,
     file_name: str | os.PathLike,
-    file_logging_level: logging.DEBUG
-    | logging.INFO
-    | logging.WARNING
-    | logging.ERROR
-    | logging.CRITICAL = logging.INFO,
-):
+    file_logging_level: int = logging.INFO
+) -> None:
     """
-    Setups a logger file handler that will log messages to a file with the given name and logging level.
+    Setup a logger file handler that writes logs to a file.
+
+    Args:
+        file_name: Path to the file where logs will be written.
+        file_logging_level: The logging level for the file handler.
+            Accepts standard logging levels (DEBUG, INFO, WARNING, ERROR, CRITICAL).
+            Defaults to logging.INFO.
     """
     file_handler = logging.FileHandler(file_name)
     file_handler.setLevel(file_logging_level)
@@ -202,15 +137,22 @@ def prepare_logger(
     if path is not None:
         setup_file_handler(file_name=path, file_logging_level=logging.INFO)
 
-    # now for each of our predefined settings we will set up the logger.
+    console_handler = logging.StreamHandler()
+    formatter = ColorfulFormatter(fmt=_default_format_string)
+    console_handler.setFormatter(formatter)
+    
+    logger = logging.getLogger(rt_logger_name)
+    logger.addHandler(console_handler)
+
     if setting == "VERBOSE":
-        setup_verbose_logger_config()
+        logger.setLevel(logging.DEBUG)
     elif setting == "REGULAR":
-        setup_regular_logger_config()
+        logger.setLevel(logging.INFO)
     elif setting == "QUIET":
-        setup_quiet_logger_config()
+        logger.setLevel(logging.WARNING)
     elif setting == "NONE":
-        setup_none_logger_config()
+        logger.addFilter(lambda x: False)
+        logger.addHandler(logging.NullHandler())
     else:
         raise ValueError("Invalid log level setting")
 
