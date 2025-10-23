@@ -29,6 +29,12 @@ logger.addHandler(CustomHandler())
 rt.set_config(logging_setting="VERBOSE", log_file="my_logs.log")
 # --8<-- [end: logging_global]
 
+# --8<-- [start: logging_env_var]
+RT_LOG_LEVEL = "VERBOSE"
+RT_LOG_FILE = "my_logs.log"
+# --8<-- [end: logging_env_var]
+
+
 # --8<-- [start: logging_scoped]
 with rt.Session(logging_setting="VERBOSE", log_file="my_logs.log") as runner:
     pass

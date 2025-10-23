@@ -69,8 +69,11 @@ You can configure logging globally or per-run.
     ```python
     --8<-- "docs/scripts/_logging.py:logging_global"
     ```
-
-    This will apply to all flows.
+    or you could set up your environment variables
+    ```python
+    --8<-- "docs/scripts/_logging.py:logging_env_var"
+    ```
+    This will apply to all flows, unless a **`Session`** overwrites it. In that case it will change for the scope of that particular **`Session`** and return to the global setting afterwards.
 
 !!! example "Scoped Configuration"
 
