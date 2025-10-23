@@ -104,9 +104,7 @@ class Session:
 
         self.name = name
 
-        self._has_custom_logging = (
-            logging_setting is not None or log_file is not None
-        )
+        self._has_custom_logging = logging_setting is not None or log_file is not None
 
         if self._has_custom_logging:
             mark_session_logging_override(
@@ -230,7 +228,7 @@ class Session:
         """
         # the publisher should have already been closed in `_run_base`
         self.rt_state.shutdown()
-        
+
         if self._has_custom_logging:
             restore_module_logging()
 

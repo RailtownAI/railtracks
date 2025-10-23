@@ -1,7 +1,7 @@
 import logging
 import os
 import re
-from typing import Literal, Dict, cast
+from typing import Dict, Literal, cast
 
 from colorama import Fore, init
 
@@ -94,11 +94,10 @@ def level_filter(value: int):
 
     return filter_func
 
+
 # TODO Complete the file integration.
 def setup_file_handler(
-    *,
-    file_name: str | os.PathLike,
-    file_logging_level: int = logging.INFO
+    *, file_name: str | os.PathLike, file_logging_level: int = logging.INFO
 ) -> None:
     """
     Setup a logger file handler that writes logs to a file.
@@ -140,7 +139,7 @@ def prepare_logger(
     console_handler = logging.StreamHandler()
     formatter = ColorfulFormatter(fmt=_default_format_string)
     console_handler.setFormatter(formatter)
-    
+
     logger = logging.getLogger(rt_logger_name)
     logger.addHandler(console_handler)
 
@@ -164,10 +163,11 @@ def detach_logging_handlers():
     # Get the root logger
     rt_logger.handlers.clear()
 
+
 def initialize_module_logging() -> None:
     """
     Initliaze module-level logging when railtracks is first imported.
-    
+
     Reads configuration from environment variables if set:
     - RT_LOG_LEVEL: Sets the logging level (VERBOSE, REGULAR, QUIET, NONE)
     - RT_LOG_FILE: Optional path to a log file
@@ -175,37 +175,36 @@ def initialize_module_logging() -> None:
     If not set, defaults to REGULAR level with no log file.
     """
 
-    global _module_logging_config 
+    global _module_logging_config
 
     env_level = os.getenv("RT_LOG_LEVEL", "REGULAR").upper()
     env_log_file = os.getenv("RT_LOG_FILE", None)
 
     if env_level not in allowable_log_levels_set:
         raise ValueError(f"Invalid RT_LOG_LEVEL: {env_level}")
-    
-    env_level = cast(AllowableLogLevels, env_level) # may the typing police be happy
-    
+
+    env_level = cast(AllowableLogLevels, env_level)  # may the typing police be happy
+
     _module_logging_config["level"] = env_level
     _module_logging_config["log_file"] = env_log_file
-    
+
     prepare_logger(
-        setting=_module_logging_config["level"],
-        path=_module_logging_config["log_file"]
+        setting=_module_logging_config["level"], path=_module_logging_config["log_file"]
     )
 
+
 def configure_module_logging(
-    level: AllowableLogLevels | None = None,
-    log_file: str | os.PathLike | None = None
+    level: AllowableLogLevels | None = None, log_file: str | os.PathLike | None = None
 ) -> None:
     """
     Configure module-level logging at runtime.
-    
+
     This updates the logging configuration for the entire railtracks module.
     Changes apply immediately and persist for the lifetime of the Python process.
-    
+
     If a Session is currently active with custom logging settings, this will
     not affect that session. The new configuration will apply after the session ends.
-    
+
     Args:
         level: The logging level to use (SILENT, REGULAR, DEBUG, VERBOSE)
         log_file: Optional path to a log file. If None, logs only to console.
@@ -223,26 +222,28 @@ def configure_module_logging(
 
     if not _session_has_override:
         prepare_logger(
-            setting=level if level is not None else cast(AllowableLogLevels, _module_logging_config["level"]),
-            path=_module_logging_config["log_file"]
+            setting=level
+            if level is not None
+            else cast(AllowableLogLevels, _module_logging_config["level"]),
+            path=_module_logging_config["log_file"],
         )
 
+
 def mark_session_logging_override(
-    session_level: AllowableLogLevels,
-    session_log_file: str | os.PathLike | None
+    session_level: AllowableLogLevels, session_log_file: str | os.PathLike | None
 ) -> None:
     """
     Mark that a session has overridden module-level logging.
-    
+
     Stores the current module config for later restoration and applies
     the session-specific logging configuration.
-    
+
     Args:
         session_level: The session's logging level
         session_log_file: The session's log file (or None)
     """
     global _session_has_override, _pre_session_config
-    
+
     _pre_session_config = {
         "level": _module_logging_config["level"],
         "log_file": _module_logging_config["log_file"],
@@ -251,31 +252,29 @@ def mark_session_logging_override(
 
     prepare_logger(setting=session_level, path=session_log_file)
 
+
 def restore_module_logging() -> None:
     """
     Restore module-level logging after a session with custom logging ends.
-    
+
     This detaches the session's logging handlers and restores the module-level
     configuration that was in place before the session started.
     """
     global _session_has_override, _pre_session_config
-    
+
     if not _session_has_override:
         return
-    
+
     detach_logging_handlers()
-    
+
     if _pre_session_config is not None:
         prepare_logger(
-            setting= cast(AllowableLogLevels, _pre_session_config["level"]),
-            path=_pre_session_config["log_file"]
+            setting=cast(AllowableLogLevels, _pre_session_config["level"]),
+            path=_pre_session_config["log_file"],
         )
     else:
         # Fallback
-        prepare_logger(
-            setting=AllowableLogLevels.REGULAR,
-            path=None
-        )
-    
+        prepare_logger(setting=AllowableLogLevels.REGULAR, path=None)
+
     _session_has_override = False
     _pre_session_config = {}
