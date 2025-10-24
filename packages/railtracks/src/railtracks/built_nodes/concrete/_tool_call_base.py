@@ -147,18 +147,38 @@ class OutputLessToolCallLLMBase(
             )
         return node[0].prepare_tool(arguments)
 
+    def get_node_from_name(self, tool_name: str):
+        """
+        Gets the node attached to the node of the given name. If no node exists or there are multiple matches, it will raise an exception.
+        """
+        node = [x for x in self.tool_nodes() if x.tool_info().name == tool_name]
+        if node == []:
+            raise LLMError(
+                reason=f"Error creating a node from tool {tool_name}. The tool_name given by the LLM doesn't match any of the tool names in the connected nodes.",
+                message_history=self.message_hist,
+            )
+        if len(node) > 1:
+            raise NodeCreationError(
+                message=f"Tool {tool_name} has multiple nodes, this is not allowed. Current Node include {[x.tool_info().name for x in self.tool_nodes()]}",
+                notes=["Please check the tool names in the connected nodes."],
+            )
+
+        return node[0]
+
+    async def run_node_from_tool(self, tool_name: str, arguments: dict[str, Any]):
+        node = self.get_node_from_name(tool_name)
+
+        return await call(node.prepare_tool, **arguments)
+
     @classmethod
     def tools(cls):
         return [x.tool_info() for x in cls.tool_nodes()]
 
     async def _call_tools(self, tool_calls: list[ToolCall]) -> list[ToolMessage]:
         contracts = []
+
         for t_c in tool_calls:
-            contract = call(
-                self.create_node,
-                t_c.name,
-                t_c.arguments,
-            )
+            contract = self.run_node_from_tool(t_c.name, t_c.arguments)
             contracts.append(contract)
 
         tool_responses = await asyncio.gather(*contracts, return_exceptions=True)

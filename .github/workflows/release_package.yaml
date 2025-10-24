@@ -22,7 +22,14 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: "3.10"
+
+      - name: Use root README for PyPI (railtracks)
+        run: |
+          cp README.md packages/railtracks/README.md
+          echo "Copied root README.md into packages/railtracks/ for PyPI"
+          cp -r docs/assets packages/railtracks/docs/assets
+          echo "Copied images directory to packages/railtracks/ for PyPI"
 
       - name: Install dependencies
         run: |
@@ -43,8 +50,8 @@ jobs:
 
       - name: Build and Publish Railtracks Core to PyPI
         env:
-          FLIT_INDEX_URL: 'https://upload.pypi.org/legacy/'
-          FLIT_USERNAME: '__token__'
+          FLIT_INDEX_URL: "https://upload.pypi.org/legacy/"
+          FLIT_USERNAME: "__token__"
           FLIT_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
         run: |
           cd packages/railtracks
@@ -61,7 +68,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: "3.10"
 
       - name: Install dependencies
         run: |
@@ -82,8 +89,8 @@ jobs:
 
       - name: Build and Publish Railtracks CLI to PyPI
         env:
-          FLIT_INDEX_URL: 'https://upload.pypi.org/legacy/'
-          FLIT_USERNAME: '__token__'
+          FLIT_INDEX_URL: "https://upload.pypi.org/legacy/"
+          FLIT_USERNAME: "__token__"
           FLIT_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
         run: |
           cd packages/railtracks-cli

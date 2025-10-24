@@ -1,5 +1,3 @@
-from typing import Any, Dict
-
 from typing_extensions import Self
 
 from railtracks.llm import Tool
@@ -18,10 +16,10 @@ class ToolCallable:
         )
 
     @classmethod
-    def prepare_tool(cls, tool_parameters: Dict[str, Any]) -> Self:
+    def prepare_tool(cls, **kwargs) -> Self:
         """
         This method creates a new instance of the node by unpacking the tool parameters.
 
         If you would like any custom behavior please override this method.
         """
-        return cls(**tool_parameters)  # noqa
+        return cls(**kwargs)  # noqa

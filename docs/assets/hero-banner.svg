@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" role="img" aria-labelledby="title desc">
+  <title id="title">Build AI agents as simple as writing functions</title>
+  <desc id="desc">Space gradient banner with Railtracks logo and tagline</desc>
+
+  <!-- Background: space gradient (purple/blue) and panel gradient -->
+  <defs>
+    <linearGradient id="spaceGradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#140b2e"/>
+      <stop offset="45%" stop-color="#101c5e"/>
+      <stop offset="100%" stop-color="#030a1a"/>
+    </linearGradient>
+    <linearGradient id="panelGradient" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.03"/>
+    </linearGradient>
+  <!-- Nebula radial gradients -->
+    <!-- Edge fades to black -->
+    <linearGradient id="fadeTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.7"/>
+      <stop offset="90%" stop-color="#000000" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="fadeBottom" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="90%" stop-color="#000000" stop-opacity="0.7"/>
+    </linearGradient>
+    <radialGradient id="nebulaPurple" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#6e49ff" stop-opacity="0.35"/>
+      <stop offset="60%" stop-color="#6e49ff" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#6e49ff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="nebulaBlue" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#2aa4ff" stop-opacity="0.30"/>
+      <stop offset="60%" stop-color="#2aa4ff" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#2aa4ff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="400" fill="url(#spaceGradient)"/>
+
+  <!-- Subtle nebula glows -->
+  <g opacity="0.6">
+    <circle cx="220" cy="110" r="140" fill="url(#nebulaPurple)"/>
+    <circle cx="980" cy="90" r="160" fill="url(#nebulaBlue)"/>
+    <circle cx="1050" cy="300" r="120" fill="url(#nebulaPurple)"/>
+    <circle cx="300" cy="300" r="110" fill="url(#nebulaBlue)"/>
+  </g>
+
+  <!-- Stars and clusters -->
+  <g fill="#ffffff">
+    <!-- Sparse stars -->
+    <g opacity="0.9">
+      <circle cx="80" cy="60" r="1.2"/>
+      <circle cx="150" cy="110" r="0.9"/>
+      <circle cx="220" cy="40" r="1.4"/>
+      <circle cx="320" cy="85" r="0.8"/>
+      <circle cx="420" cy="55" r="1.0"/>
+      <circle cx="540" cy="70" r="1.2"/>
+      <circle cx="640" cy="40" r="0.9"/>
+      <circle cx="860" cy="50" r="1.0"/>
+      <circle cx="980" cy="80" r="1.0"/>
+      <circle cx="1120" cy="60" r="0.9"/>
+      <circle cx="180" cy="200" r="0.9"/>
+      <circle cx="1040" cy="210" r="1.1"/>
+      <circle cx="900" cy="160" r="0.8"/>
+      <circle cx="260" cy="150" r="1.0"/>
+      <circle cx="700" cy="140" r="0.7"/>
+      <circle cx="600" cy="200" r="0.9"/>
+      <circle cx="500" cy="160" r="0.7"/>
+      <circle cx="300" cy="230" r="1.0"/>
+      <circle cx="800" cy="240" r="0.9"/>
+      <circle cx="950" cy="190" r="0.8"/>
+    </g>
+    <!-- Cluster left -->
+    <g opacity="0.85">
+      <circle cx="240" cy="115" r="1.8"/>
+      <circle cx="248" cy="108" r="1.2"/>
+      <circle cx="232" cy="104" r="1.0"/>
+      <circle cx="226" cy="120" r="0.9"/>
+      <circle cx="252" cy="120" r="0.8"/>
+      <circle cx="238" cy="128" r="0.7"/>
+    </g>
+    <!-- Cluster right -->
+    <g opacity="0.85">
+      <circle cx="960" cy="95" r="1.8"/>
+      <circle cx="968" cy="88" r="1.2"/>
+      <circle cx="952" cy="84" r="1.0"/>
+      <circle cx="946" cy="100" r="0.9"/>
+      <circle cx="972" cy="100" r="0.8"/>
+      <circle cx="958" cy="108" r="0.7"/>
+    </g>
+  </g>
+
+  <!-- Railtracks logo (paths from docs/assets/logo.svg), scaled and centered -->
+  <g transform="translate(600,175) scale(0.9) translate(-180,-180)">
+    <g fill="#4f78ec">
+      <path d="M242.9,233.1h11.16l-4.63-10.65-13.1-.49-5.41-11.74h8.44l1.36-.81-5.02-8.32-10.71-.44-4.4-9.23,7.06-1.36-2.99-6.54-8.31-.95-2.32-5.32,5.46-.81c-.69-2.39-1.49-5.1-4.37-5.17,2.53-4.86,4.2-5.92,3.84-12-2.41-40.33-76.05-40.32-78.46,0-.36,6.08,1.31,7.14,3.84,12-2.88.07-3.68,2.78-4.37,5.17l5.46.81-2.32,5.32-8.31.95-2.99,6.54,7.06,1.36-4.4,9.23-10.71.44-5.02,8.32,1.36.81h8.44l-5.41,11.74-13.1.49-4.63,10.65h11.16l-7.64,12.28c-92.78-80.17-.81-218.2,111.25-176.07,74.97,28.19,93.79,126.85,29.27,176.08l-6.53-12.29Z"/>
+      <path d="M167.75,161.76l-3.31,10.03,30.51.29-3.24-10.32,6.99.1,74.49,135.02-21.86-1.12-12.84-26.11h-117.52l-12.84,26.11-22.14.84,74.62-134.49,7.14-.35ZM202.06,186.81l-3.6-7.49-37.79.12-3.27,7.38h44.66ZM206.82,194.03c-2.61-2.53-45.92-1.16-52.39-.63l-4.64,8.32,58.51.87,1.37-1.32-2.86-7.24ZM214.44,212.55l-69.6.24-4.36,11.82,78.44.29-4.47-12.35ZM228.1,251.52l.98-3.71-7.11-10.28-84.89.02c-1.76,1.86-9.86,12.85-5.04,14.11l96.06-.15Z"/>
+      <polygon points="77.37 272.28 90.1 249.95 105.43 249.98 93.99 270.72 77.37 272.28"/>
+      <polygon points="282.08 272.28 265.47 270.72 254.02 249.98 269.36 249.95 282.08 272.28"/>
+    </g>
+  </g>
+
+  <!-- Tagline (larger) with subtle glow (duplicate text for glow effect) -->
+  <text x="600" y="314" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="28" fill="#91a6ff" opacity="0.35">
+    Build AI agents as simple as writing functions
+  </text>
+  <text x="600" y="312" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="28" fill="#e7e9ffff">
+    Build AI agents as simple as writing functions
+  </text>
+
+  <!-- Top/bottom fades to blend on dark backgrounds (~9% height each) -->
+  <rect x="0" y="0" width="1200" height="36" fill="url(#fadeTop)"/>
+  <rect x="0" y="364" width="1200" height="36" fill="url(#fadeBottom)"/>
+
+</svg>
