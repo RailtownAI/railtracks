@@ -5,7 +5,7 @@ from railtracks import ToolManifest
 from railtracks.llm import Parameter
 from railtracks.built_nodes.concrete import LLMBase
 from railtracks.built_nodes._node_builder import NodeBuilder
-
+from railtracks import function_node
 class DummyNode(LLMBase):
     @classmethod
     def name(cls): return "DummyNode"
@@ -87,7 +87,7 @@ def test_agent_node_with_manifest(mock_tool_node, mock_llm, mock_manifest, mock_
 def test_agent_node_tool_nodes_func(mock_llm, mock_function, mock_sys_mes):
     node_cls = agent_node(
         name="AgentWithFuncTool",
-        tool_nodes=[mock_function],
+        tool_nodes=[function_node(mock_function)],
         llm=mock_llm,
         system_message=mock_sys_mes
     )
