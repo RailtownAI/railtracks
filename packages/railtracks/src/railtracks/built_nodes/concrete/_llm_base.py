@@ -13,6 +13,7 @@ from typing import (
 )
 
 from pydantic import BaseModel
+from railtracks.llm.message import Role
 from typing_extensions import Self
 
 from railtracks.exceptions.errors import LLMError, NodeInvocationError
@@ -248,7 +249,7 @@ class LLMBase(Node[_T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
 
     def _post_llm_hook(self, message_history: MessageHistory, response: Response):
         """Hook to store the response details after invoking the llm model."""
-        if isinstance(response.message, AssistantMessage) and isinstance(
+        if response.message.role == Role.assistant and isinstance(
             response.message.content, Stream
         ):
             assert response.message.content.final_message, (
