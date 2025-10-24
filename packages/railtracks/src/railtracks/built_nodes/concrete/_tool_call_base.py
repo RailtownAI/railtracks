@@ -28,6 +28,7 @@ from railtracks.llm import (
     ToolResponse,
     UserMessage,
 )
+from railtracks.llm.content import Content
 from railtracks.llm.message import Role
 from railtracks.llm.providers import ModelProvider
 from railtracks.llm.response import Response
@@ -41,6 +42,8 @@ _T = TypeVar("_T")
 _P = ParamSpec("_P")
 _TStream = TypeVar("_TStream", Literal[True], Literal[False])
 _TCollectedOutput = TypeVar("_TCollectedOutput", bound=LLMResponse)
+
+_TContent = TypeVar("_TContent", bound=Content)
 
 
 class OutputLessToolCallLLMBase(
@@ -209,7 +212,9 @@ class OutputLessToolCallLLMBase(
         return tool_messages
 
     async def _handle_response(
-        self, message: AssistantMessage, allowed_tool_calls: int | None
+        self,
+        message: Message[_TContent, Literal[Role.assistant]],
+        allowed_tool_calls: int | None,
     ):
         # if the returned item is a list then it is a list of tool calls
         if isinstance(message.content, list):
@@ -256,7 +261,7 @@ class OutputLessToolCallLLM(
             self.message_hist,
         )
 
-        if not isinstance(response.message, AssistantMessage):
+        if not response.message.role == Role.assistant:
             raise LLMError(
                 reason=f"The LLM returned an unexpected message type. Expected AssistantMessage but got {type(response.message)}",
                 message_history=self.message_hist,
@@ -292,7 +297,7 @@ class OutputLessToolCallLLM(
             self.llm_model.chat_with_tools, self.message_hist, tools=self.tools()
         )
 
-        if not isinstance(response.message, AssistantMessage):
+        if not response.message.role == Role.assistant:
             raise LLMError(
                 reason=f"The LLM returned an unexpected message type. Expected AssistantMessage but got {type(response.message)}",
                 message_history=self.message_hist,
@@ -352,7 +357,7 @@ class StreamingOutputLessToolCallLLM(
             return gen_wrapper()
 
         if isinstance(first_item, Response):
-            assert isinstance(first_item.message, AssistantMessage)
+            assert first_item.message.role == Role.assistant
 
             if len(first_item.message.tool_calls) > 0:
                 is_tool, _ = await self._handle_response(

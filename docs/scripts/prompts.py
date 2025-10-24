@@ -29,10 +29,10 @@ rt.set_config(prompt_injection=False)
 
 # --8<-- [start: injection_at_message_level]
 # This message will have context injection applied
-system_msg = rt.llm.Message(role="system", content="You are a {role}.", inject_prompt=True)
+system_msg = rt.llm.SystemMessage(content="You are a {role}.", inject_prompt=True)
 
 # This message will not have context injection applied
-user_msg = rt.llm.Message(role="user", content="Tell me about {topic}.", inject_prompt=False)
+user_msg = rt.llm.UserMessage(content="Tell me about {topic}.", inject_prompt=False)
 # --8<-- [end: injection_at_message_level]
 
 # --8<-- [start: prompt_templates]
