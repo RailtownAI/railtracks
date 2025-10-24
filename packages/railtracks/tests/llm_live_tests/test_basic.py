@@ -59,7 +59,7 @@ async def test_terminal_llm(llm):
             terminal_node, user_input="Please reverse '12345'."
         )
         final_resp: StringResponse | None = None
-        if llm._stream:
+        if llm.stream:
             for chunk in response:
                 assert isinstance(chunk, (str, StringResponse)), "The response should be either string or the final response"
                 if isinstance(chunk, StringResponse):
@@ -91,7 +91,7 @@ async def test_structured_llm(llm, test_case):
 
         final_resp = None
 
-        if llm._stream:
+        if llm.stream:
             for chunk in response:
                 assert isinstance(chunk, (str, StructuredResponse)), "The response should be either string or the final response"
                 if isinstance(chunk, StructuredResponse):

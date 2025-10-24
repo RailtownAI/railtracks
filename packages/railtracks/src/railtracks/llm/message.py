@@ -51,6 +51,7 @@ class Message(Generic[_T, _TRole]):
             role: The role of the message (assistant, user, system, tool, etc.).
             inject_prompt (bool, optional): Whether to inject prompt with context variables. Defaults to True.
         """
+        assert isinstance(role, Role)
         self.validate_content(content)
         self._content = content
         self._role = role
