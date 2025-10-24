@@ -56,16 +56,8 @@ async def call(
 ) -> _TOutput: ...
 
 
-@overload
 async def call(
-    node_: Callable[_P, _TOutput],
-    *args: _P.args,
-    **kwargs: _P.kwargs,
-) -> _TOutput: ...
-
-
-async def call(
-    node_: Callable[_P, Node[_TOutput] | _TOutput] | RTFunction[_P, _TOutput],
+    node_: Callable[_P, Node[_TOutput]] | RTFunction[_P, _TOutput],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput:

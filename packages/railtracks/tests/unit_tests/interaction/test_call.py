@@ -171,20 +171,14 @@ async def test_call_with_active_context_calls_run(mock_context_functions, mock_r
 
 
 @pytest.mark.asyncio
-async def test_call_converts_function_to_node_behaviorally_with_side_effect():
-    """No good was of testing if the function was made into a node, i tried using mock but ran into a circular import error"""
-    called = False
+async def test_call_raises_type_error_with_function():
+    """We are not supporting Callables as an argument to call. This is to make call a little ."""
 
     def test_function():
-        nonlocal called
-        called = True
         return "function_result"
-
-    result = await call(test_function)
-
-    assert result == "function_result"
-    assert called is True
-
+    
+    with pytest.raises(TypeError):
+        await call(test_function)
 
 # ============================ END Call Function Tests ==============================
 
@@ -197,7 +191,7 @@ async def test_start_activates_and_shuts_down_publisher(
     full_context_setup, mock_execute
 ):
     """Test that _start properly activates and shuts down the publisher."""
-    mock_node = Mock(return_value=MockNode("test_result"))
+    mock_node = MockNode
     mock_execute.return_value = "test_result"
 
     result = await _start(mock_node, args=("arg1",), kwargs={"kwarg1": "value1"})
@@ -210,7 +204,7 @@ async def test_start_activates_and_shuts_down_publisher(
 @pytest.mark.asyncio
 async def test_start_handles_timeout_exception(full_context_setup, mock_execute):
     """Test that _start raises GlobalTimeOutError on timeout."""
-    mock_node = Mock(return_value=MockNode("test_result"))
+    mock_node = MockNode
 
     async def slow_execute(*args, **kwargs):
         await asyncio.sleep(1)  # Simulate slow operation
@@ -228,7 +222,7 @@ async def test_start_handles_timeout_exception(full_context_setup, mock_execute)
 @pytest.mark.asyncio
 async def test_start_preserves_internal_timeout_error(full_context_setup, mock_execute):
     """Test that _start preserves timeout errors from the coroutine itself."""
-    mock_node = Mock(return_value=MockNode("test_result"))
+    mock_node = MockNode
 
     async def timeout_execute(*args, **kwargs):
         raise asyncio.TimeoutError("Internal timeout")
@@ -251,7 +245,7 @@ async def test_start_preserves_internal_timeout_error(full_context_setup, mock_e
 @pytest.mark.asyncio
 async def test_run_calls_execute_with_regular_filter(mock_execute):
     """Test that _run calls _execute with the regular message filter."""
-    mock_node = Mock(return_value=MockNode("test_result"))
+    mock_node = MockNode
     mock_execute.return_value = "test_result"
 
     result = await _run(mock_node, ("arg1",), {"kwarg1": "value1"})
@@ -277,7 +271,7 @@ async def test_run_calls_execute_with_regular_filter(mock_execute):
 @pytest.mark.asyncio
 async def test_execute_publishes_request_and_waits_for_response(full_context_setup):
     """Test that _execute publishes a request and waits for the response."""
-    mock_node = Mock(return_value=MockNode("test_result"))
+    mock_node = MockNode
 
     # Mock the listener to return the expected result
     future_result = asyncio.Future()
@@ -310,7 +304,7 @@ async def test_execute_publishes_request_and_waits_for_response(full_context_set
 @pytest.mark.asyncio
 async def test_call_with_none_arguments(mock_run):
     """Test call with None as arguments."""
-    mock_node = Mock(return_value=MockNode("none_result"))
+    mock_node = MockNode
     mock_run.return_value = "none_result"
     result = await mock_run(mock_node, None, test_arg=None)
 
@@ -321,7 +315,7 @@ async def test_call_with_none_arguments(mock_run):
 @pytest.mark.asyncio
 async def test_call_with_empty_arguments(mock_run):
     """Test call with no arguments."""
-    mock_node = Mock(return_value=MockNode("empty_result"))
+    mock_node = MockNode
     mock_run.return_value = "empty_result"
     result = await mock_run(mock_node)
     assert result == "empty_result"
