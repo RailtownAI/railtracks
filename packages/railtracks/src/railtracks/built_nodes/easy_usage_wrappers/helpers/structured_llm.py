@@ -49,7 +49,7 @@ def structured_llm(
     """
 
     builder = NodeBuilder(
-        StreamingStructuredLLM if llm is not None and llm._stream else StructuredLLM,
+        StreamingStructuredLLM if llm is not None and llm.stream else StructuredLLM,
         name=name,
         class_name="EasyStructuredLastMessageLLM",
         return_into=return_into,

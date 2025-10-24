@@ -234,12 +234,12 @@ class TestCompletionMethods:
     @pytest.mark.parametrize("method_name,is_async,stream", [
         ("_chat_with_tools", False, False),
         ("_achat_with_tools", True, False),
-        # ("_chat_with_tools", False, True),
+        ("_chat_with_tools", False, True),
         # ("_achat_with_tools", True, True),
     ], ids=[
         "sync_chat_with_tools",
         "async_chat_with_tools",
-        # "sync_chat_with_tools_streaming",
+        "sync_chat_with_tools_streaming",
         # "async_chat_with_tools_streaming"
         ])
     @pytest.mark.asyncio
@@ -276,7 +276,7 @@ class TestCompletionMethods:
             for chunk in result:
                 if isinstance(chunk, Response):
                     try:
-                        calls = json.loads(chunk.message.content.final_message)
+                        calls = json.loads(chunk.message.content)
                         assert isinstance(calls, list)
                         assert calls[0]["name"] == "tool_x"
                         assert calls[0]["arguments"] == {"foo": 1}

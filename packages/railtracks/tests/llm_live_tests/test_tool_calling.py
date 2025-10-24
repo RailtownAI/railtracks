@@ -1,10 +1,12 @@
 import pytest
+from railtracks.built_nodes.concrete.response import StringResponse
+from railtracks.exceptions.errors import NodeCreationError
+from railtracks.llm.providers import ModelProvider
 from .llm_map import llm_map
 import railtracks as rt
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, final
 
-@pytest.mark.skip(reason="Skipped due to LLM stochasticity")
 @pytest.mark.asyncio
 @pytest.mark.parametrize("llm", llm_map.values(), ids=llm_map.keys())
 async def test_function_as_tool(llm):
@@ -35,12 +37,28 @@ async def test_function_as_tool(llm):
     )
 
     with rt.Session(logging_setting="NONE"):
-        response = await rt.call(agent, user_input="First find the magic number for 4. Then use the magic_operator with `x` as the result from magic_number and `y` as 3. Return the result from the magic_operator.")
-        assert '15' in response.content
+        if llm._stream and llm.model_type() != ModelProvider.OPENAI:
+            with pytest.raises(NodeCreationError):
+                response = await rt.call(agent, user_input="First find the magic number for 4. Then use the magic_operator with `x` as the result from magic_number and `y` as 3. Return the result from the magic_operator.")
+
+            return
+        else:
+            response = await rt.call(agent, user_input="First find the magic number for 4. Then use the magic_operator with `x` as the result from magic_number and `y` as 3. Return the result from the magic_operator.")
+
+        final_resp = None
+        if llm._stream:
+            for chunk in response:
+                assert isinstance(chunk, (str, StringResponse))
+                if isinstance(chunk, StringResponse):
+                    final_resp = chunk
+        else:
+            final_resp = response
+
+        assert final_resp is not None
+        assert '15' in final_resp.content
         assert rt.context.get("magic_number_called")
         assert rt.context.get("magic_operator_called")
 
-@pytest.mark.skip(reason="Skipped due to LLM stochasticity")
 @pytest.mark.asyncio
 @pytest.mark.parametrize("llm", llm_map.values(), ids=llm_map.keys())
 async def test_realistic_scenario(llm):
@@ -81,10 +99,18 @@ async def test_realistic_scenario(llm):
     )
 
     with rt.Session(logging_setting="NONE"):
-        await rt.call(
-            agent, rt.llm.MessageHistory([rt.llm.UserMessage(usr_prompt)])
-        )
+        if llm._stream and llm.model_type() != ModelProvider.OPENAI:
+            return
+        else:
+            response = await rt.call(
+                agent, rt.llm.MessageHistory([rt.llm.UserMessage(usr_prompt)])
+            )
         assert rt.context.get("staff_directory_updated")
+
+        if llm._stream:
+            for chunk in response:
+                assert isinstance(chunk, (str, StringResponse))
+                pass
 
 
     assert DB["John"]["role"] == "Senior Manager"
@@ -92,7 +118,6 @@ async def test_realistic_scenario(llm):
     assert DB["Jane"]["role"] == "Developer"
     assert DB["Jane"]["phone"] == "0987654321"
 
-@pytest.mark.skip(reason="Skipped due to LLM stochasticity")
 @pytest.mark.asyncio
 @pytest.mark.parametrize("llm", llm_map.values(), ids=llm_map.keys())
 async def test_agents_as_tools(llm):
@@ -144,12 +169,26 @@ async def test_agents_as_tools(llm):
     with rt.Session(
         logging_setting="NONE", timeout=100
     ):
+        if llm._stream and llm.model_type() != ModelProvider.OPENAI:
+            return
+        
         response = await rt.call(
             parent_tool, user_input="Get me the secret phrase for id `1`."
         )
+
+        final_resp = None
+        if llm._stream:
+            for chunk in response:
+                assert isinstance(chunk, (str, StringResponse))
+                if isinstance(chunk, StringResponse):
+                    final_resp = chunk
+        else:
+            final_resp = response
+            
+        assert final_resp is not None
         assert rt.context.get("secret_phrase_called")
 
-    assert response is not None
-    assert "3 cats and a dog" in response.content
-    assert any(message.role == "tool" and message.content.name == "Secret_Phrase_Maker" for message in response.message_history)    # child tool giving the secret phrase to parent
-    
+    assert final_resp is not None
+    assert "3 cats and a dog" in final_resp.content
+    assert any(message.role == "tool" and message.content.name == "Secret_Phrase_Maker" for message in final_resp.message_history)    # child tool giving the secret phrase to parent
+

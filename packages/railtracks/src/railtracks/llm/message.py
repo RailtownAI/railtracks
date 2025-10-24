@@ -1,7 +1,8 @@
+from copy import deepcopy
 from enum import Enum
 from typing import Generic, Literal, TypeVar
 
-from .content import Content, ToolResponse
+from .content import Content, ToolCall, ToolResponse
 
 _T = TypeVar("_T", bound=Content)
 
@@ -83,6 +84,15 @@ class Message(Generic[_T]):
 
     def __repr__(self):
         return str(self)
+
+    @property
+    def tool_calls(self):
+        """Gets the tool calls attached to this message, if any. If there are none return and empty list."""
+        tools: list[ToolCall] = []
+        if isinstance(self.content, list):
+            tools.extend(deepcopy(self.content))
+
+        return tools
 
 
 class _StringOnlyContent(Message[str]):

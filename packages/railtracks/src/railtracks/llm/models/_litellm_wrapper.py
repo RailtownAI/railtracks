@@ -178,7 +178,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
     """
 
     def __init__(self, model_name: str, stream: _TStream = False):
-        super().__init__(_stream=stream)
+        super().__init__(stream=stream)
         self._model_name = model_name
 
     @overload
@@ -232,7 +232,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         completion = litellm.completion(
             model=self._model_name,
             messages=litellm_messages,
-            stream=self._stream,
+            stream=self.stream,
             **merged,
         )
 
@@ -289,7 +289,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         completion = await litellm.acompletion(
             model=self._model_name,
             messages=litellm_messages,
-            stream=self._stream,
+            stream=self.stream,
             **merged,
         )
         if isinstance(completion, CustomStreamWrapper):
@@ -368,28 +368,29 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         self,
         raw: CustomStreamWrapper,
         start_time: float,
-        output_schema: Type[BaseModel] | None = None,
+        output_schema: Type[_TBaseModel] | None = None,
     ) -> Generator[Response | str, None, Response]:
-        """Modifies the stream to handler to yield chunks as they come in. It provides a complete response at the end."""
+        """
+        Intercepts the given stream wrapper and provides a new generator.
+        The generator should iterate and provide strings cluminating in the last response being a Response object
+
+        """
         tools: List[ToolCall] = []
         accumulated_content = ""
-        structured_response: BaseModel | None = None
+
         # fall back on empty message info if we don't get one from the stream.
         message_info = MessageInfo()
         active_tool_calls: Dict[int, StreamedToolCall] = {}
         stream_finished = False
 
-        for chunk in raw.completion_stream:
+        for chunk in raw:
             if stream_finished:
-                # the last chunk will contain the full message info
+                # the last chunk will contain the full message info. Note this only true for openai. Anthropic is known to not.
+
                 message_info = self.extract_message_info(
                     chunk, time.time() - start_time
                 )
 
-                if output_schema is not None:
-                    structured_response = output_schema(
-                        **json.loads(accumulated_content)
-                    )
                 break
 
             choice = chunk.choices[0]
@@ -400,7 +401,6 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
                 continue
 
             if choice.delta.tool_calls:
-                # TODO: determine if it would be useful to stream tools
                 self._handle_tool_call_delta(
                     choice.delta.tool_calls[0], active_tool_calls
                 )
@@ -409,6 +409,34 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
                 content = self._handle_content_delta(choice.delta.content)
                 accumulated_content += content
                 yield content
+
+        r = self._prepare_response(
+            accumulated_content=accumulated_content,
+            tools=tools,
+            output_schema=output_schema,
+            message_info=message_info,
+        )
+
+        yield r
+        return r
+
+    def _prepare_response(
+        self,
+        *,
+        accumulated_content: str,
+        tools: list[ToolCall],
+        output_schema: type[BaseModel] | None,
+        message_info: MessageInfo,
+    ):
+        """
+        From the provided content, creates a completes a response object dyanmically.
+
+        This function handles the normalization of the different response `content` types.
+        """
+        structured_response: BaseModel | None = None
+
+        if output_schema is not None:
+            structured_response = output_schema(**json.loads(accumulated_content))
 
         if structured_response is not None:
             r = Response(
@@ -425,7 +453,6 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
                 message_info=message_info,
             )
 
-        yield r
         return r
 
     async def _aconsume_stream(self, raw: CustomStreamWrapper, start_time: float):

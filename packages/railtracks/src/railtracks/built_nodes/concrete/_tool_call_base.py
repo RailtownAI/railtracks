@@ -29,6 +29,7 @@ from railtracks.llm import (
     UserMessage,
 )
 from railtracks.llm.message import Role
+from railtracks.llm.providers import ModelProvider
 from railtracks.llm.response import Response
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_creation.validation import check_connected_nodes
@@ -72,6 +73,16 @@ class OutputLessToolCallLLMBase(
                 # Validate that the returned node_set is correct and contains only Node/function instances
                 check_connected_nodes(node_set, Node)
 
+    @classmethod
+    def streaming_blacklist(cls):
+        return {
+            ModelProvider.ANTHROPIC,
+            ModelProvider.AZUREAI,
+            ModelProvider.GEMINI,
+            ModelProvider.OLLAMA,
+            ModelProvider.HUGGINGFACE,
+        }
+
     def __init__(
         self,
         user_input: MessageHistory | UserMessage | str | list[Message],
@@ -79,6 +90,19 @@ class OutputLessToolCallLLMBase(
         max_tool_calls: int | None = None,
     ):
         super().__init__(llm=llm, user_input=user_input)
+        model = self.get_llm()
+        # we only support Openai for streaming calls atm.
+        if (
+            model is not None
+            and model.stream
+            and model.model_type() in self.streaming_blacklist()
+        ):
+            raise NodeCreationError(
+                f"Currently we do not allow streaming with {model.model_type()} (specifically for tool calling)",
+                notes=[
+                    "Create a new issue on the railtracks repo or switch to openai's models"
+                ],
+            )
         # Set max_tool_calls for non easy usage wrappers
         if not hasattr(self, "max_tool_calls"):
             # Check max_tool_calls (including warning for None)

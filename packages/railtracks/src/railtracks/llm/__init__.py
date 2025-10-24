@@ -11,7 +11,7 @@ from .models import (
     OllamaLLM,
     OpenAILLM,
 )
-from .models.providers import ModelProvider
+from .providers import ModelProvider
 from .tools import (
     ArrayParameter,
     ObjectParameter,

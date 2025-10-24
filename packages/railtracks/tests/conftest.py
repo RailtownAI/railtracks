@@ -22,7 +22,7 @@ class MockLLM(rt.llm.ModelBase):
         Args:
             custom_response_message (Message | None, optional): The custom response message to use for the LLM. Defaults to None.
         """
-        super().__init__(_stream=stream)
+        super().__init__(stream=stream)
         self.custom_response = custom_response
         self.requested_tool_calls = requested_tool_calls
         self.mocked_message_info = MessageInfo(
@@ -57,7 +57,7 @@ class MockLLM(rt.llm.ModelBase):
             assert isinstance(self.custom_response, str), "custom_response must be a string for terminal LLMs"
         return_message = self.custom_response or "mocked Message"
         # Streaming case
-        if self._stream:
+        if self.stream:
             def make_generator():
                     for char in return_message:
                         yield char
@@ -87,7 +87,7 @@ class MockLLM(rt.llm.ModelBase):
             response_model = DummyStructured()
 
         # Streaming case
-        if self._stream:
+        if self.stream:
             def make_generator():
                     for char in response_model.model_dump_json():
                         yield char
@@ -117,7 +117,7 @@ class MockLLM(rt.llm.ModelBase):
                     + "\n"
                 )
             # Streaming case
-            if self._stream:
+            if self.stream:
                 def make_generator():
                     for char in final_message:
                         yield char
@@ -130,16 +130,25 @@ class MockLLM(rt.llm.ModelBase):
                     return r
                 
                 return make_generator()
+            
             return Response(    # no changes in this response in case of streaming
                 message=AssistantMessage(content=final_message),
                 message_info=self.mocked_message_info,
             )
         else:
             return_message = self.requested_tool_calls or "mocked tool message"
-            return Response(    # no changes in this response in case of streaming
+            r = Response(    # no changes in this response in case of streaming
                 message=AssistantMessage(return_message),
                 message_info=self.mocked_message_info,
             )
+            if self.stream:
+                def tool_generator():
+                    yield r
+                    return r
+                return tool_generator()
+            else:
+                return r
+
 
     # ==========================================================
     # Override all methods that make network calls with mocks

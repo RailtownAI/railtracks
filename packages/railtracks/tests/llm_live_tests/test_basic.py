@@ -1,6 +1,8 @@
 import pytest 
 import railtracks as rt
 from pydantic import BaseModel, Field
+from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
+
 from .llm_map import llm_map
 
 class Address(BaseModel):
@@ -40,7 +42,7 @@ test_cases = [
     }
 ]
 
-@pytest.mark.skip(reason="Skipped due to LLM stochasticity")
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("llm", llm_map.values(), ids=llm_map.keys())
 async def test_terminal_llm(llm):
@@ -56,10 +58,18 @@ async def test_terminal_llm(llm):
         response = await rt.call(
             terminal_node, user_input="Please reverse '12345'."
         )
+        final_resp: StringResponse | None = None
+        if llm._stream:
+            for chunk in response:
+                assert isinstance(chunk, (str, StringResponse)), "The response should be either string or the final response"
+                if isinstance(chunk, StringResponse):
+                    final_resp = chunk
+        else:
+            final_resp = response
+        
 
-        assert '54321' in response.content
+        assert final_resp is not None and '54321' in final_resp.content
 
-@pytest.mark.skip(reason="Skipped due to LLM stochasticity")
 @pytest.mark.asyncio
 @pytest.mark.parametrize("llm", llm_map.values(), ids=llm_map.keys())
 @pytest.mark.parametrize("test_case", test_cases, ids=[case["case_id"] for case in test_cases])
@@ -79,8 +89,19 @@ async def test_structured_llm(llm, test_case):
             user_input=test_case["user_input"]
         )
 
+        final_resp = None
+
+        if llm._stream:
+            for chunk in response:
+                assert isinstance(chunk, (str, StructuredResponse)), "The response should be either string or the final response"
+                if isinstance(chunk, StructuredResponse):
+                    final_resp = chunk
+        else:
+            final_resp = response
+
         # Basic type check
-        assert isinstance(response.content, test_case["schema"])
+        assert final_resp is not None
+        assert isinstance(final_resp.structured, test_case["schema"])
         
         # Custom validation
-        assert test_case["validator"](response), f"Validation failed for {test_case['case_id']}"
+        assert test_case["validator"](final_resp), f"Validation failed for {test_case['case_id']}"
