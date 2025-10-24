@@ -2,12 +2,11 @@ from __future__ import annotations
 
 from copy import deepcopy
 from enum import Enum
-from typing import Generic, Literal, TypeVar
+from typing import Generic, TypeVar
 
 from .content import Content, ToolCall, ToolResponse
 
 _T = TypeVar("_T", bound=Content)
-
 
 
 class Role(str, Enum):
@@ -21,6 +20,7 @@ class Role(str, Enum):
     user = "user"
     system = "system"
     tool = "tool"
+
 
 _TRole = TypeVar("_TRole", bound=Role)
 
@@ -151,7 +151,9 @@ class AssistantMessage(Message[_T, Role.assistant], Generic[_T]):
     """
 
     def __init__(self, content: _T, inject_prompt: bool = True):
-        super().__init__(content=content, role=Role.assistant, inject_prompt=inject_prompt)
+        super().__init__(
+            content=content, role=Role.assistant, inject_prompt=inject_prompt
+        )
 
 
 # TODO further constrict the possible return type of a ToolMessage.

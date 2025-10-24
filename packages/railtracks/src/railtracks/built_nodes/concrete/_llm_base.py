@@ -13,13 +13,11 @@ from typing import (
 )
 
 from pydantic import BaseModel
-from railtracks.llm.message import Role
 from typing_extensions import Self
 
 from railtracks.exceptions.errors import LLMError, NodeInvocationError
 from railtracks.exceptions.messages.exception_messages import get_message
 from railtracks.llm import (
-    AssistantMessage,
     Message,
     MessageHistory,
     ModelBase,
@@ -28,7 +26,6 @@ from railtracks.llm import (
     SystemMessage,
     UserMessage,
 )
-from railtracks.llm.content import Stream
 from railtracks.llm.response import Response
 from railtracks.nodes.nodes import Node
 from railtracks.prompts.prompt import inject_context
@@ -249,8 +246,7 @@ class LLMBase(Node[_T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
 
     def _post_llm_hook(self, message_history: MessageHistory, response: Response):
         """Hook to store the response details after invoking the llm model."""
-        
-        
+
         output_message = deepcopy(response.message)
 
         self._details["llm_details"].append(
@@ -413,7 +409,7 @@ class StringOutputMixIn:
             message is None
         ):  # if no message is provided, use the last message from message history
             message = self.message_hist[-1]
-        
+
         print(message.content)
 
         assert isinstance(message.content, str), "The final output must be a string"

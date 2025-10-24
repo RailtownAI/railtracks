@@ -1,6 +1,7 @@
 from typing import Literal, TypeVar
 
 from railtracks.llm.content import Content
+
 from .message import Message, Role
 
 
@@ -55,7 +56,9 @@ class MessageInfo:
             f"system_fingerprint={self.system_fingerprint})"
         )
 
+
 _T = TypeVar("_T", bound=Content)
+
 
 class Response:
     """

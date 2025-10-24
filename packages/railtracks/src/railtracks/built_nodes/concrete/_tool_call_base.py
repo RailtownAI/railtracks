@@ -212,7 +212,9 @@ class OutputLessToolCallLLMBase(
         return tool_messages
 
     async def _handle_response(
-        self, message: Message[_TContent, Literal[Role.assistant]], allowed_tool_calls: int | None
+        self,
+        message: Message[_TContent, Literal[Role.assistant]],
+        allowed_tool_calls: int | None,
     ):
         # if the returned item is a list then it is a list of tool calls
         if isinstance(message.content, list):
