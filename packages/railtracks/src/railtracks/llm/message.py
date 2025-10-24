@@ -1,9 +1,60 @@
+import os
 from enum import Enum
 from typing import Generic, Literal, TypeVar
 
 from .content import Content, ToolResponse
+from .encoding import detect_source, encode
+from .prompt_injection_utils import KeyOnlyFormatter, ValueDict
 
 _T = TypeVar("_T", bound=Content)
+
+
+class Attachment:
+    """
+    A simple class that represents an attachment to a message.
+    """
+
+    def __init__(self, url: str):
+        """
+        A simple class that represents an attachment to a message.
+
+        Args:
+            url (str): The URL of the attachment.
+        """
+        self.url = url
+        self.file_extension = None
+        self.encoding = None
+        self.modality = "image"  # we currently only support image attachments but this could be extended in the future
+
+        if not isinstance(url, str):
+            raise TypeError(
+                f"The url parameter must be a string representing a file path or URL, but got {type(url)}"
+            )
+
+        match detect_source(url):
+            case "local":
+                _, file_extension = os.path.splitext(self.url)
+                file_extension = file_extension.lower()
+                mime_type_map = {
+                    ".jpg": "jpeg",
+                    ".jpeg": "jpeg",
+                    ".png": "png",
+                    ".gif": "gif",
+                    ".webp": "webp",
+                }
+                if file_extension not in mime_type_map:
+                    raise ValueError(
+                        f"Unsupported attachment format: {file_extension}. Supported formats: {', '.join(mime_type_map.keys())}"
+                    )
+                self.encoding = f"data:{self.modality}/{mime_type_map[file_extension]};base64,{encode(url)}"
+                self.type = "local"
+            case "url":
+                self.url = url
+                self.type = "url"
+            case "data_uri":
+                self.url = "..."  # if the user provides a data uri we just use it as is
+                self.encoding = url
+                self.type = "data_uri"
 
 
 class Role(str, Enum):
@@ -98,18 +149,36 @@ class _StringOnlyContent(Message[str]):
         if not isinstance(content, str):
             raise TypeError(f"A {cls.__name__} needs a string but got {type(content)}")
 
+    def fill_prompt(self, value_dict: ValueDict) -> None:
+        self._content = KeyOnlyFormatter().vformat(self._content, (), value_dict)
+
 
 class UserMessage(_StringOnlyContent):
     """
     Note that we only support string input
 
     Args:
-        content (str): The content of the user message.
-        inject_prompt (bool, optional): Whether to inject prompt with context variables. Defaults to True.
+        content: The content of the user message.
+        attachment: The file attachment(s) for the user message. Can be a single string or a list of strings,
+                    containing file paths, URLs, or data URIs. Defaults to None.
+        inject_prompt: Whether to inject prompt with context variables. Defaults to True.
     """
 
-    def __init__(self, content: str, inject_prompt: bool = True):
+    def __init__(
+        self,
+        content: str,
+        attachment: str | list[str] | None = None,
+        inject_prompt: bool = True,
+    ):
         super().__init__(content=content, role="user", inject_prompt=inject_prompt)
+
+        if attachment is not None:
+            if isinstance(attachment, list):
+                self.attachment = [Attachment(att) for att in attachment]
+            else:
+                self.attachment = [Attachment(attachment)]
+        else:
+            self.attachment = None
 
 
 class SystemMessage(_StringOnlyContent):

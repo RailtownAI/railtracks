@@ -9,10 +9,11 @@ graph LR
     LLM <-- "Iterative Input/Output" --> Environment[User, Other Users, Other Agents]
     User <-- "Iterative Input/Output" --> Environment
 
-    style LLM fill:#e1f5fe
-    style User fill:#f3e5f5
-    style Tools fill:#fff3e0
-    style Environment fill:#e8f5e8
+    style LLM fill:#FECACA, fill-opacity:0.3
+    style User fill:#60A5FA, fill-opacity:0.3
+    style Tools fill:#FBBF24, fill-opacity:0.3
+    style Environment fill:#34D399, fill-opacity:0.3
+
 ```
 
 To allow this for the users of the framework, we have designed an extendible abstract class called `HIL` (*Human In the Loop*). Additionally we have implemented a local chat server for quick development and prototyping of such behaviours. Please refer to the following sections for futher information:
