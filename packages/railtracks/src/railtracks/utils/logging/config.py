@@ -5,6 +5,8 @@ from typing import Dict, Literal, cast
 
 from colorama import Fore, init
 
+from contextvars import ContextVar
+
 AllowableLogLevels = Literal["VERBOSE", "REGULAR", "QUIET", "NONE"]
 allowable_log_levels_set = {"VERBOSE", "REGULAR", "QUIET", "NONE"}
 
@@ -22,8 +24,21 @@ _module_logging_config: Dict[str, AllowableLogLevels | str | os.PathLike | None]
     "level": None,
     "log_file": None,
 }
-_session_has_override: bool = False
-_pre_session_config: Dict[str, AllowableLogLevels | str | os.PathLike | None] = {}
+# _session_has_override: bool = False
+# _pre_session_config: Dict[str, AllowableLogLevels | str | os.PathLike | None] = {}
+_pre_session_log_level: ContextVar[AllowableLogLevels | None] = ContextVar(
+    "pre_session_log_level", default=None)
+_pre_session_log_file: ContextVar[str | os.PathLike | None] = ContextVar(
+    "pre_session_log_file", default=None)
+
+_module_logging_level: ContextVar[AllowableLogLevels | None] = ContextVar(
+    "module_logging_level", default=None)
+
+_module_logging_file: ContextVar[str | os.PathLike | None] = ContextVar(
+    "module_logging_file", default=None)
+
+_session_has_override: ContextVar[bool] = ContextVar(
+    "session_has_override", default=False)
 
 # Initialize colorama
 init(autoreset=True)
@@ -126,7 +141,7 @@ def setup_file_handler(
 
 def prepare_logger(
     *,
-    setting: AllowableLogLevels,
+    setting: AllowableLogLevels | None,
     path: str | os.PathLike | None = None,
 ):
     """
@@ -143,15 +158,16 @@ def prepare_logger(
     logger = logging.getLogger(rt_logger_name)
     logger.addHandler(console_handler)
 
-    if setting == "VERBOSE":
-        logger.setLevel(logging.DEBUG)
-    elif setting == "REGULAR":
-        logger.setLevel(logging.INFO)
-    elif setting == "QUIET":
-        logger.setLevel(logging.WARNING)
-    elif setting == "NONE":
-        logger.addFilter(lambda x: False)
-        logger.addHandler(logging.NullHandler())
+    if setting is not None:
+        if setting == "VERBOSE":
+            logger.setLevel(logging.DEBUG)
+        elif setting == "REGULAR":
+            logger.setLevel(logging.INFO)
+        elif setting == "QUIET":
+            logger.setLevel(logging.WARNING)
+        elif setting == "NONE":
+            logger.addFilter(lambda x: False)
+            logger.addHandler(logging.NullHandler())
     else:
         raise ValueError("Invalid log level setting")
 
@@ -175,7 +191,7 @@ def initialize_module_logging() -> None:
     If not set, defaults to REGULAR level with no log file.
     """
 
-    global _module_logging_config
+    # global _module_logging_config
 
     env_level = os.getenv("RT_LOG_LEVEL", "REGULAR").upper()
     env_log_file = os.getenv("RT_LOG_FILE", None)
@@ -185,11 +201,13 @@ def initialize_module_logging() -> None:
 
     env_level = cast(AllowableLogLevels, env_level)  # may the typing police be happy
 
-    _module_logging_config["level"] = env_level
-    _module_logging_config["log_file"] = env_log_file
+    # _module_logging_config["level"] = env_level
+    # _module_logging_config["log_file"] = env_log_file
+    _module_logging_level.set(env_level)
+    _module_logging_file.set(env_log_file)
 
     prepare_logger(
-        setting=_module_logging_config["level"], path=_module_logging_config["log_file"]
+        setting=env_level, path=env_log_file
     )
 
 
@@ -210,22 +228,23 @@ def configure_module_logging(
         log_file: Optional path to a log file. If None, logs only to console.
     """
 
-    global _module_logging_config
+    # global _module_logging_config
 
-    _module_logging_config["level"] = level
-    _module_logging_config["log_file"] = log_file
+    # _module_logging_config["level"] = level
+    # _module_logging_config["log_file"] = log_file
+    if level is not None:
+        _module_logging_level.set(level)
+    if log_file is not None:
+        _module_logging_file.set(log_file)
 
-    _pre__config = {
-        "level": _module_logging_config["level"],
-        "log_file": _module_logging_config["log_file"],
-    }
-
-    if not _session_has_override:
+    if _session_has_override.get():
+        raise RuntimeError(
+            "Cannot configure module-level logging while a session has overridden logging settings."
+        )
+    if not _session_has_override.get():
         prepare_logger(
-            setting=level
-            if level is not None
-            else cast(AllowableLogLevels, _module_logging_config["level"]),
-            path=_module_logging_config["log_file"],
+            setting=_module_logging_level.get(),
+            path=_module_logging_file.get(),
         )
 
 
@@ -242,13 +261,16 @@ def mark_session_logging_override(
         session_level: The session's logging level
         session_log_file: The session's log file (or None)
     """
-    global _session_has_override, _pre_session_config
+    # global _session_has_override, _pre_session_config
 
-    _pre_session_config = {
-        "level": _module_logging_config["level"],
-        "log_file": _module_logging_config["log_file"],
-    }
-    _session_has_override = True
+    # _pre_session_config = {
+    #     "level": _module_logging_config["level"],
+    #     "log_file": _module_logging_config["log_file"],
+    # }
+    _pre_session_log_level.set(_module_logging_level.get())
+    _pre_session_log_file.set(_module_logging_file.get())
+
+    _session_has_override.set(True)
 
     prepare_logger(setting=session_level, path=session_log_file)
 
@@ -260,21 +282,24 @@ def restore_module_logging() -> None:
     This detaches the session's logging handlers and restores the module-level
     configuration that was in place before the session started.
     """
-    global _session_has_override, _pre_session_config
+    # global _session_has_override, _pre_session_config
 
-    if not _session_has_override:
+    if not _session_has_override.get(): # if no session override is active, nothing to do
         return
 
     detach_logging_handlers()
 
-    if _pre_session_config is not None:
+    if _pre_session_log_file.get() is not None or _pre_session_log_level.get() is not None:
         prepare_logger(
-            setting=cast(AllowableLogLevels, _pre_session_config["level"]),
-            path=_pre_session_config["log_file"],
+            setting=_pre_session_log_level.get(),
+            path=_pre_session_log_file.get(),
         )
     else:
         # Fallback
-        prepare_logger(setting=AllowableLogLevels.REGULAR, path=None)
+        prepare_logger(setting="REGULAR", path=None)
 
-    _session_has_override = False
-    _pre_session_config = {}
+    # _session_has_override = False
+    # _pre_session_config = {}
+    _session_has_override.set(False)
+    _pre_session_log_level.set(None)
+    _pre_session_log_file.set(None)
