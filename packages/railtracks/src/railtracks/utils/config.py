@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from typing import Callable, Coroutine
 
-from railtracks.utils.logging.config import AllowableLogLevels, allowable_log_levels_set
+from railtracks.utils.logging.config import AllowableLogLevels, str_to_log_level
 
 
 class ExecutorConfig:
@@ -12,7 +12,7 @@ class ExecutorConfig:
         *,
         timeout: float = 150.0,
         end_on_error: bool = False,
-        logging_setting: AllowableLogLevels = "REGULAR",
+        logging_setting: AllowableLogLevels = "INFO",
         log_file: str | os.PathLike | None = None,
         broadcast_callback: (
             Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
@@ -46,9 +46,9 @@ class ExecutorConfig:
 
     @logging_setting.setter
     def logging_setting(self, value: AllowableLogLevels):
-        if value not in allowable_log_levels_set:
+        if value not in str_to_log_level:
             raise ValueError(
-                f"logging_setting must be one of {allowable_log_levels_set}, got {value}"
+                f"logging_setting must be one of {str_to_log_level}, got {value}"
             )
         self._logging_setting: AllowableLogLevels = value
 

@@ -46,7 +46,10 @@ from .interaction import broadcast, call, call_batch, interactive
 from .nodes.manifest import ToolManifest
 from .rt_mcp import MCPHttpParams, MCPStdioParams, connect_mcp, create_mcp_server
 from .utils.config import ExecutorConfig
+from .utils.logging.config import initialize_module_logging
 
 load_dotenv()
+initialize_module_logging()
+
 # Do not worry about changing this version number manually. It will updated on release.
 __version__ = "1.0.0"
