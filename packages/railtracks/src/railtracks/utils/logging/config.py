@@ -34,7 +34,8 @@ rt_logger.setLevel(logging.DEBUG)
 _default_format_string = "%(timestamp_color)s[+%(relative_seconds)-7ss] %(level_color)s%(name)-12s: %(levelname)-8s - %(message)s%(default_color)s"
 
 
-_file_format_string = "%(asctime)s %(levelname)s - %(message)s"
+_file_format_string = "%(asctime)s - %(relative_seconds)s - %(levelname)ss - %(name)s - %(message)s"
+# _file_format_string = "[%(asctime)] %(timestamp_color)s[+%(relative_seconds)-7ss] %(level_color)s%(name)-12s: %(levelname)-8s - %(message)s%(default_color)s"
 
 # log levels are ints hence the type hints
 _pre_session_log_level: ContextVar[int | None] = ContextVar(
@@ -89,10 +90,10 @@ class ColorfulFormatter(logging.Formatter):
     def __init__(self, fmt=None, datefmt=None):
         super().__init__(fmt, datefmt)
         self.level_colors = {
-            logging.INFO: Fore.WHITE,  # White for logger.info
-            logging.ERROR: Fore.LIGHTRED_EX,  # Red for logger.exception or logger.error
-            logging.WARNING: Fore.YELLOW,
             logging.DEBUG: Fore.CYAN,
+            logging.INFO: Fore.WHITE,  # White for logger.info
+            logging.WARNING: Fore.YELLOW,
+            logging.ERROR: Fore.LIGHTRED_EX,  # Red for logger.exception or logger.error
             logging.CRITICAL: Fore.RED,
         }
         self.keyword_colors = {
@@ -104,36 +105,49 @@ class ColorfulFormatter(logging.Formatter):
         self.timestamp_color = Fore.LIGHTBLACK_EX
         self.default_color = Fore.WHITE
 
-    def format(self, record):
-        # Apply color based on log level
-        level_color = self.level_colors.get(record.levelno, self.default_color)
-        record.msg = record.getMessage()
+        # precompute the regex patterns
+        self.keyword_patterns = {
+            keyword: re.compile(rf"(?i)\b({keyword})\b")
+            for keyword in self.keyword_colors.keys()
+        }
 
-        # Highlight specific keywords in the log message
+    def format(self, record: logging.LogRecord) -> str:
+        """
+        Format the log record with colors for console output.
+        
+        Creates a temporary copy of attributes to avoid mutating the original record.
+        """
+        level_color = self.level_colors.get(record.levelno, self.default_color)
+        
+        # Get the formatted message (doesn't modify record)
+        message = record.getMessage()
+
+        colored_message = message
         for keyword, color in self.keyword_colors.items():
-            record.msg = re.sub(
-                rf"(?i)\b({keyword})\b",
+            colored_message = self.keyword_patterns[keyword].sub(
                 f"{color}\\1{level_color}",
-                record.msg,
+                colored_message,
             )
 
-        # Apply color to the log
         record.timestamp_color = self.timestamp_color
         record.level_color = level_color
         record.default_color = self.default_color
-
-        if not hasattr(record, "session_id"):
-            record.session_id = "Unknown"
-
-        if not hasattr(record, "run_id"):
-            record.run_id = "Unknown"
-
-        if not hasattr(record, "node_id"):
-            record.node_id = "Unknown"
-
-        # record.levelname = f"{level_color}{record.levelname}{self.default_color}"
         record.relative_seconds = f"{record.relativeCreated / 1000:.3f}"
-        return super().format(record)
+        
+        original_msg = record.msg
+        original_args = record.args
+        
+        record.msg = colored_message
+        record.args = ()
+        
+        try:
+            result = super().format(record)
+        finally:
+            # ALWAYS restore, even if formatting fails
+            record.msg = original_msg
+            record.args = original_args
+        
+        return result
 
 # TODO Complete the file integration.
 def setup_file_handler(
@@ -150,6 +164,7 @@ def setup_file_handler(
     """
     file_handler = logging.FileHandler(file_name)
     file_handler.setLevel(file_logging_level)
+    file_handler.addFilter(ThreadAwareFilter())
 
     # date format include milliseconds for better resolution
 
