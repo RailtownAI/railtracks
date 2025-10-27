@@ -1,7 +1,12 @@
+from typing import Generic, Literal, TypeVar
+
+from ...providers import ModelProvider
 from ._provider_wrapper import ProviderLLMWrapper
 
+_TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
-class AnthropicLLM(ProviderLLMWrapper):
+
+class AnthropicLLM(ProviderLLMWrapper[_TStream], Generic[_TStream]):
     @classmethod
-    def model_type(cls) -> str:
-        return "Anthropic"
+    def model_type(cls):
+        return ModelProvider.ANTHROPIC

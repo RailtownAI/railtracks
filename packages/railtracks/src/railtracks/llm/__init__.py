@@ -5,13 +5,22 @@ from .model import ModelBase
 from .models import (
     AnthropicLLM,
     AzureAILLM,
+    CohereLLM,
     GeminiLLM,
     HuggingFaceLLM,
     OllamaLLM,
     OpenAILLM,
     TelusLLM,
 )
-from .tools import Parameter, Tool
+from .providers import ModelProvider
+from .tools import (
+    ArrayParameter,
+    ObjectParameter,
+    Parameter,
+    RefParameter,
+    Tool,
+    UnionParameter,
+)
 
 __all__ = [
     "ModelBase",
@@ -23,9 +32,11 @@ __all__ = [
     "Message",
     "ToolMessage",
     "MessageHistory",
+    "ModelProvider",
     "Tool",
-    "Parameter",
     "AnthropicLLM",
+    "AzureAILLM",
+    "CohereLLM",
     "HuggingFaceLLM",
     "OpenAILLM",
     "GeminiLLM",
@@ -33,4 +44,10 @@ __all__ = [
     "AzureAILLM",
     "GeminiLLM",
     "TelusLLM",
+    # Parameter types
+    "Parameter",
+    "UnionParameter",
+    "ArrayParameter",
+    "ObjectParameter",
+    "RefParameter",
 ]

@@ -1,20 +1,23 @@
 from abc import ABC, abstractmethod
-from typing import Any, List
+from typing import Any, Generic, List, Literal, TypeVar
 
 import litellm
 from litellm.litellm_core_utils.get_llm_provider_logic import get_llm_provider
 
 from ...history import MessageHistory
+from ...providers import ModelProvider
 from ...response import Response
 from ...tools import Tool
 from .._litellm_wrapper import LiteLLMWrapper
 from .._model_exception_base import FunctionCallingNotSupportedError, ModelNotFoundError
 
+_TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
-class ProviderLLMWrapper(LiteLLMWrapper, ABC):
-    def __init__(self, model_name: str, **kwargs):
+
+class ProviderLLMWrapper(LiteLLMWrapper[_TStream], ABC, Generic[_TStream]):
+    def __init__(self, model_name: str, stream: _TStream = False):
         model_name = self._pre_init_provider_check(model_name)
-        super().__init__(model_name=self.full_model_name(model_name), **kwargs)
+        super().__init__(model_name=self.full_model_name(model_name), stream=stream)
 
     def _pre_init_provider_check(self, model_name: str):
         provider_name = self.model_type().lower()
@@ -50,7 +53,7 @@ class ProviderLLMWrapper(LiteLLMWrapper, ABC):
 
     @classmethod
     @abstractmethod
-    def model_type(cls) -> str:
+    def model_type(cls) -> ModelProvider:
         """Returns the name of the provider"""
         pass
 

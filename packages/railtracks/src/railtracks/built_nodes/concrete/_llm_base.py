@@ -2,17 +2,26 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Dict, Generic, Iterable, Type, TypeVar
+from typing import (
+    Any,
+    Dict,
+    Generator,
+    Generic,
+    Iterable,
+    Literal,
+    TypeVar,
+)
 
 from pydantic import BaseModel
 from typing_extensions import Self
 
-from railtracks.exceptions.errors import NodeInvocationError
+from railtracks.exceptions.errors import LLMError, NodeInvocationError
 from railtracks.exceptions.messages.exception_messages import get_message
 from railtracks.llm import (
     Message,
     MessageHistory,
     ModelBase,
+    ModelProvider,
     Parameter,
     SystemMessage,
     UserMessage,
@@ -26,7 +35,7 @@ from railtracks.validation.node_invocation.validation import (
     check_message_history,
 )
 
-from .response import StringResponse, StructuredResponse
+from .response import LLMResponse, StringResponse, StructuredResponse
 
 # Global logger for LLM nodes
 logger = get_rt_logger("Node.LLM")
@@ -44,7 +53,7 @@ class RequestDetails:
         message_input: MessageHistory,
         output: Message | None,
         model_name: str | None,
-        model_provider: str | None,
+        model_provider: ModelProvider | None,
         input_tokens: int | None = None,
         output_tokens: int | None = None,
         total_cost: float | None = None,
@@ -65,7 +74,11 @@ class RequestDetails:
         return f"RequestDetails(model_name={self.model_name}, model_provider={self.model_provider}, input={self.input}, output={self.output})"
 
 
-class LLMBase(Node[_T], ABC, Generic[_T]):
+_TStream = TypeVar("_TStream", Literal[True], Literal[False])
+_TCollectedOutput = TypeVar("_TCollectedOutput", bound=LLMResponse)
+
+
+class LLMBase(Node[_T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
     """
     A basic LLM base class that encapsulates the attaching of an LLM model and message history object.
 
@@ -82,7 +95,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
     def __init__(
         self,
         user_input: MessageHistory | UserMessage | str | list[Message],
-        llm: ModelBase | None = None,
+        llm: ModelBase[_TStream] | None = None,
     ):
         super().__init__()
 
@@ -115,9 +128,11 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
                 )
             message_history_copy.insert(
                 0,
-                SystemMessage(self.system_message())
-                if isinstance(self.system_message(), str)
-                else self.system_message(),
+                (
+                    SystemMessage(self.system_message())
+                    if isinstance(self.system_message(), str)
+                    else self.system_message()
+                ),
             )
 
         instance_injected_llm_model = self.get_llm()
@@ -193,7 +208,7 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         return MessageHistory([UserMessage("\n".join(instruction_parts))])
 
     @abstractmethod
-    def return_output(self) -> _T: ...
+    def return_output(self, message: Message | None = None) -> _TCollectedOutput: ...
 
     @classmethod
     def _verify_message_history(cls, message_history: MessageHistory):
@@ -201,12 +216,12 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
         check_message_history(message_history, cls.system_message())
 
     @classmethod
-    def _verify_llm_model(cls, llm: ModelBase | None):
+    def _verify_llm_model(cls, llm: ModelBase[_TStream] | None):
         """Verify the llm model is valid for this LLM."""
         check_llm_model(llm)
 
     @classmethod
-    def get_llm(cls) -> ModelBase | None:
+    def get_llm(cls) -> ModelBase[_TStream] | None:
         return None
 
     @classmethod
@@ -231,13 +246,18 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
 
     def _post_llm_hook(self, message_history: MessageHistory, response: Response):
         """Hook to store the response details after invoking the llm model."""
+
+        output_message = deepcopy(response.message)
+
         self._details["llm_details"].append(
             RequestDetails(
                 message_input=deepcopy(message_history),
-                output=deepcopy(response.message),
-                model_name=response.message_info.model_name
-                if response.message_info.model_name is not None
-                else self.llm_model.model_name(),
+                output=output_message,
+                model_name=(
+                    response.message_info.model_name
+                    if response.message_info.model_name is not None
+                    else self.llm_model.model_name()
+                ),
                 model_provider=self.llm_model.model_type(),
                 input_tokens=response.message_info.input_tokens,
                 output_tokens=response.message_info.output_tokens,
@@ -317,27 +337,65 @@ class LLMBase(Node[_T], ABC, Generic[_T]):
     def type(cls):
         return "Agent"
 
+    def _gen_wrapper(
+        self, returned_mess: Generator[str | Response, None, Response]
+    ) -> Generator[str | _TCollectedOutput, None, _TCollectedOutput]:
+        for r in returned_mess:
+            if isinstance(r, Response):
+                message = r.message
 
-_TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
+                self._handle_output(message)
+                response = self.return_output(message)
+                yield response
+                return response
+            elif isinstance(r, str):
+                yield r
+            else:
+                raise LLMError(
+                    reason=f"ModelLLM returned unexpected type in generator. Expected str or Response, got {type(r)}",
+                    message_history=self.message_hist,
+                )
+
+        raise LLMError(
+            reason="The generator did not yield a final Response object",
+            message_history=self.message_hist,
+        )
+
+    def _handle_output(self, output: Message):
+        if output.role != "assistant":
+            raise LLMError(
+                reason="ModelLLM returned an unexpected message type.",
+                message_history=self.message_hist,
+            )
+
+        self.message_hist.append(output)
 
 
-class StructuredOutputMixIn(Generic[_TBaseModel]):
+_TStructured = TypeVar("_TStructured", bound=BaseModel)
+
+
+class StructuredOutputMixIn(Generic[_TStructured]):
     message_hist: MessageHistory
 
     @classmethod
     @abstractmethod
-    def output_schema(cls) -> Type[_TBaseModel]:
+    def output_schema(cls) -> type[_TStructured]:
         pass
 
-    def return_output(self) -> StructuredResponse[_TBaseModel]:
-        structured_output = self.message_hist[-1].content
+    def return_output(
+        self, message: Message | None = None
+    ) -> StructuredResponse[_TStructured]:
+        if message is None:
+            message = self.message_hist[-1]
 
-        assert isinstance(structured_output, self.output_schema()), (
-            f"The final output must be a pydantic {self.output_schema()} instance. Instead it was {type(structured_output)}"
+        content = message.content
+
+        assert isinstance(content, self.output_schema()), (
+            f"The final output must be a pydantic {self.output_schema()} or Stream instance. Instead it was {type(content)}"
         )
 
         return StructuredResponse(
-            model=structured_output,
+            content=content,
             message_history=self.message_hist.removed_system_messages(),
         )
 
@@ -345,14 +403,17 @@ class StructuredOutputMixIn(Generic[_TBaseModel]):
 class StringOutputMixIn:
     message_hist: MessageHistory
 
-    def return_output(self) -> StringResponse:
-        """Returns the last message content as a string."""
-        last_message = self.message_hist[-1]
-        assert isinstance(last_message.content, str), (
-            "The final output must be a string"
-        )
+    def return_output(self, message: Message | None = None) -> StringResponse:
+        """Returns the String response."""
+        if (
+            message is None
+        ):  # if no message is provided, use the last message from message history
+            message = self.message_hist[-1]
 
+        print(message.content)
+
+        assert isinstance(message.content, str), "The final output must be a string"
         return StringResponse(
-            content=last_message.content,
+            content=message.content,
             message_history=self.message_hist.removed_system_messages(),
         )

@@ -1,8 +1,11 @@
+from polars import String
 import pytest
 import railtracks as rt
+from railtracks.built_nodes.concrete.response import StringResponse
 from railtracks.exceptions import NodeCreationError
 from railtracks.llm import AssistantMessage, ToolCall
 from railtracks.llm.response import Response
+from typing import Generator
 
 
 # NOTE: Simple successful tool calls are already tested in test_function.py
@@ -22,7 +25,8 @@ class TestSimpleToolCalling:
             )
 
     @pytest.mark.asyncio
-    async def test_simple_tool(self, mock_llm):
+    @pytest.mark.parametrize("stream", [False, True])
+    async def test_simple_tool(self, mock_llm, stream):
         def secret_phrase():
             rt.context.put("secret_phrase_called", True)
             return "Constantinople"
@@ -30,7 +34,8 @@ class TestSimpleToolCalling:
         llm = mock_llm(
             requested_tool_calls=[
                 ToolCall(name="secret_phrase", identifier="id_42424242", arguments={})
-            ]
+            ],
+            stream=stream,
         )
 
         agent = rt.agent_node(
@@ -45,8 +50,19 @@ class TestSimpleToolCalling:
                 agent,
                 user_input="What is the secret phrase? Only return the secret phrase, no other text.",
             )
-            assert "Constantinople" in response.content
+            collected_response: StringResponse | None = None
+            if stream:
+                for chunk in response:
+                    assert isinstance(chunk, (str, StringResponse))
+                    if isinstance(chunk, StringResponse):
+                        collected_response = chunk
+            else:
+                collected_response = response
+            assert collected_response is not None
+            assert "Constantinople" in collected_response.text
             assert rt.context.get("secret_phrase_called")
+            
+
 
 
 class TestLimitedToolCalling:
@@ -184,3 +200,46 @@ class TestStructuredToolCalling:
             assert response.content.text == "Constantinople"
             assert response.content.number == 42
             assert rt.context.get("secrets_called")
+
+class TestFunctionNodeCallWithFunctionList:
+    @pytest.mark.asyncio
+    async def test_function_node_call_with_function_list_parameter(
+        self, mock_llm, simple_output_model
+    ):
+        def get_number() -> int:
+            """
+            Returns the number 42
+            """
+            return 42
+
+        def add_value(number: int, value: int) -> int:
+            """
+            Adds 50 to a number and returns the result
+            """
+
+            return number + value
+
+        tool_nodes = rt.function_node([get_number, add_value])
+
+        AgentHandler = rt.agent_node(
+        name="Random Number Generator Agent",
+        tool_nodes=tool_nodes,
+        system_message="""You are a number generator agent that can generate numbers and add a value to it""",
+        llm=mock_llm('{"text": "Successfully added 50 to 42 to get 92", "number": 92}'),
+        output_schema=simple_output_model,
+        max_tool_calls=3,
+    )
+
+        with rt.Session(name="AgentHandlerNode") as run:
+            result =  await rt.call(AgentHandler, rt.llm.MessageHistory([
+                rt.llm.UserMessage("Give me a number and add 50 to it please"),
+                ]))
+            
+        print(result.content)
+        assert isinstance(result.content, simple_output_model)
+        assert isinstance(result.content.text, str)
+        assert isinstance(result.content.number, int)
+        assert result.content.text == "Successfully added 50 to 42 to get 92"
+        assert result.content.number == 92
+        
+

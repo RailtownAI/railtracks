@@ -1,6 +1,4 @@
-import asyncio
 # --8<-- [start: hiking_example]
-from distro import info
 import railtracks as rt
 from pydantic import BaseModel
  
@@ -20,7 +18,7 @@ def weather_tool(city: str):
 
 weather_manifest = rt.ToolManifest(
 description="A tool you can call to see what the weather in a specified city",
-    parameters=[rt.llm.Parameter("prompt", "string", "Specify the city you want to know about here")]
+    parameters=[rt.llm.Parameter(name="prompt", param_type="string", description="This is the prompt that you should provide that tells the CodeAgent what you would like to code.")]
 )
 
 #As before, we will create our Weather Agent with the additional tool manifest so that other agents know how to use it
@@ -126,24 +124,28 @@ class StructuredResponse(BaseModel):
 QualityAssuranceAgent = rt.agent_node(
     name="Quality Assurance Agent",
     output_schema=StructuredResponse,
+    llm=rt.llm.OpenAILLM("gpt-4o"),
     #adding all other arguments as needed
     )
 
 ProductExpertAgent = rt.agent_node(
     name="Product Expert Agent",
     output_schema=StructuredResponse,
+    llm=rt.llm.OpenAILLM("gpt-4o"),
     #adding all other arguments as needed
     )
 
 BillingAgent = rt.agent_node(
     name="Billing Agent",
     output_schema=StructuredResponse,
+    llm=rt.llm.OpenAILLM("gpt-4o", stream=False),
     #adding all other arguments as needed
     )
     
 TechnicalAgent = rt.agent_node(
     name="Technical Support Agent",
     output_schema=StructuredResponse,
+    llm=rt.llm.OpenAILLM("gpt-4o", stream=False),
     #adding all other arguments as needed
     )
 

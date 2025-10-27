@@ -1,3 +1,4 @@
+from unittest import mock
 import pytest
 from railtracks.built_nodes.easy_usage_wrappers.agent import agent_node
 from railtracks import ToolManifest
@@ -64,7 +65,7 @@ def test_agent_node_output_schema_only(mock_llm, mock_schema, mock_sys_mes):
     assert isinstance(node_cls, type)
     assert node_cls.name() == "AgentWithSchemaOnly"
 
-def test_agent_node_minimal():
+def test_agent_node_minimal(mock_llm):
     node_cls = agent_node(
         name="MinimalAgent"
     )
