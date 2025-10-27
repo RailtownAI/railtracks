@@ -6,7 +6,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from railtracks.built_nodes.concrete import RequestDetails
-from railtracks.llm import Message, ToolCall, ToolResponse
+from railtracks.llm import Message, ToolCall, ToolResponse, UserMessage
 from railtracks.nodes.nodes import LatencyDetails
 from railtracks.utils.profiling import Stamp
 from railtracks.utils.serialization.graph import Edge, Vertex
@@ -142,10 +142,25 @@ def encode_message(message: Message) -> dict[str, Any]:
     """
     Encodes a Message object to a dictionary representation.
     """
-    return {
-        "role": message.role.value,
-        "content": message.content,
-    }
+    if isinstance(message, UserMessage) and message.attachment is not None:
+        attachment = [
+            {
+                "modality": msg_attachment.modality,
+                "type": msg_attachment.type,
+                "info": msg_attachment.url,
+            }
+            for msg_attachment in message.attachment
+        ]
+
+        return {
+            "role": message.role.value,
+            "content": [{"type": "text", "text": message.content}, *attachment],
+        }
+    else:
+        return {
+            "role": message.role.value,
+            "content": message.content,
+        }
 
 
 def encode_content(content: ToolResponse):

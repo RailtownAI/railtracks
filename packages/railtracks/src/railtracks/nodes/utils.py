@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from typing import (
     TYPE_CHECKING,
-    Callable,
-    Coroutine,
     ParamSpec,
     Type,
     TypeVar,
@@ -27,21 +25,20 @@ _TOutput = TypeVar("_TOutput")
 
 @overload
 def extract_node_from_function(
-    func: Callable[_P, Coroutine[None, None, _TOutput]] | RTAsyncFunction[_P, _TOutput],
+    func: RTAsyncFunction[_P, _TOutput],
 ) -> Type[Node[AsyncDynamicFunctionNode[_P, _TOutput]]]:
     pass
 
 
 @overload
 def extract_node_from_function(
-    func: Callable[_P, _TOutput] | RTSyncFunction[_P, _TOutput],
+    func: RTSyncFunction[_P, _TOutput],
 ) -> Type[Node[SyncDynamicFunctionNode[_P, _TOutput]]]:
     pass
 
 
 def extract_node_from_function(
-    func: Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]
-    | RTFunction[_P, _TOutput],
+    func: RTFunction[_P, _TOutput],
 ):
     """
     Extracts the node type from a function or a callable.
@@ -50,15 +47,11 @@ def extract_node_from_function(
     if hasattr(func, "node_type"):
         node = func.node_type
 
-    # if the node is a pure function then we will also convert it to a node.
+    # if the node is a pure function we just raise a type error
     else:
-        # since this task is completed at run_time we will use a lazy import here.
-        from railtracks import (
-            function_node,
+        raise TypeError(
+            f"expected RTFunction types, got type {type(func)}. "
+            "Please decorate your function with @rt.function_node."
         )
-
-        node = function_node(func).node_type
-    # If a function is passed, we will convert it to a node
-    # we have to use lazy import here to prevent a circular import issue. Bad design I know :(
 
     return node
