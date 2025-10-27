@@ -15,9 +15,11 @@ def inject_values(message_history: MessageHistory, value_dict: ValueDict):
     for message in message_history:
         if message.inject_prompt and isinstance(message.content, str):
             try:
-                if isinstance(message, (UserMessage, SystemMessage)):
-                    message.fill_prompt(value_dict)
-                    message.inject_prompt = False
+                message_history[i] = Message(
+                    role=message.role,
+                    content=fill_prompt(message.content, value_dict),
+                    inject_prompt=False,
+                )
             except ValueError:
                 pass
 

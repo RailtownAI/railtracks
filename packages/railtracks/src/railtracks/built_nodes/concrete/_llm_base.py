@@ -18,7 +18,6 @@ from typing_extensions import Self
 from railtracks.exceptions.errors import LLMError, NodeInvocationError
 from railtracks.exceptions.messages.exception_messages import get_message
 from railtracks.llm import (
-    AssistantMessage,
     Message,
     MessageHistory,
     ModelBase,
@@ -27,7 +26,6 @@ from railtracks.llm import (
     SystemMessage,
     UserMessage,
 )
-from railtracks.llm.content import Stream
 from railtracks.llm.response import Response
 from railtracks.nodes.nodes import Node
 from railtracks.prompts.prompt import inject_context
@@ -248,17 +246,8 @@ class LLMBase(Node[_T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
 
     def _post_llm_hook(self, message_history: MessageHistory, response: Response):
         """Hook to store the response details after invoking the llm model."""
-        if isinstance(response.message, AssistantMessage) and isinstance(
-            response.message.content, Stream
-        ):
-            assert response.message.content.final_message, (
-                "The _stream_handler_base should have ensured that the final message is populated"
-            )
-            output_message = Message(
-                content=response.message.content.final_message, role="assistant"
-            )  # instead of the generator we give the final_message for the RequestDetails
-        else:
-            output_message = deepcopy(response.message)
+
+        output_message = deepcopy(response.message)
 
         self._details["llm_details"].append(
             RequestDetails(
@@ -420,6 +409,8 @@ class StringOutputMixIn:
             message is None
         ):  # if no message is provided, use the last message from message history
             message = self.message_hist[-1]
+
+        print(message.content)
 
         assert isinstance(message.content, str), "The final output must be a string"
         return StringResponse(

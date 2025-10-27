@@ -1,4 +1,8 @@
-from .message import Message
+from typing import Literal, TypeVar
+
+from railtracks.llm.content import Content
+
+from .message import Message, Role
 
 
 class MessageInfo:
@@ -53,6 +57,9 @@ class MessageInfo:
         )
 
 
+_T = TypeVar("_T", bound=Content)
+
+
 class Response:
     """
     A simple object that represents a response from a model. It includes specific detail about the returned message
@@ -61,7 +68,7 @@ class Response:
 
     def __init__(
         self,
-        message: Message,
+        message: Message[_T, Literal[Role.assistant]],
         message_info: MessageInfo = MessageInfo(),
     ):
         """

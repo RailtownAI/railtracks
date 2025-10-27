@@ -1,4 +1,4 @@
-from ..providers import ModelProvider
+from ...providers import ModelProvider
 from ._provider_wrapper import ProviderLLMWrapper
 
 

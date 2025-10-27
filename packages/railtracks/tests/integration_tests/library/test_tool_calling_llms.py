@@ -1,5 +1,7 @@
+from polars import String
 import pytest
 import railtracks as rt
+from railtracks.built_nodes.concrete.response import StringResponse
 from railtracks.exceptions import NodeCreationError
 from railtracks.llm import AssistantMessage, ToolCall
 from railtracks.llm.response import Response
@@ -23,7 +25,7 @@ class TestSimpleToolCalling:
             )
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("stream", [False])
+    @pytest.mark.parametrize("stream", [False, True])
     async def test_simple_tool(self, mock_llm, stream):
         def secret_phrase():
             rt.context.put("secret_phrase_called", True)
@@ -48,10 +50,18 @@ class TestSimpleToolCalling:
                 agent,
                 user_input="What is the secret phrase? Only return the secret phrase, no other text.",
             )
-            assert "Constantinople" in response.text
-            assert rt.context.get("secret_phrase_called")
+            collected_response: StringResponse | None = None
             if stream:
-                pass
+                for chunk in response:
+                    assert isinstance(chunk, (str, StringResponse))
+                    if isinstance(chunk, StringResponse):
+                        collected_response = chunk
+            else:
+                collected_response = response
+            assert collected_response is not None
+            assert "Constantinople" in collected_response.text
+            assert rt.context.get("secret_phrase_called")
+            
 
 
 

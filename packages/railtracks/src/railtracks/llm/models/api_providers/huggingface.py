@@ -1,5 +1,5 @@
+from ...providers import ModelProvider
 from .._model_exception_base import ModelNotFoundError
-from ..providers import ModelProvider
 from ._provider_wrapper import ProviderLLMWrapper
 
 

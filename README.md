@@ -1,6 +1,6 @@
 # <span style="color: #4967EF">R</span>ailtracks
 
-<!--Happy Coding ◊-->
+<!--Happy Coding ◊ -->
 
 <p align="center">
   <img alt="Railtracks Space Banner" src="docs/assets/hero-banner.svg" width="100%">
@@ -51,10 +51,16 @@
 
 ---
 
-## ✨ What is Railtracks?
+## ✨ What is $${{\color{YellowOrange}\huge\textbf{\textsf{Railtracks}}}}$$?
 
-> [!NOTE]
-> Easier, for no one but **YOU**: While other frameworks force you into rigid workflows or complex APIs, Railtracks lets you create deployable complex agent using pythonic style with natural control flow.
+<div style="display: flex; align-items: flex-start;">
+  <img src="docs/assets/elements/banner.svg" align="left" width="4" height="50">
+  Easy agent building, for no one but <strong>YOU</strong>: Create deployable complex agents using simple, Pythonic style interface with natural control flow.
+</div>
+
+<!-- Add an empty line or a horizontal rule to ensure separation -->
+<br>
+
 
 ```python
 import railtracks as rt
@@ -121,7 +127,8 @@ agent = rt.agent_node(
 
 #### ⚡ **Look Familiar?**
 ```python
-# Smart parallelization built-in with interface similar to asyncio
+# Smart parallelization built-in 
+# with interface similar to asyncio
 result = await rt.call(agent, query)
 ```
 - ✅ Easy to learn standardized interface
@@ -152,6 +159,56 @@ railtracks viz  # See everything
 <details open>
 <summary><b>📦 Installation</b></summary>
 
+<div align="center">
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+#### 🐍 **Pure Python Experience**
+```python
+# Write agents like regular functions
+@rt.function_node
+def my_tool(text: str) -> str:
+    return process(text)
+```
+- ✅ No YAML, no DSLs, no magic strings
+- ✅ Use your existing debugging tools
+- ✅ IDE autocomplete & type checking
+
+</td>
+<td width="50%" valign="top">
+
+#### 🔧 **Tool-First Architecture**
+```python
+# Any function becomes a tool
+agent = rt.agent_node(
+    "Assistant",
+    tool_nodes=(my_tool, api_call)
+)
+```
+- ✅ Instant function-to-tool conversion
+- ✅ Seamless API/database integration
+- ✅ MCP protocol support
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+#### ⚡ **Look Familiar?**
+```python
+# Smart parallelization built-in with interface similar to asyncio
+result = await rt.call(agent, query)
+```
+- ✅ Easy to learn standardized interface
+- ✅ Built-in validation, error handling & retries
+- ✅ Auto-parallelization management
+
+</td>
+<td width="50%" valign="top">
+
+#### 👁️ **Transparent by Design**
 ```bash
 pip install railtracks railtracks-cli
 ```
@@ -261,8 +318,10 @@ async def handle_customer_request(query: str):
 
 ## 🌟 What Makes Railtracks Special?
 
-> [!NOTE]
-> A lightweight agentic LLM framework for building modular, multi-LLM workflows with a focus on simplicity and developer experience.
+<div style="display: flex; align-items: flex-start;">
+  <img src="docs/assets/elements/banner.svg" align="left" width="4" height="20">
+  A lightweight agentic LLM framework for building modular, multi-LLM workflows with a focus on simplicity and developer experience.
+</div>
 
 <div align="center">
 

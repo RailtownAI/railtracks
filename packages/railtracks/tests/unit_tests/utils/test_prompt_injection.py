@@ -1,6 +1,7 @@
 import railtracks.llm.prompt_injection_utils as prompt_injection_utils
 from railtracks.llm.prompt_injection_utils import KeyOnlyFormatter, ValueDict
 
+from railtracks.llm.message import Role
 from railtracks.utils import prompt_injection
 from railtracks.llm import Message, MessageHistory, UserMessage, SystemMessage
 
@@ -36,10 +37,9 @@ def test_valuedict_missing_returns_placeholder():
 # ================= START inject_values tests ================
 
 def test_inject_values_injects_value():
-    smsg = SystemMessage(content="System says {system_info}", inject_prompt=True)
-    msg = UserMessage(content="Hello, {name}!", inject_prompt=True)
-    history = MessageHistory([smsg, msg])
-    value_dict = ValueDict({"name": "Alice", "system_info": "All systems operational"})
+    msg = Message(role=Role.user, content="Hello, {name}!", inject_prompt=True)
+    history = MessageHistory([msg])
+    value_dict = prompt_injection.ValueDict({"name": "Alice"})
 
     result = prompt_injection.inject_values(history, value_dict)
     assert result[0].content == "System says All systems operational"
@@ -48,7 +48,7 @@ def test_inject_values_injects_value():
     assert result[1].inject_prompt is False
 
 def test_inject_values_ignores_no_inject():
-    msg = UserMessage(content="Hello!", inject_prompt=False)
+    msg = Message(role=Role.user, content="Hello!", inject_prompt=False)
     history = MessageHistory([msg])
     value_dict = ValueDict({"name": "Alice"})
 
@@ -57,7 +57,7 @@ def test_inject_values_ignores_no_inject():
     assert result[0].inject_prompt is False
 
 def test_inject_values_ignores_non_string_content():
-    msg = Message(role="user", content=12345, inject_prompt=True)
+    msg = Message(role=Role.user, content=12345, inject_prompt=True)
     history = MessageHistory([msg])
     value_dict = ValueDict({"name": "Alice"})
 
@@ -66,7 +66,7 @@ def test_inject_values_ignores_non_string_content():
 
 def test_inject_values_catches_valueerror(monkeypatch):
     # Patch fill_prompt to throw ValueError
-    msg = UserMessage(content="Hello, {name}!", inject_prompt=True)
+    msg = Message(role=Role.user, content="Hello, {name}!", inject_prompt=True)
     history = MessageHistory([msg])
     value_dict = ValueDict({"name": "Alice"})
 
