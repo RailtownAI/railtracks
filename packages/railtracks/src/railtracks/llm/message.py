@@ -1,16 +1,19 @@
 from __future__ import annotations
 
+import logging
 import os
 from copy import deepcopy
 from enum import Enum
 from typing import Generic, TypeVar
 
-from ..utils.logging import get_rt_logger
 from .content import Content, ToolCall, ToolResponse
 from .encoding import detect_source, encode
 from .prompt_injection_utils import KeyOnlyFormatter, ValueDict
 
-logger = get_rt_logger("MESSAGE")
+logger = logging.getLogger(__name__)
+handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s - %(message)s"))
+logger.addHandler(handler)
 
 _T = TypeVar("_T", bound=Content)
 
