@@ -58,7 +58,7 @@ def test_inject_values_injects_value():
     assert result[0].inject_prompt is False
 
 def test_inject_values_ignores_no_inject():
-    msg = Message(role="user", content="Hello!", inject_prompt=False)
+    msg = Message(role=Role.user, content="Hello!", inject_prompt=False)
     history = MessageHistory([msg])
     value_dict = prompt_injection.ValueDict({"name": "Alice"})
 
@@ -67,7 +67,7 @@ def test_inject_values_ignores_no_inject():
     assert result[0].inject_prompt is False
 
 def test_inject_values_ignores_non_string_content():
-    msg = Message(role="user", content=12345, inject_prompt=True)
+    msg = Message(role=Role.user, content=12345, inject_prompt=True)
     history = MessageHistory([msg])
     value_dict = prompt_injection.ValueDict({"name": "Alice"})
 
