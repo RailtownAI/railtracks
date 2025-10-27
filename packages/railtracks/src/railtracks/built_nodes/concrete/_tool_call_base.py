@@ -28,7 +28,9 @@ from railtracks.llm import (
     ToolResponse,
     UserMessage,
 )
+from railtracks.llm.content import Content
 from railtracks.llm.message import Role
+from railtracks.llm.providers import ModelProvider
 from railtracks.llm.response import Response
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_creation.validation import check_connected_nodes
@@ -40,6 +42,8 @@ _T = TypeVar("_T")
 _P = ParamSpec("_P")
 _TStream = TypeVar("_TStream", Literal[True], Literal[False])
 _TCollectedOutput = TypeVar("_TCollectedOutput", bound=LLMResponse)
+
+_TContent = TypeVar("_TContent", bound=Content)
 
 
 class OutputLessToolCallLLMBase(
@@ -72,6 +76,16 @@ class OutputLessToolCallLLMBase(
                 # Validate that the returned node_set is correct and contains only Node/function instances
                 check_connected_nodes(node_set, Node)
 
+    @classmethod
+    def streaming_blacklist(cls):
+        return {
+            ModelProvider.ANTHROPIC,
+            ModelProvider.AZUREAI,
+            ModelProvider.GEMINI,
+            ModelProvider.OLLAMA,
+            ModelProvider.HUGGINGFACE,
+        }
+
     def __init__(
         self,
         user_input: MessageHistory | UserMessage | str | list[Message],
@@ -79,6 +93,19 @@ class OutputLessToolCallLLMBase(
         max_tool_calls: int | None = None,
     ):
         super().__init__(llm=llm, user_input=user_input)
+        model = self.get_llm()
+        # we only support Openai for streaming calls atm.
+        if (
+            model is not None
+            and model.stream
+            and model.model_type() in self.streaming_blacklist()
+        ):
+            raise NodeCreationError(
+                f"Currently we do not allow streaming with {model.model_type()} (specifically for tool calling)",
+                notes=[
+                    "Create a new issue on the railtracks repo or switch to openai's models"
+                ],
+            )
         # Set max_tool_calls for non easy usage wrappers
         if not hasattr(self, "max_tool_calls"):
             # Check max_tool_calls (including warning for None)
@@ -185,7 +212,9 @@ class OutputLessToolCallLLMBase(
         return tool_messages
 
     async def _handle_response(
-        self, message: AssistantMessage, allowed_tool_calls: int | None
+        self,
+        message: Message[_TContent, Literal[Role.assistant]],
+        allowed_tool_calls: int | None,
     ):
         # if the returned item is a list then it is a list of tool calls
         if isinstance(message.content, list):
@@ -232,7 +261,7 @@ class OutputLessToolCallLLM(
             self.message_hist,
         )
 
-        if not isinstance(response.message, AssistantMessage):
+        if not response.message.role == Role.assistant:
             raise LLMError(
                 reason=f"The LLM returned an unexpected message type. Expected AssistantMessage but got {type(response.message)}",
                 message_history=self.message_hist,
@@ -268,7 +297,7 @@ class OutputLessToolCallLLM(
             self.llm_model.chat_with_tools, self.message_hist, tools=self.tools()
         )
 
-        if not isinstance(response.message, AssistantMessage):
+        if not response.message.role == Role.assistant:
             raise LLMError(
                 reason=f"The LLM returned an unexpected message type. Expected AssistantMessage but got {type(response.message)}",
                 message_history=self.message_hist,
@@ -328,7 +357,7 @@ class StreamingOutputLessToolCallLLM(
             return gen_wrapper()
 
         if isinstance(first_item, Response):
-            assert isinstance(first_item.message, AssistantMessage)
+            assert first_item.message.role == Role.assistant
 
             if len(first_item.message.tool_calls) > 0:
                 is_tool, _ = await self._handle_response(

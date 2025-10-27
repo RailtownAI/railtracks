@@ -1,4 +1,5 @@
 import pytest
+from railtracks.llm.message import Role
 from railtracks.utils import prompt_injection
 from railtracks.llm import Message, MessageHistory
 
@@ -48,7 +49,7 @@ def test_fill_prompt_missing_key():
 # ================= START inject_values tests ================
 
 def test_inject_values_injects_value():
-    msg = Message(role="user", content="Hello, {name}!", inject_prompt=True)
+    msg = Message(role=Role.user, content="Hello, {name}!", inject_prompt=True)
     history = MessageHistory([msg])
     value_dict = prompt_injection.ValueDict({"name": "Alice"})
 
@@ -57,7 +58,7 @@ def test_inject_values_injects_value():
     assert result[0].inject_prompt is False
 
 def test_inject_values_ignores_no_inject():
-    msg = Message(role="user", content="Hello!", inject_prompt=False)
+    msg = Message(role=Role.user, content="Hello!", inject_prompt=False)
     history = MessageHistory([msg])
     value_dict = prompt_injection.ValueDict({"name": "Alice"})
 
@@ -66,7 +67,7 @@ def test_inject_values_ignores_no_inject():
     assert result[0].inject_prompt is False
 
 def test_inject_values_ignores_non_string_content():
-    msg = Message(role="user", content=12345, inject_prompt=True)
+    msg = Message(role=Role.user, content=12345, inject_prompt=True)
     history = MessageHistory([msg])
     value_dict = prompt_injection.ValueDict({"name": "Alice"})
 
@@ -75,7 +76,7 @@ def test_inject_values_ignores_non_string_content():
 
 def test_inject_values_catches_valueerror(monkeypatch):
     # Patch fill_prompt to throw ValueError
-    msg = Message(role="user", content="Hello, {name}!", inject_prompt=True)
+    msg = Message(role=Role.user, content="Hello, {name}!", inject_prompt=True)
     history = MessageHistory([msg])
     value_dict = prompt_injection.ValueDict({"name": "Alice"})
 

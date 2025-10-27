@@ -1,6 +1,6 @@
 from typing import Generic, Literal, TypeVar
 
-from ..providers import ModelProvider
+from ...providers import ModelProvider
 from ._provider_wrapper import ProviderLLMWrapper
 
 _TStream = TypeVar("_TStream", Literal[True], Literal[False])

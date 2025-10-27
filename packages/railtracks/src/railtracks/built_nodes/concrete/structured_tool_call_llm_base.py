@@ -70,7 +70,7 @@ class StructuredToolCallLLM(
         max_tool_calls: int | None = None,
     ):
         # as of right now we do not support streaming with structured tool calls.
-        if llm is not None and llm._stream:
+        if llm is not None and llm.stream:
             raise ValueError("StructuredToolCallLLM does not support streaming.")
 
         super().__init__(user_input=user_input, llm=llm, max_tool_calls=max_tool_calls)

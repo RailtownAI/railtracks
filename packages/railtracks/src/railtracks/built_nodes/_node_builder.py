@@ -22,8 +22,8 @@ from pydantic import BaseModel
 from railtracks.built_nodes.concrete import (
     DynamicFunctionNode,
     LLMBase,
-    OutputLessToolCallLLM,
 )
+from railtracks.built_nodes.concrete._tool_call_base import OutputLessToolCallLLMBase
 from railtracks.llm import (
     ModelBase,
     Parameter,
@@ -143,7 +143,7 @@ class NodeBuilder(Generic[_TNode]):
         Raises:
             AssertionError: If the node class is not a subclass of a ToolCallingLLM in the RT framework.
         """
-        assert issubclass(self._node_class, OutputLessToolCallLLM), (
+        assert issubclass(self._node_class, OutputLessToolCallLLMBase), (
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         )
 

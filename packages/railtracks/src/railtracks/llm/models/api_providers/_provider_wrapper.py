@@ -5,11 +5,11 @@ import litellm
 from litellm.litellm_core_utils.get_llm_provider_logic import get_llm_provider
 
 from ...history import MessageHistory
+from ...providers import ModelProvider
 from ...response import Response
 from ...tools import Tool
 from .._litellm_wrapper import LiteLLMWrapper
 from .._model_exception_base import FunctionCallingNotSupportedError, ModelNotFoundError
-from ..providers import ModelProvider
 
 _TStream = TypeVar("_TStream", Literal[True], Literal[False])
 

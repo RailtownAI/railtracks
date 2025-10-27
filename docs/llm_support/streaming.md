@@ -37,10 +37,8 @@ The output of the agent will be a generator containing a sequence of strings, fo
 !!! Warning
     When using streaming, you should fully exhaust the returned object within the session. If you do this outside of the session, the visualizer suite will not work as expected.
 
-!!! Warning
-    Streaming is not currently supported for tool-calling agents. See issue [#756](https://github.com/RailtownAI/railtracks/issues/756).
-
-
+!!! Warning 
+    Streaming is only supported for tool-calling agents if you are using openai.
 
 
 

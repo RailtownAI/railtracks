@@ -2,11 +2,11 @@ import logging
 
 import litellm
 
+from ...providers import ModelProvider
 from .._litellm_wrapper import LiteLLMWrapper
 
 # litellm.drop_params=True
 from .._model_exception_base import FunctionCallingNotSupportedError, ModelError
-from ..providers import ModelProvider
 
 LOGGER_NAME = "AZURE_AI"
 logger = logging.getLogger(__name__)
