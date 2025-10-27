@@ -1,12 +1,10 @@
 import logging
 import os
 import re
-from typing import Dict, Literal, cast
-
-from enum import Enum
-from colorama import Fore, init
-
 from contextvars import ContextVar
+from typing import Dict, Literal
+
+from colorama import Fore, init
 
 AllowableLogLevels = Literal[
     "DEBUG",
@@ -23,7 +21,7 @@ str_to_log_level: Dict[str, int] = {
     "WARNING": logging.WARNING,
     "ERROR": logging.ERROR,
     "CRITICAL": logging.CRITICAL,
-    "NONE": logging.CRITICAL + 1, # no logs emitted
+    "NONE": logging.CRITICAL + 1,  # no logs emitted
 }
 
 # the temporary name for the logger that RT will use.
@@ -34,23 +32,30 @@ rt_logger.setLevel(logging.DEBUG)
 _default_format_string = "%(timestamp_color)s[+%(relative_seconds)-7ss] %(level_color)s%(name)-12s: %(levelname)-8s - %(message)s%(default_color)s"
 
 
-_file_format_string = "%(asctime)s - %(relative_seconds)s - %(levelname)ss - %(name)s - %(message)s"
+_file_format_string = (
+    "%(asctime)s - %(relative_seconds)s - %(levelname)ss - %(name)s - %(message)s"
+)
 # _file_format_string = "[%(asctime)] %(timestamp_color)s[+%(relative_seconds)-7ss] %(level_color)s%(name)-12s: %(levelname)-8s - %(message)s%(default_color)s"
 
 # log levels are ints hence the type hints
 _pre_session_log_level: ContextVar[int | None] = ContextVar(
-    "pre_session_log_level", default=None)
+    "pre_session_log_level", default=None
+)
 _pre_session_log_file: ContextVar[str | os.PathLike | None] = ContextVar(
-    "pre_session_log_file", default=None)
+    "pre_session_log_file", default=None
+)
 
 _module_logging_level: ContextVar[int | None] = ContextVar(
-    "module_logging_level", default=None)
+    "module_logging_level", default=None
+)
 
 _module_logging_file: ContextVar[str | os.PathLike | None] = ContextVar(
-    "module_logging_file", default=None)
+    "module_logging_file", default=None
+)
 
 _session_has_override: ContextVar[bool] = ContextVar(
-    "session_has_override", default=False)
+    "session_has_override", default=False
+)
 
 # Initialize colorama
 init(autoreset=True)
@@ -59,27 +64,29 @@ init(autoreset=True)
 class ThreadAwareFilter(logging.Filter):
     """
     A filter that uses per-thread logging levels using ContextVar.
-    
+
     When a log record is processed, this filter executes in the thread that
     created the record, so it correctly retrieves that thread's logging level.
     """
-    
+
     def filter(self, record: logging.LogRecord) -> bool:
         """
         Determine if the record should be logged based on thread's level.
-        
+
         Args:
             record: The log record to filter
-            
+
         Returns:
             True if the record should be logged, False otherwise
-        
+
         Raises:
             ValueError: If the logging level in ContextVar is invalid
         """
         thread_log_level = _module_logging_level.get()
-            
-        return record.levelno >= thread_log_level if thread_log_level is not None else True
+
+        return (
+            record.levelno >= thread_log_level if thread_log_level is not None else True
+        )
 
 
 class ColorfulFormatter(logging.Formatter):
@@ -114,11 +121,11 @@ class ColorfulFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         """
         Format the log record with colors for console output.
-        
+
         Creates a temporary copy of attributes to avoid mutating the original record.
         """
         level_color = self.level_colors.get(record.levelno, self.default_color)
-        
+
         # Get the formatted message (doesn't modify record)
         message = record.getMessage()
 
@@ -133,21 +140,22 @@ class ColorfulFormatter(logging.Formatter):
         record.level_color = level_color
         record.default_color = self.default_color
         record.relative_seconds = f"{record.relativeCreated / 1000:.3f}"
-        
+
         original_msg = record.msg
         original_args = record.args
-        
+
         record.msg = colored_message
         record.args = ()
-        
+
         try:
             result = super().format(record)
         finally:
             # ALWAYS restore, even if formatting fails
             record.msg = original_msg
             record.args = original_args
-        
+
         return result
+
 
 # TODO Complete the file integration.
 def setup_file_handler(
@@ -217,6 +225,7 @@ def prepare_logger(
 
     logger.addHandler(console_handler)
 
+
 def detach_logging_handlers():
     """
     Shuts down the logging system and detaches all logging handlers.
@@ -234,7 +243,7 @@ def initialize_module_logging() -> None:
     - RT_LOG_FILE: Optional path to a log file
 
     If not set, defaults to REGULAR level with no log file.
-    
+
     This sets up shared handlers once with a ThreadAwareFilter that checks
     each thread's ContextVar to determine what should be logged.
 
@@ -243,22 +252,22 @@ def initialize_module_logging() -> None:
     env_level = os.getenv("RT_LOG_LEVEL", "INFO").upper()
     env_log_file = os.getenv("RT_LOG_FILE", None)
 
-    env_level = str_to_log_level.get(env_level, None) # if "" -> None
+    env_level = str_to_log_level.get(env_level, None)  # if "" -> None
 
     _module_logging_level.set(env_level)
     _module_logging_file.set(env_log_file)
-    
+
     logger = logging.getLogger(rt_logger_name)
-    
+
     if logger.handlers:
         return
-    
+
     console_handler = logging.StreamHandler()
     console_handler.addFilter(ThreadAwareFilter())
     formatter = ColorfulFormatter(fmt=_default_format_string)
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
-    
+
     # Set up file handler if specified
     if env_log_file is not None:
         setup_file_handler(file_name=env_log_file, file_logging_level=logging.INFO)
@@ -284,7 +293,7 @@ def configure_module_logging(
         raise RuntimeError(
             "Cannot configure module-level logging while a session has overridden logging settings."
         )
-    
+
     if level is not None:
         _module_logging_level.set(str_to_log_level[level])
     if log_file is not None:
@@ -299,7 +308,7 @@ def mark_session_logging_override(
 
     Stores the current thread's logging config for later restoration and updates
     the thread's ContextVar to the session-specific logging level.
-    
+
     With ThreadAwareFilter, we don't need to reconfigure handlers - just updating
     the ContextVar is sufficient since the filter checks it for each log record.
 
@@ -314,7 +323,7 @@ def mark_session_logging_override(
     _session_has_override.set(True)
 
     _module_logging_level.set(str_to_log_level[session_level])
-    
+
     # TODO: Handle session_log_file if needed (file handler per thread)
     if session_log_file is not None:
         _module_logging_file.set(session_log_file)
@@ -324,7 +333,7 @@ def restore_module_logging() -> None:
     """
     Restore module-level logging after a session with custom logging ends.
 
-    This restores the thread's ContextVar to the pre-session value. 
+    This restores the thread's ContextVar to the pre-session value.
     Since handlers are shared and use ThreadAwareFilter, we don't need to detach/reattach handlers.
     """
     if not _session_has_override.get():
@@ -333,13 +342,13 @@ def restore_module_logging() -> None:
     # restore
     restored_level = _pre_session_log_level.get()
     restored_file = _pre_session_log_file.get()
-    
+
     if restored_level is not None:
         _module_logging_level.set(restored_level)
     else:
         # Fallback to REGULAR if no pre-session level was stored
         _module_logging_level.set(str_to_log_level["INFO"])
-    
+
     if restored_file is not None:
         _module_logging_file.set(restored_file)
     else:
