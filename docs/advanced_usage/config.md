@@ -20,9 +20,11 @@ Configuration parameters follow a specific precedence order, allowing you to ove
 ### Logging Configuration
 
 - **`logging_setting`** (AllowableLogLevels | None): Level of logging detail.  <br>Here are the `AllowableLogLevels` options:
-    - `VERBOSE`
-    - `REGULAR`
-    - `QUIET`
+    - `DEBUG`
+    - `INFO`
+    - `WARNING`
+    - `ERROR`
+    - `CRITICAL`
     - `NONE`
 - **`log_file`** (`str | os.PathLike | None`): File path for log output (None = no file logging)
 
@@ -39,7 +41,7 @@ Configuration parameters follow a specific precedence order, allowing you to ove
 # Default configuration values
 timeout = 150.0                   # seconds
 end_on_error = False              # continue on errors
-logging_setting = "REGULAR"       # standard logging level
+logging_setting = "INFO"       # standard logging level
 log_file = None                   # no file logging
 broadcast_callback = None         # no broadcast callback
 prompt_injection = True           # enable prompt injection
@@ -98,13 +100,13 @@ When the same parameter is set in multiple places, Railtracks uses this priority
 import railtracks as rt
 
 # 1. Set global config (medium priority)
-rt.set_config(timeout=100.0, logging_setting="REGULAR")
+rt.set_config(timeout=100.0, logging_setting="INFO")
 
 # 2. Session overrides global config (highest priority)
 with rt.session(
     timeout=300.0,        # This overrides the global timeout=100.0
     end_on_error=True     # This uses session-level setting
-    # logging_setting not specified, so uses global "REGULAR"
+    # logging_setting not specified, so uses global "INFO"
 ):
     response = await rt.call(
         my_agent,
@@ -114,7 +116,7 @@ with rt.session(
 # Final effective configuration:
 # - timeout: 300.0 (from session constructor)
 # - end_on_error: True (from session constructor)  
-# - logging_setting: "REGULAR" (from global config)
+# - logging_setting: "INFO" (from global config)
 # - All other parameters use default values
 ```
 
@@ -130,7 +132,7 @@ import os
 if os.getenv("ENVIRONMENT") == "production":
     rt.set_config(
         timeout=300.0,
-        logging_setting="REGULAR",
+        logging_setting="INFO",
         log_file="production.log",
         end_on_error=False,
         save_state=True

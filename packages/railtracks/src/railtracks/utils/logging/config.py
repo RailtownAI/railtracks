@@ -242,7 +242,7 @@ def initialize_module_logging() -> None:
     - RT_LOG_LEVEL: Sets the logging level
     - RT_LOG_FILE: Optional path to a log file
 
-    If not set, defaults to REGULAR level with no log file.
+    If not set, defaults to INFO level with no log file.
 
     This sets up shared handlers once with a ThreadAwareFilter that checks
     each thread's ContextVar to determine what should be logged.
@@ -346,7 +346,7 @@ def restore_module_logging() -> None:
     if restored_level is not None:
         _module_logging_level.set(restored_level)
     else:
-        # Fallback to REGULAR if no pre-session level was stored
+        # Fallback to INFO if no pre-session level was stored
         _module_logging_level.set(str_to_log_level["INFO"])
 
     if restored_file is not None:

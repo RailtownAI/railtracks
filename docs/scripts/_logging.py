@@ -1,9 +1,9 @@
 import railtracks as rt
 
 # --8<-- [start: logging_setup]
-rt.set_config(logging_setting="VERBOSE")
-rt.set_config(logging_setting="REGULAR")
-rt.set_config(logging_setting="QUIET")
+rt.set_config(logging_setting="DEBUG")
+rt.set_config(logging_setting="INFO")
+rt.set_config(logging_setting="CRITICAL")
 rt.set_config(logging_setting="NONE")
 # --8<-- [end: logging_setup]
 

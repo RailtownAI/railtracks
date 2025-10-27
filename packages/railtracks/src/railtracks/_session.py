@@ -53,7 +53,7 @@ class Session:
     - `name`: None
     - `timeout`: 150.0 seconds
     - `end_on_error`: False
-    - `logging_setting`: "REGULAR"
+    - `logging_setting`: "INFO"
     - `log_file`: None (logs will not be written to a file)
     - `broadcast_callback`: None (no callback for broadcast messages)
     - `prompt_injection`: True (the prompt will be automatically injected from context variables)
