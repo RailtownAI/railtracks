@@ -1,6 +1,6 @@
-from railtracks.llm.models.cloud.telus import TelusLLM
-from .api_providers import AnthropicLLM, GeminiLLM, HuggingFaceLLM, OpenAILLM
-from .cloud.azureai import AzureAILLM
+
+from .api_providers import AnthropicLLM, GeminiLLM, HuggingFaceLLM, OpenAILLM, CohereLLM, OpenAICompatibleProvider
+from .cloud import AzureAILLM, TelusLLM, PortKeyLLM
 from .local.ollama import OllamaLLM
 
 __all__ = [
@@ -11,4 +11,7 @@ __all__ = [
     OllamaLLM,
     HuggingFaceLLM,
     TelusLLM,
+    PortKeyLLM,
+    CohereLLM,
+    "OpenAICompatibleProvider",
 ]

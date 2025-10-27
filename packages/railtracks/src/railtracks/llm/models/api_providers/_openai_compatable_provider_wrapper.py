@@ -1,16 +1,23 @@
 from abc import ABC, abstractmethod
+from typing import Literal, TypeVar
+
+from railtracks.llm.providers import ModelProvider
 
 from ._provider_wrapper import ProviderLLMWrapper
 
-class OpenAICompatibleProviderWrapper(ProviderLLMWrapper, ABC):
+_TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
-    def __init__(self, model_name: str, api_base: str, api_key: str):
-        super().__init__(model_name, api_base=api_base, api_key=api_key)
+class OpenAICompatibleProvider(ProviderLLMWrapper[_TStream], ABC):
 
-    @abstractmethod
+    def __init__(self, model_name: str, *, stream: _TStream = False, api_base: str, api_key: str):
+        super().__init__(model_name, stream=stream, api_base=api_base, api_key=api_key)
+
     def full_model_name(self, model_name: str) -> str:
         return f"openai/{model_name}"
-        
+    
+    @classmethod
+    def model_distrubutor(cls) -> ModelProvider:
+        return ModelProvider.UNKNOWN
     
     def _pre_init_provider_check(self, model_name: str):
         # For OpenAI compatible providers, we skip the provider check since there is no way to do it.

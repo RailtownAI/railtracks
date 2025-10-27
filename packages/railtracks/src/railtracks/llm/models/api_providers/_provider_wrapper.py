@@ -15,9 +15,9 @@ _TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
 
 class ProviderLLMWrapper(LiteLLMWrapper[_TStream], ABC, Generic[_TStream]):
-    def __init__(self, model_name: str, stream: _TStream = False):
+    def __init__(self, model_name: str, stream: _TStream = False, api_base: str | None = None, api_key: str | None = None):
         model_name = self._pre_init_provider_check(model_name)
-        super().__init__(model_name=self.full_model_name(model_name), stream=stream)
+        super().__init__(model_name=self.full_model_name(model_name), stream=stream, api_base=api_base, api_key=api_key)
 
     def _pre_init_provider_check(self, model_name: str):
         provider_name = self.model_type().lower()
@@ -51,10 +51,14 @@ class ProviderLLMWrapper(LiteLLMWrapper[_TStream], ABC, Generic[_TStream]):
         # for anthropic/openai models the full model name is {provider}/{model_name}
         return f"{self.model_type().lower()}/{model_name}"
 
+
+    def model_type(self) -> ModelProvider:
+        """Returns the name of the provider"""
+        return self.model_distrubutor()
+
     @classmethod
     @abstractmethod
-    def model_type(cls) -> ModelProvider:
-        """Returns the name of the provider"""
+    def model_distrubutor(cls) -> ModelProvider:
         pass
 
     def _validate_tool_calling_support(self):

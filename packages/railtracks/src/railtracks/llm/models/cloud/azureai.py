@@ -1,4 +1,5 @@
 import logging
+from typing import Literal, TypeVar
 
 import litellm
 
@@ -11,14 +12,16 @@ from .._model_exception_base import FunctionCallingNotSupportedError, ModelError
 LOGGER_NAME = "AZURE_AI"
 logger = logging.getLogger(__name__)
 
+_TStream = TypeVar("_TStream", Literal[True], Literal[False])
+
 
 class AzureAIError(ModelError):
     pass
 
 
-class AzureAILLM(LiteLLMWrapper):
+class AzureAILLM(LiteLLMWrapper[_TStream]):
     @classmethod
-    def model_type(cls):
+    def model_distrubutor(cls):
         return ModelProvider.AZUREAI
 
     def __init__(

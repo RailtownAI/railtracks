@@ -7,6 +7,7 @@ consistency when selecting or switching between providers.
 """
 
 from enum import Enum
+from re import L
 
 
 class ModelProvider(str, Enum):
@@ -30,3 +31,8 @@ class ModelProvider(str, Enum):
     AZUREAI = "AzureAI"
     OLLAMA = "Ollama"
     COHERE = "cohere_chat"
+    TELUS = "Telus"
+    PORTKEY = "PortKey"
+    UNKNOWN = "Unknown"
+
+

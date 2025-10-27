@@ -63,9 +63,13 @@ rag = [
     "openai < 1.100.0"
 ]
 # the integrations submodule will be list a of the above deps
-integrations = [
-    # currently empty
+portkey = [
+    "portkey_ai >= 2.0.2"
 ]
+integrations = [
+    "railtracks[portkey]",
+]
+
 all = [
     "railtracks[chat,rag,integrations]"
 ]

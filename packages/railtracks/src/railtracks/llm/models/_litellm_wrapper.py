@@ -24,6 +24,7 @@ from typing import (
 import litellm
 from litellm.litellm_core_utils.streaming_handler import CustomStreamWrapper
 from litellm.types.utils import ModelResponse
+from openai import api_key
 from pydantic import BaseModel, Field
 
 from ...exceptions.errors import LLMError, NodeInvocationError
@@ -177,9 +178,11 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
     model of that type.
     """
 
-    def __init__(self, model_name: str, stream: _TStream = False):
+    def __init__(self, model_name: str, stream: _TStream = False, api_base: str | None = None, api_key: str | None = None):
         super().__init__(stream=stream)
         self._model_name = model_name
+        self.api_base = api_base
+        self.api_key = api_key
 
     @overload
     def _invoke(
@@ -224,6 +227,12 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         if tools is not None:
             litellm_tools = [_to_litellm_tool(t) for t in tools]
             merged["tools"] = litellm_tools
+
+        if self.api_base is not None:
+            merged["api_base"] = self.api_base
+        
+        if self.api_key is not None:
+            merged["api_key"] = self.api_key
 
         warnings.filterwarnings(
             "ignore", category=UserWarning, module="pydantic.*"

@@ -8,5 +8,5 @@ _TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
 class AnthropicLLM(ProviderLLMWrapper[_TStream], Generic[_TStream]):
     @classmethod
-    def model_type(cls):
+    def model_distrubutor(cls) -> ModelProvider:
         return ModelProvider.ANTHROPIC

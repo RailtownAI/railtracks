@@ -5,12 +5,14 @@ from .model import ModelBase
 from .models import (
     AnthropicLLM,
     AzureAILLM,
-    CohereLLM,
     GeminiLLM,
     HuggingFaceLLM,
     OllamaLLM,
     OpenAILLM,
     TelusLLM,
+    PortKeyLLM,
+    CohereLLM,
+    OpenAICompatibleProvider,
 )
 from .providers import ModelProvider
 from .tools import (
@@ -44,6 +46,9 @@ __all__ = [
     "AzureAILLM",
     "GeminiLLM",
     "TelusLLM",
+    "PortKeyLLM",
+    "OpenAICompatibleProvider",
+    "CohereLLM",
     # Parameter types
     "Parameter",
     "UnionParameter",

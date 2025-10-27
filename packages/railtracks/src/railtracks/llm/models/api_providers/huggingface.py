@@ -1,9 +1,12 @@
+from typing import Literal, TypeVar
 from ...providers import ModelProvider
 from .._model_exception_base import ModelNotFoundError
 from ._provider_wrapper import ProviderLLMWrapper
 
+_TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
-class HuggingFaceLLM(ProviderLLMWrapper):
+
+class HuggingFaceLLM(ProviderLLMWrapper[_TStream]):
     def _pre_init_provider_check(self, model_name):
         """called by __init__ before the super call in ProviderLLMWrapper"""
         # for huggingface models there is no good way of using `get_llm_provider` to check if the model is valid.
@@ -23,13 +26,17 @@ class HuggingFaceLLM(ProviderLLMWrapper):
                 ],
             )
         return model_name
+    
+    def model_type(self) -> ModelProvider:
+        # TODO implement logic for all the possible providers attached the hugging face.
+        return ModelProvider.HUGGINGFACE
 
     def _validate_tool_calling_support(self):
         # NOTE: special exception case for huggingface
         # Due to the wide range of huggingface models, `litellm.supports_function_calling` isn't always accurate.
         # so we are just going to skip the check and the error (if any) will be generated at runtime during `litellm.completion`.
         pass
-
+    
     @classmethod
-    def model_type(cls):
+    def model_distrubutor(cls):
         return ModelProvider.HUGGINGFACE
