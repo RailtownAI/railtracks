@@ -60,7 +60,7 @@ def test_tool_message():
     "invalid_content, expected_exception",
     [
         (123, TypeError),
-        (None, TypeError),
+        (None, ValueError),
         (["list", "of", "strings"], TypeError),
     ],
 )

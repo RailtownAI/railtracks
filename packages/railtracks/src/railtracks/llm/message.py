@@ -1,13 +1,16 @@
-import os
 from __future__ import annotations
 
+import os
 from copy import deepcopy
 from enum import Enum
 from typing import Generic, TypeVar
 
+from ..utils.logging import get_rt_logger
 from .content import Content, ToolCall, ToolResponse
 from .encoding import detect_source, encode
 from .prompt_injection_utils import KeyOnlyFormatter, ValueDict
+
+logger = get_rt_logger("MESSAGE")
 
 _T = TypeVar("_T", bound=Content)
 
@@ -182,19 +185,29 @@ class UserMessage(_StringOnlyContent[Role.user]):
 
     def __init__(
         self,
-        content: str,
+        content: str | None = None,
         attachment: str | list[str] | None = None,
         inject_prompt: bool = True,
     ):
-        super().__init__(content=content, role=Role.user, inject_prompt=inject_prompt)
-
         if attachment is not None:
             if isinstance(attachment, list):
                 self.attachment = [Attachment(att) for att in attachment]
             else:
                 self.attachment = [Attachment(attachment)]
+
+            if content is None:
+                logger.warning(
+                    "UserMessage initialized without content, setting to empty string."
+                )
+                content = ""
         else:
             self.attachment = None
+
+        if content is None:
+            raise ValueError(
+                "UserMessage must have content if no attachment is provided."
+            )
+        super().__init__(content=content, role=Role.user, inject_prompt=inject_prompt)
 
 
 class SystemMessage(_StringOnlyContent[Role.system]):

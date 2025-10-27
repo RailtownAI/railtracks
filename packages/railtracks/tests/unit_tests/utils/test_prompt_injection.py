@@ -37,9 +37,10 @@ def test_valuedict_missing_returns_placeholder():
 # ================= START inject_values tests ================
 
 def test_inject_values_injects_value():
-    msg = Message(role=Role.user, content="Hello, {name}!", inject_prompt=True)
-    history = MessageHistory([msg])
-    value_dict = prompt_injection.ValueDict({"name": "Alice"})
+    smsg = SystemMessage(content="System says {system_info}", inject_prompt=True)
+    msg = UserMessage(content="Hello, {name}!", inject_prompt=True)
+    history = MessageHistory([smsg, msg])
+    value_dict = ValueDict({"name": "Alice", "system_info": "All systems operational"})
 
     result = prompt_injection.inject_values(history, value_dict)
     assert result[0].content == "System says All systems operational"
