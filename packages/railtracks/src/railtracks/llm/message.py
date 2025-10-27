@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 from copy import deepcopy
 from enum import Enum
-from typing import Generic, Literal, TypeVar
+from typing import Generic, TypeVar
 
 from .content import Content, ToolCall, ToolResponse
 
@@ -20,7 +22,10 @@ class Role(str, Enum):
     tool = "tool"
 
 
-class Message(Generic[_T]):
+_TRole = TypeVar("_TRole", bound=Role)
+
+
+class Message(Generic[_T, _TRole]):
     """
     A base class that represents a message that an LLM can read.
 
@@ -30,7 +35,7 @@ class Message(Generic[_T]):
     def __init__(
         self,
         content: _T,
-        role: Literal["assistant", "user", "system", "tool"],
+        role: _TRole,
         inject_prompt: bool = True,
     ):
         """
@@ -46,9 +51,10 @@ class Message(Generic[_T]):
             role: The role of the message (assistant, user, system, tool, etc.).
             inject_prompt (bool, optional): Whether to inject prompt with context variables. Defaults to True.
         """
+        assert isinstance(role, Role)
         self.validate_content(content)
         self._content = content
-        self._role = Role(role)
+        self._role = role
         self._inject_prompt = inject_prompt
 
     @classmethod
@@ -61,7 +67,7 @@ class Message(Generic[_T]):
         return self._content
 
     @property
-    def role(self) -> Role:
+    def role(self) -> _TRole:
         """Collects the role of the message."""
         return self._role
 
@@ -95,7 +101,7 @@ class Message(Generic[_T]):
         return tools
 
 
-class _StringOnlyContent(Message[str]):
+class _StringOnlyContent(Message[str, _TRole], Generic[_TRole]):
     """
     A helper class used to represent a message that only accepts string content.
     """
@@ -109,7 +115,7 @@ class _StringOnlyContent(Message[str]):
             raise TypeError(f"A {cls.__name__} needs a string but got {type(content)}")
 
 
-class UserMessage(_StringOnlyContent):
+class UserMessage(_StringOnlyContent[Role.user]):
     """
     Note that we only support string input
 
@@ -119,10 +125,10 @@ class UserMessage(_StringOnlyContent):
     """
 
     def __init__(self, content: str, inject_prompt: bool = True):
-        super().__init__(content=content, role="user", inject_prompt=inject_prompt)
+        super().__init__(content=content, role=Role.user, inject_prompt=inject_prompt)
 
 
-class SystemMessage(_StringOnlyContent):
+class SystemMessage(_StringOnlyContent[Role.system]):
     """
     A simple class that represents a system message.
 
@@ -132,10 +138,10 @@ class SystemMessage(_StringOnlyContent):
     """
 
     def __init__(self, content: str, inject_prompt: bool = True):
-        super().__init__(content=content, role="system", inject_prompt=inject_prompt)
+        super().__init__(content=content, role=Role.system, inject_prompt=inject_prompt)
 
 
-class AssistantMessage(Message[_T], Generic[_T]):
+class AssistantMessage(Message[_T, Role.assistant], Generic[_T]):
     """
     A simple class that represents a message from the assistant.
 
@@ -145,11 +151,13 @@ class AssistantMessage(Message[_T], Generic[_T]):
     """
 
     def __init__(self, content: _T, inject_prompt: bool = True):
-        super().__init__(content=content, role="assistant", inject_prompt=inject_prompt)
+        super().__init__(
+            content=content, role=Role.assistant, inject_prompt=inject_prompt
+        )
 
 
 # TODO further constrict the possible return type of a ToolMessage.
-class ToolMessage(Message[ToolResponse]):
+class ToolMessage(Message[ToolResponse, Role.tool]):
     """
     A simple class that represents a message that is a tool call answer.
 
@@ -162,4 +170,4 @@ class ToolMessage(Message[ToolResponse]):
             raise TypeError(
                 f"A {self.__class__.__name__} needs a ToolResponse but got {type(content)}. Check the invoke function of the OutputLessToolCallLLM node. That is the only place to return a ToolMessage."
             )
-        super().__init__(content=content, role="tool")
+        super().__init__(content=content, role=Role.tool)

@@ -41,7 +41,7 @@ def inject_values(message_history: MessageHistory, value_dict: ValueDict):
         if message.inject_prompt and isinstance(message.content, str):
             try:
                 message_history[i] = Message(
-                    role=message.role.value,
+                    role=message.role,
                     content=fill_prompt(message.content, value_dict),
                     inject_prompt=False,
                 )
