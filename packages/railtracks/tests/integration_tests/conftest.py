@@ -21,7 +21,7 @@ import railtracks as rt
 import random
 from datetime import datetime, timedelta
 
-
+@rt.function_node
 async def search_flights():
     await asyncio.sleep(1)
     cities = ["New York", "Los Angeles", "Chicago", "Houston"]

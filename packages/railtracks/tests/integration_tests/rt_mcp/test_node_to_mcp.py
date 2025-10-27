@@ -81,13 +81,10 @@ async def test_add_nums_tool(mcp_server):
     with rt.Session(logging_setting="QUIET", timeout=1000):
         response = await rt.call(server.tools[0], num1=1, num2=3, print_s="Hello")
 
+    print(response.content)
     assert response.content[0].text == "14", (
         f"Expected 14, got {response.content[0].text}"
     )
 
 
-# --------------------------------------------------------------------------- #
-#             Allow running this file directly for manual debugging           #
-# --------------------------------------------------------------------------- #
-if __name__ == "__main__":
-    run_server()
+

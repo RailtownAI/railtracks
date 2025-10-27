@@ -22,8 +22,8 @@ from pydantic import BaseModel
 from railtracks.built_nodes.concrete import (
     DynamicFunctionNode,
     LLMBase,
-    OutputLessToolCallLLM,
 )
+from railtracks.built_nodes.concrete._tool_call_base import OutputLessToolCallLLMBase
 from railtracks.llm import (
     ModelBase,
     Parameter,
@@ -143,7 +143,7 @@ class NodeBuilder(Generic[_TNode]):
         Raises:
             AssertionError: If the node class is not a subclass of a ToolCallingLLM in the RT framework.
         """
-        assert issubclass(self._node_class, OutputLessToolCallLLM), (
+        assert issubclass(self._node_class, OutputLessToolCallLLMBase), (
             f"To perform this operation the node class we are building must be of type LLMBase but got {self._node_class}"
         )
 
@@ -331,11 +331,9 @@ class NodeBuilder(Generic[_TNode]):
             f"You tried to add prepare_tool_llm to a non LLM Node of {type(self._node_class)}."
         )
 
-        def prepare_tool(cls, tool_parameters: Dict[str, Any]):
+        def prepare_tool(cls, **kwargs):
             # Use the shared implementation in LLMBase
-            message_hist = cls.prepare_tool_message_history(
-                tool_parameters, tool_params
-            )
+            message_hist = cls.prepare_tool_message_history(kwargs, tool_params)
             return cls(message_hist)
 
         self._with_override("prepare_tool", classmethod(prepare_tool))

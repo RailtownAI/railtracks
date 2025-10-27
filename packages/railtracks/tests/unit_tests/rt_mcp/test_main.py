@@ -137,7 +137,7 @@ def test_from_mcp_prepare_tool(fake_tool, mcp_http_params):
     with patch("asyncio.run_coroutine_threadsafe", return_value=future):
         result_class = from_mcp(fake_tool, mock_client, mock_loop)
         options = {"one": 1, "two": 2}
-        inst = result_class.prepare_tool(options)
+        inst = result_class.prepare_tool(**options)
         assert isinstance(inst, result_class)
         assert inst.kwargs == options
 

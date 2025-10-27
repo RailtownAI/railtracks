@@ -17,7 +17,7 @@ Railtracks provides built-in logging to help track the execution of your flows. 
 ---
 
 !!! Critical
-    Every log sent by Railtracks will contain a parameter in `extras` for `session_id` which will be uuid tied to the session the error was thrown in. 
+    Every log sent by Railtracks will contain a parameter in `extras` for `session_id` which will be uuid tied to the session the error was thrown in.
 
 ## Configuring Logging
 
@@ -31,7 +31,7 @@ Railtracks supports four logging levels:
 4. `NONE`: Disables all logging.
 
 ```python
---8<-- "docs/scripts/logging.py:logging_setup"
+--8<-- "docs/scripts/_logging.py:logging_setup"
 ```
 
 ---
@@ -47,7 +47,7 @@ Railtracks supports four logging levels:
     To save logs to a file, pass a `log_file` parameter to the config:
 
     ```python
-    --8<-- "docs/scripts/logging.py:logging_to_file"
+    --8<-- "docs/scripts/_logging.py:logging_to_file"
     ```
 
 !!! tip "Custom Handlers"
@@ -55,7 +55,7 @@ Railtracks supports four logging levels:
     Railtracks uses the standard [Python `logging`](https://docs.python.org/3/library/logging.html) module with the `RT` prefix. You can attach custom handlers:
 
     ```python
-    --8<-- "docs/scripts/logging.py:logging_custom_handler"
+    --8<-- "docs/scripts/_logging.py:logging_custom_handler"
     ```
 
 ---
@@ -67,7 +67,7 @@ You can configure logging globally or per-run.
 !!! example "Global Configuration"
 
     ```python
-    --8<-- "docs/scripts/logging.py:logging_global"
+    --8<-- "docs/scripts/_logging.py:logging_global"
     ```
 
     This will apply to all flows.
@@ -75,7 +75,7 @@ You can configure logging globally or per-run.
 !!! example "Scoped Configuration"
 
     ```python
-    --8<-- "docs/scripts/logging.py:logging_scoped"
+    --8<-- "docs/scripts/_logging.py:logging_scoped"
 
     ```
     Applies only within the context of the `Session`.
@@ -89,19 +89,19 @@ You can forward logs to services like [Loggly](https://www.loggly.com/), [Sentry
 === "Conductr"
 
     ```python
-    --8<-- "docs/scripts/logging.py:logging_railtown"
+    --8<-- "docs/scripts/_logging.py:logging_railtown"
     ```
 
 === "Loggly"
 
     ```python
-    --8<-- "docs/scripts/logging.py:logging_loggly"
+    --8<-- "docs/scripts/_logging.py:logging_loggly"
     ```
 
 === "Sentry"
 
     ```python
-    --8<-- "docs/scripts/logging.py:logging_sentry"
+    --8<-- "docs/scripts/_logging.py:logging_sentry"
     ```
 
 ---

@@ -14,13 +14,14 @@ MODEL_NAME = "deepseek-r1"
 TEST_CHAT_MODEL_NAME = "azure_ai/deepseek-r1"
 TEST_TOOLCALLING_MODEL_NAME = "azure_ai/deepseek-v3-0324"
 
+
 @pytest.fixture
 def response():
     """Fixture to provide a mock response for testing"""
     return Response(
-        message=AssistantMessage(
-            "This is a response with no tool calls."),
+        message=AssistantMessage("This is a response with no tool calls."),
     )
+
 
 def test_model_type():
     """Test if the model type is correctly returned"""
@@ -35,9 +36,7 @@ def test_init_success():
 
 def test_init_model_not_available():
     """Test initialization with a model that is not available"""
-    with pytest.raises(
-        RTLLMError, match="Model 'non_existent_model' is not available"
-    ):
+    with pytest.raises(RTLLMError, match="Model 'non_existent_model' is not available"):
         AzureAILLM(model_name="non_existent_model")
 
 
@@ -48,9 +47,9 @@ def test_chat_success(message_history):
     with patch.object(
         litellm,
         "completion",
-        return_value={
-            "choices": [{"message": {"content": "This is a response from Azure AI."}}]
-        },
+        return_value=litellm.utils.ModelResponse(
+            choices=[{"message": {"content": "This is a response from Azure AI."}}]
+        ),
     ):
         response = llm.chat(message_history)
         assert response.message.content == "This is a response from Azure AI."
@@ -72,6 +71,7 @@ def test_chat_failure(message_history):
         ):
             llm.chat(message_history)
 
+
 def test_chat_with_tools_success(message_history, response, tool):
     """
     Test successful chat with tools response from AzureAILLM
@@ -79,23 +79,15 @@ def test_chat_with_tools_success(message_history, response, tool):
     """
     llm = AzureAILLM(model_name=TEST_TOOLCALLING_MODEL_NAME)
 
-    with patch.object(
-        LiteLLMWrapper,
-        "chat_with_tools",
-        return_value=response
-    ):
+    with patch.object(LiteLLMWrapper, "chat_with_tools", return_value=response):
         response = llm.chat_with_tools(message_history, [tool])
         assert response.message.content == "This is a response with no tool calls."
+
 
 def test_chat_with_tools_failure(message_history, tool):
     """"""
     llm = AzureAILLM(model_name=TEST_CHAT_MODEL_NAME)
 
-    with patch.object(
-        litellm,
-        "supports_function_calling",
-        return_value=False
-
-    ):
+    with patch.object(litellm, "supports_function_calling", return_value=False):
         with pytest.raises(RTLLMError):
             llm.chat_with_tools(message_history, [tool])

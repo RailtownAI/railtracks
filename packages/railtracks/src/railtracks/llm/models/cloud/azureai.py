@@ -2,6 +2,7 @@ import logging
 
 import litellm
 
+from ...providers import ModelProvider
 from .._litellm_wrapper import LiteLLMWrapper
 
 # litellm.drop_params=True
@@ -18,7 +19,7 @@ class AzureAIError(ModelError):
 class AzureAILLM(LiteLLMWrapper):
     @classmethod
     def model_type(cls):
-        return "AzureAI"
+        return ModelProvider.AZUREAI
 
     def __init__(
         self,

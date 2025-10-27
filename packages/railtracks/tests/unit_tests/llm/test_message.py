@@ -1,7 +1,7 @@
 import pytest
 from typing import List
 from railtracks.llm import UserMessage, SystemMessage, AssistantMessage, ToolMessage
-from railtracks.llm.content import ToolResponse, ToolCall
+from railtracks.llm.content import ToolResponse, ToolCall, Stream
 
 
 # =================================== START Message Structure Tests ==================================
@@ -94,5 +94,12 @@ def test_tool_message_invalid_content2():
                 ToolCall(identifier="456", name="tool2", arguments={}),
             ]
         )  # ToolMessage expects ToolResponse, not List[ToolCall]
+
+def test_tool_message_invalid_content3():
+    with pytest.raises(TypeError):
+        Stream(
+            streamer="not a generator",
+            final_message="Final message",
+        ) # ToolMessage expects ToolResponse, not List[ToolResponse]
 
 # =================================== END Message Structure Tests ==================================
