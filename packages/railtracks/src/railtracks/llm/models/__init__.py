@@ -6,7 +6,7 @@ from .api_providers import (
     OpenAICompatibleProvider,
     OpenAILLM,
 )
-from .cloud import AzureAILLM, PortKeyLLM, TelusLLM
+from .cloud import AzureAILLM, PortKeyLLM
 from .local.ollama import OllamaLLM
 
 __all__ = [
@@ -16,7 +16,6 @@ __all__ = [
     AzureAILLM,
     OllamaLLM,
     HuggingFaceLLM,
-    # TelusLLM,
     PortKeyLLM,
     CohereLLM,
     "OpenAICompatibleProvider",
