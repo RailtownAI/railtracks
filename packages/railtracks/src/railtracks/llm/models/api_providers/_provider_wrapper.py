@@ -64,11 +64,11 @@ class ProviderLLMWrapper(LiteLLMWrapper[_TStream], ABC, Generic[_TStream]):
 
     def model_type(self) -> ModelProvider:
         """Returns the name of the provider"""
-        return self.model_distrubutor()
+        return self.model_distributor()
 
     @classmethod
     @abstractmethod
-    def model_distrubutor(cls) -> ModelProvider:
+    def model_distributor(cls) -> ModelProvider:
         pass
 
     def _validate_tool_calling_support(self):

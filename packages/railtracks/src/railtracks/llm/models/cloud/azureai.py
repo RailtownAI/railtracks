@@ -21,7 +21,7 @@ class AzureAIError(ModelError):
 
 class AzureAILLM(LiteLLMWrapper[_TStream]):
     @classmethod
-    def model_distrubutor(cls):
+    def model_distributor(cls):
         return ModelProvider.AZUREAI
 
     def model_type(self) -> ModelProvider:

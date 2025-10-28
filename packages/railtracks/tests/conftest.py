@@ -184,11 +184,11 @@ class MockLLM(rt.llm.ModelBase):
         return "MockLLM"
 
     @classmethod
-    def model_distrubutor(cls) -> str | None:
+    def model_distributor(cls) -> str | None:
         return "mock"
     
     def model_type(self):
-        return self.model_distrubutor()
+        return self.model_distributor()
 
     # =====================================
 

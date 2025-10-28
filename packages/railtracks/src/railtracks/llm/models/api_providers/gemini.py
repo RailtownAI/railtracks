@@ -12,5 +12,5 @@ class GeminiLLM(ProviderLLMWrapper):
         return f"gemini/{model_name}"
 
     @classmethod
-    def model_distrubutor(cls):
+    def model_distributor(cls):
         return ModelProvider.GEMINI  # litellm uses this for the provider for Gemini, we are using this in the checks in _provider_wrapper.py

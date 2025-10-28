@@ -110,7 +110,7 @@ class ModelBase(ABC, Generic[_TStream]):
 
     @classmethod
     @abstractmethod
-    def model_distrubutor(cls) -> ModelProvider:
+    def model_distributor(cls) -> ModelProvider:
         """
         Gets the API distrubutor of the model. Note nessecarily the same as the model itself.
 

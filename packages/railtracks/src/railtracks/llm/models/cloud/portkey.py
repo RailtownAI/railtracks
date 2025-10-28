@@ -36,7 +36,7 @@ class PortKeyLLM(OpenAICompatibleProvider[_TStream]):
         )
 
     @classmethod
-    def model_distrubutor(cls):
+    def model_distributor(cls):
         return ModelProvider.PORTKEY
 
     def model_type(self):

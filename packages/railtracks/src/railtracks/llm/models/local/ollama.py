@@ -110,7 +110,7 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
         return super().chat_with_tools(messages, tools, **kwargs)
 
     @classmethod
-    def model_distrubutor(cls):
+    def model_distributor(cls):
         return ModelProvider.OLLAMA
 
     def model_type(self) -> ModelProvider:

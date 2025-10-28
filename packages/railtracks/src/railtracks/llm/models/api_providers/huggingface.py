@@ -39,5 +39,5 @@ class HuggingFaceLLM(ProviderLLMWrapper[_TStream]):
         pass
 
     @classmethod
-    def model_distrubutor(cls):
+    def model_distributor(cls):
         return ModelProvider.HUGGINGFACE

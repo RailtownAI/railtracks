@@ -31,5 +31,5 @@ class TelusLLM(OpenAICompatibleProvider[_TStream]):
         )
 
     @classmethod
-    def model_distrubutor(cls):
+    def model_distributor(cls):
         return ModelProvider.TELUS
