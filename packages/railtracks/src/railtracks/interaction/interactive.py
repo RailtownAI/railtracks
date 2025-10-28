@@ -50,8 +50,13 @@ async def _chat_ui_interactive(
         message = await chat_ui.receive_message()
         if message is None:
             continue  # could be `break` but I want to ensure chat_ui.is_connected is updated properly
-
-        msg_history.append(UserMessage(message.content))
+        
+        # attachments = [attachment.url for attachment in message.attachments] if message.attachments else None
+        attachments = []
+        if message.attachments:
+            attachments = [attachment.url for attachment in message.attachments]
+            
+        msg_history.append(UserMessage(content=message.content, attachment=attachments))
 
         response = await call(node, msg_history, *args, **kwargs)
 

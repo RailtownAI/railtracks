@@ -14,17 +14,27 @@ import threading
 import webbrowser
 from datetime import datetime
 from importlib.resources import files
-from typing import Optional
+from typing import Optional, Any
 
 import uvicorn
 from fastapi import FastAPI, Response
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
+from packages.railtracks.tests.unit_tests.llm.models.conftest import user_message
+
+class UserMessageAttachment(BaseModel):
+    type: str  # "file" or "url"
+    url: str # file url or link url
+    name: Optional[str] = None
+    data: Optional[str] = None
+    mimeType: Optional[str] = None
+    size: Optional[int] = None
 
 class UIUserMessage(BaseModel):
     message: str
     timestamp: Optional[str] = None
+    attachments: Optional[list[UserMessageAttachment]] = None
 
 
 class ToolInvocation(BaseModel):
@@ -92,10 +102,14 @@ class ChatUI:
         @app.post("/send_message")
         async def send_message(user_message: UIUserMessage):
             """Receive user input from chat interface"""
-            message_data = {
+            message_data: dict[str, Any] = {
                 "message": user_message.message,
                 "timestamp": user_message.timestamp or datetime.now().isoformat(),
             }
+
+            if user_message.attachments:
+                message_data["attachments"] = [att.model_dump() for att in user_message.attachments]                
+            
             await self.user_input_queue.put(message_data)
             return {"status": "success", "message": "Message received"}
 

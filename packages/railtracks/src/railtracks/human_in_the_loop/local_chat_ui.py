@@ -19,9 +19,17 @@ from .human_in_the_loop import HIL, HILMessage
 
 logger = get_rt_logger("ChatUI")
 
+class UserMessageAttachment(BaseModel):
+    type: str  # "file" or "url"
+    url: str # file url or link url
+    name: Optional[str] = None
+    data: Optional[str] = None
+    mimeType: Optional[str] = None
+    size: Optional[int] = None
 
-class UIUserMessage(BaseModel):
+class UIUserMessage(HILMessage):
     message: str
+    attachments: Optional[list[UserMessageAttachment]] = None
     timestamp: Optional[str] = None
 
 
@@ -100,13 +108,13 @@ class ChatUI(HIL):
         @app.post("/send_message")
         async def send_message(user_message: UIUserMessage):
             """Receive user input from chat interface"""
-            message_data = HILMessage(
-                content=user_message.message,
-                metadata={
-                    "timestamp": user_message.timestamp or datetime.now().isoformat()
-                },
-            )
-            await self.user_input_queue.put(message_data)
+            # message_data = HILMessage(
+            #     content=user_message.message,
+            #     metadata={
+            #         "timestamp": user_message.timestamp or datetime.now().isoformat()
+            #     },
+            # )
+            await self.user_input_queue.put(user_message)
 
             return {"status": "success", "message": "Message received"}
 
@@ -272,7 +280,7 @@ class ChatUI(HIL):
             logger.error(f"Error sending message: {e}")
             return False
 
-    async def receive_message(self, timeout: float | None = None) -> HILMessage | None:
+    async def receive_message(self, timeout: float | None = None) -> UIUserMessage | None:
         """
         Waits for the user to provide input.
 
