@@ -108,12 +108,11 @@ class ChatUI(HIL):
         @app.post("/send_message")
         async def send_message(user_message: UIUserMessage):
             """Receive user input from chat interface"""
-            # message_data = HILMessage(
-            #     content=user_message.message,
-            #     metadata={
-            #         "timestamp": user_message.timestamp or datetime.now().isoformat()
-            #     },
-            # )
+            print(f"Received message: content='{user_message.content}'")
+            print(f"Attachments: {user_message.attachments}")
+            if user_message.attachments:
+                for i, att in enumerate(user_message.attachments):
+                    print(f"  Attachment {i}: type={att.type}, url={att.url}")
             await self.user_input_queue.put(user_message)
 
             return {"status": "success", "message": "Message received"}

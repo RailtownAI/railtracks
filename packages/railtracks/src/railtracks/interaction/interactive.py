@@ -53,9 +53,10 @@ async def _chat_ui_interactive(
         
         # attachments = [attachment.url for attachment in message.attachments] if message.attachments else None
         attachments = []
+        print(message)
         if message.attachments:
             attachments = [attachment.url for attachment in message.attachments]
-            
+
         msg_history.append(UserMessage(content=message.content, attachment=attachments))
 
         response = await call(node, msg_history, *args, **kwargs)

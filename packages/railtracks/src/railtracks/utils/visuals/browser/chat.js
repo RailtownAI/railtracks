@@ -202,7 +202,7 @@ function setProcessing(processing) {
     uploadButton.disabled = processing;
     
     if (processing) {
-        sendButton.textContent = 'Processing...';
+        sendButton.innerHTML = '<i class="fa-solid fa-clock"></i>';
         messageInput.placeholder = 'Assistant is thinking...';
     } else {
         sendButton.textContent = 'Send';
@@ -262,24 +262,48 @@ async function sendMessage() {
             }
         }));
         
+        console.log('Sending message with attachments:', {
+            content: message,
+            attachmentsCount: attachmentsData.length,
+            attachments: attachmentsData
+        });
+        
         const response = await fetch('/send_message', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                message: message,
+                content: message,  // Changed from 'message' to 'content' to match HILMessage
                 timestamp: new Date().toISOString(),
                 attachments: attachmentsData
             })
         });
         
-        const result = await response.json();
-        
         if (!response.ok) {
-            throw new Error(result.detail || 'Failed to send message');
+            let errorMessage = 'Failed to send message';
+            try {
+                const errorData = await response.json();
+                console.error('Server error response:', errorData);
+                // FastAPI validation errors are in .detail
+                if (errorData.detail) {
+                    if (typeof errorData.detail === 'string') {
+                        errorMessage = errorData.detail;
+                    } else if (Array.isArray(errorData.detail)) {
+                        // FastAPI validation errors are arrays
+                        errorMessage = errorData.detail.map(e => `${e.loc.join('.')}: ${e.msg}`).join(', ');
+                    } else {
+                        errorMessage = JSON.stringify(errorData.detail);
+                    }
+                }
+            } catch (e) {
+                console.error('Could not parse error response:', e);
+                errorMessage = `Server error: ${response.status} ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
         }
         
+        const result = await response.json();
         console.log('Message sent successfully:', result);
         
         // Mark unsent attachments as sent
