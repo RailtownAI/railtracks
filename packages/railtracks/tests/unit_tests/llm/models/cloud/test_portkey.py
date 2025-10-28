@@ -10,13 +10,13 @@ MODEL_NAME = "portkey/deepseek-r1"
 
 def test_model_distributor():
     """Test that the model distributor is correctly returned"""
-    assert PortKeyLLM.model_distributor() == ModelProvider.PORTKEY
+    assert PortKeyLLM.model_gateway() == ModelProvider.PORTKEY
 
 
 def test_model_type():
     """Test that the model type method returns ModelProvider.PORTKEY"""
     llm = PortKeyLLM(model_name=MODEL_NAME, api_key="test_api_key")
-    assert llm.model_type() == ModelProvider.PORTKEY
+    assert llm.model_provider() == ModelProvider.PORTKEY
 
 
 

@@ -13,7 +13,7 @@ class HuggingFaceLLM(ProviderLLMWrapper[_TStream]):
         # for huggingface models there is no good way of using `get_llm_provider` to check if the model is valid.
         # so we are just goinog to add `huggingface/` to the model name in case it is not there.
         # if the model name happens to be invalid, the error will be generated at runtime during `litellm.completion`. See `_litellm_wrapper.py`
-        if model_name.startswith(self.model_type().lower()):
+        if model_name.startswith(self.model_provider().lower()):
             model_name = "/".join(model_name.split("/")[1:])
         try:
             assert len(model_name.split("/")) == 3, "Invalid model name"
@@ -28,7 +28,7 @@ class HuggingFaceLLM(ProviderLLMWrapper[_TStream]):
             )
         return model_name
 
-    def model_type(self) -> ModelProvider:
+    def model_provider(self) -> ModelProvider:
         # TODO implement logic for all the possible providers attached the hugging face.
         return ModelProvider.HUGGINGFACE
 
@@ -39,5 +39,5 @@ class HuggingFaceLLM(ProviderLLMWrapper[_TStream]):
         pass
 
     @classmethod
-    def model_distributor(cls):
+    def model_gateway(cls):
         return ModelProvider.HUGGINGFACE

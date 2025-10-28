@@ -21,11 +21,11 @@ class AzureAIError(ModelError):
 
 class AzureAILLM(LiteLLMWrapper[_TStream]):
     @classmethod
-    def model_distributor(cls):
+    def model_gateway(cls):
         return ModelProvider.AZUREAI
 
-    def model_type(self) -> ModelProvider:
-        return super().model_type()
+    def model_provider(self) -> ModelProvider:
+        return super().model_provider()
 
     def __init__(
         self,

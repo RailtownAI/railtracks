@@ -36,9 +36,9 @@ class PortKeyLLM(OpenAICompatibleProvider[_TStream]):
         )
 
     @classmethod
-    def model_distributor(cls):
+    def model_gateway(cls):
         return ModelProvider.PORTKEY
 
-    def model_type(self):
+    def model_provider(self):
         # TODO: Implement specialized logic to determine the model provider
         return ModelProvider.PORTKEY

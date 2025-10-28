@@ -8,5 +8,5 @@ class CohereLLM(ProviderLLMWrapper):
     """
 
     @classmethod
-    def model_distributor(cls):
+    def model_gateway(cls):
         return ModelProvider.COHERE

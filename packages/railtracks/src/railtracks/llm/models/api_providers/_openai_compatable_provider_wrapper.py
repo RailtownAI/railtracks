@@ -18,7 +18,7 @@ class OpenAICompatibleProvider(ProviderLLMWrapper[_TStream], ABC):
         return f"openai/{model_name}"
 
     @classmethod
-    def model_distributor(cls) -> ModelProvider:
+    def model_gateway(cls) -> ModelProvider:
         return ModelProvider.UNKNOWN
 
     def _pre_init_provider_check(self, model_name: str):

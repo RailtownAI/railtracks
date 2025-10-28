@@ -172,11 +172,11 @@ class MockLiteLLMWrapper(LiteLLMWrapper):
         super().__init__(model_name=model_name or "mock-model", stream=stream)
 
     @classmethod
-    def model_distributor(cls):
+    def model_gateway(cls):
         return "mock"
     
-    def model_type(self):
-        return self.model_distributor()
+    def model_provider(self):
+        return self.model_gateway()
     
 
 

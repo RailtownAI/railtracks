@@ -104,13 +104,13 @@ class ModelBase(ABC, Generic[_TStream]):
         pass
 
     @abstractmethod
-    def model_type(self) -> ModelProvider:
+    def model_provider(self) -> ModelProvider:
         """The name of the provider of this model (The Company that owns the model)"""
         pass
 
     @classmethod
     @abstractmethod
-    def model_distributor(cls) -> ModelProvider:
+    def model_gateway(cls) -> ModelProvider:
         """
         Gets the API distrubutor of the model. Note nessecarily the same as the model itself.
 
