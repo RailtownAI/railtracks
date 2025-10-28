@@ -67,7 +67,7 @@ Railtracks is a lightweight, modular framework for building agentic systems. It 
 
 Defaults (consult docs for the exact version you use; defaults may change):
 - `save_state`: may be enabled to persist execution for debugging/visualization
-- `logging_setting`: typically "REGULAR", this is the logging verbosity level
+- `logging_setting`: typically "INFO", this is the logging verbosity level
 
 ## Network Egress and Environment Security
 
