@@ -12,7 +12,7 @@ from .models import (
     OpenAICompatibleProvider,
     OpenAILLM,
     PortKeyLLM,
-    TelusLLM,
+    # TelusLLM,
 )
 from .providers import ModelProvider
 from .tools import (
@@ -45,7 +45,7 @@ __all__ = [
     "OllamaLLM",
     "AzureAILLM",
     "GeminiLLM",
-    "TelusLLM",
+    # "TelusLLM",
     "PortKeyLLM",
     "OpenAICompatibleProvider",
     "CohereLLM",

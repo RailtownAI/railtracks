@@ -16,7 +16,7 @@ __all__ = [
     AzureAILLM,
     OllamaLLM,
     HuggingFaceLLM,
-    TelusLLM,
+    # TelusLLM,
     PortKeyLLM,
     CohereLLM,
     "OpenAICompatibleProvider",
