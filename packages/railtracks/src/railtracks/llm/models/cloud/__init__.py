@@ -1,6 +1,7 @@
 from railtracks.llm.models.cloud.portkey import PortKeyLLM
-from .telus import TelusLLM
+
 from .azureai import AzureAILLM
+from .telus import TelusLLM
 
 __all__ = [
     "AzureAILLM",

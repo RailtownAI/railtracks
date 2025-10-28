@@ -16,6 +16,7 @@ DEFAULT_DOMAIN = "http://localhost:11434"
 
 _TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
+
 class OllamaError(ModelError):
     def __init__(self, reason: str):
         super().__init__(reason=reason)
@@ -111,6 +112,6 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
     @classmethod
     def model_distrubutor(cls):
         return ModelProvider.OLLAMA
-    
+
     def model_type(self) -> ModelProvider:
         return super().model_type()

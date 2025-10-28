@@ -1,4 +1,5 @@
 from typing import Literal, TypeVar
+
 from ...providers import ModelProvider
 from .._model_exception_base import ModelNotFoundError
 from ._provider_wrapper import ProviderLLMWrapper
@@ -26,7 +27,7 @@ class HuggingFaceLLM(ProviderLLMWrapper[_TStream]):
                 ],
             )
         return model_name
-    
+
     def model_type(self) -> ModelProvider:
         # TODO implement logic for all the possible providers attached the hugging face.
         return ModelProvider.HUGGINGFACE
@@ -36,7 +37,7 @@ class HuggingFaceLLM(ProviderLLMWrapper[_TStream]):
         # Due to the wide range of huggingface models, `litellm.supports_function_calling` isn't always accurate.
         # so we are just going to skip the check and the error (if any) will be generated at runtime during `litellm.completion`.
         pass
-    
+
     @classmethod
     def model_distrubutor(cls):
         return ModelProvider.HUGGINGFACE

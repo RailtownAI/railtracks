@@ -23,7 +23,7 @@ class AzureAILLM(LiteLLMWrapper[_TStream]):
     @classmethod
     def model_distrubutor(cls):
         return ModelProvider.AZUREAI
-    
+
     def model_type(self) -> ModelProvider:
         return super().model_type()
 
