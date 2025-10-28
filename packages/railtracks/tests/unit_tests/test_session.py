@@ -10,7 +10,8 @@ from railtracks import Session, session
 # ================= START Mock Fixture ============
 @pytest.fixture
 def mock_dependencies(monkeypatch):
-    m_prepare_logger = MagicMock()
+    m_mark_session_logging_override = MagicMock()
+    m_restore_module_logging = MagicMock()
     m_get_global_config = MagicMock()
     m_RTPublisher = MagicMock()
     m_ExecutionInfo = MagicMock(create_new=MagicMock())
@@ -18,9 +19,9 @@ def mock_dependencies(monkeypatch):
     m_RTState = MagicMock()
     m_register_globals = MagicMock()
     m_delete_globals = MagicMock()
-    m_detach_logging_handlers = MagicMock()
 
-    monkeypatch.setattr('railtracks._session.prepare_logger', m_prepare_logger)
+    monkeypatch.setattr('railtracks._session.mark_session_logging_override', m_mark_session_logging_override)
+    monkeypatch.setattr('railtracks._session.restore_module_logging', m_restore_module_logging)
     monkeypatch.setattr('railtracks._session.get_global_config', m_get_global_config)
     monkeypatch.setattr('railtracks._session.RTPublisher', m_RTPublisher)
     monkeypatch.setattr('railtracks._session.ExecutionInfo', m_ExecutionInfo)
@@ -28,10 +29,10 @@ def mock_dependencies(monkeypatch):
     monkeypatch.setattr('railtracks._session.RTState', m_RTState)
     monkeypatch.setattr('railtracks._session.register_globals', m_register_globals)
     monkeypatch.setattr('railtracks._session.delete_globals', m_delete_globals)
-    monkeypatch.setattr('railtracks._session.detach_logging_handlers', m_detach_logging_handlers)
 
     return {
-        'prepare_logger': m_prepare_logger,
+        'mark_session_logging_override': m_mark_session_logging_override,
+        'restore_module_logging': m_restore_module_logging,
         'get_global_config': m_get_global_config,
         'RTPublisher': m_RTPublisher,
         'ExecutionInfo': m_ExecutionInfo,
@@ -39,7 +40,6 @@ def mock_dependencies(monkeypatch):
         'RTState': m_RTState,
         'register_globals': m_register_globals,
         'delete_globals': m_delete_globals,
-        'detach_logging_handlers': m_detach_logging_handlers,
     }
 # ================ END Mock Fixture ===============
 
@@ -87,6 +87,35 @@ def test_session_name_is_taken_from_executor_config():
 # ================ END Session: Singleton/Instance Id Behavior ===============
 
 
+# ================= START Session: Logging Override Tests ===============
+
+def test_session_with_logging_setting_marks_override(mock_dependencies):
+    """Test that Session with logging_setting marks session logging override."""
+    runner = Session(logging_setting="VERBOSE")
+    assert mock_dependencies['mark_session_logging_override'].called
+    assert runner._has_custom_logging is True
+
+def test_session_with_log_file_marks_override(mock_dependencies):
+    """Test that Session with log_file marks session logging override."""
+    runner = Session(log_file="/tmp/test.log")
+    assert mock_dependencies['mark_session_logging_override'].called
+    assert runner._has_custom_logging is True
+
+def test_session_with_both_logging_params_marks_override(mock_dependencies):
+    """Test that Session with both logging params marks session logging override."""
+    runner = Session(logging_setting="QUIET", log_file="/tmp/test.log")
+    assert mock_dependencies['mark_session_logging_override'].called
+    assert runner._has_custom_logging is True
+
+def test_session_without_logging_params_no_override(mock_dependencies):
+    """Test that Session without logging params does not mark override."""
+    runner = Session()
+    assert not mock_dependencies['mark_session_logging_override'].called
+    assert runner._has_custom_logging is False
+
+# ================ END Session: Logging Override Tests ===============
+
+
 # ================= START Session: setup_subscriber ===============
 
 def test_setup_subscriber_adds_subscriber_if_present():
@@ -114,14 +143,27 @@ def test_setup_subscriber_noop_if_no_subscriber(mock_dependencies):
 
 # ================= START Session: _close & __exit__ ===============
 
-def test_close_calls_shutdown_detach_delete(mock_dependencies):
-
+def test_close_calls_shutdown_and_delete(mock_dependencies):
+    """Test that _close calls shutdown and delete_globals."""
     runner = Session()
     runner.rt_state = MagicMock()
     runner._close()
     assert runner.rt_state.shutdown.called
-    assert mock_dependencies['detach_logging_handlers'].called
     assert mock_dependencies['delete_globals'].called
+
+def test_close_restores_logging_when_custom_logging_used(mock_dependencies):
+    """Test that _close calls restore_module_logging when custom logging was used."""
+    runner = Session(logging_setting="VERBOSE")
+    runner.rt_state = MagicMock()
+    runner._close()
+    assert mock_dependencies['restore_module_logging'].called
+
+def test_close_does_not_restore_logging_when_no_custom_logging(mock_dependencies):
+    """Test that _close does not call restore_module_logging when no custom logging."""
+    runner = Session()
+    runner.rt_state = MagicMock()
+    runner._close()
+    assert not mock_dependencies['restore_module_logging'].called
 
 # ================ END Session: _close & __exit__ ===============
 
@@ -245,7 +287,7 @@ def test_session_decorator_with_parameters():
         timeout=30,
         context={"test": "value"},
         end_on_error=True,
-        logging_setting="DEBUG"
+        logging_setting="VERBOSE"
     )
     assert callable(decorator)
 

@@ -27,8 +27,8 @@ from .state.state import RTState
 from .utils.config import ExecutorConfig
 from .utils.logging.config import (
     AllowableLogLevels,
-    detach_logging_handlers,
-    prepare_logger,
+    mark_session_logging_override,
+    restore_module_logging,
 )
 from .utils.logging.create import get_rt_logger
 
@@ -53,7 +53,7 @@ class Session:
     - `name`: None
     - `timeout`: 150.0 seconds
     - `end_on_error`: False
-    - `logging_setting`: "REGULAR"
+    - `logging_setting`: "INFO"
     - `log_file`: None (logs will not be written to a file)
     - `broadcast_callback`: None (no callback for broadcast messages)
     - `prompt_injection`: True (the prompt will be automatically injected from context variables)
@@ -65,7 +65,7 @@ class Session:
         context (Dict[str, Any], optional): A dictionary of global context variables to be used during the execution.
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
-        logging_setting (AllowableLogLevels, optional): The setting for the level of logging you would like to have.
+        logging_setting (AllowableLogLevels, optional): The setting for the level of logging you would like to have. This will override the module-level logging settings for the duration of this session.
         log_file (str | os.PathLike | None, optional): The file to which the logs will be written.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
@@ -104,10 +104,14 @@ class Session:
 
         self.name = name
 
-        prepare_logger(
-            setting=self.executor_config.logging_setting,
-            path=self.executor_config.log_file,
-        )
+        self._has_custom_logging = logging_setting is not None or log_file is not None
+
+        if self._has_custom_logging:
+            mark_session_logging_override(
+                session_level=self.executor_config.logging_setting,
+                session_log_file=self.executor_config.log_file,
+            )
+
         self.publisher: RTPublisher = RTPublisher()
 
         self._identifier = str(uuid.uuid4())
@@ -224,7 +228,10 @@ class Session:
         """
         # the publisher should have already been closed in `_run_base`
         self.rt_state.shutdown()
-        detach_logging_handlers()
+
+        if self._has_custom_logging:
+            restore_module_logging()
+
         delete_globals()
         # by deleting all of the state variables we are ensuring that the next time we create a runner it is fresh
 
@@ -303,7 +310,7 @@ def session(
         context (Dict[str, Any], optional): A dictionary of global context variables to be used during the execution.
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
-        logging_setting (AllowableLogLevels, optional): The setting for the level of logging you would like to have.
+        logging_setting (AllowableLogLevels, optional): The setting for the level of logging you would like to have. This will override the module-level logging settings for the duration of this session.
         log_file (str | os.PathLike | None, optional): The file to which the logs will be written.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
@@ -358,7 +365,7 @@ def session(
         context (Dict[str, Any], optional): A dictionary of global context variables to be used during the execution.
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
-        logging_setting (AllowableLogLevels, optional): The setting for the level of logging you would like to have.
+        logging_setting (AllowableLogLevels, optional): The setting for the level of logging you would like to have. This will override the module-level logging settings for the duration of this session.
         log_file (str | os.PathLike | None, optional): The file to which the logs will be written.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.

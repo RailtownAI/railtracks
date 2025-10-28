@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 from railtracks.utils.config import ExecutorConfig
 from railtracks.utils.logging.config import AllowableLogLevels
 
+from ..utils.logging.config import configure_module_logging
 from .external import ExternalContext, MutableExternalContext
 from .internal import InternalContext
 
@@ -382,6 +383,11 @@ def set_config(
         )
 
     config = global_executor_config.get()
+
+    if logging_setting or log_file:
+        # default will be set at module import time, this is for overwrites
+        configure_module_logging(level=logging_setting, log_file=log_file)
+
     new_config = config.precedence_overwritten(
         timeout=timeout,
         end_on_error=end_on_error,

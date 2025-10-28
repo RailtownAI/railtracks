@@ -146,7 +146,7 @@ async def test_terminal_llm_tool_with_invalid_parameters(mock_llm, encoder_syste
     )
 
     with rt.Session(
-        logging_setting="VERBOSE"
+        logging_setting="DEBUG"
     ):
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Encode this text but use an invalid parameter name.")]

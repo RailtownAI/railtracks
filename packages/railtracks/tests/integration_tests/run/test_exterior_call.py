@@ -75,13 +75,13 @@ async def logging_config_test_async():
         assert 0 < resp < 1, "Expected a float result from RNGNode"
         assert info.answer == resp, "Expected the answer to be the same as the response"
 
-    for config in ["VERBOSE", "QUIET", "REGULAR", "NONE"]:
+    for config in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "NONE"]:
         await run_with_logging_config(config)
         await run_with_logging_config_w_context(config)
         # await run_with_logging_config_w_context_w_call(config)
 
     # do it in parallel here,
-    options = ["VERBOSE", "QUIET", "REGULAR", "NONE"]
+    options = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "NONE"]
     contracts = [run_with_logging_config(config) for config in options]
     await asyncio.gather(*contracts)
 
@@ -117,7 +117,7 @@ def logging_config_test_threads():
     
     with concurrent.futures.ThreadPoolExecutor() as executor:
         executor.map(
-            run_with_logging_config, ["VERBOSE", "QUIET", "REGULAR", "NONE"]
+            run_with_logging_config, ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "NONE"]
         )
 
 
@@ -147,14 +147,14 @@ async def test_sequence_of_changes_overwrite():
 
 
 def test_back_to_defaults():
-    rt.set_config(end_on_error=True, logging_setting="REGULAR")
+    rt.set_config(end_on_error=True, logging_setting="INFO")
     with rt.Session(end_on_error=True, logging_setting="NONE") as run:
         assert run.rt_state.executor_config.end_on_error
         assert run.rt_state.executor_config.logging_setting == "NONE"
 
     with rt.Session() as run:
         assert run.rt_state.executor_config.end_on_error
-        assert run.rt_state.executor_config.logging_setting == "REGULAR"
+        assert run.rt_state.executor_config.logging_setting == "INFO"
 
 
 message = "Hello, World!"
