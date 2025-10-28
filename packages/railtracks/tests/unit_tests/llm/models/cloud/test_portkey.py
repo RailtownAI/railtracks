@@ -1,4 +1,5 @@
 import os
+from unittest.mock import patch
 import pytest
 from railtracks.llm.models.cloud import PortKeyLLM  # adjust path if needed
 from railtracks.llm.providers import ModelProvider
@@ -24,19 +25,19 @@ def test_model_type():
 def test_init_success_with_env_api_key():
     """Test successful initialization when api_key is taken from environment"""
     example_key = "hello world"
-    os.environ["PORTKEY_API_KEY"] = example_key
+   
+    with patch.dict(os.environ, {"PORTKEY_API_KEY": example_key}, clear=True):
 
+        llm = PortKeyLLM(model_name=MODEL_NAME)
 
-    llm = PortKeyLLM(model_name=MODEL_NAME)
-
-    assert llm.api_key == example_key
+        assert llm.api_key == example_key
 
 
 
 def test_init_missing_api_key():
     """Test KeyError is raised when no API key is provided and env var is missing"""
 
-    
-    with pytest.raises(KeyError, match="Please set your PORTKEY_API_KEY"):
-        PortKeyLLM(model_name=MODEL_NAME)
+    with patch.dict(os.environ, {}, clear=True):
+        with pytest.raises(KeyError, match="Please set your PORTKEY_API_KEY"):
+            PortKeyLLM(model_name=MODEL_NAME)
         
