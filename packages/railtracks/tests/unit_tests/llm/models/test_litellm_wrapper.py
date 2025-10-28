@@ -1,13 +1,11 @@
 from typing import Generator
 import pytest
-import types
 from railtracks.llm.models._litellm_wrapper import (
     _parameters_to_json_schema,
     _to_litellm_tool,
-    _to_litellm_message,
 )
 from railtracks.exceptions import NodeInvocationError, LLMError
-from railtracks.llm import AssistantMessage
+from railtracks.llm import AssistantMessage, UserMessage
 from pydantic import BaseModel
 from railtracks.llm.response import Response
 from json import JSONDecodeError
@@ -62,42 +60,73 @@ class TestHelpers:
     # =================================== END _to_litellm_tool Tests ====================================
 
     # =================================== START _to_litellm_message Tests ==================================
-    def test_to_litellm_message_user_message(self, user_message):
+    def test_to_litellm_message_user_message(self, mock_litellm_wrapper, user_message):
         """
         Test _to_litellm_message with a UserMessage instance.
         """
-        litellm_message = _to_litellm_message(user_message)
+        wrapper = mock_litellm_wrapper()
+        litellm_message = wrapper._to_litellm_message(user_message)
         assert litellm_message["role"] == "user"
         assert litellm_message["content"] == "This is a user message."
 
-    def test_to_litellm_message_assistant_message(self, assistant_message):
+    def test_to_litellm_message_assistant_message(self, mock_litellm_wrapper, assistant_message):
         """
         Test _to_litellm_message with an AssistantMessage instance.
         """
-        litellm_message = _to_litellm_message(assistant_message)
+        wrapper = mock_litellm_wrapper()
+        litellm_message = wrapper._to_litellm_message(assistant_message)
         assert litellm_message["role"] == "assistant"
         assert litellm_message["content"] == "This is an assistant message."
 
-    def test_to_litellm_message_tool_message(self, tool_message):
+    def test_to_litellm_message_tool_message(self, mock_litellm_wrapper, tool_message):
         """
         Test _to_litellm_message with a ToolMessage instance.
         """
-        litellm_message = _to_litellm_message(tool_message)
+        wrapper = mock_litellm_wrapper()
+        litellm_message = wrapper._to_litellm_message(tool_message)
         assert litellm_message["role"] == "tool"
         assert litellm_message["name"] == "example_tool"
         assert litellm_message["tool_call_id"] == "123"
         assert litellm_message["content"] == "success"
 
-    def test_to_litellm_message_tool_call_list(self, tool_call):
+    def test_to_litellm_message_tool_call_list(self, mock_litellm_wrapper, tool_call):
         """
         Test _to_litellm_message with a list of ToolCall instances.
         """
         tool_calls = [tool_call]
         message = AssistantMessage(content=tool_calls)
-        litellm_message = _to_litellm_message(message)
+        wrapper = mock_litellm_wrapper()
+        litellm_message = wrapper._to_litellm_message(message)
         assert litellm_message["role"] == "assistant"
         assert len(litellm_message["tool_calls"]) == 1
         assert litellm_message["tool_calls"][0].function.name == "example_tool"
+
+    def test_to_litellm_message_user_message_with_attachments(
+        self,
+        mock_litellm_wrapper,
+    ):
+        """
+        Test _to_litellm_message handles multimodal user messages with attachments.
+        """
+        wrapper = mock_litellm_wrapper()
+        attachment_data_uri = "data:image/png;base64,iVBORw0KGgo="
+        message = UserMessage(
+            content="View this image.",
+            attachment=[attachment_data_uri],
+        )
+
+        litellm_message = wrapper._to_litellm_message(message)
+
+        assert litellm_message["role"] == "user"
+        assert isinstance(litellm_message["content"], list)
+        assert litellm_message["content"][0] == {
+            "type": "text",
+            "text": "View this image.",
+        }
+        assert litellm_message["content"][1] == {
+            "type": "image_url",
+            "image_url": {"url": attachment_data_uri},
+        }
 
     # =================================== END _to_litellm_message Tests ====================================
 

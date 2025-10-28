@@ -1,0 +1,1 @@
+We currently do not support audio input to the agents. If you'd like to see this feature added, make a feature request on our [GitHub](https://github.com/RailtownAI/railtracks) and we will incorporate it into our planning.
