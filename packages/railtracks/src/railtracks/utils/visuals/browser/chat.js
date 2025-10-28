@@ -30,6 +30,8 @@ function switchTab(tabName) {
     // Show selected tab content
     if (tabName === 'chat') {
         document.getElementById('chatTab').classList.add('active');
+    } else if (tabName === 'attachments') {
+        document.getElementById('attachmentsTab').classList.add('active');
     } else if (tabName === 'tools') {
         document.getElementById('toolsTab').classList.add('active');
     }
@@ -193,9 +195,11 @@ function setProcessing(processing) {
     isProcessing = processing;
     const sendButton = document.getElementById('sendButton');
     const messageInput = document.getElementById('messageInput');
+    const uploadButton = document.getElementById('uploadButton');
     
     sendButton.disabled = processing;
     messageInput.disabled = processing;
+    uploadButton.disabled = processing;
     
     if (processing) {
         sendButton.textContent = 'Processing...';
@@ -211,10 +215,23 @@ async function sendMessage() {
     const message = messageInput.value.trim();
     const endButton = document.getElementById('endSessionButton');
 
-    if (!message || isProcessing) return;
+    // Only send unsent attachments
+    const unsentAttachments = attachments.filter(att => !att.sent);
+    
+    if ((!message && unsentAttachments.length === 0) || isProcessing) return;
+    
+    // Prepare message display with attachments info
+    let displayMessage = message;
+    if (unsentAttachments.length > 0) {
+        const attachmentList = unsentAttachments.map(att => {
+            const icon = getAttachmentIcon(att);
+            return `${icon} ${att.name}`;
+        }).join(', ');
+        displayMessage = message + (message ? '\n\n' : '') + `📎 Attachments: ${attachmentList}`;
+    }
     
     // Add user message to chat
-    addMessage('user', message, new Date().toLocaleTimeString());
+    addMessage('user', displayMessage, new Date().toLocaleTimeString());
     messageInput.value = '';
     
     // Reset textarea height to original size
@@ -224,6 +241,27 @@ async function sendMessage() {
     endButton.disabled=true;
     
     try {
+        // Prepare attachments data for sending (only unsent attachments)
+        const attachmentsData = await Promise.all(unsentAttachments.map(async (att) => {
+            if (att.type === 'file') {
+                // For files, we'll send as base64
+                const base64 = await fileToBase64(att.data);
+                return {
+                    type: 'file',
+                    name: att.name,
+                    data: base64,
+                    mimeType: att.mimeType,
+                    size: att.size
+                };
+            } else {
+                // For URLs, just send the URL
+                return {
+                    type: 'url',
+                    url: att.data
+                };
+            }
+        }));
+        
         const response = await fetch('/send_message', {
             method: 'POST',
             headers: {
@@ -231,7 +269,8 @@ async function sendMessage() {
             },
             body: JSON.stringify({
                 message: message,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                attachments: attachmentsData
             })
         });
         
@@ -243,12 +282,30 @@ async function sendMessage() {
         
         console.log('Message sent successfully:', result);
         
+        // Mark unsent attachments as sent
+        attachments.forEach(att => {
+            if (!att.sent) {
+                att.sent = true;
+            }
+        });
+        updateAttachmentsDisplay();
+        
     } catch (error) {
         console.error('Error sending message:', error);
         addMessage('system', `<i class="fa-solid fa-circle-xmark" style="color:red;"></i> Error: ${error.message}`, new Date().toLocaleTimeString());
         setProcessing(false);
         endButton.disabled = false;
     }
+}
+
+// Helper function to convert file to base64
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
 }
 
 async function endSession(event) {
@@ -405,5 +462,190 @@ document.addEventListener('DOMContentLoaded', function() {
 window.addEventListener('beforeunload', function() {
     if (eventSource) {
         eventSource.close();
+    }
+});
+
+// Upload functionality
+let attachments = []; // Array to store attachments {type: 'file'|'url', name: string, data: File|string, sent: boolean}
+
+function toggleUploadModal() {
+    const modal = document.getElementById('uploadModal');
+    const urlInput = document.getElementById('urlInput');
+    
+    if (modal.style.display === 'none' || modal.style.display === '') {
+        modal.style.display = 'flex';
+        urlInput.value = ''; // Clear URL input when opening
+    } else {
+        modal.style.display = 'none';
+    }
+}
+
+function handleFileSelect(event) {
+    const files = event.target.files;
+    
+    for (let file of files) {
+        attachments.push({
+            type: 'file',
+            name: file.name,
+            data: file,
+            size: file.size,
+            mimeType: file.type,
+            sent: false
+        });
+    }
+    
+    updateAttachmentsDisplay();
+    toggleUploadModal();
+    
+    // Reset file input so same file can be selected again
+    event.target.value = '';
+}
+
+function handleUrlSubmit() {
+    const urlInput = document.getElementById('urlInput');
+    const url = urlInput.value.trim();
+    
+    if (!url) return;
+    
+    // Basic URL validation
+    try {
+        new URL(url);
+        
+        attachments.push({
+            type: 'url',
+            name: url,
+            data: url,
+            sent: false
+        });
+        
+        updateAttachmentsDisplay();
+        toggleUploadModal();
+    } catch (e) {
+        alert('Please enter a valid URL');
+    }
+}
+
+function handleUrlKeyPress(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        handleUrlSubmit();
+    }
+}
+
+function removeAttachment(index) {
+    attachments.splice(index, 1);
+    updateAttachmentsDisplay();
+}
+
+function updateAttachmentsDisplay() {
+    const attachmentsList = document.getElementById('attachmentsList');
+    const attachmentsTabButton = document.getElementById('attachmentsTabButton');
+    
+    // Always show the Attachments tab if there are any attachments (sent or unsent)
+    if (attachments.length === 0) {
+        attachmentsTabButton.style.display = 'none';
+        attachmentsList.innerHTML = '<div class="no-tools-message">No attachments yet.</div>';
+        return;
+    }
+    
+    attachmentsTabButton.style.display = 'block';
+    
+    const attachmentsHTML = attachments.map((attachment, index) => {
+        let icon = 'fa-file';
+        let statusIcon = attachment.sent 
+            ? '<i class="fa-solid fa-circle-check" style="color: #00ff88;"></i>' 
+            : '<i class="fa-solid fa-clock" style="color: #ffd700;"></i>';
+        
+        if (attachment.type === 'url') {
+            icon = 'fa-link';
+        } else if (attachment.mimeType) {
+            if (attachment.mimeType.startsWith('image/')) icon = 'fa-image';
+            else if (attachment.mimeType.startsWith('video/')) icon = 'fa-video';
+            else if (attachment.mimeType.startsWith('audio/')) icon = 'fa-file-audio';
+            else if (attachment.mimeType === 'application/pdf') icon = 'fa-file-pdf';
+        }
+        
+        const removeButton = attachment.sent 
+            ? `<button class="remove-attachment-button" disabled title="Already sent">
+                   <i class="fa-solid fa-check"></i> Sent
+               </button>`
+            : `<button class="remove-attachment-button" onclick="removeAttachment(${index})" title="Remove attachment">
+                   <i class="fa-solid fa-trash"></i> Remove
+               </button>`;
+        
+        return `
+            <div class="tool-item ${attachment.sent ? 'success' : ''}">
+                <div class="attachment-header">
+                    <div class="tool-header-left">
+                        <span class="tool-name">${statusIcon} <i class="fa-solid ${icon}"></i> ${attachment.name}</span>
+                        ${attachment.type === 'file' ? `<span class="tool-id">${formatFileSize(attachment.size)}</span>` : '<span class="tool-id">URL</span>'}
+                    </div>
+                    ${removeButton}
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    attachmentsList.innerHTML = attachmentsHTML;
+}
+
+function toggleAttachmentDetails(index) {
+    const details = document.getElementById(`attachment-details-${index}`);
+    const toggle = document.getElementById(`attachment-toggle-${index}`);
+    
+    if (details.classList.contains('collapsed')) {
+        // Expand
+        details.classList.remove('collapsed');
+        details.classList.add('expanded');
+        toggle.classList.remove('collapsed');
+        toggle.classList.add('expanded');
+        toggle.textContent = 'Hide Details';
+    } else {
+        // Collapse
+        details.classList.remove('expanded');
+        details.classList.add('collapsed');
+        toggle.classList.remove('expanded');
+        toggle.classList.add('collapsed');
+        toggle.textContent = 'Show Details';
+    }
+}
+
+function clearAttachments() {
+    attachments = [];
+    updateAttachmentsDisplay();
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+function getAttachmentIcon(attachment) {
+    if (attachment.type === 'url') {
+        return '🔗';
+    }
+    
+    if (attachment.mimeType) {
+        if (attachment.mimeType.startsWith('image/')) return '🖼️';
+        if (attachment.mimeType.startsWith('video/')) return '🎥';
+        if (attachment.mimeType.startsWith('audio/')) return '🎵';
+        if (attachment.mimeType === 'application/pdf') return '📄';
+    }
+    
+    return '📎';
+}
+
+// Close modal when clicking outside
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('uploadModal');
+    const uploadButton = document.getElementById('uploadButton');
+    
+    if (modal && modal.style.display === 'flex') {
+        if (event.target === modal) {
+            toggleUploadModal();
+        }
     }
 });
