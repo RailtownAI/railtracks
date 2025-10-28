@@ -1,5 +1,5 @@
 import railtracks as rt
-from railtracks.llm.message import Message
+from railtracks.llm.message import Message, Role
 
 
 def test_message_history_str(message_history):
@@ -7,8 +7,8 @@ def test_message_history_str(message_history):
     Test the __str__ method of MessageHistory.
     """
     # Add mock messages to the history
-    message1 = Message(role="user", content="Hello")
-    message2 = Message(role="assistant", content="Hi there!")
+    message1 = Message(role=Role.user, content="Hello")
+    message2 = Message(role=Role.assistant, content="Hi there!")
     message_history.extend([message1, message2])
 
     # Check the string representation

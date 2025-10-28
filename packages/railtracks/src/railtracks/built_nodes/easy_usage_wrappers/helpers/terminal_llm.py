@@ -39,7 +39,7 @@ def terminal_llm(
         Type[LastMessageTerminalLLM]: The dynamically generated node class with the specified configuration.
     """
     builder = NodeBuilder(
-        StreamingTerminalLLM if llm is not None and llm._stream else TerminalLLM,
+        StreamingTerminalLLM if llm is not None and llm.stream else TerminalLLM,
         name=name,
         class_name="EasyLastMessageTerminalLLM",
         return_into=return_into,

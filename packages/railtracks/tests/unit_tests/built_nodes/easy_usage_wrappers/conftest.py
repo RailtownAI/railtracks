@@ -17,9 +17,9 @@ def mock_schema():
 
 @pytest.fixture
 def mock_function():
-        def f(x : int) -> int:
-            return x
-        return f
+    def f(x : int) -> int:
+        return x
+    return f
 
 @pytest.fixture
 def mock_sys_mes():

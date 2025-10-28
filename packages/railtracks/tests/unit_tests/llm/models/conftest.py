@@ -125,9 +125,25 @@ class MockLogger(logging.Logger):
     def log(self, level, msg, *args, **kwargs):
         print(msg)
 
+    @property
+    def completion_start_time(self):
+        return None
+    
+    def _update_completion_start_time(self, completion_start_time):
+        pass
+
+    @property
+    def _llm_caching_handler(self):
+        return None
+    
+    def success_handler(self, *args, **kwargs):
+        pass
+
+
 
 class MockDelta(BaseModel):
     content: str | None
+    function_call: list | None = None
     tool_calls: list | None
 
 
@@ -139,6 +155,7 @@ class MockChoice(BaseModel):
 class ChatCompletionChunk(BaseModel):
     id: str
     choices: list[MockChoice]
+    system_fingerprint: None = None
 
 
 class MockLiteLLMWrapper(LiteLLMWrapper):
@@ -151,11 +168,10 @@ class MockLiteLLMWrapper(LiteLLMWrapper):
     ):
         self.content = content or "mock response"
         self.tool_calls = tool_calls
-        self.stream = stream
-        super().__init__(model_name=model_name or "mock-model")
+        super().__init__(model_name=model_name or "mock-model", stream=stream)
 
     @classmethod
-    def model_type(cls) -> str:
+    def model_type(cls):
         return "mock"
 
     def _invoke_content(self):

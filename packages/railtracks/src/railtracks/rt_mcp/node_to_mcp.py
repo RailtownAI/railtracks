@@ -76,7 +76,7 @@ def _create_tool_function(
         args_doc.append(f"    {param_name}: {param_desc}")
 
     async def tool_function(**kwargs):
-        return await call(node_cls.prepare_tool, kwargs)
+        return await call(node_cls.prepare_tool, **kwargs)
 
     tool_function.__signature__ = inspect.Signature(params)
     return tool_function

@@ -20,6 +20,7 @@ from typing import (
 from pydantic import BaseModel
 
 from .history import MessageHistory
+from .providers import ModelProvider
 from .response import Response
 from .tools import Tool
 
@@ -43,7 +44,7 @@ class ModelBase(ABC, Generic[_TStream]):
         | None = None,
         __exception_hooks: List[Callable[[MessageHistory, Exception], None]]
         | None = None,
-        _stream: _TStream = False,
+        stream: _TStream = False,
     ):
         if __pre_hooks is None:
             pre_hooks: List[Callable[[MessageHistory], MessageHistory]] = []
@@ -63,7 +64,7 @@ class ModelBase(ABC, Generic[_TStream]):
         self._pre_hooks = pre_hooks
         self._post_hooks = post_hooks
         self._exception_hooks = exception_hooks
-        self._stream = _stream
+        self.stream = stream
 
     def add_pre_hook(self, hook: Callable[[MessageHistory], MessageHistory]) -> None:
         """Adds a pre-hook to modify messages before sending them to the model."""
@@ -104,7 +105,7 @@ class ModelBase(ABC, Generic[_TStream]):
 
     @classmethod
     @abstractmethod
-    def model_type(cls) -> str:
+    def model_type(cls) -> ModelProvider:
         """The name of the provider of this model or the model type."""
         pass
 

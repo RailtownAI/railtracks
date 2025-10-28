@@ -2,7 +2,7 @@ import asyncio
 import threading
 from contextlib import AsyncExitStack
 from datetime import timedelta
-from typing import Any, Dict
+from typing import Any
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.sse import sse_client
@@ -237,8 +237,8 @@ def from_mcp(
             return Tool.from_mcp(tool)
 
         @classmethod
-        def prepare_tool(cls, tool_parameters: Dict[str, Any]) -> Self:
-            return cls(**tool_parameters)
+        def prepare_tool(cls, **kwargs) -> Self:
+            return cls(**kwargs)
 
         @classmethod
         def type(cls):

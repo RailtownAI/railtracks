@@ -40,7 +40,6 @@ theme:
 
 plugins:
   - search
-  - mermaid2
 
 markdown_extensions:
   - pymdownx.emoji:
@@ -102,11 +101,14 @@ nav:
           - Shell Bash: tools_mcp/guides/shell_bash.md
           - Slack: tools_mcp/guides/slack.md
           - Web Search: tools_mcp/guides/websearch_integration.md
+
       - RAG: tools_mcp/RAG.md
+
   - Human in the Loop:
       - Overview: human_in_the_loop/overview.md
       - Local Chat UI: human_in_the_loop/local_chat_ui.md
       - Human in the Loop: human_in_the_loop/hil.md
+
   - Observability:
       - Visualization: observability/visualization.md
       - Logging: observability/logging.md
@@ -116,6 +118,11 @@ nav:
   - LLM Support:
       - Supported Providers: llm_support/providers.md
       - Prompts and Context Injection: llm_support/prompts.md
+
+      - Multimodal:
+          - Overview: llm_support/multimodal/overview.md
+          - Vision: llm_support/multimodal/vision.md
+
       - Streaming: llm_support/streaming.md
       
   # - Deployments:
