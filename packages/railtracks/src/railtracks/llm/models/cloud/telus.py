@@ -8,7 +8,7 @@ from ..api_providers._openai_compatable_provider_wrapper import OpenAICompatible
 _TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
 class TelusLLM(OpenAICompatibleProvider[_TStream]):
-    def __init__(self, model_name: str, stream: _TStream, api_base: str, api_key: str | None = None):
+    def __init__(self, model_name: str, *, stream: _TStream = False, api_base: str, api_key: str | None = None):
         # we need to map the telus API key to the OpenAI API key
         if api_key is None:
             try:

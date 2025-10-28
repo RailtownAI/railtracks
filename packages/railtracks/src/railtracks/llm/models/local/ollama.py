@@ -111,3 +111,6 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
     @classmethod
     def model_distrubutor(cls):
         return ModelProvider.OLLAMA
+    
+    def model_type(self) -> ModelProvider:
+        return super().model_type()
