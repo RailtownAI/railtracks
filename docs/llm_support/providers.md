@@ -8,7 +8,7 @@ We currently support connecting to different available LLMs through the followin
 - **Azure AI Foundry** - Azure-hosted models
 - **Ollama** - Local and self-hosted models
 - **HuggingFace** - HuggingFace Serverless Inference models
-- **PortKey** - Use your portkey to connect to any of their supported models
+- **Portkey** - Use your portkey to connect to any of their supported models
 
 This allows you to use the same codebase to interact with different LLMs, making it easy to switch providers or use multiple providers in parallel, completely abstracting the underlying API differences.
 
