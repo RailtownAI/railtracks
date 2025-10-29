@@ -51,11 +51,13 @@ async def _chat_ui_interactive(
         if message is None:
             continue  # could be `break` but I want to ensure chat_ui.is_connected is updated properly
         
-        # attachments = [attachment.url for attachment in message.attachments] if message.attachments else None
         attachments = []
-        print(message)
         if message.attachments:
-            attachments = [attachment.url for attachment in message.attachments]
+            for attachment in  message.attachments:
+                if attachment.type=='file':
+                    attachments.append(attachment.data)
+                elif attachment.type=='url':
+                    attachments.append(attachment.url)
 
         msg_history.append(UserMessage(content=message.content, attachment=attachments))
 

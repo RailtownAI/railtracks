@@ -519,7 +519,6 @@ function handleFileSelect(event) {
     }
     
     updateAttachmentsDisplay();
-    toggleUploadModal();
     
     // Reset file input so same file can be selected again
     event.target.value = '';
@@ -543,7 +542,6 @@ function handleUrlSubmit() {
         });
         
         updateAttachmentsDisplay();
-        toggleUploadModal();
     } catch (e) {
         alert('Please enter a valid URL');
     }

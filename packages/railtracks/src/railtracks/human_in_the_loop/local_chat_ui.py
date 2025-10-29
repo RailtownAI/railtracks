@@ -21,17 +21,25 @@ logger = get_rt_logger("ChatUI")
 
 class UserMessageAttachment(BaseModel):
     type: str  # "file" or "url"
-    url: str # file url or link url
-    name: Optional[str] = None
-    data: Optional[str] = None
-    mimeType: Optional[str] = None
-    size: Optional[int] = None
+    url: Optional[str] = None  # for URL type
+    data: Optional[str] = None  # for file type (base64)
+
+    def __init__(
+        self,
+        type: str,
+        url: Optional[str] = None,
+        data: Optional[str] = None,
+    ):
+        if url is None and data is None:
+            raise ValueError("Either 'url' or 'data' must be provided.")
+        super().__init__(type=type, url=url, data=data)  
+
 
 class UIUserMessage(HILMessage):
-    message: str
+    content: str
     attachments: Optional[list[UserMessageAttachment]] = None
     timestamp: Optional[str] = None
-
+    metadata: Optional[dict] = None
 
 class ToolInvocation(BaseModel):
     name: str
@@ -108,11 +116,6 @@ class ChatUI(HIL):
         @app.post("/send_message")
         async def send_message(user_message: UIUserMessage):
             """Receive user input from chat interface"""
-            print(f"Received message: content='{user_message.content}'")
-            print(f"Attachments: {user_message.attachments}")
-            if user_message.attachments:
-                for i, att in enumerate(user_message.attachments):
-                    print(f"  Attachment {i}: type={att.type}, url={att.url}")
             await self.user_input_queue.put(user_message)
 
             return {"status": "success", "message": "Message received"}
