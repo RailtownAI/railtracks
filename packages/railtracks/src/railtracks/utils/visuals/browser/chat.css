@@ -418,6 +418,14 @@ body {
     border-top: 1px solid #4a5568;
 }
 
+.status-bar-icon {
+    margin-right: 6px;
+}
+
+.status-bar-text {
+    display: inline;
+}
+
 .status.processing {
     color: #ffd700;
 }
@@ -954,4 +962,87 @@ body {
     cursor: not-allowed;
     opacity: 0.6;
     transform: none;
+}
+
+/* Connection status icons */
+.status-icon-connected {
+    color: green;
+}
+
+.status-icon-disconnected {
+    color: red;
+}
+
+/* Tool and attachment status icons */
+.status-icon-success {
+    color: green;
+}
+
+.status-icon-error {
+    color: red;
+}
+
+.status-icon-sent {
+    color: #00ff88;
+}
+
+.status-icon-pending {
+    color: #ffd700;
+}
+
+/* Message row layout */
+.message-row {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+}
+
+/* Utility classes for visibility */
+.hidden {
+    display: none !important;
+}
+
+.visible {
+    display: block;
+}
+
+/* Templates should be hidden */
+template {
+    display: none;
+}
+
+/* Avatar styles */
+.avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.avatar-assistant {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #00cc69 100%);
+    color: #1a202c;
+    font-size: 16px;
+}
+
+/* Message content wrapper */
+.message-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.message-text {
+    word-wrap: break-word;
+}
+
+/* Upload modal visibility states */
+.upload-modal.modal-visible {
+    display: flex;
+}
+
+.upload-modal.modal-hidden {
+    display: none;
 }

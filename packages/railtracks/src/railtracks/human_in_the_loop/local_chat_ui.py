@@ -156,7 +156,7 @@ class ChatUI(HIL):
                         }
                         yield f"data: {json.dumps(heartbeat)}\n\n"
                     except asyncio.CancelledError:
-                        logger.info("SSE event generator cancelled, this is expected.")
+                        logger.debug("SSE event generator cancelled, this is expected.")
                         break
 
             return StreamingResponse(

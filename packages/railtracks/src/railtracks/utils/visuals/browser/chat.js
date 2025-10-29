@@ -80,56 +80,93 @@ function initializeSSE() {
 
 function updateConnectionStatus(connected) {
     const status = document.getElementById('connectionStatus');
+    const template = document.getElementById('connectionStatusTemplate');
+    const statusElement = template.content.cloneNode(true);
+    
+    const icon = statusElement.querySelector('.connection-status-icon');
+    const text = statusElement.querySelector('.connection-status-text');
+    
     if (connected) {
-        status.innerHTML = '<i class="fa-solid fa-circle" style="color:green;"></i> Connected';
+        icon.className = 'fa-solid fa-circle status-icon-connected';
+        text.textContent = 'Connected';
         status.className = 'connection-status connected';
     } else {
-        status.innerHTML = '<i class="fa-solid fa-circle" style="color:red;"></i> Disconnected';
+        icon.className = 'fa-solid fa-circle status-icon-disconnected';
+        text.textContent = 'Disconnected';
         status.className = 'connection-status disconnected';
     }
+    
+    status.innerHTML = '';
+    status.appendChild(statusElement);
+}
+
+function updateStatusBar(iconClass, text) {
+    const statusBar = document.getElementById('statusBar');
+    
+    if (!iconClass && !text) {
+        // Clear status bar
+        statusBar.innerHTML = '';
+        statusBar.className = 'status';
+        return;
+    }
+    
+    const template = document.getElementById('statusBarTemplate');
+    const statusElement = template.content.cloneNode(true);
+    
+    const icon = statusElement.querySelector('.status-bar-icon');
+    const textElement = statusElement.querySelector('.status-bar-text');
+    
+    if (iconClass) {
+        icon.className = `status-bar-icon ${iconClass}`;
+    } else {
+        icon.remove();
+    }
+    
+    textElement.textContent = text;
+    
+    statusBar.innerHTML = '';
+    statusBar.appendChild(statusElement);
+    statusBar.className = 'status processing';
 }
 
 function handleSSEMessage(data) {
     console.log('SSE Message:', data.type);
     const messagesContainer = document.getElementById('chatMessages');
-    const statusBar = document.getElementById('statusBar');
     const endButton = document.getElementById('endSessionButton');
     
     switch(data.type) {
         case 'background_update':
             // Just update the status bar, don't add chat messages
-            statusBar.innerHTML = `<div class="status-inner"><span class="code-accent">Background:</span> ${data.data}</div>`;
-            statusBar.className = 'status';
+            updateStatusBar('', `Background: ${data.data}`);
             break;
             
         case 'message_received':
             // Just update status bar, don't add chat message
-            statusBar.innerHTML = '<div class="status-inner"><i class="fa-solid fa-robot"></i> <span class="code-accent">Assistant is processing...</span></div>';
-            statusBar.className = 'status processing';
+            updateStatusBar('fa-solid fa-robot', 'Assistant is processing...');
             break;
             
         case 'assistant_thinking':
             // Update status bar instead of adding chat message
-            statusBar.innerHTML = `<div class="status-inner"><i class="fa-solid fa-robot"></i> <span class="code-accent">${data.data}</span></div>`;
-            statusBar.className = 'status processing';
+            updateStatusBar('fa-solid fa-robot', data.data);
             break;
             
         case 'assistant_progress':
             // Update status bar instead of adding chat message
-            statusBar.innerHTML = `<div class="status-inner"><i class="fa-solid fa-rotate"></i> <span class="code-accent">${data.data}</span></div>`;
-            statusBar.className = 'status processing';
+            updateStatusBar('fa-solid fa-rotate', data.data);
             break;
             
         case 'assistant_response':
             addMessage('assistant', data.data, data.timestamp);
             setProcessing(false);
             endButton.disabled = false;
-            statusBar.innerHTML = '';
-            statusBar.className = 'status';
+            updateStatusBar();
             break;
             
         case 'error':
-            addMessage('system', `<i class="fa-solid fa-circle-xmark" style="color:red;"></i> ${data.data}`, data.timestamp);
+            const errorIcon = document.createElement('i');
+            errorIcon.className = 'fa-solid fa-circle-xmark status-icon-error';
+            const errorMessage = `${errorIcon.outerHTML} ${data.data}`;
+            addMessage('system', errorMessage, data.timestamp);
             setProcessing(false);
             endButton.disabled = false;
             break;
@@ -149,14 +186,15 @@ function handleSSEMessage(data) {
 
 function addMessage(type, content, timestamp) {
     const messagesContainer = document.getElementById('chatMessages');
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${type}`;
-
-    let avatarHtml = '';
-    if (type === 'assistant') {
-        avatarHtml = '<span class="avatar avatar-assistant"><i class="fa-solid fa-robot"></i></span>';
-    }
-
+    const template = document.getElementById('messageTemplate');
+    const messageElement = template.content.cloneNode(true);
+    
+    const messageDiv = messageElement.querySelector('.message');
+    messageDiv.classList.add(type);
+    
+    const messageText = messageElement.querySelector('.message-text');
+    const timestampElement = messageElement.querySelector('.timestamp');
+    
     // Parse markdown for assistant messages using marked.js, keep plain text for user/system messages
     let processedContent;
     if (type === 'assistant' && typeof marked !== 'undefined') {
@@ -169,18 +207,11 @@ function addMessage(type, content, timestamp) {
     } else {
         processedContent = content.replace(/\n/g, '<br>');
     }
-
-    messageDiv.innerHTML = `
-        <div class="message-row" style="display: flex; gap: 10px; align-items: baseline;">
-            ${avatarHtml}
-            <div class="message-content">
-                <div>${processedContent}</div>
-                <div class="timestamp">${timestamp || new Date().toLocaleTimeString()}</div>
-            </div>
-        </div>
-    `;
     
-    messagesContainer.appendChild(messageDiv);
+    messageText.innerHTML = processedContent;
+    timestampElement.textContent = timestamp || new Date().toLocaleTimeString();
+    
+    messagesContainer.appendChild(messageElement);
     
     // Auto-scroll to bottom with smooth behavior
     setTimeout(() => {
@@ -316,7 +347,9 @@ async function sendMessage() {
         
     } catch (error) {
         console.error('Error sending message:', error);
-        addMessage('system', `<i class="fa-solid fa-circle-xmark" style="color:red;"></i> Error: ${error.message}`, new Date().toLocaleTimeString());
+        const errorIcon = document.createElement('i');
+        errorIcon.className = 'fa-solid fa-circle-xmark status-icon-error';
+        addMessage('system', `${errorIcon.outerHTML} Error: ${error.message}`, new Date().toLocaleTimeString());
         setProcessing(false);
         endButton.disabled = false;
     }
@@ -365,11 +398,15 @@ async function endSession(event) {
         }
         
         console.log('Shutdown triggered successfully:', result);
-        addMessage('system', '<i class="fa-solid fa-circle-check" style="color: green;"></i> Server shutting down', new Date().toLocaleTimeString());
+        const successIcon = document.createElement('i');
+        successIcon.className = 'fa-solid fa-circle-check status-icon-success';
+        addMessage('system', `${successIcon.outerHTML} Server shutting down`, new Date().toLocaleTimeString());
         
     } catch (error) {
         console.error('Error shutting down:', error);
-        addMessage('system', `<i class="fa-solid fa-circle-xmark" style="color:red;"></i> Error shutting down: ${error.message}`, new Date().toLocaleTimeString());
+        const errorIcon = document.createElement('i');
+        errorIcon.className = 'fa-solid fa-circle-xmark status-icon-error';
+        addMessage('system', `${errorIcon.outerHTML} Error shutting down: ${error.message}`, new Date().toLocaleTimeString());
         
         // Re-enable UI elements on error
         endButton.disabled = false;
@@ -415,34 +452,46 @@ function updateToolsDisplay() {
         return;
     }
     
-    const toolsHTML = toolsData.map((tool, index) => {
-        const statusClass = tool.success ? 'success' : 'error';
-        const statusIcon = tool.success ? '<i class="fa-solid fa-circle-check" style="color: green;"></i>' : '<i class="fa-solid fa-circle-xmark" style="color:red;"></i>';
-        
-        return `
-            <div class="tool-item ${statusClass}">
-                <div class="tool-header" onclick="toggleToolDetails(${index})">
-                    <div class="tool-header-left">
-                        <span class="tool-name">${statusIcon} ${tool.name}</span>
-                        <span class="tool-id">#${tool.identifier}</span>
-                    </div>
-                    <button class="toggle-button collapsed" id="toggle-${index}">Show Details</button>
-                </div>
-                <div class="tool-details collapsed" id="details-${index}">
-                    <div class="tool-section">
-                        <strong>Arguments:</strong>
-                        <pre class="tool-args">${JSON.stringify(tool.arguments, null, 2)}</pre>
-                    </div>
-                    <div class="tool-section">
-                        <strong>Result:</strong>
-                        <pre class="tool-result">${tool.result}</pre>
-                    </div>
-                </div>
-            </div>
-        `;
-    }).join('');
+    toolsList.innerHTML = '';
+    const template = document.getElementById('toolItemTemplate');
     
-    toolsList.innerHTML = toolsHTML;
+    toolsData.forEach((tool, index) => {
+        const toolElement = template.content.cloneNode(true);
+        const toolItem = toolElement.querySelector('.tool-item');
+        const statusIcon = toolElement.querySelector('.tool-status-icon');
+        const toolNameText = toolElement.querySelector('.tool-name-text');
+        const toolId = toolElement.querySelector('.tool-id');
+        const toggleButton = toolElement.querySelector('.toggle-button');
+        const details = toolElement.querySelector('.tool-details');
+        const argsElement = toolElement.querySelector('.tool-args');
+        const resultElement = toolElement.querySelector('.tool-result');
+        
+        // Apply status class and icon
+        const statusClass = tool.success ? 'success' : 'error';
+        toolItem.classList.add(statusClass);
+        
+        if (tool.success) {
+            statusIcon.className = 'fa-solid fa-circle-check status-icon-success';
+        } else {
+            statusIcon.className = 'fa-solid fa-circle-xmark status-icon-error';
+        }
+        
+        // Set content
+        toolNameText.textContent = tool.name;
+        toolId.textContent = `#${tool.identifier}`;
+        argsElement.textContent = JSON.stringify(tool.arguments, null, 2);
+        resultElement.textContent = tool.result;
+        
+        // Set unique IDs for toggle functionality
+        toggleButton.id = `toggle-${index}`;
+        details.id = `details-${index}`;
+        
+        // Add click handler to header
+        const header = toolElement.querySelector('.tool-header');
+        header.onclick = () => toggleToolDetails(index);
+        
+        toolsList.appendChild(toolElement);
+    });
 }
 
 function toggleToolDetails(index) {
@@ -496,11 +545,13 @@ function toggleUploadModal() {
     const modal = document.getElementById('uploadModal');
     const urlInput = document.getElementById('urlInput');
     
-    if (modal.style.display === 'none' || modal.style.display === '') {
-        modal.style.display = 'flex';
+    if (modal.classList.contains('modal-hidden') || (!modal.classList.contains('modal-visible') && !modal.classList.contains('modal-hidden'))) {
+        modal.classList.remove('modal-hidden');
+        modal.classList.add('modal-visible');
         urlInput.value = ''; // Clear URL input when opening
     } else {
-        modal.style.display = 'none';
+        modal.classList.remove('modal-visible');
+        modal.classList.add('modal-hidden');
     }
 }
 
@@ -568,50 +619,64 @@ function updateAttachmentsDisplay() {
     
     // Always show the Attachments tab if there are any attachments (sent or unsent)
     if (attachments.length === 0) {
-        attachmentsTabButton.style.display = 'none';
+        attachmentsTabButton.classList.add('hidden');
         attachmentsList.innerHTML = '<div class="no-tools-message">No attachments yet.</div>';
         return;
     }
     
-    attachmentsTabButton.style.display = 'block';
+    attachmentsTabButton.classList.remove('hidden');
+    attachmentsList.innerHTML = '';
+    const template = document.getElementById('attachmentItemTemplate');
     
-    const attachmentsHTML = attachments.map((attachment, index) => {
-        let icon = 'fa-file';
-        let statusIcon = attachment.sent 
-            ? '<i class="fa-solid fa-circle-check" style="color: #00ff88;"></i>' 
-            : '<i class="fa-solid fa-clock" style="color: #ffd700;"></i>';
+    attachments.forEach((attachment, index) => {
+        const attachmentElement = template.content.cloneNode(true);
+        const toolItem = attachmentElement.querySelector('.tool-item');
+        const statusIcon = attachmentElement.querySelector('.attachment-status-icon');
+        const typeIcon = attachmentElement.querySelector('.attachment-type-icon');
+        const nameElement = attachmentElement.querySelector('.attachment-name');
+        const metaElement = attachmentElement.querySelector('.attachment-meta');
+        const removeButton = attachmentElement.querySelector('.remove-attachment-button');
         
-        if (attachment.type === 'url') {
-            icon = 'fa-link';
-        } else if (attachment.mimeType) {
-            if (attachment.mimeType.startsWith('image/')) icon = 'fa-image';
-            else if (attachment.mimeType.startsWith('video/')) icon = 'fa-video';
-            else if (attachment.mimeType.startsWith('audio/')) icon = 'fa-file-audio';
-            else if (attachment.mimeType === 'application/pdf') icon = 'fa-file-pdf';
+        // Apply status class for sent attachments
+        if (attachment.sent) {
+            toolItem.classList.add('success');
         }
         
-        const removeButton = attachment.sent 
-            ? `<button class="remove-attachment-button" disabled title="Already sent">
-                   <i class="fa-solid fa-check"></i> Sent
-               </button>`
-            : `<button class="remove-attachment-button" onclick="removeAttachment(${index})" title="Remove attachment">
-                   <i class="fa-solid fa-trash"></i> Remove
-               </button>`;
+        // Set status icon
+        if (attachment.sent) {
+            statusIcon.className = 'fa-solid fa-circle-check status-icon-sent';
+        } else {
+            statusIcon.className = 'fa-solid fa-clock status-icon-pending';
+        }
         
-        return `
-            <div class="tool-item ${attachment.sent ? 'success' : ''}">
-                <div class="attachment-header">
-                    <div class="tool-header-left">
-                        <span class="tool-name">${statusIcon} <i class="fa-solid ${icon}"></i> ${attachment.name}</span>
-                        ${attachment.type === 'file' ? `<span class="tool-id">${formatFileSize(attachment.size)}</span>` : '<span class="tool-id">URL</span>'}
-                    </div>
-                    ${removeButton}
-                </div>
-            </div>
-        `;
-    }).join('');
-    
-    attachmentsList.innerHTML = attachmentsHTML;
+        // Set type icon
+        let iconClass = 'fa-file';
+        if (attachment.type === 'url') {
+            iconClass = 'fa-link';
+        } else if (attachment.mimeType) {
+            if (attachment.mimeType.startsWith('image/')) iconClass = 'fa-image';
+            else if (attachment.mimeType.startsWith('video/')) iconClass = 'fa-video';
+            else if (attachment.mimeType.startsWith('audio/')) iconClass = 'fa-file-audio';
+            else if (attachment.mimeType === 'application/pdf') iconClass = 'fa-file-pdf';
+        }
+        typeIcon.className = `fa-solid ${iconClass}`;
+        
+        // Set name and metadata
+        nameElement.textContent = attachment.name;
+        metaElement.textContent = attachment.type === 'file' ? formatFileSize(attachment.size) : 'URL';
+        
+        // Configure remove button
+        if (attachment.sent) {
+            removeButton.disabled = true;
+            removeButton.title = 'Already sent';
+            removeButton.innerHTML = '<i class="fa-solid fa-check"></i> Sent';
+        } else {
+            removeButton.onclick = () => removeAttachment(index);
+            removeButton.title = 'Remove attachment';
+        }
+        
+        attachmentsList.appendChild(attachmentElement);
+    });
 }
 
 function toggleAttachmentDetails(index) {
@@ -668,7 +733,7 @@ document.addEventListener('click', function(event) {
     const modal = document.getElementById('uploadModal');
     const uploadButton = document.getElementById('uploadButton');
     
-    if (modal && modal.style.display === 'flex') {
+    if (modal && modal.classList.contains('modal-visible')) {
         if (event.target === modal) {
             toggleUploadModal();
         }
