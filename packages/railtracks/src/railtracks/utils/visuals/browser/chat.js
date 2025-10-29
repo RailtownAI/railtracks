@@ -242,6 +242,7 @@ async function sendMessage() {
     
     try {
         // Prepare attachments data for sending (only unsent attachments)
+        // Match UserMessageAttachment Pydantic model: type, url, data, name
         const attachmentsData = await Promise.all(unsentAttachments.map(async (att) => {
             if (att.type === 'file') {
                 // For files, we'll send as base64
@@ -249,14 +250,13 @@ async function sendMessage() {
                 return {
                     type: 'file',
                     name: att.name,
-                    data: base64,
-                    mimeType: att.mimeType,
-                    size: att.size
+                    data: base64
                 };
             } else {
-                // For URLs, just send the URL
+                // For URLs, send the URL with optional name
                 return {
                     type: 'url',
+                    name: att.name,
                     url: att.data
                 };
             }
@@ -512,8 +512,8 @@ function handleFileSelect(event) {
             type: 'file',
             name: file.name,
             data: file,
-            size: file.size,
-            mimeType: file.type,
+            size: file.size,      // Keep locally for UI display
+            mimeType: file.type,  // Keep locally for icon detection
             sent: false
         });
     }
@@ -542,6 +542,9 @@ function handleUrlSubmit() {
         });
         
         updateAttachmentsDisplay();
+        
+        urlInput.value = '';
+        urlInput.focus();
     } catch (e) {
         alert('Please enter a valid URL');
     }

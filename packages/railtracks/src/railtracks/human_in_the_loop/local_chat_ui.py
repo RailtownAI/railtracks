@@ -23,16 +23,19 @@ class UserMessageAttachment(BaseModel):
     type: str  # "file" or "url"
     url: Optional[str] = None  # for URL type
     data: Optional[str] = None  # for file type (base64)
+    name: Optional[str] = None  # optional name of the attachment
 
     def __init__(
         self,
         type: str,
         url: Optional[str] = None,
         data: Optional[str] = None,
+        name: Optional[str] = None,
+        **kwargs
     ):
         if url is None and data is None:
             raise ValueError("Either 'url' or 'data' must be provided.")
-        super().__init__(type=type, url=url, data=data)  
+        super().__init__(type=type, url=url, data=data, name=name, **kwargs)  
 
 
 class UIUserMessage(HILMessage):
