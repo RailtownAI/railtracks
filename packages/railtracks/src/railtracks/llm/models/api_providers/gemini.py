@@ -1,5 +1,9 @@
+from typing import Literal, TypeVar
+
 from ...providers import ModelProvider
 from ._provider_wrapper import ProviderLLMWrapper
+
+_TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
 
 class GeminiLLM(ProviderLLMWrapper):
@@ -8,5 +12,5 @@ class GeminiLLM(ProviderLLMWrapper):
         return f"gemini/{model_name}"
 
     @classmethod
-    def model_type(cls):
+    def model_gateway(cls):
         return ModelProvider.GEMINI  # litellm uses this for the provider for Gemini, we are using this in the checks in _provider_wrapper.py

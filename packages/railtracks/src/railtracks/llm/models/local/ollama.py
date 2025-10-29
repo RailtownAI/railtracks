@@ -1,5 +1,5 @@
 import os
-from typing import Literal
+from typing import Literal, TypeVar
 
 import requests
 from litellm.utils import supports_function_calling
@@ -14,13 +14,15 @@ logger = setup_logger(__name__)
 
 DEFAULT_DOMAIN = "http://localhost:11434"
 
+_TStream = TypeVar("_TStream", Literal[True], Literal[False])
+
 
 class OllamaError(ModelError):
     def __init__(self, reason: str):
         super().__init__(reason=reason)
 
 
-class OllamaLLM(LiteLLMWrapper):
+class OllamaLLM(LiteLLMWrapper[_TStream]):
     def __init__(
         self,
         model_name: str,
@@ -108,5 +110,8 @@ class OllamaLLM(LiteLLMWrapper):
         return super().chat_with_tools(messages, tools, **kwargs)
 
     @classmethod
-    def model_type(cls):
+    def model_gateway(cls):
         return ModelProvider.OLLAMA
+
+    def model_provider(self) -> ModelProvider:
+        return super().model_provider()

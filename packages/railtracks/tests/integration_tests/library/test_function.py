@@ -443,7 +443,7 @@ class TestUnionAndOptionalParameter:
             llm,
         )
 
-        with rt.Session(logging_setting="QUIET"):
+        with rt.Session(logging_setting="CRITICAL"):
             response = await rt.call(
                 agent,
                 "Calculate the magic number for 5. Then calculate the magic number for 'fox'.",
@@ -489,7 +489,7 @@ class TestUnionAndOptionalParameter:
 
         agent = _agent_node_factory(magic_number, llm)
 
-        with rt.Session(logging_setting="QUIET"):
+        with rt.Session(logging_setting="CRITICAL"):
             response = await rt.call(
                 agent,
                 "Calculate the magic number for 21. Then calculate the magic number with no args.",

@@ -1,9 +1,9 @@
 import railtracks as rt
 
 # --8<-- [start: logging_setup]
-rt.set_config(logging_setting="VERBOSE")
-rt.set_config(logging_setting="REGULAR")
-rt.set_config(logging_setting="QUIET")
+rt.set_config(logging_setting="DEBUG")
+rt.set_config(logging_setting="INFO")
+rt.set_config(logging_setting="CRITICAL")
 rt.set_config(logging_setting="NONE")
 # --8<-- [end: logging_setup]
 
@@ -26,11 +26,17 @@ logger.addHandler(CustomHandler())
 # --8<-- [end: logging_custom_handler]
 
 # --8<-- [start: logging_global]
-rt.set_config(logging_setting="VERBOSE", log_file="my_logs.log")
+rt.set_config(logging_setting="DEBUG", log_file="my_logs.log")
 # --8<-- [end: logging_global]
 
+# --8<-- [start: logging_env_var]
+RT_LOG_LEVEL = "DEBUG"
+RT_LOG_FILE = "my_logs.log"
+# --8<-- [end: logging_env_var]
+
+
 # --8<-- [start: logging_scoped]
-with rt.Session(logging_setting="VERBOSE", log_file="my_logs.log") as runner:
+with rt.Session(logging_setting="DEBUG", log_file="my_logs.log") as runner:
     pass
 # --8<-- [end: logging_scoped]
 

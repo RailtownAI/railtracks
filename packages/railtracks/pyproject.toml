@@ -58,13 +58,12 @@ chat = ["fastapi >= 0.104.0"]
 # For each Integration package depenedcies go here.
 rag = ["litellm[proxy] >= 1.70.2", "openai < 1.100.0"]
 # the integrations submodule will be list a of the above deps
-integrations = [
-    # currently empty
-]
+portkey = ["portkey_ai >= 2.0.2"]
+integrations = ["railtracks[portkey]"]
+
 all = ["railtracks[chat,rag,integrations]"]
 
 core = ["railtracks[chat]"]
-
 
 [project.urls]
 documentation = "https://railtownai.github.io/railtracks/"
