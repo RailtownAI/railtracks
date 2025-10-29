@@ -19,6 +19,7 @@ from .human_in_the_loop import HIL, HILMessage
 
 logger = get_rt_logger("ChatUI")
 
+
 class UserMessageAttachment(BaseModel):
     type: str  # "file" or "url"
     url: Optional[str] = None  # for URL type
@@ -31,11 +32,11 @@ class UserMessageAttachment(BaseModel):
         url: Optional[str] = None,
         data: Optional[str] = None,
         name: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ):
         if url is None and data is None:
             raise ValueError("Either 'url' or 'data' must be provided.")
-        super().__init__(type=type, url=url, data=data, name=name, **kwargs)  
+        super().__init__(type=type, url=url, data=data, name=name, **kwargs)
 
 
 class UIUserMessage(HILMessage):
@@ -43,6 +44,7 @@ class UIUserMessage(HILMessage):
     attachments: Optional[list[UserMessageAttachment]] = None
     timestamp: Optional[str] = None
     metadata: Optional[dict] = None
+
 
 class ToolInvocation(BaseModel):
     name: str
@@ -285,7 +287,9 @@ class ChatUI(HIL):
             logger.error(f"Error sending message: {e}")
             return False
 
-    async def receive_message(self, timeout: float | None = None) -> UIUserMessage | None:
+    async def receive_message(
+        self, timeout: float | None = None
+    ) -> UIUserMessage | None:
         """
         Waits for the user to provide input.
 
