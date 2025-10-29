@@ -8,6 +8,7 @@ We currently support connecting to different available LLMs through the followin
 - **Azure AI Foundry** - Azure-hosted models
 - **Ollama** - Local and self-hosted models
 - **HuggingFace** - HuggingFace Serverless Inference models
+- **Portkey** - Use your portkey to connect to any of their supported models
 
 This allows you to use the same codebase to interact with different LLMs, making it easy to switch providers or use multiple providers in parallel, completely abstracting the underlying API differences.
 
@@ -51,6 +52,28 @@ Take a look at the examples below to see how using different providers look for 
     --8<-- "docs/scripts/providers.py:gemini"
     ```
 
+=== "Portkey"
+    !!! info "Environment Variables Configuration"
+        Make sure you set the appropriate environment variable keys for your specific provider. By default, Railtracks uses the `dotenv` framework to load environment variables from a `.env` file.
+        Variable name for the API key: `PORTKEY_API_KEY`
+
+    ```python 
+    --8<-- "docs/scripts/providers.py:portkey"
+    ```
+
+=== "Any OpenAI Comptabile Endpoint"
+    Do you have an OpenAI comptaible endpoint you want to use. You can use it with Railtracks. 
+
+    !!! warning "API Token"
+        You will have to pass in your API token manually
+
+    ```python
+    --8<-- "docs/scripts/providers.py:openaicompat"
+    ```
+
+
+
+
 === "Azure AI Foundry"
 
     ```python
@@ -85,6 +108,13 @@ Take a look at the examples below to see how using different providers look for 
     ```python
     --8<-- "docs/scripts/providers.py:huggingface"
     ```
+
+=== "Telus"
+    !!! info "Environment Variables Configuration"
+        Make sure you set the appropriate environment variable keys for your specific provider. By default, Railtracks uses the `dotenv` framework to load environment variables from a `.env` file.
+        Variable name for the API key: `TELUS_API_KEY`
+
+    This support is coming soon.
 
 ```python
 --8<-- "docs/scripts/providers.py:to_agent"

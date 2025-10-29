@@ -3,6 +3,7 @@ from urllib import response
 
 import pytest
 import railtracks as rt
+from railtracks.llm.providers import ModelProvider
 from railtracks.llm.response import Response, MessageInfo
 from railtracks.llm.content import Stream
 from pydantic import BaseModel
@@ -183,8 +184,11 @@ class MockLLM(rt.llm.ModelBase):
         return "MockLLM"
 
     @classmethod
-    def model_type(cls) -> str | None:
+    def model_gateway(cls) -> str | None:
         return "mock"
+    
+    def model_provider(self):
+        return self.model_gateway()
 
     # =====================================
 

@@ -12,5 +12,5 @@ class OpenAILLM(ProviderLLMWrapper[_TStream], Generic[_TStream]):
     """
 
     @classmethod
-    def model_type(cls):
+    def model_gateway(cls):
         return ModelProvider.OPENAI

@@ -1,3 +1,4 @@
+from ._openai_compatable_provider_wrapper import OpenAICompatibleProvider
 from .anthropic import AnthropicLLM
 from .cohere import CohereLLM
 from .gemini import GeminiLLM
@@ -10,4 +11,5 @@ __all__ = [
     "GeminiLLM",
     "HuggingFaceLLM",
     "OpenAILLM",
+    "OpenAICompatibleProvider",
 ]

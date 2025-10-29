@@ -258,7 +258,7 @@ class LLMBase(Node[_T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
                     if response.message_info.model_name is not None
                     else self.llm_model.model_name()
                 ),
-                model_provider=self.llm_model.model_type(),
+                model_provider=self.llm_model.model_provider(),
                 input_tokens=response.message_info.input_tokens,
                 output_tokens=response.message_info.output_tokens,
                 total_cost=response.message_info.total_cost,
@@ -278,7 +278,7 @@ class LLMBase(Node[_T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
                 message_input=deepcopy(message_history),
                 output=None,
                 model_name=self.llm_model.model_name(),
-                model_provider=self.llm_model.model_type(),
+                model_provider=self.llm_model.model_provider(),
             )
         )
         raise exception
