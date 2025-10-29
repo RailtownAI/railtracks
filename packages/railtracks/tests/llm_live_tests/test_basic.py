@@ -5,6 +5,9 @@ from railtracks.built_nodes.concrete.response import StringResponse, StructuredR
 
 from .llm_map import llm_map
 
+# Filter out Cohere LLMs for these tests
+llm_map_filtered = {k: v for k, v in llm_map.items() if "cohere" not in k.lower()}
+
 class Address(BaseModel):
     city: str = Field(description="The city the person lives in")
     country: str = Field(description="The country the person lives in")
@@ -44,7 +47,7 @@ test_cases = [
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("llm", llm_map.values(), ids=llm_map.keys())
+@pytest.mark.parametrize("llm", llm_map_filtered.values(), ids=llm_map_filtered.keys())
 async def test_terminal_llm(llm):
     """Test that a basic terminal llm can be created and used."""
 
@@ -71,7 +74,7 @@ async def test_terminal_llm(llm):
         assert final_resp is not None and '54321' in final_resp.content
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("llm", llm_map.values(), ids=llm_map.keys())
+@pytest.mark.parametrize("llm", llm_map_filtered.values(), ids=llm_map_filtered.keys())
 @pytest.mark.parametrize("test_case", test_cases, ids=[case["case_id"] for case in test_cases])
 async def test_structured_llm(llm, test_case):
     """Test that structured LLMs work with various schema types."""

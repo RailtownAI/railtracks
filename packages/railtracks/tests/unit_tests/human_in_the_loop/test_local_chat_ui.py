@@ -9,6 +9,7 @@ from railtracks.human_in_the_loop import (
     HILMessage,
     ChatUI,
 )
+from railtracks.human_in_the_loop.local_chat_ui import UIUserMessage, UserMessageAttachment
 from railtracks.llm import ToolCall, ToolResponse
 
 
@@ -108,7 +109,7 @@ def test_post_send_message_endpoint(client, chat_ui):
     """Test the '/send_message' endpoint."""
     test_message = "Hello from the user"
     response = client.post(
-        "/send_message", json={"message": test_message, "timestamp": "12:34:56"}
+        "/send_message", json={"content": test_message, "timestamp": "12:34:56"}
     )
     assert response.status_code == 200
     queued_message = chat_ui.user_input_queue.get_nowait()
@@ -242,3 +243,126 @@ async def test_update_tools_queue_full(chat_ui):
     with patch.object(chat_ui.sse_queue, "put", side_effect=asyncio.QueueFull):
         result = await chat_ui.update_tools([(tool_call, tool_response)])
         assert result is False
+
+
+# ---- Attachment Tests ----
+
+
+def test_user_message_attachment_with_url():
+    """Test UserMessageAttachment with URL type."""
+    attachment = UserMessageAttachment(
+        type="url",
+        url="https://example.com/image.png",
+        name="example_image"
+    )
+    assert attachment.type == "url"
+    assert attachment.url == "https://example.com/image.png"
+    assert attachment.data is None
+    assert attachment.name == "example_image"
+
+
+def test_user_message_attachment_with_data():
+    """Test UserMessageAttachment with file data (base64)."""
+    attachment = UserMessageAttachment(
+        type="file",
+        data="base64encodeddata==",
+        name="document.pdf"
+    )
+    assert attachment.type == "file"
+    assert attachment.data == "base64encodeddata=="
+    assert attachment.url is None
+    assert attachment.name == "document.pdf"
+
+
+def test_user_message_attachment_validation_error():
+    """Test UserMessageAttachment raises error when neither url nor data is provided."""
+    with pytest.raises(ValueError, match="Either 'url' or 'data' must be provided."):
+        UserMessageAttachment(type="file")
+
+
+def test_ui_user_message_no_attachments():
+    """Test UIUserMessage without attachments."""
+    message = UIUserMessage(content="Hello AI")
+    assert message.content == "Hello AI"
+    assert message.attachments is None
+
+
+def test_ui_user_message_with_file_attachment():
+    """Test UIUserMessage with a file attachment."""
+    attachment = UserMessageAttachment(
+        type="file",
+        data="base64data",
+        name="test.txt"
+    )
+    message = UIUserMessage(
+        content="Here's a file",
+        attachments=[attachment]
+    )
+    assert message.content == "Here's a file"
+    assert message.attachments is not None
+    assert len(message.attachments) == 1
+    assert message.attachments[0].type == "file"
+    assert message.attachments[0].data == "base64data"
+
+
+def test_ui_user_message_with_url_attachment():
+    """Test UIUserMessage with a URL attachment."""
+    attachment = UserMessageAttachment(
+        type="url",
+        url="https://example.com/doc.pdf"
+    )
+    message = UIUserMessage(
+        content="Check this link",
+        attachments=[attachment]
+    )
+    assert message.content == "Check this link"
+    assert message.attachments is not None
+    assert len(message.attachments) == 1
+    assert message.attachments[0].type == "url"
+    assert message.attachments[0].url == "https://example.com/doc.pdf"
+
+
+def test_ui_user_message_with_multiple_attachments():
+    """Test UIUserMessage with multiple attachments of different types."""
+    file_attachment = UserMessageAttachment(
+        type="file",
+        data="filedata",
+        name="file.txt"
+    )
+    url_attachment = UserMessageAttachment(
+        type="url",
+        url="https://example.com/image.jpg"
+    )
+    message = UIUserMessage(
+        content="Multiple attachments",
+        attachments=[file_attachment, url_attachment]
+    )
+    assert message.content == "Multiple attachments"
+    assert message.attachments is not None
+    assert len(message.attachments) == 2
+    assert message.attachments[0].type == "file"
+    assert message.attachments[1].type == "url"
+
+
+def test_post_send_message_with_attachments(client, chat_ui):
+    """Test the '/send_message' endpoint with attachments."""
+    test_message = {
+        "content": "Message with attachment",
+        "timestamp": "12:34:56",
+        "attachments": [
+            {
+                "type": "file",
+                "data": "base64data==",
+                "name": "document.pdf"
+            }
+        ]
+    }
+    response = client.post("/send_message", json=test_message)
+    assert response.status_code == 200
+    queued_message = chat_ui.user_input_queue.get_nowait()
+    assert isinstance(queued_message, UIUserMessage)
+    assert queued_message.content == "Message with attachment"
+    assert queued_message.attachments is not None
+    assert len(queued_message.attachments) == 1
+    assert queued_message.attachments[0].type == "file"
+    assert queued_message.attachments[0].data == "base64data=="
