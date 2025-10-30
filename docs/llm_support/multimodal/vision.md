@@ -40,8 +40,5 @@ The rest of the invocation (tool_calling, structured_output, etc) will remain th
 !!! warning "File Types"
     Supported file types will correspond to the file types supported by the underlying LLM used.
 
-!!! warning "Local Chat UI"
-    Currently there's no "upload" functionality on the [local chat interaface](../../human_in_the_loop/local_chat_ui.md). This feature will be added in the upcoming weeks [Issue 774](https://github.com/RailtownAI/railtracks/issues/774).
-
 # Image Output
 We're currently not natively supporting outputing images. You can however wrap any image generation logic within a tool and provide your agent with that tool's specifications to achieve this behaviour.
