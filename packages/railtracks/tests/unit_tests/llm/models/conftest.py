@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 from railtracks.llm.message import UserMessage, AssistantMessage, ToolMessage
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.content import ToolCall, ToolResponse
+from railtracks.llm.providers import ModelProvider
 from railtracks.llm.tools import Tool, Parameter
 from railtracks.llm.models._litellm_wrapper import LiteLLMWrapper
 
@@ -171,8 +172,13 @@ class MockLiteLLMWrapper(LiteLLMWrapper):
         super().__init__(model_name=model_name or "mock-model", stream=stream)
 
     @classmethod
-    def model_type(cls):
+    def model_gateway(cls):
         return "mock"
+    
+    def model_provider(self):
+        return self.model_gateway()
+    
+
 
     def _invoke_content(self):
         return (

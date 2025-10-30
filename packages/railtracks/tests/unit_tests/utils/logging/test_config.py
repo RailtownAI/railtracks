@@ -1,7 +1,7 @@
 import logging
 import os
-from pathlib import Path
-from unittest.mock import MagicMock, patch, call
+import tempfile
+from unittest.mock import patch
 
 import pytest
 
@@ -243,19 +243,15 @@ def test_initialize_module_logging_reads_env_level():
     detach_logging_handlers()
 
 
-@patch.dict(os.environ, {"RT_LOG_FILE": "/tmp/test.log"}, clear=False)
+@patch.dict(os.environ, {"RT_LOG_FILE": os.path.join(tempfile.gettempdir(), "test.log")}, clear=False)
 def test_initialize_module_logging_reads_env_file():
     """Test that initialize_module_logging reads RT_LOG_FILE from environment."""
-    # Clear handlers first
-    detach_logging_handlers()
-    
     from railtracks.utils.logging.config import _module_logging_file
+    detach_logging_handlers()
+
     initialize_module_logging()
     
-    # Verify the context var was set correctly
-    assert _module_logging_file.get() == "/tmp/test.log"
-    
-    # Clean up
+    assert _module_logging_file.get().endswith("test.log")
     detach_logging_handlers()
 
 

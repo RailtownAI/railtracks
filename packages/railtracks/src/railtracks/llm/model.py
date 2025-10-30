@@ -103,10 +103,19 @@ class ModelBase(ABC, Generic[_TStream]):
         """
         pass
 
+    @abstractmethod
+    def model_provider(self) -> ModelProvider:
+        """The name of the provider of this model (The Company that owns the model)"""
+        pass
+
     @classmethod
     @abstractmethod
-    def model_type(cls) -> ModelProvider:
-        """The name of the provider of this model or the model type."""
+    def model_gateway(cls) -> ModelProvider:
+        """
+        Gets the API distrubutor of the model. Note nessecarily the same as the model itself.
+
+        E.g. if you are calling openai LLM through Azure AI foundry
+        """
         pass
 
     def _run_pre_hooks(self, message_history: MessageHistory) -> MessageHistory:

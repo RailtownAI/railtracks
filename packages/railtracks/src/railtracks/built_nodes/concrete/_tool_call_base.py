@@ -98,10 +98,10 @@ class OutputLessToolCallLLMBase(
         if (
             model is not None
             and model.stream
-            and model.model_type() in self.streaming_blacklist()
+            and model.model_provider() in self.streaming_blacklist()
         ):
             raise NodeCreationError(
-                f"Currently we do not allow streaming with {model.model_type()} (specifically for tool calling)",
+                f"Currently we do not allow streaming with {model.model_provider()} (specifically for tool calling)",
                 notes=[
                     "Create a new issue on the railtracks repo or switch to openai's models"
                 ],
