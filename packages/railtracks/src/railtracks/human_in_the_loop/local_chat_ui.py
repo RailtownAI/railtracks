@@ -32,11 +32,10 @@ class UserMessageAttachment(BaseModel):
         url: Optional[str] = None,
         data: Optional[str] = None,
         name: Optional[str] = None,
-        **kwargs,
     ):
         if url is None and data is None:
             raise ValueError("Either 'url' or 'data' must be provided.")
-        super().__init__(type=type, url=url, data=data, name=name, **kwargs)
+        super().__init__(type=type, url=url, data=data, name=name)
 
 
 class UIUserMessage(HILMessage):
