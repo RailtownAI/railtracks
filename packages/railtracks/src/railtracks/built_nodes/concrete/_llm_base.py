@@ -410,8 +410,6 @@ class StringOutputMixIn:
         ):  # if no message is provided, use the last message from message history
             message = self.message_hist[-1]
 
-        print(message.content)
-
         assert isinstance(message.content, str), "The final output must be a string"
         return StringResponse(
             content=message.content,
