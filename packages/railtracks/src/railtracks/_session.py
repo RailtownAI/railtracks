@@ -66,7 +66,7 @@ class Session:
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
         logging_setting (LogLevel | str, optional): Controls log verbosity. This will override the module-level logging settings for the duration of this session.
-            
+
             Use LogLevel constants (recommended - enables IDE autocomplete):
                 - rt.LogLevel.DEBUG: Most verbose - shows all internal operations
                 - rt.LogLevel.INFO: Standard logging (default)

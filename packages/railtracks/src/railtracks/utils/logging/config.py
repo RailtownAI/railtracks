@@ -10,9 +10,9 @@ from colorama import Fore, init
 
 class LogLevel(str, Enum):
     """Logging levels for Railtracks sessions.
-    
+
     Use these constants for IDE autocomplete support, or pass the string values directly.
-    
+
     Attributes:
         DEBUG: Most verbose logging - shows all internal operations
         INFO: Standard logging level (default)
@@ -21,22 +21,22 @@ class LogLevel(str, Enum):
         CRITICAL: Show critical errors only
         NONE: Suppress all logging output (alias: QUIET)
         QUIET: Suppress all logging output (same as NONE)
-    
+
     Examples:
         Using LogLevel constants (recommended - enables IDE autocomplete):
-        
+
         >>> import railtracks as rt
         >>> with rt.Session(logging_setting=rt.LogLevel.NONE):
         ...     result = await rt.call(agent, "Hello")
-        
+
         >>> with rt.Session(logging_setting=rt.LogLevel.QUIET):  # Same as NONE
         ...     result = await rt.call(agent, "Hello")
-        
+
         Using string values (backward compatible):
-        
+
         >>> with rt.Session(logging_setting="NONE"):
         ...     result = await rt.call(agent, "Hello")
-        
+
         >>> with rt.Session(logging_setting="QUIET"):  # String alias also supported
         ...     result = await rt.call(agent, "Hello")
     """
@@ -55,7 +55,9 @@ class LogLevel(str, Enum):
 
 
 # For backward compatibility and type hints
-AllowableLogLevels = Union[LogLevel, Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "NONE", "QUIET"]]
+AllowableLogLevels = Union[
+    LogLevel, Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "NONE", "QUIET"]
+]
 
 str_to_log_level: Dict[str, int] = {
     "DEBUG": logging.DEBUG,
