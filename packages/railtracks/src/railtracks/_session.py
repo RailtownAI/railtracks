@@ -65,7 +65,19 @@ class Session:
         context (Dict[str, Any], optional): A dictionary of global context variables to be used during the execution.
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
-        logging_setting (AllowableLogLevels, optional): The setting for the level of logging you would like to have. This will override the module-level logging settings for the duration of this session.
+        logging_setting (LogLevel | str, optional): Controls log verbosity. This will override the module-level logging settings for the duration of this session.
+            
+            Use LogLevel constants (recommended - enables IDE autocomplete):
+                - rt.LogLevel.DEBUG: Most verbose - shows all internal operations
+                - rt.LogLevel.INFO: Standard logging (default)
+                - rt.LogLevel.WARNING: Warnings and errors only
+                - rt.LogLevel.ERROR: Errors only
+                - rt.LogLevel.CRITICAL: Critical errors only
+                - rt.LogLevel.NONE: Suppress all logs (clean output)
+                - rt.LogLevel.QUIET: Same as NONE (alias for convenience)
+
+            Or use string values directly (backward compatible):
+                - "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "NONE", "QUIET"
         log_file (str | os.PathLike | None, optional): The file to which the logs will be written.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.

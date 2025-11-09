@@ -46,11 +46,14 @@ class ExecutorConfig:
 
     @logging_setting.setter
     def logging_setting(self, value: AllowableLogLevels):
-        if value not in str_to_log_level:
+        # Convert LogLevel enum to string value for validation
+        str_value = str(value) if hasattr(value, 'value') else value
+        
+        if str_value not in str_to_log_level:
             raise ValueError(
-                f"logging_setting must be one of {str_to_log_level}, got {value}"
+                f"logging_setting must be one of {list(str_to_log_level.keys())}, got {value}"
             )
-        self._logging_setting: AllowableLogLevels = value
+        self._logging_setting: AllowableLogLevels = str_value
 
     def precedence_overwritten(
         self,

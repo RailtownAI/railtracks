@@ -91,7 +91,7 @@ def test_session_name_is_taken_from_executor_config():
 
 def test_session_with_logging_setting_marks_override(mock_dependencies):
     """Test that Session with logging_setting marks session logging override."""
-    runner = Session(logging_setting="VERBOSE")
+    runner = Session(logging_setting="DEBUG")
     assert mock_dependencies['mark_session_logging_override'].called
     assert runner._has_custom_logging is True
 
@@ -103,7 +103,7 @@ def test_session_with_log_file_marks_override(mock_dependencies):
 
 def test_session_with_both_logging_params_marks_override(mock_dependencies):
     """Test that Session with both logging params marks session logging override."""
-    runner = Session(logging_setting="QUIET", log_file="/tmp/test.log")
+    runner = Session(logging_setting="NONE", log_file="/tmp/test.log")
     assert mock_dependencies['mark_session_logging_override'].called
     assert runner._has_custom_logging is True
 
@@ -153,7 +153,7 @@ def test_close_calls_shutdown_and_delete(mock_dependencies):
 
 def test_close_restores_logging_when_custom_logging_used(mock_dependencies):
     """Test that _close calls restore_module_logging when custom logging was used."""
-    runner = Session(logging_setting="VERBOSE")
+    runner = Session(logging_setting="DEBUG")
     runner.rt_state = MagicMock()
     runner._close()
     assert mock_dependencies['restore_module_logging'].called
@@ -287,7 +287,7 @@ def test_session_decorator_with_parameters():
         timeout=30,
         context={"test": "value"},
         end_on_error=True,
-        logging_setting="VERBOSE"
+        logging_setting="DEBUG"
     )
     assert callable(decorator)
 
