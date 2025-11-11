@@ -19,8 +19,7 @@ class LogLevel(str, Enum):
         WARNING: Show warnings and errors only
         ERROR: Show errors only
         CRITICAL: Show critical errors only
-        NONE: Suppress all logging output (alias: QUIET)
-        QUIET: Suppress all logging output (same as NONE)
+        NONE: Suppress all logging output
 
     Examples:
         Using LogLevel constants (recommended - enables IDE autocomplete):
@@ -29,15 +28,9 @@ class LogLevel(str, Enum):
         >>> with rt.Session(logging_setting=rt.LogLevel.NONE):
         ...     result = await rt.call(agent, "Hello")
 
-        >>> with rt.Session(logging_setting=rt.LogLevel.QUIET):  # Same as NONE
-        ...     result = await rt.call(agent, "Hello")
-
         Using string values (backward compatible):
 
         >>> with rt.Session(logging_setting="NONE"):
-        ...     result = await rt.call(agent, "Hello")
-
-        >>> with rt.Session(logging_setting="QUIET"):  # String alias also supported
         ...     result = await rt.call(agent, "Hello")
     """
 
@@ -47,7 +40,6 @@ class LogLevel(str, Enum):
     ERROR = "ERROR"
     CRITICAL = "CRITICAL"
     NONE = "NONE"
-    QUIET = "NONE"  # Alias for NONE - matches industry conventions (git --quiet, pip --quiet)
 
     def __str__(self) -> str:
         """Return the string value for backward compatibility."""
@@ -56,7 +48,7 @@ class LogLevel(str, Enum):
 
 # For backward compatibility and type hints
 AllowableLogLevels = Union[
-    LogLevel, Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "NONE", "QUIET"]
+    LogLevel, Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "NONE"]
 ]
 
 str_to_log_level: Dict[str, int] = {
@@ -66,7 +58,6 @@ str_to_log_level: Dict[str, int] = {
     "ERROR": logging.ERROR,
     "CRITICAL": logging.CRITICAL,
     "NONE": logging.CRITICAL + 1,  # no logs emitted
-    "QUIET": logging.CRITICAL + 1,  # Alias for NONE - matches industry conventions
 }
 
 # the temporary name for the logger that RT will use.

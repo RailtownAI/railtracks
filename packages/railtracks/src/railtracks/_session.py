@@ -74,10 +74,9 @@ class Session:
                 - rt.LogLevel.ERROR: Errors only
                 - rt.LogLevel.CRITICAL: Critical errors only
                 - rt.LogLevel.NONE: Suppress all logs (clean output)
-                - rt.LogLevel.QUIET: Same as NONE (alias for convenience)
 
             Or use string values directly (backward compatible):
-                - "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "NONE", "QUIET"
+                - "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "NONE"
         log_file (str | os.PathLike | None, optional): The file to which the logs will be written.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.

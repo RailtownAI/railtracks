@@ -21,7 +21,6 @@ def test_loglevel_enum_exists():
     assert hasattr(rt.LogLevel, "ERROR")
     assert hasattr(rt.LogLevel, "CRITICAL")
     assert hasattr(rt.LogLevel, "NONE")
-    assert hasattr(rt.LogLevel, "QUIET")
 
 
 def test_loglevel_values():
@@ -32,7 +31,6 @@ def test_loglevel_values():
     assert rt.LogLevel.ERROR.value == "ERROR"
     assert rt.LogLevel.CRITICAL.value == "CRITICAL"
     assert rt.LogLevel.NONE.value == "NONE"
-    assert rt.LogLevel.QUIET.value == "NONE"  # QUIET is alias for NONE
 
 
 def test_loglevel_string_conversion():
@@ -40,19 +38,12 @@ def test_loglevel_string_conversion():
     assert str(rt.LogLevel.DEBUG) == "DEBUG"
     assert str(rt.LogLevel.INFO) == "INFO"
     assert str(rt.LogLevel.NONE) == "NONE"
-    assert str(rt.LogLevel.QUIET) == "NONE"  # QUIET converts to NONE
-
-
-def test_quiet_is_alias_for_none():
-    """Test that QUIET and NONE are equivalent"""
-    assert rt.LogLevel.QUIET == rt.LogLevel.NONE
-    assert rt.LogLevel.QUIET.value == rt.LogLevel.NONE.value
 
 
 def test_loglevel_comparison():
     """Test that LogLevel enum values can be compared"""
     assert rt.LogLevel.DEBUG == rt.LogLevel.DEBUG
-    assert rt.LogLevel.NONE == rt.LogLevel.QUIET
+    assert rt.LogLevel.NONE == rt.LogLevel.NONE
     assert rt.LogLevel.INFO != rt.LogLevel.DEBUG
 
 
@@ -97,24 +88,10 @@ def test_session_accepts_loglevel_enum(mock_session_dependencies):
     session._close()
 
 
-def test_session_accepts_loglevel_quiet(mock_session_dependencies):
-    """Test Session accepts LogLevel.QUIET (alias)"""
-    session = Session(logging_setting=rt.LogLevel.QUIET)
-    assert session.executor_config.logging_setting == "NONE"  # QUIET resolves to NONE
-    session._close()
-
-
 def test_session_accepts_string_backward_compat(mock_session_dependencies):
     """Test Session still accepts string values (backward compatibility)"""
     session = Session(logging_setting="NONE")
     assert session.executor_config.logging_setting == "NONE"
-    session._close()
-
-
-def test_session_accepts_string_quiet(mock_session_dependencies):
-    """Test Session accepts string "QUIET" (alias for "NONE")"""
-    session = Session(logging_setting="QUIET")
-    assert session.executor_config.logging_setting == "QUIET"
     session._close()
 
 
@@ -127,7 +104,6 @@ def test_all_loglevel_enums_work_with_session(mock_session_dependencies):
         rt.LogLevel.ERROR,
         rt.LogLevel.CRITICAL,
         rt.LogLevel.NONE,
-        rt.LogLevel.QUIET,
     ]:
         session = Session(logging_setting=level)
         # Should not raise an error
@@ -136,7 +112,7 @@ def test_all_loglevel_enums_work_with_session(mock_session_dependencies):
 
 def test_all_loglevel_strings_work_with_session(mock_session_dependencies):
     """Test all valid string values work with Session (backward compatibility)"""
-    for level_str in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "NONE", "QUIET"]:
+    for level_str in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "NONE"]:
         session = Session(logging_setting=level_str)
         # Should not raise an error
         session._close()
@@ -154,7 +130,7 @@ def test_invalid_logging_level_raises_error(mock_session_dependencies):
 
 def test_invalid_logging_levels_variants(mock_session_dependencies):
     """Test various invalid logging level strings"""
-    invalid_levels = ["SILENT", "MUTE", "OFF", "VERBOSE", "verbose", "quiet"]
+    invalid_levels = ["SILENT", "MUTE", "OFF", "VERBOSE", "verbose", "quiet", "QUIET"]
 
     for invalid_level in invalid_levels:
         with pytest.raises(ValueError) as exc_info:
@@ -195,7 +171,6 @@ def test_loglevel_enum_documented_in_session():
     """Test that LogLevel is mentioned in Session docstring"""
     assert "LogLevel" in Session.__doc__
     assert "rt.LogLevel.NONE" in Session.__doc__
-    assert "rt.LogLevel.QUIET" in Session.__doc__
 
 
 def test_loglevel_enum_has_docstring():
@@ -204,14 +179,13 @@ def test_loglevel_enum_has_docstring():
     assert "IDE autocomplete" in LogLevel.__doc__
     assert "DEBUG" in LogLevel.__doc__
     assert "NONE" in LogLevel.__doc__
-    assert "QUIET" in LogLevel.__doc__
 
 
 def test_loglevel_enum_attributes_documented():
     """Test that LogLevel enum attributes are documented"""
     docstring = LogLevel.__doc__
     # Check that all levels are mentioned
-    for level in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "NONE", "QUIET"]:
+    for level in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "NONE"]:
         assert level in docstring
 
 
@@ -233,44 +207,6 @@ def test_loglevel_enum_and_string_produce_same_config(mock_session_dependencies)
 
     session1._close()
     session2._close()
-
-
-def test_loglevel_quiet_and_none_produce_same_config(mock_session_dependencies):
-    """Test that QUIET and NONE produce identical configuration"""
-    session1 = Session(logging_setting=rt.LogLevel.QUIET)
-    session2 = Session(logging_setting=rt.LogLevel.NONE)
-    session3 = Session(logging_setting="NONE")
-
-    assert session1.executor_config.logging_setting == "NONE"
-    assert session2.executor_config.logging_setting == "NONE"
-    assert session3.executor_config.logging_setting == "NONE"
-
-    session1._close()
-    session2._close()
-    session3._close()
-
-
-def test_string_quiet_works_as_alias(mock_session_dependencies):
-    """Test that string "QUIET" works as an alias for "NONE" """
-    session_quiet_enum = Session(logging_setting=rt.LogLevel.QUIET)
-    session_quiet_string = Session(logging_setting="QUIET")
-    session_none_string = Session(logging_setting="NONE")
-
-    # All should be valid and use QUIET or NONE (both map to same log level)
-    # Note: The enum converts to "NONE" but the string stays as "QUIET"
-    assert (
-        session_quiet_enum.executor_config.logging_setting == "NONE"
-    )  # Enum QUIET -> "NONE"
-    assert (
-        session_quiet_string.executor_config.logging_setting == "QUIET"
-    )  # String "QUIET" -> "QUIET"
-    assert (
-        session_none_string.executor_config.logging_setting == "NONE"
-    )  # String "NONE" -> "NONE"
-
-    session_quiet_enum._close()
-    session_quiet_string._close()
-    session_none_string._close()
 
 
 # ================ END Integration Tests ===============
@@ -300,7 +236,7 @@ def test_session_with_none_logging_uses_global_config(mock_session_dependencies)
     # Get the current global default (usually "INFO" but could be configured differently)
     global_default = session1.executor_config.logging_setting
 
-    # Verify it's different from explicitly setting LogLevel.NONE/QUIET
+    # Verify it's different from explicitly setting LogLevel.NONE
     session3 = Session(logging_setting=rt.LogLevel.NONE)
     assert session3.executor_config.logging_setting == "NONE"
 
