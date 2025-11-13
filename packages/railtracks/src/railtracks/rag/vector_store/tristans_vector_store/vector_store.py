@@ -2,7 +2,10 @@ from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional, Callable, Mapping
 from enum import Enum
 from dataclasses import dataclass, field
-from pinecone import Vector
+
+class MetadataKeys(str, Enum):
+    CONTENT = "__content__"
+    DOCUMENT = "__document__"
 
 
 
@@ -20,7 +23,10 @@ class Document(str):
 
 @dataclass
 class Chunk:
-    """Chunk class to be used when upserting to collections"""
+    """
+    Chunk class to be used if you want to attach metadata and document data to chunks being upserted
+    or if you want to use our chunker and immediately upsert the chunks
+    """
     
     content :str
     document: Optional[Document] = None
@@ -39,7 +45,7 @@ class SearchResult:
     distance : float
     content :str
     vector : List[float]
-    document: Optional[Document] = None
+    document: Optional[str] = None
     metadata: Dict[str, Any] | Mapping[str, Any] = field(default_factory=dict)
     
     def __post_init__(self) -> None:
@@ -53,13 +59,15 @@ class FetchResult:
     id: str
     content :str
     vector : List[float]
-    document: Optional[Document] = None
+    document: Optional[str] = None
     metadata: Dict[str, Any] | Mapping[str, Any] = field(default_factory=dict)
     
     def __post_init__(self) -> None:
         """Ensure metadata is always a dict."""
         if self.metadata is None:
             self.metadata = {}
+
+#For Readability
 class SearchResponse(List[SearchResult]):
     """Containter for results of search"""
 
@@ -74,8 +82,6 @@ class VectorStore(ABC):
         self,
         collection_name: str,
         embedding_function: Callable[[List[str]], List[List[float]]],
-        client_object : Any, #Here once we implement will be the api object we interact with for user
-        dimension: int,
     ):
         """
         Initialize the vector store.
@@ -83,31 +89,22 @@ class VectorStore(ABC):
         Args:
             collection_name: Name of the collection/index
             embedding_function: Function to convert text to embeddings
-            dimension: Dimension of the embedding vectors
-            **kwargs: Additional store-specific parameters
         """
         pass
 
-    #Idea is to accept Chunks, Documents, or strs
     @abstractmethod
     def upsert(
         self,
-        ids: List[str],
-        embeddings: Optional[List[List[float]]] = None,
-        documents: Optional[List[str]] = None,
-        metadatas: Optional[List[Dict[str, Any]]] = None
-    ):
+        content: List[Chunk] | List[str],
+    ) -> List[str]:
         """
         Insert or update vectors in the store.
         
         Args:
-            ids: List of unique identifiers
-            embeddings: List of embedding vectors (optional if documents provided)
-            documents: List of text documents to embed (optional if embeddings provided)
-            metadatas: List of metadata dictionaries
+            content: List of Chunk objects or raw text strings to be upserted
             
         Returns:
-            Dictionary containing operation results
+            List of IDs of the upserted vectors
         """
         pass
     
@@ -115,7 +112,7 @@ class VectorStore(ABC):
     def fetch(
         self,
         ids: List[str]
-    ) -> List[FetchResponse]:
+    ) -> FetchResponse:
         """
         Fetch vectors by their IDs.
         
@@ -123,15 +120,14 @@ class VectorStore(ABC):
             ids: List of vector IDs to fetch
             
         Returns:
-            Dictionary containing fetched vectors and metadata
+            FetchResponse containing the fetched vectors
         """
         pass
     
     @abstractmethod
     def search(
         self,
-        query_embeddings: Optional[List[List[float]]] = None,
-        query_texts: Optional[List[str]] = None,
+        query: List[Chunk] | List[str],
         n_results: int = 10,
         where: Optional[Dict[str, Any]] = None,
         include: Optional[List[str]] = None
@@ -140,8 +136,7 @@ class VectorStore(ABC):
         Query the vector store for similar vectors.
         
         Args:
-            query_embeddings: List of query embedding vectors
-            query_texts: List of query texts to embed
+            query: List of Chunk objects or raw text strings to query
             n_results: Number of results to return
             where: Filter conditions for metadata
             include: List of fields to include in results
@@ -163,9 +158,7 @@ class VectorStore(ABC):
         Args:
             ids: List of vector IDs to delete
             where: Filter conditions for deletion
-            
-        Returns:
-            Dictionary containing deletion results
+        
         """
         pass
     

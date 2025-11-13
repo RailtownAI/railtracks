@@ -1,23 +1,28 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, List, Literal, Any, Optional, Callable
-from .vector_store import VectorStore, Chunk, SearchResponse, FetchResponse, FetchResult, SearchResult, Document
+from typing import TYPE_CHECKING, List, Optional, Callable
+from copy import deepcopy
+from .vector_store import VectorStore, Chunk, SearchResponse, FetchResponse, FetchResult, SearchResult, Document, MetadataKeys
 from uuid import uuid4
 import numpy as np
 if TYPE_CHECKING:
     from chromadb.base_types import Where, WhereDocument
     from chromadb.api.types import Include
 
+CONTENT = MetadataKeys.CONTENT.value
+
 class ChromaVectorStore(VectorStore):
     """ChromaDB implementation of VectorStore."""
 
     @classmethod
-    def class_init(cls, path):
+    def class_init(cls, path, host, port):
         if not hasattr(cls, "_chroma"):
-            #First object initialized so import pinecone and connect to server
+            #First object initialized so import Chroma and connect create temporary, persistent or http client. Don't currently support chroma cloud client
             try:
                 import chromadb
                 if path:
                     cls._chroma = chromadb.PersistentClient(path=path)
+                elif host and port:
+                    cls._chroma = chromadb.HttpClient(host=host, port=port) #Currently this does not provide the extra asycn features that comes with this
                 else:
                     cls._chroma = chromadb.EphemeralClient()
             except ImportError:
@@ -27,57 +32,48 @@ class ChromaVectorStore(VectorStore):
         self,
         collection_name: str,
         embedding_function: Callable[[List[str]], List[List[float]]],
-        dimension: int,
         path: Optional[str] = None,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
     ):
         self._collection_name = collection_name
         self._embedding_function = embedding_function
-        self._dimension = dimension
 
-        ChromaVectorStore.class_init(path)
+        ChromaVectorStore.class_init(path, host, port)
         self._collection = self._chroma.get_or_create_collection(
             collection_name,
         )
-        
-    #TODO Fix typing and cross reference
+
+    #In future should have our own chunking service so we can accept documents and chunk for users
+    #TODO cross reference
     def upsert(
         self,
         content : List[Chunk] | List[str]
     ) -> List[str]:
         
-        if isinstance(content[0], Chunk):
-            ids = []
-            embeddings = []
-            metadatas = []
-            documents = []
-            for chunk in content:
-                id = uuid4().int
-                ids.append(str(id))
+        
+        ids = []
+        embeddings = []
+        metadatas = []
+        documents = []
 
-                embedding = self._embedding_function([chunk.content])[0]
-                embeddings.append(embedding)
+        for item in content:
+            id = uuid4().int
+            ids.append(str(id))
 
-                metadata = chunk.metadata
-                metadata["content"] = chunk.content
-                metadatas.append(metadata)
+            if isinstance(item, Chunk):
+                embedding = self._embedding_function([item.content])[0]
+                metadata = item.metadata
+                metadata[CONTENT] = item.content
+                documents.append(item.document)
 
-                documents.append(chunk.document)
-
-        elif isinstance(content[0], str):
-            ids = []
-            embeddings = []
-            metadatas = []
-            documents = []
-            for text in content:
-                id = uuid4().int
-                ids.append(str(id))
-
-                embedding = self._embedding_function([text])[0]
-                embeddings.append(embedding)
-                metadata = {"content": text}
-                metadatas.append(metadata)
-
+            else:
+                embedding = self._embedding_function([item])[0]
+                metadata = {CONTENT: item}
                 documents.append(None)
+
+            embeddings.append(embedding)
+            metadatas.append(metadata)
 
         self._collection.upsert(
             ids=ids,
@@ -87,7 +83,7 @@ class ChromaVectorStore(VectorStore):
             )
         return ids
 
-    #TODO Fix typing and cross reference
+    #TODO cross reference
     def fetch(
             self, 
             ids: Optional[List[str]]  = None,
@@ -98,7 +94,7 @@ class ChromaVectorStore(VectorStore):
             ) -> FetchResponse:
         
         results = FetchResponse()
-        #currently we ignore Include and assume the left it as default]]
+        #currently we ignore Include and assume the left it as default
         responses = self._collection.get(
             ids,
             where,
@@ -107,25 +103,37 @@ class ChromaVectorStore(VectorStore):
             where_document,
             include = ["embeddings", "metadatas", "documents"])
         
+        embeddings = responses.get("embeddings")
+        if embeddings is None:
+            raise ValueError("Embeddings were not found in fetch response.")
+        documents = responses.get("documents")
+        if documents is None:
+            raise ValueError("Documents were not found in fetch response.")
+        metadatas = responses.get("metadatas")
+        if metadatas is None:
+            raise ValueError("Metadatas were not found in fetch response.")
+        
         for i, response in enumerate(responses["ids"]):
             id = response
-            if responses["embeddings"] is not None:
-                embedding = responses["embeddings"][i]
-            if responses["documents"]:
-                document = responses["documents"][i]
-            if responses["metadatas"]:
-                metadatas = responses["metadatas"][i]
-
+        
+            metadata = dict(deepcopy(metadatas[i]))
+            if not (content := metadata.get(CONTENT)) or not isinstance(content, str):
+                raise ValueError("Content was not initialized in vector. Please create an issue")
+            
+            metadata.pop(CONTENT)
             results.append(FetchResult(
                 id=id,
-                content=metadatas["content"] if type(metadatas["content"]) is str else "", 
-                vector=embedding.tolist(),
-                document=document,
-                metadata=metadatas))
+                content=content, 
+                vector=list(embeddings[i]),
+                document=documents[i],
+                metadata=metadata
+                )
+            )
             
         return results
     
     #There is support for other types of query modalities but for now just list of strings
+    #Should Probably add support for Chunks as well
     #TODO cross reference and fix typing plust batch querys problems. Could be an issue with the large nested nature of this
     def search(
         self,
@@ -143,7 +151,7 @@ class ChromaVectorStore(VectorStore):
     ) -> List[SearchResponse]:
         query_embeddings = self._embedding_function(query)
         results = self._collection.query(
-            query_embeddings=[query for query in query_embeddings],
+            query_embeddings=list(query_embeddings),
             ids=ids,
             n_results=n_results,
             where=where,
@@ -151,43 +159,36 @@ class ChromaVectorStore(VectorStore):
             include=include
         )
         answer = []
-        for i, id_list in enumerate(results["ids"]):
+        for query_idx, query_response in enumerate(results["ids"]):
             search_response = SearchResponse()
-            for j, id in enumerate(id_list):
-                distance = results.get("distances")
-                vector = results.get("embeddings")
-                document = results.get("documents")
-                metadatas = results.get("metadatas")
+            for id_idx, id in enumerate(query_response):
 
-                if distance is not None:
-                    distance = distance[i][j]
-                else:
+                if not (distance := results.get("distances")):
                     raise ValueError("Distance not found in search results.")
-                
-                if vector is not None:
-                    vector = list(vector[i][j])
-                else:
+                if not (vector := results.get("embeddings")):
                     raise ValueError("Vector not found in search results.")
-                
-                if document is not None:
-                    document = document[i][j]
-                else: 
+                if not (document := results.get("documents")):
                     raise ValueError("Document not found in search results.")
-                
-                if metadatas is not None:
-                    metadata = metadatas[i][j]
-                    content = metadatas[i][j]["content"] #This should always be there since we upserted it but should maybe add check later on
-                else:
+                if not (metadatas := results.get("metadatas")):
                     raise ValueError("Metadata not found in search results.")
+
+                distance = distance[query_idx][id_idx]
+                vector = list(vector[query_idx][id_idx])
+                document = document[query_idx][id_idx]
+                metadata = dict(deepcopy(metadatas[query_idx][id_idx]))
+
+                if not (content := metadata.get(CONTENT)) or not isinstance(content, str):
+                    raise ValueError("Content was not initialized in vector. Please create an issue")
+        
+                metadata.pop(CONTENT)
 
                 search_response.append(SearchResult(
                     id=id,
                     distance=distance,
                     content=content,
                     vector=vector,
-                    document=Document(document), #Chroma document is just a str
+                    document=document, #Chroma document is just a str
                     metadata = metadata
-
                     )
                 )
             answer.append(search_response)
