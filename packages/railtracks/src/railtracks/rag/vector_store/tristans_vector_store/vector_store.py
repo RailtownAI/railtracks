@@ -1,14 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional, Callable
+from typing import List, Dict, Any, Optional, Callable, Mapping
 from enum import Enum
 from dataclasses import dataclass, field
+from pinecone import Vector
 
 
-class VectorStoreType(Enum):
-    """Enum for supported vector store types."""
-    MILVUS = "milvus"
-    PINECONE = "pinecone"
-    CHROMA = "chroma"
 
 class Metric(str, Enum):
     """
@@ -19,21 +15,56 @@ class Metric(str, Enum):
     l2 = "l2"  # Euclidean (L2) distance
     dot = "dot"  # Dot product similarity
 
+class Document(str):
+    content :str
+
 @dataclass
-class SearchResult:
-    """Container for a single search result from a vector store query."""
+class Chunk:
+    """Chunk class to be used when upserting to collections"""
     
-    id: str
-    score: float
-    embedding: Optional[List[float]] = None
-    document: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = field(default_factory=dict)
-    
+    content :str
+    document: Optional[Document] = None
+    metadata: Dict[str, Any]= field(default_factory=dict)
+
     def __post_init__(self) -> None:
         """Ensure metadata is always a dict."""
         if self.metadata is None:
             self.metadata = {}
 
+@dataclass
+class SearchResult:
+    """Container for a single search result from a vector store query."""
+
+    id: str
+    distance : float
+    content :str
+    vector : List[float]
+    document: Optional[Document] = None
+    metadata: Dict[str, Any] | Mapping[str, Any] = field(default_factory=dict)
+    
+    def __post_init__(self) -> None:
+        """Ensure metadata is always a dict."""
+        if self.metadata is None:
+            self.metadata = {}
+@dataclass
+class FetchResult:
+    """Container for a single fetch result from a vector store fetch."""
+    
+    id: str
+    content :str
+    vector : List[float]
+    document: Optional[Document] = None
+    metadata: Dict[str, Any] | Mapping[str, Any] = field(default_factory=dict)
+    
+    def __post_init__(self) -> None:
+        """Ensure metadata is always a dict."""
+        if self.metadata is None:
+            self.metadata = {}
+class SearchResponse(List[SearchResult]):
+    """Containter for results of search"""
+
+class FetchResponse(List[FetchResult]):
+    """Container for results of a Fetch."""
 
 class VectorStore(ABC):
     """Abstract base class for vector store implementations."""
@@ -56,7 +87,8 @@ class VectorStore(ABC):
             **kwargs: Additional store-specific parameters
         """
         pass
-    
+
+    #Idea is to accept Chunks, Documents, or strs
     @abstractmethod
     def upsert(
         self,
@@ -83,7 +115,7 @@ class VectorStore(ABC):
     def fetch(
         self,
         ids: List[str]
-    ) -> List[SearchResult]:
+    ) -> List[FetchResponse]:
         """
         Fetch vectors by their IDs.
         
@@ -96,14 +128,14 @@ class VectorStore(ABC):
         pass
     
     @abstractmethod
-    def query(
+    def search(
         self,
         query_embeddings: Optional[List[List[float]]] = None,
         query_texts: Optional[List[str]] = None,
         n_results: int = 10,
         where: Optional[Dict[str, Any]] = None,
         include: Optional[List[str]] = None
-    ) -> List[SearchResult]:
+    ) -> List[SearchResponse]:
         """
         Query the vector store for similar vectors.
         
