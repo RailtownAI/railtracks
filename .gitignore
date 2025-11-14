@@ -43,3 +43,6 @@ core-licenses-summary.md
 
 # OS generated files
 .DS_Store
+
+# Ignore Files copied during release workflow for PyPI packaging (for Flit)
+packages/railtracks/docs/

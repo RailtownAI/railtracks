@@ -43,6 +43,10 @@ jobs:
         with:
           python-version: "${{ env.PYTHON_VERSION }}"
 
+      - name: Ensure assets directory exists
+        run: |
+          mkdir -p packages/railtracks
+
       - name: Use root README for PyPI (railtracks)
         run: |
           cp README.md packages/railtracks/README.md

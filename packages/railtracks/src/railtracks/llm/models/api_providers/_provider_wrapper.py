@@ -15,12 +15,23 @@ _TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
 
 class ProviderLLMWrapper(LiteLLMWrapper[_TStream], ABC, Generic[_TStream]):
-    def __init__(self, model_name: str, stream: _TStream = False):
+    def __init__(
+        self,
+        model_name: str,
+        stream: _TStream = False,
+        api_base: str | None = None,
+        api_key: str | None = None,
+    ):
         model_name = self._pre_init_provider_check(model_name)
-        super().__init__(model_name=self.full_model_name(model_name), stream=stream)
+        super().__init__(
+            model_name=self.full_model_name(model_name),
+            stream=stream,
+            api_base=api_base,
+            api_key=api_key,
+        )
 
     def _pre_init_provider_check(self, model_name: str):
-        provider_name = self.model_type().lower()
+        provider_name = self.model_provider().lower()
         try:
             # NOTE: Incase of a valid model for gemini, `get_llm_provider` returns provider = vertex_ai.
             model_name = model_name.split("/")[-1]
@@ -49,12 +60,15 @@ class ProviderLLMWrapper(LiteLLMWrapper[_TStream], ABC, Generic[_TStream]):
     def full_model_name(self, model_name: str) -> str:
         """After the provider is checked, this method is called to get the full model name"""
         # for anthropic/openai models the full model name is {provider}/{model_name}
-        return f"{self.model_type().lower()}/{model_name}"
+        return f"{self.model_provider().lower()}/{model_name}"
+
+    def model_provider(self) -> ModelProvider:
+        """Returns the name of the provider"""
+        return self.model_gateway()
 
     @classmethod
     @abstractmethod
-    def model_type(cls) -> ModelProvider:
-        """Returns the name of the provider"""
+    def model_gateway(cls) -> ModelProvider:
         pass
 
     def _validate_tool_calling_support(self):

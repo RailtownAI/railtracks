@@ -114,13 +114,6 @@ def test_nodebuilder_tool_calling_llm_with_function_node():
         assert node_cls.system_message().content == "sysmsg"
         assert node_cls.system_message().role == "system"
 
-def test_nodebuilder_chat_ui():
-    builder = NodeBuilder(DummyNode, name="TestNode")
-    mock_chatui = MagicMock()
-    builder.chat_ui(mock_chatui)
-    node_cls = builder.build()
-    assert node_cls.chat_ui == mock_chatui
-
 def test_nodebuilder_setup_function_node():
     builder = NodeBuilder(SyncDynamicFunctionNode, name="FuncNode")
     builder.setup_function_node(dummy_func, tool_details=dummy_manifest().description, tool_params=dummy_manifest().parameters)

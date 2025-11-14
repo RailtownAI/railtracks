@@ -1,3 +1,10 @@
-from .azureai import AzureAILLM
+from railtracks.llm.models.cloud.portkey import PortKeyLLM
 
-__all__ = [AzureAILLM]
+from .azureai import AzureAILLM
+from .telus import TelusLLM
+
+__all__ = [
+    "AzureAILLM",
+    "TelusLLM",
+    "PortKeyLLM",
+]

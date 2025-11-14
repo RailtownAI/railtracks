@@ -30,3 +30,6 @@ class ModelProvider(str, Enum):
     AZUREAI = "AzureAI"
     OLLAMA = "Ollama"
     COHERE = "cohere_chat"
+    TELUS = "Telus"
+    PORTKEY = "PortKey"
+    UNKNOWN = "Unknown"

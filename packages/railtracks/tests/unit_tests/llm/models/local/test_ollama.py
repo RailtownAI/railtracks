@@ -34,7 +34,7 @@ def mock_failed_response():
 
 def test_model_type():
     """Test the model_type class method"""
-    assert OllamaLLM.model_type() == "Ollama"
+    assert OllamaLLM.model_gateway() == "Ollama"
 def test_init_success(mock_response):
     """Test successful initialization of Ollama"""
     with patch('requests.get', return_value=mock_response):

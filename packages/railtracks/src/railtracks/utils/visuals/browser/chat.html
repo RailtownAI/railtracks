@@ -23,6 +23,7 @@
         <div class="tab-container">
             <a class="tab active" onclick="switchTab('chat')"><i class="fa-solid fa-comments"></i> Chat</a>
             <a class="tab" onclick="switchTab('tools')"><i class="fa-solid fa-gear"></i> Tools</a>
+            <a class="tab hidden" id="attachmentsTabButton" onclick="switchTab('attachments')"><i class="fa-solid fa-paperclip"></i> Attachments</a>
         </div>
         
         <!-- Chat Tab Content -->
@@ -33,16 +34,30 @@
             <div class="status" id="statusBar"></div>
             
             <div class="chat-input">
-                <textarea 
-                    class="message-input" 
-                    id="messageInput" 
-                    placeholder="Type your message... (Shift+Enter for new line)" 
-                    maxlength="200000"
-                    rows="1"
-                    onkeypress="handleKeyPress(event)"
-                    oninput="autoResize(this)"
-                ></textarea>
-                <button class="send-button" id="sendButton" onclick="sendMessage()">Send</button>
+                <div class="input-row">
+                    <textarea 
+                        class="message-input" 
+                        id="messageInput" 
+                        placeholder="Type your message... (Shift+Enter for new line)" 
+                        maxlength="200000"
+                        rows="1"
+                        onkeypress="handleKeyPress(event)"
+                        oninput="autoResize(this)"
+                    ></textarea>
+                    <button class="send-button" id="sendButton" onclick="sendMessage()">Send</button>
+                    <button class="upload-button" id="uploadButton" onclick="toggleUploadModal()" title="Attach file or URL">
+                        <i class="fa-solid fa-paperclip"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Attachments Tab Content -->
+        <div class="tab-content" id="attachmentsTab">
+            <div class="tools-container">
+                <div class="tools-list" id="attachmentsList">
+                    <div class="no-tools-message">No attachments yet.</div>
+                </div>
             </div>
         </div>
         
@@ -58,6 +73,112 @@
             </div>
         </div>
     </div>
+
+    <!-- Upload Modal -->
+    <div class="upload-modal modal-hidden" id="uploadModal">
+        <div class="upload-modal-content">
+            <div class="upload-modal-header">
+                <h3><i class="fa-solid fa-cloud-arrow-up"></i> Upload Content</h3>
+                <button class="modal-close" onclick="toggleUploadModal()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <div class="upload-options">
+                <!-- Local File Upload -->
+                <div class="upload-option">
+                    <button class="upload-option-button" onclick="document.getElementById('fileInput').click()">
+                        <i class="fa-solid fa-file"></i>
+                        <span>Choose Local File</span>
+                    </button>
+                    <input type="file" id="fileInput" style="display: none;" onchange="handleFileSelect(event)" multiple accept="image/*,video/*,audio/*,.pdf,.txt,.doc,.docx">
+                </div>
+                
+                <!-- URL Input -->
+                <div class="upload-option">
+                    <div class="url-input-container">
+                        <input 
+                            type="text" 
+                            id="urlInput" 
+                            class="url-input" 
+                            placeholder="Enter web URL (image, video, document...)"
+                            onkeypress="handleUrlKeyPress(event)"
+                        >
+                        <button class="url-submit-button" onclick="handleUrlSubmit()">
+                            <i class="fa-solid fa-plus"></i> Add
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Templates for dynamic content -->
+    <template id="connectionStatusTemplate">
+        <i class="connection-status-icon"></i>
+        <span class="connection-status-text"></span>
+    </template>
+
+    <template id="messageTemplate">
+        <div class="message">
+            <div class="message-row">
+                <div class="message-content">
+                    <div class="message-text"></div>
+                    <div class="timestamp"></div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="statusBarTemplate">
+        <div class="status-inner">
+            <i class="status-bar-icon"></i>
+            <span class="code-accent status-bar-text"></span>
+        </div>
+    </template>
+
+    <template id="toolItemTemplate">
+        <div class="tool-item">
+            <div class="tool-header">
+                <div class="tool-header-left">
+                    <span class="tool-name">
+                        <i class="tool-status-icon"></i>
+                        <span class="tool-name-text"></span>
+                    </span>
+                    <span class="tool-id"></span>
+                </div>
+                <button class="toggle-button collapsed">Show Details</button>
+            </div>
+            <div class="tool-details collapsed">
+                <div class="tool-section">
+                    <strong>Arguments:</strong>
+                    <pre class="tool-args"></pre>
+                </div>
+                <div class="tool-section">
+                    <strong>Result:</strong>
+                    <pre class="tool-result"></pre>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="attachmentItemTemplate">
+        <div class="tool-item">
+            <div class="attachment-header">
+                <div class="tool-header-left">
+                    <span class="tool-name">
+                        <i class="attachment-status-icon"></i>
+                        <i class="attachment-type-icon"></i>
+                        <span class="attachment-name"></span>
+                    </span>
+                    <span class="tool-id attachment-meta"></span>
+                </div>
+                <button class="remove-attachment-button">
+                    <i class="fa-solid fa-trash"></i> Remove
+                </button>
+            </div>
+        </div>
+    </template>
 
     <script src="chat.js"></script>
 </body>

@@ -6,7 +6,7 @@ import pytest
 from railtracks.utils.config import ExecutorConfig
 
 # ================= START ExecutorConfig: Fixtures ============
-@pytest.fixture(params=["REGULAR", "VERBOSE"])
+@pytest.fixture(params=["INFO", "DEBUG"])
 def log_level(request):
     return request.param
 # ================ END ExecutorConfig: Fixtures ===============
@@ -18,7 +18,7 @@ def test_instantiation_with_all_defaults():
     assert isinstance(config.timeout, float)
     assert config.timeout == 150.0
     assert config.end_on_error is False
-    assert config.logging_setting == "REGULAR"
+    assert config.logging_setting == "INFO"
     assert config.log_file is None
     assert config.prompt_injection is True
     assert config.subscriber is None
@@ -70,14 +70,14 @@ def test_subscriber_is_none_by_default():
 
 # ================= START ExecutorConfig: logging_setting options tests ============
 
-@pytest.mark.parametrize("log_setting", ["REGULAR", "VERBOSE"])
+@pytest.mark.parametrize("log_setting", ["INFO", "DEBUG"])
 def test_logging_setting_accepts_allowable_levels(log_setting):
     config = ExecutorConfig(logging_setting=log_setting)
     assert config.logging_setting == log_setting
 
 def test_logging_setting_default_is_regular():
     config = ExecutorConfig()
-    assert config.logging_setting == "REGULAR"
+    assert config.logging_setting == "INFO"
 
 # ================ END ExecutorConfig: logging_setting options tests ===============
 
@@ -121,7 +121,7 @@ def base_config():
     return ExecutorConfig(
         timeout=100.0,
         end_on_error=True,
-        logging_setting="REGULAR",
+        logging_setting="INFO",
         prompt_injection=True,
         save_state=True
     )
@@ -138,13 +138,13 @@ def test_multiple_updated(base_config):
     updated_config = base_config.precedence_overwritten(
         timeout=200.0,
         end_on_error=False,
-        logging_setting="QUIET",
+        logging_setting="CRITICAL",
         log_file="new_log.txt",
         prompt_injection=False
     )
     assert updated_config.timeout == 200.0
     assert updated_config.end_on_error is False
-    assert updated_config.logging_setting == "QUIET"
+    assert updated_config.logging_setting == "CRITICAL"
     assert updated_config.log_file == "new_log.txt"
     assert updated_config.prompt_injection is False
 

@@ -39,6 +39,24 @@ import railtracks as rt
 model = rt.llm.AzureAILLM("azure_ai/deepseek-r1")
 # --8<-- [end: azure]
 
+# --8<-- [start: portkey]
+import railtracks as rt
+from dotenv import load_dotenv
+load_dotenv()  # Load environment variables from .env file under PORTKEY_API_KEY
+
+# using gpt through Portkey
+model = rt.llm.PortKeyLLM("@<your opennai slug>/gpt-4o")
+# using claude through Portkey
+model = rt.llm.PortKeyLLM("@<your anthropic slug>/claude-sonnet-4-5-20250929")
+# --8<-- [end: portkey]
+
+# --8<-- [start: openaicompat]
+import railtracks as rt
+
+# you can pass in the model name, api endpoint and your API key to connect to your LLM
+model = rt.llm.OpenAICompatibleProvider("<your model name>", api_base="<base api url>", api_key="<api key>")
+# --8<-- [end: openaicompat]
+
 # --8<-- [start: ollama]
 import railtracks as rt
 # make sure to configure your environment variables for Ollama

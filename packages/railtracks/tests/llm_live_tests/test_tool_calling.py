@@ -74,6 +74,7 @@ async def test_realistic_scenario(llm):
         "John": {"role": "Manager", "phone": "1234567890"},
     }
 
+    @rt.function_node
     def update_staff_directory(staff: list[StaffDirectory]) -> None:
         """
         For a given list of staff, updates the staff directory with new members or updates existing members.
@@ -123,6 +124,7 @@ async def test_realistic_scenario(llm):
 async def test_agents_as_tools(llm):
     """Test that an agent using other agnets as tools works correctly."""
 
+    @rt.function_node
     def secret_phrase(id: int):
         """
         Returns a secret phrase based on the id.

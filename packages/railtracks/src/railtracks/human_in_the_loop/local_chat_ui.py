@@ -20,9 +20,29 @@ from .human_in_the_loop import HIL, HILMessage
 logger = get_rt_logger("ChatUI")
 
 
-class UIUserMessage(BaseModel):
-    message: str
+class UserMessageAttachment(BaseModel):
+    type: str  # "file" or "url"
+    url: Optional[str] = None  # for URL type
+    data: Optional[str] = None  # for file type (base64)
+    name: Optional[str] = None  # optional name of the attachment
+
+    def __init__(
+        self,
+        type: str,
+        url: Optional[str] = None,
+        data: Optional[str] = None,
+        name: Optional[str] = None,
+    ):
+        if url is None and data is None:
+            raise ValueError("Either 'url' or 'data' must be provided.")
+        super().__init__(type=type, url=url, data=data, name=name)
+
+
+class UIUserMessage(HILMessage):
+    content: str
+    attachments: Optional[list[UserMessageAttachment]] = None
     timestamp: Optional[str] = None
+    metadata: Optional[dict] = None
 
 
 class ToolInvocation(BaseModel):
@@ -100,13 +120,7 @@ class ChatUI(HIL):
         @app.post("/send_message")
         async def send_message(user_message: UIUserMessage):
             """Receive user input from chat interface"""
-            message_data = HILMessage(
-                content=user_message.message,
-                metadata={
-                    "timestamp": user_message.timestamp or datetime.now().isoformat()
-                },
-            )
-            await self.user_input_queue.put(message_data)
+            await self.user_input_queue.put(user_message)
 
             return {"status": "success", "message": "Message received"}
 
@@ -143,7 +157,7 @@ class ChatUI(HIL):
                         }
                         yield f"data: {json.dumps(heartbeat)}\n\n"
                     except asyncio.CancelledError:
-                        logger.info("SSE event generator cancelled, this is expected.")
+                        logger.debug("SSE event generator cancelled, this is expected.")
                         break
 
             return StreamingResponse(
@@ -272,7 +286,9 @@ class ChatUI(HIL):
             logger.error(f"Error sending message: {e}")
             return False
 
-    async def receive_message(self, timeout: float | None = None) -> HILMessage | None:
+    async def receive_message(
+        self, timeout: float | None = None
+    ) -> UIUserMessage | None:
         """
         Waits for the user to provide input.
 

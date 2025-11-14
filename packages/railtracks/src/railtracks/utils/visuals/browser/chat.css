@@ -391,6 +391,8 @@ body {
     font-weight: 600;
     transition: all 0.3s ease;
     text-transform: uppercase;
+    flex-shrink: 0;
+    width: 80px;
 }
 
 .send-button:hover:not(:disabled) {
@@ -414,6 +416,14 @@ body {
 .status-inner {
     padding: 8px 12px;
     border-top: 1px solid #4a5568;
+}
+
+.status-bar-icon {
+    margin-right: 6px;
+}
+
+.status-bar-text {
+    display: inline;
 }
 
 .status.processing {
@@ -676,4 +686,363 @@ body {
 
 .glow {
     text-shadow: 0 0 10px currentColor;
+}
+
+/* Upload Button and Components */
+.input-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    width: 100%;
+}
+
+.upload-button {
+    padding: 12px 20px;
+    border: 1px solid #4a5568;
+    border-radius: 6px;
+    cursor: pointer;
+    background: #2d3748;
+    color: var(--primary-color);
+    font-size: 18px;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+    width: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.upload-button:hover:not(:disabled) {
+    background: var(--secondary-color);
+    border-color: var(--primary-color);
+}
+
+.upload-button:disabled {
+    background: #4a5568;
+    color: #a0aec0;
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+/* Upload Modal */
+.upload-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.upload-modal-content {
+    background: var(--background-color);
+    border: 1px solid #4a5568;
+    border-radius: 12px;
+    padding: 24px;
+    min-width: 400px;
+    max-width: 500px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.upload-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.upload-modal-header h3 {
+    font-size: 18px;
+    color: var(--primary-color);
+    margin: 0;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: #cbd5e0;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+    background: #4a5568;
+    color: var(--primary-color);
+}
+
+.upload-options {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.upload-option {
+    width: 100%;
+}
+
+.upload-option-button {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+    border: 2px solid #4a5568;
+    border-radius: 8px;
+    color: var(--text-color);
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.upload-option-button:hover {
+    background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(0, 255, 136, 0.2);
+}
+
+.upload-option-button i {
+    font-size: 20px;
+    color: var(--primary-color);
+}
+
+.url-input-container {
+    display: flex;
+    gap: 8px;
+}
+
+.url-input {
+    flex: 1;
+    padding: 12px 16px;
+    border: 2px solid #4a5568;
+    border-radius: 8px;
+    background: #1a202c;
+    color: var(--text-color);
+    font-size: 14px;
+    outline: none;
+    transition: all 0.3s ease;
+}
+
+.url-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px var(--secondary-color);
+}
+
+.url-submit-button {
+    padding: 12px 20px;
+    background: var(--primary-color);
+    border: none;
+    border-radius: 8px;
+    color: #1a202c;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.url-submit-button:hover {
+    opacity: 0.8;
+}
+
+/* Attachments Preview */
+.attachments-preview {
+    padding: 12px;
+    border-bottom: 1px solid #4a5568;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    max-height: 150px;
+}
+
+.attachment-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: #2d3748;
+    border: 1px solid #4a5568;
+    border-radius: 20px;
+    font-size: 13px;
+    color: var(--text-color);
+    animation: slideIn 0.2s ease-out;
+}
+
+.attachment-chip i.fa-file,
+.attachment-chip i.fa-image,
+.attachment-chip i.fa-video,
+.attachment-chip i.fa-file-pdf,
+.attachment-chip i.fa-file-audio {
+    color: var(--primary-color);
+}
+
+.attachment-chip i.fa-link {
+    color: #00a8ff;
+}
+
+.attachment-chip .attachment-name {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.attachment-chip .remove-attachment {
+    background: none;
+    border: none;
+    color: #ff6b6b;
+    cursor: pointer;
+    padding: 0;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.attachment-chip .remove-attachment:hover {
+    color: #ff5252;
+    transform: scale(1.2);
+}
+
+.send-button, .upload-button, .message-input {
+    height: 40px;
+}
+
+/* Attachment Header for Tab View */
+.attachment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+}
+
+.remove-attachment-button {
+    padding: 6px 16px;
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.remove-attachment-button:hover:not(:disabled) {
+    background: linear-gradient(135deg, #ee5a52 0%, #dc3545 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+}
+
+.remove-attachment-button:disabled {
+    background: #4a5568;
+    color: #a0aec0;
+    cursor: not-allowed;
+    opacity: 0.6;
+    transform: none;
+}
+
+/* Connection status icons */
+.status-icon-connected {
+    color: green;
+}
+
+.status-icon-disconnected {
+    color: red;
+}
+
+/* Tool and attachment status icons */
+.status-icon-success {
+    color: green;
+}
+
+.status-icon-error {
+    color: red;
+}
+
+.status-icon-sent {
+    color: #00ff88;
+}
+
+.status-icon-pending {
+    color: #ffd700;
+}
+
+/* Message row layout */
+.message-row {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+}
+
+/* Utility classes for visibility */
+.hidden {
+    display: none !important;
+}
+
+.visible {
+    display: block;
+}
+
+/* Templates should be hidden */
+template {
+    display: none;
+}
+
+/* Avatar styles */
+.avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.avatar-assistant {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #00cc69 100%);
+    color: #1a202c;
+    font-size: 16px;
+}
+
+/* Message content wrapper */
+.message-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.message-text {
+    word-wrap: break-word;
+}
+
+/* Upload modal visibility states */
+.upload-modal.modal-visible {
+    display: flex;
+}
+
+.upload-modal.modal-hidden {
+    display: none;
 }

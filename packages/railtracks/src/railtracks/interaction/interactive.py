@@ -4,6 +4,7 @@ from railtracks.built_nodes.concrete.response import LLMResponse
 
 from ..built_nodes.concrete._llm_base import LLMBase
 from ..human_in_the_loop import ChatUI, HILMessage
+from ..human_in_the_loop.local_chat_ui import UserMessageAttachment
 from ..llm.history import MessageHistory
 from ..llm.message import AssistantMessage, UserMessage
 from ..utils.logging.create import get_rt_logger
@@ -12,6 +13,24 @@ from ._call import call
 logger = get_rt_logger("Interactive")
 
 _TOutput = TypeVar("_TOutput", bound=LLMResponse)
+
+
+def _process_attachment(attachments: list[UserMessageAttachment]) -> list[str]:
+    """Processes a list of attachments and returns their data or URLs.
+
+    Args:
+        attachments: A list of UserMessageAttachment objects.
+
+    Returns:
+        A list of strings containing the processed data or URLs.
+    """
+    processed = []
+    for attachment in attachments:
+        if attachment.type == "file":
+            processed.append(attachment.data)
+        elif attachment.type == "url":
+            processed.append(attachment.url)
+    return processed
 
 
 async def _chat_ui_interactive(
@@ -51,7 +70,10 @@ async def _chat_ui_interactive(
         if message is None:
             continue  # could be `break` but I want to ensure chat_ui.is_connected is updated properly
 
-        msg_history.append(UserMessage(message.content))
+        attachments = []
+        if message.attachments is not None:
+            attachments = _process_attachment(message.attachments)
+        msg_history.append(UserMessage(content=message.content, attachment=attachments))
 
         response = await call(node, msg_history, *args, **kwargs)
 

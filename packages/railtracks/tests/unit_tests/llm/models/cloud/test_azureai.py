@@ -25,7 +25,7 @@ def response():
 
 def test_model_type():
     """Test if the model type is correctly returned"""
-    assert AzureAILLM.model_type() == "AzureAI"
+    assert AzureAILLM.model_gateway() == "AzureAI"
 
 
 def test_init_success():

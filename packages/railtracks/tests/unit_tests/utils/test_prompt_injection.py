@@ -1,17 +1,20 @@
-import pytest
+import railtracks.llm.prompt_injection_utils as prompt_injection_utils
+from railtracks.llm.prompt_injection_utils import KeyOnlyFormatter, ValueDict
+
 from railtracks.llm.message import Role
 from railtracks.utils import prompt_injection
-from railtracks.llm import Message, MessageHistory
+from railtracks.llm import Message, MessageHistory, UserMessage, SystemMessage
+
 
 # ================= START KeyOnlyFormatter tests ============
 
 def test_formatter_uses_only_kwargs():
-    f = prompt_injection.KeyOnlyFormatter()
+    f = KeyOnlyFormatter()
     formatted = f.format("Hello, {name}", name="Test")
     assert formatted == "Hello, Test"
 
 def test_formatter_missing_key_returns_placeholder():
-    f = prompt_injection.KeyOnlyFormatter()
+    f = KeyOnlyFormatter()
     formatted = f.format("Hello, {name}")
     assert formatted == "Hello, {name}"
 
@@ -31,36 +34,24 @@ def test_valuedict_missing_returns_placeholder():
 # ================ END ValueDict tests =======================
 
 
-# ================= START fill_prompt tests ==================
-
-def test_fill_prompt_fills_placeholders():
-    value_dict = prompt_injection.ValueDict({"name": "Alice"})
-    result = prompt_injection.fill_prompt("Hi {name}!", value_dict)
-    assert result == "Hi Alice!"
-
-def test_fill_prompt_missing_key():
-    value_dict = prompt_injection.ValueDict()
-    result = prompt_injection.fill_prompt("Hi {missing}!", value_dict)
-    assert result == "Hi {missing}!"
-
-# ================ END fill_prompt tests =====================
-
-
 # ================= START inject_values tests ================
 
 def test_inject_values_injects_value():
-    msg = Message(role=Role.user, content="Hello, {name}!", inject_prompt=True)
-    history = MessageHistory([msg])
-    value_dict = prompt_injection.ValueDict({"name": "Alice"})
+    smsg = SystemMessage(content="System says {system_info}", inject_prompt=True)
+    msg = UserMessage(content="Hello, {name}!", inject_prompt=True)
+    history = MessageHistory([smsg, msg])
+    value_dict = ValueDict({"name": "Alice", "system_info": "All systems operational"})
 
     result = prompt_injection.inject_values(history, value_dict)
-    assert result[0].content == "Hello, Alice!"
+    assert result[0].content == "System says All systems operational"
     assert result[0].inject_prompt is False
+    assert result[1].content == "Hello, Alice!"
+    assert result[1].inject_prompt is False
 
 def test_inject_values_ignores_no_inject():
     msg = Message(role=Role.user, content="Hello!", inject_prompt=False)
     history = MessageHistory([msg])
-    value_dict = prompt_injection.ValueDict({"name": "Alice"})
+    value_dict = ValueDict({"name": "Alice"})
 
     result = prompt_injection.inject_values(history, value_dict)
     assert result[0].content == "Hello!"
@@ -69,7 +60,7 @@ def test_inject_values_ignores_no_inject():
 def test_inject_values_ignores_non_string_content():
     msg = Message(role=Role.user, content=12345, inject_prompt=True)
     history = MessageHistory([msg])
-    value_dict = prompt_injection.ValueDict({"name": "Alice"})
+    value_dict = ValueDict({"name": "Alice"})
 
     result = prompt_injection.inject_values(history, value_dict)
     assert result[0].content == 12345
@@ -78,9 +69,9 @@ def test_inject_values_catches_valueerror(monkeypatch):
     # Patch fill_prompt to throw ValueError
     msg = Message(role=Role.user, content="Hello, {name}!", inject_prompt=True)
     history = MessageHistory([msg])
-    value_dict = prompt_injection.ValueDict({"name": "Alice"})
+    value_dict = ValueDict({"name": "Alice"})
 
-    monkeypatch.setattr(prompt_injection, "fill_prompt", lambda content, vd: (_ for _ in ()).throw(ValueError("forced")))
+    monkeypatch.setattr(UserMessage, "fill_prompt", lambda content, vd: (_ for _ in ()).throw(ValueError("forced")))
 
     # Should not raise, and content should be unchanged
     result = prompt_injection.inject_values(history, value_dict)

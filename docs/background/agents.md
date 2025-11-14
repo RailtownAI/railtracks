@@ -30,10 +30,10 @@ graph LR
     Tools --> LLM
     LLM --> User
     
-    style LLM fill:#e1f5fe
-    style User fill:#f3e5f5
-    style Tools fill:#fff3e0
-    style Environment fill:#e8f5e8
+    style LLM fill:#e1f5fe, fill-opacity:0.3
+    style User fill:#f3e5f5, fill-opacity:0.3
+    style Tools fill:#fff3e0, fill-opacity:0.3
+    style Environment fill:#e8f5e8, fill-opacity:0.3
 ```
 
 # Real World Applications

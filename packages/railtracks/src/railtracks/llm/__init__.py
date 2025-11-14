@@ -9,7 +9,10 @@ from .models import (
     GeminiLLM,
     HuggingFaceLLM,
     OllamaLLM,
+    OpenAICompatibleProvider,
     OpenAILLM,
+    PortKeyLLM,
+    # TelusLLM,
 )
 from .providers import ModelProvider
 from .tools import (
@@ -42,6 +45,10 @@ __all__ = [
     "OllamaLLM",
     "AzureAILLM",
     "GeminiLLM",
+    # "TelusLLM",
+    "PortKeyLLM",
+    "OpenAICompatibleProvider",
+    "CohereLLM",
     # Parameter types
     "Parameter",
     "UnionParameter",

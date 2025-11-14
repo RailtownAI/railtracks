@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from typing import Any, Dict
 
+from pydantic import BaseModel
 
-@dataclass
-class HILMessage:
+
+class HILMessage(BaseModel):
     content: str
     metadata: Dict[str, Any] | None = None
 
