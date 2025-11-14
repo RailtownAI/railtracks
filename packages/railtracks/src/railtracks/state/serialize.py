@@ -27,7 +27,7 @@ supported_types = (
 
 
 # Consider refactoring this function to use a mapping of types to encoding functions for better scalability and maintainability.
-def encoder_extender(o) -> dict[str, Any]: # noqa: C901
+def encoder_extender(o) -> dict[str, Any]:  # noqa: C901
     """
     Extends the encoding of supported types to their dictionary representation.
 
