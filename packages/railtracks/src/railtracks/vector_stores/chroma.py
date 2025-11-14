@@ -1,14 +1,25 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, List, Optional, Callable
 from copy import deepcopy
-from .vector_store import VectorStore, Chunk, SearchResponse, FetchResponse, FetchResult, SearchResult, Document, MetadataKeys
+from .vector_store import (
+    VectorStore,
+    Chunk,
+    SearchResponse,
+    FetchResponse,
+    FetchResult,
+    SearchResult,
+    Document,
+    MetadataKeys,
+)
 from uuid import uuid4
 import numpy as np
+
 if TYPE_CHECKING:
     from chromadb.base_types import Where, WhereDocument
     from chromadb.api.types import Include
 
 CONTENT = MetadataKeys.CONTENT.value
+
 
 class ChromaVectorStore(VectorStore):
     """ChromaDB implementation of VectorStore."""
@@ -16,18 +27,23 @@ class ChromaVectorStore(VectorStore):
     @classmethod
     def class_init(cls, path, host, port):
         if not hasattr(cls, "_chroma"):
-            #First object initialized so import Chroma and connect create temporary, persistent or http client. Don't currently support chroma cloud client
+            # First object initialized so import Chroma and connect create temporary, persistent or http client. Don't currently support chroma cloud client
             try:
                 import chromadb
+
                 if path:
                     cls._chroma = chromadb.PersistentClient(path=path)
                 elif host and port:
-                    cls._chroma = chromadb.HttpClient(host=host, port=port) #Currently this does not provide the extra asycn features that comes with this
+                    cls._chroma = chromadb.HttpClient(
+                        host=host, port=port
+                    )  # Currently this does not provide the extra asycn features that comes with this
                 else:
                     cls._chroma = chromadb.EphemeralClient()
             except ImportError:
-                raise ImportError("Chroma package is not installed. Please install railtracks[chroma].")
-    
+                raise ImportError(
+                    "Chroma package is not installed. Please install railtracks[chroma]."
+                )
+
     def __init__(
         self,
         collection_name: str,
@@ -44,14 +60,9 @@ class ChromaVectorStore(VectorStore):
             collection_name,
         )
 
-    #In future should have our own chunking service so we can accept documents and chunk for users
-    #TODO cross reference
-    def upsert(
-        self,
-        content : List[Chunk] | List[str]
-    ) -> List[str]:
-        
-        
+    # In future should have our own chunking service so we can accept documents and chunk for users
+    # TODO cross reference
+    def upsert(self, content: List[Chunk] | List[str]) -> List[str]:
         ids = []
         embeddings = []
         metadatas = []
@@ -76,33 +87,30 @@ class ChromaVectorStore(VectorStore):
             metadatas.append(metadata)
 
         self._collection.upsert(
-            ids=ids,
-            embeddings=embeddings,
-            metadatas=metadatas,
-            documents=documents
-            )
+            ids=ids, embeddings=embeddings, metadatas=metadatas, documents=documents
+        )
         return ids
 
-    #TODO cross reference
+    # TODO cross reference
     def fetch(
-            self, 
-            ids: Optional[List[str]]  = None,
-            where: Optional[Where] = None,
-            limit: Optional[int] = None,
-            offset: Optional[int] = None,
-            where_document: Optional[WhereDocument] = None,
-            ) -> FetchResponse:
-        
+        self,
+        ids: Optional[List[str]] = None,
+        where: Optional[Where] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        where_document: Optional[WhereDocument] = None,
+    ) -> FetchResponse:
         results = FetchResponse()
-        #currently we ignore Include and assume the left it as default
+        # currently we ignore Include and assume the left it as default
         responses = self._collection.get(
             ids,
             where,
             limit,
             offset,
             where_document,
-            include = ["embeddings", "metadatas", "documents"])
-        
+            include=["embeddings", "metadatas", "documents"],
+        )
+
         embeddings = responses.get("embeddings")
         if embeddings is None:
             raise ValueError("Embeddings were not found in fetch response.")
@@ -112,32 +120,35 @@ class ChromaVectorStore(VectorStore):
         metadatas = responses.get("metadatas")
         if metadatas is None:
             raise ValueError("Metadatas were not found in fetch response.")
-        
+
         for i, response in enumerate(responses["ids"]):
             id = response
-        
+
             metadata = dict(deepcopy(metadatas[i]))
             if not (content := metadata.get(CONTENT)) or not isinstance(content, str):
-                raise ValueError("Content was not initialized in vector. Please create an issue")
-            
+                raise ValueError(
+                    "Content was not initialized in vector. Please create an issue"
+                )
+
             metadata.pop(CONTENT)
-            results.append(FetchResult(
-                id=id,
-                content=content, 
-                vector=list(embeddings[i]),
-                document=documents[i],
-                metadata=metadata
+            results.append(
+                FetchResult(
+                    id=id,
+                    content=content,
+                    vector=list(embeddings[i]),
+                    document=documents[i],
+                    metadata=metadata,
                 )
             )
-            
+
         return results
-    
-    #There is support for other types of query modalities but for now just list of strings
-    #Should Probably add support for Chunks as well
-    #TODO cross reference and fix typing plust batch querys problems. Could be an issue with the large nested nature of this
+
+    # There is support for other types of query modalities but for now just list of strings
+    # Should Probably add support for Chunks as well
+    # TODO cross reference and fix typing plust batch querys problems. Could be an issue with the large nested nature of this
     def search(
         self,
-        query: List[str], 
+        query: List[str],
         ids: Optional[List[str]] = None,
         n_results: int = 10,
         where: Optional[Where] = None,
@@ -156,13 +167,12 @@ class ChromaVectorStore(VectorStore):
             n_results=n_results,
             where=where,
             where_document=where_document,
-            include=include
+            include=include,
         )
         answer = []
         for query_idx, query_response in enumerate(results["ids"]):
             search_response = SearchResponse()
             for id_idx, id in enumerate(query_response):
-
                 if not (distance := results.get("distances")):
                     raise ValueError("Distance not found in search results.")
                 if not (vector := results.get("embeddings")):
@@ -177,25 +187,30 @@ class ChromaVectorStore(VectorStore):
                 document = document[query_idx][id_idx]
                 metadata = dict(deepcopy(metadatas[query_idx][id_idx]))
 
-                if not (content := metadata.get(CONTENT)) or not isinstance(content, str):
-                    raise ValueError("Content was not initialized in vector. Please create an issue")
-        
+                if not (content := metadata.get(CONTENT)) or not isinstance(
+                    content, str
+                ):
+                    raise ValueError(
+                        "Content was not initialized in vector. Please create an issue"
+                    )
+
                 metadata.pop(CONTENT)
 
-                search_response.append(SearchResult(
-                    id=id,
-                    distance=distance,
-                    content=content,
-                    vector=vector,
-                    document=document, #Chroma document is just a str
-                    metadata = metadata
+                search_response.append(
+                    SearchResult(
+                        id=id,
+                        distance=distance,
+                        content=content,
+                        vector=vector,
+                        document=document,  # Chroma document is just a str
+                        metadata=metadata,
                     )
                 )
             answer.append(search_response)
 
         return answer
-    
-    #TODO Cross-reference and then update the where filtering using unified filter
+
+    # TODO Cross-reference and then update the where filtering using unified filter
     def delete(
         self,
         ids: Optional[List[str]] = None,
@@ -207,6 +222,6 @@ class ChromaVectorStore(VectorStore):
             where=where,
             where_document=where_document,
         )
-    
+
     def count(self) -> int:
         return self._collection.count()
