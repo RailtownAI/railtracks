@@ -5,4 +5,4 @@ class DataPoint:
     """A class representing a single data point"""
     input_data: str
     expected_output: str
-    metadata: dict
+    metadata: dict | None = None

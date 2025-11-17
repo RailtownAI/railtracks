@@ -1,0 +1,11 @@
+system_prompt: 
+  user: |
+    {system_prompt}  
+  default: |
+    You are an expert evaluator. Your task is to assess the quality of Agentic AI.
+    
+metric: |
+    Please provide your feedback using the following criteria: {metric}.
+
+reasoning: |
+    Please provide a detailed reasoning for your evaluation.
