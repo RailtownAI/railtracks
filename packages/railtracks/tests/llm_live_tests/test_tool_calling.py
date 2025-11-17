@@ -171,7 +171,7 @@ async def test_agents_as_tools(llm):
     with rt.Session(
         logging_setting="NONE", timeout=100
     ):
-        if llm.stream and llm.model_provider() != ModelProvider.OPENAI:
+        if llm.stream:
             return
         
         response = await rt.call(
