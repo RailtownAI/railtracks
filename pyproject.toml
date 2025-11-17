@@ -80,4 +80,6 @@ lint.mccabe.max-complexity = 10
 asyncio_mode = "auto"
 addopts = [
     "--import-mode=importlib",
+    "--ignore=packages/railtracks/tests/llm_live_tests",
+    "--ignore=packages/railtracks/tests/end_to_end/rag",
 ]
