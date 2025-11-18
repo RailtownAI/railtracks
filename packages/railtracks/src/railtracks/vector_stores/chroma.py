@@ -1,20 +1,22 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional, Callable, overload, TypeVar, Union
+
 from copy import deepcopy
-from .vector_store_base import (
-    VectorStore,
-    Chunk,
-    SearchResponse,
-    FetchResponse,
-    FetchResult,
-    SearchResult,
-    MetadataKeys,
-)
+from typing import TYPE_CHECKING, Callable, Optional, TypeVar, Union, overload
 from uuid import uuid4
 
+from .vector_store_base import (
+    Chunk,
+    FetchResponse,
+    FetchResult,
+    MetadataKeys,
+    SearchResponse,
+    SearchResult,
+    VectorStore,
+)
+
 if TYPE_CHECKING:
-    from chromadb.base_types import Where, WhereDocument
     from chromadb.api.types import Include
+    from chromadb.base_types import Where, WhereDocument
 
 
 CONTENT = MetadataKeys.CONTENT.value
@@ -22,6 +24,7 @@ CONTENT = MetadataKeys.CONTENT.value
 T = TypeVar("T")
 
 OneOrMany = Union[T, list[T]]
+
 
 class ChromaVectorStore(VectorStore):
     """ChromaDB-backed implementation of :class:`VectorStore`.
@@ -33,7 +36,9 @@ class ChromaVectorStore(VectorStore):
     """
 
     @classmethod
-    def class_init(cls, path: Optional[str], host: Optional[str], port: Optional[int]) -> None:
+    def class_init(
+        cls, path: Optional[str], host: Optional[str], port: Optional[int]
+    ) -> None:
         """Lazily initialize the shared Chroma client.
 
         This method performs an optional import of Chroma and creates a
@@ -51,13 +56,13 @@ class ChromaVectorStore(VectorStore):
             try:
                 import chromadb
 
-                #Provide just a path for local store
+                # Provide just a path for local store
                 if path and not host and not port:
                     cls._chroma = chromadb.PersistentClient(path=path)
-                #Provide just a host and port for http store
+                # Provide just a host and port for http store
                 elif not path and host and port:
                     cls._chroma = chromadb.HttpClient(host=host, port=port)
-                #Provide nothing for temporary store
+                # Provide nothing for temporary store
                 elif not path and not host and not port:
                     cls._chroma = chromadb.EphemeralClient()
                 else:
@@ -68,6 +73,7 @@ class ChromaVectorStore(VectorStore):
                 raise ImportError(
                     "Chroma package is not installed. Please install railtracks[chroma]."
                 )
+
     @overload
     def __init__(
         self,
@@ -75,8 +81,7 @@ class ChromaVectorStore(VectorStore):
         embedding_function: Callable[[list[str]], list[list[float]]],
         *,
         path: str,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     def __init__(
@@ -86,16 +91,14 @@ class ChromaVectorStore(VectorStore):
         *,
         host: str,
         port: int,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     def __init__(
         self,
         collection_name: str,
         embedding_function: Callable[[list[str]], list[list[float]]],
-    ) -> None:
-        ...
+    ) -> None: ...
 
     def __init__(
         self,
@@ -241,7 +244,7 @@ class ChromaVectorStore(VectorStore):
         self,
         query: OneOrMany[Chunk] | OneOrMany[str],
         ids: Optional[OneOrMany[str]] = None,
-        top_k : int = 10,
+        top_k: int = 10,
         where: Optional[Where] = None,
         where_document: Optional[WhereDocument] = None,
         include: Include = [
@@ -256,7 +259,7 @@ class ChromaVectorStore(VectorStore):
         Args:
             query: A list of query strings or singular string to search for.
             ids: Optional list of ids or singular id to restrict the search to.
-            n_results: Number of hits to return per query.
+            top_k: Number of hits to return per query.
             where: Optional metadata filter to apply.
             where_document: Optional document filter to apply.
             include: Fields to include in the Chroma response.
@@ -267,23 +270,25 @@ class ChromaVectorStore(VectorStore):
         Raises:
             ValueError: If expected fields are missing from the Chroma response.
         """
-        
-        #If a single chunk is passed in, convert to list of string
+
+        # If a single chunk is passed in, convert to list of string
         if isinstance(query, Chunk):
             query = [query.content]
 
-        #If a single string is passed in, convert to list of string
+        # If a single string is passed in, convert to list of string
         elif isinstance(query, str):
             query = [query]
 
-        #If list of chunks is passed in, convert to list of strings
+        # If list of chunks is passed in, convert to list of strings
         elif isinstance(query, list) and all(isinstance(q, Chunk) for q in query):
             query = [q.content for q in query]
-        
+
         elif isinstance(query, list) and all(isinstance(q, str) for q in query):
             pass
         else:
-            raise ValueError("Query must be a string, Chunk, or list of strings/Chunks.")
+            raise ValueError(
+                "Query must be a string, Chunk, or list of strings/Chunks."
+            )
 
         query_embeddings = self._embedding_function(query)
         results = self._collection.query(
@@ -300,11 +305,11 @@ class ChromaVectorStore(VectorStore):
             for id_idx, id in enumerate(query_response):
                 if not (distance := results.get("distances")):
                     raise ValueError("Distance not found in search results.")
-                if not (vector := results.get("embeddings")):
+                elif not (vector := results.get("embeddings")):
                     raise ValueError("Vector not found in search results.")
-                if not (document := results.get("documents")):
+                elif not (document := results.get("documents")):
                     raise ValueError("Document not found in search results.")
-                if not (metadatas := results.get("metadatas")):
+                elif not (metadatas := results.get("metadatas")):
                     raise ValueError("Metadata not found in search results.")
 
                 distance = distance[query_idx][id_idx]
@@ -333,7 +338,7 @@ class ChromaVectorStore(VectorStore):
                 )
             answer.append(search_response)
 
-        return answer
+        return answer if len(answer) > 1 else answer[0]
 
     def delete(
         self,

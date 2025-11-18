@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import Any, Optional, Callable, TypeVar, Union
-from enum import Enum
 from dataclasses import dataclass, field
-
+from enum import Enum
+from typing import Any, Callable, Optional, TypeVar, Union
 
 T = TypeVar("T")
+
 
 class MetadataKeys(str, Enum):
     """Well-known metadata keys used by vector store wrappers.
@@ -32,6 +32,7 @@ class Metric(str, Enum):
 
     dot = "dot"
     """Dot-product similarity."""
+
 
 @dataclass
 class Chunk:
@@ -109,7 +110,6 @@ FetchResponse = list[FetchResult]
 OneOrMany = Union[T, list[T]]
 
 
-
 class VectorStore(ABC):
     """Abstract base class for all vector-store implementations.
 
@@ -145,10 +145,10 @@ class VectorStore(ABC):
         for the inserted vectors.
 
         Args:
-            content: A list of chunks or strings to add to vector store.
+            content: A singular or list of chunks or strings to add to vector store.
 
         Returns:
-            A list of string ids for the upserted vectors.
+            A singular or list of string ids for the upserted vectors.
         """
         pass
 
@@ -157,7 +157,7 @@ class VectorStore(ABC):
         """Fetch vectors for the given identifiers.
 
         Args:
-            ids: The list of vector ids to retrieve.
+            ids: A singular or list of vector ids to retrieve.
 
         Returns:
             A :class:`FetchResponse` containing the results in the same order
@@ -172,24 +172,22 @@ class VectorStore(ABC):
         top_k: int = 10,
         where: Optional[dict[str, Any]] = None,
         include: Optional[list[str]] = None,
-    ) -> list[SearchResponse]:
+    ) -> OneOrMany[SearchResponse]:
         """Perform a similarity search for the provided queries.
 
         Args:
             query: A list of query chunks or raw strings.
-            n_results: Number of nearest neighbours to return per query.
+            top_k: Number of nearest neighbours to return per query.
             where: Optional filter to apply on metadata.
             include: Optional list of result fields to include.
 
         Returns:
-            A list of :class:`SearchResponse` objects, one per query.
+            A list of or singular :class:`SearchResponse` objects, one per query.
         """
         pass
 
     @abstractmethod
-    def delete(
-        self, ids: OneOrMany[str], where: Optional[dict[str, Any]] = None
-    ):
+    def delete(self, ids: OneOrMany[str], where: Optional[dict[str, Any]] = None):
         """Remove vectors from the store by id or metadata filter.
 
         Args:
