@@ -150,7 +150,7 @@ class ChromaVectorStore(VectorStore):
             content = [content.content]
 
         for item in content:
-            id = uuid4().int
+            id = uuid4()
             ids.append(str(id))
 
             if isinstance(item, Chunk):
