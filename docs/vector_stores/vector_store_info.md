@@ -4,27 +4,17 @@ This page documents the core interface for embedding storage and retrieval in Ra
 
 ## When to Use Vector Stores
 !!! tip "Vector Stores Shine When"
-- You have large collections of text that won't fit in a single prompt
-- You need fast semantic search across documents
-- Your application uses RAG (Retrieval Augmented Generation)
-- You want metadata-driven filtering for targeted queries
-- You're building a knowledge base or document search system
+    - You have large collections of text that won't fit in a single prompt
+    - You need fast semantic search across documents
+    - Your application uses RAG (Retrieval Augmented Generation)
+    - You want metadata-driven filtering for targeted queries
+    - You're building a knowledge base or document search system
 !!! warning "Skip Vector Stores If"
-- Your entire dataset fits comfortably in one prompt (< 100K tokens)
-- You're not doing similarity search or retrieval
-- Your use case requires exact matching (use a traditional database)
-- Approximate nearest neighbor search adds no value
-!!! tip "Vector Stores Shine When"
-    - you have large collections of text
-    - you need fast semantic search
-    - your app uses RAG
-    - you want metadata-driven filtering (where)
+    - Your entire dataset fits comfortably in one prompt (< 100K tokens)
+    - You're not doing similarity search or retrieval
+    - Your use case requires exact matching (use a traditional database)
+    - Approximate nearest neighbor search adds no value
 
-!!! warning "Skip Vector Stores If"
-    - your whole dataset fits in one prompt
-    - you're not doing retrieval
-    - approximate search adds no value for your case
----
 
 ## Core Methods
 #### `upsert(content: OneOrMany[Chunk] | OneOrMany[str]) -> list[str]`
