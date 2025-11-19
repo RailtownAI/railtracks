@@ -30,12 +30,10 @@ meta_data_chunk = Chunk(
 )
 
 custom_id_chunk = Chunk(
-    id = "important_id_i_need_easy_access_to",
     content="My favourite ai library is Railtracks",
 )
 
 custom_id_meta_chunk = Chunk(
-    id = "other_important_id_i_need_easy_access_to",
     content="big ben is in London",
     document="england_guide.txt",
     metadata={"category": "travel"}
