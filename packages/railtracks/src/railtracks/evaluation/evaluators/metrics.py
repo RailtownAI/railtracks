@@ -2,18 +2,15 @@ from dataclasses import dataclass
 import hashlib
 from pydantic import BaseModel
 
-@dataclass
-class Metric:
+class Metric(BaseModel):
     name: str
 
     def _generate_unique_hash(self) -> str:
         return hashlib.sha256(repr(self).encode()).hexdigest()
 
-@dataclass
 class Categorical(Metric):
     categories: list[str]
 
-@dataclass
 class Continuous(Metric):
     min_value: float
     max_value: float

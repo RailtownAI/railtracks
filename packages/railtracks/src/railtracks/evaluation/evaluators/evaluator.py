@@ -1,12 +1,18 @@
 from uuid import uuid4, UUID
 from abc import ABC, abstractmethod
+
 from ..data import DataPoint, Dataset
+
 import hashlib
 
 class Evaluator(ABC):
     def __init__(self):
         self._id: UUID = uuid4()
         self._config_hash: str = self._generate_unique_hash()
+
+    @property
+    def name(self) -> str:
+        return self.__class__.__name__
 
     @property
     def id(self) -> UUID:
