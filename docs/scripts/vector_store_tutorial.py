@@ -16,50 +16,76 @@ store = ChromaVectorStore(
 # --8<-- [end: first_step]
 
 # --8<-- [start: second_step]
-ids = store.upsert(["Bananas are yellow.", "Apples can be red or green."])
+upserted_item = store.upsert("Oranges are orange")
+upserted_list = store.upsert(["Bananas are yellow.", "Apples can be red or green."])
 # --8<-- [end: second_step]
 
 # --8<-- [start: second_step_metadata]
 from railtracks.vector_stores.vector_store_base import Chunk
 
-chunk = Chunk(
+meta_data_chunk = Chunk(
     content="The Eiffel Tower is located in Paris.",
     document="france_guide.txt",
     metadata={"category": "travel"}
 )
 
-store.upsert(chunk)
+custom_id_chunk = Chunk(
+    id = "important_id_i_need_easy_access_to",
+    content="My favourite ai library is Railtracks",
+)
+
+custom_id_meta_chunk = Chunk(
+    id = "other_important_id_i_need_easy_access_to",
+    content="big ben is in London",
+    document="england_guide.txt",
+    metadata={"category": "travel"}
+)
+
+travel_chunks = [meta_data_chunk, custom_id_meta_chunk]
+
+upserted_chunk = store.upsert(custom_id_chunk)
+upserted_chunk_list = store.upsert(travel_chunks)
 # --8<-- [end: second_step_metadata]
 
 # --8<-- [start: third_step]
 results = store.search("Where is the Eiffel Tower?", top_k=5)
+print("Question: Where is the Eiffel Tower?")
+print("Answer: " + results[0].content)
 # --8<-- [end: third_step]
 
+# --8<-- [start: third_step_complex]
+search_queries = ["Where is the Eiffel Tower?", "what is the best ai library?"]
+results = store.search(search_queries, top_k=1)
+eiffel_tower_location = results[0][0]
+best_ai_library = results[1][0]
+# --8<-- [end: third_step_complex]
+
 # --8<-- [start: fourth_step]
-id_to_fetch = ids[0]
-details = store.fetch(id_to_fetch)
+important_result = store.fetch("important_id_i_need_access_to")[0]
+# print the fetched chunk string
+print(important_result.content)
+
+# get list of Fetch Results
+more_results = store.fetch(upserted_chunk_list)
+
+print(more_results[0].content)
+print(more_results[1].content)
 # --8<-- [end: fourth_step]
 
 # --8<-- [start: fifth_step]
-store.delete(ids_to_delete)
+store.delete(upserted_chunk)
+store.delete(upserted_chunk_list)
 # --8<-- [end: fifth_step]
-
 
 
 # --8<-- [start: first_example]
 # Initialize embedding function
-model = SentenceTransformer('all-MiniLM-L6-v2')
-
-def my_embedding_function(texts):
-    if isinstance(texts, str):
-        texts = [texts]
-    return model.encode(texts).tolist()
+embedding_function = EmbeddingService().embed
 
 # Step 1: Initialize vector store
 store = ChromaVectorStore(
-    collection_name="knowledge_base",
-    embedding_function=my_embedding_function,
-    #No further specifications result in temporary store
+    collection_name="temporary_knowledge_base",
+    embedding_function=embedding_function,
 )
 
 # Step 2: Insert text
@@ -86,18 +112,11 @@ print("Answer: " + results[0].content)
 
 
 # --8<-- [start: second_example]
-model = SentenceTransformer('all-MiniLM-L6-v2')
-
-def my_embedding_function(texts):
-    if isinstance(texts, str):
-        texts = [texts]
-    return model.encode(texts).tolist()
-
 
 store = ChromaVectorStore(
     collection_name="article_archive",
-    embedding_function=my_embedding_function,
-    path="./chroma-data" #Specify local path to get existing store from or create new one
+    embedding_function=embedding_function,
+    path="./chroma-data"
 )
 
 articles_data = [
@@ -105,7 +124,7 @@ articles_data = [
     {"title": "Climate Change Report", "content": "New studies show accelerating impacts of climate change...", "author": "John Smith", "date": "2024-02-20"},
     {"title": "Space Exploration Updates", "content": "Mars mission successfully lands new rover...", "author": "Alice Johnson", "date": "2024-03-10"},
     {"title": "Healthcare Innovations", "content": "Revolutionary new treatment for rare diseases approved...", "author": "Bob Williams", "date": "2024-04-05"},
-    {"title": "Quantum Computing Milestone", "content": "Scientists achieve quantum advantage in practical application...", "author": "Jane Doe", "date": "2024-05-12"}
+    {"title": "Quantum Computing Milestone", "content": "Scientists achieve quantum advantage in practical application...", "author": "Jane Doe", "date": "2024-04-05"}
 ]
 
 
@@ -130,15 +149,6 @@ search_queries = [
     "medical breakthroughs",
 ]
 
-results = store.search(search_queries, top_k=3)
-
-
-ids_to_delete = []
-for article_id in article_ids:
-    article = store.fetch(article_id)
-    if article.metadata['date'] < '2024-03-01':
-        ids_to_delete.append(article_id)
-
-if ids_to_delete:
-    store.delete(ids_to_delete)
+results = store.search(search_queries, top_k=3, where={"author" : "Jane Doe"})
+store.delete(article_ids, where={"date" : "2024-04-05"})
 # --8<-- [end: second_example]
