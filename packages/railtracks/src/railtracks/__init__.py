@@ -49,8 +49,8 @@ from .nodes.manifest import ToolManifest
 from .rt_mcp import MCPHttpParams, MCPStdioParams, connect_mcp, create_mcp_server
 from .utils.config import ExecutorConfig
 from .utils.logging.config import initialize_module_logging
-from .vector_stores.vector_store_base import Chunk
 from .vector_stores.chroma import ChromaVectorStore
+from .vector_stores.vector_store_base import Chunk
 
 load_dotenv()
 initialize_module_logging()
