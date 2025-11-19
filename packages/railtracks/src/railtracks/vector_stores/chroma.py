@@ -337,7 +337,7 @@ class ChromaVectorStore(VectorStore):
             where_document=where_document,
             include=include,
         )
-        answer: list[SearchResponse] = []
+        answer = []
         for query_idx, query_response in enumerate(results["ids"]):
             search_response = SearchResponse()
             for id_idx, id in enumerate(query_response):

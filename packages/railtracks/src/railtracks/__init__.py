@@ -31,8 +31,6 @@ __all__ = [
     "create_mcp_server",
     "ToolManifest",
     "session_id",
-    "Chunk",
-    "ChromaVectorStore",
 ]
 
 
@@ -41,7 +39,7 @@ from railtracks.built_nodes.easy_usage_wrappers import (
     function_node,
 )
 
-from . import context, integrations, llm, prebuilt
+from . import context, integrations, llm, prebuilt, vector_stores
 from ._session import ExecutionInfo, Session, session
 from .context.central import session_id, set_config
 from .interaction import broadcast, call, call_batch, interactive
@@ -49,8 +47,6 @@ from .nodes.manifest import ToolManifest
 from .rt_mcp import MCPHttpParams, MCPStdioParams, connect_mcp, create_mcp_server
 from .utils.config import ExecutorConfig
 from .utils.logging.config import initialize_module_logging
-from .vector_stores.chroma import ChromaVectorStore
-from .vector_stores.vector_store_base import Chunk
 
 load_dotenv()
 initialize_module_logging()
