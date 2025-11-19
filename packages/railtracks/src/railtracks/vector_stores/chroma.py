@@ -291,7 +291,7 @@ class ChromaVectorStore(VectorStore):
             "documents",
             "distances",
         ],
-    ) -> OneOrMany[SearchResponse]:
+    ) -> list[SearchResponse] | SearchResponse:
         """Run a similarity search for the provided query texts.
 
         Args:
