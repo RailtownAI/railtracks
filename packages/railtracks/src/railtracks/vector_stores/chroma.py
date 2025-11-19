@@ -126,7 +126,7 @@ class ChromaVectorStore(VectorStore):
 
     # In future should have our own chunking service so we can accept documents and chunk for users
     def upsert(self, content: OneOrMany[Chunk] | OneOrMany[str]) -> OneOrMany[str]:
-        """Upsert a batch of chunks or raw strings into the collection.
+        """Insert or update a batch of vectors into the store.
 
         The method accepts a list of :class:`Chunk` instances or plain strings.
         Each element is embedded via ``embedding_function`` and stored along
@@ -134,10 +134,10 @@ class ChromaVectorStore(VectorStore):
         key defined in :data:`CONTENT`.
 
         Args:
-            content: List of or singular chunks or strings to upsert.
+            content: A singular or list of chunks or strings to add to vector store.
 
         Returns:
-            OneOrMany[str]: Generated ids for the inserted items.
+            A singular or list of string ids for the upserted vectors.
         """
         ids = []
         embeddings = []
@@ -150,20 +150,20 @@ class ChromaVectorStore(VectorStore):
             content = [content.content]
 
         for item in content:
-            id = uuid4()
-            ids.append(str(id))
-
             if isinstance(item, Chunk):
+                id = item.id
                 embedding = self._embedding_function([item.content])[0]
                 metadata = item.metadata
                 metadata[CONTENT] = item.content
                 documents.append(item.document)
 
             else:
+                id = uuid4()
                 embedding = self._embedding_function([item])[0]
                 metadata = {CONTENT: item}
                 documents.append(None)
 
+            ids.append(str(id))
             embeddings.append(embedding)
             metadatas.append(metadata)
 
