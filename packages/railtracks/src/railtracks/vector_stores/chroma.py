@@ -240,7 +240,7 @@ class ChromaVectorStore(VectorStore):
 
     # There is support for other types of query modalities but for now just list of strings
     # Should Probably add support for Chunks as well
-    def search(
+    def search(  # noqa: C901
         self,
         query: OneOrMany[Chunk] | OneOrMany[str],
         ids: Optional[OneOrMany[str]] = None,
@@ -253,7 +253,7 @@ class ChromaVectorStore(VectorStore):
             "documents",
             "distances",
         ],
-    ) -> list[SearchResponse]:
+    ) -> OneOrMany[SearchResponse]:
         """Run a similarity search for the provided query texts.
 
         Args:
@@ -299,7 +299,7 @@ class ChromaVectorStore(VectorStore):
             where_document=where_document,
             include=include,
         )
-        answer = []
+        answer: list[SearchResponse] = []
         for query_idx, query_response in enumerate(results["ids"]):
             search_response = SearchResponse()
             for id_idx, id in enumerate(query_response):
