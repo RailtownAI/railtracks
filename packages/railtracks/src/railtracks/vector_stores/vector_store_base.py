@@ -45,8 +45,9 @@ class Chunk:
         document: Optional document identifier or content associated with the chunk.
         metadata: Arbitrary metadata attached to the chunk.
     """
+
     content: str
-    id : Optional[str] = None
+    id: Optional[str] = None
     document: Optional[str] = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
