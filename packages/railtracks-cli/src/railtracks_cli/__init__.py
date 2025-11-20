@@ -19,6 +19,7 @@ For testing purposes, you can add `alias railtracks="python railtracks.py"` to y
 
 import json
 import os
+import shutil
 import socket
 import sys
 import tempfile
@@ -167,7 +168,52 @@ def init_railtracks():
 
 def migrate_railtracks():
     """Migrate and verify the structure of .railtracks directory"""
-    print("HELLO WORLD")
+    print_status("Verifying .railtracks directory structure...")
+
+    # Get the .railtracks directory path
+    railtracks_dir = Path(cli_directory)
+
+    # Verify/create .railtracks directory
+    if not railtracks_dir.exists():
+        print_status(f"Creating {cli_directory} directory...")
+        railtracks_dir.mkdir(exist_ok=True)
+        print_success(f"Created {cli_directory} directory")
+
+    # Verify/create .railtracks/data directory
+    data_dir = railtracks_dir / "data"
+    if not data_dir.exists():
+        print_status("Creating .railtracks/data directory...")
+        data_dir.mkdir(parents=True, exist_ok=True)
+        print_success("Created .railtracks/data directory")
+
+    # Verify/create .railtracks/data/evaluations directory
+    evaluations_dir = data_dir / "evaluations"
+    if not evaluations_dir.exists():
+        print_status("Creating .railtracks/data/evaluations directory...")
+        evaluations_dir.mkdir(parents=True, exist_ok=True)
+        print_success("Created .railtracks/data/evaluations directory")
+
+    # Verify/create .railtracks/data/runs directory
+    runs_dir = data_dir / "runs"
+    if not runs_dir.exists():
+        print_status("Creating .railtracks/data/runs directory...")
+        runs_dir.mkdir(parents=True, exist_ok=True)
+        print_success("Created .railtracks/data/runs directory")
+
+    # Find all JSON files in .railtracks root only (not recursive, not in subdirectories)
+    json_files = list(railtracks_dir.glob("*.json"))
+
+    if json_files:
+        print_status(f"Found {len(json_files)} JSON file(s) in .railtracks root to migrate...")
+        for json_file in json_files:
+            destination = runs_dir / json_file.name
+            shutil.move(str(json_file), str(destination))
+            print_success(f"Migrated {json_file.name} to .railtracks/data/runs/")
+        print_success(f"Migration completed: {len(json_files)} file(s) moved to .railtracks/data/runs/")
+    else:
+        print_status("No JSON files found in .railtracks root to migrate")
+
+    print_success("Directory structure verification and migration completed!")
 
 
 class FileChangeHandler(FileSystemEventHandler):
