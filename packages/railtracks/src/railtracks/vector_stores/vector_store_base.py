@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, Optional, TypeVar, Union, overload
+from uuid import uuid4
 
 T = TypeVar("T")
 
@@ -40,18 +41,22 @@ class Chunk:
 
     Attributes:
         content: The raw chunk text.
+        id: Identifier for the chunk (will be generated if not provided).
         document: Optional document identifier or content associated with the chunk.
         metadata: Arbitrary metadata attached to the chunk.
     """
 
     content: str
+    id: Optional[str] = None
     document: Optional[str] = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        """Ensure metadata is always a dict."""
+        """Ensure metadata is always a dict and id is set."""
         if self.metadata is None:
             self.metadata = {}
+        if self.id is None:
+            self.id = str(uuid4())
 
 
 @dataclass

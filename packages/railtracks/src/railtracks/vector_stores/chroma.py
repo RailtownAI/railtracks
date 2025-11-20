@@ -124,7 +124,7 @@ class ChromaVectorStore(VectorStore):
         ChromaVectorStore.class_init(path, host, port)
         self._collection = self._chroma.get_or_create_collection(collection_name)
 
-    # In future should have our own chunking service so we can accept documents and chunk for users
+    # In future should have our own chunking service so we can accept documents for users
     @overload
     def upsert(self, content: Chunk | str) -> str: ...
 
@@ -156,20 +156,20 @@ class ChromaVectorStore(VectorStore):
             content = [content.content]
 
         for item in content:
-            id = uuid4().int
-            ids.append(str(id))
-
             if isinstance(item, Chunk):
+                id = item.id
                 embedding = self._embedding_function([item.content])[0]
                 metadata = item.metadata
                 metadata[CONTENT] = item.content
                 documents.append(item.document)
 
             else:
+                id = uuid4()
                 embedding = self._embedding_function([item])[0]
                 metadata = {CONTENT: item}
                 documents.append(None)
 
+            ids.append(str(id))
             embeddings.append(embedding)
             metadatas.append(metadata)
 
