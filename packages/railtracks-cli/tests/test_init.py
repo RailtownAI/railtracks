@@ -27,6 +27,7 @@ from railtracks_cli import (
     create_railtracks_dir,
     get_script_directory,
     is_port_in_use,
+    migrate_railtracks,
     print_error,
     print_status,
     print_success,
@@ -499,6 +500,248 @@ class TestPortChecking(unittest.TestCase):
 
         result = is_port_in_use(3030)
         self.assertTrue(result)  # Should return True when socket fails to bind
+
+
+class TestMigrateRailtracks(unittest.TestCase):
+    """Test migrate_railtracks function"""
+
+    def setUp(self):
+        """Set up temporary directory for testing"""
+        self.test_dir = tempfile.mkdtemp()
+        self.original_cwd = os.getcwd()
+        os.chdir(self.test_dir)
+
+    def tearDown(self):
+        """Clean up temporary directory"""
+        os.chdir(self.original_cwd)
+        shutil.rmtree(self.test_dir)
+
+    @patch('railtracks_cli.print_status')
+    @patch('railtracks_cli.print_success')
+    def test_migrate_creates_all_directories(self, mock_success, mock_status):
+        """Test that all required directories are created when they don't exist"""
+        # Ensure .railtracks doesn't exist
+        railtracks_dir = Path(".railtracks")
+        self.assertFalse(railtracks_dir.exists())
+
+        migrate_railtracks()
+
+        # Verify all directories exist
+        self.assertTrue(railtracks_dir.exists())
+        self.assertTrue(railtracks_dir.is_dir())
+
+        data_dir = railtracks_dir / "data"
+        self.assertTrue(data_dir.exists())
+        self.assertTrue(data_dir.is_dir())
+
+        evaluations_dir = data_dir / "evaluations"
+        self.assertTrue(evaluations_dir.exists())
+        self.assertTrue(evaluations_dir.is_dir())
+
+        runs_dir = data_dir / "runs"
+        self.assertTrue(runs_dir.exists())
+        self.assertTrue(runs_dir.is_dir())
+
+        # Should have called print functions
+        mock_status.assert_called()
+        mock_success.assert_called()
+
+    @patch('railtracks_cli.print_status')
+    @patch('railtracks_cli.print_success')
+    def test_migrate_with_existing_directories(self, mock_success, mock_status):
+        """Test that existing directories are not recreated (idempotent)"""
+        # Create all directories first
+        railtracks_dir = Path(".railtracks")
+        railtracks_dir.mkdir()
+        data_dir = railtracks_dir / "data"
+        data_dir.mkdir()
+        evaluations_dir = data_dir / "evaluations"
+        evaluations_dir.mkdir()
+        runs_dir = data_dir / "runs"
+        runs_dir.mkdir()
+
+        # Run migration
+        migrate_railtracks()
+
+        # All directories should still exist
+        self.assertTrue(railtracks_dir.exists())
+        self.assertTrue(data_dir.exists())
+        self.assertTrue(evaluations_dir.exists())
+        self.assertTrue(runs_dir.exists())
+
+    @patch('railtracks_cli.print_status')
+    @patch('railtracks_cli.print_success')
+    def test_migrate_moves_json_files_from_root(self, mock_success, mock_status):
+        """Test moving JSON files from .railtracks root to .railtracks/data/runs/"""
+        # Create .railtracks directory
+        railtracks_dir = Path(".railtracks")
+        railtracks_dir.mkdir()
+
+        # Create JSON files in root
+        test_file1 = railtracks_dir / "test1.json"
+        test_file2 = railtracks_dir / "test2.json"
+
+        with open(test_file1, "w") as f:
+            json.dump({"test": "data1"}, f)
+        with open(test_file2, "w") as f:
+            json.dump({"test": "data2"}, f)
+
+        # Run migration
+        migrate_railtracks()
+
+        # Files should be moved to data/runs/
+        runs_dir = railtracks_dir / "data" / "runs"
+        self.assertTrue((runs_dir / "test1.json").exists())
+        self.assertTrue((runs_dir / "test2.json").exists())
+
+        # Files should no longer be in root
+        self.assertFalse(test_file1.exists())
+        self.assertFalse(test_file2.exists())
+
+        # Verify file contents
+        with open(runs_dir / "test1.json") as f:
+            content1 = json.load(f)
+            self.assertEqual(content1, {"test": "data1"})
+
+        with open(runs_dir / "test2.json") as f:
+            content2 = json.load(f)
+            self.assertEqual(content2, {"test": "data2"})
+
+    @patch('railtracks_cli.print_status')
+    @patch('railtracks_cli.print_success')
+    def test_migrate_does_not_move_subdirectory_json(self, mock_success, mock_status):
+        """Test that JSON files in subdirectories are NOT moved"""
+        # Create .railtracks directory structure
+        railtracks_dir = Path(".railtracks")
+        railtracks_dir.mkdir()
+
+        # Create JSON file in root
+        root_file = railtracks_dir / "root.json"
+        with open(root_file, "w") as f:
+            json.dump({"location": "root"}, f)
+
+        # Create subdirectories with JSON files
+        ui_dir = railtracks_dir / "ui"
+        ui_dir.mkdir()
+        ui_file = ui_dir / "ui.json"
+        with open(ui_file, "w") as f:
+            json.dump({"location": "ui"}, f)
+
+        data_dir = railtracks_dir / "data"
+        data_dir.mkdir()
+        data_file = data_dir / "data.json"
+        with open(data_file, "w") as f:
+            json.dump({"location": "data"}, f)
+
+        # Run migration
+        migrate_railtracks()
+
+        # Root file should be moved
+        runs_dir = railtracks_dir / "data" / "runs"
+        self.assertTrue((runs_dir / "root.json").exists())
+        self.assertFalse(root_file.exists())
+
+        # Subdirectory files should NOT be moved
+        self.assertTrue(ui_file.exists())
+        self.assertTrue(data_file.exists())
+
+    @patch('railtracks_cli.print_status')
+    @patch('railtracks_cli.print_success')
+    def test_migrate_no_json_files(self, mock_success, mock_status):
+        """Test handling when no JSON files exist in root"""
+        # Create .railtracks directory
+        railtracks_dir = Path(".railtracks")
+        railtracks_dir.mkdir()
+
+        # Run migration
+        migrate_railtracks()
+
+        # Directories should be created
+        runs_dir = railtracks_dir / "data" / "runs"
+        self.assertTrue(runs_dir.exists())
+
+        # Should have printed appropriate message
+        calls = [str(call) for call in mock_status.call_args_list]
+        self.assertTrue(any("No JSON files" in str(call) for call in calls))
+
+    @patch('railtracks_cli.print_status')
+    @patch('railtracks_cli.print_success')
+    def test_migrate_console_output(self, mock_success, mock_status):
+        """Test console output messages"""
+        # Create .railtracks directory with JSON file
+        railtracks_dir = Path(".railtracks")
+        railtracks_dir.mkdir()
+
+        test_file = railtracks_dir / "migration_test.json"
+        with open(test_file, "w") as f:
+            json.dump({"test": "data"}, f)
+
+        # Run migration
+        migrate_railtracks()
+
+        # Check that status messages were called
+        mock_status.assert_called()
+        mock_success.assert_called()
+
+        # Check for specific migration message
+        success_calls = [str(call) for call in mock_success.call_args_list]
+        self.assertTrue(any("Migrated migration_test.json" in str(call) for call in success_calls))
+
+    @patch('railtracks_cli.print_status')
+    @patch('railtracks_cli.print_success')
+    def test_migrate_multiple_files(self, mock_success, mock_status):
+        """Test migration of multiple JSON files"""
+        # Create .railtracks directory
+        railtracks_dir = Path(".railtracks")
+        railtracks_dir.mkdir()
+
+        # Create multiple JSON files
+        files = ["file1.json", "file2.json", "file3.json"]
+        for filename in files:
+            test_file = railtracks_dir / filename
+            with open(test_file, "w") as f:
+                json.dump({"file": filename}, f)
+
+        # Run migration
+        migrate_railtracks()
+
+        # All files should be moved
+        runs_dir = railtracks_dir / "data" / "runs"
+        for filename in files:
+            self.assertTrue((runs_dir / filename).exists())
+            self.assertFalse((railtracks_dir / filename).exists())
+
+        # Check migration summary message
+        success_calls = [str(call) for call in mock_success.call_args_list]
+        self.assertTrue(any("3 file(s) moved" in str(call) for call in success_calls))
+
+    @patch('railtracks_cli.print_status')
+    @patch('railtracks_cli.print_success')
+    def test_migrate_partial_directory_structure(self, mock_success, mock_status):
+        """Test migration when some directories already exist"""
+        # Create .railtracks and data directories
+        railtracks_dir = Path(".railtracks")
+        railtracks_dir.mkdir()
+        data_dir = railtracks_dir / "data"
+        data_dir.mkdir()
+
+        # Create JSON file in root
+        test_file = railtracks_dir / "test.json"
+        with open(test_file, "w") as f:
+            json.dump({"test": "data"}, f)
+
+        # Run migration
+        migrate_railtracks()
+
+        # Missing directories should be created
+        evaluations_dir = data_dir / "evaluations"
+        runs_dir = data_dir / "runs"
+        self.assertTrue(evaluations_dir.exists())
+        self.assertTrue(runs_dir.exists())
+
+        # File should be moved
+        self.assertTrue((runs_dir / "test.json").exists())
+        self.assertFalse(test_file.exists())
 
 
 if __name__ == "__main__":
