@@ -6,26 +6,24 @@ Basic unit tests for railtracks CLI functionality
 
 import json
 import os
-import queue
 import shutil
 import socket
 import sys
 import tempfile
-import threading
 import time
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, mock_open, patch
-from urllib.parse import quote
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 import railtracks_cli
+from fastapi.testclient import TestClient
 
 from railtracks_cli import (
     DEBOUNCE_INTERVAL,
     FileChangeHandler,
-    clear_stream_queue,
+    app,
     create_railtracks_dir,
     get_script_directory,
     is_port_in_use,
@@ -33,8 +31,6 @@ from railtracks_cli import (
     print_status,
     print_success,
     print_warning,
-    send_to_stream,
-    set_stream_queue,
 )
 
 
@@ -64,69 +60,6 @@ class TestUtilityFunctions(unittest.TestCase):
 
         print_error(test_message)
         mock_print.assert_called_with("[railtracks] test message")
-
-
-class TestStreamQueue(unittest.TestCase):
-    """Test stream queue functionality"""
-
-    def setUp(self):
-        """Clear stream queue before each test"""
-        clear_stream_queue()
-
-    def tearDown(self):
-        """Clear stream queue after each test"""
-        clear_stream_queue()
-
-    def test_set_and_clear_stream_queue(self):
-        """Test setting and clearing stream queue"""
-        # Initially should be None
-        self.assertIsNone(railtracks_cli.current_stream_queue)
-
-        # Set a queue
-        test_queue = queue.Queue()
-        set_stream_queue(test_queue)
-
-        # Should be set now
-        self.assertIsNotNone(railtracks_cli.current_stream_queue)
-
-        # Clear it
-        clear_stream_queue()
-
-        # Should be None again
-        self.assertIsNone(railtracks_cli.current_stream_queue)
-
-    def test_send_to_stream_no_queue(self):
-        """Test sending to stream when no queue is set"""
-        # Should not raise an exception
-        send_to_stream("test message")
-
-    def test_send_to_stream_with_queue(self):
-        """Test sending to stream with active queue"""
-        test_queue = queue.Queue()
-        set_stream_queue(test_queue)
-
-        test_message = "test message"
-        send_to_stream(test_message)
-
-        # Should have received the message
-        self.assertFalse(test_queue.empty())
-        received = test_queue.get_nowait()
-        self.assertEqual(received, test_message)
-
-    def test_send_to_stream_full_queue(self):
-        """Test sending to stream when queue is full"""
-        # Create a queue with maxsize 1
-        test_queue = queue.Queue(maxsize=1)
-        set_stream_queue(test_queue)
-
-        # Fill the queue
-        test_queue.put_nowait("existing message")
-
-        # Try to send another message - should clear the queue
-        send_to_stream("new message")
-
-        # Queue should have been cleared
-        self.assertIsNone(railtracks_cli.current_stream_queue)
 
 
 class TestCreateRailtracksDir(unittest.TestCase):
@@ -231,9 +164,8 @@ class TestFileChangeHandler(unittest.TestCase):
         """Set up handler for testing"""
         self.handler = FileChangeHandler()
 
-    @patch('railtracks_cli.send_to_stream')
     @patch('railtracks_cli.print_status')
-    def test_file_change_handler_json_file(self, mock_print, mock_stream):
+    def test_file_change_handler_json_file(self, mock_print):
         """Test handler processes JSON file changes"""
         # Create a mock event
         mock_event = MagicMock()
@@ -242,13 +174,11 @@ class TestFileChangeHandler(unittest.TestCase):
 
         self.handler.on_modified(mock_event)
 
-        # Should have printed status and sent to stream
+        # Should have printed status
         mock_print.assert_called_once()
-        mock_stream.assert_called_once()
 
-    @patch('railtracks_cli.send_to_stream')
     @patch('railtracks_cli.print_status')
-    def test_file_change_handler_non_json_file(self, mock_print, mock_stream):
+    def test_file_change_handler_non_json_file(self, mock_print):
         """Test handler ignores non-JSON files"""
         # Create a mock event for non-JSON file
         mock_event = MagicMock()
@@ -257,13 +187,11 @@ class TestFileChangeHandler(unittest.TestCase):
 
         self.handler.on_modified(mock_event)
 
-        # Should not have printed or sent to stream
+        # Should not have printed
         mock_print.assert_not_called()
-        mock_stream.assert_not_called()
 
-    @patch('railtracks_cli.send_to_stream')
     @patch('railtracks_cli.print_status')
-    def test_file_change_handler_directory(self, mock_print, mock_stream):
+    def test_file_change_handler_directory(self, mock_print):
         """Test handler ignores directory changes"""
         # Create a mock event for directory
         mock_event = MagicMock()
@@ -272,14 +200,12 @@ class TestFileChangeHandler(unittest.TestCase):
 
         self.handler.on_modified(mock_event)
 
-        # Should not have printed or sent to stream
+        # Should not have printed
         mock_print.assert_not_called()
-        mock_stream.assert_not_called()
 
-    @patch('railtracks_cli.send_to_stream')
     @patch('railtracks_cli.print_status')
     @patch('time.time')
-    def test_file_change_handler_debouncing(self, mock_time, mock_print, mock_stream):
+    def test_file_change_handler_debouncing(self, mock_time, mock_print):
         """Test debouncing prevents rapid duplicate events"""
         # Set up time mock to simulate rapid changes
         mock_time.side_effect = [1.0, 1.1, 1.6]  # Second call within debounce, third outside
@@ -291,21 +217,18 @@ class TestFileChangeHandler(unittest.TestCase):
         # First call should process
         self.handler.on_modified(mock_event)
         self.assertEqual(mock_print.call_count, 1)
-        self.assertEqual(mock_stream.call_count, 1)
 
         # Second call within debounce interval should be ignored
         self.handler.on_modified(mock_event)
         self.assertEqual(mock_print.call_count, 1)  # Still 1
-        self.assertEqual(mock_stream.call_count, 1)  # Still 1
 
         # Third call outside debounce interval should process
         self.handler.on_modified(mock_event)
         self.assertEqual(mock_print.call_count, 2)
-        self.assertEqual(mock_stream.call_count, 2)
 
 
-class TestRailtracksHTTPHandler(unittest.TestCase):
-    """Test RailtracksHTTPHandler API endpoints"""
+class TestFastAPIEndpoints(unittest.TestCase):
+    """Test FastAPI endpoints"""
 
     def setUp(self):
         """Set up test environment"""
@@ -317,7 +240,7 @@ class TestRailtracksHTTPHandler(unittest.TestCase):
         railtracks_dir = Path(".railtracks")
         railtracks_dir.mkdir()
 
-        # Create test JSON files
+        # Create test JSON files in root
         self.test_files = {
             "simple.json": {"test": "data"},
             "my agent session.json": {"agent": "session", "data": "test"},
@@ -330,164 +253,127 @@ class TestRailtracksHTTPHandler(unittest.TestCase):
             with open(file_path, "w") as f:
                 json.dump(content, f)
 
+        # Create test client
+        self.client = TestClient(app)
+
     def tearDown(self):
         """Clean up test environment"""
         os.chdir(self.original_cwd)
         shutil.rmtree(self.test_dir)
 
-    def create_mock_handler(self, path="/api/json/test.json"):
-        """Create a mock HTTP handler for testing"""
-        # Create a mock handler without calling the parent constructor
-        handler = MagicMock(spec=railtracks_cli.RailtracksHTTPHandler)
-        handler.path = path
-        handler.railtracks_dir = Path(".railtracks")
-        handler.ui_dir = Path(".railtracks/ui")
+    def test_get_evaluations_empty(self):
+        """Test /api/evaluations endpoint with no data directory"""
+        response = self.client.get("/api/evaluations")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), [])
 
-        # Mock the response methods
-        handler.send_response = MagicMock()
-        handler.send_header = MagicMock()
-        handler.end_headers = MagicMock()
-        handler.send_error = MagicMock()
-        handler.wfile = MagicMock()
+    def test_get_evaluations_with_data(self):
+        """Test /api/evaluations endpoint with data"""
+        # Create evaluations directory and files
+        evaluations_dir = Path(".railtracks/data/evaluations")
+        evaluations_dir.mkdir(parents=True)
 
-        # Add the methods we want to test
-        handler.handle_api_json = railtracks_cli.RailtracksHTTPHandler.handle_api_json.__get__(handler, railtracks_cli.RailtracksHTTPHandler)
-        handler.handle_api_files = railtracks_cli.RailtracksHTTPHandler.handle_api_files.__get__(handler, railtracks_cli.RailtracksHTTPHandler)
+        eval1 = {"id": "eval1", "score": 0.95}
+        eval2 = {"id": "eval2", "score": 0.87}
 
-        return handler
+        with open(evaluations_dir / "eval1.json", "w") as f:
+            json.dump(eval1, f)
+        with open(evaluations_dir / "eval2.json", "w") as f:
+            json.dump(eval2, f)
 
-    def test_handle_api_json_simple_filename(self):
-        """Test handling simple JSON filename"""
-        handler = self.create_mock_handler("/api/json/simple.json")
+        response = self.client.get("/api/evaluations")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data), 2)
+        self.assertIn(eval1, data)
+        self.assertIn(eval2, data)
 
-        handler.handle_api_json("/api/json/simple.json")
+    def test_get_runs_empty(self):
+        """Test /api/runs endpoint with no data directory"""
+        response = self.client.get("/api/runs")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), [])
 
-        # Should succeed
-        handler.send_response.assert_called_with(200)
-        handler.send_header.assert_any_call("Content-Type", "application/json")
-        handler.send_header.assert_any_call("Access-Control-Allow-Origin", "*")
-        handler.end_headers.assert_called_once()
+    def test_get_runs_with_data(self):
+        """Test /api/runs endpoint with data"""
+        # Create runs directory and files
+        runs_dir = Path(".railtracks/data/runs")
+        runs_dir.mkdir(parents=True)
 
-        # Should write JSON content
-        handler.wfile.write.assert_called_once()
-        written_content = handler.wfile.write.call_args[0][0]
-        parsed_content = json.loads(written_content.decode())
-        self.assertEqual(parsed_content, {"test": "data"})
+        run1 = {"id": "run1", "status": "completed"}
+        run2 = {"id": "run2", "status": "failed"}
 
-    def test_handle_api_json_urlencoded_filename(self):
-        """Test handling URL-encoded filename with spaces"""
+        with open(runs_dir / "run1.json", "w") as f:
+            json.dump(run1, f)
+        with open(runs_dir / "run2.json", "w") as f:
+            json.dump(run2, f)
+
+        response = self.client.get("/api/runs")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data), 2)
+        self.assertIn(run1, data)
+        self.assertIn(run2, data)
+
+    def test_get_files_deprecated(self):
+        """Test /api/files endpoint (deprecated)"""
+        response = self.client.get("/api/files")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers.get("Deprecated"), "true")
+
+        file_list = response.json()
+        file_names = [f["name"] for f in file_list]
+        self.assertIn("simple.json", file_names)
+        self.assertIn("my agent session.json", file_names)
+
+    def test_get_json_file_deprecated(self):
+        """Test /api/json/{filename} endpoint (deprecated)"""
+        response = self.client.get("/api/json/simple.json")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers.get("Deprecated"), "true")
+        self.assertEqual(response.json(), {"test": "data"})
+
+    def test_get_json_file_urlencoded_deprecated(self):
+        """Test /api/json/{filename} with URL-encoded filename (deprecated)"""
+        from urllib.parse import quote
         encoded_filename = quote("my agent session.json")
-        handler = self.create_mock_handler(f"/api/json/{encoded_filename}")
+        response = self.client.get(f"/api/json/{encoded_filename}")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers.get("Deprecated"), "true")
+        self.assertEqual(response.json(), {"agent": "session", "data": "test"})
 
-        handler.handle_api_json(f"/api/json/{encoded_filename}")
+    def test_get_json_file_not_found(self):
+        """Test /api/json/{filename} with non-existent file"""
+        response = self.client.get("/api/json/nonexistent.json")
+        self.assertEqual(response.status_code, 404)
+        self.assertIn("error", response.json())
 
-        # Should succeed
-        handler.send_response.assert_called_with(200)
-        handler.send_header.assert_any_call("Content-Type", "application/json")
-        handler.send_header.assert_any_call("Access-Control-Allow-Origin", "*")
-        handler.end_headers.assert_called_once()
-
-        # Should write JSON content
-        handler.wfile.write.assert_called_once()
-        written_content = handler.wfile.write.call_args[0][0]
-        parsed_content = json.loads(written_content.decode())
-        self.assertEqual(parsed_content, {"agent": "session", "data": "test"})
-
-    def test_handle_api_json_urlencoded_spaces(self):
-        """Test handling URL-encoded filename with multiple spaces"""
-        encoded_filename = quote("file with spaces.json")
-        handler = self.create_mock_handler(f"/api/json/{encoded_filename}")
-
-        handler.handle_api_json(f"/api/json/{encoded_filename}")
-
-        # Should succeed
-        handler.send_response.assert_called_with(200)
-        handler.wfile.write.assert_called_once()
-        written_content = handler.wfile.write.call_args[0][0]
-        parsed_content = json.loads(written_content.decode())
-        self.assertEqual(parsed_content, {"spaces": "test"})
-
-    def test_handle_api_json_special_characters(self):
-        """Test handling URL-encoded special characters"""
-        encoded_filename = quote("special-chars!@#.json")
-        handler = self.create_mock_handler(f"/api/json/{encoded_filename}")
-
-        handler.handle_api_json(f"/api/json/{encoded_filename}")
-
-        # Should succeed
-        handler.send_response.assert_called_with(200)
-        handler.wfile.write.assert_called_once()
-        written_content = handler.wfile.write.call_args[0][0]
-        parsed_content = json.loads(written_content.decode())
-        self.assertEqual(parsed_content, {"special": "chars"})
-
-    def test_handle_api_json_file_not_found(self):
-        """Test handling non-existent file"""
-        handler = self.create_mock_handler("/api/json/nonexistent.json")
-
-        handler.handle_api_json("/api/json/nonexistent.json")
-
-        # Should return 404
-        handler.send_error.assert_called_with(404, "File nonexistent.json not found")
-
-    def test_handle_api_json_invalid_json(self):
-        """Test handling invalid JSON file"""
-        # Create invalid JSON file
+    def test_get_json_file_invalid_json(self):
+        """Test /api/json/{filename} with invalid JSON"""
         invalid_file = Path(".railtracks/invalid.json")
         with open(invalid_file, "w") as f:
             f.write("{ invalid json }")
 
-        handler = self.create_mock_handler("/api/json/invalid.json")
+        response = self.client.get("/api/json/invalid.json")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("error", response.json())
 
-        handler.handle_api_json("/api/json/invalid.json")
-
-        # Should return 400
-        handler.send_error.assert_called()
-        args = handler.send_error.call_args[0]
-        self.assertEqual(args[0], 400)
-        self.assertTrue("Invalid JSON" in args[1])
-
-    def test_handle_api_json_auto_add_extension(self):
-        """Test auto-adding .json extension"""
-        # Create file with .json extension (the code adds .json to the filename)
+    def test_get_json_file_auto_add_extension(self):
+        """Test /api/json/{filename} auto-adds .json extension"""
         test_file = Path(".railtracks/testfile.json")
         with open(test_file, "w") as f:
             json.dump({"test": "data"}, f)
 
-        handler = self.create_mock_handler("/api/json/testfile")
+        response = self.client.get("/api/json/testfile")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"test": "data"})
 
-        handler.handle_api_json("/api/json/testfile")
-
-        # Should succeed - the method should find the file and add .json extension
-        handler.send_response.assert_called_with(200)
-        handler.wfile.write.assert_called_once()
-        written_content = handler.wfile.write.call_args[0][0]
-        parsed_content = json.loads(written_content.decode())
-        self.assertEqual(parsed_content, {"test": "data"})
-
-    def test_handle_api_files(self):
-        """Test /api/files endpoint"""
-        handler = self.create_mock_handler("/api/files")
-
-        handler.handle_api_files()
-
-        # Should succeed
-        handler.send_response.assert_called_with(200)
-        handler.send_header.assert_any_call("Content-Type", "application/json")
-        handler.send_header.assert_any_call("Access-Control-Allow-Origin", "*")
-        handler.end_headers.assert_called_once()
-
-        # Should write file list
-        handler.wfile.write.assert_called_once()
-        written_content = handler.wfile.write.call_args[0][0]
-        file_list = json.loads(written_content.decode())
-
-        # Should contain our test files
-        file_names = [f["name"] for f in file_list]
-        self.assertIn("simple.json", file_names)
-        self.assertIn("my agent session.json", file_names)
-        self.assertIn("file with spaces.json", file_names)
-        self.assertIn("special-chars!@#.json", file_names)
+    def test_post_refresh_deprecated(self):
+        """Test /api/refresh endpoint (deprecated)"""
+        response = self.client.post("/api/refresh")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers.get("Deprecated"), "true")
+        self.assertEqual(response.json(), {"status": "refresh_triggered"})
 
 
 class TestPortChecking(unittest.TestCase):
