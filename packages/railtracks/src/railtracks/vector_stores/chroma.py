@@ -126,7 +126,7 @@ class ChromaVectorStore(VectorStore):
 
     # In future should have our own chunking service so we can accept documents and chunk for users
     def upsert(self, content: OneOrMany[Chunk] | OneOrMany[str]) -> OneOrMany[str]:
-        """Upsert a batch of chunks or raw strings into the collection.
+        """Insert or update a batch of vectors into the store.
 
         The method accepts a list of :class:`Chunk` instances or plain strings.
         Each element is embedded via ``embedding_function`` and stored along
@@ -134,10 +134,10 @@ class ChromaVectorStore(VectorStore):
         key defined in :data:`CONTENT`.
 
         Args:
-            content: List of or singular chunks or strings to upsert.
+            content: A singular or list of chunks or strings to add to vector store.
 
         Returns:
-            OneOrMany[str]: Generated ids for the inserted items.
+            A singular or list of string ids for the upserted vectors.
         """
         ids = []
         embeddings = []
@@ -150,20 +150,20 @@ class ChromaVectorStore(VectorStore):
             content = [content.content]
 
         for item in content:
-            id = uuid4().int
-            ids.append(str(id))
-
             if isinstance(item, Chunk):
+                id = item.id
                 embedding = self._embedding_function([item.content])[0]
                 metadata = item.metadata
                 metadata[CONTENT] = item.content
                 documents.append(item.document)
 
             else:
+                id = uuid4()
                 embedding = self._embedding_function([item])[0]
                 metadata = {CONTENT: item}
                 documents.append(None)
 
+            ids.append(str(id))
             embeddings.append(embedding)
             metadatas.append(metadata)
 
@@ -240,7 +240,7 @@ class ChromaVectorStore(VectorStore):
 
     # There is support for other types of query modalities but for now just list of strings
     # Should Probably add support for Chunks as well
-    def search(
+    def search(  # noqa: C901
         self,
         query: OneOrMany[Chunk] | OneOrMany[str],
         ids: Optional[OneOrMany[str]] = None,
@@ -253,7 +253,7 @@ class ChromaVectorStore(VectorStore):
             "documents",
             "distances",
         ],
-    ) -> list[SearchResponse]:
+    ) -> OneOrMany[SearchResponse]:
         """Run a similarity search for the provided query texts.
 
         Args:
@@ -299,7 +299,7 @@ class ChromaVectorStore(VectorStore):
             where_document=where_document,
             include=include,
         )
-        answer = []
+        answer: list[SearchResponse] = []
         for query_idx, query_response in enumerate(results["ids"]):
             search_response = SearchResponse()
             for id_idx, id in enumerate(query_response):
