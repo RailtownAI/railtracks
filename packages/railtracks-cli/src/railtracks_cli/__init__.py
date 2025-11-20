@@ -31,12 +31,11 @@ import zipfile
 from pathlib import Path
 from urllib.parse import unquote
 
-from fastapi import FastAPI, Response
+import uvicorn
+from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
-import uvicorn
 
 __version__ = "0.1.0"
 
@@ -204,12 +203,16 @@ def migrate_railtracks():
     json_files = list(railtracks_dir.glob("*.json"))
 
     if json_files:
-        print_status(f"Found {len(json_files)} JSON file(s) in .railtracks root to migrate...")
+        print_status(
+            f"Found {len(json_files)} JSON file(s) in .railtracks root to migrate..."
+        )
         for json_file in json_files:
             destination = runs_dir / json_file.name
             shutil.move(str(json_file), str(destination))
             print_success(f"Migrated {json_file.name} to .railtracks/data/runs/")
-        print_success(f"Migration completed: {len(json_files)} file(s) moved to .railtracks/data/runs/")
+        print_success(
+            f"Migration completed: {len(json_files)} file(s) moved to .railtracks/data/runs/"
+        )
     else:
         print_status("No JSON files found in .railtracks root to migrate")
 
