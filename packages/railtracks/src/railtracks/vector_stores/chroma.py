@@ -164,12 +164,12 @@ class ChromaVectorStore(VectorStore):
                 documents.append(item.document)
 
             else:
-                id = uuid4()
+                id = str(uuid4())
                 embedding = self._embedding_function([item])[0]
                 metadata = {CONTENT: item}
                 documents.append(None)
 
-            ids.append(str(id))
+            ids.append(id)
             embeddings.append(embedding)
             metadatas.append(metadata)
 
