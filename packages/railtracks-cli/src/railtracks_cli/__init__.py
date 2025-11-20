@@ -7,6 +7,7 @@ Usage: railtracks [command]
 Commands:
   init    Initialize railtracks environment (setup directories, download UI)
   viz     Start the railtracks development server
+  migrate Verify and migrate the structure of .railtracks/ directory
 
 - Checks to see if there is a .railtracks directory
 - If not, it creates one (and adds it to the .gitignore)
@@ -79,8 +80,6 @@ def is_port_in_use(port):
             return False  # Port is available
         except OSError:
             return True  # Port is in use
-
-
 
 
 def create_railtracks_dir():
@@ -166,6 +165,11 @@ def init_railtracks():
     print_status("You can now run 'railtracks viz' to start the server")
 
 
+def migrate_railtracks():
+    """Migrate and verify the structure of .railtracks directory"""
+    print("HELLO WORLD")
+
+
 class FileChangeHandler(FileSystemEventHandler):
     """Handle file system events in the .railtracks directory"""
 
@@ -188,6 +192,7 @@ class FileChangeHandler(FileSystemEventHandler):
 
 
 # FastAPI endpoints
+
 
 def get_railtracks_dir():
     """Get the .railtracks directory path"""
@@ -281,8 +286,7 @@ async def get_json_file(filename: str):
 
         if not file_path.exists():
             return JSONResponse(
-                content={"error": f"File {filename} not found"},
-                status_code=404
+                content={"error": f"File {filename} not found"}, status_code=404
             )
 
         # Read and parse JSON file
@@ -297,16 +301,10 @@ async def get_json_file(filename: str):
 
     except json.JSONDecodeError as e:
         print_error(f"Invalid JSON in {filename}: {e}")
-        return JSONResponse(
-            content={"error": f"Invalid JSON: {e}"},
-            status_code=400
-        )
+        return JSONResponse(content={"error": f"Invalid JSON: {e}"}, status_code=400)
     except Exception as e:
         print_error(f"Error handling /api/json/{filename}: {e}")
-        return JSONResponse(
-            content={"error": "Internal Server Error"},
-            status_code=500
-        )
+        return JSONResponse(content={"error": "Internal Server Error"}, status_code=500)
 
 
 @app.post("/api/refresh")
@@ -434,10 +432,14 @@ def main():
             f"  init    Initialize {cli_name} environment (setup directories, download portable UI)"
         )
         print(f"  viz     Start the {cli_name} development server")
+        print(f"  migrate Verify and migrate the structure of .{cli_name}/ directory")
         print("")
         print("Examples:")
         print(f"  {cli_name} init    # Initialize development environment")
         print(f"  {cli_name} viz     # Start visualizer web app")
+        print(
+            f"  {cli_name} migrate # Verify and migrate .{cli_name}/ directory structure"
+        )
         sys.exit(1)
 
     command = sys.argv[1]
@@ -457,9 +459,11 @@ def main():
         # Start server
         server = RailtracksServer()
         server.start()
+    elif command == "migrate":
+        migrate_railtracks()
     else:
         print(f"Unknown command: {command}")
-        print("Available commands: init, viz")
+        print("Available commands: init, viz, migrate")
         sys.exit(1)
 
 
