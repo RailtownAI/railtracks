@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-railtracks - A Python development server with file watching and JSON API
+railtracks - A Python development server with JSON API
 Usage: railtracks [command]
 
 Commands:
@@ -34,8 +34,6 @@ from urllib.parse import unquote
 import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
-from watchdog.events import FileSystemEventHandler
-from watchdog.observers import Observer
 
 __version__ = "0.1.0"
 
@@ -45,7 +43,6 @@ latest_ui_url = "https://railtownazureb2c.blob.core.windows.net/cdn/rc-viz/lates
 cli_name = "railtracks"
 cli_directory = ".railtracks"
 DEFAULT_PORT = 3030
-DEBOUNCE_INTERVAL = 0.5  # seconds
 
 # FastAPI app instance
 app = FastAPI()
@@ -219,27 +216,6 @@ def migrate_railtracks():
     print_success("Directory structure verification and migration completed!")
 
 
-class FileChangeHandler(FileSystemEventHandler):
-    """Handle file system events in the .railtracks directory"""
-
-    def __init__(self):
-        self.last_modified = {}
-
-    def on_modified(self, event):
-        if event.is_directory:
-            return
-
-        file_path = Path(event.src_path)
-        if file_path.suffix.lower() == ".json":
-            current_time = time.time()
-            last_time = self.last_modified.get(str(file_path), 0)
-
-            # Debounce rapid file changes
-            if current_time - last_time > DEBOUNCE_INTERVAL:
-                self.last_modified[str(file_path)] = current_time
-                print_status(f"JSON file modified: {file_path.name}")
-
-
 # FastAPI endpoints
 
 
@@ -391,35 +367,16 @@ class RailtracksServer:
 
     def __init__(self, port=DEFAULT_PORT):
         self.port = port
-        self.observer = None
         self.running = False
         self.config = None
 
-    def start_file_watcher(self):
-        """Start watching the .railtracks directory"""
-        railtracks_dir = Path(cli_directory)
-        if not railtracks_dir.exists():
-            railtracks_dir.mkdir(exist_ok=True)
-
-        event_handler = FileChangeHandler()
-        self.observer = Observer()
-        self.observer.schedule(event_handler, str(railtracks_dir), recursive=True)
-        self.observer.start()
-        print_status(f"Watching for JSON file changes in: {railtracks_dir}")
-
     def start(self):
-        """Start both the file watcher and FastAPI server"""
+        """Start the FastAPI server"""
         self.running = True
-
-        # Start file watcher in a separate thread
-        watcher_thread = threading.Thread(target=self.start_file_watcher)
-        watcher_thread.daemon = True
-        watcher_thread.start()
 
         # Print server info
         print_success(f"🚀 railtracks server running at http://localhost:{self.port}")
         print_status(f"📁 Serving files from: {cli_directory}/ui/")
-        print_status(f"👀 Watching for changes in: {cli_directory}/")
         print_status("📋 API endpoints:")
         print_status("   GET  /api/evaluations - Get all evaluation JSON files")
         print_status("   GET  /api/runs - Get all run JSON files")
@@ -463,10 +420,6 @@ class RailtracksServer:
         if self.running:
             print_status("Shutting down railtracks...")
             self.running = False
-
-            if self.observer:
-                self.observer.stop()
-                self.observer.join()
 
             print_success("railtracks stopped.")
 
