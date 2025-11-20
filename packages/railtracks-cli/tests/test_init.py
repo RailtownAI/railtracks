@@ -21,8 +21,6 @@ import railtracks_cli
 from fastapi.testclient import TestClient
 
 from railtracks_cli import (
-    DEBOUNCE_INTERVAL,
-    FileChangeHandler,
     app,
     create_railtracks_dir,
     get_script_directory,
@@ -156,76 +154,6 @@ class TestCreateRailtracksDir(unittest.TestCase):
         # Content should be unchanged
         new_content = gitignore_path.read_text()
         self.assertEqual(original_content, new_content)
-
-
-class TestFileChangeHandler(unittest.TestCase):
-    """Test FileChangeHandler debouncing logic"""
-
-    def setUp(self):
-        """Set up handler for testing"""
-        self.handler = FileChangeHandler()
-
-    @patch('railtracks_cli.print_status')
-    def test_file_change_handler_json_file(self, mock_print):
-        """Test handler processes JSON file changes"""
-        # Create a mock event
-        mock_event = MagicMock()
-        mock_event.is_directory = False
-        mock_event.src_path = "/test/path/file.json"
-
-        self.handler.on_modified(mock_event)
-
-        # Should have printed status
-        mock_print.assert_called_once()
-
-    @patch('railtracks_cli.print_status')
-    def test_file_change_handler_non_json_file(self, mock_print):
-        """Test handler ignores non-JSON files"""
-        # Create a mock event for non-JSON file
-        mock_event = MagicMock()
-        mock_event.is_directory = False
-        mock_event.src_path = "/test/path/file.txt"
-
-        self.handler.on_modified(mock_event)
-
-        # Should not have printed
-        mock_print.assert_not_called()
-
-    @patch('railtracks_cli.print_status')
-    def test_file_change_handler_directory(self, mock_print):
-        """Test handler ignores directory changes"""
-        # Create a mock event for directory
-        mock_event = MagicMock()
-        mock_event.is_directory = True
-        mock_event.src_path = "/test/path/directory"
-
-        self.handler.on_modified(mock_event)
-
-        # Should not have printed
-        mock_print.assert_not_called()
-
-    @patch('railtracks_cli.print_status')
-    @patch('time.time')
-    def test_file_change_handler_debouncing(self, mock_time, mock_print):
-        """Test debouncing prevents rapid duplicate events"""
-        # Set up time mock to simulate rapid changes
-        mock_time.side_effect = [1.0, 1.1, 1.6]  # Second call within debounce, third outside
-
-        mock_event = MagicMock()
-        mock_event.is_directory = False
-        mock_event.src_path = "/test/path/file.json"
-
-        # First call should process
-        self.handler.on_modified(mock_event)
-        self.assertEqual(mock_print.call_count, 1)
-
-        # Second call within debounce interval should be ignored
-        self.handler.on_modified(mock_event)
-        self.assertEqual(mock_print.call_count, 1)  # Still 1
-
-        # Third call outside debounce interval should process
-        self.handler.on_modified(mock_event)
-        self.assertEqual(mock_print.call_count, 2)
 
 
 class TestFastAPIEndpoints(unittest.TestCase):
