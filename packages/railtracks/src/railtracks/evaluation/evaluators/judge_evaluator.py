@@ -1,11 +1,13 @@
 import railtracks as rt
 import asyncio
 import yaml
+from pathlib import Path
 from pydantic import BaseModel, Field
 from .evaluator import Evaluator
 from ..data import DataPoint, Dataset
 from .metrics import Metric
-
+from ..result import EvaluatorResult 
+from uuid import UUID, uuid4
 
 class JudgeResponseSchema(BaseModel):
     score: list[tuple[str, float | int | str]] = Field(
@@ -18,9 +20,9 @@ class JudgeResponseSchema(BaseModel):
 class JudgeEvaluator(Evaluator):
     def __init__(
         self,
-        system_prompt: str,
         llm: rt.llm.ModelBase,
-        metric: list[Metric] | None = None,
+        system_prompt: str | None = None,
+        metrics: list[Metric] | None = None,
         reasoning: bool = True,
     ):
         """
@@ -32,15 +34,15 @@ class JudgeEvaluator(Evaluator):
             metric: An optional Metric to guide the evaluation.
             reasoning: A flag indicating whether the judge should provide reasoning for its evaluations.
         """
-        super().__init__()
-        self._system_prompt = self._load_yaml().format(
-            system_prompt=system_prompt,
-            metric=str(metric) if metric else "No specific metric provided.",
-        )
+        
+        self._id: UUID = uuid4()
         self._llm = llm
-        self._metric = metric
-        self._reasoning = reasoning
-        self._result: EvaluatorRun
+        self._reasoning: bool = reasoning
+        self._metrics: list[Metric] | None = metrics.copy() if metrics is not None else None
+        
+        self._metric_prompt: str = self._metrics_str()
+        
+        self._system_prompt = self._generate_system_prompt(system_prompt)
 
         self._judge = rt.agent_node(
             system_message=self._system_prompt,
@@ -48,6 +50,11 @@ class JudgeEvaluator(Evaluator):
             output_schema=JudgeResponseSchema,
             tool_nodes=[],
         )
+        super().__init__()
+        
+        self._result: EvaluatorResult
+
+
 
     def run(self, data: DataPoint | list[DataPoint] | Dataset):
         prompt_data = []
@@ -64,7 +71,7 @@ class JudgeEvaluator(Evaluator):
         return (
             f"JudgeEvaluator(system_prompt={self._system_prompt}, "
             f"llm={self._llm}, "
-            f"metric={self._metric}, "
+            f"metric={self._metrics}, "
             f"reasoning={self._reasoning})"
         )
 
@@ -90,9 +97,38 @@ class JudgeEvaluator(Evaluator):
         )
         return prompt_inpt_section + prompt_otpt_section
 
+    def _generate_system_prompt(self, system_prompt_: str | None) -> str:
+        
+        system_prompt_template = self._load_yaml()
+        system_prompt = ""
+
+        if system_prompt_ is not None:
+            system_prompt = system_prompt_
+        else:
+            system_prompt = system_prompt_template["system_prompt"]
+
+        if self._metric_prompt:
+            system_prompt += "\n" +  system_prompt_template["metric"].format(
+                metrics=self._metric_prompt
+            )
+        
+        if self._reasoning:
+            system_prompt += "\n" + system_prompt_template["reasoning"]
+        
+        return system_prompt
+    
     def _load_yaml(self):
-        with open("judge_evaluator.yaml", "r") as f:
+        yaml_path = Path(__file__).parent / "judge_evaluator.yaml"
+        with open(yaml_path, "r") as f:
             template = yaml.safe_load(f)
 
-        print(template)
-        return template["system_prompt"]
+        return template
+
+    def _metrics_str(self) -> str:
+        if not self._metrics:
+            return ""
+
+        metrics_str = "Evaluation Metrics:\n"
+        for metric in self._metrics:
+            metrics_str += repr(metric) + "\n"
+        return metrics_str

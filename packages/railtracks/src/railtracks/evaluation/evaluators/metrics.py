@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 import hashlib
 from pydantic import BaseModel
 

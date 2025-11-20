@@ -36,4 +36,5 @@ class Evaluator(ABC):
         Note: Overload the __repr__ method in subclasses to ensure all relevant
         configuration details are included in the string representation.
         """
-        return hashlib.sha256(repr(self).encode()).hexdigest()
+        str_repr = repr(self)
+        return hashlib.sha256(str_repr.encode()).hexdigest()

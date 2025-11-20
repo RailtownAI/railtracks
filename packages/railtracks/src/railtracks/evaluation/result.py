@@ -18,7 +18,7 @@ class EvaluatorResult(BaseModel):
     evaluator_id: UUID
     config_hash: str
     results: list[MetricValue]
-    agent_runs: list[AgentRun]
+    agent_run_ids: list[AgentRun]
     
 class EvaluationResult(BaseModel):    
     evaluation_id: UUID
@@ -55,14 +55,14 @@ if __name__ == "__main__":
         evaluator_id=uuid4(),
         config_hash="abc123def456",
         results=[metric_value1, metric_value2],
-        agent_runs=[agent_run1, agent_run2]
+        agent_run_ids=[agent_run1, agent_run2]
     )
     evaluator_result2 = EvaluatorResult(
         name="AnotherEvaluator",
         evaluator_id=uuid4(),
         config_hash="def456ghi789",
         results=[metric_value1],
-        agent_runs=[agent_run3, agent_run4]
+        agent_run_ids=[agent_run3, agent_run4]
     )
 
     # Create evaluation result
