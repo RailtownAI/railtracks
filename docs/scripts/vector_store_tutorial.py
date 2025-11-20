@@ -53,9 +53,9 @@ print("Answer: " + results[0].content)
 
 # --8<-- [start: third_step_complex]
 search_queries = ["Where is the Eiffel Tower?", "what is the best ai library?"]
-results = store.search(search_queries, top_k=1)
-eiffel_tower_location = results[0][0]
-best_ai_library = results[1][0]
+results2 = store.search(search_queries, top_k=1)
+eiffel_tower_location = results2[0][0]
+best_ai_library = results2[1][0]
 # --8<-- [end: third_step_complex]
 
 # --8<-- [start: fourth_step]
@@ -147,6 +147,6 @@ search_queries = [
     "medical breakthroughs",
 ]
 
-results = store.search(search_queries, top_k=3, where={"author" : "Jane Doe"})
+results2 = store.search(search_queries, top_k=3, where={"author" : "Jane Doe"})
 store.delete(article_ids, where={"date" : "2024-04-05"})
 # --8<-- [end: second_example]

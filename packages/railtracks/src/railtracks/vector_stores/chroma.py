@@ -291,7 +291,7 @@ class ChromaVectorStore(VectorStore):
             "documents",
             "distances",
         ],
-    ) -> list[SearchResponse] | SearchResponse:
+    ) -> OneOrMany[SearchResponse]:
         """Run a similarity search for the provided query texts.
 
         Args:
@@ -337,7 +337,7 @@ class ChromaVectorStore(VectorStore):
             where_document=where_document,
             include=include,
         )
-        answer = []
+        answer: list[SearchResponse] = []
         for query_idx, query_response in enumerate(results["ids"]):
             search_response = SearchResponse()
             for id_idx, id in enumerate(query_response):
