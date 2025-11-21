@@ -2,15 +2,17 @@ from copy import deepcopy
 
 from pydantic import BaseModel, Field
 import railtracks as rt
+from railtracks.rag.vector_store.base import Vector
 from railtracks.vector_stores.vector_store_base import VectorStore
 
 
-class RagConfig(BaseModel):
+class RagConfig:
     """
     Configuration object for Retrieval-Augmented Generation (RAG).
     """
-    vector_store: VectorStore
-    top_k: int = Field(default=3)
+    def __init__(self, vector_store: VectorStore, top_k: int = 3) -> None:
+        self.vector_store = vector_store
+        self.top_k = top_k
 
 
 
@@ -48,6 +50,8 @@ def _parse_message_combos(message_history: rt.llm.MessageHistory):
     while True:
         user_message = None
         assistants = []
+        print(idx)
+        print(system_message_less[idx].role)
         assert system_message_less[idx].role == rt.llm.message.Role.user
 
         user_message = system_message_less[idx]
@@ -69,7 +73,7 @@ def _parse_message_combos(message_history: rt.llm.MessageHistory):
             (_prepare_messages(user_message), _prepare_messages(assistants))
         )
 
-        idx = idx + idx_offset + 1
+        idx = idx + idx_offset
 
         if idx >= len(system_message_less):
             break
