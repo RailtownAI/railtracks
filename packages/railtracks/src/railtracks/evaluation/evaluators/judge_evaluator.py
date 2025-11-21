@@ -9,13 +9,13 @@ from .metrics import Metric
 from ..result import EvaluatorResult 
 from uuid import UUID, uuid4
 
-class JudgeResponseSchema(BaseModel):
-    score: list[tuple[str, float | int | str]] = Field(
-        ...,
-        description="List of tuples containing metric name and its corresponding score.",
-    )
-    reasoning: str | None = None
+class MetricResult(BaseModel):
+    name: str # Would this need id?
+    value: str | int | float
 
+class JudgeResponseSchema(BaseModel):
+    metric_results: list[MetricResult] | None
+    reasoning: str | None = None
 
 class JudgeEvaluator(Evaluator):
     def __init__(
@@ -35,10 +35,13 @@ class JudgeEvaluator(Evaluator):
             reasoning: A flag indicating whether the judge should provide reasoning for its evaluations.
         """
         
-        self._id: UUID = uuid4()
+        self._evaluator_id: UUID = uuid4()
+        self._session_id: str
         self._llm = llm
         self._reasoning: bool = reasoning
         self._metrics: list[Metric] | None = metrics.copy() if metrics is not None else None
+        
+        self._template = self._load_yaml()
         
         self._metric_prompt: str = self._metrics_str()
         
@@ -67,6 +70,21 @@ class JudgeEvaluator(Evaluator):
 
         result = asyncio.run(self._session(prompt_data))
 
+        metric_values = []
+        agent_run_ids = []
+
+        for run_id, res in result:
+            metric_values.append(res)
+            agent_run_ids.append(run_id)
+            
+        self._result = EvaluatorResult(
+            name=self.name,
+            evaluator_id=self._evaluator_id,
+            config_hash=self.config_hash,
+            results=metric_values,
+            agent_run_ids=agent_run_ids,
+        )
+
     def __repr__(self) -> str:
         return (
             f"JudgeEvaluator(system_prompt={self._system_prompt}, "
@@ -77,43 +95,39 @@ class JudgeEvaluator(Evaluator):
 
     async def _session(self, prompt: str | list[str]) -> list[tuple[str, JudgeResponseSchema]]:
         
-        with rt.Session() as Session:
-            if isinstance(prompt, list):
-                tasks = [rt.call(self._judge, p) for p in prompt]
-                response = await asyncio.gather(*tasks)
-                output = [("run_id", res.structured) for res in response]
-
-            else:
-                response = await rt.call(self._judge, prompt)
-                output = [("run_id", response.structured)]
+        with rt.Session() as session:
+            self._session_id = session._identifier
+            tasks = [rt.call(self._judge, p) for p in prompt]
+            response = await asyncio.gather(*tasks)
+            output = [("run_id", res.structured) for res in response]
         
-        # How to get run id?
         return output
 
     def _prompt_template(self, data: DataPoint) -> str:
-        prompt_inpt_section = f"Input: {data.input_data}\n"
-        prompt_otpt_section = (
-            f"Expected Output: {data.expected_output}\n" if data.expected_output else ""
+        return self._template["user"].format(
+            agent_input=data.agent_input,
+            agent_output=data.agent_output,
+            expected_output=data.expected_output if data.expected_output else "N/A",
         )
-        return prompt_inpt_section + prompt_otpt_section
+        
 
     def _generate_system_prompt(self, system_prompt_: str | None) -> str:
         
-        system_prompt_template = self._load_yaml()
+        
         system_prompt = ""
 
         if system_prompt_ is not None:
             system_prompt = system_prompt_
         else:
-            system_prompt = system_prompt_template["system_prompt"]
+            system_prompt = self._template["system_prompt"]
 
         if self._metric_prompt:
-            system_prompt += "\n" +  system_prompt_template["metric"].format(
+            system_prompt += "\n" +  self._template["metric"].format(
                 metrics=self._metric_prompt
             )
         
         if self._reasoning:
-            system_prompt += "\n" + system_prompt_template["reasoning"]
+            system_prompt += self._template["reasoning"]
         
         return system_prompt
     
@@ -128,7 +142,7 @@ class JudgeEvaluator(Evaluator):
         if not self._metrics:
             return ""
 
-        metrics_str = "Evaluation Metrics:\n"
+        metrics_str = ""
         for metric in self._metrics:
             metrics_str += repr(metric) + "\n"
-        return metrics_str
+        return metrics_str[:-1]  # Remove trailing newline

@@ -1,15 +1,13 @@
 from datetime import datetime
 from uuid import UUID
 from pydantic import BaseModel
-# from .evaluators.metrics import Metric, Categorical, Continuous
-from railtracks.evaluation.evaluators.metrics import Metric, Categorical, Continuous
-from typing import Any
+from .evaluators.metrics import Metric, Categorical, Continuous
 
 class AgentRun(BaseModel):
     session_id: UUID
     run_id: UUID
 
-class MetricValue(BaseModel):
+class MetricResult(BaseModel):
     metric: Metric
     value: str | float | int
 
@@ -17,7 +15,7 @@ class EvaluatorResult(BaseModel):
     name: str
     evaluator_id: UUID
     config_hash: str
-    results: list[MetricValue]
+    results: list[MetricResult]
     agent_run_ids: list[AgentRun]
     
 class EvaluationResult(BaseModel):    
@@ -25,7 +23,7 @@ class EvaluationResult(BaseModel):
     evaluation_name: str
     agent_name: str
     created_at: datetime
-    agent_runs: list[UUID] # list of agent runs that were a part of this evaluation
+    agent_runs: list[str] # list of agent runs that were a part of this evaluation
     results: list[EvaluatorResult]
     metrics: list[Metric | Continuous | Categorical]
 

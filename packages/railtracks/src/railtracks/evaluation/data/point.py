@@ -1,8 +1,9 @@
-from dataclasses import dataclass
+from pydantic import BaseModel, Field
+from uuid import UUID, uuid4
 
-@dataclass(frozen=True)
-class DataPoint:
+class DataPoint(BaseModel):
     """A class representing a single data point"""
-    input_data: str
-    expected_output: str
-    metadata: dict | None = None
+    agent_input: str
+    agent_output: str
+    expected_output: str | None = None
+    _id: UUID = Field(default_factory=uuid4)
