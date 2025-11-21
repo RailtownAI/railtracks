@@ -37,16 +37,13 @@ __all__ = [
 ]
 
 
+from railtracks.built_nodes.concrete.rag import RagConfig
 from railtracks.built_nodes.easy_usage_wrappers import (
     agent_node,
     function_node,
 )
 
-from railtracks.built_nodes.concrete.rag import (
-    RagConfig
-)
-
-from . import context, integrations, llm, prebuilt, vector_stores, rag
+from . import context, integrations, llm, prebuilt, rag, vector_stores
 from ._session import ExecutionInfo, Session, session
 from .context.central import session_id, set_config
 from .interaction import broadcast, call, call_batch, interactive

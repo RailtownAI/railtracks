@@ -171,7 +171,7 @@ def agent_node(
 
     if unpacked_tool_nodes is not None and len(unpacked_tool_nodes) > 0:
         if output_schema is not None:
-            Agent = structured_tool_call_llm(
+            agent = structured_tool_call_llm(
                 tool_nodes=unpacked_tool_nodes,
                 output_schema=output_schema,
                 name=name,
@@ -182,7 +182,7 @@ def agent_node(
                 tool_params=tool_params,
             )
         else:
-            Agent = tool_call_llm(
+            agent = tool_call_llm(
                 tool_nodes=unpacked_tool_nodes,
                 name=name,
                 llm=llm,
@@ -193,7 +193,7 @@ def agent_node(
             )
     else:
         if output_schema is not None:
-            Agent = structured_llm(
+            agent = structured_llm(
                 output_schema=output_schema,
                 name=name,
                 llm=llm,
@@ -202,7 +202,7 @@ def agent_node(
                 tool_params=tool_params,
             )
         else:
-            Agent = terminal_llm(
+            agent = terminal_llm(
                 name=name,
                 llm=llm,
                 system_message=system_message,
@@ -211,10 +211,13 @@ def agent_node(
             )
 
     if rag is not None:
+
         def _update_message_history(node: LLMBase):
-            node.message_hist = update_context(node.message_hist, vs=rag.vector_store, top_k=rag.top_k)
+            node.message_hist = update_context(
+                node.message_hist, vs=rag.vector_store, top_k=rag.top_k
+            )
             return
 
-        Agent.add_pre_invoke(_update_message_history)
+        agent.add_pre_invoke(_update_message_history)
 
-    return Agent
+    return agent

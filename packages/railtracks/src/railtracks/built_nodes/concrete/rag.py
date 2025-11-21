@@ -1,8 +1,6 @@
 from copy import deepcopy
 
-from pydantic import BaseModel, Field
 import railtracks as rt
-from railtracks.rag.vector_store.base import Vector
 from railtracks.vector_stores.vector_store_base import VectorStore
 
 
@@ -10,10 +8,10 @@ class RagConfig:
     """
     Configuration object for Retrieval-Augmented Generation (RAG).
     """
+
     def __init__(self, vector_store: VectorStore, top_k: int = 3) -> None:
         self.vector_store = vector_store
         self.top_k = top_k
-
 
 
 def _parse_message_combos(message_history: rt.llm.MessageHistory):
@@ -45,7 +43,9 @@ def _parse_message_combos(message_history: rt.llm.MessageHistory):
     search_chunks = []
 
     idx = 0
-    system_message_less = [x for x in message_history if x.role != rt.llm.message.Role.system]
+    system_message_less = [
+        x for x in message_history if x.role != rt.llm.message.Role.system
+    ]
 
     while True:
         user_message = None
@@ -81,11 +81,10 @@ def _parse_message_combos(message_history: rt.llm.MessageHistory):
     return search_chunks
 
 
-
 def update_context(
     message_history: rt.llm.MessageHistory,
     vs: rt.vector_stores.vector_store_base.VectorStore,
-    top_k: int = 3
+    top_k: int = 3,
 ):
     """
     Performs a RAG-style context injection into a message history.
@@ -127,15 +126,16 @@ def update_context(
         else:
             chunks[r.id] = r.content
 
-    injection_str = "\n\n\n------------------------------------------------------\n".join(
-        [x for x in chunks.values()]
+    injection_str = (
+        "\n\n\n------------------------------------------------------\n".join(
+            list(chunks.values())
+        )
     )
 
     fillable_system_message = f"You may find the following useful:\n{injection_str}"
 
     message_history.insert(0, rt.llm.UserMessage(fillable_system_message))
     return message_history
-
 
 
 def _prepare_messages(messages: list[rt.llm.Message] | rt.llm.Message):
@@ -154,7 +154,6 @@ def _prepare_messages(messages: list[rt.llm.Message] | rt.llm.Message):
         return "\n".join([str(x) for x in messages])
     else:
         return str(messages)
-
 
 
 def _random_contiguous_subsequence(seq: list[tuple[str, str]]):

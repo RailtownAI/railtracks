@@ -135,9 +135,7 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
         Add a method to be run immeadetly prior to the invoke.
         """
         cls.pre_invokes.append(function)
-        
 
-    
     async def tracked_invoke(self) -> _TOutput:
         """
         A special method that will track and save the latency of the running of this invoke method.
