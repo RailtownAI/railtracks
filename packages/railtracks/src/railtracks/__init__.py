@@ -31,6 +31,7 @@ __all__ = [
     "create_mcp_server",
     "ToolManifest",
     "session_id",
+    "evaluation",
     "vector_stores",
 ]
 
@@ -40,6 +41,7 @@ from railtracks.built_nodes.easy_usage_wrappers import (
     function_node,
 )
 
+from . import context, integrations, llm, prebuilt, evaluation
 from . import context, integrations, llm, prebuilt, vector_stores
 from ._session import ExecutionInfo, Session, session
 from .context.central import session_id, set_config
