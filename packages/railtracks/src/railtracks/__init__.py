@@ -32,15 +32,18 @@ __all__ = [
     "ToolManifest",
     "session_id",
     "vector_stores",
+    "rag",
+    "RagConfig",
 ]
 
 
+from railtracks.built_nodes.concrete.rag import RagConfig
 from railtracks.built_nodes.easy_usage_wrappers import (
     agent_node,
     function_node,
 )
 
-from . import context, integrations, llm, prebuilt, vector_stores
+from . import context, integrations, llm, prebuilt, rag, vector_stores
 from ._session import ExecutionInfo, Session, session
 from .context.central import session_id, set_config
 from .interaction import broadcast, call, call_batch, interactive
