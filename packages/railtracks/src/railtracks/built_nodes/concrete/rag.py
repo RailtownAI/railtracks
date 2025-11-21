@@ -50,8 +50,6 @@ def _parse_message_combos(message_history: rt.llm.MessageHistory):
     while True:
         user_message = None
         assistants = []
-        print(idx)
-        print(system_message_less[idx].role)
         assert system_message_less[idx].role == rt.llm.message.Role.user
 
         user_message = system_message_less[idx]
