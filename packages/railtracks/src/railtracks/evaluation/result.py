@@ -1,6 +1,6 @@
 from datetime import datetime
 from uuid import UUID
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from .evaluators.metrics import Metric, Categorical, Continuous
 
 class AgentRun(BaseModel):
@@ -23,7 +23,8 @@ class EvaluationResult(BaseModel):
     evaluation_name: str
     agent_name: str
     created_at: datetime
-    agent_runs: list[str] # list of agent runs that were a part of this evaluation
+    agent_run_ids: list[UUID] = Field(default_factory=list, description="If applicable, list of agent run UUIDs that were part of this evaluation")
+    data_points: list[UUID] = Field(default_factory=list, description="If applicable, list of data point UUIDs that were evaluated")
     results: list[EvaluatorResult]
     metrics: list[Metric | Continuous | Categorical]
 
@@ -42,10 +43,10 @@ if __name__ == "__main__":
 
     # Create metrics
     metric1 = Continuous(name="Accuracy", min_value=0.0, max_value=1.0)
-    metric_value1 = MetricValue(metric=metric1, value=0.95)
+    metric_value1 = MetricResult(metric=metric1, value=0.95)
 
     metric2 = Categorical(name="Sentiment", categories=["Positive", "Negative", "Neutral"])
-    metric_value2 = MetricValue(metric=metric2, value="Positive")
+    metric_value2 = MetricResult(metric=metric2, value="Positive")
 
     # Create evaluator result
     evaluator_result = EvaluatorResult(
