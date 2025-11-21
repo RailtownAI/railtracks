@@ -33,12 +33,17 @@ __all__ = [
     "session_id",
     "vector_stores",
     "rag",
+    "RagConfig",
 ]
 
 
 from railtracks.built_nodes.easy_usage_wrappers import (
     agent_node,
     function_node,
+)
+
+from railtracks.built_nodes.concrete.rag import (
+    RagConfig
 )
 
 from . import context, integrations, llm, prebuilt, vector_stores, rag
