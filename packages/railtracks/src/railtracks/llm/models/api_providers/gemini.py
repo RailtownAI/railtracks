@@ -6,7 +6,7 @@ from ._provider_wrapper import ProviderLLMWrapper
 _TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
 
-class GeminiLLM(ProviderLLMWrapper):
+class GeminiLLM(ProviderLLMWrapper[_TStream]):
     def full_model_name(self, model_name: str) -> str:
         # for gemini models through litellm, we need 'gemini/{model_name}' format, but we do this after the checks in ProiLLMWrapper init
         return f"gemini/{model_name}"

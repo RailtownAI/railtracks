@@ -76,11 +76,13 @@ nav:
       - Tools: background/tools.md
       - RAG: background/RAG.md
       - Async/Await: background/async_await.md
+      - Vector Stores: background/vector_store.md
   
   - Tutorials:
       - Building your first agent: tutorials/byfa.md
       - Running your first agent: tutorials/ryfa.md
       - RAG system: tutorials/rag_tutorial.md
+      - Vector Stores: tutorials/vector_store_tutorial.md
 
   - Tools + MCP:
       - Equip your LLMs: tools_mcp/tools_mcp.md
@@ -103,6 +105,11 @@ nav:
           - Web Search: tools_mcp/guides/websearch_integration.md
 
       - RAG: tools_mcp/RAG.md
+  
+  - Vector Stores:
+      - Overview: vector_stores/vector_store_info.md
+      - Integrations:
+          - Chroma: vector_stores/integrations/chroma.md
 
   - Human in the Loop:
       - Overview: human_in_the_loop/overview.md

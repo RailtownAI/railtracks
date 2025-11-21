@@ -1,23 +1,24 @@
 import hashlib
 import json
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from uuid import UUID, uuid4
 
 class Metric(BaseModel):
     name: str
-    _id: UUID = Field(default_factory=uuid4)
-    
-    def _generate_config_hash(self) -> str:
+    identifier: UUID = Field(default_factory=uuid4)
+    config_hash: str = ""
+
+    @model_validator(mode='after')
+    def _set_config_hash(self):
         """Generate a deterministic hash based on metric configuration.
-        
-        Returns the same hash for metrics with identical parameters (excluding id).
+        This method sets the _config_hash attribute and _id is exluded from the hash calculation.
         """
-        config = {k: v for k, v in self.model_dump().items() if k != 'id'}
-        config['_type'] = self.__class__.__name__  # Include class type
+        config = {k: v for k, v in self.model_dump().items() if k != 'identifier'}
+        config['_type'] = self.__class__.__name__
         
-        # Use JSON with sorted keys for deterministic serialization
         config_str = json.dumps(config, sort_keys=True)
-        return hashlib.sha256(config_str.encode()).hexdigest()
+        self.config_hash = hashlib.sha256(config_str.encode()).hexdigest()
+        return self
 
     def __repr__(self) -> str:
         """Custom repr excluding the id field for consistent hash generation."""
@@ -33,19 +34,22 @@ class Continuous(Metric):
     max_value: float
 
 if __name__ == "__main__":
-
-    cat_metric = Categorical(name="Sentiment", categories=["Positive", "Negative", "Neutral"])
-    cont_metric = Continuous(name="Score", min_value=0.0, max_value=1.0)
-    
-    print(f"Categorical Metric: {repr(cat_metric)}")
-    print(f"Continuous Metric: {repr(cont_metric)}")
-    print(f"Categorical Metric Hash: {cat_metric._generate_config_hash()}")
-    print(f"Continuous Metric Hash: {cont_metric._generate_config_hash()}")
-    
-    # Test that identical configs produce identical hashes
+    # Example usage and testing of Metric classes
+    cat_metric1 = Categorical(name="Sentiment", categories=["Positive", "Negative", "Neutral"])
     cat_metric2 = Categorical(name="Sentiment", categories=["Positive", "Negative", "Neutral"])
-    print(f"\nHash equality test:")
+    cont_metric = Continuous(name="Accuracy", min_value=0.0, max_value=1.0)
 
-    print(f"cat_metric hash:  {cat_metric._generate_config_hash()}")
-    print(f"cat_metric2 hash: {cat_metric2._generate_config_hash()}")
-    print(f"Hashes are equal: {cat_metric._generate_config_hash() == cat_metric2._generate_config_hash()}")
+    print("Categorical Metric 1 ID:", cat_metric1.identifier)
+    print("Categorical Metric 1 Config Hash:", cat_metric1.config_hash)
+    print("Categorical Metric 1 repr output:", repr(cat_metric1), end="\n\n")
+    
+    print("Categorical Metric 2 ID:", cat_metric2.identifier)
+    print("Categorical Metric 2 Config Hash:", cat_metric2.config_hash)
+    print("Categorical Metric 2 repr output:", repr(cat_metric2), end="\n\n")
+    
+    print("Continuous Metric ID:", cont_metric.identifier)
+    print("Continuous Metric Config Hash:", cont_metric.config_hash)
+    print("Continuous Metric repr output:", repr(cont_metric), end="\n\n")
+    
+    assert cat_metric1.config_hash == cat_metric2.config_hash, "Config hashes should match for identical metrics"
+    assert cat_metric1.identifier != cat_metric2.identifier, "IDs should be unique per instance"

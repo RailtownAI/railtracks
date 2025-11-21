@@ -32,6 +32,7 @@ __all__ = [
     "ToolManifest",
     "session_id",
     "evaluation",
+    "vector_stores",
 ]
 
 
@@ -41,6 +42,7 @@ from railtracks.built_nodes.easy_usage_wrappers import (
 )
 
 from . import context, integrations, llm, prebuilt, evaluation
+from . import context, integrations, llm, prebuilt, vector_stores
 from ._session import ExecutionInfo, Session, session
 from .context.central import session_id, set_config
 from .interaction import broadcast, call, call_batch, interactive

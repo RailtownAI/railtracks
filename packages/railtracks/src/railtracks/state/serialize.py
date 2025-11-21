@@ -6,6 +6,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from railtracks.built_nodes.concrete import RequestDetails
+from railtracks.built_nodes.concrete.response import LLMResponse
 from railtracks.llm import Message, ToolCall, ToolResponse, UserMessage
 from railtracks.nodes.nodes import LatencyDetails
 from railtracks.utils.profiling import Stamp
@@ -21,11 +22,12 @@ supported_types = (
     ToolCall,
     LatencyDetails,
     BaseModel,
+    LLMResponse,
 )
 
 
 # Consider refactoring this function to use a mapping of types to encoding functions for better scalability and maintainability.
-def encoder_extender(o) -> dict[str, Any]:
+def encoder_extender(o) -> dict[str, Any]:  # noqa: C901
     """
     Extends the encoding of supported types to their dictionary representation.
 
@@ -58,8 +60,17 @@ def encoder_extender(o) -> dict[str, Any]:
         return encode_latency_details(o)
     elif isinstance(o, BaseModel):
         return encode_base_model(o)
+    elif isinstance(o, LLMResponse):
+        return encode_llm_response(o)
     else:
         raise TypeError(f"Unsupported type: {type(o)}")
+
+
+def encode_llm_response(llm_response: LLMResponse):
+    return {
+        "message_history": llm_response.message_history,
+        "content": llm_response.content,
+    }
 
 
 def encode_tool_call(tool_call: ToolCall):
