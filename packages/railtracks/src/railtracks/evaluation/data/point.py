@@ -6,4 +6,4 @@ class DataPoint(BaseModel):
     agent_input: str
     agent_output: str | BaseModel
     expected_output: str | BaseModel | None = None
-    _id: UUID = Field(default_factory=uuid4)
+    identifier: UUID = Field(default_factory=uuid4)
