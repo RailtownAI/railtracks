@@ -7,7 +7,7 @@ from enum import Enum
 from typing import Generic, TypeVar
 
 from .content import Content, ToolCall, ToolResponse
-from .encoding import detect_source, encode
+from .encoding import detect_source, encode, ensure_data_uri
 from .prompt_injection_utils import KeyOnlyFormatter, ValueDict
 
 logger = logging.getLogger(__name__)
@@ -61,8 +61,8 @@ class Attachment:
                 self.url = url
                 self.type = "url"
             case "data_uri":
-                self.url = "..."  # if the user provides a data uri we just use it as is
-                self.encoding = url
+                self.url = "..."  
+                self.encoding = ensure_data_uri(url) # dynamicallly add header if needed
                 self.type = "data_uri"
 
 
