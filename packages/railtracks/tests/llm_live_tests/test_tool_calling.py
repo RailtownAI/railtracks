@@ -37,7 +37,7 @@ async def test_function_as_tool(llm):
     )
 
     with rt.Session(logging_setting="NONE"):
-        if llm.stream and llm.model_type() != ModelProvider.OPENAI:
+        if llm.stream and llm.model_provider() != ModelProvider.OPENAI:
             with pytest.raises(NodeCreationError):
                 response = await rt.call(agent, user_input="First find the magic number for 4. Then use the magic_operator with `x` as the result from magic_number and `y` as 3. Return the result from the magic_operator.")
 
@@ -100,7 +100,7 @@ async def test_realistic_scenario(llm):
     )
 
     with rt.Session(logging_setting="NONE"):
-        if llm.stream and llm.model_type() != ModelProvider.OPENAI:
+        if llm.stream and llm.model_provider() != ModelProvider.OPENAI:
             return
         else:
             response = await rt.call(
@@ -171,7 +171,7 @@ async def test_agents_as_tools(llm):
     with rt.Session(
         logging_setting="NONE", timeout=100
     ):
-        if llm.stream and llm.model_type() != ModelProvider.OPENAI:
+        if llm.stream:
             return
         
         response = await rt.call(
