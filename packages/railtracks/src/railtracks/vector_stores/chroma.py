@@ -153,7 +153,7 @@ class ChromaVectorStore(VectorStore):
             content = [content]
 
         if isinstance(content, Chunk):
-            content = [content.content]
+            content = [content]
 
         for item in content:
             if isinstance(item, Chunk):
@@ -176,7 +176,7 @@ class ChromaVectorStore(VectorStore):
         self._collection.upsert(
             ids=ids, embeddings=embeddings, metadatas=metadatas, documents=documents
         )
-        return ids
+        return ids if len(ids) > 1 else ids[0]
 
     def fetch(
         self,
