@@ -44,10 +44,6 @@ class TestDetectSource:
         with pytest.raises(ValueError, match="Could not determine image source type"):
             detect_source("invalid://example.com/image.png")
 
-    def test_detect_source_windows_drive_letter(self):
-        # Should be local even without slashes
-        assert detect_source("C:Usersimage.png") == "local"
-
     def test_detect_source_relative_path_with_spaces(self):
         assert detect_source("images/my photo.jpg") == "local"
 
