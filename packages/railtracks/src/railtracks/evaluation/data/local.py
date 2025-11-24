@@ -14,10 +14,11 @@ class LocalDataset(Dataset):
     Args:
         data_points: Optional initial list of DataPoint instances.
         path: Optional path to a JSON file to load data points from.
+        auto_save: If True, automatically save the dataset to the specified path upon exiting a context manager.
     """
 
     def __init__(
-        self, data_points: list[DataPoint] | None = None, path: str | None = None
+        self, data_points: list[DataPoint] | None = None, path: str | None = None, auto_save: bool = False
     ):
         super().__init__()
 
@@ -26,6 +27,7 @@ class LocalDataset(Dataset):
             self._initate_data_points(data_points)
 
         self._path = path
+        self._auto_save = auto_save
 
         if self._path is not None:
             self._load_from_path(self._path)
@@ -69,14 +71,20 @@ class LocalDataset(Dataset):
 
             self._data_points[data_points.identifier] = data_points
 
-    def save(self, name: str, folder: str) -> None:
+    def save(self, path: str) -> None:
         """Save dataset to a JSON file.
 
         Args:
-            name: Name of the file (without extension).
-            folder: Directory path where the file will be saved.
+            path: Path to the JSON file. Must have a .json extension.
+            
+        Raises:
+            ValueError: If the file extension is not .json.
         """
-        file_path = Path(folder) / f"{name}.json"
+        file_path = Path(path)
+        
+        if file_path.suffix.lower() != ".json":
+            raise ValueError(f"File must have .json extension, got: {file_path.suffix}")
+        
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
         data = [dp.model_dump(mode='json') for dp in self._data_points.values()]
@@ -92,6 +100,14 @@ class LocalDataset(Dataset):
         """
         data_point_id = data_point.identifier if isinstance(data_point, DataPoint) else data_point
         del self._data_points[data_point_id]
+
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self._auto_save and self._path is not None:
+            self.save(self._path)
+        return False
 
     def _initate_data_points(self, data_points: list[DataPoint]) -> None:
         """Initialize the internal data points dictionary.
