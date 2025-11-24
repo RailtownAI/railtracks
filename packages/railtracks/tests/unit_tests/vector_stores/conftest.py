@@ -208,16 +208,19 @@ def mock_chromadb_module():
 # ============================================================================
 # Chroma Test Helpers
 # ============================================================================
-
+@pytest.fixture
 def reset_chroma_class():
-    """Reset ChromaVectorStore._chroma to ensure clean initialization state.
+    def _reset_chroma_class():
+        """Reset ChromaVectorStore._chroma to ensure clean initialization state.
+        
+        Use this in tests that call ChromaVectorStore.class_init() to ensure
+        the class_init method actually runs instead of finding an existing client.
+        """
+        from railtracks.vector_stores.chroma import ChromaVectorStore
+        if hasattr(ChromaVectorStore, "_chroma"):
+            delattr(ChromaVectorStore, "_chroma")
     
-    Use this in tests that call ChromaVectorStore.class_init() to ensure
-    the class_init method actually runs instead of finding an existing client.
-    """
-    from railtracks.vector_stores.chroma import ChromaVectorStore
-    if hasattr(ChromaVectorStore, "_chroma"):
-        delattr(ChromaVectorStore, "_chroma")
+    return _reset_chroma_class
 
 
 @pytest.fixture
@@ -285,10 +288,8 @@ def chroma_store(mock_embedding_function, chroma_mocks):
         store._collection = original_collection
 
 
-from contextlib import contextmanager
 
-
-@contextmanager
+@pytest.fixture
 def patch_all_chromadb_clients(*args):
     """Context manager that patches all chromadb client types simultaneously.
     

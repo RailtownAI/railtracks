@@ -6,7 +6,6 @@ from railtracks.vector_stores.vector_store_base import (
     MetadataKeys,
     SearchResult,
 )
-from conftest import reset_chroma_class, patch_all_chromadb_clients
 
 
 CONTENT = MetadataKeys.CONTENT.value
@@ -24,7 +23,7 @@ class TestChromaVectorStoreClassInit:
             (None, None, None, "mock_ephemeral", {}),
         ],
     )
-    def test_class_init_creates_correct_client(self, path, host, port, expected_mock, expected_args):
+    def test_class_init_creates_correct_client(self, path, host, port, expected_mock, expected_args, reset_chroma_class):
         """Test that correct client is instantiated based on parameters."""
         with patch("chromadb.PersistentClient") as mock_persistent, \
              patch("chromadb.HttpClient") as mock_http, \
@@ -55,7 +54,7 @@ class TestChromaVectorStoreClassInit:
             (None, None, 8000),  # port without host
         ],
     )
-    def test_class_init_invalid_params_raises_value_error(self, path, host, port):
+    def test_class_init_invalid_params_raises_value_error(self, path, host, port, reset_chroma_class, patch_all_chromadb_clients):
         """Test invalid parameter combinations raise ValueError."""
         with patch_all_chromadb_clients():
             reset_chroma_class()
@@ -63,7 +62,7 @@ class TestChromaVectorStoreClassInit:
             with pytest.raises(ValueError, match="Invalid combination"):
                 ChromaVectorStore.class_init(path=path, host=host, port=port)
 
-    def test_class_init_only_initializes_class_once(self):
+    def test_class_init_only_initializes_class_once(self, reset_chroma_class):
         """Test multiple calls don't re-initialize."""
         with patch("chromadb.EphemeralClient") as mock_ephemeral:
             reset_chroma_class()
@@ -89,7 +88,7 @@ class TestChromaVectorStoreInit:
             ("temp_collection", None, None, None),
         ],
     )
-    def test_init_with_different_configs(self, mock_embedding_function, collection_name, path, host, port):
+    def test_init_with_different_configs(self, mock_embedding_function, collection_name, path, host, port, patch_all_chromadb_clients):
         """Test initialization with different configuration parameters."""
         with patch.object(ChromaVectorStore, "class_init") as mock_class_init:
             with patch_all_chromadb_clients():
