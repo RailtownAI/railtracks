@@ -7,34 +7,30 @@ from urllib.parse import urlparse
 import re
 
 
-def _looks_like_image_bytes(b: bytes) -> bool:
-    """Quick heuristic to check for common image magic bytes."""
+def _detect_image_mime_from_bytes(b: bytes) -> str | None:
+    """Return MIME type for common image formats by inspecting magic bytes."""
     if not b:
-        return False
-    # PNG
+        return None
     if b.startswith(b'\x89PNG\r\n\x1a\n'):
-        return True
-    # JPEG
+        return "image/png"
     if b.startswith(b'\xff\xd8\xff'):
-        return True
-    # GIF
+        return "image/jpeg"
     if b.startswith(b'GIF87a') or b.startswith(b'GIF89a'):
-        return True
-    # WebP (RIFF....WEBP)
+        return "image/gif"
     if b.startswith(b'RIFF') and len(b) > 12 and b[8:12] == b'WEBP':
-        return True
-    return False
-    # Current models do not suport the ones below yet, might be supported later
-    # BMP
+        return "image/webp"
+    # Most Models right now, only support the types above this line
     if b.startswith(b'BM'):
-        return True
-    # ICO
+        return "image/bmp"
     if b.startswith(b'\x00\x00\x01\x00'):
-        return True
-    # AVIF heuristic
+        return "image/x-icon"
     if len(b) > 12 and b[4:8] == b'ftyp' and b[8:12] in (b'avif', b'avis'):
-        return True
-    
+        return "image/avif"
+    head = b[:256].lower()
+    if b'<svg' in head or head.lstrip().startswith(b'<?xml'):
+        return "image/svg+xml"
+    return None
+
 
 def _is_base64_image(s: str) -> bool:
     """
@@ -58,7 +54,44 @@ def _is_base64_image(s: str) -> bool:
         except Exception:
             return False
 
-    return _looks_like_image_bytes(decoded)
+    return _detect_image_mime_from_bytes(decoded) is not None
+
+
+def _validate_data_uri_header(header: str) -> bool:
+    # Expect pattern like: data:image/{type};base64,
+    return bool(re.match(r"^data:image/[a-z0-9.+-]+;base64,$", header, flags=re.I))
+
+
+def ensure_data_uri(base64_or_data_uri: str) -> str:
+    """
+    If input is a valid data URI (with header), use as-is.
+    Otherwise, detect image type and construct header dynamically.
+    Raises ValueError on malformed input or unknown image type.
+    """
+    s = base64_or_data_uri.strip()
+    if s.startswith("data:"):
+        try:
+            header, payload = s.split(",", 1)
+        except ValueError:
+            raise ValueError("Incomplete data URI: missing comma separating header and base64 payload")
+        header_with_comma = header + ","
+        if not _validate_data_uri_header(header_with_comma):
+            raise ValueError(f"Malformed data URI header. Expected format like 'data:image/png;base64,'. Got: {header_with_comma}")
+        return header_with_comma + payload
+
+    # Otherwise treat as plain base64: try to decode some bytes to detect MIME
+    try:
+        decoded = base64.b64decode(s, validate=True)
+    except Exception as e:
+        try:
+            decoded = base64.b64decode(s + ("=" * ((4 - len(s) % 4) % 4)))
+        except Exception:
+            raise ValueError("Provided string is not valid base64 or a data URI") from e
+
+    mime = _detect_image_mime_from_bytes(decoded)
+    if not mime:
+        raise ValueError("Could not detect image MIME type from provided base64 data. Provide a proper data URI or a known image file.")
+    return f"data:{mime};base64," + s
 
 
 def detect_source(path: str) -> Literal["local", "url", "data_uri"]:
@@ -139,64 +172,3 @@ def encode(path: str) -> str:
         raise ValueError("Failed to encode image.")
     else:
         return encoding
-
-
-def _detect_image_mime_from_bytes(b: bytes) -> str | None:
-    """Return MIME type for common image formats by inspecting magic bytes."""
-    if not b:
-        return None
-    if b.startswith(b'\x89PNG\r\n\x1a\n'):
-        return "image/png"
-    if b.startswith(b'\xff\xd8\xff'):
-        return "image/jpeg"
-    if b.startswith(b'GIF87a') or b.startswith(b'GIF89a'):
-        return "image/gif"
-    if b.startswith(b'RIFF') and len(b) > 12 and b[8:12] == b'WEBP':
-        return "image/webp"
-    if b.startswith(b'BM'):
-        return "image/bmp"
-    if b.startswith(b'\x00\x00\x01\x00'):
-        return "image/x-icon"
-    if len(b) > 12 and b[4:8] == b'ftyp' and b[8:12] in (b'avif', b'avis'):
-        return "image/avif"
-    head = b[:256].lower()
-    if b'<svg' in head or head.lstrip().startswith(b'<?xml'):
-        return "image/svg+xml"
-    return None
-
-
-def _validate_data_uri_header(header: str) -> bool:
-    # Expect pattern like: data:image/{type};base64,
-    return bool(re.match(r"^data:image/[a-z0-9.+-]+;base64,$", header, flags=re.I))
-
-
-def ensure_data_uri(base64_or_data_uri: str) -> str:
-    """
-    If input is a valid data URI (with header), use as-is.
-    Otherwise, detect image type and construct header dynamically.
-    Raises ValueError on malformed input or unknown image type.
-    """
-    s = base64_or_data_uri.strip()
-    if s.startswith("data:"):
-        try:
-            header, payload = s.split(",", 1)
-        except ValueError:
-            raise ValueError("Incomplete data URI: missing comma separating header and base64 payload")
-        header_with_comma = header + ","
-        if not _validate_data_uri_header(header_with_comma):
-            raise ValueError(f"Malformed data URI header. Expected format like 'data:image/png;base64,'. Got: {header_with_comma}")
-        return header_with_comma + payload
-
-    # Otherwise treat as plain base64: try to decode some bytes to detect MIME
-    try:
-        decoded = base64.b64decode(s, validate=True)
-    except Exception as e:
-        try:
-            decoded = base64.b64decode(s + ("=" * ((4 - len(s) % 4) % 4)))
-        except Exception:
-            raise ValueError("Provided string is not valid base64 or a data URI") from e
-
-    mime = _detect_image_mime_from_bytes(decoded)
-    if not mime:
-        raise ValueError("Could not detect image MIME type from provided base64 data. Provide a proper data URI or a known image file.")
-    return f"data:{mime};base64," + s
