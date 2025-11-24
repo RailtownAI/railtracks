@@ -2,22 +2,90 @@ import json
 import csv
 from pathlib import Path
 from typing import Literal
+import random
+
 from .dataset import Dataset
 from .point import DataPoint
 
 from uuid import UUID
 
 class LocalDataset(Dataset):
-    """A simple in-memory dataset implementation."""
+    """Local in-memory dataset implementation. Supports loading from and saving to CSV and JSON files.
+
+    Args:
+        data_points: Optional initial list of DataPoint instances.
+        path: Optional path to a CSV or JSON file to load data points from.
+    """
 
     def __init__(self, data_points: list[DataPoint] | None = None, path: str | None = None):
         super().__init__()
-        self._data_points = data_points if data_points is not None else []
+        
+        self._initate_data_points(data_points) if data_points is not None else {}
+        
         self._path = path
         
         if self._path is not None:
             self._load_from_path(self._path)
 
+    @property
+    def data_points(self) -> list[DataPoint]:
+        """Retrieve all data points in the dataset."""
+        return list(self._data_points.values())
+
+    def sample(self, n: int) -> list[DataPoint]:
+        """Randomly sample n data points from the dataset.
+        
+        Args:
+            n: Number of data points to sample. If n is greater than the dataset size, returns all data points.
+        """
+        if n >= len(self._data_points):
+            return self.data_points.copy()
+        
+        return random.sample(self.data_points, n)
+    
+    def insert(self, data_point: DataPoint) -> None:
+        """Add a new data point to the dataset.
+        
+        Args:
+            data_point: The DataPoint instance to add.
+
+        Raises:
+            ValueError: If a data point with the same identifier already exists.
+            
+        """
+        if data_point.identifier in self._data_points:
+            raise ValueError(f"Data point with identifier {data_point.identifier} already exists.")
+        
+        self._data_points[data_point.identifier] = data_point
+
+    def _initate_data_points(self, data_points: list[DataPoint]) -> None:
+        """Initialize the internal data points list.
+         Args:
+            data_points: List of DataPoint instances to initialize the dataset with.
+            
+        """
+        self._data_points = dict()
+        for data_point in data_points:
+            self._data_points[data_point.identifier] = data_point
+
+    def __len__(self) -> int:
+        """Return the number of data points in the dataset."""
+        return len(self._data_points)
+
+    def __getitem__(self, data_point_id: UUID) -> DataPoint:
+        """Retrieve a data point by its UUID.
+        
+        Args:
+            data_point_id: The UUID of the data point to retrieve.
+            
+        Raises:
+            KeyError: If no data point with the given UUID exists.
+        """
+        for dp_id in self._data_points:
+            if dp_id == data_point_id:
+                return self._data_points[dp_id]
+        raise KeyError(f"No data point found with id: {data_point_id}")
+    
     def _load_from_path(self, path: str) -> None:
         """Load dataset from a CSV or JSON file.
         
@@ -85,35 +153,7 @@ class LocalDataset(Dataset):
                 data_point = DataPoint(**row)  # type: ignore
                 self._data_points.append(data_point)
 
-    def get_data_points(self) -> list[DataPoint]:
-        """Retrieve all data points in the dataset."""
-        return self._data_points
 
-    def info(self) -> str:
-        """Return a string representation of the dataset information."""
-        return f"LocalDataset with {len(self._data_points)} data points."
-
-    def __len__(self) -> int:
-        """Return the number of data points in the dataset."""
-        return len(self._data_points)
-
-    def __getitem__(self, data_point_id: UUID) -> DataPoint:
-        """Retrieve a data point by its UUID.
-        
-        Args:
-            data_point_id: The UUID of the data point to retrieve.
-            
-        Raises:
-            KeyError: If no data point with the given UUID exists.
-        """
-        for dp in self._data_points:
-            if dp._id == data_point_id:
-                return dp
-        raise KeyError(f"No data point found with id: {data_point_id}")
-
-    def add_data_point(self, data_point: DataPoint) -> None:
-        """Add a new data point to the dataset."""
-        self._data_points.append(data_point)
     
     def save(self, name: str, folder: str, file_format: Literal["json", "csv"]) -> None:
         """Save dataset to a file.
@@ -147,13 +187,11 @@ class LocalDataset(Dataset):
     def _save_to_csv(self, file_path: Path) -> None:
         """Save dataset to a CSV file."""
         if not self._data_points:
-            # Create empty CSV with headers
             with open(file_path, 'w', encoding='utf-8', newline='') as f:
                 writer = csv.DictWriter(f, fieldnames=['agent_input', 'agent_output', 'expected_output'])
                 writer.writeheader()
             return
         
-        # Get field names from the first data point
         fieldnames = list(self._data_points[0].model_dump().keys())
         
         with open(file_path, 'w', encoding='utf-8', newline='') as f:
@@ -162,6 +200,5 @@ class LocalDataset(Dataset):
             
             for dp in self._data_points:
                 row = dp.model_dump()
-                # Convert None to empty string for CSV
                 row = {k: (v if v is not None else '') for k, v in row.items()}
                 writer.writerow(row)
