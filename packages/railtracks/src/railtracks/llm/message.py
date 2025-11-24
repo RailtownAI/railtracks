@@ -61,8 +61,10 @@ class Attachment:
                 self.url = url
                 self.type = "url"
             case "data_uri":
-                self.url = "..."  
-                self.encoding = ensure_data_uri(url) # dynamicallly add header if needed
+                self.url = "..."
+                self.encoding = ensure_data_uri(
+                    url
+                )  # dynamicallly add header if needed
                 self.type = "data_uri"
 
 

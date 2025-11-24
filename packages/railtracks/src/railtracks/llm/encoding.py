@@ -1,33 +1,33 @@
 import base64
 import os
+import re
 from pathlib import Path
 from typing import Literal
 from urllib import error, request
 from urllib.parse import urlparse
-import re
 
 
 def _detect_image_mime_from_bytes(b: bytes) -> str | None:
     """Return MIME type for common image formats by inspecting magic bytes."""
     if not b:
         return None
-    if b.startswith(b'\x89PNG\r\n\x1a\n'):
+    if b.startswith(b"\x89PNG\r\n\x1a\n"):
         return "image/png"
-    if b.startswith(b'\xff\xd8\xff'):
+    if b.startswith(b"\xff\xd8\xff"):
         return "image/jpeg"
-    if b.startswith(b'GIF87a') or b.startswith(b'GIF89a'):
+    if b.startswith(b"GIF87a") or b.startswith(b"GIF89a"):
         return "image/gif"
-    if b.startswith(b'RIFF') and len(b) > 12 and b[8:12] == b'WEBP':
+    if b.startswith(b"RIFF") and len(b) > 12 and b[8:12] == b"WEBP":
         return "image/webp"
     # Most Models right now, only support the types above this line
-    if b.startswith(b'BM'):
+    if b.startswith(b"BM"):
         return "image/bmp"
-    if b.startswith(b'\x00\x00\x01\x00'):
+    if b.startswith(b"\x00\x00\x01\x00"):
         return "image/x-icon"
-    if len(b) > 12 and b[4:8] == b'ftyp' and b[8:12] in (b'avif', b'avis'):
+    if len(b) > 12 and b[4:8] == b"ftyp" and b[8:12] in (b"avif", b"avis"):
         return "image/avif"
     head = b[:256].lower()
-    if b'<svg' in head or head.lstrip().startswith(b'<?xml'):
+    if b"<svg" in head or head.lstrip().startswith(b"<?xml"):
         return "image/svg+xml"
     return None
 
@@ -39,9 +39,9 @@ def _is_base64_image(s: str) -> bool:
     """
     s_stripped = s.strip()
     # fast reject common non-base64 characters (allow padding and urlsafe variants)
-    if not re.fullmatch(r'[A-Za-z0-9+/=\s]+', s_stripped):
+    if not re.fullmatch(r"[A-Za-z0-9+/=\s]+", s_stripped):
         # could still be urlsafe base64 without +/; try replace
-        if re.fullmatch(r'[A-Za-z0-9\-_=\s]+', s_stripped) is None:
+        if re.fullmatch(r"[A-Za-z0-9\-_=\s]+", s_stripped) is None:
             return False
 
     try:
@@ -73,10 +73,14 @@ def ensure_data_uri(base64_or_data_uri: str) -> str:
         try:
             header, payload = s.split(",", 1)
         except ValueError:
-            raise ValueError("Incomplete data URI: missing comma separating header and base64 payload")
+            raise ValueError(
+                "Incomplete data URI: missing comma separating header and base64 payload"
+            )
         header_with_comma = header + ","
         if not _validate_data_uri_header(header_with_comma):
-            raise ValueError(f"Malformed data URI header. Expected format like 'data:image/png;base64,'. Got: {header_with_comma}")
+            raise ValueError(
+                f"Malformed data URI header. Expected format like 'data:image/png;base64,'. Got: {header_with_comma}"
+            )
         return header_with_comma + payload
 
     # Otherwise treat as plain base64: try to decode some bytes to detect MIME
@@ -90,7 +94,9 @@ def ensure_data_uri(base64_or_data_uri: str) -> str:
 
     mime = _detect_image_mime_from_bytes(decoded)
     if not mime:
-        raise ValueError("Could not detect image MIME type from provided base64 data. Provide a proper data URI or a known image file.")
+        raise ValueError(
+            "Could not detect image MIME type from provided base64 data. Provide a proper data URI or a known image file."
+        )
     return f"data:{mime};base64," + s
 
 
