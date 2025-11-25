@@ -5,31 +5,7 @@ from pathlib import Path
 from typing import Literal
 from urllib import error, request
 from urllib.parse import urlparse
-
-
-def _detect_image_mime_from_bytes(b: bytes) -> str | None:
-    """Return MIME type for common image formats by inspecting magic bytes."""
-    if not b:
-        return None
-    if b.startswith(b"\x89PNG\r\n\x1a\n"):
-        return "image/png"
-    if b.startswith(b"\xff\xd8\xff"):
-        return "image/jpeg"
-    if b.startswith(b"GIF87a") or b.startswith(b"GIF89a"):
-        return "image/gif"
-    if b.startswith(b"RIFF") and len(b) > 12 and b[8:12] == b"WEBP":
-        return "image/webp"
-    # Most Models right now, only support the types above this line
-    if b.startswith(b"BM"):
-        return "image/bmp"
-    if b.startswith(b"\x00\x00\x01\x00"):
-        return "image/x-icon"
-    if len(b) > 12 and b[4:8] == b"ftyp" and b[8:12] in (b"avif", b"avis"):
-        return "image/avif"
-    head = b[:256].lower()
-    if b"<svg" in head or head.lstrip().startswith(b"<?xml"):
-        return "image/svg+xml"
-    return None
+from .image_formats import detect_image_mime_from_bytes
 
 
 def _is_base64_image(s: str) -> bool:
@@ -54,7 +30,7 @@ def _is_base64_image(s: str) -> bool:
         except Exception:
             return False
 
-    return _detect_image_mime_from_bytes(decoded) is not None
+    return detect_image_mime_from_bytes(decoded) is not None
 
 
 def _validate_data_uri_header(header: str) -> bool:
@@ -92,7 +68,7 @@ def ensure_data_uri(base64_or_data_uri: str) -> str:
         except Exception:
             raise ValueError("Provided string is not valid base64 or a data URI") from e
 
-    mime = _detect_image_mime_from_bytes(decoded)
+    mime = detect_image_mime_from_bytes(decoded)
     if not mime:
         raise ValueError(
             "Could not detect image MIME type from provided base64 data. Provide a proper data URI or a known image file."

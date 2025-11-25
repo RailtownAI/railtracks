@@ -1,5 +1,7 @@
 import base64
 import pytest
+from pathlib import Path
+
 
 from railtracks.llm.message import UserMessage
 from railtracks.llm.encoding import ensure_data_uri
@@ -12,7 +14,6 @@ def make_png_base64():
 IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg", ".ico", ".avif"]
 
 def get_image_files(images_dir):
-    from pathlib import Path
     # Use the absolute path from the repo root for safety
     repo_root = Path(__file__).parents[5]  # Adjust depth if needed
     images_path = repo_root / "packages" / "railtracks" / "tests" / "end_to_end" / "images"
