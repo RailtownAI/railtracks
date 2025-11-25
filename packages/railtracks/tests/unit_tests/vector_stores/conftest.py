@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import Mock, MagicMock, patch
 from railtracks.vector_stores.vector_store_base import Chunk, SearchResult, FetchResult
+from railtracks.vector_stores.chroma import ChromaVectorStore
 
 
 # ============================================================================
@@ -216,7 +217,6 @@ def reset_chroma_class():
         Use this in tests that call ChromaVectorStore.class_init() to ensure
         the class_init method actually runs instead of finding an existing client.
         """
-        from railtracks.vector_stores.chroma import ChromaVectorStore
         if hasattr(ChromaVectorStore, "_chroma"):
             delattr(ChromaVectorStore, "_chroma")
     

@@ -176,7 +176,7 @@ class ChromaVectorStore(VectorStore):
         self._collection.upsert(
             ids=ids, embeddings=embeddings, metadatas=metadatas, documents=documents
         )
-        return ids if len(ids) > 1 else ids[0]
+        return ids if isinstance(content, list) else ids[0]
 
     def fetch(
         self,
@@ -376,7 +376,7 @@ class ChromaVectorStore(VectorStore):
                 )
             answer.append(search_response)
 
-        return answer if len(answer) > 1 else answer[0]
+        return answer if isinstance(query, list) else answer[0]
 
     def delete(
         self,
