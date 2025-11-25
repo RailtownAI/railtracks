@@ -1,38 +1,194 @@
-# Python sources
+###############################################################################
+# Git / meta
+###############################################################################
+
+.gitattributes   text
+*.gitattributes  text
+.gitignore       text
+*.gitconfig      text
+
+###############################################################################
+# Python
+###############################################################################
+
+# Sources
 *.py    text diff=python
 *.pxd   text diff=python
 *.pyx   text diff=python
 *.pyi   text diff=python
 
-# JavaScript
-*.js    text
+# Notebooks
+*.ipynb text
 
-# Documents
+# Compiled / cache
+*.pyc   binary
+*.pyo   binary
+*.pyd   binary
+__pycache__/ binary
+
+###############################################################################
+# JavaScript / TypeScript
+###############################################################################
+
+*.js    text
+*.ts    text
+*.tsx   text
+
+###############################################################################
+# Documents / markup / styles
+###############################################################################
+
 *.md    text diff=markdown
 *.txt   text
 *.rst   text
 *.pdf   binary
+
 *.css   text diff=css
 *.html  text diff=html
+*.htm   text diff=html
 
+# Common documentation / config markup
+*.rst   text
+*.adoc  text
+*.asciidoc text
+
+###############################################################################
 # Scripts
+###############################################################################
+
 *.sh    text eol=lf
 *.sed   text
-# These are explicitly windows files and should use crlf
+*.ps1   text
+
+# These are explicitly Windows files and should use CRLF
 *.bat   text eol=crlf
 *.cmd   text eol=crlf
 
-# Serialisation
-*.json  text
-*.toml  text
-*.xml   text
-*.yaml  text
-*.yml   text
+###############################################################################
+# Serialization / config
+###############################################################################
 
+*.json   text
+*.jsonc  text
+*.json5  text
+*.toml   text
+*.xml    text
+*.yaml   text
+*.yml    text
+*.ini    text
+*.cfg    text
+*.conf   text
+*.env    text
+.env.*   text
+
+###############################################################################
 # Data files
+###############################################################################
+
 *.csv   text
+*.tsv   text
 *.pkl   binary
+*.pickle binary
+*.feather binary
+*.parquet binary
+*.h5    binary
+*.hdf5  binary
+
 *.fits  binary
 *.npy   binary
 *.npz   binary
 
+###############################################################################
+# Web assets / images / fonts
+###############################################################################
+
+*.svg   text
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.bmp   binary
+*.tif   binary
+*.tiff  binary
+*.ico   binary
+*.webp  binary
+
+*.mp3   binary
+*.ogg   binary
+*.wav   binary
+*.mp4   binary
+*.mkv   binary
+*.webm  binary
+
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.otf   binary
+*.eot   binary
+
+###############################################################################
+# Build / infra / tools
+###############################################################################
+
+Makefile        text
+makefile        text
+Dockerfile      text
+docker-compose*.yml  text
+*.service       text
+*.target        text
+*.properties    text
+
+.editorconfig   text
+.prettierrc     text
+.eslintrc       text
+.stylelintrc    text
+.flake8         text
+.pylintrc       text
+pyproject.toml  text
+setup.cfg       text
+
+###############################################################################
+# Archives / compressed / misc binaries
+###############################################################################
+
+*.zip   binary
+*.tar   binary
+*.gz    binary
+*.tgz   binary
+*.bz2   binary
+*.xz    binary
+*.7z    binary
+*.rar   binary
+
+*.iso   binary
+*.dmg   binary
+
+###############################################################################
+# Office / other document formats
+###############################################################################
+
+*.doc   binary
+*.docx  binary
+*.xls   binary
+*.xlsx  binary
+*.ppt   binary
+*.pptx  binary
+*.odt   binary
+*.ods   binary
+*.odp   binary
+
+###############################################################################
+# Lockfiles (optional merge strategy)
+###############################################################################
+
+package-lock.json merge=ours
+yarn.lock        merge=ours
+pnpm-lock.yaml   merge=ours
+poetry.lock      merge=ours
+Pipfile.lock     merge=ours
+
+###############################################################################
+# Other
+###############################################################################
+
+*.ipynb         linguist-language=Jupyter Notebook
