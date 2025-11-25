@@ -4,7 +4,8 @@ from urllib.error import HTTPError
 
 import pytest
 
-from railtracks.llm.encoding import detect_source, encode, ensure_data_uri, _is_base64_image, _detect_image_mime_from_bytes
+from railtracks.llm.encoding import detect_source, encode, ensure_data_uri, _is_base64_image
+from railtracks.llm.image_formats import detect_image_mime_from_bytes
 
 
 class TestDetectSource:
@@ -156,5 +157,5 @@ class TestAdditionalEncodingCases:
 
     def test_detect_image_mime_from_bytes_unsupported(self):
         # Should return None for random bytes
-        assert _detect_image_mime_from_bytes(b"abcdefg") is None
+        assert detect_image_mime_from_bytes(b"abcdefg") is None
 

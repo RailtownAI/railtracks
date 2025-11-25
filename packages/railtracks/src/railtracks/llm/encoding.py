@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Literal
 from urllib import error, request
 from urllib.parse import urlparse
+
 from .image_formats import detect_image_mime_from_bytes
 
 
