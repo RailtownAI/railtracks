@@ -51,14 +51,35 @@ class BaseChunker(ABC):
         _overlap (int): Internal storage for overlap size.
     """
 
-    # TODO: Default a lightweight embedding model
     def __init__(
         self,
         chunk_size: int = 400,
         overlap: int = 200,
     ):
+        assert overlap < chunk_size, "'overlap' must be smaller than 'chunk_size'."
+        assert chunk_size > 0 and overlap >= 0, "'chunk_size' must be greater than 0 and 'overlap' must be at least 0 "
         self._chunk_size = chunk_size
         self._overlap = overlap
+
+    @property
+    def chunk_size(self) -> int:
+        return self._chunk_size
+
+    @chunk_size.setter
+    def chunk_size(self, value: int):
+        assert self.overlap < value, "'overlap' must be smaller than 'chunk_size'."
+        assert value > 0, "'chunk_size' must be greater than 0 and "
+        self._chunk_size = value
+
+    @property
+    def overlap(self) -> int:
+        return self._overlap
+
+    @overlap.setter
+    def overlap(self, value: int):
+        assert value < self._chunk_size, "'overlap' must be smaller than 'chunk_size'."
+        assert value >= 0, "'overlap' must be at least 0 "
+        self._overlap = value
 
     @overload
     def chunk(
