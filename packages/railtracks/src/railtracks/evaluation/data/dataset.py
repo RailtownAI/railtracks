@@ -10,16 +10,6 @@ class Dataset(ABC, BaseModel):
         self._id: UUID = uuid4()
 
     @abstractmethod
-    def get_data_points(self) -> list[DataPoint]:
-        """Retrieve all data points in the dataset."""
-        pass
-
-    @abstractmethod
-    def info(self) -> str:
-        """Return a string representation of the dataset information."""
-        pass
-
-    @abstractmethod
     def __len__(self) -> int:
         """Return the number of data points in the dataset."""
         pass
@@ -30,6 +20,15 @@ class Dataset(ABC, BaseModel):
         pass
 
     @abstractmethod
-    def add_data_point(self, data_point: DataPoint) -> None:
+    def insert(self, data_points: DataPoint | list[DataPoint]) -> None:
         """Add a new data point to the dataset."""
+        pass
+
+    @abstractmethod
+    def delete(self, data_point: DataPoint | UUID) -> None:
+        """Remove a data point from the dataset.
+        
+        Args:
+            data_point: The DataPoint instance or its UUID to remove.
+        """
         pass
