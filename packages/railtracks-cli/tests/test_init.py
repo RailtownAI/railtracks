@@ -217,32 +217,32 @@ class TestFastAPIEndpoints(unittest.TestCase):
         self.assertIn(eval1, data)
         self.assertIn(eval2, data)
 
-    def test_get_runs_empty(self):
-        """Test /api/runs endpoint with no data directory"""
-        response = self.client.get("/api/runs")
+    def test_get_sessions_empty(self):
+        """Test /api/sessions endpoint with no data directory"""
+        response = self.client.get("/api/sessions")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), [])
 
-    def test_get_runs_with_data(self):
-        """Test /api/runs endpoint with data"""
-        # Create runs directory and files
-        runs_dir = Path(".railtracks/data/runs")
-        runs_dir.mkdir(parents=True)
+    def test_get_sessions_with_data(self):
+        """Test /api/sessions endpoint with data"""
+        # Create sessions directory and files
+        sessions_dir = Path(".railtracks/data/sessions")
+        sessions_dir.mkdir(parents=True)
 
-        run1 = {"id": "run1", "status": "completed"}
-        run2 = {"id": "run2", "status": "failed"}
+        session1 = {"id": "session1", "status": "completed"}
+        session2 = {"id": "session2", "status": "failed"}
 
-        with open(runs_dir / "run1.json", "w") as f:
-            json.dump(run1, f)
-        with open(runs_dir / "run2.json", "w") as f:
-            json.dump(run2, f)
+        with open(sessions_dir / "session1.json", "w") as f:
+            json.dump(session1, f)
+        with open(sessions_dir / "session2.json", "w") as f:
+            json.dump(session2, f)
 
-        response = self.client.get("/api/runs")
+        response = self.client.get("/api/sessions")
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(len(data), 2)
-        self.assertIn(run1, data)
-        self.assertIn(run2, data)
+        self.assertIn(session1, data)
+        self.assertIn(session2, data)
 
     def test_get_files_deprecated(self):
         """Test /api/files endpoint (deprecated)"""
@@ -466,9 +466,9 @@ class TestMigrateRailtracks(unittest.TestCase):
         self.assertTrue(evaluations_dir.exists())
         self.assertTrue(evaluations_dir.is_dir())
 
-        runs_dir = data_dir / "runs"
-        self.assertTrue(runs_dir.exists())
-        self.assertTrue(runs_dir.is_dir())
+        sessions_dir = data_dir / "sessions"
+        self.assertTrue(sessions_dir.exists())
+        self.assertTrue(sessions_dir.is_dir())
 
         # Should have called print functions
         mock_status.assert_called()
@@ -485,8 +485,8 @@ class TestMigrateRailtracks(unittest.TestCase):
         data_dir.mkdir()
         evaluations_dir = data_dir / "evaluations"
         evaluations_dir.mkdir()
-        runs_dir = data_dir / "runs"
-        runs_dir.mkdir()
+        sessions_dir = data_dir / "sessions"
+        sessions_dir.mkdir()
 
         # Run migration
         migrate_railtracks()
@@ -495,12 +495,12 @@ class TestMigrateRailtracks(unittest.TestCase):
         self.assertTrue(railtracks_dir.exists())
         self.assertTrue(data_dir.exists())
         self.assertTrue(evaluations_dir.exists())
-        self.assertTrue(runs_dir.exists())
+        self.assertTrue(sessions_dir.exists())
 
     @patch('railtracks_cli.print_status')
     @patch('railtracks_cli.print_success')
     def test_migrate_moves_json_files_from_root(self, mock_success, mock_status):
-        """Test moving JSON files from .railtracks root to .railtracks/data/runs/"""
+        """Test moving JSON files from .railtracks root to .railtracks/data/sessions/"""
         # Create .railtracks directory
         railtracks_dir = Path(".railtracks")
         railtracks_dir.mkdir()
@@ -517,21 +517,21 @@ class TestMigrateRailtracks(unittest.TestCase):
         # Run migration
         migrate_railtracks()
 
-        # Files should be moved to data/runs/
-        runs_dir = railtracks_dir / "data" / "runs"
-        self.assertTrue((runs_dir / "test1.json").exists())
-        self.assertTrue((runs_dir / "test2.json").exists())
+        # Files should be moved to data/sessions/
+        sessions_dir = railtracks_dir / "data" / "sessions"
+        self.assertTrue((sessions_dir / "test1.json").exists())
+        self.assertTrue((sessions_dir / "test2.json").exists())
 
         # Files should no longer be in root
         self.assertFalse(test_file1.exists())
         self.assertFalse(test_file2.exists())
 
         # Verify file contents
-        with open(runs_dir / "test1.json") as f:
+        with open(sessions_dir / "test1.json") as f:
             content1 = json.load(f)
             self.assertEqual(content1, {"test": "data1"})
 
-        with open(runs_dir / "test2.json") as f:
+        with open(sessions_dir / "test2.json") as f:
             content2 = json.load(f)
             self.assertEqual(content2, {"test": "data2"})
 
@@ -565,8 +565,8 @@ class TestMigrateRailtracks(unittest.TestCase):
         migrate_railtracks()
 
         # Root file should be moved
-        runs_dir = railtracks_dir / "data" / "runs"
-        self.assertTrue((runs_dir / "root.json").exists())
+        sessions_dir = railtracks_dir / "data" / "sessions"
+        self.assertTrue((sessions_dir / "root.json").exists())
         self.assertFalse(root_file.exists())
 
         # Subdirectory files should NOT be moved
@@ -585,8 +585,8 @@ class TestMigrateRailtracks(unittest.TestCase):
         migrate_railtracks()
 
         # Directories should be created
-        runs_dir = railtracks_dir / "data" / "runs"
-        self.assertTrue(runs_dir.exists())
+        sessions_dir = railtracks_dir / "data" / "sessions"
+        self.assertTrue(sessions_dir.exists())
 
         # Should have printed appropriate message
         calls = [str(call) for call in mock_status.call_args_list]
@@ -634,9 +634,9 @@ class TestMigrateRailtracks(unittest.TestCase):
         migrate_railtracks()
 
         # All files should be moved
-        runs_dir = railtracks_dir / "data" / "runs"
+        sessions_dir = railtracks_dir / "data" / "sessions"
         for filename in files:
-            self.assertTrue((runs_dir / filename).exists())
+            self.assertTrue((sessions_dir / filename).exists())
             self.assertFalse((railtracks_dir / filename).exists())
 
         # Check migration summary message
@@ -663,12 +663,12 @@ class TestMigrateRailtracks(unittest.TestCase):
 
         # Missing directories should be created
         evaluations_dir = data_dir / "evaluations"
-        runs_dir = data_dir / "runs"
+        sessions_dir = data_dir / "sessions"
         self.assertTrue(evaluations_dir.exists())
-        self.assertTrue(runs_dir.exists())
+        self.assertTrue(sessions_dir.exists())
 
         # File should be moved
-        self.assertTrue((runs_dir / "test.json").exists())
+        self.assertTrue((sessions_dir / "test.json").exists())
         self.assertFalse(test_file.exists())
 
 
