@@ -189,12 +189,12 @@ def migrate_railtracks():
         evaluations_dir.mkdir(parents=True, exist_ok=True)
         print_success("Created .railtracks/data/evaluations directory")
 
-    # Verify/create .railtracks/data/runs directory
-    runs_dir = data_dir / "runs"
-    if not runs_dir.exists():
-        print_status("Creating .railtracks/data/runs directory...")
-        runs_dir.mkdir(parents=True, exist_ok=True)
-        print_success("Created .railtracks/data/runs directory")
+    # Verify/create .railtracks/data/sessions directory
+    sessions_dir = data_dir / "sessions"
+    if not sessions_dir.exists():
+        print_status("Creating .railtracks/data/sessions directory...")
+        sessions_dir.mkdir(parents=True, exist_ok=True)
+        print_success("Created .railtracks/data/sessions directory")
 
     # Find all JSON files in .railtracks root only (not recursive, not in subdirectories)
     json_files = list(railtracks_dir.glob("*.json"))
@@ -204,11 +204,11 @@ def migrate_railtracks():
             f"Found {len(json_files)} JSON file(s) in .railtracks root to migrate..."
         )
         for json_file in json_files:
-            destination = runs_dir / json_file.name
+            destination = sessions_dir / json_file.name
             shutil.move(str(json_file), str(destination))
-            print_success(f"Migrated {json_file.name} to .railtracks/data/runs/")
+            print_success(f"Migrated {json_file.name} to .railtracks/data/sessions/")
         print_success(
-            f"Migration completed: {len(json_files)} file(s) moved to .railtracks/data/runs/"
+            f"Migration completed: {len(json_files)} file(s) moved to .railtracks/data/sessions/"
         )
     else:
         print_status("No JSON files found in .railtracks root to migrate")
@@ -225,7 +225,7 @@ def get_railtracks_dir():
 
 
 def get_data_dir(subdir):
-    """Get a data subdirectory path (e.g., evaluations, runs)"""
+    """Get a data subdirectory path (e.g., evaluations, sessions)"""
     return get_railtracks_dir() / "data" / subdir
 
 
@@ -247,22 +247,22 @@ async def get_evaluations():
     return JSONResponse(content=evaluations)
 
 
-@app.get("/api/runs")
-async def get_runs():
-    """Get all run JSON files from .railtracks/data/runs/"""
-    runs_dir = get_data_dir("runs")
-    runs = []
+@app.get("/api/sessions")
+async def get_sessions():
+    """Get all session JSON files from .railtracks/data/sessions/"""
+    sessions_dir = get_data_dir("sessions")
+    sessions = []
 
-    if runs_dir.exists():
-        for file_path in runs_dir.glob("*.json"):
+    if sessions_dir.exists():
+        for file_path in sessions_dir.glob("*.json"):
             try:
                 with open(file_path, encoding="utf-8") as f:
                     content = json.load(f)
-                    runs.append(content)
+                    sessions.append(content)
             except (json.JSONDecodeError, IOError) as e:
-                print_error(f"Error reading run file {file_path.name}: {e}")
+                print_error(f"Error reading session file {file_path.name}: {e}")
 
-    return JSONResponse(content=runs)
+    return JSONResponse(content=sessions)
 
 
 @app.get("/api/files")
@@ -379,7 +379,7 @@ class RailtracksServer:
         print_status(f"📁 Serving files from: {cli_directory}/ui/")
         print_status("📋 API endpoints:")
         print_status("   GET  /api/evaluations - Get all evaluation JSON files")
-        print_status("   GET  /api/runs - Get all run JSON files")
+        print_status("   GET  /api/sessions - Get all session JSON files")
         print_status("   GET  /api/files - List JSON files (deprecated)")
         print_status("   GET  /api/json/{filename} - Load JSON file (deprecated)")
         print_status("   POST /api/refresh - Trigger frontend refresh (deprecated)")
