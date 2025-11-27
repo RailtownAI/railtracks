@@ -1,7 +1,9 @@
 from typing import Optional
+
 import tiktoken
 
 from .base_chunker import BaseChunker
+
 
 class FixedTokenChunker(BaseChunker):
     """A chunker that splits text strictly by token count.
@@ -25,10 +27,7 @@ class FixedTokenChunker(BaseChunker):
     """
 
     def __init__(
-        self,
-        chunk_size: int = 400,
-        overlap: int = 200,
-        tokenizer: Optional[str] = None
+        self, chunk_size: int = 400, overlap: int = 200, tokenizer: Optional[str] = None
     ):
         super().__init__(chunk_size, overlap)
         self._tokenizer = (
@@ -36,7 +35,6 @@ class FixedTokenChunker(BaseChunker):
             if tokenizer
             else tiktoken.get_encoding("cl100k_base")
         )
-
 
     def split_text(
         self,
@@ -54,7 +52,7 @@ class FixedTokenChunker(BaseChunker):
         Returns:
             list[str]: A list of text segments decoded back from token windows.
         """
-        
+
         text_chunks = []
         tokens = self._tokenizer.encode(text)
         start = 0

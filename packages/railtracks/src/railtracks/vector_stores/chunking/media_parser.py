@@ -1,11 +1,13 @@
 import os
-import pymupdf
 from typing import Optional
+
+import pymupdf
 from charset_normalizer import from_path
+
 
 class MediaParser:
     """General-purpose media parser capable of extracting text from various file types.
-    
+
     Currently supports:
         - .txt
         - .pdf
@@ -19,7 +21,7 @@ class MediaParser:
     @classmethod
     def get_text(cls, path: str, **kwargs) -> str:
         """Return cleaned text extracted from a supported file.
-        
+
         Args:
             path: Path to the file
             **kwargs: Parser-specific arguments (e.g., encoding for .txt files)
@@ -39,7 +41,7 @@ class MediaParser:
         """Extract text from a plain .txt file."""
         if not os.path.isfile(filepath):
             raise FileNotFoundError(f"File not found: {filepath}")
-        
+
         if encoding is not None:
             with open(filepath, "r", encoding=encoding) as f:
                 return f.read()
@@ -48,16 +50,16 @@ class MediaParser:
         detected = from_path(filepath).best()
         if detected is None:
             raise ValueError(f"Failed to detect encoding for: {filepath}")
-            
+
         with open(filepath, "r", encoding=detected.encoding) as f:
             return f.read()
-        
+
     @classmethod
     def _parse_pdf(cls, filepath: str) -> str:
         """Extract text from a PDF using PyMuPDF (pymupdf)."""
         if not os.path.isfile(filepath):
             raise FileNotFoundError(f"File not found: {filepath}")
-        
+
         with pymupdf.open(filepath) as doc:
             extracted = []
             for page in doc:
@@ -65,7 +67,7 @@ class MediaParser:
                 if text:
                     extracted.append(text)
             return "\n".join(extracted)
-    
+
     @classmethod
     def _clean_text(cls, text: str) -> str:
         """Remove null bytes / non-printable characters while preserving whitespace."""

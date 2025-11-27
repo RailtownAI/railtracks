@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, Optional, TypeVar, Union, overload
+
 from .chunking.base_chunker import Chunk
 
 T = TypeVar("T")

@@ -4,6 +4,7 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Callable, Optional, TypeVar, Union, overload
 from uuid import uuid4
 
+from .chunking.base_chunker import Chunk
 from .vector_store_base import (
     FetchResponse,
     FetchResult,
@@ -12,8 +13,6 @@ from .vector_store_base import (
     SearchResult,
     VectorStore,
 )
-
-from .chunking.base_chunker import Chunk
 
 if TYPE_CHECKING:
     from chromadb.api.types import Include

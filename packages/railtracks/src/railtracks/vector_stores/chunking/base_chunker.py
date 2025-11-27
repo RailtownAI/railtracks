@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Any, overload
 from dataclasses import dataclass, field
+from typing import Any, Optional
 from uuid import uuid4
 
 from .media_parser import MediaParser
+
 
 @dataclass
 class Chunk:
@@ -41,10 +42,10 @@ class BaseChunker(ABC):
     ``chunk`` method.
 
     Args:
-        chunk_size (int): Specifies number of tokens per chunk to 
+        chunk_size (int): Specifies number of tokens per chunk to
             varying degree depending on implementation.
             Defaults to 400
-        overlap (int): Specifies number of tokens to overlap 
+        overlap (int): Specifies number of tokens to overlap
             between adjacent chunks to varying degree depending
             on implementation. Defaults to 200.
 
@@ -59,7 +60,9 @@ class BaseChunker(ABC):
         overlap: int = 200,
     ):
         assert overlap < chunk_size, "'overlap' must be smaller than 'chunk_size'."
-        assert chunk_size > 0 and overlap >= 0, "'chunk_size' must be greater than 0 and 'overlap' must be at least 0 "
+        assert chunk_size > 0 and overlap >= 0, (
+            "'chunk_size' must be greater than 0 and 'overlap' must be at least 0 "
+        )
         self._chunk_size = chunk_size
         self._overlap = overlap
 
@@ -104,21 +107,16 @@ class BaseChunker(ABC):
             strategy.
         """
         text_chunk_list = self.split_text(text)
-        chunks = self.make_into_chunks(
-            text_chunk_list,
-            document,
-            metadata
-            )
-        
+        chunks = self.make_into_chunks(text_chunk_list, document, metadata)
+
         return chunks
 
-
     def chunk_from_file(
-            self,
-            path : str,
-            encoding : Optional[str] = None,
-            document : Optional[str] = None,
-            metadata : Optional[dict[str, Any]] = None
+        self,
+        path: str,
+        encoding: Optional[str] = None,
+        document: Optional[str] = None,
+        metadata: Optional[dict[str, Any]] = None,
     ) -> list[Chunk]:
         """Split text into list of chunks from a specified file.
 
@@ -155,11 +153,11 @@ class BaseChunker(ABC):
         pass
 
     def make_into_chunks(
-            self,
-            text : list[str],
-            document : Optional[str] = None,
-            metadata : Optional[dict[str, Any]] = None
-            ) -> list[Chunk]:
+        self,
+        text: list[str],
+        document: Optional[str] = None,
+        metadata: Optional[dict[str, Any]] = None,
+    ) -> list[Chunk]:
         """Make list of text chunks into chunk type with associated attributes.
 
 
@@ -175,15 +173,10 @@ class BaseChunker(ABC):
             strategy.
 
         """
-        
+
         chunks = []
         for text_chunk in text:
             chunks.append(
-                Chunk(
-                    content=text_chunk,
-                    document=document,
-                    metadata=metadata
-                    )
-                )
+                Chunk(content=text_chunk, document=document, metadata=metadata)
+            )
         return chunks
-
