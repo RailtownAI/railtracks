@@ -1,8 +1,7 @@
-from abc import ABC, abstractmethod
-from typing import Optional, Any, overload
+from typing import Optional
 import tiktoken
 
-from .base_chunker import Chunk, BaseChunker
+from .base_chunker import BaseChunker
 
 class FixedTokenChunker(BaseChunker):
     """A chunker that splits text strictly by token count.
@@ -38,91 +37,11 @@ class FixedTokenChunker(BaseChunker):
             else tiktoken.get_encoding("cl100k_base")
         )
 
-    @overload
-    def chunk(
+
+    def split_text(
         self,
-        *,
         text: str,
-        document_name: Optional[str],
-        metadata: dict[str, Any],
-    ) -> list[Chunk]:
-        """Chunk raw text into token-based segments."""
-        ...
-
-    @overload
-    def chunk(
-        self,
-        *,
-        document_path: str,
-        document_name: Optional[str],
-        metadata: dict[str, Any],
-    ) -> list[Chunk]:
-        """Chunk the contents of a document at the given path."""
-        ...
-
-    def chunk(
-        self,
-        *,
-        text: Optional[str] = None,
-        document_path: Optional[str] = None,
-        document_name: Optional[str] = None,
-        metadata: Optional[dict[str, Any]] = None,
-    ) -> list[Chunk]:
-        """Split text or document content into token-based chunks.
-
-        Exactly one of ``text`` or ``document_path`` must be provided.
-        The produced chunks will be sized according to the configured
-        token window and overlap.
-
-        Args:
-            text (Optional[str]): Raw text to chunk. Mutually exclusive with
-                ``document_path``.
-            document_path (Optional[str]): File whose contents should be chunked.
-                Mutually exclusive with ``text``.
-            document_name (Optional[str]): Name or identifier associated with
-                the document. Applied to each generated chunk.
-            metadata (Optional[dict[str, Any]]): Additional metadata to embed
-                in each produced chunk.
-
-        Returns:
-            list[Chunk]: A list of generated chunk objects.
-
-        Raises:
-            ValueError: If both or neither of ``text`` and ``document_path`` are
-                provided.
-        """
-        if text and not document_path:
-            split_text = self._split_text(text)
-            chunks = self._chunkify(
-                split_text=split_text,
-                document_name=document_name,
-                metadata=metadata,
-            )
-
-        elif document_path and not text:
-            try:
-                with open(document_path, "r", encoding="utf-8") as f:
-                    file_text = f.read()
-            except FileNotFoundError:
-                raise FileNotFoundError(f"Could not find document at path: {document_path}")
-            except OSError as e:
-                raise OSError(f"Error reading file '{document_path}': {e}")
-
-            split_text = self._split_text(file_text)
-            chunks = self._chunkify(
-                split_text=split_text,
-                document_name=document_name or document_path,
-                metadata=metadata,
-            )
-
-        else:
-            raise ValueError(
-                "Must provide either text or document_path but not both."
-            )
-        
-        return chunks
-
-    def _split_text(self, text: str) -> list[str]:
+    ) -> list[str]:
         """Split raw text into token-based windows.
 
         The text is tokenized using the configured tokenizer, and then divided
@@ -130,11 +49,12 @@ class FixedTokenChunker(BaseChunker):
         backward overlap.
 
         Args:
-            text (str): The raw text to split.
+            text (str): Raw text to split.
 
         Returns:
             list[str]: A list of text segments decoded back from token windows.
         """
+        
         text_chunks = []
         tokens = self._tokenizer.encode(text)
         start = 0
@@ -146,32 +66,3 @@ class FixedTokenChunker(BaseChunker):
             start += self._chunk_size - self._overlap
 
         return text_chunks
-
-    def _chunkify(
-        self,
-        split_text: list[str],
-        document_name: Optional[str],
-        metadata: Optional[dict[str, Any]] = None,
-    ) -> list[Chunk]:
-        """Convert split text segments into `Chunk` objects.
-
-        Args:
-            split_text (list[str]): Output from `_split_text`, containing
-                sequential text segments.
-            document_name (Optional[str]): Name of the source document.
-            metadata (Optional[dict[str, Any]]): Metadata to store with each
-                chunk.
-
-        Returns:
-            list[Chunk]: Chunk objects containing text content and metadata.
-        """
-        chunks = []
-        for segment in split_text:
-            chunks.append(
-                Chunk(
-                    content=segment,
-                    document=document_name,
-                    metadata=metadata,
-                )
-            )
-        return chunks

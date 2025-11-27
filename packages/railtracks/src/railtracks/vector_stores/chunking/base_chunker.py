@@ -3,6 +3,7 @@ from typing import Optional, Any, overload
 from dataclasses import dataclass, field
 from uuid import uuid4
 
+from .media_parser import MediaParser
 
 @dataclass
 class Chunk:
@@ -22,7 +23,7 @@ class Chunk:
     content: str
     id: Optional[str] = None
     document: Optional[str] = None
-    metadata: dict[str, Any] = field(default_factory=dict)
+    metadata: Optional[dict[str, Any]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Normalize metadata and ensure identifier is populated."""
@@ -35,16 +36,17 @@ class Chunk:
 class BaseChunker(ABC):
     """Abstract base class for chunking strategies.
 
-    A chunker splits input text or documents into ``Chunk`` objects and can
-    optionally embed them using an embedding model. Specific chunking
+    A chunker splits input text ``Chunk`` objects. Specific chunking
     strategies should subclass this class and implement the abstract
     ``chunk`` method.
 
     Args:
-        chunk_size (int): Maximum number of characters allowed in a produced
-            chunk. Defaults to 400.
-        overlap (int): Number of characters of overlap to retain between
-            adjacent chunks. Defaults to 200.
+        chunk_size (int): Specifies number of tokens per chunk to 
+            varying degree depending on implementation.
+            Defaults to 400
+        overlap (int): Specifies number of tokens to overlap 
+            between adjacent chunks to varying degree depending
+            on implementation. Defaults to 200.
 
     Attributes:
         _chunk_size (int): Internal storage for chunk size.
@@ -68,7 +70,7 @@ class BaseChunker(ABC):
     @chunk_size.setter
     def chunk_size(self, value: int):
         assert self.overlap < value, "'overlap' must be smaller than 'chunk_size'."
-        assert value > 0, "'chunk_size' must be greater than 0 and "
+        assert value > 0, "'chunk_size' must be greater than 0"
         self._chunk_size = value
 
     @property
@@ -78,50 +80,92 @@ class BaseChunker(ABC):
     @overlap.setter
     def overlap(self, value: int):
         assert value < self._chunk_size, "'overlap' must be smaller than 'chunk_size'."
-        assert value >= 0, "'overlap' must be at least 0 "
+        assert value >= 0, "'overlap' must be at least 0"
         self._overlap = value
 
-    @overload
     def chunk(
         self,
-        *,
         text: str,
-        document_name: Optional[str],
-        metadata: dict[str, Any],
+        document: Optional[str] = None,
+        metadata: Optional[dict[str, Any]] = None,
     ) -> list[Chunk]:
-        ...
+        """Split text into list of chunks.
 
-    @overload
-    def chunk(
-        self,
-        *,
-        document_path: str,
-        document_name: Optional[str],
-        metadata: dict[str, Any],
-    ) -> list[Chunk]:
-        ...
-
-    @abstractmethod
-    def chunk(
-        self,
-        *,
-        text: Optional[str] = None,
-        document_path: Optional[str] = None,
-        document_name: Optional[str] = None,
-        metadata: dict[str, Any] = {},
-    ) -> list[Chunk]:
-        """Split text or document content into chunks.
-
-        Subclasses must implement the logic for how text is segmented into
-        ``Chunk`` objects. Either ``text`` or ``document_path`` must be
-        supplied, but not both.
 
         Args:
-            text (Optional[str]): Raw text to chunk. Mutually exclusive with
-                ``document_path``.
-            document_path (Optional[str]): Path to a file whose contents should
-                be chunked. Mutually exclusive with ``text``.
-            document_name (Optional[str]): Identifier associated with the
+            text (str): Raw text to chunk.
+            document (Optional[str]): Identifier associated with the
+                document or text source. Applied to each output chunk.
+            metadata (dict[str, Any]): Additional metadata stored in each
+                created chunk.
+
+        Returns:
+            list[Chunk]: A list of chunk objects produced by the chunking
+            strategy.
+        """
+        text_chunk_list = self.split_text(text)
+        chunks = self.make_into_chunks(
+            text_chunk_list,
+            document,
+            metadata
+            )
+        
+        return chunks
+
+
+    def chunk_from_file(
+            self,
+            path : str,
+            encoding : Optional[str] = None,
+            document : Optional[str] = None,
+            metadata : Optional[dict[str, Any]] = None
+    ) -> list[Chunk]:
+        """Split text into list of chunks from a specified file.
+
+
+        Args:
+            path_name (str): file path of where to retrieve text you want chunked.
+            document (Optional[str]): Identifier associated with the
+                document or text source. Applied to each output chunk.
+            metadata (dict[str, Any]): Additional metadata stored in each
+                created chunk.
+
+        Returns:
+            list[Chunk]: A list of chunk objects produced by the chunking
+            strategy.
+        """
+        text = MediaParser.get_text(path, encoding=encoding)
+
+        return self.chunk(text, document, metadata)
+
+    @abstractmethod
+    def split_text(
+        self,
+        text: str,
+    ) -> list[str]:
+        """Split text into text chunks.
+
+
+        Args:
+            text (str): Raw text to chunk.
+
+        Returns:
+            list[str]: A list of strings produced by the chunking strategy.
+        """
+        pass
+
+    def make_into_chunks(
+            self,
+            text : list[str],
+            document : Optional[str] = None,
+            metadata : Optional[dict[str, Any]] = None
+            ) -> list[Chunk]:
+        """Make list of text chunks into chunk type with associated attributes.
+
+
+        Args:
+            text (str): Raw text to chunk.
+            document (Optional[str]): Identifier associated with the
                 document or text source. Applied to each output chunk.
             metadata (dict[str, Any]): Additional metadata stored in each
                 created chunk.
@@ -130,7 +174,16 @@ class BaseChunker(ABC):
             list[Chunk]: A list of chunk objects produced by the chunking
             strategy.
 
-        Raises:
-            ValueError: If neither ``text`` nor ``document_path`` is provided.
         """
-        pass
+        
+        chunks = []
+        for text_chunk in text:
+            chunks.append(
+                Chunk(
+                    content=text_chunk,
+                    document=document,
+                    metadata=metadata
+                    )
+                )
+        return chunks
+
