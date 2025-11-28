@@ -19,15 +19,9 @@ class PineconeVectorStore(VectorStore):
     @classmethod
     def class_init(
         cls,
-        api_key,
-        host,
-        proxy_url,
-        proxy_headers,
-        ssl_ca_certs,
-        ssl_verify,
-        additional_headers,
-        pool_threads,
-    ):
+        api_key : str,
+        index_name : str,
+    ) -> str:
         if not hasattr(cls, "_pc"):
             try:
                 from pinecone import Pinecone, Vector
@@ -36,21 +30,69 @@ class PineconeVectorStore(VectorStore):
                 # store imports on the class so other methods can reference them
                 cls.Vector = Vector
                 cls.IndexEmbed = IndexEmbed
-                cls._pc = Pinecone(
-                    api_key=api_key,
-                    host=host,
-                    proxy_url=proxy_url,
-                    proxy_headers=proxy_headers,
-                    ssl_ca_certs=ssl_ca_certs,
-                    ssl_verify=ssl_verify,
-                    additional_headers=additional_headers,
-                    pool_threads=pool_threads,
-                )
+                cls._pc = Pinecone(api_key=api_key)
+                if cls._pc.has_index(index_name):
+                    index_details = cls._pc.describe_index(index_name)
+                    host = index_details["host"]
+                    return host
+                    
+                cls._index = 
             except ImportError:
                 raise ImportError(
                     "Pinecone package is not installed. Please install railtracks[pinecone]."
                 )
+            
+    """
+    Ok so the overloads need to account for creating a new index init(of which there are 2 of these I'm aware of so far), and then when you're accessing an existing index
+    So the pinecone client has a has_index method, list_index, get_index details, and you're supposed to target by host
 
+    """
+    @overload
+    def __init__(
+        self,
+        index_name: str,
+        collection_name: str,
+        embedding_model,
+        api_key: Optional[str] = os.getenv("PINECONE_API_KEY"),
+        *
+        cloud : str,
+        region : str,
+        embedding_field_map : dict[str,str],
+    ): ...
+
+    @overload
+    def __init__(
+        self,
+        index_name: str,
+        collection_name: str,
+        embedding_model,
+        api_key: Optional[str] = os.getenv("PINECONE_API_KEY"),
+    ): ...
+
+    @overload
+    def __init__(
+        self,
+        index_name: str,
+        collection_name: str,
+        embedding_model,
+        api_key: Optional[str] = os.getenv("PINECONE_API_KEY"),
+        *
+        cloud : str,
+        region : str,
+        vector_type : str,
+        dimension: int,
+        metric : Metric,
+        host: Optional[str] = None,
+        proxy_url: Optional[str] = None,
+        proxy_headers: Optional[Dict[str, str]] = None,
+        ssl_ca_certs: Optional[str] = None,
+        ssl_verify: Optional[bool] = None,
+        additional_headers: Optional[Dict[str, str]] = None,
+        pool_threads: Optional[int] = None,
+        **kwargs: Any,
+    ): ...
+        
+    @overload
     def __init__(
         self,
         index_name: str,
@@ -70,13 +112,7 @@ class PineconeVectorStore(VectorStore):
     ):
         PineconeVectorStore.class_init(
             api_key,
-            host,
-            proxy_url,
-            proxy_headers,
-            ssl_ca_certs,
-            ssl_verify,
-            additional_headers,
-            pool_threads,
+            index_name
         )
 
         self.has_model = True
