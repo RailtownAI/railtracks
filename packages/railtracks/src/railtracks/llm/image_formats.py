@@ -1,5 +1,6 @@
 """Image format magic byte patterns and MIME type detection."""
 
+import base64
 from pathlib import Path
 from typing import Any
 
@@ -19,27 +20,25 @@ def _load_image_formats() -> dict[str, Any]:
 
 def _convert_yaml_to_python(formats: dict[str, Any]) -> tuple[list, list]:
     """Convert YAML format definitions to Python data structures."""
-    prefix_formats = [
-        (
-            bytes(item["magic_bytes"], "utf-8")
-            if isinstance(item["magic_bytes"], str)
-            else item["magic_bytes"],
-            item["mime_type"],
-        )
-        for item in formats.get("prefix_formats", [])
-    ]
+    prefix_formats = []
+    for item in formats.get("prefix_formats", []):
+        # Handle base64-encoded magic bytes
+        if "magic_bytes_b64" in item:
+            magic = base64.b64decode(item["magic_bytes_b64"])
+        elif "magic_bytes" in item:
+            magic = item["magic_bytes"].encode("utf-8")
+        else:
+            raise ValueError(
+                f"Format item missing magic_bytes or magic_bytes_b64: {item}"
+            )
+        prefix_formats.append((magic, item["mime_type"]))
 
     offset_formats = [
         (
             item["offset_start"],
             item["offset_end"],
-            bytes(item["fixed_bytes"], "utf-8")
-            if isinstance(item["fixed_bytes"], str)
-            else item["fixed_bytes"],
-            {
-                bytes(b, "utf-8") if isinstance(b, str) else b
-                for b in item.get("variable_bytes", [])
-            },
+            item["fixed_bytes"].encode("utf-8"),
+            {b.encode("utf-8") for b in item.get("variable_bytes", [])},
             item["mime_type"],
         )
         for item in formats.get("offset_formats", [])

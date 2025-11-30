@@ -1,8 +1,9 @@
 # Image format magic byte patterns and MIME type mappings
+# Magic bytes are base64-encoded to preserve exact byte values
 prefix_formats:
-  - magic_bytes: "\x89PNG\r\n\x1a\n"
+  - magic_bytes_b64: "iVBORw0KGgo="  # \x89PNG\r\n\x1a\n
     mime_type: "image/png"
-  - magic_bytes: "\xff\xd8\xff"
+  - magic_bytes_b64: "/9j/"  # \xff\xd8\xff
     mime_type: "image/jpeg"
   - magic_bytes: "GIF87a"
     mime_type: "image/gif"
@@ -10,7 +11,7 @@ prefix_formats:
     mime_type: "image/gif"
   - magic_bytes: "BM"
     mime_type: "image/bmp"
-  - magic_bytes: "\x00\x00\x01\x00"
+  - magic_bytes_b64: "AAAB"  # \x00\x00\x01\x00
     mime_type: "image/x-icon"
 
 offset_formats:
