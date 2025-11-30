@@ -15,7 +15,6 @@ A simple CLI to help developers visualize and debug their agents.
 Railtracks CLI is a development tool that provides:
 
 - **Local Development Server**: A web-based visualizer for your railtracks projects
-- **File Watching**: Automatic detection of JSON file changes in your project
 - **JSON API**: RESTful endpoints to interact with your project data
 - **Modern UI**: A downloadable frontend interface for project visualization
 
@@ -49,7 +48,6 @@ railtracks viz
 
 This starts the development server at `http://localhost:3030` with:
 
-- File watching for JSON changes
 - API endpoints for data access
 - Portable Web-based visualizer interface that can be opened in any web environment (web, mobile, vs extension, chrome extension, etc)
 
@@ -65,11 +63,3 @@ your-project/
 ├── .gitignore           # Updated to exclude .railtracks
 └── your-source-files/   # Your actual project files
 ```
-
-## File Watching
-
-The CLI automatically watches the `.railtracks` directory for JSON file changes:
-
-- **Real-time Detection**: Monitors file modifications with debouncing
-- **JSON Validation**: Validates JSON syntax when files are accessed
-- **Console Logging**: Reports file changes in the terminal

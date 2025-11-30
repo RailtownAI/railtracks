@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
 """
-railtracks - A Python development server with file watching and JSON API
+railtracks - A Python development server with JSON API
 Usage: railtracks [command]
 
 Commands:
   init    Initialize railtracks environment (setup directories, download UI)
   viz     Start the railtracks development server
+  migrate Verify and migrate the structure of .railtracks/ directory
 
 - Checks to see if there is a .railtracks directory
 - If not, it creates one (and adds it to the .gitignore)
@@ -17,24 +18,22 @@ For testing purposes, you can add `alias railtracks="python railtracks.py"` to y
 """
 
 import json
-import mimetypes
 import os
-import queue
+import shutil
 import socket
 import sys
 import tempfile
 import threading
 import time
-import traceback
 import urllib.request
 import webbrowser
 import zipfile
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote, urlparse
+from urllib.parse import unquote
 
-from watchdog.events import FileSystemEventHandler
-from watchdog.observers import Observer
+import uvicorn
+from fastapi import FastAPI
+from fastapi.responses import FileResponse, JSONResponse
 
 __version__ = "0.1.0"
 
@@ -44,11 +43,9 @@ latest_ui_url = "https://railtownazureb2c.blob.core.windows.net/cdn/rc-viz/lates
 cli_name = "railtracks"
 cli_directory = ".railtracks"
 DEFAULT_PORT = 3030
-DEBOUNCE_INTERVAL = 0.5  # seconds
 
-# Simple streaming for single-user dev tool
-current_stream_queue = None
-stream_queue_lock = threading.Lock()
+# FastAPI app instance
+app = FastAPI()
 
 
 def get_script_directory():
@@ -80,34 +77,6 @@ def is_port_in_use(port):
             return False  # Port is available
         except OSError:
             return True  # Port is in use
-
-
-def set_stream_queue(stream_queue):
-    """Set the current stream queue (single client)"""
-    global current_stream_queue
-    with stream_queue_lock:
-        current_stream_queue = stream_queue
-    print_status("Stream client connected")
-
-
-def clear_stream_queue():
-    """Clear the current stream queue"""
-    global current_stream_queue
-    with stream_queue_lock:
-        current_stream_queue = None
-    print_status("Stream client disconnected")
-
-
-def send_to_stream(message):
-    """Send message to the current stream client (if any)"""
-    global current_stream_queue
-    with stream_queue_lock:
-        if current_stream_queue:
-            try:
-                current_stream_queue.put_nowait(message)
-            except queue.Full:
-                print_status("Stream queue full, clearing connection")
-                current_stream_queue = None
 
 
 def create_railtracks_dir():
@@ -193,282 +162,204 @@ def init_railtracks():
     print_status("You can now run 'railtracks viz' to start the server")
 
 
-class FileChangeHandler(FileSystemEventHandler):
-    """Handle file system events in the .railtracks directory"""
+def migrate_railtracks():
+    """Migrate and verify the structure of .railtracks directory"""
+    print_status("Verifying .railtracks directory structure...")
 
-    def __init__(self):
-        self.last_modified = {}
+    # Get the .railtracks directory path
+    railtracks_dir = Path(cli_directory)
 
-    def on_modified(self, event):
-        if event.is_directory:
-            return
+    # Verify/create .railtracks directory
+    if not railtracks_dir.exists():
+        print_status(f"Creating {cli_directory} directory...")
+        railtracks_dir.mkdir(exist_ok=True)
+        print_success(f"Created {cli_directory} directory")
 
-        file_path = Path(event.src_path)
-        if file_path.suffix.lower() == ".json":
-            current_time = time.time()
-            last_time = self.last_modified.get(str(file_path), 0)
+    # Verify/create .railtracks/data directory
+    data_dir = railtracks_dir / "data"
+    if not data_dir.exists():
+        print_status("Creating .railtracks/data directory...")
+        data_dir.mkdir(parents=True, exist_ok=True)
+        print_success("Created .railtracks/data directory")
 
-            # Debounce rapid file changes
-            if current_time - last_time > DEBOUNCE_INTERVAL:
-                self.last_modified[str(file_path)] = current_time
-                print_status(f"JSON file modified: {file_path.name}")
+    # Verify/create .railtracks/data/evaluations directory
+    evaluations_dir = data_dir / "evaluations"
+    if not evaluations_dir.exists():
+        print_status("Creating .railtracks/data/evaluations directory...")
+        evaluations_dir.mkdir(parents=True, exist_ok=True)
+        print_success("Created .railtracks/data/evaluations directory")
 
-                # Send to stream client
-                stream_message = {
-                    "type": "file_updated",
-                    "filename": file_path.name,
-                    "timestamp": current_time,
-                }
-                send_to_stream(json.dumps(stream_message))
+    # Verify/create .railtracks/data/sessions directory
+    sessions_dir = data_dir / "sessions"
+    if not sessions_dir.exists():
+        print_status("Creating .railtracks/data/sessions directory...")
+        sessions_dir.mkdir(parents=True, exist_ok=True)
+        print_success("Created .railtracks/data/sessions directory")
+
+    # Find all JSON files in .railtracks root only (not recursive, not in subdirectories)
+    json_files = list(railtracks_dir.glob("*.json"))
+
+    if json_files:
+        print_status(
+            f"Found {len(json_files)} JSON file(s) in .railtracks root to migrate..."
+        )
+        for json_file in json_files:
+            destination = sessions_dir / json_file.name
+            shutil.move(str(json_file), str(destination))
+            print_success(f"Migrated {json_file.name} to .railtracks/data/sessions/")
+        print_success(
+            f"Migration completed: {len(json_files)} file(s) moved to .railtracks/data/sessions/"
+        )
+    else:
+        print_status("No JSON files found in .railtracks root to migrate")
+
+    print_success("Directory structure verification and migration completed!")
 
 
-class RailtracksHTTPHandler(BaseHTTPRequestHandler):
-    """HTTP request handler for the railtracks server"""
+# FastAPI endpoints
 
-    def __init__(self, *args, **kwargs):
-        self.ui_dir = Path(f"{cli_directory}/ui")
-        self.railtracks_dir = Path(cli_directory)
-        try:
-            super().__init__(*args, **kwargs)
-        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
-            # Client disconnected during initialization - this is normal for SSE
-            pass
 
-    def do_GET(self):  # noqa: N802
-        """Handle GET requests"""
-        parsed_url = urlparse(self.path)
-        path = parsed_url.path
+def get_railtracks_dir():
+    """Get the .railtracks directory path"""
+    return Path(cli_directory)
 
-        # API endpoints
-        if path == "/api/files":
-            self.handle_api_files()
-        elif path.startswith("/api/json/"):
-            self.handle_api_json(path)
-        elif path == "/stream":
-            self.handle_stream()
-        else:
-            # Serve static files from build directory
-            self.serve_static_file(path)
 
-    def do_OPTIONS(self):  # noqa: N802
-        """Handle OPTIONS requests for CORS preflight"""
-        self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.end_headers()
+def get_data_dir(subdir):
+    """Get a data subdirectory path (e.g., evaluations, sessions)"""
+    return get_railtracks_dir() / "data" / subdir
 
-    def do_POST(self):  # noqa: N802
-        """Handle POST requests"""
-        parsed_url = urlparse(self.path)
-        path = parsed_url.path
 
-        if path == "/api/refresh":
-            self.handle_refresh()
-        else:
-            self.send_error(404, "Not Found")
+@app.get("/api/evaluations")
+async def get_evaluations():
+    """Get all evaluation JSON files from .railtracks/data/evaluations/"""
+    evaluations_dir = get_data_dir("evaluations")
+    evaluations = []
 
-    def handle_api_files(self):
-        """Handle /api/files endpoint - list JSON files in .railtracks directory"""
-        try:
-            json_files = []
-            if self.railtracks_dir.exists():
-                for file_path in self.railtracks_dir.glob("*.json"):
-                    json_files.append(
-                        {
-                            "name": file_path.name,
-                            "size": file_path.stat().st_size,
-                            "modified": file_path.stat().st_mtime,
-                        }
-                    )
-
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.end_headers()
-            self.wfile.write(json.dumps(json_files).encode())
-
-        except Exception as e:
-            print_error(f"Error handling /api/files: {e}")
-            self.send_error(500, "Internal Server Error")
-
-    def handle_api_json(self, path):
-        """Handle /api/json/{filename} endpoint - load specific JSON file"""
-        try:
-            # Extract filename from path and URL decode it
-            filename = path.replace("/api/json/", "")
-            # URL decode the filename to handle spaces and special characters
-            filename = unquote(filename)
-            if not filename.endswith(".json"):
-                filename += ".json"
-
-            file_path = self.railtracks_dir / filename
-
-            if not file_path.exists():
-                self.send_error(404, f"File {filename} not found")
-                return
-
-            # Read and parse JSON file
-            with open(file_path, encoding="utf-8") as f:
-                content = f.read()
-                # Validate JSON
-                json.loads(content)
-
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.end_headers()
-            self.wfile.write(content.encode())
-
-        except json.JSONDecodeError as e:
-            print_error(f"Invalid JSON in {filename}: {e}")
-            self.send_error(400, f"Invalid JSON: {e}")
-        except Exception as e:
-            print_error(f"Error handling /api/json/{filename}: {e}")
-            self.send_error(500, "Internal Server Error")
-
-    def handle_refresh(self):
-        """Handle /api/refresh endpoint - trigger frontend refresh"""
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.end_headers()
-        self.wfile.write(json.dumps({"status": "refresh_triggered"}).encode())
-        print_status("Frontend refresh triggered")
-
-    def handle_stream(self):
-        """Handle /stream endpoint - HTTP streaming for file updates (MCP-style)"""
-        try:
-            # Create queue for this connection
-            stream_queue = queue.Queue()
-            set_stream_queue(stream_queue)
-
-            # Send streaming headers (newline-delimited JSON)
-            self.send_response(200)
-            self.send_header("Content-Type", "application/x-ndjson")
-            self.send_header("Cache-Control", "no-cache")
-            self.send_header("Connection", "keep-alive")
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.end_headers()
-
-            # Send initial connection message
-            initial_message = {
-                "type": "connected",
-                "message": "Stream connection established",
-                "timestamp": time.time(),
-            }
-            self.write_json_line(initial_message)
-
-            # Keep connection alive and send messages
+    if evaluations_dir.exists():
+        for file_path in evaluations_dir.glob("*.json"):
             try:
-                while True:
-                    try:
-                        # Wait for message with timeout
-                        message = stream_queue.get(timeout=30)
-                        parsed_message = json.loads(message)
-                        self.write_json_line(parsed_message)
-                    except queue.Empty:
-                        # Send keepalive
-                        keepalive = {"type": "keepalive", "timestamp": time.time()}
-                        self.write_json_line(keepalive)
-                    except (BrokenPipeError, ConnectionResetError, OSError):
-                        # Client disconnected
-                        break
-            except Exception as e:
-                print_error(f"Stream connection error: {e}")
-            finally:
-                # Clean up
-                clear_stream_queue()
+                with open(file_path, encoding="utf-8") as f:
+                    content = json.load(f)
+                    evaluations.append(content)
+            except (json.JSONDecodeError, IOError) as e:
+                print_error(f"Error reading evaluation file {file_path.name}: {e}")
 
-        except Exception as e:
-            print_error(f"Error handling stream connection: {e}")
-            clear_stream_queue()
+    return JSONResponse(content=evaluations)
+
+
+@app.get("/api/sessions")
+async def get_sessions():
+    """Get all session JSON files from .railtracks/data/sessions/"""
+    sessions_dir = get_data_dir("sessions")
+    sessions = []
+
+    if sessions_dir.exists():
+        for file_path in sessions_dir.glob("*.json"):
             try:
-                self.send_error(500, "Internal Server Error")
-            except (BrokenPipeError, ConnectionResetError, OSError):
-                pass  # Connection might already be closed
+                with open(file_path, encoding="utf-8") as f:
+                    content = json.load(f)
+                    sessions.append(content)
+            except (json.JSONDecodeError, IOError) as e:
+                print_error(f"Error reading session file {file_path.name}: {e}")
 
-    def write_json_line(self, data):
-        """Write a JSON line to the streaming response (NDJSON format)"""
-        try:
-            json_line = json.dumps(data) + "\n"
-            self.wfile.write(json_line.encode())
-            self.wfile.flush()
-        except (BrokenPipeError, ConnectionResetError, OSError):
-            # Client disconnected - this is normal
-            pass
+    return JSONResponse(content=sessions)
 
-    def serve_static_file(self, path):
-        """Serve static files from .railtracks/ui directory"""
-        try:
-            # Default to index.html for root path
-            if path == "/":
-                file_path = self.ui_dir / "index.html"
-            else:
-                file_path = self.ui_dir / path.lstrip("/")
 
-            if not file_path.exists():
-                # For SPA routing, fallback to index.html
-                file_path = self.ui_dir / "index.html"
+@app.get("/api/files")
+async def get_files():
+    """
+    DEPRECATED: This endpoint is deprecated and kept for old visualizer compatibility.
+    List JSON files in .railtracks directory
+    """
+    railtracks_dir = get_railtracks_dir()
+    json_files = []
 
-            if not file_path.exists():
-                self.send_error(404, "File not found")
-                return
+    try:
+        if railtracks_dir.exists():
+            for file_path in railtracks_dir.glob("*.json"):
+                json_files.append(
+                    {
+                        "name": file_path.name,
+                        "size": file_path.stat().st_size,
+                        "modified": file_path.stat().st_mtime,
+                    }
+                )
 
-            # Determine content type
-            content_type, _ = mimetypes.guess_type(str(file_path))
-            if content_type is None:
-                content_type = "application/octet-stream"
+        response = JSONResponse(content=json_files)
+        response.headers["Deprecated"] = "true"
+        return response
+    except Exception as e:
+        print_error(f"Error handling /api/files: {e}")
+        return JSONResponse(content={"error": "Internal Server Error"}, status_code=500)
 
-            # Read and serve file
-            with open(file_path, "rb") as f:
-                content = f.read()
 
-            self.send_response(200)
-            self.send_header("Content-Type", content_type)
-            self.end_headers()
-            self.wfile.write(content)
+@app.get("/api/json/{filename:path}")
+async def get_json_file(filename: str):
+    """
+    DEPRECATED: This endpoint is deprecated and kept for old visualizer compatibility.
+    Load specific JSON file from .railtracks directory
+    """
+    railtracks_dir = get_railtracks_dir()
 
-        except Exception as e:
-            print_error(f"Error serving static file {path}: {e}")
-            self.send_error(500, "Internal Server Error")
+    try:
+        # URL decode the filename to handle spaces and special characters
+        filename = unquote(filename)
+        if not filename.endswith(".json"):
+            filename += ".json"
 
-    def log_message(self, format, *args):
-        """Override to use our colored logging and suppress connection errors"""
-        message = format % args
-        # Suppress common connection error messages that are normal for SSE
-        if any(
-            error in message.lower()
-            for error in [
-                "connection aborted",
-                "connection reset",
-                "broken pipe",
-                "an established connection was aborted",
-            ]
-        ):
-            return
-        print_status(f"{self.address_string()} - {message}")
+        file_path = railtracks_dir / filename
 
-    def handle_error(self, request, client_address):
-        """Override to suppress connection errors"""
-        # Get the exception info
-        exc_type, exc_value, exc_traceback = sys.exc_info()
+        if not file_path.exists():
+            return JSONResponse(
+                content={"error": f"File {filename} not found"}, status_code=404
+            )
 
-        # Suppress common connection errors that are normal for SSE
-        if exc_type in (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
-            return
+        # Read and parse JSON file
+        with open(file_path, encoding="utf-8") as f:
+            content = f.read()
+            # Validate JSON
+            json_data = json.loads(content)
 
-        # For other errors, use default handling but with our logging
-        print_error(f"Error handling request from {client_address}")
-        print_error(f"{exc_type.__name__}: {exc_value}")
+        response = JSONResponse(content=json_data)
+        response.headers["Deprecated"] = "true"
+        return response
 
-        # Only print full traceback for unexpected errors
-        if exc_type not in (
-            ConnectionAbortedError,
-            ConnectionResetError,
-            BrokenPipeError,
-        ):
-            traceback.print_exc()
+    except json.JSONDecodeError as e:
+        print_error(f"Invalid JSON in {filename}: {e}")
+        return JSONResponse(content={"error": f"Invalid JSON: {e}"}, status_code=400)
+    except Exception as e:
+        print_error(f"Error handling /api/json/{filename}: {e}")
+        return JSONResponse(content={"error": "Internal Server Error"}, status_code=500)
+
+
+@app.post("/api/refresh")
+async def refresh():
+    """
+    DEPRECATED: This endpoint is deprecated and kept for old visualizer compatibility.
+    Trigger frontend refresh
+    """
+    print_status("Frontend refresh triggered")
+    response = JSONResponse(content={"status": "refresh_triggered"})
+    response.headers["Deprecated"] = "true"
+    return response
+
+
+@app.get("/{full_path:path}")
+async def serve_ui_or_404(full_path: str):
+    """Serve UI files with SPA routing fallback (catch-all route)"""
+    # Skip API routes
+    if full_path.startswith("api/"):
+        return JSONResponse(content={"error": "Not Found"}, status_code=404)
+
+    ui_dir = Path(f"{cli_directory}/ui")
+    ui_file = ui_dir / full_path
+    if ui_file.exists() and ui_file.is_file():
+        return FileResponse(str(ui_file))
+    # Fallback to index.html for SPA routing
+    index_file = ui_dir / "index.html"
+    if index_file.exists():
+        return FileResponse(str(index_file))
+    return JSONResponse(content={"error": "File not found"}, status_code=404)
 
 
 class RailtracksServer:
@@ -476,45 +367,22 @@ class RailtracksServer:
 
     def __init__(self, port=DEFAULT_PORT):
         self.port = port
-        self.server = None
-        self.observer = None
         self.running = False
+        self.config = None
 
-    def start_file_watcher(self):
-        """Start watching the .railtracks directory"""
-        railtracks_dir = Path(cli_directory)
-        if not railtracks_dir.exists():
-            railtracks_dir.mkdir(exist_ok=True)
+    def start(self):
+        """Start the FastAPI server"""
+        self.running = True
 
-        event_handler = FileChangeHandler()
-        self.observer = Observer()
-        self.observer.schedule(event_handler, str(railtracks_dir), recursive=True)
-        self.observer.start()
-        print_status(f"Watching for JSON file changes in: {railtracks_dir}")
-
-    def start_http_server(self):
-        """Start the HTTP server"""
-
-        # Create a custom handler class with the ui and railtracks directories
-        class Handler(RailtracksHTTPHandler):
-            def __init__(self, *args, **kwargs):
-                self.ui_dir = Path(f"{cli_directory}/ui")
-                self.railtracks_dir = Path(cli_directory)
-                try:
-                    super().__init__(*args, **kwargs)
-                except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
-                    # Client disconnected during initialization - this is normal for SSE
-                    pass
-
-        self.server = ThreadingHTTPServer(("localhost", self.port), Handler)
+        # Print server info
         print_success(f"🚀 railtracks server running at http://localhost:{self.port}")
         print_status(f"📁 Serving files from: {cli_directory}/ui/")
-        print_status(f"👀 Watching for changes in: {cli_directory}/")
         print_status("📋 API endpoints:")
-        print_status("   GET  /api/files - List JSON files")
-        print_status("   GET  /api/json/filename - Load JSON file")
-        print_status("   POST /api/refresh - Trigger frontend refresh")
-        print_status("   GET  /stream - HTTP streaming for file updates")
+        print_status("   GET  /api/evaluations - Get all evaluation JSON files")
+        print_status("   GET  /api/sessions - Get all session JSON files")
+        print_status("   GET  /api/files - List JSON files (deprecated)")
+        print_status("   GET  /api/json/{filename} - Load JSON file (deprecated)")
+        print_status("   POST /api/refresh - Trigger frontend refresh (deprecated)")
         print_status("Press Ctrl+C to stop the server")
 
         # Open browser after a short delay to ensure server is ready
@@ -532,20 +400,18 @@ class RailtracksServer:
         browser_thread.daemon = True
         browser_thread.start()
 
-        self.server.serve_forever()
-
-    def start(self):
-        """Start both the file watcher and HTTP server"""
-        self.running = True
-
-        # Start file watcher in a separate thread
-        watcher_thread = threading.Thread(target=self.start_file_watcher)
-        watcher_thread.daemon = True
-        watcher_thread.start()
-
-        # Start HTTP server in main thread
+        # Start uvicorn server
         try:
-            self.start_http_server()
+            config = uvicorn.Config(
+                app,
+                host="localhost",
+                port=self.port,
+                log_level="info",
+                access_log=False,  # We handle our own logging
+            )
+            server = uvicorn.Server(config)
+            self.config = config
+            server.run()
         except KeyboardInterrupt:
             self.stop()
 
@@ -554,13 +420,6 @@ class RailtracksServer:
         if self.running:
             print_status("Shutting down railtracks...")
             self.running = False
-
-            if self.server:
-                self.server.shutdown()
-
-            if self.observer:
-                self.observer.stop()
-                self.observer.join()
 
             print_success("railtracks stopped.")
 
@@ -575,10 +434,14 @@ def main():
             f"  init    Initialize {cli_name} environment (setup directories, download portable UI)"
         )
         print(f"  viz     Start the {cli_name} development server")
+        print(f"  migrate Verify and migrate the structure of .{cli_name}/ directory")
         print("")
         print("Examples:")
         print(f"  {cli_name} init    # Initialize development environment")
         print(f"  {cli_name} viz     # Start visualizer web app")
+        print(
+            f"  {cli_name} migrate # Verify and migrate .{cli_name}/ directory structure"
+        )
         sys.exit(1)
 
     command = sys.argv[1]
@@ -598,9 +461,11 @@ def main():
         # Start server
         server = RailtracksServer()
         server.start()
+    elif command == "migrate":
+        migrate_railtracks()
     else:
         print(f"Unknown command: {command}")
-        print("Available commands: init, viz")
+        print("Available commands: init, viz, migrate")
         sys.exit(1)
 
 
