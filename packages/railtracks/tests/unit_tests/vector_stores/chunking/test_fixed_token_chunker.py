@@ -97,13 +97,13 @@ class TestFixedTokenChunker:
 
     def test_split_text_exact_chunk_size(self):
         """Test split_text when text is exactly chunk_size tokens."""
-        chunker = FixedTokenChunker(chunk_size=5, overlap=0)
+        chunk_size = 5
+        chunker = FixedTokenChunker(chunk_size=chunk_size, overlap=0)
         text = "One two three four five"
         tokens = chunker._tokenizer.encode(text)
 
-        if len(tokens) == 5:
-            chunks = chunker.split_text(text)
-            assert len(chunks) == 1
+        chunks = chunker.split_text(text)
+        assert len(chunks) == len(tokens)/chunk_size
 
     def test_chunk_method_creates_chunk_objects(self):
         """Test that chunk method creates Chunk objects."""
@@ -123,8 +123,10 @@ class TestFixedTokenChunker:
 
         chunks = chunker.chunk(text, metadata=metadata)
 
+        metadata["source"] = "failed_test"
+
         assert len(chunks) >= 1
-        assert all(chunk.metadata == metadata for chunk in chunks)
+        assert all(chunk.metadata["source"] != metadata["source"] for chunk in chunks)
 
     def test_chunk_unicode_text(self):
         """Test chunking with unicode characters."""
@@ -167,5 +169,6 @@ class TestFixedTokenChunker:
 
         chunks = chunker.chunk_from_file("test.txt")
 
+        mock_get_text.assert_called_once_with("test.txt", encoding=None)
         assert len(chunks) > 0
         assert all(isinstance(chunk, Chunk) for chunk in chunks)

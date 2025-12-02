@@ -44,8 +44,8 @@ class TestMediaParser:
         """Test _clean_text with empty string."""
         assert MediaParser._clean_text("") == ""
 
-    def test_clean_text_none(self):
-        """Test _clean_text with None."""
+    def test_clean_text_empty(self):
+        """Test _clean_text with empty string."""
         assert MediaParser._clean_text("") == ""
 
     def test_parse_txt_file(self):
