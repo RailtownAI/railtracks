@@ -127,18 +127,20 @@ class BaseChunker(ABC):
     ) -> list[Chunk]:
         """Split text into list of chunks from a specified file.
 
-
         Args:
-            path (str): file path of where to retrieve text you want chunked.
+            path (str): File path to the input text source. Currently only `.pdf`
+                and `.txt` files are supported.
             document (Optional[str]): Identifier associated with the
-                document or text source. Applied to each output chunk.
+                document or text source. Applied to each created chunk.
             metadata (dict[str, Any]): Additional metadata stored in each
                 created chunk.
 
         Returns:
             list[Chunk]: A list of chunk objects produced by the chunking
-            strategy.
+                strategy.
+
         """
+
         text = MediaParser.get_text(path, encoding=encoding)
 
         return self.chunk(text, document, metadata)
