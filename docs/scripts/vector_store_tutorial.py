@@ -30,10 +30,12 @@ meta_data_chunk = Chunk(
 )
 
 custom_id_chunk = Chunk(
+    id="important_id_i_need_access_to",
     content="My favourite ai library is Railtracks",
 )
 
 custom_id_meta_chunk = Chunk(
+    id="other_important_id_i_need_access_to",
     content="big ben is in London",
     document="england_guide.txt",
     metadata={"category": "travel"}
@@ -71,7 +73,7 @@ print(more_results[1].content)
 # --8<-- [end: fourth_step]
 
 # --8<-- [start: fifth_step]
-store.delete(upserted_chunk)
+store.delete("important_id_i_need_access_to")
 store.delete(upserted_chunk_list)
 # --8<-- [end: fifth_step]
 

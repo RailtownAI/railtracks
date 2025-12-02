@@ -57,7 +57,9 @@ dependencies = [
 chat = ["fastapi >= 0.104.0"]
 # For each Integration package depenedcies go here.
 rag = ["litellm[proxy] >= 1.70.2", "openai < 1.100.0"]
-chroma = ["chroma"]
+chroma = [
+    "chromadb > 1.3.0"
+]
 # the integrations submodule will be list a of the above deps
 portkey = ["portkey_ai >= 2.0.2"]
 integrations = ["railtracks[portkey]", "railtracks[chroma]"]

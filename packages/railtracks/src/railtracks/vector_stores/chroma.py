@@ -124,7 +124,7 @@ class ChromaVectorStore(VectorStore):
         ChromaVectorStore.class_init(path, host, port)
         self._collection = self._chroma.get_or_create_collection(collection_name)
 
-    # In future should have our own chunking service so we can accept documents and chunk for users
+    # In future should have our own chunking service so we can accept documents for users
     @overload
     def upsert(self, content: Chunk | str) -> str: ...
 
@@ -149,34 +149,37 @@ class ChromaVectorStore(VectorStore):
         embeddings = []
         metadatas = []
         documents = []
+        is_many = True
         if isinstance(content, str):
             content = [content]
+            is_many = False
 
         if isinstance(content, Chunk):
-            content = [content.content]
+            content = [content]
+            is_many = False
 
         for item in content:
-            id = uuid4().int
-            ids.append(str(id))
-
             if isinstance(item, Chunk):
+                id = item.id
                 embedding = self._embedding_function([item.content])[0]
                 metadata = item.metadata
                 metadata[CONTENT] = item.content
                 documents.append(item.document)
 
             else:
+                id = str(uuid4())
                 embedding = self._embedding_function([item])[0]
                 metadata = {CONTENT: item}
                 documents.append(None)
 
+            ids.append(id)
             embeddings.append(embedding)
             metadatas.append(metadata)
 
         self._collection.upsert(
             ids=ids, embeddings=embeddings, metadatas=metadatas, documents=documents
         )
-        return ids
+        return ids if is_many else ids[0]
 
     def fetch(
         self,
@@ -308,14 +311,16 @@ class ChromaVectorStore(VectorStore):
         Raises:
             ValueError: If expected fields are missing from the Chroma response.
         """
-
+        is_many = True
         # If a single chunk is passed in, convert to list of string
         if isinstance(query, Chunk):
             query = [query.content]
+            is_many = False
 
         # If a single string is passed in, convert to list of string
         elif isinstance(query, str):
             query = [query]
+            is_many = False
 
         # If list of chunks is passed in, convert to list of strings
         elif isinstance(query, list) and all(isinstance(q, Chunk) for q in query):
@@ -376,7 +381,7 @@ class ChromaVectorStore(VectorStore):
                 )
             answer.append(search_response)
 
-        return answer if len(answer) > 1 else answer[0]
+        return answer if is_many else answer[0]
 
     def delete(
         self,
