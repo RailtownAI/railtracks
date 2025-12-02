@@ -161,8 +161,8 @@ class BaseChunker(ABC):
         """
         pass
 
+    @staticmethod
     def make_into_chunks(
-        self,
         text_chunks: list[str],
         document: Optional[str] = None,
         metadata: Optional[dict[str, Any]] = None,
