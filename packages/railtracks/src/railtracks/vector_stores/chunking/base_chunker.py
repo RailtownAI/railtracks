@@ -59,10 +59,13 @@ class BaseChunker(ABC):
         chunk_size: int = 400,
         overlap: int = 200,
     ):
-        assert overlap < chunk_size, "'overlap' must be smaller than 'chunk_size'."
-        assert chunk_size > 0 and overlap >= 0, (
-            "'chunk_size' must be greater than 0 and 'overlap' must be at least 0 "
-        )
+        if not overlap < chunk_size:
+            raise ValueError("'overlap' must be smaller than 'chunk_size'.")
+        if not chunk_size > 0 or not overlap >= 0:
+            raise ValueError(
+                "'chunk_size' must be greater than 0 and 'overlap' must be at least 0 "
+            )
+
         self._chunk_size = chunk_size
         self._overlap = overlap
 
@@ -72,8 +75,10 @@ class BaseChunker(ABC):
 
     @chunk_size.setter
     def chunk_size(self, value: int):
-        assert self.overlap < value, "'overlap' must be smaller than 'chunk_size'."
-        assert value > 0, "'chunk_size' must be greater than 0"
+        if not self.overlap < value:
+            raise ValueError("'overlap' must be smaller than 'chunk_size'.")
+        if not value > 0:
+            raise ValueError("'chunk_size' must be greater than 0")
         self._chunk_size = value
 
     @property
@@ -82,8 +87,10 @@ class BaseChunker(ABC):
 
     @overlap.setter
     def overlap(self, value: int):
-        assert value < self._chunk_size, "'overlap' must be smaller than 'chunk_size'."
-        assert value >= 0, "'overlap' must be at least 0"
+        if not value < self._chunk_size:
+            raise ValueError("'overlap' must be smaller than 'chunk_size'.")
+        if not value >= 0:
+            raise ValueError("'overlap' must be at least 0")
         self._overlap = value
 
     def chunk(
@@ -122,7 +129,7 @@ class BaseChunker(ABC):
 
 
         Args:
-            path_name (str): file path of where to retrieve text you want chunked.
+            path (str): file path of where to retrieve text you want chunked.
             document (Optional[str]): Identifier associated with the
                 document or text source. Applied to each output chunk.
             metadata (dict[str, Any]): Additional metadata stored in each
@@ -154,7 +161,7 @@ class BaseChunker(ABC):
 
     def make_into_chunks(
         self,
-        text: list[str],
+        text_chunks: list[str],
         document: Optional[str] = None,
         metadata: Optional[dict[str, Any]] = None,
     ) -> list[Chunk]:
@@ -162,7 +169,7 @@ class BaseChunker(ABC):
 
 
         Args:
-            text (str): Raw text to chunk.
+            text_chunks (list[str]): Raw text to chunk.
             document (Optional[str]): Identifier associated with the
                 document or text source. Applied to each output chunk.
             metadata (dict[str, Any]): Additional metadata stored in each
@@ -175,8 +182,12 @@ class BaseChunker(ABC):
         """
 
         chunks = []
-        for text_chunk in text:
+        for text_chunk in text_chunks:
             chunks.append(
-                Chunk(content=text_chunk, document=document, metadata=metadata)
+                Chunk(
+                    content=text_chunk,
+                    document=document,
+                    metadata=dict(metadata) if metadata is not None else None,
+                )
             )
         return chunks

@@ -51,6 +51,7 @@ class FixedTokenChunker(BaseChunker):
 
         Returns:
             list[str]: A list of text segments decoded back from token windows.
+                Note : returns an empty list if passed an empty string
         """
 
         text_chunks = []

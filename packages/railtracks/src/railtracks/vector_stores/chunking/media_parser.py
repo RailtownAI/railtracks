@@ -55,7 +55,7 @@ class MediaParser:
             return f.read()
 
     @classmethod
-    def _parse_pdf(cls, filepath: str) -> str:
+    def _parse_pdf(cls, filepath: str, **kwargs) -> str:
         """Extract text from a PDF using PyMuPDF (pymupdf)."""
         if not os.path.isfile(filepath):
             raise FileNotFoundError(f"File not found: {filepath}")
