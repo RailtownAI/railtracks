@@ -36,8 +36,8 @@ class MediaParser:
         raw_text = parser_function(path, **kwargs)  # Pass kwargs through
         return cls._clean_text(raw_text)
 
-    @classmethod
-    def _parse_txt(cls, filepath: str, encoding: Optional[str] = None, **kwargs) -> str:
+    @staticmethod
+    def _parse_txt(filepath: str, encoding: Optional[str] = None, **kwargs) -> str:
         """Extract text from a plain .txt file."""
         if not os.path.isfile(filepath):
             raise FileNotFoundError(f"File not found: {filepath}")
@@ -54,8 +54,8 @@ class MediaParser:
         with open(filepath, "r", encoding=detected.encoding) as f:
             return f.read()
 
-    @classmethod
-    def _parse_pdf(cls, filepath: str, **kwargs) -> str:
+    @staticmethod
+    def _parse_pdf(filepath: str, **kwargs) -> str:
         """Extract text from a PDF using PyMuPDF (pymupdf)."""
         if not os.path.isfile(filepath):
             raise FileNotFoundError(f"File not found: {filepath}")
@@ -68,8 +68,8 @@ class MediaParser:
                     extracted.append(text)
             return "\n".join(extracted)
 
-    @classmethod
-    def _clean_text(cls, text: str) -> str:
+    @staticmethod
+    def _clean_text(text: str) -> str:
         """Remove null bytes / non-printable characters while preserving whitespace."""
         if not text:
             return ""
