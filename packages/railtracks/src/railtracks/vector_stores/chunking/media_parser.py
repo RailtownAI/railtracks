@@ -1,7 +1,7 @@
 import os
 from typing import Optional
 
-import pymupdf
+import pdfplumber
 from charset_normalizer import from_path
 
 
@@ -13,11 +13,6 @@ class MediaParser:
         - .pdf
     """
 
-    _PARSERS = {
-        ".txt": "_parse_txt",
-        ".pdf": "_parse_pdf",
-    }
-
     @classmethod
     def get_text(cls, path: str, **kwargs) -> str:
         """Return cleaned text extracted from a supported file.
@@ -27,9 +22,13 @@ class MediaParser:
             **kwargs: Parser-specific arguments (e.g., encoding for .txt files)
         """
         ext = cls._get_extension(path)
-        handler_name = cls._PARSERS.get(ext)
+        if ext == ".txt":
+            handler_name = "_parse_txt"
 
-        if not handler_name:
+        elif ext == ".pdf":
+            handler_name = "_parse_pdf"
+
+        else:
             raise ValueError(f"Unsupported file type: {ext}")
 
         parser_function = getattr(cls, handler_name)
@@ -56,14 +55,14 @@ class MediaParser:
 
     @staticmethod
     def _parse_pdf(filepath: str, **kwargs) -> str:
-        """Extract text from a PDF using PyMuPDF (pymupdf)."""
+        """Extract text from a PDF using pdfplumber."""
         if not os.path.isfile(filepath):
             raise FileNotFoundError(f"File not found: {filepath}")
 
-        with pymupdf.open(filepath) as doc:
+        with pdfplumber.open(filepath) as doc:
             extracted = []
-            for page in doc:
-                text = page.get_text()
+            for page in doc.pages:
+                text = page.extract_text()
                 if text:
                     extracted.append(text)
             return "\n".join(extracted)

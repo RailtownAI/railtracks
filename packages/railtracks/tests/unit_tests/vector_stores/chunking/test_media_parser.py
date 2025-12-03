@@ -100,19 +100,24 @@ class TestMediaParser:
         finally:
             os.unlink(temp_path)
 
-    @patch("pymupdf.open")
-    def test_parse_pdf(self, mock_pymupdf_open):
+    @patch("pdfplumber.open")
+    def test_parse_pdf(self, mock_pdfplumber_open):
         """Test parsing a PDF file."""
         # Mock PDF pages
         mock_page1 = Mock()
-        mock_page1.get_text.return_value = "Page 1 text"
-        mock_page2 = Mock()
-        mock_page2.get_text.return_value = "Page 2 text"
+        mock_page1.extract_text.return_value = "Page 1 text"
 
-        # Mock document context manager
+        mock_page2 = Mock()
+        mock_page2.extract_text.return_value = "Page 2 text"
+
+        # Mock pdfplumber PDF object with .pages attribute
+        mock_pdf = MagicMock()
+        mock_pdf.pages = [mock_page1, mock_page2]
+
+        # Mock the context manager behavior of pdfplumber.open
         mock_doc = MagicMock()
-        mock_doc.__enter__.return_value = [mock_page1, mock_page2]
-        mock_pymupdf_open.return_value = mock_doc
+        mock_doc.__enter__.return_value = mock_pdf
+        mock_pdfplumber_open.return_value = mock_doc
 
         # Create a real temp file so os.path.isfile passes
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
@@ -121,21 +126,27 @@ class TestMediaParser:
         try:
             content = MediaParser._parse_pdf(temp_path)
             assert content == "Page 1 text\nPage 2 text"
+            mock_pdfplumber_open.assert_called_once_with(temp_path)
         finally:
             os.unlink(temp_path)
 
 
-    @patch("pymupdf.open")
-    def test_parse_pdf_empty_pages(self, mock_pymupdf_open):
+
+    @patch("pdfplumber.open")
+    def test_parse_pdf_empty_pages(self, mock_pdfplumber_open):
         """Test parsing PDF with empty pages."""
         # Mock page that returns empty text
         mock_page = Mock()
-        mock_page.get_text.return_value = ""
+        mock_page.extract_text.return_value = ""
 
-        # Mock document returned by pymupdf.open
+        # Mock pdfplumber PDF object
+        mock_pdf = MagicMock()
+        mock_pdf.pages = [mock_page]
+
+        # Mock context manager result
         mock_doc = MagicMock()
-        mock_doc.__enter__.return_value = [mock_page]
-        mock_pymupdf_open.return_value = mock_doc
+        mock_doc.__enter__.return_value = mock_pdf
+        mock_pdfplumber_open.return_value = mock_doc
 
         # Create a temporary .pdf file so os.path.isfile returns True
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
@@ -144,9 +155,10 @@ class TestMediaParser:
         try:
             content = MediaParser._parse_pdf(temp_path)
             assert content == ""
-            mock_pymupdf_open.assert_called_once_with(temp_path)
+            mock_pdfplumber_open.assert_called_once_with(temp_path)
         finally:
             os.unlink(temp_path)
+
 
 
     def test_parse_pdf_file_not_found(self):
@@ -168,15 +180,21 @@ class TestMediaParser:
         finally:
             os.unlink(temp_path)
 
-    @patch("pymupdf.open")
-    def test_get_text_pdf_file(self, mock_pymupdf_open):
+    @patch("pdfplumber.open")
+    def test_get_text_pdf_file(self, mock_pdfplumber_open):
         """Test get_text with .pdf file."""
+        # Mock a page that returns text via extract_text()
         mock_page = Mock()
-        mock_page.get_text.return_value = "PDF content"
+        mock_page.extract_text.return_value = "PDF content"
 
+        # Mock the pdfplumber PDF object with a .pages attribute
+        mock_pdf = MagicMock()
+        mock_pdf.pages = [mock_page]
+
+        # Mock the context manager returned by pdfplumber.open
         mock_doc = MagicMock()
-        mock_doc.__enter__.return_value = [mock_page]
-        mock_pymupdf_open.return_value = mock_doc
+        mock_doc.__enter__.return_value = mock_pdf
+        mock_pdfplumber_open.return_value = mock_doc
 
         # Create an actual temp file so os.path.isfile passes
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
@@ -186,11 +204,11 @@ class TestMediaParser:
             content = MediaParser.get_text(temp_path)
             assert content == "PDF content"
 
-            # Optional: verify the mocked PDF reader was called properly
-            mock_pymupdf_open.assert_called_once_with(temp_path)
-
+            # Verify pdfplumber.open was called correctly
+            mock_pdfplumber_open.assert_called_once_with(temp_path)
         finally:
             os.unlink(temp_path)
+
 
 
     @patch("railtracks.vector_stores.chunking.media_parser.MediaParser._parse_pdf")
