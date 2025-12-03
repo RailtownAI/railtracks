@@ -78,7 +78,7 @@ class ChromaVectorStore(VectorStore):
     def __init__(
         self,
         collection_name: str,
-        embedding_function: Callable[[list[str]], list[list[float]]],
+        embedding_model: Callable[[list[str]], list[list[float]]],
         *,
         path: str,
     ) -> None: ...
@@ -87,7 +87,7 @@ class ChromaVectorStore(VectorStore):
     def __init__(
         self,
         collection_name: str,
-        embedding_function: Callable[[list[str]], list[list[float]]],
+        embedding_model: Callable[[list[str]], list[list[float]]],
         *,
         host: str,
         port: int,
@@ -97,13 +97,13 @@ class ChromaVectorStore(VectorStore):
     def __init__(
         self,
         collection_name: str,
-        embedding_function: Callable[[list[str]], list[list[float]]],
+        embedding_model: Callable[[list[str]], list[list[float]]],
     ) -> None: ...
 
     def __init__(
         self,
         collection_name: str,
-        embedding_function: Callable[[list[str]], list[list[float]]],
+        embedding_model: Callable[[list[str]], list[list[float]]],
         path: Optional[str] = None,
         host: Optional[str] = None,
         port: Optional[int] = None,
@@ -112,19 +112,17 @@ class ChromaVectorStore(VectorStore):
 
         Args:
             collection_name: Name of the Chroma collection to use or create.
-            embedding_function: Callable that maps a list of strings to a list
+            embedding_model: Callable that maps a list of strings to a list
                 of embedding vectors.
             path: Optional path for persistent Chroma storage.
             host: Optional HTTP host for remote Chroma.
             port: Optional HTTP port for remote Chroma.
         """
-        self._collection_name = collection_name
-        self._embedding_function = embedding_function
+        super().__init__(collection_name, embedding_model)
 
         ChromaVectorStore.class_init(path, host, port)
         self._collection = self._chroma.get_or_create_collection(collection_name)
 
-    # In future should have our own chunking service so we can accept documents for users
     @overload
     def upsert(self, content: Chunk | str) -> str: ...
 
@@ -135,7 +133,7 @@ class ChromaVectorStore(VectorStore):
         """Upsert a batch of chunks or raw strings into the collection.
 
         The method accepts a list of :class:`Chunk` instances or plain strings.
-        Each element is embedded via ``embedding_function`` and stored along
+        Each element is embedded via ``embedding_model`` and stored along
         with metadata that always contains the original content under the
         key defined in :data:`CONTENT`.
 
@@ -161,14 +159,14 @@ class ChromaVectorStore(VectorStore):
         for item in content:
             if isinstance(item, Chunk):
                 id = item.id
-                embedding = self._embedding_function([item.content])[0]
+                embedding = self._embedding_model([item.content])[0]
                 metadata = item.metadata
                 metadata[CONTENT] = item.content
                 documents.append(item.document)
 
             else:
                 id = str(uuid4())
-                embedding = self._embedding_function([item])[0]
+                embedding = self._embedding_model([item])[0]
                 metadata = {CONTENT: item}
                 documents.append(None)
 
@@ -333,7 +331,7 @@ class ChromaVectorStore(VectorStore):
                 "Query must be a string, Chunk, or list of strings/Chunks."
             )
 
-        query_embeddings = self._embedding_function(query)
+        query_embeddings = self._embedding_model(query)
         results = self._collection.query(
             query_embeddings=list(query_embeddings),
             ids=ids,

@@ -1,17 +1,24 @@
 import os
-from typing import Any, Callable, Dict, Optional, Union, overload
+from typing import Any, Optional, Literal, overload, Union, TypeVar
 from uuid import uuid4
 
 from .vector_store_base import (
     Chunk,
     FetchResponse,
     FetchResult,
-    Metric,
-    OneOrMany,
+    MetadataKeys,
     SearchResponse,
+    SearchResult,
     VectorStore,
 )
 
+
+CONTENT = MetadataKeys.CONTENT.value
+DOCUMENT = MetadataKeys.DOCUMENT.value
+
+T = TypeVar("T")
+
+OneOrMany = Union[T, list[T]]
 
 class PineconeVectorStore(VectorStore):
     """Pinecone implementation of VectorStore."""
@@ -19,340 +26,427 @@ class PineconeVectorStore(VectorStore):
     @classmethod
     def class_init(
         cls,
-        api_key : str,
-        index_name : str,
-    ) -> str:
+        api_key: Optional[str] = os.getenv("PINECONE_API_KEY"),
+
+    ):
         if not hasattr(cls, "_pc"):
             try:
-                from pinecone import Pinecone, Vector
+                from pinecone import Pinecone, Vector, ServerlessSpec
                 from pinecone.inference.models.index_embed import IndexEmbed
 
                 # store imports on the class so other methods can reference them
-                cls.Vector = Vector
-                cls.IndexEmbed = IndexEmbed
+                cls._Vector = Vector
+                cls._ServerlessSpec = ServerlessSpec
+                cls._IndexEmbed = IndexEmbed
                 cls._pc = Pinecone(api_key=api_key)
-                if cls._pc.has_index(index_name):
-                    index_details = cls._pc.describe_index(index_name)
-                    host = index_details["host"]
-                    return host
-                    
-                cls._index = 
+
             except ImportError:
                 raise ImportError(
                     "Pinecone package is not installed. Please install railtracks[pinecone]."
                 )
             
-    """
-    Ok so the overloads need to account for creating a new index init(of which there are 2 of these I'm aware of so far), and then when you're accessing an existing index
-    So the pinecone client has a has_index method, list_index, get_index details, and you're supposed to target by host
 
-    """
     @overload
     def __init__(
         self,
-        index_name: str,
         collection_name: str,
         embedding_model,
         api_key: Optional[str] = os.getenv("PINECONE_API_KEY"),
-        *
-        cloud : str,
-        region : str,
-        embedding_field_map : dict[str,str],
+        *,
+        vector_type,
+        dimension,
+        metric,
+        cloud,
+        region,
+        deletion_protection
     ): ...
 
     @overload
     def __init__(
         self,
-        index_name: str,
         collection_name: str,
         embedding_model,
         api_key: Optional[str] = os.getenv("PINECONE_API_KEY"),
+        *,
+        cloud,
+        region,
+        field_map,
+        deletion_protection
     ): ...
 
     @overload
     def __init__(
         self,
-        index_name: str,
         collection_name: str,
         embedding_model,
         api_key: Optional[str] = os.getenv("PINECONE_API_KEY"),
-        *
-        cloud : str,
-        region : str,
-        vector_type : str,
-        dimension: int,
-        metric : Metric,
-        host: Optional[str] = None,
-        proxy_url: Optional[str] = None,
-        proxy_headers: Optional[Dict[str, str]] = None,
-        ssl_ca_certs: Optional[str] = None,
-        ssl_verify: Optional[bool] = None,
-        additional_headers: Optional[Dict[str, str]] = None,
-        pool_threads: Optional[int] = None,
-        **kwargs: Any,
     ): ...
         
-    @overload
     def __init__(
         self,
-        index_name: str,
         collection_name: str,
-        dimension: int,
-        embedding_function: Callable[[list[str]], list[list[float]]],
-        metric: Union[Metric, str] = Metric.dot,
+        embedding_model,
         api_key: Optional[str] = os.getenv("PINECONE_API_KEY"),
-        host: Optional[str] = None,
-        proxy_url: Optional[str] = None,
-        proxy_headers: Optional[Dict[str, str]] = None,
-        ssl_ca_certs: Optional[str] = None,
-        ssl_verify: Optional[bool] = None,
-        additional_headers: Optional[Dict[str, str]] = None,
-        pool_threads: Optional[int] = None,
-        **kwargs: Any,
+        *,
+        vector_type : Optional[str]=None,
+        dimension: Optional[int]=None,
+        metric: Optional[Metric] = None,
+        region : Optional[str] = None,
+        cloud : Optional[str] = None,
+        field_map : Optional[dict[str,str]] = None,
+        deletion_protection : Optional[Literal["enabled", "disabled"]] = "disabled",
     ):
+        
         PineconeVectorStore.class_init(
             api_key,
-            index_name
         )
+        super().__init__(collection_name, embedding_model)
 
-        self.has_model = True
-
-        if not self._pc.has_index(index_name):
-            """
-            This is to create an index in pinecone if it doesn't exist yet.
-            We call an index a collection in our framework as is common in other vector stores.
-            Pinecone is annoying and has collections as well but they are a different concept.
-            We should look into supporting those later because they are relevent.
-            """
-            if embedding_function not in [
-                x.model for x in self._pc.inference.list_models()
-            ]:
-                self._pc.create_index(
-                    name=index_name,
-                    spec=spec,
-                    dimension=dimension,
-                    metric=metric,
-                    timeout=timeout,
-                    deletion_protection=deletion_protection,
-                    vector_type=vector_type,
-                )
-                self.has_model = False
+        #Create a manual index
+        if vector_type and dimension and metric and cloud and region and deletion_protection and field_map is None:
+            host = self._pc.create_index(
+                name=collection_name,
+                vector_type=vector_type,
+                dimension=dimension, #It would be a good idea to get the dimension for the user instead of making them pass it to us
+                metric=metric,
+                spec=self._ServerlessSpec(
+                    cloud=cloud,
+                    region=region
+                ),
+                deletion_protection=deletion_protection
+            )["host"]
+            
+            if isinstance(host, str):
+                self._collection = self._pc.Index(host=host)
+                self.has_integrated_model = False
+            
             else:
-                self._pc.create_index_for_model(
-                    name=index_name,
-                    cloud="aws",
-                    region="us-west-2",
-                    embed=IndexEmbed(
-                        "embedding_function", {"text": "chunk"}
-                    ),  # make sure we fix this to be proper embedding model
-                    tags=tags,
-                    deletion_protection=deletion_protection,
-                    timeout=timeout,
-                )
+                raise ValueError("Pinecone returned a host that is not a string")
+            
+        #create and index with integrated embedding model
+        elif cloud and region and field_map and deletion_protection and vector_type is None and dimension is None and metric is None:
+            host = self._pc.create_index_for_model(
+                name=collection_name,
+                cloud=cloud,
+                region=region,
+                embed=self._IndexEmbed( # This should be checked out because Pinecone docs has this parameter as a dict but it is currently typed as a IndexEmbed...
+                    model=embedding_model,
+                    field_map=field_map
+                ),
+                deletion_protection=deletion_protection
+            )["host"]
 
-        self._collection_name = collection_name
-        self._embedding_function = embedding_function
-        self._collection = self._pc.Index(index_name)
+            if isinstance(host, str):
+                self._collection = self._pc.Index(host=host)
+                self.has_integrated_model = True
+            else:
+                raise ValueError("Pinecone returned a host that is not a string")
+            
+        #Connect to index
+        elif vector_type is None and dimension is None and metric is None and region is None and cloud is None and field_map is None:
+            if self._pc.has_index(collection_name):
+                index_details = self._pc.describe_index(collection_name)
+                host = index_details["host"]
+                if isinstance(host, str):
+                    self._collection = self._pc.Index(host=host)
+                    if "embed" in index_details:
+                        self.has_integrated_model = True
+                    else:
+                        self.has_integrated_model = False
+                else:
+                    raise ValueError("Pinecone returned a host that is not a string")
+            else:
+                indexes = self._pc.list_indexes()
+                raise ValueError(f"You have provided an collection name that does not exist.\n the available indexes are {indexes}")
+
+        else:
+            raise ValueError("Incorrect pass of parameters please see docs to see valid combination of parameters")
 
     @overload
-    def upsert(
-        self,
-        content: Chunk | str,
-        batch_size: Optional[int] = None,
-    ) -> str: ...
+    def upsert(self, content: Chunk | str) -> str: ...
 
     @overload
-    def upsert(
-        self,
-        content: list[Chunk] | list[str],
-        batch_size: Optional[int] = None,
-    ) -> list[str]: ...
+    def upsert(self, content: list[Chunk] | list[str]) -> list[str]: ...
 
-    def upsert(
-        self,
-        content: OneOrMany[Chunk] | OneOrMany[str],
-        batch_size: Optional[int] = None,
-    ) -> OneOrMany[str]:
-        """Insert or update a batch of vectors into the store.
+    def upsert(self, content: OneOrMany[Chunk] | OneOrMany[str]) -> OneOrMany[str]:
+        """Upsert a batch of chunks or raw strings into the collection.
 
-        The implementation may accept either a list of :class:`Chunk` instances
-        (which include metadata and optional document ids) or a list of raw
-        strings. Implementations should generate and return stable identifiers
-        for the inserted vectors.
+        The method accepts a list of :class:`Chunk` instances or plain strings.
+        Each element is embedded via ``embedding_model`` and stored along
+        with metadata that always contains the original content under the
+        key defined in :data:`CONTENT`.
 
         Args:
-            content: A singular or list of chunks or strings to add to vector store.
-            batch_size: Optional batch size for upserting to Pinecone.
+            content: List of or singular chunks or strings to upsert.
 
         Returns:
-            A singular or list of string ids for the upserted vectors.
+            OneOrMany[str]: Generated ids for the inserted items.
         """
-        # Normalize input to list
-        if isinstance(content, (str, Chunk)):
-            content_list = [content]
-        else:
-            content_list = list(content)
-
         vectors = []
-        if self.has_model:
-            if isinstance(content, type(List[Chunk])):
-                for chunk in content:
-                    id = uuid4().int
-                    values = self._embedding_function([chunk.content])[0]
-                    metadata = chunk.metadata
-                    metadata["content"] = chunk.content
-                    if chunk.document:
-                        metadata["document"] = chunk.document
-                    vector = self.__class__.Vector(
-                        str(id), values, metadata=chunk.metadata
-                    )  # TODO fix typing of values and possibly metadata
-                    vectors.append(vector)
+        Vector = type(PineconeVectorStore)._Vector
 
-        self._collection.upsert(vectors, self._collection_name, batch_size=batch_size)
+        is_many = True
+        if isinstance(content, str):
+            content = [content]
+            is_many = False
 
-        # Return in same shape as input (OneOrMany)
-        return ids if len(ids) > 1 else ids[0] if ids else []
+        if isinstance(content, Chunk):
+            content = [content]
+            is_many = False
+
+        for item in content:
+            if isinstance(item, Chunk):
+                id = item.id
+                embedding = self._embedding_model([item.content])[0]
+                metadata = item.metadata
+                metadata[CONTENT] = item.content
+                if item.document:
+                    metadata[DOCUMENT] = item.document
+
+            else:
+                id = str(uuid4())
+                embedding = self._embedding_model([item])[0]
+                metadata = {CONTENT: item}
+
+            vectors.append(Vector(
+                id=id,
+                values=embedding,
+                metadata=metadata
+            ))
+
+        self._collection.upsert(
+            ids=ids,
+            vectors=embeddings,
+            batch_size=len(vectors)
+            metadatas=metadatas,
+            documents=documents
+        )
+        return ids if is_many else ids[0]
 
     def fetch(
         self,
-        ids: OneOrMany[str],
+        ids: Optional[OneOrMany[str]] = None,
+        where: Optional[Where] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        where_document: Optional[WhereDocument] = None,
     ) -> FetchResponse:
-        """Fetch vectors for the given identifiers.
+        """Fetch a set of vectors and their metadata from the collection.
 
         Args:
-            ids: A singular or list of vector ids to retrieve.
+            ids: Optional list of ids or singular id to fetch.
+            where: Optional metadata filter.
+            limit: Result limit for pagination.
+            offset: Result offset for pagination.
+            where_document: Optional document-based filter.
 
         Returns:
-            A :class:`FetchResponse` containing the results in the same order
-            as the requested ids.
+            FetchResponse: A list-like container of :class:`FetchResult`.
+
+        Raises:
+            ValueError: If the Chroma response does not contain required fields.
         """
-        # Normalize ids to list
-        if isinstance(ids, str):
-            ids_list = [ids]
-        else:
-            ids_list = list(ids)
+        results = FetchResponse()
+        # currently we ignore Include and assume the default
+        responses = self._collection.get(
+            ids,
+            where,
+            limit,
+            offset,
+            where_document,
+            include=["embeddings", "metadatas", "documents"],
+        )
 
-        responses = FetchResponse()
-        document = None
-        results = self._collection.fetch(ids)
-        for id in results.vectors:
-            data = results.vectors[id]
-            vec = data.values
-            metadata = data.metadata
-            if metadata and isinstance(metadata["content"], str):
-                content = metadata["content"]
-                if isinstance(metadata["document"], Document):
-                    document = metadata["document"]
-                    metadata.pop("document")
-                metadata.pop("content")
-                # TODO Check that this covers edge case if we empty the metadata?
+        embeddings = responses.get("embeddings")
+        if embeddings is None:
+            raise ValueError("Embeddings were not found in fetch response.")
+        documents = responses.get("documents")
+        if documents is None:
+            raise ValueError("Documents were not found in fetch response.")
+        metadatas = responses.get("metadatas")
+        if metadatas is None:
+            raise ValueError("Metadatas were not found in fetch response.")
 
-            else:
-                raise Exception  # TODO Fix this control logic here
-            responses.append(FetchResult(id, content, vec, document, metadata))
+        for i, response in enumerate(responses["ids"]):
+            id = response
 
-        return responses
+            metadata = dict(deepcopy(metadatas[i]))
+            if not (content := metadata.get(CONTENT)) or not isinstance(content, str):
+                raise ValueError(
+                    "Content was not initialized in vector. Please create an issue"
+                )
 
+            metadata.pop(CONTENT)
+            results.append(
+                FetchResult(
+                    id=id,
+                    content=content,
+                    vector=list(embeddings[i]),
+                    document=documents[i],
+                    metadata=metadata,
+                )
+            )
+
+        return results
+
+    # There is support for other types of query modalities but for now just list of strings
+    # Should Probably add support for Chunks as well
     @overload
     def search(
         self,
         query: Chunk | str,
+        ids: Optional[str] = None,
         top_k: int = 10,
-        where: Optional[dict[str, Any]] = None,
-        include: Optional[list[str]] = None,
+        where: Optional[Where] = None,
+        where_document: Optional[WhereDocument] = None,
+        include: Include = [
+            "metadatas",
+            "embeddings",
+            "documents",
+            "distances",
+        ],
     ) -> SearchResponse: ...
 
     @overload
     def search(
         self,
         query: list[Chunk] | list[str],
+        ids: Optional[list[str]] = None,
         top_k: int = 10,
-        where: Optional[dict[str, Any]] = None,
-        include: Optional[list[str]] = None,
+        where: Optional[Where] = None,
+        where_document: Optional[WhereDocument] = None,
+        include: Include = [
+            "metadatas",
+            "embeddings",
+            "documents",
+            "distances",
+        ],
     ) -> list[SearchResponse]: ...
 
-    def search(
+    def search(  # noqa: C901
         self,
         query: OneOrMany[Chunk] | OneOrMany[str],
+        ids: Optional[OneOrMany[str]] = None,
         top_k: int = 10,
-        where: Optional[dict[str, Any]] = None,
-        include: Optional[list[str]] = None,
+        where: Optional[Where] = None,
+        where_document: Optional[WhereDocument] = None,
+        include: Include = [
+            "metadatas",
+            "embeddings",
+            "documents",
+            "distances",
+        ],
     ) -> OneOrMany[SearchResponse]:
-        """Perform a similarity search for the provided queries.
+        """Run a similarity search for the provided query texts.
 
         Args:
-            query: A list of query chunks or raw strings.
-            top_k: Number of nearest neighbours to return per query.
-            where: Optional filter to apply on metadata.
-            include: Optional list of result fields to include.
+            query: A list of query strings or singular string to search for.
+            ids: Optional list of ids or singular id to restrict the search to.
+            top_k: Number of hits to return per query.
+            where: Optional metadata filter to apply.
+            where_document: Optional document filter to apply.
+            include: Fields to include in the Chroma response.
 
         Returns:
-            A list of or singular :class:`SearchResponse` objects, one per query.
+            A list of :class:`SearchResponse` objects (one per query).
+
+        Raises:
+            ValueError: If expected fields are missing from the Chroma response.
         """
-        # Normalize query to list of strings
-        if isinstance(query, (str, Chunk)):
-            query_list = [query]
+        is_many = True
+        # If a single chunk is passed in, convert to list of string
+        if isinstance(query, Chunk):
+            query = [query.content]
+            is_many = False
+
+        # If a single string is passed in, convert to list of string
+        elif isinstance(query, str):
+            query = [query]
+            is_many = False
+
+        # If list of chunks is passed in, convert to list of strings
+        elif isinstance(query, list) and all(isinstance(q, Chunk) for q in query):
+            query = [q.content for q in query]
+
+        elif isinstance(query, list) and all(isinstance(q, str) for q in query):
+            pass
         else:
-            query_list = list(query)
-
-        query_texts: list[str] = []
-        for q in query_list:
-            if isinstance(q, Chunk):
-                query_texts.append(q.content)
-            else:
-                query_texts.append(q)
-
-        # TODO: Implement search/query logic for Pinecone
-        # search is what you would use to query with text (requires model)
-        # query is what you would use for vector queries
-
-        if self.has_model:
-            response = self._collection.search(
-                namespace=self._collection_name, query=queries, rerank=rerank
+            raise ValueError(
+                "Query must be a string, Chunk, or list of strings/Chunks."
             )
-        else:
-            # query is what you would use for vector
 
-            vectors = self._embedding_function(queries)
-            results = []
-            for vec in vectors:
-                results = self._collection.query(
-                    top_k=top_k,
-                    vector=vec,
-                    namespace=self._collection_name,
-                    include_values=include_values,
-                    include_metadata=include_metadata,
+        query_embeddings = self._embedding_model(query)
+        results = self._collection.query(
+            query_embeddings=list(query_embeddings),
+            ids=ids,
+            n_results=top_k,
+            where=where,
+            where_document=where_document,
+            include=include,
+        )
+        answer: list[SearchResponse] = []
+        for query_idx, query_response in enumerate(results["ids"]):
+            search_response = SearchResponse()
+            for id_idx, id in enumerate(query_response):
+                if not (distance := results.get("distances")):
+                    raise ValueError("Distance not found in search results.")
+                elif not (vector := results.get("embeddings")):
+                    raise ValueError("Vector not found in search results.")
+                elif not (document := results.get("documents")):
+                    raise ValueError("Document not found in search results.")
+                elif not (metadatas := results.get("metadatas")):
+                    raise ValueError("Metadata not found in search results.")
+
+                distance = distance[query_idx][id_idx]
+                vector = list(vector[query_idx][id_idx])
+                document = document[query_idx][id_idx]
+                metadata = dict(deepcopy(metadatas[query_idx][id_idx]))
+
+                if not (content := metadata.get(CONTENT)) or not isinstance(
+                    content, str
+                ):
+                    raise ValueError(
+                        "Content was not initialized in vector. Please create an issue"
+                    )
+
+                metadata.pop(CONTENT)
+
+                search_response.append(
+                    SearchResult(
+                        id=id,
+                        distance=distance,
+                        content=content,
+                        vector=vector,
+                        document=document,  # Chroma document is just a str
+                        metadata=metadata,
+                    )
                 )
+            answer.append(search_response)
 
-    # This returns dict pinecone returns that other libs don't so inconsistency on return type but I think we let it be
+        return answer if is_many else answer[0]
+
     def delete(
         self,
         ids: OneOrMany[str],
-        where: Optional[dict[str, Any]] = None,
-    ) -> None:
-        """Remove vectors from the store by id or metadata filter.
-
-        Args:
-            ids: Optional list of ids to remove.
-            where: Optional metadata filter to delete matching vectors.
+        where: Optional[Where] = None,
+        where_document: Optional[WhereDocument] = None,
+    ):
         """
-        # Normalize ids to list for Pinecone client
-        if isinstance(ids, str):
-            ids_list = [ids]
-        else:
-            ids_list = list(ids)
+        Remove vectors from the store by id or metadata filter.
+        Args:
+            ids: list of ids or singular id to delete.
+            where: Optional metadata filter.
+            where_document: Optional document-based filter.
+        """
 
-        # Pinecone delete signature: delete(ids=None, delete_all=None, namespace=None, filter=None)
         self._collection.delete(
-            ids=ids_list,
-            namespace=self._collection_name,
-            filter=where,
+            ids=ids,
+            where=where,
+            where_document=where_document,
         )
 
     def count(self) -> int:
-        """Return the total number of vectors stored in the collection.
+        """"Return the total number of vectors stored in the collection."""
+        
 
-        Returns:
-            The total count of indexed vectors.
-        """
         return self._collection.describe_index_stats()["total_vector_count"]

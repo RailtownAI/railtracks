@@ -125,17 +125,17 @@ class VectorStore(ABC):
     def __init__(
         self,
         collection_name: str,
-        embedding_function: Callable[[list[str]], list[list[float]]],
+        embedding_model: Callable[[list[str]], list[list[float]]],
     ):
         """Initialize the vector store instance.
 
         Args:
             collection_name: Name of the collection to use or create.
-            embedding_function: Callable that converts a list of strings into a
+            embedding_model: Callable that converts a list of strings into a
                 list of embeddings(a list of floats).
         """
         self._collection_name = collection_name
-        self._embedding_function = embedding_function
+        self._embedding_model = embedding_model
 
     @overload
     def upsert(
