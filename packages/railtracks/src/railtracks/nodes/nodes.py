@@ -5,7 +5,7 @@ import time
 import uuid
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Dict, Generic, Literal, TypeVar
+from typing import Any, Callable, Dict, Generic, Literal, TypeVar
 
 from typing_extensions import Self
 
@@ -95,6 +95,8 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
         # without this direct call to the parent __init_subclass__ method the generic resolutions will not work correctly
         super().__init_subclass__()
 
+    pre_invokes: list[Callable[[Self], None]] = []
+
     def __init__(
         self,
         *,
@@ -127,12 +129,21 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
         """
         pass
 
+    @classmethod
+    def add_pre_invoke(cls, function: Callable[[Self], None]):
+        """
+        Add a method to be run immeadetly prior to the invoke.
+        """
+        cls.pre_invokes.append(function)
+
     async def tracked_invoke(self) -> _TOutput:
         """
         A special method that will track and save the latency of the running of this invoke method.
         """
         start_time = time.time()
         try:
+            for func in self.pre_invokes:
+                func(self)
             return await self.invoke()
         except Exception as e:
             raise e

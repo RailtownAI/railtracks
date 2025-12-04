@@ -2,66 +2,62 @@
 RAG examples for use in documentation via --8<-- includes
 """
 
+
 # --8<-- [start:simple_rag_example]
 import asyncio
 import railtracks as rt
-from railtracks.prebuilt import rag_node
 
-retriever = rt.prebuilt.rag_node([
-    "Steve likes apples and enjoys them as snacks",
-    "John prefers bananas for their potassium content",
-    "Alice loves oranges for vitamin C",
-])
+def embedding_function(chunk: list[str]) -> list[list[float]]: ... # your embedding function here (Railtracks will be providing them soon [see issue #_]) 
 
-question = "What does Steve like?"
-results = asyncio.run(rt.call(retriever, question, top_k=3))
+vs = rt.vector_stores.ChromaVectorStore("My Vector Store", embedding_function)
 
-context = "\n".join(
-    f"Document {i+1} (score: {r.score:.4f}): {r.record.text}"
-    for i, r in enumerate(results)
+Agent = rt.agent_node(
+    "Simple Rag Agent",
+    rag=rt.RagConfig(vector_store=vs, top_k=3),
+    system_message="You are a helpful assistant",
+    llm=rt.llm.OpenAILLM("gpt-4o"),
 )
 
-print(f"Question: {question}")
-print(f"Retrieved context:\n{context}")
+
+question = "What does Steve like?"
+response = asyncio.run(rt.call(Agent, question))
+
 # --8<-- [end:simple_rag_example]
 
-# --8<-- [start:rag_with_llm]
+# --8<-- [start:rag_as_tool]
 import railtracks as rt
-from railtracks.prebuilt import rag_node
 from railtracks.llm import OpenAILLM
 
 # 1) Build the retrieval node
-retriever = rag_node([
-    "Our company policy requires all employees to work from home on Fridays",
-    "Data security guidelines mandate encryption of all sensitive customer information",
-    "Employee handbook states vacation requests need 2 weeks advance notice"
-])
+vs = rt.vector_stores.ChromaVectorStore("My Vector Store", embedding_function=embedding_function)
+@rt.function_node
+def vector_query(query: str):
+    return vs.search(query)
 
-# 2) Create Agent
+
+# 2) Create Agent and connect your vector query
 agent = rt.agent_node(
     llm=OpenAILLM("gpt-4o"),
+    tool_nodes=[vector_query],
 )
 
 # 3) Run the agent.
 @rt.session()
 async def main():
     question = "What is the work from home policy?"
-    search_result = await rt.call(retriever, question, top_k=2)
-    context = "\n\n".join(search_result.to_list_of_texts())
-    
+
     response = await rt.call(
         agent,
         user_input=(
-            "Based on the following context, please answer the question.\n"
-            "Context:\n"
-            f"{context}\n"
             "Question:\n"
             f"{question}\n"
             "Answer based only on the context provided."
             "If the answer is not in the context, say \"I don't know\"."
         )
     )
-# --8<-- [end:rag_with_llm]
+
+    return response
+# --8<-- [end:rag_as_tool]
 
 # --8<-- [start:rag_with_files]
 from railtracks.rag.utils import read_file
@@ -74,11 +70,7 @@ except FileNotFoundError:
     doc1_content = "FAQ file not found. Please ensure docs/faq.txt exists."
     doc2_content = "Policies file not found. Please ensure docs/policies.txt exists."
 
-# Build retriever with file contents
-retriever = rag_node([
-    doc1_content,
-    doc2_content
-])
+
 # --8<-- [end:rag_with_files]
 
 # --8<-- [start:custom_rag_node]
