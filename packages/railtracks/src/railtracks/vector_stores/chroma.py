@@ -248,7 +248,7 @@ class ChromaVectorStore(VectorStore):
     @overload
     def search(
         self,
-        query: Chunk | str,
+        querys: Chunk | str,
         ids: Optional[str] = None,
         top_k: int = 10,
         where: Optional[Where] = None,
@@ -264,7 +264,7 @@ class ChromaVectorStore(VectorStore):
     @overload
     def search(
         self,
-        query: list[Chunk] | list[str],
+        querys: list[Chunk] | list[str],
         ids: Optional[list[str]] = None,
         top_k: int = 10,
         where: Optional[Where] = None,
@@ -279,7 +279,7 @@ class ChromaVectorStore(VectorStore):
 
     def search(  # noqa: C901
         self,
-        query: OneOrMany[Chunk] | OneOrMany[str],
+        querys: OneOrMany[Chunk] | OneOrMany[str],
         ids: Optional[OneOrMany[str]] = None,
         top_k: int = 10,
         where: Optional[Where] = None,
@@ -294,7 +294,7 @@ class ChromaVectorStore(VectorStore):
         """Run a similarity search for the provided query texts.
 
         Args:
-            query: A list of query chunks/strings or singular chunk/string to search for.
+            querys: A list of query chunks/strings or singular chunk/string to search for.
             ids: Optional list of ids or singular id to restrict the search to.
             top_k: Number of hits to return per query.
             where: Optional metadata filter to apply.
@@ -309,27 +309,25 @@ class ChromaVectorStore(VectorStore):
         """
         is_many = True
         # If a single chunk is passed in, convert to list of string
-        if isinstance(query, Chunk):
-            query = [query.content]
+        if isinstance(querys, Chunk):
+            querys = [querys.content]
             is_many = False
 
         # If a single string is passed in, convert to list of string
-        elif isinstance(query, str):
-            query = [query]
+        elif isinstance(querys, str):
+            querys = [querys]
             is_many = False
 
         # If list of chunks is passed in, convert to list of strings
-        elif isinstance(query, list) and all(isinstance(q, Chunk) for q in query):
-            query = [q.content for q in query]
+        elif isinstance(querys, list) and all(isinstance(q, Chunk) for q in querys):
+            querys = [q.content for q in querys]
 
-        elif isinstance(query, list) and all(isinstance(q, str) for q in query):
-            pass
-        else:
+        elif not isinstance(querys, list) or not all(isinstance(q, str) for q in querys):
             raise ValueError(
                 "Query must be a string, Chunk, or list of strings/Chunks."
             )
 
-        query_embeddings = self._embedding_model(query)
+        query_embeddings = self._embedding_model(querys)
         results = self._collection.query(
             query_embeddings=list(query_embeddings),
             ids=ids,

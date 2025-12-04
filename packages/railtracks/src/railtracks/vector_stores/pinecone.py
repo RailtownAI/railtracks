@@ -1,10 +1,10 @@
 import os
-from typing import Optional, Literal, overload, Union, TypeVar
+from typing import Optional, Literal, overload, Union, TypeVar, TYPE_CHECKING
 from copy import deepcopy
 from uuid import uuid4
 
+from .chunking.base_chunker import Chunk
 from .vector_store_base import (
-    Chunk,
     FetchResponse,
     FetchResult,
     MetadataKeys,
@@ -15,8 +15,12 @@ from .vector_store_base import (
 )
 
 
+if TYPE_CHECKING:
+    from pinecone import SearchQuery
+
 CONTENT = MetadataKeys.CONTENT.value
 DOCUMENT = MetadataKeys.DOCUMENT.value
+DEFAULT = "__default__"
 
 T = TypeVar("T")
 
@@ -120,7 +124,7 @@ class PineconeVectorStore(VectorStore):
             
             if isinstance(host, str):
                 self._collection = self._pc.Index(host=host)
-                self.has_integrated_model = False
+                self._has_integrated_model = False
             
             else:
                 raise ValueError("Pinecone returned a host that is not a string")
@@ -140,7 +144,7 @@ class PineconeVectorStore(VectorStore):
 
             if isinstance(host, str):
                 self._collection = self._pc.Index(host=host)
-                self.has_integrated_model = True
+                self._has_integrated_model = True
             else:
                 raise ValueError("Pinecone returned a host that is not a string")
             
@@ -152,9 +156,9 @@ class PineconeVectorStore(VectorStore):
                 if isinstance(host, str):
                     self._collection = self._pc.Index(host=host)
                     if "embed" in index_details:
-                        self.has_integrated_model = True
+                        self._has_integrated_model = True
                     else:
-                        self.has_integrated_model = False
+                        self._has_integrated_model = False
                 else:
                     raise ValueError("Pinecone returned a host that is not a string")
             else:
@@ -218,6 +222,7 @@ class PineconeVectorStore(VectorStore):
             ))
 
         self._collection.upsert(
+            namespace=DEFAULT,
             vectors=vectors,
             batch_size=len(vectors)
         )
@@ -251,12 +256,14 @@ class PineconeVectorStore(VectorStore):
 
         if ids is not None and not where and not limit:
             responses = self._collection.fetch(
+                namespace=DEFAULT,
                 ids = ids,
             )
         
         #Add in WhereDocument to this here
         elif ids is None and where:
             responses = self._collection.fetch_by_metadata(
+                namespace=DEFAULT,
                 filter = where,
                 limit = limit
             )
@@ -304,7 +311,7 @@ class PineconeVectorStore(VectorStore):
     @overload
     def search(
         self,
-        query: Chunk | str,
+        querys: Chunk | str,
         ids: Optional[str] = None,
         top_k: int = 10,
         where: Optional[Where] = None,
@@ -320,7 +327,7 @@ class PineconeVectorStore(VectorStore):
     @overload
     def search(
         self,
-        query: list[Chunk] | list[str],
+        querys: list[Chunk] | list[str],
         ids: Optional[list[str]] = None,
         top_k: int = 10,
         where: Optional[Where] = None,
@@ -335,7 +342,7 @@ class PineconeVectorStore(VectorStore):
 
     def search(  # noqa: C901
         self,
-        query: OneOrMany[Chunk] | OneOrMany[str],
+        querys: OneOrMany[Chunk] | OneOrMany[str],
         ids: Optional[OneOrMany[str]] = None,
         top_k: int = 10,
         where: Optional[Where] = None,
@@ -365,36 +372,80 @@ class PineconeVectorStore(VectorStore):
         """
         is_many = True
         # If a single chunk is passed in, convert to list of string
-        if isinstance(query, Chunk):
-            query = [query.content]
+        if isinstance(querys, Chunk):
+            querys = [querys.content]
             is_many = False
 
         # If a single string is passed in, convert to list of string
-        elif isinstance(query, str):
-            query = [query]
+        elif isinstance(querys, str):
+            querys = [querys]
             is_many = False
 
         # If list of chunks is passed in, convert to list of strings
-        elif isinstance(query, list) and all(isinstance(q, Chunk) for q in query):
-            query = [q.content for q in query]
+        elif isinstance(querys, list) and all(isinstance(q, Chunk) for q in querys):
+            querys = [q.content for q in querys]
 
-        elif isinstance(query, list) and all(isinstance(q, str) for q in query):
-            pass
-        else:
+        elif not isinstance(querys, list) or not all(isinstance(q, str) for q in querys):
             raise ValueError(
                 "Query must be a string, Chunk, or list of strings/Chunks."
             )
-
-        query_embeddings = self._embedding_model(query)
-        results = self._collection.query(
-            query_embeddings=list(query_embeddings),
-            ids=ids,
-            n_results=top_k,
-            where=where,
-            where_document=where_document,
-            include=include,
-        )
+        
         answer: list[SearchResponse] = []
+        
+        if self._has_integrated_model:
+           for query in querys:
+               results = self._collection.search(
+                   namespace=DEFAULT,
+                   query=SearchQuery(
+                       inputs={"text" : query},
+                       top_k=top_k,
+                       filter=where #Will want to deal with MatchTerms which will likely deal with where filter mapping
+                   ),
+                   fields=[CONTENT, DOCUMENT, "metadata"]
+               )
+
+               search_response = SearchResponse()
+
+               for result in results["result"]["hits"]:
+                    id = result["_id"]
+                    distance = result["_score"]
+                    metadata = dict(result["fields"])
+                    content = metadata[CONTENT]
+                    metadata.pop(CONTENT)
+                    document = metadata.get(DOCUMENT, None)
+                    if document is not None:
+                        metadata.pop(DOCUMENT)
+
+                    search_response.append(
+                        SearchResult(
+                            id=id,
+                            distance=distance,
+                            content=content,
+                            vector=vector,
+                            document=document,  # Chroma document is just a str
+                            metadata=metadata,
+                        )
+                )
+                    
+
+
+        
+        else:
+            query_embeddings = self._embedding_model(querys)
+
+            for query in querys:
+                results = self._collection.query(
+                    query_embeddings=list(query_embeddings),
+                    ids=ids,
+                    top_k=top_k,
+                    where=where,
+                    where_document=where_document,
+                    include=include,
+                )
+
+                for result in results:
+
+
         for query_idx, query_response in enumerate(results["ids"]):
             search_response = SearchResponse()
             for id_idx, id in enumerate(query_response):

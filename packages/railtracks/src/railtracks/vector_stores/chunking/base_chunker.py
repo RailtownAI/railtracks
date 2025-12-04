@@ -16,7 +16,7 @@ class Chunk:
             is automatically generated in ``__post_init__``.
         document (Optional[str]): Optional document identifier or content
             associated with the chunk.
-        metadata (dict[str, Any]): Arbitrary key-value metadata associated
+        metadata (dict[str, str]): Arbitrary key-value metadata associated
             with this chunk. Defaults to an empty dictionary.
 
     """
@@ -24,7 +24,7 @@ class Chunk:
     content: str
     id: Optional[str] = None
     document: Optional[str] = None
-    metadata: Optional[dict[str, Any]] = field(default_factory=dict)
+    metadata: Optional[dict[str, str]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Normalize metadata and ensure identifier is populated."""
