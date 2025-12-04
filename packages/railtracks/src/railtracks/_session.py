@@ -32,6 +32,10 @@ from .utils.logging.config import (
 )
 from .utils.logging.create import get_rt_logger
 
+# TODO: decide if this should be relative or not
+from railtracks.evaluation import AgentDataPoint
+from .built_nodes.concrete.response import LLMResponse
+
 logger = get_rt_logger("Session")
 
 _TOutput = TypeVar("_TOutput")
@@ -204,7 +208,7 @@ class Session:
                     "Error while saving to execution info to file",
                     exc_info=e,
                 )
-
+        self._data_stuff()
         self._close()
 
     def _setup_subscriber(self):
@@ -263,6 +267,70 @@ class Session:
         }
 
         return json.loads(json.dumps(full_dict))
+
+    def _data_stuff(self):
+        """
+        Placeholder for future data extraction methods.
+        """
+        answers = self.info.answer
+        runs = self.info.graph_serialization()
+        dps = []
+        if isinstance(answers, list):
+            for answer, run in zip(answers, runs):
+                if isinstance(answer, LLMResponse):
+
+                    dp = AgentDataPoint(
+                        agent_name = run.get("name", "Unnamed_Agent"), # type: ignore
+                        agent_input="",
+                        agent_output=answer.content,
+                    )
+                    dps.append(dp)
+
+        elif answers is not None:
+            pass
+        
+        if dps:
+            file_path = self._data_file_stuff(
+                agent_name=self.name or "Unnamed_Agent",
+            )
+            if file_path is not None:
+                with open(file_path, "w", encoding="utf-8") as f:
+                    json.dump(
+                        [dp.model_dump(mode="json") for dp in dps],
+                        f,
+                        indent=2,
+                    )
+            else:
+                logger.warning(
+                    "Could not save agent data due to file path issues."
+                )
+                return
+
+        return
+
+    def _data_file_stuff(self, agent_name: str) -> Path | None:
+        railtracks_dir = Path(".railtracks/data/agent_data")
+        railtracks_dir.mkdir(
+            exist_ok=True
+        )  # Creates if doesn't exist, skips otherwise.
+
+        # Try to create file path with name, fallback to identifier only if there's an issue
+        try:
+            file_path = (
+                railtracks_dir / f"{self.name}_{self._identifier}.json"
+                if self.name
+                else railtracks_dir / f"{self._identifier}.json"
+            )
+            file_path.touch()
+        except FileNotFoundError:
+            logger.warning(
+                "Error saving agent data"
+            )
+            return None
+
+        return file_path
+
+
 
 
 @overload
