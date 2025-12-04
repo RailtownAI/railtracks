@@ -10,6 +10,8 @@ from railtracks.built_nodes.concrete import (
     TerminalLLM,
     ToolCallLLM,
 )
+from railtracks.built_nodes.concrete._llm_base import LLMBase
+from railtracks.built_nodes.concrete.rag import RagConfig, update_context
 from railtracks.built_nodes.concrete.structured_llm_base import StreamingStructuredLLM
 from railtracks.built_nodes.concrete.terminal_llm_base import StreamingTerminalLLM
 from railtracks.built_nodes.concrete.tool_call_llm_base import StreamingToolCallLLM
@@ -34,6 +36,7 @@ _TStream = TypeVar("_TStream", Literal[True], Literal[False])
 def agent_node(
     name: str | None = None,
     *,
+    rag: RagConfig | None = None,
     tool_nodes: Iterable[Type[Node] | Callable | RTFunction],
     output_schema: Type[_TBaseModel],
     llm: ModelBase[Literal[False]] | None = None,
@@ -48,6 +51,7 @@ def agent_node(
 def agent_node(
     name: str | None = None,
     *,
+    rag: RagConfig | None = None,
     output_schema: Type[_TBaseModel],
     llm: ModelBase[Literal[True]],
     system_message: SystemMessage | str | None = None,
@@ -60,6 +64,7 @@ def agent_node(
 def agent_node(
     name: str | None = None,
     *,
+    rag: RagConfig | None = None,
     output_schema: Type[_TBaseModel],
     llm: ModelBase[Literal[False]] | None = None,
     system_message: SystemMessage | str | None = None,
@@ -72,6 +77,7 @@ def agent_node(
 def agent_node(
     name: str | None = None,
     *,
+    rag: RagConfig | None = None,
     llm: ModelBase[Literal[False]] | None = None,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
@@ -83,6 +89,7 @@ def agent_node(
 def agent_node(
     name: str | None = None,
     *,
+    rag: RagConfig | None = None,
     llm: ModelBase[Literal[True]],
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
@@ -94,6 +101,7 @@ def agent_node(
 def agent_node(
     name: str | None = None,
     *,
+    rag: RagConfig | None = None,
     tool_nodes: Iterable[Type[Node] | Callable | RTFunction],
     llm: ModelBase[Literal[False]] | None = None,
     max_tool_calls: int | None = None,
@@ -107,6 +115,7 @@ def agent_node(
 def agent_node(
     name: str | None = None,
     *,
+    rag: RagConfig | None = None,
     tool_nodes: Iterable[Type[Node] | Callable | RTFunction],
     llm: ModelBase[Literal[True]],
     max_tool_calls: int | None = None,
@@ -119,6 +128,7 @@ def agent_node(
 def agent_node(
     name: str | None = None,
     *,
+    rag: RagConfig | None = None,
     tool_nodes: Iterable[Type[Node] | Callable | RTFunction] | None = None,
     output_schema: Type[_TBaseModel] | None = None,
     llm: ModelBase[_TStream] | None = None,
@@ -131,6 +141,7 @@ def agent_node(
 
     Args:
         name (str | None): The name of the agent. If none the default will be used.
+        rag (RagConfig | None): If your agent is a rag agent put in the vector store it is connected to.
         tool_nodes (set[Type[Node] | Callable | RTFunction] | None): If your agent is a LLM with access to tools, what does it have access to?
         output_schema (Type[_TBaseModel] | None): If your agent should return a structured output, what is the output_schema?
         llm (ModelBase): The LLM model to use. If None it will need to be passed in at instance time.
@@ -160,7 +171,7 @@ def agent_node(
 
     if unpacked_tool_nodes is not None and len(unpacked_tool_nodes) > 0:
         if output_schema is not None:
-            return structured_tool_call_llm(
+            agent = structured_tool_call_llm(
                 tool_nodes=unpacked_tool_nodes,
                 output_schema=output_schema,
                 name=name,
@@ -171,7 +182,7 @@ def agent_node(
                 tool_params=tool_params,
             )
         else:
-            return tool_call_llm(
+            agent = tool_call_llm(
                 tool_nodes=unpacked_tool_nodes,
                 name=name,
                 llm=llm,
@@ -182,7 +193,7 @@ def agent_node(
             )
     else:
         if output_schema is not None:
-            return structured_llm(
+            agent = structured_llm(
                 output_schema=output_schema,
                 name=name,
                 llm=llm,
@@ -191,10 +202,22 @@ def agent_node(
                 tool_params=tool_params,
             )
         else:
-            return terminal_llm(
+            agent = terminal_llm(
                 name=name,
                 llm=llm,
                 system_message=system_message,
                 tool_details=tool_details,
                 tool_params=tool_params,
             )
+
+    if rag is not None:
+
+        def _update_message_history(node: LLMBase):
+            node.message_hist = update_context(
+                node.message_hist, vs=rag.vector_store, top_k=rag.top_k
+            )
+            return
+
+        agent.add_pre_invoke(_update_message_history)
+
+    return agent
