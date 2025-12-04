@@ -134,8 +134,7 @@ class ChromaVectorStore(VectorStore):
 
         The method accepts a list of :class:`Chunk` instances or plain strings.
         Each element is embedded via ``embedding_model`` and stored along
-        with metadata that always contains the original content under the
-        key defined in :data:`CONTENT`.
+        with metadata that always contains the original content.
 
         Args:
             content: List of or singular chunks or strings to upsert.
@@ -245,8 +244,7 @@ class ChromaVectorStore(VectorStore):
 
         return results
 
-    # There is support for other types of query modalities but for now just list of strings
-    # Should Probably add support for Chunks as well
+    # There is support for other types of query modalities but for now won't include other ones
     @overload
     def search(
         self,
@@ -296,7 +294,7 @@ class ChromaVectorStore(VectorStore):
         """Run a similarity search for the provided query texts.
 
         Args:
-            query: A list of query strings or singular string to search for.
+            query: A list of query chunks/strings or singular chunk/string to search for.
             ids: Optional list of ids or singular id to restrict the search to.
             top_k: Number of hits to return per query.
             where: Optional metadata filter to apply.

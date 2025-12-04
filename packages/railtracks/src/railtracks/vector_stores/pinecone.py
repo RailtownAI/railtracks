@@ -1,5 +1,6 @@
 import os
-from typing import Any, Optional, Literal, overload, Union, TypeVar
+from typing import Optional, Literal, overload, Union, TypeVar
+from copy import deepcopy
 from uuid import uuid4
 
 from .vector_store_base import (
@@ -7,6 +8,7 @@ from .vector_store_base import (
     FetchResponse,
     FetchResult,
     MetadataKeys,
+    Metric,
     SearchResponse,
     SearchResult,
     VectorStore,
@@ -173,8 +175,7 @@ class PineconeVectorStore(VectorStore):
 
         The method accepts a list of :class:`Chunk` instances or plain strings.
         Each element is embedded via ``embedding_model`` and stored along
-        with metadata that always contains the original content under the
-        key defined in :data:`CONTENT`.
+        with metadata that always contains the original content.
 
         Args:
             content: List of or singular chunks or strings to upsert.
@@ -183,6 +184,7 @@ class PineconeVectorStore(VectorStore):
             OneOrMany[str]: Generated ids for the inserted items.
         """
         vectors = []
+        ids = []
         Vector = type(PineconeVectorStore)._Vector
 
         is_many = True
@@ -208,6 +210,7 @@ class PineconeVectorStore(VectorStore):
                 embedding = self._embedding_model([item])[0]
                 metadata = {CONTENT: item}
 
+            ids.append(id)
             vectors.append(Vector(
                 id=id,
                 values=embedding,
@@ -215,11 +218,8 @@ class PineconeVectorStore(VectorStore):
             ))
 
         self._collection.upsert(
-            ids=ids,
-            vectors=embeddings,
+            vectors=vectors,
             batch_size=len(vectors)
-            metadatas=metadatas,
-            documents=documents
         )
         return ids if is_many else ids[0]
 
@@ -228,7 +228,6 @@ class PineconeVectorStore(VectorStore):
         ids: Optional[OneOrMany[str]] = None,
         where: Optional[Where] = None,
         limit: Optional[int] = None,
-        offset: Optional[int] = None,
         where_document: Optional[WhereDocument] = None,
     ) -> FetchResponse:
         """Fetch a set of vectors and their metadata from the collection.
@@ -237,8 +236,6 @@ class PineconeVectorStore(VectorStore):
             ids: Optional list of ids or singular id to fetch.
             where: Optional metadata filter.
             limit: Result limit for pagination.
-            offset: Result offset for pagination.
-            where_document: Optional document-based filter.
 
         Returns:
             FetchResponse: A list-like container of :class:`FetchResult`.
@@ -248,49 +245,62 @@ class PineconeVectorStore(VectorStore):
         """
         results = FetchResponse()
         # currently we ignore Include and assume the default
-        responses = self._collection.get(
-            ids,
-            where,
-            limit,
-            offset,
-            where_document,
-            include=["embeddings", "metadatas", "documents"],
-        )
 
-        embeddings = responses.get("embeddings")
-        if embeddings is None:
-            raise ValueError("Embeddings were not found in fetch response.")
-        documents = responses.get("documents")
-        if documents is None:
-            raise ValueError("Documents were not found in fetch response.")
-        metadatas = responses.get("metadatas")
-        if metadatas is None:
-            raise ValueError("Metadatas were not found in fetch response.")
+        if isinstance(ids, str):
+            ids = [ids]
 
-        for i, response in enumerate(responses["ids"]):
-            id = response
+        if ids is not None and not where and not limit:
+            responses = self._collection.fetch(
+                ids = ids,
+            )
+        
+        #Add in WhereDocument to this here
+        elif ids is None and where:
+            responses = self._collection.fetch_by_metadata(
+                filter = where,
+                limit = limit
+            )
 
-            metadata = dict(deepcopy(metadatas[i]))
+        else:
+            raise ValueError("Incorrect parameters passed. Valid combinations include :" \
+            "ids," \
+            "" \
+            "where," \
+            "" \
+            "where," \
+            "limit")
+
+        for response in responses["vectors"]:
+
+            id = response["id"]
+            embedding = response["values"]
+            metadata = response["metadata"]
+            if metadata is None:
+                raise ValueError(f"Metadata was not found in chunk with id: {id}. Please create an issue")
+            metadata = dict(deepcopy(response["metadata"]))
+
+            document = metadata.get(DOCUMENT, None)
+            content = metadata[CONTENT]
             if not (content := metadata.get(CONTENT)) or not isinstance(content, str):
                 raise ValueError(
-                    "Content was not initialized in vector. Please create an issue"
+                    "Content was not initialized in chunk with id: {id}. Please create an issue"
                 )
 
             metadata.pop(CONTENT)
+            metadata.pop(DOCUMENT)
+
             results.append(
                 FetchResult(
                     id=id,
                     content=content,
-                    vector=list(embeddings[i]),
-                    document=documents[i],
+                    vector=embedding,
+                    document=document,
                     metadata=metadata,
                 )
             )
 
         return results
 
-    # There is support for other types of query modalities but for now just list of strings
-    # Should Probably add support for Chunks as well
     @overload
     def search(
         self,
@@ -340,7 +350,7 @@ class PineconeVectorStore(VectorStore):
         """Run a similarity search for the provided query texts.
 
         Args:
-            query: A list of query strings or singular string to search for.
+            query: A list of query chunks/strings or singular chunk/string to search for.
             ids: Optional list of ids or singular id to restrict the search to.
             top_k: Number of hits to return per query.
             where: Optional metadata filter to apply.
@@ -428,6 +438,7 @@ class PineconeVectorStore(VectorStore):
     def delete(
         self,
         ids: OneOrMany[str],
+        delete_all : Optional[bool] = None,
         where: Optional[Where] = None,
         where_document: Optional[WhereDocument] = None,
     ):
@@ -439,10 +450,19 @@ class PineconeVectorStore(VectorStore):
             where_document: Optional document-based filter.
         """
 
+        if isinstance(ids, str):
+            ids = [ids]
+
+        if where_document:
+            if where:
+                where[DOCUMENT] = where_document
+            else:
+                where = {DOCUMENT : where_document}
+
         self._collection.delete(
             ids=ids,
-            where=where,
-            where_document=where_document,
+            delete_all=delete_all,
+            filter=where,
         )
 
     def count(self) -> int:
