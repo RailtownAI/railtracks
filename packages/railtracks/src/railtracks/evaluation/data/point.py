@@ -18,7 +18,7 @@ class DataPoint(BaseModel):
 class AgentDataPoint(BaseModel):
     """A data point specific to agent interactions."""
     agent_name: str
-    agent_input: str | list[dict]
+    agent_input: dict[str, Any]
     agent_output: str | BaseModel | None = None
     agent_internals: dict[str, Any] | None = None
     identifier: UUID = Field(default_factory=uuid4)

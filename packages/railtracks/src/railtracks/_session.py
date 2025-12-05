@@ -5,7 +5,7 @@ import time
 import uuid
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, Coroutine, Dict, ParamSpec, Tuple, TypeVar, overload
+from typing import Any, Callable, Coroutine, Dict, Literal, ParamSpec, Tuple, TypeVar, overload
 
 from railtracks.exceptions.messages.exception_messages import (
     ExceptionMessageKey,
@@ -40,7 +40,6 @@ logger = get_rt_logger("Session")
 
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
-
 
 class Session:
     """
@@ -90,6 +89,7 @@ class Session:
         ) = None,
         prompt_injection: bool | None = None,
         save_state: bool | None = None,
+        save_data: Literal["I/O", "Internal", "None"] = "I/O",
     ):
         # first lets read from defaults if nessecary for the provided input config
 
@@ -209,7 +209,7 @@ class Session:
                     "Error while saving to execution info to file",
                     exc_info=e,
                 )
-        self._data_stuff()
+        self._construct_agent_data()
         self._close()
 
     def _setup_subscriber(self):
@@ -269,30 +269,34 @@ class Session:
 
         return json.loads(json.dumps(full_dict))
 
-    def _data_stuff(self):
+    def _construct_agent_data(self):
         """
         Placeholder for future data extraction methods.
         """
+        request_templates = self.info.insertion_requests
         answers = self.info.answer
         runs = self.info.graph_serialization()
         dps = []
         if isinstance(answers, list):
-            for answer, run in zip(answers, runs):
-                if isinstance(answer, LLMResponse):
+            for r_template, answer, run in zip(request_templates, answers, runs):
+                if True:#isinstance(answer, LLMResponse):
 
                     dp = AgentDataPoint(
-                        agent_name = run.get("name", "Unnamed_Agent"), # type: ignore
-                        agent_input="",
+                        agent_name=run.get("name", "Unnamed_Agent"),  # type: ignore
+                        agent_input={
+                            "args": list(r_template.input[0]),
+                            "kwargs": r_template.input[1],
+                        },
                         agent_output=answer.content,
                     )
                     dps.append(dp)
 
         elif answers is not None:
             pass
-        
+
         if dps:
-            file_path = self._data_file_stuff(
-                agent_name=self.name or "Unnamed_Agent",
+            file_path = self._save_agent_data(
+                session_name=self.name or "",
             )
             if file_path is not None:
                 with open(file_path, "w", encoding="utf-8") as f:
@@ -302,14 +306,12 @@ class Session:
                         indent=2,
                     )
             else:
-                logger.warning(
-                    "Could not save agent data due to file path issues."
-                )
+                logger.warning("Could not save agent data due to file path issues.")
                 return
 
         return
 
-    def _data_file_stuff(self, agent_name: str) -> Path | None:
+    def _save_agent_data(self, session_name: str) -> Path | None:
         railtracks_dir = Path(".railtracks/data/agent_data")
         railtracks_dir.mkdir(
             exist_ok=True
@@ -324,14 +326,10 @@ class Session:
             )
             file_path.touch()
         except FileNotFoundError:
-            logger.warning(
-                "Error saving agent data"
-            )
+            logger.warning("Error saving agent data")
             return None
 
         return file_path
-
-
 
 
 @overload
@@ -362,6 +360,7 @@ def session(
     ) = None,
     prompt_injection: bool | None = None,
     save_state: bool | None = None,
+    save_data: Literal["I/O", "Internal", "None"] = "I/O",
 ) -> Callable[
     [Callable[_P, Coroutine[Any, Any, _TOutput]]],
     Callable[_P, Coroutine[Any, Any, Tuple[_TOutput, Session]]],
@@ -406,6 +405,8 @@ def session(
     ) = None,
     prompt_injection: bool | None = None,
     save_state: bool | None = None,
+    save_data: Literal["I/O", "ALL", "NONE"] = "I/O",
+
 ) -> (
     Callable[_P, Coroutine[Any, Any, Tuple[_TOutput, Session]]]
     | Callable[
