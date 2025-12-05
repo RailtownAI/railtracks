@@ -44,7 +44,6 @@ from .utils.logging.create import get_rt_logger
 
 # TODO: decide if this should be relative or not
 from railtracks.evaluation import AgentDataPoint
-from railtracks.evaluation.data.point import ToolDataPoint
 
 from .built_nodes.concrete.response import LLMResponse
 
@@ -284,7 +283,7 @@ class Session:
 
     def _construct_agent_data(self, level):
         """
-        Placeholder for future data extraction methods.
+        Saving agent runs in a human readable way.
         """
         if level == "none":
             return
@@ -301,6 +300,15 @@ class Session:
                         agent_internals = None
                     else:
 
+                        # A little readability sacrifice for speed and simplicity
+                        message_history = [
+                            {
+                                "role": msg.role.value,
+                                "content": str(msg.content),
+                            }
+                            for msg in answer.message_history
+                        ]
+                        
                         tools = [
                             {
                                 "name": tool[0].name,
@@ -311,7 +319,7 @@ class Session:
                         ]
                         agent_internals = {
                             "run_id": run.get("run_id"),
-                            "message_history": answer.message_history,
+                            "message_history": message_history,
                             "tool_invocations": tools,
                         }
                 else:
