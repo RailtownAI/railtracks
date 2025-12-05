@@ -1,7 +1,6 @@
 from pydantic import BaseModel, Field, field_serializer
 from uuid import UUID, uuid4
 from typing import Any
-from railtracks.llm import MessageHistory
 
 class DataPoint(BaseModel):
     """A class representing a single data point"""
@@ -20,11 +19,11 @@ class AgentDataPoint(BaseModel):
     """A data point specific to agent interactions."""
     agent_name: str
     agent_input: dict[str, Any]
-    agent_output: str | BaseModel | None = None
+    agent_output: Any = None
     agent_internals: dict[str, str | dict | list] | None = None
 
-    @field_serializer('agent_input', 'agent_output', when_used='json')
-    def serialize_output(self, value: str | BaseModel | None) -> Any:
+    @field_serializer('agent_output', when_used='json')
+    def serialize_output(self, value: Any) -> Any:
         """Serialize BaseModel instances to dicts for JSON."""
         if isinstance(value, BaseModel):
             return value.model_dump(mode='json')

@@ -292,54 +292,54 @@ class Session:
         answers = self.info.answer
         runs = self.info.graph_serialization()
         dps = []
-        if isinstance(answers, list):
-            for r_template, answer, run in zip(request_templates, answers, runs):
-                if isinstance(answer, LLMResponse):
-                    agent_output = answer.content
-                    if level == "io":
-                        agent_internals = None
-                    else:
-
-                        # A little readability sacrifice for speed and simplicity
-                        message_history = [
-                            {
-                                "role": msg.role.value,
-                                "content": str(msg.content),
-                            }
-                            for msg in answer.message_history
-                        ]
-                        
-                        tools = [
-                            {
-                                "name": tool[0].name,
-                                "arguments": tool[0].arguments,
-                                "result": tool[1].result,
-                            }
-                            for tool in answer.tool_invocations
-                        ]
-                        agent_internals = {
-                            "run_id": run.get("run_id"),
-                            "message_history": message_history,
-                            "tool_invocations": tools,
-                        }
-                else:
-                    agent_output = answer
+        
+        # typing in self.info.answer is a mess so handling it here for now
+        answers_list = answers if isinstance(answers, list) else [answers] if answers is not None else []
+        
+        for r_template, answer, run in zip(request_templates, answers_list, runs):
+            if isinstance(answer, LLMResponse):
+                agent_output = answer.content
+                if level == "io":
                     agent_internals = None
+                else:
 
-                dp = AgentDataPoint(
-                    agent_name=run.get("name", "Unnamed_Agent"),  # type: ignore
-                    agent_input={
-                        "args": list(r_template.input[0]),
-                        "kwargs": r_template.input[1],
-                    },
-                    agent_output=agent_output,
-                    agent_internals=agent_internals,
-                )
+                    # A little readability sacrifice for speed and simplicity
+                    message_history = [
+                        {
+                            "role": msg.role.value,
+                            "content": str(msg.content),
+                        }
+                        for msg in answer.message_history
+                    ]
+                    
+                    tools = [
+                        {
+                            "name": tool[0].name,
+                            "arguments": tool[0].arguments,
+                            "result": tool[1].result,
+                        }
+                        for tool in answer.tool_invocations
+                    ]
+                    agent_internals = {
+                        "run_id": run.get("run_id"),
+                        "message_history": message_history,
+                        "tool_invocations": tools,
+                    }
+            else:
+                agent_output = answer
+                agent_internals = None
 
-                dps.append(dp)
+            dp = AgentDataPoint(
+                agent_name=run.get("name", "Unnamed_Agent"),
+                agent_input={
+                    "args": list(r_template.input[0]),
+                    "kwargs": r_template.input[1],
+                },
+                agent_output=agent_output,
+                agent_internals=agent_internals,
+            )
 
-        elif answers is not None:
-            pass
+            dps.append(dp)
 
         if dps:
             file_path = self._save_agent_data(

@@ -1,17 +1,33 @@
 import pytest
 from pathlib import Path
 import shutil
+import os
 
 
 @pytest.fixture(scope="session", autouse=True)
-def global_teardown():
-    # Setup code (before tests run)
-    yield
-    # Teardown code (after all tests run)
-    railtracks_dir = Path(".railtracks")
-    if railtracks_dir.exists() and railtracks_dir.is_dir():
-        shutil.rmtree(railtracks_dir)
-        print("Cleaned up .railtracks directory after tests.")
+def isolated_test_directory(tmp_path_factory):
+    """
+    Creates an isolated temporary directory for all integration tests.
+    Changes the working directory to this temp directory before tests run,
+    then restores the original directory after tests complete.
+    This prevents tests from modifying the user's local filesystem.
+    """
+    # Create a temporary directory for this test session
+    temp_dir = tmp_path_factory.mktemp("integration_tests")
+    
+    # Save the original working directory
+    original_dir = Path.cwd()
+    
+    # Change to the temporary directory
+    os.chdir(temp_dir)
+    print(f"\n[TEST ISOLATION] Running tests in temporary directory: {temp_dir}")
+    
+    yield temp_dir
+    
+    # Restore the original working directory after tests complete
+    os.chdir(original_dir)
+    print(f"\n[TEST ISOLATION] Restored working directory to: {original_dir}")
+    # Temp directory will be automatically cleaned up by pytest
 
 
 import asyncio
