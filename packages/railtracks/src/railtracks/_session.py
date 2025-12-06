@@ -5,7 +5,17 @@ import time
 import uuid
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, Coroutine, Dict, ParamSpec, Tuple, TypeVar, overload
+from typing import (
+    Any,
+    Callable,
+    Coroutine,
+    Dict,
+    Literal,
+    ParamSpec,
+    Tuple,
+    TypeVar,
+    overload,
+)
 
 from railtracks.exceptions.messages.exception_messages import (
     ExceptionMessageKey,
@@ -31,6 +41,11 @@ from .utils.logging.config import (
     restore_module_logging,
 )
 from .utils.logging.create import get_rt_logger
+
+# TODO: decide if this should be relative or not
+from railtracks.evaluation import AgentDataPoint
+
+from .built_nodes.concrete.response import LLMResponse
 
 logger = get_rt_logger("Session")
 
@@ -70,6 +85,7 @@ class Session:
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
+        save_data (Literal["io", "full", "none"], optional): The level of agent data to save. "io" saves only input/output, "full" saves input/output and internals, "none" saves nothing. Defaults to "io".
     """
 
     def __init__(
@@ -86,6 +102,7 @@ class Session:
         ) = None,
         prompt_injection: bool | None = None,
         save_state: bool | None = None,
+        save_data: Literal["io", "full", "none"] = "io",
     ):
         # first lets read from defaults if nessecary for the provided input config
 
@@ -103,7 +120,7 @@ class Session:
             context = {}
 
         self.name = name
-
+        self._save_data = save_data
         self._has_custom_logging = logging_setting is not None or log_file is not None
 
         if self._has_custom_logging:
@@ -205,7 +222,7 @@ class Session:
                     "Error while saving to execution info to file",
                     exc_info=e,
                 )
-
+        self._construct_agent_data(self._save_data)
         self._close()
 
     def _setup_subscriber(self):
@@ -265,6 +282,105 @@ class Session:
 
         return json.loads(json.dumps(full_dict))
 
+    def _construct_agent_data(self, level):
+        """
+        Saving agent runs in a human readable way.
+        """
+        if level == "none":
+            return
+
+        request_templates = self.info.insertion_requests
+        answers = self.info.answer
+        runs = self.info.graph_serialization()
+        dps = []
+        
+        # typing in self.info.answer is a mess so handling it here for now
+        answers_list = answers if isinstance(answers, list) else [answers] if answers is not None else []
+        
+        for r_template, answer, run in zip(request_templates, answers_list, runs):
+            if isinstance(answer, LLMResponse):
+                agent_output = answer.content
+                if level == "io":
+                    agent_internals = None
+                else:
+
+                    # A little readability sacrifice for speed and simplicity
+                    message_history = [
+                        {
+                            "role": msg.role.value,
+                            "content": str(msg.content),
+                        }
+                        for msg in answer.message_history
+                    ]
+                    
+                    tools = [
+                        {
+                            "name": tool[0].name,
+                            "arguments": tool[0].arguments,
+                            "result": tool[1].result,
+                        }
+                        for tool in answer.tool_invocations
+                    ]
+                    agent_internals = {
+                        "run_id": run.get("run_id"),
+                        "message_history": message_history,
+                        "tool_invocations": tools,
+                    }
+            else:
+                agent_output = answer
+                agent_internals = None
+                if level == "full":
+                    agent_internals = {
+                        "run_id": run.get("run_id"),
+                    }
+
+            dp = AgentDataPoint(
+                agent_name=run.get("name", "Unnamed_Agent"),
+                agent_input={
+                    "args": list(r_template.input[0]),
+                    "kwargs": r_template.input[1],
+                },
+                agent_output=agent_output,
+                agent_internals=agent_internals,
+            )
+
+            dps.append(dp)
+
+        if dps:
+            file_path = self._save_agent_data(
+                session_name=self.name or "",
+            )
+            if file_path is not None:
+                with open(file_path, "w", encoding="utf-8") as f:
+                    json.dump(
+                        [dp.model_dump(mode="json") for dp in dps],
+                        f,
+                        indent=2,
+                    )
+            else:
+                logger.warning("Could not save agent data due to file path issues.")
+                return
+
+        return
+
+    def _save_agent_data(self, session_name: str) -> Path | None:
+        railtracks_dir = Path(".railtracks/data/agent_data")
+        railtracks_dir.mkdir(parents=True, exist_ok=True)
+
+        # Using session_id only if there's no session name
+        try:
+            file_path = (
+                railtracks_dir / f"{self.name}_{self._identifier}.json"
+                if self.name
+                else railtracks_dir / f"{self._identifier}.json"
+            )
+            file_path.touch()
+        except FileNotFoundError:
+            logger.warning("Error saving agent data")
+            return None
+
+        return file_path
+
 
 @overload
 def session(
@@ -294,6 +410,7 @@ def session(
     ) = None,
     prompt_injection: bool | None = None,
     save_state: bool | None = None,
+    save_data: Literal["io", "full", "none"] = "io",
 ) -> Callable[
     [Callable[_P, Coroutine[Any, Any, _TOutput]]],
     Callable[_P, Coroutine[Any, Any, Tuple[_TOutput, Session]]],
@@ -316,6 +433,7 @@ def session(
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
+        save_data (Literal["io", "full", "none"], optional): The level of agent data to save. "io" saves only input/output, "full" saves input/output and internals, "none" saves nothing. Defaults to "io".
 
     Returns:
         A decorator function that takes an async function and returns a new async function
@@ -338,6 +456,7 @@ def session(
     ) = None,
     prompt_injection: bool | None = None,
     save_state: bool | None = None,
+    save_data: Literal["io", "full", "none"] = "io",
 ) -> (
     Callable[_P, Coroutine[Any, Any, Tuple[_TOutput, Session]]]
     | Callable[
@@ -403,6 +522,7 @@ def session(
                 name=name,
                 prompt_injection=prompt_injection,
                 save_state=save_state,
+                save_data=save_data,
             )
 
             with session_obj:

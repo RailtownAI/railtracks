@@ -141,7 +141,7 @@ class ExecutionInfo:
         """
         return self.node_forest.to_vertices(), self.request_forest.to_edges()
 
-    def graph_serialization(self) -> dict[str, Any]:
+    def graph_serialization(self) -> list[dict[str, Any]]:
         """
                 Creates a string (JSON) representation of this info object designed to be used to construct a graph for this
                 info object.

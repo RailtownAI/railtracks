@@ -1,17 +1,49 @@
 import pytest
 from pathlib import Path
 import shutil
+import os
 
 
 @pytest.fixture(scope="session", autouse=True)
-def global_teardown():
-    # Setup code (before tests run)
-    yield
-    # Teardown code (after all tests run)
-    railtracks_dir = Path(".railtracks")
-    if railtracks_dir.exists() and railtracks_dir.is_dir():
-        shutil.rmtree(railtracks_dir)
-        print("Cleaned up .railtracks directory after tests.")
+def isolated_test_directory(tmp_path_factory):
+    """
+    Creates an isolated temporary directory for all integration tests.
+    Changes the working directory to this temp directory before tests run,
+    then restores the original directory after tests complete.
+    This prevents tests from modifying the user's local filesystem.
+    """
+    # Create a temporary directory for this test session
+    temp_dir = tmp_path_factory.mktemp("integration_tests")
+    
+    # Save the original working directory
+    original_dir = Path.cwd()
+    
+    # Verify we're not already in a temp directory
+    assert "/tmp" not in str(original_dir) or "pytest" not in str(original_dir), \
+        f"Already in temp directory: {original_dir}"
+    
+    # Change to the temporary directory
+    os.chdir(temp_dir)
+    
+    # Verify the change worked
+    assert Path.cwd() == temp_dir, \
+        f"Failed to change directory. Expected {temp_dir}, got {Path.cwd()}"
+    
+    print(f"\n[TEST ISOLATION] Running tests in temporary directory: {temp_dir}")
+    print(f"[TEST ISOLATION] Original directory preserved: {original_dir}")
+    
+    yield temp_dir
+    
+    # Restore the original working directory after tests complete
+    os.chdir(original_dir)
+    
+    # Verify restoration worked
+    assert Path.cwd() == original_dir, \
+        f"Failed to restore directory. Expected {original_dir}, got {Path.cwd()}"
+    
+    print(f"\n[TEST ISOLATION] Restored working directory to: {original_dir}")
+    print(f"[TEST ISOLATION] Temp directory will be cleaned up automatically: {temp_dir}")
+    # Temp directory will be automatically cleaned up by pytest
 
 
 import asyncio
