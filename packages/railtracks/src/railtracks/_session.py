@@ -85,6 +85,7 @@ class Session:
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
+        save_data (Literal["io", "full", "none"], optional): The level of agent data to save. "io" saves only input/output, "full" saves input/output and internals, "none" saves nothing. Defaults to "io".
     """
 
     def __init__(
@@ -428,6 +429,7 @@ def session(
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
+        save_data (Literal["io", "full", "none"], optional): The level of agent data to save. "io" saves only input/output, "full" saves input/output and internals, "none" saves nothing. Defaults to "io".
 
     Returns:
         A decorator function that takes an async function and returns a new async function
