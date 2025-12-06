@@ -20,7 +20,7 @@ class AgentDataPoint(BaseModel):
     agent_name: str
     agent_input: dict[str, Any]
     agent_output: Any = None
-    agent_internals: dict[str, str | dict | list] | None = None
+    agent_internals: dict[str, Any] | None = None
 
     @field_serializer('agent_output', when_used='json')
     def serialize_output(self, value: Any) -> Any:

@@ -329,6 +329,10 @@ class Session:
             else:
                 agent_output = answer
                 agent_internals = None
+                if level == "full":
+                    agent_internals = {
+                        "run_id": run.get("run_id"),
+                    }
 
             dp = AgentDataPoint(
                 agent_name=run.get("name", "Unnamed_Agent"),

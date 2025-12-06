@@ -18,15 +18,31 @@ def isolated_test_directory(tmp_path_factory):
     # Save the original working directory
     original_dir = Path.cwd()
     
+    # Verify we're not already in a temp directory
+    assert "/tmp" not in str(original_dir) or "pytest" not in str(original_dir), \
+        f"Already in temp directory: {original_dir}"
+    
     # Change to the temporary directory
     os.chdir(temp_dir)
+    
+    # Verify the change worked
+    assert Path.cwd() == temp_dir, \
+        f"Failed to change directory. Expected {temp_dir}, got {Path.cwd()}"
+    
     print(f"\n[TEST ISOLATION] Running tests in temporary directory: {temp_dir}")
+    print(f"[TEST ISOLATION] Original directory preserved: {original_dir}")
     
     yield temp_dir
     
     # Restore the original working directory after tests complete
     os.chdir(original_dir)
+    
+    # Verify restoration worked
+    assert Path.cwd() == original_dir, \
+        f"Failed to restore directory. Expected {original_dir}, got {Path.cwd()}"
+    
     print(f"\n[TEST ISOLATION] Restored working directory to: {original_dir}")
+    print(f"[TEST ISOLATION] Temp directory will be cleaned up automatically: {temp_dir}")
     # Temp directory will be automatically cleaned up by pytest
 
 

@@ -585,7 +585,7 @@ def test_construct_agent_data_with_non_llm_response(mock_dependencies):
                 call_args = mock_json_dump.call_args[0][0]
                 data_point = call_args[0]
                 assert data_point["agent_output"] == simple_answer
-                assert data_point["agent_internals"] is None
+                assert "run_id" in data_point["agent_internals"]
 
 def test_construct_agent_data_handles_save_failure(mock_dependencies):
     """Test _construct_agent_data handles file save failures gracefully."""
