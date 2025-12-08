@@ -4,14 +4,28 @@ from typing import Any
 
 class DataPoint(BaseModel):
     """A class representing a single data point"""
-    agent_input: str
-    agent_output: str | BaseModel
+    agent_input: str | list[dict]
     expected_output: str | BaseModel | None = None
     identifier: UUID = Field(default_factory=uuid4)
     
-    @field_serializer('agent_output', 'expected_output', when_used='json')
+    @field_serializer('agent_input', 'expected_output', when_used='json')
     def serialize_output(self, value: str | BaseModel | None) -> Any:
         """Serialize BaseModel instances to dicts for JSON."""
         if isinstance(value, BaseModel):
             return value.model_dump(mode='json')
         return value
+
+class AgentDataPoint(BaseModel):
+    """A data point specific to agent interactions."""
+    agent_name: str
+    agent_input: dict[str, Any]
+    agent_output: Any = None
+    agent_internals: dict[str, Any] | None = None
+
+    @field_serializer('agent_output', when_used='json')
+    def serialize_output(self, value: Any) -> Any:
+        """Serialize BaseModel instances to dicts for JSON."""
+        if isinstance(value, BaseModel):
+            return value.model_dump(mode='json')
+        return value
+    

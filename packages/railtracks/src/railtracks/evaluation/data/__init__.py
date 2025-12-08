@@ -1,4 +1,4 @@
-from .point import DataPoint
+from .point import DataPoint, AgentDataPoint
 from .dataset import Dataset
 from .local import LocalDataset
 
