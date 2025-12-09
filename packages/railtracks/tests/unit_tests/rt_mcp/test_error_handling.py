@@ -6,11 +6,10 @@ Tests that verify proper error handling during MCP server connection setup,
 including invalid commands, timeouts, and exception propagation from background threads.
 """
 
-import sys
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import timedelta
+import threading
+import time
 
+import pytest
 from railtracks.rt_mcp import MCPStdioParams
 from railtracks.rt_mcp.main import MCPServer
 
@@ -76,7 +75,6 @@ class TestThreadCleanup:
 
     def test_thread_cleaned_up_after_error(self):
         """Test that background thread is cleaned up after connection error."""
-        import threading
         initial_thread_count = threading.active_count()
         
         try:
@@ -91,7 +89,6 @@ class TestThreadCleanup:
             pass  # Expected
         
         # Give threads time to clean up
-        import time
         time.sleep(0.5)
         
         final_thread_count = threading.active_count()

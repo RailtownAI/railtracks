@@ -6,12 +6,13 @@ Tests that verify OAuth authentication components work correctly
 with the Railtracks MCP system.
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from datetime import timedelta
+from unittest.mock import Mock
 
+import pytest
 from mcp.client.auth import OAuthClientProvider, TokenStorage
-from mcp.shared.auth import OAuthClientMetadata, OAuthToken, OAuthClientInformationFull
+from mcp.shared.auth import OAuthClientInformationFull, OAuthClientMetadata, OAuthToken
+from railtracks.rt_mcp import MCPHttpParams
 
 
 class MockTokenStorage(TokenStorage):
@@ -39,8 +40,6 @@ class TestOAuthParams:
 
     def test_mcp_http_params_with_auth_field(self):
         """Test that MCPHttpParams can be extended with auth field."""
-        from railtracks.rt_mcp import MCPHttpParams
-        
         # Create extended class with auth field
         class MCPHttpParamsWithAuth(MCPHttpParams):
             auth: object = None
@@ -59,8 +58,6 @@ class TestOAuthParams:
 
     def test_oauth_params_validation(self):
         """Test that OAuth parameters are properly validated."""
-        from railtracks.rt_mcp import MCPHttpParams
-        
         class MCPHttpParamsWithAuth(MCPHttpParams):
             auth: object = None
         
@@ -260,8 +257,6 @@ class TestOAuthIntegration:
     @pytest.mark.asyncio
     async def test_mcp_config_accepts_oauth_provider(self):
         """Test that MCP config properly accepts OAuth provider."""
-        from railtracks.rt_mcp import MCPHttpParams
-        
         class MCPHttpParamsWithAuth(MCPHttpParams):
             auth: object = None
         
@@ -297,8 +292,6 @@ class TestOAuthIntegration:
 
     def test_oauth_params_serialization(self):
         """Test that OAuth params can be serialized properly."""
-        from railtracks.rt_mcp import MCPHttpParams
-        
         class MCPHttpParamsWithAuth(MCPHttpParams):
             auth: object = None
         
