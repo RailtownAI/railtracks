@@ -57,7 +57,7 @@ class Session:
     - `log_file`: None (logs will not be written to a file)
     - `broadcast_callback`: None (no callback for broadcast messages)
     - `prompt_injection`: True (the prompt will be automatically injected from context variables)
-    - `save_state`: True (the state of the execution will be saved to a file at the end of the run in the `.railtracks` directory)
+    - `save_state`: True (the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory)
 
 
     Args:
@@ -69,7 +69,7 @@ class Session:
         log_file (str | os.PathLike | None, optional): The file to which the logs will be written.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
-        save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks` directory.
+        save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
     """
 
     def __init__(
@@ -176,16 +176,17 @@ class Session:
         if self.executor_config.save_state:
             try:
                 railtracks_dir = Path(".railtracks")
-                railtracks_dir.mkdir(
-                    exist_ok=True
-                )  # Creates if doesn't exist, skips otherwise.
+                sessions_dir = railtracks_dir / "data" / "sessions"
+                sessions_dir.mkdir(
+                    parents=True, exist_ok=True
+                )  # Creates directory structure if doesn't exist, skips otherwise.
 
                 # Try to create file path with name, fallback to identifier only if there's an issue
                 try:
                     file_path = (
-                        railtracks_dir / f"{self.name}_{self._identifier}.json"
+                        sessions_dir / f"{self.name}_{self._identifier}.json"
                         if self.name
-                        else railtracks_dir / f"{self._identifier}.json"
+                        else sessions_dir / f"{self._identifier}.json"
                     )
                     file_path.touch()
                 except FileNotFoundError:
@@ -194,7 +195,7 @@ class Session:
                             ExceptionMessageKey.INVALID_SESSION_FILE_NAME_WARN
                         ).format(name=self.name, identifier=self._identifier)
                     )
-                    file_path = railtracks_dir / f"{self._identifier}.json"
+                    file_path = sessions_dir / f"{self._identifier}.json"
 
                 logger.info("Saving execution info to %s" % file_path)
 
@@ -314,7 +315,7 @@ def session(
         log_file (str | os.PathLike | None, optional): The file to which the logs will be written.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
-        save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks` directory.
+        save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
 
     Returns:
         A decorator function that takes an async function and returns a new async function
@@ -369,7 +370,7 @@ def session(
         log_file (str | os.PathLike | None, optional): The file to which the logs will be written.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
-        save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks` directory.
+        save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
 
     Returns:
         When used as @session (without parentheses): Returns the decorated function that returns (result, session).

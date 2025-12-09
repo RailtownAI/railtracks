@@ -6,35 +6,30 @@ Basic unit tests for railtracks CLI functionality
 
 import json
 import os
-import queue
 import shutil
 import socket
 import sys
 import tempfile
-import threading
 import time
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, mock_open, patch
-from urllib.parse import quote
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 import railtracks_cli
+from fastapi.testclient import TestClient
 
 from railtracks_cli import (
-    DEBOUNCE_INTERVAL,
-    FileChangeHandler,
-    clear_stream_queue,
+    app,
     create_railtracks_dir,
     get_script_directory,
     is_port_in_use,
+    migrate_railtracks,
     print_error,
     print_status,
     print_success,
     print_warning,
-    send_to_stream,
-    set_stream_queue,
 )
 
 
@@ -64,69 +59,6 @@ class TestUtilityFunctions(unittest.TestCase):
 
         print_error(test_message)
         mock_print.assert_called_with("[railtracks] test message")
-
-
-class TestStreamQueue(unittest.TestCase):
-    """Test stream queue functionality"""
-
-    def setUp(self):
-        """Clear stream queue before each test"""
-        clear_stream_queue()
-
-    def tearDown(self):
-        """Clear stream queue after each test"""
-        clear_stream_queue()
-
-    def test_set_and_clear_stream_queue(self):
-        """Test setting and clearing stream queue"""
-        # Initially should be None
-        self.assertIsNone(railtracks_cli.current_stream_queue)
-
-        # Set a queue
-        test_queue = queue.Queue()
-        set_stream_queue(test_queue)
-
-        # Should be set now
-        self.assertIsNotNone(railtracks_cli.current_stream_queue)
-
-        # Clear it
-        clear_stream_queue()
-
-        # Should be None again
-        self.assertIsNone(railtracks_cli.current_stream_queue)
-
-    def test_send_to_stream_no_queue(self):
-        """Test sending to stream when no queue is set"""
-        # Should not raise an exception
-        send_to_stream("test message")
-
-    def test_send_to_stream_with_queue(self):
-        """Test sending to stream with active queue"""
-        test_queue = queue.Queue()
-        set_stream_queue(test_queue)
-
-        test_message = "test message"
-        send_to_stream(test_message)
-
-        # Should have received the message
-        self.assertFalse(test_queue.empty())
-        received = test_queue.get_nowait()
-        self.assertEqual(received, test_message)
-
-    def test_send_to_stream_full_queue(self):
-        """Test sending to stream when queue is full"""
-        # Create a queue with maxsize 1
-        test_queue = queue.Queue(maxsize=1)
-        set_stream_queue(test_queue)
-
-        # Fill the queue
-        test_queue.put_nowait("existing message")
-
-        # Try to send another message - should clear the queue
-        send_to_stream("new message")
-
-        # Queue should have been cleared
-        self.assertIsNone(railtracks_cli.current_stream_queue)
 
 
 class TestCreateRailtracksDir(unittest.TestCase):
@@ -224,88 +156,8 @@ class TestCreateRailtracksDir(unittest.TestCase):
         self.assertEqual(original_content, new_content)
 
 
-class TestFileChangeHandler(unittest.TestCase):
-    """Test FileChangeHandler debouncing logic"""
-
-    def setUp(self):
-        """Set up handler for testing"""
-        self.handler = FileChangeHandler()
-
-    @patch('railtracks_cli.send_to_stream')
-    @patch('railtracks_cli.print_status')
-    def test_file_change_handler_json_file(self, mock_print, mock_stream):
-        """Test handler processes JSON file changes"""
-        # Create a mock event
-        mock_event = MagicMock()
-        mock_event.is_directory = False
-        mock_event.src_path = "/test/path/file.json"
-
-        self.handler.on_modified(mock_event)
-
-        # Should have printed status and sent to stream
-        mock_print.assert_called_once()
-        mock_stream.assert_called_once()
-
-    @patch('railtracks_cli.send_to_stream')
-    @patch('railtracks_cli.print_status')
-    def test_file_change_handler_non_json_file(self, mock_print, mock_stream):
-        """Test handler ignores non-JSON files"""
-        # Create a mock event for non-JSON file
-        mock_event = MagicMock()
-        mock_event.is_directory = False
-        mock_event.src_path = "/test/path/file.txt"
-
-        self.handler.on_modified(mock_event)
-
-        # Should not have printed or sent to stream
-        mock_print.assert_not_called()
-        mock_stream.assert_not_called()
-
-    @patch('railtracks_cli.send_to_stream')
-    @patch('railtracks_cli.print_status')
-    def test_file_change_handler_directory(self, mock_print, mock_stream):
-        """Test handler ignores directory changes"""
-        # Create a mock event for directory
-        mock_event = MagicMock()
-        mock_event.is_directory = True
-        mock_event.src_path = "/test/path/directory"
-
-        self.handler.on_modified(mock_event)
-
-        # Should not have printed or sent to stream
-        mock_print.assert_not_called()
-        mock_stream.assert_not_called()
-
-    @patch('railtracks_cli.send_to_stream')
-    @patch('railtracks_cli.print_status')
-    @patch('time.time')
-    def test_file_change_handler_debouncing(self, mock_time, mock_print, mock_stream):
-        """Test debouncing prevents rapid duplicate events"""
-        # Set up time mock to simulate rapid changes
-        mock_time.side_effect = [1.0, 1.1, 1.6]  # Second call within debounce, third outside
-
-        mock_event = MagicMock()
-        mock_event.is_directory = False
-        mock_event.src_path = "/test/path/file.json"
-
-        # First call should process
-        self.handler.on_modified(mock_event)
-        self.assertEqual(mock_print.call_count, 1)
-        self.assertEqual(mock_stream.call_count, 1)
-
-        # Second call within debounce interval should be ignored
-        self.handler.on_modified(mock_event)
-        self.assertEqual(mock_print.call_count, 1)  # Still 1
-        self.assertEqual(mock_stream.call_count, 1)  # Still 1
-
-        # Third call outside debounce interval should process
-        self.handler.on_modified(mock_event)
-        self.assertEqual(mock_print.call_count, 2)
-        self.assertEqual(mock_stream.call_count, 2)
-
-
-class TestRailtracksHTTPHandler(unittest.TestCase):
-    """Test RailtracksHTTPHandler API endpoints"""
+class TestFastAPIEndpoints(unittest.TestCase):
+    """Test FastAPI endpoints"""
 
     def setUp(self):
         """Set up test environment"""
@@ -317,7 +169,7 @@ class TestRailtracksHTTPHandler(unittest.TestCase):
         railtracks_dir = Path(".railtracks")
         railtracks_dir.mkdir()
 
-        # Create test JSON files
+        # Create test JSON files in root
         self.test_files = {
             "simple.json": {"test": "data"},
             "my agent session.json": {"agent": "session", "data": "test"},
@@ -330,164 +182,127 @@ class TestRailtracksHTTPHandler(unittest.TestCase):
             with open(file_path, "w") as f:
                 json.dump(content, f)
 
+        # Create test client
+        self.client = TestClient(app)
+
     def tearDown(self):
         """Clean up test environment"""
         os.chdir(self.original_cwd)
         shutil.rmtree(self.test_dir)
 
-    def create_mock_handler(self, path="/api/json/test.json"):
-        """Create a mock HTTP handler for testing"""
-        # Create a mock handler without calling the parent constructor
-        handler = MagicMock(spec=railtracks_cli.RailtracksHTTPHandler)
-        handler.path = path
-        handler.railtracks_dir = Path(".railtracks")
-        handler.ui_dir = Path(".railtracks/ui")
+    def test_get_evaluations_empty(self):
+        """Test /api/evaluations endpoint with no data directory"""
+        response = self.client.get("/api/evaluations")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), [])
 
-        # Mock the response methods
-        handler.send_response = MagicMock()
-        handler.send_header = MagicMock()
-        handler.end_headers = MagicMock()
-        handler.send_error = MagicMock()
-        handler.wfile = MagicMock()
+    def test_get_evaluations_with_data(self):
+        """Test /api/evaluations endpoint with data"""
+        # Create evaluations directory and files
+        evaluations_dir = Path(".railtracks/data/evaluations")
+        evaluations_dir.mkdir(parents=True)
 
-        # Add the methods we want to test
-        handler.handle_api_json = railtracks_cli.RailtracksHTTPHandler.handle_api_json.__get__(handler, railtracks_cli.RailtracksHTTPHandler)
-        handler.handle_api_files = railtracks_cli.RailtracksHTTPHandler.handle_api_files.__get__(handler, railtracks_cli.RailtracksHTTPHandler)
+        eval1 = {"id": "eval1", "score": 0.95}
+        eval2 = {"id": "eval2", "score": 0.87}
 
-        return handler
+        with open(evaluations_dir / "eval1.json", "w") as f:
+            json.dump(eval1, f)
+        with open(evaluations_dir / "eval2.json", "w") as f:
+            json.dump(eval2, f)
 
-    def test_handle_api_json_simple_filename(self):
-        """Test handling simple JSON filename"""
-        handler = self.create_mock_handler("/api/json/simple.json")
+        response = self.client.get("/api/evaluations")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data), 2)
+        self.assertIn(eval1, data)
+        self.assertIn(eval2, data)
 
-        handler.handle_api_json("/api/json/simple.json")
+    def test_get_sessions_empty(self):
+        """Test /api/sessions endpoint with no data directory"""
+        response = self.client.get("/api/sessions")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), [])
 
-        # Should succeed
-        handler.send_response.assert_called_with(200)
-        handler.send_header.assert_any_call("Content-Type", "application/json")
-        handler.send_header.assert_any_call("Access-Control-Allow-Origin", "*")
-        handler.end_headers.assert_called_once()
+    def test_get_sessions_with_data(self):
+        """Test /api/sessions endpoint with data"""
+        # Create sessions directory and files
+        sessions_dir = Path(".railtracks/data/sessions")
+        sessions_dir.mkdir(parents=True)
 
-        # Should write JSON content
-        handler.wfile.write.assert_called_once()
-        written_content = handler.wfile.write.call_args[0][0]
-        parsed_content = json.loads(written_content.decode())
-        self.assertEqual(parsed_content, {"test": "data"})
+        session1 = {"id": "session1", "status": "completed"}
+        session2 = {"id": "session2", "status": "failed"}
 
-    def test_handle_api_json_urlencoded_filename(self):
-        """Test handling URL-encoded filename with spaces"""
+        with open(sessions_dir / "session1.json", "w") as f:
+            json.dump(session1, f)
+        with open(sessions_dir / "session2.json", "w") as f:
+            json.dump(session2, f)
+
+        response = self.client.get("/api/sessions")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data), 2)
+        self.assertIn(session1, data)
+        self.assertIn(session2, data)
+
+    def test_get_files_deprecated(self):
+        """Test /api/files endpoint (deprecated)"""
+        response = self.client.get("/api/files")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers.get("Deprecated"), "true")
+
+        file_list = response.json()
+        file_names = [f["name"] for f in file_list]
+        self.assertIn("simple.json", file_names)
+        self.assertIn("my agent session.json", file_names)
+
+    def test_get_json_file_deprecated(self):
+        """Test /api/json/{filename} endpoint (deprecated)"""
+        response = self.client.get("/api/json/simple.json")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers.get("Deprecated"), "true")
+        self.assertEqual(response.json(), {"test": "data"})
+
+    def test_get_json_file_urlencoded_deprecated(self):
+        """Test /api/json/{filename} with URL-encoded filename (deprecated)"""
+        from urllib.parse import quote
         encoded_filename = quote("my agent session.json")
-        handler = self.create_mock_handler(f"/api/json/{encoded_filename}")
+        response = self.client.get(f"/api/json/{encoded_filename}")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers.get("Deprecated"), "true")
+        self.assertEqual(response.json(), {"agent": "session", "data": "test"})
 
-        handler.handle_api_json(f"/api/json/{encoded_filename}")
+    def test_get_json_file_not_found(self):
+        """Test /api/json/{filename} with non-existent file"""
+        response = self.client.get("/api/json/nonexistent.json")
+        self.assertEqual(response.status_code, 404)
+        self.assertIn("error", response.json())
 
-        # Should succeed
-        handler.send_response.assert_called_with(200)
-        handler.send_header.assert_any_call("Content-Type", "application/json")
-        handler.send_header.assert_any_call("Access-Control-Allow-Origin", "*")
-        handler.end_headers.assert_called_once()
-
-        # Should write JSON content
-        handler.wfile.write.assert_called_once()
-        written_content = handler.wfile.write.call_args[0][0]
-        parsed_content = json.loads(written_content.decode())
-        self.assertEqual(parsed_content, {"agent": "session", "data": "test"})
-
-    def test_handle_api_json_urlencoded_spaces(self):
-        """Test handling URL-encoded filename with multiple spaces"""
-        encoded_filename = quote("file with spaces.json")
-        handler = self.create_mock_handler(f"/api/json/{encoded_filename}")
-
-        handler.handle_api_json(f"/api/json/{encoded_filename}")
-
-        # Should succeed
-        handler.send_response.assert_called_with(200)
-        handler.wfile.write.assert_called_once()
-        written_content = handler.wfile.write.call_args[0][0]
-        parsed_content = json.loads(written_content.decode())
-        self.assertEqual(parsed_content, {"spaces": "test"})
-
-    def test_handle_api_json_special_characters(self):
-        """Test handling URL-encoded special characters"""
-        encoded_filename = quote("special-chars!@#.json")
-        handler = self.create_mock_handler(f"/api/json/{encoded_filename}")
-
-        handler.handle_api_json(f"/api/json/{encoded_filename}")
-
-        # Should succeed
-        handler.send_response.assert_called_with(200)
-        handler.wfile.write.assert_called_once()
-        written_content = handler.wfile.write.call_args[0][0]
-        parsed_content = json.loads(written_content.decode())
-        self.assertEqual(parsed_content, {"special": "chars"})
-
-    def test_handle_api_json_file_not_found(self):
-        """Test handling non-existent file"""
-        handler = self.create_mock_handler("/api/json/nonexistent.json")
-
-        handler.handle_api_json("/api/json/nonexistent.json")
-
-        # Should return 404
-        handler.send_error.assert_called_with(404, "File nonexistent.json not found")
-
-    def test_handle_api_json_invalid_json(self):
-        """Test handling invalid JSON file"""
-        # Create invalid JSON file
+    def test_get_json_file_invalid_json(self):
+        """Test /api/json/{filename} with invalid JSON"""
         invalid_file = Path(".railtracks/invalid.json")
         with open(invalid_file, "w") as f:
             f.write("{ invalid json }")
 
-        handler = self.create_mock_handler("/api/json/invalid.json")
+        response = self.client.get("/api/json/invalid.json")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("error", response.json())
 
-        handler.handle_api_json("/api/json/invalid.json")
-
-        # Should return 400
-        handler.send_error.assert_called()
-        args = handler.send_error.call_args[0]
-        self.assertEqual(args[0], 400)
-        self.assertTrue("Invalid JSON" in args[1])
-
-    def test_handle_api_json_auto_add_extension(self):
-        """Test auto-adding .json extension"""
-        # Create file with .json extension (the code adds .json to the filename)
+    def test_get_json_file_auto_add_extension(self):
+        """Test /api/json/{filename} auto-adds .json extension"""
         test_file = Path(".railtracks/testfile.json")
         with open(test_file, "w") as f:
             json.dump({"test": "data"}, f)
 
-        handler = self.create_mock_handler("/api/json/testfile")
+        response = self.client.get("/api/json/testfile")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"test": "data"})
 
-        handler.handle_api_json("/api/json/testfile")
-
-        # Should succeed - the method should find the file and add .json extension
-        handler.send_response.assert_called_with(200)
-        handler.wfile.write.assert_called_once()
-        written_content = handler.wfile.write.call_args[0][0]
-        parsed_content = json.loads(written_content.decode())
-        self.assertEqual(parsed_content, {"test": "data"})
-
-    def test_handle_api_files(self):
-        """Test /api/files endpoint"""
-        handler = self.create_mock_handler("/api/files")
-
-        handler.handle_api_files()
-
-        # Should succeed
-        handler.send_response.assert_called_with(200)
-        handler.send_header.assert_any_call("Content-Type", "application/json")
-        handler.send_header.assert_any_call("Access-Control-Allow-Origin", "*")
-        handler.end_headers.assert_called_once()
-
-        # Should write file list
-        handler.wfile.write.assert_called_once()
-        written_content = handler.wfile.write.call_args[0][0]
-        file_list = json.loads(written_content.decode())
-
-        # Should contain our test files
-        file_names = [f["name"] for f in file_list]
-        self.assertIn("simple.json", file_names)
-        self.assertIn("my agent session.json", file_names)
-        self.assertIn("file with spaces.json", file_names)
-        self.assertIn("special-chars!@#.json", file_names)
+    def test_post_refresh_deprecated(self):
+        """Test /api/refresh endpoint (deprecated)"""
+        response = self.client.post("/api/refresh")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers.get("Deprecated"), "true")
+        self.assertEqual(response.json(), {"status": "refresh_triggered"})
 
 
 class TestPortChecking(unittest.TestCase):
@@ -613,6 +428,248 @@ class TestPortChecking(unittest.TestCase):
 
         result = is_port_in_use(3030)
         self.assertTrue(result)  # Should return True when socket fails to bind
+
+
+class TestMigrateRailtracks(unittest.TestCase):
+    """Test migrate_railtracks function"""
+
+    def setUp(self):
+        """Set up temporary directory for testing"""
+        self.test_dir = tempfile.mkdtemp()
+        self.original_cwd = os.getcwd()
+        os.chdir(self.test_dir)
+
+    def tearDown(self):
+        """Clean up temporary directory"""
+        os.chdir(self.original_cwd)
+        shutil.rmtree(self.test_dir)
+
+    @patch('railtracks_cli.print_status')
+    @patch('railtracks_cli.print_success')
+    def test_migrate_creates_all_directories(self, mock_success, mock_status):
+        """Test that all required directories are created when they don't exist"""
+        # Ensure .railtracks doesn't exist
+        railtracks_dir = Path(".railtracks")
+        self.assertFalse(railtracks_dir.exists())
+
+        migrate_railtracks()
+
+        # Verify all directories exist
+        self.assertTrue(railtracks_dir.exists())
+        self.assertTrue(railtracks_dir.is_dir())
+
+        data_dir = railtracks_dir / "data"
+        self.assertTrue(data_dir.exists())
+        self.assertTrue(data_dir.is_dir())
+
+        evaluations_dir = data_dir / "evaluations"
+        self.assertTrue(evaluations_dir.exists())
+        self.assertTrue(evaluations_dir.is_dir())
+
+        sessions_dir = data_dir / "sessions"
+        self.assertTrue(sessions_dir.exists())
+        self.assertTrue(sessions_dir.is_dir())
+
+        # Should have called print functions
+        mock_status.assert_called()
+        mock_success.assert_called()
+
+    @patch('railtracks_cli.print_status')
+    @patch('railtracks_cli.print_success')
+    def test_migrate_with_existing_directories(self, mock_success, mock_status):
+        """Test that existing directories are not recreated (idempotent)"""
+        # Create all directories first
+        railtracks_dir = Path(".railtracks")
+        railtracks_dir.mkdir()
+        data_dir = railtracks_dir / "data"
+        data_dir.mkdir()
+        evaluations_dir = data_dir / "evaluations"
+        evaluations_dir.mkdir()
+        sessions_dir = data_dir / "sessions"
+        sessions_dir.mkdir()
+
+        # Run migration
+        migrate_railtracks()
+
+        # All directories should still exist
+        self.assertTrue(railtracks_dir.exists())
+        self.assertTrue(data_dir.exists())
+        self.assertTrue(evaluations_dir.exists())
+        self.assertTrue(sessions_dir.exists())
+
+    @patch('railtracks_cli.print_status')
+    @patch('railtracks_cli.print_success')
+    def test_migrate_moves_json_files_from_root(self, mock_success, mock_status):
+        """Test moving JSON files from .railtracks root to .railtracks/data/sessions/"""
+        # Create .railtracks directory
+        railtracks_dir = Path(".railtracks")
+        railtracks_dir.mkdir()
+
+        # Create JSON files in root
+        test_file1 = railtracks_dir / "test1.json"
+        test_file2 = railtracks_dir / "test2.json"
+
+        with open(test_file1, "w") as f:
+            json.dump({"test": "data1"}, f)
+        with open(test_file2, "w") as f:
+            json.dump({"test": "data2"}, f)
+
+        # Run migration
+        migrate_railtracks()
+
+        # Files should be moved to data/sessions/
+        sessions_dir = railtracks_dir / "data" / "sessions"
+        self.assertTrue((sessions_dir / "test1.json").exists())
+        self.assertTrue((sessions_dir / "test2.json").exists())
+
+        # Files should no longer be in root
+        self.assertFalse(test_file1.exists())
+        self.assertFalse(test_file2.exists())
+
+        # Verify file contents
+        with open(sessions_dir / "test1.json") as f:
+            content1 = json.load(f)
+            self.assertEqual(content1, {"test": "data1"})
+
+        with open(sessions_dir / "test2.json") as f:
+            content2 = json.load(f)
+            self.assertEqual(content2, {"test": "data2"})
+
+    @patch('railtracks_cli.print_status')
+    @patch('railtracks_cli.print_success')
+    def test_migrate_does_not_move_subdirectory_json(self, mock_success, mock_status):
+        """Test that JSON files in subdirectories are NOT moved"""
+        # Create .railtracks directory structure
+        railtracks_dir = Path(".railtracks")
+        railtracks_dir.mkdir()
+
+        # Create JSON file in root
+        root_file = railtracks_dir / "root.json"
+        with open(root_file, "w") as f:
+            json.dump({"location": "root"}, f)
+
+        # Create subdirectories with JSON files
+        ui_dir = railtracks_dir / "ui"
+        ui_dir.mkdir()
+        ui_file = ui_dir / "ui.json"
+        with open(ui_file, "w") as f:
+            json.dump({"location": "ui"}, f)
+
+        data_dir = railtracks_dir / "data"
+        data_dir.mkdir()
+        data_file = data_dir / "data.json"
+        with open(data_file, "w") as f:
+            json.dump({"location": "data"}, f)
+
+        # Run migration
+        migrate_railtracks()
+
+        # Root file should be moved
+        sessions_dir = railtracks_dir / "data" / "sessions"
+        self.assertTrue((sessions_dir / "root.json").exists())
+        self.assertFalse(root_file.exists())
+
+        # Subdirectory files should NOT be moved
+        self.assertTrue(ui_file.exists())
+        self.assertTrue(data_file.exists())
+
+    @patch('railtracks_cli.print_status')
+    @patch('railtracks_cli.print_success')
+    def test_migrate_no_json_files(self, mock_success, mock_status):
+        """Test handling when no JSON files exist in root"""
+        # Create .railtracks directory
+        railtracks_dir = Path(".railtracks")
+        railtracks_dir.mkdir()
+
+        # Run migration
+        migrate_railtracks()
+
+        # Directories should be created
+        sessions_dir = railtracks_dir / "data" / "sessions"
+        self.assertTrue(sessions_dir.exists())
+
+        # Should have printed appropriate message
+        calls = [str(call) for call in mock_status.call_args_list]
+        self.assertTrue(any("No JSON files" in str(call) for call in calls))
+
+    @patch('railtracks_cli.print_status')
+    @patch('railtracks_cli.print_success')
+    def test_migrate_console_output(self, mock_success, mock_status):
+        """Test console output messages"""
+        # Create .railtracks directory with JSON file
+        railtracks_dir = Path(".railtracks")
+        railtracks_dir.mkdir()
+
+        test_file = railtracks_dir / "migration_test.json"
+        with open(test_file, "w") as f:
+            json.dump({"test": "data"}, f)
+
+        # Run migration
+        migrate_railtracks()
+
+        # Check that status messages were called
+        mock_status.assert_called()
+        mock_success.assert_called()
+
+        # Check for specific migration message
+        success_calls = [str(call) for call in mock_success.call_args_list]
+        self.assertTrue(any("Migrated migration_test.json" in str(call) for call in success_calls))
+
+    @patch('railtracks_cli.print_status')
+    @patch('railtracks_cli.print_success')
+    def test_migrate_multiple_files(self, mock_success, mock_status):
+        """Test migration of multiple JSON files"""
+        # Create .railtracks directory
+        railtracks_dir = Path(".railtracks")
+        railtracks_dir.mkdir()
+
+        # Create multiple JSON files
+        files = ["file1.json", "file2.json", "file3.json"]
+        for filename in files:
+            test_file = railtracks_dir / filename
+            with open(test_file, "w") as f:
+                json.dump({"file": filename}, f)
+
+        # Run migration
+        migrate_railtracks()
+
+        # All files should be moved
+        sessions_dir = railtracks_dir / "data" / "sessions"
+        for filename in files:
+            self.assertTrue((sessions_dir / filename).exists())
+            self.assertFalse((railtracks_dir / filename).exists())
+
+        # Check migration summary message
+        success_calls = [str(call) for call in mock_success.call_args_list]
+        self.assertTrue(any("3 file(s) moved" in str(call) for call in success_calls))
+
+    @patch('railtracks_cli.print_status')
+    @patch('railtracks_cli.print_success')
+    def test_migrate_partial_directory_structure(self, mock_success, mock_status):
+        """Test migration when some directories already exist"""
+        # Create .railtracks and data directories
+        railtracks_dir = Path(".railtracks")
+        railtracks_dir.mkdir()
+        data_dir = railtracks_dir / "data"
+        data_dir.mkdir()
+
+        # Create JSON file in root
+        test_file = railtracks_dir / "test.json"
+        with open(test_file, "w") as f:
+            json.dump({"test": "data"}, f)
+
+        # Run migration
+        migrate_railtracks()
+
+        # Missing directories should be created
+        evaluations_dir = data_dir / "evaluations"
+        sessions_dir = data_dir / "sessions"
+        self.assertTrue(evaluations_dir.exists())
+        self.assertTrue(sessions_dir.exists())
+
+        # File should be moved
+        self.assertTrue((sessions_dir / "test.json").exists())
+        self.assertFalse(test_file.exists())
 
 
 if __name__ == "__main__":
