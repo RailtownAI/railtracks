@@ -1,7 +1,8 @@
-import pytest
-from railtracks.rt_mcp.node_to_mcp import _create_tool_function, create_mcp_server
 from unittest.mock import MagicMock
+
+import pytest
 from mcp.server.fastmcp import FastMCP
+from railtracks.rt_mcp.node_to_mcp import _create_tool_function, create_mcp_server
 
 # ======= START create_tool_function tests ===========
 
