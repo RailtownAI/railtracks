@@ -200,7 +200,7 @@ class PineconeVectorStore(VectorStore):
             if isinstance(item, Chunk):
                 id = item.id
                 embedding = self._embedding_model([item.content])[0]
-                metadata = item.metadata
+                metadata = dict(item.metadata) if item.metadata else {}
                 metadata[MetadataKeys.CONTENT] = item.content
                 if item.document:
                     metadata[MetadataKeys.DOCUMENT] = item.document
@@ -237,7 +237,7 @@ class PineconeVectorStore(VectorStore):
         self,
         *,
         ids: OneOrMany[str],
-        include: Optional[list[str]] = None,
+        include: Optional[list[str | Fields]] = None,
     ) -> FetchResponse: ...
 
     @overload
@@ -247,7 +247,7 @@ class PineconeVectorStore(VectorStore):
         ids: OneOrMany[str],
         where: Optional[dict[str, str]] = None,
         where_document: Optional[dict[str, str]] = None,
-        include: Optional[list[str]] = None,
+        include: Optional[list[str | Fields]] = None,
     ) -> FetchResponse: ...
 
     @overload
@@ -257,7 +257,7 @@ class PineconeVectorStore(VectorStore):
         where: Optional[dict[str, str]] = None,
         limit: Optional[int] = None,
         where_document: Optional[dict[str, str]] = None,
-        include: Optional[list[str]] = None,
+        include: Optional[list[str | Fields]] = None,
     ) -> FetchResponse: ...
 
     def fetch(
@@ -267,7 +267,7 @@ class PineconeVectorStore(VectorStore):
         where: Optional[dict[str, str]] = None,
         limit: Optional[int] = None,
         where_document: Optional[dict[str, str]] = None,
-        include: Optional[list[str]] = None,
+        include: Optional[list[str | Fields]] = None,
     ) -> FetchResponse:
         """Fetch a set of vectors and their metadata from the collection. This can
         be used to retrieve vectors by id, by id with a metadata filter, or by
@@ -326,7 +326,7 @@ class PineconeVectorStore(VectorStore):
         top_k: int = 10,
         where: Optional[dict[str, str]] = None,
         where_document: Optional[dict[str, str]] = None,
-        include: Optional[list[str]] = None,
+        include: Optional[list[str | Fields]] = None,
     ) -> SearchResponse: ...
 
     @overload
@@ -336,7 +336,7 @@ class PineconeVectorStore(VectorStore):
         top_k: int = 10,
         where: Optional[dict[str, str]] = None,
         where_document: Optional[dict[str, str]] = None,
-        include: Optional[list[str]] = None,
+        include: Optional[list[str | Fields]] = None,
     ) -> list[SearchResponse]: ...
 
     def search(  # noqa: C901
@@ -345,7 +345,7 @@ class PineconeVectorStore(VectorStore):
         top_k: int = 10,
         where: Optional[dict[str, str]] = None,
         where_document: Optional[dict[str, str]] = None,
-        include: Optional[list[str]] = None,
+        include: Optional[list[str | Fields]] = None,
     ) -> OneOrMany[SearchResponse]:
         """Run a similarity search for the provided query texts.
 
@@ -423,13 +423,13 @@ class PineconeVectorStore(VectorStore):
                 answer.append(search_response)
 
         return answer if is_many else answer[0]
-
+    
     def delete(
         self,
-        ids: OneOrMany[str],
-        delete_all : Optional[bool] = None,
+        ids: Optional[OneOrMany[str]] = None,
         where: Optional[dict[str, str]] = None,
         where_document: Optional[dict[str, str]] = None,
+        delete_all : Optional[bool] = None,
     ):
         """
         Remove vectors from the store by id or metadata filter.
@@ -437,10 +437,10 @@ class PineconeVectorStore(VectorStore):
             ids: list of ids or singular id to delete.
             where: Optional metadata filter.
             where_document: Optional document-based filter.
+            delete_all: Optional boolean to delete all vectors in the collection.
         """
-
-        if isinstance(ids, str):
-            ids = [ids]
+        if ids is not None:
+            _, ids = self._one_or_many(ids)
 
         filter = self._make_filter(where=where, where_document=where_document)
 
@@ -448,6 +448,7 @@ class PineconeVectorStore(VectorStore):
             ids=ids,
             delete_all=delete_all,
             filter=filter,
+            namespace=DEFAULT
         )
 
     def count(self) -> int:
@@ -473,7 +474,7 @@ class PineconeVectorStore(VectorStore):
         else:
             raise ValueError("where and where_document must be None or a dict[str, str]")
         
-    def _extract_search_result_fields(self, include : list[str], result : dict[str, Any]) -> dict[str, Any]:
+    def _extract_search_result_fields(self, include : list[str | Fields], result : dict[str, Any]) -> dict[str, Any]:
         """Extract fields from pinecone search result into railtracks format
             This function assumes that all result metadata fields are to be extracted because of Pinecone's structure
             All magic strings are magic strings from Pinecone's search result format
@@ -515,7 +516,7 @@ class PineconeVectorStore(VectorStore):
         return extracted_fields
     
     #Different function for query result because of different field names
-    def _extract_query_result_fields(self, include : list[str ], result : dict[str, Any]) -> dict[str, Any]:
+    def _extract_query_result_fields(self, include : list[str | Fields], result : dict[str, Any]) -> dict[str, Any]:
         """Extract fields from pinecone search result into railtracks format
             This function assumes that all result metadata fields are returned
             because of Pinecone's structure. Therefore it uses include to decide what 
@@ -559,7 +560,7 @@ class PineconeVectorStore(VectorStore):
 
             return extracted_fields
         
-    def _extract_fetch_result_fields(self, result : dict[str, Any], include : list[str]) -> dict[str, Any]:
+    def _extract_fetch_result_fields(self, result : dict[str, Any], include : list[str | Fields]) -> dict[str, Any]:
         """Extract fields from pinecone fetch result into railtracks format
             This function assumes that all result metadata fields are returned
             because of Pinecone's structure. Therefore it uses include to decide what 
