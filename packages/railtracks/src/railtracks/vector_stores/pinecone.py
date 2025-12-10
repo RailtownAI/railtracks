@@ -291,11 +291,10 @@ class PineconeVectorStore(VectorStore):
         if include is None:
             include = [Fields.VECTOR, Fields.DOCUMENT, Fields.METADATA]
 
-        if isinstance(ids, str):
-            ids = [ids]
-
         #Get responses from pinecone
         if ids is not None:
+            _, ids = self._one_or_many(ids)
+            
             responses = self._collection.fetch(
                 namespace=DEFAULT,
                 ids = ids,
