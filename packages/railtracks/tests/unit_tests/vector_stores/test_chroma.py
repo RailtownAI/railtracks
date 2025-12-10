@@ -1,15 +1,14 @@
 import pytest
 from unittest.mock import MagicMock, patch, call
-from uuid import uuid4
 from railtracks.vector_stores.chroma import ChromaVectorStore
 from railtracks.vector_stores.vector_store_base import (
-    MetadataKeys,
+    Fields,
     SearchResult,
 )
 
 
-CONTENT = MetadataKeys.CONTENT.value
-DOCUMENT = MetadataKeys.DOCUMENT.value
+CONTENT = Fields.CONTENT.value
+DOCUMENT = Fields.DOCUMENT.value
 
 
 class TestChromaVectorStoreClassInit:
@@ -88,7 +87,7 @@ class TestChromaVectorStoreInit:
             ("temp_collection", None, None, None),
         ],
     )
-    def test_init_with_different_configs(self, mock_embedding_function, collection_name, path, host, port, patch_all_chromadb_clients):
+    def test_init_with_different_configs(self, mock_embedding_model, collection_name, path, host, port, patch_all_chromadb_clients):
         """Test initialization with different configuration parameters."""
         with patch.object(ChromaVectorStore, "class_init") as mock_class_init:
             with patch_all_chromadb_clients():
@@ -99,7 +98,7 @@ class TestChromaVectorStoreInit:
                 
                 init_kwargs = {
                     "collection_name": collection_name,
-                    "embedding_function": mock_embedding_function,
+                    "embedding_model": mock_embedding_model,
                 }
                 if path is not None:
                     init_kwargs["path"] = path
@@ -111,7 +110,7 @@ class TestChromaVectorStoreInit:
                 store = ChromaVectorStore(**init_kwargs)
                 
                 assert store._collection_name == collection_name
-                assert store._embedding_function == mock_embedding_function
+                assert store._embedding_model == mock_embedding_model
                 assert store._collection == mock_collection
                 assert ChromaVectorStore._chroma == mock_client
                 mock_class_init.assert_called_once()
@@ -360,14 +359,14 @@ class TestChromaVectorStoreSearch:
         
         assert isinstance(result, list)
 
-    def test_search_top_k_parameter(self, mock_embedding_function, chroma_mocks):
+    def test_search_top_k_parameter(self, mock_embedding_model, chroma_mocks):
         """Test top_k parameter controls result count."""
         with patch.object(ChromaVectorStore, "class_init"):
             ChromaVectorStore._chroma = chroma_mocks["client"]
             
             store = ChromaVectorStore(
                 collection_name="test",
-                embedding_function=mock_embedding_function
+                embedding_model=mock_embedding_model
             )
             
             chroma_mocks["collection"].query.return_value = {
@@ -383,27 +382,27 @@ class TestChromaVectorStoreSearch:
             call_args = chroma_mocks["collection"].query.call_args
             assert call_args.kwargs["n_results"] == 3
 
-    def test_search_invalid_query_type_raises_error(self, mock_embedding_function, chroma_mocks):
+    def test_search_invalid_query_type_raises_error(self, mock_embedding_model, chroma_mocks):
         """Test ValueError for invalid query types."""
         with patch.object(ChromaVectorStore, "class_init"):
             ChromaVectorStore._chroma = chroma_mocks["client"]
             
             store = ChromaVectorStore(
                 collection_name="test",
-                embedding_function=mock_embedding_function
+                embedding_model=mock_embedding_model
             )
             
             with pytest.raises(ValueError, match="Query must be"):
                 store.search(123)  # type: ignore[arg-type]
 
-    def test_search_where_filter_applied(self, mock_embedding_function, chroma_mocks):
+    def test_search_where_filter_applied(self, mock_embedding_model, chroma_mocks):
         """Test where filter is applied."""
         with patch.object(ChromaVectorStore, "class_init"):
             ChromaVectorStore._chroma = chroma_mocks["client"]
             
             store = ChromaVectorStore(
                 collection_name="test",
-                embedding_function=mock_embedding_function
+                embedding_model=mock_embedding_model
             )
             
             chroma_mocks["collection"].query.return_value = {

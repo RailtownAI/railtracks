@@ -1,12 +1,11 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Optional, TypeVar, Union, overload
+from typing import Any, Callable, Optional, TypeVar, Union, overload, Literal
 
 from .chunking.base_chunker import Chunk
 
 T = TypeVar("T")
-
 
 class MetadataKeys(str, Enum):
     """Well-known metadata keys used by vector store wrappers.
@@ -18,6 +17,20 @@ class MetadataKeys(str, Enum):
 
     CONTENT = "__content__"
     DOCUMENT = "__document__"
+
+class Fields(str, Enum):
+    """Enum to use when specifying which fields should be returned.
+
+    These keys are used internally to store the original content/document
+    alongside the vector so callers do not need to rely on provider-specific
+    metadata keys. It is also used to specify which fields to include in search
+    results.
+    """
+    DOCUMENT = "document"
+    DISTANCE = "distance"
+    VECTOR = "vector"
+    METADATA = "metadata"
+    NOTHING = "nothing"
 
 
 class Metric(str, Enum):
@@ -44,15 +57,15 @@ class SearchResult:
         id: Identifier for the matched vector.
         distance: Distance or similarity score (interpretation depends on `Metric`).
         content: The stored content associated with the vector.
-        vector: The embedding vector as a list of floats.
+        vector: The embedding vector as a list of floats if dense or dict with indices and values if sparse.
         document: Optional document content or id associated with the vector.
         metadata: Arbitrary metadata dictionary attached to the vector.
     """
 
     id: str
-    distance: float
     content: str
-    vector: list[float]
+    distance: Optional[float] = None
+    vector: Optional[list[float] | dict[str, list[int | float]]] = None
     document: Optional[str] = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -69,14 +82,14 @@ class FetchResult:
     Attributes:
         id: Identifier for the matched vector.
         content: The stored content associated with the vector.
-        vector: The embedding vector as a list of floats.
+        vector: The embedding vector as a list of floats if dense or dict with indices and values if sparse.
         document: Optional document content or id associated with the vector.
         metadata: Arbitrary metadata dictionary attached to the vector.
     """
 
     id: str
     content: str
-    vector: list[float]
+    vector: Optional[list[float] | dict[str, list[int | float]]] = None
     document: Optional[str] = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -123,13 +136,13 @@ class VectorStore(ABC):
     @overload
     def upsert(
         self,
-        content: list[Chunk] | list[str],
+        content: list[Chunk | str],
     ) -> list[str]: ...
 
     @abstractmethod
     def upsert(
         self,
-        content: OneOrMany[Chunk] | OneOrMany[str],
+        content: OneOrMany[Chunk | str],
     ) -> OneOrMany[str]:
         """Insert or update a batch of vectors into the store.
 
@@ -216,3 +229,21 @@ class VectorStore(ABC):
             The total count of indexed vectors.
         """
         pass
+
+    def _one_or_many(self, item: OneOrMany[T]) -> tuple[bool, list[T]]:
+        """make an item a list if not already one and return whether it was originally a list.
+
+        Args:
+            item: The thing to check for whether it's a list or not.
+
+        Returns:
+            A tuple where the first element is a boolean indicating whether the
+            input was originally a list, and the second element is the item
+            itself as a list.
+        """
+
+        if isinstance(item, list):
+            return True, item
+        
+        else:
+            return False, [item]

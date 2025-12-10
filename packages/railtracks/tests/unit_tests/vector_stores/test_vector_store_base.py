@@ -1,9 +1,7 @@
 import pytest
-from uuid import UUID
 from railtracks.vector_stores.vector_store_base import (
-    MetadataKeys,
+    Fields,
     Metric,
-    Chunk,
     SearchResult,
     FetchResult,
     SearchResponse,
@@ -13,25 +11,40 @@ from railtracks.vector_stores.vector_store_base import (
 )
 
 
-class TestMetadataKeysEnum:
+class TestFieldsEnum:
     """Tests for MetadataKeys enum."""
 
     def test_content_value(self):
         """Verify CONTENT enum value is correct."""
-        assert MetadataKeys.CONTENT.value == "__content__"
+        assert Fields.CONTENT == "__content__"
 
     def test_document_value(self):
         """Verify DOCUMENT enum value is correct."""
-        assert MetadataKeys.DOCUMENT.value == "__document__"
+        assert Fields.DOCUMENT == "__document__"
+
+    def test_distance_value(self):
+        """Verify DISTANCE enum value is correct."""
+        assert Fields.DISTANCE == "distance"
+
+    def test_vector_value(self):
+        """Verify VECTOR enum value is correct."""
+        assert Fields.VECTOR == "values"
+
+    def test_metadata_value(self):
+        """Verify METADATA enum value is correct."""
+        assert Fields.METADATA == "metadata"
 
     def test_enum_members_by_name(self):
         """Verify enum members are accessible by name."""
-        assert MetadataKeys["CONTENT"] == MetadataKeys.CONTENT
-        assert MetadataKeys["DOCUMENT"] == MetadataKeys.DOCUMENT
+        assert Fields["CONTENT"] == Fields.CONTENT
+        assert Fields["DOCUMENT"] == Fields.DOCUMENT
+        assert Fields["DISTANCE"] == Fields.DISTANCE
+        assert Fields["VECTOR"] == Fields.VECTOR
+        assert Fields["METADATA"] == Fields.METADATA
 
     def test_enum_members_count(self):
         """Verify correct number of enum members."""
-        assert len(list(MetadataKeys)) == 2
+        assert len(list(Fields)) == 5
 
 
 class TestMetricEnum:
@@ -202,7 +215,7 @@ class TestVectorStoreAbstractClass:
         with pytest.raises(TypeError, match="Can't instantiate abstract class"):
             store = VectorStore(  # type: ignore[abstract]
                 collection_name="test",
-                embedding_function=lambda x: [[0.1]]
+                embedding_model=lambda x: [[0.1]]
             )
 
     def test_all_abstract_methods_defined(self):
@@ -234,6 +247,6 @@ class TestVectorStoreAbstractClass:
         # Should not raise
         store = ConcreteVectorStore(
             collection_name="test",
-            embedding_function=lambda x: [[0.1]]
+            embedding_model=lambda x: [[0.1]]
         )
         assert store._collection_name == "test"

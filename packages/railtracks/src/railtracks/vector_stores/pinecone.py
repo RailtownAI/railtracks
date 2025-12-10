@@ -1,5 +1,6 @@
 import os
-from typing import Optional, Literal, overload, Union, TypeVar, TYPE_CHECKING
+from typing import Optional, Literal, overload, Union, TypeVar, TYPE_CHECKING, Any
+from enum import Enum
 from copy import deepcopy
 from uuid import uuid4
 
@@ -8,6 +9,7 @@ from .vector_store_base import (
     FetchResponse,
     FetchResult,
     MetadataKeys,
+    Fields,
     Metric,
     SearchResponse,
     SearchResult,
@@ -18,8 +20,6 @@ from .vector_store_base import (
 if TYPE_CHECKING:
     from pinecone import SearchQuery
 
-CONTENT = MetadataKeys.CONTENT.value
-DOCUMENT = MetadataKeys.DOCUMENT.value
 DEFAULT = "__default__"
 
 T = TypeVar("T")
@@ -44,6 +44,7 @@ class PineconeVectorStore(VectorStore):
                 cls._Vector = Vector
                 cls._ServerlessSpec = ServerlessSpec
                 cls._IndexEmbed = IndexEmbed
+                cls._SearchQuery = SearchQuery
                 cls._pc = Pinecone(api_key=api_key)
 
             except ImportError:
@@ -172,9 +173,9 @@ class PineconeVectorStore(VectorStore):
     def upsert(self, content: Chunk | str) -> str: ...
 
     @overload
-    def upsert(self, content: list[Chunk] | list[str]) -> list[str]: ...
+    def upsert(self, content: list[Chunk | str]) -> list[str]: ... #Not strict typing here
 
-    def upsert(self, content: OneOrMany[Chunk] | OneOrMany[str]) -> OneOrMany[str]:
+    def upsert(self, content: OneOrMany[Chunk | str]) -> OneOrMany[str]:
         """Upsert a batch of chunks or raw strings into the collection.
 
         The method accepts a list of :class:`Chunk` instances or plain strings.
@@ -191,28 +192,21 @@ class PineconeVectorStore(VectorStore):
         ids = []
         Vector = type(PineconeVectorStore)._Vector
 
-        is_many = True
-        if isinstance(content, str):
-            content = [content]
-            is_many = False
-
-        if isinstance(content, Chunk):
-            content = [content]
-            is_many = False
+        is_many, content = self._one_or_many(content)
 
         for item in content:
             if isinstance(item, Chunk):
                 id = item.id
                 embedding = self._embedding_model([item.content])[0]
                 metadata = item.metadata
-                metadata[CONTENT] = item.content
+                metadata[MetadataKeys.CONTENT] = item.content
                 if item.document:
-                    metadata[DOCUMENT] = item.document
+                    metadata[MetadataKeys.DOCUMENT] = item.document
 
             else:
                 id = str(uuid4())
                 embedding = self._embedding_model([item])[0]
-                metadata = {CONTENT: item}
+                metadata = {MetadataKeys.CONTENT: item}
 
             ids.append(id)
             vectors.append(Vector(
@@ -227,84 +221,92 @@ class PineconeVectorStore(VectorStore):
             batch_size=len(vectors)
         )
         return ids if is_many else ids[0]
+    
+
+    @overload
+    def fetch(
+        self,
+        *,
+        ids: OneOrMany[str],
+        include: Optional[list[str]] = None,
+    ) -> FetchResponse: ...
+
+    @overload
+    def fetch(
+        self,
+        *,
+        ids: OneOrMany[str],
+        where: Optional[dict[str, str]] = None,
+        where_document: Optional[dict[str, str]] = None,
+        include: Optional[list[str]] = None,
+    ) -> FetchResponse: ...
+
+    @overload
+    def fetch(
+        self,
+        *,
+        where: Optional[dict[str, str]] = None,
+        limit: Optional[int] = None,
+        where_document: Optional[dict[str, str]] = None,
+        include: Optional[list[str]] = None,
+    ) -> FetchResponse: ...
 
     def fetch(
         self,
+        *,
         ids: Optional[OneOrMany[str]] = None,
-        where: Optional[Where] = None,
+        where: Optional[dict[str, str]] = None,
         limit: Optional[int] = None,
-        where_document: Optional[WhereDocument] = None,
+        where_document: Optional[dict[str, str]] = None,
+        include: Optional[list[str]] = None,
     ) -> FetchResponse:
-        """Fetch a set of vectors and their metadata from the collection.
+        """Fetch a set of vectors and their metadata from the collection. This can
+        be used to retrieve vectors by id, by id with a metadata filter, or by
+        just a metadata filter.
 
         Args:
             ids: Optional list of ids or singular id to fetch.
             where: Optional metadata filter.
-            limit: Result limit for pagination.
+            limit: Optiuonal Result limit for pagination.
+            where_document: Optional document-based filter.
+            Include: Optional Fields to include in the response. Defaults to all.
 
         Returns:
             FetchResponse: A list-like container of :class:`FetchResult`.
 
         Raises:
-            ValueError: If the Chroma response does not contain required fields.
+            ValueError: If the response does not contain required fields.
         """
         results = FetchResponse()
-        # currently we ignore Include and assume the default
+        filter = self._make_filter(where=where, where_document=where_document)
+        if include is None:
+            include = [Fields.VECTOR, Fields.DOCUMENT, Fields.METADATA]
 
         if isinstance(ids, str):
             ids = [ids]
 
-        if ids is not None and not where and not limit:
+        #Get responses from pinecone
+        if ids is not None:
             responses = self._collection.fetch(
                 namespace=DEFAULT,
                 ids = ids,
             )
-        
-        #Add in WhereDocument to this here
-        elif ids is None and where:
+            if filter is not None:
+                responses = self._filter_by_metadata(responses, where, where_document)
+
+        elif filter is not None:
             responses = self._collection.fetch_by_metadata(
                 namespace=DEFAULT,
-                filter = where,
+                filter = filter,
                 limit = limit
             )
-
+        
         else:
-            raise ValueError("Incorrect parameters passed. Valid combinations include :" \
-            "ids," \
-            "" \
-            "where," \
-            "" \
-            "where," \
-            "limit")
-
+            raise ValueError("Either ids or where/where_document must be provided to fetch.")
+            
         for response in responses["vectors"]:
-
-            id = response["id"]
-            embedding = response["values"]
-            metadata = response["metadata"]
-            if metadata is None:
-                raise ValueError(f"Metadata was not found in chunk with id: {id}. Please create an issue")
-            metadata = dict(deepcopy(response["metadata"]))
-
-            document = metadata.get(DOCUMENT, None)
-            content = metadata[CONTENT]
-            if not (content := metadata.get(CONTENT)) or not isinstance(content, str):
-                raise ValueError(
-                    "Content was not initialized in chunk with id: {id}. Please create an issue"
-                )
-
-            metadata.pop(CONTENT)
-            metadata.pop(DOCUMENT)
-
-            results.append(
-                FetchResult(
-                    id=id,
-                    content=content,
-                    vector=embedding,
-                    document=document,
-                    metadata=metadata,
-                )
-            )
+            extracted_fields = self._extract_fetch_result_fields(responses["vectors"][response], include)
+            results.append(self._make_fetch_result(extracted_fields))
 
         return results
 
@@ -312,47 +314,29 @@ class PineconeVectorStore(VectorStore):
     def search(
         self,
         querys: Chunk | str,
-        ids: Optional[str] = None,
         top_k: int = 10,
-        where: Optional[Where] = None,
-        where_document: Optional[WhereDocument] = None,
-        include: Include = [
-            "metadatas",
-            "embeddings",
-            "documents",
-            "distances",
-        ],
+        where: Optional[dict[str, str]] = None,
+        where_document: Optional[dict[str, str]] = None,
+        include: Optional[list[str]] = None,
     ) -> SearchResponse: ...
 
     @overload
     def search(
         self,
-        querys: list[Chunk] | list[str],
-        ids: Optional[list[str]] = None,
+        querys: list[Chunk | str],
         top_k: int = 10,
-        where: Optional[Where] = None,
-        where_document: Optional[WhereDocument] = None,
-        include: Include = [
-            "metadatas",
-            "embeddings",
-            "documents",
-            "distances",
-        ],
+        where: Optional[dict[str, str]] = None,
+        where_document: Optional[dict[str, str]] = None,
+        include: Optional[list[str]] = None,
     ) -> list[SearchResponse]: ...
 
     def search(  # noqa: C901
         self,
-        querys: OneOrMany[Chunk] | OneOrMany[str],
-        ids: Optional[OneOrMany[str]] = None,
+        querys: OneOrMany[Chunk | str],
         top_k: int = 10,
-        where: Optional[Where] = None,
-        where_document: Optional[WhereDocument] = None,
-        include: Include = [
-            "metadatas",
-            "embeddings",
-            "documents",
-            "distances",
-        ],
+        where: Optional[dict[str, str]] = None,
+        where_document: Optional[dict[str, str]] = None,
+        include: Optional[list[str]] = None,
     ) -> OneOrMany[SearchResponse]:
         """Run a similarity search for the provided query texts.
 
@@ -362,127 +346,71 @@ class PineconeVectorStore(VectorStore):
             top_k: Number of hits to return per query.
             where: Optional metadata filter to apply.
             where_document: Optional document filter to apply.
-            include: Fields to include in the Chroma response.
+            include: Fields to include in the response.
 
         Returns:
             A list of :class:`SearchResponse` objects (one per query).
 
         Raises:
-            ValueError: If expected fields are missing from the Chroma response.
+            ValueError: If expected fields are missing from the response.
         """
-        is_many = True
-        # If a single chunk is passed in, convert to list of string
-        if isinstance(querys, Chunk):
-            querys = [querys.content]
-            is_many = False
-
-        # If a single string is passed in, convert to list of string
-        elif isinstance(querys, str):
-            querys = [querys]
-            is_many = False
-
-        # If list of chunks is passed in, convert to list of strings
-        elif isinstance(querys, list) and all(isinstance(q, Chunk) for q in querys):
-            querys = [q.content for q in querys]
-
-        elif not isinstance(querys, list) or not all(isinstance(q, str) for q in querys):
-            raise ValueError(
-                "Query must be a string, Chunk, or list of strings/Chunks."
-            )
         
+        #Deal with one or many
+        is_many, querys = self._one_or_many(querys)
+        
+        #Map railtracks filter to pinecone filter
+        filter = self._make_filter(where=where, where_document=where_document)
+        
+        #Format include from railtracks Fields to pinecone fields for pinecone use
+        include_fields = self._format_include_fields(include)
+
+        #Default include all fields for internal use
+        if include is None:
+            include = [Fields.DISTANCE, Fields.VECTOR, Fields.DOCUMENT, Fields.METADATA]
+
         answer: list[SearchResponse] = []
         
         if self._has_integrated_model:
-           for query in querys:
-               results = self._collection.search(
-                   namespace=DEFAULT,
-                   query=SearchQuery(
-                       inputs={"text" : query},
-                       top_k=top_k,
-                       filter=where #Will want to deal with MatchTerms which will likely deal with where filter mapping
-                   ),
-                   fields=[CONTENT, DOCUMENT, "metadata"]
-               )
-
-               search_response = SearchResponse()
-
-               for result in results["result"]["hits"]:
-                    id = result["_id"]
-                    distance = result["_score"]
-                    metadata = dict(result["fields"])
-                    content = metadata[CONTENT]
-                    metadata.pop(CONTENT)
-                    document = metadata.get(DOCUMENT, None)
-                    if document is not None:
-                        metadata.pop(DOCUMENT)
-
-                    search_response.append(
-                        SearchResult(
-                            id=id,
-                            distance=distance,
-                            content=content,
-                            vector=vector,
-                            document=document,  # Chroma document is just a str
-                            metadata=metadata,
-                        )
+            for query in querys:
+                    results = self._collection.search(
+                        namespace=DEFAULT,
+                        query=self._SearchQuery(
+                        inputs={"text" : query} if isinstance(query, str) else {"text" : query.content},
+                        top_k=top_k,
+                        filter=filter #Will want to deal with different filtering for query vs search later
+                    ),
+                    fields=include_fields
                 )
-                    
+                
+                    search_response = SearchResponse()
 
-
+                    #Weird Pinecone format here
+                    for result in results["result"]["hits"]:
+                        fields = self._extract_search_result_fields(include, result)
+                        search_result = self._make_search_result(fields)
+                        search_response.append(search_result)
+                        
+                    answer.append(search_response)
         
         else:
-            query_embeddings = self._embedding_model(querys)
-
             for query in querys:
+                query_embedding = self._embedding_model([query])[0] if isinstance(query, str) else self._embedding_model([query.content])[0]
                 results = self._collection.query(
-                    query_embeddings=list(query_embeddings),
-                    ids=ids,
                     top_k=top_k,
-                    where=where,
-                    where_document=where_document,
-                    include=include,
+                    vector=query_embedding,
+                    namespace=DEFAULT,
+                    filter=filter,
+                    include_metadata=True,
+                    include_values=Fields.VECTOR in include,
                 )
 
-                for result in results:
-
-
-        for query_idx, query_response in enumerate(results["ids"]):
-            search_response = SearchResponse()
-            for id_idx, id in enumerate(query_response):
-                if not (distance := results.get("distances")):
-                    raise ValueError("Distance not found in search results.")
-                elif not (vector := results.get("embeddings")):
-                    raise ValueError("Vector not found in search results.")
-                elif not (document := results.get("documents")):
-                    raise ValueError("Document not found in search results.")
-                elif not (metadatas := results.get("metadatas")):
-                    raise ValueError("Metadata not found in search results.")
-
-                distance = distance[query_idx][id_idx]
-                vector = list(vector[query_idx][id_idx])
-                document = document[query_idx][id_idx]
-                metadata = dict(deepcopy(metadatas[query_idx][id_idx]))
-
-                if not (content := metadata.get(CONTENT)) or not isinstance(
-                    content, str
-                ):
-                    raise ValueError(
-                        "Content was not initialized in vector. Please create an issue"
-                    )
-
-                metadata.pop(CONTENT)
-
-                search_response.append(
-                    SearchResult(
-                        id=id,
-                        distance=distance,
-                        content=content,
-                        vector=vector,
-                        document=document,  # Chroma document is just a str
-                        metadata=metadata,
-                    )
-                )
-            answer.append(search_response)
+                search_response = SearchResponse()
+                for result in results["matches"]:
+                    fields = self._extract_query_result_fields(include, result)
+                    search_result = self._make_search_result(fields)
+                    search_response.append(search_result)
+                
+                answer.append(search_response)
 
         return answer if is_many else answer[0]
 
@@ -490,8 +418,8 @@ class PineconeVectorStore(VectorStore):
         self,
         ids: OneOrMany[str],
         delete_all : Optional[bool] = None,
-        where: Optional[Where] = None,
-        where_document: Optional[WhereDocument] = None,
+        where: Optional[dict[str, str]] = None,
+        where_document: Optional[dict[str, str]] = None,
     ):
         """
         Remove vectors from the store by id or metadata filter.
@@ -504,20 +432,198 @@ class PineconeVectorStore(VectorStore):
         if isinstance(ids, str):
             ids = [ids]
 
-        if where_document:
-            if where:
-                where[DOCUMENT] = where_document
-            else:
-                where = {DOCUMENT : where_document}
+        filter = self._make_filter(where=where, where_document=where_document)
 
         self._collection.delete(
             ids=ids,
             delete_all=delete_all,
-            filter=where,
+            filter=filter,
         )
 
     def count(self) -> int:
         """"Return the total number of vectors stored in the collection."""
-        
 
         return self._collection.describe_index_stats()["total_vector_count"]
+        
+
+    #TODO need to make sure that the filtering is the way it works in pinecone. AKA add mapping. Also polish the if statements
+    def _make_filter(self, where : Optional[dict[str, str]], where_document : Optional[dict[str, str]]) -> dict[str, str] | None:
+        if not where and not where_document:
+            return None
+        elif where and not where_document:
+            return dict(where)
+        elif not where and where_document:
+            return dict(where_document)
+        elif where and where_document:
+            filter = dict(where)
+            for key in where_document:
+                filter[key] = where_document[key]
+            
+            return filter
+        else:
+            raise ValueError("where and where_document must be None or a dict[str, str]")
+        
+    def _extract_search_result_fields(self, include : list[str], result : dict[str, Any]) -> dict[str, Any]:
+        """Extract fields from pinecone search result into railtracks format
+            This function assumes that all result metadata fields are to be extracted because of Pinecone's structure
+            All magic strings are magic strings from Pinecone's search result format
+
+            Args:
+                include: List of Fields or str requested to be included
+                result: Pinecone search result dict
+
+            Returns:
+                dict[str, Any]: Extracted fields in railtracks format
+
+            
+        """
+        extracted_fields = {}
+        #Mandatory fields
+        extracted_fields["id"] = result["_id"]
+        extracted_fields[MetadataKeys.CONTENT] = result["fields"][MetadataKeys.CONTENT]
+        
+        #Optional fields
+        extracted_fields[Fields.DISTANCE] = result["_score"] if Fields.DISTANCE in include else None
+        extracted_fields[Fields.DOCUMENT] = result["fields"][MetadataKeys.DOCUMENT] if Fields.DOCUMENT in include else None
+        extracted_fields[Fields.METADATA] = {}
+
+        #Get vector using fetch since pinecone cannot return it in search
+        if Fields.VECTOR in include:
+            fetched = self.fetch(ids=[result["_id"]])[0]
+            extracted_fields[Fields.VECTOR] = fetched.vector
+        else:
+            extracted_fields[Fields.VECTOR] = None
+
+        #Because Search Result fields are all in "fields" key instead of returning metadata we need to loop
+        for metadata in result["fields"]:
+            if metadata == MetadataKeys.CONTENT or metadata == MetadataKeys.DOCUMENT:
+                pass
+            else:
+                #This trusts that Pinecone will only return requested metadata fields but could probably use a check
+                extracted_fields[Fields.METADATA][metadata] = result["fields"][metadata]
+        
+        return extracted_fields
+    
+    #Different function for query result because of different field names
+    def _extract_query_result_fields(self, include : list[str ], result : dict[str, Any]) -> dict[str, Any]:
+        """Extract fields from pinecone search result into railtracks format
+            This function assumes that all result metadata fields are returned
+            because of Pinecone's structure. Therefore it uses include to decide what 
+            metadata to extract.
+
+            All magic strings are magic strings from Pinecone's search result format
+            
+            Args:
+                include: List of Fields or str requested to be included
+                result: Pinecone search result dict
+
+            Returns:
+                dict[str, Any]: Extracted fields in railtracks format
+        """
+
+        extracted_fields = {}
+        #Mandatory fields
+        extracted_fields["id"] = result["id"]
+        extracted_fields[MetadataKeys.CONTENT] = result["metadata"][MetadataKeys.CONTENT]
+        
+        #Optional fields
+        extracted_fields[Fields.DISTANCE] = result["score"] if Fields.DISTANCE in include else None
+        extracted_fields[Fields.DOCUMENT] = result["metadata"][MetadataKeys.DOCUMENT] if Fields.DOCUMENT in include else None
+        extracted_fields[Fields.VECTOR] = result["values"] if Fields.VECTOR in include else None
+
+        if Fields.METADATA in include:
+            extracted_fields[Fields.METADATA] = dict(result["metadata"])
+            extracted_fields[Fields.METADATA].pop(MetadataKeys.CONTENT)
+            extracted_fields[Fields.METADATA].pop(MetadataKeys.DOCUMENT, None)
+        
+        else:
+            extracted_fields[Fields.METADATA] = {}
+            for field in include:
+                if not isinstance(field, Fields):
+                    extracted_fields[Fields.METADATA][field] = result["metadata"][field] #Assumes that if a field is requested it exists in metadata. Should add error handling here
+
+            return extracted_fields
+    
+    def _make_search_result(self, result : dict[str, Any]) -> SearchResult:
+        return SearchResult(
+            id=result["id"],
+            distance=result[Fields.DISTANCE],
+            content=result[MetadataKeys.CONTENT],
+            vector=result[Fields.VECTOR],
+            document=result[Fields.DOCUMENT],
+            metadata=result[Fields.METADATA],
+        )
+    
+    def _make_fetch_result(self, result : dict[str, Any]) -> FetchResult:
+        return FetchResult(
+            id=result["id"],
+            content=result[MetadataKeys.CONTENT],
+            vector=result[Fields.VECTOR],
+            document=result[Fields.DOCUMENT],
+            metadata=result[Fields.METADATA],
+        )
+    
+    def _extract_fetch_result_fields(self, result : dict[str, Any], include : list[str]) -> dict[str, Any]:
+        """Extract fields from pinecone fetch result into railtracks format
+            This function assumes that all result metadata fields are returned
+            because of Pinecone's structure. Therefore it uses include to decide what 
+            metadata to extract.
+
+            All magic strings are magic strings from Pinecone's search result format
+            
+            Args:
+                include: List of Fields or str requested to be included
+                result: Pinecone search result dict
+
+            Returns:
+                dict[str, Any]: Extracted fields in railtracks format
+        """
+
+        extracted_fields = {}
+        #Mandatory fields
+        extracted_fields["id"] = result["id"]
+        extracted_fields[MetadataKeys.CONTENT] = result["metadata"][MetadataKeys.CONTENT]
+        
+        #Optional fields
+        extracted_fields[Fields.DOCUMENT] = result["metadata"][MetadataKeys.DOCUMENT] if Fields.DOCUMENT in include else None
+        extracted_fields[Fields.VECTOR] = result["values"] if Fields.VECTOR in include else None
+
+        if Fields.METADATA in include:
+            extracted_fields[Fields.METADATA] = dict(result["metadata"])
+            extracted_fields[Fields.METADATA].pop(MetadataKeys.CONTENT)
+            extracted_fields[Fields.METADATA].pop(MetadataKeys.DOCUMENT, None)
+        
+        else:
+            extracted_fields[Fields.METADATA] = {}
+            for field in include:
+                if not isinstance(field, Fields):
+                    extracted_fields[Fields.METADATA][field] = result["metadata"][field] #Assumes that if a field is requested it exists in metadata. Should add error handling here
+
+        
+        return extracted_fields
+    
+    def _filter_by_metadata(self, responses, where : Optional[dict[str,str]], where_document : Optional[dict[str, str]]):
+        #Todo implement filtering here if needed
+        ...
+
+    def _format_include_fields(self, include: Optional[list[ Fields | str]]) -> list[str]:
+        formatted_include = [MetadataKeys.CONTENT.value]
+
+        if include:
+            if Fields.NOTHING in include:
+                if len(include) > 1:
+                    raise ValueError("If Fields.NOTHING is specified no other fields can be requested")
+            elif Fields.METADATA in include:
+                formatted_include = ["*"] #Pinecone syntax for all metadata
+            else:
+                if Fields.DOCUMENT in include:
+                    formatted_include.append(MetadataKeys.DOCUMENT.value)
+
+                for field in include:
+                    if not isinstance(field, Fields):
+                        formatted_include.append(field)
+                
+        else:
+            formatted_include = ["*"] #Pinecone syntax to Default to all metadata if nothing is specified
+
+        return formatted_include
