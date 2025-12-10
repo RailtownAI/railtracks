@@ -168,6 +168,8 @@ class PineconeVectorStore(VectorStore):
 
         else:
             raise ValueError("Incorrect pass of parameters please see docs to see valid combination of parameters")
+        
+        self._is_dense = embedding_model(["test"])[0] == list
 
     @overload
     def upsert(self, content: Chunk | str) -> str: ...
@@ -190,7 +192,7 @@ class PineconeVectorStore(VectorStore):
         """
         vectors = []
         ids = []
-        Vector = type(PineconeVectorStore)._Vector
+        Vector = self._Vector
 
         is_many, content = self._one_or_many(content)
 
@@ -209,11 +211,18 @@ class PineconeVectorStore(VectorStore):
                 metadata = {MetadataKeys.CONTENT: item}
 
             ids.append(id)
-            vectors.append(Vector(
-                id=id,
-                values=embedding,
-                metadata=metadata
-            ))
+            if isinstance(embedding, list):
+                vectors.append(Vector(
+                    id=id,
+                    values=embedding,
+                    metadata=metadata
+                ))
+            else:
+                vectors.append(Vector(
+                    id=id,
+                    sparse_values=embedding,
+                    metadata=metadata
+                ))
 
         self._collection.upsert(
             namespace=DEFAULT,
@@ -397,7 +406,8 @@ class PineconeVectorStore(VectorStore):
                 query_embedding = self._embedding_model([query])[0] if isinstance(query, str) else self._embedding_model([query.content])[0]
                 results = self._collection.query(
                     top_k=top_k,
-                    vector=query_embedding,
+                    vector=query_embedding if self._is_dense else None,
+                    sparse_vector=query_embedding if not self._is_dense else None,
                     namespace=DEFAULT,
                     filter=filter,
                     include_metadata=True,
@@ -529,7 +539,12 @@ class PineconeVectorStore(VectorStore):
         #Optional fields
         extracted_fields[Fields.DISTANCE] = result["score"] if Fields.DISTANCE in include else None
         extracted_fields[Fields.DOCUMENT] = result["metadata"][MetadataKeys.DOCUMENT] if Fields.DOCUMENT in include else None
-        extracted_fields[Fields.VECTOR] = result["values"] if Fields.VECTOR in include else None
+
+        #Optional Vector deals with both dense and sparse
+        if Fields.VECTOR in include:
+            extracted_fields[Fields.VECTOR] = result["values"] if self._is_dense else result["sparseValues"]
+        else:
+            extracted_fields[Fields.VECTOR] = None
 
         if Fields.METADATA in include:
             extracted_fields[Fields.METADATA] = dict(result["metadata"])
@@ -543,26 +558,7 @@ class PineconeVectorStore(VectorStore):
                     extracted_fields[Fields.METADATA][field] = result["metadata"][field] #Assumes that if a field is requested it exists in metadata. Should add error handling here
 
             return extracted_fields
-    
-    def _make_search_result(self, result : dict[str, Any]) -> SearchResult:
-        return SearchResult(
-            id=result["id"],
-            distance=result[Fields.DISTANCE],
-            content=result[MetadataKeys.CONTENT],
-            vector=result[Fields.VECTOR],
-            document=result[Fields.DOCUMENT],
-            metadata=result[Fields.METADATA],
-        )
-    
-    def _make_fetch_result(self, result : dict[str, Any]) -> FetchResult:
-        return FetchResult(
-            id=result["id"],
-            content=result[MetadataKeys.CONTENT],
-            vector=result[Fields.VECTOR],
-            document=result[Fields.DOCUMENT],
-            metadata=result[Fields.METADATA],
-        )
-    
+        
     def _extract_fetch_result_fields(self, result : dict[str, Any], include : list[str]) -> dict[str, Any]:
         """Extract fields from pinecone fetch result into railtracks format
             This function assumes that all result metadata fields are returned
@@ -586,7 +582,12 @@ class PineconeVectorStore(VectorStore):
         
         #Optional fields
         extracted_fields[Fields.DOCUMENT] = result["metadata"][MetadataKeys.DOCUMENT] if Fields.DOCUMENT in include else None
-        extracted_fields[Fields.VECTOR] = result["values"] if Fields.VECTOR in include else None
+
+        #Optional Vector deals with both dense and sparse
+        if Fields.VECTOR in include:
+            extracted_fields[Fields.VECTOR] = result["values"] if self._is_dense else result["sparseValues"]
+        else:
+            extracted_fields[Fields.VECTOR] = None
 
         if Fields.METADATA in include:
             extracted_fields[Fields.METADATA] = dict(result["metadata"])
@@ -599,8 +600,26 @@ class PineconeVectorStore(VectorStore):
                 if not isinstance(field, Fields):
                     extracted_fields[Fields.METADATA][field] = result["metadata"][field] #Assumes that if a field is requested it exists in metadata. Should add error handling here
 
-        
         return extracted_fields
+    
+    def _make_search_result(self, result : dict[str, Any]) -> SearchResult:
+        return SearchResult(
+            id=result["id"],
+            distance=result[Fields.DISTANCE],
+            content=result[MetadataKeys.CONTENT],
+            vector=result[Fields.VECTOR],
+            document=result[Fields.DOCUMENT],
+            metadata=result[Fields.METADATA],
+        )
+    
+    def _make_fetch_result(self, result : dict[str, Any]) -> FetchResult:
+        return FetchResult(
+            id=result["id"],
+            content=result[MetadataKeys.CONTENT],
+            vector=result[Fields.VECTOR],
+            document=result[Fields.DOCUMENT],
+            metadata=result[Fields.METADATA],
+        )
     
     def _filter_by_metadata(self, responses, where : Optional[dict[str,str]], where_document : Optional[dict[str, str]]):
         #Todo implement filtering here if needed
