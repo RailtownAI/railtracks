@@ -43,7 +43,7 @@ from .utils.logging.config import (
 from .utils.logging.create import get_rt_logger
 
 # TODO: decide if this should be relative or not
-from railtracks.evaluation import AgentDataPoint
+from .utils.point import AgentDataPoint
 
 from .built_nodes.concrete.response import LLMResponse
 

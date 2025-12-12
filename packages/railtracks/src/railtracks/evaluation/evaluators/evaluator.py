@@ -3,7 +3,7 @@ from uuid import uuid4, UUID
 from abc import ABC, abstractmethod
 
 from ... import AgentDataPoint
-from ..data import DataPoint, Dataset
+from ..data import Dataset, DataPoint
 
 class Evaluator(ABC):
     def __init__(self):
