@@ -7,8 +7,10 @@ from .metrics import Metric
 
 class ToolMetric(Metric):
     """A Metric to evaluate tool use in agent outputs."""
+    name: str = "ToolUseMetric"
+    tool_name: str
     frequency: int
-    failture_rate: float
+    failure_rate: float
 
 class ToolUseEvaluator(Evaluator):
     def __init__(self, 
@@ -16,7 +18,12 @@ class ToolUseEvaluator(Evaluator):
         super().__init__()
 
     def run(self, data: AgentDataPoint | list[AgentDataPoint] | Dataset):
-        pass
+        if isinstance(data, AgentDataPoint):
+            data = [data]
+        elif isinstance(data, Dataset):
+            return
+
+        self._retrieve_tool_stats(data)
 
 
     def _retrieve_tool_stats(self, data: list[AgentDataPoint]):
@@ -39,4 +46,9 @@ class ToolUseEvaluator(Evaluator):
 
                     if "Exception message" in tool["result"]:
                         stats[tool_name]["failure_count"] += 1
-        return stats              
+
+        self.metric = [ToolMetric(
+            tool_name=tool_name,
+            frequency=tool_data["usage_count"],
+            failure_rate=tool_data["failure_count"] / tool_data["usage_count"] if tool_data["usage_count"] > 0 else 0.0,
+        ) for tool_name, tool_data in stats.items()]         
