@@ -6,7 +6,9 @@ from collections import defaultdict
 from uuid import UUID, uuid4
 
 from ...utils.point import AgentDataPoint
+from ...utils.logging.create import get_rt_logger
 
+logger = get_rt_logger(__name__)
 
 class EvaluationDataset:
     """Local in-memory dataset implementation. Supports loading from and saving to JSON files.
@@ -68,11 +70,13 @@ class EvaluationDataset:
             n: Number of data points to sample. If n is greater than the dataset size, returns all data points.
         """
         if agent_name not in self._data_points:
-            pass  # TODO: add some warning here
-
+            logger.warning(f"Agent '{agent_name}' not found in dataset.")
+            return []
+        
         agent_data = self._data_points[agent_name]
 
         if n >= len(agent_data):
+            logger.warning(f"Requested sample size {n} is greater than or equal to the number of available data points for agent '{agent_name}'. Returning all data points.")
             return agent_data.copy()
 
         return random.sample(agent_data, n)
@@ -132,8 +136,7 @@ class EvaluationDataset:
         try:
             del self._data_points[agent_name]
         except KeyError:
-            pass
-            # TODO: add some warning here
+            logger.warning(f"Agent '{agent_name}' not found in dataset. No data points deleted.")
 
     def __len__(self) -> int:
         """Return the number of data points in the dataset."""
@@ -149,7 +152,9 @@ class EvaluationDataset:
             KeyError: If no data point with the given UUID exists.
         """
         if agent_name not in self._data_points:
-            raise KeyError(f"No data points found for agent: {agent_name}")
+            logger.warning(f"Agent '{agent_name}' not found in dataset.")
+            return []
+        
         return self._data_points[agent_name].copy()
 
     def _load_from_path(self, path: Path) -> None:
@@ -165,8 +170,8 @@ class EvaluationDataset:
             if file.suffix.lower() == ".json":
                 self._load_from_json(file)
             else:
+                logger.warning(f"Skipping unsupported file format: {file.name}")
                 continue
-                # TODO: add some warning here
 
     def _load_from_json(self, file_path: Path) -> None:
         """Load AgentDataPoint list from a JSON file (raw agent data)."""
@@ -175,13 +180,14 @@ class EvaluationDataset:
                 data = json.load(f)
 
             for item in data:
-                dp = AgentDataPoint.model_validate(item)
-                self._data_points[dp.agent_name].append(dp)
+                try:
+                    dp = AgentDataPoint.model_validate(item)
+                    self._data_points[dp.agent_name].append(dp)
+                except Exception as e:
+                    logger.warning(f"Skipping malformed data point in file {file_path.name}: {repr(e)}")
 
         except Exception as e:
-            # skip malformed files
-            # TODO: add proper logging/warning
-            pass
+            logger.warning(f"Skipping malformed file: {file_path.name}: {repr(e)}")
 
     def _load_from_dataset_json(self, file_path: Path) -> None:
         """Load a saved dataset file with metadata and data points."""
@@ -196,11 +202,14 @@ class EvaluationDataset:
                 if "name" in metadata:
                     self._name = metadata["name"]
 
-            # Parse and organize by agent name
             for item in data.get("data_points", []):
-                dp = AgentDataPoint.model_validate(item)
-                self._data_points[dp.agent_name].append(dp)
+                try:
+                    dp = AgentDataPoint.model_validate(item)
+                    self._data_points[dp.agent_name].append(dp)
+                except Exception as e:
+                    logger.warning(f"Skipping malformed data point in file {file_path.name}: {repr(e)}")
 
         except Exception as e:
-            # TODO: add proper logging/warning
-            pass
+            logger.exception(f"Skipping malformed dataset file: {file_path.name}: {repr(e)}")
+            raise e
+        
