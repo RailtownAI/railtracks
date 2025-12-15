@@ -8,14 +8,15 @@ from uuid import UUID, uuid4
 from ...utils.point import AgentDataPoint
 from ...utils.logging.create import get_rt_logger
 
-logger = get_rt_logger(__name__)
+logger = get_rt_logger("EvaluationDataset")
+
 
 class EvaluationDataset:
     """Local in-memory dataset implementation. Supports loading from and saving to JSON files.
 
     Args:
         path: Path to:  1) a JSON file containing a saved dataset with metadata and data points
-                        2) a JSON file containing raw agent data points, 
+                        2) a JSON file containing raw agent data points,
                         3) a directory containing raw agent data JSON files.
         name: Optional name for the dataset. If not provided, uses the filename.
     """
@@ -72,11 +73,13 @@ class EvaluationDataset:
         if agent_name not in self._data_points:
             logger.warning(f"Agent '{agent_name}' not found in dataset.")
             return []
-        
+
         agent_data = self._data_points[agent_name]
 
         if n >= len(agent_data):
-            logger.warning(f"Requested sample size {n} is greater than or equal to the number of available data points for agent '{agent_name}'. Returning all data points.")
+            logger.warning(
+                f"Requested sample size {n} is greater than or equal to the number of available data points for agent '{agent_name}'. Returning all data points."
+            )
             return agent_data.copy()
 
         return random.sample(agent_data, n)
@@ -119,7 +122,10 @@ class EvaluationDataset:
 
         dataset_dict = {
             "metadata": {"identifier": str(self._identifier), "name": self._name},
-            "data_points": [dp.model_dump(mode="json") for dp in self.data_points],
+            "data_points": {
+                agent_name: [dp.model_dump(mode="json") for dp in dps]
+                for agent_name, dps in self._data_points.items()
+            },
         }
 
         save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -136,7 +142,9 @@ class EvaluationDataset:
         try:
             del self._data_points[agent_name]
         except KeyError:
-            logger.warning(f"Agent '{agent_name}' not found in dataset. No data points deleted.")
+            logger.warning(
+                f"Agent '{agent_name}' not found in dataset. No data points deleted."
+            )
 
     def __len__(self) -> int:
         """Return the number of data points in the dataset."""
@@ -154,7 +162,7 @@ class EvaluationDataset:
         if agent_name not in self._data_points:
             logger.warning(f"Agent '{agent_name}' not found in dataset.")
             return []
-        
+
         return self._data_points[agent_name].copy()
 
     def _load_from_path(self, path: Path) -> None:
@@ -184,7 +192,9 @@ class EvaluationDataset:
                     dp = AgentDataPoint.model_validate(item)
                     self._data_points[dp.agent_name].append(dp)
                 except Exception as e:
-                    logger.warning(f"Skipping malformed data point in file {file_path.name}: {repr(e)}")
+                    logger.warning(
+                        f"Skipping malformed data point in file {file_path.name}: {repr(e)}"
+                    )
 
         except Exception as e:
             logger.warning(f"Skipping malformed file: {file_path.name}: {repr(e)}")
@@ -203,13 +213,23 @@ class EvaluationDataset:
                     self._name = metadata["name"]
 
             for item in data.get("data_points", []):
-                try:
-                    dp = AgentDataPoint.model_validate(item)
-                    self._data_points[dp.agent_name].append(dp)
-                except Exception as e:
-                    logger.warning(f"Skipping malformed data point in file {file_path.name}: {repr(e)}")
+                for point in data["data_points"][item]:
+                    try:
+                        dp = AgentDataPoint.model_validate(point)
+
+                        if item != dp.agent_name:
+                            raise ValueError(
+                                f"Agent name mismatch in data points: key '{item}' vs agent_name '{dp.agent_name}'"
+                            )
+
+                        self._data_points[dp.agent_name].append(dp)
+                    except Exception as e:
+                        logger.warning(
+                            f"Skipping malformed data point in file {file_path.name}: {repr(e)}"
+                        )
 
         except Exception as e:
-            logger.exception(f"Skipping malformed dataset file: {file_path.name}: {repr(e)}")
+            logger.exception(
+                f"Skipping malformed dataset file: {file_path.name}: {repr(e)}"
+            )
             raise e
-        
