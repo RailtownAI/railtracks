@@ -131,6 +131,11 @@ nav:
           - Vision: llm_support/multimodal/vision.md
 
       - Streaming: llm_support/streaming.md
+
+  - Evaluations:
+      - Preface: evaluations/preface.md
+      - Evaluators: evaluations/evaluators.md
+      - Metrics: evaluations/metrics.md
       
   # - Deployments:
   #     - Docker: deployments/docker.md

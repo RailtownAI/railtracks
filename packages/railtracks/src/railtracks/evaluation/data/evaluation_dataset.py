@@ -7,37 +7,58 @@ from uuid import UUID, uuid4
 
 from ...utils.point import AgentDataPoint
 
+
 class EvaluationDataset:
     """Local in-memory dataset implementation. Supports loading from and saving to JSON files.
 
     Args:
-        path: path to a JSON file to load data points from or to a folder of json files.
-        auto_save: If True, automatically save the dataset to the specified path upon exiting a context manager.
+        path: Path to:  1) a JSON file containing a saved dataset with metadata and data points
+                        2) a JSON file containing raw agent data points, 
+                        3) a directory containing raw agent data JSON files.
+        name: Optional name for the dataset. If not provided, uses the filename.
     """
 
-    def __init__(
-        self, path: str, auto_save: bool = False
-    ):
+    def __init__(self, path: str, name: str | None = None):
         self._path = Path(path)
-        self._auto_save = auto_save
+        self._name = name or self._path.stem
 
-        self._agent_data_points: list[AgentDataPoint] = []
         self._data_points: dict[str, list[AgentDataPoint]] = defaultdict(list)
-        
+        self._identifier: UUID = uuid4()
+        self._metadata: dict = {}
+
         if self._path.is_file() and self._path.suffix == ".json":
-            self._load_from_json(Path(self._path))
-        elif self._path.is_dir(): 
+            with open(self._path, encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict) and "metadata" in data and "data_points" in data:
+                self._load_from_dataset_json(self._path)
+            else:
+                self._load_from_json(self._path)
+        elif self._path.is_dir():
             self._load_from_path(self._path)
         else:
-            raise ValueError("Provided path needs to be a .json file or a directory containing JSON files.")
-        
-        self._initate_data_points()
-        
-        
+            raise ValueError(
+                "Provided path needs to be a .json file or a directory containing JSON files."
+            )
+
     @property
-    def data_points(self) -> dict[str, list[AgentDataPoint]]:
+    def identifier(self) -> UUID:
+        """Get the dataset UUID."""
+        return self._identifier
+
+    @property
+    def name(self) -> str:
+        """Get the dataset name."""
+        return self._name
+
+    @property
+    def data_points(self) -> list[AgentDataPoint]:
         """Retrieve all data points in the dataset."""
-        return self._data_points.copy()
+        return [dp for dps in self._data_points.values() for dp in dps]
+
+    @property
+    def agents(self) -> set[str]:
+        """Retrieve all agent names in the dataset."""
+        return set(self._data_points.keys())
 
     def sample(self, agent_name: str, n: int) -> list[AgentDataPoint]:
         """Randomly sample n data points for an agent from the dataset.
@@ -46,11 +67,15 @@ class EvaluationDataset:
             agent_name: The name of the agent whose data points are to be sampled.
             n: Number of data points to sample. If n is greater than the dataset size, returns all data points.
         """
-        
-        if n >= len(self._data_points[agent_name]):
-            return self._data_points[agent_name].copy()
+        if agent_name not in self._data_points:
+            pass  # TODO: add some warning here
 
-        return random.sample(self._data_points[agent_name], n)
+        agent_data = self._data_points[agent_name]
+
+        if n >= len(agent_data):
+            return agent_data.copy()
+
+        return random.sample(agent_data, n)
 
     def insert(self, data_points: AgentDataPoint | list[AgentDataPoint]) -> None:
         """Add a new data point to the dataset.
@@ -62,22 +87,45 @@ class EvaluationDataset:
             ValueError: If a data point with the same identifier already exists.
 
         """
-        pass
+        if isinstance(data_points, AgentDataPoint):
+            data_points = [data_points]
 
-    def save(self, path: str) -> None:
+        for dp in data_points:
+            self._data_points[dp.agent_name].append(dp)
+
+    def save(self, path: str | None = None, name: str | None = None) -> None:
         """Save dataset to a JSON file.
 
         Args:
-            path: Path to the JSON file. Must have a .json extension.
-            
+            path: Path to the JSON file or directory. Must have a .json extension if file.
+                  If None, uses the original path/directory from initialization.
+            name: Name for the saved file (without extension). Only used if path is a directory
+                  or None. If None, uses the dataset's name.
+
         Raises:
             ValueError: If the file extension is not .json.
         """
-        pass
+        save_name = name or self._name
+        save_path = Path(path) if path else self._path
+
+        if save_path.is_dir():
+            save_path = save_path / f"{save_name}.json"
+        elif save_path.suffix != ".json":
+            raise ValueError("File must have .json extension")
+
+        dataset_dict = {
+            "metadata": {"identifier": str(self._identifier), "name": self._name},
+            "data_points": [dp.model_dump(mode="json") for dp in self.data_points],
+        }
+
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(save_path, "w", encoding="utf-8") as f:
+            json.dump(dataset_dict, f, indent=2, ensure_ascii=False)
 
     def delete(self, agent_name: str) -> None:
         """Remove an agent's datapoints from the dataset
-        
+
         Args:
             agent_name: The name of the agent whose data points are to be removed.
         """
@@ -87,35 +135,22 @@ class EvaluationDataset:
             pass
             # TODO: add some warning here
 
-    def __enter__(self):
-        return self
-    
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        pass
-
-    def _initate_data_points(self) -> None:
-        """Initialize the internal data points dictionary.
-        Args:
-           data_points: List of DataPoint instances to initialize the dataset with.
-
-        """
-        for agent_dp in self._agent_data_points:
-            self._data_points[agent_dp.agent_name].append(agent_dp)
-
     def __len__(self) -> int:
         """Return the number of data points in the dataset."""
-        return len(self._agent_data_points)
+        return sum(len(dps) for dps in self._data_points.values())
 
     def __getitem__(self, agent_name: str) -> list[AgentDataPoint]:
         """Retrieves an agent's data points by agent name.
 
         Args:
-            data_point_id: The UUID of the data point to retrieve.
+            agent_name: The name of the agent whose data points are to be retrieved.
 
         Raises:
             KeyError: If no data point with the given UUID exists.
         """
-        return self.data_points[agent_name]
+        if agent_name not in self._data_points:
+            raise KeyError(f"No data points found for agent: {agent_name}")
+        return self._data_points[agent_name].copy()
 
     def _load_from_path(self, path: Path) -> None:
         """Load dataset from a JSON file.
@@ -134,11 +169,38 @@ class EvaluationDataset:
                 # TODO: add some warning here
 
     def _load_from_json(self, file_path: Path) -> None:
-        """Load dataset from a JSON file."""
+        """Load AgentDataPoint list from a JSON file (raw agent data)."""
         try:
             with open(file_path, encoding="utf-8") as f:
                 data = json.load(f)
-            self._agent_data_points.extend([AgentDataPoint.model_validate(dp) for dp in data])
-        except:
-            # TODO: add warning about skipping
+
+            for item in data:
+                dp = AgentDataPoint.model_validate(item)
+                self._data_points[dp.agent_name].append(dp)
+
+        except Exception as e:
+            # skip malformed files
+            # TODO: add proper logging/warning
+            pass
+
+    def _load_from_dataset_json(self, file_path: Path) -> None:
+        """Load a saved dataset file with metadata and data points."""
+        try:
+            with open(file_path, encoding="utf-8") as f:
+                data = json.load(f)
+
+            if "metadata" in data:
+                metadata = data["metadata"]
+                if "identifier" in metadata:
+                    self._identifier = UUID(metadata["identifier"])
+                if "name" in metadata:
+                    self._name = metadata["name"]
+
+            # Parse and organize by agent name
+            for item in data.get("data_points", []):
+                dp = AgentDataPoint.model_validate(item)
+                self._data_points[dp.agent_name].append(dp)
+
+        except Exception as e:
+            # TODO: add proper logging/warning
             pass
