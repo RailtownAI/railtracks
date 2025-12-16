@@ -1,40 +1,34 @@
-from typing import overload, Callable, Literal, TypeVar, ParamSpec
-
-from ...nodes.utils import Node
+from ..data.evaluation_dataset import EvaluationDataset
 from ..evaluators import Evaluator
+from ...utils.point import AgentDataPoint
 
-from ..data import Dataset, DataPoint
-from ... import AgentDataPoint
+from ...utils.logging.create import get_rt_logger
 
-from railtracks.built_nodes.concrete import RTFunction
-from railtracks.nodes.nodes import Node
-
-_P = ParamSpec("_P")
-_TOutput = TypeVar("_TOutput")
-
-@overload
-def evaluate(
-        evaluator: list[Evaluator],
-        data:  AgentDataPoint | list[AgentDataPoint] | Dataset,
-        agent: None = None,
-        mode : Literal["online", "offline"] = "offline",
-):
-    ...
-
-@overload
-def evaluate(
-        evaluator: list[Evaluator],
-        data:  DataPoint | list[DataPoint] | Dataset,
-        agent: Callable[_P, Node[_TOutput]] | RTFunction[_P, _TOutput],
-        mode : Literal["online", "offline"] = "online",
-):
-    ...
+logger = get_rt_logger("evaluate")
 
 def evaluate(
-        evaluator: list[Evaluator],
-        data:  DataPoint | list[DataPoint] | Dataset | AgentDataPoint | list[AgentDataPoint],
-        agent: Callable[_P, Node[_TOutput]] | RTFunction[_P, _TOutput] | None = None,
-        mode : Literal["online", "offline"] = "offline",
+    evaluators: list[Evaluator],
+    data: AgentDataPoint | list[AgentDataPoint] | EvaluationDataset,
 ):
-    pass
-    
+    # Step 1: Need to divide the data by agents
+    agents: set[str] = set()
+
+    if isinstance(data, EvaluationDataset):
+        pass
+    elif isinstance(data, list):
+        # for dp in data:
+        #     if is
+
+        if all(isinstance(dp, AgentDataPoint) for dp in data):
+            pass
+        else:
+            raise ValueError(
+                "All items in the data list must be AgentDataPoint instances."
+            )
+    elif isinstance(data, AgentDataPoint):
+        agents.add(data.agent_name)
+    else:
+        raise ValueError(
+            "Data must be an EvaluationDataset, a list of AgentDataPoint instances, or a single AgentDataPoint."
+        )
+    return

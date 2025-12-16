@@ -1,6 +1,6 @@
 import hashlib
 import json
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from uuid import UUID, uuid4
 
 class Metric(BaseModel):
@@ -29,27 +29,37 @@ class Metric(BaseModel):
 class Categorical(Metric):
     categories: list[str]
 
-class Numberical(Metric):
-    min_value: float
-    max_value: float
+class Numerical(Metric):
+    min_value: int | float | None = None
+    max_value: int | float | None = None
+    value: int | float
 
-if __name__ == "__main__":
-    # Example usage and testing of Metric classes
-    cat_metric1 = Categorical(name="Sentiment", categories=["Positive", "Negative", "Neutral"])
-    cat_metric2 = Categorical(name="Sentiment", categories=["Positive", "Negative", "Neutral"])
-    num_metric = Numberical(name="Accuracy", min_value=0.0, max_value=1.0)
+    @model_validator(mode='after')
+    def validate_value(self):
+        """Validate that value is within min and max bounds if they are set."""
+        if self.min_value is not None and self.value < self.min_value:
+            raise ValueError(f"Value {self.value} is less than minimum allowed {self.min_value}.")
+        if self.max_value is not None and self.value > self.max_value:
+            raise ValueError(f"Value {self.value} is greater than maximum allowed {self.max_value}.")
+        return self
+    
+# if __name__ == "__main__":
+#     # Example usage and testing of Metric classes
+#     cat_metric1 = Categorical(name="Sentiment", categories=["Positive", "Negative", "Neutral"])
+#     cat_metric2 = Categorical(name="Sentiment", categories=["Positive", "Negative", "Neutral"])
+#     num_metric = Numerical(name="Accuracy", min_value=0.0, max_value=1.0)
 
-    print("Categorical Metric 1 ID:", cat_metric1.identifier)
-    print("Categorical Metric 1 Config Hash:", cat_metric1.config_hash)
-    print("Categorical Metric 1 repr output:", repr(cat_metric1), end="\n\n")
+#     print("Categorical Metric 1 ID:", cat_metric1.identifier)
+#     print("Categorical Metric 1 Config Hash:", cat_metric1.config_hash)
+#     print("Categorical Metric 1 repr output:", repr(cat_metric1), end="\n\n")
     
-    print("Categorical Metric 2 ID:", cat_metric2.identifier)
-    print("Categorical Metric 2 Config Hash:", cat_metric2.config_hash)
-    print("Categorical Metric 2 repr output:", repr(cat_metric2), end="\n\n")
+#     print("Categorical Metric 2 ID:", cat_metric2.identifier)
+#     print("Categorical Metric 2 Config Hash:", cat_metric2.config_hash)
+#     print("Categorical Metric 2 repr output:", repr(cat_metric2), end="\n\n")
     
-    print("Numerical Metric ID:", num_metric.identifier)
-    print("Numerical Metric Config Hash:", num_metric.config_hash)
-    print("Numerical Metric repr output:", repr(num_metric), end="\n\n")
+#     print("Numerical Metric ID:", num_metric.identifier)
+#     print("Numerical Metric Config Hash:", num_metric.config_hash)
+#     print("Numerical Metric repr output:", repr(num_metric), end="\n\n")
     
-    assert cat_metric1.config_hash == cat_metric2.config_hash, "Config hashes should match for identical metrics"
-    assert cat_metric1.identifier != cat_metric2.identifier, "IDs should be unique per instance"
+#     assert cat_metric1.config_hash == cat_metric2.config_hash, "Config hashes should match for identical metrics"
+#     assert cat_metric1.identifier != cat_metric2.identifier, "IDs should be unique per instance"

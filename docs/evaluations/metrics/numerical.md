@@ -1,0 +1,2 @@
+Numerical metrics are key in reporting evaluations that relate to system level results or any other mathematically quantifiable outcomes. In **Railtracks** we mainly use these metrics in the following evaluators:
+- [`ToolUseEvaluator`](): To report invocation count and failure rate for the tools of an agent.

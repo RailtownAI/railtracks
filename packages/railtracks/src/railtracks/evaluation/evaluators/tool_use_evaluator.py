@@ -3,19 +3,31 @@ import railtracks as rt
 from .evaluator import Evaluator
 from ..data import Dataset
 from ...utils.point import AgentDataPoint
-from .metrics import Metric
+from .metrics import Numerical
 
-class ToolMetric(Metric):
-    """A Metric to evaluate tool use in agent outputs."""
-    name: str = "ToolUseMetric"
-    tool_name: str
-    frequency: int
-    failure_rate: float
+# class ToolMetric(Metric):
+#     """A Metric to evaluate tool use in agent outputs."""
+#     name: str = "ToolUseMetric"
+#     tool_name: str
+#     frequency: int
+#     failure_rate: float
+
+
+class ToolFrequency(Numerical):
+    min_value: int | float | None = 0
+
+
+class ToolFailureRate(Numerical):
+    min_value: float | int | None = 0.0
+    max_value: float | int | None = 1.0
+
 
 class ToolUseEvaluator(Evaluator):
-    def __init__(self, 
+    def __init__(
+        self,
     ):
         super().__init__()
+        self.metrics: list[Numerical] = []
 
     def run(self, data: AgentDataPoint | list[AgentDataPoint] | Dataset):
         if isinstance(data, AgentDataPoint):
@@ -24,7 +36,6 @@ class ToolUseEvaluator(Evaluator):
             return
 
         self._retrieve_tool_stats(data)
-
 
     def _retrieve_tool_stats(self, data: list[AgentDataPoint]):
         """Retrieve tool usage statistics from the agent data points.
@@ -47,8 +58,21 @@ class ToolUseEvaluator(Evaluator):
                     if "Exception message" in tool["result"]:
                         stats[tool_name]["failure_count"] += 1
 
-        self.metric = [ToolMetric(
-            tool_name=tool_name,
-            frequency=tool_data["usage_count"],
-            failure_rate=tool_data["failure_count"] / tool_data["usage_count"] if tool_data["usage_count"] > 0 else 0.0,
-        ) for tool_name, tool_data in stats.items()]         
+        for tool_name, tool_data in stats.items():
+            failure_rate = (
+                tool_data["failure_count"] / tool_data["usage_count"]
+                if tool_data["usage_count"] > 0
+                else 0.0
+            )
+            self.metrics.append(
+                ToolFailureRate(
+                    name=f"{tool_name}_failure_rate",
+                    value=failure_rate,
+                )
+            )
+            self.metrics.append(
+                ToolFrequency(
+                    name=f"{tool_name}_usage_frequency",
+                    value=tool_data["usage_count"],
+                )
+            )
