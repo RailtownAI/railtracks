@@ -133,13 +133,17 @@ nav:
       - Streaming: llm_support/streaming.md
 
   - Evaluations:
+      - Preface: evaluations/preface.md
       - Data:
         - Agent Datapoints: evaluations/data/agent_data.md
         - Evaluation Datasets: evaluations/data/evaluation_dataset.md
-
-      - Preface: evaluations/preface.md
-      - Evaluators: evaluations/evaluators.md
-      - Metrics: evaluations/metrics.md
+      - Metrics: 
+        - Metrics Overview: evaluations/metrics/metrics.md
+        - Categorical Metrics: evaluations/metrics/categorical.md
+        - Numerical Metrics: evaluations/metrics/numerical.md
+      - Evaluators: 
+        - Evaluator Abstraction: evaluations/evaluators/evaluators.md
+        
       
   # - Deployments:
   #     - Docker: deployments/docker.md

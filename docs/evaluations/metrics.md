@@ -1,1 +1,0 @@
-Metrics are the results you would like to get out of performing evaluations on your agents. They are a parameter that can be provided to some evaluators (ie Judge) while some other evaluators only have a set of acceptable metrics. In the following sections we'll go over how to use both within their respective contexts.

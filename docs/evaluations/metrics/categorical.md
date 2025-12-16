@@ -1,0 +1,3 @@
+Categorical metrics are the recommended metrics to use with Evaluators that are themselves an LLM (or another agent). Research has shown that LLMs inherently struggle with context regarding providing a numerical score for tasks therefore categories (ie "labels") are a more reliable metric. 
+
+Additionally, many evaluation task results are also categories, such as tool invocation success or failure, ranking of results, and etc. Below are a few **`CategoricalMetrics`** that we used in **Railtracks**.

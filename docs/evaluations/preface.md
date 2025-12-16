@@ -11,12 +11,13 @@ While this results in a nice seperation between potential cases, there are some 
 ## Evaluation Flow
 
 ```mermaid
-graph LR
-    User([User]) --> BuildAgent[Agent Build]
-
-    BuildAgent --> Evaluator[Evaluator]
+graph TD
+    Developer([Developer]) --> BuildAgent[Agent Build]
+    
+    BuildAgent --> Dataset[Dataset]
     
     subgraph Evaluation ["Evaluation Pipeline"]
+        Dataset --> Evaluator[Evaluator]
         Evaluator --> Metric[Metric]
         Metric --> Result[Result]
     end
@@ -24,6 +25,7 @@ graph LR
     Result -->|Iterate & Improve| BuildAgent
 
     Result --> Deploy[Deployment]
+    Deploy --> |User Feedback| BuildAgent
     
     %% === COLOR THEMING ===
     %% Define color classes based on consistent theme
@@ -37,7 +39,10 @@ graph LR
     %% Apply color classes
     class User userClass;
     class BuildAgent buildClass;
-    class Eval,Evaluator,Metric pipelineClass;
+    class Dataset,Evaluator,Metric pipelineClass;
     class Result resultClass;
     class Deploy deployClass;
+
+    %% Subgraph style
+    style Evaluation fill:transparent,stroke:#FFFFF,stroke-width:1px
 ```

@@ -29,7 +29,7 @@ class Metric(BaseModel):
 class Categorical(Metric):
     categories: list[str]
 
-class Continuous(Metric):
+class Numberical(Metric):
     min_value: float
     max_value: float
 
@@ -37,7 +37,7 @@ if __name__ == "__main__":
     # Example usage and testing of Metric classes
     cat_metric1 = Categorical(name="Sentiment", categories=["Positive", "Negative", "Neutral"])
     cat_metric2 = Categorical(name="Sentiment", categories=["Positive", "Negative", "Neutral"])
-    cont_metric = Continuous(name="Accuracy", min_value=0.0, max_value=1.0)
+    num_metric = Numberical(name="Accuracy", min_value=0.0, max_value=1.0)
 
     print("Categorical Metric 1 ID:", cat_metric1.identifier)
     print("Categorical Metric 1 Config Hash:", cat_metric1.config_hash)
@@ -47,9 +47,9 @@ if __name__ == "__main__":
     print("Categorical Metric 2 Config Hash:", cat_metric2.config_hash)
     print("Categorical Metric 2 repr output:", repr(cat_metric2), end="\n\n")
     
-    print("Continuous Metric ID:", cont_metric.identifier)
-    print("Continuous Metric Config Hash:", cont_metric.config_hash)
-    print("Continuous Metric repr output:", repr(cont_metric), end="\n\n")
+    print("Numerical Metric ID:", num_metric.identifier)
+    print("Numerical Metric Config Hash:", num_metric.config_hash)
+    print("Numerical Metric repr output:", repr(num_metric), end="\n\n")
     
     assert cat_metric1.config_hash == cat_metric2.config_hash, "Config hashes should match for identical metrics"
     assert cat_metric1.identifier != cat_metric2.identifier, "IDs should be unique per instance"
