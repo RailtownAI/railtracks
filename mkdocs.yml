@@ -134,8 +134,8 @@ nav:
 
   - Evaluations:
       - Data:
-        - Agent Datapoints: evaluations/agent_data.md
-        - Evaluation Datasets: evaluations/evaluation_dataset.md
+        - Agent Datapoints: evaluations/data/agent_data.md
+        - Evaluation Datasets: evaluations/data/evaluation_dataset.md
 
       - Preface: evaluations/preface.md
       - Evaluators: evaluations/evaluators.md
