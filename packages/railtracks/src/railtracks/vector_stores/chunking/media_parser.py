@@ -1,8 +1,9 @@
 import os
 from typing import Optional
 
-import pdfplumber
 from charset_normalizer import from_path
+
+_pdfplumber = None
 
 
 class MediaParser:
@@ -59,7 +60,20 @@ class MediaParser:
         if not os.path.isfile(filepath):
             raise FileNotFoundError(f"File not found: {filepath}")
 
-        with pdfplumber.open(filepath) as doc:
+        global _pdfplumber
+
+        if _pdfplumber is None:
+            try:
+                import pdfplumber
+
+                _pdfplumber = pdfplumber
+            except ImportError:
+                raise RuntimeError(
+                    "pdfplumber is required for PDF parsing but isn't installed. "
+                    "Install it via `pip install pdfplumber`."
+                )
+
+        with _pdfplumber.open(filepath) as doc:
             extracted = []
             for page in doc.pages:
                 text = page.extract_text()
