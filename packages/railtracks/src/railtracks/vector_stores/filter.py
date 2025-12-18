@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Iterable, Tuple, Union
-from abc import ABC, abstractmethod
 
 
 class Op(str, Enum):
     """Enumeration of comparison operators for filter predicates."""
+
     EQ = "EQ"
     NE = "NE"
     GT = "GT"
@@ -20,22 +21,24 @@ class Op(str, Enum):
 
 class LogicOp(str, Enum):
     """Enumeration of logical operators for combining filter expressions."""
+
     AND = "AND"
     OR = "OR"
 
 
 ValidValue = Union[str, int, float, bool, list]
 
+
 @dataclass(frozen=True)
 class Predicate:
     """Atomic condition on a single field with a comparison operator and value.
-    
+
     Attributes:
         field: The name of the field to compare
         op: The comparison operator to apply
         value: The value to compare against
     """
-    
+
     field: str
     op: Op
     value: ValidValue
@@ -43,7 +46,7 @@ class Predicate:
 
 class BaseExpr(ABC):
     """Abstract base class for all filter expressions."""
-    
+
     def __and__(self, other: BaseExpr) -> BaseExpr:
         """Combine two expressions with logical AND."""
         return and_(self, other)
@@ -51,15 +54,16 @@ class BaseExpr(ABC):
     def __or__(self, other: BaseExpr) -> BaseExpr:
         """Combine two expressions with logical OR."""
         return or_(self, other)
-    
+
     def __bool__(self) -> bool:
         """Prevent misuse of expressions in boolean contexts."""
         raise TypeError("Filter expressions cannot be used in boolean contexts")
-    
+
     @abstractmethod
     def to_ast_dict(self) -> dict:
         """Convert expression to abstract syntax tree dictionary format."""
         pass
+
 
 @dataclass(frozen=True)
 class LeafExpr(BaseExpr):
@@ -69,7 +73,7 @@ class LeafExpr(BaseExpr):
 
     def to_ast_dict(self) -> dict:
         """Convert leaf expression to AST dictionary.
-        
+
         Returns:
             Dictionary with keys: op="LEAF", field, cmp (operator name), value
         """
@@ -84,25 +88,28 @@ class LeafExpr(BaseExpr):
 @dataclass(frozen=True)
 class LogicExpr(BaseExpr):
     """Internal node in a filter expression tree combining multiple sub-expressions.
-    
+
     Attributes:
         op: The logical operator (AND or OR) combining the children
         children: Tuple of child expressions to combine
     """
+
     op: LogicOp
     children: Tuple[BaseExpr, ...]
 
     def __post_init__(self) -> None:
         """Validate that logic expression has at least 2 children.
-        
+
         Raises:
             ValueError: If fewer than 2 children or unknown operator
         """
-        if self.op in [op for op in LogicOp]:
+        if self.op in LogicOp:
             if len(self.children) < 2:
                 raise ValueError(f"{self.op.name} LogicExpr must have >= 2 children")
             if not all(isinstance(c, BaseExpr) for c in self.children):
-                raise TypeError("All children of LogicExpr must be LogicExpr or LeafExpr instances")
+                raise TypeError(
+                    "All children of LogicExpr must be LogicExpr or LeafExpr instances"
+                )
         else:
             raise TypeError(f"Unknown LogicOp: {self.op}")
 
@@ -110,24 +117,25 @@ class LogicExpr(BaseExpr):
         """Convert logic expression to AST dictionary."""
         return {
             "op": self.op.name,
-            "children": [c.to_ast_dict() for c in self.children]
+            "children": [c.to_ast_dict() for c in self.children],
         }
 
 
 # ---- Normalizing constructors -----------
 
+
 def and_(*exprs: BaseExpr) -> LogicExpr:
     """Combine multiple filter expressions with logical AND.
-    
+
     Automatically flattens nested AND expressions to avoid unnecessary nesting.
     For example: and_(and_(a, b), c) becomes and_(a, b, c).
-    
+
     Args:
         *exprs: One or more filter expressions to combine
-        
+
     Returns:
         A LogicExpr representing the AND combination
-        
+
     Raises:
         ValueError: If no expressions provided or only one expression after flattening
     """
@@ -143,22 +151,22 @@ def and_(*exprs: BaseExpr) -> LogicExpr:
 
     if len(flat) == 1:
         raise ValueError("and_() requires at least two Expressions to form a LogicExpr")
-    
+
     return LogicExpr(op=LogicOp.AND, children=tuple(flat))
 
 
 def or_(*exprs: BaseExpr) -> LogicExpr:
     """Combine multiple filter expressions with logical OR.
-    
+
     Automatically flattens nested OR expressions to avoid unnecessary nesting.
     For example: or_(or_(a, b), c) becomes or_(a, b, c).
-    
+
     Args:
         *exprs: One or more filter expressions to combine
-        
+
     Returns:
         A LogicExpr representing the OR combination
-        
+
     Raises:
         ValueError: If no expressions provided or only one expression after flattening
     """
@@ -174,62 +182,62 @@ def or_(*exprs: BaseExpr) -> LogicExpr:
 
     if len(flat) == 1:
         raise ValueError("or_() requires at least two Expressions to form a LogicExpr")
-    
+
     return LogicExpr(op=LogicOp.OR, children=tuple(flat))
 
 
 def all_of(filters: Iterable[BaseExpr]) -> BaseExpr:
     """Combine an iterable of filter expressions with logical AND.
-    
+
     Args:
         filters: An iterable of filter expressions to combine
-        
+
     Returns:
         A single filter expression (LeafExpr if one filter, LogicExpr if multiple)
-        
+
     Raises:
         ValueError: If the iterable is empty
     """
     lst = list(filters)
     if not lst:
         raise ValueError("all_of() requires at least one Expression")
-    
+
     if len(lst) == 1:
         return lst[0]
-    
+
     return and_(*lst)
 
 
 def any_of(filters: Iterable[BaseExpr]) -> BaseExpr:
     """Combine an iterable of filter expressions with logical OR.
-    
+
     Args:
         filters: An iterable of filter expressions to combine
-        
+
     Returns:
         A single filter expression (LeafExpr if one filter, LogicExpr if multiple)
-        
+
     Raises:
         ValueError: If the iterable is empty
     """
     lst = list(filters)
     if not lst:
         raise ValueError("any_of() requires at least one Expression")
-    
+
     if len(lst) == 1:
         return lst[0]
-    
-    return or_(*lst)
 
+    return or_(*lst)
 
 
 class FieldRef:
     """Reference to a field in a filter expression.
-    
+
     Provides methods for creating predicates on a specific field using various
     comparison operators. Can be obtained via F[field_name] syntax.
-    
+
     """
+
     __slots__ = ("_name",)
 
     def __init__(self, name: str) -> None:
@@ -237,7 +245,7 @@ class FieldRef:
 
     def _normalize_value(self, value: Any) -> ValidValue:
         """Normalize value for comparison.
-        
+
         Currently a no-op, but can be extended for type conversions if needed.
         """
         if isinstance(value, Enum):
@@ -246,41 +254,43 @@ class FieldRef:
             return value
         if isinstance(value, list):
             return [self._normalize_value(x) for x in value]
-        
+
         raise TypeError(f"Unsupported filter value type: {type(value)}")
 
     def _leaf(self, op: Op, value: Any) -> LeafExpr:
         """Create a leaf expression with the given operator and value."""
-        return LeafExpr(Predicate(field=self._name, op=op, value=self._normalize_value(value)))
+        return LeafExpr(
+            Predicate(field=self._name, op=op, value=self._normalize_value(value))
+        )
 
     # explicit methods
     def eq(self, value: Any) -> LeafExpr:
         """Create an equality filter."""
         return self._leaf(Op.EQ, value)
-    
+
     def ne(self, value: Any) -> LeafExpr:
         """Create an inequality filter."""
         return self._leaf(Op.NE, value)
-    
+
     def gt(self, value: Any) -> LeafExpr:
         """Create a greater-than filter."""
         return self._leaf(Op.GT, value)
-    
+
     def gte(self, value: Any) -> LeafExpr:
         """Create a greater-than-or-equal filter."""
         return self._leaf(Op.GTE, value)
-    
+
     def lt(self, value: Any) -> LeafExpr:
         """Create a less-than filter."""
         return self._leaf(Op.LT, value)
-    
+
     def lte(self, value: Any) -> LeafExpr:
         """Create a less-than-or-equal filter."""
         return self._leaf(Op.LTE, value)
 
-    def in_(self, values: Iterable[Any]) -> LeafExpr:
+    def is_in(self, values: Iterable[Any]) -> LeafExpr:
         """Create a membership filter.
-            
+
         Raises:
             ValueError: If the values collection is empty
         """
@@ -291,7 +301,7 @@ class FieldRef:
 
     def not_in(self, values: Iterable[Any]) -> LeafExpr:
         """Create a non-membership filter.
-            
+
         Raises:
             ValueError: If the values collection is empty
         """
@@ -340,11 +350,11 @@ class FieldRef:
 
 class _FilterBuilder:
     """Builder class that provides convenient F[field_name] syntax for creating FieldRef objects.
-    
+
     This class enables the intuitive F["field_name"] syntax for constructing
     filter expressions, which is then used with comparison operators.
     """
-    
+
     def __getitem__(self, name: str) -> FieldRef:
         """Get a FieldRef for the specified field name."""
         return FieldRef(name)
@@ -352,6 +362,3 @@ class _FilterBuilder:
 
 # Global filter builder instance for convenient filter construction
 F = _FilterBuilder()
-
-
-"a & b == fdsaf""

@@ -1,24 +1,27 @@
 # Filter Expressions
 
-This library provides a small, composable filtering language for expressing structured metadata constraints.
-
-The filtering system is designed to be:
-
-- Explicit and type-safe
-- Backend-agnostic
-- Easy to compose and reason about
-- Resistant to accidental misuse in boolean contexts
-
----
+This library provides a small, composable filtering language for expressing structured metadata constraints
+while searching or fetching vectors from your  vector store.
 
 ## Basic Concepts
 
-A **filter expression** represents a condition on one or more fields. There are two kinds of expressions:
+A **filter expression** represents a condition on one or more fields of your metadata. There are two kinds of expressions:
 
-- **Leaf expressions**: comparisons on a single field
-- **Logical expressions**: combinations of expressions using AND / OR
+- **Leaf expressions**: comparisons on a single field of your metadata
+    
+    For example you can specify you only want results such as:
 
-All filter expressions are immutable.
+    - `F["age"] >= 19`
+    - `F["hair"] = "Brown"`
+    
+    Where `"age"` or `"hair"` are fields you've specified in your metadata. 
+
+
+- **Logical expressions**: combinations of expressions using And/Or
+    - `(F["age"] >= 19) & (F["hair"] == "Brown")`
+
+    Where you are now filtering for both of these conditions to be true.
+    
 
 ---
 
@@ -30,9 +33,9 @@ Filters are built starting from a field reference, obtained via the global `F` o
 from railtracks.vector_stores.filter import F
 
 F["age"]
-F["metadata.color"]
+F["color"]
 
-A field reference by itself does nothing until combined with a comparison operator.
+# A field reference by itself does nothing until combined with a comparison operator.
 
 #Comparison Operators
 F["age"] == 18
@@ -45,88 +48,41 @@ F["rank"] < 10
 F["rank"] <= 3
 
 #Membership
-F["category"].in_(["a", "b", "c"])
+F["category"].is_in(["a", "b", "c"])
 F["category"].not_in(["x", "y"])
 ```
 
 ## Supported Value Types
 Filter values must be one of:
 
-- str
-- int
-- float
-- bool
-- Enum (normalized to its .value)
-- list of supported values
+- **str**
+- **int**
+- **float**
+- **bool**
+- **list of supported values**
 
-Examples:
 
-```python
-from enum import Enum
-
-class Color(Enum):
-    RED = "red"
-    BLUE = "blue"
-
-F["color"] == Color.RED
-F["color"].in_([Color.RED, Color.BLUE])
-```
-
-Iterable inputs to in_() / not_in() are normalized internally to lists.
+Iterable inputs to is_in() / not_in() are normalized internally to lists.
 
 Unsupported types (e.g. dicts, objects) will raise TypeError.
 
 ## Logical Composition
-### AND
+### And, Or, all_of, any_of
 ```python
-(F["age"] >= 18) & (F["country"] == "CA")
-```
 
-### OR
-```python
-(F["status"] == "active") | (F["priority"] > 5)
-```
+# Using and to create filter
+filter1 = (F["age"] >= 18) & (F["country"] == "CA")
 
-## Multiple Expressions
-
-Logical expressions automatically flatten:
-
-```python
-a = F["a"] == 1
-b = F["b"] == 2
-c = F["c"] == 3
-
-(a & b) & c        # equivalent to AND(a, b, c)
-(a | b) | c        # equivalent to OR(a, b, c)
-```
-
-
-## Iterable Helpers
-### all_of
-
-Combine an iterable of expressions with AND:
-
-```python
-from railtracks.vector_stores.filter import all_of
-
+# Equivalently you can write
 all_of([a, b, c])
-```
 
-- Empty iterable → error
-- Single element → returned as-is
-- Multiple elements → AND expression
+#Using or to create filter
+filter2 = (F["status"] == "active") | (F["priority"] > 5)
 
-### any_of
-
-Combine an iterable of expressions with OR:
-
-```python
-from railtracks.vector_stores.filter import any_of
-
+# Equivalently you can write
 any_of([a, b, c])
 ```
 
-Behavior mirrors all_of, using OR instead of AND.
 
 ## Operator Precedence
 
@@ -142,34 +98,19 @@ a | b & c    # parsed as: a | (b & c)
 ```
 
 ## Invalid Usage
-Boolean Contexts Are Forbidden
 
-Filter expressions cannot be used as booleans:
+Filter expressions cannot be used as booleans and logical expressions must only contain filter expressions:
 
 ```python
-if F["age"] > 18:   # ❌ raises TypeError
+a = (F["age"] > 18)
+if a:   # raises TypeError
     ...
+
+a & False   # raises TypeError
 ```
 
 This prevents accidental evaluation and logic bugs.
 
-## Invalid Logical Children
-
-Logical expressions must only contain filter expressions. Mixing in non-expressions is not allowed:
-
-```python
-a = F["age"] > 18
-a & False   # ❌ invalid
-```
-
 ## Immutability
 
 All filter expressions are immutable. Combining expressions always produces new objects and never mutates existing ones.
-
-## Summary
-
-- Use F["field"] to reference fields
-- Use comparison operators or explicit methods to build leaf filters
-- Combine filters with &, |, and_, or_, all_of, and any_of
-- Values are validated and normalized at construction time
-- Expressions are safe, composable, and backend-independent

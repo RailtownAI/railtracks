@@ -80,7 +80,7 @@ def test_normalize_unsupported_type_raises():
 
 def test_in_requires_nonempty():
     with pytest.raises(ValueError):
-        _ = F["x"].in_([])
+        _ = F["x"].is_in([])
 
 
 def test_not_in_requires_nonempty():
@@ -89,7 +89,7 @@ def test_not_in_requires_nonempty():
 
 
 def test_in_normalizes_to_list_in_predicate():
-    expr = F["x"].in_([1, 2, 3])
+    expr = F["x"].is_in([1, 2, 3])
     assert expr.pred.op == Op.IN
     # normalize turns tuples into lists
     assert expr.pred.value == [1, 2, 3]
@@ -120,24 +120,24 @@ def test_eq_normalizes_supported_value_types(value, expected):
 
 
 def test_in_accepts_tuple_and_normalizes_to_list():
-    expr = F["x"].in_((1, 2, 3))
+    expr = F["x"].is_in((1, 2, 3))
     assert expr.pred.op == Op.IN
     assert expr.pred.value == [1, 2, 3]
 
 
 def test_in_accepts_generator_and_normalizes_to_list():
-    expr = F["x"].in_(v for v in [1, 2])
+    expr = F["x"].is_in(v for v in [1, 2])
     assert expr.pred.op == Op.IN
     assert expr.pred.value == [1, 2]
 
 
 def test_in_list_of_enums_normalizes_elements():
-    expr = F["color"].in_((Color.RED, Color.BLUE))
+    expr = F["color"].is_in((Color.RED, Color.BLUE))
     assert expr.pred.op == Op.IN
     assert expr.pred.value == ["red", "blue"]
 
 def test_in_to_ast_dict_has_correct_cmp_and_value():
-    expr = F["x"].in_([1, 2])
+    expr = F["x"].is_in([1, 2])
     ast = expr.to_ast_dict()
     assert ast == {"op": "LEAF", "field": "x", "cmp": "IN", "value": [1, 2]}
 
@@ -162,6 +162,34 @@ def test_or_operator_builds_logicexpr():
     expr = a | b
     assert isinstance(expr, LogicExpr)
     assert expr.op == LogicOp.OR
+    assert expr.children == (a, b)
+
+def test_parentheses_affect_precedence():
+    a = F["a"] == 1
+    b = F["b"] == 2
+    c = F["c"] == 3
+
+    expr = (a | b) & c  # should parse as: (a | b) & c
+
+    assert isinstance(expr, LogicExpr)
+    assert expr.op == LogicOp.AND
+
+    lhs = expr.children[0]
+    assert isinstance(lhs, LogicExpr)
+    assert lhs.op == LogicOp.OR
+    assert lhs.children == (a, b)
+
+    assert expr.children[1] is c
+
+def test_parentheses_leave_expr_unchanged():
+    a = (F["a"] == 1)
+    b = F["b"] == 2
+    assert isinstance(a, LeafExpr)
+
+    expr = (a & b)
+
+    assert isinstance(expr, LogicExpr)
+    assert expr.op == LogicOp.AND
     assert expr.children == (a, b)
 
 
