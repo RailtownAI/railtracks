@@ -30,26 +30,7 @@ A **filter expression** represents a condition on one or more fields of your met
 Filters are built starting from a field reference, obtained via the global `F` object:
 
 ```python
-from railtracks.vector_stores.filter import F
-
-F["age"]
-F["color"]
-
-# A field reference by itself does nothing until combined with a comparison operator.
-
-#Comparison Operators
-F["age"] == 18
-F["status"] != "inactive"
-
-#Ordering Comparisons
-F["score"] > 0.8
-F["score"] >= 0.5
-F["rank"] < 10
-F["rank"] <= 3
-
-#Membership
-F["category"].is_in(["a", "b", "c"])
-F["category"].not_in(["x", "y"])
+--8<-- "docs/scripts/filtering.py:general_usage"
 ```
 
 ## Supported Value Types
@@ -69,18 +50,7 @@ Unsupported types (e.g. dicts, objects) will raise TypeError.
 ## Logical Composition
 ### And, Or, all_of, any_of
 ```python
-
-# Using and to create filter
-filter1 = (F["age"] >= 18) & (F["country"] == "CA")
-
-# Equivalently you can write
-all_of([a, b, c])
-
-#Using or to create filter
-filter2 = (F["status"] == "active") | (F["priority"] > 5)
-
-# Equivalently you can write
-any_of([a, b, c])
+--8<-- "docs/scripts/filtering.py:and_or_usage"
 ```
 
 
