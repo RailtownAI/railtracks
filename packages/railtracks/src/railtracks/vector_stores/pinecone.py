@@ -1,10 +1,10 @@
 import os
 from typing import Optional, Literal, overload, Union, TypeVar, TYPE_CHECKING, Any
-from enum import Enum
 from copy import deepcopy
 from uuid import uuid4
 
 from .chunking.base_chunker import Chunk
+from .filter import Op
 from .vector_store_base import (
     FetchResponse,
     FetchResult,
@@ -25,6 +25,22 @@ DEFAULT = "__default__"
 T = TypeVar("T")
 
 OneOrMany = Union[T, list[T]]
+
+OP_PINECONE_MAP = {
+    Op.EQ : "$eq",
+    Op.NE : "$ne",
+    Op.GT : "$gt",
+    Op.GTE : "$gte",
+    Op.LT : "$lt",
+    Op.LTE : "$lte",
+    Op.IN : "$in",
+    Op.NIN : "$nin",
+}
+
+LOGICOP_PINECONE_MAP = {
+    LogicOp.AND = "$AND",
+    LogicOp.OR = "$OR"
+}
 
 class PineconeVectorStore(VectorStore):
     """Pinecone implementation of VectorStore."""
@@ -246,7 +262,6 @@ class PineconeVectorStore(VectorStore):
         *,
         ids: OneOrMany[str],
         where: Optional[dict[str, str]] = None,
-        where_document: Optional[dict[str, str]] = None,
         include: Optional[list[str | Fields]] = None,
     ) -> FetchResponse: ...
 
@@ -256,7 +271,6 @@ class PineconeVectorStore(VectorStore):
         *,
         where: Optional[dict[str, str]] = None,
         limit: Optional[int] = None,
-        where_document: Optional[dict[str, str]] = None,
         include: Optional[list[str | Fields]] = None,
     ) -> FetchResponse: ...
 
@@ -266,7 +280,6 @@ class PineconeVectorStore(VectorStore):
         ids: Optional[OneOrMany[str]] = None,
         where: Optional[dict[str, str]] = None,
         limit: Optional[int] = None,
-        where_document: Optional[dict[str, str]] = None,
         include: Optional[list[str | Fields]] = None,
     ) -> FetchResponse:
         """Fetch a set of vectors and their metadata from the collection. This can
@@ -287,7 +300,7 @@ class PineconeVectorStore(VectorStore):
             ValueError: If the response does not contain required fields.
         """
         results = FetchResponse()
-        filter = self._make_filter(where=where, where_document=where_document)
+        filter = self._make_filter(where=where)
         if include is None:
             include = [Fields.VECTOR, Fields.DOCUMENT, Fields.METADATA]
 
@@ -455,24 +468,6 @@ class PineconeVectorStore(VectorStore):
 
         return self._collection.describe_index_stats()["total_vector_count"]
         
-
-    #TODO need to make sure that the filtering is the way it works in pinecone. AKA add mapping. Also polish the if statements
-    def _make_filter(self, where : Optional[dict[str, str]], where_document : Optional[dict[str, str]]) -> dict[str, str] | None:
-        if not where and not where_document:
-            return None
-        elif where and not where_document:
-            return dict(where)
-        elif not where and where_document:
-            return dict(where_document)
-        elif where and where_document:
-            filter = dict(where)
-            for key in where_document:
-                filter[key] = where_document[key]
-            
-            return filter
-        else:
-            raise ValueError("where and where_document must be None or a dict[str, str]")
-        
     def _extract_search_result_fields(self, include : list[str | Fields], result : dict[str, Any]) -> dict[str, Any]:
         """Extract fields from pinecone search result into railtracks format
             This function assumes that all result metadata fields are to be extracted because of Pinecone's structure
@@ -621,9 +616,30 @@ class PineconeVectorStore(VectorStore):
             metadata=result[Fields.METADATA],
         )
     
-    def _filter_by_metadata(self, responses, where : Optional[dict[str,str]], where_document : Optional[dict[str, str]]):
-        #Todo implement filtering here if needed
-        ...
+    def _to_pinecone_filter(self, where : BaseExpr) -> dict[str, Any]:
+        filter = {}
+        if isinstance(where, LeafExpr):
+            filter[where.pred.field] = { OP_PINECONE_MAP[where.pred.op]: where.pred.value}
+
+        elif isinstance(where, LogicExpr): 
+            for expression in where.children:
+                filter = {LOGICOP_PINECONE_MAP[where.op] : self._to_pinecone_filter_list}
+        else:
+            raise TypeError("""where provided is not a Filter Expression.
+                            Either provide where with Filter Expression using Railtracks
+                            or provide pinecone_filter using pinecone filtering""")
+        
+        return filter
+    
+    def _to_pinecone_filter_list(self,  filter_list : list[BaseExpr]) -> list[BaseExpr]:
+        filter_list = []
+        for expression in filter_list:
+            filter_list.append(self._to_pinecone_filter(expression))
+        
+        return filter_list
+    
+    def _filter_by_metadata(self, responses where : BaseExpr, )
+
 
     def _format_include_fields(self, include: Optional[list[ Fields | str]]) -> list[str]:
         formatted_include = [MetadataKeys.CONTENT.value]
