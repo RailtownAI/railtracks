@@ -143,6 +143,7 @@ nav:
         - Numerical Metrics: evaluations/metrics/numerical.md
       - Evaluators: 
         - Evaluator Abstraction: evaluations/evaluators/evaluators.md
+        - ToolUseEvaluator: evaluations/evaluators/tool_use_evaluator.md
         
       
   # - Deployments:

@@ -1,6 +1,6 @@
-Testing has been an essential part of the software engineering lifecycle. While "Agents" are still software products, due to being stochastic in nature, they require to also be evaluated from certain other paradigms. Evaluation of AI Agents is an active area of research with currently no widespread agreed upon standards. In **Railtracks** we follow the philosophy of continuing to allow flexibility for users to define what "Evaluation of Agents" means to them.
+Testing has been an essential part of software engineering lifecycle. While "Agents" are still software products, due to being stochastic in nature, they require evaluation from certain other paradigms which is an active area of research with currently no widespread agreed upon standards. In **Railtracks** we follow the philosophy of continuing to allow flexibility for users to define what "Evaluation of Agents" means to them.
 
-We have set the structural outline below of two potential avenues for evaluations:
+We have set the structural outline below of two potential avenues:
 
 1. Evaluations that require an agent to be invoked
 

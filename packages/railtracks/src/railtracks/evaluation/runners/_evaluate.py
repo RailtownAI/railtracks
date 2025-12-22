@@ -6,6 +6,7 @@ from ...utils.logging.create import get_rt_logger
 
 logger = get_rt_logger("evaluate")
 
+
 def evaluate(
     evaluators: list[Evaluator],
     data: AgentDataPoint | list[AgentDataPoint] | EvaluationDataset,
@@ -16,19 +17,15 @@ def evaluate(
     if isinstance(data, EvaluationDataset):
         pass
     elif isinstance(data, list):
-        # for dp in data:
-        #     if is
-
-        if all(isinstance(dp, AgentDataPoint) for dp in data):
-            pass
-        else:
-            raise ValueError(
-                "All items in the data list must be AgentDataPoint instances."
-            )
+        for dp in data:
+            if not isinstance(dp, AgentDataPoint):
+                raise ValueError(
+                    "All items in the data list must be AgentDataPoint instances."
+                )
+            agents.add(dp.agent_name)
     elif isinstance(data, AgentDataPoint):
         agents.add(data.agent_name)
     else:
         raise ValueError(
             "Data must be an EvaluationDataset, a list of AgentDataPoint instances, or a single AgentDataPoint."
         )
-    return

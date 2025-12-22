@@ -5,14 +5,6 @@ from ..data import Dataset
 from ...utils.point import AgentDataPoint
 from .metrics import Numerical
 
-# class ToolMetric(Metric):
-#     """A Metric to evaluate tool use in agent outputs."""
-#     name: str = "ToolUseMetric"
-#     tool_name: str
-#     frequency: int
-#     failure_rate: float
-
-
 class ToolFrequency(Numerical):
     min_value: int | float | None = 0
 

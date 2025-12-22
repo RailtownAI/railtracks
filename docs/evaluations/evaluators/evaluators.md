@@ -2,7 +2,7 @@ Evaluators are one of the three core compontents in **Railtracks**'s evaluation 
 
 Currently we have the following abstractions for Evaluators:
 
+- [ToolUseEvaluator](./tool_use_evaluator.md)
 - **LLM As a Judge**: 
 - **Consistency Evaluator**:
 - **Model Evaluator**:
-- **Tool Evaluator**:
