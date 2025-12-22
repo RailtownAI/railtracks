@@ -69,13 +69,13 @@ def test_fieldref_to_fieldref_comparison_raises():
 
 
 def test_normalize_enum_value():
-    expr = F["color"].eq(Color.RED)
+    expr = F["color"]._eq(Color.RED)
     assert expr.pred.value == "red"
 
 
 def test_normalize_unsupported_type_raises():
     with pytest.raises(TypeError):
-        _ = F["x"].eq({"nope": "dict"})
+        _ = F["x"]._eq({"nope": "dict"})
 
 
 def test_in_requires_nonempty():
@@ -113,7 +113,7 @@ def test_not_in_normalizes_to_list_in_predicate():
     ],
 )
 def test_eq_normalizes_supported_value_types(value, expected):
-    expr = F["x"].eq(value)
+    expr = F["x"]._eq(value)
     assert isinstance(expr, LeafExpr)
     assert expr.pred.op == Op.EQ
     assert expr.pred.value == expected

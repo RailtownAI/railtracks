@@ -17,7 +17,7 @@ A **filter expression** represents a condition on one or more fields of your met
     Where `"age"` or `"hair"` are fields you've specified in your metadata. 
 
 
-- **Logical expressions**: combinations of expressions using And/Or
+- **Logical expressions**: combinations of expressions using And/Or (see below for operator precedence)
     - `(F["age"] >= 19) & (F["hair"] == "Brown")`
 
     Where you are now filtering for both of these conditions to be true.

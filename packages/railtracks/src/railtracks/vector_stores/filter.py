@@ -26,6 +26,19 @@ class LogicOp(str, Enum):
     OR = "OR"
 
 
+OP_SYMBOL = {
+    Op.EQ: "==",
+    Op.NE: "!=",
+    Op.GT: ">",
+    Op.GTE: ">=",
+    Op.LT: "<",
+    Op.LTE: "<=",
+    Op.IN: "in",
+    Op.NIN: "not in",
+}
+
+LOGIC_SYMBOL = {LogicOp.AND: "&", LogicOp.OR: "|"}
+
 ValidValue = Union[str, int, float, bool, list]
 
 
@@ -42,6 +55,13 @@ class Predicate:
     field: str
     op: Op
     value: ValidValue
+
+    def __str__(self) -> str:
+        if isinstance(self.value, str):
+            value = '"' + self.value + '"'
+        else:
+            value = self.value
+        return "(" + f'"{self.field}" {OP_SYMBOL[self.op]} {value}' + ")"
 
 
 class BaseExpr(ABC):
@@ -84,6 +104,9 @@ class LeafExpr(BaseExpr):
             "value": self.pred.value,
         }
 
+    def __str__(self) -> str:
+        return str(self.pred)
+
 
 @dataclass(frozen=True)
 class LogicExpr(BaseExpr):
@@ -119,6 +142,12 @@ class LogicExpr(BaseExpr):
             "op": self.op.name,
             "children": [c.to_ast_dict() for c in self.children],
         }
+
+    def __str__(self) -> str:
+        expression = "(" + str(self.children[0])
+        for i in range(1, len(self.children)):
+            expression += f" {LOGIC_SYMBOL[self.op]} " + f"{self.children[i]}"
+        return expression + ")"
 
 
 # ---- Normalizing constructors -----------
@@ -264,27 +293,27 @@ class FieldRef:
         )
 
     # explicit methods
-    def eq(self, value: Any) -> LeafExpr:
+    def _eq(self, value: Any) -> LeafExpr:
         """Create an equality filter."""
         return self._leaf(Op.EQ, value)
 
-    def ne(self, value: Any) -> LeafExpr:
+    def _ne(self, value: Any) -> LeafExpr:
         """Create an inequality filter."""
         return self._leaf(Op.NE, value)
 
-    def gt(self, value: Any) -> LeafExpr:
+    def _gt(self, value: Any) -> LeafExpr:
         """Create a greater-than filter."""
         return self._leaf(Op.GT, value)
 
-    def gte(self, value: Any) -> LeafExpr:
+    def _gte(self, value: Any) -> LeafExpr:
         """Create a greater-than-or-equal filter."""
         return self._leaf(Op.GTE, value)
 
-    def lt(self, value: Any) -> LeafExpr:
+    def _lt(self, value: Any) -> LeafExpr:
         """Create a less-than filter."""
         return self._leaf(Op.LT, value)
 
-    def lte(self, value: Any) -> LeafExpr:
+    def _lte(self, value: Any) -> LeafExpr:
         """Create a less-than-or-equal filter."""
         return self._leaf(Op.LTE, value)
 
@@ -315,37 +344,37 @@ class FieldRef:
         """Support == operator for equality filters."""
         if isinstance(other, FieldRef):
             raise TypeError("Cannot compare two FieldRef objects for equality")
-        return self.eq(other)
+        return self._eq(other)
 
     def __ne__(self, other: Any) -> LeafExpr:
         """Support != operator for inequality filters."""
         if isinstance(other, FieldRef):
             raise TypeError("Cannot compare two FieldRef objects for inequality")
-        return self.ne(other)
+        return self._ne(other)
 
     def __gt__(self, other: Any) -> LeafExpr:
         """Support > operator for greater-than filters."""
         if isinstance(other, FieldRef):
             raise TypeError("Cannot compare two FieldRef objects")
-        return self.gt(other)
+        return self._gt(other)
 
     def __ge__(self, other: Any) -> LeafExpr:
         """Support >= operator for greater-than-or-equal filters."""
         if isinstance(other, FieldRef):
             raise TypeError("Cannot compare two FieldRef objects")
-        return self.gte(other)
+        return self._gte(other)
 
     def __lt__(self, other: Any) -> LeafExpr:
         """Support < operator for less-than filters."""
         if isinstance(other, FieldRef):
             raise TypeError("Cannot compare two FieldRef objects")
-        return self.lt(other)
+        return self._lt(other)
 
     def __le__(self, other: Any) -> LeafExpr:
         """Support <= operator for less-than-or-equal filters."""
         if isinstance(other, FieldRef):
             raise TypeError("Cannot compare two FieldRef objects")
-        return self.lte(other)
+        return self._lte(other)
 
 
 class _FilterBuilder:
@@ -362,3 +391,10 @@ class _FilterBuilder:
 
 # Global filter builder instance for convenient filter construction
 F = _FilterBuilder()
+
+
+if __name__ == "__main__":
+    a = F["field"] == "Value"
+    b = F["age"] > 19
+
+    print(a & b)
