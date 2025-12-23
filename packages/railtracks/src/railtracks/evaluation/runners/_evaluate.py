@@ -60,16 +60,22 @@ if __name__ == "__main__":
     dataset = evals.data.EvaluationDataset(
         path="/Users/amirr/dev/railtracks/.railtracks/data/agent_data",
     )
-    # evaluator = evals.evaluators.ToolUseEvaluator()
-    metric = evals.metrics.Categorical(
+    tool_evaluator = evals.evaluators.ToolUseEvaluator()
+    helpfullness = evals.metrics.Categorical(
         name="Helpfullness",
         categories=["helpful", "unhelpful"],
     )
-    evaluator = evals.evaluators.JudgeEvaluator(
+    politeness = evals.metrics.Categorical(
+        name="Politeness",
+        categories=["polite", "impolite"],
+    )
+
+    judge_evaluator = evals.evaluators.JudgeEvaluator(
         llm=rt.llm.OpenAILLM(model_name="gpt-5"),
         reasoning=True,
-        metrics=[metric],
+        metrics=[helpfullness, politeness],
     )
-    evaluate(dataset, [evaluator])
+
+    evaluate(dataset, [tool_evaluator, judge_evaluator])
 
     
