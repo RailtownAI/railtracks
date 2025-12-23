@@ -14,9 +14,7 @@ class MetricResult(BaseModel):
 class EvaluatorResult(BaseModel):
     name: str
     evaluator_id: UUID
-    config_hash: str
-    results: list[MetricResult]
-    agent_run_ids: list[AgentRun]
+    results: dict[str, list[Metric]]
     
 class EvaluationResult(BaseModel):    
     evaluation_id: UUID

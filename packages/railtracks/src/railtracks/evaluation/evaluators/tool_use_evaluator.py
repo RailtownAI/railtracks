@@ -1,9 +1,14 @@
 import railtracks as rt
-
+from collections import defaultdict
 from .evaluator import Evaluator
-from ..data import Dataset
+from ..data import EvaluationDataset
 from ...utils.point import AgentDataPoint
-from .metrics import Numerical
+from .metrics import Numerical, Metric
+from ..result import EvaluatorResult
+
+from ...utils.logging.create import get_rt_logger
+
+logger = get_rt_logger("ToolUseEvaluator")
 
 class ToolFrequency(Numerical):
     min_value: int | float | None = 0
@@ -19,15 +24,25 @@ class ToolUseEvaluator(Evaluator):
         self,
     ):
         super().__init__()
-        self.metrics: list[Numerical] = []
+        self.metrics: dict[str, list[Metric]] = defaultdict(list)
+        self.result: EvaluatorResult
 
-    def run(self, data: AgentDataPoint | list[AgentDataPoint] | Dataset):
+    def run(
+        self, data: AgentDataPoint | list[AgentDataPoint] | EvaluationDataset
+    ) -> EvaluatorResult:
         if isinstance(data, AgentDataPoint):
             data = [data]
-        elif isinstance(data, Dataset):
-            return
+        elif isinstance(data, EvaluationDataset):
+            data = data.data_points_list
 
         self._retrieve_tool_stats(data)
+        self.result = EvaluatorResult(
+            name=self.__class__.__name__,
+            evaluator_id=self.id,
+            results=self.metrics,
+        )
+
+        return self.result
 
     def _retrieve_tool_stats(self, data: list[AgentDataPoint]):
         """Retrieve tool usage statistics from the agent data points.
@@ -35,36 +50,43 @@ class ToolUseEvaluator(Evaluator):
         Args:
             data: A list of AgentDataPoint instances.
         """
-        stats = {}
+        stats: dict[str, dict[str, dict[str, int]]] = {}
         for datapoint in data:
             if datapoint.agent_internals is not None:
                 for tool in datapoint.agent_internals.get("tool_invocations", []):
                     tool_name = tool.get("name")
-                    if tool_name not in stats:
-                        stats[tool_name] = {
+                    if datapoint.agent_name not in stats:
+                        stats[datapoint.agent_name] = {}
+                    if tool_name not in stats[datapoint.agent_name]:
+                        stats[datapoint.agent_name][tool_name] = {
                             "usage_count": 0,
                             "failure_count": 0,
                         }
-                    stats[tool_name]["usage_count"] += 1
-
+                    stats[datapoint.agent_name][tool_name]["usage_count"] += 1
                     if "Exception message" in tool["result"]:
-                        stats[tool_name]["failure_count"] += 1
+                        stats[datapoint.agent_name][tool_name]["failure_count"] += 1
+            else:
+                logger.warning(
+                    f"AgentDataPoint for agent {datapoint.agent_name} is missing internals; skipping tool usage stats."
+                )
+                continue
 
-        for tool_name, tool_data in stats.items():
-            failure_rate = (
-                tool_data["failure_count"] / tool_data["usage_count"]
-                if tool_data["usage_count"] > 0
-                else 0.0
-            )
-            self.metrics.append(
-                ToolFailureRate(
-                    name=f"{tool_name}_failure_rate",
-                    value=failure_rate,
+        for agent_name, tools_data in stats.items():
+            for tool_name, tool_data in tools_data.items():
+                failure_rate = (
+                    tool_data["failure_count"] / tool_data["usage_count"]
+                    if tool_data["usage_count"] > 0
+                    else 0.0
                 )
-            )
-            self.metrics.append(
-                ToolFrequency(
-                    name=f"{tool_name}_usage_frequency",
-                    value=tool_data["usage_count"],
+                self.metrics[agent_name].append(
+                    ToolFailureRate(
+                        name=f"({tool_name})_failure_rate",
+                        value=failure_rate,
+                    )
                 )
-            )
+                self.metrics[agent_name].append(
+                    ToolFrequency(
+                        name=f"({tool_name})_usage_frequency",
+                        value=tool_data["usage_count"],
+                    )
+                )

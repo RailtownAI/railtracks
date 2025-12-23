@@ -54,8 +54,13 @@ class EvaluationDataset:
         return self._name
 
     @property
-    def data_points(self) -> list[AgentDataPoint]:
-        """Retrieve all data points in the dataset."""
+    def data_points_dict(self) -> dict[str, list[AgentDataPoint]]:
+        """Retrieve all data points in the dataset as a dictionary keyed by agent name."""
+        return self._data_points.copy()
+
+    @property
+    def data_points_list(self) -> list[AgentDataPoint]:
+        """Retrieve all data points in the dataset as a flat list."""
         return [dp for dps in self._data_points.values() for dp in dps]
 
     @property

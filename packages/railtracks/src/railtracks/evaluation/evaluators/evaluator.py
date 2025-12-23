@@ -3,7 +3,9 @@ from uuid import uuid4, UUID
 from abc import ABC, abstractmethod
 
 from ... import AgentDataPoint
-from ..data import Dataset, DataPoint
+from ..data import EvaluationDataset
+from ..result import EvaluatorResult
+
 
 class Evaluator(ABC):
     def __init__(self):
@@ -23,7 +25,9 @@ class Evaluator(ABC):
         return self._config_hash
 
     @abstractmethod
-    def run(self, data: AgentDataPoint | list[AgentDataPoint] | Dataset):
+    def run(
+        self, data: AgentDataPoint | list[AgentDataPoint] | EvaluationDataset
+    ) -> EvaluatorResult:
         pass
 
     def _generate_unique_hash(self) -> str:
