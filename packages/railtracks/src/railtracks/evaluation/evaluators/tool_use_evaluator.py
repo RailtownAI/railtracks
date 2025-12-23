@@ -24,11 +24,11 @@ class ToolUseEvaluator(Evaluator):
         self,
     ):
         super().__init__()
-        self.metrics: dict[str, list[Metric]] = defaultdict(list)
-        self.result: EvaluatorResult
+        self._metrics: dict[str, list[Metric]] = defaultdict(list)
+        self._result: EvaluatorResult
 
     def run(
-        self, data: AgentDataPoint | list[AgentDataPoint] | EvaluationDataset
+        self, data: list[AgentDataPoint]
     ) -> EvaluatorResult:
         if isinstance(data, AgentDataPoint):
             data = [data]
@@ -36,13 +36,13 @@ class ToolUseEvaluator(Evaluator):
             data = data.data_points_list
 
         self._retrieve_tool_stats(data)
-        self.result = EvaluatorResult(
+        self._result = EvaluatorResult(
             name=self.__class__.__name__,
-            evaluator_id=self.id,
-            results=self.metrics,
+            evaluator_id=self._id,
+            results=self._metrics,
         )
 
-        return self.result
+        return self._result
 
     def _retrieve_tool_stats(self, data: list[AgentDataPoint]):
         """Retrieve tool usage statistics from the agent data points.
@@ -78,13 +78,13 @@ class ToolUseEvaluator(Evaluator):
                     if tool_data["usage_count"] > 0
                     else 0.0
                 )
-                self.metrics[agent_name].append(
+                self._metrics[agent_name].append(
                     ToolFailureRate(
                         name=f"({tool_name})_failure_rate",
                         value=failure_rate,
                     )
                 )
-                self.metrics[agent_name].append(
+                self._metrics[agent_name].append(
                     ToolFrequency(
                         name=f"({tool_name})_usage_frequency",
                         value=tool_data["usage_count"],

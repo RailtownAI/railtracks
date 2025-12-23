@@ -26,7 +26,7 @@ class Evaluator(ABC):
 
     @abstractmethod
     def run(
-        self, data: AgentDataPoint | list[AgentDataPoint] | EvaluationDataset
+        self, data: list[AgentDataPoint]
     ) -> EvaluatorResult:
         pass
 

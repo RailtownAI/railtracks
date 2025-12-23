@@ -12,6 +12,10 @@ def evaluate(
     data: AgentDataPoint | list[AgentDataPoint] | EvaluationDataset,
     evaluators: list[Evaluator],
 ):
+    # Contracts
+    # turns data into dict[str, list[AgentDataPoint]]
+    # invokes each evaluator's run method with data for each agent
+    # number of evaluator results will be n_evaluators x n_agents
 
     evaluator_results = {}
     data_dict: dict[str, list[AgentDataPoint]] = defaultdict(list)
@@ -34,22 +38,38 @@ def evaluate(
             "Data must be an EvaluationDataset, a list of AgentDataPoint instances, or a single AgentDataPoint."
         )
 
-    for evaluator in evaluators:
-        logger.info(
-            f"Running evaluator: {evaluator.__class__.__name__}({str(evaluator.id)[:4]}...)"
-        )
-        result = evaluator.run(data)
-        evaluator_results[evaluator.id] = result
+    for agent in data_dict:
+        logger.info(f"Evaluating agent: {agent} with {len(data_dict[agent])} data points.")
+        
+        for evaluator in evaluators:
+            logger.info(
+                f"Running evaluator: {evaluator.__class__.__name__}({str(evaluator.id)[:4]}...)"
+            )
+            result = evaluator.run(data_dict[agent])
+            evaluator_results[(agent, evaluator.id)] = result
+            logger.info(
+                f"Completed evaluator: {evaluator.__class__.__name__}({str(evaluator.id)[:4]}...)"
+            )
+    return evaluator_results
 
 
 if __name__ == "__main__":
+    import railtracks as rt
     from railtracks import evaluation as evals
 
     dataset = evals.data.EvaluationDataset(
         path="/Users/amirr/dev/railtracks/.railtracks/data/agent_data",
     )
-    evaluator = evals.evaluators.ToolUseEvaluator()
-
+    # evaluator = evals.evaluators.ToolUseEvaluator()
+    metric = evals.metrics.Categorical(
+        name="Helpfullness",
+        categories=["helpful", "unhelpful"],
+    )
+    evaluator = evals.evaluators.JudgeEvaluator(
+        llm=rt.llm.OpenAILLM(model_name="gpt-5"),
+        reasoning=True,
+        metrics=[metric],
+    )
     evaluate(dataset, [evaluator])
 
     

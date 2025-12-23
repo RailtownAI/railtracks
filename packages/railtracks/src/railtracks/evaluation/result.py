@@ -12,9 +12,10 @@ class MetricResult(BaseModel):
     value: str | float | int
 
 class EvaluatorResult(BaseModel):
-    name: str
+    evaluator_name: str
+    agent_name: str
     evaluator_id: UUID
-    results: dict[str, list[Metric]]
+    results: list[Metric]
     
 class EvaluationResult(BaseModel):    
     evaluation_id: UUID

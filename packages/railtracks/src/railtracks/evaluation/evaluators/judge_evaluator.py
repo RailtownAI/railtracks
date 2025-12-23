@@ -1,13 +1,18 @@
 import railtracks as rt
 import asyncio
 import yaml
+from collections import defaultdict
 from pathlib import Path
 from pydantic import BaseModel, Field
 from .evaluator import Evaluator
-from ..data import DataPoint, Dataset
 from .metrics import Metric
-from ..result import EvaluatorResult 
+from ..result import EvaluatorResult
+from ...utils.point import AgentDataPoint
+
+from ...utils.logging.create import get_rt_logger
 from uuid import UUID, uuid4
+
+logger = get_rt_logger("JudgeEvaluator")
 
 class MetricResult(BaseModel):
     name: str # Would this need id?
@@ -21,8 +26,8 @@ class JudgeEvaluator(Evaluator):
     def __init__(
         self,
         llm: rt.llm.ModelBase,
+        metrics: list[Metric],
         system_prompt: str | None = None,
-        metrics: list[Metric] | None = None,
         reasoning: bool = True,
     ):
         """
@@ -35,12 +40,12 @@ class JudgeEvaluator(Evaluator):
             reasoning: A flag indicating whether the judge should provide reasoning for its evaluations.
         """
         
-        self._evaluator_id: UUID = uuid4()
         self._session_id: str
         self._llm = llm
         self._reasoning: bool = reasoning
-        self._metrics: list[Metric] | None = metrics.copy() if metrics is not None else None
-        
+        self._metrics: list[Metric] = metrics.copy()
+        self._metrics_result: dict[str, list[Metric]] = defaultdict(list)
+
         self._template = self._load_yaml()
         
         self._metric_prompt: str = self._metrics_str()
@@ -57,34 +62,25 @@ class JudgeEvaluator(Evaluator):
         
         self._result: EvaluatorResult
 
+    def run(self, data: list[AgentDataPoint]) -> EvaluatorResult:
 
-
-    def run(self, data: DataPoint | list[DataPoint] | Dataset):
-        prompt_data = []
-        if isinstance(data, DataPoint):
-            prompt_data.append(self._prompt_template(data))
-        elif isinstance(data, list):
-            prompt_data.extend([self._prompt_template(dp) for dp in data])
-        elif isinstance(data, Dataset):
-            raise NotImplementedError("Dataset evaluation not implemented yet.")
+        prompt_data = [self._prompt_template(dp) for dp in data]
 
         result = asyncio.run(self._session(prompt_data))
 
         metric_values = []
-        agent_run_ids = []
 
         for run_id, res in result:
             metric_values.append(res)
-            agent_run_ids.append(run_id)
             
         self._result = EvaluatorResult(
-            name=self.name,
-            evaluator_id=self._evaluator_id,
-            config_hash=self.config_hash,
+            evaluator_name= self.name,
+            agent_name=data[0].agent_name,
+            evaluator_id=self._id,
             results=metric_values,
-            agent_run_ids=agent_run_ids,
         )
-
+        return self._result
+    
     def __repr__(self) -> str:
         return (
             f"JudgeEvaluator(system_prompt={self._system_prompt}, "
@@ -103,11 +99,11 @@ class JudgeEvaluator(Evaluator):
         
         return output
 
-    def _prompt_template(self, data: DataPoint) -> str:
+    def _prompt_template(self, data: AgentDataPoint) -> str:
         return self._template["user"].format(
             agent_input=data.agent_input,
             agent_output=data.agent_output,
-            expected_output=data.expected_output if data.expected_output else "N/A",
+            agent_internals=data.agent_internals or {},
         )
         
 
