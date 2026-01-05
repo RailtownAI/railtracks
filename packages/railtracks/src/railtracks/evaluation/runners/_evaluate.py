@@ -51,31 +51,4 @@ def evaluate(
                 f"Completed evaluator: {evaluator.__class__.__name__}({str(evaluator.id)[:4]}...)"
             )
     return evaluator_results
-
-
-if __name__ == "__main__":
-    import railtracks as rt
-    from railtracks import evaluation as evals
-
-    dataset = evals.data.EvaluationDataset(
-        path="/Users/amirr/dev/railtracks/.railtracks/data/agent_data",
-    )
-    tool_evaluator = evals.evaluators.ToolUseEvaluator()
-    helpfullness = evals.metrics.Categorical(
-        name="Helpfullness",
-        categories=["helpful", "unhelpful"],
-    )
-    politeness = evals.metrics.Categorical(
-        name="Politeness",
-        categories=["polite", "impolite"],
-    )
-
-    judge_evaluator = evals.evaluators.JudgeEvaluator(
-        llm=rt.llm.OpenAILLM(model_name="gpt-5"),
-        reasoning=True,
-        metrics=[helpfullness, politeness],
-    )
-
-    evaluate(dataset, [tool_evaluator, judge_evaluator])
-
     

@@ -2,10 +2,12 @@ import hashlib
 import json
 from pydantic import BaseModel, Field, field_validator, model_validator
 from uuid import UUID, uuid4
+from collections import defaultdict
 
 class Metric(BaseModel):
     name: str
-    identifier: UUID = Field(default_factory=uuid4)
+    # identifier: UUID = Field(default_factory=uuid4)
+    identifier: str = Field(default_factory=lambda: str(uuid4()))
     config_hash: str = ""
 
     @model_validator(mode='after')
@@ -25,9 +27,51 @@ class Metric(BaseModel):
         fields = {k: v for k, v in self.model_dump().items() if k != 'id'}
         fields_str = ', '.join(f"{k}={repr(v)}" for k, v in fields.items())
         return f"{self.__class__.__name__}({fields_str})"
+    
+    def __str__(self) -> str:
+        """Clean string representation excluding identifier and config_hash."""
+        fields = {k: v for k, v in self.model_dump().items() if k not in ('identifier', 'config_hash')}
+        fields_str = ', '.join(f"{k}={repr(v)}" for k, v in fields.items())
+        return f"{self.__class__.__name__}({fields_str})"
 
 class Categorical(Metric):
     categories: list[str]
+
+# class CategoricalAggregate(Metric):
+#     metrics: list[tuple[Categorical, str]] # The str corresponds to the label chosen
+#     most_common: dict[str, str] = Field(default_factory=dict)
+#     least_common: dict[str, str] = Field(default_factory=dict)
+#     counts: dict[str, dict[str, int]] = Field(default_factory=dict)
+
+#     def model_post_init(self, __context) -> None:
+#         """Aggregate categories from the provided metrics."""
+        
+#         for metric, metric_label in self.metrics:
+#             if metric.name not in self.counts:
+#                 self.counts[metric.name] = defaultdict(int)
+#             self.counts[metric.name][metric_label] += 1
+
+#         for metric_name, label_counts in self.counts.items():
+#             sorted_labels = sorted(label_counts.items(), key=lambda item: item[1], reverse=True)
+#             self.most_common[metric_name] = sorted_labels[0][0]
+#             self.least_common[metric_name] = sorted_labels[-1][0]
+
+class CategoricalAggregate(Metric):
+    metric: Categorical 
+    labels: list[str]
+    #     most_common: dict[str, str] = Field(default_factory=dict)
+    #     least_common: dict[str, str] = Field(default_factory=dict)
+    #     counts: dict[str, dict[str, int]] = Field(default_factory=dict)
+    def model_post_init(self, __context) -> None:
+        """Aggregate categories from the provided metrics."""
+        self.categories: set[str] = set(self.metric.categories)
+
+        for label in self.labels:
+            if label not in self.categories:
+                raise Exception("Unknown label")
+
+
+
 
 class Numerical(Metric):
     min_value: int | float | None = None
@@ -43,23 +87,17 @@ class Numerical(Metric):
             raise ValueError(f"Value {self.value} is greater than maximum allowed {self.max_value}.")
         return self
     
-# if __name__ == "__main__":
-#     # Example usage and testing of Metric classes
-#     cat_metric1 = Categorical(name="Sentiment", categories=["Positive", "Negative", "Neutral"])
-#     cat_metric2 = Categorical(name="Sentiment", categories=["Positive", "Negative", "Neutral"])
-#     num_metric = Numerical(name="Accuracy", min_value=0.0, max_value=1.0)
+if __name__ == "__main__":
+    # Example usage and testing of Metric classes
+    cat_metric1 = Categorical(name="Sentiment", categories=["Positive", "Negative", "Neutral"])
+    cat_metric2 = Categorical(name="Helpfulness", categories=["Helpful", "Unhelpful"])
 
-#     print("Categorical Metric 1 ID:", cat_metric1.identifier)
-#     print("Categorical Metric 1 Config Hash:", cat_metric1.config_hash)
-#     print("Categorical Metric 1 repr output:", repr(cat_metric1), end="\n\n")
-    
-#     print("Categorical Metric 2 ID:", cat_metric2.identifier)
-#     print("Categorical Metric 2 Config Hash:", cat_metric2.config_hash)
-#     print("Categorical Metric 2 repr output:", repr(cat_metric2), end="\n\n")
-    
-#     print("Numerical Metric ID:", num_metric.identifier)
-#     print("Numerical Metric Config Hash:", num_metric.config_hash)
-#     print("Numerical Metric repr output:", repr(num_metric), end="\n\n")
-    
-#     assert cat_metric1.config_hash == cat_metric2.config_hash, "Config hashes should match for identical metrics"
-#     assert cat_metric1.identifier != cat_metric2.identifier, "IDs should be unique per instance"
+    aggregate = CategoricalAggregate(name="AggregateSentiment", metrics=[(cat_metric1, "Positive"), 
+                                                                         (cat_metric1, "Helpful"),
+                                                                         (cat_metric1, "Negative"),
+                                                                         (cat_metric1, "Positive"),
+                                                                         (cat_metric2, "Helpful"),
+                                                                            (cat_metric2, "Unhelpful"),
+                                                                            (cat_metric2, "Helpful")
+                                                                        ])
+    print(aggregate.counts )

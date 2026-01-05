@@ -3,20 +3,15 @@ import asyncio
 import yaml
 from collections import defaultdict
 from pathlib import Path
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from .evaluator import Evaluator
 from .metrics import Metric
-from ..result import EvaluatorResult
+from ..result import MetricResult, EvaluatorResult
 from ...utils.point import AgentDataPoint
 
 from ...utils.logging.create import get_rt_logger
-from uuid import UUID, uuid4
 
 logger = get_rt_logger("JudgeEvaluator")
-
-class MetricResult(BaseModel):
-    name: str # Would this need id?
-    value: str | int | float
 
 class JudgeResponseSchema(BaseModel):
     metric_results: list[MetricResult] | None
@@ -39,17 +34,17 @@ class JudgeEvaluator(Evaluator):
             metric: An optional Metric to guide the evaluation.
             reasoning: A flag indicating whether the judge should provide reasoning for its evaluations.
         """
-        
+
         self._session_id: str
         self._llm = llm
         self._reasoning: bool = reasoning
+
         self._metrics: list[Metric] = metrics.copy()
         self._metrics_result: dict[str, list[Metric]] = defaultdict(list)
-
-        self._template = self._load_yaml()
-        
         self._metric_prompt: str = self._metrics_str()
-        
+        self._metrics_dict = {metric.name: metric for metric in self._metrics}
+        self._template = self._load_yaml()
+
         self._system_prompt = self._generate_system_prompt(system_prompt)
 
         self._judge = rt.agent_node(
@@ -59,28 +54,40 @@ class JudgeEvaluator(Evaluator):
             tool_nodes=[],
         )
         super().__init__()
-        
+
         self._result: EvaluatorResult
 
     def run(self, data: list[AgentDataPoint]) -> EvaluatorResult:
 
+        self.agent_name = data[0].agent_name
+
         prompt_data = [self._prompt_template(dp) for dp in data]
 
-        result = asyncio.run(self._session(prompt_data))
+        result: list[tuple[str, JudgeResponseSchema]] = asyncio.run(
+            self._session(prompt_data)
+        )
 
-        metric_values = []
+        metric_values: list[MetricResult] = []
 
         for run_id, res in result:
-            metric_values.append(res)
-            
+            if res.metric_results is not None:
+                metric_values.extend(res.metric_results)
+            else:
+                logger.warning(
+                    f"No metric results returned for Judge Evaluator run_id: {run_id}"
+                )
+
+        # self._aggregate_metrics(metric_values)
+        
         self._result = EvaluatorResult(
-            evaluator_name= self.name,
-            agent_name=data[0].agent_name,
+            evaluator_name=self.name,
+            agent_name=self.agent_name,
             evaluator_id=self._id,
             results=metric_values,
+            metrics=self._metrics,
         )
         return self._result
-    
+
     def __repr__(self) -> str:
         return (
             f"JudgeEvaluator(system_prompt={self._system_prompt}, "
@@ -89,15 +96,27 @@ class JudgeEvaluator(Evaluator):
             f"reasoning={self._reasoning})"
         )
 
-    async def _session(self, prompt: str | list[str]) -> list[tuple[str, JudgeResponseSchema]]:
-        
-        with rt.Session() as session:
+    async def _session(
+        self, prompt: str | list[str]
+    ) -> list[tuple[str, JudgeResponseSchema]]:
+
+        # put this as none for now to not pollute agent_data
+        with rt.Session(save_data="none") as session:
             self._session_id = session._identifier
             tasks = [rt.call(self._judge, p) for p in prompt]
             response = await asyncio.gather(*tasks)
             output = [("run_id", res.structured) for res in response]
-        
+
         return output
+
+    # def _aggregate_metrics(self, metric_results: list[MetricResult]):
+
+    #     self._aggregate_inputs = []
+
+    #     for metric_result in metric_results:
+    #         if metric_result.name in self._metrics_dict:
+    #             self._aggregate_inputs.append((self._metrics_dict[metric_result.name], metric_result.value))
+        
 
     def _prompt_template(self, data: AgentDataPoint) -> str:
         return self._template["user"].format(
@@ -105,11 +124,9 @@ class JudgeEvaluator(Evaluator):
             agent_output=data.agent_output,
             agent_internals=data.agent_internals or {},
         )
-        
 
     def _generate_system_prompt(self, system_prompt_: str | None) -> str:
-        
-        
+
         system_prompt = ""
 
         if system_prompt_ is not None:
@@ -118,15 +135,15 @@ class JudgeEvaluator(Evaluator):
             system_prompt = self._template["system_prompt"]
 
         if self._metric_prompt:
-            system_prompt += "\n" +  self._template["metric"].format(
+            system_prompt += "\n" + self._template["metric"].format(
                 metrics=self._metric_prompt
             )
-        
+
         if self._reasoning:
             system_prompt += self._template["reasoning"]
-        
+
         return system_prompt
-    
+
     def _load_yaml(self):
         yaml_path = Path(__file__).parent / "judge_evaluator.yaml"
         with open(yaml_path, "r") as f:
@@ -140,5 +157,5 @@ class JudgeEvaluator(Evaluator):
 
         metrics_str = ""
         for metric in self._metrics:
-            metrics_str += repr(metric) + "\n"
+            metrics_str += str(metric) + "\n"
         return metrics_str[:-1]  # Remove trailing newline

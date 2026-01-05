@@ -8,14 +8,15 @@ class AgentRun(BaseModel):
     run_id: UUID
 
 class MetricResult(BaseModel):
-    metric: Metric
+    metric_name: str
     value: str | float | int
 
 class EvaluatorResult(BaseModel):
     evaluator_name: str
     agent_name: str
     evaluator_id: UUID
-    results: list[Metric]
+    metrics: list[Metric]
+    results: list[MetricResult]
     
 class EvaluationResult(BaseModel):    
     evaluation_id: UUID
