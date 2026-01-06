@@ -9,6 +9,7 @@ class AgentRun(BaseModel):
 
 class MetricResult(BaseModel):
     metric_name: str
+    metric_id: UUID
     value: str | float | int
 
 class EvaluatorResult(BaseModel):
@@ -16,7 +17,7 @@ class EvaluatorResult(BaseModel):
     agent_name: str
     evaluator_id: UUID
     metrics: list[Metric]
-    results: list[MetricResult]
+    results: list[tuple[UUID, MetricResult]] | list[MetricResult]
     
 class EvaluationResult(BaseModel):    
     evaluation_id: UUID

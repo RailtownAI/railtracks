@@ -1,8 +1,10 @@
-from pydantic import BaseModel, field_serializer
+from pydantic import BaseModel, Field, field_serializer
 from typing import Any
+from uuid import UUID, uuid4
 
 class AgentDataPoint(BaseModel):
     """A data point specific to agent interactions."""
+    id: UUID = Field(default_factory=uuid4)
     agent_name: str
     agent_input: dict[str, Any]
     agent_output: Any = None

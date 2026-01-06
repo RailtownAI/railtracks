@@ -64,10 +64,9 @@ class CategoricalAggregate(Metric):
     #     counts: dict[str, dict[str, int]] = Field(default_factory=dict)
     def model_post_init(self, __context) -> None:
         """Aggregate categories from the provided metrics."""
-        self.categories: set[str] = set(self.metric.categories)
 
         for label in self.labels:
-            if label not in self.categories:
+            if label not in self.metric.categories:
                 raise Exception("Unknown label")
 
 
@@ -76,28 +75,18 @@ class CategoricalAggregate(Metric):
 class Numerical(Metric):
     min_value: int | float | None = None
     max_value: int | float | None = None
-    value: int | float
+    # value: int | float
 
-    @model_validator(mode='after')
-    def validate_value(self):
-        """Validate that value is within min and max bounds if they are set."""
-        if self.min_value is not None and self.value < self.min_value:
-            raise ValueError(f"Value {self.value} is less than minimum allowed {self.min_value}.")
-        if self.max_value is not None and self.value > self.max_value:
-            raise ValueError(f"Value {self.value} is greater than maximum allowed {self.max_value}.")
-        return self
+    # @model_validator(mode='after')
+    # def validate_value(self):
+    #     """Validate that value is within min and max bounds if they are set."""
+    #     if self.min_value is not None and self.value < self.min_value:
+    #         raise ValueError(f"Value {self.value} is less than minimum allowed {self.min_value}.")
+    #     if self.max_value is not None and self.value > self.max_value:
+    #         raise ValueError(f"Value {self.value} is greater than maximum allowed {self.max_value}.")
+    #     return self
     
 if __name__ == "__main__":
     # Example usage and testing of Metric classes
     cat_metric1 = Categorical(name="Sentiment", categories=["Positive", "Negative", "Neutral"])
     cat_metric2 = Categorical(name="Helpfulness", categories=["Helpful", "Unhelpful"])
-
-    aggregate = CategoricalAggregate(name="AggregateSentiment", metrics=[(cat_metric1, "Positive"), 
-                                                                         (cat_metric1, "Helpful"),
-                                                                         (cat_metric1, "Negative"),
-                                                                         (cat_metric1, "Positive"),
-                                                                         (cat_metric2, "Helpful"),
-                                                                            (cat_metric2, "Unhelpful"),
-                                                                            (cat_metric2, "Helpful")
-                                                                        ])
-    print(aggregate.counts )
