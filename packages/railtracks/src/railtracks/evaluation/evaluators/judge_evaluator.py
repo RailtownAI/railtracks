@@ -6,7 +6,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field, model_validator
 from .evaluator import Evaluator
 from .metrics import Categorical, Metric, CategoricalAggregate
-from ..result import MetricResult, EvaluatorResult
+from ..result import MetricResult, EvaluatorResult, AggregateCategoricalResult
 from ...utils.point import AgentDataPoint
 from uuid import UUID
 from ...utils.logging.create import get_rt_logger
@@ -96,13 +96,13 @@ class JudgeEvaluator(Evaluator):
                 logger.warning(
                     f"Received unknown metric name from Judge Evaluator: {res[1].metric_name}"
                 )
-        self._aggregate_metrics()
+        self.aggregate_results = self._aggregate_metrics()
 
         self._result = EvaluatorResult(
             evaluator_name=self.name,
             agent_name=self.agent_name,
             evaluator_id=self._id,
-            results=self._metrics_result, # Change this to report aggregates as well
+            results=self._metrics_result + self.aggregate_results,
             metrics=self._metrics,
         )
         return self._result
@@ -133,24 +133,29 @@ class JudgeEvaluator(Evaluator):
                 output.append((p[0], res.structured))
         return output
 
-    def _aggregate_metrics(self):
+    def _aggregate_metrics(self) -> list[AggregateCategoricalResult]:
 
-        self._aggregate_results = defaultdict(list)
+        # self._aggregate_results = defaultdict(list)
 
-        for _,metric_result in self._metrics_result:
-            self._aggregate_results[metric_result.metric_name].append(metric_result.value)
+        # for _,metric_result in self._metrics_result:
+        #     self._aggregate_results[metric_result.metric_name].append(metric_result.value)
+        aggregate_results = []
 
         for metric_name, metric  in self._metrics_dict.items():
             if type(metric) is not Categorical:
                 continue
-            aggregate = CategoricalAggregate(
-                name=f"{metric_name}_aggregate",
+            # aggregate = CategoricalAggregate(
+            #     name=f"{metric_name}_aggregate",
+            #     metric=metric,
+            #     labels=metric.categories,
+            # )
+            aggregate = AggregateCategoricalResult(
                 metric=metric,
                 labels=metric.categories,
             )
-            print(metric_name)
+            aggregate_results.append(aggregate)
 
-        print()
+        return aggregate_results
 
     def _prompt_template(self, data: AgentDataPoint) -> str:
         return self._template["user"].format(

@@ -2,7 +2,7 @@ import hashlib
 import json
 from pydantic import BaseModel, Field, field_validator, model_validator
 from uuid import UUID, uuid4
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 class Metric(BaseModel):
     name: str
@@ -37,54 +37,31 @@ class Metric(BaseModel):
 class Categorical(Metric):
     categories: list[str]
 
-# class CategoricalAggregate(Metric):
-#     metrics: list[tuple[Categorical, str]] # The str corresponds to the label chosen
-#     most_common: dict[str, str] = Field(default_factory=dict)
-#     least_common: dict[str, str] = Field(default_factory=dict)
-#     counts: dict[str, dict[str, int]] = Field(default_factory=dict)
-
-#     def model_post_init(self, __context) -> None:
-#         """Aggregate categories from the provided metrics."""
-        
-#         for metric, metric_label in self.metrics:
-#             if metric.name not in self.counts:
-#                 self.counts[metric.name] = defaultdict(int)
-#             self.counts[metric.name][metric_label] += 1
-
-#         for metric_name, label_counts in self.counts.items():
-#             sorted_labels = sorted(label_counts.items(), key=lambda item: item[1], reverse=True)
-#             self.most_common[metric_name] = sorted_labels[0][0]
-#             self.least_common[metric_name] = sorted_labels[-1][0]
-
 class CategoricalAggregate(Metric):
     metric: Categorical 
     labels: list[str]
-    #     most_common: dict[str, str] = Field(default_factory=dict)
-    #     least_common: dict[str, str] = Field(default_factory=dict)
-    #     counts: dict[str, dict[str, int]] = Field(default_factory=dict)
+    most_common_label: str | None = None
+    least_common_label: str | None = None
+    counts: dict[str, int] = Field(default_factory=dict)
+
     def model_post_init(self, __context) -> None:
         """Aggregate categories from the provided metrics."""
 
         for label in self.labels:
             if label not in self.metric.categories:
                 raise Exception("Unknown label")
-
+            
+        counts = Counter(self.labels)
+        self.counts = dict(counts)
+        if counts:
+            self.most_common_label = counts.most_common(1)[0][0]
+            self.least_common_label = counts.most_common()[-1][0]
 
 
 
 class Numerical(Metric):
     min_value: int | float | None = None
     max_value: int | float | None = None
-    # value: int | float
-
-    # @model_validator(mode='after')
-    # def validate_value(self):
-    #     """Validate that value is within min and max bounds if they are set."""
-    #     if self.min_value is not None and self.value < self.min_value:
-    #         raise ValueError(f"Value {self.value} is less than minimum allowed {self.min_value}.")
-    #     if self.max_value is not None and self.value > self.max_value:
-    #         raise ValueError(f"Value {self.value} is greater than maximum allowed {self.max_value}.")
-    #     return self
     
 if __name__ == "__main__":
     # Example usage and testing of Metric classes

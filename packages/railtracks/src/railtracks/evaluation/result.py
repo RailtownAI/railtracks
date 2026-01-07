@@ -1,6 +1,8 @@
 from datetime import datetime
+from typing import Sequence
 from uuid import UUID
 from pydantic import BaseModel, Field
+from collections import Counter
 from .evaluators.metrics import Metric, Numerical, Categorical
 
 class AgentRun(BaseModel):
@@ -12,12 +14,32 @@ class MetricResult(BaseModel):
     metric_id: UUID
     value: str | float | int
 
+class AggregateCategoricalResult(BaseModel):
+    metric: Categorical
+    labels: list[str]
+    most_common_label: str | None = None
+    least_common_label: str | None = None
+    counts: dict[str, int] = Field(default_factory=dict)
+
+    def model_post_init(self, __context) -> None:
+        """Aggregate categories from the provided metrics."""
+
+        for label in self.labels:
+            if label not in self.metric.categories:
+                raise Exception("Unknown label")
+            
+        counts = Counter(self.labels)
+        self.counts = dict(counts)
+        if counts:
+            self.most_common_label = counts.most_common(1)[0][0]
+            self.least_common_label = counts.most_common()[-1][0]
+
 class EvaluatorResult(BaseModel):
     evaluator_name: str
     agent_name: str
     evaluator_id: UUID
     metrics: list[Metric]
-    results: list[tuple[UUID, MetricResult]] | list[MetricResult]
+    results: Sequence[tuple[UUID, MetricResult] | AggregateCategoricalResult | MetricResult]
     
 class EvaluationResult(BaseModel):    
     evaluation_id: UUID
