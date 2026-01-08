@@ -1,11 +1,10 @@
 import railtracks as rt
 import asyncio
 import yaml
-from collections import defaultdict
 from pathlib import Path
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel
 from .evaluator import Evaluator
-from .metrics import Categorical, Metric, CategoricalAggregate
+from .metrics import Categorical, Metric
 from ..result import MetricResult, EvaluatorResult, AggregateCategoricalResult
 from ...utils.point import AgentDataPoint
 from uuid import UUID
