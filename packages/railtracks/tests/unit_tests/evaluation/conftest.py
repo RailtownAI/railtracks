@@ -1,8 +1,10 @@
 import json
 import pytest
 from pathlib import Path
+from typing import Type
 
 from railtracks.utils.point import AgentDataPoint
+from railtracks.evaluation.evaluators.metrics import Categorical, Numerical
 
 
 # ================= Fixtures for Evaluation Tests =================
@@ -76,3 +78,30 @@ def json_directory(tmp_path, sample_data_points):
         json.dump([sample_data_points[2].model_dump(mode="json")], f)
     
     return dir_path
+@pytest.fixture
+def sample_categorical_metric():
+    """Create a sample categorical metric for testing."""
+    return Categorical(
+        name="Sentiment",
+        categories=["Positive", "Negative", "Neutral"]
+    )
+
+
+@pytest.fixture
+def sample_numerical_metric():
+    """Create a sample numerical metric for testing."""
+    return Numerical(
+        name="Accuracy",
+        min_value=0.0,
+        max_value=1.0
+    )
+
+
+@pytest.fixture
+def multiple_metrics(sample_categorical_metric, sample_numerical_metric):
+    """Create a list of multiple metrics for testing."""
+    helpfulness = Categorical(
+        name="Helpfulness",
+        categories=["Helpful", "Unhelpful"]
+    )
+    return [sample_categorical_metric, sample_numerical_metric, helpfulness]
