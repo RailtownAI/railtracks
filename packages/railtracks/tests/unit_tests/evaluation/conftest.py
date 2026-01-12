@@ -1,7 +1,6 @@
 import json
 import pytest
-from pathlib import Path
-from typing import Type
+from unittest.mock import MagicMock
 
 from railtracks.utils.point import AgentDataPoint
 from railtracks.evaluation.evaluators.metrics import Categorical, Numerical
@@ -30,6 +29,17 @@ def sample_data_points():
             agent_output="Summary: ...",
         ),
     ]
+
+
+@pytest.fixture
+def mock_llm():
+    """Create a mock LLM for testing evaluators."""
+    def _mock_llm(custom_response=None):
+        mock = MagicMock(name="MockLLM")
+        if custom_response:
+            mock.return_value = custom_response
+        return mock
+    return _mock_llm
 
 
 @pytest.fixture
@@ -105,3 +115,14 @@ def multiple_metrics(sample_categorical_metric, sample_numerical_metric):
         categories=["Helpful", "Unhelpful"]
     )
     return [sample_categorical_metric, sample_numerical_metric, helpfulness]
+
+
+@pytest.fixture
+def mock_llm():
+    """Create a mock LLM for testing evaluators."""
+    def _mock_llm(custom_response=None):
+        mock = MagicMock(name="MockLLM")
+        if custom_response:
+            mock.return_value = custom_response
+        return mock
+    return _mock_llm

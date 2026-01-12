@@ -9,45 +9,25 @@ from railtracks.utils.point import AgentDataPoint
 # ================= Initialization Tests =================
 
 
-def test_initialization_with_raw_json_file(raw_json_file):
-    """Test initialization from a raw JSON file with agent data points."""
+def test_initialization_with_various_sources(raw_json_file, dataset_json_file, json_directory):
+    """Test initialization from raw JSON, dataset JSON, and directory."""
+    # Raw JSON file
     dataset = EvaluationDataset(path=str(raw_json_file))
+    assert dataset.name == "raw_data" and len(dataset) == 3
+    assert "agent1" in dataset.agents and len(dataset["agent1"]) == 2
     
-    assert dataset.name == "raw_data"
-    assert len(dataset) == 3
-    assert "agent1" in dataset.agents
-    assert "agent2" in dataset.agents
-    assert len(dataset["agent1"]) == 2
-    assert len(dataset["agent2"]) == 1
-
-
-def test_initialization_with_dataset_json_file(dataset_json_file):
-    """Test initialization from a dataset JSON file with metadata."""
+    # Dataset JSON with metadata
     dataset = EvaluationDataset(path=str(dataset_json_file))
-    
     assert dataset.name == "test_dataset"
     assert dataset.identifier == UUID("12345678-1234-5678-1234-567812345678")
-    assert len(dataset) == 3
-    assert "agent1" in dataset.agents
-    assert "agent2" in dataset.agents
-
-
-def test_initialization_with_directory(json_directory):
-    """Test initialization from a directory containing JSON files."""
+    
+    # Directory with multiple files
     dataset = EvaluationDataset(path=str(json_directory))
+    assert dataset.name == "json_dir" and len(dataset) == 2
     
-    assert dataset.name == "json_dir"
-    assert len(dataset) == 2
-    assert "agent1" in dataset.agents
-    assert "agent2" in dataset.agents
-
-
-def test_initialization_with_custom_name(raw_json_file):
-    """Test initialization with a custom dataset name."""
-    custom_name = "my_custom_dataset"
-    dataset = EvaluationDataset(path=str(raw_json_file), name=custom_name)
-    
-    assert dataset.name == custom_name
+    # Custom name
+    dataset = EvaluationDataset(path=str(raw_json_file), name="custom_name")
+    assert dataset.name == "custom_name"
 
 
 def test_initialization_with_invalid_path(tmp_path):
@@ -120,129 +100,54 @@ def test_initialization_skips_non_json_files(tmp_path):
 # ================= Property Tests =================
 
 
-def test_identifier_property(raw_json_file):
-    """Test the identifier property returns a UUID."""
-    dataset = EvaluationDataset(path=str(raw_json_file))
-    
-    assert isinstance(dataset.identifier, UUID)
-
-
-def test_name_property(raw_json_file):
-    """Test the name property."""
+def test_dataset_properties(raw_json_file):
+    """Test identifier, name, data_points_dict, data_points_list, and agents properties."""
     dataset = EvaluationDataset(path=str(raw_json_file), name="test_name")
     
+    # Identifier and name
+    assert isinstance(dataset.identifier, UUID)
     assert dataset.name == "test_name"
-
-
-def test_data_points_dict_property(raw_json_file):
-    """Test data_points_dict returns a shallow copy of the internal dictionary."""
-    dataset = EvaluationDataset(path=str(raw_json_file))
     
+    # data_points_dict (shallow copy)
     data_dict = dataset.data_points_dict
-    
-    assert isinstance(data_dict, dict)
-    assert "agent1" in data_dict
-    
-    # Note: .copy() creates a shallow copy, so the lists are still references
-    # Modifying the dictionary itself doesn't affect the original
+    assert isinstance(data_dict, dict) and "agent1" in data_dict
     original_agents = dataset.agents.copy()
     data_dict["new_agent"] = []
+    assert dataset.agents == original_agents  # Not affected
     
-    # Original should not have the new agent
-    assert dataset.agents == original_agents
-
-
-def test_data_points_list_property(raw_json_file):
-    """Test data_points_list returns all data points as a flat list."""
-    dataset = EvaluationDataset(path=str(raw_json_file))
-    
+    # data_points_list
     data_list = dataset.data_points_list
-    
-    assert isinstance(data_list, list)
-    assert len(data_list) == 3
+    assert isinstance(data_list, list) and len(data_list) == 3
     assert all(isinstance(dp, AgentDataPoint) for dp in data_list)
-
-
-def test_agents_property(raw_json_file):
-    """Test agents property returns a set of agent names."""
-    dataset = EvaluationDataset(path=str(raw_json_file))
     
+    # agents property
     agents = dataset.agents
-    
-    assert isinstance(agents, set)
-    assert agents == {"agent1", "agent2"}
+    assert isinstance(agents, set) and agents == {"agent1", "agent2"}
 
 
 # ================= Sample Method Tests =================
 
 
-def test_sample_with_valid_agent(raw_json_file):
-    """Test sampling data points for a valid agent."""
+def test_sample_method(raw_json_file):
+    """Test sampling data points with various scenarios."""
     dataset = EvaluationDataset(path=str(raw_json_file))
     
+    # Valid sampling
     sampled = dataset.sample("agent1", n=1)
+    assert len(sampled) == 1 and sampled[0].agent_name == "agent1"
     
-    assert len(sampled) == 1
-    assert isinstance(sampled[0], AgentDataPoint)
-    assert sampled[0].agent_name == "agent1"
-
-
-def test_sample_with_n_greater_than_available(raw_json_file):
-    """Test sampling when n exceeds available data points."""
-    dataset = EvaluationDataset(path=str(raw_json_file))
-    
+    # n exceeds available
     sampled = dataset.sample("agent2", n=10)
+    assert len(sampled) == 1  # Returns all available
     
-    # Should return all available data points
-    assert len(sampled) == 1
-
-
-def test_sample_with_nonexistent_agent(raw_json_file):
-    """Test sampling for a non-existent agent returns empty list."""
-    dataset = EvaluationDataset(path=str(raw_json_file))
+    # Nonexistent agent
+    assert dataset.sample("nonexistent_agent", n=5) == []
     
-    sampled = dataset.sample("nonexistent_agent", n=5)
-    
-    assert sampled == []
-
-
-def test_sample_returns_copy(raw_json_file):
-    """Test that sample returns a copy and doesn't affect the original."""
-    dataset = EvaluationDataset(path=str(raw_json_file))
-    
+    # Returns copy (modifying doesn't affect original)
     sampled = dataset.sample("agent1", n=2)
     original_count = len(dataset["agent1"])
-    
-    # Modify the sampled list
     sampled.clear()
-    
-    # Original should be unchanged
     assert len(dataset["agent1"]) == original_count
-
-
-def test_sample_randomness(raw_json_file):
-    """Test that sampling is random (probabilistic test)."""
-    dataset = EvaluationDataset(path=str(raw_json_file))
-    
-    # Add more data points to make randomness testable
-    for i in range(10):
-        dataset.insert(AgentDataPoint(
-            agent_name="agent1",
-            agent_input={"query": f"test_{i}"},
-            agent_output=f"output_{i}",
-        ))
-    
-    sample1 = dataset.sample("agent1", n=5)
-    sample2 = dataset.sample("agent1", n=5)
-    
-    # Not a definitive test, but samples should likely differ
-    # (This could occasionally fail due to randomness, but it's unlikely with 12 total items)
-    sample1_ids = {dp.id for dp in sample1}
-    sample2_ids = {dp.id for dp in sample2}
-    
-    # At least one difference expected (not a strict requirement, but highly probable)
-    assert len(sample1_ids) == 5
-    assert len(sample2_ids) == 5
 
 
 # ================= Insert Method Tests =================

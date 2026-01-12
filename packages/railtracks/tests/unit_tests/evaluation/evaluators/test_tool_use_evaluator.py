@@ -6,7 +6,7 @@ from railtracks.evaluation.evaluators.tool_use_evaluator import (
     ToolFrequency,
     ToolFailureRate,
 )
-from railtracks.evaluation.result import EvaluatorResult, MetricResult
+from railtracks.evaluation.result import EvaluatorResult
 from railtracks.utils.point import AgentDataPoint
 from railtracks.evaluation.data.evaluation_dataset import EvaluationDataset
 
