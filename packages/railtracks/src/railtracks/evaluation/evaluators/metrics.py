@@ -37,33 +37,6 @@ class Metric(BaseModel):
 class Categorical(Metric):
     categories: list[str]
 
-class CategoricalAggregate(Metric):
-    metric: Categorical 
-    labels: list[str]
-    most_common_label: str | None = None
-    least_common_label: str | None = None
-    counts: dict[str, int] = Field(default_factory=dict)
-
-    def model_post_init(self, __context) -> None:
-        """Aggregate categories from the provided metrics."""
-
-        for label in self.labels:
-            if label not in self.metric.categories:
-                raise Exception("Unknown label")
-            
-        counts = Counter(self.labels)
-        self.counts = dict(counts)
-        if counts:
-            self.most_common_label = counts.most_common(1)[0][0]
-            self.least_common_label = counts.most_common()[-1][0]
-
-
-
 class Numerical(Metric):
     min_value: int | float | None = None
     max_value: int | float | None = None
-    
-if __name__ == "__main__":
-    # Example usage and testing of Metric classes
-    cat_metric1 = Categorical(name="Sentiment", categories=["Positive", "Negative", "Neutral"])
-    cat_metric2 = Categorical(name="Helpfulness", categories=["Helpful", "Unhelpful"])

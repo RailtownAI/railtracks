@@ -40,7 +40,7 @@ class AggregateCategoricalResult(BaseModel):
             self.least_common_label = counts.most_common()[-1][0]
 
 
-class NumericalAggregate(Metric):
+class AggregateNumericalResult(Metric):
     metric: Numerical
     values: list[float | int]
     average: float | None = None
@@ -82,7 +82,10 @@ class EvaluatorResult(BaseModel):
     evaluator_id: UUID
     metrics: list[Metric]
     results: Sequence[
-        tuple[UUID, MetricResult] | AggregateCategoricalResult | MetricResult
+        tuple[UUID, MetricResult]
+        | AggregateCategoricalResult
+        | AggregateNumericalResult
+        | MetricResult
     ]
 
 

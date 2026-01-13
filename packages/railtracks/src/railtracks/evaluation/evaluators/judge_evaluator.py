@@ -5,7 +5,12 @@ from pathlib import Path
 from pydantic import BaseModel
 from .evaluator import Evaluator
 from .metrics import Categorical, Metric
-from ..result import MetricResult, EvaluatorResult, AggregateCategoricalResult
+from ..result import (
+    AggregateNumericalResult,
+    MetricResult,
+    EvaluatorResult,
+    AggregateCategoricalResult,
+)
 from ...utils.point import AgentDataPoint
 from uuid import UUID
 from ...utils.logging.create import get_rt_logger
@@ -73,10 +78,12 @@ class JudgeEvaluator(Evaluator):
             self._session(prompt_data)
         )
 
-        results: list[tuple[UUID, JudgeMetricResult]] = []  # (ADP_id, JudgeMetricResult)
+        results: list[tuple[UUID, JudgeMetricResult]] = (
+            []
+        )  # (ADP_id, JudgeMetricResult)
 
         for adp_id, res in result:
-            if res.metric_results is not None: 
+            if res.metric_results is not None:
                 results.extend([(adp_id, jmr) for jmr in res.metric_results])
             else:
                 logger.warning(
@@ -86,11 +93,16 @@ class JudgeEvaluator(Evaluator):
         for res in results:
             metric = self._metrics_dict.get(res[1].metric_name)
             if metric:
-                self._metrics_result.append((res[0], MetricResult(
-                    metric_name=res[1].metric_name,
-                    metric_id=UUID(metric.identifier),
-                    value=res[1].metric_value,
-                ))) 
+                self._metrics_result.append(
+                    (
+                        res[0],
+                        MetricResult(
+                            metric_name=res[1].metric_name,
+                            metric_id=UUID(metric.identifier),
+                            value=res[1].metric_value,
+                        ),
+                    )
+                )
             else:
                 logger.warning(
                     f"Received unknown metric name from Judge Evaluator: {res[1].metric_name}"
@@ -132,7 +144,9 @@ class JudgeEvaluator(Evaluator):
                 output.append((p[0], res.structured))
         return output
 
-    def _aggregate_metrics(self) -> list[AggregateCategoricalResult]:
+    def _aggregate_metrics(
+        self,
+    ) -> list[AggregateCategoricalResult | AggregateNumericalResult]:
 
         # self._aggregate_results = defaultdict(list)
 
@@ -140,18 +154,18 @@ class JudgeEvaluator(Evaluator):
         #     self._aggregate_results[metric_result.metric_name].append(metric_result.value)
         aggregate_results = []
 
-        for metric_name, metric  in self._metrics_dict.items():
-            if type(metric) is not Categorical:
-                continue
-            # aggregate = CategoricalAggregate(
-            #     name=f"{metric_name}_aggregate",
-            #     metric=metric,
-            #     labels=metric.categories,
-            # )
-            aggregate = AggregateCategoricalResult(
-                metric=metric,
-                labels=metric.categories,
-            )
+        for metric_name, metric in self._metrics_dict.items():
+            if type(metric) is Categorical:
+                aggregate = AggregateCategoricalResult(
+                    metric=metric,
+                    labels=metric.categories,
+                )
+            else:
+                aggregate = AggregateNumericalResult(
+                    metric=metric,
+                    values=[],
+                )
+
             aggregate_results.append(aggregate)
 
         return aggregate_results
