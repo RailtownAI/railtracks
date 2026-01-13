@@ -43,7 +43,7 @@ from .utils.logging.config import (
 from .utils.logging.create import get_rt_logger
 
 # TODO: decide if this should be relative or not
-from railtracks.evaluation import AgentDataPoint
+from .utils.point import AgentDataPoint
 
 from .built_nodes.concrete.response import LLMResponse
 
@@ -222,7 +222,8 @@ class Session:
                     "Error while saving to execution info to file",
                     exc_info=e,
                 )
-        self._construct_agent_data(self._save_data)
+        if self._save_data != "none":
+            self._construct_agent_data(self._save_data)
         self._close()
 
     def _setup_subscriber(self):
@@ -293,10 +294,14 @@ class Session:
         answers = self.info.answer
         runs = self.info.graph_serialization()
         dps = []
-        
+
         # typing in self.info.answer is a mess so handling it here for now
-        answers_list = answers if isinstance(answers, list) else [answers] if answers is not None else []
-        
+        answers_list = (
+            answers
+            if isinstance(answers, list)
+            else [answers] if answers is not None else []
+        )
+
         for r_template, answer, run in zip(request_templates, answers_list, runs):
             if isinstance(answer, LLMResponse):
                 agent_output = answer.content
@@ -312,7 +317,7 @@ class Session:
                         }
                         for msg in answer.message_history
                     ]
-                    
+
                     tools = [
                         {
                             "name": tool[0].name,

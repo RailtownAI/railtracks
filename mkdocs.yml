@@ -131,6 +131,20 @@ nav:
           - Vision: llm_support/multimodal/vision.md
 
       - Streaming: llm_support/streaming.md
+
+  - Evaluations:
+      - Preface: evaluations/preface.md
+      - Data:
+        - Agent Datapoints: evaluations/data/agent_data.md
+        - Evaluation Datasets: evaluations/data/evaluation_dataset.md
+      - Metrics: 
+        - Metrics Overview: evaluations/metrics/metrics.md
+        - Categorical Metrics: evaluations/metrics/categorical.md
+        - Numerical Metrics: evaluations/metrics/numerical.md
+      - Evaluators: 
+        - Evaluator Abstraction: evaluations/evaluators/evaluators.md
+        - ToolUseEvaluator: evaluations/evaluators/tool_use_evaluator.md
+        
       
   # - Deployments:
   #     - Docker: deployments/docker.md

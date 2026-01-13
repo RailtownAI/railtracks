@@ -1,26 +1,54 @@
-from typing import Literal, Type, TypeVar
-from ...built_nodes.concrete._llm_base import LLMBase,LLMResponse
-
-from ..data import DataPoint, Dataset
+from collections import defaultdict
+from ..data.evaluation_dataset import EvaluationDataset
 from ..evaluators import Evaluator
-from ..result import EvaluationResult
+from ...utils.point import AgentDataPoint
 
-_TOutput = TypeVar("_TOutput", bound=LLMResponse)
+from ...utils.logging.create import get_rt_logger
+
+logger = get_rt_logger("evaluate")
+
 
 def evaluate(
-        agent: Type[LLMBase[_TOutput, _TOutput, Literal[False]]],
-        input_data: DataPoint | list[DataPoint] | Dataset,
-        evaluators: Evaluator | list[Evaluator], 
-) -> EvaluationResult | None:
-    """
-    Evaluate the given agent on the provided input data using the specified evaluators.
+    data: AgentDataPoint | list[AgentDataPoint] | EvaluationDataset,
+    evaluators: list[Evaluator],
+):
+    # Contracts
+    # turns data into dict[str, list[AgentDataPoint]]
+    # invokes each evaluator's run method with data for each agent
+    # number of evaluator results will be n_evaluators x n_agents
 
-    Args:
-        agent: The LLM agent class to be evaluated.
-        input_data: A single DataPoint or a list of DataPoints to evaluate the agent on.
-        evaluators: A single Evaluator or a list of Evaluators to assess the agent's performance.
+    evaluator_results = {}
+    data_dict: dict[str, list[AgentDataPoint]] = defaultdict(list)
 
-    Returns:
-        The evaluation results.
-    """
-    pass
+    if isinstance(data, EvaluationDataset):
+        data_dict = data.data_points_dict
+    elif isinstance(data, list):
+        for dp in data:
+            if not isinstance(dp, AgentDataPoint):
+                logger.warning(
+                    "All items in the data list must be AgentDataPoint instances."
+                )
+                continue
+            data_dict[dp.agent_name].append(dp)
+            
+    elif isinstance(data, AgentDataPoint):
+        data_dict[data.agent_name].append(data)
+    else:
+        raise ValueError(
+            "Data must be an EvaluationDataset, a list of AgentDataPoint instances, or a single AgentDataPoint."
+        )
+
+    for agent in data_dict:
+        logger.info(f"Evaluating agent: {agent} with {len(data_dict[agent])} data points.")
+        
+        for evaluator in evaluators:
+            logger.info(
+                f"Running evaluator: {evaluator.__class__.__name__}({str(evaluator.id)[:4]}...)"
+            )
+            result = evaluator.run(data_dict[agent])
+            evaluator_results[(agent, evaluator.id)] = result
+            logger.info(
+                f"Completed evaluator: {evaluator.__class__.__name__}({str(evaluator.id)[:4]}...)"
+            )
+    return evaluator_results
+    
