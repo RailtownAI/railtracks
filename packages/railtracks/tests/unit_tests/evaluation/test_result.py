@@ -12,26 +12,6 @@ from railtracks.evaluation.result import (
 from railtracks.evaluation.evaluators.metrics import Categorical
 
 
-# ================= AgentRun Tests =================
-
-
-def test_agent_run_creation():
-    """Test AgentRun creation with UUID objects and strings."""
-    # Test with UUID objects
-    session_id = uuid4()
-    run_id = uuid4()
-    agent_run = AgentRun(session_id=session_id, run_id=run_id)
-    assert agent_run.session_id == session_id
-    assert agent_run.run_id == run_id
-    
-    # Test with UUID strings
-    session_str = "12345678-1234-5678-1234-567812345678"
-    run_str = "87654321-4321-8765-4321-876543218765"
-    agent_run = AgentRun(session_id=session_str, run_id=run_str)
-    assert isinstance(agent_run.session_id, UUID)
-    assert isinstance(agent_run.run_id, UUID)
-
-
 # ================= MetricResult Tests =================
 
 

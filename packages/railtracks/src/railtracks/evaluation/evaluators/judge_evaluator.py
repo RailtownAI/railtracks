@@ -1,10 +1,11 @@
+from collections import defaultdict
 import railtracks as rt
 import asyncio
 import yaml
 from pathlib import Path
 from pydantic import BaseModel
 from .evaluator import Evaluator
-from .metrics import Categorical, Metric
+from .metrics import Metric, Numerical, Categorical
 from ..result import (
     AggregateNumericalResult,
     MetricResult,
@@ -98,7 +99,7 @@ class JudgeEvaluator(Evaluator):
                         res[0],
                         MetricResult(
                             metric_name=res[1].metric_name,
-                            metric_id=UUID(metric.identifier),
+                            metric_id=metric.identifier,
                             value=res[1].metric_value,
                         ),
                     )
@@ -148,23 +149,29 @@ class JudgeEvaluator(Evaluator):
         self,
     ) -> list[AggregateCategoricalResult | AggregateNumericalResult]:
 
-        # self._aggregate_results = defaultdict(list)
+        # Collect values by metric identifier (not name) from results
+        values_by_metric_id = defaultdict(list)
+        for _, metric_result in self._metrics_result:
+            values_by_metric_id[metric_result.metric_id].append(metric_result.value)
 
-        # for _,metric_result in self._metrics_result:
-        #     self._aggregate_results[metric_result.metric_name].append(metric_result.value)
         aggregate_results = []
 
         for metric_name, metric in self._metrics_dict.items():
+            metric_id = UUID(metric.identifier)
+            values = values_by_metric_id.get(metric_id, [])
+
             if type(metric) is Categorical:
                 aggregate = AggregateCategoricalResult(
                     metric=metric,
-                    labels=metric.categories,
+                    labels=[str(v) for v in values],
                 )
-            else:
+            elif type(metric) is Numerical:
                 aggregate = AggregateNumericalResult(
                     metric=metric,
-                    values=[],
+                    values=[float(v) for v in values],
                 )
+            else:
+                continue
 
             aggregate_results.append(aggregate)
 

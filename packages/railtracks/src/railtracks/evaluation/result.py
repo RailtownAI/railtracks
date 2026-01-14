@@ -7,17 +7,10 @@ from pydantic import BaseModel, Field
 
 from .evaluators.metrics import Categorical, Metric, Numerical
 
-
-class AgentRun(BaseModel):
-    session_id: UUID
-    run_id: UUID
-
-
 class MetricResult(BaseModel):
-    metric_name: str
-    metric_id: UUID
+    metric_name: str # primary for human readability and debugging
+    metric_id: str
     value: str | float | int
-
 
 class AggregateCategoricalResult(BaseModel):
     metric: Categorical
@@ -40,10 +33,10 @@ class AggregateCategoricalResult(BaseModel):
             self.least_common_label = counts.most_common()[-1][0]
 
 
-class AggregateNumericalResult(Metric):
+class AggregateNumericalResult(BaseModel):
     metric: Numerical
     values: list[float | int]
-    average: float | None = None
+    mean: float | None = None
     minimum: int | float | None = None
     maximum: int | float | None = None
     median: int | float | None = None
