@@ -3,9 +3,8 @@ from uuid import UUID
 from railtracks.evaluation.evaluators.judge_evaluator import (
     JudgeEvaluator,
     JudgeResponseSchema,
-    JudgeMetricResult,
 )
-from railtracks.evaluation.evaluators.metrics import Numerical
+from railtracks.evaluation.evaluators.metrics import Numerical, Categorical
 from railtracks.evaluation.result import EvaluatorResult
 from railtracks.utils.point import AgentDataPoint
 
@@ -13,153 +12,69 @@ from railtracks.utils.point import AgentDataPoint
 # ================= Schema Validation Tests =================
 
 
-def test_judge_metric_result_validation():
-    """Test JudgeMetricResult schema validation."""
-    result = JudgeMetricResult(
-        metric_name="Sentiment",
-        metric_value="Positive"
-    )
-    
-    assert result.metric_name == "Sentiment"
-    assert result.metric_value == "Positive"
-
-
-def test_judge_metric_result_with_string_value():
-    """Test JudgeMetricResult with string value."""
-    result = JudgeMetricResult(
-        metric_name="Category",
-        metric_value="Excellent"
-    )
-    
-    assert isinstance(result.metric_value, str)
-    assert result.metric_value == "Excellent"
-
-
-def test_judge_metric_result_with_numeric_value():
-    """Test JudgeMetricResult with numeric values."""
-    result_float = JudgeMetricResult(
-        metric_name="Accuracy",
-        metric_value=0.95
-    )
-    result_int = JudgeMetricResult(
-        metric_name="Count",
-        metric_value=42
-    )
-    
-    assert result_float.metric_value == 0.95
-    assert result_int.metric_value == 42
-
-
-def test_judge_response_schema_with_results():
-    """Test JudgeResponseSchema with metric results."""
+def test_judge_response_schema_with_string_value():
+    """Test JudgeResponseSchema with string metric value."""
     response = JudgeResponseSchema(
-        metric_results=[
-            JudgeMetricResult(metric_name="Sentiment", metric_value="Positive")
-        ],
+        metric_value="Positive",
         reasoning="Test reasoning"
     )
     
-    assert len(response.metric_results) == 1
-    assert response.metric_results[0].metric_name == "Sentiment"
+    assert isinstance(response.metric_value, str)
+    assert response.metric_value == "Positive"
     assert response.reasoning == "Test reasoning"
 
 
-def test_judge_response_schema_with_multiple_results():
-    """Test JudgeResponseSchema with multiple metric results."""
-    response = JudgeResponseSchema(
-        metric_results=[
-            JudgeMetricResult(metric_name="Sentiment", metric_value="Positive"),
-            JudgeMetricResult(metric_name="Accuracy", metric_value=0.92),
-            JudgeMetricResult(metric_name="Helpfulness", metric_value="Helpful"),
-        ],
-        reasoning="Comprehensive evaluation"
+def test_judge_response_schema_with_numeric_values():
+    """Test JudgeResponseSchema with numeric values."""
+    response_float = JudgeResponseSchema(
+        metric_value=0.95,
+        reasoning="Float value"
+    )
+    response_int = JudgeResponseSchema(
+        metric_value=42,
+        reasoning="Integer value"
     )
     
-    assert len(response.metric_results) == 3
-    assert response.metric_results[0].metric_name == "Sentiment"
-    assert response.metric_results[1].metric_name == "Accuracy"
-    assert response.metric_results[2].metric_name == "Helpfulness"
-
-
-def test_judge_response_schema_with_null_results():
-    """Test JudgeResponseSchema handles null metric_results."""
-    response = JudgeResponseSchema(
-        metric_results=None,
-        reasoning="Test reasoning"
-    )
-    
-    assert response.metric_results is None
-    assert response.reasoning == "Test reasoning"
+    assert response_float.metric_value == 0.95
+    assert response_int.metric_value == 42
 
 
 def test_judge_response_schema_with_null_reasoning():
     """Test JudgeResponseSchema handles null reasoning."""
     response = JudgeResponseSchema(
-        metric_results=[
-            JudgeMetricResult(metric_name="Sentiment", metric_value="Positive")
-        ],
+        metric_value="Positive",
         reasoning=None
     )
     
-    assert len(response.metric_results) == 1
-    assert response.reasoning is None
-
-
-def test_judge_response_schema_all_null():
-    """Test JudgeResponseSchema with all optional fields as null."""
-    response = JudgeResponseSchema(
-        metric_results=None,
-        reasoning=None
-    )
-    
-    assert response.metric_results is None
+    assert response.metric_value == "Positive"
     assert response.reasoning is None
 
 
 def test_judge_response_schema_json_serialization():
     """Test JudgeResponseSchema can be serialized to JSON."""
     response = JudgeResponseSchema(
-        metric_results=[
-            JudgeMetricResult(metric_name="Sentiment", metric_value="Positive"),
-            JudgeMetricResult(metric_name="Score", metric_value=8.5),
-        ],
+        metric_value="Positive",
         reasoning="Detailed reasoning here"
     )
     
     json_data = response.model_dump(mode="json")
     
-    assert "metric_results" in json_data
+    assert "metric_value" in json_data
     assert "reasoning" in json_data
-    assert len(json_data["metric_results"]) == 2
+    assert json_data["metric_value"] == "Positive"
 
 
 def test_judge_response_schema_from_dict():
     """Test JudgeResponseSchema can be created from dictionary."""
     data = {
-        "metric_results": [
-            {"metric_name": "Sentiment", "metric_value": "Negative"}
-        ],
+        "metric_value": "Negative",
         "reasoning": "Analysis complete"
     }
     
     response = JudgeResponseSchema.model_validate(data)
     
-    assert len(response.metric_results) == 1
-    assert response.metric_results[0].metric_name == "Sentiment"
+    assert response.metric_value == "Negative"
     assert response.reasoning == "Analysis complete"
-
-
-def test_judge_metric_result_from_dict():
-    """Test JudgeMetricResult can be created from dictionary."""
-    data = {
-        "metric_name": "Quality",
-        "metric_value": "High"
-    }
-    
-    result = JudgeMetricResult.model_validate(data)
-    
-    assert result.metric_name == "Quality"
-    assert result.metric_value == "High"
 
 
 # ================= Initialization Tests =================
@@ -176,7 +91,8 @@ def test_judge_evaluator_initialization_with_defaults(sample_categorical_metric,
     assert evaluator._llm == llm
     assert evaluator._reasoning is True
     assert len(evaluator._metrics) == 1
-    assert evaluator._metrics[0].name == "Sentiment"
+    assert sample_categorical_metric.identifier in evaluator._metrics
+    assert evaluator._metrics[sample_categorical_metric.identifier] == sample_categorical_metric
     assert evaluator.name == "JudgeEvaluator"
     assert isinstance(evaluator.id, UUID)
 
@@ -195,7 +111,6 @@ def test_judge_evaluator_initialization_with_custom_params(sample_categorical_me
     
     assert evaluator._llm == llm
     assert evaluator._reasoning is False
-    assert custom_prompt in evaluator._system_prompt
 
 
 def test_judge_evaluator_initialization_with_multiple_metrics(multiple_metrics, mock_llm):
@@ -207,51 +122,39 @@ def test_judge_evaluator_initialization_with_multiple_metrics(multiple_metrics, 
     )
     
     assert len(evaluator._metrics) == 3
-    assert evaluator._metrics[0].name == "Sentiment"
-    assert evaluator._metrics[1].name == "Accuracy"
-    assert evaluator._metrics[2].name == "Helpfulness"
+    for metric in multiple_metrics:
+        assert metric.identifier in evaluator._metrics
+        assert evaluator._metrics[metric.identifier] == metric
 
 
 def test_judge_evaluator_creates_metrics_dict(sample_categorical_metric, mock_llm):
-    """Test that JudgeEvaluator creates a metrics dictionary."""
+    """Test that JudgeEvaluator creates a metrics dictionary indexed by identifier."""
     llm = mock_llm()
     evaluator = JudgeEvaluator(
         llm=llm,
         metrics=[sample_categorical_metric],
     )
     
-    assert "Sentiment" in evaluator._metrics_dict
-    assert evaluator._metrics_dict["Sentiment"] == sample_categorical_metric
+    assert sample_categorical_metric.identifier in evaluator._metrics
+    assert evaluator._metrics[sample_categorical_metric.identifier] == sample_categorical_metric
 
 
-# ================= System Prompt Generation Tests =================
+# ================= Prompt Generation Tests =================
 
 
-def test_generate_system_prompt_with_default(sample_categorical_metric, mock_llm):
-    """Test system prompt generation with default prompt."""
+def test_generate_system_prompt_with_metric(sample_categorical_metric, mock_llm):
+    """Test _generate_system_prompt generates prompt for a specific metric."""
     llm = mock_llm()
     evaluator = JudgeEvaluator(
         llm=llm,
         metrics=[sample_categorical_metric],
     )
     
-    assert "expert evaluator" in evaluator._system_prompt.lower()
-    assert "Sentiment" in evaluator._system_prompt
-
-
-def test_generate_system_prompt_with_custom_prompt(sample_categorical_metric, mock_llm):
-    """Test system prompt generation with custom prompt."""
-    llm = mock_llm()
-    custom_prompt = "Custom evaluator prompt"
+    system_prompt = evaluator._generate_system_prompt(sample_categorical_metric)
     
-    evaluator = JudgeEvaluator(
-        llm=llm,
-        metrics=[sample_categorical_metric],
-        system_prompt=custom_prompt,
-    )
-    
-    assert custom_prompt in evaluator._system_prompt
-    assert "Sentiment" in evaluator._system_prompt
+    assert isinstance(system_prompt, str)
+    assert len(system_prompt) > 0
+    assert str(sample_categorical_metric) in system_prompt or sample_categorical_metric.name in system_prompt
 
 
 def test_generate_system_prompt_includes_reasoning(sample_categorical_metric, mock_llm):
@@ -270,75 +173,15 @@ def test_generate_system_prompt_includes_reasoning(sample_categorical_metric, mo
         reasoning=False,
     )
     
-    assert "reasoning" in evaluator_with_reasoning._system_prompt.lower()
-    assert "reasoning" not in evaluator_without_reasoning._system_prompt.lower()
-
-
-def test_generate_system_prompt_includes_metrics(multiple_metrics, mock_llm):
-    """Test system prompt includes all metrics."""
-    llm = mock_llm()
-    evaluator = JudgeEvaluator(
-        llm=llm,
-        metrics=multiple_metrics,
-    )
+    prompt_with = evaluator_with_reasoning._generate_system_prompt(sample_categorical_metric)
+    prompt_without = evaluator_without_reasoning._generate_system_prompt(sample_categorical_metric)
     
-    assert "Sentiment" in evaluator._system_prompt
-    assert "Accuracy" in evaluator._system_prompt
-    assert "Helpfulness" in evaluator._system_prompt
+    assert "reasoning" in prompt_with.lower()
+    assert "reasoning" not in prompt_without.lower()
 
 
-# ================= Metrics String Generation Tests =================
-
-
-def test_metrics_str_with_single_metric(sample_categorical_metric, mock_llm):
-    """Test _metrics_str with a single metric."""
-    llm = mock_llm()
-    evaluator = JudgeEvaluator(
-        llm=llm,
-        metrics=[sample_categorical_metric],
-    )
-    
-    metrics_str = evaluator._metrics_str()
-    
-    assert "Sentiment" in metrics_str
-    assert not metrics_str.endswith("\n")
-
-
-def test_metrics_str_with_multiple_metrics(multiple_metrics, mock_llm):
-    """Test _metrics_str with multiple metrics."""
-    llm = mock_llm()
-    evaluator = JudgeEvaluator(
-        llm=llm,
-        metrics=multiple_metrics,
-    )
-    
-    metrics_str = evaluator._metrics_str()
-    
-    assert "Sentiment" in metrics_str
-    assert "Accuracy" in metrics_str
-    assert "Helpfulness" in metrics_str
-    lines = metrics_str.split("\n")
-    assert len(lines) == 3
-
-
-def test_metrics_str_with_no_metrics(mock_llm):
-    """Test _metrics_str with no metrics returns empty string."""
-    llm = mock_llm()
-    evaluator = JudgeEvaluator(
-        llm=llm,
-        metrics=[],
-    )
-    
-    metrics_str = evaluator._metrics_str()
-    
-    assert metrics_str == ""
-
-
-# ================= Prompt Template Tests =================
-
-
-def test_prompt_template_formats_data_point(sample_categorical_metric, sample_data_points, mock_llm):
-    """Test _prompt_template correctly formats a data point."""
+def test_generate_user_prompt_formats_data_point(sample_categorical_metric, sample_data_points, mock_llm):
+    """Test _generate_user_prompt correctly formats a data point."""
     llm = mock_llm()
     evaluator = JudgeEvaluator(
         llm=llm,
@@ -346,14 +189,15 @@ def test_prompt_template_formats_data_point(sample_categorical_metric, sample_da
     )
     
     data_point = sample_data_points[0]
-    prompt = evaluator._prompt_template(data_point)
+    user_prompt = evaluator._generate_user_prompt(data_point)
     
-    assert str(data_point.agent_input) in prompt
-    assert str(data_point.agent_output) in prompt
+    assert isinstance(user_prompt, str)
+    assert str(data_point.agent_input) in user_prompt or "What is AI?" in user_prompt
+    assert str(data_point.agent_output) in user_prompt or "Artificial Intelligence" in user_prompt
 
 
-def test_prompt_template_handles_none_internals(sample_categorical_metric, mock_llm):
-    """Test _prompt_template handles None agent_internals."""
+def test_generate_user_prompt_handles_none_internals(sample_categorical_metric, mock_llm):
+    """Test _generate_user_prompt handles None agent_internals."""
     llm = mock_llm()
     evaluator = JudgeEvaluator(
         llm=llm,
@@ -367,15 +211,14 @@ def test_prompt_template_handles_none_internals(sample_categorical_metric, mock_
         agent_internals=None,
     )
     
-    prompt = evaluator._prompt_template(data_point)
+    user_prompt = evaluator._generate_user_prompt(data_point)
     
-    assert "Agent Input:" in prompt
-    assert "Agent Output:" in prompt
-    assert "{}" in prompt  # Empty dict for internals
+    assert isinstance(user_prompt, str)
+    assert len(user_prompt) > 0
 
 
-def test_prompt_template_includes_internals(sample_categorical_metric, mock_llm):
-    """Test _prompt_template includes agent internals when present."""
+def test_generate_user_prompt_includes_internals(sample_categorical_metric, mock_llm):
+    """Test _generate_user_prompt includes agent internals when present."""
     llm = mock_llm()
     evaluator = JudgeEvaluator(
         llm=llm,
@@ -389,9 +232,10 @@ def test_prompt_template_includes_internals(sample_categorical_metric, mock_llm)
         agent_internals={"steps": 5, "tokens": 100},
     )
     
-    prompt = evaluator._prompt_template(data_point)
+    user_prompt = evaluator._generate_user_prompt(data_point)
     
-    assert "steps" in prompt or str(data_point.agent_internals) in prompt
+    assert isinstance(user_prompt, str)
+    assert "steps" in user_prompt or str(data_point.agent_internals) in user_prompt
 
 
 # ================= Aggregate Metrics Tests =================
@@ -405,6 +249,21 @@ def test_aggregate_metrics_with_categorical(sample_categorical_metric, mock_llm)
         metrics=[sample_categorical_metric],
     )
     
+    # Manually populate results to test aggregation
+    from railtracks.evaluation.result import MetricResult
+    evaluator.results[sample_categorical_metric] = [
+        ("id1", MetricResult(
+            metric_name=sample_categorical_metric.name,
+            metric_id=sample_categorical_metric.identifier,
+            value="Positive"
+        )),
+        ("id2", MetricResult(
+            metric_name=sample_categorical_metric.name,
+            metric_id=sample_categorical_metric.identifier,
+            value="Negative"
+        )),
+    ]
+    
     aggregates = evaluator._aggregate_metrics()
     
     assert len(aggregates) == 1
@@ -412,16 +271,32 @@ def test_aggregate_metrics_with_categorical(sample_categorical_metric, mock_llm)
 
 
 def test_aggregate_metrics_with_numerical(sample_numerical_metric, mock_llm):
-    """Test _aggregate_metrics skips numerical metrics."""
+    """Test _aggregate_metrics creates aggregate for numerical metrics."""
     llm = mock_llm()
     evaluator = JudgeEvaluator(
         llm=llm,
         metrics=[sample_numerical_metric],
     )
     
+    # Manually populate results to test aggregation
+    from railtracks.evaluation.result import MetricResult
+    evaluator.results[sample_numerical_metric] = [
+        ("id1", MetricResult(
+            metric_name=sample_numerical_metric.name,
+            metric_id=sample_numerical_metric.identifier,
+            value=0.8
+        )),
+        ("id2", MetricResult(
+            metric_name=sample_numerical_metric.name,
+            metric_id=sample_numerical_metric.identifier,
+            value=0.9
+        )),
+    ]
+    
     aggregates = evaluator._aggregate_metrics()
     
-    assert len(aggregates) == 0
+    assert len(aggregates) == 1
+    assert aggregates[0].metric == sample_numerical_metric
 
 
 def test_aggregate_metrics_with_mixed_metrics(multiple_metrics, mock_llm):
@@ -432,10 +307,38 @@ def test_aggregate_metrics_with_mixed_metrics(multiple_metrics, mock_llm):
         metrics=multiple_metrics,
     )
     
+    # Manually populate results for each metric with valid values
+    from railtracks.evaluation.result import MetricResult
+    for metric in multiple_metrics:
+        if isinstance(metric, Categorical):
+            # Use valid category value for each metric
+            if metric.name == "Sentiment":
+                value = "Positive"  # Valid for Sentiment metric
+            elif metric.name == "Helpfulness":
+                value = "Helpful"  # Valid for Helpfulness metric
+            else:
+                value = metric.categories[0] if metric.categories else "Unknown"
+            
+            evaluator.results[metric] = [
+                ("id1", MetricResult(
+                    metric_name=metric.name,
+                    metric_id=metric.identifier,
+                    value=value
+                )),
+            ]
+        elif isinstance(metric, Numerical):
+            evaluator.results[metric] = [
+                ("id1", MetricResult(
+                    metric_name=metric.name,
+                    metric_id=metric.identifier,
+                    value=0.9
+                )),
+            ]
+    
     aggregates = evaluator._aggregate_metrics()
     
-    # Should only aggregate categorical metrics (Sentiment and Helpfulness)
-    assert len(aggregates) == 2
+    # Should aggregate all metrics (both categorical and numerical)
+    assert len(aggregates) == 3
 
 
 # ================= Run Method Tests =================
@@ -446,21 +349,19 @@ def test_aggregate_metrics_with_mixed_metrics(multiple_metrics, mock_llm):
 
 
 def test_repr_includes_all_parameters(sample_categorical_metric, mock_llm):
-    """Test __repr__ includes all initialization parameters."""
+    """Test __repr__ includes key initialization parameters."""
     llm = mock_llm()
     evaluator = JudgeEvaluator(
         llm=llm,
         metrics=[sample_categorical_metric],
-        system_prompt="Custom prompt",
         reasoning=False,
     )
     
     repr_str = repr(evaluator)
     
     assert "JudgeEvaluator" in repr_str
-    assert "system_prompt" in repr_str
     assert "llm" in repr_str
-    assert "metric" in repr_str
+    assert "metrics" in repr_str
     assert "reasoning" in repr_str
 
 
@@ -476,51 +377,6 @@ def test_repr_is_consistent(sample_categorical_metric, mock_llm):
     repr2 = repr(evaluator)
     
     assert repr1 == repr2
-
-
-# ================= Config Hash Tests =================
-
-
-def test_config_hash_is_deterministic(sample_categorical_metric, mock_llm):
-    """Test that config hash is deterministic for same configuration."""
-    llm = mock_llm()
-    
-    evaluator1 = JudgeEvaluator(
-        llm=llm,
-        metrics=[sample_categorical_metric],
-        system_prompt="Same prompt",
-        reasoning=True,
-    )
-    
-    evaluator2 = JudgeEvaluator(
-        llm=llm,
-        metrics=[sample_categorical_metric],
-        system_prompt="Same prompt",
-        reasoning=True,
-    )
-    
-    # Same configuration should produce same hash
-    assert evaluator1.config_hash == evaluator2.config_hash
-
-
-def test_config_hash_differs_for_different_configs(sample_categorical_metric, mock_llm):
-    """Test that config hash differs for different configurations."""
-    llm = mock_llm()
-    
-    evaluator1 = JudgeEvaluator(
-        llm=llm,
-        metrics=[sample_categorical_metric],
-        reasoning=True,
-    )
-    
-    evaluator2 = JudgeEvaluator(
-        llm=llm,
-        metrics=[sample_categorical_metric],
-        reasoning=False,
-    )
-    
-    # Different configurations should produce different hashes
-    assert evaluator1.config_hash != evaluator2.config_hash
 
 
 # ================= YAML Loading Tests =================
@@ -554,10 +410,6 @@ def test_yaml_template_has_required_keys(sample_categorical_metric, mock_llm):
         assert key in evaluator._template
 
 
-# ================= Integration Tests =================
-# Note: These require real LLM integration and belong in integration test suite
-
-
 # ================= Edge Cases =================
 
 
@@ -570,21 +422,17 @@ def test_evaluator_with_empty_metrics_list(mock_llm):
     )
     
     assert len(evaluator._metrics) == 0
-    assert evaluator._metrics_str() == ""
 
 
-def test_evaluator_copies_metrics_list(sample_categorical_metric, mock_llm):
-    """Test that evaluator creates a copy of the metrics list."""
+def test_evaluator_result_structure(sample_categorical_metric, mock_llm):
+    """Test that evaluator initializes results structure correctly."""
     llm = mock_llm()
-    original_metrics = [sample_categorical_metric]
-    
     evaluator = JudgeEvaluator(
         llm=llm,
-        metrics=original_metrics,
+        metrics=[sample_categorical_metric],
     )
     
-    # Modify original list
-    original_metrics.append(Numerical(name="NewMetric"))
-    
-    # Evaluator's metrics should not be affected
-    assert len(evaluator._metrics) == 1
+    assert hasattr(evaluator, 'results')
+    assert isinstance(evaluator.results, dict)
+    assert hasattr(evaluator, '_metrics_result')
+    assert isinstance(evaluator._metrics_result, list)

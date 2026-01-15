@@ -4,6 +4,7 @@ from ..evaluators import Evaluator
 from ...utils.point import AgentDataPoint
 
 from ...utils.logging.create import get_rt_logger
+from ..result import EvaluationResult
 
 logger = get_rt_logger("evaluate")
 
