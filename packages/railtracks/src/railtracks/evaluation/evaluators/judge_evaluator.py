@@ -15,6 +15,7 @@ from ..result import (
 from ...utils.point import AgentDataPoint
 from uuid import UUID
 from ...utils.logging.create import get_rt_logger
+from tqdm import tqdm
 
 logger = get_rt_logger("JudgeEvaluator")
 
@@ -126,7 +127,7 @@ class JudgeEvaluator(Evaluator):
     ) -> list[tuple[str, str, JudgeResponseSchema]]:
 
         # put this as none for now to not pollute agent_data
-        with rt.Session(save_data="none") as session:
+        with rt.Session(save_data="none", logging_setting="CRITICAL") as session:
 
             # TODO: uncomment after https://github.com/RailtownAI/railtracks/issues/884 is resolved
             # self._session_id = session._identifier
@@ -135,7 +136,7 @@ class JudgeEvaluator(Evaluator):
             # output = [(p[0], res.structured) for p, res in zip(prompt, response)]
             output = []
             for metric in self._metrics.values():
-                for adp in data:
+                for adp in tqdm(data, desc=f"LLMJudge Evaluating Agent Datapoints for metric: {metric.name}"):
 
                     user_message = self._generate_user_prompt(adp)
                     system_message = self._generate_system_prompt(metric)
@@ -183,6 +184,8 @@ class JudgeEvaluator(Evaluator):
                         ],
                     )
                 )
+            elif "_reasoning" in metric.name: # TODO: this is hacky, fix later
+                continue
             else:
                 logger.warning(
                     f"Supported metrics are of types Categorical or Numerical, encountered f{type(metric)}"

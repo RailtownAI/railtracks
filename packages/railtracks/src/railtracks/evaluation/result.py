@@ -48,7 +48,7 @@ class AggregateNumericalResult(BaseModel):
         if not self.values:
             return
 
-        self.average = sum(self.values) / len(self.values)
+        self.mean = sum(self.values) / len(self.values)
         self.minimum = min(self.values)
         self.maximum = max(self.values)
 
@@ -61,7 +61,7 @@ class AggregateNumericalResult(BaseModel):
         else:
             self.median = sorted_values[n // 2]
 
-        variance = sum((x - self.average) ** 2 for x in self.values) / len(self.values)
+        variance = sum((x - self.mean) ** 2 for x in self.values) / len(self.values)
         self.std = variance**0.5
 
         value_counts = Counter(self.values)
@@ -76,9 +76,9 @@ class EvaluatorResult(BaseModel):
     metrics: list[Metric]
     results: Sequence[
         tuple[UUID, MetricResult]
+        | MetricResult
         | AggregateCategoricalResult
         | AggregateNumericalResult
-        | MetricResult
     ]
 
 
