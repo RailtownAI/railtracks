@@ -3,7 +3,6 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from railtracks.evaluation.result import (
-    AgentRun,
     MetricResult,
     AggregateCategoricalResult,
     EvaluatorResult,

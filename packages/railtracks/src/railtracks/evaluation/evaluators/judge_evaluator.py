@@ -18,6 +18,7 @@ from ...utils.logging.create import get_rt_logger
 
 logger = get_rt_logger("JudgeEvaluator")
 
+
 class JudgeResponseSchema(BaseModel):
     metric_value: str | float | int
     reasoning: str | None = None
@@ -59,8 +60,6 @@ class JudgeEvaluator(Evaluator):
             tool_nodes=[],
         )
 
-
-
         self._result: EvaluatorResult
 
     def run(self, data: list[AgentDataPoint]) -> EvaluatorResult:
@@ -68,7 +67,7 @@ class JudgeEvaluator(Evaluator):
         # preparing the judge agent
         self.agent_name = data[0].agent_name
 
-        # (metric_id, adp_id, JudgeResponseSchema)    
+        # (metric_id, adp_id, JudgeResponseSchema)
         judge_outputs: list[tuple[str, str, JudgeResponseSchema]] = asyncio.run(
             self._session(data)
         )
@@ -76,63 +75,33 @@ class JudgeEvaluator(Evaluator):
         for output in judge_outputs:
             metric = self._metrics[output[0]]
             self.results[metric].append(
-                (output[1], 
-                 MetricResult(
-                     metric_name=metric.name,
-                     metric_id = metric.identifier,
-                     value=output[2].metric_value
-                 )
+                (
+                    output[1],
+                    MetricResult(
+                        metric_name=metric.name,
+                        metric_id=metric.identifier,
+                        value=output[2].metric_value,
+                    ),
                 )
-
             )
             if self._reasoning:
-                reasoning_metric = Metric(
-                    name=f"{metric.name}_reasoning"
-                )
+                reasoning_metric = Metric(name=f"{metric.name}_reasoning")
                 if output[2].reasoning is not None:
                     self.results[reasoning_metric].append(
-                        (output[1],
-                        MetricResult(
-                            metric_name=reasoning_metric.name,
-                            metric_id = reasoning_metric.identifier,
-                            value=output[2].reasoning
+                        (
+                            output[1],
+                            MetricResult(
+                                metric_name=reasoning_metric.name,
+                                metric_id=reasoning_metric.identifier,
+                                value=output[2].reasoning,
+                            ),
                         )
                     )
-                )
                 else:
                     logger.warning(
                         f"No reasoning returned for Judge Evaluator Metric: {metric.name}, AgentDataPoint ID: {output[1]}"
                     )
 
-        # results: list[tuple[UUID, JudgeMetricResult]] = (
-        #     []
-        # )  
-
-        # for adp_id, res in result:
-        #     if res.metric_results is not None:
-        #         results.extend([(adp_id, jmr) for jmr in res.metric_results])
-        #     else:
-        #         logger.warning(
-        #             f"No metric results returned for Judge Evaluator AgentDataPoint ID: {adp_id}"
-        #         )
-
-        # for res in results:
-        #     metric = self._metrics_dict.get(res[1].metric_name)
-        #     if metric:
-        #         self._metrics_result.append(
-        #             (
-        #                 res[0],
-        #                 MetricResult(
-        #                     metric_name=res[1].metric_name,
-        #                     metric_id=metric.identifier,
-        #                     value=res[1].metric_value,
-        #                 ),
-        #             )
-        #         )
-        #     else:
-        #         logger.warning(
-        #             f"Received unknown metric name from Judge Evaluator: {res[1].metric_name}"
-        #         )
         self.aggregate_results = self._aggregate_metrics()
 
         self._result = EvaluatorResult(
@@ -140,7 +109,7 @@ class JudgeEvaluator(Evaluator):
             agent_name=self.agent_name,
             evaluator_id=self._id,
             results=self._metrics_result + self.aggregate_results,
-            metrics=self._metrics,
+            metrics=list(self._metrics.values()),
         )
         return self._result
 
@@ -148,7 +117,7 @@ class JudgeEvaluator(Evaluator):
         return (
             f"JudgeEvaluator, "
             f"llm={self._llm}, "
-            f"metric={self._metrics}, "
+            f"metrics={list(self._metrics.values())}, "
             f"reasoning={self._reasoning})"
         )
 
@@ -167,15 +136,18 @@ class JudgeEvaluator(Evaluator):
             output = []
             for metric in self._metrics.values():
                 for adp in data:
-                    
+
                     user_message = self._generate_user_prompt(adp)
                     system_message = self._generate_system_prompt(metric)
-                    
+
                     res = await rt.call(
-                        self._judge, 
-                        rt.llm.MessageHistory([
-                            rt.llm.SystemMessage(system_message),
-                            rt.llm.UserMessage(user_message)])
+                        self._judge,
+                        rt.llm.MessageHistory(
+                            [
+                                rt.llm.SystemMessage(system_message),
+                                rt.llm.UserMessage(user_message),
+                            ]
+                        ),
                     )
                     output.append((metric.identifier, str(adp.id), res.structured))
 
@@ -185,33 +157,38 @@ class JudgeEvaluator(Evaluator):
         self,
     ) -> list[AggregateCategoricalResult | AggregateNumericalResult]:
 
-        # Collect values by metric identifier (not name) from results
-        values_by_metric_id = defaultdict(list)
-        for _, metric_result in self._metrics_result:
-            values_by_metric_id[metric_result.metric_id].append(metric_result.value)
+        aggregates: list[AggregateCategoricalResult | AggregateNumericalResult] = []
 
-        aggregate_results = []
-
-        for metric_name, metric in self._metrics_dict.items():
-            metric_id = UUID(metric.identifier)
-            values = values_by_metric_id.get(metric_id, [])
-
-            if type(metric) is Categorical:
-                aggregate = AggregateCategoricalResult(
-                    metric=metric,
-                    labels=[str(v) for v in values],
+        for metric in self.results:
+            # TODO: the conditions of type checking in values and labels feels it can be better addressed
+            if isinstance(metric, Numerical):
+                aggregates.append(
+                    AggregateNumericalResult(
+                        metric=metric,
+                        values=[
+                            m.value
+                            for _, m in self.results[metric]
+                            if isinstance(m.value, (int, float))
+                        ],
+                    )
                 )
-            elif type(metric) is Numerical:
-                aggregate = AggregateNumericalResult(
-                    metric=metric,
-                    values=[float(v) for v in values],
+            elif isinstance(metric, Categorical):
+                aggregates.append(
+                    AggregateCategoricalResult(
+                        metric=metric,
+                        labels=[
+                            m.value
+                            for _, m in self.results[metric]
+                            if isinstance(m.value, str)
+                        ],
+                    )
                 )
             else:
-                continue
+                logger.warning(
+                    f"Supported metrics are of types Categorical or Numerical, encountered f{type(metric)}"
+                )
 
-            aggregate_results.append(aggregate)
-
-        return aggregate_results
+        return aggregates
 
     def _generate_user_prompt(self, data: AgentDataPoint) -> str:
         return self._template["user"].format(
@@ -224,9 +201,7 @@ class JudgeEvaluator(Evaluator):
 
         system_prompt: str = self._template["system_prompt"]
 
-        system_prompt += "\n" + self._template["metric"].format(
-            metric=str(metric)
-        )
+        system_prompt += "\n" + self._template["metric"].format(metric=str(metric))
 
         if self._reasoning:
             system_prompt += self._template["reasoning"]
