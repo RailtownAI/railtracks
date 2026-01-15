@@ -30,7 +30,6 @@ class ToolUseEvaluator(Evaluator):
         self.results: dict[Numerical, list[tuple[str, MetricResult]]] = defaultdict(
             list
         )
-        self.metrics_lookup: dict[str, Metric] = {}
 
     def run(self, data: list[AgentDataPoint]) -> EvaluatorResult:
         if isinstance(data, AgentDataPoint):

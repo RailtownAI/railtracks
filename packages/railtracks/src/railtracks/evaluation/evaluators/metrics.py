@@ -34,6 +34,12 @@ class Metric(BaseModel):
         if not isinstance(other, Metric):
             return False
         return self.identifier == other.identifier
+
+    def __str__(self) -> str:
+        """Custom string represention excluding the identifier field"""
+        fields = {k: v for k, v in self.model_dump().items() if k != 'identifier'}
+        fields_str = ', '.join(f"{k}={repr(v)}" for k, v in fields.items())
+        return f"{self.__class__.__name__}({fields_str})"
     
     # @model_validator(mode='after')
     # def _set_config_hash(self):
@@ -52,11 +58,6 @@ class Metric(BaseModel):
     #     self.config_hash = hashlib.sha256(config_str.encode()).hexdigest()
     #     return self
 
-    # def __repr__(self) -> str:
-    #     """Custom repr excluding the id field for consistent hash generation."""
-    #     fields = {k: v for k, v in self.model_dump().items() if k != 'id'}
-    #     fields_str = ', '.join(f"{k}={repr(v)}" for k, v in fields.items())
-    #     return f"{self.__class__.__name__}({fields_str})"
     
     # def __str__(self) -> str:
     #     """Clean string representation excluding identifier and config_hash."""

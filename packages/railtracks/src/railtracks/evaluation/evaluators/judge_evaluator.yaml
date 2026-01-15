@@ -6,6 +6,6 @@ user: |
   Agent Internals: {agent_internals}
 metric: |
   Please provide your feedback using the following criteria:
-  {metrics}
+  {metric}
 reasoning:
   Please provide a detailed reasoning for your evaluation.
