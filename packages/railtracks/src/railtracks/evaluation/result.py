@@ -88,12 +88,21 @@ class EvaluatorResult(BaseModel):
     def validate_results(cls, values):
         """Validate that UUIDs in tuple results are present in agent_data_ids."""
         results = values.get("results", [])
-        agent_data_ids = values.get("agent_data_ids", [])
+        agent_data_ids = values.get("agent_data_ids", set())
 
         for result in results:
-            # only need to check if result is a tuple (UUID, MetricResult)
+            # only need to check if result is a tuple (str, MetricResult)
             if isinstance(result, tuple) and len(result) >= 2:
-                uuid_value = result[0]
+                id_value = result[0]
+                
+                # Convert string ID to UUID if needed
+                if isinstance(id_value, str):
+                    try:
+                        uuid_value = UUID(id_value)
+                    except (ValueError, TypeError):
+                        raise ValueError(f"Result ID {id_value} is not a valid UUID string")
+                else:
+                    uuid_value = id_value
 
                 if uuid_value not in agent_data_ids:
                     raise ValueError(

@@ -323,8 +323,8 @@ def test_run_with_single_data_point():
     assert result.evaluator_name == "ToolUseEvaluator"
     assert result.evaluator_id == evaluator.id
     assert len(result.metrics) == 2
-    # results is now empty list - aggregate_results contains aggregated metrics
-    assert result.results == []
+    # results now contains per-datapoint metrics AND aggregates
+    assert len(result.results) > 0
 
 
 def test_run_with_list_of_data_points():
@@ -358,8 +358,8 @@ def test_run_with_list_of_data_points():
     
     assert isinstance(result, EvaluatorResult)
     assert len(result.metrics) == 4  # 2 tools * 2 metrics each
-    # results is empty, aggregate_results contains the aggregated data
-    assert result.results == []
+    # results contains per-datapoint metrics AND aggregates
+    assert len(result.results) > 0
 
 
 def test_run_with_evaluation_dataset(tmp_path):
@@ -518,7 +518,7 @@ def test_workflow_with_no_tool_invocations():
     
     assert isinstance(result, EvaluatorResult)
     assert len(result.metrics) == 0
-    assert result.results == []
+    assert len(result.results) == 0  # No metrics, no results
 
 
 # ================= Edge Cases =================
@@ -568,6 +568,8 @@ def test_run_with_mixed_internals():
     
     # Should have 2 entries (one per valid data point)
     assert len(usage_count_results) == 2
+    # Results should contain per-datapoint tuples plus aggregates
+    assert len(result.results) > 0
     assert all(r.value == 1 for r in usage_count_results)
 
 

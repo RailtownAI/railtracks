@@ -132,7 +132,6 @@ class ToolUseEvaluator(Evaluator):
     def _aggregate_metrics(self):
         """Aggregates the ToolUseEvaluator metrics on an agent level."""
 
-        # self.results: dict[Metric, list[tuple[str, MetricResult]]] = defaultdict(list)
         aggregates = []
         for metric in self.results:
 

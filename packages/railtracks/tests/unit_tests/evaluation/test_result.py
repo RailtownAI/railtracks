@@ -284,7 +284,7 @@ def test_evaluator_result_creation_and_types(sample_categorical_metric, sample_n
     categorical_aggregate = AggregateCategoricalResult(metric=sample_categorical_metric, labels=["Positive"])
     numerical_aggregate = AggregateNumericalResult(metric=sample_numerical_metric, values=[0.8, 0.9])
     data_point_id = uuid4()
-    tuple_result = (data_point_id, metric_result)
+    tuple_result = (str(data_point_id), metric_result)  # Use string ID to match tuple[str, MetricResult]
     result = EvaluatorResult(
         evaluator_name="TestEvaluator",
         evaluator_id=uuid4(),
@@ -293,6 +293,15 @@ def test_evaluator_result_creation_and_types(sample_categorical_metric, sample_n
         results=[tuple_result, categorical_aggregate, numerical_aggregate, metric_result]
     )
     assert len(result.results) == 4
+    
+    # Test without tuples (no agent_data_ids needed)
+    result = EvaluatorResult(
+        evaluator_name="TestEvaluator",
+        evaluator_id=uuid4(),
+        metrics=[sample_categorical_metric],
+        results=[metric_result, categorical_aggregate]
+    )
+    assert len(result.results) == 2
 
 
 # ================= EvaluationResult Tests =================
