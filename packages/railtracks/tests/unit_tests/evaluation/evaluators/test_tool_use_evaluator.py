@@ -321,7 +321,6 @@ def test_run_with_single_data_point():
     
     assert isinstance(result, EvaluatorResult)
     assert result.evaluator_name == "ToolUseEvaluator"
-    assert result.agent_name == "test_agent"
     assert result.evaluator_id == evaluator.id
     assert len(result.metrics) == 2
     # results is now empty list - aggregate_results contains aggregated metrics
@@ -407,8 +406,6 @@ def test_run_sets_agent_name():
     )
     
     result = evaluator.run([data_point])
-    
-    assert result.agent_name == "my_agent"
 
 
 def test_run_creates_correct_metric_names():
@@ -493,7 +490,6 @@ def test_full_workflow_with_multiple_tools():
     
     assert isinstance(result, EvaluatorResult)
     assert result.evaluator_name == "ToolUseEvaluator"
-    assert result.agent_name == "test_agent"
     
     # Should have metrics for both tools
     assert len(result.metrics) == 4  # 2 tools * 2 metrics

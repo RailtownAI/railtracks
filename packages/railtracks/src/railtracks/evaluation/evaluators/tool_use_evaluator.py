@@ -7,7 +7,6 @@ from .metrics import Numerical, Metric
 from ..result import EvaluatorResult, MetricResult, AggregateNumericalResult
 
 from ...utils.logging.create import get_rt_logger
-from uuid import UUID
 
 logger = get_rt_logger("ToolUseEvaluator")
 
@@ -37,19 +36,14 @@ class ToolUseEvaluator(Evaluator):
         elif isinstance(data, EvaluationDataset):
             data = data.data_points_list
 
-        self.agent_name = data[0].agent_name
-
         self._retrieve_tool_stats(data)
         self.aggregate_results = self._aggregate_metrics()
 
-
-
         self._result = EvaluatorResult(
-            agent_name=self.agent_name,
             evaluator_name=self.name,
             evaluator_id=self._id,
             metrics=self.metrics,
-            results=[], # What do we want here?
+            results=[],  # What do we want here?
             # results=[result for _, result in self.results] + self.aggregate_results,
         )
 

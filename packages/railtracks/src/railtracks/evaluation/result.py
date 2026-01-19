@@ -1,16 +1,18 @@
 from collections import Counter
 from datetime import datetime
 from typing import Sequence
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from .evaluators.metrics import Categorical, Metric, Numerical
 
+
 class MetricResult(BaseModel):
-    metric_name: str # primary for human readability and debugging
+    metric_name: str  # primary for human readability and debugging
     metric_id: str
     value: str | float | int
+
 
 class AggregateCategoricalResult(BaseModel):
     metric: Categorical
@@ -71,8 +73,8 @@ class AggregateNumericalResult(BaseModel):
 
 class EvaluatorResult(BaseModel):
     evaluator_name: str
-    agent_name: str
     evaluator_id: UUID
+    # agent_data_ids: set[UUID]
     metrics: list[Metric]
     results: Sequence[
         tuple[UUID, MetricResult]
@@ -81,10 +83,27 @@ class EvaluatorResult(BaseModel):
         | AggregateNumericalResult
     ]
 
+    # @model_validator(mode="before")
+    # @classmethod
+    # def validate_results(cls, values):
+    #     """Validate that UUIDs in tuple results are present in agent_data_ids."""
+    #     results = values.get("results", [])
+    #     agent_data_ids = values.get("agent_data_ids", [])
+
+    #     for result in results:
+    #         # only need to check if result is a tuple (UUID, MetricResult)
+    #         if isinstance(result, tuple) and len(result) >= 2:
+    #             uuid_value = result[0]
+
+    #             if uuid_value not in agent_data_ids:
+    #                 raise ValueError(
+    #                     f"Result UUID {uuid_value} not found in agent_data_ids"
+    #                 )
+
 
 class EvaluationResult(BaseModel):
-    evaluation_id: UUID
-    evaluation_name: str
+    evaluation_id: UUID = Field(default_factory=uuid4)
+    evaluation_name: str | None = None
     agent_name: str
     created_at: datetime
     agent_run_ids: list[UUID] = Field(
