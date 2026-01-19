@@ -74,7 +74,7 @@ class ExecutionInfo:
         """
         insertion_requests = self.insertion_requests
 
-        # The name is only defined for the lenght of 1.
+        # The name is only defined for the length of 1.
         # NOTE: Maybe we should send a warning once to user in other cases.
         if len(insertion_requests) != 1:
             return None
