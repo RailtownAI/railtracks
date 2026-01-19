@@ -1,5 +1,4 @@
 from uuid import UUID
-import railtracks as rt
 from collections import defaultdict
 from .evaluator import Evaluator
 from ..data import EvaluationDataset
@@ -48,8 +47,7 @@ class ToolUseEvaluator(Evaluator):
             evaluator_id=self._id,
             agent_data_ids=self.agent_data_ids,
             metrics=self.metrics,
-            results=[],  # What do we want here?
-            # results=[result for _, result in self.results] + self.aggregate_results,
+            results=[item for sublist in self.results.values() for item in sublist] + self.aggregate_results,
         )
 
         return self._result
@@ -152,20 +150,3 @@ class ToolUseEvaluator(Evaluator):
             )
 
         return aggregates
-        # tool_metric_aggregates: dict[str, list[str | float | int]] = defaultdict(list)
-
-        # for result in self.results:
-        #     tool_metric_aggregates[str(result.metric_id)].append(result.value)
-        # aggregate_results: list[AggregateNumericalResult] = []
-
-        # for metric_id, values in tool_metric_aggregates.items():
-        #     metric = self.metrics_lookup.get(metric_id)
-        #     if isinstance(metric, ToolFailureRate) or isinstance(metric, ToolFrequency):
-        #         aggregate = AggregateNumericalResult(
-        #             metric=metric,
-        #             values=[float(v) for v in values],
-        #         )
-
-        #         aggregate_results.append(aggregate)
-
-        # return aggregate_results
