@@ -17,7 +17,6 @@ class MinimalEvaluator(Evaluator):
         """Minimal implementation of abstract method."""
         return EvaluatorResult(
             evaluator_name=self.name,
-            agent_name="test_agent",
             evaluator_id=self.id,
             metrics=[],
             results=[],

@@ -1,3 +1,4 @@
+from uuid import UUID
 import railtracks as rt
 from collections import defaultdict
 from .evaluator import Evaluator
@@ -29,19 +30,23 @@ class ToolUseEvaluator(Evaluator):
         self.results: dict[Numerical, list[tuple[str, MetricResult]]] = defaultdict(
             list
         )
+        self.agent_data_ids: set[UUID] = set()
+
 
     def run(self, data: list[AgentDataPoint]) -> EvaluatorResult:
         if isinstance(data, AgentDataPoint):
             data = [data]
         elif isinstance(data, EvaluationDataset):
             data = data.data_points_list
-
+        
+        self.agent_data_ids = {adp.id for adp in data}
         self._retrieve_tool_stats(data)
         self.aggregate_results = self._aggregate_metrics()
 
         self._result = EvaluatorResult(
             evaluator_name=self.name,
             evaluator_id=self._id,
+            agent_data_ids=self.agent_data_ids,
             metrics=self.metrics,
             results=[],  # What do we want here?
             # results=[result for _, result in self.results] + self.aggregate_results,

@@ -265,7 +265,6 @@ def test_evaluator_result_creation_and_types(sample_categorical_metric, sample_n
     # Basic creation
     result = EvaluatorResult(
         evaluator_name="TestEvaluator",
-        agent_name="test_agent",
         evaluator_id=evaluator_id,
         metrics=[sample_categorical_metric],
         results=[metric_result]
@@ -275,7 +274,6 @@ def test_evaluator_result_creation_and_types(sample_categorical_metric, sample_n
     # Multiple metrics
     result = EvaluatorResult(
         evaluator_name="TestEvaluator",
-        agent_name="test_agent",
         evaluator_id=uuid4(),
         metrics=[sample_categorical_metric, sample_numerical_metric],
         results=[]
@@ -285,11 +283,12 @@ def test_evaluator_result_creation_and_types(sample_categorical_metric, sample_n
     # Tuple and aggregate results
     categorical_aggregate = AggregateCategoricalResult(metric=sample_categorical_metric, labels=["Positive"])
     numerical_aggregate = AggregateNumericalResult(metric=sample_numerical_metric, values=[0.8, 0.9])
-    tuple_result = (uuid4(), metric_result)
+    data_point_id = uuid4()
+    tuple_result = (data_point_id, metric_result)
     result = EvaluatorResult(
         evaluator_name="TestEvaluator",
-        agent_name="test_agent",
         evaluator_id=uuid4(),
+        agent_data_ids={data_point_id},
         metrics=[sample_categorical_metric, sample_numerical_metric],
         results=[tuple_result, categorical_aggregate, numerical_aggregate, metric_result]
     )
@@ -307,7 +306,6 @@ def test_evaluation_result_comprehensive(sample_categorical_metric):
     
     evaluator_result = EvaluatorResult(
         evaluator_name="TestEvaluator",
-        agent_name="test_agent",
         evaluator_id=uuid4(),
         metrics=[],
         results=[]
@@ -361,7 +359,6 @@ def test_full_result_structure(sample_categorical_metric, sample_numerical_metri
     # Create evaluator result
     evaluator_result = EvaluatorResult(
         evaluator_name="JudgeEvaluator",
-        agent_name="test_agent",
         evaluator_id=uuid4(),
         metrics=[sample_categorical_metric, sample_numerical_metric],
         results=[metric_result, categorical_aggregate, numerical_aggregate]

@@ -46,6 +46,7 @@ class JudgeEvaluator(Evaluator):
         self._metrics: dict[str, Metric] = {m.identifier: m for m in metrics}
         self._metrics_result: list[tuple[UUID, MetricResult]] = []
         self.results: dict[Metric, list[tuple[str, MetricResult]]] = defaultdict(list)
+        self.agent_data_ids: set[UUID] = set()
 
         # preparing the judge agent
         self._llm = llm
@@ -69,6 +70,8 @@ class JudgeEvaluator(Evaluator):
         judge_outputs: list[tuple[str, str, JudgeResponseSchema]] = asyncio.run(
             self._session(data)
         )
+
+        self.agent_data_ids = {adp.id for adp in data}
 
         for output in judge_outputs:
             metric = self._metrics[output[0]]
@@ -105,6 +108,7 @@ class JudgeEvaluator(Evaluator):
         self._result = EvaluatorResult(
             evaluator_name=self.name,
             evaluator_id=self._id,
+            agent_data_ids=self.agent_data_ids,
             results=self._metrics_result + self.aggregate_results,
             metrics=list(self._metrics.values()),
         )

@@ -74,7 +74,7 @@ class AggregateNumericalResult(BaseModel):
 class EvaluatorResult(BaseModel):
     evaluator_name: str
     evaluator_id: UUID
-    # agent_data_ids: set[UUID]
+    agent_data_ids: set[UUID] = Field(default_factory=set)
     metrics: list[Metric]
     results: Sequence[
         tuple[UUID, MetricResult]
@@ -83,22 +83,24 @@ class EvaluatorResult(BaseModel):
         | AggregateNumericalResult
     ]
 
-    # @model_validator(mode="before")
-    # @classmethod
-    # def validate_results(cls, values):
-    #     """Validate that UUIDs in tuple results are present in agent_data_ids."""
-    #     results = values.get("results", [])
-    #     agent_data_ids = values.get("agent_data_ids", [])
+    @model_validator(mode="before")
+    @classmethod
+    def validate_results(cls, values):
+        """Validate that UUIDs in tuple results are present in agent_data_ids."""
+        results = values.get("results", [])
+        agent_data_ids = values.get("agent_data_ids", [])
 
-    #     for result in results:
-    #         # only need to check if result is a tuple (UUID, MetricResult)
-    #         if isinstance(result, tuple) and len(result) >= 2:
-    #             uuid_value = result[0]
+        for result in results:
+            # only need to check if result is a tuple (UUID, MetricResult)
+            if isinstance(result, tuple) and len(result) >= 2:
+                uuid_value = result[0]
 
-    #             if uuid_value not in agent_data_ids:
-    #                 raise ValueError(
-    #                     f"Result UUID {uuid_value} not found in agent_data_ids"
-    #                 )
+                if uuid_value not in agent_data_ids:
+                    raise ValueError(
+                        f"Result UUID {uuid_value} not found in agent_data_ids"
+                    )
+        
+        return values
 
 
 class EvaluationResult(BaseModel):
