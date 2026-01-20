@@ -12,7 +12,7 @@ The same flow model supports multiple agent architectures without introducing ne
 
 
 <div class="grid cards">
-  <a class="card" href="examples/validation_loop/index.md">
+  <a class="card" href="../validation_loop/">
     <h3>Validation Loop</h3>
     <p>
       Iterative agent workflows that combine generation, structured validation,
