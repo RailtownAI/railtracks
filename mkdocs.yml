@@ -40,6 +40,11 @@ theme:
 
 plugins:
   - search
+  - mkdocs-jupyter:
+      include: ["**/*.ipynb"]
+      include_source: true
+
+
 
 markdown_extensions:
   - pymdownx.emoji:
@@ -77,6 +82,11 @@ nav:
       - RAG: background/RAG.md
       - Async/Await: background/async_await.md
       - Vector Stores: background/vector_store.md
+
+  - Architectures:
+      - Overview: architectures/overview.md
+      - Validation Loop: architectures/validation_loop.md
+    #   - Sequential Flows: architectures/sequential.md
   
   - Tutorials:
       - Building your first agent: tutorials/byfa.md

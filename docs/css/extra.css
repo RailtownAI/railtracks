@@ -45,6 +45,51 @@
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
+.grid.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.25rem;
+  margin: 1.5rem 0;
+}
+
+.card {
+  display: block;
+  padding: 1.25rem 1.25rem 1.4rem;
+  border-radius: 10px;
+
+  background-color: var(--md-default-bg-color);
+  border: 1px solid var(--md-default-fg-color--lightest);
+
+  text-decoration: none;
+  color: inherit;
+
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.card h3 {
+  margin: 0 0 0.4rem 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.card p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--md-default-fg-color--light);
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  border-color: var(--md-primary-fg-color--light);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+
+
 
 /* Extra CSS for MkDocs */
 
@@ -70,4 +115,83 @@
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
+
+.colab-card {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.25rem 1.5rem;
+  margin: 1.5rem 0;
+
+  border-radius: 10px;
+  border: 1px solid var(--md-default-fg-color--lighter);
+  background: var(--md-default-bg-color);
+
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.colab-card-left {
+  flex-shrink: 0;
+}
+
+.colab-logo {
+  width: 48px;
+  height: auto;
+}
+
+.colab-card-content {
+  flex: 1;
+}
+
+.colab-card-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.colab-card-description {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.colab-card-action {
+  flex-shrink: 0;
+}
+
+.colab-button {
+  display: inline-block;
+  padding: 0.5rem 0.9rem;
+
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.85rem;
+
+  background: #f9ab00; /* Colab yellow */
+  color: #000 !important;
+  text-decoration: none;
+}
+
+.colab-button:hover {
+  background: #f29900;
+}
+
+/* Disabled / Coming Soon cards */
+.card.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.card.disabled h3::after {
+  content: " • Coming soon";
+  font-size: 0.85em;
+  font-weight: normal;
+  color: var(--md-primary-fg-color, #888);
+}
+
+.card.disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
 
