@@ -49,8 +49,6 @@ The same flow model supports a range of agent architectures without introducing 
     <p>Iterative workflows such as generation with structured validation.</p>
   </a>
 
-
-
   <a class="card disabled">
     <h3>Research Agent</h3>
     <p>Sequential and branching steps for search, synthesis, and summarization. </p>
@@ -58,12 +56,12 @@ The same flow model supports a range of agent architectures without introducing 
 
   <a class="card disabled">
     <h3>Orchestrator / Worker</h3>
-    <p>A coordinating agent that delegates work to specialized agents or tools. <</p>
+    <p>A coordinating agent that delegates work to specialized agents or tools. </p>
   </a>
 
 </div>
 <div style="text-align: center; margin-top: 1rem;">
-  <a href="architectures/overview" class="md-button">Checkout other architectures</a>
+  <a href="architectures/overview" class="md-button">Check out other architectures</a>
 </div>
 
 
