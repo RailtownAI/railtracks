@@ -217,6 +217,7 @@ def function_node(
         node_class = AsyncDynamicFunctionNode
         # Methods (bound methods from instances/classes) need to be wrapped
         # to allow setting the node_type attribute
+        # Note: node_class remains AsyncDynamicFunctionNode after wrapping
         if inspect.ismethod(func):
             func = _function_preserving_metadata(func)
     elif inspect.isfunction(func):
