@@ -40,9 +40,6 @@ theme:
 
 plugins:
   - search
-  - mkdocs-jupyter:
-      include: ["**/*.ipynb"]
-      include_source: true
 
 
 
