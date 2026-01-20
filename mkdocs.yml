@@ -78,7 +78,7 @@ nav:
 
   - Architectures:
       - Overview: architectures/overview.md
-      - Validation Loop: architectures/validation_loop.md
+      - Validation Loops: architectures/validation_loop.md
     #   - Sequential Flows: architectures/sequential.md
   
   - Tutorials:
