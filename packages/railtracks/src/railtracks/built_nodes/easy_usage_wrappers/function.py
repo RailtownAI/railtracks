@@ -278,12 +278,16 @@ def _function_preserving_metadata(
     Handles both sync and async functions/methods.
     """
     if asyncio.iscoroutinefunction(func):
+
         @functools.wraps(func)
         async def async_wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
             return await func(*args, **kwargs)
+
         return async_wrapper
     else:
+
         @functools.wraps(func)
         def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
             return func(*args, **kwargs)
+
         return wrapper
