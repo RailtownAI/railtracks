@@ -115,6 +115,7 @@ nav:
   
   - Vector Stores:
       - Overview: vector_stores/vector_store_info.md
+      - Filtering: vector_stores/filtering.md
       - Integrations:
           - Chroma: vector_stores/integrations/chroma.md
 

@@ -26,6 +26,7 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
     def __init__(
         self,
         model_name: str,
+        stream: _TStream = False,
         domain: Literal["default", "auto", "custom"] = "default",
         custom_domain: str | None = None,
         **kwargs,
@@ -34,6 +35,7 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
 
         Args:
             model_name (str): Name of the Ollama model to use.
+            stream (bool): Whether to stream the response.
             domain (Literal["default", "auto", "custom"], optional): The domain configuration mode.
                 - "default": Uses the default localhost domain (http://localhost:11434)
                 - "auto": Uses the OLLAMA_HOST environment variable, raises OllamaError if not set
@@ -55,7 +57,7 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
                 f"Prepending 'ollama/' to model name '{model_name}' for Ollama"
             )
             model_name = f"ollama/{model_name}"
-        super().__init__(model_name, **kwargs)
+        super().__init__(model_name=model_name, stream=stream, **kwargs)
 
         match domain:
             case "default":
