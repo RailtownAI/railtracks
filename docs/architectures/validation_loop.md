@@ -1,5 +1,5 @@
 # Validation Loops
-Anyone who has spent time building agentic systems has likely run into the limits of one-shot LLM responses, especially as tasks grow more complex where percision is at a premium. This is where validation loops become useful.
+Anyone who has spent time building agentic systems has likely run into the limits of one-shot LLM responses, especially as tasks grow more complex where precision is at a premium. This is where validation loops become useful.
 
 A validation loop allows an agent to iteratively evaluate its own output, apply feedback, and try again until a desired bar is met. In this tutorial, we’ll walk through a simple example of building a validation loop in Railtracks. While the example uses an LLM to perform validation, the same pattern can be applied with fully programmatic checks such as schema validation, static analysis, code execution, or other custom logic.
 
