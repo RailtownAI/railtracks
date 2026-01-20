@@ -71,9 +71,6 @@ def test_init_stream_defaults_to_false(mock_response):
 
 def test_chat_with_streaming(mock_response):
     """Test that chat method returns a generator when streaming is enabled"""
-    from railtracks.llm.response import Response
-    from railtracks.llm.message import AssistantMessage
-    
     with patch('requests.get', return_value=mock_response):
         ollama = OllamaLLM("test-model", stream=True)
         messages = MessageHistory([UserMessage(content="test message")])
