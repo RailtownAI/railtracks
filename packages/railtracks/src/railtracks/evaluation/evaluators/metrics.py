@@ -1,6 +1,6 @@
 import hashlib
 import json
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, model_validator, field_serializer
 
 class Metric(BaseModel):
     name: str
@@ -78,3 +78,8 @@ class Numerical(Metric):
             )
         
         return values
+    
+    @field_serializer('data_type')
+    def serialize_data_type(self, value: type) -> str:
+        """Serialize type to string name for JSON."""
+        return value.__name__
