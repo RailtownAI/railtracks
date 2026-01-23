@@ -116,4 +116,5 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
         return ModelProvider.OLLAMA
 
     def model_provider(self) -> ModelProvider:
-        return super().model_provider()
+        """Returns the name of the provider"""
+        return self.model_gateway()
