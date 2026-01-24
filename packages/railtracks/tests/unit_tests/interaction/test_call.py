@@ -190,9 +190,12 @@ async def test_call_raises_type_error_with_function():
 async def test_start_activates_and_shuts_down_publisher(
     full_context_setup, mock_execute
 ):
-    """Test that _start properly activates and shuts down the publisher."""
+    """Test that _start properly activates and shuts down the publisher when no Session context exists."""
     mock_node = MockNode
     mock_execute.return_value = "test_result"
+    # Mock is_context_present to return False to simulate no Session context
+    # This ensures _start() manages the publisher lifecycle (shuts it down)
+    full_context_setup["context"]["is_context_present"].return_value = False
 
     result = await _start(mock_node, args=("arg1",), kwargs={"kwarg1": "value1"})
 
@@ -205,6 +208,9 @@ async def test_start_activates_and_shuts_down_publisher(
 async def test_start_handles_timeout_exception(full_context_setup, mock_execute):
     """Test that _start raises GlobalTimeOutError on timeout."""
     mock_node = MockNode
+    # Mock is_context_present to return False to simulate no Session context
+    # This ensures _start() manages the publisher lifecycle (shuts it down)
+    full_context_setup["context"]["is_context_present"].return_value = False
 
     async def slow_execute(*args, **kwargs):
         await asyncio.sleep(1)  # Simulate slow operation
@@ -223,6 +229,9 @@ async def test_start_handles_timeout_exception(full_context_setup, mock_execute)
 async def test_start_preserves_internal_timeout_error(full_context_setup, mock_execute):
     """Test that _start preserves timeout errors from the coroutine itself."""
     mock_node = MockNode
+    # Mock is_context_present to return False to simulate no Session context
+    # This ensures _start() manages the publisher lifecycle (shuts it down)
+    full_context_setup["context"]["is_context_present"].return_value = False
 
     async def timeout_execute(*args, **kwargs):
         raise asyncio.TimeoutError("Internal timeout")
