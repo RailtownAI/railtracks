@@ -1,3 +1,4 @@
+import asyncio
 import inspect
 import json
 import os
@@ -227,7 +228,31 @@ class Session:
         - Detaches logging handlers so they aren't duplicated
         - Deletes all the global variables that were registered in the context
         """
-        # the publisher should have already been closed in `_run_base`
+        # FIX: Resource leak - publisher background task wasn't being shut down on Session exit
+        # VISION: Session owns publisher lifecycle and must clean up all resources when exiting
+        if self.publisher.is_running():
+            try:
+                # Try to get the current event loop
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # We're in an async context but __exit__ is sync
+                    # Schedule shutdown as a task (fire and forget - necessary since we can't await in sync context)
+                    loop.create_task(self.publisher.shutdown())
+                else:
+                    # Loop exists but not running, we can run_until_complete
+                    loop.run_until_complete(self.publisher.shutdown())
+            except RuntimeError:
+                # No event loop exists, create a new one
+                asyncio.run(self.publisher.shutdown())
+            except Exception:
+                # If shutdown fails for any reason, log it but don't crash
+                # The publisher will eventually be garbage collected
+                logger.warning(
+                    "Failed to shutdown publisher during Session cleanup. "
+                    "This may indicate a resource leak.",
+                    exc_info=True,
+                )
+
         self.rt_state.shutdown()
 
         if self._has_custom_logging:
