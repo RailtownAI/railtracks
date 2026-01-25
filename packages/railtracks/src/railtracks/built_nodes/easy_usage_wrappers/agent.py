@@ -53,19 +53,6 @@ def agent_node(
     *,
     rag: RagConfig | None = None,
     output_schema: Type[_TBaseModel],
-    llm: ModelBase[Literal[True]],
-    system_message: SystemMessage | str | None = None,
-    manifest: ToolManifest | None = None,
-) -> Type[StreamingStructuredLLM[_TBaseModel]]:
-    pass
-
-
-@overload
-def agent_node(
-    name: str | None = None,
-    *,
-    rag: RagConfig | None = None,
-    output_schema: Type[_TBaseModel],
     llm: ModelBase[Literal[False]] | None = None,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
@@ -78,22 +65,11 @@ def agent_node(
     name: str | None = None,
     *,
     rag: RagConfig | None = None,
-    llm: ModelBase[Literal[False]] | None = None,
-    system_message: SystemMessage | str | None = None,
-    manifest: ToolManifest | None = None,
-) -> Type[TerminalLLM]:
-    pass
-
-
-@overload
-def agent_node(
-    name: str | None = None,
-    *,
-    rag: RagConfig | None = None,
+    output_schema: Type[_TBaseModel],
     llm: ModelBase[Literal[True]],
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
-) -> Type[StreamingTerminalLLM]:
+) -> Type[StreamingStructuredLLM[_TBaseModel]]:
     pass
 
 
@@ -122,6 +98,30 @@ def agent_node(
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
 ) -> Type[StreamingToolCallLLM]:
+    pass
+
+
+@overload
+def agent_node(
+    name: str | None = None,
+    *,
+    rag: RagConfig | None = None,
+    llm: ModelBase[Literal[False]] | None = None,
+    system_message: SystemMessage | str | None = None,
+    manifest: ToolManifest | None = None,
+) -> Type[TerminalLLM]:
+    pass
+
+
+@overload
+def agent_node(
+    name: str | None = None,
+    *,
+    rag: RagConfig | None = None,
+    llm: ModelBase[Literal[True]],
+    system_message: SystemMessage | str | None = None,
+    manifest: ToolManifest | None = None,
+) -> Type[StreamingTerminalLLM]:
     pass
 
 
