@@ -1,10 +1,9 @@
 import os
 from typing import Optional, Literal, overload, Union, TypeVar, TYPE_CHECKING, Any
-from copy import deepcopy
 from uuid import uuid4
 
 from .chunking.base_chunker import Chunk
-from .filter import Op
+from .filter import Op, LogicOp, LeafExpr, LogicExpr, BaseExpr
 from .vector_store_base import (
     FetchResponse,
     FetchResult,
@@ -38,8 +37,8 @@ OP_PINECONE_MAP = {
 }
 
 LOGICOP_PINECONE_MAP = {
-    LogicOp.AND = "$AND",
-    LogicOp.OR = "$OR"
+    LogicOp.AND : "$and",
+    LogicOp.OR : "$or"
 }
 
 class PineconeVectorStore(VectorStore):
@@ -51,6 +50,18 @@ class PineconeVectorStore(VectorStore):
         api_key: Optional[str] = os.getenv("PINECONE_API_KEY"),
 
     ):
+        """Initialize Pinecone class-level dependencies and configuration.
+
+        This method sets up the Pinecone client and imports required classes
+        at the class level so they can be used across all instances.
+
+        Args:
+            api_key: Optional Pinecone API key. Defaults to PINECONE_API_KEY
+                environment variable.
+
+        Raises:
+            ImportError: If the Pinecone package is not installed.
+        """
         if not hasattr(cls, "_pc"):
             try:
                 from pinecone import Pinecone, Vector, ServerlessSpec
@@ -119,6 +130,38 @@ class PineconeVectorStore(VectorStore):
         field_map : Optional[dict[str,str]] = None,
         deletion_protection : Optional[Literal["enabled", "disabled"]] = "disabled",
     ):
+        """Initialize a Pinecone vector store instance.
+
+        This constructor supports three modes of operation:
+        1. Create a manual index with specified parameters
+        2. Create an index with an integrated embedding model
+        3. Connect to an existing index
+
+        Args:
+            collection_name: Name of the Pinecone index to use or create.
+            embedding_model: Callable that converts strings to embeddings
+                (list of floats for dense or dict for sparse vectors).
+            api_key: Optional Pinecone API key. Defaults to PINECONE_API_KEY
+                environment variable.
+            vector_type: Optional type for vectors (e.g., 'dense'). Required
+                for manual index creation.
+            dimension: Optional dimension of the vectors. Required for manual
+                index creation.
+            metric: Optional distance metric (cosine, l2, dot). Required for
+                manual index creation.
+            region: Optional Pinecone region. Required for index creation.
+            cloud: Optional cloud provider (e.g., 'aws', 'gcp'). Required for
+                index creation.
+            field_map: Optional mapping for integrated model embeddings.
+                Required for integrated model index creation.
+            deletion_protection: Optional deletion protection setting ('enabled'
+                or 'disabled'). Defaults to 'disabled'.
+
+        Raises:
+            ImportError: If Pinecone package is not installed.
+            ValueError: If invalid parameter combinations are provided or if
+                the specified index does not exist.
+        """
         
         PineconeVectorStore.class_init(
             api_key,
@@ -130,7 +173,7 @@ class PineconeVectorStore(VectorStore):
             host = self._pc.create_index(
                 name=collection_name,
                 vector_type=vector_type,
-                dimension=dimension, #It would be a good idea to get the dimension for the user instead of making them pass it to us
+                dimension=dimension,
                 metric=metric,
                 spec=self._ServerlessSpec(
                     cloud=cloud,
@@ -210,7 +253,7 @@ class PineconeVectorStore(VectorStore):
         ids = []
         Vector = self._Vector
 
-        is_many, content = self._one_or_many(content)
+        made_many, content = self._make_many(content)
 
         for item in content:
             if isinstance(item, Chunk):
@@ -245,7 +288,7 @@ class PineconeVectorStore(VectorStore):
             vectors=vectors,
             batch_size=len(vectors)
         )
-        return ids if is_many else ids[0]
+        return ids[0] if made_many else ids
     
 
     @overload
@@ -261,7 +304,8 @@ class PineconeVectorStore(VectorStore):
         self,
         *,
         ids: OneOrMany[str],
-        where: Optional[dict[str, str]] = None,
+        where: Optional[BaseExpr] = None,
+        pinecone_where: Optional[dict[str, Any]] = None,
         include: Optional[list[str | Fields]] = None,
     ) -> FetchResponse: ...
 
@@ -269,7 +313,8 @@ class PineconeVectorStore(VectorStore):
     def fetch(
         self,
         *,
-        where: Optional[dict[str, str]] = None,
+        where: Optional[BaseExpr] = None,
+        pinecone_where: Optional[dict[str, Any]] = None,
         limit: Optional[int] = None,
         include: Optional[list[str | Fields]] = None,
     ) -> FetchResponse: ...
@@ -278,7 +323,8 @@ class PineconeVectorStore(VectorStore):
         self,
         *,
         ids: Optional[OneOrMany[str]] = None,
-        where: Optional[dict[str, str]] = None,
+        where: Optional[BaseExpr] = None,
+        pinecone_where: Optional[dict[str, Any]] = None,
         limit: Optional[int] = None,
         include: Optional[list[str | Fields]] = None,
     ) -> FetchResponse:
@@ -288,9 +334,9 @@ class PineconeVectorStore(VectorStore):
 
         Args:
             ids: Optional list of ids or singular id to fetch.
-            where: Optional metadata filter.
+            where: Optional metadata filter using railtracks syntax.
+            pinecone_where: Optional metadata filter using Pinecone syntax.
             limit: Optiuonal Result limit for pagination.
-            where_document: Optional document-based filter.
             Include: Optional Fields to include in the response. Defaults to all.
 
         Returns:
@@ -300,31 +346,36 @@ class PineconeVectorStore(VectorStore):
             ValueError: If the response does not contain required fields.
         """
         results = FetchResponse()
-        filter = self._make_filter(where=where)
+
         if include is None:
             include = [Fields.VECTOR, Fields.DOCUMENT, Fields.METADATA]
 
-        #Get responses from pinecone
-        if ids is not None:
-            _, ids = self._one_or_many(ids)
-            
-            responses = self._collection.fetch(
-                namespace=DEFAULT,
-                ids = ids,
-            )
-            if filter is not None:
-                responses = self._filter_by_metadata(responses, where, where_document)
-
-        elif filter is not None:
+        # Get responses from pinecone by metadata filter if provided
+        if where is not None or pinecone_where is not None:
+            filter = self._to_pinecone_filter(where) if where is not None else pinecone_where
             responses = self._collection.fetch_by_metadata(
                 namespace=DEFAULT,
                 filter = filter,
                 limit = limit
             )
+
+            #Filter responses by ids if where is provided
+            if ids is not None:
+                _, ids = self._make_many(ids)
+                responses = self._filter_by_ids(responses, ids)
+
+        # Get by responses from pinecone by ids if provided
+        elif ids is not None:
+            _, ids = self._make_many(ids)
+            
+            responses = self._collection.fetch(
+                namespace=DEFAULT,
+                ids = ids,
+            )
         
         else:
             raise ValueError("Either ids or where/where_document must be provided to fetch.")
-            
+        
         for response in responses["vectors"]:
             extracted_fields = self._extract_fetch_result_fields(responses["vectors"][response], include)
             results.append(self._make_fetch_result(extracted_fields))
@@ -336,8 +387,8 @@ class PineconeVectorStore(VectorStore):
         self,
         querys: Chunk | str,
         top_k: int = 10,
-        where: Optional[dict[str, str]] = None,
-        where_document: Optional[dict[str, str]] = None,
+        where: Optional[BaseExpr] = None,
+        pinecone_where: Optional[dict[str, str]] = None,
         include: Optional[list[str | Fields]] = None,
     ) -> SearchResponse: ...
 
@@ -346,8 +397,8 @@ class PineconeVectorStore(VectorStore):
         self,
         querys: list[Chunk | str],
         top_k: int = 10,
-        where: Optional[dict[str, str]] = None,
-        where_document: Optional[dict[str, str]] = None,
+        where: Optional[BaseExpr] = None,
+        pinecone_where: Optional[dict[str, str]] = None,
         include: Optional[list[str | Fields]] = None,
     ) -> list[SearchResponse]: ...
 
@@ -355,35 +406,32 @@ class PineconeVectorStore(VectorStore):
         self,
         querys: OneOrMany[Chunk | str],
         top_k: int = 10,
-        where: Optional[dict[str, str]] = None,
-        where_document: Optional[dict[str, str]] = None,
+        where: Optional[BaseExpr] = None,
+        pinecone_where: Optional[dict[str, str]] = None,
         include: Optional[list[str | Fields]] = None,
     ) -> OneOrMany[SearchResponse]:
-        """Run a similarity search for the provided query texts.
+        """Perform a similarity search for the provided query texts.
 
         Args:
-            query: A list of query chunks/strings or singular chunk/string to search for.
-            ids: Optional list of ids or singular id to restrict the search to.
-            top_k: Number of hits to return per query.
-            where: Optional metadata filter to apply.
-            where_document: Optional document filter to apply.
-            include: Fields to include in the response.
+            querys: A singular or list of query chunks or strings to search for.
+            top_k: Number of nearest neighbours to return per query.
+            where: Optional metadata filter using railtracks syntax.
+            pinecone_where: Optional metadata filter using Pinecone syntax.
+            include: Optional list of result fields to include.
 
         Returns:
-            A list of :class:`SearchResponse` objects (one per query).
-
-        Raises:
-            ValueError: If expected fields are missing from the response.
+            A singular or list of :class:`SearchResponse` objects (one per query).
         """
         
         #Deal with one or many
-        is_many, querys = self._one_or_many(querys)
+        made_many, querys = self._make_many(querys)
         
         #Map railtracks filter to pinecone filter
-        filter = self._make_filter(where=where, where_document=where_document)
+        if where:
+            filter = self._to_pinecone_filter(where)
         
         #Format include from railtracks Fields to pinecone fields for pinecone use
-        include_fields = self._format_include_fields(include)
+        include_fields = self._to_pinecone_include(include)
 
         #Default include all fields for internal use
         if include is None:
@@ -398,7 +446,7 @@ class PineconeVectorStore(VectorStore):
                         query=self._SearchQuery(
                         inputs={"text" : query} if isinstance(query, str) else {"text" : query.content},
                         top_k=top_k,
-                        filter=filter #Will want to deal with different filtering for query vs search later
+                        filter=filter or pinecone_where #Will want to deal with different filtering for query vs search later #TODO
                     ),
                     fields=include_fields
                 )
@@ -421,7 +469,7 @@ class PineconeVectorStore(VectorStore):
                     vector=query_embedding if self._is_dense else None,
                     sparse_vector=query_embedding if not self._is_dense else None,
                     namespace=DEFAULT,
-                    filter=filter,
+                    filter=filter or pinecone_where,
                     include_metadata=True,
                     include_values=Fields.VECTOR in include,
                 )
@@ -434,53 +482,58 @@ class PineconeVectorStore(VectorStore):
                 
                 answer.append(search_response)
 
-        return answer if is_many else answer[0]
+        return answer[0] if made_many else answer
     
     def delete(
         self,
         ids: Optional[OneOrMany[str]] = None,
-        where: Optional[dict[str, str]] = None,
-        where_document: Optional[dict[str, str]] = None,
+        where: Optional[BaseExpr] = None,
+        pinecone_where: Optional[dict[str, Any]] = None,
         delete_all : Optional[bool] = None,
     ):
-        """
-        Remove vectors from the store by id or metadata filter.
+        """Remove vectors from the store by id or metadata filter.
+
         Args:
-            ids: list of ids or singular id to delete.
-            where: Optional metadata filter.
-            where_document: Optional document-based filter.
+            ids: Optional list of ids or singular id to delete.
+            where: Optional metadata filter using railtracks syntax.
+            pinecone_where: Optional metadata filter using Pinecone syntax.
             delete_all: Optional boolean to delete all vectors in the collection.
         """
         if ids is not None:
-            _, ids = self._one_or_many(ids)
+            _, ids = self._make_many(ids)
 
-        filter = self._make_filter(where=where, where_document=where_document)
+        if where:
+            filter = self._to_pinecone_filter(where=where)
 
         self._collection.delete(
             ids=ids,
             delete_all=delete_all,
-            filter=filter,
+            filter=filter or pinecone_where,
             namespace=DEFAULT
         )
 
     def count(self) -> int:
-        """"Return the total number of vectors stored in the collection."""
+        """Return the total number of vectors stored in the collection.
+
+        Returns:
+            int: The total count of indexed vectors.
+        """
 
         return self._collection.describe_index_stats()["total_vector_count"]
         
     def _extract_search_result_fields(self, include : list[str | Fields], result : dict[str, Any]) -> dict[str, Any]:
-        """Extract fields from pinecone search result into railtracks format
-            This function assumes that all result metadata fields are to be extracted because of Pinecone's structure
-            All magic strings are magic strings from Pinecone's search result format
+        """Extract fields from pinecone search result into railtracks format.
 
-            Args:
-                include: List of Fields or str requested to be included
-                result: Pinecone search result dict
+        This function assumes that all result metadata fields are to be extracted
+        because of Pinecone's structure. All magic strings are from Pinecone's
+        search result format.
 
-            Returns:
-                dict[str, Any]: Extracted fields in railtracks format
+        Args:
+            include: List of Fields or str requested to be included in the result.
+            result: Pinecone search result dict.
 
-            
+        Returns:
+            dict[str, Any]: Extracted fields in railtracks format.
         """
         extracted_fields = {}
         #Mandatory fields
@@ -511,19 +564,19 @@ class PineconeVectorStore(VectorStore):
     
     #Different function for query result because of different field names
     def _extract_query_result_fields(self, include : list[str | Fields], result : dict[str, Any]) -> dict[str, Any]:
-        """Extract fields from pinecone search result into railtracks format
-            This function assumes that all result metadata fields are returned
-            because of Pinecone's structure. Therefore it uses include to decide what 
-            metadata to extract.
+        """Extract fields from pinecone query result into railtracks format.
 
-            All magic strings are magic strings from Pinecone's search result format
-            
-            Args:
-                include: List of Fields or str requested to be included
-                result: Pinecone search result dict
+        This function assumes that all result metadata fields are returned
+        because of Pinecone's structure. Therefore it uses include to decide what
+        metadata to extract. All magic strings are from Pinecone's search result
+        format.
 
-            Returns:
-                dict[str, Any]: Extracted fields in railtracks format
+        Args:
+            include: List of Fields or str requested to be included in the result.
+            result: Pinecone query result dict.
+
+        Returns:
+            dict[str, Any]: Extracted fields in railtracks format.
         """
 
         extracted_fields = {}
@@ -555,19 +608,19 @@ class PineconeVectorStore(VectorStore):
             return extracted_fields
         
     def _extract_fetch_result_fields(self, result : dict[str, Any], include : list[str | Fields]) -> dict[str, Any]:
-        """Extract fields from pinecone fetch result into railtracks format
-            This function assumes that all result metadata fields are returned
-            because of Pinecone's structure. Therefore it uses include to decide what 
-            metadata to extract.
+        """Extract fields from pinecone fetch result into railtracks format.
 
-            All magic strings are magic strings from Pinecone's search result format
-            
-            Args:
-                include: List of Fields or str requested to be included
-                result: Pinecone search result dict
+        This function assumes that all result metadata fields are returned
+        because of Pinecone's structure. Therefore it uses include to decide what
+        metadata to extract. All magic strings are from Pinecone's fetch result
+        format.
 
-            Returns:
-                dict[str, Any]: Extracted fields in railtracks format
+        Args:
+            result: Pinecone fetch result dict.
+            include: List of Fields or str requested to be included in the result.
+
+        Returns:
+            dict[str, Any]: Extracted fields in railtracks format.
         """
 
         extracted_fields = {}
@@ -598,6 +651,15 @@ class PineconeVectorStore(VectorStore):
         return extracted_fields
     
     def _make_search_result(self, result : dict[str, Any]) -> SearchResult:
+        """Convert a field dictionary into a SearchResult object.
+
+        Args:
+            result: Dictionary containing extracted search result fields
+                including id, content, distance, vector, document, and metadata.
+
+        Returns:
+            SearchResult: Formatted search result object.
+        """
         return SearchResult(
             id=result["id"],
             distance=result[Fields.DISTANCE],
@@ -608,6 +670,15 @@ class PineconeVectorStore(VectorStore):
         )
     
     def _make_fetch_result(self, result : dict[str, Any]) -> FetchResult:
+        """Convert a field dictionary into a FetchResult object.
+
+        Args:
+            result: Dictionary containing extracted fetch result fields
+                including id, content, vector, document, and metadata.
+
+        Returns:
+            FetchResult: Formatted fetch result object.
+        """
         return FetchResult(
             id=result["id"],
             content=result[MetadataKeys.CONTENT],
@@ -617,13 +688,28 @@ class PineconeVectorStore(VectorStore):
         )
     
     def _to_pinecone_filter(self, where : BaseExpr) -> dict[str, Any]:
+        """Convert railtracks filter expression to Pinecone filter format.
+
+        Args:
+            where: Railtracks filter expression.
+
+        Returns:
+            dict[str, Any]: Pinecone filter dictionary.
+
+        Raises:
+            TypeError: If where is not a valid Filter Expression.
+        """
+
         filter = {}
         if isinstance(where, LeafExpr):
             filter[where.pred.field] = { OP_PINECONE_MAP[where.pred.op]: where.pred.value}
 
-        elif isinstance(where, LogicExpr): 
+        elif isinstance(where, LogicExpr):
+            filter_list = [] 
             for expression in where.children:
-                filter = {LOGICOP_PINECONE_MAP[where.op] : self._to_pinecone_filter_list}
+                filter = self._to_pinecone_filter(expression)
+                filter_list.append(filter)
+            filter = {LOGICOP_PINECONE_MAP[where.op] : filter_list}
         else:
             raise TypeError("""where provided is not a Filter Expression.
                             Either provide where with Filter Expression using Railtracks
@@ -631,17 +717,38 @@ class PineconeVectorStore(VectorStore):
         
         return filter
     
-    def _to_pinecone_filter_list(self,  filter_list : list[BaseExpr]) -> list[BaseExpr]:
-        filter_list = []
-        for expression in filter_list:
-            filter_list.append(self._to_pinecone_filter(expression))
-        
-        return filter_list
-    
-    def _filter_by_metadata(self, responses where : BaseExpr, )
+    def _filter_by_ids(self, responses, ids : list[str], ) -> dict:
+        """Filter fetch responses to only include specified ids.
 
+        Args:
+            responses: Dictionary of fetch responses with vectors key.
+            ids: List of vector ids to include in the filtered response.
 
-    def _format_include_fields(self, include: Optional[list[ Fields | str]]) -> list[str]:
+        Returns:
+            dict: Filtered responses containing only the specified ids.
+        """
+        filtered_responses = {}
+        for id in responses["vectors"]:
+            if id in ids:
+                filtered_responses[id]
+        return {"vectors" : filtered_responses}
+
+    def _to_pinecone_include(self, include: Optional[list[ Fields | str]]) -> list[str]:
+        """Convert railtracks include fields to Pinecone format.
+
+        Maps Fields enum values and custom field strings to Pinecone's
+        field specification format.
+
+        Args:
+            include: Optional list of Fields enums or custom field names to include
+                in results.
+
+        Returns:
+            list[str]: Formatted field list for Pinecone API.
+
+        Raises:
+            ValueError: If Fields.NOTHING is specified alongside other fields.
+        """
         formatted_include = [MetadataKeys.CONTENT.value]
 
         if include:

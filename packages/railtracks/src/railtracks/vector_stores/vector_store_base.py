@@ -230,20 +230,20 @@ class VectorStore(ABC):
         """
         pass
 
-    def _one_or_many(self, item: OneOrMany[T]) -> tuple[bool, list[T]]:
-        """make an item a list if not already one and return whether it was originally a list.
+    def _make_many(self, item: OneOrMany[T]) -> tuple[bool, list[T]]:
+        """Convert an item to a list if not already one, return whether it was originally singular.
 
         Args:
-            item: The thing to check for whether it's a list or not.
+            item: The item to check for whether it's a list or not.
 
         Returns:
             A tuple where the first element is a boolean indicating whether the
-            input was originally a list, and the second element is the item
-            itself as a list.
+            input was singular (True if converted, False if already a list), and
+            the second element is the item itself as a list.
         """
 
         if isinstance(item, list):
-            return True, item
+            return False, item
         
         else:
-            return False, [item]
+            return True, [item]
