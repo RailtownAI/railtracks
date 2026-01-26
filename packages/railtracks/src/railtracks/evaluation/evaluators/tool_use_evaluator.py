@@ -1,4 +1,4 @@
-import railtracks as rt
+from uuid import UUID
 from collections import defaultdict
 from .evaluator import Evaluator
 from ..data import EvaluationDataset
@@ -7,7 +7,6 @@ from .metrics import Numerical, Metric
 from ..result import EvaluatorResult, MetricResult, AggregateNumericalResult
 
 from ...utils.logging.create import get_rt_logger
-from uuid import UUID
 
 logger = get_rt_logger("ToolUseEvaluator")
 
@@ -30,27 +29,25 @@ class ToolUseEvaluator(Evaluator):
         self.results: dict[Numerical, list[tuple[str, MetricResult]]] = defaultdict(
             list
         )
+        self.agent_data_ids: set[UUID] = set()
+
 
     def run(self, data: list[AgentDataPoint]) -> EvaluatorResult:
         if isinstance(data, AgentDataPoint):
             data = [data]
         elif isinstance(data, EvaluationDataset):
             data = data.data_points_list
-
-        self.agent_name = data[0].agent_name
-
+        
+        self.agent_data_ids = {adp.id for adp in data}
         self._retrieve_tool_stats(data)
         self.aggregate_results = self._aggregate_metrics()
 
-
-
         self._result = EvaluatorResult(
-            agent_name=self.agent_name,
             evaluator_name=self.name,
             evaluator_id=self._id,
+            agent_data_ids=self.agent_data_ids,
             metrics=self.metrics,
-            results=[], # What do we want here?
-            # results=[result for _, result in self.results] + self.aggregate_results,
+            results=[item for sublist in self.results.values() for item in sublist] + self.aggregate_results,
         )
 
         return self._result
@@ -135,7 +132,6 @@ class ToolUseEvaluator(Evaluator):
     def _aggregate_metrics(self):
         """Aggregates the ToolUseEvaluator metrics on an agent level."""
 
-        # self.results: dict[Metric, list[tuple[str, MetricResult]]] = defaultdict(list)
         aggregates = []
         for metric in self.results:
 
@@ -153,20 +149,3 @@ class ToolUseEvaluator(Evaluator):
             )
 
         return aggregates
-        # tool_metric_aggregates: dict[str, list[str | float | int]] = defaultdict(list)
-
-        # for result in self.results:
-        #     tool_metric_aggregates[str(result.metric_id)].append(result.value)
-        # aggregate_results: list[AggregateNumericalResult] = []
-
-        # for metric_id, values in tool_metric_aggregates.items():
-        #     metric = self.metrics_lookup.get(metric_id)
-        #     if isinstance(metric, ToolFailureRate) or isinstance(metric, ToolFrequency):
-        #         aggregate = AggregateNumericalResult(
-        #             metric=metric,
-        #             values=[float(v) for v in values],
-        #         )
-
-        #         aggregate_results.append(aggregate)
-
-        # return aggregate_results

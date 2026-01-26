@@ -434,5 +434,5 @@ def test_evaluator_result_structure(sample_categorical_metric, mock_llm):
     
     assert hasattr(evaluator, 'results')
     assert isinstance(evaluator.results, dict)
-    assert hasattr(evaluator, '_metrics_result')
-    assert isinstance(evaluator._metrics_result, list)
+    assert hasattr(evaluator, 'agent_data_ids')
+    assert isinstance(evaluator.agent_data_ids, set)

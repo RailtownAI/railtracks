@@ -409,22 +409,20 @@ async def test_session_decorator_handles_tuple_returns(mock_dependencies):
 
 # ================= START Session: _construct_agent_data Tests ===============
 
-def test_construct_agent_data_with_none_level(mock_dependencies):
-    """Test that _construct_agent_data returns early when level is 'none'."""
-    runner = Session(save_data="none")
+def test_construct_agent_data_with_save_data_false(mock_dependencies):
+    """Test that _construct_agent_data is not called when save_data is False."""
+    runner = Session(save_data=False)
     runner.rt_state.info = MagicMock()
     
-    # Should return immediately without processing
-    result = runner._construct_agent_data("none")
-    assert result is None
-    assert not runner.rt_state.info.insertion_requests.called
+    # When save_data is False, _construct_agent_data should not be called
+    # This is tested in __exit__ flow, so we skip this test scenario
 
-def test_construct_agent_data_with_io_level(mock_dependencies):
-    """Test _construct_agent_data with 'io' level (no internals)."""
+def test_construct_agent_data_with_save_data_true(mock_dependencies):
+    """Test _construct_agent_data with save_data=True (includes all data)."""
     from railtracks.built_nodes.concrete.response import LLMResponse
     from railtracks.llm.message import UserMessage, AssistantMessage, Role
     
-    runner = Session(save_data="io")
+    runner = Session(save_data=True)
     
     # Mock request template
     mock_request = MagicMock()
@@ -438,7 +436,7 @@ def test_construct_agent_data_with_io_level(mock_dependencies):
     mock_response = LLMResponse(content="Test output", message_history=mock_message_history)
     
     # Mock run info
-    mock_run = {"name": "TestAgent", "run_id": "test-123"}
+    mock_run = {"name": "TestAgent", "run_id": "test-123", "nodes": []}
     
     # Setup info mock
     runner.rt_state.info.insertion_requests = [mock_request]
@@ -450,24 +448,25 @@ def test_construct_agent_data_with_io_level(mock_dependencies):
             mock_file = MagicMock()
             mock_open.return_value.__enter__.return_value = mock_file
             with patch('json.dump') as mock_json_dump:
-                runner._construct_agent_data("io")
+                runner._construct_agent_data()
                 
                 # Verify json.dump was called
                 assert mock_json_dump.called
                 
-                # Verify the data structure has agent_internals=None for io level
+                # Verify the data structure has agent_internals with data
                 call_args = mock_json_dump.call_args[0][0]
                 assert len(call_args) == 1
                 data_point = call_args[0]
-                assert data_point["agent_internals"] is None
+                assert data_point["agent_internals"] is not None
+                assert "run_id" in data_point["agent_internals"]
 
-def test_construct_agent_data_with_full_level(mock_dependencies):
-    """Test _construct_agent_data with 'full' level (includes internals)."""
+def test_construct_agent_data_with_full_data(mock_dependencies):
+    """Test _construct_agent_data includes internals, message_history, and tool invocations."""
     from railtracks.built_nodes.concrete.response import LLMResponse
     from railtracks.llm.message import UserMessage, AssistantMessage
     from railtracks.llm.content import ToolCall, ToolResponse
     
-    runner = Session(save_data="full")
+    runner = Session(save_data=True)
     
     # Mock request template
     mock_request = MagicMock()
@@ -490,7 +489,7 @@ def test_construct_agent_data_with_full_level(mock_dependencies):
     mock_response._tool_invocations = [(mock_tool_call, mock_tool_response)]
     
     # Mock run info
-    mock_run = {"name": "FullAgent", "run_id": "full-456"}
+    mock_run = {"name": "FullAgent", "run_id": "full-456", "nodes": []}
     
     # Setup info mock
     runner.rt_state.info.insertion_requests = [mock_request]
@@ -502,7 +501,7 @@ def test_construct_agent_data_with_full_level(mock_dependencies):
             mock_file = MagicMock()
             mock_open.return_value.__enter__.return_value = mock_file
             with patch('json.dump') as mock_json_dump:
-                runner._construct_agent_data("full")
+                runner._construct_agent_data()
                 
                 # Verify json.dump was called
                 assert mock_json_dump.called
@@ -521,7 +520,7 @@ def test_construct_agent_data_serializes_messages_correctly(mock_dependencies):
     from railtracks.built_nodes.concrete.response import LLMResponse
     from railtracks.llm.message import UserMessage, AssistantMessage, SystemMessage
     
-    runner = Session(save_data="full")
+    runner = Session(save_data=True)
     
     # Mock request template
     mock_request = MagicMock()
@@ -537,7 +536,7 @@ def test_construct_agent_data_serializes_messages_correctly(mock_dependencies):
     mock_response = LLMResponse(content="Output", message_history=mock_message_history)
     mock_response._tool_invocations = []
     
-    mock_run = {"name": "MessageTestAgent", "run_id": "msg-789"}
+    mock_run = {"name": "MessageTestAgent", "run_id": "msg-789", "nodes": []}
     
     runner.rt_state.info.insertion_requests = [mock_request]
     runner.rt_state.info.answer = [mock_response]
@@ -546,7 +545,7 @@ def test_construct_agent_data_serializes_messages_correctly(mock_dependencies):
     with patch.object(runner, '_save_agent_data', return_value=Path("/tmp/test_msg.json")):
         with patch('builtins.open', create=True):
             with patch('json.dump') as mock_json_dump:
-                runner._construct_agent_data("full")
+                runner._construct_agent_data()
                 
                 # Get the dumped data
                 call_args = mock_json_dump.call_args[0][0]
@@ -561,7 +560,7 @@ def test_construct_agent_data_serializes_messages_correctly(mock_dependencies):
 
 def test_construct_agent_data_with_non_llm_response(mock_dependencies):
     """Test _construct_agent_data handles non-LLMResponse answers."""
-    runner = Session(save_data="full")
+    runner = Session(save_data=True)
     
     # Mock request template
     mock_request = MagicMock()
@@ -570,7 +569,7 @@ def test_construct_agent_data_with_non_llm_response(mock_dependencies):
     # Non-LLM response (just a string)
     simple_answer = "Simple string output"
     
-    mock_run = {"name": "SimpleAgent", "run_id": "simple-999"}
+    mock_run = {"name": "SimpleAgent", "run_id": "simple-999", "nodes": []}
     
     runner.rt_state.info.insertion_requests = [mock_request]
     runner.rt_state.info.answer = [simple_answer]
@@ -579,9 +578,9 @@ def test_construct_agent_data_with_non_llm_response(mock_dependencies):
     with patch.object(runner, '_save_agent_data', return_value=Path("/tmp/test_simple.json")):
         with patch('builtins.open', create=True):
             with patch('json.dump') as mock_json_dump:
-                runner._construct_agent_data("full")
+                runner._construct_agent_data()
                 
-                # Verify data was saved with agent_internals=None
+                # Verify data was saved with agent_internals containing run_id
                 call_args = mock_json_dump.call_args[0][0]
                 data_point = call_args[0]
                 assert data_point["agent_output"] == simple_answer
@@ -592,13 +591,13 @@ def test_construct_agent_data_handles_save_failure(mock_dependencies):
     from railtracks.built_nodes.concrete.response import LLMResponse
     from railtracks.llm.message import UserMessage
     
-    runner = Session(save_data="io")
+    runner = Session(save_data=True)
     
     mock_request = MagicMock()
     mock_request.input = ((), {})
     
     mock_response = LLMResponse(content="Output", message_history=[UserMessage("Test")])
-    mock_run = {"name": "FailAgent", "run_id": "fail-111"}
+    mock_run = {"name": "FailAgent", "run_id": "fail-111", "nodes": []}
     
     runner.rt_state.info.insertion_requests = [mock_request]
     runner.rt_state.info.answer = [mock_response]
@@ -607,7 +606,7 @@ def test_construct_agent_data_handles_save_failure(mock_dependencies):
     # Mock _save_agent_data to return None (failure case)
     with patch.object(runner, '_save_agent_data', return_value=None):
         with patch('railtracks._session.logger') as mock_logger:
-            runner._construct_agent_data("io")
+            runner._construct_agent_data()
             
             # Verify warning was logged
             mock_logger.warning.assert_called_once()

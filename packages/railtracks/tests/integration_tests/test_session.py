@@ -168,18 +168,18 @@ def test_session_decorator_tuple_handling():
 # ================= START Session: Agent Data Saving ===============
 
 @pytest.mark.asyncio
-async def test_agent_data_collection_io_level(planner_node):
-    """Test agent data collection with 'io' level - only input/output saved."""
+async def test_agent_data_collection_with_save_data_true(planner_node):
+    """Test agent data collection with save_data=True - full data saved."""
     import json
     from pathlib import Path
     
-    session_name = "agent_data_io_test"
-    with rt.Session(name=session_name, save_data="io") as sess:
+    session_name = "agent_data_true_test"
+    with rt.Session(name=session_name, save_data=True) as sess:
         result = await rt.call(planner_node, current_city="New York", destination_city="Chicago")
     
     # Verify agent data file was created
     agent_data_path = Path(f".railtracks/data/agent_data/{session_name}_{sess._identifier}.json")
-    assert agent_data_path.exists(), "Agent data file should be created with save_data='io'"
+    assert agent_data_path.exists(), "Agent data file should be created with save_data=True"
     
     # Read and validate the data
     with open(agent_data_path, 'r') as f:
@@ -195,8 +195,9 @@ async def test_agent_data_collection_io_level(planner_node):
     assert "agent_output" in first_dp
     assert "agent_internals" in first_dp
     
-    # For 'io' level, internals should be None
-    assert first_dp["agent_internals"] is None, "agent_internals should be None for 'io' level"
+    # For save_data=True, internals should be present with full data
+    if first_dp["agent_internals"] is not None:
+        assert "run_id" in first_dp["agent_internals"]
     
     # Verify agent_input structure (should be dict with args and kwargs)
     assert isinstance(first_dp["agent_input"], dict)
@@ -206,49 +207,18 @@ async def test_agent_data_collection_io_level(planner_node):
     assert isinstance(first_dp["agent_input"]["kwargs"], dict)
 
 @pytest.mark.asyncio
-async def test_agent_data_collection_full_level(planner_node):
-    """Test agent data collection with 'full' level - includes internals."""
-    import json
-    from pathlib import Path
-    
-    session_name = "agent_data_full_test"
-    with rt.Session(name=session_name, save_data="full") as sess:
-        result = await rt.call(planner_node, current_city="Los Angeles", destination_city="Houston")
-    
-    # Verify agent data file was created
-    agent_data_path = Path(f".railtracks/data/agent_data/{session_name}_{sess._identifier}.json")
-    assert agent_data_path.exists(), "Agent data file should be created with save_data='full'"
-    
-    # Read and validate the data
-    with open(agent_data_path, 'r') as f:
-        data = json.load(f)
-    
-    assert isinstance(data, list)
-    assert len(data) > 0, "Should have at least one data point"
-    
-    # Check first data point structure
-    first_dp = data[0]
-    assert "agent_name" in first_dp
-    assert "agent_input" in first_dp
-    assert "agent_output" in first_dp
-    assert "agent_internals" in first_dp
-    
-    # For 'full' level, internals can be present or None depending on node type
-    if first_dp["agent_internals"] is not None:
-        assert "run_id" in first_dp["agent_internals"]
-        # only run_id is expected in internals for function nodes in this test
-
+async def test_agent_data_collection_with_save_data_false(planner_node):
 @pytest.mark.asyncio
-async def test_agent_data_collection_none_level(planner_node):
-    """Test agent data collection with 'none' level - no file created."""
+async def test_agent_data_collection_with_save_data_false(planner_node):
+    """Test agent data collection with save_data=False - no file created."""
     from pathlib import Path
     
-    session_name = "agent_data_none_test"
-    with rt.Session(name=session_name, save_data="none") as sess:
+    session_name = "agent_data_false_test"
+    with rt.Session(name=session_name, save_data=False) as sess:
         result = await rt.call(planner_node, current_city="Chicago", destination_city="New York")
     
     # Verify NO agent data file was created
     agent_data_path = Path(f".railtracks/data/agent_data/{session_name}_{sess._identifier}.json")
-    assert not agent_data_path.exists(), "Agent data file should NOT be created with save_data='none'"
+    assert not agent_data_path.exists(), "Agent data file should NOT be created with save_data=False"
 
 # ================= END Session: Agent Data Saving ===============

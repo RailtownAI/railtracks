@@ -30,7 +30,6 @@ class MockEvaluator(Evaluator):
         
         return EvaluatorResult(
             evaluator_name=f"MockEvaluator{self.name_suffix}",
-            agent_name=agent_name,
             evaluator_id=self.id,
             metrics=[],
             results=[],
@@ -261,7 +260,6 @@ def test_evaluate_result_contains_correct_agent_name():
     results = evaluate(data=data_point, evaluators=[evaluator])
     
     result = results[("my_agent", evaluator.id)]
-    assert result.agent_name == "my_agent"
 
 
 def test_evaluate_result_contains_correct_evaluator_id():
@@ -495,7 +493,6 @@ def test_evaluate_full_workflow_with_real_data(sample_data_points):
         assert isinstance(agent_name, str)
         assert isinstance(evaluator_id, UUID)
         assert isinstance(result, EvaluatorResult)
-        assert result.agent_name == agent_name
         assert result.evaluator_id == evaluator_id
 
 

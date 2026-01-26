@@ -44,8 +44,8 @@ class JudgeEvaluator(Evaluator):
         """
 
         self._metrics: dict[str, Metric] = {m.identifier: m for m in metrics}
-        self._metrics_result: list[tuple[UUID, MetricResult]] = []
         self.results: dict[Metric, list[tuple[str, MetricResult]]] = defaultdict(list)
+        self.agent_data_ids: set[UUID] = set()
 
         # preparing the judge agent
         self._llm = llm
@@ -65,13 +65,12 @@ class JudgeEvaluator(Evaluator):
 
     def run(self, data: list[AgentDataPoint]) -> EvaluatorResult:
 
-        # preparing the judge agent
-        self.agent_name = data[0].agent_name
-
         # (metric_id, adp_id, JudgeResponseSchema)
         judge_outputs: list[tuple[str, str, JudgeResponseSchema]] = asyncio.run(
             self._session(data)
         )
+
+        self.agent_data_ids = {adp.id for adp in data}
 
         for output in judge_outputs:
             metric = self._metrics[output[0]]
@@ -107,9 +106,9 @@ class JudgeEvaluator(Evaluator):
 
         self._result = EvaluatorResult(
             evaluator_name=self.name,
-            agent_name=self.agent_name,
             evaluator_id=self._id,
-            results=self._metrics_result + self.aggregate_results,
+            agent_data_ids=self.agent_data_ids,
+            results=[item for sublist in self.results.values() for item in sublist] + self.aggregate_results,
             metrics=list(self._metrics.values()),
         )
         return self._result
@@ -136,7 +135,10 @@ class JudgeEvaluator(Evaluator):
             # output = [(p[0], res.structured) for p, res in zip(prompt, response)]
             output = []
             for metric in self._metrics.values():
-                for adp in tqdm(data, desc=f"LLMJudge Evaluating Agent Datapoints for metric: {metric.name}"):
+                for adp in tqdm(
+                    data,
+                    desc=f"LLMJudge Evaluating Agent Datapoints for metric: {metric.name}",
+                ):
 
                     user_message = self._generate_user_prompt(adp)
                     system_message = self._generate_system_prompt(metric)
@@ -184,7 +186,7 @@ class JudgeEvaluator(Evaluator):
                         ],
                     )
                 )
-            elif "_reasoning" in metric.name: # TODO: this is hacky, fix later
+            elif "_reasoning" in metric.name:  # TODO: this is hacky, fix later
                 continue
             else:
                 logger.warning(

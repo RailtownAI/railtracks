@@ -1,7 +1,6 @@
 import hashlib
 import json
-from pydantic import BaseModel, Field, ConfigDict, model_validator
-from uuid import uuid4
+from pydantic import BaseModel, ConfigDict, model_validator, field_serializer
 
 class Metric(BaseModel):
     name: str
@@ -40,30 +39,6 @@ class Metric(BaseModel):
         fields = {k: v for k, v in self.model_dump().items() if k != 'identifier'}
         fields_str = ', '.join(f"{k}={repr(v)}" for k, v in fields.items())
         return f"{self.__class__.__name__}({fields_str})"
-    
-    # @model_validator(mode='after')
-    # def _set_config_hash(self):
-    #     """Generate a deterministic hash based on metric configuration.
-    #     This method sets the _config_hash attribute and _id is exluded from the hash calculation.
-    #     """
-    #     config = {k: v for k, v in self.model_dump().items() if k != 'identifier'}
-    #     config['_type'] = self.__class__.__name__
-        
-    #     # convert type objects to strings for JSON serialization
-    #     for key, value in config.items():
-    #         if isinstance(value, type):
-    #             config[key] = value.__name__
-        
-    #     config_str = json.dumps(config, sort_keys=True)
-    #     self.config_hash = hashlib.sha256(config_str.encode()).hexdigest()
-    #     return self
-
-    
-    # def __str__(self) -> str:
-    #     """Clean string representation excluding identifier and config_hash."""
-    #     fields = {k: v for k, v in self.model_dump().items() if k not in ('identifier', 'config_hash')}
-    #     fields_str = ', '.join(f"{k}={repr(v)}" for k, v in fields.items())
-    #     return f"{self.__class__.__name__}({fields_str})"
 
 class Categorical(Metric):
     categories: list[str]
@@ -103,3 +78,8 @@ class Numerical(Metric):
             )
         
         return values
+    
+    @field_serializer('data_type')
+    def serialize_data_type(self, value: type) -> str:
+        """Serialize type to string name for JSON."""
+        return value.__name__
