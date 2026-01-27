@@ -75,7 +75,7 @@ class EvaluatorResult(BaseModel):
     evaluator_name: str
     evaluator_id: UUID
     agent_data_ids: set[UUID] = Field(default_factory=set)
-    metrics: list[Metric]
+    metrics: Sequence[Metric]
     results: Sequence[
         tuple[str, MetricResult]
         | MetricResult

@@ -54,32 +54,11 @@ class Numerical(Metric, Generic[T]):
     max_value: T | None = None
 
     @model_validator(mode="before")
+    @classmethod
     def validate_min_max(cls, values):
         min_value = values.get("min_value")
         max_value = values.get("max_value")
         if min_value is not None and max_value is not None:
             if min_value >= max_value:
                 raise ValueError("min_value must be less than max_value")
-        return values
-
-    @model_validator(mode="before")
-    def validate_data_type(cls, values):
-        data_type = values.get("data_type", float)
-        if data_type not in (int, float):
-            raise ValueError("data_type must be int or float")
-
-        min_value = values.get("min_value")
-        max_value = values.get("max_value")
-
-        if min_value is not None and not isinstance(min_value, data_type):
-            raise ValueError(
-                f"min_value must be of type {data_type.__name__}, "
-                f"got {type(min_value).__name__}"
-            )
-        if max_value is not None and not isinstance(max_value, data_type):
-            raise ValueError(
-                f"max_value must be of type {data_type.__name__}, "
-                f"got {type(max_value).__name__}"
-            )
-
         return values
