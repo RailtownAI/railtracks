@@ -53,12 +53,12 @@ The same flow model supports a range of agent architectures without introducing 
 
   <a class="card disabled">
     <h3>Research Agent</h3>
-    <p>Sequential and branching steps for search, synthesis, and summarization. </p>
+    <p>Sequential and branching steps for search, synthesis, and summarization. <strong>Coming soon.</strong></p>
   </a>
 
   <a class="card disabled">
     <h3>Orchestrator / Worker</h3>
-    <p>A coordinating agent that delegates work to specialized agents or tools. <</p>
+    <p>A coordinating agent that delegates work to specialized agents or tools. <strong>Coming soon.</strong></p>
   </a>
 
 </div>
