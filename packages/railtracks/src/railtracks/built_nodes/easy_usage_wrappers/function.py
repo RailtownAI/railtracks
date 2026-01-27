@@ -215,7 +215,17 @@ def function_node(
     # assign the correct node class based on whether the function is async or sync
     if asyncio.iscoroutinefunction(func):
         node_class = AsyncDynamicFunctionNode
+        # Methods (bound methods from instances/classes) need to be wrapped
+        # to allow setting the node_type attribute
+        # Note: node_class remains AsyncDynamicFunctionNode after wrapping
+        if inspect.ismethod(func):
+            func = _function_preserving_metadata(func)
     elif inspect.isfunction(func):
+        node_class = SyncDynamicFunctionNode
+    elif inspect.ismethod(func):
+        # Handle bound methods (instance methods and class methods)
+        # Wrap them to allow setting the node_type attribute
+        func = _function_preserving_metadata(func)
         node_class = SyncDynamicFunctionNode
     elif inspect.isbuiltin(func):
         # builtin functions are written in C and do not have space for the addition of metadata like our node type.
@@ -262,14 +272,23 @@ def function_node(
 
 
 def _function_preserving_metadata(
-    func: Callable[_P, _TOutput],
+    func: Callable[_P, _TOutput] | Callable[_P, Coroutine[None, None, _TOutput]],
 ):
     """
-    Wraps the given function in a trivial wrapper that preserves its metadata.
+    Wraps the given function or method in a trivial wrapper that preserves its metadata.
+    Handles both sync and async functions/methods.
     """
+    if asyncio.iscoroutinefunction(func):
 
-    @functools.wraps(func)
-    def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
-        return func(*args, **kwargs)
+        @functools.wraps(func)
+        async def async_wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
+            return await func(*args, **kwargs)
 
-    return wrapper
+        return async_wrapper
+    else:
+
+        @functools.wraps(func)
+        def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
+            return func(*args, **kwargs)
+
+        return wrapper
