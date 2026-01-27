@@ -1,51 +1,88 @@
 ---
+
 hide:
   - toc
 ---
 
 
+<div style="text-align:center; margin-top: 2rem; margin-bottom: 1.5rem;">
+  <img src="assets/logo.svg" alt="Railtracks Logo" width="260">
+  <h1 style="margin-bottom:0.25rem;">Build agents in pure Python</h1>
+  <p style="margin-top:0; font-size:1rem;">
+    Minimal. Extensible. Designed for developers.
+  </p>
 
-<div style="text-align: center;">
-  <img src="assets/logo.svg" alt="Railtracks Logo" width="300">
-  <h1> Railtracks Agentic Framework</h1>
+<a href="quickstart/quickstart" class="md-button md-button--primary">Quickstart</a> <a href="https://github.com/RailtownAI/railtracks-examples" class="md-button">Browse examples</a>
+
+  <div style="margin-top: 1.5rem;">
+    <iframe width="600" height="325" src="https://www.youtube.com/embed/0WJ_I_zWX8I" title="Welcome to Railtracks" frameborder="0" allowfullscreen></iframe>
+  </div>
 </div>
 
+---
 
-Railtracks is a streamlined agentic workflow creation tool that allows users to quickly prototype, test, and 
-deploy agentic workflows. The foundational principles of Railtracks were designed to make the process of
-creating agents an exercise in writing code, not writing a configuration file.
+## Our Driving Principle: Flows Are Just Python
 
-<p style="text-align:center">
-  <a href="quickstart/quickstart" class="md-button" style="margin:1px">Quick Start</a>
-  <a href="api_reference/railtracks.html" class="md-button" style="margin:1px">API Reference</a>
-  <a href="https://github.com/RailtownAI/railtracks/discussions" class="md-button" style="margin:1px">Community Discussions</a>
-  <a href="https://github.com/RailtownAI/railtracks/blob/main/CONTRIBUTING.md" class="md-button" style="margain:1px">Contributing</a>
-</p>
+In Railtracks, agent behavior is defined directly in Python. There is **no** configuration language and **no** external graph definition. Execution order, branching, and looping are expressed using standard control flow.
 
-## Why Railtracks?
+Building a sequential flow is just like any the code you have written in your life. 
+```python
+@session
+async def flow(user_input):
+    a = await call(Agent1, user_input)
+    b = await call(Agent2, a)
+    c = await call(Agent3, b)
+    return c
+```
 
-The space of agentic AI frameworks is vast and diverse, with many frameworks offering many features it can be hard to decide which one to use. 
-Railtracks offers a unique approach that focuses on simplicity and developer experience.
+More complex behavior is built by extending this same pattern.
+
+---
+
+## What This Enables
+
+The same flow model supports a range of agent architectures without introducing new abstractions.
 
 <div class="grid cards">
-    <a href="tutorials/byfa/" class="card" style="color: inherit; text-decoration: none;">
-        <h3>Agent Building</h3>
-        <p>Write your agentic workflows in Python code, no need to learn an API. Basic Python skills is all it takes to get started.</p>
-    </a>
-    <a href="observability/visualization/" class="card" style="color: inherit; text-decoration: none;">
-        <h3>Visualizable</h3>
-        <p>Easy to create visualizations that are perfect to show off the internals of the agent you created.</p>
-    </a>
-    <a href="tools_mcp/tools_mcp/" class="card" style="color: inherit; text-decoration: none;">
-        <h3>Tool Ecosystem</h3>
-        <p>Railtracks is modular to its core. Your tools and components should be reusable for any system.</p>
-    </a>
-    <a href="tutorials/flows/" class="card" style="color: inherit; text-decoration: none;">
-        <h3>Multi Agent Flows</h3>
-        <p>For complex applications, Railtracks provides a simple interface for coordinating multiple agents with built-in logging.</p>
-    </a>
+  <a class="card" href="architectures/validation_loop">
+    <h3>Validation Loops</h3>
+    <p>Iterative workflows such as generation with structured validation.</p>
+  </a>
+
+
+
+  <a class="card disabled">
+    <h3>Research Agent</h3>
+    <p>Sequential and branching steps for search, synthesis, and summarization. <strong>Coming soon.</strong></p>
+  </a>
+
+  <a class="card disabled">
+    <h3>Orchestrator / Worker</h3>
+    <p>A coordinating agent that delegates work to specialized agents or tools. <strong>Coming soon.</strong></p>
+  </a>
+
+</div>
+<div style="text-align: center; margin-top: 1rem;">
+  <a href="architectures/overview" class="md-button">Checkout other architectures</a>
 </div>
 
-## Contributing
 
-We welcome contributions of all kinds! Check out our [contributing guide](https://github.com/RailtownAI/railtracks/blob/main/CONTRIBUTING.md) to get started.
+---
+
+## Suggested Progression
+
+Most users approach Railtracks in roughly this order:
+
+1. Run the [**Quickstart**](quickstart/quickstart) to see a complete flow.
+2. Explore one or two [**architecture examples**](architectures/overview).
+3. Use the **API reference** for details.
+
+---
+
+## Community and Contribution
+
+Railtracks is developed in the open.
+
+* [GitHub repository](https://github.com/RailtownAI/railtracks)
+* [Contribution guide](https://github.com/RailtownAI/railtracks?tab=contributing-ov-file)
+* [Community discussions](https://github.com/RailtownAI/railtracks/discussions)
