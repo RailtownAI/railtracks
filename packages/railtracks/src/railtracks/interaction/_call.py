@@ -20,7 +20,6 @@ from railtracks.context.central import (
     get_run_id,
     is_context_active,
     is_context_present,
-    shutdown_publisher,
 )
 from railtracks.exceptions import GlobalTimeOutError
 from railtracks.nodes.utils import extract_node_from_function
