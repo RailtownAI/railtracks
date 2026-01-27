@@ -42,26 +42,19 @@ class JudgeEvaluator(Evaluator):
             metric: An optional Metric to guide the evaluation.
             reasoning: A flag indicating whether the judge should provide reasoning for its evaluations.
         """
-
+        # These are config not state
         self._metrics: dict[str, Metric] = {m.identifier: m for m in metrics}
-        self.results: dict[Metric, list[tuple[str, MetricResult]]] = defaultdict(list)
-        self.agent_data_ids: set[UUID] = set()
-
-        # preparing the judge agent
         self._llm = llm
         self._reasoning: bool = reasoning
-
         self._template = self._load_yaml()
-        self._session_id: str
-
         super().__init__()
+
         self._judge = rt.agent_node(
             llm=self._llm,
             output_schema=JudgeResponseSchema,
             tool_nodes=[],
         )
 
-        self._result: EvaluatorResult
 
     def run(self, data: list[AgentDataPoint]) -> EvaluatorResult:
 
@@ -71,10 +64,11 @@ class JudgeEvaluator(Evaluator):
         )
 
         self.agent_data_ids = {adp.id for adp in data}
+        results: dict[Metric, list[tuple[str, MetricResult]]] = defaultdict(list)
 
         for output in judge_outputs:
             metric = self._metrics[output[0]]
-            self.results[metric].append(
+            results[metric].append(
                 (
                     output[1],
                     MetricResult(
@@ -87,7 +81,7 @@ class JudgeEvaluator(Evaluator):
             if self._reasoning:
                 reasoning_metric = Metric(name=f"{metric.name}_reasoning")
                 if output[2].reasoning is not None:
-                    self.results[reasoning_metric].append(
+                    results[reasoning_metric].append(
                         (
                             output[1],
                             MetricResult(
@@ -102,13 +96,13 @@ class JudgeEvaluator(Evaluator):
                         f"No reasoning returned for Judge Evaluator Metric: {metric.name}, AgentDataPoint ID: {output[1]}"
                     )
 
-        self.aggregate_results = self._aggregate_metrics()
+        self.aggregate_results = self._aggregate_metrics(results)
 
         self._result = EvaluatorResult(
             evaluator_name=self.name,
             evaluator_id=self._id,
             agent_data_ids=self.agent_data_ids,
-            results=[item for sublist in self.results.values() for item in sublist] + self.aggregate_results,
+            results=[item for sublist in results.values() for item in sublist] + self.aggregate_results,
             metrics=list(self._metrics.values()),
         )
         return self._result
@@ -126,7 +120,7 @@ class JudgeEvaluator(Evaluator):
     ) -> list[tuple[str, str, JudgeResponseSchema]]:
 
         # put this as none for now to not pollute agent_data
-        with rt.Session(save_data="none", logging_setting="CRITICAL") as session:
+        with rt.Session(save_data=False, logging_setting="CRITICAL") as session:
 
             # TODO: uncomment after https://github.com/RailtownAI/railtracks/issues/884 is resolved
             # self._session_id = session._identifier
@@ -158,11 +152,12 @@ class JudgeEvaluator(Evaluator):
 
     def _aggregate_metrics(
         self,
+        results: dict[Metric, list[tuple[str, MetricResult]]],
     ) -> list[AggregateCategoricalResult | AggregateNumericalResult]:
 
         aggregates: list[AggregateCategoricalResult | AggregateNumericalResult] = []
 
-        for metric in self.results:
+        for metric in results:
             # TODO: the conditions of type checking in values and labels feels it can be better addressed
             if isinstance(metric, Numerical):
                 aggregates.append(
@@ -170,7 +165,7 @@ class JudgeEvaluator(Evaluator):
                         metric=metric,
                         values=[
                             m.value
-                            for _, m in self.results[metric]
+                            for _, m in results[metric]
                             if isinstance(m.value, (int, float))
                         ],
                     )
@@ -181,7 +176,7 @@ class JudgeEvaluator(Evaluator):
                         metric=metric,
                         labels=[
                             m.value
-                            for _, m in self.results[metric]
+                            for _, m in results[metric]
                             if isinstance(m.value, str)
                         ],
                     )
