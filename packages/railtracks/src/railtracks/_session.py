@@ -233,9 +233,12 @@ class Session:
             try:
                 # Signal shutdown by setting the flag - the loop will check this and exit
                 self.publisher._running = False
-                
+
                 # Try to cancel the background task if it exists and isn't done
-                if self.publisher.pub_loop is not None and not self.publisher.pub_loop.done():
+                if (
+                    self.publisher.pub_loop is not None
+                    and not self.publisher.pub_loop.done()
+                ):
                     try:
                         # Cancel the task - it will check _running and exit naturally
                         self.publisher.pub_loop.cancel()
