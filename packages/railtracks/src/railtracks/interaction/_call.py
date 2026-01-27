@@ -168,11 +168,6 @@ async def _start(
             raise e
 
         raise GlobalTimeOutError(timeout=timeout)
-    finally:
-        # Only shutdown publisher if there's no Session context
-        # When Session exists, it manages the publisher lifecycle
-        if not is_context_present():
-            await shutdown_publisher()
 
     return result
 
