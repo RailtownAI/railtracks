@@ -232,21 +232,19 @@ class Session:
         # VISION: Session owns publisher lifecycle and must clean up all resources when exiting
         if self.publisher.is_running():
             try:
-                # Try to get the current event loop
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    # We're in an async context but __exit__ is sync
-                    # Schedule shutdown as a task (fire and forget - necessary since we can't await in sync context)
-                    loop.create_task(self.publisher.shutdown())
-                else:
-                    # Loop exists but not running, we can run_until_complete
-                    loop.run_until_complete(self.publisher.shutdown())
-            except RuntimeError:
-                # No event loop exists, create a new one
-                asyncio.run(self.publisher.shutdown())
+                # Signal shutdown by setting the flag - the loop will check this and exit
+                self.publisher._running = False
+                
+                # Try to cancel the background task if it exists and isn't done
+                if self.publisher.pub_loop is not None and not self.publisher.pub_loop.done():
+                    try:
+                        # Cancel the task - it will check _running and exit naturally
+                        self.publisher.pub_loop.cancel()
+                    except Exception:
+                        # Task might be done or in a different loop, that's okay
+                        pass
             except Exception:
                 # If shutdown fails for any reason, log it but don't crash
-                # The publisher will eventually be garbage collected
                 logger.warning(
                     "Failed to shutdown publisher during Session cleanup. "
                     "This may indicate a resource leak.",
