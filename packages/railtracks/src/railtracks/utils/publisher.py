@@ -55,6 +55,7 @@ class Publisher(Generic[_T]):
         self._subscribers: List[Subscriber[_T]] = []
 
         self._running = False
+        self._shutdown_requested = False
 
         self.pub_loop = None
 
@@ -66,6 +67,7 @@ class Publisher(Generic[_T]):
     async def start(self):
         # you must set the kill variables first or the publisher loop will early exit.
         self._running = True
+        self._shutdown_requested = False
         self._queue = asyncio.Queue()
         self.pub_loop = asyncio.create_task(
             self._published_data_loop(), name="Publisher Loop"
@@ -83,7 +85,7 @@ class Publisher(Generic[_T]):
 
         """
         # logger.debug(f"Publishing message: {message}")
-        if not self._running:
+        if not self._running or self._shutdown_requested:
             raise RuntimeError("Publisher is not currently running.")
 
         await self._queue.put(message)
@@ -93,7 +95,8 @@ class Publisher(Generic[_T]):
         A loop designed to be run in a thread that will continuously check for new messages in the queue and trigger
         subscribers as they are received
         """
-        while self._running:
+        # keep processing until shutdown has been requested and the queue is empty
+        while True:
             try:
                 message = await asyncio.wait_for(
                     self._queue.get(), timeout=self.timeout
@@ -111,9 +114,16 @@ class Publisher(Generic[_T]):
                 # will only reach this section after all the messages have been handled
 
             # this exception is raised when the queue is empty for `self.timeout` seconds.
-            # we do this so we can check is the self._running flag.
+            # we do this so we can check if shutdown has been requested and the queue drained.
             except asyncio.TimeoutError:
+                if self._shutdown_requested:
+                    # if shutdown requested and queue appears empty, exit loop
+                    if self._queue is None or self._queue.empty():
+                        break
                 continue
+
+        # mark as not running once the loop has terminated
+        self._running = False
 
     def subscribe(
         self,
@@ -216,8 +226,12 @@ class Publisher(Generic[_T]):
         shutting down.
         """
 
-        self._running = False
-        await self.pub_loop
+        # request shutdown: stop accepting new publishes and drain queue
+        self._shutdown_requested = True
+
+        # wait for the publish loop to finish processing queued messages
+        if self.pub_loop is not None:
+            await self.pub_loop
 
         return
 
