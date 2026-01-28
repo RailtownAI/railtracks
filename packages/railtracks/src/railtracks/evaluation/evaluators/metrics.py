@@ -66,3 +66,7 @@ class Numerical(Metric, Generic[T]):
             if min_value >= max_value:
                 raise ValueError("min_value must be less than max_value")
         return values
+
+class ToolMetric(Numerical):
+    """A Numerical metric specific to tool usage statistics."""
+    tool_name: str

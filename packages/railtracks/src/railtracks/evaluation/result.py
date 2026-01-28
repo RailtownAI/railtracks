@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, model_validator
 
-from .evaluators.metrics import Categorical, Metric, Numerical
+from .evaluators.metrics import Categorical, Metric, Numerical, ToolMetric
 
 
 class MetricResult(BaseModel):
@@ -80,7 +80,7 @@ class EvaluatorResult(BaseModel):
     evaluator_name: str
     evaluator_id: UUID
     agent_data_ids: set[UUID] = Field(default_factory=set)
-    metrics: Sequence[Metric]
+    metrics: Sequence[Metric | Numerical | Categorical| ToolMetric]
     results: Sequence[
         MetricResult
         | ToolMetricResult
@@ -98,4 +98,4 @@ class EvaluationResult(BaseModel):
         description="If applicable, list of agent run UUIDs that were part of this evaluation",
     )
     results: list[EvaluatorResult]
-    metrics: list[Metric]
+    metrics: list[Metric|Numerical|Categorical|ToolMetric]
