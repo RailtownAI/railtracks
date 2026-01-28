@@ -13,6 +13,10 @@ class Metric(BaseModel):
     @classmethod
     def _generate_identifier(cls, values):
         """Generate deterministic identifier from configuration."""
+        # Only generate identifier if not already provided
+        if values.get("identifier", "") != "":
+            return values
+        
         config = {k: v for k, v in values.items() if k != "identifier"}
         config["_type"] = cls.__name__
 

@@ -320,6 +320,7 @@ class Session:
         
         for tool in answer.tool_invocations:
             tool_name = tool[0].name
+            tool_id = tool[0].identifier
             
             # Get the latency for this specific invocation
             runtime = None
@@ -330,6 +331,7 @@ class Session:
                 tool_call_counts[tool_name] = call_index + 1
             
             tools.append({
+                "id": tool_id,
                 "name": tool_name,
                 "arguments": tool[0].arguments,
                 "result": tool[1].result,
@@ -427,9 +429,7 @@ class Session:
             dps.append(dp)
 
         if dps:
-            file_path = self._save_agent_data(
-                session_name=self.name or "",
-            )
+            file_path = self._save_agent_data()
             if file_path is not None:
                 with open(file_path, "w", encoding="utf-8") as f:
                     json.dump(
@@ -443,7 +443,7 @@ class Session:
 
         return
 
-    def _save_agent_data(self, session_name: str) -> Path | None:
+    def _save_agent_data(self) -> Path | None:
         railtracks_dir = Path(".railtracks/data/agent_data")
         railtracks_dir.mkdir(parents=True, exist_ok=True)
 
