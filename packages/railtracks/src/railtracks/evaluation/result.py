@@ -9,10 +9,15 @@ from .evaluators.metrics import Categorical, Metric, Numerical
 
 
 class MetricResult(BaseModel):
-    metric_name: str  # primary for human readability and debugging
+    result_name: str  # primary for human readability and debugging
     metric_id: str
+    agent_data_id: list[UUID]
     value: str | float | int
 
+# for results that are specific to individual tool calls
+class ToolMetricResult(BaseModel):
+    tool_call_id: str
+    metric_result: MetricResult
 
 class AggregateCategoricalResult(BaseModel):
     metric: Categorical
@@ -77,40 +82,11 @@ class EvaluatorResult(BaseModel):
     agent_data_ids: set[UUID] = Field(default_factory=set)
     metrics: Sequence[Metric]
     results: Sequence[
-        tuple[str, MetricResult]
-        | MetricResult
+        MetricResult
+        | ToolMetricResult
         | AggregateCategoricalResult
         | AggregateNumericalResult
     ]
-
-    # @model_validator(mode="before")
-    # @classmethod
-    # def validate_results(cls, values):
-    #     """Validate that UUIDs in tuple results are present in agent_data_ids."""
-    #     results = values.get("results", [])
-    #     agent_data_ids = values.get("agent_data_ids", set())
-
-    #     for result in results:
-    #         # only need to check if result is a tuple (str, MetricResult)
-    #         if isinstance(result, tuple) and len(result) >= 2:
-    #             id_value = result[0]
-                
-    #             # Convert string ID to UUID if needed
-    #             if isinstance(id_value, str):
-    #                 try:
-    #                     uuid_value = UUID(id_value)
-    #                 except (ValueError, TypeError):
-    #                     raise ValueError(f"Result ID {id_value} is not a valid UUID string")
-    #             else:
-    #                 uuid_value = id_value
-
-    #             if uuid_value not in agent_data_ids:
-    #                 raise ValueError(
-    #                     f"Result UUID {uuid_value} not found in agent_data_ids"
-    #                 )
-        
-    #     return values
-
 
 class EvaluationResult(BaseModel):
     evaluation_id: UUID = Field(default_factory=uuid4)

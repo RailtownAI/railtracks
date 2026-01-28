@@ -3,8 +3,8 @@ from collections import defaultdict
 from .evaluator import Evaluator
 from ..data import EvaluationDataset
 from ...utils.point import AgentDataPoint
-from .metrics import Numerical, Metric
-from ..result import EvaluatorResult, MetricResult, AggregateNumericalResult
+from .metrics import Numerical
+from ..result import EvaluatorResult, MetricResult, AggregateNumericalResult, ToolMetricResult
 
 from ...utils.logging.create import get_rt_logger
 
@@ -32,22 +32,21 @@ class ToolUseEvaluator(Evaluator):
             evaluator_id=self._id,
             agent_data_ids=agent_data_ids,
             metrics=metrics,
-            results=[item for sublist in results.values() for item in sublist]
-            + aggregate_results,
+            results= [item for sublist in results.values() for item in sublist] + aggregate_results,
         )
 
         return self._result
 
     def _retrieve_tool_stats(
         self, data: list[AgentDataPoint]
-    ) -> dict[Numerical[int | float], list[tuple[str, MetricResult]]]:
+    ) -> dict[Numerical[int | float], list[MetricResult | ToolMetricResult]]:
         """Retrieve tool usage statistics from the agent data points.
 
         Args:
             data: A list of AgentDataPoint instances.
         """
 
-        results: dict[Numerical, list[tuple[str, MetricResult]]] = defaultdict(list)
+        results: dict[Numerical, list[MetricResult | ToolMetricResult]] = defaultdict(list)
         # (agent_datapoint_id, tool_name): stats_dict
         stats: dict[tuple[str, str], dict[str, int]] = defaultdict(dict)
         # Track individual latencies per (datapoint_id, tool_name, invocation_index)
@@ -75,21 +74,23 @@ class ToolUseEvaluator(Evaluator):
 
                         tool_invocation_counter[key] += 1
                         
-                        metric_name = f"{tool_name}(...)_latency"
+                        metric_name = "Latency"
+                        result_name = f"{tool_name}(...)_latency"
                         tool_latency_metric = Numerical(
                             name=metric_name,
                             min_value=0.0,
                         )
                         results[tool_latency_metric].append(
-                            (
-                                str(datapoint.id),
-                                MetricResult(
-                                    metric_name=metric_name,
-                                    metric_id=tool_latency_metric.identifier,
-                                    value=runtime,
-                                ),
+                                ToolMetricResult(
+                                    tool_call_id=tool.get("id", ""),
+                                    metric_result=MetricResult(
+                                        result_name=result_name,
+                                        agent_data_id=[datapoint.id],
+                                        metric_id=tool_latency_metric.identifier,
+                                        value=runtime,
+                                    ),
+                                )
                             )
-                        )
             else:
                 logger.warning(
                     f"AgentDataPoint for agent {datapoint.agent_name} is missing internals; skipping tool usage stats."
@@ -111,13 +112,11 @@ class ToolUseEvaluator(Evaluator):
                 else 0.0
             )
             results[tool_failure_metric].append(
-                (
-                    adp_id,
-                    MetricResult(
-                        metric_name=metric_name,
-                        metric_id=tool_failure_metric.identifier,
-                        value=failure_rate,
-                    ),
+                        MetricResult(
+                            result_name=metric_name,
+                            agent_data_id=[UUID(adp_id)],
+                            metric_id=tool_failure_metric.identifier,
+                            value=failure_rate,
                 )
             )
 
@@ -127,20 +126,18 @@ class ToolUseEvaluator(Evaluator):
                 min_value=0,
             )
             results[tool_frequency_metric].append(
-                (
-                    adp_id,
-                    MetricResult(
-                        metric_name=metric_name,
-                        metric_id=tool_frequency_metric.identifier,
-                        value=tool_data["usage_count"],
+                MetricResult(
+                    result_name=metric_name,
+                    agent_data_id=[UUID(adp_id)],
+                    metric_id=tool_frequency_metric.identifier,
+                    value=tool_data["usage_count"],
                     ),
                 )
-            )
 
         return results
 
     def _aggregate_metrics(
-        self, results: dict[Numerical, list[tuple[str, MetricResult]]]
+        self, results: dict[Numerical, list[MetricResult | ToolMetricResult]]
     ) -> list[AggregateNumericalResult]:
         """Aggregates the ToolUseEvaluator metrics on an agent level."""
 
@@ -149,9 +146,22 @@ class ToolUseEvaluator(Evaluator):
 
             adp_mr = results[metric]
 
-            values = [
-                mr.value for _, mr in adp_mr if isinstance(mr.value, (int, float))
-            ]
+            values = []            
+            for mr in adp_mr:
+                if isinstance(mr, MetricResult):
+                    values.append(mr.value)
+                if isinstance(mr, ToolMetricResult):
+                    values.append(mr.metric_result.value)
+            # if isinstance(adp_mr[0][1], ToolMetricResult):
+            #     values = [
+            #         mr.metric_result.value
+            #         for _, mr in adp_mr
+            #         if isinstance(mr.metric_result.value, (int, float))
+            #     ]
+            # else:
+            #     values = [
+            #         mr.value for _, mr in adp_mr if isinstance(mr.value, (int, float))
+            #     ]
 
             aggregates.append(
                 AggregateNumericalResult(
