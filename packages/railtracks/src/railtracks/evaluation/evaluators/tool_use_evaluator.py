@@ -23,25 +23,19 @@ class ToolUseEvaluator(Evaluator):
         super().__init__()
 
     def run(self, data: list[AgentDataPoint]) -> EvaluatorResult:
-        if isinstance(data, AgentDataPoint):
-            data = [data]
-        elif isinstance(data, EvaluationDataset):
-            data = data.data_points_list
 
         agent_data_ids: set[UUID] = {adp.id for adp in data}
         results = self._retrieve_tool_stats(data)
         aggregate_results = self._aggregate_metrics(results)
         metrics = list(results.keys())
 
-        self._result = EvaluatorResult(
+        return EvaluatorResult(
             evaluator_name=self.name,
             evaluator_id=self._id,
             agent_data_ids=agent_data_ids,
             metrics=metrics,
             results= [item for sublist in results.values() for item in sublist] + aggregate_results,
         )
-
-        return self._result
 
     def _retrieve_tool_stats(
         self, data: list[AgentDataPoint]

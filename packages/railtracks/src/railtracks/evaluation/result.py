@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, model_validator
 
-from .evaluators.metrics import Categorical, Metric, Numerical, ToolMetric
+from .evaluators.metrics import Categorical, Metric, Numerical, ToolMetric, LLMMetric
 
 
 class MetricResult(BaseModel):
@@ -14,10 +14,12 @@ class MetricResult(BaseModel):
     agent_data_id: list[UUID]
     value: str | float | int
 
+
 # for results that are specific to individual tool calls
 class ToolMetricResult(BaseModel):
     tool_call_id: str
     metric_result: MetricResult
+
 
 class AggregateCategoricalResult(BaseModel):
     metric: Categorical
@@ -70,7 +72,7 @@ class AggregateNumericalResult(BaseModel):
 
         variance = sum((x - self.mean) ** 2 for x in self.values) / len(self.values)
         self.std = variance**0.5
-
+    
         value_counts = Counter(self.values)
         if value_counts:
             self.mode = value_counts.most_common(1)[0][0]
@@ -80,7 +82,7 @@ class EvaluatorResult(BaseModel):
     evaluator_name: str
     evaluator_id: UUID
     agent_data_ids: set[UUID] = Field(default_factory=set)
-    metrics: Sequence[Metric | Numerical | Categorical| ToolMetric]
+    metrics: Sequence[Metric | Numerical | Categorical | ToolMetric | LLMMetric]
     results: Sequence[
         MetricResult
         | ToolMetricResult
@@ -88,6 +90,7 @@ class EvaluatorResult(BaseModel):
         | AggregateNumericalResult
     ]
     # TODO: add aggregates?
+
 
 class EvaluationResult(BaseModel):
     evaluation_id: UUID = Field(default_factory=uuid4)
@@ -99,4 +102,4 @@ class EvaluationResult(BaseModel):
         description="If applicable, list of agent run UUIDs that were part of this evaluation",
     )
     results: list[EvaluatorResult]
-    metrics: list[Metric|Numerical|Categorical|ToolMetric]
+    metrics: list[Metric | Numerical | Categorical | ToolMetric]
