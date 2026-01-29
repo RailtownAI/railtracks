@@ -227,7 +227,32 @@ class Session:
         - Detaches logging handlers so they aren't duplicated
         - Deletes all the global variables that were registered in the context
         """
-        # the publisher should have already been closed in `_run_base`
+        # FIX: Resource leak - publisher background task wasn't being shut down on Session exit
+        # VISION: Session owns publisher lifecycle and must clean up all resources when exiting
+        if self.publisher.is_running():
+            try:
+                # Signal shutdown by setting the flag - the loop will check this and exit
+                self.publisher._running = False
+
+                # Try to cancel the background task if it exists and isn't done
+                if (
+                    self.publisher.pub_loop is not None
+                    and not self.publisher.pub_loop.done()
+                ):
+                    try:
+                        # Cancel the task - it will check _running and exit naturally
+                        self.publisher.pub_loop.cancel()
+                    except Exception:
+                        # Task might be done or in a different loop, that's okay
+                        pass
+            except Exception:
+                # If shutdown fails for any reason, log it but don't crash
+                logger.warning(
+                    "Failed to shutdown publisher during Session cleanup. "
+                    "This may indicate a resource leak.",
+                    exc_info=True,
+                )
+
         self.rt_state.shutdown()
 
         if self._has_custom_logging:

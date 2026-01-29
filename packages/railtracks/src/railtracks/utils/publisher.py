@@ -64,6 +64,10 @@ class Publisher(Generic[_T]):
         return self
 
     async def start(self):
+        # Make start idempotent - if already running, don't restart
+        if self._running:
+            return
+
         # you must set the kill variables first or the publisher loop will early exit.
         self._running = True
         self._queue = asyncio.Queue()
