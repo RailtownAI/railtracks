@@ -87,6 +87,7 @@ class EvaluatorResult(BaseModel):
         | AggregateCategoricalResult
         | AggregateNumericalResult
     ]
+    # TODO: add aggregates?
 
 class EvaluationResult(BaseModel):
     evaluation_id: UUID = Field(default_factory=uuid4)

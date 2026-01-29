@@ -7,8 +7,14 @@ from .metrics import ToolMetric
 from ..result import EvaluatorResult, MetricResult, AggregateNumericalResult, ToolMetricResult
 
 from ...utils.logging.create import get_rt_logger
+from typing import TypedDict
 
 logger = get_rt_logger("ToolUseEvaluator")
+
+class ToolStats(TypedDict):
+    usage_count: int
+    failure_count: int
+    latencies: list[float]
 
 class ToolUseEvaluator(Evaluator):
     def __init__(
@@ -48,10 +54,7 @@ class ToolUseEvaluator(Evaluator):
 
         results: dict[ToolMetric, list[MetricResult | ToolMetricResult]] = defaultdict(list)
         # (agent_datapoint_id, tool_name): stats_dict
-        stats: dict[tuple[str, str], dict[str, int]] = defaultdict(dict)
-        # Track individual latencies per (datapoint_id, tool_name, invocation_index)
-        tool_invocation_counter: dict[tuple[str, str], int] = defaultdict(int)
-
+        stats: dict[tuple[str, str], ToolStats] = defaultdict(lambda: {"usage_count": 0, "failure_count": 0, "latencies": []})
         for datapoint in data:
             if datapoint.agent_internals is not None:
                 for tool in datapoint.agent_internals.get("tool_invocations", []):
@@ -59,11 +62,6 @@ class ToolUseEvaluator(Evaluator):
                     tool_name = tool.get("name")
                     key = (str(datapoint.id), tool_name)
                     
-                    if key not in stats:
-                        stats[key] = {
-                            "usage_count": 0,
-                            "failure_count": 0,
-                        }
                     stats[key]["usage_count"] += 1
                     if "There was an error running the tool" in tool["result"]:
                         stats[key]["failure_count"] += 1  # TODO: Add a ticket for better way of handling this
@@ -71,10 +69,10 @@ class ToolUseEvaluator(Evaluator):
                     # Track individual latency if available
                     runtime = tool.get("runtime")
                     if runtime is not None:
-
-                        tool_invocation_counter[key] += 1
                         
                         metric_name = "Latency"
+                        stats[key]["latencies"].append(runtime)
+
                         tool_latency_metric = ToolMetric(
                             name="Latency",
                             tool_name=tool_name,
@@ -100,6 +98,27 @@ class ToolUseEvaluator(Evaluator):
         for key, tool_data in stats.items():
 
             adp_id, tool_name = key
+            
+            metric_name = f"LatencyAcrossRun"
+            tool_latency_metric = ToolMetric(
+                name=metric_name,
+                tool_name=tool_name,
+                min_value=0.0,
+            )
+            avg_latency = (
+                sum(tool_data["latencies"]) / len(tool_data["latencies"])
+                if tool_data["latencies"]
+                else 0.0
+            )
+            results[tool_latency_metric].append(
+                        MetricResult(
+                            result_name=f"{metric_name}/{tool_name}",
+                            agent_data_id=[UUID(adp_id)],
+                            metric_id=tool_latency_metric.identifier,
+                            value=avg_latency,
+                )
+            )
+            
             metric_name = f"FailureRate"
             tool_failure_metric = ToolMetric(
                 name=metric_name,
