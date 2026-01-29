@@ -20,6 +20,8 @@ class ToolMetricResult(BaseModel):
     tool_call_id: str
     metric_result: MetricResult
 
+class LLMMetricResult(MetricResult):
+    llm_call_index: int
 
 class AggregateCategoricalResult(BaseModel):
     metric: Categorical
@@ -72,7 +74,7 @@ class AggregateNumericalResult(BaseModel):
 
         variance = sum((x - self.mean) ** 2 for x in self.values) / len(self.values)
         self.std = variance**0.5
-    
+
         value_counts = Counter(self.values)
         if value_counts:
             self.mode = value_counts.most_common(1)[0][0]
@@ -85,6 +87,7 @@ class EvaluatorResult(BaseModel):
     metrics: Sequence[Metric | Numerical | Categorical | ToolMetric | LLMMetric]
     results: Sequence[
         MetricResult
+        | LLMMetricResult
         | ToolMetricResult
         | AggregateCategoricalResult
         | AggregateNumericalResult
@@ -102,4 +105,4 @@ class EvaluationResult(BaseModel):
         description="If applicable, list of agent run UUIDs that were part of this evaluation",
     )
     results: list[EvaluatorResult]
-    metrics: list[Metric | Numerical | Categorical | ToolMetric]
+    metrics: list[Metric | Numerical | Categorical | ToolMetric | LLMMetric]

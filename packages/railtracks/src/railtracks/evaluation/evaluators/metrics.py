@@ -69,10 +69,9 @@ class Numerical(Metric, Generic[T]):
 
 class ToolMetric(Numerical):
     """A Numerical metric specific to tool usage statistics."""
-    tool_name: str
+    pass # TODO: needed?
 
 class LLMMetric(Numerical):
     """A Numerical metric specific to tool usage statistics."""
-    call_index: int
     model_name: str
     model_provider: str

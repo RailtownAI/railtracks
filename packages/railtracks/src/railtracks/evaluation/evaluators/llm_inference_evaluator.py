@@ -1,7 +1,7 @@
 from .evaluator import Evaluator
 from ...utils.logging.create import get_rt_logger
 from ...utils.point import AgentDataPoint
-from ..result import EvaluatorResult, MetricResult, AggregateNumericalResult
+from ..result import EvaluatorResult, LLMMetricResult, AggregateNumericalResult
 from .metrics import LLMMetric
 from uuid import UUID
 from collections import defaultdict
@@ -31,75 +31,75 @@ class LLMInferenceEvaluator(Evaluator):
     def _retrieve_llm_states(
             self, data: list[AgentDataPoint]
     ):
-        results: dict[LLMMetric, list[MetricResult]] = defaultdict(list)
-        keys: list[LLMMetric] = []
-        vals: list[MetricResult] = []
+        results: dict[LLMMetric, list[LLMMetricResult]] = defaultdict(list)
+        keys: set[LLMMetric] = set()
+        vals: list[LLMMetricResult] = []
         for datapoint in data:
             llm_metrics = datapoint.agent_internals.get("llm_metrics", {})
 
             for call in llm_metrics.get("calls", []):
                 
                 # Input Tokens
-                keys.append(LLMMetric(
+                metric = LLMMetric(
                     name="InputTokens",
-                    call_index=call.get("call_index", -1),
                     model_name = call.get("model_name", ""),
                     model_provider=call.get("model_provider", ""),
-                ))
-                vals.append(MetricResult(
+                )
+                results[metric].append(LLMMetricResult(
                     result_name="InputTokens",
-                    metric_id=keys[-1].identifier,
+                    metric_id=metric.identifier,
                     agent_data_id=[datapoint.id],
                     value=call.get("input_tokens", 0),
+                    llm_call_index=call.get("call_index", -1),
                 ))
 
                 # Output Tokens
-                keys.append(LLMMetric(
+                metric = LLMMetric(
                     name="OutputTokens",
-                    call_index=call.get("call_index", -1),
                     model_name = call.get("model_name", ""),
                     model_provider=call.get("model_provider", ""),
-                ))
-                vals.append(MetricResult(
+                )
+                keys.add(metric)
+                results[metric].append(LLMMetricResult(
                     result_name="OutputTokens",
-                    metric_id=keys[-1].identifier,
+                    metric_id=metric.identifier,
                     agent_data_id=[datapoint.id],
                     value=call.get("output_tokens", 0),
+                    llm_call_index=call.get("call_index", -1),
                 ))
 
                 # Total Cost
-                keys.append(LLMMetric(
+                metric = LLMMetric(
                     name="TotalCost",
-                    call_index=call.get("call_index", -1),
                     model_name = call.get("model_name", ""),
                     model_provider=call.get("model_provider", ""),
-                ))
-                vals.append(MetricResult(
+                )
+                keys.add(metric)
+                results[metric].append(LLMMetricResult(
                     result_name="TotalCost",
-                    metric_id=keys[-1].identifier,
+                    metric_id=metric.identifier,
                     agent_data_id=[datapoint.id],
                     value=call.get("total_cost", 0.0),
+                    llm_call_index=call.get("call_index", -1),
                 ))
 
                 # Latency
-                keys.append(LLMMetric(
+                metric = LLMMetric(
                     name="Latency",
-                    call_index=call.get("call_index", -1),
                     model_name = call.get("model_name", ""),
                     model_provider=call.get("model_provider", ""),
-                ))
-                vals.append(MetricResult(
+                )
+                results[metric].append(LLMMetricResult(
                     result_name="Latency",
-                    metric_id=keys[-1].identifier,
+                    metric_id=metric.identifier,
                     agent_data_id=[datapoint.id],
                     value=call.get("latency", 0.0),
+                    llm_call_index=call.get("call_index", -1),
                 ))
 
-            for k, v in zip(keys, vals):
-                results[k].append(v)
-        return results, keys
+        return results, list(results.keys())
     
-    def _aggregate_metrics(self, results: dict[LLMMetric, list[MetricResult]]):
+    def _aggregate_metrics(self, results: dict[LLMMetric, list[LLMMetricResult]]):
         
         aggregates = []
 
