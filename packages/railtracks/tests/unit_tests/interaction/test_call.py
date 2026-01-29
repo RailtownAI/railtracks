@@ -187,10 +187,10 @@ async def test_call_raises_type_error_with_function():
 
 
 @pytest.mark.asyncio
-async def test_start_activates_and_shuts_down_publisher(
+async def test_start_activates_publisher(
     full_context_setup, mock_execute
 ):
-    """Test that _start properly activates and shuts down the publisher."""
+    """Test that _start properly activates the publisher."""
     mock_node = MockNode
     mock_execute.return_value = "test_result"
 
@@ -198,7 +198,6 @@ async def test_start_activates_and_shuts_down_publisher(
 
     assert result == "test_result"
     full_context_setup["context"]["activate_publisher"].assert_called_once()
-    full_context_setup["context"]["shutdown_publisher"].assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -216,7 +215,6 @@ async def test_start_handles_timeout_exception(full_context_setup, mock_execute)
         await _start(mock_node, args=(), kwargs={})
 
     assert exc_info.value.timeout == 0.01
-    full_context_setup["context"]["shutdown_publisher"].assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -233,7 +231,6 @@ async def test_start_preserves_internal_timeout_error(full_context_setup, mock_e
         await _start(mock_node, args=(), kwargs={})
 
     assert str(exc_info.value) == "Internal timeout"
-    full_context_setup["context"]["shutdown_publisher"].assert_called_once()
 
 
 # ============================ END Start Function Tests ==============================

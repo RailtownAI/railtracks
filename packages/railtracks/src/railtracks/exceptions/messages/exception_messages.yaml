@@ -82,8 +82,6 @@ TOOL_PARAMETERS_TYPE_NOTES:
 
 # ----------------------------------- Warnings ------------------------------------
 
-MAX_TOOL_CALLS_UNLIMITED_WARN: "You have set max_tool_calls to None. The llm will be able to make unlimited tool calls."
-
 NO_SYSTEM_MESSAGE_WARN: "No SystemMessage was provided. This is not recommended. Please provide the first message as a SystemMessage."
 
 ONLY_SYSTEM_MESSAGE_WARN: "Only SystemMessage was provided. This is not recommended. Please provide at least one UserMessage."

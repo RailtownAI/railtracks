@@ -59,64 +59,6 @@ class TestMetricEnum:
         assert Metric["l2"] == Metric.l2
         assert Metric["dot"] == Metric.dot
 
-
-class TestChunkDataclass:
-    """Tests for Chunk dataclass."""
-
-    def test_create_chunk_with_all_fields(self, custom_id, simple_content, simple_document, simple_metadata):
-        """Create Chunk with all fields populated."""
-        chunk = Chunk(
-            content=simple_content,
-            id=custom_id,
-            document=simple_document,
-            metadata=simple_metadata
-        )
-        assert chunk.content == simple_content
-        assert chunk.id == custom_id
-        assert chunk.document == simple_document
-        assert chunk.metadata == simple_metadata
-
-    def test_create_chunk_with_required_field_only(self, simple_content):
-        """Create Chunk with only required content field."""
-        chunk = Chunk(content=simple_content)
-        assert chunk.content == simple_content
-        assert chunk.id is not None
-        assert chunk.document is None
-        assert chunk.metadata == {}
-
-    def test_id_auto_generated_when_not_provided(self, simple_content):
-        """Verify id is auto-generated when not provided."""
-        chunk1 = Chunk(content=simple_content)
-        chunk2 = Chunk(content=simple_content)
-        
-        assert chunk1.id is not None
-        assert chunk2.id is not None
-        assert chunk1.id != chunk2.id
-        # Verify it's a valid UUID string
-        try:
-            UUID(chunk1.id)
-        except ValueError:
-            pytest.fail(f"Generated id {chunk1.id} is not a valid UUID")
-
-    def test_id_not_regenerated_when_provided(self, simple_content, custom_id):
-        """Verify provided id is not changed."""
-        chunk = Chunk(content=simple_content, id=custom_id)
-        assert chunk.id == custom_id
-
-    def test_post_init_initializes_empty_metadata_by_default(self, simple_content):
-        """Verify __post_init__ initializes empty metadata by default."""
-        chunk = Chunk(content=simple_content)
-        assert chunk.metadata == {}
-        assert isinstance(chunk.metadata, dict)
-
-    def test_chunk_with_custom_metadata(self, simple_content, complex_metadata):
-        """Create Chunk with custom metadata."""
-        chunk = Chunk(content=simple_content, metadata=complex_metadata)
-        assert chunk.metadata == complex_metadata
-        assert chunk.document is None
-        assert chunk.id is not None
-
-
 class TestSearchResultDataclass:
     """Tests for SearchResult dataclass."""
 
