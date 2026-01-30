@@ -1,18 +1,26 @@
 import hashlib
 import json
 from typing import TypeVar, Generic
-from pydantic import BaseModel, ConfigDict, model_validator, field_serializer
+from pydantic import BaseModel, ConfigDict, Field, model_validator, field_serializer
 
 
 class Metric(BaseModel):
     name: str
+    metric_type: str = Field(default="Metric", init=False)
     identifier: str = ""
     model_config = ConfigDict(frozen=True)
-
+    
+    def __init_subclass__(cls):
+        cls.model_fields["metric_type"].default = cls.__name__
+    
     @model_validator(mode="before")
     @classmethod
     def _generate_identifier(cls, values):
         """Generate deterministic identifier from configuration."""
+        # Only generate identifier if not already provided
+        if values.get("identifier", "") != "":
+            return values
+        
         config = {k: v for k, v in values.items() if k != "identifier"}
         config["_type"] = cls.__name__
 
@@ -62,3 +70,11 @@ class Numerical(Metric, Generic[T]):
             if min_value >= max_value:
                 raise ValueError("min_value must be less than max_value")
         return values
+
+class LLMMetric(Numerical):
+    """A Numerical metric specific to LLM usage statistics."""
+    pass # TODO: needed?
+
+class ToolMetric(Numerical):
+    """A Numerical metric specific to tool usage statistics."""
+    pass # TODO: needed?

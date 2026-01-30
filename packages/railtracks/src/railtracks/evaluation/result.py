@@ -5,14 +5,24 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, model_validator
 
-from .evaluators.metrics import Categorical, Metric, Numerical
+from .evaluators.metrics import Categorical, Metric, Numerical, ToolMetric
 
 
 class MetricResult(BaseModel):
-    metric_name: str  # primary for human readability and debugging
+    result_name: str  # primary for human readability and debugging
     metric_id: str
+    agent_data_id: list[UUID]
     value: str | float | int
 
+class ToolMetricResult(MetricResult):
+    value: float | int # type: ignore[assignment] pydantic supports narrowing types in subclasses
+    tool_name: str
+    tool_call_id: str | None = None
+
+class LLMMetricResult(MetricResult):
+    llm_call_index: int
+    model_name: str
+    model_provider: str
 
 class AggregateCategoricalResult(BaseModel):
     metric: Categorical
@@ -75,41 +85,15 @@ class EvaluatorResult(BaseModel):
     evaluator_name: str
     evaluator_id: UUID
     agent_data_ids: set[UUID] = Field(default_factory=set)
-    metrics: Sequence[Metric]
+    metrics: Sequence[Metric | Numerical | Categorical]
     results: Sequence[
-        tuple[str, MetricResult]
-        | MetricResult
+        MetricResult
+        | LLMMetricResult
+        | ToolMetricResult
         | AggregateCategoricalResult
         | AggregateNumericalResult
     ]
-
-    # @model_validator(mode="before")
-    # @classmethod
-    # def validate_results(cls, values):
-    #     """Validate that UUIDs in tuple results are present in agent_data_ids."""
-    #     results = values.get("results", [])
-    #     agent_data_ids = values.get("agent_data_ids", set())
-
-    #     for result in results:
-    #         # only need to check if result is a tuple (str, MetricResult)
-    #         if isinstance(result, tuple) and len(result) >= 2:
-    #             id_value = result[0]
-                
-    #             # Convert string ID to UUID if needed
-    #             if isinstance(id_value, str):
-    #                 try:
-    #                     uuid_value = UUID(id_value)
-    #                 except (ValueError, TypeError):
-    #                     raise ValueError(f"Result ID {id_value} is not a valid UUID string")
-    #             else:
-    #                 uuid_value = id_value
-
-    #             if uuid_value not in agent_data_ids:
-    #                 raise ValueError(
-    #                     f"Result UUID {uuid_value} not found in agent_data_ids"
-    #                 )
-        
-    #     return values
+    # TODO: add aggregates?
 
 
 class EvaluationResult(BaseModel):
@@ -122,4 +106,4 @@ class EvaluationResult(BaseModel):
         description="If applicable, list of agent run UUIDs that were part of this evaluation",
     )
     results: list[EvaluatorResult]
-    metrics: list[Metric]
+    metrics: list[Metric | Numerical | Categorical]
