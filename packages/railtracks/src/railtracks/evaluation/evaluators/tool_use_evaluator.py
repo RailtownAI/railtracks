@@ -1,7 +1,6 @@
 from uuid import UUID
 from collections import defaultdict
 from .evaluator import Evaluator
-from ..data import EvaluationDataset
 from ...utils.point import AgentDataPoint
 from .metrics import ToolMetric
 from ..result import EvaluatorResult, MetricResult, AggregateNumericalResult, ToolMetricResult
@@ -39,14 +38,14 @@ class ToolUseEvaluator(Evaluator):
 
     def _retrieve_tool_stats(
         self, data: list[AgentDataPoint]
-    ) -> dict[ToolMetric, list[MetricResult | ToolMetricResult]]:
+    ) -> dict[ToolMetric, list[ToolMetricResult]]:
         """Retrieve tool usage statistics from the agent data points.
 
         Args:
             data: A list of AgentDataPoint instances.
         """
 
-        results: dict[ToolMetric, list[MetricResult | ToolMetricResult]] = defaultdict(list)
+        results: dict[ToolMetric, list[ToolMetricResult]] = defaultdict(list)
         # (agent_datapoint_id, tool_name): stats_dict
         stats: dict[tuple[str, str], ToolStats] = defaultdict(lambda: {"usage_count": 0, "failure_count": 0, "latencies": []})
         for datapoint in data:
@@ -69,18 +68,16 @@ class ToolUseEvaluator(Evaluator):
 
                         tool_latency_metric = ToolMetric(
                             name="Latency",
-                            tool_name=tool_name,
                             min_value=0.0,
                         )
                         results[tool_latency_metric].append(
                                 ToolMetricResult(
-                                    tool_call_id=tool.get("id", ""),
-                                    metric_result=MetricResult(
-                                        result_name=f"{metric_name}/{tool_name}",
-                                        agent_data_id=[datapoint.id],
-                                        metric_id=tool_latency_metric.identifier,
-                                        value=runtime,
-                                    ),
+                                    result_name=f"{metric_name}/{tool_name}",
+                                    agent_data_id=[datapoint.id],
+                                    metric_id=tool_latency_metric.identifier,
+                                    tool_name=tool_name,
+                                    tool_call_id=tool.get("id", None),
+                                    value=runtime,
                                 )
                             )
             else:
@@ -96,7 +93,6 @@ class ToolUseEvaluator(Evaluator):
             metric_name = f"LatencyAcrossRun"
             tool_latency_metric = ToolMetric(
                 name=metric_name,
-                tool_name=tool_name,
                 min_value=0.0,
             )
             avg_latency = (
@@ -105,18 +101,19 @@ class ToolUseEvaluator(Evaluator):
                 else 0.0
             )
             results[tool_latency_metric].append(
-                        MetricResult(
-                            result_name=f"{metric_name}/{tool_name}",
-                            agent_data_id=[UUID(adp_id)],
-                            metric_id=tool_latency_metric.identifier,
-                            value=avg_latency,
+                ToolMetricResult(
+                    result_name=f"{metric_name}/{tool_name}",
+                    agent_data_id=[UUID(adp_id)],
+                    metric_id=tool_latency_metric.identifier,
+                    tool_name=tool_name,
+                    tool_call_id=None,
+                    value=avg_latency,
                 )
             )
             
             metric_name = f"FailureRate"
             tool_failure_metric = ToolMetric(
                 name=metric_name,
-                tool_name=tool_name,
                 min_value=0.0,
                 max_value=1.0,
             )
@@ -126,33 +123,36 @@ class ToolUseEvaluator(Evaluator):
                 else 0.0
             )
             results[tool_failure_metric].append(
-                        MetricResult(
-                            result_name=f"{metric_name}/{tool_name}",
-                            agent_data_id=[UUID(adp_id)],
-                            metric_id=tool_failure_metric.identifier,
-                            value=failure_rate,
+                ToolMetricResult(
+                    result_name=f"{metric_name}/{tool_name}",
+                    agent_data_id=[UUID(adp_id)],
+                    metric_id=tool_failure_metric.identifier,
+                    tool_name=tool_name,
+                    tool_call_id=None,
+                    value=failure_rate,
                 )
             )
 
             metric_name = f"UsageCount"
             tool_frequency_metric = ToolMetric(
                 name=metric_name,
-                tool_name=tool_name,
                 min_value=0,
             )
             results[tool_frequency_metric].append(
-                MetricResult(
+                ToolMetricResult(
                     result_name=f"{metric_name}/{tool_name}",
                     agent_data_id=[UUID(adp_id)],
                     metric_id=tool_frequency_metric.identifier,
+                    tool_name=tool_name,
+                    tool_call_id=None,
                     value=tool_data["usage_count"],
-                    ),
+                )
                 )
 
         return results
 
     def _aggregate_metrics(
-        self, results: dict[ToolMetric, list[MetricResult | ToolMetricResult]]
+        self, results: dict[ToolMetric, list[ToolMetricResult]]
     ) -> list[AggregateNumericalResult]:
         """Aggregates the ToolUseEvaluator metrics on an agent level."""
 
@@ -161,12 +161,8 @@ class ToolUseEvaluator(Evaluator):
 
             metric_results = results[metric]
 
-            values = []
-            for tmr in metric_results:
-                if isinstance(tmr, ToolMetricResult):
-                    values.append(tmr.metric_result.value)
-                else:
-                    values.append(tmr.value)
+            values = [tmr.value for tmr in metric_results]
+
 
             aggregate_result = AggregateNumericalResult(
                 metric=metric,

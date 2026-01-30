@@ -42,8 +42,6 @@ class LLMInferenceEvaluator(Evaluator):
                 # Input Tokens
                 metric = LLMMetric(
                     name="InputTokens",
-                    model_name = call.get("model_name", ""),
-                    model_provider=call.get("model_provider", ""),
                 )
                 results[metric].append(LLMMetricResult(
                     result_name="InputTokens",
@@ -51,13 +49,13 @@ class LLMInferenceEvaluator(Evaluator):
                     agent_data_id=[datapoint.id],
                     value=call.get("input_tokens", 0),
                     llm_call_index=call.get("call_index", -1),
+                    model_name = call.get("model_name", ""),
+                    model_provider=call.get("model_provider", ""),
                 ))
 
                 # Output Tokens
                 metric = LLMMetric(
                     name="OutputTokens",
-                    model_name = call.get("model_name", ""),
-                    model_provider=call.get("model_provider", ""),
                 )
                 keys.add(metric)
                 results[metric].append(LLMMetricResult(
@@ -66,13 +64,13 @@ class LLMInferenceEvaluator(Evaluator):
                     agent_data_id=[datapoint.id],
                     value=call.get("output_tokens", 0),
                     llm_call_index=call.get("call_index", -1),
+                    model_name = call.get("model_name", ""),
+                    model_provider=call.get("model_provider", ""),
                 ))
 
                 # Total Cost
                 metric = LLMMetric(
                     name="TotalCost",
-                    model_name = call.get("model_name", ""),
-                    model_provider=call.get("model_provider", ""),
                 )
                 keys.add(metric)
                 results[metric].append(LLMMetricResult(
@@ -81,13 +79,13 @@ class LLMInferenceEvaluator(Evaluator):
                     agent_data_id=[datapoint.id],
                     value=call.get("total_cost", 0.0),
                     llm_call_index=call.get("call_index", -1),
+                    model_name = call.get("model_name", ""),
+                    model_provider=call.get("model_provider", ""),
                 ))
 
                 # Latency
                 metric = LLMMetric(
                     name="Latency",
-                    model_name = call.get("model_name", ""),
-                    model_provider=call.get("model_provider", ""),
                 )
                 results[metric].append(LLMMetricResult(
                     result_name="Latency",
@@ -95,6 +93,8 @@ class LLMInferenceEvaluator(Evaluator):
                     agent_data_id=[datapoint.id],
                     value=call.get("latency", 0.0),
                     llm_call_index=call.get("call_index", -1),
+                    model_name = call.get("model_name", ""),
+                    model_provider=call.get("model_provider", ""),
                 ))
 
         return results, list(results.keys())

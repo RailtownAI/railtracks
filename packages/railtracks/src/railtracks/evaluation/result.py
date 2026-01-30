@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, model_validator
 
-from .evaluators.metrics import Categorical, Metric, Numerical, ToolMetric, LLMMetric
+from .evaluators.metrics import Categorical, Metric, Numerical, ToolMetric
 
 
 class MetricResult(BaseModel):
@@ -14,14 +14,15 @@ class MetricResult(BaseModel):
     agent_data_id: list[UUID]
     value: str | float | int
 
-
-# for results that are specific to individual tool calls
-class ToolMetricResult(BaseModel):
-    tool_call_id: str
-    metric_result: MetricResult
+class ToolMetricResult(MetricResult):
+    value: float | int # type: ignore[assignment] pydantic supports narrowing types in subclasses
+    tool_name: str
+    tool_call_id: str | None = None
 
 class LLMMetricResult(MetricResult):
     llm_call_index: int
+    model_name: str
+    model_provider: str
 
 class AggregateCategoricalResult(BaseModel):
     metric: Categorical
@@ -84,7 +85,7 @@ class EvaluatorResult(BaseModel):
     evaluator_name: str
     evaluator_id: UUID
     agent_data_ids: set[UUID] = Field(default_factory=set)
-    metrics: Sequence[Metric | Numerical | Categorical | ToolMetric | LLMMetric]
+    metrics: Sequence[Metric | Numerical | Categorical]
     results: Sequence[
         MetricResult
         | LLMMetricResult
@@ -105,4 +106,4 @@ class EvaluationResult(BaseModel):
         description="If applicable, list of agent run UUIDs that were part of this evaluation",
     )
     results: list[EvaluatorResult]
-    metrics: list[Metric | Numerical | Categorical | ToolMetric | LLMMetric]
+    metrics: list[Metric | Numerical | Categorical]
