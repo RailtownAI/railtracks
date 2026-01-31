@@ -47,13 +47,13 @@ def evaluate(
         evaluator_results: list[EvaluatorResult] = []
         for evaluator in evaluators:
             logger.info(
-                f"Running evaluator: {evaluator.__class__.__name__}({str(evaluator.id)[:4]}...)"
+                f"Running evaluator: {evaluator.__class__.__name__}({str(evaluator.identifier)[:4]}...)"
             )
             result = evaluator.run(data_dict[agent_name])
 
             evaluator_results.append(result)
             logger.info(
-                f"Completed evaluator: {evaluator.__class__.__name__}({str(evaluator.id)[:4]}...)"
+                f"Completed evaluator: {evaluator.__class__.__name__}({str(evaluator.identifier)[:4]}...)"
             )
 
         evaluation_results.append(

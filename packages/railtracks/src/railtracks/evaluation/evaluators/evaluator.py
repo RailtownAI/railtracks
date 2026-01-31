@@ -3,26 +3,16 @@ from uuid import uuid4, UUID
 from abc import ABC, abstractmethod
 
 from ... import AgentDataPoint
-from ..data import EvaluationDataset
 from ..result import EvaluatorResult
 
 
 class Evaluator(ABC):
     def __init__(self):
-        self._id: UUID = uuid4()
-        self._config_hash: str = self._generate_unique_hash()
+        self.identifier: str = self._generate_identifier()
 
     @property
     def name(self) -> str:
         return self.__class__.__name__
-
-    @property
-    def id(self) -> UUID:
-        return self._id
-
-    @property
-    def config_hash(self) -> str:
-        return self._config_hash
 
     @abstractmethod
     def run(
@@ -30,15 +20,23 @@ class Evaluator(ABC):
     ) -> EvaluatorResult:
         pass
 
-    def _generate_unique_hash(self) -> str:
-        """Generate a deterministic hash based on evaluator configuration.
-
-        This should create a hash-based identifier that remains consistent
-        for evaluators with identical configurations, enabling equality
-        comparisons across different instances.
-
-        Note: Overload the __repr__ method in subclasses to ensure all relevant
-        configuration details are included in the string representation.
+    def _generate_identifier(self) -> str:
+        """Generate deterministic hash based on evaluator configuration.
+        
+        Like Metric.identifier - same config = same identifier.
         """
-        str_repr = repr(self)
-        return hashlib.sha256(str_repr.encode()).hexdigest()
+        config = self._get_config()
+        config["_type"] = self.__class__.__name__
+        
+        import json
+        import hashlib
+        config_str = json.dumps(config, sort_keys=True)
+        return hashlib.sha256(config_str.encode()).hexdigest()
+    
+    def _get_config(self) -> dict:
+        """Override in subclasses to include configuration details.
+        
+        Returns:
+            Dict of configuration that determines evaluator identity.
+        """
+        return {}  # Base evaluator has no config

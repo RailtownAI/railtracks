@@ -83,7 +83,7 @@ class AggregateNumericalResult(BaseModel):
 
 class EvaluatorResult(BaseModel):
     evaluator_name: str
-    evaluator_id: UUID
+    evaluator_id: str
     agent_data_ids: set[UUID] = Field(default_factory=set)
     metrics: Sequence[Metric | Numerical | Categorical]
     results: Sequence[

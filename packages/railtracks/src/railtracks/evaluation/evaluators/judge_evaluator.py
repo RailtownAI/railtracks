@@ -47,14 +47,19 @@ class JudgeEvaluator(Evaluator):
         self._llm = llm
         self._reasoning: bool = reasoning
         self._template = self._load_yaml()
+        self._system_prompt = (
+            system_prompt
+            if system_prompt is not None
+            else self._template["system_prompt"]
+        )
         super().__init__()
 
         self._judge = rt.agent_node(
+            system_message=self._system_prompt,
             llm=self._llm,
             output_schema=JudgeResponseSchema,
             tool_nodes=[],
         )
-
 
     def run(self, data: list[AgentDataPoint]) -> EvaluatorResult:
 
@@ -64,31 +69,28 @@ class JudgeEvaluator(Evaluator):
         )
 
         self.agent_data_ids = {adp.id for adp in data}
-        results: dict[Metric, list[tuple[str, MetricResult]]] = defaultdict(list)
+        results: dict[Metric, list[MetricResult]] = defaultdict(list)
 
         for output in judge_outputs:
             metric = self._metrics[output[0]]
             results[metric].append(
-                (
-                    output[1],
-                    MetricResult(
-                        metric_name=metric.name,
-                        metric_id=metric.identifier,
-                        value=output[2].metric_value,
-                    ),
-                )
+                MetricResult(
+                    result_name=f"JudgeResult/{metric.name}",
+                    metric_id=metric.identifier,
+                    agent_data_id=[UUID(output[1])],
+                    value=output[2].metric_value,
+                ),
             )
+
             if self._reasoning:
                 reasoning_metric = Metric(name=f"{metric.name}_reasoning")
                 if output[2].reasoning is not None:
                     results[reasoning_metric].append(
-                        (
-                            output[1],
-                            MetricResult(
-                                metric_name=reasoning_metric.name,
-                                metric_id=reasoning_metric.identifier,
-                                value=output[2].reasoning,
-                            ),
+                        MetricResult(
+                            result_name=f"JudgeReasoning/{metric.name}",
+                            metric_id=reasoning_metric.identifier,
+                            agent_data_id=[UUID(output[1])],
+                            value=output[2].reasoning,
                         )
                     )
                 else:
@@ -100,9 +102,10 @@ class JudgeEvaluator(Evaluator):
 
         self._result = EvaluatorResult(
             evaluator_name=self.name,
-            evaluator_id=self._id,
+            evaluator_id=self.identifier,
             agent_data_ids=self.agent_data_ids,
-            results=[item for sublist in results.values() for item in sublist] + self.aggregate_results,
+            results=[item for sublist in results.values() for item in sublist]
+            + self.aggregate_results,
             metrics=list(self._metrics.values()),
         )
         return self._result
@@ -152,7 +155,7 @@ class JudgeEvaluator(Evaluator):
 
     def _aggregate_metrics(
         self,
-        results: dict[Metric, list[tuple[str, MetricResult]]],
+        results: dict[Metric, list[MetricResult]],
     ) -> list[AggregateCategoricalResult | AggregateNumericalResult]:
 
         aggregates: list[AggregateCategoricalResult | AggregateNumericalResult] = []
@@ -165,7 +168,7 @@ class JudgeEvaluator(Evaluator):
                         metric=metric,
                         values=[
                             m.value
-                            for _, m in results[metric]
+                            for m in results[metric]
                             if isinstance(m.value, (int, float))
                         ],
                     )
@@ -176,7 +179,7 @@ class JudgeEvaluator(Evaluator):
                         metric=metric,
                         labels=[
                             m.value
-                            for _, m in results[metric]
+                            for m in results[metric]
                             if isinstance(m.value, str)
                         ],
                     )
@@ -214,3 +217,13 @@ class JudgeEvaluator(Evaluator):
             template = yaml.safe_load(f)
 
         return template
+
+    def _get_config(self) -> dict:
+        # TODO: improve llm judge serialization if needed
+        return {
+            "llm": self._llm.model_name(),
+            "llm_provider": self._llm.model_provider(),
+            "system_prompt": self._system_prompt,
+            "metrics": sorted(self._metrics.keys()),
+            "reasoning": self._reasoning,
+        }

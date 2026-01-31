@@ -30,7 +30,7 @@ class ToolUseEvaluator(Evaluator):
 
         return EvaluatorResult(
             evaluator_name=self.name,
-            evaluator_id=self._id,
+            evaluator_id=self.identifier,
             agent_data_ids=agent_data_ids,
             metrics=metrics,
             results= [item for sublist in results.values() for item in sublist] + aggregate_results,
