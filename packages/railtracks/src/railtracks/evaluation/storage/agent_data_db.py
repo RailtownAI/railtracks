@@ -18,4 +18,4 @@ class AgentDataDB(Base):
     metric_results = relationship("MetricResultDB", back_populates="agent_data")
     
     def __repr__(self):
-        return f"<AgentRunIDDB(agent_runid={self.agent_runid})>"
+        return f"<AgentData(agent_runid={self.agent_runid})>"
