@@ -14,15 +14,18 @@ class MetricResult(BaseModel):
     agent_data_id: list[UUID]
     value: str | float | int
 
+
 class ToolMetricResult(MetricResult):
-    value: float | int # type: ignore[assignment] pydantic supports narrowing types in subclasses
+    value: float | int  # type: ignore[assignment] pydantic supports narrowing types in subclasses
     tool_name: str
     tool_call_id: str | None = None
+
 
 class LLMMetricResult(MetricResult):
     llm_call_index: int
     model_name: str
     model_provider: str
+
 
 class AggregateCategoricalResult(BaseModel):
     metric: Categorical
@@ -83,7 +86,7 @@ class AggregateNumericalResult(BaseModel):
 
 class EvaluatorResult(BaseModel):
     evaluator_name: str
-    evaluator_id: UUID
+    evaluator_id: str
     agent_data_ids: set[UUID] = Field(default_factory=set)
     metrics: Sequence[Metric | Numerical | Categorical]
     results: Sequence[

@@ -417,6 +417,7 @@ class Session:
                 agent_internals = {"run_id": run.get("run_id")}
 
             dp = AgentDataPoint(
+                run_id=uuid.UUID(run.get("run_id")),
                 agent_name=run.get("name", "Unnamed_Agent"),
                 agent_input={
                     "args": list(r_template.input[0]),
@@ -429,7 +430,7 @@ class Session:
             dps.append(dp)
 
         if dps:
-            file_path = self._save_agent_data()
+            file_path = self._create_save_file()
             if file_path is not None:
                 with open(file_path, "w", encoding="utf-8") as f:
                     json.dump(
@@ -443,7 +444,7 @@ class Session:
 
         return
 
-    def _save_agent_data(self) -> Path | None:
+    def _create_save_file(self) -> Path | None:
         railtracks_dir = Path(".railtracks/data/agent_data")
         railtracks_dir.mkdir(parents=True, exist_ok=True)
 

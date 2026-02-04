@@ -5,8 +5,7 @@ from ...utils.point import AgentDataPoint
 
 from ...utils.logging.create import get_rt_logger
 from ..result import EvaluationResult, EvaluatorResult
-from ..utils import save_evaluation_results, save
-from uuid import UUID
+from ..utils import save
 
 logger = get_rt_logger("evaluate")
 
@@ -14,7 +13,7 @@ logger = get_rt_logger("evaluate")
 def evaluate(
     data: AgentDataPoint | list[AgentDataPoint] | EvaluationDataset,
     evaluators: list[Evaluator],
-    name: str = "UnnamedEvaluation",
+    name: str | None = None,
 ):
 
     data_dict: dict[str, list[AgentDataPoint]] = defaultdict(list)
@@ -47,20 +46,20 @@ def evaluate(
         evaluator_results: list[EvaluatorResult] = []
         for evaluator in evaluators:
             logger.info(
-                f"Running evaluator: {evaluator.__class__.__name__}({str(evaluator.id)[:4]}...)"
+                f"Running evaluator: {evaluator.__class__.__name__}({str(evaluator.identifier)[:4]}...)"
             )
             result = evaluator.run(data_dict[agent_name])
 
             evaluator_results.append(result)
             logger.info(
-                f"Completed evaluator: {evaluator.__class__.__name__}({str(evaluator.id)[:4]}...)"
+                f"Completed evaluator: {evaluator.__class__.__name__}({str(evaluator.identifier)[:4]}...)"
             )
 
         evaluation_results.append(
             EvaluationResult(
-                evaluation_name=f"{agent_name}_evaluation",
+                evaluation_name=f"{name}" if name else None,
                 agent_name=agent_name,
-                agent_run_ids=[adp.id for adp in data_dict[agent_name]],
+                agent_run_ids=[adp.run_id for adp in data_dict[agent_name]],
                 results=evaluator_results,
                 metrics=[metric for er in evaluator_results for metric in er.metrics],
             )
@@ -68,7 +67,6 @@ def evaluate(
 
     try:
         logger.info("Evaluation run complete.")
-        # save_evaluation_results(evaluation_results)
         save(evaluation_results)
     except Exception as e:
         logger.error(f"Failed to save evaluation results: {e}")
