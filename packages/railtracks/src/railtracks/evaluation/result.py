@@ -93,7 +93,6 @@ class EvaluatorResult(BaseModel):
         | AggregateCategoricalResult
         | AggregateNumericalResult
     ]
-    # TODO: add aggregates?
 
 
 class EvaluationResult(BaseModel):
