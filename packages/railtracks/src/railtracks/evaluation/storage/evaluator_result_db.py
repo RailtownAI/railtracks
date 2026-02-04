@@ -27,6 +27,7 @@ class EvaluatorResultDB(Base):
     evaluation_result = relationship("EvaluationResultDB", back_populates="evaluator_results")
     metric_results = relationship("MetricResultDB", back_populates="evaluator_result")
     agent_data = relationship("AgentDataDB", secondary="metric_results", back_populates="evaluator_results")
+    aggregate_metric_results = relationship("AggregateMetricResultDB", back_populates="evaluator_result")
     
     def __repr__(self):
         return f"<EvaluatorResultDB(name={self.evaluator_name}, id={self.identifier})>"

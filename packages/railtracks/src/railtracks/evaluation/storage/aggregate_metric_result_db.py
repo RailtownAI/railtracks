@@ -30,6 +30,9 @@ class AggregateMetricResultDB(Base):
     metric_id = Column(
         String, ForeignKey("metrics.identifier"), nullable=False, index=True
     )
+    evaluator_result_id = Column(
+        UUID, ForeignKey("evaluator_results.identifier"), nullable=False, index=True
+    )
 
     # relationships
     metric = relationship("MetricDB", back_populates="aggregate_metric_results")
