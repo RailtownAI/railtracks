@@ -102,7 +102,7 @@ class JudgeEvaluator(Evaluator):
 
         self._result = EvaluatorResult(
             evaluator_name=self.name,
-            evaluator_id=self._id,
+            evaluator_id=self.identifier,
             agent_data_ids=self.agent_data_ids,
             results=[item for sublist in results.values() for item in sublist]
             + self.aggregate_results,
