@@ -1,9 +1,8 @@
-import hashlib
-from uuid import uuid4, UUID
 from abc import ABC, abstractmethod
 
 from ... import AgentDataPoint
 from ..result import EvaluatorResult
+
 
 class Evaluator(ABC):
     def __init__(self):
@@ -27,8 +26,8 @@ class Evaluator(ABC):
         config = self._get_config()
         config["_type"] = self.__class__.__name__
         
-        import json
         import hashlib
+        import json
         config_str = json.dumps(config, sort_keys=True)
         return hashlib.sha256(config_str.encode()).hexdigest()
     

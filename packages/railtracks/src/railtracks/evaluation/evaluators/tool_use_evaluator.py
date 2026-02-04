@@ -1,17 +1,16 @@
-from uuid import UUID
 from collections import defaultdict
-from .evaluator import Evaluator
-from ...utils.point import AgentDataPoint
-from .metrics import ToolMetric
-from ..result import (
-    EvaluatorResult,
-    MetricResult,
-    AggregateNumericalResult,
-    ToolMetricResult,
-)
+from typing import TypedDict
+from uuid import UUID
 
 from ...utils.logging.create import get_rt_logger
-from typing import TypedDict
+from ...utils.point import AgentDataPoint
+from ..result import (
+    AggregateNumericalResult,
+    EvaluatorResult,
+    ToolMetricResult,
+)
+from .evaluator import Evaluator
+from .metrics import ToolMetric
 
 logger = get_rt_logger("ToolUseEvaluator")
 
@@ -102,7 +101,7 @@ class ToolUseEvaluator(Evaluator):
 
             adp_id, tool_name = key
 
-            metric_name = f"LatencyAcrossRun"
+            metric_name = f"LatencyAcrossRun/{tool_name}"
             tool_latency_metric = ToolMetric(
                 name=metric_name,
                 min_value=0.0,
@@ -123,7 +122,7 @@ class ToolUseEvaluator(Evaluator):
                 )
             )
 
-            metric_name = f"FailureRate"
+            metric_name = f"FailureRate/{tool_name}"
             tool_failure_metric = ToolMetric(
                 name=metric_name,
                 min_value=0.0,
@@ -145,7 +144,7 @@ class ToolUseEvaluator(Evaluator):
                 )
             )
 
-            metric_name = f"UsageCount"
+            metric_name = f"UsageCount/{tool_name}"
             tool_frequency_metric = ToolMetric(
                 name=metric_name,
                 min_value=0,

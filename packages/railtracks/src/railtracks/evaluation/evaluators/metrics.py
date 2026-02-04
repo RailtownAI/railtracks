@@ -1,7 +1,8 @@
 import hashlib
 import json
-from typing import TypeVar, Generic
-from pydantic import BaseModel, ConfigDict, Field, model_validator, field_serializer
+from typing import Generic, TypeVar
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class Metric(BaseModel):

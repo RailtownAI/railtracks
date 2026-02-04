@@ -3,9 +3,9 @@ from datetime import datetime, timezone
 from typing import Sequence
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
-from .evaluators.metrics import Categorical, Metric, Numerical, ToolMetric
+from .evaluators.metrics import Categorical, Metric, Numerical
 
 
 class MetricResult(BaseModel):

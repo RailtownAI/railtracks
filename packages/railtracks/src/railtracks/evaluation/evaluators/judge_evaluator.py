@@ -1,21 +1,24 @@
-from collections import defaultdict
-import railtracks as rt
 import asyncio
-import yaml
+from collections import defaultdict
 from pathlib import Path
-from pydantic import BaseModel
-from .evaluator import Evaluator
-from .metrics import Metric, Numerical, Categorical
-from ..result import (
-    AggregateNumericalResult,
-    MetricResult,
-    EvaluatorResult,
-    AggregateCategoricalResult,
-)
-from ...utils.point import AgentDataPoint
 from uuid import UUID
-from ...utils.logging.create import get_rt_logger
+
+import yaml
+from pydantic import BaseModel
 from tqdm import tqdm
+
+import railtracks as rt
+
+from ...utils.logging.create import get_rt_logger
+from ...utils.point import AgentDataPoint
+from ..result import (
+    AggregateCategoricalResult,
+    AggregateNumericalResult,
+    EvaluatorResult,
+    MetricResult,
+)
+from .evaluator import Evaluator
+from .metrics import Categorical, Metric, Numerical
 
 logger = get_rt_logger("JudgeEvaluator")
 
@@ -123,7 +126,7 @@ class JudgeEvaluator(Evaluator):
     ) -> list[tuple[str, str, JudgeResponseSchema]]:
 
         # put this as none for now to not pollute agent_data
-        with rt.Session(save_data=False, logging_setting="CRITICAL") as session:
+        with rt.Session(save_data=False, logging_setting="CRITICAL"):
 
             # TODO: uncomment after https://github.com/RailtownAI/railtracks/issues/884 is resolved
             # self._session_id = session._identifier

@@ -1,7 +1,5 @@
-from .evaluators import metrics 
-from .evaluators import JudgeEvaluator, ToolUseEvaluator, LLMInferenceEvaluator
 from . import data
-
+from .evaluators import JudgeEvaluator, LLMInferenceEvaluator, ToolUseEvaluator, metrics
 from .runners._evaluate import evaluate
 
 __all__ = [

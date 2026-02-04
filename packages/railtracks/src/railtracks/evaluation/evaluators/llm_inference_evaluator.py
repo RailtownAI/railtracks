@@ -1,10 +1,11 @@
-from .evaluator import Evaluator
+from collections import defaultdict
+from uuid import UUID
+
 from ...utils.logging.create import get_rt_logger
 from ...utils.point import AgentDataPoint
-from ..result import EvaluatorResult, LLMMetricResult, AggregateNumericalResult
+from ..result import AggregateNumericalResult, EvaluatorResult, LLMMetricResult
+from .evaluator import Evaluator
 from .metrics import LLMMetric
-from uuid import UUID
-from collections import defaultdict
 
 logger = get_rt_logger("LlmInferenceEvaluator")
 
@@ -33,7 +34,6 @@ class LLMInferenceEvaluator(Evaluator):
     def _retrieve_llm_states(self, data: list[AgentDataPoint]):
         results: dict[LLMMetric, list[LLMMetricResult]] = defaultdict(list)
         keys: set[LLMMetric] = set()
-        vals: list[LLMMetricResult] = []
         for datapoint in data:
             llm_metrics = datapoint.agent_internals.get("llm_metrics", {})
 

@@ -1,8 +1,9 @@
 import json
 from pathlib import Path
-from .result import EvaluationResult
-from .evaluators.metrics import Metric
 from uuid import UUID
+
+from .evaluators.metrics import Metric
+from .result import EvaluationResult
 
 EVALS_DIR = Path(".railtracks/data/evaluations")
 

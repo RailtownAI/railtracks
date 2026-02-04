@@ -1,9 +1,9 @@
 from collections import defaultdict
-from ..data.evaluation_dataset import EvaluationDataset
-from ..evaluators import Evaluator
-from ...utils.point import AgentDataPoint
 
 from ...utils.logging.create import get_rt_logger
+from ...utils.point import AgentDataPoint
+from ..data.evaluation_dataset import EvaluationDataset
+from ..evaluators import Evaluator
 from ..result import EvaluationResult, EvaluatorResult
 from ..utils import save
 
