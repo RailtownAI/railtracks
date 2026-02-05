@@ -1,19 +1,17 @@
 from __future__ import annotations
 
-import logging
 import os
 from copy import deepcopy
 from enum import Enum
 from typing import Generic, TypeVar
 
+from railtracks.utils.logging import get_rt_logger
+
 from .content import Content, ToolCall, ToolResponse
 from .encoding import detect_source, encode, ensure_data_uri
 from .prompt_injection_utils import KeyOnlyFormatter, ValueDict
 
-logger = logging.getLogger(__name__)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s - %(message)s"))
-logger.addHandler(handler)
+logger = get_rt_logger(__name__)
 
 _T = TypeVar("_T", bound=Content)
 
