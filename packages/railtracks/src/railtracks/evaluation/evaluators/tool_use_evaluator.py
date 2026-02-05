@@ -5,7 +5,7 @@ from uuid import UUID
 from ...utils.logging.create import get_rt_logger
 from ...utils.point import AgentDataPoint
 from ..result import (
-    AggregateNumericalResult,
+    ToolAggregateResult,
     EvaluatorResult,
     ToolMetricResult,
 )
@@ -164,20 +164,22 @@ class ToolUseEvaluator(Evaluator):
 
     def _aggregate_metrics(
         self, results: dict[ToolMetric, list[ToolMetricResult]]
-    ) -> list[AggregateNumericalResult]:
+    ) -> list[ToolAggregateResult]:
         """Aggregates the ToolUseEvaluator metrics on an agent level."""
 
-        aggregates = []
+        aggregates: list[ToolAggregateResult] = []
         for metric in results:
 
             metric_results = results[metric]
-
-            values = [tmr.value for tmr in metric_results]
-
-            aggregate_result = AggregateNumericalResult(
-                metric=metric,
-                values=values,
-            )
-            aggregates.append(aggregate_result)
+            values: dict[str, list[float | int]] = defaultdict(list)
+            for tmr in metric_results:
+                values[tmr.tool_name].append(tmr.value)
+            for tool_name, vals in values.items():
+                aggregate_result = ToolAggregateResult(
+                    metric=metric,
+                    values=vals,
+                    tool_name=tool_name,
+                )
+                aggregates.append(aggregate_result)
 
         return aggregates

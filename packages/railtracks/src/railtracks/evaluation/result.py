@@ -52,11 +52,11 @@ class AggregateNumericalResult(BaseModel):
     metric: Numerical
     values: list[float | int]
     mean: float | None = None
-    minimum: int | float | None = None
-    maximum: int | float | None = None
-    median: int | float | None = None
+    minimum: float | int | None = None
+    maximum: float | int | None = None
+    median: float | int | None = None
     std: float | None = None
-    mode: int | float | None = None
+    mode: float | int | None = None
 
     def model_post_init(self, __context) -> None:
         """Aggregate numerical values from the provided metrics."""
@@ -84,18 +84,17 @@ class AggregateNumericalResult(BaseModel):
             self.mode = value_counts.most_common(1)[0][0]
 
 
+class ToolAggregateResult(AggregateNumericalResult):
+    tool_name: str
+
+
 class EvaluatorResult(BaseModel):
     evaluator_name: str
     evaluator_id: str
     agent_data_ids: set[UUID] = Field(default_factory=set)
-    metrics: Sequence[Metric | Numerical | Categorical]
-    results: Sequence[
-        MetricResult
-        | LLMMetricResult
-        | ToolMetricResult
-        | AggregateCategoricalResult
-        | AggregateNumericalResult
-    ]
+    # TODO: typing for metrics and results tracked in #https://github.com/RailtownAI/railtracks/issues/895
+    metrics: list
+    results: list
 
 
 class EvaluationResult(BaseModel):
