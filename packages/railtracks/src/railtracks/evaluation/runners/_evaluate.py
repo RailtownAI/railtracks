@@ -16,6 +16,16 @@ def evaluate(
     name: str | None = None,
 ):
 
+    evaluator_ids: set[str] = set()
+
+    for evaluator in evaluators:
+        if evaluator.identifier in evaluator_ids:
+            logger.warning(
+                f"{evaluator.name} with id {evaluator.identifier} is duplicated. Results will be overwritten"
+            )
+        else:
+            evaluator_ids.add(evaluator.identifier)
+
     data_dict: dict[str, list[AgentDataPoint]] = defaultdict(list)
 
     evaluation_results: list[EvaluationResult] = []
@@ -59,7 +69,7 @@ def evaluate(
             EvaluationResult(
                 evaluation_name=f"{name}" if name else None,
                 agent_name=agent_name,
-                agent_run_ids=[adp.run_id for adp in data_dict[agent_name]],
+                agent_data_ids=[adp.identifier for adp in data_dict[agent_name]],
                 results=evaluator_results,
                 metrics=[metric for er in evaluator_results for metric in er.metrics],
             )

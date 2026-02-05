@@ -71,7 +71,7 @@ class JudgeEvaluator(Evaluator):
             self._session(data)
         )
 
-        self.agent_data_ids = {adp.run_id for adp in data}
+        self.agent_data_ids = {adp.identifier for adp in data}
         results: dict[Metric, list[MetricResult]] = defaultdict(list)
 
         for output in judge_outputs:
@@ -152,7 +152,7 @@ class JudgeEvaluator(Evaluator):
                             ]
                         ),
                     )
-                    output.append((metric.identifier, str(adp.run_id), res.structured))
+                    output.append((metric.identifier, str(adp.identifier), res.structured))
 
         return output
 

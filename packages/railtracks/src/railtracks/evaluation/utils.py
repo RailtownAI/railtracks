@@ -49,7 +49,7 @@ def save_evaluator_results(evaluation_result: EvaluationResult):
     if not agent_run_fp.exists():
         agent_run_fp.write_text(
             json.dumps(
-                [str(run_id) for run_id in evaluation_result.agent_run_ids],
+                [str(run_id) for run_id in evaluation_result.agent_data_ids],
                 indent=2,
             )
         )

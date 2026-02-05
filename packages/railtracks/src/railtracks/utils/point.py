@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 
 class AgentDataPoint(BaseModel):
     """A data point specific to agent interactions."""
-    run_id: UUID
+    identifier: UUID
     agent_name: str
     agent_input: dict[str, Any]
     agent_output: Any = None

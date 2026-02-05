@@ -417,7 +417,7 @@ class Session:
                 agent_internals = {"run_id": run.get("run_id")}
 
             dp = AgentDataPoint(
-                run_id=uuid.UUID(run.get("run_id")),
+                identifier=uuid.UUID(run.get("run_id")),
                 agent_name=run.get("name", "Unnamed_Agent"),
                 agent_input={
                     "args": list(r_template.input[0]),

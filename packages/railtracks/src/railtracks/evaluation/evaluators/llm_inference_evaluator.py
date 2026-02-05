@@ -18,7 +18,7 @@ class LLMInferenceEvaluator(Evaluator):
 
     def run(self, data: list[AgentDataPoint]) -> EvaluatorResult[LLMMetric, LLMMetricResult | LLMInferenceAggregateResult]:
 
-        agent_data_ids: set[UUID] = {adp.run_id for adp in data}
+        agent_data_ids: set[UUID] = {adp.identifier for adp in data}
         results, metrics = self._retrieve_llm_states(data)
         aggregate_results = self._aggregate_metrics(results)
 
@@ -47,7 +47,7 @@ class LLMInferenceEvaluator(Evaluator):
                     LLMMetricResult(
                         result_name="InputTokens",
                         metric_id=metric.identifier,
-                        agent_data_id=[datapoint.run_id],
+                        agent_data_id=[datapoint.identifier],
                         value=call.get("input_tokens", 0),
                         llm_call_index=call.get("call_index", -1),
                         model_name=call.get("model_name", ""),
@@ -64,7 +64,7 @@ class LLMInferenceEvaluator(Evaluator):
                     LLMMetricResult(
                         result_name="OutputTokens",
                         metric_id=metric.identifier,
-                        agent_data_id=[datapoint.run_id],
+                        agent_data_id=[datapoint.identifier],
                         value=call.get("output_tokens", 0),
                         llm_call_index=call.get("call_index", -1),
                         model_name=call.get("model_name", ""),
@@ -81,7 +81,7 @@ class LLMInferenceEvaluator(Evaluator):
                     LLMMetricResult(
                         result_name="TotalCost",
                         metric_id=metric.identifier,
-                        agent_data_id=[datapoint.run_id],
+                        agent_data_id=[datapoint.identifier],
                         value=call.get("total_cost", 0.0),
                         llm_call_index=call.get("call_index", -1),
                         model_name=call.get("model_name", ""),
@@ -97,7 +97,7 @@ class LLMInferenceEvaluator(Evaluator):
                     LLMMetricResult(
                         result_name="Latency",
                         metric_id=metric.identifier,
-                        agent_data_id=[datapoint.run_id],
+                        agent_data_id=[datapoint.identifier],
                         value=call.get("latency", 0.0),
                         llm_call_index=call.get("call_index", -1),
                         model_name=call.get("model_name", ""),

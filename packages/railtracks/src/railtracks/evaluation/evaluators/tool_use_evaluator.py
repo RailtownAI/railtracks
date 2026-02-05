@@ -29,7 +29,7 @@ class ToolUseEvaluator(Evaluator):
 
     def run(self, data: list[AgentDataPoint]) -> EvaluatorResult[ToolMetric, ToolMetricResult | ToolAggregateResult]:
 
-        agent_data_ids: set[UUID] = {adp.run_id for adp in data}
+        agent_data_ids: set[UUID] = {adp.identifier for adp in data}
         results = self._retrieve_tool_stats(data)
         aggregate_results = self._aggregate_metrics(results)
         metrics = list(results.keys())
@@ -62,7 +62,7 @@ class ToolUseEvaluator(Evaluator):
                 for tool in datapoint.agent_internals.get("tool_invocations", []):
 
                     tool_name = tool.get("name")
-                    key = (str(datapoint.run_id), tool_name)
+                    key = (str(datapoint.identifier), tool_name)
 
                     stats[key]["usage_count"] += 1
                     if "There was an error running the tool" in tool["result"]:
@@ -84,7 +84,7 @@ class ToolUseEvaluator(Evaluator):
                         results[tool_latency_metric].append(
                             ToolMetricResult(
                                 result_name=f"{metric_name}/{tool_name}",
-                                agent_data_id=[datapoint.run_id],
+                                agent_data_id=[datapoint.identifier],
                                 metric_id=tool_latency_metric.identifier,
                                 tool_name=tool_name,
                                 tool_call_id=tool.get("id", None),

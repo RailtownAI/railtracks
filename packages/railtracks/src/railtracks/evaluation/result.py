@@ -107,7 +107,7 @@ class EvaluationResult(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     evaluation_name: str | None = None
     agent_name: str
-    agent_run_ids: list[UUID] = Field(
+    agent_data_ids: list[UUID] = Field(
         default_factory=list,
         description="If applicable, list of agent run UUIDs that were part of this evaluation",
     )
