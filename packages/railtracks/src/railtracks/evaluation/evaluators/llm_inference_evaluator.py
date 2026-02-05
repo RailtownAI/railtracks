@@ -3,7 +3,7 @@ from uuid import UUID
 
 from ...utils.logging.create import get_rt_logger
 from ...utils.point import AgentDataPoint
-from ..result import AggregateNumericalResult, EvaluatorResult, LLMMetricResult
+from ..result import EvaluatorResult, LLMInferenceAggregateResult, LLMMetricResult
 from .evaluator import Evaluator
 from .metrics import LLMMetric
 
@@ -107,20 +107,28 @@ class LLMInferenceEvaluator(Evaluator):
 
         return results, list(results.keys())
 
-    def _aggregate_metrics(self, results: dict[LLMMetric, list[LLMMetricResult]]):
+    def _aggregate_metrics(
+        self, results: dict[LLMMetric, list[LLMMetricResult]]
+    ) -> list[LLMInferenceAggregateResult]:
 
         aggregates = []
 
         for metric in results:
 
             metric_results = results[metric]
-            values = [
-                mr.value for mr in metric_results if isinstance(mr.value, (int, float))
-            ]
+            values: dict[tuple[str, str, int], list[float | int]] = defaultdict(list)
+            for mr in metric_results:
+                if isinstance(mr.value, (int, float)):
+                    key = (mr.model_name, mr.model_provider, mr.llm_call_index)
+                    values[key].append(mr.value)
 
-            aggregate_result = AggregateNumericalResult(
-                metric=metric,
-                values=values,
-            )
-            aggregates.append(aggregate_result)
+            for (model_name, model_provider, llm_call_index), vals in values.items():
+                aggregate_result = LLMInferenceAggregateResult(
+                    metric=metric,
+                    values=vals,
+                    model_name=model_name,
+                    model_provider=model_provider,
+                    llm_call_index=llm_call_index,
+                )
+                aggregates.append(aggregate_result)
         return aggregates

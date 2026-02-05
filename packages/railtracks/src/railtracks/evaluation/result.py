@@ -87,6 +87,11 @@ class AggregateNumericalResult(BaseModel):
 class ToolAggregateResult(AggregateNumericalResult):
     tool_name: str
 
+class LLMInferenceAggregateResult(AggregateNumericalResult):
+    llm_call_index: int
+    model_name: str
+    model_provider: str
+
 
 class EvaluatorResult(BaseModel):
     evaluator_name: str
