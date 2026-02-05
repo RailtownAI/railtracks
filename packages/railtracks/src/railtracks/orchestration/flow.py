@@ -91,11 +91,10 @@ class Flow(Generic[_P, _TOutput]):
 
     def invoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
         try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
             return asyncio.run(self.ainvoke(*args, **kwargs))
 
-        raise RuntimeError(
+        except RuntimeError:
+            raise RuntimeError(
             "Cannot invoke flow synchronously within an active event loop. Use 'ainvoke' instead."
         )
     

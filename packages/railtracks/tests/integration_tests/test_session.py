@@ -192,4 +192,37 @@ def test_session_save_file_falls_back_to_name(tmp_path, monkeypatch):
     assert saved_files[0].name.startswith("session-only_")
     assert session_obj._identifier in saved_files[0].name
 
+
+def test_session_payload_callback_called_once(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    payloads = []
+
+    def payload_handler(payload):
+        payloads.append(payload)
+
+    with rt.Session(payload_callback=payload_handler, save_state=False) as session_obj:
+        pass
+
+    assert len(payloads) == 1
+    payload = payloads[0]
+    assert payload["session_id"] == session_obj._identifier
+    assert "runs" in payload
+    assert payload["runs"] == []
+
+
+def test_session_payload_callback_runs_on_error(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    payloads = []
+
+    def payload_handler(payload):
+        payloads.append(payload)
+
+    with pytest.raises(RuntimeError, match="boom"):
+        with rt.Session(payload_callback=payload_handler, save_state=False):
+            raise RuntimeError("boom")
+
+    assert len(payloads) == 1
+
 # ================ END Session: Decorator Integration Tests ===============

@@ -175,3 +175,37 @@ def test_flow_context_mutations_do_not_leak_between_runs():
 
     assert mutated_snapshot == {"seed": "s", "transient": "value"}
     assert clean_snapshot == {"seed": "s"}
+
+
+def test_flow_equality_hash_same_name_is_stable():
+    flow = Flow(name="stable-flow", entry_point=echo)
+
+    first_hash = flow.equality_hash()
+    second_hash = flow.equality_hash()
+
+    assert first_hash == second_hash
+
+
+def test_flow_equality_hash_ignores_other_config():
+    base_flow = Flow(
+        name="same-name",
+        entry_point=echo,
+        context={"a": 1},
+        timeout=10,
+    )
+    different_flow = Flow(
+        name="same-name",
+        entry_point=add,
+        context={"b": 2},
+        timeout=20,
+        end_on_error=True,
+    )
+
+    assert base_flow.equality_hash() == different_flow.equality_hash()
+
+
+def test_flow_equality_hash_changes_with_name():
+    first = Flow(name="flow-a", entry_point=echo)
+    second = Flow(name="flow-b", entry_point=echo)
+
+    assert first.equality_hash() != second.equality_hash()
