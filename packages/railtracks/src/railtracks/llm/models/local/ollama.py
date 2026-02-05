@@ -4,13 +4,13 @@ from typing import Literal, TypeVar
 import requests
 from litellm.utils import supports_function_calling
 
-from ...logging import setup_logger
+from railtracks.utils.logging import get_rt_logger
+
 from ...providers import ModelProvider
 from .._litellm_wrapper import LiteLLMWrapper
 from .._model_exception_base import FunctionCallingNotSupportedError, ModelError
 
-LOGGER_NAME = "OLLAMA"
-logger = setup_logger(__name__)
+logger = get_rt_logger(__name__)
 
 DEFAULT_DOMAIN = "http://localhost:11434"
 
