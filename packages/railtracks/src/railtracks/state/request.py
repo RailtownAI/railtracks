@@ -198,8 +198,12 @@ class RequestForest(Forest[RequestTemplate]):
             try:
                 return self._heap[item]
             except KeyError:
-                print(
-                    f"failed to collect a request {item in [x.identifier for x in self._full_data]}"
+                in_full_data = item in [x.identifier for x in self._full_data]
+                logger.warning(
+                    "Failed to collect request %s (item in full_data: %s)",
+                    item,
+                    in_full_data,
+                    exc_info=True,
                 )
                 raise
 
