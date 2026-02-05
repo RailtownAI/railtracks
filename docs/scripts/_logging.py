@@ -1,4 +1,5 @@
 import railtracks as rt
+from railtracks.built_nodes.easy_usage_wrappers.agent import agent_node
 
 # --8<-- [start: logging_setup]
 rt.set_config(logging_setting="DEBUG")
@@ -34,10 +35,10 @@ RT_LOG_LEVEL = "DEBUG"
 RT_LOG_FILE = "my_logs.log"
 # --8<-- [end: logging_env_var]
 
-
+Agent = agent_node(name="Logging Agent")
 # --8<-- [start: logging_scoped]
-with rt.Session(logging_setting="DEBUG", log_file="my_logs.log") as runner:
-    pass
+rt.Flow(name="", entry_point=Agent, logging_setting="DEBUG", log_file="my_logs.log")
+    
 # --8<-- [end: logging_scoped]
 
 # --8<-- [start: logging_railtown]

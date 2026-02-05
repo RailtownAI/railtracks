@@ -9,6 +9,7 @@ Agent = rt.agent_node(
 )
 
 # Now to call the Agent, we just need to use the `rt.call` function
+@rt.function_node
 async def main():
     result = await rt.call(
         Agent,
@@ -16,6 +17,9 @@ async def main():
     )
     return result
 
-result = asyncio.run(main())
+flow = rt.Flow("Quickstart Example", entry_point=main)
+
+result =flow.invoke()
+
 # --8<-- [end: setup]
 print(result)

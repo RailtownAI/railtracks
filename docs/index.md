@@ -27,7 +27,7 @@ In Railtracks, agent behavior is defined directly in Python. There is **no** con
 
 Building a sequential flow is just like any the code you have written in your life. 
 ```python
-@session
+@node
 async def flow(user_input):
     a = await call(Agent1, user_input)
     b = await call(Agent2, a)
