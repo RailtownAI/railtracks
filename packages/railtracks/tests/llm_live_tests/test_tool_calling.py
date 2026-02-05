@@ -142,7 +142,7 @@ async def test_realistic_scenario(llm):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("llm", llm_map_filtered.values(), ids=llm_map_filtered.keys())
 async def test_agents_as_tools(llm):
-    """Test that an agent using other agnets as tools works correctly."""
+    """Test that an agent using other agents as tools works correctly."""
 
     @rt.function_node
     def secret_phrase(id: int):
@@ -163,7 +163,7 @@ async def test_agents_as_tools(llm):
     child_tool = rt.agent_node(
         name="Secret Phrase Maker",
         system_message=rt.llm.SystemMessage(
-            "When asked for a response, procide the secret phrase for `secret_phrase_id`"
+            "When asked for a response, provide the secret phrase for `secret_phrase_id`"
         ),
         tool_nodes={rt.function_node(secret_phrase)},
         manifest=rt.ToolManifest(
@@ -172,7 +172,7 @@ async def test_agents_as_tools(llm):
                 rt.llm.Parameter(
                     name="secret_phrase_id",
                     param_type="integer",
-                    description="A numberic id of the secret phrase to return.",
+                    description="A numeric id of the secret phrase to return.",
                 )
             ],
         ),
