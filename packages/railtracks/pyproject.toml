@@ -54,7 +54,7 @@ dependencies = [
 
 [project.optional-dependencies]
 chat = ["fastapi >= 0.104.0"]
-# For each Integration package depenedcies go here.
+# For each Integration package dependencies go here.
 rag = ["litellm[proxy] >= 1.70.2"]
 chroma = [
     "chromadb > 1.3.0",
