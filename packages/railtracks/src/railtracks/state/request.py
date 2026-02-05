@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from functools import reduce
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
+from railtracks.utils.logging import get_rt_logger
 from railtracks.utils.profiling import Stamp
 from railtracks.utils.serialization.graph import Edge
 
@@ -12,6 +13,8 @@ from .forest import (
     AbstractLinkedObject,
     Forest,
 )
+
+logger = get_rt_logger(__name__)
 
 
 class Cancelled:

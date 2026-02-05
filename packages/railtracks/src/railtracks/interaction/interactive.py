@@ -10,7 +10,7 @@ from ..llm.message import AssistantMessage, UserMessage
 from ..utils.logging.create import get_rt_logger
 from ._call import call
 
-logger = get_rt_logger("Interactive")
+logger = get_rt_logger(__name__)
 
 _TOutput = TypeVar("_TOutput", bound=LLMResponse)
 

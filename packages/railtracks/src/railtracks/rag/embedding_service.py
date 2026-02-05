@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-import logging
 from abc import ABC, abstractmethod
 from typing import Any, Iterable, List, Optional, Sequence
 
 import litellm
 
-logger = logging.getLogger(__name__)
+from railtracks.utils.logging import get_rt_logger
+
+logger = get_rt_logger(__name__)
 
 
 class BaseEmbeddingService(ABC):

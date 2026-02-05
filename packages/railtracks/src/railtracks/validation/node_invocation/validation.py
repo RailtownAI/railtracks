@@ -8,7 +8,7 @@ from railtracks.llm import Message, MessageHistory, ModelBase
 from railtracks.utils.logging import get_rt_logger
 
 # Global logger for validation
-logger = get_rt_logger("Validation")
+logger = get_rt_logger(__name__)
 
 
 def check_message_history(

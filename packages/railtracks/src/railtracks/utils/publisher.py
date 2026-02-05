@@ -9,7 +9,7 @@ from .logging.create import get_rt_logger
 _T = TypeVar("_T")
 _TOutput = TypeVar("_TOutput")
 
-logger = get_rt_logger("Publisher")
+logger = get_rt_logger(__name__)
 
 
 class Subscriber(Generic[_T]):
