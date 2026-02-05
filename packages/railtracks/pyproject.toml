@@ -47,7 +47,6 @@ dependencies = [
     "colorama >= 0.4.6",
     "litellm[proxy] >= 1.70.2",
     "mcp >= 1.9.0",
-    "openai < 1.100.0",
     "pydantic >= 2.5.3, <3",
     "python-dotenv >= 1.0.0",
     "PyYAML >= 6.0",
@@ -56,7 +55,7 @@ dependencies = [
 [project.optional-dependencies]
 chat = ["fastapi >= 0.104.0"]
 # For each Integration package depenedcies go here.
-rag = ["litellm[proxy] >= 1.70.2", "openai < 1.100.0"]
+rag = ["litellm[proxy] >= 1.70.2"]
 chroma = [
     "chromadb > 1.3.0",
     "pdfplumber >= 0.10.1"
