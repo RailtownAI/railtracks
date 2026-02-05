@@ -64,7 +64,8 @@ class Session:
     Args:
         name (str | None, optional): Optional name for the session. This name will be included in the saved state file if `save_state` is True.
         context (Dict[str, Any], optional): A dictionary of global context variables to be used during the execution.
-        flow_name (str | None, optional): If you want to tie
+        flow_name (str | None, optional): The name of the flow this session is associated with.
+        flow_id (str | None, optional): The unique identifier of the flow this session is associated with.
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
         logging_setting (AllowableLogLevels, optional): The setting for the level of logging you would like to have. This will override the module-level logging settings for the duration of this session.
@@ -79,6 +80,7 @@ class Session:
         context: Dict[str, Any] | None = None,
         *,
         flow_name: str | None = None,
+        flow_id: str | None = None,
         name: str | None = None,
         timeout: float | None = None,
         end_on_error: bool | None = None,
@@ -115,6 +117,7 @@ class Session:
 
         self.name = name
         self.flow_name = flow_name
+        self.flow_id = flow_id
 
         self._has_custom_logging = logging_setting is not None or log_file is not None
 
@@ -302,6 +305,7 @@ class Session:
 
         full_dict = {
             "flow_name": self.flow_name,
+            "flow_id": self.flow_id,
             "session_id": self._identifier,
             "session_name": self.name,
             "start_time": self._start_time,

@@ -225,4 +225,43 @@ def test_session_payload_callback_runs_on_error(tmp_path, monkeypatch):
 
     assert len(payloads) == 1
 
+
+def test_session_payload_includes_flow_id(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    payloads = []
+
+    def payload_handler(payload):
+        payloads.append(payload)
+
+    with rt.Session(
+        flow_name="flow-name",
+        flow_id="flow-123",
+        payload_callback=payload_handler,
+        save_state=False,
+    ) as session_obj:
+        pass
+
+    assert len(payloads) == 1
+    payload = payloads[0]
+    assert payload["flow_id"] == "flow-123"
+    assert payload["flow_name"] == "flow-name"
+    assert payload["session_id"] == session_obj._identifier
+
+
+def test_session_payload_flow_id_defaults_to_none(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    payloads = []
+
+    def payload_handler(payload):
+        payloads.append(payload)
+
+    with rt.Session(payload_callback=payload_handler, save_state=False):
+        pass
+
+    assert len(payloads) == 1
+    payload = payloads[0]
+    assert payload["flow_id"] is None
+
 # ================ END Session: Decorator Integration Tests ===============
