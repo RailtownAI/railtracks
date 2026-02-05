@@ -6,6 +6,7 @@ import uuid
 from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, Coroutine, Dict, ParamSpec, Tuple, TypeVar, overload
+import warnings
 
 from railtracks.exceptions.messages.exception_messages import (
     ExceptionMessageKey,
@@ -63,6 +64,7 @@ class Session:
     Args:
         name (str | None, optional): Optional name for the session. This name will be included in the saved state file if `save_state` is True.
         context (Dict[str, Any], optional): A dictionary of global context variables to be used during the execution.
+        flow_name (str | None, optional): If you want to tie 
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
         logging_setting (AllowableLogLevels, optional): The setting for the level of logging you would like to have. This will override the module-level logging settings for the duration of this session.
@@ -76,6 +78,7 @@ class Session:
         self,
         context: Dict[str, Any] | None = None,
         *,
+        flow_name: str | None = None,
         name: str | None = None,
         timeout: float | None = None,
         end_on_error: bool | None = None,
@@ -88,6 +91,12 @@ class Session:
         save_state: bool | None = None,
     ):
         # first lets read from defaults if nessecary for the provided input config
+
+        if flow_name is None:
+            warnings.warn(
+                "Sessions should be tied to a flow for better observability and state management. Please use the Flow object to create and manage your sessions (see __ for more details). This warning will become an error in future versions.",
+                DeprecationWarning
+            )
 
         self.executor_config = self.global_config_precedence(
             timeout=timeout,
@@ -103,6 +112,7 @@ class Session:
             context = {}
 
         self.name = name
+        self.flow_name = flow_name
 
         self._has_custom_logging = logging_setting is not None or log_file is not None
 
@@ -281,6 +291,7 @@ class Session:
         run_list = info.graph_serialization()
 
         full_dict = {
+            "flow_name": self.flow_name,
             "session_id": self._identifier,
             "session_name": self.name,
             "start_time": self._start_time,
