@@ -75,7 +75,7 @@ class Flow(Generic[_P, _TOutput]):
         with Session(
             context=deepcopy(self._context),
             flow_name=self.name,
-            flow_id=self.equality_hash()
+            flow_id=self.equality_hash(),
             name=None,
             timeout=self._timeout,
             end_on_error=self._end_on_error,
