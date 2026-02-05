@@ -263,6 +263,7 @@ def initialize_module_logging(
     _module_logging_file.set(env_log_file)
 
     logger = logging.getLogger(rt_logger_name)
+    logger.setLevel(env_level_str)
 
     # Only skip if there are real handlers (app or user already configured).
     # NullHandler is added by the library so "No handlers" is never raised.
