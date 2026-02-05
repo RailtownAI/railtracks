@@ -11,6 +11,7 @@ from railtracks.utils.logging.config import (
     ThreadAwareFilter,
     configure_module_logging,
     detach_logging_handlers,
+    enable_logging,
     initialize_module_logging,
     mark_session_logging_override,
     prepare_logger,
@@ -222,6 +223,21 @@ def test_prepare_logger_clears_existing_handlers():
     # Should have exactly the handlers added by prepare_logger, not additional ones
     assert len(rt_logger.handlers) <= 2  # Console handler + optional file handler
     # Clean up
+    detach_logging_handlers()
+
+
+# ================= enable_logging Tests =================
+
+
+def test_enable_logging_adds_real_handlers():
+    """Test that enable_logging() (opt-in API) adds real handlers (e.g. StreamHandler)."""
+    detach_logging_handlers()
+
+    enable_logging(level="INFO")
+
+    stream_handlers = [h for h in rt_logger.handlers if isinstance(h, logging.StreamHandler)]
+    assert len(stream_handlers) >= 1, "enable_logging() should add at least one StreamHandler"
+
     detach_logging_handlers()
 
 
