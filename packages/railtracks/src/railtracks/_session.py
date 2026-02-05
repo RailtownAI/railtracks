@@ -89,6 +89,7 @@ class Session:
         ) = None,
         prompt_injection: bool | None = None,
         save_state: bool | None = None,
+        payload_callback: Callable[[dict[str, Any]], None] | None = None,
     ):
         # first lets read from defaults if nessecary for the provided input config
 
@@ -106,6 +107,7 @@ class Session:
             broadcast_callback=broadcast_callback,
             prompt_injection=prompt_injection,
             save_state=save_state,
+            payload_callback=payload_callback,
         )
 
         if context is None:
@@ -160,6 +162,7 @@ class Session:
         ),
         prompt_injection: bool | None,
         save_state: bool | None,
+        payload_callback: Callable[[dict[str, Any]], None] | None,
     ) -> ExecutorConfig:
         """
         Uses the following precedence order to determine the configuration parameters:
@@ -177,6 +180,7 @@ class Session:
             subscriber=broadcast_callback,
             prompt_injection=prompt_injection,
             save_state=save_state,
+            payload_callback=payload_callback,
         )
 
     def __enter__(self):
@@ -218,6 +222,9 @@ class Session:
                     "Error while saving to execution info to file",
                     exc_info=e,
                 )
+
+        if self.executor_config.payload_callback is not None:
+            self.executor_config.payload_callback(self.payload())
 
         self._close()
 

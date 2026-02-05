@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import Callable, Coroutine
+from typing import Any, Callable, Coroutine
 
 from railtracks.utils.logging.config import AllowableLogLevels, str_to_log_level
 
@@ -19,6 +19,7 @@ class ExecutorConfig:
         ) = None,
         prompt_injection: bool = True,
         save_state: bool = True,
+        payload_callback: Callable[[dict[str, Any]], None] | None = None,
     ):
         """
         ExecutorConfig is special configuration object designed to allow customization of the executor in the RT system.
@@ -39,6 +40,7 @@ class ExecutorConfig:
         self.log_file = log_file
         self.prompt_injection = prompt_injection
         self.save_state = save_state
+        self.payload_callback = payload_callback
 
     @property
     def logging_setting(self) -> AllowableLogLevels:
@@ -64,6 +66,7 @@ class ExecutorConfig:
         ) = None,
         prompt_injection: bool | None = None,
         save_state: bool | None = None,
+        payload_callback: Callable[[dict[str, Any]], None] | None = None,
     ):
         """
         If any of the parameters are provided (not None), it will create a new update the current instance with the new values and return a deep copied reference to it.
@@ -84,6 +87,9 @@ class ExecutorConfig:
             if prompt_injection is not None
             else self.prompt_injection,
             save_state=save_state if save_state is not None else self.save_state,
+            payload_callback=payload_callback
+            if payload_callback is not None
+            else self.payload_callback,
         )
 
     def __repr__(self):
@@ -91,5 +97,5 @@ class ExecutorConfig:
             f"ExecutorConfig(timeout={self.timeout}, end_on_error={self.end_on_error}, "
             f"logging_setting={self.logging_setting}, log_file={self.log_file}, "
             f"prompt_injection={self.prompt_injection}, "
-            f"save_state={self.save_state})"
+            f"save_state={self.save_state}, payload_callback={self.payload_callback})"
         )

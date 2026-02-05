@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from ast import Call
 import asyncio
+import base64
 from copy import copy, deepcopy
 import os
 import time
@@ -41,6 +43,7 @@ class Flow(Generic[_P, _TOutput]):
         ) = None,
         prompt_injection: bool | None = None,
         save_state: bool | None = None,
+        payload_callback: Callable[[dict[str, Any]], None] | None = None,
     ) -> None:
         self.entry_point: Callable[_P, Node[_TOutput]]
 
@@ -58,6 +61,7 @@ class Flow(Generic[_P, _TOutput]):
         self._broadcast_callback = broadcast_callback
         self._prompt_injection = prompt_injection
         self._save_state = save_state
+        self._payload_callback = payload_callback
 
     def update_context(self, context: dict[str, Any]) -> Flow[_P, _TOutput]:
         """
@@ -79,6 +83,7 @@ class Flow(Generic[_P, _TOutput]):
             broadcast_callback=self._broadcast_callback,
             prompt_injection=self._prompt_injection,
             save_state=self._save_state,
+            payload_callback=self._payload_callback,
         ):
             result = await call(self.entry_point, *args, **kwargs)
 
@@ -93,3 +98,14 @@ class Flow(Generic[_P, _TOutput]):
         raise RuntimeError(
             "Cannot invoke flow synchronously within an active event loop. Use 'ainvoke' instead."
         )
+    
+    def equality_hash(self) -> str:
+        """
+        Generates a hash based on the flow's configuration for equality checks.
+        """
+        config_tuple = (
+            self.name,
+        )
+        return base64.b64encode(str(config_tuple).encode()).decode()
+    
+
