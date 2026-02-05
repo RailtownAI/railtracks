@@ -101,7 +101,7 @@ class ToolUseEvaluator(Evaluator):
 
             adp_id, tool_name = key
 
-            metric_name = f"LatencyAcrossRun/{tool_name}"
+            metric_name = "LatencyAcrossRun"
             tool_latency_metric = ToolMetric(
                 name=metric_name,
                 min_value=0.0,
@@ -122,7 +122,7 @@ class ToolUseEvaluator(Evaluator):
                 )
             )
 
-            metric_name = f"FailureRate/{tool_name}"
+            metric_name = "FailureRate"
             tool_failure_metric = ToolMetric(
                 name=metric_name,
                 min_value=0.0,
@@ -144,7 +144,7 @@ class ToolUseEvaluator(Evaluator):
                 )
             )
 
-            metric_name = f"UsageCount/{tool_name}"
+            metric_name = "UsageCount"
             tool_frequency_metric = ToolMetric(
                 name=metric_name,
                 min_value=0,
