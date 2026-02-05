@@ -16,7 +16,7 @@ class LLMInferenceEvaluator(Evaluator):
     ):
         super().__init__()
 
-    def run(self, data: list[AgentDataPoint]) -> EvaluatorResult:
+    def run(self, data: list[AgentDataPoint]) -> EvaluatorResult[LLMMetric, LLMMetricResult | LLMInferenceAggregateResult]:
 
         agent_data_ids: set[UUID] = {adp.run_id for adp in data}
         results, metrics = self._retrieve_llm_states(data)

@@ -1,6 +1,6 @@
 from collections import Counter
 from datetime import datetime, timezone
-from typing import Sequence
+from typing import TypeVar, Generic
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
@@ -92,14 +92,14 @@ class LLMInferenceAggregateResult(AggregateNumericalResult):
     model_name: str
     model_provider: str
 
-
-class EvaluatorResult(BaseModel):
+TMetric = TypeVar("TMetric", bound=Metric)
+TMetricResult = TypeVar("TMetricResult", bound=MetricResult | AggregateCategoricalResult | AggregateNumericalResult)
+class EvaluatorResult(BaseModel, Generic[TMetric, TMetricResult]):
     evaluator_name: str
     evaluator_id: str
     agent_data_ids: set[UUID] = Field(default_factory=set)
-    # TODO: typing for metrics and results tracked in #https://github.com/RailtownAI/railtracks/issues/895
-    metrics: list
-    results: list
+    metrics: list[TMetric]
+    results: list[TMetricResult]
 
 
 class EvaluationResult(BaseModel):

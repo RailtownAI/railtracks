@@ -27,7 +27,7 @@ class ToolUseEvaluator(Evaluator):
     ):
         super().__init__()
 
-    def run(self, data: list[AgentDataPoint]) -> EvaluatorResult:
+    def run(self, data: list[AgentDataPoint]) -> EvaluatorResult[ToolMetric, ToolMetricResult | ToolAggregateResult]:
 
         agent_data_ids: set[UUID] = {adp.run_id for adp in data}
         results = self._retrieve_tool_stats(data)
