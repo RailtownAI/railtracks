@@ -1,16 +1,15 @@
+import logging
 import os
 from typing import Literal, TypeVar
 
 import requests
 from litellm.utils import supports_function_calling
 
-from railtracks.utils.logging import get_rt_logger
-
 from ...providers import ModelProvider
 from .._litellm_wrapper import LiteLLMWrapper
 from .._model_exception_base import FunctionCallingNotSupportedError, ModelError
 
-logger = get_rt_logger(__name__)
+logger = logging.getLogger(__name__)
 
 DEFAULT_DOMAIN = "http://localhost:11434"
 

@@ -1,3 +1,4 @@
+import logging
 from typing import Literal, TypeVar
 
 import litellm
@@ -7,9 +8,8 @@ from .._litellm_wrapper import LiteLLMWrapper
 
 # litellm.drop_params=True
 from .._model_exception_base import FunctionCallingNotSupportedError, ModelError
-from railtracks.utils.logging import get_rt_logger
 
-logger = get_rt_logger(__name__)
+logger = logging.getLogger(__name__)
 
 _TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
