@@ -41,12 +41,10 @@ class Flow(Generic[_P, _TOutput]):
         ) = None,
         prompt_injection: bool | None = None,
         save_state: bool | None = None,
-        
     ) -> None:
         self.entry_point: Callable[_P, Node[_TOutput]]
 
         if hasattr(entry_point, "node_type"):
-
             self.entry_point = entry_point.node_type
         else:
             self.entry_point = entry_point
@@ -60,7 +58,6 @@ class Flow(Generic[_P, _TOutput]):
         self._broadcast_callback = broadcast_callback
         self._prompt_injection = prompt_injection
         self._save_state = save_state
-       
 
     def update_context(self, context: dict[str, Any]) -> Flow[_P, _TOutput]:
         """
@@ -69,10 +66,6 @@ class Flow(Generic[_P, _TOutput]):
         new_obj = deepcopy(self)
         new_obj._context.update(context)
         return new_obj
-    
-
-    
-
 
     async def ainvoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
         with Session(
@@ -91,12 +84,12 @@ class Flow(Generic[_P, _TOutput]):
 
         return result
 
-    def invoke(
-        self, *args: _P.args, **kwargs: _P.kwargs
-    ) -> _TOutput:
+    def invoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
             return asyncio.run(self.ainvoke(*args, **kwargs))
 
-        raise RuntimeError("Cannot invoke flow synchronously within an active event loop. Use 'ainvoke' instead.")
+        raise RuntimeError(
+            "Cannot invoke flow synchronously within an active event loop. Use 'ainvoke' instead."
+        )

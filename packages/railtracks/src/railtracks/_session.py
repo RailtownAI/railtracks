@@ -64,7 +64,7 @@ class Session:
     Args:
         name (str | None, optional): Optional name for the session. This name will be included in the saved state file if `save_state` is True.
         context (Dict[str, Any], optional): A dictionary of global context variables to be used during the execution.
-        flow_name (str | None, optional): If you want to tie 
+        flow_name (str | None, optional): If you want to tie
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
         logging_setting (AllowableLogLevels, optional): The setting for the level of logging you would like to have. This will override the module-level logging settings for the duration of this session.
@@ -95,7 +95,7 @@ class Session:
         if flow_name is None:
             warnings.warn(
                 "Sessions should be tied to a flow for better observability and state management. Please use the Flow object to create and manage your sessions (see __ for more details). This warning will become an error in future versions.",
-                DeprecationWarning
+                DeprecationWarning,
             )
 
         self.executor_config = self.global_config_precedence(
@@ -192,18 +192,21 @@ class Session:
                 )  # Creates directory structure if doesn't exist, skips otherwise.
 
                 # Try to create file path with name, fallback to identifier only if there's an issue
+                if self.flow_name is not None:
+                    name = self.flow_name
+                elif self.name is not None:
+                    name = self.name
+                else:
+                    name = ""
+
                 try:
-                    file_path = (
-                        sessions_dir / f"{self.name}_{self._identifier}.json"
-                        if self.name
-                        else sessions_dir / f"{self._identifier}.json"
-                    )
+                    file_path = sessions_dir / f"{name}_{self._identifier}.json"
                     file_path.touch()
                 except FileNotFoundError:
                     logger.warning(
                         get_message(
                             ExceptionMessageKey.INVALID_SESSION_FILE_NAME_WARN
-                        ).format(name=self.name, identifier=self._identifier)
+                        ).format(name=name, identifier=self._identifier)
                     )
                     file_path = sessions_dir / f"{self._identifier}.json"
 
