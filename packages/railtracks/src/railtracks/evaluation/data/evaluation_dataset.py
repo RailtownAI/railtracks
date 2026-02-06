@@ -1,12 +1,11 @@
 import json
-from pathlib import Path
 import random
-
 from collections import defaultdict
+from pathlib import Path
 from uuid import UUID, uuid4
 
-from ...utils.point import AgentDataPoint
 from ...utils.logging.create import get_rt_logger
+from ...utils.point import AgentDataPoint
 
 logger = get_rt_logger("EvaluationDataset")
 

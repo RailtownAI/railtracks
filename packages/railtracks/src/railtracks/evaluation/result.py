@@ -1,11 +1,11 @@
 from collections import Counter
 from datetime import datetime, timezone
-from typing import Sequence
+from typing import TypeVar, Generic
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
-from .evaluators.metrics import Categorical, Metric, Numerical, ToolMetric
+from .evaluators.metrics import Categorical, Metric, Numerical
 
 
 class MetricResult(BaseModel):
@@ -14,15 +14,18 @@ class MetricResult(BaseModel):
     agent_data_id: list[UUID]
     value: str | float | int
 
+
 class ToolMetricResult(MetricResult):
-    value: float | int # type: ignore[assignment] pydantic supports narrowing types in subclasses
+    value: float | int  # type: ignore[assignment] pydantic supports narrowing types in subclasses
     tool_name: str
     tool_call_id: str | None = None
+
 
 class LLMMetricResult(MetricResult):
     llm_call_index: int
     model_name: str
     model_provider: str
+
 
 class AggregateCategoricalResult(BaseModel):
     metric: Categorical
@@ -49,11 +52,11 @@ class AggregateNumericalResult(BaseModel):
     metric: Numerical
     values: list[float | int]
     mean: float | None = None
-    minimum: int | float | None = None
-    maximum: int | float | None = None
-    median: int | float | None = None
+    minimum: float | int | None = None
+    maximum: float | int | None = None
+    median: float | int | None = None
     std: float | None = None
-    mode: int | float | None = None
+    mode: float | int | None = None
 
     def model_post_init(self, __context) -> None:
         """Aggregate numerical values from the provided metrics."""
@@ -81,19 +84,22 @@ class AggregateNumericalResult(BaseModel):
             self.mode = value_counts.most_common(1)[0][0]
 
 
-class EvaluatorResult(BaseModel):
+class ToolAggregateResult(AggregateNumericalResult):
+    tool_name: str
+
+class LLMInferenceAggregateResult(AggregateNumericalResult):
+    llm_call_index: int
+    model_name: str
+    model_provider: str
+
+TMetric = TypeVar("TMetric", bound=Metric)
+TMetricResult = TypeVar("TMetricResult", bound=MetricResult | AggregateCategoricalResult | AggregateNumericalResult)
+class EvaluatorResult(BaseModel, Generic[TMetric, TMetricResult]):
     evaluator_name: str
-    evaluator_id: UUID
+    evaluator_id: str
     agent_data_ids: set[UUID] = Field(default_factory=set)
-    metrics: Sequence[Metric | Numerical | Categorical]
-    results: Sequence[
-        MetricResult
-        | LLMMetricResult
-        | ToolMetricResult
-        | AggregateCategoricalResult
-        | AggregateNumericalResult
-    ]
-    # TODO: add aggregates?
+    metrics: list[TMetric]
+    results: list[TMetricResult]
 
 
 class EvaluationResult(BaseModel):
@@ -101,7 +107,7 @@ class EvaluationResult(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     evaluation_name: str | None = None
     agent_name: str
-    agent_run_ids: list[UUID] = Field(
+    agent_data_ids: list[UUID] = Field(
         default_factory=list,
         description="If applicable, list of agent run UUIDs that were part of this evaluation",
     )
