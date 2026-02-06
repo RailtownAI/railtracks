@@ -1,17 +1,14 @@
 from __future__ import annotations
 
-from ast import Call
 import asyncio
 import base64
-from copy import copy, deepcopy
 import os
-import time
-from typing import Any, Coroutine, Generic, TypeVar, ParamSpec, Callable, overload
+from copy import deepcopy
+from typing import Any, Callable, Coroutine, Generic, ParamSpec, TypeVar
 
 from railtracks._session import Session
 from railtracks.built_nodes.concrete.function_base import (
     RTAsyncFunction,
-    RTFunction,
     RTSyncFunction,
 )
 from railtracks.interaction._call import call
@@ -96,16 +93,12 @@ class Flow(Generic[_P, _TOutput]):
 
         except RuntimeError:
             raise RuntimeError(
-            "Cannot invoke flow synchronously within an active event loop. Use 'ainvoke' instead."
-        )
-    
+                "Cannot invoke flow synchronously within an active event loop. Use 'ainvoke' instead."
+            )
+
     def equality_hash(self) -> str:
         """
         Generates a hash based on the flow's configuration for equality checks.
         """
-        config_tuple = (
-            self.name,
-        )
+        config_tuple = (self.name,)
         return base64.b64encode(str(config_tuple).encode()).decode()
-    
-
