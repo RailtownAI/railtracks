@@ -32,7 +32,7 @@ from .utils.logging.config import (
 )
 from .utils.logging.create import get_rt_logger
 
-logger = get_rt_logger("Session")
+logger = get_rt_logger(__name__)
 
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")

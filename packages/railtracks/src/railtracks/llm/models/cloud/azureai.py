@@ -9,7 +9,6 @@ from .._litellm_wrapper import LiteLLMWrapper
 # litellm.drop_params=True
 from .._model_exception_base import FunctionCallingNotSupportedError, ModelError
 
-LOGGER_NAME = "AZURE_AI"
 logger = logging.getLogger(__name__)
 
 _TStream = TypeVar("_TStream", Literal[True], Literal[False])

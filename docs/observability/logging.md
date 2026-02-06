@@ -1,6 +1,6 @@
 # Logging
 
-Railtracks provides built-in logging to help track the execution of your flows. Logs are automatically generated and can be viewed in the terminal or saved to a file.
+Railtracks emits log records for execution (node creation, completion, failures) but **does not configure logging by default**. To see logs in the terminal or a file, call `enable_logging()` from your application entry point (e.g. `main`, CLI, or server startup). This keeps the library from overriding your—or your host environment’s—logging setup.
 
 ??? example "Example Logs"
     ```
@@ -21,12 +21,22 @@ Railtracks provides built-in logging to help track the execution of your flows. 
 
 ## Configuring Logging
 
+### Enabling logging
+
+Call `enable_logging()` once at application startup. The library never calls it automatically.
+
+```python
+--8<-- "docs/scripts/_logging.py:logging_enable"
+```
+
+You can set the level and an optional log file path. If you omit them, Railtracks reads `RT_LOG_LEVEL` and `RT_LOG_FILE` from the environment (see below).
+
 ### Logging Levels
 
 Railtracks supports six logging levels aligned with the standard Python logging framework:
 
-1. `DEBUG`: *(Default for file logs)* Includes all logs
-2. `INFO`: *(Default)* Includes `INFO` and above. Ideal for local development.
+1. `DEBUG`: Includes all logs. Ideal for local debugging.
+2. `INFO`: Includes `INFO` and above. Good default for development.
 3. `WARNING`: Includes `WARNING` and above. Recommended for production.
 4. `ERROR`: Includes recoverable issues that prevented part of the system from functioning correctly.
 5. `CRITICAL`: Includes severe failures that may cause shutdown.
@@ -42,20 +52,22 @@ Railtracks supports six logging levels aligned with the standard Python logging 
 
 !!! tip "Console Handler"
 
-    By default, logs are printed to `stdout` and `stderr`.
+    Once you call `enable_logging()`, a console handler is added and logs are printed to the terminal.
 
 !!! tip "File Handler"
 
-    To save logs to a file, pass a `log_file` parameter to the config:
+    Pass `log_file` to `enable_logging()` to also write logs to a file:
 
     ```python
     --8<-- "docs/scripts/_logging.py:logging_to_file"
     ```
+
 !!! warning "File Handler logging level"
     Currently the logs outputted to the File Handler will be at `DEBUG` level for completeness. If you'd like us to support customizing this parameter, please open an issue at [railtracks/issues](https://github.com/RailtownAI/railtracks/issues)
+
 !!! tip "Custom Handlers"
 
-    Railtracks uses the standard [Python `logging`](https://docs.python.org/3/library/logging.html) module with the `RT` prefix. You can attach custom handlers:
+    Railtracks uses the standard [Python `logging`](https://docs.python.org/3/library/logging.html) module. All framework loggers live under the **`RT`** name (e.g. `RT.railtracks.state.state`). To see only Railtracks logs and not third-party libraries (e.g. litellm), attach your handler to `logging.getLogger("RT")`:
 
     ```python
     --8<-- "docs/scripts/_logging.py:logging_custom_handler"
@@ -63,28 +75,21 @@ Railtracks supports six logging levels aligned with the standard Python logging 
 
 ---
 
-## Example Usage
+## Example usage
 
-You can configure logging globally or per-run.
-
-!!! example "Global Configuration"
+!!! example "Enable logging at startup"
 
     ```python
     --8<-- "docs/scripts/_logging.py:logging_global"
     ```
-    or you could set up your environment variables
+
+!!! example "Environment variables"
+
+    You can set `RT_LOG_LEVEL` and `RT_LOG_FILE` in your environment (or `.env`). They are used as defaults when you call `enable_logging()` without arguments.
+
     ```python
     --8<-- "docs/scripts/_logging.py:logging_env_var"
     ```
-    This will apply to all flows, unless a **`Session`** overwrites it. In that case it will change for the scope of that particular **`Session`** and return to the global setting afterwards.
-
-!!! example "Scoped Configuration"
-
-    ```python
-    --8<-- "docs/scripts/_logging.py:logging_scoped"
-
-    ```
-    Applies only within the context of the `Session`.
 
 ---
 

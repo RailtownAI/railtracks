@@ -27,7 +27,6 @@ str_to_log_level: Dict[str, int] = {
 # the temporary name for the logger that RT will use.
 rt_logger_name = "RT"
 rt_logger = logging.getLogger(rt_logger_name)
-rt_logger.setLevel(logging.DEBUG)
 
 _default_format_string = "%(timestamp_color)s[+%(relative_seconds)-7ss] %(level_color)s%(name)-12s: %(levelname)-8s - %(message)s%(default_color)s"
 
@@ -234,11 +233,14 @@ def detach_logging_handlers():
     rt_logger.handlers.clear()
 
 
-def initialize_module_logging() -> None:
+def initialize_module_logging(
+    level: AllowableLogLevels | None = None,
+    log_file: str | os.PathLike | None = None,
+) -> None:
     """
-    Initialize module-level logging when railtracks is first imported.
+    Initialize module-level logging (internal). Use enable_logging() for the public API.
 
-    Reads configuration from environment variables if set:
+    When level/log_file are None, reads from environment variables:
     - RT_LOG_LEVEL: Sets the logging level
     - RT_LOG_FILE: Optional path to a log file
 
@@ -246,21 +248,34 @@ def initialize_module_logging() -> None:
 
     This sets up shared handlers once with a ThreadAwareFilter that checks
     each thread's ContextVar to determine what should be logged.
-
     """
 
-    env_level = os.getenv("RT_LOG_LEVEL", "INFO").upper()
-    env_log_file = os.getenv("RT_LOG_FILE", None)
+    env_level_str = (
+        level if level is not None else os.getenv("RT_LOG_LEVEL", "INFO")
+    ).upper()
+    env_log_file = (
+        log_file if log_file is not None else os.getenv("RT_LOG_FILE") or None
+    )
 
-    env_level = str_to_log_level.get(env_level, None)  # if "" -> None
+    env_level_int = str_to_log_level.get(env_level_str, str_to_log_level["INFO"])
 
-    _module_logging_level.set(env_level)
+    _module_logging_level.set(env_level_int)
     _module_logging_file.set(env_log_file)
 
     logger = logging.getLogger(rt_logger_name)
+    logger.setLevel(env_level_str)
 
-    if logger.handlers:
+    # Only skip if there are real handlers (app or user already configured).
+    # NullHandler is added by the library so "No handlers" is never raised.
+    non_null_handlers = [
+        h for h in logger.handlers if not isinstance(h, logging.NullHandler)
+    ]
+    if non_null_handlers:
         return
+
+    for h in list(logger.handlers):
+        if isinstance(h, logging.NullHandler):
+            logger.removeHandler(h)
 
     console_handler = logging.StreamHandler()
     console_handler.addFilter(ThreadAwareFilter())
@@ -271,6 +286,26 @@ def initialize_module_logging() -> None:
     # Set up file handler if specified
     if env_log_file is not None:
         setup_file_handler(file_name=env_log_file, file_logging_level=logging.INFO)
+
+
+def enable_logging(
+    level: AllowableLogLevels = "INFO",
+    log_file: str | os.PathLike | None = None,
+) -> None:
+    """
+    Opt-in helper to enable Railtracks logging. Call this explicitly from your
+    application entry point (CLI, main.py, server startup); the library never
+    calls it automatically.
+
+    Uses the given level and log_file; when None, reads RT_LOG_LEVEL and
+    RT_LOG_FILE from the environment. Sets up console output (and optional file)
+    with a ThreadAwareFilter for per-thread level control.
+
+    Args:
+        level: Logging level (default "INFO"). Overridden by RT_LOG_LEVEL when None.
+        log_file: Optional path for a log file. Overridden by RT_LOG_FILE when None.
+    """
+    initialize_module_logging(level=level, log_file=log_file)
 
 
 def configure_module_logging(
