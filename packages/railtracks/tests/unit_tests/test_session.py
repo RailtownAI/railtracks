@@ -180,7 +180,8 @@ def test_info_property_returns_rt_state_info(mock_dependencies):
 
 
 # ================= START Session: Check saved data ===============
-def test_session_saves_data():
+# tmp_path is a pytest fixture that provides a temporary directory, built in to pytest
+def test_session_saves_data(tmp_path, monkeypatch):
     name = "abs53562j12h267"
 
     serialization_mock = {"Key": "Value"}
@@ -188,6 +189,7 @@ def test_session_saves_data():
     info.graph_serialization.return_value = serialization_mock
 
 
+    monkeypatch.chdir(tmp_path)
     with patch.object(Session, 'info', new_callable=PropertyMock) as mock_runner:
         mock_runner.return_value.graph_serialization.return_value = serialization_mock
 
@@ -205,7 +207,7 @@ def test_session_saves_data():
     assert data["session_name"] == name
 
 
-def test_session_not_saves_data():
+def test_session_not_saves_data(tmp_path, monkeypatch):
     config = MagicMock()
 
     run_id = "Run 2"
@@ -216,6 +218,7 @@ def test_session_not_saves_data():
     info = MagicMock()
     info.graph_serialization.return_value = serialization_mock
 
+    monkeypatch.chdir(tmp_path)
     with patch.object(Session, 'info', new_callable=PropertyMock) as mock_runner:
         mock_runner.return_value.graph_serialization.return_value = serialization_mock
 
@@ -229,13 +232,14 @@ def test_session_not_saves_data():
     assert not path.is_file()
 
 
-def test_session_fallback_on_invalid_name():
+def test_session_fallback_on_invalid_name(tmp_path, monkeypatch):
     """Test that session falls back to identifier-only filename when name causes issues."""
     # Use a name that would cause issues in file path creation
     invalid_name = "test/invalid:name*with|bad<chars>"
 
     serialization_mock = {"Key": "Value"}
 
+    monkeypatch.chdir(tmp_path)
     with patch.object(Session, 'info', new_callable=PropertyMock) as mock_runner:
         mock_runner.return_value.graph_serialization.return_value = serialization_mock
 
