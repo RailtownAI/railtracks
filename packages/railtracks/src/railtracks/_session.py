@@ -218,10 +218,9 @@ class Session:
                     file_path = sessions_dir / f"{self._identifier}.json"
 
                 logger.info("Saving execution info to %s" % file_path)
-                
+
                 file_path.write_text(json.dumps(self.payload()))
-                
-                    
+
             except Exception as e:
                 logger.error(
                     "Error while saving to execution info to file",
@@ -230,7 +229,7 @@ class Session:
         try:
             if self.executor_config.payload_callback is not None:
                 self.executor_config.payload_callback(self.payload())
-        except Exception as e:
+        except Exception:
             # TODO: add logging here.
             pass
 
