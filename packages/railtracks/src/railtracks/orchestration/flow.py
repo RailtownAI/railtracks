@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import hashlib
+import json
 import os
 from copy import deepcopy
 from typing import Any, Callable, Coroutine, Generic, ParamSpec, TypeVar
@@ -100,5 +102,10 @@ class Flow(Generic[_P, _TOutput]):
         """
         Generates a hash based on the flow's configuration for equality checks.
         """
-        config_tuple = (self.name,)
-        return base64.b64encode(str(config_tuple).encode()).decode()
+        config_string = json.dumps(self._get_hash_content(), sort_keys=True)
+        return hashlib.sha256(config_string.encode()).hexdigest()
+    
+    def _get_hash_content(self) -> dict:
+        return {
+            "name": self.name,
+        }
