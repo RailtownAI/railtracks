@@ -153,11 +153,13 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         stream: _TStream = False,
         api_base: str | None = None,
         api_key: str | None = None,
+        temperature: float | None = None,
     ):
         super().__init__(stream=stream)
         self._model_name = model_name
         self.api_base = api_base
         self.api_key = api_key
+        self.temperature = temperature
 
     @overload
     def _invoke(
@@ -208,6 +210,9 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
 
         if self.api_key is not None:
             merged["api_key"] = self.api_key
+
+        if self.temperature is not None:
+            merged["temperature"] = self.temperature
 
         warnings.filterwarnings(
             "ignore", category=UserWarning, module="pydantic.*"
@@ -267,6 +272,12 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         if tools is not None:
             litellm_tools = [_to_litellm_tool(t) for t in tools]
             merged["tools"] = litellm_tools
+        if self.api_base is not None:
+            merged["api_base"] = self.api_base
+        if self.api_key is not None:
+            merged["api_key"] = self.api_key
+        if self.temperature is not None:
+            merged["temperature"] = self.temperature
         warnings.filterwarnings(
             "ignore", category=UserWarning, module="pydantic.*"
         )  # Supress pydantic warnings. See issue #204 for more deatils.

@@ -11,7 +11,12 @@ _TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
 class PortKeyLLM(OpenAICompatibleProvider[_TStream]):
     def __init__(
-        self, model_name: str, *, stream: _TStream = False, api_key: str | None = None
+        self,
+        model_name: str,
+        *,
+        stream: _TStream = False,
+        api_key: str | None = None,
+        temperature: float | None = None,
     ):
         try:
             from portkey_ai import Portkey
@@ -33,6 +38,7 @@ class PortKeyLLM(OpenAICompatibleProvider[_TStream]):
             stream=stream,
             api_base=portkey.base_url,
             api_key=portkey.api_key,
+            temperature=temperature,
         )
 
     @classmethod

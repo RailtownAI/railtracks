@@ -16,6 +16,7 @@ class TelusLLM(OpenAICompatibleProvider[_TStream]):
         stream: _TStream = False,
         api_base: str,
         api_key: str | None = None,
+        temperature: float | None = None,
     ):
         # we need to map the telus API key to the OpenAI API key
         if api_key is None:
@@ -27,7 +28,11 @@ class TelusLLM(OpenAICompatibleProvider[_TStream]):
                 ) from e
 
         super().__init__(
-            model_name=model_name, stream=stream, api_base=api_base, api_key=api_key
+            model_name=model_name,
+            stream=stream,
+            api_base=api_base,
+            api_key=api_key,
+            temperature=temperature,
         )
 
     @classmethod

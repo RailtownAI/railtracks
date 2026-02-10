@@ -29,18 +29,23 @@ class AzureAILLM(LiteLLMWrapper[_TStream]):
     def __init__(
         self,
         model_name: str,
+        *,
+        temperature: float | None = None,
         **kwargs,
     ):
         """Initialize an Azure AI LLM instance.
 
         Args:
             model_name (str): Name of the Azure AI model to use.
+            temperature (float | None, optional): Sampling temperature for generation (e.g. 0.0–2.0).
+                If None, the provider default is used.
             **kwargs: Additional arguments passed to the parent LiteLLMWrapper.
 
         Raises:
             AzureAIError: If the specified model is not available or if there are issues with the Azure AI service.
         """
-        super().__init__(model_name, **kwargs)
+        kwargs.pop("temperature", None)
+        super().__init__(model_name, temperature=temperature, **kwargs)
 
         # Currently matching names to Azure models is case sensitive
         self._available_models = [model.lower() for model in litellm.azure_ai_models]
