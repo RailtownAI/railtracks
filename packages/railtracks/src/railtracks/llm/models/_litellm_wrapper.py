@@ -37,6 +37,9 @@ from ..tools.parameters import Parameter
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 
+# Dropped unsupported parameters from the request to the model.
+litellm.drop_params = True
+
 
 def _process_single_parameter(p: Parameter) -> tuple[str, Dict[str, Any], bool]:
     """
