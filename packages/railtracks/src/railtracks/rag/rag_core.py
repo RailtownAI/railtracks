@@ -15,7 +15,7 @@ from .text_object import TextObject
 from .vector_store import create_store
 from .vector_store.base import AbstractVectorStore, SearchResult, VectorRecord
 
-logger = get_rt_logger("rag_core")
+logger = get_rt_logger(__name__)
 
 
 @dataclass(frozen=True)

@@ -1,14 +1,20 @@
 import railtracks as rt
 
+# --8<-- [start: logging_enable]
+# Call once at application startup (main, CLI, or server entry point).
+rt.enable_logging(level="INFO")
+# --8<-- [end: logging_enable]
+
 # --8<-- [start: logging_setup]
-rt.set_config(logging_setting="DEBUG")
-rt.set_config(logging_setting="INFO")
-rt.set_config(logging_setting="CRITICAL")
-rt.set_config(logging_setting="NONE")
+# Examples: set level when enabling logging.
+rt.enable_logging(level="DEBUG")
+rt.enable_logging(level="INFO")
+rt.enable_logging(level="CRITICAL")
+rt.enable_logging(level="NONE")
 # --8<-- [end: logging_setup]
 
 # --8<-- [start: logging_to_file]
-rt.set_config(log_file="my_logs.log")
+rt.enable_logging(level="INFO", log_file="my_logs.log")
 # --8<-- [end: logging_to_file]
 
 # --8<-- [start: logging_custom_handler]
@@ -21,24 +27,20 @@ class CustomHandler(logging.Handler):
         pass
 
 
-logger = logging.getLogger()
+# Attach to "RT" to see only Railtracks logs (not e.g. litellm).
+logger = logging.getLogger("RT")
 logger.addHandler(CustomHandler())
 # --8<-- [end: logging_custom_handler]
 
 # --8<-- [start: logging_global]
-rt.set_config(logging_setting="DEBUG", log_file="my_logs.log")
+rt.enable_logging(level="DEBUG", log_file="my_logs.log")
 # --8<-- [end: logging_global]
 
 # --8<-- [start: logging_env_var]
-RT_LOG_LEVEL = "DEBUG"
-RT_LOG_FILE = "my_logs.log"
+# Set in shell or .env; used as defaults when you call enable_logging() without arguments.
+# RT_LOG_LEVEL=DEBUG
+# RT_LOG_FILE=my_logs.log
 # --8<-- [end: logging_env_var]
-
-
-# --8<-- [start: logging_scoped]
-with rt.Session(logging_setting="DEBUG", log_file="my_logs.log") as runner:
-    pass
-# --8<-- [end: logging_scoped]
 
 # --8<-- [start: logging_railtown]
 import railtownai
@@ -55,9 +57,8 @@ LOGGLY_TOKEN = "YOUR_LOGGLY_TOKEN"
 https_handler = HTTPSHandler(
     url=f"https://logs-01.loggly.com/inputs/{LOGGLY_TOKEN}/tag/python"
 )
-logger = logging.getLogger()
+logger = logging.getLogger("RT")
 logger.addHandler(https_handler)
-
 # --8<-- [end: logging_loggly]
 
 # --8<-- [start: logging_sentry]
