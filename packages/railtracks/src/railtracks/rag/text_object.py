@@ -1,10 +1,11 @@
 # text_object.py
 import hashlib
-import logging
 import os
 from typing import Any, List, Optional
 
-logger = logging.getLogger(__name__)
+from railtracks.utils.logging import get_rt_logger
+
+logger = get_rt_logger(__name__)
 
 
 class ResourceInstance:

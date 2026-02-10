@@ -37,6 +37,8 @@ from railtracks.utils.profiling import Stamp
 
 from .info import ExecutionInfo
 
+logger = get_rt_logger(__name__)
+
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
 
@@ -71,9 +73,6 @@ class RTState:
 
         self.executor_config = executor_config
         self.rc_coordinator = coordinator
-
-        # each new instance of a state object should have its own logger.
-        self.logger = get_rt_logger()
 
         publisher.subscribe(self.handle, "State Object Handler")
         self.publisher = publisher
@@ -194,7 +193,7 @@ class RTState:
             request_ids=[request_id],
         )
 
-        self.logger.info(request_creation_obj.to_logging_msg())
+        logger.info(request_creation_obj.to_logging_msg())
         # 4. Return the request id of the node that was created.
         return request_ids[0]
 
@@ -244,7 +243,7 @@ class RTState:
                     error=e,
                 )
             )
-            self.logger.exception(rfa.to_logging_msg())
+            logger.exception(rfa.to_logging_msg())
             raise e
         # you have to run this in a task so it isn't blocking other completions
         outputs = asyncio.create_task(self._run_request(request_id))
@@ -351,9 +350,7 @@ class RTState:
         )
 
         if self.executor_config.end_on_error:
-            self.logger.critical(
-                node_exception_action.to_logging_msg(), exc_info=exception
-            )
+            logger.critical(node_exception_action.to_logging_msg(), exc_info=exception)
             await self.publisher.publish(FatalFailure(error=exception))
             return Failure(exception)
 
@@ -361,14 +358,12 @@ class RTState:
         if (
             isinstance(exception, NodeInvocationError) and exception.fatal
         ) or isinstance(exception, FatalError):
-            self.logger.critical(
-                node_exception_action.to_logging_msg(), exc_info=exception
-            )
+            logger.critical(node_exception_action.to_logging_msg(), exc_info=exception)
             await self.publisher.publish(FatalFailure(error=exception))
             return Failure(exception)
 
         # for any other error we want it to bubble up so the user can handle.
-        self.logger.error(node_exception_action.to_logging_msg(), exc_info=exception)
+        logger.error(node_exception_action.to_logging_msg(), exc_info=exception)
         return Failure(exception)
 
     @property
@@ -411,7 +406,7 @@ class RTState:
             output=result,
         )
 
-        self.logger.info(request_completion_obj.to_logging_msg())
+        logger.info(request_completion_obj.to_logging_msg())
         return result
 
     async def handle_result(self, result: RequestFinishedBase):
