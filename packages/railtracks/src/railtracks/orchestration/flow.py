@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import base64
 import hashlib
 import json
 import os
@@ -104,7 +103,7 @@ class Flow(Generic[_P, _TOutput]):
         """
         config_string = json.dumps(self._get_hash_content(), sort_keys=True)
         return hashlib.sha256(config_string.encode()).hexdigest()
-    
+
     def _get_hash_content(self) -> dict:
         return {
             "name": self.name,
