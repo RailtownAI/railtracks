@@ -140,7 +140,7 @@ class LLMBase(Node[_T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
         if instance_injected_llm_model is not None:
             if llm is not None:
                 logger.warning(
-                    "You have provided an llm model as a parameter and as a class variable. We will use the parameter."
+                    "You have provided an llm as a parameter and as a class variable. We will use the parameter."
                 )
                 unwrapped_llm_model = llm
             else:
