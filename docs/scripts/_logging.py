@@ -1,4 +1,5 @@
 import railtracks as rt
+from railtracks.built_nodes.easy_usage_wrappers.agent import agent_node
 
 # --8<-- [start: logging_enable]
 # Call once at application startup (main, CLI, or server entry point).

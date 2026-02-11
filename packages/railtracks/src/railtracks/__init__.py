@@ -36,9 +36,9 @@ __all__ = [
     "vector_stores",
     "rag",
     "RagConfig",
+    "Flow",
     "enable_logging",
 ]
-
 
 from railtracks.built_nodes.concrete.rag import RagConfig
 from railtracks.built_nodes.easy_usage_wrappers import (
@@ -51,6 +51,7 @@ from ._session import ExecutionInfo, Session, session
 from .context.central import session_id, set_config
 from .interaction import broadcast, call, call_batch, interactive
 from .nodes.manifest import ToolManifest
+from .orchestration.flow import Flow
 from .rt_mcp import MCPHttpParams, MCPStdioParams, connect_mcp, create_mcp_server
 from .utils.config import ExecutorConfig
 from .utils.logging.config import enable_logging
