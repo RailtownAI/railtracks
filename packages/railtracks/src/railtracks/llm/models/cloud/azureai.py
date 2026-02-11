@@ -44,7 +44,6 @@ class AzureAILLM(LiteLLMWrapper[_TStream]):
         Raises:
             AzureAIError: If the specified model is not available or if there are issues with the Azure AI service.
         """
-        kwargs.pop("temperature", None)
         super().__init__(model_name, temperature=temperature, **kwargs)
 
         # Currently matching names to Azure models is case sensitive

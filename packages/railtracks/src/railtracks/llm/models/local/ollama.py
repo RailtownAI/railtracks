@@ -59,8 +59,6 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
                 f"Prepending 'ollama/' to model name '{model_name}' for Ollama"
             )
             model_name = f"ollama/{model_name}"
-        # Explicit temperature overrides any passed in kwargs
-        kwargs.pop("temperature", None)
         super().__init__(
             model_name=model_name,
             stream=stream,
