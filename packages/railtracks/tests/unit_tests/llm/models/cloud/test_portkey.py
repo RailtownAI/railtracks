@@ -1,6 +1,7 @@
 import os
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 import pytest
+import litellm
 from railtracks.llm.models.cloud import PortKeyLLM  # adjust path if needed
 from railtracks.llm.providers import ModelProvider
 
@@ -40,4 +41,20 @@ def test_init_missing_api_key():
     with patch.dict(os.environ, {}, clear=True):
         with pytest.raises(KeyError, match="Please set your PORTKEY_API_KEY"):
             PortKeyLLM(model_name=MODEL_NAME)
-        
+
+
+def test_temperature_passed_to_litellm_completion(message_history):
+    """Assert that when PortKeyLLM is created with temperature, it is passed to litellm.completion."""
+    mock_portkey = MagicMock()
+    mock_portkey.base_url = "https://api.portkey.ai"
+    mock_portkey.api_key = "test_key"
+    with patch("portkey_ai.Portkey", return_value=mock_portkey):
+        with patch.object(litellm, "completion") as mock_completion:
+            mock_completion.return_value = litellm.utils.ModelResponse(
+                choices=[{"message": {"content": "ok"}}]
+            )
+            llm = PortKeyLLM(model_name=MODEL_NAME, api_key="test_key", temperature=0.6)
+            llm.chat(message_history)
+            mock_completion.assert_called_once()
+            assert mock_completion.call_args.kwargs.get("temperature") == 0.6
+

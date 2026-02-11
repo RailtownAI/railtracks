@@ -28,6 +28,7 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
         stream: _TStream = False,
         domain: Literal["default", "auto", "custom"] = "default",
         custom_domain: str | None = None,
+        temperature: float | None = None,
         **kwargs,
     ):
         """Initialize an Ollama LLM instance.
@@ -42,6 +43,8 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
                 Defaults to "default".
             custom_domain (str | None, optional): Custom domain URL to use when domain is set to "custom".
                 Must be provided if domain="custom". Defaults to None.
+            temperature (float | None, optional): Sampling temperature for generation (e.g. 0.0–2.0).
+                If None, the provider default is used.
             **kwargs: Additional arguments passed to the parent LiteLLMWrapper.
 
         Raises:
@@ -56,7 +59,12 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
                 f"Prepending 'ollama/' to model name '{model_name}' for Ollama"
             )
             model_name = f"ollama/{model_name}"
-        super().__init__(model_name=model_name, stream=stream, **kwargs)
+        super().__init__(
+            model_name=model_name,
+            stream=stream,
+            temperature=temperature,
+            **kwargs,
+        )
 
         match domain:
             case "default":

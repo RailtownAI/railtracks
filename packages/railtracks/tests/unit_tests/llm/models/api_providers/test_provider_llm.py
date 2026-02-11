@@ -1,4 +1,5 @@
-import pytest 
+import pytest
+import litellm
 from railtracks.llm import OpenAILLM, GeminiLLM, AnthropicLLM, HuggingFaceLLM, CohereLLM
 from railtracks.llm.history import MessageHistory
 from railtracks.llm._exception_base import RTLLMError
@@ -65,4 +66,18 @@ class TestFunctionCallingSupport:
                 
                 with pytest.raises(RTLLMError, match="does not support function calling"):
                     model.chat_with_tools(MessageHistory([]), [])
+
+
+def test_temperature_passed_to_litellm_completion(message_history):
+    """Assert that when a provider LLM is created with temperature, it is passed to litellm.completion."""
+    with patch('railtracks.llm.models.api_providers._provider_wrapper.get_llm_provider') as mock_provider:
+        mock_provider.return_value = ("gpt-4o", "openai", "info")
+        with patch.object(litellm, "completion") as mock_completion:
+            mock_completion.return_value = litellm.utils.ModelResponse(
+                choices=[{"message": {"content": "ok"}}]
+            )
+            llm = OpenAILLM("openai/gpt-4o", temperature=0.4)
+            llm.chat(message_history)
+            mock_completion.assert_called_once()
+            assert mock_completion.call_args.kwargs.get("temperature") == 0.4
 

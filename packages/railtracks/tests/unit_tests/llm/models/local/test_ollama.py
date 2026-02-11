@@ -114,6 +114,20 @@ def test_init_with_custom_domain(mock_response):
         assert ollama.domain == custom_domain
 
 
+def test_temperature_passed_to_litellm_completion(mock_response):
+    """Assert that when OllamaLLM is created with temperature, it is passed to litellm.completion."""
+    with patch('requests.get', return_value=mock_response):
+        with patch.object(litellm, "completion") as mock_completion:
+            mock_completion.return_value = litellm.utils.ModelResponse(
+                choices=[{"message": {"content": "ok"}}]
+            )
+            ollama = OllamaLLM("test-model", temperature=0.7)
+            messages = MessageHistory([UserMessage(content="test message")])
+            ollama.chat(messages)
+            mock_completion.assert_called_once()
+            assert mock_completion.call_args.kwargs.get("temperature") == 0.7
+
+
 def test_init_model_not_available(mock_response):
     """Test initialization with unavailable model"""
     with patch('requests.get', return_value=mock_response):
