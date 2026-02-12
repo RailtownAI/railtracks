@@ -188,15 +188,27 @@ text_analyzer = rt.agent_node(
     system_message="You analyze text using the available tools."
 )
 
-# 3. Use it to solve the classic "How many r's in strawberry?" problem
-@rt.session
-async def main():
-    result = await rt.call(text_analyzer, "How many 'r's are in 'strawberry'?")
-    print(result.text)  # "There are 3 'r's in 'strawberry'!"
+# 3. Create a Flow and run it
+@rt.function_node
+async def analyze_text(query: str):
+    result = await rt.call(text_analyzer, query)
+    return result
 
-# Run it
-import asyncio
-asyncio.run(main())
+flow = rt.Flow("Text Analysis", entry_point=analyze_text)
+result = flow.invoke("How many 'r's are in 'strawberry'?")
+print(result.text)  # "There are 3 'r's in 'strawberry'!"
+```
+
+!!! tip "Alternative: Using @rt.session"
+    ```python
+    @rt.session()
+    async def main():
+        result = await rt.call(text_analyzer, "How many 'r's are in 'strawberry'?")
+        print(result.text)
+    
+    import asyncio
+    asyncio.run(main())
+    ```
 ```
 
 </details>
@@ -245,18 +257,22 @@ coordinator = rt.agent_node(
 
 ```python
 # Customer service system with context sharing
+@rt.function_node
 async def handle_customer_request(query: str):
-    with rt.Session() as session:
-        # Technical support first
-        technical_result = await rt.call(technical_agent, query)
-        
-        # Share context with billing if needed
-        if "billing" in technical_result.text.lower():
-            session.context["technical_notes"] = technical_result.text
-            billing_result = await rt.call(billing_agent, query)
-            return billing_result
-        
-        return technical_result
+    # Technical support first
+    technical_result = await rt.call(technical_agent, query)
+    
+    # Share context with billing if needed
+    if "billing" in technical_result.text.lower():
+        rt.context.put("technical_notes", technical_result.text)
+        billing_result = await rt.call(billing_agent, query)
+        return billing_result
+    
+    return technical_result
+
+# Create and run as a Flow
+flow = rt.Flow("Customer Support", entry_point=handle_customer_request)
+result = flow.invoke("I need help with my bill")
 ```
 
 </details>

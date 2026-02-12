@@ -4,12 +4,17 @@ import railtracks as rt
 # Set up some context data
 data = {"var_1": "value_1"}
 
-with rt.Session(context=data):
-    rt.context.get("var_1")  # Outputs: value_1
-    rt.context.get("var_2", "default_value")  # Outputs: default_value
+@rt.function_node
+async def my_workflow():
+    value1 = rt.context.get("var_1")  # Outputs: value_1
+    value2 = rt.context.get("var_2", "default_value")  # Outputs: default_value
 
     rt.context.put("var_2", "value_2")  # Sets var_2 to value_2
     rt.context.put("var_1", "new_value_1")  # Replaces var_1 with new_value_1
+    return value1
+
+# Create and run a Flow
+flow = rt.Flow("Context Example", entry_point=my_workflow, context=data)
 # --8<-- [end: context_basics]
 
 # --8<-- [start: context_in_node]
@@ -19,9 +24,12 @@ import railtracks as rt
 def some_node():
     return rt.context.get("var_1")
 
-@rt.session(context={"var_1": "value_1"})
+@rt.function_node
 async def main():
-    await rt.call(some_node)
+    result = await rt.call(some_node)
+    return result
+
+flow = rt.Flow("Context in Node", entry_point=main, context={"var_1": "value_1"})
 # --8<-- [end: context_in_node]
 
 def get_issue_from_input(input: str) -> str:
@@ -59,10 +67,13 @@ GitHubAgent = rt.agent_node(
 )
 
 # Run the agent
-@rt.session()
+@rt.function_node
 async def gh_agent():
     response = await rt.call(
         GitHubAgent,
         "What is the last issue created? Please write a comment on it."
     )
+    return response
+
+flow = rt.Flow("GitHub Agent", entry_point=gh_agent)
 # --8<-- [end: example]

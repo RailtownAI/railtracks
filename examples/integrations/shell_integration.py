@@ -31,10 +31,10 @@ user_prompt = """What directories are in the current directory?"""
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
+@rt.session(logging_setting="DEBUG")
 async def call_node():
-    with rt.Session(logging_setting="VERBOSE"):
-        result = await rt.call(agent, message_history)
-
+    result = await rt.call(agent, message_history)
     print(result.content)
+    return result
 
 asyncio.run(call_node())

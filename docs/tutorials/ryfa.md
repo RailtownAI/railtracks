@@ -1,9 +1,55 @@
 # How to Run Your First Agent
 
-## Calling the Agent directly
-Once you have defined your agent class ([Build Your First Agent](byfa.md)) you can then run your workflow and see results!
+Once you have defined your agent class ([Build Your First Agent](byfa.md)), you need to execute it. Railtracks provides two modern approaches for running agents: **Flow** (recommended) and **`@rt.session` decorator**.
 
-To begin you just have to use **`call`** method from Railtracks. This is an asynchronous method so you will need to run it in an async context.
+## Using Flow (Recommended)
+
+The **`Flow`** class provides the cleanest way to package and execute your agent workflows. It automatically manages sessions and provides both sync and async execution methods.
+
+```python
+import railtracks as rt
+
+# Define your agent entry point
+@rt.function_node
+async def main(message: str):
+    result = await rt.call(WeatherAgent, message)
+    return result
+
+# Create a Flow
+flow = rt.Flow("Weather Flow", entry_point=main)
+
+# Run synchronously
+result = flow.invoke("What's the weather in Paris?")
+print(result.text)
+```
+
+!!! tip "Async Notebooks"
+    If you're in a Jupyter notebook or already inside an async context, use `await flow.ainvoke(...)` instead.
+
+## Using @rt.session Decorator
+
+The **`@rt.session`** decorator automatically wraps your async functions with session management:
+
+```python
+import railtracks as rt
+import asyncio
+
+@rt.session(
+    timeout=60,
+    logging_setting="INFO"
+)
+async def weather_workflow(city: str):
+    result = await rt.call(WeatherAgent, f"What's the weather in {city}?")
+    return result
+
+# Run the workflow
+result, session = asyncio.run(weather_workflow("Paris"))
+print(result.text)
+```
+
+## Direct Calling (Advanced)
+
+For simple cases, you can call the agent directly in an async context:
 
 === "Asynchronous"
     ```python
@@ -24,7 +70,7 @@ To begin you just have to use **`call`** method from Railtracks. This is an asyn
         
 
 !!! info "Asynchronous Execution"
-    Since the **`call`** function is asynchronous and needs to be awaited, you should ensure that you are running this code within an asynchronous context like the **`main`** function in the code snippet above.
+    Since the **`call`** function is asynchronous and needs to be awaited, you should ensure that you are running this code within an async context (like inside a Flow entry point or `@rt.session` decorated function).
 
     **Jupyter Notebooks**: If you are using in a notebook, you can run the code in a cell with **`await`** directly.
     
@@ -50,14 +96,26 @@ To begin you just have to use **`call`** method from Railtracks. This is an asyn
 Just like that you have run your first agent!
 
 ---
-## Calling the Agent within a Session
-Alternatively, you can run your agent within a session using the **`rt.Session`** context manager. This allows you to manage the session state and run multiple agents or workflows within the same session and providing various options such as setting a timeout, a shared context ([Context](../advanced_usage/context.md)), and more.
+## Using Sessions (Advanced)
+
+For complex scenarios requiring fine-grained control, you can use the **`rt.Session`** context manager directly:
 
 ```python
 --8<-- "docs/scripts/first_agent.py:session"
 ```
 
-For more details on how to use sessions, please refer to the [Sessions](../advanced_usage/session.md) documentation.
+!!! note "When to Use Sessions Directly"
+    The context manager approach is useful when you need:
+    
+    - Fine-grained control over session lifecycle
+    - To run multiple workflows within the same session context
+    - Advanced session management features
+    
+    For most use cases, prefer **Flow** or **`@rt.session`** decorator for cleaner code.
+
+For more details on session features, see the [Sessions](../advanced_usage/session.md) documentation.
+
+---
 ## Retrieving the Results of a Run
 
 All agents return a response object which you can use to get the last message or the entire message history if you would prefer.

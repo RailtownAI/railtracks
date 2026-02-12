@@ -13,10 +13,12 @@ USER_PROMPT = """Would you be able to create a new page for me in Notion labeled
 
 notion_agent = notion_agent(model=rt.llm.OpenAILLM("gpt-4o"))
 
-with rt.Session() as run:
-    result = asyncio.run(
-        rt.call(
-            notion_agent,
-            instructions=USER_PROMPT,
-        )
+@rt.session()
+async def run_notion_demo():
+    result = await rt.call(
+        notion_agent,
+        instructions=USER_PROMPT,
     )
+    return result
+
+asyncio.run(run_notion_demo())
