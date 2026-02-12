@@ -37,7 +37,7 @@ user_prompt = """Create a 3x3 array of random numbers using numpy, and print the
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
-@rt.session(logging_setting="VERBOSE")
+@rt.session(logging_setting="DEBUG")
 async def call_node():
     create_sandbox_container()
     try:

@@ -31,7 +31,7 @@ user_prompt = """Tell me about the RailtownAI/rc repository on GitHub."""
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
-@rt.session(logging_setting="VERBOSE")
+@rt.session(logging_setting="DEBUG")
 async def call_node():
     result = await rt.call(agent, message_history)
     print(result.content)

@@ -125,7 +125,7 @@ CodeAgent = rt.agent_node(
 # --8<-- [start: sandbox_call]
 user_prompt = """Create a 3x3 array of random numbers using numpy, and print the array and its mean"""
 
-@rt.session(logging_setting="VERBOSE")
+@rt.session(logging_setting="DEBUG")
 async def call_code_agent():
     create_sandbox_container()
     try:
@@ -172,7 +172,7 @@ user_prompt = """What directories are in the current directory?"""
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
-@rt.session(logging_setting="VERBOSE")
+@rt.session(logging_setting="DEBUG")
 async def call_bash_agent():
     result = await rt.call(BashAgent, message_history)
     print(result.content)
@@ -216,7 +216,7 @@ SlackAgent = rt.agent_node(
 
 user_prompt = """Send a message to general saying "Hello!"."""
 
-@rt.session(logging_setting="VERBOSE")
+@rt.session(logging_setting="DEBUG")
 async def call_slack_agent():
     result = await rt.call(SlackAgent, user_prompt)
     print(result.content)
