@@ -55,6 +55,19 @@ def test_chat_success(message_history):
         assert response.message.content == "This is a response from Azure AI."
 
 
+def test_chat_passes_temperature(message_history):
+    """Assert that when AzureAILLM is created with temperature, it is passed to litellm.completion."""
+    llm = AzureAILLM(model_name=TEST_CHAT_MODEL_NAME, temperature=0.5)
+
+    with patch.object(litellm, "completion") as mock_completion:
+        mock_completion.return_value = litellm.utils.ModelResponse(
+            choices=[{"message": {"content": "ok"}}]
+        )
+        llm.chat(message_history)
+        mock_completion.assert_called_once()
+        assert mock_completion.call_args.kwargs.get("temperature") == 0.5
+
+
 def test_chat_failure(message_history):
     """Test handling of chat failure due to an internal server error"""
     llm = AzureAILLM(model_name=TEST_CHAT_MODEL_NAME)

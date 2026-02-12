@@ -5,7 +5,7 @@ from railtracks.utils.publisher import Publisher
 
 from .messages import RequestCompletionMessage, RequestCreationFailure, RequestFailure
 
-logger = get_rt_logger("Publisher")
+logger = get_rt_logger(__name__)
 
 
 class RTPublisher(Publisher[RequestCompletionMessage]):

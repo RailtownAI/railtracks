@@ -74,15 +74,10 @@ class ExecutionInfo:
         """
         insertion_requests = self.insertion_requests
 
-        if len(insertion_requests) >= 2:
-            raise ValueError(
-                "You cannot get the name of a graph with multiple insertion requests"
-            )
-
-        if len(insertion_requests) == 0:
-            raise ValueError(
-                "You cannot get the name of a graph with no insertion requests"
-            )
+        # The name is only defined for the length of 1.
+        # NOTE: Maybe we should send a warning once to user in other cases.
+        if len(insertion_requests) != 1:
+            return None
 
         i_r = insertion_requests[0]
 

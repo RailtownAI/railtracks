@@ -38,7 +38,7 @@ from railtracks.validation.node_invocation.validation import (
 from .response import LLMResponse, StringResponse, StructuredResponse
 
 # Global logger for LLM nodes
-logger = get_rt_logger("Node.LLM")
+logger = get_rt_logger(__name__)
 
 _T = TypeVar("_T")
 

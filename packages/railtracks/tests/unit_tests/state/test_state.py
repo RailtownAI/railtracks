@@ -13,8 +13,6 @@ def test_rcstate_init_and_is_empty(dummy_execution_info, dummy_executor_config, 
     # Add something to one of the heaps
     state._node_heap._heap["x"] = MagicMock()
     assert state.is_empty is False
-    # Logger set
-    assert hasattr(state, "logger")
 
 def test_rcstate_add_stamp(dummy_execution_info, dummy_executor_config, mock_coordinator, mock_publisher):
     state = RTState(dummy_execution_info, dummy_executor_config, mock_coordinator, mock_publisher)

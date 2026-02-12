@@ -7,12 +7,17 @@ in non-Jupyter environments and don't interfere with normal operation.
 
 import io
 import sys
+from unittest.mock import MagicMock, patch
 
 import pytest
-from unittest.mock import patch, MagicMock
-
-from railtracks.rt_mcp.jupyter_compat import apply_patches, is_jupyter
 from railtracks.rt_mcp import jupyter_compat
+from railtracks.rt_mcp.jupyter_compat import apply_patches, is_jupyter
+
+# Windows-specific import - only available on Windows
+try:
+    import mcp.os.win32.utilities
+except (ImportError, ModuleNotFoundError):
+    mcp = None  # Module not available on non-Windows platforms
 
 
 def test_is_jupyter_detection_normal_env():
@@ -37,8 +42,7 @@ def test_apply_patches_jupyter_env(reset_patched_flag):
     with patch('railtracks.rt_mcp.jupyter_compat.is_jupyter', return_value=True):
         with patch('sys.platform', 'win32'):
 
-            # Import the module to apply patches
-            import mcp.os.win32.utilities
+            # Get the module to apply patches
             original_create_windows_process = mcp.os.win32.utilities.create_windows_process
             original_create_windows_fallback_process = mcp.os.win32.utilities._create_windows_fallback_process
 
@@ -64,9 +68,6 @@ def test_patched_functions_behavior(reset_patched_flag, patch_function):
     with patch('railtracks.rt_mcp.jupyter_compat.is_jupyter', return_value=True):
         # Apply patches
         apply_patches()
-        
-        # Import the module to access the patched functions
-        import mcp.os.win32.utilities
         
         # Create a mock stream that raises UnsupportedOperation for fileno()
         mock_stream = MagicMock()
