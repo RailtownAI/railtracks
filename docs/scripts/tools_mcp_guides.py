@@ -27,12 +27,13 @@ agent = rt.agent_node(
 
 user_prompt = """Tell me about the RailtownAI/rc repository on GitHub."""
 
-@rt.session()
+@rt.function_node
 async def call_node():
     result = await rt.call(agent, user_prompt)
     print(result.content)
     return result
 
+flow = rt.Flow("GitHub Agent", entry_point=call_node)
 # asyncio.run(call_node())
 # --8<-- [end: github_call]
 
@@ -78,12 +79,13 @@ user_prompt = """Create a new page in Notion called 'Jokes' under the parent pag
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
-@rt.session()
+@rt.function_node
 async def call_notion():
     result = await rt.call(agent, message_history)
     print(result.content)
     return result
 
+flow = rt.Flow("Notion Agent", entry_point=call_notion)
 # asyncio.run(call_node())
 # --8<-- [end: notion_call]
 
@@ -125,7 +127,7 @@ CodeAgent = rt.agent_node(
 # --8<-- [start: sandbox_call]
 user_prompt = """Create a 3x3 array of random numbers using numpy, and print the array and its mean"""
 
-@rt.session(logging_setting="DEBUG")
+@rt.function_node
 async def call_code_agent():
     create_sandbox_container()
     try:
@@ -135,6 +137,7 @@ async def call_code_agent():
     finally:
         kill_sandbox()
 
+flow = rt.Flow("Sandbox Code Agent", entry_point=call_code_agent, logging_setting="DEBUG")
 # asyncio.run(call_node())
 # --8<-- [end: sandbox_call]
 
@@ -172,12 +175,13 @@ user_prompt = """What directories are in the current directory?"""
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
-@rt.session(logging_setting="DEBUG")
+@rt.function_node
 async def call_bash_agent():
     result = await rt.call(BashAgent, message_history)
     print(result.content)
     return result
 
+flow = rt.Flow("Bash Agent", entry_point=call_bash_agent, logging_setting="DEBUG")
 # asyncio.run(call_node())
 # --8<-- [end: bash_call]
 
@@ -216,12 +220,13 @@ SlackAgent = rt.agent_node(
 
 user_prompt = """Send a message to general saying "Hello!"."""
 
-@rt.session(logging_setting="DEBUG")
+@rt.function_node
 async def call_slack_agent():
     result = await rt.call(SlackAgent, user_prompt)
     print(result.content)
     return result
 
+flow = rt.Flow("Slack Agent", entry_point=call_slack_agent, logging_setting="DEBUG")
 # asyncio.run(call_node())
 # --8<-- [end: slack_call]
 
