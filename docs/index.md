@@ -23,11 +23,13 @@ hide:
 
 <div style="text-align: center;">
   <h1>Agent Observability</h1>
-<div style="margin-top: -1.5rem; text-align: center;">
+<div style="margin-top: -1.0rem; text-align: center;">
     <iframe width="800" height="500" src="https://www.youtube.com/embed/01e0GebRH1U?si=ACau3O9v3voswbtX" title="Building with Railtracks" frameborder="0" allowfullscreen></iframe>
 </div>
 </div>
-
+<div style="text-align: center; margin-top: 1rem;">
+  <a href="observability/visualization" class="md-button">Get started with Observability</a>
+</div>
 
 ---
 
