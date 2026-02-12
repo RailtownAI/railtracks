@@ -58,12 +58,14 @@ Agent = rt.agent_node(
     llm=rt.llm.OpenAILLM("gpt-4o"),
 )
 
-# Run the agent
-with rt.Session():
-    result = await rt.call(
-        Agent,
-        "Find information about Railtracks"
-    )
+# Create a Flow and run it
+@rt.function_node
+async def research(query: str):
+    result = await rt.call(Agent, query)
+    return result
+
+flow = rt.Flow("Research Flow", entry_point=research)
+result = flow.invoke("Find information about Railtracks")
 ```
 
 ## Next Steps

@@ -4,12 +4,15 @@ import railtracks as rt
 # Set up some context data
 data = {"var_1": "value_1"}
 
-with rt.Session(context=data):
-    rt.context.get("var_1")  # Outputs: value_1
-    rt.context.get("var_2", "default_value")  # Outputs: default_value
+# Using @rt.session decorator (recommended)
+@rt.session(context=data)
+async def my_workflow():
+    value1 = rt.context.get("var_1")  # Outputs: value_1
+    value2 = rt.context.get("var_2", "default_value")  # Outputs: default_value
 
     rt.context.put("var_2", "value_2")  # Sets var_2 to value_2
     rt.context.put("var_1", "new_value_1")  # Replaces var_1 with new_value_1
+    return value1
 # --8<-- [end: context_basics]
 
 # --8<-- [start: context_in_node]

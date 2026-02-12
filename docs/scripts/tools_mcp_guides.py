@@ -27,11 +27,11 @@ agent = rt.agent_node(
 
 user_prompt = """Tell me about the RailtownAI/rc repository on GitHub."""
 
+@rt.session()
 async def call_node():
-    with rt.Session():
-        result = await rt.call(agent, user_prompt)
-
+    result = await rt.call(agent, user_prompt)
     print(result.content)
+    return result
 
 # asyncio.run(call_node())
 # --8<-- [end: github_call]
@@ -78,11 +78,11 @@ user_prompt = """Create a new page in Notion called 'Jokes' under the parent pag
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
+@rt.session()
 async def call_notion():
-    with rt.Session():
-        result = await rt.call(agent, message_history)
-
+    result = await rt.call(agent, message_history)
     print(result.content)
+    return result
 
 # asyncio.run(call_node())
 # --8<-- [end: notion_call]
@@ -125,15 +125,15 @@ CodeAgent = rt.agent_node(
 # --8<-- [start: sandbox_call]
 user_prompt = """Create a 3x3 array of random numbers using numpy, and print the array and its mean"""
 
+@rt.session(logging_setting="VERBOSE")
 async def call_code_agent():
-    with rt.Session(logging_setting="VERBOSE"):
-        create_sandbox_container()
-        try:
-            result = await rt.call(CodeAgent, user_prompt)
-        finally:
-            kill_sandbox()
-
-    print(result.content)
+    create_sandbox_container()
+    try:
+        result = await rt.call(CodeAgent, user_prompt)
+        print(result.content)
+        return result
+    finally:
+        kill_sandbox()
 
 # asyncio.run(call_node())
 # --8<-- [end: sandbox_call]
@@ -172,11 +172,11 @@ user_prompt = """What directories are in the current directory?"""
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
+@rt.session(logging_setting="VERBOSE")
 async def call_bash_agent():
-    with rt.Session(logging_setting="VERBOSE"):
-        result = await rt.call(BashAgent, message_history)
-
+    result = await rt.call(BashAgent, message_history)
     print(result.content)
+    return result
 
 # asyncio.run(call_node())
 # --8<-- [end: bash_call]
@@ -216,11 +216,11 @@ SlackAgent = rt.agent_node(
 
 user_prompt = """Send a message to general saying "Hello!"."""
 
+@rt.session(logging_setting="VERBOSE")
 async def call_slack_agent():
-    with rt.Session(logging_setting="VERBOSE"):
-        result = await rt.call(SlackAgent, user_prompt)
-
+    result = await rt.call(SlackAgent, user_prompt)
     print(result.content)
+    return result
 
 # asyncio.run(call_node())
 # --8<-- [end: slack_call]
