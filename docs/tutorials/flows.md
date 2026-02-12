@@ -4,6 +4,31 @@ Railtracks makes it easy to create custom agents with access to tools they can c
 
 To start, let’s look at the simplest case: an agent that uses another agent as a tool.
 
+## Running Flows
+
+Before diving into examples, let's understand how to execute flows. Railtracks provides the **`Flow`** class for clean, reusable workflow execution:
+
+```python
+import railtracks as rt
+
+# Define your workflow entry point
+@rt.function_node
+async def my_workflow(user_input: str):
+    result = await rt.call(MyAgent, user_input)
+    return result
+
+# Create and run a Flow
+flow = rt.Flow("My Workflow", entry_point=my_workflow)
+result = flow.invoke("Hello!")
+```
+
+!!! tip "Flow vs @rt.session"
+    - Use **`Flow`** when you want a reusable, named workflow that can be invoked multiple times
+    - Use **`@rt.session`** decorator for simpler one-off workflows
+    - Both approaches handle session management automatically
+
+
+
 ### Example
 ```python
 

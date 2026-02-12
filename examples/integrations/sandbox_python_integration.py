@@ -37,15 +37,15 @@ user_prompt = """Create a 3x3 array of random numbers using numpy, and print the
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
+@rt.session(logging_setting="VERBOSE")
 async def call_node():
-    with rt.Session(logging_setting="VERBOSE"):
-        create_sandbox_container()
-        try:
-            result = await rt.call(agent, message_history)
-        finally:
-            kill_sandbox()
-
-    print(result.content)
+    create_sandbox_container()
+    try:
+        result = await rt.call(agent, message_history)
+        print(result.content)
+        return result
+    finally:
+        kill_sandbox()
 
 asyncio.run(call_node())
 
