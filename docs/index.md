@@ -12,11 +12,23 @@ hide:
     Minimal. Extensible. Designed for developers.
   </p>
 
+  <div style="margin-top: 1.5rem;">
+    <iframe width="800" height="500" src="https://www.youtube.com/embed/toggd8HjVWE?si=RjJEF_T_Rz20e4BI" title="Building with Railtracks" frameborder="0" allowfullscreen></iframe>
+  </div>
+
 <a href="quickstart/quickstart" class="md-button md-button--primary">Quickstart</a> <a href="https://github.com/RailtownAI/railtracks-examples" class="md-button">Browse examples</a>
 
-  <div style="margin-top: 1.5rem;">
-    <iframe width="600" height="325" src="https://www.youtube.com/embed/0WJ_I_zWX8I" title="Welcome to Railtracks" frameborder="0" allowfullscreen></iframe>
-  </div>
+</div>
+---
+
+<div style="text-align: center;">
+  <h1>Agent Observability</h1>
+<div style="margin-top: -1.0rem; text-align: center;">
+    <iframe width="800" height="500" src="https://www.youtube.com/embed/01e0GebRH1U?si=ACau3O9v3voswbtX" title="Building with Railtracks" frameborder="0" allowfullscreen></iframe>
+</div>
+</div>
+<div style="text-align: center; margin-top: 1rem;">
+  <a href="observability/visualization" class="md-button">Get started with Observability</a>
 </div>
 
 ---
@@ -62,10 +74,12 @@ The same flow model supports a range of agent architectures without introducing 
   </a>
 
 </div>
+<div style="margin-top: 1.5rem; text-align: center;">
+    <iframe width="800" height="500" src="https://www.youtube.com/embed/DtrYrWqP_co?si=3vdBLNlhaiI76Jdx" title="Building with Railtracks" frameborder="0" allowfullscreen></iframe>
+</div>
 <div style="text-align: center; margin-top: 1rem;">
   <a href="architectures/overview" class="md-button">Checkout other architectures</a>
 </div>
-
 
 ---
 
