@@ -165,7 +165,7 @@ def test_session_decorator_tuple_handling():
     assert session1._identifier != session2._identifier
 
 
-def test_session_save_file_uses_flow_name_precedence(tmp_path, monkeypatch):
+def test_session_save_file_uses_flow_name_precedence(tmp_path, monkeypatch, allow_persistence):
     monkeypatch.chdir(tmp_path)
 
     with rt.Session(flow_name="flow-priority", name="session-name") as session_obj:
@@ -179,7 +179,7 @@ def test_session_save_file_uses_flow_name_precedence(tmp_path, monkeypatch):
     assert session_obj._identifier in saved_files[0].name
 
 
-def test_session_save_file_falls_back_to_name(tmp_path, monkeypatch):
+def test_session_save_file_falls_back_to_name(tmp_path, monkeypatch, allow_persistence):
     monkeypatch.chdir(tmp_path)
 
     with rt.Session(name="session-only") as session_obj:
