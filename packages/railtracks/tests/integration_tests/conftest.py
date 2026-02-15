@@ -1,25 +1,23 @@
 import pytest
 from pathlib import Path
-import shutil
-
-
-@pytest.fixture(scope="session", autouse=True)
-def global_teardown():
-    # Setup code (before tests run)
-    yield
-    # Teardown code (after all tests run)
-    railtracks_dir = Path(".railtracks")
-    if railtracks_dir.exists() and railtracks_dir.is_dir():
-        shutil.rmtree(railtracks_dir)
-        print("Cleaned up .railtracks directory after tests.")
-
-
 import asyncio
 
 import railtracks as rt
 
 import random
 from datetime import datetime, timedelta
+import json
+
+@pytest.fixture(autouse=True)
+def disable_session_persistence(monkeypatch):
+    original_session = rt.session
+
+    def test_session_wrapper(*args, **kwargs):
+        kwargs["save_state"] = False
+        return original_session(*args, **kwargs)
+
+    monkeypatch.setattr(rt, "session", test_session_wrapper)
+
 
 @rt.function_node
 async def search_flights():
@@ -140,9 +138,6 @@ def planner_node():
 @pytest.fixture
 def planner_with_llm_node():
     return planner_with_llm
-
-
-import json
 
 
 @pytest.fixture
