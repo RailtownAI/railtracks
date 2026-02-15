@@ -175,7 +175,8 @@ class Session:
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.executor_config.save_state:
             try:
-                railtracks_dir = Path(".railtracks")
+                railtracks_home = os.environ.get("RAILTRACKS_HOME", ".railtracks")
+                railtracks_dir = Path(railtracks_home)
                 sessions_dir = railtracks_dir / "data" / "sessions"
                 sessions_dir.mkdir(
                     parents=True, exist_ok=True
