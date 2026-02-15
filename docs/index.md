@@ -12,11 +12,23 @@ hide:
     Minimal. Extensible. Designed for developers.
   </p>
 
+  <div style="margin-top: 1.5rem;">
+    <iframe width="800" height="500" src="https://www.youtube.com/embed/toggd8HjVWE?si=RjJEF_T_Rz20e4BI" title="Building with Railtracks" frameborder="0" allowfullscreen></iframe>
+  </div>
+
 <a href="quickstart/quickstart" class="md-button md-button--primary">Quickstart</a> <a href="https://github.com/RailtownAI/railtracks-examples" class="md-button">Browse examples</a>
 
-  <div style="margin-top: 1.5rem;">
-    <iframe width="600" height="325" src="https://www.youtube.com/embed/0WJ_I_zWX8I" title="Welcome to Railtracks" frameborder="0" allowfullscreen></iframe>
-  </div>
+</div>
+---
+
+<div style="text-align: center;">
+  <h1>Agent Observability</h1>
+<div style="margin-top: -1.0rem; text-align: center;">
+    <iframe width="800" height="500" src="https://www.youtube.com/embed/01e0GebRH1U?si=ACau3O9v3voswbtX" title="Building with Railtracks" frameborder="0" allowfullscreen></iframe>
+</div>
+</div>
+<div style="text-align: center; margin-top: 1rem;">
+  <a href="observability/visualization" class="md-button">Get started with Observability</a>
 </div>
 
 ---
@@ -27,7 +39,7 @@ In Railtracks, agent behavior is defined directly in Python. There is **no** con
 
 Building a sequential flow is just like any the code you have written in your life. 
 ```python
-@session
+@function_node
 async def flow(user_input):
     a = await call(Agent1, user_input)
     b = await call(Agent2, a)
@@ -53,19 +65,21 @@ The same flow model supports a range of agent architectures without introducing 
 
   <a class="card disabled">
     <h3>Research Agent</h3>
-    <p>Sequential and branching steps for search, synthesis, and summarization. </p>
+    <p>Sequential and branching steps for search, synthesis, and summarization. <strong>Coming soon.</strong></p>
   </a>
 
   <a class="card disabled">
     <h3>Orchestrator / Worker</h3>
-    <p>A coordinating agent that delegates work to specialized agents or tools. <</p>
+    <p>A coordinating agent that delegates work to specialized agents or tools. <strong>Coming soon.</strong></p>
   </a>
 
+</div>
+<div style="margin-top: 1.5rem; text-align: center;">
+    <iframe width="800" height="500" src="https://www.youtube.com/embed/DtrYrWqP_co?si=3vdBLNlhaiI76Jdx" title="Building with Railtracks" frameborder="0" allowfullscreen></iframe>
 </div>
 <div style="text-align: center; margin-top: 1rem;">
   <a href="architectures/overview" class="md-button">Checkout other architectures</a>
 </div>
-
 
 ---
 

@@ -2,6 +2,7 @@ import pytest
 import pytest
 import railtracks as rt
 import asyncio
+from pathlib import Path
 
 
 def example_1():
@@ -162,5 +163,105 @@ def test_session_decorator_tuple_handling():
     # Both should have the same result but different sessions
     assert result1 == result2
     assert session1._identifier != session2._identifier
+
+
+def test_session_save_file_uses_flow_name_precedence(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    with rt.Session(flow_name="flow-priority", name="session-name") as session_obj:
+        pass
+
+    sessions_dir = tmp_path / ".railtracks" / "data" / "sessions"
+    saved_files = list(sessions_dir.glob("*.json"))
+
+    assert len(saved_files) == 1
+    assert saved_files[0].name.startswith("flow-priority_")
+    assert session_obj._identifier in saved_files[0].name
+
+
+def test_session_save_file_falls_back_to_name(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    with rt.Session(name="session-only") as session_obj:
+        pass
+
+    sessions_dir = tmp_path / ".railtracks" / "data" / "sessions"
+    saved_files = list(sessions_dir.glob("*.json"))
+
+    assert len(saved_files) == 1
+    assert saved_files[0].name.startswith("session-only_")
+    assert session_obj._identifier in saved_files[0].name
+
+
+def test_session_payload_callback_called_once(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    payloads = []
+
+    def payload_handler(payload):
+        payloads.append(payload)
+
+    with rt.Session(payload_callback=payload_handler, save_state=False) as session_obj:
+        pass
+
+    assert len(payloads) == 1
+    payload = payloads[0]
+    assert payload["session_id"] == session_obj._identifier
+    assert "runs" in payload
+    assert payload["runs"] == []
+
+
+def test_session_payload_callback_runs_on_error(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    payloads = []
+
+    def payload_handler(payload):
+        payloads.append(payload)
+
+    with pytest.raises(RuntimeError, match="boom"):
+        with rt.Session(payload_callback=payload_handler, save_state=False):
+            raise RuntimeError("boom")
+
+    assert len(payloads) == 1
+
+
+def test_session_payload_includes_flow_id(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    payloads = []
+
+    def payload_handler(payload):
+        payloads.append(payload)
+
+    with rt.Session(
+        flow_name="flow-name",
+        flow_id="flow-123",
+        payload_callback=payload_handler,
+        save_state=False,
+    ) as session_obj:
+        pass
+
+    assert len(payloads) == 1
+    payload = payloads[0]
+    assert payload["flow_id"] == "flow-123"
+    assert payload["flow_name"] == "flow-name"
+    assert payload["session_id"] == session_obj._identifier
+
+
+def test_session_payload_flow_id_defaults_to_none(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    payloads = []
+
+    def payload_handler(payload):
+        payloads.append(payload)
+
+    with rt.Session(payload_callback=payload_handler, save_state=False):
+        pass
+
+    assert len(payloads) == 1
+    payload = payloads[0]
+    assert payload["flow_id"] is None
 
 # ================ END Session: Decorator Integration Tests ===============

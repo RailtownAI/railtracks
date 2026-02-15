@@ -182,12 +182,6 @@
   pointer-events: none;
 }
 
-.card.disabled h3::after {
-  content: " • Coming soon";
-  font-size: 0.85em;
-  font-weight: normal;
-  color: var(--md-primary-fg-color, #888);
-}
 
 .card.disabled:hover {
   transform: none;

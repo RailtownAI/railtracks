@@ -269,13 +269,13 @@ A lightweight agentic LLM framework for building modular, multi-LLM workflows wi
 
 <div align="center">
 
-| Feature | Railtracks | LangGraph | Google ADK |
-|:--------|:----------:|:---------:|:----------:|
-| **🐍 Python-first, no DSL** | ✅ | ❌ | ✅ |
-| **📊 Built-in visualization** | ✅ | ✅ | ⚠️ |
-| **⚡ Zero setup overhead** | ✅ | ✅ | ❌ |
-| **🔄 LLM-agnostic** | ✅ | ✅ | ✅ |
-| **🎯 Pythonic style** | ✅ | ❌ | ⚠️ |
+| Feature | Railtracks
+|:--------|:----------:|
+| **🐍 Python-first, no DSL** | ✅ |
+| **📊 Built-in visualization** | ✅ |
+| **⚡ Zero setup overhead** | ✅ |
+| **🔄 LLM-agnostic** | ✅ |
+| **🎯 Pythonic style** | ✅ |
 
 </div>
 

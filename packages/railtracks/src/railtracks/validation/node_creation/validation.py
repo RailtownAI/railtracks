@@ -13,7 +13,7 @@ from railtracks.llm.tools.parameters import ParameterType
 from railtracks.utils.logging import get_rt_logger
 
 # Global logger for validation
-logger = get_rt_logger("Validation")
+logger = get_rt_logger(__name__)
 
 
 def validate_function(func: Callable) -> None:
