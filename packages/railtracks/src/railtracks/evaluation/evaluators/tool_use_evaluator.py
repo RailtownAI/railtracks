@@ -3,7 +3,8 @@ from typing import TypedDict
 from uuid import UUID
 
 from ...utils.logging.create import get_rt_logger
-from ...utils.point import AgentDataPoint
+# from ...utils.point import AgentDataPoint
+from ..point import AgentDataPoint, Status
 from ..result import (
     ToolAggregateResult,
     EvaluatorResult,
@@ -54,48 +55,36 @@ class ToolUseEvaluator(Evaluator):
 
         results: dict[ToolMetric, list[ToolMetricResult]] = defaultdict(list)
         # (agent_datapoint_id, tool_name): stats_dict
-        stats: dict[tuple[str, str], ToolStats] = defaultdict(
+        stats: dict[tuple[UUID, str], ToolStats] = defaultdict(
             lambda: {"usage_count": 0, "failure_count": 0, "latencies": []}
         )
         for datapoint in data:
-            if datapoint.agent_internals is not None:
-                for tool in datapoint.agent_internals.get("tool_invocations", []):
+            for tool in datapoint.tool_details.calls:
+                tool_name = tool.name
+                key = (datapoint.identifier, tool_name)
 
-                    tool_name = tool.get("name")
-                    key = (str(datapoint.identifier), tool_name)
+                stats[key]["usage_count"]+=1
+                if tool.status == Status.FAILED:
+                    stats[key]["failure_count"]+=1
+                runtime=tool.runtime
+                if runtime is not None:
+                    metric_name = "Latency"
+                    stats[key]["latencies"].append(runtime)
 
-                    stats[key]["usage_count"] += 1
-                    if "There was an error running the tool" in tool["result"]:
-                        stats[key][
-                            "failure_count"
-                        ] += 1  # TODO: Add a ticket for better way of handling this
-
-                    # Track individual latency if available
-                    runtime = tool.get("runtime")
-                    if runtime is not None:
-
-                        metric_name = "Latency"
-                        stats[key]["latencies"].append(runtime)
-
-                        tool_latency_metric = ToolMetric(
-                            name="Latency",
-                            min_value=0.0,
+                    tool_latency_metric = ToolMetric(
+                        name="Latency",
+                        min_value=0.0
+                    )
+                    results[tool_latency_metric].append(
+                        ToolMetricResult(
+                            result_name=f"{metric_name}/{tool_name}",
+                            agent_data_id=[datapoint.identifier],
+                            metric_id=tool_latency_metric.identifier,
+                            tool_name=tool_name,
+                            tool_node_id=tool.identifier,
+                            value=runtime,
                         )
-                        results[tool_latency_metric].append(
-                            ToolMetricResult(
-                                result_name=f"{metric_name}/{tool_name}",
-                                agent_data_id=[datapoint.identifier],
-                                metric_id=tool_latency_metric.identifier,
-                                tool_name=tool_name,
-                                tool_call_id=tool.get("id", None),
-                                value=runtime,
-                            )
-                        )
-            else:
-                logger.warning(
-                    f"AgentDataPoint for agent {datapoint.agent_name} is missing internals; skipping tool usage stats."
-                )
-                continue
+                    )
 
         for key, tool_data in stats.items():
 
@@ -114,10 +103,10 @@ class ToolUseEvaluator(Evaluator):
             results[tool_latency_metric].append(
                 ToolMetricResult(
                     result_name=f"{metric_name}/{tool_name}",
-                    agent_data_id=[UUID(adp_id)],
+                    agent_data_id=[adp_id],
                     metric_id=tool_latency_metric.identifier,
                     tool_name=tool_name,
-                    tool_call_id=None,
+                    tool_node_id=None,
                     value=avg_latency,
                 )
             )
@@ -136,10 +125,10 @@ class ToolUseEvaluator(Evaluator):
             results[tool_failure_metric].append(
                 ToolMetricResult(
                     result_name=f"{metric_name}/{tool_name}",
-                    agent_data_id=[UUID(adp_id)],
+                    agent_data_id=[adp_id],
                     metric_id=tool_failure_metric.identifier,
                     tool_name=tool_name,
-                    tool_call_id=None,
+                    tool_node_id=None,
                     value=failure_rate,
                 )
             )
@@ -152,10 +141,10 @@ class ToolUseEvaluator(Evaluator):
             results[tool_frequency_metric].append(
                 ToolMetricResult(
                     result_name=f"{metric_name}/{tool_name}",
-                    agent_data_id=[UUID(adp_id)],
+                    agent_data_id=[adp_id],
                     metric_id=tool_frequency_metric.identifier,
                     tool_name=tool_name,
-                    tool_call_id=None,
+                    tool_node_id=None,
                     value=tool_data["usage_count"],
                 )
             )

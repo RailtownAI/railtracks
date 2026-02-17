@@ -3,6 +3,7 @@ from collections import defaultdict
 from enum import Enum
 from pathlib import Path
 from typing import Any
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 from rich import print
@@ -21,7 +22,7 @@ class NodeType(str, Enum):
 class NodeDataPoint(BaseModel):
     """A data point specific to any node execution."""
 
-    identifier: str
+    identifier: UUID
     node_type: NodeType
     name: str
     details: dict[str, Any]
@@ -36,9 +37,9 @@ class Status(str, Enum):
 class EdgeDataPoint(BaseModel):
     """A data point specific to any node execution."""
 
-    identifier: str
-    source: str | None
-    target: str
+    identifier: UUID
+    source: UUID | None
+    target: UUID
     details: dict[str, Any]
 
 
@@ -52,7 +53,7 @@ class ToolArguments(BaseModel):
 class ToolCall(BaseModel):
     """A tool used by an agent."""
 
-    identifier: str
+    identifier: UUID
     name: str
     arguments: ToolArguments
     output: Any
@@ -99,7 +100,7 @@ class LLMDetails(BaseModel):
 class AgentDataPoint(BaseModel):
     """A data point specific to agent interactions."""
 
-    identifier: str
+    identifier: UUID
     agent_name: str
     agent_input: dict | list
     agent_output: dict | list | None
@@ -164,8 +165,8 @@ def load_session(path: str | Path) -> dict:
 
 
 def construct_graph(
-    edges: dict[tuple[str | None, str], EdgeDataPoint],
-) -> tuple[dict[str | None, list[str]], dict[str, list[EdgeDataPoint]]]:
+    edges: dict[tuple[UUID | None, UUID], EdgeDataPoint],
+) -> tuple[dict[UUID | None, list[UUID]], dict[UUID, list[EdgeDataPoint]]]:
     """Constructs a graph representation from the list of edges.
 
     Args:
@@ -175,8 +176,8 @@ def construct_graph(
             - graph: A dictionary representing the adjacency list of the graph, where keys are source node identifiers and values are lists of target node identifiers.
             - sink_list: A dictionary where keys are target node identifiers and values are lists of EdgeDataPoint instances that have that target.
     """
-    graph: dict[str | None, list[str]] = defaultdict(list)
-    sink_list: dict[str, list[EdgeDataPoint]] = defaultdict(list)
+    graph: dict[UUID | None, list[UUID]] = defaultdict(list)
+    sink_list: dict[UUID, list[EdgeDataPoint]] = defaultdict(list)
 
     for edge in edges.values():
         graph[edge.source].append(edge.target)
@@ -185,16 +186,16 @@ def construct_graph(
 
 
 def extract_tool_details(
-    nodes: dict[str, NodeDataPoint],
-    edges: dict[tuple[str | None, str], EdgeDataPoint],
-    graph: dict[str | None, list[str]],
-    agent_id: str,
+    nodes: dict[UUID, NodeDataPoint],
+    edges: dict[tuple[UUID | None, UUID], EdgeDataPoint],
+    graph: dict[UUID | None, list[UUID]],
+    agent_id: UUID,
 ) -> ToolDetails:
     """Extracts tool details for a given agent based on the graph structure.
 
     Args:
         nodes: Dictionary of node identifiers to NodeDataPoint instances.
-        edges: Dictionary of edges with keys as (source, target) and values as EdgeData
+        edges: Dictionary of edges with keys as (source, target) and values as EdgeDataPoint instances.
         graph: Adjacency list representation of the graph.
         agent_id: Identifier of the agent node for which to extract tool details.
     Returns:
@@ -223,7 +224,7 @@ def extract_tool_details(
 
 
 def extract_agent_io(
-    sink_list: dict[str, list[EdgeDataPoint]], node: NodeDataPoint, file_path: str
+    sink_list: dict[UUID, list[EdgeDataPoint]], node: NodeDataPoint, file_path: str
 ) -> tuple[dict, dict]:
     """
     Extracts the input and output for an agent node based on its incoming edges.
@@ -288,7 +289,7 @@ def extract_agent_data_points(session_files: list[str]) -> list[AgentDataPoint]:
 
         for run in runs:
             nodes = {
-                node["identifier"]: NodeDataPoint(
+                UUID(node["identifier"]): NodeDataPoint(
                     identifier=node["identifier"],
                     node_type=NodeType(node["node_type"]),
                     name=node["name"],
@@ -297,15 +298,15 @@ def extract_agent_data_points(session_files: list[str]) -> list[AgentDataPoint]:
                 for node in run.get("nodes", [])
             }
 
-            edges = {
-                (edge["source"], edge["target"]): EdgeDataPoint(
-                    identifier=edge["identifier"],
-                    source=edge["source"],
-                    target=edge["target"],
+            edges: dict[tuple[UUID | None, UUID], EdgeDataPoint] = {}
+            for edge in run.get("edges", []):
+                key = (UUID(edge["source"]), UUID(edge["target"])) if edge["source"] is not None else (None, UUID(edge["target"]))
+                edges[key] = EdgeDataPoint(
+                    identifier=UUID(edge["identifier"]),
+                    source=UUID(edge["source"]) if edge["source"] is not None else None,
+                    target=UUID(edge["target"]),
                     details=edge.get("details", {}),
                 )
-                for edge in run.get("edges", [])
-            }
 
             graph, sink_list = construct_graph(edges)
 

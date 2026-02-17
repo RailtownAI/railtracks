@@ -20,7 +20,7 @@ class ToolMetricResult(MetricResult):
     type: str = "Tool"
     value: float | int  # type: ignore[assignment] pydantic supports narrowing types in subclasses
     tool_name: str
-    tool_call_id: str | None = None
+    tool_node_id: UUID | None = None
 
 
 class LLMMetricResult(MetricResult):

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from ... import AgentDataPoint
+from ..point import AgentDataPoint
 from ..result import EvaluatorResult
 
 
