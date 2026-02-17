@@ -84,10 +84,10 @@ class LLMCall(BaseModel):
     model_provider: str
     input: list[LLMIO]
     output: LLMIO
-    input_tokens: int | None
-    output_tokens: int | None
-    total_cost: float | None
-    latency: float | None
+    input_tokens: int
+    output_tokens: int
+    total_cost: float
+    latency: float
     index: int
 
 
@@ -130,10 +130,10 @@ def extract_llm_details(llm_details: list[dict]) -> LLMDetails:
                 model_provider=detail.get("model_provider", ""),
                 input=inputs,
                 output=output,
-                input_tokens=detail.get("input_tokens", None),
-                output_tokens=detail.get("output_tokens", None),
-                total_cost=detail.get("total_cost", None),
-                latency=detail.get("latency", None),
+                input_tokens=detail.get("input_tokens", -1),
+                output_tokens=detail.get("output_tokens", -1),
+                total_cost=detail.get("total_cost", -1),
+                latency=detail.get("latency", -1),
                 index=idx,
             )
         )

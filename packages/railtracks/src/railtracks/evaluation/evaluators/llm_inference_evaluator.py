@@ -2,7 +2,7 @@ from collections import defaultdict
 from uuid import UUID
 
 from ...utils.logging.create import get_rt_logger
-from ...utils.point import AgentDataPoint
+from ..point import AgentDataPoint
 from ..result import EvaluatorResult, LLMInferenceAggregateResult, LLMMetricResult
 from .evaluator import Evaluator
 from .metrics import LLMMetric
@@ -35,9 +35,10 @@ class LLMInferenceEvaluator(Evaluator):
         results: dict[LLMMetric, list[LLMMetricResult]] = defaultdict(list)
         keys: set[LLMMetric] = set()
         for datapoint in data:
-            llm_metrics = datapoint.agent_internals.get("llm_metrics", {})
+            # llm_metrics = datapoint.agent_internals.get("llm_metrics", {})
+            llm_details = datapoint.llm_details
 
-            for call in llm_metrics.get("calls", []):
+            for call in llm_details.calls:
 
                 # Input Tokens
                 metric = LLMMetric(
@@ -48,10 +49,10 @@ class LLMInferenceEvaluator(Evaluator):
                         result_name="InputTokens",
                         metric_id=metric.identifier,
                         agent_data_id=[datapoint.identifier],
-                        value=call.get("input_tokens", 0),
-                        llm_call_index=call.get("call_index", -1),
-                        model_name=call.get("model_name", ""),
-                        model_provider=call.get("model_provider", ""),
+                        value=call.input_tokens,
+                        llm_call_index=call.index,
+                        model_name=call.model_name,
+                        model_provider=call.model_provider,
                     )
                 )
 
@@ -65,10 +66,10 @@ class LLMInferenceEvaluator(Evaluator):
                         result_name="OutputTokens",
                         metric_id=metric.identifier,
                         agent_data_id=[datapoint.identifier],
-                        value=call.get("output_tokens", 0),
-                        llm_call_index=call.get("call_index", -1),
-                        model_name=call.get("model_name", ""),
-                        model_provider=call.get("model_provider", ""),
+                        value=call.output_tokens,
+                        llm_call_index=call.index,
+                        model_name=call.model_name,
+                        model_provider=call.model_provider,
                     )
                 )
 
@@ -82,10 +83,10 @@ class LLMInferenceEvaluator(Evaluator):
                         result_name="TotalCost",
                         metric_id=metric.identifier,
                         agent_data_id=[datapoint.identifier],
-                        value=call.get("total_cost", 0.0),
-                        llm_call_index=call.get("call_index", -1),
-                        model_name=call.get("model_name", ""),
-                        model_provider=call.get("model_provider", ""),
+                        value=call.total_cost,
+                        llm_call_index=call.index,
+                        model_name=call.model_name,
+                        model_provider=call.model_provider,
                     )
                 )
 
@@ -98,10 +99,10 @@ class LLMInferenceEvaluator(Evaluator):
                         result_name="Latency",
                         metric_id=metric.identifier,
                         agent_data_id=[datapoint.identifier],
-                        value=call.get("latency", 0.0),
-                        llm_call_index=call.get("call_index", -1),
-                        model_name=call.get("model_name", ""),
-                        model_provider=call.get("model_provider", ""),
+                        value=call.latency,
+                        llm_call_index=call.index,
+                        model_name=call.model_name,
+                        model_provider=call.model_provider,
                     )
                 )
 
