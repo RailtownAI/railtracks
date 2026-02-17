@@ -39,7 +39,6 @@ def agent_node(
     name: str | None = None,
     *,
     rag: RagConfig | None = None,
-    rag: RagConfig | None = None,
     tool_nodes: Iterable[Type[Node] | Callable | RTFunction],
     output_schema: Type[_TBaseModel],
     llm: ModelBase[Literal[False]] | None = None,

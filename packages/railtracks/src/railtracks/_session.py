@@ -6,17 +6,7 @@ import uuid
 import warnings
 from functools import wraps
 from pathlib import Path
-from typing import (
-    Any,
-    Callable,
-    Coroutine,
-    Dict,
-    Literal,
-    ParamSpec,
-    Tuple,
-    TypeVar,
-    overload,
-)
+from typing import Any, Callable, Coroutine, Dict, ParamSpec, Tuple, TypeVar, overload
 
 from railtracks.exceptions.messages.exception_messages import (
     ExceptionMessageKey,
@@ -43,12 +33,7 @@ from .utils.logging.config import (
 )
 from .utils.logging.create import get_rt_logger
 
-# TODO: decide if this should be relative or not
-from .utils.point import AgentDataPoint, extract_llm_metrics
-
-from .built_nodes.concrete.response import LLMResponse
-
-logger = get_rt_logger("Session")
+logger = get_rt_logger(__name__)
 
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
@@ -73,7 +58,6 @@ class Session:
     - `log_file`: None (logs will not be written to a file)
     - `broadcast_callback`: None (no callback for broadcast messages)
     - `prompt_injection`: True (the prompt will be automatically injected from context variables)
-    - `save_state`: True (the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory)
     - `save_state`: True (the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory)
 
 
@@ -135,7 +119,6 @@ class Session:
         self.flow_name = flow_name
         self.flow_id = flow_id
 
-        self._save_data = save_data
         self._has_custom_logging = logging_setting is not None or log_file is not None
 
         if self._has_custom_logging:
@@ -210,10 +193,6 @@ class Session:
         if self.executor_config.save_state:
             try:
                 railtracks_dir = Path(".railtracks")
-                sessions_dir = railtracks_dir / "data" / "sessions"
-                sessions_dir.mkdir(
-                    parents=True, exist_ok=True
-                )  # Creates directory structure if doesn't exist, skips otherwise.
                 sessions_dir = railtracks_dir / "data" / "sessions"
                 sessions_dir.mkdir(
                     parents=True, exist_ok=True
@@ -340,185 +319,6 @@ class Session:
 
         return json.loads(json.dumps(full_dict))
 
-    def _extract_tool_latencies(self, run: dict) -> dict[str, list[float]]:
-        """
-        Extract tool latencies from run data, grouped by tool name.
-        
-        Args:
-            run: The run dictionary containing nodes information
-            
-        Returns:
-            Dictionary mapping tool names to lists of latencies (in seconds)
-        """
-        tool_latencies = {}
-        for node in run.get("nodes", []):
-            if node.get("node_type") == "Tool":
-                tool_name = node.get("name")
-                latency = node.get("details", {}).get("internals", {}).get("latency", {}).get("total_time")
-                if tool_name and latency is not None:
-                    if tool_name not in tool_latencies:
-                        tool_latencies[tool_name] = []
-                    tool_latencies[tool_name].append(latency)
-        return tool_latencies
-
-    def _build_tool_invocations(self, answer: LLMResponse, tool_latencies: dict[str, list[float]]) -> list[dict]:
-        """
-        Build tool invocations list with runtime information.
-        
-        Args:
-            answer: LLMResponse containing tool invocations
-            tool_latencies: Dictionary mapping tool names to latencies
-            
-        Returns:
-            List of tool invocation dictionaries with name, arguments, result, and runtime
-        """
-        tool_call_counts = {}
-        tools = []
-        
-        for tool in answer.tool_invocations:
-            tool_name = tool[0].name
-            tool_id = tool[0].identifier
-            
-            # Get the latency for this specific invocation
-            runtime = None
-            if tool_name in tool_latencies:
-                call_index = tool_call_counts.get(tool_name, 0)
-                if call_index < len(tool_latencies[tool_name]):
-                    runtime = tool_latencies[tool_name][call_index]
-                tool_call_counts[tool_name] = call_index + 1
-            
-            tools.append({
-                "id": tool_id,
-                "name": tool_name,
-                "arguments": tool[0].arguments,
-                "result": tool[1].result,
-                "runtime": runtime,
-            })
-        
-        return tools
-
-    def _extract_llm_metrics_from_run(self, run: dict) -> dict | None:
-        """
-        Extract LLM metrics from run data.
-        
-        Args:
-            run: The run dictionary containing nodes information
-            
-        Returns:
-            Dictionary with aggregate and per-call LLM metrics, or None if unavailable
-        """
-        try:
-            for node in run.get("nodes", []):
-                if node.get("node_type") == "Agent":
-                    llm_details = node.get("details", {}).get("internals", {}).get("llm_details", [])
-                    if llm_details:
-                        return extract_llm_metrics(llm_details)
-            return None
-        except Exception as e:
-            logger.warning(f"Failed to extract LLM metrics: {e}")
-            return None
-
-    def _build_agent_internals(self, answer: LLMResponse, run: dict) -> dict:
-        """
-        Build agent internals dictionary for LLMResponse.
-        
-        Args:
-            answer: LLMResponse containing message history and tool invocations
-            run: The run dictionary containing execution details
-            
-        Returns:
-            Dictionary with run_id, message_history, tool_invocations, and llm_metrics
-        """
-        message_history = [
-            {
-                "role": msg.role.value,
-                "content": str(msg.content),
-            }
-            for msg in answer.message_history
-        ]
-        
-        tool_latencies = self._extract_tool_latencies(run)
-        tools = self._build_tool_invocations(answer, tool_latencies)
-        llm_metrics = self._extract_llm_metrics_from_run(run)
-        
-        return {
-            "run_id": run.get("run_id"),
-            "message_history": message_history,
-            "tool_invocations": tools,
-            "llm_metrics": llm_metrics,
-        }
-
-    def _construct_agent_data(self):
-        """
-        Saving agent runs in a human readable way with full details including LLM metrics.
-        """
-
-        request_templates = self.info.insertion_requests
-        answers = self.info.answer
-        runs = self.info.graph_serialization()
-        dps = []
-
-        # typing in self.info.answer is a mess so handling it here for now
-        answers_list = (
-            answers
-            if isinstance(answers, list)
-            else [answers] if answers is not None else []
-        )
-
-        for r_template, answer, run in zip(request_templates, answers_list, runs):
-            if isinstance(answer, LLMResponse):
-                agent_output = answer.content
-                agent_internals = self._build_agent_internals(answer, run)
-            else:
-                agent_output = answer
-                agent_internals = {"run_id": run.get("run_id")}
-
-            dp = AgentDataPoint(
-                identifier=uuid.UUID(run.get("run_id")),
-                agent_name=run.get("name", "Unnamed_Agent"),
-                agent_input={
-                    "args": list(r_template.input[0]),
-                    "kwargs": r_template.input[1],
-                },
-                agent_output=agent_output,
-                agent_internals=agent_internals,
-            )
-
-            dps.append(dp)
-
-        if dps:
-            file_path = self._create_save_file()
-            if file_path is not None:
-                with open(file_path, "w", encoding="utf-8") as f:
-                    json.dump(
-                        [dp.model_dump(mode="json") for dp in dps],
-                        f,
-                        indent=2,
-                    )
-            else:
-                logger.warning("Could not save agent data due to file path issues.")
-                return
-
-        return
-
-    def _create_save_file(self) -> Path | None:
-        railtracks_dir = Path(".railtracks/data/agent_data")
-        railtracks_dir.mkdir(parents=True, exist_ok=True)
-
-        # Using session_id only if there's no session name
-        try:
-            file_path = (
-                railtracks_dir / f"{self.name}_{self._identifier}.json"
-                if self.name
-                else railtracks_dir / f"{self._identifier}.json"
-            )
-            file_path.touch()
-        except FileNotFoundError:
-            logger.warning("Error saving agent data")
-            return None
-
-        return file_path
-
 
 @overload
 def session(
@@ -548,7 +348,6 @@ def session(
     ) = None,
     prompt_injection: bool | None = None,
     save_state: bool | None = None,
-    save_data: bool = True,
 ) -> Callable[
     [Callable[_P, Coroutine[Any, Any, _TOutput]]],
     Callable[_P, Coroutine[Any, Any, Tuple[_TOutput, Session]]],
@@ -593,7 +392,6 @@ def session(
     ) = None,
     prompt_injection: bool | None = None,
     save_state: bool | None = None,
-    save_data: bool = True,
 ) -> (
     Callable[_P, Coroutine[Any, Any, Tuple[_TOutput, Session]]]
     | Callable[
@@ -659,7 +457,6 @@ def session(
                 name=name,
                 prompt_injection=prompt_injection,
                 save_state=save_state,
-                save_data=save_data,
             )
 
             with session_obj:
