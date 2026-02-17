@@ -10,7 +10,7 @@ from tqdm import tqdm
 import railtracks as rt
 
 from ...utils.logging.create import get_rt_logger
-from ...utils.point import AgentDataPoint
+from ..point import AgentDataPoint
 from ..result import (
     AggregateCategoricalResult,
     AggregateNumericalResult,
@@ -126,7 +126,7 @@ class JudgeEvaluator(Evaluator):
     ) -> list[tuple[str, str, JudgeResponseSchema]]:
 
         # put this as none for now to not pollute agent_data
-        with rt.Session(save_data=False, logging_setting="CRITICAL"):
+        with rt.Session(save_state=False, logging_setting="CRITICAL"):
 
             # TODO: uncomment after https://github.com/RailtownAI/railtracks/issues/884 is resolved
             # self._session_id = session._identifier
@@ -200,7 +200,6 @@ class JudgeEvaluator(Evaluator):
         return self._template["user"].format(
             agent_input=data.agent_input,
             agent_output=data.agent_output,
-            agent_internals=data.agent_internals or {},
         )
 
     def _generate_system_prompt(self, metric: Metric) -> str:
