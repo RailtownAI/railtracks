@@ -9,6 +9,7 @@ from .evaluators.metrics import Categorical, Metric, Numerical
 
 
 class MetricResult(BaseModel):
+    type: str = "Base"
     result_name: str  # primary for human readability and debugging
     metric_id: str
     agent_data_id: list[UUID]
@@ -16,18 +17,21 @@ class MetricResult(BaseModel):
 
 
 class ToolMetricResult(MetricResult):
+    type: str = "Tool"
     value: float | int  # type: ignore[assignment] pydantic supports narrowing types in subclasses
     tool_name: str
     tool_call_id: str | None = None
 
 
 class LLMMetricResult(MetricResult):
+    type: str = "LLM"
     llm_call_index: int
     model_name: str
     model_provider: str
 
 
 class AggregateCategoricalResult(BaseModel):
+    type: str = "AggregateCategorical"
     metric: Categorical
     labels: list[str]
     most_common_label: str | None = None
@@ -49,6 +53,7 @@ class AggregateCategoricalResult(BaseModel):
 
 
 class AggregateNumericalResult(BaseModel):
+    type: str = "AggregateNumerical"
     metric: Numerical
     values: list[float | int]
     mean: float | None = None
@@ -85,15 +90,17 @@ class AggregateNumericalResult(BaseModel):
 
 
 class ToolAggregateResult(AggregateNumericalResult):
+    type: str = "ToolAggregate"
     tool_name: str
 
 class LLMInferenceAggregateResult(AggregateNumericalResult):
+    type: str = "LLMInferenceAggregate"
     llm_call_index: int
     model_name: str
     model_provider: str
 
 TMetric = TypeVar("TMetric", bound=Metric)
-TMetricResult = TypeVar("TMetricResult", bound=MetricResult | AggregateCategoricalResult | AggregateNumericalResult)
+TMetricResult = TypeVar("TMetricResult", bound=MetricResult | AggregateCategoricalResult | AggregateNumericalResult | ToolAggregateResult | LLMInferenceAggregateResult)
 class EvaluatorResult(BaseModel, Generic[TMetric, TMetricResult]):
     evaluator_name: str
     evaluator_id: str
