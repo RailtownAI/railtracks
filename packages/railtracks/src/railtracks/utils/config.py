@@ -54,7 +54,6 @@ class ExecutorConfig:
             return False
         return self._user_save_state
 
-
     @property
     def logging_setting(self) -> AllowableLogLevels:
         return self._logging_setting
