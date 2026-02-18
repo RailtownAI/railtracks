@@ -34,6 +34,7 @@ class JudgeEvaluator(Evaluator):
         llm: rt.llm.ModelBase,
         metrics: list[Metric],
         system_prompt: str | None = None,
+        agent_message_history: bool = False,
         reasoning: bool = True,
     ):
         """

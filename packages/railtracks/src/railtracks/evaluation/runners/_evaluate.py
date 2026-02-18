@@ -1,11 +1,12 @@
 from collections import defaultdict
 
 from ...utils.logging.create import get_rt_logger
-from ...utils.point import AgentDataPoint
+from ..point import AgentDataPoint
 from ..data.evaluation_dataset import EvaluationDataset
 from ..evaluators import Evaluator
 from ..result import EvaluationResult, EvaluatorResult
 from ..utils import save
+from rich import print
 
 logger = get_rt_logger("evaluate")
 
@@ -64,14 +65,20 @@ def evaluate(
             logger.info(
                 f"Completed evaluator: {evaluator.__class__.__name__}({str(evaluator.identifier)[:4]}...)"
             )
+        
+        metrics_map = {}
+        for er in evaluator_results:
+            metrics = er.metrics
+            for metric in metrics:
+                metrics_map[metric.identifier] = metric
 
         evaluation_results.append(
             EvaluationResult(
                 evaluation_name=f"{name}" if name else None,
                 agent_name=agent_name,
                 agent_data_ids=[adp.identifier for adp in data_dict[agent_name]],
+                metrics_map=metrics_map,
                 results=evaluator_results,
-                metrics=[metric for er in evaluator_results for metric in er.metrics],
             )
         )
 

@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import TypeVar, Generic
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_serializer
 
 from .evaluators.metrics import Categorical, Metric, Numerical
 
@@ -99,7 +99,7 @@ class LLMInferenceAggregateResult(AggregateNumericalResult):
     model_name: str
     model_provider: str
 
-TMetric = TypeVar("TMetric", bound=Metric)
+TMetric = TypeVar("TMetric", bound=Metric | Numerical | Categorical)
 TMetricResult = TypeVar("TMetricResult", bound=MetricResult | AggregateCategoricalResult | AggregateNumericalResult | ToolAggregateResult | LLMInferenceAggregateResult)
 class EvaluatorResult(BaseModel, Generic[TMetric, TMetricResult]):
     evaluator_name: str
@@ -107,6 +107,14 @@ class EvaluatorResult(BaseModel, Generic[TMetric, TMetricResult]):
     agent_data_ids: set[UUID] = Field(default_factory=set)
     metrics: list[TMetric]
     results: list[TMetricResult]
+
+    @model_serializer(mode='wrap', when_used='json')
+    def _serialize_model(self, serializer, info):
+        """Exclude metrics and agent_data_ids from JSON serialization."""
+        data = serializer(self)
+        data.pop('metrics', None)
+        data.pop('agent_data_ids', None)
+        return data
 
 
 class EvaluationResult(BaseModel):
@@ -118,5 +126,5 @@ class EvaluationResult(BaseModel):
         default_factory=list,
         description="If applicable, list of agent run UUIDs that were part of this evaluation",
     )
+    metrics_map: dict[str, Numerical | Categorical | Metric]
     results: list[EvaluatorResult]
-    metrics: list[Metric | Numerical | Categorical]
