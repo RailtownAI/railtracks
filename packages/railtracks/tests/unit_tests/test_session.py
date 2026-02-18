@@ -181,8 +181,9 @@ def test_info_property_returns_rt_state_info(mock_dependencies):
 
 # ================= START Session: Check saved data ===============
 # tmp_path is a pytest fixture that provides a temporary directory, built in to pytest
-def test_session_saves_data(tmp_path, monkeypatch, allow_persistence):
+def test_session_saves_data(tmp_path, monkeypatch):
     name = "abs53562j12h267"
+    monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
 
     serialization_mock = {"Key": "Value"}
     info = MagicMock()
@@ -232,8 +233,9 @@ def test_session_not_saves_data(tmp_path, monkeypatch):
     assert not path.is_file()
 
 
-def test_session_fallback_on_invalid_name(tmp_path, monkeypatch, allow_persistence):
+def test_session_fallback_on_invalid_name(tmp_path, monkeypatch):
     """Test that session falls back to identifier-only filename when name causes issues."""
+    monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
     # Use a name that would cause issues in file path creation
     invalid_name = "test/invalid:name*with|bad<chars>"
 
