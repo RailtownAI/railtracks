@@ -65,9 +65,7 @@ class JudgeEvaluator(Evaluator):
     def run(self, data: list[AgentDataPoint]) -> EvaluatorResult:
 
         # (metric_id, adp_id, JudgeResponseSchema)
-        judge_outputs: list[tuple[str, str, JudgeResponseSchema]] = asyncio.run(
-            self._session(data)
-        )
+        judge_outputs: list[tuple[str, str, JudgeResponseSchema]] = self._invoke(data)
 
         self.agent_data_ids = {adp.identifier for adp in data}
         results: dict[Metric, list[MetricResult]] = defaultdict(list)
@@ -118,19 +116,11 @@ class JudgeEvaluator(Evaluator):
             f"metrics={list(self._metrics.values())}, "
             f"reasoning={self._reasoning})"
         )
+    
+    def _invoke(self, data: list[AgentDataPoint])->list[tuple[str, str, JudgeResponseSchema]]:
 
-    async def _session(
-        self, data: list[AgentDataPoint]
-    ) -> list[tuple[str, str, JudgeResponseSchema]]:
-
-        # put this as none for now to not pollute agent_data
-        with rt.Session(save_state=True):
-
-            # TODO: uncomment after https://github.com/RailtownAI/railtracks/issues/884 is resolved
-            # self._session_id = session._identifier
-            # tasks = [rt.call(self._judge, p[1]) for p in prompt]
-            # response = await asyncio.gather(*tasks)
-            # output = [(p[0], res.structured) for p, res in zip(prompt, response)]
+        @rt.function_node
+        async def judge_flow():
             output = []
             for metric in self._metrics.values():
                 for adp in data:
@@ -149,8 +139,17 @@ class JudgeEvaluator(Evaluator):
                     )
                     output.append((metric.identifier, str(adp.identifier), res.structured))
 
-        return output
+            return output
+        
+        judge_evaluator_flow = rt.Flow(
+            name="JudgeEvaluatorFlow",
+            entry_point=judge_flow,
+            logging_setting="CRITICAL",
+            save_state=False,
+        )
 
+        return judge_evaluator_flow.invoke()
+    
     def _aggregate_metrics(
         self,
         results: dict[Metric, list[MetricResult]],
