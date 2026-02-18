@@ -43,6 +43,7 @@ class LLMInferenceEvaluator(Evaluator):
                 # Input Tokens
                 metric = LLMMetric(
                     name="InputTokens",
+                    min_value=0,
                 )
                 results[metric].append(
                     LLMMetricResult(
@@ -59,6 +60,7 @@ class LLMInferenceEvaluator(Evaluator):
                 # Output Tokens
                 metric = LLMMetric(
                     name="OutputTokens",
+                    min_value=0,
                 )
                 keys.add(metric)
                 results[metric].append(
@@ -76,6 +78,7 @@ class LLMInferenceEvaluator(Evaluator):
                 # Total Cost
                 metric = LLMMetric(
                     name="TotalCost",
+                    min_value=0.0,
                 )
                 keys.add(metric)
                 results[metric].append(
@@ -93,6 +96,7 @@ class LLMInferenceEvaluator(Evaluator):
                 # Latency
                 metric = LLMMetric(
                     name="Latency",
+                    min_value=0.0,
                 )
                 results[metric].append(
                     LLMMetricResult(

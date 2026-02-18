@@ -5,7 +5,6 @@ from uuid import UUID
 
 import yaml
 from pydantic import BaseModel
-from tqdm import tqdm
 
 import railtracks as rt
 
@@ -34,7 +33,6 @@ class JudgeEvaluator(Evaluator):
         llm: rt.llm.ModelBase,
         metrics: list[Metric],
         system_prompt: str | None = None,
-        agent_message_history: bool = False,
         reasoning: bool = True,
     ):
         """
@@ -59,7 +57,6 @@ class JudgeEvaluator(Evaluator):
         super().__init__()
 
         self._judge = rt.agent_node(
-            system_message=self._system_prompt,
             llm=self._llm,
             output_schema=JudgeResponseSchema,
             tool_nodes=[],
@@ -127,7 +124,7 @@ class JudgeEvaluator(Evaluator):
     ) -> list[tuple[str, str, JudgeResponseSchema]]:
 
         # put this as none for now to not pollute agent_data
-        with rt.Session(save_state=False, logging_setting="CRITICAL"):
+        with rt.Session(save_state=True):
 
             # TODO: uncomment after https://github.com/RailtownAI/railtracks/issues/884 is resolved
             # self._session_id = session._identifier
@@ -136,22 +133,19 @@ class JudgeEvaluator(Evaluator):
             # output = [(p[0], res.structured) for p, res in zip(prompt, response)]
             output = []
             for metric in self._metrics.values():
-                for adp in tqdm(
-                    data,
-                    desc=f"LLMJudge Evaluating Agent Datapoints for metric: {metric.name}",
-                ):
+                for adp in data:
 
                     user_message = self._generate_user_prompt(adp)
                     system_message = self._generate_system_prompt(metric)
-
+                    message_history = rt.llm.MessageHistory(
+                        [
+                            rt.llm.SystemMessage(system_message),
+                            rt.llm.UserMessage(user_message),
+                        ]
+                    )
                     res = await rt.call(
                         self._judge,
-                        rt.llm.MessageHistory(
-                            [
-                                rt.llm.SystemMessage(system_message),
-                                rt.llm.UserMessage(user_message),
-                            ]
-                        ),
+                        message_history,
                     )
                     output.append((metric.identifier, str(adp.identifier), res.structured))
 
@@ -200,7 +194,7 @@ class JudgeEvaluator(Evaluator):
     def _generate_user_prompt(self, data: AgentDataPoint) -> str:
         return self._template["user"].format(
             agent_input=data.agent_input,
-            agent_output=data.agent_output,
+            agent_output=data.agent_output.get("message_history", ""),
         )
 
     def _generate_system_prompt(self, metric: Metric) -> str:

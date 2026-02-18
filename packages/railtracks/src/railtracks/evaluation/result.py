@@ -5,8 +5,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, model_serializer
 
-from .evaluators.metrics import Categorical, Metric, Numerical
-
+from .evaluators.metrics import Categorical, Metric, Numerical, METRIC_TYPES
 
 class MetricResult(BaseModel):
     type: str = "Base"
@@ -119,12 +118,13 @@ class EvaluatorResult(BaseModel, Generic[TMetric, TMetricResult]):
 
 class EvaluationResult(BaseModel):
     evaluation_id: UUID = Field(default_factory=uuid4)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime
+    completed_at: datetime
     evaluation_name: str | None = None
     agent_name: str
     agent_data_ids: list[UUID] = Field(
         default_factory=list,
         description="If applicable, list of agent run UUIDs that were part of this evaluation",
     )
-    metrics_map: dict[str, Numerical | Categorical | Metric]
-    results: list[EvaluatorResult]
+    metrics_map: dict[str, METRIC_TYPES]
+    evaluator_results: list[EvaluatorResult]

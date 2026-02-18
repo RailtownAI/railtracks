@@ -7,7 +7,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 from rich import print
-from tqdm import tqdm
 
 from railtracks.utils.logging import get_rt_logger
 
@@ -96,14 +95,13 @@ class LLMDetails(BaseModel):
 
     calls: list[LLMCall]
 
-
 class AgentDataPoint(BaseModel):
     """A data point specific to agent interactions."""
 
     identifier: UUID
     agent_name: str
     agent_input: dict | list
-    agent_output: dict | list | None
+    agent_output: dict
     llm_details: LLMDetails
     tool_details: ToolDetails
 
@@ -159,8 +157,8 @@ def load_session(path: str | Path) -> dict:
     try:
         with open(path, "r") as f:
             session_data = json.load(f)
-    except (json.JSONDecodeError, IOError):
-        raise ValueError(f"Error loading session file: {path}")
+    except (json.JSONDecodeError, IOError) as e:
+        raise ValueError(f"Error loading session file: {path}. Details: {e}")
     return session_data
 
 
@@ -257,7 +255,7 @@ def extract_agent_io(
     return agent_input, agent_output
 
 
-def extract_agent_data_points(session_files: list[str]) -> list[AgentDataPoint]:
+def extract_agent_data_points(session_files: list[str] | str) -> list[AgentDataPoint]:
     """
     Extract AgentDataPoint instances from session JSON files.
 
@@ -266,15 +264,44 @@ def extract_agent_data_points(session_files: list[str]) -> list[AgentDataPoint]:
     internals (including LLM metrics if available).
 
     Args:
-        session_files: List of paths to session JSON files (as strings or Path objects)
+        session_files: List of paths to session JSON files, a single file path, or a directory path.
+                      If a directory is provided, all files within it will be processed.
 
     Returns:
         List of AgentDataPoint instances, one for each agent execution found in the files.
         Returns empty list if no valid agent data is found.
     """
+    # Convert input to list of file paths
+    file_paths: list[str] = []
+    
+    if isinstance(session_files, str):
+        path = Path(session_files)
+        if path.is_dir():
+            # Get all non-hidden files in the directory
+            file_paths = [str(f) for f in path.iterdir() if f.is_file() and not f.name.startswith('.')]
+            logger.info(f"Found {len(file_paths)} files in directory: {session_files}")
+        elif path.is_file():
+            file_paths = [session_files]
+        else:
+            raise FileNotFoundError(f"Path does not exist: {session_files}")
+    elif isinstance(session_files, list):
+        # Validate all items in the list are valid file paths
+        for item in session_files:
+            item_path = Path(item)
+            if item_path.is_dir():
+                raise ValueError(f"List items must be file paths, not directories: {item}")
+            if not item_path.is_file():
+                raise FileNotFoundError(f"File does not exist: {item}")
+        file_paths = session_files
+    else:
+        raise TypeError(f"session_files must be a string or list of strings, got {type(session_files)}")
+    
+    if not file_paths:
+        raise ValueError("No files found to process")
+    
     data_points = []
 
-    for file_path in tqdm(session_files, desc="Processing session files"):
+    for file_path in file_paths:
         try:
             session_data = load_session(file_path)
         except (FileNotFoundError, ValueError) as e:
@@ -348,8 +375,7 @@ if __name__ == "__main__":
 
     rt.enable_logging()
     session_files = [
-        ".railtracks/data/sessions/Stock Analysis_0fe000df-04ae-43cd-9c14-cc4418f306df.json",
-        ".railtracks/data/sessions/Case3-2-agent-tool-wrapped-func_427c5242-ee8a-43c0-aea3-2037921ba681.json",
+        ".railtracks/data/sessions/",
     ]
     data_points = extract_agent_data_points(session_files)
     for dp in data_points:
