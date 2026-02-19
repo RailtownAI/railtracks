@@ -6,11 +6,12 @@ from ...utils.logging.create import get_rt_logger
 from ..point import AgentDataPoint, Status
 from ..result import (
     EvaluatorResult,
-    ToolAggregateResult,
+    ToolAggregateNode,
     ToolMetricResult,
 )
+
 from .evaluator import Evaluator
-from .metrics import ToolMetric
+from .metrics import ToolMetric, Categorical
 from enum import Enum
 
 logger = get_rt_logger("ToolUseEvaluator")
@@ -52,11 +53,15 @@ class ToolUseEvaluator(Evaluator):
 
     def run(
         self, data: list[AgentDataPoint]
-    ) -> EvaluatorResult[ToolMetric, ToolMetricResult, ToolAggregateResult]:
+    ) -> EvaluatorResult[ToolMetric, ToolMetricResult, ToolAggregateNode]:
 
         agent_data_ids: set[UUID] = {adp.identifier for adp in data}
         results = self._extract_tool_stats(data)
-        aggregate_results = self._aggregate_stats_across_run(results)+self._aggregate_metrics(results, len(agent_data_ids))
+        run_aggregates = self._aggregate_per_run(results)
+        data_aggregates = self._aggregate_across_runs(
+            results,
+            run_aggregates)
+        # aggregate_results = self._aggregate_stats_across_run(results)+self._aggregate_metrics(results, len(agent_data_ids))
         metrics = list(results.keys())
 
         return EvaluatorResult(
@@ -65,7 +70,7 @@ class ToolUseEvaluator(Evaluator):
             agent_data_ids=agent_data_ids,
             metrics=metrics,
             metric_results=[item for sublist in results.values() for item in sublist],
-            aggregate_results=aggregate_results,
+            aggregate_results=run_aggregates + data_aggregates,
         )
 
     def _extract_tool_stats(
@@ -151,25 +156,15 @@ class ToolUseEvaluator(Evaluator):
             )
         return results
 
-    def _aggregate_stats_across_run(
-        self, results: dict[ToolMetric, list[ToolMetricResult]]
-    ) -> list[ToolAggregateResult]:
-        """
-        Aggregates tool usage statistics across a run. This is a separate step from the initial extraction to allow for more flexible aggregation strategies in the future.
-
-        Args:
-            results: A dictionary of ToolMetric to list of ToolMetricResult at the tool call level.
-        Returns:
-            A list of ToolAggregateResult instances containing the aggregated results at the run level.
-        """
-        aggregates: list[ToolAggregateResult] = []
+    def _aggregate_per_run(self, results: dict[ToolMetric, list[ToolMetricResult]]) -> list[ToolAggregateNode]:
+        run_aggregates: list[ToolAggregateNode] = []
 
         metric_results = results[METRICS["Runtime"]]
         metric_results_by_adp_id: dict[UUID, list[ToolMetricResult]] = defaultdict(
             list
         )
 
-        values: dict[UUID, dict[str, list[tuple[UUID|None, float | int]]]] = defaultdict(dict)
+        values: dict[UUID, dict[str, list[ToolMetricResult]]] = defaultdict(dict)
 
         for result in metric_results:
             for adp_id in result.agent_data_id:
@@ -178,48 +173,150 @@ class ToolUseEvaluator(Evaluator):
         for adp_id in metric_results_by_adp_id:
             values[adp_id] = defaultdict(list)
 
+
             for tmr in metric_results_by_adp_id[adp_id]:
-                values[adp_id][tmr.tool_name].append((tmr.tool_node_id, tmr.value))
+                values[adp_id][tmr.tool_name].append(tmr)
 
-            for tool_name, vals in values[adp_id].items():
-                aggregate_result = ToolAggregateResult(
+            for tool_name in values[adp_id]:
+                aggregate_node = ToolAggregateNode(
                     metric=METRICS["Runtime"],
-                    values=[v[1] for v in vals],
                     tool_name=tool_name,
-                    tool_node_ids={adp_id: [v[0] for v in vals]}, # type: ignore[assignment] this is hacky..
+                    children=values[adp_id][tool_name], # type: ignore[assignment]
                 )
-                aggregates.append(aggregate_result)
-        return aggregates
+                run_aggregates.append(aggregate_node)
 
-    def _aggregate_metrics(
-        self, results: dict[ToolMetric, list[ToolMetricResult]], num_data_points: int
-    ) -> list[ToolAggregateResult]:
-        """Aggregates the ToolUseEvaluator metrics on an agent level."""
+        return run_aggregates   
+    
+    def _aggregate_across_runs(
+        self, 
+        results: dict[ToolMetric, list[ToolMetricResult]], run_aggregates: list[ToolAggregateNode]
+    ) -> list[ToolAggregateNode]:
+        """
+        Aggregates tool usage statistics across a run. This is a separate step from the initial extraction to allow for more flexible aggregation strategies in the future.
 
-        aggregates: list[ToolAggregateResult] = []
-        # for metric in [METRICS["FailureRate"], METRICS["UsageCount"]]:
-        for metric in results:
+        Args:
+            results: A dictionary of ToolMetric to list of ToolMetricResult at the tool call level.
 
+        Returns:
+            A list of ToolAggregateNode instances containing the aggregated results at the run level.
+        """
+
+        data_aggregates: list[ToolAggregateNode] = []
+
+        for metric in [METRICS["FailureRate"], METRICS["UsageCount"]]:
             metric_results = results[metric]
-            values: dict[str, list[float | int]] = defaultdict(list)
+            values: dict[str, list[ToolMetricResult]] = defaultdict(list)
+            
             for tmr in metric_results:
-                values[tmr.tool_name].append(tmr.value)
+                values[tmr.tool_name].append(tmr)
 
             for tool_name, vals in values.items():
 
-                if metric == METRICS["UsageCount"]:
-                    length = len(values[tool_name])
-
-                    # We need to add 0s to UsageCount for AgentDataPoints
-                    # That did not invoke this particular tool
-                    for _ in range(num_data_points-length):
-                        values[tool_name].append(0) 
-                
-                aggregate_result = ToolAggregateResult(
-                    metric=metric, 
-                    values=vals, 
+                aggregate_node = ToolAggregateNode(
+                    metric=metric,
                     tool_name=tool_name,
+                    children=vals, # type: ignore[assignment]
                 )
-                aggregates.append(aggregate_result)
+                data_aggregates.append(aggregate_node)
 
-        return aggregates
+        tool_breakdown = defaultdict(list)
+        for agg in run_aggregates:
+            if agg.metric != METRICS["Runtime"]:
+                raise ValueError(f"Only Runtime metric has aggregates both in a run and across runs. Encountered:\n{agg.metric}")
+            tool_breakdown[agg.tool_name].append(agg)
+        
+        for tool_name in tool_breakdown:
+            parent = ToolAggregateNode(
+                metric=METRICS["Runtime"],
+                tool_name=tool_name,
+                children=tool_breakdown[tool_name]
+            )
+            # tool_name = run_agg.tool_name
+            # child_aggs = [agg for agg in data_aggregates if agg.tool_name == tool_name]
+
+            # if child_aggs:
+            #     parent_node = ToolAggregateNode(
+            #         metric=child_aggs[0].metric,
+            #         tool_name=tool_name,
+            #         children=[
+            #             ToolAggregateNode(
+            #                 metric=child.metric,
+            #                 tool_name=child.tool_name,
+            #                 children=child.children,
+            #             )
+            #             for child in child_aggs]
+            #     )
+            data_aggregates.append(parent)
+        return data_aggregates
+    # def _aggregate_stats_across_run(
+    #     self, results: dict[ToolMetric, list[ToolMetricResult]]
+    # ) -> list[ToolAggregateResult]:
+    #     """
+    #     Aggregates tool usage statistics across a run. This is a separate step from the initial extraction to allow for more flexible aggregation strategies in the future.
+
+    #     Args:
+    #         results: A dictionary of ToolMetric to list of ToolMetricResult at the tool call level.
+    #     Returns:
+    #         A list of ToolAggregateResult instances containing the aggregated results at the run level.
+    #     """
+    #     aggregates: list[ToolAggregateResult] = []
+
+    #     metric_results = results[METRICS["Runtime"]]
+    #     metric_results_by_adp_id: dict[UUID, list[ToolMetricResult]] = defaultdict(
+    #         list
+    #     )
+
+    #     values: dict[UUID, dict[str, list[tuple[UUID|None, float | int]]]] = defaultdict(dict)
+
+    #     for result in metric_results:
+    #         for adp_id in result.agent_data_id:
+    #             metric_results_by_adp_id[adp_id].append(result)
+
+    #     for adp_id in metric_results_by_adp_id:
+    #         values[adp_id] = defaultdict(list)
+
+    #         for tmr in metric_results_by_adp_id[adp_id]:
+    #             values[adp_id][tmr.tool_name].append((tmr.tool_node_id, tmr.value))
+
+    #         for tool_name, vals in values[adp_id].items():
+    #             aggregate_result = ToolAggregateResult(
+    #                 metric=METRICS["Runtime"],
+    #                 values=[v[1] for v in vals],
+    #                 tool_name=tool_name,
+    #                 tool_node_ids={adp_id: [v[0] for v in vals]}, # type: ignore[assignment] this is hacky..
+    #             )
+    #             aggregates.append(aggregate_result)
+    #     return aggregates
+
+    # def _aggregate_metrics(
+    #     self, results: dict[ToolMetric, list[ToolMetricResult]], num_data_points: int
+    # ) -> list[ToolAggregateResult]:
+    #     """Aggregates the ToolUseEvaluator metrics on an agent level."""
+
+    #     aggregates: list[ToolAggregateResult] = []
+    #     # for metric in [METRICS["FailureRate"], METRICS["UsageCount"]]:
+    #     for metric in results:
+
+    #         metric_results = results[metric]
+    #         values: dict[str, list[float | int]] = defaultdict(list)
+    #         for tmr in metric_results:
+    #             values[tmr.tool_name].append(tmr.value)
+
+    #         for tool_name, vals in values.items():
+
+    #             if metric == METRICS["UsageCount"]:
+    #                 length = len(values[tool_name])
+
+    #                 # We need to add 0s to UsageCount for AgentDataPoints
+    #                 # That did not invoke this particular tool
+    #                 for _ in range(num_data_points-length):
+    #                     values[tool_name].append(0) 
+                
+    #             aggregate_result = ToolAggregateResult(
+    #                 metric=metric, 
+    #                 values=vals, 
+    #                 tool_name=tool_name,
+    #             )
+    #             aggregates.append(aggregate_result)
+
+    #     return aggregates

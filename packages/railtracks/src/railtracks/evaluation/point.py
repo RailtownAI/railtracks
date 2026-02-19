@@ -62,7 +62,7 @@ class ToolCall(BaseModel):
 
 class ToolDetails(BaseModel):
     """Tool details for an agent, including all tool calls made."""
-
+    tool_names: set[str]
     calls: list[ToolCall]
 
 
@@ -200,9 +200,11 @@ def extract_tool_details(
         ToolDetails instance containing details of all tool calls made by the agent.
     """
     tools = []
+    names = set()
     for target_id in graph[agent_id]:
         target = nodes[target_id]
         edge = edges[(agent_id, target_id)]
+        names.add(target.name)
         tools.append(
             ToolCall(
                 identifier=target.identifier,
@@ -218,7 +220,7 @@ def extract_tool_details(
                 status=Status(edge.details.get("status")),
             )
         )
-    return ToolDetails(calls=tools)
+    return ToolDetails(tool_names=names, calls=tools)
 
 
 def extract_agent_io(

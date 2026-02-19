@@ -53,6 +53,7 @@ def evaluate(
     evaluators: list[Evaluator],
     agent_selection: bool = True,
     agents: list[str] | None = None,
+    name: str | None = None,
 ):
     """Evaluate agent data using the provided evaluators.
     
@@ -62,6 +63,7 @@ def evaluate(
         agent_selection: If True and multiple agents are found in the data, prompts the user to select which agents to evaluate. 
                          If False, evaluates all agents without prompting.
         agents: An optional list of agent names to evaluate. If provided, only these agents will be evaluated. Overrides agent_selection if both are provided.
+        name: An optional name for the evaluation, which will be included in the EvaluationResult.
     Returns:
         A list of EvaluationResult instances containing the results from each evaluator.
     """
@@ -144,8 +146,7 @@ def evaluate(
         end_time = datetime.now(timezone.utc)
         evaluation_results.append(
             EvaluationResult(
-                evaluation_name=f"{agent_name} Evaluation",
-                agent_name=agent_name,
+                evaluation_name=name or None,
                 created_at=start_time,
                 completed_at=end_time,
                 agents=[{agent_name: [adp.identifier for adp in data_dict[agent_name]]}],
