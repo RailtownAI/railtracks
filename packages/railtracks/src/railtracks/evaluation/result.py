@@ -91,6 +91,7 @@ class AggregateNumericalResult(BaseModel):
 class ToolAggregateResult(AggregateNumericalResult):
     type: str = "ToolAggregate"
     tool_name: str
+    tool_node_ids: dict[UUID, list[UUID]] | None = None
 
 class LLMInferenceAggregateResult(AggregateNumericalResult):
     type: str = "LLMInferenceAggregate"
@@ -99,13 +100,15 @@ class LLMInferenceAggregateResult(AggregateNumericalResult):
     model_provider: str
 
 TMetric = TypeVar("TMetric", bound=Metric | Numerical | Categorical)
-TMetricResult = TypeVar("TMetricResult", bound=MetricResult | AggregateCategoricalResult | AggregateNumericalResult | ToolAggregateResult | LLMInferenceAggregateResult)
-class EvaluatorResult(BaseModel, Generic[TMetric, TMetricResult]):
+TMetricResult = TypeVar("TMetricResult", bound=MetricResult)
+TAggregateResult = TypeVar("TAggregateResult", bound=AggregateCategoricalResult | AggregateNumericalResult)
+class EvaluatorResult(BaseModel, Generic[TMetric, TMetricResult, TAggregateResult]):
     evaluator_name: str
     evaluator_id: str
     agent_data_ids: set[UUID] = Field(default_factory=set)
     metrics: list[TMetric]
-    results: list[TMetricResult]
+    metric_results: list[TMetricResult]
+    aggregate_results: list[TAggregateResult]
 
     @model_serializer(mode='wrap', when_used='json')
     def _serialize_model(self, serializer, info):
@@ -122,9 +125,6 @@ class EvaluationResult(BaseModel):
     completed_at: datetime
     evaluation_name: str | None = None
     agent_name: str
-    agent_data_ids: list[UUID] = Field(
-        default_factory=list,
-        description="If applicable, list of agent run UUIDs that were part of this evaluation",
-    )
+    agents: list[dict[str, list[UUID]]]
     metrics_map: dict[str, METRIC_TYPES]
     evaluator_results: list[EvaluatorResult]

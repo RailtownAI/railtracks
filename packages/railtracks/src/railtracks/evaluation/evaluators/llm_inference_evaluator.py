@@ -16,7 +16,7 @@ class LLMInferenceEvaluator(Evaluator):
     ):
         super().__init__()
 
-    def run(self, data: list[AgentDataPoint]) -> EvaluatorResult[LLMMetric, LLMMetricResult | LLMInferenceAggregateResult]:
+    def run(self, data: list[AgentDataPoint]) -> EvaluatorResult[LLMMetric, LLMMetricResult, LLMInferenceAggregateResult]:
 
         agent_data_ids: set[UUID] = {adp.identifier for adp in data}
         results, metrics = self._retrieve_llm_states(data)
@@ -27,8 +27,8 @@ class LLMInferenceEvaluator(Evaluator):
             evaluator_id=self.identifier,
             agent_data_ids=agent_data_ids,
             metrics=metrics,
-            results=[item for sublist in results.values() for item in sublist]
-            + aggregate_results,
+            metric_results=[item for sublist in results.values() for item in sublist],
+            aggregate_results=aggregate_results,
         )
 
     def _retrieve_llm_states(self, data: list[AgentDataPoint]):
@@ -77,13 +77,13 @@ class LLMInferenceEvaluator(Evaluator):
 
                 # Total Cost
                 metric = LLMMetric(
-                    name="TotalCost",
+                    name="TokenCost",
                     min_value=0.0,
                 )
                 keys.add(metric)
                 results[metric].append(
                     LLMMetricResult(
-                        result_name="TotalCost",
+                        result_name="TokenCost",
                         metric_id=metric.identifier,
                         agent_data_id=[datapoint.identifier],
                         value=call.total_cost,

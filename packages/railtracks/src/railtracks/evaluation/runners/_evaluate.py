@@ -51,7 +51,6 @@ def _select_agent(agents: dict[str, int]) -> list[str]:
 def evaluate(
     data: AgentDataPoint | list[AgentDataPoint] | EvaluationDataset,
     evaluators: list[Evaluator],
-    name: str | None = None,
     agent_selection: bool = True,
     agents: list[str] | None = None,
 ):
@@ -60,7 +59,6 @@ def evaluate(
     Args:
         data: The agent data to be evaluated. Can be a single AgentDataPoint, a list of AgentDataPoints, or an EvaluationDataset.
         evaluators: A list of Evaluator instances to run on the data.
-        name: An optional name for the evaluation run.
         agent_selection: If True and multiple agents are found in the data, prompts the user to select which agents to evaluate. 
                          If False, evaluates all agents without prompting.
         agents: An optional list of agent names to evaluate. If provided, only these agents will be evaluated. Overrides agent_selection if both are provided.
@@ -146,18 +144,18 @@ def evaluate(
         end_time = datetime.now(timezone.utc)
         evaluation_results.append(
             EvaluationResult(
-                evaluation_name=f"{name}" if name else None,
+                evaluation_name=f"{agent_name} Evaluation",
                 agent_name=agent_name,
                 created_at=start_time,
                 completed_at=end_time,
-                agent_data_ids=[adp.identifier for adp in data_dict[agent_name]],
+                agents=[{agent_name: [adp.identifier for adp in data_dict[agent_name]]}],
                 metrics_map=metrics_map,
                 evaluator_results=evaluator_results,
             )
         )
 
     try:
-        logger.info(f"Evaluation {name if name else 'Unnamed'} DONE.")
+        logger.info(f"Evaluation DONE.")
         save(evaluation_results)
     except Exception as e:
         logger.error(f"Failed to save evaluation results: {e}")

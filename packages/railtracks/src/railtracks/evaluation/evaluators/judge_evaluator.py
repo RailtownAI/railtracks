@@ -62,7 +62,7 @@ class JudgeEvaluator(Evaluator):
             tool_nodes=[],
         )
 
-    def run(self, data: list[AgentDataPoint]) -> EvaluatorResult:
+    def run(self, data: list[AgentDataPoint]) -> EvaluatorResult[Metric, MetricResult, AggregateCategoricalResult | AggregateNumericalResult]:
 
         # (metric_id, adp_id, JudgeResponseSchema)
         judge_outputs: list[tuple[str, str, JudgeResponseSchema]] = self._invoke(data)
@@ -103,8 +103,8 @@ class JudgeEvaluator(Evaluator):
             evaluator_name=self.name,
             evaluator_id=self.identifier,
             agent_data_ids=self.agent_data_ids,
-            results=[item for sublist in results.values() for item in sublist]
-            + self.aggregate_results,
+            metric_results=[item for sublist in results.values() for item in sublist],
+            aggregate_results=self.aggregate_results,
             metrics=list(self._metrics.values()),
         )
         return self._result
