@@ -1,5 +1,5 @@
 from .metric_results import MetricResult, ToolMetricResult, LLMMetricResult
-from .aggregate_results import AggregateTreeNode, ToolAggregateNode
+from .aggregate_results import AggregateForest, AggregateTreeNode, ToolAggregateNode
 from .evaluator_results import EvaluatorResult, EvaluationResult
 
 __all__ = [
@@ -7,6 +7,7 @@ __all__ = [
     "ToolMetricResult",
     "LLMMetricResult",
     "AggregateTreeNode",
+    "AggregateForest",
     "ToolAggregateNode",
     "EvaluatorResult",
     "EvaluationResult",

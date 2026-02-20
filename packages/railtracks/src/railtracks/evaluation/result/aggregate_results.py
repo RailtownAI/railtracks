@@ -9,18 +9,36 @@ Tree Structure:
 - Children can be either MetricResults (leaves) or other AggregateTreeNodes (subtrees)
 """
 from __future__ import annotations
+import json
 from collections import Counter
 from typing import Generic, TypeVar, Union
-from uuid import UUID
 
 from pydantic import BaseModel, Field, computed_field
+from uuid import UUID, uuid4
 
 from ..evaluators.metrics import Categorical, Numerical
 from .metric_results import MetricResult, ToolMetricResult, LLMMetricResult
 
 TMetric = TypeVar("TMetric", Numerical, Categorical)
+TMetricResult = TypeVar("TMetricResult", bound=MetricResult)
+TAggregateNode = TypeVar("TAggregateNode", bound='AggregateTreeNode')
+class AggregateForest(BaseModel, Generic[TAggregateNode, TMetricResult]):
+    """Represents a forest of aggregate trees for an evaluation."""
+    
+    roots: list[UUID] = Field(default_factory=list)
+    nodes: dict[UUID, TAggregateNode | TMetricResult] = Field(default_factory=dict)
 
+    def add_node(self, node: TAggregateNode | TMetricResult) -> None:
+        """Add a node to the forest and update parent-child relationships."""
+        self.nodes[node.identifier] = node
 
+    def get(self, node_id: UUID) -> TAggregateNode | TMetricResult:
+        """Retrieve a node by its identifier."""
+        node = self.nodes.get(node_id)
+        if node is None:
+            raise KeyError(f"Node with id {node_id} not found in forest")
+        return node
+    
 class AggregateTreeNode(BaseModel, Generic[TMetric]):
     """Base tree node for hierarchical aggregates.
     
@@ -32,11 +50,14 @@ class AggregateTreeNode(BaseModel, Generic[TMetric]):
     Parent nodes automatically compute aggregate statistics from all descendant values.
     """
     
+    identifier: UUID = Field(default_factory=uuid4)
     type: str
     name: str
     metric: TMetric
-    children: list[AggregateTreeNode[TMetric] | MetricResult] = Field(default_factory=list)
+    children: list[UUID] = Field(default_factory=list)
     
+    forest: AggregateForest[AggregateTreeNode, MetricResult] = Field(exclude=True)
+
     @property
     def is_leaf(self) -> bool:
         """Returns True if this is a leaf node (no children)."""
@@ -59,31 +80,36 @@ class NumericalAggregateNode(AggregateTreeNode[Numerical]):
     """
     
     type: str = "NumericalAggregate"
-    values: list[float | int] = Field(default_factory=list)
-    children: list[NumericalAggregateNode| MetricResult] = Field(default_factory=list) # type: ignore[assignment]
-    
-    @computed_field  # type: ignore[misc]
+    forest: AggregateForest[NumericalAggregateNode, MetricResult] = Field(exclude=True) # type: ignore[assignment]
+
+    @computed_field
+    @property
+    def values(self) -> list[float | int]:
+        """Recursively collect all values from this node and descendants."""
+        return self._get_all_values()
+
+    @computed_field
     @property
     def mean(self) -> float | None:
         """Mean of all values (including from children)."""
         all_values = self._get_all_values()
         return sum(all_values) / len(all_values) if all_values else None
     
-    @computed_field  # type: ignore[misc]
+    @computed_field
     @property
     def minimum(self) -> float | int | None:
         """Minimum of all values (including from children)."""
         all_values = self._get_all_values()
         return min(all_values) if all_values else None
     
-    @computed_field  # type: ignore[misc]
+    @computed_field
     @property
     def maximum(self) -> float | int | None:
         """Maximum of all values (including from children)."""
         all_values = self._get_all_values()
         return max(all_values) if all_values else None
     
-    @computed_field  # type: ignore[misc]
+    @computed_field
     @property
     def median(self) -> float | None:
         """Median of all values (including from children)."""
@@ -98,7 +124,7 @@ class NumericalAggregateNode(AggregateTreeNode[Numerical]):
         else:
             return sorted_values[n // 2]
     
-    @computed_field  # type: ignore[misc]
+    @computed_field
     @property
     def std(self) -> float | None:
         """Standard deviation of all values (including from children)."""
@@ -109,7 +135,7 @@ class NumericalAggregateNode(AggregateTreeNode[Numerical]):
         variance = sum((x - self.mean) ** 2 for x in all_values) / len(all_values)
         return variance ** 0.5
     
-    @computed_field  # type: ignore[misc]
+    @computed_field
     @property
     def mode(self) -> float | int | None:
         """Mode of all values (including from children)."""
@@ -122,17 +148,17 @@ class NumericalAggregateNode(AggregateTreeNode[Numerical]):
     
     def _get_all_values(self) -> list[float | int]:
         """Recursively collect all values from this node and descendants."""
-        all_values = list(self.values)  # Start with this node's values
+        all_values = []
         
-        # Recursively collect from children
-        for child in self.children:
+        for child_id in self.children:
+            child = self.forest.get(child_id)
             if isinstance(child, MetricResult):
-                # Leaf node: extract value from MetricResult
+
+                # Leaf node, extract value from MetricResult
                 if isinstance(child.value, (int, float)):
                     all_values.append(child.value)
             else:
-                # Internal node: recursively get all values
-                all_values.extend(child._get_all_values())
+                all_values.extend(child.values) # Recursively get values from child AggregateTreeNode
         
         return all_values
 
@@ -148,17 +174,24 @@ class CategoricalAggregateNode(AggregateTreeNode[Categorical]):
     """
     
     type: str = "CategoricalAggregate"
+    forest: AggregateForest[CategoricalAggregateNode, MetricResult] = Field(exclude=True) # type: ignore[assignment]
     labels: list[str] = Field(default_factory=list)
-    children: list[Union['CategoricalAggregateNode', MetricResult]] = Field(default_factory=list)
     
-    @computed_field  # type: ignore[misc]
+    @computed_field
+    @property
+    def categories(self) -> list[str]:
+        """Unique categories from all labels (including from children)."""
+        all_labels = self._get_all_labels()
+        return list(set(all_labels))
+    
+    @computed_field
     @property
     def counts(self) -> dict[str, int]:
         """Category counts from all labels (including from children)."""
         all_labels = self._get_all_labels()
         return dict(Counter(all_labels))
     
-    @computed_field  # type: ignore[misc]
+    @computed_field
     @property
     def most_common_label(self) -> str | None:
         """Most common label across all data (including from children)."""
@@ -169,7 +202,7 @@ class CategoricalAggregateNode(AggregateTreeNode[Categorical]):
         counts = Counter(all_labels)
         return counts.most_common(1)[0][0]
     
-    @computed_field  # type: ignore[misc]
+    @computed_field
     @property
     def least_common_label(self) -> str | None:
         """Least common label across all data (including from children)."""
@@ -182,16 +215,15 @@ class CategoricalAggregateNode(AggregateTreeNode[Categorical]):
     
     def _get_all_labels(self) -> list[str]:
         """Recursively collect all labels from this node and descendants."""
-        all_labels = list(self.labels)  # Start with this node's labels
+        all_labels = []
         
         # Recursively collect from children
-        for child in self.children:
+        for child_id in self.children:
+            child = self.forest.get(child_id)
             if isinstance(child, MetricResult):
-                # Leaf node: extract label from MetricResult
                 if isinstance(child.value, str):
                     all_labels.append(child.value)
             else:
-                # Internal node: recursively get all labels
                 all_labels.extend(child._get_all_labels())
         
         return all_labels
@@ -216,8 +248,7 @@ class ToolAggregateNode(NumericalAggregateNode):
     
     type: str = "ToolAggregate"
     tool_name: str
-    children: list[ToolAggregateNode] | list[ToolMetricResult] = Field(default_factory=list) # type: ignore[assignment]
-
+    forest: AggregateForest[ToolAggregateNode, ToolMetricResult] = Field(exclude=True) # type: ignore[assignment]
 
 class LLMInferenceAggregateNode(NumericalAggregateNode):
     """Tree node for LLM inference numerical aggregates.
@@ -230,4 +261,5 @@ class LLMInferenceAggregateNode(NumericalAggregateNode):
     """
     
     type: str = "LLMInferenceAggregate"
-    children: list[LLMInferenceAggregateNode| LLMMetricResult] = Field(default_factory=list) # type: ignore[assignment]
+    llm_call_index: int
+    forest: AggregateForest[LLMInferenceAggregateNode, LLMMetricResult] = Field(exclude=True) # type: ignore[assignment]

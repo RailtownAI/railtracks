@@ -1,7 +1,8 @@
-from pydantic import BaseModel
-from uuid import UUID
+from pydantic import BaseModel, Field
+from uuid import UUID, uuid4
 
 class MetricResult(BaseModel):
+    identifier: UUID = Field(default_factory=uuid4)
     type: str = "Base"
     result_name: str  # primary for human readability and debugging
     metric_id: str

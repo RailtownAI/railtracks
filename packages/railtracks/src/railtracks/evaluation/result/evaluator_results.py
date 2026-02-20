@@ -4,7 +4,7 @@ from typing import TypeVar, Generic
 from uuid import UUID, uuid4
 
 from .metric_results import MetricResult, ToolMetricResult, LLMMetricResult
-from .aggregate_results import AggregateTreeNode
+from .aggregate_results import AggregateForest, AggregateTreeNode
 from ..evaluators.metrics import Metric, Numerical, Categorical, METRIC_TYPES
 
 TMetric = TypeVar("TMetric", bound=Metric | Numerical | Categorical)
@@ -16,7 +16,7 @@ class EvaluatorResult(BaseModel, Generic[TMetric, TMetricResult, TAggregateResul
     agent_data_ids: set[UUID] = Field(default_factory=set, exclude=True)
     metrics: list[TMetric] = Field(default_factory=list, exclude=True)
     metric_results: list[TMetricResult]
-    aggregate_results: list[TAggregateResult]
+    aggregate_results: list[TAggregateResult] | AggregateForest
 
 
 class EvaluationResult(BaseModel):

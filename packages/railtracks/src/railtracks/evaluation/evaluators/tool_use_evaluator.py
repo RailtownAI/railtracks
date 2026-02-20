@@ -6,6 +6,7 @@ from ...utils.logging.create import get_rt_logger
 from ..point import AgentDataPoint, Status
 from ..result import (
     EvaluatorResult,
+    AggregateForest,
     ToolAggregateNode,
     ToolMetricResult,
 )
@@ -56,11 +57,13 @@ class ToolUseEvaluator(Evaluator):
     ) -> EvaluatorResult[ToolMetric, ToolMetricResult, ToolAggregateNode]:
 
         agent_data_ids: set[UUID] = {adp.identifier for adp in data}
-        results = self._extract_tool_stats(data)
-        run_aggregates = self._aggregate_per_run(results)
-        data_aggregates = self._aggregate_across_runs(
-            results,
-            run_aggregates)
+        forest = AggregateForest[
+            ToolAggregateNode, ToolMetricResult
+        ]()  # initialize empty forest for aggregate nodes to reference
+
+        results = self._extract_tool_stats(data, forest)
+        self._aggregate_per_run(results, forest)
+        self._aggregate_across_runs(results, forest)
         # aggregate_results = self._aggregate_stats_across_run(results)+self._aggregate_metrics(results, len(agent_data_ids))
         metrics = list(results.keys())
 
@@ -70,11 +73,11 @@ class ToolUseEvaluator(Evaluator):
             agent_data_ids=agent_data_ids,
             metrics=metrics,
             metric_results=[item for sublist in results.values() for item in sublist],
-            aggregate_results=run_aggregates + data_aggregates,
+            aggregate_results=forest,
         )
 
     def _extract_tool_stats(
-        self, data: list[AgentDataPoint]
+        self, data: list[AgentDataPoint], forest: AggregateForest[ToolAggregateNode, ToolMetricResult]
     ) -> dict[ToolMetric, list[ToolMetricResult]]:
         """
         Retrieve tool usage statistics from the agent data points.
@@ -98,32 +101,35 @@ class ToolUseEvaluator(Evaluator):
 
                 stats[key]["usage_count"] += 1
 
-                results[METRICS["ToolFailure"]].append(
-                    ToolMetricResult(
-                        result_name=f"{METRICS['ToolFailure'].name}/{tool_name}",
-                        agent_data_id=[datapoint.identifier],
-                        metric_id=METRICS["ToolFailure"].identifier,
-                        tool_name=tool_name,
-                        tool_node_id=tool.identifier,
-                        value=1 if tool.status == Status.FAILED else 0,
-                    )
+                metric_result = ToolMetricResult(
+                    result_name=f"{METRICS['Runtime'].name}/{tool_name}",
+                    agent_data_id=[datapoint.identifier],
+                    metric_id=METRICS["Runtime"].identifier,
+                    tool_name=tool_name,
+                    tool_node_id=tool.identifier,
+                    value=tool.runtime if tool.runtime is not None else 0.0,
                 )
+                forest.add_node(metric_result)
+                results[METRICS["ToolFailure"]].append(metric_result)
+
                 if tool.status == Status.FAILED:
                     stats[key]["failure_count"] += 1
                 runtime = tool.runtime
+                
                 if runtime is not None:
                     stats[key]["runtimes"].append(runtime)
 
-                    results[METRICS["Runtime"]].append(
-                        ToolMetricResult(
-                            result_name=f"{METRICS['Runtime'].name}/{tool_name}",
-                            agent_data_id=[datapoint.identifier],
-                            metric_id=METRICS["Runtime"].identifier,
-                            tool_name=tool_name,
-                            tool_node_id=tool.identifier,
-                            value=runtime,
-                        )
+                    metric_result = ToolMetricResult(
+                        result_name=f"{METRICS['Runtime'].name}/{tool_name}",
+                        agent_data_id=[datapoint.identifier],
+                        metric_id=METRICS["Runtime"].identifier,
+                        tool_name=tool_name,
+                        tool_node_id=tool.identifier,
+                        value=runtime,
                     )
+                    forest.add_node(metric_result)  
+                    results[METRICS["Runtime"]].append(metric_result)
+
         for key, tool_data in stats.items():
 
             adp_id, tool_name = key
@@ -133,36 +139,39 @@ class ToolUseEvaluator(Evaluator):
                 if tool_data["usage_count"] > 0
                 else 0.0
             )
-            results[METRICS["FailureRate"]].append(
-                ToolMetricResult(
-                    result_name=f"{METRICS['FailureRate'].name}/{tool_name}",
-                    agent_data_id=[adp_id],
-                    metric_id=METRICS["FailureRate"].identifier,
-                    tool_name=tool_name,
-                    tool_node_id=None,
-                    value=failure_rate,
-                )
-            )
 
-            results[METRICS["UsageCount"]].append(
-                ToolMetricResult(
-                    result_name=f"{METRICS['UsageCount'].name}/{tool_name}",
-                    agent_data_id=[adp_id],
-                    metric_id=METRICS["UsageCount"].identifier,
-                    tool_name=tool_name,
-                    tool_node_id=None,
-                    value=tool_data["usage_count"],
-                )
+            tmr = ToolMetricResult(
+                result_name=f"{METRICS['FailureRate'].name}/{tool_name}",
+                agent_data_id=[adp_id],
+                metric_id=METRICS["FailureRate"].identifier,
+                tool_name=tool_name,
+                tool_node_id=None,
+                value=failure_rate,
             )
+            forest.add_node(tmr)
+            results[METRICS["FailureRate"]].append(tmr)
+
+            tmr = ToolMetricResult(
+                result_name=f"{METRICS['UsageCount'].name}/{tool_name}",
+                agent_data_id=[adp_id],
+                metric_id=METRICS["UsageCount"].identifier,
+                tool_name=tool_name,
+                tool_node_id=None,
+                value=tool_data["usage_count"],
+            )
+            forest.add_node(tmr)
+            results[METRICS["UsageCount"]].append(tmr)
+
         return results
 
-    def _aggregate_per_run(self, results: dict[ToolMetric, list[ToolMetricResult]]) -> list[ToolAggregateNode]:
-        run_aggregates: list[ToolAggregateNode] = []
+    def _aggregate_per_run(
+        self,
+        results: dict[ToolMetric, list[ToolMetricResult]],
+        forest: AggregateForest[ToolAggregateNode, ToolMetricResult],
+    ) -> None:
 
         metric_results = results[METRICS["Runtime"]]
-        metric_results_by_adp_id: dict[UUID, list[ToolMetricResult]] = defaultdict(
-            list
-        )
+        metric_results_by_adp_id: dict[UUID, list[ToolMetricResult]] = defaultdict(list)
 
         values: dict[UUID, dict[str, list[ToolMetricResult]]] = defaultdict(dict)
 
@@ -173,26 +182,28 @@ class ToolUseEvaluator(Evaluator):
         for adp_id in metric_results_by_adp_id:
             values[adp_id] = defaultdict(list)
 
-
             for tmr in metric_results_by_adp_id[adp_id]:
                 values[adp_id][tmr.tool_name].append(tmr)
 
             for tool_name in values[adp_id]:
                 aggregate_node = ToolAggregateNode(
+                    name=f"Aggregate/{METRICS['Runtime'].name}",
                     metric=METRICS["Runtime"],
                     tool_name=tool_name,
-                    children=values[adp_id][tool_name], # type: ignore[assignment]
+                    children=[tmr.identifier for tmr in values[adp_id][tool_name]],
+                    forest=forest,
                 )
-                run_aggregates.append(aggregate_node)
+                forest.roots.append(aggregate_node.identifier)
+                forest.add_node(aggregate_node)
 
-        return run_aggregates   
-    
     def _aggregate_across_runs(
-        self, 
-        results: dict[ToolMetric, list[ToolMetricResult]], run_aggregates: list[ToolAggregateNode]
-    ) -> list[ToolAggregateNode]:
+        self,
+        results: dict[ToolMetric, list[ToolMetricResult]],
+        forest: AggregateForest[ToolAggregateNode, ToolMetricResult],
+    ) -> None:
         """
-        Aggregates tool usage statistics across a run. This is a separate step from the initial extraction to allow for more flexible aggregation strategies in the future.
+        Aggregates the ToolUseEvaluator metrics across runs on an agent level.
+        This is a separate step from the initial extraction to allow for more flexible aggregation strategies in the future.
 
         Args:
             results: A dictionary of ToolMetric to list of ToolMetricResult at the tool call level.
@@ -201,36 +212,46 @@ class ToolUseEvaluator(Evaluator):
             A list of ToolAggregateNode instances containing the aggregated results at the run level.
         """
 
-        data_aggregates: list[ToolAggregateNode] = []
-
         for metric in [METRICS["FailureRate"], METRICS["UsageCount"]]:
             metric_results = results[metric]
             values: dict[str, list[ToolMetricResult]] = defaultdict(list)
-            
+
             for tmr in metric_results:
                 values[tmr.tool_name].append(tmr)
 
             for tool_name, vals in values.items():
 
                 aggregate_node = ToolAggregateNode(
+                    name=f"Aggregate/{metric.name}",
                     metric=metric,
                     tool_name=tool_name,
-                    children=vals, # type: ignore[assignment]
+                    children=[val.identifier for val in vals],
+                    forest=forest,
                 )
-                data_aggregates.append(aggregate_node)
+                forest.roots.append(aggregate_node.identifier)
+                forest.add_node(aggregate_node)
 
+        ## Aggregation of Runtime ------------------------------
         tool_breakdown = defaultdict(list)
-        for agg in run_aggregates:
-            if agg.metric != METRICS["Runtime"]:
-                raise ValueError(f"Only Runtime metric has aggregates both in a run and across runs. Encountered:\n{agg.metric}")
-            tool_breakdown[agg.tool_name].append(agg)
-        
+        for root_id in forest.roots:
+            agg = forest.get(root_id)
+            if isinstance(agg, ToolMetricResult):
+                raise ValueError(
+                    f"Expected root nodes in the forest to be ToolAggregateNodes, but got {type(agg)}"
+                )
+            if agg.metric == METRICS["Runtime"]:
+                tool_breakdown[agg.tool_name].append(agg)
+
         for tool_name in tool_breakdown:
             parent = ToolAggregateNode(
+                name=f"Aggregate/{METRICS['Runtime'].name}",
                 metric=METRICS["Runtime"],
                 tool_name=tool_name,
-                children=tool_breakdown[tool_name]
+                children=[tool_agg.identifier for tool_agg in tool_breakdown[tool_name]],
+                forest=forest,
             )
+            forest.add_node(parent)
+            forest.roots.append(parent.identifier)
             # tool_name = run_agg.tool_name
             # child_aggs = [agg for agg in data_aggregates if agg.tool_name == tool_name]
 
@@ -246,8 +267,7 @@ class ToolUseEvaluator(Evaluator):
             #             )
             #             for child in child_aggs]
             #     )
-            data_aggregates.append(parent)
-        return data_aggregates
+
     # def _aggregate_stats_across_run(
     #     self, results: dict[ToolMetric, list[ToolMetricResult]]
     # ) -> list[ToolAggregateResult]:
@@ -310,11 +330,11 @@ class ToolUseEvaluator(Evaluator):
     #                 # We need to add 0s to UsageCount for AgentDataPoints
     #                 # That did not invoke this particular tool
     #                 for _ in range(num_data_points-length):
-    #                     values[tool_name].append(0) 
-                
+    #                     values[tool_name].append(0)
+
     #             aggregate_result = ToolAggregateResult(
-    #                 metric=metric, 
-    #                 values=vals, 
+    #                 metric=metric,
+    #                 values=vals,
     #                 tool_name=tool_name,
     #             )
     #             aggregates.append(aggregate_result)
