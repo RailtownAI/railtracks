@@ -262,4 +262,6 @@ class LLMInferenceAggregateNode(NumericalAggregateNode):
     
     type: str = "LLMInferenceAggregate"
     llm_call_index: int
+    model_name: str
+    model_provider: str
     forest: AggregateForest[LLMInferenceAggregateNode, LLMMetricResult] = Field(exclude=True) # type: ignore[assignment]

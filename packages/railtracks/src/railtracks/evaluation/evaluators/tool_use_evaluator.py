@@ -59,12 +59,12 @@ class ToolUseEvaluator(Evaluator):
         agent_data_ids: set[UUID] = {adp.identifier for adp in data}
         forest = AggregateForest[
             ToolAggregateNode, ToolMetricResult
-        ]()  # initialize empty forest for aggregate nodes to reference
+        ]()
 
         results = self._extract_tool_stats(data, forest)
         self._aggregate_per_run(results, forest)
         self._aggregate_across_runs(results, forest)
-        # aggregate_results = self._aggregate_stats_across_run(results)+self._aggregate_metrics(results, len(agent_data_ids))
+        
         metrics = list(results.keys())
 
         return EvaluatorResult(

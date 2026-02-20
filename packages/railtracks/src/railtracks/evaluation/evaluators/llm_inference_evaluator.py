@@ -1,139 +1,158 @@
-# from collections import defaultdict
-# from uuid import UUID
+from collections import defaultdict
+from uuid import UUID
 
-# from ...utils.logging.create import get_rt_logger
-# from ..point import AgentDataPoint
-# from ..result import EvaluatorResult, LLMInferenceAggregateResult, LLMMetricResult
-# from .evaluator import Evaluator
-# from .metrics import LLMMetric
+from ...utils.logging.create import get_rt_logger
+from ..point import AgentDataPoint
+from ..result import (
+    EvaluatorResult,
+    AggregateForest,
+    LLMMetricResult,
+    LLMInferenceAggregateNode,
+)
+from .evaluator import Evaluator
+from .metrics import LLMMetric
 
-# logger = get_rt_logger("LlmInferenceEvaluator")
+logger = get_rt_logger("LlmInferenceEvaluator")
 
 
-# class LLMInferenceEvaluator(Evaluator):
-#     def __init__(
-#         self,
-#     ):
-#         super().__init__()
+class LLMInferenceEvaluator(Evaluator):
+    def __init__(
+        self,
+    ):
+        super().__init__()
 
-#     def run(self, data: list[AgentDataPoint]) -> EvaluatorResult[LLMMetric, LLMMetricResult, LLMInferenceAggregateResult]:
+    def run(
+        self, data: list[AgentDataPoint]
+    ) -> EvaluatorResult[LLMMetric, LLMMetricResult, LLMInferenceAggregateNode]:
 
-#         agent_data_ids: set[UUID] = {adp.identifier for adp in data}
-#         results, metrics = self._retrieve_llm_states(data)
-#         aggregate_results = self._aggregate_metrics(results)
+        agent_data_ids: set[UUID] = {adp.identifier for adp in data}
+        forest = AggregateForest[LLMInferenceAggregateNode, LLMMetricResult]()
 
-#         return EvaluatorResult(
-#             evaluator_name=self.name,
-#             evaluator_id=self.identifier,
-#             agent_data_ids=agent_data_ids,
-#             metrics=metrics,
-#             metric_results=[item for sublist in results.values() for item in sublist],
-#             aggregate_results=aggregate_results,
-#         )
+        results = self._retrieve_llm_states(data, forest)
+        self._aggregate_metrics(results, forest)
 
-#     def _retrieve_llm_states(self, data: list[AgentDataPoint]):
-#         results: dict[LLMMetric, list[LLMMetricResult]] = defaultdict(list)
-#         keys: set[LLMMetric] = set()
-#         for datapoint in data:
-#             # llm_metrics = datapoint.agent_internals.get("llm_metrics", {})
-#             llm_details = datapoint.llm_details
+        metrics = list(results.keys())
 
-#             for call in llm_details.calls:
+        return EvaluatorResult(
+            evaluator_name=self.name,
+            evaluator_id=self.identifier,
+            agent_data_ids=agent_data_ids,
+            metrics=metrics,
+            metric_results=[item for sublist in results.values() for item in sublist],
+            aggregate_results=forest,
+        )
 
-#                 # Input Tokens
-#                 metric = LLMMetric(
-#                     name="InputTokens",
-#                     min_value=0,
-#                 )
-#                 results[metric].append(
-#                     LLMMetricResult(
-#                         result_name="InputTokens",
-#                         metric_id=metric.identifier,
-#                         agent_data_id=[datapoint.identifier],
-#                         value=call.input_tokens,
-#                         llm_call_index=call.index,
-#                         model_name=call.model_name,
-#                         model_provider=call.model_provider,
-#                     )
-#                 )
+    def _retrieve_llm_states(
+        self,
+        data: list[AgentDataPoint],
+        forest: AggregateForest[LLMInferenceAggregateNode, LLMMetricResult],
+    ) -> dict[LLMMetric, list[LLMMetricResult]]:
 
-#                 # Output Tokens
-#                 metric = LLMMetric(
-#                     name="OutputTokens",
-#                     min_value=0,
-#                 )
-#                 keys.add(metric)
-#                 results[metric].append(
-#                     LLMMetricResult(
-#                         result_name="OutputTokens",
-#                         metric_id=metric.identifier,
-#                         agent_data_id=[datapoint.identifier],
-#                         value=call.output_tokens,
-#                         llm_call_index=call.index,
-#                         model_name=call.model_name,
-#                         model_provider=call.model_provider,
-#                     )
-#                 )
+        results: dict[LLMMetric, list[LLMMetricResult]] = defaultdict(list)
 
-#                 # Total Cost
-#                 metric = LLMMetric(
-#                     name="TokenCost",
-#                     min_value=0.0,
-#                 )
-#                 keys.add(metric)
-#                 results[metric].append(
-#                     LLMMetricResult(
-#                         result_name="TokenCost",
-#                         metric_id=metric.identifier,
-#                         agent_data_id=[datapoint.identifier],
-#                         value=call.total_cost,
-#                         llm_call_index=call.index,
-#                         model_name=call.model_name,
-#                         model_provider=call.model_provider,
-#                     )
-#                 )
+        for datapoint in data:
 
-#                 # Latency
-#                 metric = LLMMetric(
-#                     name="Latency",
-#                     min_value=0.0,
-#                 )
-#                 results[metric].append(
-#                     LLMMetricResult(
-#                         result_name="Latency",
-#                         metric_id=metric.identifier,
-#                         agent_data_id=[datapoint.identifier],
-#                         value=call.latency,
-#                         llm_call_index=call.index,
-#                         model_name=call.model_name,
-#                         model_provider=call.model_provider,
-#                     )
-#                 )
+            llm_details = datapoint.llm_details
 
-#         return results, list(results.keys())
+            for call in llm_details.calls:
 
-#     def _aggregate_metrics(
-#         self, results: dict[LLMMetric, list[LLMMetricResult]]
-#     ) -> list[LLMInferenceAggregateResult]:
+                # Input Tokens
+                metric = LLMMetric(
+                    name="InputTokens",
+                    min_value=0,
+                )
 
-#         aggregates = []
+                metric_result = LLMMetricResult(
+                    result_name="InputTokens",
+                    metric_id=metric.identifier,
+                    agent_data_id=[datapoint.identifier],
+                    value=call.input_tokens,
+                    llm_call_index=call.index,
+                    model_name=call.model_name,
+                    model_provider=call.model_provider,
+                )
+                results[metric].append(metric_result)
+                forest.add_node(metric_result)
 
-#         for metric in results:
+                # Output Tokens
+                metric = LLMMetric(
+                    name="OutputTokens",
+                    min_value=0,
+                )
 
-#             metric_results = results[metric]
-#             values: dict[tuple[str, str, int], list[float | int]] = defaultdict(list)
-#             for mr in metric_results:
-#                 if isinstance(mr.value, (int, float)):
-#                     key = (mr.model_name, mr.model_provider, mr.llm_call_index)
-#                     values[key].append(mr.value)
+                metric_result = LLMMetricResult(
+                    result_name="OutputTokens",
+                    metric_id=metric.identifier,
+                    agent_data_id=[datapoint.identifier],
+                    value=call.output_tokens,
+                    llm_call_index=call.index,
+                    model_name=call.model_name,
+                    model_provider=call.model_provider,
+                )
+                results[metric].append(metric_result)
+                forest.add_node(metric_result)
 
-#             for (model_name, model_provider, llm_call_index), vals in values.items():
-#                 aggregate_result = LLMInferenceAggregateResult(
-#                     metric=metric,
-#                     values=vals,
-#                     model_name=model_name,
-#                     model_provider=model_provider,
-#                     llm_call_index=llm_call_index,
-#                 )
-#                 aggregates.append(aggregate_result)
-#         return aggregates
+                # Total Cost
+                metric = LLMMetric(
+                    name="TokenCost",
+                    min_value=0.0,
+                )
+
+                metric_result = LLMMetricResult(
+                    result_name="TokenCost",
+                    metric_id=metric.identifier,
+                    agent_data_id=[datapoint.identifier],
+                    value=call.total_cost,
+                    llm_call_index=call.index,
+                    model_name=call.model_name,
+                    model_provider=call.model_provider,
+                )
+                results[metric].append(metric_result)
+                forest.add_node(metric_result)
+
+                # Latency
+                metric = LLMMetric(
+                    name="Latency",
+                    min_value=0.0,
+                )
+                metric_result = LLMMetricResult(
+                    result_name="Latency",
+                    metric_id=metric.identifier,
+                    agent_data_id=[datapoint.identifier],
+                    value=call.latency,
+                    llm_call_index=call.index,
+                    model_name=call.model_name,
+                    model_provider=call.model_provider,
+                )
+                results[metric].append(metric_result)
+                forest.add_node(metric_result)
+
+        return results
+
+    def _aggregate_metrics(
+        self, results: dict[LLMMetric, list[LLMMetricResult]],
+        forest: AggregateForest[LLMInferenceAggregateNode, LLMMetricResult]
+    ) -> None:
+
+        for metric in results:
+
+            metric_results = results[metric]
+            values: dict[tuple[str, str, int], list[LLMMetricResult]] = defaultdict(list)
+            for mr in metric_results:
+                if isinstance(mr.value, (int, float)):
+                    key = (mr.model_name, mr.model_provider, mr.llm_call_index)
+                    values[key].append(mr)
+
+            for (model_name, model_provider, llm_call_index), vals in values.items():
+                aggregate_node = LLMInferenceAggregateNode(
+                    name=f"Aggregate/{metric.name}/{model_name}/{model_provider}/Call_{llm_call_index}",
+                    metric=metric,
+                    children=[val.identifier for val in vals],
+                    model_name=model_name,
+                    model_provider=model_provider,
+                    llm_call_index=llm_call_index,
+                    forest=forest,
+                )
+
+                forest.roots.append(aggregate_node.identifier)
+                forest.add_node(aggregate_node)
