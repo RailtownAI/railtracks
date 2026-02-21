@@ -243,6 +243,10 @@ class ToolUseEvaluator(Evaluator):
                 tool_breakdown[agg.tool_name].append(agg)
 
         for tool_name in tool_breakdown:
+            if len(tool_breakdown[tool_name]) < 2:
+                raise ValueError(
+                    f"Expected multiple aggregate nodes for tool '{tool_name}' to perform cross-run aggregation, but found only one. Found nodes: {[agg.identifier for agg in tool_breakdown[tool_name]]}"
+                )
             parent = ToolAggregateNode(
                 name=f"Aggregate/{METRICS['Runtime'].name}",
                 metric=METRICS["Runtime"],
