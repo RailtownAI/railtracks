@@ -175,43 +175,35 @@ class CategoricalAggregateNode(AggregateTreeNode[Categorical]):
     
     type: str = "CategoricalAggregate"
     forest: AggregateForest[CategoricalAggregateNode, MetricResult] = Field(exclude=True) # type: ignore[assignment]
-    labels: list[str] = Field(default_factory=list)
     
     @computed_field
     @property
     def categories(self) -> list[str]:
         """Unique categories from all labels (including from children)."""
-        all_labels = self._get_all_labels()
-        return list(set(all_labels))
+        return list(self.metric.categories)
     
     @computed_field
     @property
-    def counts(self) -> dict[str, int]:
+    def counts(self) -> Counter:
         """Category counts from all labels (including from children)."""
         all_labels = self._get_all_labels()
-        return dict(Counter(all_labels))
+        counts = {category: 0 for category in self.categories}
+        for label in all_labels:
+            if label in counts:
+                counts[label] += 1
+        return Counter(counts)
     
     @computed_field
     @property
     def most_common_label(self) -> str | None:
         """Most common label across all data (including from children)."""
-        all_labels = self._get_all_labels()
-        if not all_labels:
-            return None
-        
-        counts = Counter(all_labels)
-        return counts.most_common(1)[0][0]
+        return self.counts.most_common(1)[0][0]
     
     @computed_field
     @property
     def least_common_label(self) -> str | None:
         """Least common label across all data (including from children)."""
-        all_labels = self._get_all_labels()
-        if not all_labels:
-            return None
-        
-        counts = Counter(all_labels)
-        return counts.most_common()[-1][0]
+        return self.counts.most_common()[-1][0]
     
     def _get_all_labels(self) -> list[str]:
         """Recursively collect all labels from this node and descendants."""

@@ -1,5 +1,12 @@
 from .metric_results import MetricResult, ToolMetricResult, LLMMetricResult
-from .aggregate_results import AggregateForest, AggregateTreeNode, ToolAggregateNode, LLMInferenceAggregateNode
+from .aggregate_results import (
+    AggregateForest,
+    AggregateTreeNode,
+    CategoricalAggregateNode,
+    NumericalAggregateNode,
+    ToolAggregateNode,
+    LLMInferenceAggregateNode,
+)
 from .evaluator_results import EvaluatorResult, EvaluationResult
 
 __all__ = [

@@ -144,12 +144,13 @@ def evaluate(
                 metrics_map[metric.identifier] = metric
 
         end_time = datetime.now(timezone.utc)
+
         evaluation_results.append(
             EvaluationResult(
                 evaluation_name=name or None,
                 created_at=start_time,
                 completed_at=end_time,
-                agents=[{agent_name: [adp.identifier for adp in data_dict[agent_name]]}],
+                agents=[{"agent_name": agent_name , "agent_node_ids": [adp.identifier for adp in data_dict[agent_name]]}],
                 metrics_map=metrics_map,
                 evaluator_results=evaluator_results,
             )

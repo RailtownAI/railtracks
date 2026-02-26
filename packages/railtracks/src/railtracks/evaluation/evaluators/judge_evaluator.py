@@ -1,225 +1,220 @@
-# import asyncio
-# from collections import defaultdict
-# from pathlib import Path
-# from uuid import UUID
+import asyncio
+from collections import defaultdict
+from pathlib import Path
+from uuid import UUID
 
-# import yaml
-# from pydantic import BaseModel
+import yaml
+from pydantic import BaseModel
 
-# import railtracks as rt
+import railtracks as rt
 
-# from ...utils.logging.create import get_rt_logger
-# from ..point import AgentDataPoint
-# from ..result import (
-#     AggregateCategoricalResult,
-#     AggregateNumericalResult,
-#     EvaluatorResult,
-#     MetricResult,
-# )
-# from .evaluator import Evaluator
-# from .metrics import Categorical, Metric, Numerical
+from ...utils.logging.create import get_rt_logger
+from ..point import AgentDataPoint
+from ..result import (
+    AggregateForest,
+    CategoricalAggregateNode,
+    EvaluatorResult,
+    MetricResult,
+)
+from .evaluator import Evaluator
+from .metrics import Categorical, Metric, Numerical
 
-# logger = get_rt_logger("JudgeEvaluator")
-
-
-# class JudgeResponseSchema(BaseModel):
-#     metric_value: str | float | int
-#     reasoning: str | None = None
+logger = get_rt_logger("JudgeEvaluator")
 
 
-# class JudgeEvaluator(Evaluator):
-#     def __init__(
-#         self,
-#         llm: rt.llm.ModelBase,
-#         metrics: list[Metric],
-#         system_prompt: str | None = None,
-#         reasoning: bool = True,
-#     ):
-#         """
-#         The JudgeEvaluator with a system prompt, LLM, metric, and reasoning flag.
+class JudgeResponseSchema(BaseModel):
+    metric_value: str | float | int
+    reasoning: str | None = None
 
-#         Args:
-#             system_prompt: The system prompt template for the judge LLM.
-#             llm: The LLM model to be used as the judge.
-#             metric: An optional Metric to guide the evaluation.
-#             reasoning: A flag indicating whether the judge should provide reasoning for its evaluations.
-#         """
-#         # These are config not state
-#         self._metrics: dict[str, Metric] = {m.identifier: m for m in metrics}
-#         self._llm = llm
-#         self._reasoning: bool = reasoning
-#         self._template = self._load_yaml()
-#         self._system_prompt = (
-#             system_prompt
-#             if system_prompt is not None
-#             else self._template["system_prompt"]
-#         )
-#         super().__init__()
 
-#         self._judge = rt.agent_node(
-#             llm=self._llm,
-#             output_schema=JudgeResponseSchema,
-#             tool_nodes=[],
-#         )
+class JudgeEvaluator(Evaluator):
+    def __init__(
+        self,
+        llm: rt.llm.ModelBase,
+        metrics: list[Metric],
+        system_prompt: str | None = None,
+        reasoning: bool = True,
+    ):
+        """
+        The JudgeEvaluator with a system prompt, LLM, metric, and reasoning flag.
 
-#     def run(self, data: list[AgentDataPoint]) -> EvaluatorResult[Metric, MetricResult, AggregateCategoricalResult | AggregateNumericalResult]:
+        Args:
+            system_prompt: The system prompt template for the judge LLM.
+            llm: The LLM model to be used as the judge.
+            metrics: A list of Metrics to guide the evaluation.
+            reasoning: A flag indicating whether the judge should provide reasoning for its evaluations.
+        """
+        # These are config not state
+        self._metrics: dict[str, Metric] = {m.identifier: m for m in metrics}
+        for m in metrics:
+            if isinstance(m, Categorical):
+                self._metrics[m.identifier] = m
+            else:
+                logger.warning(
+                    f"JudgeEvaluator currently only supports Categorical metrics, metric {m.name} of type {type(m)} will be skipped."
+                )
+        self._llm = llm
+        self._reasoning: bool = reasoning
+        self._template = self._load_yaml()
+        self._system_prompt = (
+            system_prompt
+            if system_prompt is not None
+            else self._template["system_prompt"]
+        )
+        super().__init__()
 
-#         # (metric_id, adp_id, JudgeResponseSchema)
-#         judge_outputs: list[tuple[str, str, JudgeResponseSchema]] = self._invoke(data)
+        self._judge = rt.agent_node(
+            llm=self._llm,
+            output_schema=JudgeResponseSchema,
+            tool_nodes=[],
+        )
 
-#         self.agent_data_ids = {adp.identifier for adp in data}
-#         results: dict[Metric, list[MetricResult]] = defaultdict(list)
+    def run(
+        self, data: list[AgentDataPoint]
+    ) -> EvaluatorResult[Metric, MetricResult, CategoricalAggregateNode]:
 
-#         for output in judge_outputs:
-#             metric = self._metrics[output[0]]
-#             results[metric].append(
-#                 MetricResult(
-#                     result_name=f"JudgeResult/{metric.name}",
-#                     metric_id=metric.identifier,
-#                     agent_data_id=[UUID(output[1])],
-#                     value=output[2].metric_value,
-#                 ),
-#             )
+        # (metric_id, adp_id, JudgeResponseSchema)
+        judge_outputs: list[tuple[str, str, JudgeResponseSchema]] = self._invoke(data)
 
-#             if self._reasoning:
-#                 reasoning_metric = Metric(name=f"{metric.name}_reasoning")
-#                 if output[2].reasoning is not None:
-#                     results[reasoning_metric].append(
-#                         MetricResult(
-#                             result_name=f"JudgeReasoning/{metric.name}",
-#                             metric_id=reasoning_metric.identifier,
-#                             agent_data_id=[UUID(output[1])],
-#                             value=output[2].reasoning,
-#                         )
-#                     )
-#                 else:
-#                     logger.warning(
-#                         f"No reasoning returned for Judge Evaluator Metric: {metric.name}, AgentDataPoint ID: {output[1]}"
-#                     )
+        self.agent_data_ids = {adp.identifier for adp in data}
+        results: dict[Metric, list[MetricResult]] = defaultdict(list)
+        forest = AggregateForest[CategoricalAggregateNode, MetricResult]()
 
-#         self.aggregate_results = self._aggregate_metrics(results)
+        for output in judge_outputs:
+            metric = self._metrics[output[0]]
 
-#         self._result = EvaluatorResult(
-#             evaluator_name=self.name,
-#             evaluator_id=self.identifier,
-#             agent_data_ids=self.agent_data_ids,
-#             metric_results=[item for sublist in results.values() for item in sublist],
-#             aggregate_results=self.aggregate_results,
-#             metrics=list(self._metrics.values()),
-#         )
-#         return self._result
+            metric_result = MetricResult(
+                result_name=f"JudgeResult/{metric.name}",
+                metric_id=metric.identifier,
+                agent_data_id=[UUID(output[1])],
+                value=output[2].metric_value,
+            )
+            results[metric].append(metric_result)
+            forest.add_node(metric_result)
 
-#     def __repr__(self) -> str:
-#         return (
-#             f"JudgeEvaluator, "
-#             f"llm={self._llm}, "
-#             f"metrics={list(self._metrics.values())}, "
-#             f"reasoning={self._reasoning})"
-#         )
-    
-#     def _invoke(self, data: list[AgentDataPoint])->list[tuple[str, str, JudgeResponseSchema]]:
+            if self._reasoning:
+                reasoning_metric = Metric(name=f"{metric.name}_reasoning")
+                if output[2].reasoning is not None:
+                    results[reasoning_metric].append(
+                        MetricResult(
+                            result_name=f"JudgeReasoning/{metric.name}",
+                            metric_id=reasoning_metric.identifier,
+                            agent_data_id=[UUID(output[1])],
+                            value=output[2].reasoning,
+                        )
+                    )
+                else:
+                    logger.warning(
+                        f"No reasoning returned for Judge Evaluator Metric: {metric.name}, AgentDataPoint ID: {output[1]}"
+                    )
 
-#         @rt.function_node
-#         async def judge_flow():
-#             output = []
-#             for metric in self._metrics.values():
-#                 for adp in data:
+        self._aggregate_metrics(results, forest)
 
-#                     user_message = self._generate_user_prompt(adp)
-#                     system_message = self._generate_system_prompt(metric)
-#                     message_history = rt.llm.MessageHistory(
-#                         [
-#                             rt.llm.SystemMessage(system_message),
-#                             rt.llm.UserMessage(user_message),
-#                         ]
-#                     )
-#                     res = await rt.call(
-#                         self._judge,
-#                         message_history,
-#                     )
-#                     output.append((metric.identifier, str(adp.identifier), res.structured))
+        self._result = EvaluatorResult(
+            evaluator_name=self.name,
+            evaluator_id=self.identifier,
+            agent_data_ids=self.agent_data_ids,
+            metric_results=[item for sublist in results.values() for item in sublist],
+            aggregate_results=forest,
+            metrics=list(self._metrics.values()),
+        )
+        return self._result
 
-#             return output
-        
-#         judge_evaluator_flow = rt.Flow(
-#             name="JudgeEvaluatorFlow",
-#             entry_point=judge_flow,
-#             logging_setting="CRITICAL",
-#             save_state=False,
-#         )
+    def __repr__(self) -> str:
+        return (
+            f"JudgeEvaluator, "
+            f"llm={self._llm}, "
+            f"metrics={list(self._metrics.values())}, "
+            f"reasoning={self._reasoning})"
+        )
 
-#         return judge_evaluator_flow.invoke()
-    
-#     def _aggregate_metrics(
-#         self,
-#         results: dict[Metric, list[MetricResult]],
-#     ) -> list[AggregateCategoricalResult | AggregateNumericalResult]:
+    def _invoke(
+        self, data: list[AgentDataPoint]
+    ) -> list[tuple[str, str, JudgeResponseSchema]]:
 
-#         aggregates: list[AggregateCategoricalResult | AggregateNumericalResult] = []
+        @rt.function_node
+        async def judge_flow():
+            output = []
+            for metric in self._metrics.values():
+                for adp in data:
 
-#         for metric in results:
-#             # TODO: the conditions of type checking in values and labels feels it can be better addressed
-#             if isinstance(metric, Numerical):
-#                 aggregates.append(
-#                     AggregateNumericalResult(
-#                         metric=metric,
-#                         values=[
-#                             m.value
-#                             for m in results[metric]
-#                             if isinstance(m.value, (int, float))
-#                         ],
-#                     )
-#                 )
-#             elif isinstance(metric, Categorical):
-#                 aggregates.append(
-#                     AggregateCategoricalResult(
-#                         metric=metric,
-#                         labels=[
-#                             m.value
-#                             for m in results[metric]
-#                             if isinstance(m.value, str)
-#                         ],
-#                     )
-#                 )
-#             elif "_reasoning" in metric.name:  # TODO: this is hacky, fix later
-#                 continue
-#             else:
-#                 logger.warning(
-#                     f"Supported metrics are of types Categorical or Numerical, encountered f{type(metric)}"
-#                 )
+                    user_message = self._generate_user_prompt(adp)
+                    system_message = self._generate_system_prompt(metric)
+                    message_history = rt.llm.MessageHistory(
+                        [
+                            rt.llm.SystemMessage(system_message),
+                            rt.llm.UserMessage(user_message),
+                        ]
+                    )
+                    res = await rt.call(
+                        self._judge,
+                        message_history,
+                    )
+                    output.append(
+                        (metric.identifier, str(adp.identifier), res.structured)
+                    )
 
-#         return aggregates
+            return output
 
-#     def _generate_user_prompt(self, data: AgentDataPoint) -> str:
-#         return self._template["user"].format(
-#             agent_input=data.agent_input,
-#             agent_output=data.agent_output.get("message_history", ""),
-#         )
+        judge_evaluator_flow = rt.Flow(
+            name="JudgeEvaluatorFlow",
+            entry_point=judge_flow,
+            logging_setting="CRITICAL",
+            save_state=False,
+        )
 
-#     def _generate_system_prompt(self, metric: Metric) -> str:
+        return judge_evaluator_flow.invoke()
 
-#         system_prompt: str = self._template["system_prompt"]
+    def _aggregate_metrics(
+        self,
+        results: dict[Metric, list[MetricResult]],
+        forest: AggregateForest[CategoricalAggregateNode, MetricResult],
+    ) -> None:
 
-#         system_prompt += "\n" + self._template["metric"].format(metric=str(metric))
+        for metric in results:
+            if isinstance(metric, Numerical):
+                continue
+            elif isinstance(metric, Categorical):
+                aggregate_node = CategoricalAggregateNode(
+                    name=f"Aggregate/{metric.name}",
+                    metric=metric,
+                    children=[val.identifier for val in results[metric]],
+                    forest=forest,
+                )
 
-#         if self._reasoning:
-#             system_prompt += self._template["reasoning"]
+                forest.roots.append(aggregate_node.identifier)
+                forest.add_node(aggregate_node)
 
-#         return system_prompt
+    def _generate_user_prompt(self, data: AgentDataPoint) -> str:
+        return self._template["user"].format(
+            agent_input=data.agent_input,
+            agent_output=data.agent_output.get("message_history", ""),
+        )
 
-#     def _load_yaml(self):
-#         yaml_path = Path(__file__).parent / "judge_evaluator.yaml"
-#         with open(yaml_path, "r") as f:
-#             template = yaml.safe_load(f)
+    def _generate_system_prompt(self, metric: Metric) -> str:
 
-#         return template
+        system_prompt: str = self._template["system_prompt"]
 
-#     def _get_config(self) -> dict:
-#         # TODO: improve llm judge serialization if needed
-#         return {
-#             "llm": self._llm.model_name(),
-#             "llm_provider": self._llm.model_provider(),
-#             "system_prompt": self._system_prompt,
-#             "metrics": sorted(self._metrics.keys()),
-#             "reasoning": self._reasoning,
-#         }
+        system_prompt += "\n" + self._template["metric"].format(metric=str(metric))
+
+        if self._reasoning:
+            system_prompt += self._template["reasoning"]
+
+        return system_prompt
+
+    def _load_yaml(self):
+        yaml_path = Path(__file__).parent / "judge_evaluator.yaml"
+        with open(yaml_path, "r") as f:
+            template = yaml.safe_load(f)
+
+        return template
+
+    def _get_config(self) -> dict:
+        # TODO: improve llm judge serialization if needed
+        return {
+            "llm": self._llm.model_name(),
+            "llm_provider": self._llm.model_provider(),
+            "system_prompt": self._system_prompt,
+            "metrics": sorted(self._metrics.keys()),
+            "reasoning": self._reasoning,
+        }
