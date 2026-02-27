@@ -11,7 +11,7 @@ from railtracks.exceptions import ContextError
 if TYPE_CHECKING:
     from railtracks.pubsub.publisher import RTPublisher
 
-from railtracks.utils.config import ExecutorConfig
+from railtracks.utils.config import _UNSET, ExecutorConfig
 from railtracks.utils.logging.config import AllowableLogLevels
 
 from ..utils.logging.config import configure_module_logging
@@ -358,15 +358,15 @@ def keys() -> KeysView[str]:
 
 def set_config(
     *,
-    timeout: float | None = None,
-    end_on_error: bool | None = None,
-    logging_setting: AllowableLogLevels | None = None,
-    log_file: str | os.PathLike | None = None,
+    timeout: float | None | Any = _UNSET,
+    end_on_error: bool | None | Any = _UNSET,
+    logging_setting: AllowableLogLevels | None | Any = _UNSET,
+    log_file: str | os.PathLike | None | Any = _UNSET,
     broadcast_callback: (
-        Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
-    ) = None,
-    prompt_injection: bool | None = None,
-    save_state: bool | None = None,
+        Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None | Any
+    ) = _UNSET,
+    prompt_injection: bool | None | Any = _UNSET,
+    save_state: bool | None | Any = _UNSET,
 ):
     """
     Sets the global configuration for the executor. This will be propagated to all new runners created after this call.
@@ -384,9 +384,12 @@ def set_config(
 
     config = global_executor_config.get()
 
-    if logging_setting or log_file:
+    if logging_setting is not _UNSET or log_file is not _UNSET:
         # default will be set at module import time, this is for overwrites
-        configure_module_logging(level=logging_setting, log_file=log_file)
+        configure_module_logging(
+            level=logging_setting if logging_setting is not _UNSET else None,
+            log_file=log_file if log_file is not _UNSET else None,
+        )
 
     new_config = config.precedence_overwritten(
         timeout=timeout,

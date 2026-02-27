@@ -61,12 +61,12 @@ class ExecutorConfig:
         return self._logging_setting
 
     @logging_setting.setter
-    def logging_setting(self, value: AllowableLogLevels | None):
-        if value is not None and value not in str_to_log_level:
+    def logging_setting(self, value: AllowableLogLevels):
+        if value not in str_to_log_level:
             raise ValueError(
                 f"logging_setting must be one of {str_to_log_level}, got {value}"
             )
-        self._logging_setting: AllowableLogLevels | None = value
+        self._logging_setting: AllowableLogLevels = value
 
     def precedence_overwritten(
         self,

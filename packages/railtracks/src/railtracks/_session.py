@@ -25,7 +25,7 @@ from .state.info import (
     ExecutionInfo,
 )
 from .state.state import RTState
-from .utils.config import ExecutorConfig
+from .utils.config import _UNSET, ExecutorConfig
 from .utils.logging.config import (
     AllowableLogLevels,
     mark_session_logging_override,
@@ -82,16 +82,16 @@ class Session:
         flow_name: str | None = None,
         flow_id: str | None = None,
         name: str | None = None,
-        timeout: float | None = None,
-        end_on_error: bool | None = None,
-        logging_setting: AllowableLogLevels | None = None,
-        log_file: str | os.PathLike | None = None,
+        timeout: float | None | Any = _UNSET,
+        end_on_error: bool | None | Any = _UNSET,
+        logging_setting: AllowableLogLevels | None | Any = _UNSET,
+        log_file: str | os.PathLike | None | Any = _UNSET,
         broadcast_callback: (
-            Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
-        ) = None,
-        prompt_injection: bool | None = None,
-        save_state: bool | None = None,
-        payload_callback: Callable[[dict[str, Any]], None] | None = None,
+            Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None | Any
+        ) = _UNSET,
+        prompt_injection: bool | None | Any = _UNSET,
+        save_state: bool | None | Any = _UNSET,
+        payload_callback: Callable[[dict[str, Any]], None] | None | Any = _UNSET,
     ):
         # first lets read from defaults if nessecary for the provided input config
 
@@ -119,7 +119,7 @@ class Session:
         self.flow_name = flow_name
         self.flow_id = flow_id
 
-        self._has_custom_logging = logging_setting is not None or log_file is not None
+        self._has_custom_logging = logging_setting is not _UNSET or log_file is not _UNSET
 
         if self._has_custom_logging:
             mark_session_logging_override(
@@ -156,16 +156,16 @@ class Session:
     @classmethod
     def global_config_precedence(
         cls,
-        timeout: float | None,
-        end_on_error: bool | None,
-        logging_setting: AllowableLogLevels | None,
-        log_file: str | os.PathLike | None,
+        timeout: float | None | Any = _UNSET,
+        end_on_error: bool | None | Any = _UNSET,
+        logging_setting: AllowableLogLevels | None | Any = _UNSET,
+        log_file: str | os.PathLike | None | Any = _UNSET,
         broadcast_callback: (
-            Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
-        ),
-        prompt_injection: bool | None,
-        save_state: bool | None,
-        payload_callback: Callable[[dict[str, Any]], None] | None,
+            Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None | Any
+        ) = _UNSET,
+        prompt_injection: bool | None | Any = _UNSET,
+        save_state: bool | None | Any = _UNSET,
+        payload_callback: Callable[[dict[str, Any]], None] | None | Any = _UNSET,
     ) -> ExecutorConfig:
         """
         Uses the following precedence order to determine the configuration parameters:
@@ -384,15 +384,15 @@ def session(
     *,
     name: str | None = None,
     context: Dict[str, Any] | None = None,
-    timeout: float | None = None,
-    end_on_error: bool | None = None,
-    logging_setting: AllowableLogLevels | None = None,
-    log_file: str | os.PathLike | None = None,
+    timeout: float | None | Any = _UNSET,
+    end_on_error: bool | None | Any = _UNSET,
+    logging_setting: AllowableLogLevels | None | Any = _UNSET,
+    log_file: str | os.PathLike | None | Any = _UNSET,
     broadcast_callback: (
-        Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
-    ) = None,
-    prompt_injection: bool | None = None,
-    save_state: bool | None = None,
+        Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None | Any
+    ) = _UNSET,
+    prompt_injection: bool | None | Any = _UNSET,
+    save_state: bool | None | Any = _UNSET,
 ) -> (
     Callable[_P, Coroutine[Any, Any, Tuple[_TOutput, Session]]]
     | Callable[
