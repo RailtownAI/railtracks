@@ -39,8 +39,20 @@ class ExecutorConfig:
         self.subscriber = broadcast_callback
         self.log_file = log_file
         self.prompt_injection = prompt_injection
-        self.save_state = save_state
+        # During test runs, disable save_state by default unless RAILTRACKS_ALLOW_PERSISTENCE is set
+        self._user_save_state = save_state
+
         self.payload_callback = payload_callback
+
+    # this is done because if we try to lock the save_state in init
+    # later when we want to allow a few tests to actually run persistance, they wont be able to do so
+    @property
+    def save_state(self) -> bool:
+        if os.getenv("RAILTRACKS_TEST_MODE") and not os.getenv(
+            "RAILTRACKS_ALLOW_PERSISTENCE"
+        ):
+            return False
+        return self._user_save_state
 
     @property
     def logging_setting(self) -> AllowableLogLevels:

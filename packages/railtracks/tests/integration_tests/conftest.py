@@ -47,11 +47,12 @@ def isolated_test_directory(tmp_path_factory):
 
 
 import asyncio
-
 import railtracks as rt
 
 import random
 from datetime import datetime, timedelta
+import json
+
 
 @rt.function_node
 async def search_flights():
@@ -172,9 +173,6 @@ def planner_node():
 @pytest.fixture
 def planner_with_llm_node():
     return planner_with_llm
-
-
-import json
 
 
 @pytest.fixture

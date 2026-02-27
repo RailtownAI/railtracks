@@ -12,11 +12,27 @@ hide:
     Minimal. Extensible. Designed for developers.
   </p>
 
+  <div style="margin-top: 1.5rem; max-width: 800px; margin-left: auto; margin-right: auto;">
+    <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 12px;">
+      <iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 12px;" src="https://player.vimeo.com/video/1166415069" title="Building with Railtracks" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+    </div>
+  </div>
+
 <a href="quickstart/quickstart" class="md-button md-button--primary">Quickstart</a> <a href="https://github.com/RailtownAI/railtracks-examples" class="md-button">Browse examples</a>
 
-  <div style="margin-top: 1.5rem;">
-    <iframe width="600" height="325" src="https://www.youtube.com/embed/0WJ_I_zWX8I" title="Welcome to Railtracks" frameborder="0" allowfullscreen></iframe>
-  </div>
+</div>
+---
+
+<div style="text-align: center;">
+  <h1>Agent Observability</h1>
+<div style="margin-top: -1.0rem; text-align: center; max-width: 800px; margin-left: auto; margin-right: auto;">
+    <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 12px;">
+      <iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 12px;" src="https://player.vimeo.com/video/1166415035" title="Observability with Railtracks" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+    </div>
+</div>
+</div>
+<div style="text-align: center; margin-top: 1rem;">
+  <a href="observability/visualization" class="md-button">Get started with Observability</a>
 </div>
 
 ---
@@ -62,10 +78,14 @@ The same flow model supports a range of agent architectures without introducing 
   </a>
 
 </div>
+<div style="margin-top: 1.5rem; text-align: center; max-width: 800px; margin-left: auto; margin-right: auto;">
+    <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 12px;">
+      <iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 12px;" src="https://player.vimeo.com/video/1166415011" title="Flows with Railtracks" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+    </div>
+</div>
 <div style="text-align: center; margin-top: 1rem;">
   <a href="architectures/overview" class="md-button">Checkout other architectures</a>
 </div>
-
 
 ---
 

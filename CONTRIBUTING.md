@@ -142,6 +142,28 @@ Command-line interface that gives you a visualizer to use with the system.
 
    **Note on Tests: Our repo uses end-to-end testing for ensuring appropriate external API invocations. Once you create a PR, the workflow checks that run on your PR include all the tests that do not require keys or secrets. After the passing of these tests, a maintainer will run the end-to-end tests before giving your PR an approval or providing you with the relevant output of end-to-end failures.
 
+
+### Test Environment & Persistence
+
+Railtracks uses environment variables to prevent filesystem pollution during test runs.
+
+When running the test suite, the `RAILTRACKS_TEST_MODE` environment variable is automatically enabled via `conftest.py`. In this mode:
+
+- Session persistence is disabled by default.
+- No `.railtracks` directory will be created or modified.
+- This prevents accidental deletion or pollution of user data during testing.
+
+If a test needs to verify persistence behavior, it can opt in by enabling:
+
+```bash
+RAILTRACKS_ALLOW_PERSISTENCE=1
+````
+
+A helper fixture (`allow_persistence`) is provided in the test suite for this purpose.
+
+These environment variables only affect test runs and do not change production behavior.
+
+
 ## Common Issues
 
 ### Test failures
