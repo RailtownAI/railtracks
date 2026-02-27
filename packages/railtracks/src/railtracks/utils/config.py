@@ -76,7 +76,10 @@ class ExecutorConfig:
         logging_setting: AllowableLogLevels | None | Any = _UNSET,
         log_file: str | os.PathLike | None | Any = _UNSET,
         subscriber: (
-            Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None | Any
+            Callable[[str], None]
+            | Callable[[str], Coroutine[None, None, None]]
+            | None
+            | Any
         ) = _UNSET,
         prompt_injection: bool | None | Any = _UNSET,
         save_state: bool | None | Any = _UNSET,
@@ -101,7 +104,9 @@ class ExecutorConfig:
             if prompt_injection is not _UNSET
             else self.prompt_injection,
             save_state=save_state if save_state is not _UNSET else self.save_state,
-            payload_callback=payload_callback if payload_callback is not _UNSET else self.payload_callback,
+            payload_callback=payload_callback
+            if payload_callback is not _UNSET
+            else self.payload_callback,
         )
 
     def __repr__(self):
