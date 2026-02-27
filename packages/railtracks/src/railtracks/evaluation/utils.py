@@ -14,7 +14,7 @@ def save(results: list[EvaluationResult]):
         fp.parent.mkdir(parents=True, exist_ok=True)
         if fp.exists():
             raise Exception(f"Evaluation result with id {result.evaluation_id} already exists.")
-        fp.write_text(json.dumps(result.model_dump(mode="json"), indent=2))
+        fp.write_text(json.dumps(result.model_dump(mode="json")))
 
 
 # def save_agent_runs(evaluation_id: UUID, agent_runs: list):
