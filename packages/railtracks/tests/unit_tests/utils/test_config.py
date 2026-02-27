@@ -150,3 +150,25 @@ def test_multiple_updated(base_config):
 
     assert base_config.timeout == 100.0
     assert base_config.log_file is None
+
+def test_timeout_none_preserved_at_init():
+    """Explicitly passing timeout=None should disable the timeout (not fall back to 150.0)."""
+    config = ExecutorConfig(timeout=None)
+    assert config.timeout is None
+
+def test_precedence_overwritten_timeout_none_overrides_float(base_config):
+    """precedence_overwritten(timeout=None) should override an existing float timeout with None."""
+    assert base_config.timeout == 100.0
+    updated_config = base_config.precedence_overwritten(timeout=None)
+    assert updated_config.timeout is None
+
+def test_precedence_overwritten_preserves_none_timeout():
+    """When the base config has timeout=None, calling precedence_overwritten() without a timeout should keep None."""
+    config = ExecutorConfig(timeout=None)
+    updated_config = config.precedence_overwritten()
+    assert updated_config.timeout is None
+
+def test_precedence_overwritten_without_timeout_keeps_existing_float(base_config):
+    """Calling precedence_overwritten() without specifying timeout should preserve the original float value."""
+    updated_config = base_config.precedence_overwritten()
+    assert updated_config.timeout == base_config.timeout
