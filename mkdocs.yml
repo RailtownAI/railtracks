@@ -141,6 +141,7 @@ nav:
       - Streaming: llm_support/streaming.md
 
   - Evaluations:
+      - Quickstart: evaluations/quickstart.md
       - Preface: evaluations/preface.md
       - Data:
         - Agent Datapoints: evaluations/data/agent_data.md
