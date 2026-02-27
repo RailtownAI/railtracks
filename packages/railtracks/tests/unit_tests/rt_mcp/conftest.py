@@ -1,17 +1,18 @@
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import timedelta
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+import railtracks.rt_mcp.jupyter_compat
 from mcp import ClientSession, StdioServerParameters
 from railtracks.llm import Parameter
-from railtracks.rt_mcp.main import MCPHttpParams
 from railtracks.nodes.nodes import Node
+from railtracks.rt_mcp.main import MCPHttpParams
 
 # ================= START patch fixtures ================
 
 @pytest.fixture
 def reset_patched_flag():
     """Reset the _patched flag to simulate a fresh import."""
-    import railtracks.rt_mcp.jupyter_compat
     original_value = railtracks.rt_mcp.jupyter_compat._patched
     railtracks.rt_mcp.jupyter_compat._patched = False
     yield

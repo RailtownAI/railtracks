@@ -3,7 +3,6 @@ system_prompt:
 user: |
   Agent Input: {agent_input}
   Agent Output: {agent_output}
-  Agent Internals: {agent_internals}
 metric: |
   Please provide your feedback using the following criteria:
   {metric}

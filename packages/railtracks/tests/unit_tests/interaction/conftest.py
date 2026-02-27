@@ -24,7 +24,6 @@ def mock_context_functions():
     with patch('railtracks.interaction._call.is_context_present') as present, \
          patch('railtracks.interaction._call.is_context_active') as active, \
          patch('railtracks.interaction._call.activate_publisher') as activate, \
-         patch('railtracks.interaction._call.shutdown_publisher') as shutdown, \
          patch('railtracks.interaction._call.get_publisher') as get_pub, \
          patch('railtracks.interaction._call.get_parent_id') as get_parent, \
          patch('railtracks.interaction._call.get_run_id') as get_run, \
@@ -38,7 +37,6 @@ def mock_context_functions():
             'is_context_present': present,
             'is_context_active': active,
             'activate_publisher': activate,
-            'shutdown_publisher': shutdown,
             'get_publisher': get_pub,
             'get_parent_id': get_parent,
             'get_local_config': get_config

@@ -41,6 +41,8 @@ theme:
 plugins:
   - search
 
+
+
 markdown_extensions:
   - pymdownx.emoji:
       emoji_generator: !!python/name:pymdownx.emoji.to_svg
@@ -71,18 +73,23 @@ nav:
 
   - Quickstart: quickstart/quickstart.md
 
-  - Background:
-      - Agents: background/agents.md
-      - Tools: background/tools.md
-      - RAG: background/RAG.md
-      - Async/Await: background/async_await.md
-      - Vector Stores: background/vector_store.md
+  - Architectures:
+      - Overview: architectures/overview.md
+      - Validation Loops: architectures/validation_loop.md
+    #   - Sequential Flows: architectures/sequential.md
   
   - Tutorials:
       - Building your first agent: tutorials/byfa.md
       - Running your first agent: tutorials/ryfa.md
       - RAG system: tutorials/rag_tutorial.md
       - Vector Stores: tutorials/vector_store_tutorial.md
+
+  - Background:
+      - Agents: background/agents.md
+      - Tools: background/tools.md
+      - RAG: background/RAG.md
+      - Async/Await: background/async_await.md
+      - Vector Stores: background/vector_store.md
 
   - Tools + MCP:
       - Equip your LLMs: tools_mcp/tools_mcp.md
@@ -108,6 +115,7 @@ nav:
   
   - Vector Stores:
       - Overview: vector_stores/vector_store_info.md
+      - Filtering: vector_stores/filtering.md
       - Integrations:
           - Chroma: vector_stores/integrations/chroma.md
 
@@ -133,6 +141,7 @@ nav:
       - Streaming: llm_support/streaming.md
 
   - Evaluations:
+      - Quickstart: evaluations/quickstart.md
       - Preface: evaluations/preface.md
       - Data:
         - Agent Datapoints: evaluations/data/agent_data.md
@@ -158,13 +167,13 @@ nav:
   # - Samples:
   #     - samples/index.md
 
-  # - System Internals:
-  #     - Overview: system_internals/overview.md
-  #     - Core Concepts: system_internals/concepts.md
-  #     - Node Abstraction: system_internals/node.md
-  #     - Session Management: system_internals/session.md
-  #     - PubSub Messaging: system_internals/pubsub.md
-  #     - Coordinator Orchestration: system_internals/coordinator.md
+  - System Internals:
+      - Overview: system_internals/overview.md
+      - Core Concepts: system_internals/concepts.md
+      - Node Abstraction: system_internals/node.md
+      - Session Management: system_internals/session.md
+      - PubSub Messaging: system_internals/pubsub.md
+      - Coordinator Orchestration: system_internals/coordinator.md
 
   - API Reference: api_reference/railtracks.html
 

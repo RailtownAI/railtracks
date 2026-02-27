@@ -1,7 +1,7 @@
-import pytest
-from unittest.mock import patch, AsyncMock, MagicMock
-from railtracks.rt_mcp.main import MCPHttpParams, MCPAsyncClient, from_mcp, MCPServer
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+from railtracks.rt_mcp.main import MCPAsyncClient, MCPHttpParams, MCPServer, from_mcp
 
 # ============= START MCPHttpParams tests =============
 

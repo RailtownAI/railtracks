@@ -5,7 +5,7 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 from ...utils.logging.create import get_rt_logger
-from ...utils.point import AgentDataPoint
+from ..point import AgentDataPoint
 
 logger = get_rt_logger("EvaluationDataset")
 

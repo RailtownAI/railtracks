@@ -10,14 +10,12 @@ import shutil
 import socket
 import sys
 import tempfile
-import time
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-import railtracks_cli
 from fastapi.testclient import TestClient
 
 from railtracks_cli import (
@@ -166,7 +164,7 @@ class TestFastAPIEndpoints(unittest.TestCase):
         os.chdir(self.test_dir)
 
         # Create .railtracks directory
-        railtracks_dir = Path(".railtracks")
+        railtracks_dir = Path(os.environ.get("RAILTRACKS_HOME", ".railtracks"))
         railtracks_dir.mkdir()
 
         # Create test JSON files in root

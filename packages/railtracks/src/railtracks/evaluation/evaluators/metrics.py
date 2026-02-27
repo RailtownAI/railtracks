@@ -1,18 +1,16 @@
 import hashlib
 import json
-from typing import Generic, TypeVar
+from typing import Generic, TypeVar, Annotated, Union, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class Metric(BaseModel):
     name: str
-    metric_type: str = Field(default="Metric", init=False)
+    metric_type: Literal["Metric"] = "Metric"
     identifier: str = ""
     model_config = ConfigDict(frozen=True)
-    
-    def __init_subclass__(cls):
-        cls.model_fields["metric_type"].default = cls.__name__
+    description: str | None = None
     
     @model_validator(mode="before")
     @classmethod
@@ -53,12 +51,14 @@ class Metric(BaseModel):
 
 
 class Categorical(Metric):
+    metric_type: Literal["Categorical"] = "Categorical" #type: ignore[assignment]
     categories: list[str]
 
 
 T = TypeVar("T", int, float)
 
 class Numerical(Metric, Generic[T]):
+    metric_type: Literal["Numerical"] = "Numerical" #type: ignore[assignment]
     min_value: T | None = None
     max_value: T | None = None
 
@@ -74,8 +74,13 @@ class Numerical(Metric, Generic[T]):
 
 class LLMMetric(Numerical):
     """A Numerical metric specific to LLM usage statistics."""
-    pass # TODO: needed?
+    metric_type: Literal["LLMMetric"] = "LLMMetric" #type: ignore[assignment]
 
 class ToolMetric(Numerical):
     """A Numerical metric specific to tool usage statistics."""
-    pass # TODO: needed?
+    metric_type: Literal["ToolMetric"] = "ToolMetric" #type: ignore[assignment]
+
+METRIC_TYPES = Annotated[
+    Union[LLMMetric, ToolMetric, Numerical, Categorical, Metric],
+    Field(discriminator='metric_type')
+]

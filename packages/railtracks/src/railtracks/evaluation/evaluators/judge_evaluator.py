@@ -5,15 +5,14 @@ from uuid import UUID
 
 import yaml
 from pydantic import BaseModel
-from tqdm import tqdm
 
 import railtracks as rt
 
 from ...utils.logging.create import get_rt_logger
-from ...utils.point import AgentDataPoint
+from ..point import AgentDataPoint
 from ..result import (
-    AggregateCategoricalResult,
-    AggregateNumericalResult,
+    AggregateForest,
+    CategoricalAggregateNode,
     EvaluatorResult,
     MetricResult,
 )
@@ -34,6 +33,8 @@ class JudgeEvaluator(Evaluator):
         llm: rt.llm.ModelBase,
         metrics: list[Metric],
         system_prompt: str | None = None,
+        timeout: float | None = None,
+        verbose: bool = False,
         reasoning: bool = True,
     ):
         """
@@ -42,11 +43,18 @@ class JudgeEvaluator(Evaluator):
         Args:
             system_prompt: The system prompt template for the judge LLM.
             llm: The LLM model to be used as the judge.
-            metric: An optional Metric to guide the evaluation.
+            metrics: A list of Metrics to guide the evaluation.
             reasoning: A flag indicating whether the judge should provide reasoning for its evaluations.
         """
         # These are config not state
         self._metrics: dict[str, Metric] = {m.identifier: m for m in metrics}
+        for m in metrics:
+            if isinstance(m, Categorical):
+                self._metrics[m.identifier] = m
+            else:
+                logger.warning(
+                    f"JudgeEvaluator currently only supports Categorical metrics, metric {m.name} of type {type(m)} will be skipped."
+                )
         self._llm = llm
         self._reasoning: bool = reasoning
         self._template = self._load_yaml()
@@ -57,33 +65,36 @@ class JudgeEvaluator(Evaluator):
         )
         super().__init__()
 
+        self.timeout = timeout
+        self.verbose = verbose
         self._judge = rt.agent_node(
-            system_message=self._system_prompt,
             llm=self._llm,
             output_schema=JudgeResponseSchema,
             tool_nodes=[],
         )
 
-    def run(self, data: list[AgentDataPoint]) -> EvaluatorResult:
+    def run(
+        self, data: list[AgentDataPoint]
+    ) -> EvaluatorResult[Metric, MetricResult, CategoricalAggregateNode]:
 
         # (metric_id, adp_id, JudgeResponseSchema)
-        judge_outputs: list[tuple[str, str, JudgeResponseSchema]] = asyncio.run(
-            self._session(data)
-        )
+        judge_outputs: list[tuple[str, str, JudgeResponseSchema]] = self._invoke(data)
 
         self.agent_data_ids = {adp.identifier for adp in data}
         results: dict[Metric, list[MetricResult]] = defaultdict(list)
+        forest = AggregateForest[CategoricalAggregateNode, MetricResult]()
 
         for output in judge_outputs:
             metric = self._metrics[output[0]]
-            results[metric].append(
-                MetricResult(
-                    result_name=f"JudgeResult/{metric.name}",
-                    metric_id=metric.identifier,
-                    agent_data_id=[UUID(output[1])],
-                    value=output[2].metric_value,
-                ),
+
+            metric_result = MetricResult(
+                result_name=f"JudgeResult/{metric.name}",
+                metric_id=metric.identifier,
+                agent_data_id=[UUID(output[1])],
+                value=output[2].metric_value,
             )
+            results[metric].append(metric_result)
+            forest.add_node(metric_result)
 
             if self._reasoning:
                 reasoning_metric = Metric(name=f"{metric.name}_reasoning")
@@ -101,14 +112,14 @@ class JudgeEvaluator(Evaluator):
                         f"No reasoning returned for Judge Evaluator Metric: {metric.name}, AgentDataPoint ID: {output[1]}"
                     )
 
-        self.aggregate_results = self._aggregate_metrics(results)
+        self._aggregate_metrics(results, forest)
 
         self._result = EvaluatorResult(
             evaluator_name=self.name,
             evaluator_id=self.identifier,
             agent_data_ids=self.agent_data_ids,
-            results=[item for sublist in results.values() for item in sublist]
-            + self.aggregate_results,
+            metric_results=[item for sublist in results.values() for item in sublist],
+            aggregate_results=forest,
             metrics=list(self._metrics.values()),
         )
         return self._result
@@ -121,86 +132,71 @@ class JudgeEvaluator(Evaluator):
             f"reasoning={self._reasoning})"
         )
 
-    async def _session(
+    def _invoke(
         self, data: list[AgentDataPoint]
     ) -> list[tuple[str, str, JudgeResponseSchema]]:
 
-        # put this as none for now to not pollute agent_data
-        with rt.Session(save_data=False, logging_setting="CRITICAL"):
-
-            # TODO: uncomment after https://github.com/RailtownAI/railtracks/issues/884 is resolved
-            # self._session_id = session._identifier
-            # tasks = [rt.call(self._judge, p[1]) for p in prompt]
-            # response = await asyncio.gather(*tasks)
-            # output = [(p[0], res.structured) for p, res in zip(prompt, response)]
+        @rt.function_node
+        async def judge_flow():
             output = []
             for metric in self._metrics.values():
-                for adp in tqdm(
-                    data,
-                    desc=f"LLMJudge Evaluating Agent Datapoints for metric: {metric.name}",
-                ):
-
+                if self.verbose:
+                    logger.info(f"START Evaluating Metric: {metric.name} for {len(data)} AgentDataPoints")
+                for idx, adp in enumerate(data):
                     user_message = self._generate_user_prompt(adp)
                     system_message = self._generate_system_prompt(metric)
-
+                    message_history = rt.llm.MessageHistory(
+                        [
+                            rt.llm.SystemMessage(system_message),
+                            rt.llm.UserMessage(user_message),
+                        ]
+                    )
                     res = await rt.call(
                         self._judge,
-                        rt.llm.MessageHistory(
-                            [
-                                rt.llm.SystemMessage(system_message),
-                                rt.llm.UserMessage(user_message),
-                            ]
-                        ),
+                        message_history,
                     )
-                    output.append((metric.identifier, str(adp.identifier), res.structured))
+                    output.append(
+                        (metric.identifier, str(adp.identifier), res.structured)
+                    )
+                    if self.verbose:
+                        logger.info(f"AgentDataPoint ID: {adp.identifier} {idx + 1}/{len(data)} DONE")
 
-        return output
+            return output
+
+        judge_evaluator_flow = rt.Flow(
+            name="JudgeEvaluatorFlow",
+            entry_point=judge_flow,
+            logging_setting="INFO" if self.verbose else "CRITICAL",
+            timeout=self.timeout,
+            save_state=False,
+        )
+
+        return judge_evaluator_flow.invoke()
 
     def _aggregate_metrics(
         self,
         results: dict[Metric, list[MetricResult]],
-    ) -> list[AggregateCategoricalResult | AggregateNumericalResult]:
-
-        aggregates: list[AggregateCategoricalResult | AggregateNumericalResult] = []
+        forest: AggregateForest[CategoricalAggregateNode, MetricResult],
+    ) -> None:
 
         for metric in results:
-            # TODO: the conditions of type checking in values and labels feels it can be better addressed
             if isinstance(metric, Numerical):
-                aggregates.append(
-                    AggregateNumericalResult(
-                        metric=metric,
-                        values=[
-                            m.value
-                            for m in results[metric]
-                            if isinstance(m.value, (int, float))
-                        ],
-                    )
-                )
-            elif isinstance(metric, Categorical):
-                aggregates.append(
-                    AggregateCategoricalResult(
-                        metric=metric,
-                        labels=[
-                            m.value
-                            for m in results[metric]
-                            if isinstance(m.value, str)
-                        ],
-                    )
-                )
-            elif "_reasoning" in metric.name:  # TODO: this is hacky, fix later
                 continue
-            else:
-                logger.warning(
-                    f"Supported metrics are of types Categorical or Numerical, encountered f{type(metric)}"
+            elif isinstance(metric, Categorical):
+                aggregate_node = CategoricalAggregateNode(
+                    name=f"Aggregate/{metric.name}",
+                    metric=metric,
+                    children=[val.identifier for val in results[metric]],
+                    forest=forest,
                 )
 
-        return aggregates
+                forest.roots.append(aggregate_node.identifier)
+                forest.add_node(aggregate_node)
 
     def _generate_user_prompt(self, data: AgentDataPoint) -> str:
         return self._template["user"].format(
             agent_input=data.agent_input,
-            agent_output=data.agent_output,
-            agent_internals=data.agent_internals or {},
+            agent_output=data.agent_output.get("message_history", ""),
         )
 
     def _generate_system_prompt(self, metric: Metric) -> str:

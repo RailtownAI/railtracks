@@ -1,16 +1,15 @@
+import logging
 import os
 from typing import Literal, TypeVar
 
 import requests
 from litellm.utils import supports_function_calling
 
-from ...logging import setup_logger
 from ...providers import ModelProvider
 from .._litellm_wrapper import LiteLLMWrapper
 from .._model_exception_base import FunctionCallingNotSupportedError, ModelError
 
-LOGGER_NAME = "OLLAMA"
-logger = setup_logger(__name__)
+logger = logging.getLogger(__name__)
 
 DEFAULT_DOMAIN = "http://localhost:11434"
 
@@ -26,14 +25,17 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
     def __init__(
         self,
         model_name: str,
+        stream: _TStream = False,
         domain: Literal["default", "auto", "custom"] = "default",
         custom_domain: str | None = None,
+        temperature: float | None = None,
         **kwargs,
     ):
         """Initialize an Ollama LLM instance.
 
         Args:
             model_name (str): Name of the Ollama model to use.
+            stream (bool): Whether to stream the response.
             domain (Literal["default", "auto", "custom"], optional): The domain configuration mode.
                 - "default": Uses the default localhost domain (http://localhost:11434)
                 - "auto": Uses the OLLAMA_HOST environment variable, raises OllamaError if not set
@@ -41,6 +43,8 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
                 Defaults to "default".
             custom_domain (str | None, optional): Custom domain URL to use when domain is set to "custom".
                 Must be provided if domain="custom". Defaults to None.
+            temperature (float | None, optional): Sampling temperature for generation (e.g. 0.0–2.0).
+                If None, the provider default is used.
             **kwargs: Additional arguments passed to the parent LiteLLMWrapper.
 
         Raises:
@@ -55,7 +59,12 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
                 f"Prepending 'ollama/' to model name '{model_name}' for Ollama"
             )
             model_name = f"ollama/{model_name}"
-        super().__init__(model_name, **kwargs)
+        super().__init__(
+            model_name=model_name,
+            stream=stream,
+            temperature=temperature,
+            **kwargs,
+        )
 
         match domain:
             case "default":
@@ -114,4 +123,5 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
         return ModelProvider.OLLAMA
 
     def model_provider(self) -> ModelProvider:
-        return super().model_provider()
+        """Returns the name of the provider"""
+        return self.model_gateway()
