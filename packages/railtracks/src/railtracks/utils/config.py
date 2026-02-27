@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 import os
-from typing import Callable, Coroutine
+from typing import Any, Callable, Coroutine
 
 from railtracks.utils.logging.config import AllowableLogLevels, str_to_log_level
+
+_UNSET: Any = object()
 
 
 class ExecutorConfig:
     def __init__(
         self,
         *,
-        timeout: float = 150.0,
+        timeout: float | None = 150.0,
         end_on_error: bool = False,
         logging_setting: AllowableLogLevels = "INFO",
         log_file: str | os.PathLike | None = None,
@@ -55,35 +57,35 @@ class ExecutorConfig:
     def precedence_overwritten(
         self,
         *,
-        timeout: float | None = None,
-        end_on_error: bool | None = None,
-        logging_setting: AllowableLogLevels | None = None,
-        log_file: str | os.PathLike | None = None,
+        timeout: float | None | Any = _UNSET,
+        end_on_error: bool | None | Any = _UNSET,
+        logging_setting: AllowableLogLevels | None | Any = _UNSET,
+        log_file: str | os.PathLike | None | Any = _UNSET,
         subscriber: (
-            Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
-        ) = None,
-        prompt_injection: bool | None = None,
-        save_state: bool | None = None,
+            Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None | Any
+        ) = _UNSET,
+        prompt_injection: bool | None | Any = _UNSET,
+        save_state: bool | None | Any = _UNSET,
     ):
         """
-        If any of the parameters are provided (not None), it will create a new update the current instance with the new values and return a deep copied reference to it.
+        If any of the parameters are provided (not _UNSET), it will create a new update the current instance with the new values and return a deep copied reference to it.
         """
         return ExecutorConfig(
-            timeout=timeout if timeout is not None else self.timeout,
+            timeout=timeout if timeout is not _UNSET else self.timeout,
             end_on_error=end_on_error
-            if end_on_error is not None
+            if end_on_error is not _UNSET
             else self.end_on_error,
             logging_setting=logging_setting
-            if logging_setting is not None
+            if logging_setting is not _UNSET
             else self.logging_setting,
-            log_file=log_file if log_file is not None else self.log_file,
+            log_file=log_file if log_file is not _UNSET else self.log_file,
             broadcast_callback=subscriber
-            if subscriber is not None
+            if subscriber is not _UNSET
             else self.subscriber,
             prompt_injection=prompt_injection
-            if prompt_injection is not None
+            if prompt_injection is not _UNSET
             else self.prompt_injection,
-            save_state=save_state if save_state is not None else self.save_state,
+            save_state=save_state if save_state is not _UNSET else self.save_state,
         )
 
     def __repr__(self):

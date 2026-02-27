@@ -150,3 +150,11 @@ def test_multiple_updated(base_config):
 
     assert base_config.timeout == 100.0
     assert base_config.log_file is None
+
+def test_updated_timeout_none(base_config):
+    updated_config = base_config.precedence_overwritten(timeout=None)
+    assert updated_config.timeout is None
+
+def test_instantiation_timeout_none():
+    config = ExecutorConfig(timeout=None)
+    assert config.timeout is None

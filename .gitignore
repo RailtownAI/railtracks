@@ -26,6 +26,8 @@ venv
 .ruff_cache
 
 .logs
+temp/
+demo/
 
 experiments
 
