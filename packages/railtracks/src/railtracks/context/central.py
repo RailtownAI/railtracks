@@ -363,7 +363,10 @@ def set_config(
     logging_setting: AllowableLogLevels | None | Any = _UNSET,
     log_file: str | os.PathLike | None | Any = _UNSET,
     broadcast_callback: (
-        Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None | Any
+        Callable[[str], None]
+        | Callable[[str], Coroutine[None, None, None]]
+        | None
+        | Any
     ) = _UNSET,
     prompt_injection: bool | None | Any = _UNSET,
     save_state: bool | None | Any = _UNSET,

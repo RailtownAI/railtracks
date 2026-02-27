@@ -87,7 +87,10 @@ class Session:
         logging_setting: AllowableLogLevels | None | Any = _UNSET,
         log_file: str | os.PathLike | None | Any = _UNSET,
         broadcast_callback: (
-            Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None | Any
+            Callable[[str], None]
+            | Callable[[str], Coroutine[None, None, None]]
+            | None
+            | Any
         ) = _UNSET,
         prompt_injection: bool | None | Any = _UNSET,
         save_state: bool | None | Any = _UNSET,
@@ -119,7 +122,9 @@ class Session:
         self.flow_name = flow_name
         self.flow_id = flow_id
 
-        self._has_custom_logging = logging_setting is not _UNSET or log_file is not _UNSET
+        self._has_custom_logging = (
+            logging_setting is not _UNSET or log_file is not _UNSET
+        )
 
         if self._has_custom_logging:
             mark_session_logging_override(
@@ -161,7 +166,10 @@ class Session:
         logging_setting: AllowableLogLevels | None | Any = _UNSET,
         log_file: str | os.PathLike | None | Any = _UNSET,
         broadcast_callback: (
-            Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None | Any
+            Callable[[str], None]
+            | Callable[[str], Coroutine[None, None, None]]
+            | None
+            | Any
         ) = _UNSET,
         prompt_injection: bool | None | Any = _UNSET,
         save_state: bool | None | Any = _UNSET,
@@ -389,7 +397,10 @@ def session(
     logging_setting: AllowableLogLevels | None | Any = _UNSET,
     log_file: str | os.PathLike | None | Any = _UNSET,
     broadcast_callback: (
-        Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None | Any
+        Callable[[str], None]
+        | Callable[[str], Coroutine[None, None, None]]
+        | None
+        | Any
     ) = _UNSET,
     prompt_injection: bool | None | Any = _UNSET,
     save_state: bool | None | Any = _UNSET,
