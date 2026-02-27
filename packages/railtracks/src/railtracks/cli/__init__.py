@@ -31,9 +31,16 @@ import zipfile
 from pathlib import Path
 from urllib.parse import unquote
 
-import uvicorn
-from fastapi import FastAPI
-from fastapi.responses import FileResponse, JSONResponse
+try:
+    import uvicorn
+    from fastapi import FastAPI
+    from fastapi.responses import FileResponse, JSONResponse
+except ImportError:
+    print(
+        "[railtracks] The CLI requires additional dependencies.\n"
+        "Install them with: pip install railtracks[cli]"
+    )
+    sys.exit(1)
 
 __version__ = "0.1.0"
 

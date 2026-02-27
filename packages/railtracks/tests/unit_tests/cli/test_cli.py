@@ -14,11 +14,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
 from fastapi.testclient import TestClient
 
-from railtracks_cli import (
+from railtracks.cli import (
     app,
     create_railtracks_dir,
     get_script_directory,
@@ -73,8 +71,8 @@ class TestCreateRailtracksDir(unittest.TestCase):
         os.chdir(self.original_cwd)
         shutil.rmtree(self.test_dir)
 
-    @patch('railtracks_cli.print_status')
-    @patch('railtracks_cli.print_success')
+    @patch('railtracks.cli.print_status')
+    @patch('railtracks.cli.print_success')
     def test_create_railtracks_dir_new(self, mock_success, mock_status):
         """Test creating .railtracks directory when it doesn't exist"""
         # Ensure .railtracks doesn't exist
@@ -91,8 +89,8 @@ class TestCreateRailtracksDir(unittest.TestCase):
         mock_status.assert_called()
         mock_success.assert_called()
 
-    @patch('railtracks_cli.print_status')
-    @patch('railtracks_cli.print_success')
+    @patch('railtracks.cli.print_status')
+    @patch('railtracks.cli.print_success')
     def test_create_railtracks_dir_existing(self, mock_success, mock_status):
         """Test when .railtracks directory already exists"""
         # Create .railtracks directory first
@@ -105,8 +103,8 @@ class TestCreateRailtracksDir(unittest.TestCase):
         self.assertTrue(railtracks_path.exists())
         self.assertTrue(railtracks_path.is_dir())
 
-    @patch('railtracks_cli.print_status')
-    @patch('railtracks_cli.print_success')
+    @patch('railtracks.cli.print_status')
+    @patch('railtracks.cli.print_success')
     def test_create_railtracks_dir_gitignore_new(self, mock_success, mock_status):
         """Test creating .gitignore with .railtracks entry"""
         create_railtracks_dir()
@@ -120,8 +118,8 @@ class TestCreateRailtracksDir(unittest.TestCase):
             content = f.read()
         self.assertIn(".railtracks", content)
 
-    @patch('railtracks_cli.print_status')
-    @patch('railtracks_cli.print_success')
+    @patch('railtracks.cli.print_status')
+    @patch('railtracks.cli.print_success')
     def test_create_railtracks_dir_gitignore_existing(self, mock_success, mock_status):
         """Test adding .railtracks to existing .gitignore"""
         # Create existing .gitignore
@@ -137,7 +135,7 @@ class TestCreateRailtracksDir(unittest.TestCase):
         self.assertIn("*.pyc", content)
         self.assertIn(".railtracks", content)
 
-    @patch('railtracks_cli.print_status')
+    @patch('railtracks.cli.print_status')
     def test_create_railtracks_dir_gitignore_already_present(self, mock_status):
         """Test when .railtracks is already in .gitignore"""
         # Create .gitignore with .railtracks already present
@@ -325,11 +323,11 @@ class TestPortChecking(unittest.TestCase):
             result = is_port_in_use(test_port)
             self.assertTrue(result)
 
-    @patch('railtracks_cli.sys.exit')
-    @patch('railtracks_cli.print_error')
-    @patch('railtracks_cli.print_warning')
-    @patch('railtracks_cli.print_status')
-    @patch('railtracks_cli.is_port_in_use')
+    @patch('railtracks.cli.sys.exit')
+    @patch('railtracks.cli.print_error')
+    @patch('railtracks.cli.print_warning')
+    @patch('railtracks.cli.print_status')
+    @patch('railtracks.cli.is_port_in_use')
     def test_viz_command_port_in_use(self, mock_is_port_in_use, mock_print_status,
                                    mock_print_warning, mock_print_error, mock_sys_exit):
         """Test viz command behavior when port is in use"""
@@ -337,8 +335,8 @@ class TestPortChecking(unittest.TestCase):
         mock_is_port_in_use.return_value = True
 
         # Mock the main function to test just the viz command logic
-        with patch('railtracks_cli.create_railtracks_dir'), \
-             patch('railtracks_cli.RailtracksServer'):
+        with patch('railtracks.cli.create_railtracks_dir'), \
+             patch('railtracks.cli.RailtracksServer'):
 
             # Simulate the viz command logic
             if mock_is_port_in_use.return_value:
@@ -416,7 +414,7 @@ class TestPortChecking(unittest.TestCase):
         with self.assertRaises(OverflowError):
             is_port_in_use(65536)  # Port number too high
 
-    @patch('railtracks_cli.socket.socket')
+    @patch('railtracks.cli.socket.socket')
     def test_port_checking_socket_error(self, mock_socket_class):
         """Test port checking when socket operations fail"""
         # Mock socket to raise OSError
@@ -442,8 +440,8 @@ class TestMigrateRailtracks(unittest.TestCase):
         os.chdir(self.original_cwd)
         shutil.rmtree(self.test_dir)
 
-    @patch('railtracks_cli.print_status')
-    @patch('railtracks_cli.print_success')
+    @patch('railtracks.cli.print_status')
+    @patch('railtracks.cli.print_success')
     def test_migrate_creates_all_directories(self, mock_success, mock_status):
         """Test that all required directories are created when they don't exist"""
         # Ensure .railtracks doesn't exist
@@ -472,8 +470,8 @@ class TestMigrateRailtracks(unittest.TestCase):
         mock_status.assert_called()
         mock_success.assert_called()
 
-    @patch('railtracks_cli.print_status')
-    @patch('railtracks_cli.print_success')
+    @patch('railtracks.cli.print_status')
+    @patch('railtracks.cli.print_success')
     def test_migrate_with_existing_directories(self, mock_success, mock_status):
         """Test that existing directories are not recreated (idempotent)"""
         # Create all directories first
@@ -495,8 +493,8 @@ class TestMigrateRailtracks(unittest.TestCase):
         self.assertTrue(evaluations_dir.exists())
         self.assertTrue(sessions_dir.exists())
 
-    @patch('railtracks_cli.print_status')
-    @patch('railtracks_cli.print_success')
+    @patch('railtracks.cli.print_status')
+    @patch('railtracks.cli.print_success')
     def test_migrate_moves_json_files_from_root(self, mock_success, mock_status):
         """Test moving JSON files from .railtracks root to .railtracks/data/sessions/"""
         # Create .railtracks directory
@@ -533,8 +531,8 @@ class TestMigrateRailtracks(unittest.TestCase):
             content2 = json.load(f)
             self.assertEqual(content2, {"test": "data2"})
 
-    @patch('railtracks_cli.print_status')
-    @patch('railtracks_cli.print_success')
+    @patch('railtracks.cli.print_status')
+    @patch('railtracks.cli.print_success')
     def test_migrate_does_not_move_subdirectory_json(self, mock_success, mock_status):
         """Test that JSON files in subdirectories are NOT moved"""
         # Create .railtracks directory structure
@@ -571,8 +569,8 @@ class TestMigrateRailtracks(unittest.TestCase):
         self.assertTrue(ui_file.exists())
         self.assertTrue(data_file.exists())
 
-    @patch('railtracks_cli.print_status')
-    @patch('railtracks_cli.print_success')
+    @patch('railtracks.cli.print_status')
+    @patch('railtracks.cli.print_success')
     def test_migrate_no_json_files(self, mock_success, mock_status):
         """Test handling when no JSON files exist in root"""
         # Create .railtracks directory
@@ -590,8 +588,8 @@ class TestMigrateRailtracks(unittest.TestCase):
         calls = [str(call) for call in mock_status.call_args_list]
         self.assertTrue(any("No JSON files" in str(call) for call in calls))
 
-    @patch('railtracks_cli.print_status')
-    @patch('railtracks_cli.print_success')
+    @patch('railtracks.cli.print_status')
+    @patch('railtracks.cli.print_success')
     def test_migrate_console_output(self, mock_success, mock_status):
         """Test console output messages"""
         # Create .railtracks directory with JSON file
@@ -613,8 +611,8 @@ class TestMigrateRailtracks(unittest.TestCase):
         success_calls = [str(call) for call in mock_success.call_args_list]
         self.assertTrue(any("Migrated migration_test.json" in str(call) for call in success_calls))
 
-    @patch('railtracks_cli.print_status')
-    @patch('railtracks_cli.print_success')
+    @patch('railtracks.cli.print_status')
+    @patch('railtracks.cli.print_success')
     def test_migrate_multiple_files(self, mock_success, mock_status):
         """Test migration of multiple JSON files"""
         # Create .railtracks directory
@@ -641,8 +639,8 @@ class TestMigrateRailtracks(unittest.TestCase):
         success_calls = [str(call) for call in mock_success.call_args_list]
         self.assertTrue(any("3 file(s) moved" in str(call) for call in success_calls))
 
-    @patch('railtracks_cli.print_status')
-    @patch('railtracks_cli.print_success')
+    @patch('railtracks.cli.print_status')
+    @patch('railtracks.cli.print_success')
     def test_migrate_partial_directory_structure(self, mock_success, mock_status):
         """Test migration when some directories already exist"""
         # Create .railtracks and data directories
