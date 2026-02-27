@@ -9,7 +9,7 @@ from .logging.create import get_rt_logger
 _T = TypeVar("_T")
 _TOutput = TypeVar("_TOutput")
 
-logger = get_rt_logger("Publisher")
+logger = get_rt_logger(__name__)
 
 
 class Subscriber(Generic[_T]):
@@ -64,6 +64,10 @@ class Publisher(Generic[_T]):
         return self
 
     async def start(self):
+        # Make start idempotent - if already running, don't restart
+        if self._running:
+            return
+
         # you must set the kill variables first or the publisher loop will early exit.
         self._running = True
         self._queue = asyncio.Queue()

@@ -10,9 +10,21 @@ _TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
 class OpenAICompatibleProvider(ProviderLLMWrapper[_TStream], ABC):
     def __init__(
-        self, model_name: str, *, stream: _TStream = False, api_base: str, api_key: str
+        self,
+        model_name: str,
+        *,
+        stream: _TStream = False,
+        api_base: str,
+        api_key: str,
+        temperature: float | None = None,
     ):
-        super().__init__(model_name, stream=stream, api_base=api_base, api_key=api_key)
+        super().__init__(
+            model_name,
+            stream=stream,
+            api_base=api_base,
+            api_key=api_key,
+            temperature=temperature,
+        )
 
     def full_model_name(self, model_name: str) -> str:
         return f"openai/{model_name}"

@@ -1,14 +1,12 @@
-from typing import Type, Literal
-from urllib import response
+import json
+import os
+from typing import Type
 
 import pytest
 import railtracks as rt
-from railtracks.llm.providers import ModelProvider
-from railtracks.llm.response import Response, MessageInfo
-from railtracks.llm.content import Stream
 from pydantic import BaseModel
-from railtracks.llm.message import AssistantMessage, Message
-import json
+from railtracks.llm.message import AssistantMessage
+from railtracks.llm.response import MessageInfo, Response
 
 
 class MockLLM(rt.llm.ModelBase):
@@ -205,3 +203,40 @@ def mock_llm() -> Type[MockLLM]:
                 )
     """
     return MockLLM
+
+
+# ============================= TEST FILES SHOULD NOT POLLUTE THE .railtracks DIRECTORY ============================
+@pytest.fixture(scope="session", autouse=True)
+def disable_persistence_for_tests():
+    """
+    Automatically disable session persistence during test runs.
+    
+    This fixture sets the RAILTRACKS_TEST_MODE environment variable to "1" for the
+    duration of the test session. This causes the session persistence to be disabled
+    automatically in all tests, preventing pollution of the project's .railtracks directory.
+    
+    This is an autouse fixture, so it applies to all tests without needing to be explicitly
+    included in test signatures.
+    
+    Tests that need to verify persistence behavior can set RAILTRACKS_ALLOW_PERSISTENCE
+    to override the default disable behavior.
+    """
+    os.environ["RAILTRACKS_TEST_MODE"] = "1"
+    yield
+    os.environ.pop("RAILTRACKS_TEST_MODE", None)
+
+
+@pytest.fixture
+def allow_persistence():
+    """
+    Fixture to allow session persistence for specific tests that need to verify persistence.
+    
+    Usage:
+        def test_something(allow_persistence):
+            # Session persistence will be enabled for this test
+            pass
+    """
+    os.environ["RAILTRACKS_ALLOW_PERSISTENCE"] = "1"
+    yield
+    os.environ.pop("RAILTRACKS_ALLOW_PERSISTENCE", None)
+

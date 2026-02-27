@@ -8,7 +8,7 @@ from railtracks.llm import Message, MessageHistory, ModelBase
 from railtracks.utils.logging import get_rt_logger
 
 # Global logger for validation
-logger = get_rt_logger("Validation")
+logger = get_rt_logger(__name__)
 
 
 def check_message_history(
@@ -48,9 +48,7 @@ def check_llm_model(llm: ModelBase | None):
 
 
 def check_max_tool_calls(max_tool_calls: int | None):
-    if max_tool_calls is None:
-        logger.warning(get_message(ExceptionMessageKey.MAX_TOOL_CALLS_UNLIMITED_WARN))
-    elif max_tool_calls < 0:
+    if max_tool_calls is not None and max_tool_calls < 0:
         raise NodeInvocationError(
             get_message(ExceptionMessageKey.MAX_TOOL_CALLS_NEGATIVE_MSG),
             notes=get_notes(ExceptionMessageKey.MAX_TOOL_CALLS_NEGATIVE_NOTES),

@@ -17,7 +17,7 @@ from railtracks.llm import ToolCall, ToolResponse
 from ..utils.logging.create import get_rt_logger
 from .human_in_the_loop import HIL, HILMessage
 
-logger = get_rt_logger("ChatUI")
+logger = get_rt_logger(__name__)
 
 
 class UserMessageAttachment(BaseModel):
