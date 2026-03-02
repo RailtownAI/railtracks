@@ -10,7 +10,7 @@ class ExecutorConfig:
     def __init__(
         self,
         *,
-        timeout: float = 150.0,
+        timeout: float | None = None,
         end_on_error: bool = False,
         logging_setting: AllowableLogLevels = "INFO",
         log_file: str | os.PathLike | None = None,
@@ -25,7 +25,7 @@ class ExecutorConfig:
         ExecutorConfig is special configuration object designed to allow customization of the executor in the RT system.
 
         Args:
-            timeout (float): The maximum number of seconds to wait for a response to your top level request
+            timeout (float | None): The maximum number of seconds to wait for a response to your top level request. Pass None (or omit) to disable the timeout entirely.
             end_on_error (bool): If true, the executor will stop execution when an exception is encountered.
             logging_setting (AllowableLogLevels): The setting for the level of logging you would like to have.
             log_file (str | os.PathLike | None): The file to which the logs will be written. If None, no file will be created.
@@ -84,7 +84,7 @@ class ExecutorConfig:
         If any of the parameters are provided (not None), it will create a new update the current instance with the new values and return a deep copied reference to it.
         """
         return ExecutorConfig(
-            timeout=timeout if timeout is not None else self.timeout,
+            timeout=timeout,
             end_on_error=end_on_error
             if end_on_error is not None
             else self.end_on_error,
