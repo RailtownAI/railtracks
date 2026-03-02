@@ -42,8 +42,6 @@ except ImportError:
     )
     sys.exit(1)
 
-__version__ = "0.1.0"
-
 # TODO: Once we are releasing to PyPi change this to the release asset instead
 latest_ui_url = "https://railtownazureb2c.blob.core.windows.net/cdn/rc-viz/latest.zip"
 
