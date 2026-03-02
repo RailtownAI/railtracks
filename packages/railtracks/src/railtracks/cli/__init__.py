@@ -168,11 +168,13 @@ def init_railtracks():
     print_success("railtracks initialization completed!")
     print_status("You can now run 'railtracks viz' to start the server")
 
+
 def update_railtracks():
     """Update the frontend UI to the latest version"""
     print_status("Updating frontend UI to the latest version...")
     download_and_extract_ui()
     print_success("Frontend UI updated successfully!")
+
 
 def migrate_railtracks():
     """Migrate and verify the structure of .railtracks directory"""
