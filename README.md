@@ -200,7 +200,7 @@ text_flow.invoke("How many 'r's are in 'strawberry'?")
 </details>
 
 <details open>
-<summary><b>📊 Visualize Agent in 5 second</b></summary>
+<summary><b>📊 Visualize Agent locally with a simple command</b></summary>
 
 
 ```bash

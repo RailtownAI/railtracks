@@ -445,7 +445,7 @@ def main():
         print(
             f"  init    Initialize {cli_name} environment (setup directories, download portable UI)"
         )
-        print(f"  update  Update the frontend UI to the latest version")
+        print("  update  Update the frontend UI to the latest version")
         print(f"  viz     Start the {cli_name} development server")
         print(f"  migrate Verify and migrate the structure of .{cli_name}/ directory")
         print("")
