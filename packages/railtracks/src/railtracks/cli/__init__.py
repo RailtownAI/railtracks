@@ -168,6 +168,11 @@ def init_railtracks():
     print_success("railtracks initialization completed!")
     print_status("You can now run 'railtracks viz' to start the server")
 
+def update_railtracks():
+    """Update the frontend UI to the latest version"""
+    print_status("Updating frontend UI to the latest version...")
+    download_and_extract_ui()
+    print_success("Frontend UI updated successfully!")
 
 def migrate_railtracks():
     """Migrate and verify the structure of .railtracks directory"""
@@ -440,6 +445,7 @@ def main():
         print(
             f"  init    Initialize {cli_name} environment (setup directories, download portable UI)"
         )
+        print(f"  update  Update the frontend UI to the latest version")
         print(f"  viz     Start the {cli_name} development server")
         print(f"  migrate Verify and migrate the structure of .{cli_name}/ directory")
         print("")
@@ -455,6 +461,8 @@ def main():
 
     if command == "init":
         init_railtracks()
+    elif command == "update":
+        update_railtracks()
     elif command == "viz":
         # Check if port is already in use
         if is_port_in_use(DEFAULT_PORT):
@@ -472,7 +480,7 @@ def main():
         migrate_railtracks()
     else:
         print(f"Unknown command: {command}")
-        print("Available commands: init, viz, migrate")
+        print("Available commands: init, update, viz, migrate")
         sys.exit(1)
 
 
