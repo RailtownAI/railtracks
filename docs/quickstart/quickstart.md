@@ -10,7 +10,7 @@ pip install railtracks
 pip install railtracks[cli]
 ```
 !!! note 
-    `railtracks-cli` is optional, but required for the visualization step. 
+    `railtracks[cli]` is optional, but required for the visualization step. 
 
 
 ### 2. Running your Agent
@@ -43,13 +43,21 @@ Define an agent with a model and system message, then call it with a prompt:
 ### 3. Visualize the Run
 With Railtracks CLI you can dive deep on your runs. Our observability runs locally from the command line. 
 
-```bash title="Initialize Visualizer (Run Once)"
-railtracks init
-```
+!!! tip "Setup"    
 
-```bash title="Run Visualizer"
-railtracks viz
-```
+    ```bash title="Install CLI Tool"
+    pip install railtracks[cli]
+    ```
+
+
+    ```bash title="Initialize UI and Start"
+    railtracks init
+    railtracks viz
+    ```
+
+    ```bash title="Update the UI given new releases"
+    railtracks update
+    ```
 
 <div style="overflow: hidden; width: 100%; height: 120%;">
     <img src="../../assets/visualizer.gif"/>
