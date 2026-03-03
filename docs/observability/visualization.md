@@ -11,25 +11,25 @@ We support:
 
 Railtracks comes with a built-in visualization tool that runs locally with **no sign up required**.
 
-### Usage
-    
+!!! tip "Usage"    
 
-```bash title="Install CLI tTool"
-pip install railtracks-cli
-```
+    ```bash title="Install CLI Tool"
+    pip install railtracks[cli]
+    ```
 
 
-```bash title="Initialize UI and Start"
-railtracks init
-railtracks viz
-```
+    ```bash title="Initialize UI and Start"
+    railtracks init
+    railtracks viz
+    ```
 
 This will create a `.railtracks` directory in your current working directory setting up the web app in your web browser
 
 
-<iframe
-    src="https://railtownai.github.io/railtracks-visualizer/iframe.html?globals=&args=&id=components-visualizer-marketing--default&viewMode=story"
-    style="width: 99dvw; min-height: 50dvh; border: none; box-sizing: border-box;"></iframe>
+<div style="overflow: hidden; width: 100%; height: 120%;">
+    <img src="../../assets/visualizer.gif"/>
+</div>
+
 
 !!! tip "Saving State"
     By default, all of your runs will be saved to the `.railtracks` directory so you can view them locally. If you don't want that, set the
@@ -38,6 +38,12 @@ This will create a `.railtracks` directory in your current working directory set
     ```python
     --8<-- "docs/scripts/visualization.py:saving_state"
     ```
+
+## Updating the UI
+As we continue to support the local visualizer and add more features, you may choose to integrate these updated UI components into your local installation by running:
+```bash title="Update UI elements"
+railtracks update
+```
 
 ## Remote Visualization 
 !!! Note

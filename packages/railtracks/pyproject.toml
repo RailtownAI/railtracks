@@ -54,6 +54,10 @@ dependencies = [
 
 [project.optional-dependencies]
 chat = ["fastapi >= 0.104.0"]
+cli = [
+    "fastapi >= 0.104.0",
+    "uvicorn[standard] >= 0.24.0",
+]
 # For each Integration package dependencies go here.
 rag = ["litellm[proxy] >= 1.70.2"]
 chroma = [
@@ -64,9 +68,10 @@ chroma = [
 portkey = ["portkey_ai >= 2.0.2"]
 integrations = ["railtracks[portkey]", "railtracks[chroma]"]
 
-all = ["railtracks[chat,rag,integrations]"]
+all = ["railtracks[chat,cli,integrations]"]
 
-core = ["railtracks[chat]"]
+[project.scripts]
+railtracks = "railtracks.cli:main"
 
 [project.urls]
 documentation = "https://railtownai.github.io/railtracks/"
