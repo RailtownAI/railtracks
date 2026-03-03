@@ -393,7 +393,7 @@ Debug and monitor with ease:
 ## 🚀 Ready to Build?
 
 ```bash
-pip install railtracks railtracks-cli
+pip install railtracks[cli]
 ```
 <div align="center">
 
