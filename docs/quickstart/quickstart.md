@@ -7,7 +7,7 @@ In this quickstart, you’ll install Railtracks, run your first agent, and visua
 
 ```bash title="Install Library"
 pip install railtracks
-pip install railtracks-cli
+pip install railtracks[cli]
 ```
 !!! note 
     `railtracks-cli` is optional, but required for the visualization step. 
@@ -51,10 +51,9 @@ railtracks init
 railtracks viz
 ```
 
-<iframe
-    src="https://railtownai.github.io/railtracks-visualizer/iframe.html?globals=&args=&id=components-visualizer-marketing--default&viewMode=story"
-    style="width: 99dvw; min-height: 50dvh; border: none; box-sizing: border-box;">
-</iframe>
+<div style="overflow: hidden; width: 100%; height: 120%;">
+    <img src="../../assets/visualizer.gif"/>
+</div>
 
 This will open a web interface with all of your agent runs. You can dive deep into each step, see token usage, and more.
 
