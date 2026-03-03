@@ -1,5 +1,8 @@
 # Railtracks CLI
 
+> [!WARNING]
+> **This package is no longer maintained.** `railtracks-cli` has been archived and will not receive further updates or bug fixes. The visualization functionality is now built directly into the [`railtracks`](https://pypi.org/project/railtracks/) package. Please migrate to `railtracks` for continued support.
+
 [![PyPI version](https://img.shields.io/pypi/v/railtracks-cli)](https://github.com/RailtownAI/railtracks/releases)
 [![Python Versions](https://img.shields.io/pypi/pyversions/railtracks-cli?logo=python&)](https://pypi.org/project/railtracks/)
 [![License](https://img.shields.io/pypi/l/railtracks-cli)](https://opensource.org/licenses/MIT)
