@@ -277,6 +277,33 @@ async def get_sessions():
     return JSONResponse(content=sessions)
 
 
+@app.get("/api/sessions/{guid}")
+async def get_session(guid: str):
+    """Get a specific session JSON file by GUID from .railtracks/data/sessions/"""
+    sessions_dir = get_data_dir("sessions")
+    file_path = sessions_dir / f"{guid}.json"
+
+    if not file_path.exists():
+        return JSONResponse(
+            content={"error": "Session not found"}, status_code=404
+        )
+
+    try:
+        with open(file_path, encoding="utf-8") as f:
+            content = json.load(f)
+        return JSONResponse(content=content)
+    except json.JSONDecodeError as e:
+        print_error(f"Invalid JSON in {file_path.name}: {e}")
+        return JSONResponse(
+            content={"error": f"Invalid JSON: {e}"}, status_code=400
+        )
+    except Exception as e:
+        print_error(f"Error reading session file {file_path.name}: {e}")
+        return JSONResponse(
+            content={"error": "Internal Server Error"}, status_code=500
+        )
+
+
 @app.get("/api/files")
 async def get_files():
     """
@@ -392,6 +419,7 @@ class RailtracksServer:
         print_status("📋 API endpoints:")
         print_status("   GET  /api/evaluations - Get all evaluation JSON files")
         print_status("   GET  /api/sessions - Get all session JSON files")
+        print_status("   GET  /api/sessions/{guid} - Get a specific session by GUID")
         print_status("   GET  /api/files - List JSON files (deprecated)")
         print_status("   GET  /api/json/{filename} - Load JSON file (deprecated)")
         print_status("   POST /api/refresh - Trigger frontend refresh (deprecated)")
