@@ -240,6 +240,48 @@ class TestFastAPIEndpoints(unittest.TestCase):
         self.assertIn(session1, data)
         self.assertIn(session2, data)
 
+    def test_get_session_by_guid(self):
+        """Test /api/sessions/{guid} endpoint with existing session"""
+        # Create sessions directory and file
+        sessions_dir = Path(".railtracks/data/sessions")
+        sessions_dir.mkdir(parents=True)
+
+        session_data = {"id": "test-guid-123", "status": "completed", "data": "test"}
+        guid = "test-guid-123"
+
+        with open(sessions_dir / f"{guid}.json", "w") as f:
+            json.dump(session_data, f)
+
+        response = self.client.get(f"/api/sessions/{guid}")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), session_data)
+
+    def test_get_session_by_guid_not_found(self):
+        """Test /api/sessions/{guid} endpoint with non-existent session"""
+        # Create sessions directory but no file
+        sessions_dir = Path(".railtracks/data/sessions")
+        sessions_dir.mkdir(parents=True)
+
+        response = self.client.get("/api/sessions/nonexistent-guid")
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json(), {"error": "Session not found"})
+
+    def test_get_session_by_guid_invalid_json(self):
+        """Test /api/sessions/{guid} endpoint with invalid JSON file"""
+        # Create sessions directory and invalid JSON file
+        sessions_dir = Path(".railtracks/data/sessions")
+        sessions_dir.mkdir(parents=True)
+
+        guid = "invalid-json-guid"
+        invalid_file = sessions_dir / f"{guid}.json"
+        with open(invalid_file, "w") as f:
+            f.write("{ invalid json }")
+
+        response = self.client.get(f"/api/sessions/{guid}")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("error", response.json())
+        self.assertIn("Invalid JSON", response.json()["error"])
+
     def test_get_files_deprecated(self):
         """Test /api/files endpoint (deprecated)"""
         response = self.client.get("/api/files")
