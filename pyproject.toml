@@ -32,7 +32,8 @@ test = [
     "pytest-timeout"
 ]
 lint = [
-    "ruff>=0.11.13"
+    "mypy>=1.19.1",
+    "ruff>=0.11.13",
 ]
 
 dev = [
@@ -66,13 +67,13 @@ lint.ignore = [
     "COM812", "COM819",
     "W291", "W292", "W293"
 ]
-
-fix = true
 lint.fixable = ["F401", "F841", "I001"]
 
-exclude = [".git", "examples", "docs", ".venv", "tests"]
-
 lint.mccabe.max-complexity = 10
+
+fix = true
+
+exclude = [".git", "examples", "docs", ".venv", "tests"]
 
 
 [tool.pytest.ini_options]
