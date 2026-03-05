@@ -157,7 +157,7 @@ railtracks viz  # See everything
 <summary><b>📦 Installation</b></summary>
 
 ```bash
-pip install railtracks railtracks-cli
+pip install railtracks railtracks[cli]
 ```
 </details>
 
@@ -189,20 +189,18 @@ text_analyzer = rt.agent_node(
 )
 
 # 3. Use it to solve the classic "How many r's in strawberry?" problem
-@rt.session
-async def main():
-    result = await rt.call(text_analyzer, "How many 'r's are in 'strawberry'?")
-    print(result.text)  # "There are 3 'r's in 'strawberry'!"
+text_flow = rt.Flow(
+  name="Text Analysis Flow"
+  entry_point=text_analyzer
+)
 
-# Run it
-import asyncio
-asyncio.run(main())
+text_flow.invoke("How many 'r's are in 'strawberry'?")
 ```
 
 </details>
 
 <details open>
-<summary><b>📊 Visualize Agent in 5 second</b></summary>
+<summary><b>📊 Visualize Agent locally with a simple command</b></summary>
 
 
 ```bash
@@ -211,7 +209,7 @@ railtracks viz   # See your agent in action
 ```
 
 <p align="center">
-  <img src="docs/assets/visualizer_photo.png" alt="Railtracks Visualizer" width="90%">
+  <img src="docs/assets/visualizer.gif" alt="Railtracks Visualizer" width="90%">
   <br>
   <em>🔍 See every step of your agent's execution in real-time</em>
 </p>
@@ -269,13 +267,13 @@ A lightweight agentic LLM framework for building modular, multi-LLM workflows wi
 
 <div align="center">
 
-| Feature | Railtracks | LangGraph | Google ADK |
-|:--------|:----------:|:---------:|:----------:|
-| **🐍 Python-first, no DSL** | ✅ | ❌ | ✅ |
-| **📊 Built-in visualization** | ✅ | ✅ | ⚠️ |
-| **⚡ Zero setup overhead** | ✅ | ✅ | ❌ |
-| **🔄 LLM-agnostic** | ✅ | ✅ | ✅ |
-| **🎯 Pythonic style** | ✅ | ❌ | ⚠️ |
+| Feature | Railtracks
+|:--------|:----------:|
+| **🐍 Python-first, no DSL** | ✅ |
+| **📊 Built-in visualization** | ✅ |
+| **⚡ Zero setup overhead** | ✅ |
+| **🔄 LLM-agnostic** | ✅ |
+| **🎯 Pythonic style** | ✅ |
 
 </div>
 
@@ -395,7 +393,7 @@ Debug and monitor with ease:
 ## 🚀 Ready to Build?
 
 ```bash
-pip install railtracks railtracks-cli
+pip install railtracks[cli]
 ```
 <div align="center">
 

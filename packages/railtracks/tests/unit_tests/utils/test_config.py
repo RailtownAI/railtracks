@@ -15,8 +15,7 @@ def log_level(request):
 
 def test_instantiation_with_all_defaults():
     config = ExecutorConfig()
-    assert isinstance(config.timeout, float)
-    assert config.timeout == 150.0
+    assert config.timeout is None
     assert config.end_on_error is False
     assert config.logging_setting == "INFO"
     assert config.log_file is None
@@ -150,3 +149,29 @@ def test_multiple_updated(base_config):
 
     assert base_config.timeout == 100.0
     assert base_config.log_file is None
+
+def test_timeout_none_by_default():
+    """Default timeout should be None (disabled)."""
+    config = ExecutorConfig()
+    assert config.timeout is None
+
+def test_timeout_none_explicit():
+    """Explicitly passing timeout=None should disable the timeout."""
+    config = ExecutorConfig(timeout=None)
+    assert config.timeout is None
+
+def test_precedence_overwritten_timeout_none_disables(base_config):
+    """precedence_overwritten(timeout=None) should set timeout to None (disabled)."""
+    assert base_config.timeout == 100.0
+    updated_config = base_config.precedence_overwritten(timeout=None)
+    assert updated_config.timeout is None
+
+def test_precedence_overwritten_without_timeout_disables(base_config):
+    """Calling precedence_overwritten() without specifying timeout disables the timeout (None == not provided)."""
+    updated_config = base_config.precedence_overwritten()
+    assert updated_config.timeout is None
+
+def test_precedence_overwritten_timeout_float_enables(base_config):
+    """Calling precedence_overwritten(timeout=float) should set the timeout to that float."""
+    updated_config = base_config.precedence_overwritten(timeout=42.0)
+    assert updated_config.timeout == 42.0

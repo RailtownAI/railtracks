@@ -7,10 +7,10 @@ In this quickstart, you’ll install Railtracks, run your first agent, and visua
 
 ```bash title="Install Library"
 pip install railtracks
-pip install railtracks-cli
+pip install railtracks[cli]
 ```
 !!! note 
-    `railtracks-cli` is optional, but required for the visualization step. 
+    `railtracks[cli]` is optional, but required for the visualization step. 
 
 
 ### 2. Running your Agent
@@ -38,25 +38,32 @@ Define an agent with a model and system message, then call it with a prompt:
     Railtracks supports many of the most popular model providers. See the [full list](../llm_support/providers.md)
 
 ??? tip "Jupyter Notebooks"
-    If you’re running this in a Jupyter notebook, remember that notebooks already run inside an event loop. In that case, call `await rt.call(...)` directly:
+    If you’re running this in a Jupyter notebook, remember that notebooks already run inside an event loop. In that case, call `await flow.ainvoke(...)` directly:
    
 ### 3. Visualize the Run
-Railtracks has a built-in visualizer to inspect and review your agent runs. 
+With Railtracks CLI you can dive deep on your runs. Our observability runs locally from the command line. 
 
-```bash title="Initialize Visualizer (Run Once)"
-railtracks init
-```
+!!! tip "Setup"    
 
-```bash title="Run Visualizer"
-railtracks viz
-```
+    ```bash title="Install CLI Tool"
+    pip install railtracks[cli]
+    ```
 
-<iframe
-    src="https://railtownai.github.io/railtracks-visualizer/iframe.html?globals=&args=&id=components-visualizer-marketing--default&viewMode=story"
-    style="width: 99dvw; min-height: 50dvh; border: none; box-sizing: border-box;">
-</iframe>
 
-This will open a web interface showing the execution flow, node interactions, and performance metrics of your agentic system.
+    ```bash title="Initialize UI and Start"
+    railtracks init
+    railtracks viz
+    ```
+
+    ```bash title="Update the UI given new releases"
+    railtracks update
+    ```
+
+<div style="overflow: hidden; width: 100%; height: 120%;">
+    <img src="../../assets/visualizer.gif"/>
+</div>
+
+This will open a web interface with all of your agent runs. You can dive deep into each step, see token usage, and more.
 
 ----
 

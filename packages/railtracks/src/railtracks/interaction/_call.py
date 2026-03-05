@@ -20,7 +20,6 @@ from railtracks.context.central import (
     get_run_id,
     is_context_active,
     is_context_present,
-    shutdown_publisher,
 )
 from railtracks.exceptions import GlobalTimeOutError
 from railtracks.nodes.utils import extract_node_from_function
@@ -86,7 +85,6 @@ async def call(
         node = extract_node_from_function(node_)
     else:
         node = node_
-
     # if the context is none then we will need to create a wrapper for the state object to work with.
     if not is_context_present():
         # we have to use lazy import here to prevent a circular import issue. This is a must have unfortunately.
@@ -169,8 +167,6 @@ async def _start(
             raise e
 
         raise GlobalTimeOutError(timeout=timeout)
-    finally:
-        await shutdown_publisher()
 
     return result
 

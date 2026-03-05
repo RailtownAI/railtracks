@@ -21,6 +21,7 @@ class ProviderLLMWrapper(LiteLLMWrapper[_TStream], ABC, Generic[_TStream]):
         stream: _TStream = False,
         api_base: str | None = None,
         api_key: str | None = None,
+        temperature: float | None = None,
     ):
         model_name = self._pre_init_provider_check(model_name)
         super().__init__(
@@ -28,6 +29,7 @@ class ProviderLLMWrapper(LiteLLMWrapper[_TStream], ABC, Generic[_TStream]):
             stream=stream,
             api_base=api_base,
             api_key=api_key,
+            temperature=temperature,
         )
 
     def _pre_init_provider_check(self, model_name: str):
