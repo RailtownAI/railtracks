@@ -141,11 +141,8 @@ nav:
       - Streaming: llm_support/streaming.md
 
   - Evaluations:
-      - Quickstart: evaluations/quickstart.md
       - Preface: evaluations/preface.md
-      - Data:
-        - Agent Datapoints: evaluations/data/agent_data.md
-        - Evaluation Datasets: evaluations/data/evaluation_dataset.md
+      - Quickstart: evaluations/quickstart.md
       - Metrics: 
         - Metrics Overview: evaluations/metrics/metrics.md
         - Categorical Metrics: evaluations/metrics/categorical.md
@@ -153,6 +150,8 @@ nav:
       - Evaluators: 
         - Evaluator Abstraction: evaluations/evaluators/evaluators.md
         - ToolUseEvaluator: evaluations/evaluators/tool_use_evaluator.md
+        - LLMInferenceEvaluator: evaluations/evaluators/llm_inference_evaluator.md
+        - JudgeEvaluator: evaluations/evaluators/judge_evaluator.md
         
       
   # - Deployments:

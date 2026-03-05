@@ -68,7 +68,7 @@ def evaluate(
     agent_selection: bool = True,
     agents: list[str] | None = None,
     name: str | None = None,
-    payload_callback: Callable[[dict[str, Any]], None] | None = None,
+    payload_callback: Callable[[dict[str, Any]], Any] | None = None,
 ):
     """Evaluate agent data using the provided evaluators.
 
