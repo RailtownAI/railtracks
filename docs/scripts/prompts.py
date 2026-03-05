@@ -12,7 +12,7 @@ assistant = rt.agent_node(
 )
 
 # Run with context values
-assistant_flow = rt.Flow(assistant)
+assistant_flow = rt.Flow("assistant-flow", entry_point=assistant)
 response = assistant_flow.update_context({"role": "technical", "domain": "Python programming"}).invoke("Help me understand decorators.")
 
 
@@ -20,10 +20,11 @@ response = assistant_flow.update_context({"role": "technical", "domain": "Python
 
 # --8<-- [start: disable_injection]
 # Disable context injection for a specific run
-rt.Flow(
-    assistant,
+flow = rt.Flow(
+    "assistant-flow",
+    entry_point=assistant,
     prompt_injection=False
-): ...
+)
 
 # or globally via 
 rt.set_config(prompt_injection=False)
@@ -70,7 +71,7 @@ technical_expert_context = {
 }
 
 # Run with different contexts for different scenarios
-assistant_flow = rt.Flow(assistant)
+assistant_flow = rt.Flow("assistant-flow", entry_point=assistant)
 customer_support_flow = assistant_flow.update_context(customer_support_context)
 response1 = customer_support_flow.invoke("My internet is not working. Can you help?")
 

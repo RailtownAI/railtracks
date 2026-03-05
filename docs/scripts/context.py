@@ -11,7 +11,7 @@ def some_node():
     rt.context.put("var_2", "value_2")  # Sets var_2 to value_2
     rt.context.put("var_1", "new_value_1")  # Replaces var_1 with new_value_1
     
-flow = rt.Flow(some_node, context=data)
+flow = rt.Flow("context-flow", entry_point=some_node, context=data)
 flow.invoke()
 
 # --8<-- [end: context_basics]
@@ -50,6 +50,6 @@ GitHubAgent = rt.agent_node(
     system_message="You are an agent that provides information based on important facts.",
 )
 
-github_flow = rt.Flow(GitHubAgent)
+github_flow = rt.Flow("github-flow", entry_point=GitHubAgent)
 response = github_flow.invoke("What is the last issue created? Please write a comment on it.")
 # --8<-- [end: example]

@@ -48,6 +48,6 @@ MathAgent = rt.agent_node(
             )
 
 # run the agent
-flow = rt.Flow(MathAgent)
+flow = rt.Flow("math-flow", entry_point=MathAgent)
 result = flow.invoke("What is 3 + 4?")
 # --8<-- [end: agent]

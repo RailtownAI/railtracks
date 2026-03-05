@@ -19,7 +19,7 @@ Agent = rt.agent_node(
 
 
 question = "What does Steve like?"
-flow = rt.Flow(Agent)
+flow = rt.Flow("rag-flow", entry_point=Agent)
 response = flow.invoke(question)
 
 # --8<-- [end:simple_rag_example]
@@ -44,8 +44,8 @@ agent = rt.agent_node(
 # 3) Run the agent.
 question = "What is the work from home policy?"
 
-flow = rt.Flow(agent)
-response = flow.invoke(
+rag_tool_flow = rt.Flow("rag-tool-flow", entry_point=agent)
+response = rag_tool_flow.invoke(
     "Question:\n"
     f"{question}\n"
     "Answer based only on the context provided."

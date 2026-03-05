@@ -82,7 +82,7 @@ StructuredToolCallWeatherAgent = rt.agent_node(
 # --8<-- [end: first_agent_all]
 
 # --8<-- [start: call]
-flow = rt.Flow(StructuredToolCallWeatherAgent)
+flow = rt.Flow("weather-flow", entry_point=StructuredToolCallWeatherAgent)
 response = flow.invoke("What is the forecast for Vancouver today?")
 # --8<-- [end: call]
 
@@ -94,23 +94,14 @@ user_message = rt.llm.UserMessage(
     "Would you please be able to tell me the forecast for the next week?"
 )
 
-flow = rt.Flow(StructuredToolCallWeatherAgent)
-response = flow.invoke(
-    rt.llm.MessageHistory([system_message, user_message]),
-    llm=rt.llm.AnthropicLLM("claude-3-5-sonnet-20241022"),
-)
+structureed_weather_flow = rt.Flow("weather-flow", entry_point=StructuredToolCallWeatherAgent)
+response = structureed_weather_flow.invoke("Would you please be able to tell me the forecast for the next week?")
 # --8<-- [end: dynamic_prompts]
 print(response.structured.temperature)
 
 # --8<-- [start: fewshot]
-flow = rt.Flow(WeatherAgent)
-response = flow.invoke(
-    [
-        rt.llm.UserMessage("What is the forecast for BC today?"),
-        rt.llm.AssistantMessage("Please specify the specific city in BC you're interested in"),
-        rt.llm.UserMessage("Vancouver"),
-    ]
-)
+normal_weather_flow = rt.Flow("weather-flow", entry_point=WeatherAgent)
+normal_weather_flow.invoke("What is the forecast for BC today? Please specify the specific city in BC you're interested in Vancouver.")
 
 # --8<-- [end: fewshot]
 weather_context: dict[str, str] = {}

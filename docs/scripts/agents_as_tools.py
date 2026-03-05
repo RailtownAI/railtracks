@@ -70,7 +70,7 @@ CalculatorAgent = rt.agent_node(
 # --8<-- [end: calculation_agent]
 
 # --8<-- [start: call]
-flow = rt.Flow(CalculatorAgent)
+flow = rt.Flow("calculator-flow", entry_point=CalculatorAgent)
 result = flow.invoke("What is 3 + 4?")
 # --8<-- [end: call]
 
@@ -108,7 +108,7 @@ ShoppingAssistant = rt.agent_node(
 # --8<-- [end: shopping_agent]
 
 # --8<-- [start: shop_call]
-shopping_flow = rt.Flow(ShoppingAssistant)
+shopping_flow = rt.Flow("shopping-flow", entry_point=ShoppingAssistant)
 response = shopping_flow.invoke("I want to buy 3 laptops. Can you calculate the total cost including tax?")
 # --8<-- [end: shop_call]
 print(response)

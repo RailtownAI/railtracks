@@ -32,13 +32,13 @@ agent = rt.agent_node(
     llm=rt.llm.OpenAILLM(model_name="gpt-4o", stream=True),
 )
 
-flow = rt.Flow(agent)
+flow = rt.Flow("streaming-flow", entry_point=agent)
 result = flow.invoke(rt.llm.MessageHistory([
     rt.llm.UserMessage("Tell me who you are are"),
 ]))
 
 # The response object can act as an iterator returning string chunks terminating with the complete message.
 
-for chunk in result:
-    print(chunk)
+for chunk_obj in result:
+    print(chunk_obj)
 # --8<-- [end: streaming_agent_usage]
