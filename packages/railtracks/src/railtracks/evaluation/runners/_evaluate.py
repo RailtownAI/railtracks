@@ -3,13 +3,14 @@ from collections import defaultdict
 from rich import print
 from rich.prompt import Prompt
 from datetime import datetime, timezone
+from typing import Any, Callable
 
 from ...utils.logging.create import get_rt_logger
 from ..point import AgentDataPoint
 from ..data.evaluation_dataset import EvaluationDataset
 from ..evaluators import Evaluator
 from ..result import EvaluationResult, EvaluatorResult
-from ..utils import save
+from ..utils import save, payload
 
 logger = get_rt_logger("evaluate")
 
@@ -42,6 +43,7 @@ def _select_agent(agents: dict[str, int]) -> list[str]:
         print(f"[{COLORS['success']}]✓[/{COLORS['success']}] Evaluating all agents")
         return list(agents.keys())
 
+
     try:
         indices = [int(idx.strip()) for idx in user_input.split(",")]
         selected = [
@@ -66,6 +68,7 @@ def evaluate(
     agent_selection: bool = True,
     agents: list[str] | None = None,
     name: str | None = None,
+    payload_callback: Callable[[dict[str, Any]], Any] | None = None,
 ):
     """Evaluate agent data using the provided evaluators.
 
@@ -76,6 +79,7 @@ def evaluate(
                          If False, evaluates all agents without prompting.
         agents: An optional list of agent names to evaluate. If provided, only these agents will be evaluated. Overrides agent_selection if both are provided.
         name: An optional name for the evaluation, which will be included in the EvaluationResult.
+        payload_callback: An optional callback function that will be called with the evaluation results payload after evaluation is complete. Can be used for custom logging, notifications, etc.
     Returns:
         A list of EvaluationResult instances containing the results from each evaluator.
     """
@@ -175,8 +179,16 @@ def evaluate(
             )
         )
 
+    logger.info(f"Evaluation DONE.")
+
+    if payload_callback is not None:
+        try:
+            for result in evaluation_results:
+                payload_callback(payload(result))
+        except Exception as e:
+            logger.error(f"Failed to execute payload callback: {e}")
+
     try:
-        logger.info(f"Evaluation DONE.")
         save(evaluation_results)
     except Exception as e:
         logger.error(f"Failed to save evaluation results: {e}")
