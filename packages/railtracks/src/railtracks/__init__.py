@@ -20,6 +20,7 @@ __all__ = [
     "ExecutionInfo",
     "ExecutorConfig",
     "llm",
+    "guardrails",
     "context",
     "set_config",
     "context",
@@ -46,7 +47,7 @@ from railtracks.built_nodes.easy_usage_wrappers import (
     function_node,
 )
 
-from . import context, integrations, llm, prebuilt, rag, vector_stores
+from . import context, guardrails, integrations, llm, prebuilt, rag, vector_stores
 from ._session import ExecutionInfo, Session, session
 from .context.central import session_id, set_config
 from .interaction import broadcast, call, call_batch, interactive
