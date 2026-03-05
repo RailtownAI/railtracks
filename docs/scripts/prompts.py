@@ -12,14 +12,16 @@ assistant = rt.agent_node(
 )
 
 # Run with context values
-with rt.Session(context={"role": "technical", "domain": "Python programming"}):
-    response = await rt.call(assistant, user_input="Help me understand decorators.")
+assistant_flow = rt.Flow(assistant)
+response = assistant_flow.update_context({"role": "technical", "domain": "Python programming"}).invoke("Help me understand decorators.")
+
 
 # --8<-- [end: prompt_basic]
 
 # --8<-- [start: disable_injection]
 # Disable context injection for a specific run
-with rt.Session(
+rt.Flow(
+    assistant,
     prompt_injection=False
 ): ...
 
@@ -68,9 +70,10 @@ technical_expert_context = {
 }
 
 # Run with different contexts for different scenarios
-with rt.Session(context=customer_support_context):
-    response1 = await rt.call(assistant, user_input="My product isn't working.")
+assistant_flow = rt.Flow(assistant)
+customer_support_flow = assistant_flow.update_context(customer_support_context)
+response1 = customer_support_flow.invoke("My internet is not working. Can you help?")
 
-with rt.Session(context=technical_expert_context):
-    response2 = await rt.call(assistant, user_input="How do I implement a binary tree?")
+technical_expert_flow = assistant_flow.update_context(technical_expert_context)
+response2 = technical_expert_flow.invoke("How do I implement a binary tree?")
 # --8<-- [end: prompt_templates]
