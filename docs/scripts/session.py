@@ -1,4 +1,3 @@
-import asyncio
 import railtracks as rt
 
 
@@ -8,36 +7,31 @@ async def greet(name: str) -> str:
     return f"Hello, {name}!"
 
 
-@rt.session()
-async def empty_workflow():
-    result = await rt.call(greet, name="Alice")
-    return result
-
-
-# Run your workflow
-result, session = asyncio.run(empty_workflow())
+flow = rt.Flow(greet)
+result = flow.invoke(name="Alice")
 print(result)  # "Hello, Alice!"
-print(f"Session ID: {session._identifier}")
 # --8<-- [end: empty_session_dec]
 
 
 # --8<-- [start: configured_session_dec]
-@rt.session(
+@rt.function_node
+async def greet_multiple(names: list[str]) -> list[str]:
+    results = []
+    for name in names:
+        results.append(await rt.call(greet, name=name))
+    return results
+
+flow = rt.Flow(
+    greet_multiple,
     timeout=30,  # 30 second timeout
     context={"user_id": "123"},  # Global context variables
     logging_setting="DEBUG",  # Enable debug logging
     save_state=True,  # Save execution state to file
-    name="my-unique-run",  # Custom session name
+    name="my-unique-run",  # Custom flow name
 )
-async def configured_workflow():
-    result1 = await rt.call(greet, name="Bob")
-    result2 = await rt.call(greet, name="Charlie")
-    return [result1, result2]
 
-
-result, session = asyncio.run(configured_workflow())
+result = flow.invoke(names=["Bob", "Charlie"])
 print(result)  # ['Hello, Bob!', 'Hello, Charlie!']
-print(f"Session ID: {session._identifier}")
 # --8<-- [end: configured_session_dec]
 
 
@@ -46,42 +40,49 @@ print(f"Session ID: {session._identifier}")
 async def farewell(name: str) -> str:
     return f"Bye, {name}!"
 
-
-@rt.session(context={"action": "greet", "name": "Diana"}, logging_setting="CRITICAL")
-async def first_workflow():
+@rt.function_node
+async def conditional_greet():
     if rt.context.get("action") == "greet":
         return await rt.call(greet, rt.context.get("name"))
 
-
-@rt.session(context={"action": "farewell", "name": "Robert"}, logging_setting="CRITICAL")
-async def second_workflow():
+@rt.function_node
+async def conditional_farewell():
     if rt.context.get("action") == "farewell":
         return await rt.call(farewell, rt.context.get("name"))
 
+# Create independent flows
+first_flow = rt.Flow(
+    conditional_greet,
+    context={"action": "greet", "name": "Diana"},
+    logging_setting="CRITICAL"
+)
+
+second_flow = rt.Flow(
+    conditional_farewell,
+    context={"action": "farewell", "name": "Robert"},
+    logging_setting="CRITICAL"
+)
 
 # Run independently
-result1, session1 = asyncio.run(first_workflow())
-result2, _ = asyncio.run(second_workflow()) # if we don't want to work with Session Object
+result1 = first_flow.invoke()
+result2 = second_flow.invoke()
 print(result1)  # "Hello, Diana!"
 print(result2)  # "Bye, Robert!"
 # --8<-- [end: multiple_sessions_dec]
 
 
 # --8<-- [start: configured_session_cm]
-async def context_workflow():
-    with rt.Session(
-        timeout=30,  # 30 second timeout
-        context={"user_id": "123"},  # Global context variables
-        logging_setting="DEBUG",  # Enable debug logging
-        save_state=True,  # Save execution state to file
-        name="my-unique-run",  # Custom session name
-    ):
-        result1 = await rt.call(greet, name="Bob")
-        result2 = await rt.call(greet, name="Charlie")
-        return [result1, result2]
+# Flow configuration approach (replaces session context manager)
+flow = rt.Flow(
+    greet_multiple,
+    timeout=30,  # 30 second timeout
+    context={"user_id": "123"},  # Global context variables
+    logging_setting="DEBUG",  # Enable debug logging
+    save_state=True,  # Save execution state to file
+    name="my-unique-run",  # Custom flow name
+)
 
-
-result = asyncio.run(context_workflow())
+result = flow.invoke(names=["Bob", "Charlie"])
 print(result)  # ['Hello, Bob!', 'Hello, Charlie!']
 # --8<-- [end: configured_session_cm]
 
@@ -92,34 +93,27 @@ def sample_node():
 
 
 # --8<-- [start: error_handling]
-@rt.session(end_on_error=True)
-async def safe_workflow():
-    try:
-        return await rt.call(sample_node)
-    except Exception as e:
-        print(f"Workflow failed: {e}")
-        return None
-
+flow = rt.Flow(sample_node, end_on_error=True)
+try:
+    result = flow.invoke()
+except Exception as e:
+    print(f"Flow failed: {e}")
+    result = None
 
 # --8<-- [end: error_handling]
 
 
 # --8<-- [start: api_example]
-@rt.session(context={"api_key": "secret", "region": "us-west"})
-async def api_workflow():
-    # Context variables are available to all nodes
-    result = await rt.call(sample_node)
-    return result
-
+flow = rt.Flow(sample_node, context={"api_key": "secret", "region": "us-west"})
+# Context variables are available to all nodes
+result = flow.invoke()
 
 # --8<-- [end: api_example]
 
 
 # --8<-- [start: tracked]
-@rt.session(save_state=True, name="daily-report-v1")
-async def daily_report():
-    # Execution state saved to .railtracks/daily-report-v1.json
-    return await rt.call(sample_node)
-
+flow = rt.Flow(sample_node, save_state=True, name="daily-report-v1")
+# Execution state saved to .railtracks/daily-report-v1.json
+result = flow.invoke()
 
 # --8<-- [end: tracked]
