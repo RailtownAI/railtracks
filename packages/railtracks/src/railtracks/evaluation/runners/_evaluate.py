@@ -43,6 +43,7 @@ def _select_agent(agents: dict[str, int]) -> list[str]:
         print(f"[{COLORS['success']}]✓[/{COLORS['success']}] Evaluating all agents")
         return list(agents.keys())
 
+
     try:
         indices = [int(idx.strip()) for idx in user_input.split(",")]
         selected = [
@@ -165,7 +166,11 @@ def evaluate(
                     {
                         "agent_name": agent_name,
                         "agent_node_ids": [
-                            adp.identifier for adp in data_dict[agent_name]
+                            {
+                                "session_id": adp.session_id,
+                                "agent_node_id": adp.identifier,
+                            }
+                            for adp in data_dict[agent_name]
                         ],
                     }
                 ],
