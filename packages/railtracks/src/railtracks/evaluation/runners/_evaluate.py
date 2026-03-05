@@ -25,28 +25,40 @@ COLORS = {
     "selected": "cyan",
 }
 
+
 def _select_agent(agents: dict[str, int]) -> list[str]:
-    print(f"\n[{COLORS['header']}]Multiple agents found in the data:[/{COLORS['header']}]")
+    print(
+        f"\n[{COLORS['header']}]Multiple agents found in the data:[/{COLORS['header']}]"
+    )
     for i, agent_name in enumerate(agents.keys()):
-        print(f"  [{COLORS['index']}]{i}[/{COLORS['index']}]: [{COLORS['agent_name']}]{agent_name}[/{COLORS['agent_name']}] -> {agents[agent_name]} data points")
+        print(
+            f"  [{COLORS['index']}]{i}[/{COLORS['index']}]: [{COLORS['agent_name']}]{agent_name}[/{COLORS['agent_name']}] -> {agents[agent_name]} data points"
+        )
     user_input = Prompt.ask(
         f"\n[{COLORS['prompt']}]Select agent index(es)[/{COLORS['prompt']}] (comma-separated), or [{COLORS['highlight']}]-1[/{COLORS['highlight']}] to evaluate all"
     )
-    
+
     if user_input.strip() == "-1":
         print(f"[{COLORS['success']}]✓[/{COLORS['success']}] Evaluating all agents")
         return list(agents.keys())
-    
+
     try:
         indices = [int(idx.strip()) for idx in user_input.split(",")]
-        selected = [list(agents.keys())[idx] for idx in indices if 0 <= idx < len(agents)]
-        selected_color = COLORS['selected']
-        selected_str = ', '.join(f"[{selected_color}]{agent}[/{selected_color}]" for agent in selected)
+        selected = [
+            list(agents.keys())[idx] for idx in indices if 0 <= idx < len(agents)
+        ]
+        selected_color = COLORS["selected"]
+        selected_str = ", ".join(
+            f"[{selected_color}]{agent}[/{selected_color}]" for agent in selected
+        )
         print(f"[{COLORS['success']}]✓[/{COLORS['success']}] Selected: {selected_str}")
         return selected
     except (ValueError, IndexError):
-        print(f"[{COLORS['error']}]✗[/{COLORS['error']}] Invalid input. Evaluating all agents.")
+        print(
+            f"[{COLORS['error']}]✗[/{COLORS['error']}] Invalid input. Evaluating all agents."
+        )
         return list(agents.keys())
+
 
 def evaluate(
     data: AgentDataPoint | list[AgentDataPoint] | EvaluationDataset,
@@ -56,11 +68,11 @@ def evaluate(
     name: str | None = None,
 ):
     """Evaluate agent data using the provided evaluators.
-    
+
     Args:
         data: The agent data to be evaluated. Can be a single AgentDataPoint, a list of AgentDataPoints, or an EvaluationDataset.
         evaluators: A list of Evaluator instances to run on the data.
-        agent_selection: If True and multiple agents are found in the data, prompts the user to select which agents to evaluate. 
+        agent_selection: If True and multiple agents are found in the data, prompts the user to select which agents to evaluate.
                          If False, evaluates all agents without prompting.
         agents: An optional list of agent names to evaluate. If provided, only these agents will be evaluated. Overrides agent_selection if both are provided.
         name: An optional name for the evaluation, which will be included in the EvaluationResult.
@@ -99,13 +111,15 @@ def evaluate(
         )
 
     if agents is not None:
-        
+
         for agent in agents:
             if agent not in data_dict:
                 logger.warning(f"Agent {agent} not found in data. Skipping.")
         agents = [agent for agent in agents if agent in data_dict]
     elif agent_selection and len(data_dict) > 1:
-        agents = _select_agent({agent_name: len(data_dict[agent_name]) for agent_name in data_dict.keys()})
+        agents = _select_agent(
+            {agent_name: len(data_dict[agent_name]) for agent_name in data_dict.keys()}
+        )
     else:
         agents = list(data_dict.keys())
 
@@ -116,12 +130,10 @@ def evaluate(
         )
 
         evaluator_results: list[EvaluatorResult] = []
-        
+
         start_time = datetime.now(timezone.utc)
         for evaluator in evaluators:
-            logger.info(
-                f"Evaluator: {evaluator.__class__.__name__} CREATED"
-            )
+            logger.info(f"Evaluator: {evaluator.__class__.__name__} CREATED")
             try:
                 result = evaluator.run(data_dict[agent_name])
             except Exception as e:
@@ -129,13 +141,9 @@ def evaluate(
                 continue
 
             evaluator_results.append(result)
-            logger.info(
-                f"Evaluator: {evaluator.__class__.__name__} DONE"
-            )
-        
-        logger.info(
-            f"Evaluation for {agent_name} DONE."
-        )
+            logger.info(f"Evaluator: {evaluator.__class__.__name__} DONE")
+
+        logger.info(f"Evaluation for {agent_name} DONE.")
 
         metrics_map = {}
         for er in evaluator_results:
@@ -150,7 +158,18 @@ def evaluate(
                 evaluation_name=name or None,
                 created_at=start_time,
                 completed_at=end_time,
-                agents=[{"agent_name": agent_name , "agent_node_ids": [adp.identifier for adp in data_dict[agent_name]]}],
+                agents=[
+                    {
+                        "agent_name": agent_name,
+                        "agent_node_ids": [
+                            {
+                                "session_id": adp.session_id,
+                                "agent_node_id": adp.identifier,
+                            }
+                            for adp in data_dict[agent_name]
+                        ],
+                    }
+                ],
                 metrics_map=metrics_map,
                 evaluator_results=evaluator_results,
             )

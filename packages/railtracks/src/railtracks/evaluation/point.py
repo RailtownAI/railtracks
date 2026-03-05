@@ -99,6 +99,7 @@ class AgentDataPoint(BaseModel):
     """A data point specific to agent interactions."""
 
     identifier: UUID
+    session_id: UUID
     agent_name: str
     agent_input: dict | list
     agent_output: dict
@@ -309,6 +310,12 @@ def extract_agent_data_points(session_files: list[str] | str) -> list[AgentDataP
         except (FileNotFoundError, ValueError) as e:
             logger.error(str(e))
             continue
+
+        session_id = session_data.get("session_id")
+        if session_id is None:
+            logger.warning(f"no session_id found in file: {file_path}, skipping file.")
+            continue
+
         runs = session_data.get("runs", [])
 
         if len(runs) == 0:
@@ -361,6 +368,7 @@ def extract_agent_data_points(session_files: list[str] | str) -> list[AgentDataP
                     data_points.append(
                         AgentDataPoint(
                             identifier=node.identifier,
+                            session_id=UUID(session_id),
                             agent_name=node.name,
                             agent_input=agent_input,
                             agent_output=agent_output,
