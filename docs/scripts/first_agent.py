@@ -125,14 +125,4 @@ async def few_shot():
 
 # --8<-- [end: fewshot]
 weather_context: dict[str, str] = {}
-# --8<-- [start: session]
-async def session_based():
-    with rt.Session(
-        context=weather_context,
-        timeout=60  # seconds
-    ):
-        response = await rt.call(
-            WeatherAgent,
-            "What is the weather like in Vancouver?"
-        )
-# --8<-- [end: session]
+
