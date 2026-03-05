@@ -25,6 +25,6 @@ class EvaluationResult(BaseModel):
     created_at: datetime
     completed_at: datetime
     evaluation_name: str | None = None
-    agents: list[dict[str, str | list[UUID]]]
+    agents: list[dict[str, str | list[dict[str, UUID]]]]
     metrics_map: dict[str, METRIC_TYPES]
     evaluator_results: list[EvaluatorResult]
