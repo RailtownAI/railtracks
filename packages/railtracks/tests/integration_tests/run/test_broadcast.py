@@ -25,7 +25,6 @@ async def test_simple_streamer():
 
     sub = SubObject()
     with rt.Session(
-        logging_setting="NONE",
         broadcast_callback=sub.handle,
     ):
         finished_result = await rt.call(StreamingRNGNode)
@@ -89,7 +88,7 @@ async def rng_stream_tester(
                 self.total_streams.append(item)
 
     sub = Sub()
-    with rt.Session(logging_setting="NONE", broadcast_callback=sub.handle):
+    with rt.Session(broadcast_callback=sub.handle):
         finished_result = await rt.call(
             RNGTreeStreamer, num_calls, parallel_call_nums, multiplier
         )

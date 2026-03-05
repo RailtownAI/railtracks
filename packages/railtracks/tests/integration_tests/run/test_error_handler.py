@@ -12,7 +12,7 @@ RNGNode = rt.function_node(random.random)
 
 @pytest.mark.timeout(1)
 async def test_simple_request():
-    with rt.Session(logging_setting="NONE"):
+    with rt.Session():
         result = await rt.call(RNGNode)
 
     assert isinstance(result, float)
@@ -31,7 +31,7 @@ ErrorThrower = rt.function_node(error_thrower)
 
 
 async def test_error():
-    with rt.Session(logging_setting="NONE"):
+    with rt.Session():
         with pytest.raises(CustomTestError):
             await rt.call(ErrorThrower)
 
@@ -48,14 +48,14 @@ ErrorHandler = rt.function_node(error_handler)
 
 @pytest.mark.timeout(1)
 async def test_error_handler():
-    with rt.Session(logging_setting="NONE"):
+    with rt.Session():
         result = await rt.call(ErrorHandler)
     assert result == "Caught the error"
 
 
 async def test_error_handler_wo_retry():
     with pytest.raises(CustomTestError):
-        with rt.Session(end_on_error=True, logging_setting="NONE"):
+        with rt.Session(end_on_error=True):
             await rt.call(ErrorHandler)
 
 
@@ -75,7 +75,7 @@ ErrorHandlerWithRetry = rt.function_node(error_handler_with_retry)
 @pytest.mark.timeout(5)
 async def test_error_handler_with_retry():
     for num_retries in range(5, 15):
-        with rt.Session(logging_setting="NONE") as run:
+        with rt.Session() as run:
             result = await rt.call(ErrorHandlerWithRetry, num_retries)
             result = run.info
 
@@ -107,7 +107,7 @@ ParallelErrorHandler = rt.function_node(parallel_error_handler)
 
 async def test_parallel_error_tester():
     for n_c, p_c in [(10, 10), (3, 20), (1, 10), (60, 10)]:
-        with rt.Session(logging_setting="NONE"):
+        with rt.Session():
             result = await rt.call(ParallelErrorHandler, n_c, p_c)
 
         assert isinstance(result, list)
@@ -128,7 +128,7 @@ ErrorHandlerWrapper = rt.function_node(error_handler_wrapper)
 
 async def test_parallel_error_wrapper():
     for n_c, p_c in [(10, 10), (3, 20), (1, 10), (60, 10)]:
-        with rt.Session(logging_setting="NONE") as run:
+        with rt.Session() as run:
             result = await rt.call(ErrorHandlerWrapper, n_c, p_c)
 
         assert len(result) == n_c * p_c

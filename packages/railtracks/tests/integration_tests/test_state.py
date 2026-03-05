@@ -118,7 +118,7 @@ def test_no_changes(request_structure):
 
 
 async def test_json_serialization(planner_node, json_state_schema):
-    with rt.Session(logging_setting="NONE") as session:
+    with rt.Session() as session:
         await rt.call(planner_node, "New York", "Houston")
 
     try:
@@ -153,7 +153,7 @@ async def test_json_serialization_2(planner_with_llm_node, json_state_schema, mo
     model._chat = random_number
     # =======================================
 
-    with rt.Session(logging_setting="NONE") as session:
+    with rt.Session() as session:
         await rt.call(planner_with_llm_node, llm=model)
 
     try:
