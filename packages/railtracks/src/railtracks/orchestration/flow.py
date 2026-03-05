@@ -23,7 +23,7 @@ _P = ParamSpec("_P")
 
 class Flow(Generic[_P, _TOutput]):
     """
-    Inializes a Flow object with a provided an entry point and a unique name.
+    Initializes a Flow object with a provided entry point and a unique name.
 
     A flow object is the configuration where you can run your agent with different input arguments.
 
