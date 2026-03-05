@@ -24,9 +24,9 @@ _P = ParamSpec("_P")
 class Flow(Generic[_P, _TOutput]):
     """
     Inializes a Flow object with a provided an entry point and a unique name.
-    
-    A flow object is the configuration where you can run your agent with different input arguments. 
-    
+
+    A flow object is the configuration where you can run your agent with different input arguments.
+
     Args:
         name (str): A unique name for the flow. This is used for logging and state management.
         entry_point (Callable | RTSyncFunction | RTAsyncFunction): The starting point of your flow.
@@ -40,6 +40,7 @@ class Flow(Generic[_P, _TOutput]):
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
         payload_callback (Callable[[dict[str, Any]], None], optional): A callback function that will run upon completion of the flow with the final payload as an argument.
     """
+
     def __init__(
         self,
         name: str,
