@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import contextvars
 import logging
-import os
 import warnings
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, KeysView
 
