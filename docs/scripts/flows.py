@@ -199,9 +199,7 @@ Coordinator = rt.agent_node(
     system_message=CoordinatorMessage,
 )
 
-async def main():
-    response = await rt.call(
-            CoordinatorAgent,
-            user_input=""
-        )
+
+flow = rt.Flow(Coordinator)
+flow.invoke("I am having an issue with my product. I think it might be a billing issue but I am not sure. Can you help me figure out what is going on?")
 # --8<-- [end: customer_example]
