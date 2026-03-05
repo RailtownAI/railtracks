@@ -30,7 +30,7 @@ class Flow(Generic[_P, _TOutput]):
     Args:
         name (str): A unique name for the flow. This is used for logging and state management.
         entry_point (Callable | RTSyncFunction | RTAsyncFunction): The starting point of your flow.
-        context (dict[str, Any], optional): Context to be passed to all instantiations (or runs) of this flow. Note that the context can be overriden at invocation time.
+        context (dict[str, Any], optional): Context to be passed to all instantiations (or runs) of this flow. Note that the context can be overridden at invocation time.
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
         logging_setting (AllowableLogLevels, optional): The setting for the level of logging you would like to have. This will override the module-level logging settings for the duration of this session.
