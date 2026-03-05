@@ -23,13 +23,6 @@ Here’s how you can use context during a run:
 --8<-- "docs/scripts/context.py:context_basics"
 ```
 
-!!! tip "Context in a Node"
-    The context can be accessed from within **any node** in your Railtracks workflow, regardless of where the node is defined or how it's called:
-    
-    ```python
-    --8<-- "docs/scripts/context.py:context_in_node"
-    ```
-
 !!! warning
     The context only exists while the run is active. After that, it's gone.
 
