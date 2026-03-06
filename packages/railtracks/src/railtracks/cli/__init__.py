@@ -29,7 +29,6 @@ import urllib.request
 import webbrowser
 import zipfile
 from pathlib import Path
-from urllib.parse import unquote
 
 try:
     import uvicorn
@@ -277,83 +276,30 @@ async def get_sessions():
     return JSONResponse(content=sessions)
 
 
-@app.get("/api/files")
-async def get_files():
-    """
-    DEPRECATED: This endpoint is deprecated and kept for old visualizer compatibility.
-    List JSON files in .railtracks directory
-    """
-    railtracks_dir = get_railtracks_dir()
-    json_files = []
+@app.get("/api/sessions/{guid}")
+async def get_session(guid: str):
+    """Get a specific session JSON file by GUID from .railtracks/data/sessions/"""
+    sessions_dir = get_data_dir("sessions")
+    file_path = sessions_dir / f"{guid}.json"
+    if not file_path.exists():
+        # Sessions may be saved as {flow_name}_{guid}.json
+        matches = list(sessions_dir.glob(f"*_{guid}.json"))
+        if matches:
+            file_path = matches[0]
+
+    if not file_path.exists():
+        return JSONResponse(content={"error": "Session not found"}, status_code=404)
 
     try:
-        if railtracks_dir.exists():
-            for file_path in railtracks_dir.glob("*.json"):
-                json_files.append(
-                    {
-                        "name": file_path.name,
-                        "size": file_path.stat().st_size,
-                        "modified": file_path.stat().st_mtime,
-                    }
-                )
-
-        response = JSONResponse(content=json_files)
-        response.headers["Deprecated"] = "true"
-        return response
-    except Exception as e:
-        print_error(f"Error handling /api/files: {e}")
-        return JSONResponse(content={"error": "Internal Server Error"}, status_code=500)
-
-
-@app.get("/api/json/{filename:path}")
-async def get_json_file(filename: str):
-    """
-    DEPRECATED: This endpoint is deprecated and kept for old visualizer compatibility.
-    Load specific JSON file from .railtracks directory
-    """
-    railtracks_dir = get_railtracks_dir()
-
-    try:
-        # URL decode the filename to handle spaces and special characters
-        filename = unquote(filename)
-        if not filename.endswith(".json"):
-            filename += ".json"
-
-        file_path = railtracks_dir / filename
-
-        if not file_path.exists():
-            return JSONResponse(
-                content={"error": f"File {filename} not found"}, status_code=404
-            )
-
-        # Read and parse JSON file
         with open(file_path, encoding="utf-8") as f:
-            content = f.read()
-            # Validate JSON
-            json_data = json.loads(content)
-
-        response = JSONResponse(content=json_data)
-        response.headers["Deprecated"] = "true"
-        return response
-
+            content = json.load(f)
+        return JSONResponse(content=content)
     except json.JSONDecodeError as e:
-        print_error(f"Invalid JSON in {filename}: {e}")
+        print_error(f"Invalid JSON in {file_path.name}: {e}")
         return JSONResponse(content={"error": f"Invalid JSON: {e}"}, status_code=400)
     except Exception as e:
-        print_error(f"Error handling /api/json/{filename}: {e}")
+        print_error(f"Error reading session file {file_path.name}: {e}")
         return JSONResponse(content={"error": "Internal Server Error"}, status_code=500)
-
-
-@app.post("/api/refresh")
-async def refresh():
-    """
-    DEPRECATED: This endpoint is deprecated and kept for old visualizer compatibility.
-    Trigger frontend refresh
-    """
-    print_status("Frontend refresh triggered")
-    response = JSONResponse(content={"status": "refresh_triggered"})
-    response.headers["Deprecated"] = "true"
-    return response
 
 
 @app.get("/{full_path:path}")
@@ -392,9 +338,7 @@ class RailtracksServer:
         print_status("📋 API endpoints:")
         print_status("   GET  /api/evaluations - Get all evaluation JSON files")
         print_status("   GET  /api/sessions - Get all session JSON files")
-        print_status("   GET  /api/files - List JSON files (deprecated)")
-        print_status("   GET  /api/json/{filename} - Load JSON file (deprecated)")
-        print_status("   POST /api/refresh - Trigger frontend refresh (deprecated)")
+        print_status("   GET  /api/sessions/{guid} - Get a specific session by GUID")
         print_status("Press Ctrl+C to stop the server")
 
         # Open browser after a short delay to ensure server is ready
