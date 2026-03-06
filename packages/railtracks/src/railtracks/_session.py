@@ -26,11 +26,6 @@ from .state.info import (
 )
 from .state.state import RTState
 from .utils.config import ExecutorConfig
-from .utils.logging.config import (
-    AllowableLogLevels,
-    mark_session_logging_override,
-    restore_module_logging,
-)
 from .utils.logging.create import get_rt_logger
 
 logger = get_rt_logger(__name__)
@@ -54,8 +49,6 @@ class Session:
     - `name`: None
     - `timeout`: 150.0 seconds
     - `end_on_error`: False
-    - `logging_setting`: "INFO"
-    - `log_file`: None (logs will not be written to a file)
     - `broadcast_callback`: None (no callback for broadcast messages)
     - `prompt_injection`: True (the prompt will be automatically injected from context variables)
     - `save_state`: True (the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory)
@@ -68,8 +61,6 @@ class Session:
         flow_id (str | None, optional): The unique identifier of the flow this session is associated with.
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
-        logging_setting (AllowableLogLevels, optional): The setting for the level of logging you would like to have. This will override the module-level logging settings for the duration of this session.
-        log_file (str | os.PathLike | None, optional): The file to which the logs will be written.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
@@ -84,8 +75,6 @@ class Session:
         name: str | None = None,
         timeout: float | None = None,
         end_on_error: bool | None = None,
-        logging_setting: AllowableLogLevels | None = None,
-        log_file: str | os.PathLike | None = None,
         broadcast_callback: (
             Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
         ) = None,
@@ -104,8 +93,6 @@ class Session:
         self.executor_config = self.global_config_precedence(
             timeout=timeout,
             end_on_error=end_on_error,
-            logging_setting=logging_setting,
-            log_file=log_file,
             broadcast_callback=broadcast_callback,
             prompt_injection=prompt_injection,
             save_state=save_state,
@@ -118,14 +105,6 @@ class Session:
         self.name = name
         self.flow_name = flow_name
         self.flow_id = flow_id
-
-        self._has_custom_logging = logging_setting is not None or log_file is not None
-
-        if self._has_custom_logging:
-            mark_session_logging_override(
-                session_level=self.executor_config.logging_setting,
-                session_log_file=self.executor_config.log_file,
-            )
 
         self.publisher: RTPublisher = RTPublisher()
 
@@ -158,8 +137,6 @@ class Session:
         cls,
         timeout: float | None,
         end_on_error: bool | None,
-        logging_setting: AllowableLogLevels | None,
-        log_file: str | os.PathLike | None,
         broadcast_callback: (
             Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
         ),
@@ -178,8 +155,6 @@ class Session:
         return global_executor_config.precedence_overwritten(
             timeout=timeout,
             end_on_error=end_on_error,
-            logging_setting=logging_setting,
-            log_file=log_file,
             subscriber=broadcast_callback,
             prompt_injection=prompt_injection,
             save_state=save_state,
@@ -252,7 +227,6 @@ class Session:
         Closes the runner and cleans up all resources.
 
         - Shuts down the state object
-        - Detaches logging handlers so they aren't duplicated
         - Deletes all the global variables that were registered in the context
         """
         # FIX: Resource leak - publisher background task wasn't being shut down on Session exit
@@ -282,9 +256,6 @@ class Session:
                 )
 
         self.rt_state.shutdown()
-
-        if self._has_custom_logging:
-            restore_module_logging()
 
         delete_globals()
         # by deleting all of the state variables we are ensuring that the next time we create a runner it is fresh
@@ -342,8 +313,6 @@ def session(
     context: Dict[str, Any] | None = None,
     timeout: float | None = None,
     end_on_error: bool | None = None,
-    logging_setting: AllowableLogLevels | None = None,
-    log_file: str | os.PathLike | None = None,
     broadcast_callback: (
         Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
     ) = None,
@@ -366,8 +335,6 @@ def session(
         context (Dict[str, Any], optional): A dictionary of global context variables to be used during the execution.
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
-        logging_setting (AllowableLogLevels, optional): The setting for the level of logging you would like to have. This will override the module-level logging settings for the duration of this session.
-        log_file (str | os.PathLike | None, optional): The file to which the logs will be written.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
@@ -386,8 +353,6 @@ def session(
     context: Dict[str, Any] | None = None,
     timeout: float | None = None,
     end_on_error: bool | None = None,
-    logging_setting: AllowableLogLevels | None = None,
-    log_file: str | os.PathLike | None = None,
     broadcast_callback: (
         Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
     ) = None,
@@ -421,8 +386,6 @@ def session(
         context (Dict[str, Any], optional): A dictionary of global context variables to be used during the execution.
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
-        logging_setting (AllowableLogLevels, optional): The setting for the level of logging you would like to have. This will override the module-level logging settings for the duration of this session.
-        log_file (str | os.PathLike | None, optional): The file to which the logs will be written.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
@@ -452,8 +415,6 @@ def session(
                 context=context,
                 timeout=timeout,
                 end_on_error=end_on_error,
-                logging_setting=logging_setting,
-                log_file=log_file,
                 broadcast_callback=broadcast_callback,
                 name=name,
                 prompt_injection=prompt_injection,

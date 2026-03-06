@@ -18,7 +18,7 @@ SlowRNG = rt.function_node(slow_rng)
 @pytest.mark.asyncio
 async def test_async_runners_w_async():
     async def run_rng(timeout_len: float):
-        with rt.Session(logging_setting="NONE") as run:
+        with rt.Session() as run:
             await rt.call(SlowRNG, timeout_len)
             return run.info
 
@@ -36,7 +36,7 @@ async def test_async_runners_w_executor():
     with concurrent.futures.ThreadPoolExecutor() as executor:
 
         async def run_rng(timeout_len: float):
-            with rt.Session(logging_setting="NONE") as run:
+            with rt.Session() as run:
                 await rt.call(SlowRNG, timeout_len)
                 return run.info
 
@@ -48,7 +48,7 @@ async def test_async_runners_w_executor():
 
 @pytest.mark.asyncio
 async def nested_runner_call():
-    with rt.Session(logging_setting="NONE"):
+    with rt.Session():
         result = await rt.call(SlowRNG, 0.2)
         return result
 

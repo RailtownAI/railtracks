@@ -126,7 +126,7 @@ CodeAgent = rt.agent_node(
 user_prompt = """Create a 3x3 array of random numbers using numpy, and print the array and its mean"""
 
 async def call_code_agent():
-    with rt.Session(logging_setting="VERBOSE"):
+    with rt.Session():
         create_sandbox_container()
         try:
             result = await rt.call(CodeAgent, user_prompt)
@@ -173,7 +173,7 @@ message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
 async def call_bash_agent():
-    with rt.Session(logging_setting="VERBOSE"):
+    with rt.Session():
         result = await rt.call(BashAgent, message_history)
 
     print(result.content)
@@ -217,7 +217,7 @@ SlackAgent = rt.agent_node(
 user_prompt = """Send a message to general saying "Hello!"."""
 
 async def call_slack_agent():
-    with rt.Session(logging_setting="VERBOSE"):
+    with rt.Session():
         result = await rt.call(SlackAgent, user_prompt)
 
     print(result.content)

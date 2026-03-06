@@ -47,7 +47,7 @@ async def test_structured_llm_run_with_different_inputs(mock_llm, simple_output_
         output_schema=simple_output_model,
     )
 
-    with rt.Session(logging_setting="NONE"):
+    with rt.Session():
         user_input = user_input_factory()
         response = await rt.call(simple_agent, user_input=user_input)
 
@@ -66,7 +66,7 @@ async def test_terminal_llm_streaming(mock_llm):
         llm=llm,
     )
 
-    with rt.Session(logging_setting="NONE"):
+    with rt.Session():
         response = await rt.call(agent, user_input=rt.llm.MessageHistory([rt.llm.UserMessage("hello world")]))
         accumulated_text = ""
         for chunk in response:
@@ -92,7 +92,7 @@ async def test_structured_llm_streaming(mock_llm, simple_output_model):
         output_schema=simple_output_model,
     )
 
-    with rt.Session(logging_setting="NONE"):
+    with rt.Session():
         response = await rt.call(agent, user_input=rt.llm.MessageHistory([rt.llm.UserMessage("hello world")]))
         accumulated_text = ""
         for chunk in response:

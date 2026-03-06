@@ -42,7 +42,7 @@ class TestPrimitiveInputTypes:
             llm,
         )
 
-        with rt.Session(logging_setting="NONE"):
+        with rt.Session():
             response = await rt.call(
                 agent,
                 "What is the secret phrase? Only return the secret phrase, no other text.",
@@ -81,7 +81,7 @@ class TestPrimitiveInputTypes:
             llm,
         )
 
-        with rt.Session(logging_setting="NONE"):
+        with rt.Session():
             response = await rt.call(
                 agent,
                 "Find what the magic function output is for 6? Only return the magic number, no other text.",
@@ -120,7 +120,7 @@ class TestPrimitiveInputTypes:
             llm,
         )
 
-        with rt.Session(logging_setting="NONE"):
+        with rt.Session():
             response = await rt.call(
                 agent,
                 "What is the magic phrase for the word 'hello'? Only return the magic phrase, no other text.",
@@ -159,7 +159,7 @@ class TestPrimitiveInputTypes:
             llm,
         )
 
-        with rt.Session(logging_setting="NONE"):
+        with rt.Session():
             response = await rt.call(
                 agent,
                 "Does 5 pass the magic test? Only return the result, no other text.",
@@ -199,7 +199,7 @@ class TestPrimitiveInputTypes:
             llm,
         )
 
-        with rt.Session(logging_setting="NONE"):
+        with rt.Session():
             response = await rt.call(
                 agent, "Is the magic test true? Only return the result, no other text."
             )
@@ -238,7 +238,7 @@ class TestPrimitiveInputTypes:
             llm,
         )
 
-        with rt.Session(logging_setting="NONE"):
+        with rt.Session():
             output = await rt.call(
                 agent,
                 "What does the tool return for an input of 0? Only return the result, no other text.",
@@ -284,7 +284,7 @@ class TestSequenceInputTypes:
             llm,
         )
 
-        with rt.Session(logging_setting="NONE"):
+        with rt.Session():
             response = await rt.call(
                 agent,
                 "What is the magic list for ['1', '2', '3']? Only return the result, no other text.",
@@ -322,7 +322,7 @@ class TestSequenceInputTypes:
             magic_tuple,
             llm,
         )
-        with rt.Session(logging_setting="NONE"):
+        with rt.Session():
             response = await rt.call(
                 agent,
                 "What is the magic tuple for ('1', '2', '3')? Only return the result, no other text.",
@@ -363,7 +363,7 @@ class TestSequenceInputTypes:
             magic_result,
             llm,
         )
-        with rt.Session(logging_setting="NONE"):
+        with rt.Session():
             response = await rt.call(
                 agent,
                 "What is the magic result for [1, 2] and [5.5, 10]? Only return the result, no other text.",
@@ -390,7 +390,7 @@ class TestDictionaryInputTypes:
 
         with pytest.raises(Exception):
             agent = _agent_node_factory(dict_func, mock_llm())
-            with rt.Session(logging_setting="NONE"):
+            with rt.Session():
                 await rt.call(
                     agent,
                     rt.llm.MessageHistory(
@@ -443,7 +443,7 @@ class TestUnionAndOptionalParameter:
             llm,
         )
 
-        with rt.Session(logging_setting="CRITICAL"):
+        with rt.Session():
             response = await rt.call(
                 agent,
                 "Calculate the magic number for 5. Then calculate the magic number for 'fox'.",
@@ -489,7 +489,7 @@ class TestUnionAndOptionalParameter:
 
         agent = _agent_node_factory(magic_number, llm)
 
-        with rt.Session(logging_setting="CRITICAL"):
+        with rt.Session():
             response = await rt.call(
                 agent,
                 "Calculate the magic number for 21. Then calculate the magic number with no args.",

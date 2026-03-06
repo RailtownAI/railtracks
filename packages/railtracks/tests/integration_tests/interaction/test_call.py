@@ -69,7 +69,7 @@ async def test_message_history_not_mutated_terminal_llm(terminal_nodes):
 
     MathGameNode = rt.function_node(make_math_game_node)  # noqa: N806
 
-    with rt.Session(logging_setting="NONE"):
+    with rt.Session():
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("You can start the game")]
         )
@@ -138,7 +138,7 @@ async def test_message_history_not_mutated_structured_llm(structured_nodes):
 
     MathProofNode = rt.function_node(math_proof_node)  # noqa: N806
 
-    with rt.Session(logging_setting="NONE"):
+    with rt.Session():
         message_history = rt.llm.MessageHistory(
             [
                 rt.llm.UserMessage(
@@ -194,7 +194,7 @@ async def test_message_history_not_mutated_tool_call_llm(tool_calling_nodes):
         return response
 
     TravelSummarizerNode = rt.function_node(travel_summarizer_node)  # noqa: N806
-    with rt.Session(logging_setting="NONE"):
+    with rt.Session():
         message_history = rt.llm.MessageHistory(
             [
                 rt.llm.UserMessage(
@@ -256,7 +256,7 @@ ManyCalls = rt.function_node(many_calls)
 
 @pytest.mark.asyncio
 async def many_calls_tester(num_calls: int, parallel_calls: int):
-    with rt.Session(logging_setting="NONE") as run:
+    with rt.Session() as run:
         finished_result = await rt.call(ManyCalls, num_calls, parallel_calls)
         info = run.info
 
@@ -299,7 +299,7 @@ async def test_large_no_deadlock():
 
 @pytest.mark.asyncio
 async def test_simple_rng():
-    with rt.Session(logging_setting="NONE"):
+    with rt.Session():
         result = await rt.call(RNGNode)
 
     assert 0 < result < 1
@@ -349,7 +349,7 @@ class NestedManyCalls(Node):
 
 @pytest.mark.asyncio
 async def nested_many_calls_tester(num_calls: int, parallel_calls: int, depth: int):
-    with rt.Session(logging_setting="NONE") as run:
+    with rt.Session() as run:
         await rt.call(NestedManyCalls, num_calls, parallel_calls, depth)
 
     ans = run.info
@@ -399,7 +399,7 @@ async def test_nested_no_deadlock_harder_2():
 
 @pytest.mark.asyncio
 async def test_multiple_runs():
-    with rt.Session(logging_setting="NONE") as run:
+    with rt.Session() as run:
         result = await rt.call(RNGNode)
         assert 0 < result < 1
 
@@ -424,7 +424,7 @@ async def test_multiple_runs():
 
 @pytest.mark.asyncio
 async def test_multiple_runs_async():
-    with rt.Session(logging_setting="NONE") as run:
+    with rt.Session() as run:
         result = await rt.call(RNGNode)
         assert 0 < result < 1
 
@@ -471,11 +471,11 @@ async def test_multi_level_calls(level_2_node):
 
     ALevel1 = rt.function_node(level_1_async)  # noqa: N806
 
-    with rt.Session(logging_setting="NONE"):
+    with rt.Session():
         result = await rt.call(ALevel1, "Hello from Level 1 (async)")
         assert result == "Hello from Level 1 (async)"
 
-    with rt.Session(logging_setting="NONE"):
+    with rt.Session():
         result = await rt.call(ALevel1, "Hello from Level 1 (async)")
         assert result == "Hello from Level 1 (async)"
 
@@ -493,7 +493,7 @@ TimeoutNode = rt.function_node(timeout_node)
 
 @pytest.mark.asyncio
 async def test_timeout():
-    with rt.Session(logging_setting="NONE", timeout=0.1):
+    with rt.Session(timeout=0.1):
         with pytest.raises(GlobalTimeOutError):
             await rt.call(TimeoutNode, 0.3)
 
@@ -507,7 +507,7 @@ TimeoutThrower = rt.function_node(timeout_thrower)
 
 @pytest.mark.asyncio
 async def test_timeout_thrower():
-    with rt.Session(logging_setting="NONE"):
+    with rt.Session():
         try:
             await rt.call(TimeoutThrower)
         except Exception as e:

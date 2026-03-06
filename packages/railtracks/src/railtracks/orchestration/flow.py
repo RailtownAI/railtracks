@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
-import os
 from copy import deepcopy
 from typing import Any, Callable, Coroutine, Generic, ParamSpec, TypeVar
 
@@ -13,7 +12,6 @@ from railtracks.built_nodes.concrete.function_base import (
     RTSyncFunction,
 )
 from railtracks.interaction._call import call
-from railtracks.utils.logging.config import AllowableLogLevels
 
 from ..nodes.nodes import Node
 
@@ -33,8 +31,6 @@ class Flow(Generic[_P, _TOutput]):
         context (dict[str, Any], optional): Context to be passed to all instantiations (or runs) of this flow. Note that the context can be overridden at invocation time.
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
-        logging_setting (AllowableLogLevels, optional): The setting for the level of logging you would like to have. This will override the module-level logging settings for the duration of this session.
-        log_file (str | os.PathLike | None, optional): The file to which the logs will be written.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
@@ -53,8 +49,6 @@ class Flow(Generic[_P, _TOutput]):
         context: dict[str, Any] | None = None,
         timeout: float | None = None,
         end_on_error: bool | None = None,
-        logging_setting: AllowableLogLevels | None = None,
-        log_file: str | os.PathLike | None = None,
         broadcast_callback: (
             Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
         ) = None,
@@ -73,8 +67,6 @@ class Flow(Generic[_P, _TOutput]):
         self._context: dict[str, Any] = context or {}
         self._timeout = timeout
         self._end_on_error = end_on_error
-        self._logging_setting = logging_setting
-        self._log_file = log_file
         self._broadcast_callback = broadcast_callback
         self._prompt_injection = prompt_injection
         self._save_state = save_state
@@ -96,8 +88,6 @@ class Flow(Generic[_P, _TOutput]):
             name=None,
             timeout=self._timeout,
             end_on_error=self._end_on_error,
-            logging_setting=self._logging_setting,
-            log_file=self._log_file,
             broadcast_callback=self._broadcast_callback,
             prompt_injection=self._prompt_injection,
             save_state=self._save_state,

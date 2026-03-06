@@ -25,7 +25,6 @@ print(f"Session ID: {session._identifier}")
 @rt.session(
     timeout=30,  # 30 second timeout
     context={"user_id": "123"},  # Global context variables
-    logging_setting="DEBUG",  # Enable debug logging
     save_state=True,  # Save execution state to file
     name="my-unique-run",  # Custom session name
 )
@@ -47,13 +46,13 @@ async def farewell(name: str) -> str:
     return f"Bye, {name}!"
 
 
-@rt.session(context={"action": "greet", "name": "Diana"}, logging_setting="CRITICAL")
+@rt.session(context={"action": "greet", "name": "Diana"})
 async def first_workflow():
     if rt.context.get("action") == "greet":
         return await rt.call(greet, rt.context.get("name"))
 
 
-@rt.session(context={"action": "farewell", "name": "Robert"}, logging_setting="CRITICAL")
+@rt.session(context={"action": "farewell", "name": "Robert"})
 async def second_workflow():
     if rt.context.get("action") == "farewell":
         return await rt.call(farewell, rt.context.get("name"))
@@ -72,7 +71,6 @@ async def context_workflow():
     with rt.Session(
         timeout=30,  # 30 second timeout
         context={"user_id": "123"},  # Global context variables
-        logging_setting="DEBUG",  # Enable debug logging
         save_state=True,  # Save execution state to file
         name="my-unique-run",  # Custom session name
     ):
