@@ -289,9 +289,7 @@ async def get_session(guid: str):
             file_path = matches[0]
 
     if not file_path.exists():
-        return JSONResponse(
-            content={"error": "Session not found"}, status_code=404
-        )
+        return JSONResponse(content={"error": "Session not found"}, status_code=404)
 
     try:
         with open(file_path, encoding="utf-8") as f:
@@ -299,14 +297,11 @@ async def get_session(guid: str):
         return JSONResponse(content=content)
     except json.JSONDecodeError as e:
         print_error(f"Invalid JSON in {file_path.name}: {e}")
-        return JSONResponse(
-            content={"error": f"Invalid JSON: {e}"}, status_code=400
-        )
+        return JSONResponse(content={"error": f"Invalid JSON: {e}"}, status_code=400)
     except Exception as e:
         print_error(f"Error reading session file {file_path.name}: {e}")
-        return JSONResponse(
-            content={"error": "Internal Server Error"}, status_code=500
-        )
+        return JSONResponse(content={"error": "Internal Server Error"}, status_code=500)
+
 
 @app.get("/{full_path:path}")
 async def serve_ui_or_404(full_path: str):
