@@ -296,66 +296,6 @@ class TestFastAPIEndpoints(unittest.TestCase):
         self.assertIn("error", response.json())
         self.assertIn("Invalid JSON", response.json()["error"])
 
-    def test_get_files_deprecated(self):
-        """Test /api/files endpoint (deprecated)"""
-        response = self.client.get("/api/files")
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers.get("Deprecated"), "true")
-
-        file_list = response.json()
-        file_names = [f["name"] for f in file_list]
-        self.assertIn("simple.json", file_names)
-        self.assertIn("my agent session.json", file_names)
-
-    def test_get_json_file_deprecated(self):
-        """Test /api/json/{filename} endpoint (deprecated)"""
-        response = self.client.get("/api/json/simple.json")
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers.get("Deprecated"), "true")
-        self.assertEqual(response.json(), {"test": "data"})
-
-    def test_get_json_file_urlencoded_deprecated(self):
-        """Test /api/json/{filename} with URL-encoded filename (deprecated)"""
-        from urllib.parse import quote
-        encoded_filename = quote("my agent session.json")
-        response = self.client.get(f"/api/json/{encoded_filename}")
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers.get("Deprecated"), "true")
-        self.assertEqual(response.json(), {"agent": "session", "data": "test"})
-
-    def test_get_json_file_not_found(self):
-        """Test /api/json/{filename} with non-existent file"""
-        response = self.client.get("/api/json/nonexistent.json")
-        self.assertEqual(response.status_code, 404)
-        self.assertIn("error", response.json())
-
-    def test_get_json_file_invalid_json(self):
-        """Test /api/json/{filename} with invalid JSON"""
-        invalid_file = Path(".railtracks/invalid.json")
-        with open(invalid_file, "w") as f:
-            f.write("{ invalid json }")
-
-        response = self.client.get("/api/json/invalid.json")
-        self.assertEqual(response.status_code, 400)
-        self.assertIn("error", response.json())
-
-    def test_get_json_file_auto_add_extension(self):
-        """Test /api/json/{filename} auto-adds .json extension"""
-        test_file = Path(".railtracks/testfile.json")
-        with open(test_file, "w") as f:
-            json.dump({"test": "data"}, f)
-
-        response = self.client.get("/api/json/testfile")
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"test": "data"})
-
-    def test_post_refresh_deprecated(self):
-        """Test /api/refresh endpoint (deprecated)"""
-        response = self.client.post("/api/refresh")
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers.get("Deprecated"), "true")
-        self.assertEqual(response.json(), {"status": "refresh_triggered"})
-
 
 class TestPortChecking(unittest.TestCase):
     """Test port checking functionality"""
