@@ -60,20 +60,18 @@ classDiagram
 
 ### `ExecutorConfig`
 
-A configuration object that defines how the `Session` operates, including timeout settings, error handling behavior, logging configuration, and execution options. It provides comprehensive customization of the execution environment.
+A configuration object that defines how the `Session` operates, including timeout settings, error handling behavior, and execution options. It provides comprehensive customization of the execution environment. Logging is configured separately via `enable_logging()` at application startup.
 
 ```mermaid
 classDiagram
     class ExecutorConfig {
         +timeout: float
         +end_on_error: bool
-        +logging_setting: str
-        +log_file: str | None
         +subscriber: Callable | None
         +run_identifier: str
         +prompt_injection: bool
         +save_state: bool
-        +__init__(timeout, end_on_error, logging_setting, log_file, subscriber, run_identifier, prompt_injection, save_state)
+        +__init__(timeout, end_on_error, subscriber, run_identifier, prompt_injection, save_state)
     }
 ```
 
@@ -150,7 +148,6 @@ During cleanup, the `Session`:
 
 - Optionally saves execution state to disk (if `save_state=True`)
 - Shuts down all execution strategies
-- Detaches logging handlers
 - Cleans up global context variables
 - Releases system resources
 
@@ -160,7 +157,6 @@ The `Session` supports extensive customization through `ExecutorConfig`:
 
 - **Timeout Control**: Set maximum execution time limits
 - **Error Handling**: Configure whether to stop on first error or continue
-- **Logging**: Control log levels and output destinations  
 - **State Persistence**: Enable/disable saving execution state to disk
 - **Streaming**: Attach custom subscribers for real-time monitoring
 - **Context Injection**: Control global context variable behavior

@@ -16,9 +16,7 @@ import railtracks as rt
     ],
 )
 async def test_parallel_calls(parallel_node, timeout_config, expected, buffer):
-    with rt.Session(
-        logging_setting="NONE",
-    ):
+    with rt.Session():
         start_time = time.time()
         results = await rt.call(parallel_node, timeout_config)
         assert abs(time.time() - start_time - expected) < buffer
@@ -87,9 +85,7 @@ async def test_batch_error_handling_default_error_prop(num_times):
     """
     Test that batch execution handles errors correctly.
     """
-    with rt.Session(
-        logging_setting="NONE",
-    ):
+    with rt.Session():
         await rt.call(ErrorThrowerTopLevel, num_times=num_times)
 
 
@@ -101,9 +97,7 @@ async def test_batch_error_handling_true_error_prop(num_times):
     """
     Test that batch execution handles errors correctly.
     """
-    with rt.Session(
-        logging_setting="NONE",
-    ):
+    with rt.Session():
         await rt.call(ErrorThrowerTopLevel, num_times=num_times, return_exceptions=True)
 
 
@@ -115,9 +109,7 @@ async def test_batch_error_handling_false_error_prop(num_times):
     """
     Test that batch execution handles errors correctly.
     """
-    with rt.Session(
-        logging_setting="NONE",
-    ):
+    with rt.Session():
         with pytest.raises(type(exc)):
             await rt.call(
                 ErrorThrowerTopLevel, num_times=num_times, return_exceptions=False
