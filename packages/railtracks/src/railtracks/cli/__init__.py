@@ -29,7 +29,6 @@ import urllib.request
 import webbrowser
 import zipfile
 from pathlib import Path
-from urllib.parse import unquote
 
 try:
     import uvicorn
