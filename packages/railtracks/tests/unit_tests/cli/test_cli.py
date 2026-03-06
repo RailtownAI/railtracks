@@ -256,6 +256,20 @@ class TestFastAPIEndpoints(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), session_data)
 
+    def test_get_session_by_guid_with_flow_name_prefix(self):
+        """Test /api/sessions/{guid} finds session saved as {flow_name}_{guid}.json"""
+        sessions_dir = Path(".railtracks/data/sessions")
+        sessions_dir.mkdir(parents=True)
+
+        session_data = {"session_id": "abc-123-guid", "flow_name": "Stock Analysis"}
+        guid = "abc-123-guid"
+        with open(sessions_dir / f"Stock Analysis_{guid}.json", "w") as f:
+            json.dump(session_data, f)
+
+        response = self.client.get(f"/api/sessions/{guid}")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), session_data)
+
     def test_get_session_by_guid_not_found(self):
         """Test /api/sessions/{guid} endpoint with non-existent session"""
         # Create sessions directory but no file
