@@ -108,12 +108,9 @@ CoordinatorAgent = rt.agent_node(
     llm=rt.llm.OpenAILLM("gpt-4o"),
     )
 
-async def run():
-    resp = await rt.call(
-            CoordinatorAgent,
-            user_input="Would you be able to generate me code that takes 2 numbers as input and returns the sum?"
-        )
-    print(resp)
+flow = rt.Flow("coordinator-flow", entry_point=CoordinatorAgent)
+resp = flow.invoke("Would you be able to generate me code that takes 2 numbers as input and returns the sum?")
+print(resp)
 # --8<-- [end: coding_example]
 
 class StructuredResponse(BaseModel):
@@ -199,9 +196,7 @@ Coordinator = rt.agent_node(
     system_message=CoordinatorMessage,
 )
 
-async def main():
-    response = await rt.call(
-            CoordinatorAgent,
-            user_input=""
-        )
+
+coordinator_flow = rt.Flow("coordinator-flow", entry_point=Coordinator)
+coordinator_flow.invoke("I am having an issue with my product. I think it might be a billing issue but I am not sure. Can you help me figure out what is going on?")
 # --8<-- [end: customer_example]

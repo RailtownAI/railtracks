@@ -1,6 +1,5 @@
 from typing_extensions import reveal_type
 import railtracks as rt
-import asyncio
 from sympy import solve, sympify
 
 # --8<-- [start: add]
@@ -49,5 +48,6 @@ MathAgent = rt.agent_node(
             )
 
 # run the agent
-result = asyncio.run(rt.call(MathAgent, "What is 3 + 4?"))
+flow = rt.Flow("math-flow", entry_point=MathAgent)
+result = flow.invoke("What is 3 + 4?")
 # --8<-- [end: agent]

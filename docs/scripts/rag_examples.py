@@ -4,7 +4,6 @@ RAG examples for use in documentation via --8<-- includes
 
 
 # --8<-- [start:simple_rag_example]
-import asyncio
 import railtracks as rt
 
 def embedding_function(chunk: list[str]) -> list[list[float]]: ... # your embedding function here (Railtracks will be providing them soon [see issue #_]) 
@@ -20,7 +19,8 @@ Agent = rt.agent_node(
 
 
 question = "What does Steve like?"
-response = asyncio.run(rt.call(Agent, question))
+flow = rt.Flow("rag-flow", entry_point=Agent)
+response = flow.invoke(question)
 
 # --8<-- [end:simple_rag_example]
 
@@ -42,21 +42,15 @@ agent = rt.agent_node(
 )
 
 # 3) Run the agent.
-@rt.session()
-async def main():
-    question = "What is the work from home policy?"
+question = "What is the work from home policy?"
 
-    response = await rt.call(
-        agent,
-        user_input=(
-            "Question:\n"
-            f"{question}\n"
-            "Answer based only on the context provided."
-            "If the answer is not in the context, say \"I don't know\"."
-        )
-    )
-
-    return response
+rag_tool_flow = rt.Flow("rag-tool-flow", entry_point=agent)
+response = rag_tool_flow.invoke(
+    "Question:\n"
+    f"{question}\n"
+    "Answer based only on the context provided."
+    "If the answer is not in the context, say \"I don't know\"."
+)
 # --8<-- [end:rag_as_tool]
 
 # --8<-- [start:rag_with_files]

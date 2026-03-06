@@ -1,5 +1,4 @@
 from ast import Str
-import asyncio
 
 # --8<-- [start: imports]
 import railtracks as rt
@@ -83,12 +82,8 @@ StructuredToolCallWeatherAgent = rt.agent_node(
 # --8<-- [end: first_agent_all]
 
 # --8<-- [start: call]
-async def weather_agent():
-    response = await rt.call(
-        StructuredToolCallWeatherAgent, 
-        "What is the forecast for Vancouver today?"
-        )
-    return response
+flow = rt.Flow("weather-flow", entry_point=StructuredToolCallWeatherAgent)
+response = flow.invoke("What is the forecast for Vancouver today?")
 # --8<-- [end: call]
 
 # --8<-- [start: dynamic_prompts]
@@ -98,41 +93,16 @@ system_message = rt.llm.SystemMessage(
 user_message = rt.llm.UserMessage(
     "Would you please be able to tell me the forecast for the next week?"
 )
-async def main():
 
-    response = await rt.call(
-        StructuredToolCallWeatherAgent,
-        user_input=rt.llm.MessageHistory([system_message, user_message]),
-        llm=rt.llm.AnthropicLLM("claude-3-5-sonnet-20241022"),
-    )
-
-    return response
+structureed_weather_flow = rt.Flow("weather-flow", entry_point=StructuredToolCallWeatherAgent)
+response = structureed_weather_flow.invoke("Would you please be able to tell me the forecast for the next week?")
 # --8<-- [end: dynamic_prompts]
-response = asyncio.run(main())
 print(response.structured.temperature)
 
 # --8<-- [start: fewshot]
-async def few_shot():
-    response = await rt.call(
-        WeatherAgent,
-        [
-            rt.llm.UserMessage("What is the forecast for BC today?"),
-            rt.llm.AssistantMessage("Please specify the specific city in BC you're interested in"),
-            rt.llm.UserMessage("Vancouver"),
-        ]
-    )
-    return response
+normal_weather_flow = rt.Flow("weather-flow", entry_point=WeatherAgent)
+normal_weather_flow.invoke("What is the forecast for BC today? Please specify the specific city in BC you're interested in Vancouver.")
 
 # --8<-- [end: fewshot]
 weather_context: dict[str, str] = {}
-# --8<-- [start: session]
-async def session_based():
-    with rt.Session(
-        context=weather_context,
-        timeout=60  # seconds
-    ):
-        response = await rt.call(
-            WeatherAgent,
-            "What is the weather like in Vancouver?"
-        )
-# --8<-- [end: session]
+
