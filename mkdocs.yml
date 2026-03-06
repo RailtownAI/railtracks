@@ -45,7 +45,8 @@ plugins:
 
 markdown_extensions:
   - pymdownx.emoji:
-      emoji_generator: !!python/name:pymdownx.emoji.to_svg
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - admonition
   - pymdownx.details
   - pymdownx.tabbed:
@@ -157,6 +158,8 @@ nav:
   # - Deployments:
   #     - Docker: deployments/docker.md
 
+  - Evaluations:
+      - Coming Soon: evaluations/quickstart.md  
   - Advanced Usage:
       - Session: advanced_usage/session.md
       - Context: advanced_usage/context.md
