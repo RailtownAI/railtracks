@@ -64,7 +64,8 @@ def test_runner_construction_with_defaults(mock_dependencies):
     Session()
     assert mock_dependencies['get_global_config'].called
 
-def test_runner_context_manager_closes_on_exit(mock_dependencies):
+def test_runner_context_manager_closes_on_exit(mock_dependencies, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
 
     context = {}
     runner = Session(context=context)
@@ -182,68 +183,71 @@ def test_info_property_returns_rt_state_info(mock_dependencies):
 # ================= START Session: Check saved data ===============
 # tmp_path is a pytest fixture that provides a temporary directory, built in to pytest
 def test_session_saves_data(tmp_path, monkeypatch):
+    """Test that session saves execution data to JSON file in temp directory."""
     name = "abs53562j12h267"
     monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
+    monkeypatch.chdir(tmp_path)
 
     serialization_mock = {"Key": "Value"}
-    info = MagicMock()
-    info.graph_serialization.return_value = serialization_mock
 
+    with patch.object(Session, 'info', new_callable=PropertyMock) as mock_info:
+        mock_info.return_value.graph_serialization.return_value = serialization_mock
 
-    monkeypatch.chdir(tmp_path)
-    with patch.object(Session, 'info', new_callable=PropertyMock) as mock_runner:
-        mock_runner.return_value.graph_serialization.return_value = serialization_mock
-
-        r = Session(
-            name=name,
-            save_state=True,
-        )
+        r = Session(name=name, save_state=True)
         r.__exit__(None, None, None)
 
-
-    path = Path(".railtracks/data/sessions") / f"{r.name}_{r._identifier}.json"
-    data = json.loads(path.read_text())
-    assert data["runs"] == serialization_mock
-    assert "session_id" in data
-    assert data["session_name"] == name
+        # Verify file was created in temp directory
+        sessions_dir = tmp_path / ".railtracks" / "data" / "sessions"
+        assert sessions_dir.exists(), f"Sessions directory not created at {sessions_dir}"
+        
+        files = list(sessions_dir.glob("*.json"))
+        assert len(files) == 1, f"Expected 1 file, found {len(files)}"
+        
+        file_path = files[0]
+        assert file_path.name.startswith(f"{name}_"), f"Unexpected filename: {file_path.name}"
+        assert r._identifier in file_path.name, f"Session ID not in filename: {file_path.name}"
+        
+        # Verify file has content
+        content = json.loads(file_path.read_text())
+        assert "runs" in content, f"'runs' key missing from saved data"
+        assert content["runs"] == serialization_mock, f"Serialization data mismatch"
+        assert content["session_name"] == name, f"Session name mismatch"
+        assert "session_id" in content, f"'session_id' key missing from saved data"
 
 
 def test_session_not_saves_data(tmp_path, monkeypatch):
-    config = MagicMock()
-
-    run_id = "Run 2"
-    config.run_identifier = run_id
-    config.save_state = False
-
-    serialization_mock = '{"Key": "Value"}'
-    info = MagicMock()
-    info.graph_serialization.return_value = serialization_mock
-
+    """Test that session does not save data when save_state=False."""
     monkeypatch.chdir(tmp_path)
-    with patch.object(Session, 'info', new_callable=PropertyMock) as mock_runner:
-        mock_runner.return_value.graph_serialization.return_value = serialization_mock
+    
+    serialization_mock = '{"Key": "Value"}'
+    run_id = "Run 2"
+
+    with patch.object(Session, 'info', new_callable=PropertyMock) as mock_info:
+        mock_info.return_value.graph_serialization.return_value = serialization_mock
 
         r = Session(name=run_id, save_state=False)
         r.__exit__(None, None, None)
 
-
-
-
-    path = Path(".railtracks/data/sessions") / f"{run_id}.json"
-    assert not path.is_file()
+    # Verify no files were created
+    sessions_dir = tmp_path / ".railtracks" / "data" / "sessions"
+    if sessions_dir.exists():
+        files = list(sessions_dir.glob("*.json"))
+        assert len(files) == 0, f"Expected no files to be created, but found {len(files)}"
+    # If directory doesn't exist, that's also fine - nothing was saved
 
 
 def test_session_fallback_on_invalid_name(tmp_path, monkeypatch):
     """Test that session falls back to identifier-only filename when name causes issues."""
     monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
+    monkeypatch.chdir(tmp_path)
+    
     # Use a name that would cause issues in file path creation
     invalid_name = "test/invalid:name*with|bad<chars>"
 
     serialization_mock = {"Key": "Value"}
 
-    monkeypatch.chdir(tmp_path)
-    with patch.object(Session, 'info', new_callable=PropertyMock) as mock_runner:
-        mock_runner.return_value.graph_serialization.return_value = serialization_mock
+    with patch.object(Session, 'info', new_callable=PropertyMock) as mock_info:
+        mock_info.return_value.graph_serialization.return_value = serialization_mock
 
         # Mock Path.touch to raise an exception when the path contains the invalid name in the filename
         original_touch = Path.touch
@@ -263,21 +267,24 @@ def test_session_fallback_on_invalid_name(tmp_path, monkeypatch):
             mock_logger.warning.assert_called()
             warning_calls = [call[0][0] for call in mock_logger.warning.call_args_list]
             fallback_warning = None
-            for call in warning_calls:
-                if "falling back to using the unique identifier only" in call:
-                    fallback_warning = call
+            for warning_call in warning_calls:
+                if "falling back to using the unique identifier only" in warning_call:
+                    fallback_warning = warning_call
                     break
 
             assert fallback_warning is not None, "Expected fallback warning not found"
             assert invalid_name in fallback_warning
 
-            # Verify that the fallback file was created (identifier only)
-            fallback_path = Path(".railtracks/data/sessions") / f"{r._identifier}.json"
-            assert fallback_path.exists()
-
-            # Clean up
-            if fallback_path.exists():
-                fallback_path.unlink()
+            # Verify that the fallback file was created (identifier only) in temp directory
+            sessions_dir = tmp_path / ".railtracks" / "data" / "sessions"
+            assert sessions_dir.exists(), f"Sessions directory not created at {sessions_dir}"
+            
+            fallback_path = sessions_dir / f"{r._identifier}.json"
+            assert fallback_path.exists(), f"Fallback file not created at {fallback_path}"
+            
+            # Verify file has content
+            content = json.loads(fallback_path.read_text())
+            assert "runs" in content, f"'runs' key missing from saved data"
 
 
 # ================= START Session: Decorator Tests ===============
@@ -298,8 +305,10 @@ def test_session_decorator_with_parameters():
     assert callable(decorator)
 
 @pytest.mark.asyncio
-async def test_session_decorator_wraps_async_function(mock_dependencies):
+async def test_session_decorator_wraps_async_function(mock_dependencies, tmp_path, monkeypatch):
     """Test that the decorator properly wraps an async function and returns tuple."""
+    monkeypatch.chdir(tmp_path)
+    
     @session(timeout=10)
     async def test_function():
         return "test_result"
@@ -309,8 +318,10 @@ async def test_session_decorator_wraps_async_function(mock_dependencies):
     assert isinstance(session_obj, Session)
 
 @pytest.mark.asyncio
-async def test_session_decorator_with_function_args(mock_dependencies):
+async def test_session_decorator_with_function_args(mock_dependencies, tmp_path, monkeypatch):
     """Test that the decorator preserves function arguments and returns tuple."""
+    monkeypatch.chdir(tmp_path)
+    
     @session()
     async def test_function(arg1, arg2, kwarg1=None):
         return f"{arg1}-{arg2}-{kwarg1}"
@@ -320,8 +331,10 @@ async def test_session_decorator_with_function_args(mock_dependencies):
     assert isinstance(session_obj, Session)
 
 @pytest.mark.asyncio
-async def test_session_decorator_context_manager_behavior(mock_dependencies):
+async def test_session_decorator_context_manager_behavior(mock_dependencies, tmp_path, monkeypatch):
     """Test that the decorator properly manages session lifecycle."""
+    monkeypatch.chdir(tmp_path)
+    
     session_created = False
     session_closed = False
 
@@ -374,8 +387,10 @@ def test_rt_session_decorator_raises_error_on_sync_function():
             return "this should fail"
 
 @pytest.mark.asyncio
-async def test_session_decorator_returns_session_object(mock_dependencies):
+async def test_session_decorator_returns_session_object(mock_dependencies, tmp_path, monkeypatch):
     """Test that decorator returns both result and session object with access to session info."""
+    monkeypatch.chdir(tmp_path)
+    
     @session(name="test-session-123")
     async def test_function():
         return "test_result"
@@ -392,8 +407,10 @@ async def test_session_decorator_returns_session_object(mock_dependencies):
     assert hasattr(session_obj, 'payload')
 
 @pytest.mark.asyncio
-async def test_session_decorator_handles_tuple_returns(mock_dependencies):
+async def test_session_decorator_handles_tuple_returns(mock_dependencies, tmp_path, monkeypatch):
     """Test that decorator properly handles functions that return tuples."""
+    monkeypatch.chdir(tmp_path)
+    
     @session()
     async def function_returning_tuple():
         return "hello", 42, True
