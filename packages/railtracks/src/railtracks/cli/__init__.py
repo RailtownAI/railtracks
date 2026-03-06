@@ -339,9 +339,6 @@ class RailtracksServer:
         print_status("   GET  /api/evaluations - Get all evaluation JSON files")
         print_status("   GET  /api/sessions - Get all session JSON files")
         print_status("   GET  /api/sessions/{guid} - Get a specific session by GUID")
-        print_status("   GET  /api/files - List JSON files (deprecated)")
-        print_status("   GET  /api/json/{filename} - Load JSON file (deprecated)")
-        print_status("   POST /api/refresh - Trigger frontend refresh (deprecated)")
         print_status("Press Ctrl+C to stop the server")
 
         # Open browser after a short delay to ensure server is ready
