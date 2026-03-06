@@ -282,6 +282,11 @@ async def get_session(guid: str):
     """Get a specific session JSON file by GUID from .railtracks/data/sessions/"""
     sessions_dir = get_data_dir("sessions")
     file_path = sessions_dir / f"{guid}.json"
+    if not file_path.exists():
+        # Sessions may be saved as {flow_name}_{guid}.json
+        matches = list(sessions_dir.glob(f"*_{guid}.json"))
+        if matches:
+            file_path = matches[0]
 
     if not file_path.exists():
         return JSONResponse(
