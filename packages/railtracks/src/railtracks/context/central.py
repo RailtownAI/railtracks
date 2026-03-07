@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import contextvars
 import logging
-import os
 import warnings
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, KeysView
 
@@ -12,9 +11,7 @@ if TYPE_CHECKING:
     from railtracks.pubsub.publisher import RTPublisher
 
 from railtracks.utils.config import ExecutorConfig
-from railtracks.utils.logging.config import AllowableLogLevels
 
-from ..utils.logging.config import configure_module_logging
 from .external import ExternalContext, MutableExternalContext
 from .internal import InternalContext
 
@@ -360,8 +357,6 @@ def set_config(
     *,
     timeout: float | None = None,
     end_on_error: bool | None = None,
-    logging_setting: AllowableLogLevels | None = None,
-    log_file: str | os.PathLike | None = None,
     broadcast_callback: (
         Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
     ) = None,
@@ -384,15 +379,9 @@ def set_config(
 
     config = global_executor_config.get()
 
-    if logging_setting or log_file:
-        # default will be set at module import time, this is for overwrites
-        configure_module_logging(level=logging_setting, log_file=log_file)
-
     new_config = config.precedence_overwritten(
         timeout=timeout,
         end_on_error=end_on_error,
-        logging_setting=logging_setting,
-        log_file=log_file,
         subscriber=broadcast_callback,
         prompt_injection=prompt_injection,
         save_state=save_state,

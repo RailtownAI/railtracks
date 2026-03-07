@@ -240,65 +240,61 @@ class TestFastAPIEndpoints(unittest.TestCase):
         self.assertIn(session1, data)
         self.assertIn(session2, data)
 
-    def test_get_files_deprecated(self):
-        """Test /api/files endpoint (deprecated)"""
-        response = self.client.get("/api/files")
+    def test_get_session_by_guid(self):
+        """Test /api/sessions/{guid} endpoint with existing session"""
+        # Create sessions directory and file
+        sessions_dir = Path(".railtracks/data/sessions")
+        sessions_dir.mkdir(parents=True)
+
+        session_data = {"id": "test-guid-123", "status": "completed", "data": "test"}
+        guid = "test-guid-123"
+
+        with open(sessions_dir / f"{guid}.json", "w") as f:
+            json.dump(session_data, f)
+
+        response = self.client.get(f"/api/sessions/{guid}")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers.get("Deprecated"), "true")
+        self.assertEqual(response.json(), session_data)
 
-        file_list = response.json()
-        file_names = [f["name"] for f in file_list]
-        self.assertIn("simple.json", file_names)
-        self.assertIn("my agent session.json", file_names)
+    def test_get_session_by_guid_with_flow_name_prefix(self):
+        """Test /api/sessions/{guid} finds session saved as {flow_name}_{guid}.json"""
+        sessions_dir = Path(".railtracks/data/sessions")
+        sessions_dir.mkdir(parents=True)
 
-    def test_get_json_file_deprecated(self):
-        """Test /api/json/{filename} endpoint (deprecated)"""
-        response = self.client.get("/api/json/simple.json")
+        session_data = {"session_id": "abc-123-guid", "flow_name": "Stock Analysis"}
+        guid = "abc-123-guid"
+        with open(sessions_dir / f"Stock Analysis_{guid}.json", "w") as f:
+            json.dump(session_data, f)
+
+        response = self.client.get(f"/api/sessions/{guid}")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers.get("Deprecated"), "true")
-        self.assertEqual(response.json(), {"test": "data"})
+        self.assertEqual(response.json(), session_data)
 
-    def test_get_json_file_urlencoded_deprecated(self):
-        """Test /api/json/{filename} with URL-encoded filename (deprecated)"""
-        from urllib.parse import quote
-        encoded_filename = quote("my agent session.json")
-        response = self.client.get(f"/api/json/{encoded_filename}")
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers.get("Deprecated"), "true")
-        self.assertEqual(response.json(), {"agent": "session", "data": "test"})
+    def test_get_session_by_guid_not_found(self):
+        """Test /api/sessions/{guid} endpoint with non-existent session"""
+        # Create sessions directory but no file
+        sessions_dir = Path(".railtracks/data/sessions")
+        sessions_dir.mkdir(parents=True)
 
-    def test_get_json_file_not_found(self):
-        """Test /api/json/{filename} with non-existent file"""
-        response = self.client.get("/api/json/nonexistent.json")
+        response = self.client.get("/api/sessions/nonexistent-guid")
         self.assertEqual(response.status_code, 404)
-        self.assertIn("error", response.json())
+        self.assertEqual(response.json(), {"error": "Session not found"})
 
-    def test_get_json_file_invalid_json(self):
-        """Test /api/json/{filename} with invalid JSON"""
-        invalid_file = Path(".railtracks/invalid.json")
+    def test_get_session_by_guid_invalid_json(self):
+        """Test /api/sessions/{guid} endpoint with invalid JSON file"""
+        # Create sessions directory and invalid JSON file
+        sessions_dir = Path(".railtracks/data/sessions")
+        sessions_dir.mkdir(parents=True)
+
+        guid = "invalid-json-guid"
+        invalid_file = sessions_dir / f"{guid}.json"
         with open(invalid_file, "w") as f:
             f.write("{ invalid json }")
 
-        response = self.client.get("/api/json/invalid.json")
+        response = self.client.get(f"/api/sessions/{guid}")
         self.assertEqual(response.status_code, 400)
         self.assertIn("error", response.json())
-
-    def test_get_json_file_auto_add_extension(self):
-        """Test /api/json/{filename} auto-adds .json extension"""
-        test_file = Path(".railtracks/testfile.json")
-        with open(test_file, "w") as f:
-            json.dump({"test": "data"}, f)
-
-        response = self.client.get("/api/json/testfile")
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"test": "data"})
-
-    def test_post_refresh_deprecated(self):
-        """Test /api/refresh endpoint (deprecated)"""
-        response = self.client.post("/api/refresh")
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers.get("Deprecated"), "true")
-        self.assertEqual(response.json(), {"status": "refresh_triggered"})
+        self.assertIn("Invalid JSON", response.json()["error"])
 
 
 class TestPortChecking(unittest.TestCase):

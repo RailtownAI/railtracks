@@ -72,7 +72,7 @@ async def test_terminal_llm_as_tool_correct_initialization(
         system_message=system_randomizer,
     )
 
-    with rt.Session(logging_setting="NONE"):
+    with rt.Session():
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("The input string is 'hello world'")]
         )
@@ -109,7 +109,7 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(mock_llm):
         llm=math_llm,
     )
 
-    with rt.Session(logging_setting="NONE") as runner:
+    with rt.Session() as runner:
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Start the Math node.")]
         )
@@ -145,9 +145,7 @@ async def test_terminal_llm_tool_with_invalid_parameters(mock_llm, encoder_syste
         system_message=system_message,
     )
 
-    with rt.Session(
-        logging_setting="DEBUG"
-    ):
+    with rt.Session():
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Encode this text but use an invalid parameter name.")]
         )

@@ -37,23 +37,12 @@ _file_format_string = (
 # _file_format_string = "[%(asctime)] %(timestamp_color)s[+%(relative_seconds)-7ss] %(level_color)s%(name)-12s: %(levelname)-8s - %(message)s%(default_color)s"
 
 # log levels are ints hence the type hints
-_pre_session_log_level: ContextVar[int | None] = ContextVar(
-    "pre_session_log_level", default=None
-)
-_pre_session_log_file: ContextVar[str | os.PathLike | None] = ContextVar(
-    "pre_session_log_file", default=None
-)
-
 _module_logging_level: ContextVar[int | None] = ContextVar(
     "module_logging_level", default=None
 )
 
 _module_logging_file: ContextVar[str | os.PathLike | None] = ContextVar(
     "module_logging_file", default=None
-)
-
-_session_has_override: ContextVar[bool] = ContextVar(
-    "session_has_override", default=False
 )
 
 # Initialize colorama
@@ -306,89 +295,3 @@ def enable_logging(
         log_file: Optional path for a log file. Overridden by RT_LOG_FILE when None.
     """
     initialize_module_logging(level=level, log_file=log_file)
-
-
-def configure_module_logging(
-    level: AllowableLogLevels | None = None, log_file: str | os.PathLike | None = None
-) -> None:
-    """
-    Configure module-level logging at runtime for the current thread.
-
-    This updates the logging configuration for the current thread.
-    Changes apply immediately and persist for the lifetime of the thread.
-
-    If a Session is currently active with custom logging settings, this will
-    raise an error to prevent conflicts.
-
-    Args:
-        level: The logging level to use
-        log_file: Optional path to a log file. If None, logs only to console.
-    """
-    if _session_has_override.get():
-        raise RuntimeError(
-            "Cannot configure module-level logging while a session has overridden logging settings."
-        )
-
-    if level is not None:
-        _module_logging_level.set(str_to_log_level[level])
-    if log_file is not None:
-        _module_logging_file.set(log_file)
-
-
-def mark_session_logging_override(
-    session_level: AllowableLogLevels, session_log_file: str | os.PathLike | None
-) -> None:
-    """
-    Mark that a session has overridden module-level logging for this thread.
-
-    Stores the current thread's logging config for later restoration and updates
-    the thread's ContextVar to the session-specific logging level.
-
-    With ThreadAwareFilter, we don't need to reconfigure handlers - just updating
-    the ContextVar is sufficient since the filter checks it for each log record.
-
-    Args:
-        session_level: The session's logging level
-        session_log_file: The session's log file (or None)
-    """
-    # Save the current thread's config
-    _pre_session_log_level.set(_module_logging_level.get())
-    _pre_session_log_file.set(_module_logging_file.get())
-
-    _session_has_override.set(True)
-
-    _module_logging_level.set(str_to_log_level[session_level])
-
-    # TODO: Handle session_log_file if needed (file handler per thread)
-    if session_log_file is not None:
-        _module_logging_file.set(session_log_file)
-
-
-def restore_module_logging() -> None:
-    """
-    Restore module-level logging after a session with custom logging ends.
-
-    This restores the thread's ContextVar to the pre-session value.
-    Since handlers are shared and use ThreadAwareFilter, we don't need to detach/reattach handlers.
-    """
-    if not _session_has_override.get():
-        return
-
-    # restore
-    restored_level = _pre_session_log_level.get()
-    restored_file = _pre_session_log_file.get()
-
-    if restored_level is not None:
-        _module_logging_level.set(restored_level)
-    else:
-        # Fallback to INFO if no pre-session level was stored
-        _module_logging_level.set(str_to_log_level["INFO"])
-
-    if restored_file is not None:
-        _module_logging_file.set(restored_file)
-    else:
-        _module_logging_file.set(None)
-
-    _session_has_override.set(False)
-    _pre_session_log_level.set(None)
-    _pre_session_log_file.set(None)

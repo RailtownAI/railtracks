@@ -42,12 +42,8 @@ railtracks/
 
     Dev dependencies are not all required, but will be useful for devs working with the project.
    ```bash
-   python -m venv .venv
-   source .venv/bin/activate # for mac and linux 
-   pip install uv
-   uv sync --group dev 
+   uv sync --group dev
    ```
-```
 
 ## Development Workflow
 
