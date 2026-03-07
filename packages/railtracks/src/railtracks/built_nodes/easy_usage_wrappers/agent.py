@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from railtracks.built_nodes.concrete import (
     RTFunction,
+    GuardedTerminalLLM,
     StructuredLLM,
     StructuredToolCallLLM,
     TerminalLLM,
@@ -111,7 +112,21 @@ def agent_node(
     llm: ModelBase[Literal[False]] | None = None,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
+    guardrails: None = None,
 ) -> Type[TerminalLLM]:
+    pass
+
+
+@overload
+def agent_node(
+    name: str | None = None,
+    *,
+    rag: RagConfig | None = None,
+    llm: ModelBase[Literal[False]] | None = None,
+    system_message: SystemMessage | str | None = None,
+    manifest: ToolManifest | None = None,
+    guardrails: Guard,
+) -> Type[GuardedTerminalLLM]:
     pass
 
 
@@ -123,6 +138,7 @@ def agent_node(
     llm: ModelBase[Literal[True]],
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
+    guardrails: None = None,
 ) -> Type[StreamingTerminalLLM]:
     pass
 

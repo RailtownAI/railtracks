@@ -8,6 +8,7 @@ from railtracks.exceptions import LLMError
 from railtracks.guardrails.core import Guard, GuardRunner, GuardrailBlockedError
 from railtracks.llm.response import Response
 
+from ._llm_base import StringOutputMixIn
 from .response import StringResponse
 from .terminal_llm_base import TerminalLLMBase
 from railtracks.guardrails.core.event import LLMGuardrailEvent, LLMGuardrailPhase
@@ -63,7 +64,7 @@ class GuardedTerminalLLMBase(TerminalLLMBase[StringResponse, StringResponse, _TS
         )
 
 
-class GuardedTerminalLLM(GuardedTerminalLLMBase[Literal[False]]):
+class GuardedTerminalLLM(StringOutputMixIn, GuardedTerminalLLMBase[Literal[False]]):
     async def invoke(self):
         # Guardrails first (must not be wrapped into LLMError).
         self._apply_input_guardrails()
