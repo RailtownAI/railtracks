@@ -238,6 +238,10 @@ class AssistantMessage(Message[_T, Role.assistant], Generic[_T]):
         super().__init__(
             content=content, role=Role.assistant, inject_prompt=inject_prompt
         )
+        # Optionally stores the raw litellm message object so providers that
+        # attach extra metadata (e.g. Gemini thought_signature) can round-trip
+        # it back without any manual reconstruction.
+        self._raw_litellm_message = None
 
 
 # TODO further constrict the possible return type of a ToolMessage.

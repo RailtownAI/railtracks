@@ -555,7 +555,11 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
                 ToolCall(identifier=tc.id, name=tc.function.name, arguments=args)
             )
 
-        return Response(message=AssistantMessage(content=calls), message_info=info)
+        assistant_msg = AssistantMessage(content=calls)
+        # Preserve the raw litellm message so that provider-specific metadata
+        # (e.g. Gemini thought_signature) is round-tripped back verbatim.
+        assistant_msg._raw_litellm_message = choice.message
+        return Response(message=assistant_msg, message_info=info)
 
     # ================ END Base Handlers ===============
 
@@ -709,6 +713,12 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         # only time this is true is tool calls, need to return litellm.utils.Message
         elif isinstance(msg.content, list):
             assert all(isinstance(t_c, ToolCall) for t_c in msg.content)
+            # If a raw litellm message was stored (e.g. to preserve Gemini
+            # thought_signature), return it directly so litellm round-trips the
+            # provider-specific metadata automatically.
+            raw = getattr(msg, "_raw_litellm_message", None)
+            if raw is not None:
+                return raw
             base["content"] = ""
             base["tool_calls"] = [
                 litellm.utils.ChatCompletionMessageToolCall(

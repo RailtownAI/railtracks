@@ -225,7 +225,13 @@ class OutputLessToolCallLLMBase(
                 tool_calls = tool_calls[:allowed_tool_calls]
 
             # append the requested tool calls assistant message, once the tool calls have been verified and truncated (if needed)
-            self.message_hist.append(AssistantMessage(content=tool_calls))
+            hist_msg = AssistantMessage(content=tool_calls)
+            # Preserve provider-specific metadata from the original message (e.g.
+            # Gemini thought_signature) so it can be round-tripped in the next turn.
+            raw = getattr(message, "_raw_litellm_message", None)
+            if raw is not None:
+                hist_msg._raw_litellm_message = raw
+            self.message_hist.append(hist_msg)
 
             tool_messages = await self._call_tools(tool_calls)
             for t_m in tool_messages:
