@@ -20,10 +20,12 @@ from railtracks.llm.model import ModelBase
 from railtracks.nodes.manifest import ToolManifest
 from railtracks.nodes.nodes import Node
 from railtracks.nodes.utils import extract_node_from_function
+from railtracks.guardrails.core import Guard
 
 from .helpers import (
     structured_llm,
     structured_tool_call_llm,
+    guarded_terminal_llm,
     terminal_llm,
     tool_call_llm,
 )
@@ -135,6 +137,7 @@ def agent_node(
     max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
+    guardrails: Guard | None = None,
 ):
     """
     Dynamically creates an agent based on the provided parameters.
@@ -170,6 +173,10 @@ def agent_node(
         tool_params = None
 
     if unpacked_tool_nodes is not None and len(unpacked_tool_nodes) > 0:
+        if guardrails is not None:
+            raise NotImplementedError(
+                "Guardrails are only supported for terminal agents in Phase 1.5."
+            )
         if output_schema is not None:
             agent = structured_tool_call_llm(
                 tool_nodes=unpacked_tool_nodes,
@@ -193,6 +200,10 @@ def agent_node(
             )
     else:
         if output_schema is not None:
+            if guardrails is not None:
+                raise NotImplementedError(
+                    "Guardrails are only supported for terminal agents in Phase 1.5."
+                )
             agent = structured_llm(
                 output_schema=output_schema,
                 name=name,
@@ -202,13 +213,23 @@ def agent_node(
                 tool_params=tool_params,
             )
         else:
-            agent = terminal_llm(
-                name=name,
-                llm=llm,
-                system_message=system_message,
-                tool_details=tool_details,
-                tool_params=tool_params,
-            )
+            if guardrails is None:
+                agent = terminal_llm(
+                    name=name,
+                    llm=llm,
+                    system_message=system_message,
+                    tool_details=tool_details,
+                    tool_params=tool_params,
+                )
+            else:
+                agent = guarded_terminal_llm(
+                    name=name,
+                    llm=llm,
+                    system_message=system_message,
+                    guardrails=guardrails,
+                    tool_details=tool_details,
+                    tool_params=tool_params,
+                )
 
     if rag is not None:
 
