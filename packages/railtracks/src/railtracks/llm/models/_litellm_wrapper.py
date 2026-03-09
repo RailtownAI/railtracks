@@ -556,6 +556,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
             )
 
         assistant_msg = AssistantMessage(content=calls)
+
         # Preserve the raw litellm message so that provider-specific metadata
         # (e.g. Gemini thought_signature) is round-tripped back verbatim.
         assistant_msg._raw_litellm_message = choice.message
