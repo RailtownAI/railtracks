@@ -6,10 +6,24 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class Guard(BaseModel):
+    """
+    Configuration for guardrails: input/output (and future tool) rails plus behavior flags.
+
+    ``input`` and ``output`` are lists of LLM guardrails (see :class:`LLMGuardrail`).
+    The runner expects each rail to be callable with :class:`LLMGuardrailEvent` and
+    return a :class:`GuardrailDecision`.
+    """
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    input: list[Any] = Field(default_factory=list)
-    output: list[Any] = Field(default_factory=list)
+    input: list[Any] = Field(
+        default_factory=list,
+        description="Guardrails run on LLM input (prompt / message history).",
+    )
+    output: list[Any] = Field(
+        default_factory=list,
+        description="Guardrails run on LLM output (model response).",
+    )
     tool_call: list[Any] = Field(default_factory=list)
     tool_response: list[Any] = Field(default_factory=list)
     fail_open: bool = False

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Iterable, TypeVar
+from typing import Callable, Iterable, TypeVar, cast
 
 from railtracks.llm.message import Message
 from railtracks.llm.history import MessageHistory
@@ -8,12 +8,13 @@ from railtracks.llm.history import MessageHistory
 from .config import Guard
 from .decision import GuardrailAction, GuardrailDecision
 from .event import LLMGuardrailEvent, LLMGuardrailPhase
+from .interfaces import LLMGuardrail
 from .trace import GuardrailTrace
 
 _TValue = TypeVar("_TValue")
 
 
-def _rail_name(rail: Any) -> str:
+def _rail_name(rail: LLMGuardrail) -> str:
     name = getattr(rail, "name", None)
     if isinstance(name, str) and name.strip():
         return name
@@ -22,7 +23,7 @@ def _rail_name(rail: Any) -> str:
 
 def _trace_from_decision(
     *,
-    rail: Any,
+    rail: LLMGuardrail,
     phase: LLMGuardrailPhase,
     decision: GuardrailDecision,
 ) -> GuardrailTrace:
@@ -37,7 +38,7 @@ def _trace_from_decision(
 
 def _trace_for_exception(
     *,
-    rail: Any,
+    rail: LLMGuardrail,
     phase: LLMGuardrailPhase,
     exc: Exception,
 ) -> GuardrailTrace:
@@ -60,7 +61,7 @@ class GuardRunner:
     def _run_chain(
         self,
         *,
-        rails: Iterable[Callable[[LLMGuardrailEvent], GuardrailDecision]],
+        rails: Iterable[LLMGuardrail],
         phase: LLMGuardrailPhase,
         event: LLMGuardrailEvent,
         value: _TValue,
@@ -163,7 +164,7 @@ class GuardRunner:
             return decision.messages
 
         value, traces, blocked = self._run_chain(
-            rails=self.guard.input,
+            rails=cast(Iterable[LLMGuardrail], self.guard.input),
             phase=LLMGuardrailPhase.INPUT,
             event=input_event,
             value=input_event.messages,
@@ -189,7 +190,7 @@ class GuardRunner:
             return decision.output_message
 
         value, traces, blocked = self._run_chain(
-            rails=self.guard.output,
+            rails=cast(Iterable[LLMGuardrail], self.guard.output),
             phase=LLMGuardrailPhase.OUTPUT,
             event=output_event,
             value=output,

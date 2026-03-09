@@ -8,6 +8,13 @@ from .event import LLMGuardrailEvent, LLMGuardrailPhase
 
 
 class LLMGuardrail(Protocol):
+    """
+    Protocol for LLM guardrails: callable with name and phase.
+
+    Use this type when you need to accept any guardrail-like object (e.g. in APIs)
+    without requiring a specific base class.
+    """
+
     name: str
     phase: LLMGuardrailPhase
 
@@ -15,6 +22,8 @@ class LLMGuardrail(Protocol):
 
 
 class BaseLLMGuardrail(ABC):
+    """Abstract base class for guardrails that run on LLM input or output."""
+
     phase: LLMGuardrailPhase
     name: str
 
@@ -27,8 +36,12 @@ class BaseLLMGuardrail(ABC):
 
 
 class InputGuard(BaseLLMGuardrail):
+    """Base for guardrails that run on LLM input (e.g. prompt / message history)."""
+
     phase = LLMGuardrailPhase.INPUT
 
 
 class OutputGuard(BaseLLMGuardrail):
+    """Base for guardrails that run on LLM output (e.g. model response)."""
+
     phase = LLMGuardrailPhase.OUTPUT
