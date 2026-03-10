@@ -147,6 +147,7 @@ nav:
   - Evaluations:
       - Coming Soon: evaluations/quickstart.md  
   - Advanced Usage:
+      - Flows: advanced_usage/flows.md
       - Session: advanced_usage/session.md
       - Context: advanced_usage/context.md
 

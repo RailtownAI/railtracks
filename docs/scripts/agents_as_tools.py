@@ -1,4 +1,3 @@
-import asyncio
 import railtracks as rt
 
 # --8<-- [start: calculation_tools]
@@ -71,14 +70,10 @@ CalculatorAgent = rt.agent_node(
 # --8<-- [end: calculation_agent]
 
 # --8<-- [start: call]
-async def top_level():
-    result = await rt.call(
-        CalculatorAgent, 
-        "What is 3 + 4?"
-        )
-    return result
-result = asyncio.run(top_level())
+flow = rt.Flow("calculator-flow", entry_point=CalculatorAgent)
+result = flow.invoke("What is 3 + 4?")
 # --8<-- [end: call]
+
 print(result.content)
 
 # --8<-- [start: pricing_tool]
@@ -113,12 +108,7 @@ ShoppingAssistant = rt.agent_node(
 # --8<-- [end: shopping_agent]
 
 # --8<-- [start: shop_call]
-async def shopping_assistant():
-    response = await rt.call(
-        ShoppingAssistant,
-        "I want to buy 3 laptops. Can you calculate the total cost including tax?",
-    )
-    return response
-response = asyncio.run(top_level())
+shopping_flow = rt.Flow("shopping-flow", entry_point=ShoppingAssistant)
+response = shopping_flow.invoke("I want to buy 3 laptops. Can you calculate the total cost including tax?")
 # --8<-- [end: shop_call]
 print(response)
