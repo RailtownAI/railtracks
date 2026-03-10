@@ -6,7 +6,7 @@ We have set the structural outline below of two potential avenues:
 
 2. Evaluations that analyze the past results of an agent
 
-While this results in a nice seperation between potential cases, there are some cases that have elements of both which we will expand on further in the specific sections regarding usage.
+While this results in a nice separation between potential cases, there are some that have elements of both, which we will expand on further in the specific sections regarding usage.
 
 ## Evaluation Flow
 

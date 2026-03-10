@@ -1,12 +1,23 @@
-The **`ToolUseEvaluator`** assesses the given agent runs provided in the dataset and provides a summary of the different tools invoked, their frequency, and their failure rate.
+The **`ToolUseEvaluator`** assesses past agent runs and reports per-tool invocation counts, failure rates, and runtimes.
 
-Its usage is fairly straightforward given with the only requirement being that only the `AgentDataPoint`s in the dataset that have `full` tracing enabled upon saving will provide tool information for this evaluator to assess. Please read [`AgentDataPoint`](../data/agent_data.md) for further information.
+!!! note
+    Only `AgentDataPoint`s saved with full tracing enabled will include tool call data for this evaluator to analyze.
+
+## Usage
 
 ```python
-dataset = EvaluationDataset(
-    path=".railtracks/data/agent_data",
-)
+from railtracks import evaluation as eval
 
-evaluator = ToolUseEvaluator()
-evaluator.run(dataset.data_points)
+data = eval.extract_agent_data_points(".railtracks/data/sessions/")
+
+evaluator = eval.ToolUseEvaluator()
+results = eval.evaluate(data=data, evaluators=[evaluator])
 ```
+
+## Metrics Tracked
+
+| Metric | Description |
+|---|---|
+| `UsageCount` | Number of times each tool was called per agent run. |
+| `FailureRate` | Fraction of calls that failed (0.0–1.0) per agent run. |
+| `Runtime` | Wall-clock execution time per individual tool call (seconds). |

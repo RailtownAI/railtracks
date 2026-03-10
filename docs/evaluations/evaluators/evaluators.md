@@ -1,4 +1,4 @@
-Evaluators are one of the three core compontents in **Railtracks**'s evaluation framework. They are the classes where the backend operation of running an evaluation takes place given dataset and metrics have been set up.
+Evaluators are one of the three core components in **Railtracks**'s evaluation framework. They are the classes responsible for running evaluations over a dataset and producing structured results.
 
 Currently we have the following abstractions for Evaluators:
 
