@@ -110,19 +110,23 @@ class AgentDataPoint(BaseModel):
 def extract_llm_details(llm_details: list[dict]) -> LLMDetails:
     calls = []
     for idx, detail in enumerate(llm_details):
-        inputs = [
-            LLMIO(
-                role=MessageRole(message.get("role", "")),
-                content=message.get("content", ""),
+        try:
+            inputs = [
+                LLMIO(
+                    role=MessageRole(message.get("role", "")),
+                    content=message.get("content", ""),
+                )
+                for message in detail.get("input", [])
+            ]
+            output = detail.get("output", {})
+            content = output.get("content")
+            output = LLMIO(
+                role=MessageRole(output.get("role", "")),
+                content=content,
             )
-            for message in detail.get("input", [])
-        ]
-        output = detail.get("output", {})
-        content = output.get("content")
-        output = LLMIO(
-            role=MessageRole(output.get("role", "")),
-            content=content,
-        )
+        except Exception as e:
+            logger.error(f"Error parsing LLM details at index {idx}: {e}")
+            continue
         calls.append(
             LLMCall(
                 model_name=detail.get("model_name", ""),
