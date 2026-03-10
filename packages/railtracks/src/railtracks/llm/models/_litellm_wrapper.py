@@ -559,7 +559,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
 
         # Preserve the raw litellm message so that provider-specific metadata
         # (e.g. Gemini thought_signature) is round-tripped back verbatim.
-        assistant_msg._raw_litellm_message = choice.message
+        assistant_msg.raw_litellm_message = choice.message
         return Response(message=assistant_msg, message_info=info)
 
     # ================ END Base Handlers ===============
@@ -717,7 +717,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
             # If a raw litellm message was stored (e.g. to preserve Gemini
             # thought_signature), return it directly so litellm round-trips the
             # provider-specific metadata automatically.
-            raw = getattr(msg, "_raw_litellm_message", None)
+            raw = getattr(msg, "raw_litellm_message", None)
             if raw is not None:
                 return raw
             base["content"] = ""

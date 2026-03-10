@@ -228,9 +228,9 @@ class OutputLessToolCallLLMBase(
                 content=tool_calls
             )  # Preserve provider-specific metadata from the original message
 
-            raw = getattr(message, "_raw_litellm_message", None)
+            raw = getattr(message, "raw_litellm_message", None)
             if raw is not None:
-                hist_msg._raw_litellm_message = raw
+                hist_msg.raw_litellm_message = raw
             self.message_hist.append(hist_msg)
 
             tool_messages = await self._call_tools(tool_calls)
