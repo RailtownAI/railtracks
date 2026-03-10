@@ -142,8 +142,9 @@ nav:
       - Streaming: llm_support/streaming.md
 
   - Evaluations:
-      - Quickstart: evaluations/quickstart.md
       - Preface: evaluations/preface.md
+      - Quickstart: evaluations/quickstart.md
+      - Visualization: evaluations/visualization.md
       - Metrics: 
         - Metrics Overview: evaluations/metrics/metrics.md
         - Categorical Metrics: evaluations/metrics/categorical.md
