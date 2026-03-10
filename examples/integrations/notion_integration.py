@@ -51,7 +51,7 @@ message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
 async def call_node():
-    with rt.Session(logging_setting="VERBOSE"):
+    with rt.Session():
         result = await rt.call(agent, message_history)
 
     print(result.content)

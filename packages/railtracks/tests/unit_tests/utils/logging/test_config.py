@@ -6,21 +6,15 @@ from unittest.mock import patch
 import pytest
 
 from railtracks.utils.logging.config import (
-    AllowableLogLevels,
     ColorfulFormatter,
     ThreadAwareFilter,
-    configure_module_logging,
     detach_logging_handlers,
     enable_logging,
     initialize_module_logging,
-    mark_session_logging_override,
     prepare_logger,
-    restore_module_logging,
     rt_logger,
     setup_file_handler,
     _module_logging_level,
-    _session_has_override,
-    str_to_log_level,
 )
 
 
@@ -291,99 +285,3 @@ def test_initialize_module_logging_defaults_to_info():
     detach_logging_handlers()
 
 
-# ================= configure_module_logging Tests =================
-
-def test_configure_module_logging_updates_config():
-    """Test that configure_module_logging updates module config."""
-    _session_has_override.set(False)
-    
-    configure_module_logging(level="DEBUG", log_file="/tmp/test.log")
-    
-    assert _module_logging_level.get() == logging.DEBUG
-    
-    from railtracks.utils.logging.config import _module_logging_file
-    assert _module_logging_file.get() == "/tmp/test.log"
-
-
-def test_configure_module_logging_raises_if_session_override():
-    """Test that configure_module_logging raises error during session override."""
-    _session_has_override.set(True)
-    
-    with pytest.raises(RuntimeError, match="Cannot configure module-level logging"):
-        configure_module_logging(level="DEBUG")
-    
-    # Clean up
-    _session_has_override.set(False)
-
-
-# ================= mark_session_logging_override Tests =================
-
-def test_mark_session_logging_override_sets_flag():
-    """Test that mark_session_logging_override sets the override flag."""
-    _session_has_override.set(False)
-    _module_logging_level.set(logging.INFO)
-    
-    mark_session_logging_override("DEBUG", None)
-    
-    assert _session_has_override.get() is True
-    assert _module_logging_level.get() == logging.DEBUG
-    
-    # Clean up
-    _session_has_override.set(False)
-
-
-def test_mark_session_logging_override_saves_previous_config():
-    """Test that mark_session_logging_override saves the previous configuration."""
-    _module_logging_level.set(logging.INFO)
-    
-    from railtracks.utils.logging.config import _pre_session_log_level
-    
-    mark_session_logging_override("WARNING", "/tmp/session.log")
-    
-    # Verify previous level was saved
-    assert _pre_session_log_level.get() == logging.INFO
-    # Verify new level was set
-    assert _module_logging_level.get() == logging.WARNING
-    
-    # Clean up
-    _session_has_override.set(False)
-
-
-# ================= restore_module_logging Tests =================
-
-def test_restore_module_logging_restores_config():
-    """Test that restore_module_logging restores previous configuration."""
-    # Set up a session override
-    _module_logging_level.set(logging.INFO)
-    mark_session_logging_override("DEBUG", None)
-    
-    # Now restore
-    restore_module_logging()
-    
-    # Verify level was restored
-    assert _module_logging_level.get() == logging.INFO
-    assert _session_has_override.get() is False
-
-
-def test_restore_module_logging_skips_if_no_override():
-    """Test that restore_module_logging does nothing if no override was active."""
-    _session_has_override.set(False)
-    _module_logging_level.set(logging.INFO)
-    
-    restore_module_logging()
-    
-    # Level should be unchanged
-    assert _module_logging_level.get() == logging.INFO
-
-
-def test_restore_module_logging_clears_override_flag():
-    """Test that restore_module_logging clears the override flag."""
-    # Set up a session override
-    _module_logging_level.set(logging.WARNING)
-    mark_session_logging_override("DEBUG", None)
-    
-    assert _session_has_override.get() is True
-    
-    restore_module_logging()
-    
-    assert _session_has_override.get() is False

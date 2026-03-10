@@ -45,7 +45,7 @@ class TestSimpleToolCalling:
             llm=llm,
         )
 
-        with rt.Session(logging_setting="NONE"):
+        with rt.Session():
             response = await rt.call(
                 agent,
                 user_input="What is the secret phrase? Only return the secret phrase, no other text.",
@@ -98,7 +98,7 @@ class TestLimitedToolCalling:
         )
 
         message = "Get the magic number and divide it by 2."
-        with rt.Session(logging_setting="NONE"):
+        with rt.Session():
             _reset_tools_called()
             _ = await rt.call(agent, user_input=message)
             assert rt.context.get("tools_called") == 1
@@ -160,7 +160,7 @@ class TestLimitedToolCalling:
             max_tool_calls=num_tc,
         )
 
-        with rt.Session(logging_setting="NONE"):
+        with rt.Session():
             _reset_tools_called()
             response = await rt.call(
                 agent, user_input=f"Get me {num_tc} magic numbers."
@@ -191,7 +191,7 @@ class TestStructuredToolCalling:
             tool_nodes={rt.function_node(secrets)},
         )
 
-        with rt.Session(logging_setting="NONE"):
+        with rt.Session():
             response = await rt.call(
                 agent,
                 user_input="What is the secret phrase? Only return the structured output, no other text.",

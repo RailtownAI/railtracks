@@ -57,7 +57,7 @@ async def test_terminal_llm(llm):
         llm=llm,
     )
 
-    with rt.Session(logging_setting="NONE"):
+    with rt.Session():
         response = await rt.call(
             terminal_node, user_input="Please reverse '12345'."
         )
@@ -86,7 +86,7 @@ async def test_structured_llm(llm, test_case):
         llm=llm,
     )
 
-    with rt.Session(logging_setting="NONE"):
+    with rt.Session():
         response = await rt.call(
             structured_node, 
             user_input=test_case["user_input"]

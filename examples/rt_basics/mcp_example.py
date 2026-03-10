@@ -30,7 +30,7 @@ parent_tool = rt.agent_node(
 #%%
 
 async def call_node(user_input: str):
-    with rt.Session(logging_setting="QUIET", timeout=1000) as runner:
+    with rt.Session(timeout=1000) as runner:
         response = await rt.call(parent_tool, user_input=user_input)
     print("Response:", response.text)
 

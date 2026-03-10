@@ -27,7 +27,6 @@ greeting_multiple_flow = rt.Flow(
     entry_point=greet_multiple,
     timeout=30,  # 30 second timeout
     context={"user_id": "123"},  # Global context variables
-    logging_setting="DEBUG",  # Enable debug logging
     save_state=True,  # Save execution state to file
 )
 
@@ -56,14 +55,12 @@ first_flow = rt.Flow(
     "greet-flow",
     entry_point=conditional_greet,
     context={"action": "greet", "name": "Diana"},
-    logging_setting="CRITICAL"
 )
 
 second_flow = rt.Flow(
     "farewell-flow",
     entry_point=conditional_farewell,
     context={"action": "farewell", "name": "Robert"},
-    logging_setting="CRITICAL"
 )
 
 # Run independently
@@ -75,6 +72,7 @@ print(result2)  # "Bye, Robert!"
 
 
 # --8<-- [start: configured_session_cm]
+<<<<<<< HEAD
 # Flow configuration approach (replaces session context manager)
 second_flow = rt.Flow(
     "greet-multiple-flow",
@@ -84,6 +82,18 @@ second_flow = rt.Flow(
     logging_setting="DEBUG",  # Enable debug logging
     save_state=True,  # Save execution state to file
 )
+=======
+async def context_workflow():
+    with rt.Session(
+        timeout=30,  # 30 second timeout
+        context={"user_id": "123"},  # Global context variables
+        save_state=True,  # Save execution state to file
+        name="my-unique-run",  # Custom session name
+    ):
+        result1 = await rt.call(greet, name="Bob")
+        result2 = await rt.call(greet, name="Charlie")
+        return [result1, result2]
+>>>>>>> 79622107730c6c9025195c2a2ff29a0a9dc60985
 
 result = second_flow.invoke(names =["Bob", "Charlie"])
 print(result)  # ['Hello, Bob!', 'Hello, Charlie!']

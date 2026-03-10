@@ -1,6 +1,6 @@
 # Configuration
 
-Railtracks provides flexible configuration options to customize the behavior of your agent executions. You can control timeouts, logging, error handling, and more through a simple configuration system.
+Railtracks provides flexible configuration options to customize the behavior of your agent executions. You can control timeouts, error handling, and more through a simple configuration system. Logging is configured separately via `rt.enable_logging()` at application startup (see [Logging](../observability/logging.md)).
 
 ## Configuration Methods
 
@@ -17,17 +17,6 @@ Configuration parameters follow a specific precedence order, allowing you to ove
 - **`timeout`** (`float`): Maximum seconds to wait for a response to your top-level request
 - **`end_on_error`** (`bool`): Stop execution when an exception is encountered
 
-### Logging Configuration
-
-- **`logging_setting`** (AllowableLogLevels | None): Level of logging detail.  <br>Here are the `AllowableLogLevels` options:
-    - `DEBUG`
-    - `INFO`
-    - `WARNING`
-    - `ERROR`
-    - `CRITICAL`
-    - `NONE`
-- **`log_file`** (`str | os.PathLike | None`): File path for log output (None = no file logging)
-
 ### Advanced Settings
 
 - **`context`** (`Dict[str, Any]`): Global context variables for execution
@@ -41,8 +30,6 @@ Configuration parameters follow a specific precedence order, allowing you to ove
 # Default configuration values
 timeout = 150.0                   # seconds
 end_on_error = False              # continue on errors
-logging_setting = "INFO"       # standard logging level
-log_file = None                   # no file logging
 broadcast_callback = None         # no broadcast callback
 prompt_injection = True           # enable prompt injection
 save_state = True                 # save execution state
@@ -55,16 +42,14 @@ Configure settings when creating a session for your agent execution:
 ```python
 import railtracks as rt
 
-# Configure for a partiular session execution
+# Configure for a particular session execution
 with rt.session(
     timeout=300.0,
     end_on_error=True,
-    logging_setting="DEBUG",
-    log_file="execution.log",
     prompt_injection=False,
     save_state=False,
     context={"user_name": "Alice", "environment": "production"}
-    ):
+):
     response = await rt.call(
         my_agent,
         "Hello world!",
@@ -81,8 +66,6 @@ import railtracks as rt
 # Set global configuration
 rt.set_config(
     timeout=200.0,
-    logging_setting="DEBUG",
-    log_file="app_logs.log",
     end_on_error=True,
     context={"app_version": "1.2.3"}
 )
@@ -100,13 +83,12 @@ When the same parameter is set in multiple places, Railtracks uses this priority
 import railtracks as rt
 
 # 1. Set global config (medium priority)
-rt.set_config(timeout=100.0, logging_setting="INFO")
+rt.set_config(timeout=100.0)
 
 # 2. Session overrides global config (highest priority)
 with rt.session(
     timeout=300.0,        # This overrides the global timeout=100.0
     end_on_error=True     # This uses session-level setting
-    # logging_setting not specified, so uses global "INFO"
 ):
     response = await rt.call(
         my_agent,
@@ -115,8 +97,7 @@ with rt.session(
 
 # Final effective configuration:
 # - timeout: 300.0 (from session constructor)
-# - end_on_error: True (from session constructor)  
-# - logging_setting: "INFO" (from global config)
+# - end_on_error: True (from session constructor)
 # - All other parameters use default values
 ```
 
@@ -132,16 +113,12 @@ import os
 if os.getenv("ENVIRONMENT") == "production":
     rt.set_config(
         timeout=300.0,
-        logging_setting="INFO",
-        log_file="production.log",
         end_on_error=False,
         save_state=True
     )
 else:
     rt.set_config(
         timeout=60.0,
-        logging_setting="DEBUG", 
-        log_file="debug.log",
         end_on_error=True,
         save_state=False
     )
@@ -152,10 +129,8 @@ else:
 ```python
 import railtracks as rt
 
-# Enhanced debugging setup
+# Enhanced debugging setup (use rt.enable_logging(level="DEBUG") at startup for logs)
 rt.set_config(
-    logging_setting="DEBUG",
-    log_file="debug_session.log",
     end_on_error=True,           # Stop on first error
     save_state=True,             # Save state for inspection
 )

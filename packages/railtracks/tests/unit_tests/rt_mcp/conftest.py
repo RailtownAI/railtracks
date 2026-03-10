@@ -109,7 +109,7 @@ def dummy_node():
 @pytest.fixture
 def mock_executor_config():
     # You can use a namedtuple, dataclass or a plain MagicMock if not relied on
-    return MagicMock(logging_setting="QUIET", timeout=123)
+    return MagicMock(timeout=123)
 
 @ pytest.fixture
 def mock_params_schema():
