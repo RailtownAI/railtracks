@@ -13,27 +13,26 @@ class Evaluator(ABC):
         return self.__class__.__name__
 
     @abstractmethod
-    def run(
-        self, data: list[AgentDataPoint]
-    ) -> EvaluatorResult:
+    def run(self, data: list[AgentDataPoint]) -> EvaluatorResult:
         pass
 
     def _generate_identifier(self) -> str:
         """Generate deterministic hash based on evaluator configuration.
-        
+
         Like Metric.identifier - same config = same identifier.
         """
         config = self._get_config()
         config["_type"] = self.__class__.__name__
-        
+
         import hashlib
         import json
+
         config_str = json.dumps(config, sort_keys=True)
         return hashlib.sha256(config_str.encode()).hexdigest()
-    
+
     def _get_config(self) -> dict:
         """Override in subclasses to include configuration details.
-        
+
         Returns:
             Dict of configuration that determines evaluator identity.
         """

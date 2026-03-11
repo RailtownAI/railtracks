@@ -1,6 +1,6 @@
 import hashlib
 import json
-from typing import Generic, TypeVar, Annotated, Union, Literal
+from typing import Annotated, Generic, Literal, TypeVar, Union
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -11,7 +11,7 @@ class Metric(BaseModel):
     identifier: str = ""
     model_config = ConfigDict(frozen=True)
     description: str | None = None
-    
+
     @model_validator(mode="before")
     @classmethod
     def _generate_identifier(cls, values):
@@ -19,7 +19,7 @@ class Metric(BaseModel):
         # Only generate identifier if not already provided
         if values.get("identifier", "") != "":
             return values
-        
+
         config = {k: v for k, v in values.items() if k != "identifier"}
         config["_type"] = cls.__name__
 
@@ -51,14 +51,15 @@ class Metric(BaseModel):
 
 
 class Categorical(Metric):
-    metric_type: Literal["Categorical"] = "Categorical" #type: ignore[assignment]
+    metric_type: Literal["Categorical"] = "Categorical"  # type: ignore[assignment]
     categories: list[str]
 
 
 T = TypeVar("T", int, float)
 
+
 class Numerical(Metric, Generic[T]):
-    metric_type: Literal["Numerical"] = "Numerical" #type: ignore[assignment]
+    metric_type: Literal["Numerical"] = "Numerical"  # type: ignore[assignment]
     min_value: T | None = None
     max_value: T | None = None
 
@@ -72,15 +73,20 @@ class Numerical(Metric, Generic[T]):
                 raise ValueError("min_value must be less than max_value")
         return values
 
+
 class LLMMetric(Numerical):
     """A Numerical metric specific to LLM usage statistics."""
-    metric_type: Literal["LLMMetric"] = "LLMMetric" #type: ignore[assignment]
+
+    metric_type: Literal["LLMMetric"] = "LLMMetric"  # type: ignore[assignment]
+
 
 class ToolMetric(Numerical):
     """A Numerical metric specific to tool usage statistics."""
-    metric_type: Literal["ToolMetric"] = "ToolMetric" #type: ignore[assignment]
+
+    metric_type: Literal["ToolMetric"] = "ToolMetric"  # type: ignore[assignment]
+
 
 METRIC_TYPES = Annotated[
     Union[LLMMetric, ToolMetric, Numerical, Categorical, Metric],
-    Field(discriminator='metric_type')
+    Field(discriminator="metric_type"),
 ]

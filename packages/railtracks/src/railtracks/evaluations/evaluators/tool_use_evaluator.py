@@ -5,15 +5,13 @@ from uuid import UUID
 from ...utils.logging.create import get_rt_logger
 from ..point import AgentDataPoint, Status
 from ..result import (
-    EvaluatorResult,
     AggregateForest,
+    EvaluatorResult,
     ToolAggregateNode,
     ToolMetricResult,
 )
-
 from .evaluator import Evaluator
-from .metrics import ToolMetric, Categorical
-from enum import Enum
+from .metrics import ToolMetric
 
 logger = get_rt_logger("ToolUseEvaluator")
 
@@ -55,16 +53,13 @@ class ToolUseEvaluator(Evaluator):
     def run(
         self, data: list[AgentDataPoint]
     ) -> EvaluatorResult[ToolMetric, ToolMetricResult, ToolAggregateNode]:
-
         agent_data_ids: set[UUID] = {adp.identifier for adp in data}
-        forest = AggregateForest[
-            ToolAggregateNode, ToolMetricResult
-        ]()
+        forest = AggregateForest[ToolAggregateNode, ToolMetricResult]()
 
         results = self._extract_tool_stats(data, forest)
         self._aggregate_per_run(results, forest)
         self._aggregate_across_runs(results, forest)
-        
+
         metrics = list(results.keys())
 
         return EvaluatorResult(
@@ -77,7 +72,9 @@ class ToolUseEvaluator(Evaluator):
         )
 
     def _extract_tool_stats(
-        self, data: list[AgentDataPoint], forest: AggregateForest[ToolAggregateNode, ToolMetricResult]
+        self,
+        data: list[AgentDataPoint],
+        forest: AggregateForest[ToolAggregateNode, ToolMetricResult],
     ) -> dict[ToolMetric, list[ToolMetricResult]]:
         """
         Retrieve tool usage statistics from the agent data points.
@@ -94,7 +91,6 @@ class ToolUseEvaluator(Evaluator):
         )
 
         for datapoint in data:
-
             for tool in datapoint.tool_details.calls:
                 tool_name = tool.name
                 key = (datapoint.identifier, tool_name)
@@ -115,7 +111,7 @@ class ToolUseEvaluator(Evaluator):
                 if tool.status == Status.FAILED:
                     stats[key]["failure_count"] += 1
                 runtime = tool.runtime
-                
+
                 if runtime is not None:
                     stats[key]["runtimes"].append(runtime)
 
@@ -127,11 +123,10 @@ class ToolUseEvaluator(Evaluator):
                         tool_node_id=tool.identifier,
                         value=runtime,
                     )
-                    forest.add_node(metric_result)  
+                    forest.add_node(metric_result)
                     results[METRICS["Runtime"]].append(metric_result)
 
         for key, tool_data in stats.items():
-
             adp_id, tool_name = key
 
             failure_rate = (
@@ -169,7 +164,6 @@ class ToolUseEvaluator(Evaluator):
         results: dict[ToolMetric, list[ToolMetricResult]],
         forest: AggregateForest[ToolAggregateNode, ToolMetricResult],
     ) -> None:
-
         metric_results = results[METRICS["Runtime"]]
         metric_results_by_adp_id: dict[UUID, list[ToolMetricResult]] = defaultdict(list)
 
@@ -220,7 +214,6 @@ class ToolUseEvaluator(Evaluator):
                 values[tmr.tool_name].append(tmr)
 
             for tool_name, vals in values.items():
-
                 aggregate_node = ToolAggregateNode(
                     name=f"Aggregate/{metric.name}",
                     metric=metric,
@@ -251,7 +244,9 @@ class ToolUseEvaluator(Evaluator):
                 name=f"Aggregate/{METRICS['Runtime'].name}",
                 metric=METRICS["Runtime"],
                 tool_name=tool_name,
-                children=[tool_agg.identifier for tool_agg in tool_breakdown[tool_name]],
+                children=[
+                    tool_agg.identifier for tool_agg in tool_breakdown[tool_name]
+                ],
                 forest=forest,
             )
             forest.add_node(parent)

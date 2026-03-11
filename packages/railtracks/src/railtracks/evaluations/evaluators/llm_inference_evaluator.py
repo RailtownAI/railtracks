@@ -4,10 +4,10 @@ from uuid import UUID
 from ...utils.logging.create import get_rt_logger
 from ..point import AgentDataPoint
 from ..result import (
-    EvaluatorResult,
     AggregateForest,
-    LLMMetricResult,
+    EvaluatorResult,
     LLMInferenceAggregateNode,
+    LLMMetricResult,
 )
 from .evaluator import Evaluator
 from .metrics import LLMMetric
@@ -24,7 +24,6 @@ class LLMInferenceEvaluator(Evaluator):
     def run(
         self, data: list[AgentDataPoint]
     ) -> EvaluatorResult[LLMMetric, LLMMetricResult, LLMInferenceAggregateNode]:
-
         agent_data_ids: set[UUID] = {adp.identifier for adp in data}
         forest = AggregateForest[LLMInferenceAggregateNode, LLMMetricResult]()
 
@@ -47,15 +46,12 @@ class LLMInferenceEvaluator(Evaluator):
         data: list[AgentDataPoint],
         forest: AggregateForest[LLMInferenceAggregateNode, LLMMetricResult],
     ) -> dict[LLMMetric, list[LLMMetricResult]]:
-
         results: dict[LLMMetric, list[LLMMetricResult]] = defaultdict(list)
 
         for datapoint in data:
-
             llm_details = datapoint.llm_details
 
             for call in llm_details.calls:
-
                 # Input Tokens
                 metric = LLMMetric(
                     name="InputTokens",
@@ -130,14 +126,15 @@ class LLMInferenceEvaluator(Evaluator):
         return results
 
     def _aggregate_metrics(
-        self, results: dict[LLMMetric, list[LLMMetricResult]],
-        forest: AggregateForest[LLMInferenceAggregateNode, LLMMetricResult]
+        self,
+        results: dict[LLMMetric, list[LLMMetricResult]],
+        forest: AggregateForest[LLMInferenceAggregateNode, LLMMetricResult],
     ) -> None:
-
         for metric in results:
-
             metric_results = results[metric]
-            values: dict[tuple[str, str, int], list[LLMMetricResult]] = defaultdict(list)
+            values: dict[tuple[str, str, int], list[LLMMetricResult]] = defaultdict(
+                list
+            )
             for mr in metric_results:
                 if isinstance(mr.value, (int, float)):
                     key = (mr.model_name, mr.model_provider, mr.llm_call_index)
