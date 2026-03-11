@@ -4,25 +4,17 @@ import railtracks as rt
 # Set up some context data
 data = {"var_1": "value_1"}
 
-with rt.Session(context=data):
+def some_node():
     rt.context.get("var_1")  # Outputs: value_1
     rt.context.get("var_2", "default_value")  # Outputs: default_value
 
     rt.context.put("var_2", "value_2")  # Sets var_2 to value_2
     rt.context.put("var_1", "new_value_1")  # Replaces var_1 with new_value_1
+    
+flow = rt.Flow("context-flow", entry_point=some_node, context=data)
+flow.invoke()
+
 # --8<-- [end: context_basics]
-
-# --8<-- [start: context_in_node]
-import railtracks as rt
-
-@rt.function_node
-def some_node():
-    return rt.context.get("var_1")
-
-@rt.session(context={"var_1": "value_1"})
-async def main():
-    await rt.call(some_node)
-# --8<-- [end: context_in_node]
 
 def get_issue_from_input(input: str) -> str:
     # Dummy implementation for example purposes
@@ -58,11 +50,6 @@ GitHubAgent = rt.agent_node(
     system_message="You are an agent that provides information based on important facts.",
 )
 
-# Run the agent
-@rt.session()
-async def gh_agent():
-    response = await rt.call(
-        GitHubAgent,
-        "What is the last issue created? Please write a comment on it."
-    )
+github_flow = rt.Flow("github-flow", entry_point=GitHubAgent)
+response = github_flow.invoke("What is the last issue created? Please write a comment on it.")
 # --8<-- [end: example]

@@ -224,8 +224,14 @@ class OutputLessToolCallLLMBase(
             if allowed_tool_calls is not None and len(tool_calls) > allowed_tool_calls:
                 tool_calls = tool_calls[:allowed_tool_calls]
 
-            # append the requested tool calls assistant message, once the tool calls have been verified and truncated (if needed)
-            self.message_hist.append(AssistantMessage(content=tool_calls))
+            hist_msg = AssistantMessage(
+                content=tool_calls
+            )  # Preserve provider-specific metadata from the original message
+
+            raw = getattr(message, "raw_litellm_message", None)
+            if raw is not None:
+                hist_msg.raw_litellm_message = raw
+            self.message_hist.append(hist_msg)
 
             tool_messages = await self._call_tools(tool_calls)
             for t_m in tool_messages:

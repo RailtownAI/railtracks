@@ -17,7 +17,6 @@ tools = server.tools
 
 # --8<-- [start: github_call]
 import railtracks as rt
-import asyncio
 
 agent = rt.agent_node(
     # tool_nodes={*tools},    # Uncomment this line to use the tools
@@ -27,13 +26,10 @@ agent = rt.agent_node(
 
 user_prompt = """Tell me about the RailtownAI/rc repository on GitHub."""
 
-async def call_node():
-    with rt.Session():
-        result = await rt.call(agent, user_prompt)
+flow = rt.Flow("github-flow", entry_point=agent)
+result = flow.invoke(user_prompt)
+print(result.content)
 
-    print(result.content)
-
-# asyncio.run(call_node())
 # --8<-- [end: github_call]
 
 # --8<-- [start: notion_mcp]
@@ -66,7 +62,6 @@ tools = server.tools
 
 # --8<-- [start: notion_call]
 import railtracks as rt
-import asyncio
 agent = rt.agent_node(
     # tool_nodes={*tools},    # Uncomment this line to use the tools
     system_message="""You are a master Notion page designer. You love creating beautiful
@@ -78,13 +73,10 @@ user_prompt = """Create a new page in Notion called 'Jokes' under the parent pag
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
-async def call_notion():
-    with rt.Session():
-        result = await rt.call(agent, message_history)
+notion_flow = rt.Flow("notion-flow", entry_point=agent)
+result = notion_flow.invoke(message_history)
+print(result.content)
 
-    print(result.content)
-
-# asyncio.run(call_node())
 # --8<-- [end: notion_call]
 
 # --8<-- [start: sandbox_setup]
@@ -125,17 +117,15 @@ CodeAgent = rt.agent_node(
 # --8<-- [start: sandbox_call]
 user_prompt = """Create a 3x3 array of random numbers using numpy, and print the array and its mean"""
 
-async def call_code_agent():
-    with rt.Session():
-        create_sandbox_container()
-        try:
-            result = await rt.call(CodeAgent, user_prompt)
-        finally:
-            kill_sandbox()
+code_flow = rt.Flow("code-flow", entry_point=CodeAgent)
+create_sandbox_container()
+try:
+    code_flow_result = code_flow.invoke(user_prompt)
+finally:
+    kill_sandbox()
 
-    print(result.content)
+print(code_flow_result.content)
 
-# asyncio.run(call_node())
 # --8<-- [end: sandbox_call]
 
 # --8<-- [start: bash_tool]
@@ -159,7 +149,6 @@ bash_tool = rt.function_node(run_shell)
 # --8<-- [start: bash_call]
 import platform
 import railtracks as rt
-import asyncio
 
 BashAgent = rt.agent_node(
     tool_nodes={bash_tool},
@@ -172,13 +161,10 @@ user_prompt = """What directories are in the current directory?"""
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
-async def call_bash_agent():
-    with rt.Session():
-        result = await rt.call(BashAgent, message_history)
+bash_flow = rt.Flow("bash-flow", entry_point=BashAgent)
+result = bash_flow.invoke(message_history)
+print(result.content)
 
-    print(result.content)
-
-# asyncio.run(call_node())
 # --8<-- [end: bash_call]
 
 # --8<-- [start: slack_mcp]
@@ -206,7 +192,6 @@ tools = server.tools
 
 # --8<-- [start: slack_call]
 import railtracks as rt
-import asyncio
 
 SlackAgent = rt.agent_node(
     # tool_nodes={*tools},    # Uncomment this line to use the tools
@@ -216,13 +201,10 @@ SlackAgent = rt.agent_node(
 
 user_prompt = """Send a message to general saying "Hello!"."""
 
-async def call_slack_agent():
-    with rt.Session():
-        result = await rt.call(SlackAgent, user_prompt)
+slack_flow = rt.Flow("slack-flow", entry_point=SlackAgent)
+result = slack_flow.invoke(user_prompt)
+print(result.content)
 
-    print(result.content)
-
-# asyncio.run(call_node())
 # --8<-- [end: slack_call]
 
 # --8<-- [start: websearch_imports]
@@ -294,9 +276,8 @@ WebSearchAgent = rt.agent_node(
 
 # Example usage
 user_prompt = """Tell me about Railtown AI."""
-async def call_web_search():
-    result = await rt.call(agent, message_history)
-    print(result)
+web_search_flow = rt.Flow("WebSearchFlow", entry_point=WebSearchAgent)
+web_search_flow_result = web_search_flow.invoke(user_prompt)
+print(web_search_flow_result)
 
-# asyncio.run(call_node())
 # --8<-- [end: websearch_agent]

@@ -1,5 +1,9 @@
 # Session Management
 
+!!! warning
+    This state management approach was deprecated in a recent release. Please see [Flows](../advanced_usage/flows.md)
+
+
 Sessions in Railtracks manage the execution environment for your flows. The recommended approach is using the `@rt.session` decorator for clean, automatic session management.
 
 ## The `@rt.session` Decorator
