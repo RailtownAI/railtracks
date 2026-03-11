@@ -6,7 +6,6 @@ from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field
-from rich import print
 
 from railtracks.utils.logging import get_rt_logger
 
@@ -62,6 +61,7 @@ class ToolCall(BaseModel):
 
 class ToolDetails(BaseModel):
     """Tool details for an agent, including all tool calls made."""
+
     tool_names: set[str]
     calls: list[ToolCall]
 
@@ -94,6 +94,7 @@ class LLMDetails(BaseModel):
     """Details about an LLM call."""
 
     calls: list[LLMCall]
+
 
 class AgentDataPoint(BaseModel):
     """A data point specific to agent interactions."""
@@ -258,6 +259,56 @@ def extract_agent_io(
     return agent_input, agent_output
 
 
+def resolve_file_paths(session_files: list[str] | str) -> list[str]:
+    """Resolves session_files input to a flat list of file paths.
+
+    Args:
+        session_files: A single file path, a directory path, or a list of file paths.
+
+    Returns:
+        List of resolved file path strings.
+
+    Raises:
+        FileNotFoundError: If a path does not exist.
+        ValueError: If a list item is a directory or no files are found.
+        TypeError: If session_files is not a str or list.
+    """
+    file_paths: list[str] = []
+
+    if isinstance(session_files, str):
+        path = Path(session_files)
+        if path.is_dir():
+            file_paths = [
+                str(f)
+                for f in path.iterdir()
+                if f.is_file() and not f.name.startswith(".")
+            ]
+            logger.info(f"Found {len(file_paths)} files in directory: {session_files}")
+        elif path.is_file():
+            file_paths = [session_files]
+        else:
+            raise FileNotFoundError(f"Path does not exist: {session_files}")
+    elif isinstance(session_files, list):
+        for item in session_files:
+            item_path = Path(item)
+            if item_path.is_dir():
+                raise ValueError(
+                    f"List items must be file paths, not directories: {item}"
+                )
+            if not item_path.is_file():
+                raise FileNotFoundError(f"File does not exist: {item}")
+        file_paths = session_files
+    else:
+        raise TypeError(
+            f"session_files must be a string or list of strings, got {type(session_files)}"
+        )
+
+    if not file_paths:
+        raise ValueError("No files found to process")
+
+    return file_paths
+
+
 def extract_agent_data_points(session_files: list[str] | str) -> list[AgentDataPoint]:
     """
     Extract AgentDataPoint instances from session JSON files.
@@ -274,34 +325,7 @@ def extract_agent_data_points(session_files: list[str] | str) -> list[AgentDataP
         List of AgentDataPoint instances, one for each agent execution found in the files.
         Returns empty list if no valid agent data is found.
     """
-    # Convert input to list of file paths
-    file_paths: list[str] = []
-    
-    if isinstance(session_files, str):
-        path = Path(session_files)
-        if path.is_dir():
-            # Get all non-hidden files in the directory
-            file_paths = [str(f) for f in path.iterdir() if f.is_file() and not f.name.startswith('.')]
-            logger.info(f"Found {len(file_paths)} files in directory: {session_files}")
-        elif path.is_file():
-            file_paths = [session_files]
-        else:
-            raise FileNotFoundError(f"Path does not exist: {session_files}")
-    elif isinstance(session_files, list):
-        # Validate all items in the list are valid file paths
-        for item in session_files:
-            item_path = Path(item)
-            if item_path.is_dir():
-                raise ValueError(f"List items must be file paths, not directories: {item}")
-            if not item_path.is_file():
-                raise FileNotFoundError(f"File does not exist: {item}")
-        file_paths = session_files
-    else:
-        raise TypeError(f"session_files must be a string or list of strings, got {type(session_files)}")
-    
-    if not file_paths:
-        raise ValueError("No files found to process")
-    
+    file_paths = resolve_file_paths(session_files)
     data_points = []
 
     for file_path in file_paths:
@@ -336,7 +360,11 @@ def extract_agent_data_points(session_files: list[str] | str) -> list[AgentDataP
 
             edges: dict[tuple[UUID | None, UUID], EdgeDataPoint] = {}
             for edge in run.get("edges", []):
-                key = (UUID(edge["source"]), UUID(edge["target"])) if edge["source"] is not None else (None, UUID(edge["target"]))
+                key = (
+                    (UUID(edge["source"]), UUID(edge["target"]))
+                    if edge["source"] is not None
+                    else (None, UUID(edge["target"]))
+                )
                 edges[key] = EdgeDataPoint(
                     identifier=UUID(edge["identifier"]),
                     source=UUID(edge["source"]) if edge["source"] is not None else None,
@@ -378,15 +406,3 @@ def extract_agent_data_points(session_files: list[str] | str) -> list[AgentDataP
                     )
 
     return data_points
-
-
-if __name__ == "__main__":
-    import railtracks as rt
-
-    rt.enable_logging()
-    session_files = [
-        ".railtracks/data/sessions/",
-    ]
-    data_points = extract_agent_data_points(session_files)
-    for dp in data_points:
-        print(dp.agent_name)
