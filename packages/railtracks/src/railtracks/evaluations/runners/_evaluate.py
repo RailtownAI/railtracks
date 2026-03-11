@@ -1,15 +1,15 @@
 from collections import defaultdict
-
-from rich import print
-from rich.prompt import Prompt
 from datetime import datetime, timezone
 from typing import Any, Callable
 
+from rich import print
+from rich.prompt import Prompt
+
 from ...utils.logging.create import get_rt_logger
-from ..point import AgentDataPoint
 from ..evaluators import Evaluator
+from ..point import AgentDataPoint
 from ..result import EvaluationResult, EvaluatorResult
-from ..utils import save, payload
+from ..utils import payload, save
 
 logger = get_rt_logger("evaluate")
 
@@ -42,7 +42,6 @@ def _select_agent(agents: dict[str, int]) -> list[str]:
         print(f"[{COLORS['success']}]✓[/{COLORS['success']}] Evaluating all agents")
         return list(agents.keys())
 
-
     try:
         indices = [int(idx.strip()) for idx in user_input.split(",")]
         selected = [
@@ -59,6 +58,77 @@ def _select_agent(agents: dict[str, int]) -> list[str]:
             f"[{COLORS['error']}]✗[/{COLORS['error']}] Invalid input. Evaluating all agents."
         )
         return list(agents.keys())
+
+
+def _check_evaluators(evaluators: list[Evaluator]) -> None:
+    """Warn if any evaluators share the same identifier.
+
+    Args:
+        evaluators: The list of Evaluator instances to validate.
+    """
+    evaluator_ids: set[str] = set()
+    for evaluator in evaluators:
+        if evaluator.identifier in evaluator_ids:
+            logger.warning(
+                f"{evaluator.name} with id {evaluator.identifier} is duplicated. Results will be overwritten"
+            )
+        else:
+            evaluator_ids.add(evaluator.identifier)
+
+
+def _setup_agent_data(
+    data: AgentDataPoint | list[AgentDataPoint],
+    agent_selection: bool,
+    agents: list[str] | None,
+) -> tuple[dict[str, list[AgentDataPoint]], list[str]]:
+    """Build the agent-to-data-points mapping and resolve which agents to evaluate.
+
+    Args:
+        data: A single AgentDataPoint or a list of AgentDataPoints to organise.
+        agent_selection: When True and multiple agents are present, prompts the user
+            interactively to pick which agents to evaluate.
+        agents: An explicit list of agent names to evaluate. Overrides
+            ``agent_selection`` when provided; agents not present in the data are
+            silently skipped with a warning.
+
+    Returns:
+        A tuple of ``(data_dict, agents)`` where ``data_dict`` maps each agent name
+        to its list of AgentDataPoints and ``agents`` is the resolved list of agent
+        names to evaluate.
+
+    Raises:
+        ValueError: If ``data`` is not an AgentDataPoint or a list of AgentDataPoints.
+    """
+    data_dict: dict[str, list[AgentDataPoint]] = defaultdict(list)
+
+    if isinstance(data, list):
+        for dp in data:
+            if not isinstance(dp, AgentDataPoint):
+                logger.warning(
+                    "All items in the data list must be AgentDataPoint instances."
+                )
+                continue
+            data_dict[dp.agent_name].append(dp)
+    elif isinstance(data, AgentDataPoint):
+        data_dict[data.agent_name].append(data)
+    else:
+        raise ValueError(
+            "Data must be an EvaluationDataset, a list of AgentDataPoint instances, or a single AgentDataPoint."
+        )
+
+    if agents is not None:
+        for agent in agents:
+            if agent not in data_dict:
+                logger.warning(f"Agent {agent} not found in data. Skipping.")
+        agents = [agent for agent in agents if agent in data_dict]
+    elif agent_selection and len(data_dict) > 1:
+        agents = _select_agent(
+            {agent_name: len(data_dict[agent_name]) for agent_name in data_dict.keys()}
+        )
+    else:
+        agents = list(data_dict.keys())
+
+    return data_dict, agents
 
 
 def evaluate(
@@ -82,51 +152,13 @@ def evaluate(
     Returns:
         A list of EvaluationResult instances containing the results from each evaluator.
     """
-    evaluator_ids: set[str] = set()
+    _check_evaluators(evaluators)
 
-    for evaluator in evaluators:
-        if evaluator.identifier in evaluator_ids:
-            logger.warning(
-                f"{evaluator.name} with id {evaluator.identifier} is duplicated. Results will be overwritten"
-            )
-        else:
-            evaluator_ids.add(evaluator.identifier)
-
-    data_dict: dict[str, list[AgentDataPoint]] = defaultdict(list)
+    data_dict, agents = _setup_agent_data(data, agent_selection, agents)
 
     evaluation_results: list[EvaluationResult] = []
 
-    if isinstance(data, list):
-        for dp in data:
-            if not isinstance(dp, AgentDataPoint):
-                logger.warning(
-                    "All items in the data list must be AgentDataPoint instances."
-                )
-                continue
-            data_dict[dp.agent_name].append(dp)
-
-    elif isinstance(data, AgentDataPoint):
-        data_dict[data.agent_name].append(data)
-    else:
-        raise ValueError(
-            "Data must be an EvaluationDataset, a list of AgentDataPoint instances, or a single AgentDataPoint."
-        )
-
-    if agents is not None:
-
-        for agent in agents:
-            if agent not in data_dict:
-                logger.warning(f"Agent {agent} not found in data. Skipping.")
-        agents = [agent for agent in agents if agent in data_dict]
-    elif agent_selection and len(data_dict) > 1:
-        agents = _select_agent(
-            {agent_name: len(data_dict[agent_name]) for agent_name in data_dict.keys()}
-        )
-    else:
-        agents = list(data_dict.keys())
-
     for agent_name in agents:
-
         logger.info(
             f"Evaluation for {agent_name} with {len(data_dict[agent_name])} data points CREATED"
         )
@@ -177,7 +209,7 @@ def evaluate(
             )
         )
 
-    logger.info(f"Evaluation DONE.")
+    logger.info("Evaluation DONE.")
 
     if payload_callback is not None:
         try:

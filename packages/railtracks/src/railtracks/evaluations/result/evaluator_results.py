@@ -1,15 +1,18 @@
-from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import TypeVar, Generic
+from typing import Generic, TypeVar
 from uuid import UUID, uuid4
 
-from .metric_results import MetricResult, ToolMetricResult, LLMMetricResult
+from pydantic import BaseModel, Field
+
+from ..evaluators.metrics import METRIC_TYPES, Categorical, Metric, Numerical
 from .aggregate_results import AggregateForest, AggregateTreeNode
-from ..evaluators.metrics import Metric, Numerical, Categorical, METRIC_TYPES
+from .metric_results import MetricResult
 
 TMetric = TypeVar("TMetric", bound=Metric | Numerical | Categorical)
 TMetricResult = TypeVar("TMetricResult", bound=MetricResult)
-TAggregateResult = TypeVar("TAggregateResult", bound=  AggregateTreeNode)
+TAggregateResult = TypeVar("TAggregateResult", bound=AggregateTreeNode)
+
+
 class EvaluatorResult(BaseModel, Generic[TMetric, TMetricResult, TAggregateResult]):
     evaluator_name: str
     evaluator_id: str
