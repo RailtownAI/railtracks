@@ -6,5 +6,5 @@ The main dividing factor between metrics is in the scoring capabilities; some re
 
 In **Railtracks** we implement these abstractions through the following two classes that can be extended to a wide range of usecases:
 
-- [`CategoricalMetric`](./categorical.md)
-- [`NumericalMetric`](./numerical.md)
+- [`Categorical`](./categorical.md)
+- [`Numerical`](./numerical.md)

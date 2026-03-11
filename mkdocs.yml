@@ -144,6 +144,7 @@ nav:
   - Evaluations:
       - Preface: evaluations/preface.md
       - Quickstart: evaluations/quickstart.md
+      - Visualization: evaluations/visualization.md
       - Metrics: 
         - Metrics Overview: evaluations/metrics/metrics.md
         - Categorical Metrics: evaluations/metrics/categorical.md
@@ -154,12 +155,6 @@ nav:
         - LLMInferenceEvaluator: evaluations/evaluators/llm_inference_evaluator.md
         - JudgeEvaluator: evaluations/evaluators/judge_evaluator.md
         
-      
-  # - Deployments:
-  #     - Docker: deployments/docker.md
-
-  - Evaluations:
-      - Coming Soon: evaluations/quickstart.md  
   - Advanced Usage:
       - Session: advanced_usage/session.md
       - Context: advanced_usage/context.md

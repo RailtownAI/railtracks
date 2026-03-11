@@ -1,13 +1,13 @@
 # Evaluations
 
-Evaluations in `railtracks` are a useful tool to analyze, aggregate, and finally visualize agent runs invoked previously. Therefore, to run evaluations you need previously run agent runs which are automatically stored in `.railtracks/data/sessions` folder.
+Evaluations in `railtracks` are a useful tool to analyze, aggregate, and finally visualize agent runs invoked previously. Sessions are automatically stored in `.railtracks/data/sessions`, so evaluations can be run at any time after invoking your agent.
 
-# Evaluation Definition
+## Evaluation Definition
 ```python
 --8<-- "docs/scripts/evaluations/quickstart.py:tutorial"
 ```
 
-As long as you have previously run an agent using `railtracks`, the above script above will then prompt you with:
+As long as you have previously run an agent using `railtracks`, the script above will then prompt you with:
 
 ```console
 Multiple agents found in the data:
