@@ -2,9 +2,6 @@
 
 Railtracks emits log records for execution (node creation, completion, failures) but **does not configure logging by default**. To see logs in the terminal or a file, call `enable_logging()` from your application entry point (e.g. `main`, CLI, or server startup). This keeps the library from overriding your—or your host environment’s—logging setup.
 
-!!! note "Session/Flow logging parameters removed"
-    Per-session and global-config logging options (`logging_setting`, `log_file` on `Session`, `Flow`, and `set_config()`) were removed. Use `enable_logging(level=..., log_file=...)` at startup (or `RT_LOG_LEVEL` / `RT_LOG_FILE` environment variables) as the single way to configure logging.
-
 ??? example "Example Logs"
     ```
     [+3.525  s] RT          : INFO     - START CREATED Github Agent

@@ -3,6 +3,7 @@ import pytest
 import railtracks as rt
 import asyncio
 from pathlib import Path
+from pathlib import Path
 
 
 def example_1():
@@ -265,3 +266,61 @@ def test_session_payload_flow_id_defaults_to_none(tmp_path, monkeypatch):
     assert payload["flow_id"] is None
 
 # ================ END Session: Decorator Integration Tests ===============
+
+# ================= START Session: Agent Data Saving ===============
+
+@pytest.mark.asyncio
+async def test_agent_data_collection_with_save_data_true(planner_node):
+    """Test agent data collection with save_data=True - full data saved."""
+    import json
+    from pathlib import Path
+    
+    session_name = "agent_data_true_test"
+    with rt.Session(name=session_name, save_data=True) as sess:
+        result = await rt.call(planner_node, current_city="New York", destination_city="Chicago")
+    
+    # Verify agent data file was created
+    agent_data_path = Path(f".railtracks/data/agent_data/{session_name}_{sess._identifier}.json")
+    assert agent_data_path.exists(), "Agent data file should be created with save_data=True"
+    
+    # Read and validate the data
+    with open(agent_data_path, 'r') as f:
+        data = json.load(f)
+    
+    assert isinstance(data, list)
+    assert len(data) > 0, "Should have at least one data point"
+    
+    # Check first data point structure
+    first_dp = data[0]
+    assert "agent_name" in first_dp
+    assert "agent_input" in first_dp
+    assert "agent_output" in first_dp
+    assert "agent_internals" in first_dp
+    
+    # For save_data=True, internals should be present with full data
+    if first_dp["agent_internals"] is not None:
+        assert "run_id" in first_dp["agent_internals"]
+    
+    # Verify agent_input structure (should be dict with args and kwargs)
+    assert isinstance(first_dp["agent_input"], dict)
+    assert "args" in first_dp["agent_input"]
+    assert "kwargs" in first_dp["agent_input"]
+    assert isinstance(first_dp["agent_input"]["args"], list)
+    assert isinstance(first_dp["agent_input"]["kwargs"], dict)
+
+@pytest.mark.asyncio
+async def test_agent_data_collection_with_save_data_false(planner_node):
+@pytest.mark.asyncio
+async def test_agent_data_collection_with_save_data_false(planner_node):
+    """Test agent data collection with save_data=False - no file created."""
+    from pathlib import Path
+    
+    session_name = "agent_data_false_test"
+    with rt.Session(name=session_name, save_data=False) as sess:
+        result = await rt.call(planner_node, current_city="Chicago", destination_city="New York")
+    
+    # Verify NO agent data file was created
+    agent_data_path = Path(f".railtracks/data/agent_data/{session_name}_{sess._identifier}.json")
+    assert not agent_data_path.exists(), "Agent data file should NOT be created with save_data=False"
+
+# ================= END Session: Agent Data Saving ===============

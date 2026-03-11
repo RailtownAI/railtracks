@@ -40,7 +40,6 @@ flowchart LR
     I_IN --> I2I --> I_OUT2
 
     %% === COLOR THEMING ===
-    %% (Separate comments — not inline)
 
     classDef text fill:#60A5FA,fill-opacity:0.3
     classDef image fill:#34D399,fill-opacity:0.3
