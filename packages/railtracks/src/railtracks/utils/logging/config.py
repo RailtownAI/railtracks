@@ -291,74 +291,7 @@ def enable_logging(
     with a ThreadAwareFilter for per-thread level control.
 
     Args:
-        level: The logging level to use
-        log_file: Optional path to a log file. If None, logs only to console.
+        level: Logging level (default "INFO"). Overridden by RT_LOG_LEVEL when None.
+        log_file: Optional path for a log file. Overridden by RT_LOG_FILE when None.
     """
-    if _session_has_override.get():
-        raise RuntimeError(
-            "Cannot configure module-level logging while a session has overridden logging settings."
-        )
-
-    if level is not None:
-        _module_logging_level.set(str_to_log_level[level])
-    if log_file is not None:
-        _module_logging_file.set(log_file)
-
-
-def mark_session_logging_override(
-    session_level: AllowableLogLevels, session_log_file: str | os.PathLike | None
-) -> None:
-    """
-    Mark that a session has overridden module-level logging for this thread.
-
-    Stores the current thread's logging config for later restoration and updates
-    the thread's ContextVar to the session-specific logging level.
-
-    With ThreadAwareFilter, we don't need to reconfigure handlers - just updating
-    the ContextVar is sufficient since the filter checks it for each log record.
-
-    Args:
-        session_level: The session's logging level
-        session_log_file: The session's log file (or None)
-    """
-    # Save the current thread's config
-    _pre_session_log_level.set(_module_logging_level.get())
-    _pre_session_log_file.set(_module_logging_file.get())
-
-    _session_has_override.set(True)
-
-    _module_logging_level.set(str_to_log_level[session_level])
-
-    # TODO: Handle session_log_file if needed (file handler per thread)
-    if session_log_file is not None:
-        _module_logging_file.set(session_log_file)
-
-
-def restore_module_logging() -> None:
-    """
-    Restore module-level logging after a session with custom logging ends.
-
-    This restores the thread's ContextVar to the pre-session value.
-    Since handlers are shared and use ThreadAwareFilter, we don't need to detach/reattach handlers.
-    """
-    if not _session_has_override.get():
-        return
-
-    # restore
-    restored_level = _pre_session_log_level.get()
-    restored_file = _pre_session_log_file.get()
-
-    if restored_level is not None:
-        _module_logging_level.set(restored_level)
-    else:
-        # Fallback to INFO if no pre-session level was stored
-        _module_logging_level.set(str_to_log_level["INFO"])
-
-    if restored_file is not None:
-        _module_logging_file.set(restored_file)
-    else:
-        _module_logging_file.set(None)
-
-    _session_has_override.set(False)
-    _pre_session_log_level.set(None)
-    _pre_session_log_file.set(None)
+    initialize_module_logging(level=level, log_file=log_file)

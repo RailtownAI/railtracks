@@ -2,8 +2,6 @@ import pytest
 import pytest
 import railtracks as rt
 import asyncio
-from pathlib import Path
-from pathlib import Path
 
 
 def example_1():

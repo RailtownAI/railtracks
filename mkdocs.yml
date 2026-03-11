@@ -41,10 +41,6 @@ theme:
 plugins:
   - search
 
-
-
-
-
 markdown_extensions:
   - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
@@ -167,13 +163,13 @@ nav:
   # - Samples:
   #     - samples/index.md
 
-  - System Internals:
-      - Overview: system_internals/overview.md
-      - Core Concepts: system_internals/concepts.md
-      - Node Abstraction: system_internals/node.md
-      - Session Management: system_internals/session.md
-      - PubSub Messaging: system_internals/pubsub.md
-      - Coordinator Orchestration: system_internals/coordinator.md
+#   - System Internals:
+#       - Overview: system_internals/overview.md
+#       - Core Concepts: system_internals/concepts.md
+#       - Node Abstraction: system_internals/node.md
+#       - Session Management: system_internals/session.md
+#       - PubSub Messaging: system_internals/pubsub.md
+#       - Coordinator Orchestration: system_internals/coordinator.md
 
   - API Reference: api_reference/railtracks.html
 
