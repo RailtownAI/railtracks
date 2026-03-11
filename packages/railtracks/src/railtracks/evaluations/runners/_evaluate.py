@@ -7,7 +7,6 @@ from typing import Any, Callable
 
 from ...utils.logging.create import get_rt_logger
 from ..point import AgentDataPoint
-from ..data.evaluation_dataset import EvaluationDataset
 from ..evaluators import Evaluator
 from ..result import EvaluationResult, EvaluatorResult
 from ..utils import save, payload
@@ -63,7 +62,7 @@ def _select_agent(agents: dict[str, int]) -> list[str]:
 
 
 def evaluate(
-    data: AgentDataPoint | list[AgentDataPoint] | EvaluationDataset,
+    data: AgentDataPoint | list[AgentDataPoint],
     evaluators: list[Evaluator],
     agent_selection: bool = True,
     agents: list[str] | None = None,
@@ -96,9 +95,8 @@ def evaluate(
     data_dict: dict[str, list[AgentDataPoint]] = defaultdict(list)
 
     evaluation_results: list[EvaluationResult] = []
-    if isinstance(data, EvaluationDataset):
-        data_dict = data.data_points_dict
-    elif isinstance(data, list):
+
+    if isinstance(data, list):
         for dp in data:
             if not isinstance(dp, AgentDataPoint):
                 logger.warning(
