@@ -2,13 +2,15 @@ Testing has been an essential part of software engineering lifecycle. While "Age
 
 We have set the structural outline below of two potential avenues:
 
-1. Evaluations that require an agent to be invoked
+1. Evaluations that analyze the past results of an agent
+2. Evaluations that require an agent to be invoked
 
-2. Evaluations that analyze the past results of an agent
 
-While this results in a nice separation between potential cases, there are some that have elements of both, which we will expand on further in the specific sections regarding usage.
+Currently in **Railtracks** we have focused on providing direct support for the first case and indirect support for the second case. We are actively working on providing APIs for "Agent Experimentation" which is what we believe to be the encompassing term for the second case above.
 
 ## Evaluation Flow
+
+The diagram below illustrates a typical evaluation workflow:
 
 ```mermaid
 graph TD
@@ -37,12 +39,12 @@ graph TD
     classDef deployClass fill:#34D399 ,fill-opacity:0.3
     
     %% Apply color classes
-    class User userClass;
+    class Developer userClass;
     class BuildAgent buildClass;
     class Dataset,Evaluator,Metric pipelineClass;
     class Result resultClass;
     class Deploy deployClass;
 
     %% Subgraph style
-    style Evaluation fill:transparent,stroke:#FFFFF,stroke-width:1px
+    style Evaluation fill:transparent,stroke:#FFFFFF,stroke-width:1px
 ```
