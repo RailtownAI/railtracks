@@ -4,7 +4,7 @@ Evaluations in `railtracks` are a useful tool to analyze, aggregate, and finally
 
 ## Evaluation Definition
 ```python
---8<-- "docs/scripts/evaluations/quickstart.py:tutorial"
+--8<-- "docs/scripts/evaluations/evals_quickstart.py:tutorial"
 ```
 
 As long as you have previously run an agent using `railtracks`, the script above will then prompt you with:
