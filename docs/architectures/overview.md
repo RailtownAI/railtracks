@@ -23,7 +23,7 @@ The same flow model supports multiple agent architectures without introducing ne
   <a class="card" href="../sequential/">
     <h3>Sequential Agent</h3>
     <p>
-      Linear and branching agent steps for research, synthesis, and summarization.
+      Linear flows and branching logic between agents, tools, and functions defined programmatically in Python.
     </p>
   </a>
 </div>
