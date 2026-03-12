@@ -3,17 +3,6 @@ The **`ToolUseEvaluator`** assesses past agent runs and reports per-tool invocat
 !!! note
     Only `AgentDataPoint`s saved with full tracing enabled will include tool call data for this evaluator to analyze.
 
-## Usage
-
-```python
-from railtracks import evaluation as eval
-
-data = eval.extract_agent_data_points(".railtracks/data/sessions/")
-
-evaluator = eval.ToolUseEvaluator()
-results = eval.evaluate(data=data, evaluators=[evaluator])
-```
-
 ## Metrics Tracked
 
 | Metric | Description |
