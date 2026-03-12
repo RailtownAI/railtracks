@@ -12,10 +12,17 @@ from ..result import (
 from .evaluator import Evaluator
 from .metrics import LLMMetric
 
-logger = get_rt_logger("LlmInferenceEvaluator")
+logger = get_rt_logger(__name__)
 
 
 class LLMInferenceEvaluator(Evaluator):
+    """
+    Evaluator that analyzes LLM inference statistics across agent runs.
+
+    Computes per-call and aggregated metrics for each LLM invocation,
+    including input/output token counts, token cost, and latency.
+    """
+
     def __init__(
         self,
     ):
@@ -24,6 +31,16 @@ class LLMInferenceEvaluator(Evaluator):
     def run(
         self, data: list[AgentDataPoint]
     ) -> EvaluatorResult[LLMMetric, LLMMetricResult, LLMInferenceAggregateNode]:
+        """
+        Run the evaluator over a list of agent data points.
+
+        Args:
+            data: A list of AgentDataPoint instances to evaluate.
+
+        Returns:
+            An EvaluatorResult containing per-call metric results and
+            aggregated nodes grouped by model and call index.
+        """
         agent_data_ids: set[UUID] = {adp.identifier for adp in data}
         forest = AggregateForest[LLMInferenceAggregateNode, LLMMetricResult]()
 

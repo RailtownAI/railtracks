@@ -3,12 +3,7 @@ The **`LLMInferenceEvaluator`** analyzes the LLM calls recorded in past agent ru
 ## Usage
 
 ```python
-from railtracks import evaluation as eval
-
-data = eval.extract_agent_data_points(".railtracks/data/sessions/")
-
-evaluator = eval.LLMInferenceEvaluator()
-results = eval.evaluate(data=data, evaluators=[evaluator])
+--8<-- "docs/scripts/evaluations/llm_inference_eval.py"
 ```
 
 ## Metrics Tracked

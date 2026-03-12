@@ -1,3 +1,5 @@
+import hashlib
+import json
 from abc import ABC, abstractmethod
 
 from ..point import AgentDataPoint
@@ -23,9 +25,6 @@ class Evaluator(ABC):
         """
         config = self._get_config()
         config["_type"] = self.__class__.__name__
-
-        import hashlib
-        import json
 
         config_str = json.dumps(config, sort_keys=True)
         return hashlib.sha256(config_str.encode()).hexdigest()

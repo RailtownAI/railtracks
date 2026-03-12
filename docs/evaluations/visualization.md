@@ -7,7 +7,7 @@ After running evaluations, results are automatically saved to `.railtracks/data/
 
 ## Exploring Evaluation Results
 
-Once the visualizer is running, navigate to the **Evaluations** tab to browse your saved evaluation runs. For each evaluation, you can view **Per-evlauator** breakdown of the results. Subsequently, in each **Evaluator** view you can see aggregates and individual results for the corresponding metrics. Additionally, if the data for your agent runs is still locally available, you can click and inspect the run corresponding to the results. 
+Once the visualizer is running, navigate to the **Evaluations** tab to browse your saved evaluation runs. For each evaluation, you can view **Per-evaluator** breakdown of the results. Subsequently, in each **Evaluator** view you can see aggregates and individual results for the corresponding metrics. Additionally, if the data for your agent runs is still locally available, you can click and inspect the run corresponding to the results. 
 
 The short demo below provides an overview of the available views. 
 

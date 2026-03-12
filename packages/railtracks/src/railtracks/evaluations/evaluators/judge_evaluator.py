@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 import railtracks as rt
 
-from ...utils.logging.create import get_rt_logger
+from railtracks.utils.logging import get_rt_logger
 from ..point import AgentDataPoint
 from ..result import (
     AggregateForest,
@@ -18,7 +18,7 @@ from ..result import (
 from .evaluator import Evaluator
 from .metrics import Categorical, Metric, Numerical
 
-logger = get_rt_logger("JudgeEvaluator")
+logger = get_rt_logger(__name__)
 
 
 class JudgeResponseSchema(BaseModel):
@@ -213,7 +213,6 @@ class JudgeEvaluator(Evaluator):
         return template
 
     def _get_config(self) -> dict:
-        # TODO: improve llm judge serialization if needed
         return {
             "llm": self._llm.model_name(),
             "llm_provider": self._llm.model_provider(),

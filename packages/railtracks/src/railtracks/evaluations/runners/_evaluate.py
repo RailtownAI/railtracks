@@ -11,7 +11,7 @@ from ..point import AgentDataPoint
 from ..result import EvaluationResult, EvaluatorResult
 from ..utils import payload, save
 
-logger = get_rt_logger("evaluate")
+logger = get_rt_logger(__name__)
 
 # Color scheme for agent selection UI
 COLORS = {

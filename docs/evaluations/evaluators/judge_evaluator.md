@@ -6,24 +6,7 @@ The **`JudgeEvaluator`** uses an LLM as a judge to score agent outputs against a
 ## Usage
 
 ```python
-from railtracks import evaluation as eval
-import railtracks as rt
-
-relevance = eval.metrics.Categorical(
-    name="Relevance",
-    categories=["Relevant", "Irrelevant"],
-)
-
-sentiment = eval.metrics.Categorical(
-    name="Sentiment",
-    categories=["Positive", "Negative", "Neutral"],
-)
-
-judge = eval.JudgeEvaluator(
-    llm=rt.llm.OpenAILLM(model_name="gpt-4o"),
-    metrics=[relevance, sentiment],
-    reasoning=True,  # include the judge's reasoning in results
-)
+--8<-- "docs/scripts/evaluations/judge.py"
 ```
 
 ## Parameters
