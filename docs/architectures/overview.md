@@ -24,9 +24,8 @@ The same flow model supports multiple agent architectures without introducing ne
     <h3>Sequential Agent</h3>
     <p>
       Linear and branching agent steps for research, synthesis, and summarization.
-      <strong>Coming soon.</strong>
     </p>
-  </div>
+  </a>
 </div>
 
 
