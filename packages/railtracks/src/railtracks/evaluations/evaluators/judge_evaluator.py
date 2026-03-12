@@ -6,8 +6,8 @@ import yaml
 from pydantic import BaseModel
 
 import railtracks as rt
-
 from railtracks.utils.logging import get_rt_logger
+
 from ..point import AgentDataPoint
 from ..result import (
     AggregateForest,
@@ -136,8 +136,9 @@ class JudgeEvaluator(Evaluator):
             output = []
             for metric in self._metrics.values():
                 logger.info(
-                    f"START Evaluating Metric: {metric.name} for {len(data)} AgentDataPoints")
-                
+                    f"START Evaluating Metric: {metric.name} for {len(data)} AgentDataPoints"
+                )
+
                 for idx, adp in enumerate(data):
                     user_message = self._generate_user_prompt(adp)
                     system_message = self._generate_system_prompt(metric)
