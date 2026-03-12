@@ -33,7 +33,6 @@ class JudgeEvaluator(Evaluator):
         metrics: list[Metric],
         system_prompt: str | None = None,
         timeout: float | None = None,
-        verbose: bool = False,
         reasoning: bool = True,
     ):
         """
@@ -65,7 +64,6 @@ class JudgeEvaluator(Evaluator):
         super().__init__()
 
         self.timeout = timeout
-        self.verbose = verbose
         self._judge = rt.agent_node(
             llm=self._llm,
             output_schema=JudgeResponseSchema,
@@ -137,10 +135,9 @@ class JudgeEvaluator(Evaluator):
         async def judge_flow():
             output = []
             for metric in self._metrics.values():
-                if self.verbose:
-                    logger.info(
-                        f"START Evaluating Metric: {metric.name} for {len(data)} AgentDataPoints"
-                    )
+                logger.info(
+                    f"START Evaluating Metric: {metric.name} for {len(data)} AgentDataPoints")
+                
                 for idx, adp in enumerate(data):
                     user_message = self._generate_user_prompt(adp)
                     system_message = self._generate_system_prompt(metric)
@@ -157,17 +154,16 @@ class JudgeEvaluator(Evaluator):
                     output.append(
                         (metric.identifier, str(adp.identifier), res.structured)
                     )
-                    if self.verbose:
-                        logger.info(
-                            f"AgentDataPoint ID: {adp.identifier} {idx + 1}/{len(data)} DONE"
-                        )
+
+                    logger.info(
+                        f"AgentDataPoint ID: {adp.identifier} {idx + 1}/{len(data)} DONE"
+                    )
 
             return output
 
         judge_evaluator_flow = rt.Flow(
             name="JudgeEvaluatorFlow",
             entry_point=judge_flow,
-            logging_setting="INFO" if self.verbose else "CRITICAL",
             timeout=self.timeout,
             save_state=False,
         )

@@ -12,20 +12,20 @@ Once the visualizer is running, navigate to the **Evaluations** tab to browse yo
 The short demo below provides an overview of the available views. 
 
 ???+ info "Example Setup"
-    The agent being evaluated is a ***Stock Analysis Agent***. It has access to the following:
+    The agent being evaluated is a ***Stock Analysis Agent***. It has access to the following tools:
 
-    - `get_new`
-    - `get_stock_price`
-    - `get_current_date`
-    - `get_stock_history`
-    - `WebSearchAgent` -> In **Railtracks** _agents_ can be passed to other agents as tools
+    - `get_new` -> Fetches the latest news articles related to the given ticker symbol
+    - `get_stock_price` -> _Fetches the current stock price for the given ticker symbol_
+    - `get_current_date` -> _Returns the current date in YYYY-MM-DD format_
+    - `get_stock_history` -> _Fetches historical stock price data for the given ticker symbol and date range_
+    - `web_search` -> _Performs a web search using the Tavily API and returns the results_
 
     In the demo, we are evaluating this agent's performance on the following prompt:
 
-    `"What is the current stock price of {company} and how has it changed over the past week? Why? First use the web to find the ticker."`
+    `"What is the current stock price of {company} and how has it changed over the past week? Why?"`
     where the `company` parameter covers the list `["Nvidia", "Apple", "Amazon", "Google", "Microsoft"]`
 
 
 <div style="overflow: hidden; width: 100%; height: 120%;">
-    <img src="../../assets/visualizer.gif"/>
+    <img src="../../assets/evaluations/evaluation.gif" style="border-radius: 12px;/>
 </div>
