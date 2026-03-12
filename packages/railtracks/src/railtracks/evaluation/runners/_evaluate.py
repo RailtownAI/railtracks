@@ -1,12 +1,15 @@
+
 from collections import defaultdict
 
+from railtracks.evaluation.data.agent_input_dataset import AgentInputDataset
+from railtracks.orchestration.flow import Flow
 from rich import print
 from rich.prompt import Prompt
 from datetime import datetime, timezone
-from typing import Any, Callable
+from typing import Any, Callable, ParamSpec, TypeVar
 
 from ...utils.logging.create import get_rt_logger
-from ..point import AgentDataPoint
+from ..point import AgentDataPoint, create_agent_data_points_from_session_dict
 from ..data.evaluation_dataset import EvaluationDataset
 from ..evaluators import Evaluator
 from ..result import EvaluationResult, EvaluatorResult
@@ -193,3 +196,40 @@ def evaluate(
     except Exception as e:
         logger.error(f"Failed to save evaluation results: {e}")
     return evaluation_results
+
+_P = ParamSpec("_P")
+_TOutput = TypeVar("_TOutput")
+
+def run_and_evaluate(
+    flow: Flow[_P, _TOutput],
+    inputs: AgentInputDataset[_P],
+    evaluators: list[Evaluator],
+    agent_selection: bool = True,
+    agents: list[str] | None = None,
+    name: str | None = None,
+    payload_callback: Callable[[dict[str, Any]], Any] | None = None,    
+):
+    agent_data_points = []
+    def collect_agent_data_points_from_run(session_dict: dict[str, Any]) -> None:
+        agent_data_points.extend(create_agent_data_points_from_session_dict(session_dict))
+
+    
+    hooked_flow = flow.update_payload_callback(collect_agent_data_points_from_run)
+    input_args = [args for args, kwargs in inputs.input]
+    input_kwargs = [kwargs for _, kwargs in inputs.input]
+
+    hooked_flow.batched_run(input_args, input_kwargs)
+
+    return evaluate(
+        data=agent_data_points,
+        evaluators=evaluators,
+        agent_selection=agent_selection,
+        agents=agents,
+        name=name,
+        payload_callback=payload_callback,
+    )
+
+    
+    
+
+    

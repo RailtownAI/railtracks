@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
+from huggingface_hub import Agent
 from pydantic import BaseModel, Field
 from rich import print
 
@@ -225,7 +226,7 @@ def extract_tool_details(
 
 
 def extract_agent_io(
-    sink_list: dict[UUID, list[EdgeDataPoint]], node: NodeDataPoint, file_path: str
+    sink_list: dict[UUID, list[EdgeDataPoint]], node: NodeDataPoint, session_id: str
 ) -> tuple[dict, dict]:
     """
     Extracts the input and output for an agent node based on its incoming edges.
@@ -253,7 +254,7 @@ def extract_agent_io(
                 agent_output = edge.details.get("output", {})
             else:
                 logger.warning(
-                    f"Duplicate edge with id: {edge.identifier} for source: {edge.source} and target: {edge.target} in session file {file_path}."
+                    f"Duplicate edge with id: {edge.identifier} for source: {edge.source} and target: {edge.target} in session {session_id}."
                 )
     return agent_input, agent_output
 
@@ -310,19 +311,35 @@ def extract_agent_data_points(session_files: list[str] | str) -> list[AgentDataP
         except (FileNotFoundError, ValueError) as e:
             logger.error(str(e))
             continue
+        try:
+            agent_data_point = create_agent_data_points_from_session_dict(session_data)
+            data_points.extend(agent_data_point)
+
+        except SessionIDNotFound as e:
+            logger.warning(f"no session_id found in file: {file_path}, skipping file.")
+
+            
+
+    return data_points
+
+class SessionIDNotFound(Exception):
+    pass
+
+def create_agent_data_points_from_session_dict(session_data: dict[str, Any]) -> list[AgentDataPoint]:
 
         session_id = session_data.get("session_id")
         if session_id is None:
-            logger.warning(f"no session_id found in file: {file_path}, skipping file.")
-            continue
+            raise SessionIDNotFound(f"No session_id found in session data: {session_data}")
+
 
         runs = session_data.get("runs", [])
 
         if len(runs) == 0:
-            logger.warning(f"Session file {file_path} contains no runs")
+            logger.warning(f"Session {session_id} contains no runs")
         if len(runs) > 1:
-            logger.warning(f"Session file {file_path} contains multiple runs")
+            logger.warning(f"Session {session_id} contains multiple runs")
 
+        data_points = []
         for run in runs:
             nodes = {
                 UUID(node["identifier"]): NodeDataPoint(
@@ -362,11 +379,10 @@ def extract_agent_data_points(session_files: list[str] | str) -> list[AgentDataP
                     )
 
                     agent_input, agent_output = extract_agent_io(
-                        sink_list, node, file_path
+                        sink_list, node, session_id
                     )
 
-                    data_points.append(
-                        AgentDataPoint(
+                    data_points.append( AgentDataPoint(
                             identifier=node.identifier,
                             session_id=UUID(session_id),
                             agent_name=node.name,
@@ -374,10 +390,12 @@ def extract_agent_data_points(session_files: list[str] | str) -> list[AgentDataP
                             agent_output=agent_output,
                             llm_details=llm_details,
                             tool_details=tool_details,
-                        )
-                    )
+                    ))
 
-    return data_points
+
+        return data_points
+                    
+
 
 
 if __name__ == "__main__":

@@ -80,6 +80,16 @@ class Flow(Generic[_P, _TOutput]):
         self._save_state = save_state
         self._payload_callback = payload_callback
 
+    def update_payload_callback(
+        self, payload_callback: Callable[[dict[str, Any]], None]
+    ) -> Flow[_P, _TOutput]:
+        """
+        Creates a new Flow with the updated payload callback.
+        """
+        new_obj = deepcopy(self)
+        new_obj._payload_callback = payload_callback
+        return new_obj
+
     def update_context(self, context: dict[str, Any]) -> Flow[_P, _TOutput]:
         """
         Creates a new Flow with the updated context. Note this will include the previous context values.
@@ -127,3 +137,17 @@ class Flow(Generic[_P, _TOutput]):
         return {
             "name": self.name,
         }
+    
+    def batched_run(self, args: list[tuple[Any, ...]], kwargs: list[dict[str, Any]]) -> list[_TOutput | Exception]:
+        """
+        A method to run a batch of inputs through the flow.
+        """
+        
+        result = []
+        for arg, kwarg in zip(args, kwargs):
+            try:
+                result.append(self.invoke(*arg, **kwarg))
+            except Exception as e:
+                result.append(e)
+
+        return result

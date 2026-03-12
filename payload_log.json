@@ -1,0 +1,594 @@
+{
+    "flow_name": "Cozy Tool Adventure",
+    "flow_id": "58b897840376cf20456e7e03f7d87451f8e0f71cc36b6746e3feebff0af6b3de",
+    "session_id": "26b65c88-0f30-443f-a170-78a83669f10d",
+    "session_name": null,
+    "start_time": 1773187607.0390017,
+    "end_time": 1773187616.6515899,
+    "runs": [
+        {
+            "name": "Tool-Forward Guide",
+            "run_id": "f88b02ad-67d5-4a48-956c-d9ec07c90bc3",
+            "nodes": [
+                {
+                    "identifier": "0c812bdf-80e3-42ba-afcc-aa43ab5dc754",
+                    "node_type": "Tool",
+                    "name": "check_weather",
+                    "stamp": {
+                        "step": 5,
+                        "time": 1773187612.3620038,
+                        "identifier": "Finished executing check_weather"
+                    },
+                    "details": {
+                        "internals": {
+                            "latency": {
+                                "total_time": 0.0
+                            }
+                        }
+                    },
+                    "parent": {
+                        "identifier": "0c812bdf-80e3-42ba-afcc-aa43ab5dc754",
+                        "node_type": "Tool",
+                        "name": "check_weather",
+                        "stamp": {
+                            "step": 1,
+                            "time": 1773187612.3620038,
+                            "identifier": "Tool-Forward Guide CREATED check_weather"
+                        },
+                        "details": {
+                            "internals": {}
+                        },
+                        "parent": null
+                    }
+                },
+                {
+                    "identifier": "5ae68c4a-b7e0-4ceb-a8e7-dd13d437ef50",
+                    "node_type": "Tool",
+                    "name": "roll_dice",
+                    "stamp": {
+                        "step": 6,
+                        "time": 1773187612.3620038,
+                        "identifier": "Finished executing roll_dice"
+                    },
+                    "details": {
+                        "internals": {
+                            "latency": {
+                                "total_time": 0.0
+                            }
+                        }
+                    },
+                    "parent": {
+                        "identifier": "5ae68c4a-b7e0-4ceb-a8e7-dd13d437ef50",
+                        "node_type": "Tool",
+                        "name": "roll_dice",
+                        "stamp": {
+                            "step": 2,
+                            "time": 1773187612.3620038,
+                            "identifier": "Tool-Forward Guide CREATED roll_dice"
+                        },
+                        "details": {
+                            "internals": {}
+                        },
+                        "parent": null
+                    }
+                },
+                {
+                    "identifier": "8226ddac-a9f0-4ca3-8a5e-d2e55a427f84",
+                    "node_type": "Tool",
+                    "name": "find_item",
+                    "stamp": {
+                        "step": 7,
+                        "time": 1773187612.3620038,
+                        "identifier": "Finished executing find_item"
+                    },
+                    "details": {
+                        "internals": {
+                            "latency": {
+                                "total_time": 0.0
+                            }
+                        }
+                    },
+                    "parent": {
+                        "identifier": "8226ddac-a9f0-4ca3-8a5e-d2e55a427f84",
+                        "node_type": "Tool",
+                        "name": "find_item",
+                        "stamp": {
+                            "step": 3,
+                            "time": 1773187612.3620038,
+                            "identifier": "Tool-Forward Guide CREATED find_item"
+                        },
+                        "details": {
+                            "internals": {}
+                        },
+                        "parent": null
+                    }
+                },
+                {
+                    "identifier": "63287b75-ec06-4cc3-bbf5-7f3b2c530f1c",
+                    "node_type": "Tool",
+                    "name": "pick_path",
+                    "stamp": {
+                        "step": 8,
+                        "time": 1773187612.3620038,
+                        "identifier": "Finished executing pick_path"
+                    },
+                    "details": {
+                        "internals": {
+                            "latency": {
+                                "total_time": 0.0
+                            }
+                        }
+                    },
+                    "parent": {
+                        "identifier": "63287b75-ec06-4cc3-bbf5-7f3b2c530f1c",
+                        "node_type": "Tool",
+                        "name": "pick_path",
+                        "stamp": {
+                            "step": 4,
+                            "time": 1773187612.3620038,
+                            "identifier": "Tool-Forward Guide CREATED pick_path"
+                        },
+                        "details": {
+                            "internals": {}
+                        },
+                        "parent": null
+                    }
+                },
+                {
+                    "identifier": "c81650d2-1e4e-4d3d-8fcf-ed36d2a9e036",
+                    "node_type": "Agent",
+                    "name": "Tool-Forward Guide",
+                    "stamp": {
+                        "step": 9,
+                        "time": 1773187616.6515899,
+                        "identifier": "Finished executing Tool-Forward Guide"
+                    },
+                    "details": {
+                        "internals": {
+                            "llm_details": [
+                                {
+                                    "model_name": "gpt-4o-2024-08-06",
+                                    "model_provider": "OpenAI",
+                                    "input": [
+                                        {
+                                            "role": "system",
+                                            "content": "You are a creative, tool-using guide for a cozy micro-adventure.\n\nGoal\n- Tell a warm, low-stakes story about a traveler exploring a friendly town.\n- The story should be gentle, hopeful, and playful.\n\nInteraction rules\n- Produce a single, complete response to the user's task.\n- Keep the response to 4-8 sentences.\n- Do not ask follow-up questions.\n- Use second person (\"you\").\n\nTool use\n- You must call at least four tools in a single response.\n- Use tools in parallel when the results are independent.\n- Never invent tool outputs.\n- If a tool call fails, explain briefly and continue.\n\nAvailable tools\n- roll_dice: Returns a random integer from 1 to 6.\n- draw_card: Returns a card draw outcome.\n- check_weather: Returns a weather detail.\n- find_item: Returns a discovered item.\n- pick_path: Returns a chosen path detail.\n\nStory guidance\n- Summarize a short journey with a beginning, middle, and end.\n- Track simple state in the narrative (time, location, small inventory).\n- Begin at the town gate and conclude with a cozy wrap-up.\n"
+                                        },
+                                        {
+                                            "role": "user",
+                                            "content": "Create a one-shot cozy adventure scene that uses tools."
+                                        }
+                                    ],
+                                    "output": {
+                                        "role": "assistant",
+                                        "content": [
+                                            {
+                                                "identifier": "call_iMB8nrrPwYwjFkbZAS0DHqCA",
+                                                "name": "check_weather",
+                                                "arguments": {}
+                                            },
+                                            {
+                                                "identifier": "call_vXWiY9lINODsCBYxfSMH9UGU",
+                                                "name": "roll_dice",
+                                                "arguments": {}
+                                            },
+                                            {
+                                                "identifier": "call_fO55YNQTCX04HYtxpYE8R7Km",
+                                                "name": "find_item",
+                                                "arguments": {}
+                                            },
+                                            {
+                                                "identifier": "call_Y0leqjeR6qZLo6kRZ8q274pM",
+                                                "name": "pick_path",
+                                                "arguments": {}
+                                            }
+                                        ]
+                                    },
+                                    "input_tokens": 313,
+                                    "output_tokens": 62,
+                                    "total_cost": 0.0014025,
+                                    "system_fingerprint": "fp_44968754fe",
+                                    "latency": 5.323002099990845
+                                },
+                                {
+                                    "model_name": "gpt-4o-2024-08-06",
+                                    "model_provider": "OpenAI",
+                                    "input": [
+                                        {
+                                            "role": "system",
+                                            "content": "You are a creative, tool-using guide for a cozy micro-adventure.\n\nGoal\n- Tell a warm, low-stakes story about a traveler exploring a friendly town.\n- The story should be gentle, hopeful, and playful.\n\nInteraction rules\n- Produce a single, complete response to the user's task.\n- Keep the response to 4-8 sentences.\n- Do not ask follow-up questions.\n- Use second person (\"you\").\n\nTool use\n- You must call at least four tools in a single response.\n- Use tools in parallel when the results are independent.\n- Never invent tool outputs.\n- If a tool call fails, explain briefly and continue.\n\nAvailable tools\n- roll_dice: Returns a random integer from 1 to 6.\n- draw_card: Returns a card draw outcome.\n- check_weather: Returns a weather detail.\n- find_item: Returns a discovered item.\n- pick_path: Returns a chosen path detail.\n\nStory guidance\n- Summarize a short journey with a beginning, middle, and end.\n- Track simple state in the narrative (time, location, small inventory).\n- Begin at the town gate and conclude with a cozy wrap-up.\n"
+                                        },
+                                        {
+                                            "role": "user",
+                                            "content": "Create a one-shot cozy adventure scene that uses tools."
+                                        },
+                                        {
+                                            "role": "assistant",
+                                            "content": [
+                                                {
+                                                    "identifier": "call_iMB8nrrPwYwjFkbZAS0DHqCA",
+                                                    "name": "check_weather",
+                                                    "arguments": {}
+                                                },
+                                                {
+                                                    "identifier": "call_vXWiY9lINODsCBYxfSMH9UGU",
+                                                    "name": "roll_dice",
+                                                    "arguments": {}
+                                                },
+                                                {
+                                                    "identifier": "call_fO55YNQTCX04HYtxpYE8R7Km",
+                                                    "name": "find_item",
+                                                    "arguments": {}
+                                                },
+                                                {
+                                                    "identifier": "call_Y0leqjeR6qZLo6kRZ8q274pM",
+                                                    "name": "pick_path",
+                                                    "arguments": {}
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "role": "tool",
+                                            "content": {
+                                                "identifier": "call_iMB8nrrPwYwjFkbZAS0DHqCA",
+                                                "name": "check_weather",
+                                                "result": "The weather is bright sunshine"
+                                            }
+                                        },
+                                        {
+                                            "role": "tool",
+                                            "content": {
+                                                "identifier": "call_vXWiY9lINODsCBYxfSMH9UGU",
+                                                "name": "roll_dice",
+                                                "result": "4"
+                                            }
+                                        },
+                                        {
+                                            "role": "tool",
+                                            "content": {
+                                                "identifier": "call_fO55YNQTCX04HYtxpYE8R7Km",
+                                                "name": "find_item",
+                                                "result": "You find a tiny bell"
+                                            }
+                                        },
+                                        {
+                                            "role": "tool",
+                                            "content": {
+                                                "identifier": "call_Y0leqjeR6qZLo6kRZ8q274pM",
+                                                "name": "pick_path",
+                                                "result": "You choose the garden trail"
+                                            }
+                                        }
+                                    ],
+                                    "output": {
+                                        "role": "assistant",
+                                        "content": "As you step through the quaint town gate, the weather welcomes you with bright sunshine that kisses your cheeks and lifts your spirits. You decide to explore the garden trail, a path lined with vibrant flora and the gentle rustle of leaves. Along the way, you discover a delightful treasure\u2014a tiny bell that jingles softly in your pocket with each step. Taking the initiative, you roll the dice of curiosity and find yourself met by the cheerful sounds of the town's band in the square, practicing for a festival. Content and glowing with the sunshine's warmth and the unexpected joy of your discoveries, you stroll back to your cozy inn room, the bell still chiming quietly in sync with your peaceful heart."
+                                    },
+                                    "input_tokens": 409,
+                                    "output_tokens": 141,
+                                    "total_cost": 0.0024325,
+                                    "system_fingerprint": "fp_44968754fe",
+                                    "latency": 4.289586067199707
+                                }
+                            ],
+                            "latency": {
+                                "total_time": 9.612588167190552
+                            }
+                        }
+                    },
+                    "parent": {
+                        "identifier": "c81650d2-1e4e-4d3d-8fcf-ed36d2a9e036",
+                        "node_type": "Agent",
+                        "name": "Tool-Forward Guide",
+                        "stamp": {
+                            "step": 0,
+                            "time": 1773187607.0390017,
+                            "identifier": "START CREATED Tool-Forward Guide"
+                        },
+                        "details": {
+                            "internals": {
+                                "llm_details": []
+                            }
+                        },
+                        "parent": null
+                    }
+                }
+            ],
+            "status": "Completed",
+            "edges": [
+                {
+                    "source": "c81650d2-1e4e-4d3d-8fcf-ed36d2a9e036",
+                    "target": "0c812bdf-80e3-42ba-afcc-aa43ab5dc754",
+                    "identifier": "f216dbc2-2dea-4f81-a148-b5fea28f1d36",
+                    "stamp": {
+                        "step": 5,
+                        "time": 1773187612.3620038,
+                        "identifier": "Finished executing check_weather"
+                    },
+                    "details": {
+                        "input_args": [],
+                        "input_kwargs": {},
+                        "status": "Completed",
+                        "output": "The weather is bright sunshine"
+                    },
+                    "parent": {
+                        "source": "c81650d2-1e4e-4d3d-8fcf-ed36d2a9e036",
+                        "target": "0c812bdf-80e3-42ba-afcc-aa43ab5dc754",
+                        "identifier": "f216dbc2-2dea-4f81-a148-b5fea28f1d36",
+                        "stamp": {
+                            "step": 1,
+                            "time": 1773187612.3620038,
+                            "identifier": "Tool-Forward Guide CREATED check_weather"
+                        },
+                        "details": {
+                            "input_args": [],
+                            "input_kwargs": {},
+                            "status": "Open",
+                            "output": null
+                        },
+                        "parent": null
+                    }
+                },
+                {
+                    "source": "c81650d2-1e4e-4d3d-8fcf-ed36d2a9e036",
+                    "target": "5ae68c4a-b7e0-4ceb-a8e7-dd13d437ef50",
+                    "identifier": "fb4a70d4-7b82-41c1-874b-6195b52e5f72",
+                    "stamp": {
+                        "step": 6,
+                        "time": 1773187612.3620038,
+                        "identifier": "Finished executing roll_dice"
+                    },
+                    "details": {
+                        "input_args": [],
+                        "input_kwargs": {},
+                        "status": "Completed",
+                        "output": 4
+                    },
+                    "parent": {
+                        "source": "c81650d2-1e4e-4d3d-8fcf-ed36d2a9e036",
+                        "target": "5ae68c4a-b7e0-4ceb-a8e7-dd13d437ef50",
+                        "identifier": "fb4a70d4-7b82-41c1-874b-6195b52e5f72",
+                        "stamp": {
+                            "step": 2,
+                            "time": 1773187612.3620038,
+                            "identifier": "Tool-Forward Guide CREATED roll_dice"
+                        },
+                        "details": {
+                            "input_args": [],
+                            "input_kwargs": {},
+                            "status": "Open",
+                            "output": null
+                        },
+                        "parent": null
+                    }
+                },
+                {
+                    "source": "c81650d2-1e4e-4d3d-8fcf-ed36d2a9e036",
+                    "target": "8226ddac-a9f0-4ca3-8a5e-d2e55a427f84",
+                    "identifier": "a79b9828-d530-4173-903b-24a544d31e8c",
+                    "stamp": {
+                        "step": 7,
+                        "time": 1773187612.3620038,
+                        "identifier": "Finished executing find_item"
+                    },
+                    "details": {
+                        "input_args": [],
+                        "input_kwargs": {},
+                        "status": "Completed",
+                        "output": "You find a tiny bell"
+                    },
+                    "parent": {
+                        "source": "c81650d2-1e4e-4d3d-8fcf-ed36d2a9e036",
+                        "target": "8226ddac-a9f0-4ca3-8a5e-d2e55a427f84",
+                        "identifier": "a79b9828-d530-4173-903b-24a544d31e8c",
+                        "stamp": {
+                            "step": 3,
+                            "time": 1773187612.3620038,
+                            "identifier": "Tool-Forward Guide CREATED find_item"
+                        },
+                        "details": {
+                            "input_args": [],
+                            "input_kwargs": {},
+                            "status": "Open",
+                            "output": null
+                        },
+                        "parent": null
+                    }
+                },
+                {
+                    "source": "c81650d2-1e4e-4d3d-8fcf-ed36d2a9e036",
+                    "target": "63287b75-ec06-4cc3-bbf5-7f3b2c530f1c",
+                    "identifier": "1c89dec5-3c61-416a-af3a-cdc35239cb26",
+                    "stamp": {
+                        "step": 8,
+                        "time": 1773187612.3620038,
+                        "identifier": "Finished executing pick_path"
+                    },
+                    "details": {
+                        "input_args": [],
+                        "input_kwargs": {},
+                        "status": "Completed",
+                        "output": "You choose the garden trail"
+                    },
+                    "parent": {
+                        "source": "c81650d2-1e4e-4d3d-8fcf-ed36d2a9e036",
+                        "target": "63287b75-ec06-4cc3-bbf5-7f3b2c530f1c",
+                        "identifier": "1c89dec5-3c61-416a-af3a-cdc35239cb26",
+                        "stamp": {
+                            "step": 4,
+                            "time": 1773187612.3620038,
+                            "identifier": "Tool-Forward Guide CREATED pick_path"
+                        },
+                        "details": {
+                            "input_args": [],
+                            "input_kwargs": {},
+                            "status": "Open",
+                            "output": null
+                        },
+                        "parent": null
+                    }
+                },
+                {
+                    "source": null,
+                    "target": "c81650d2-1e4e-4d3d-8fcf-ed36d2a9e036",
+                    "identifier": "f88b02ad-67d5-4a48-956c-d9ec07c90bc3",
+                    "stamp": {
+                        "step": 9,
+                        "time": 1773187616.6515899,
+                        "identifier": "Finished executing Tool-Forward Guide"
+                    },
+                    "details": {
+                        "input_args": [
+                            "Create a one-shot cozy adventure scene that uses tools."
+                        ],
+                        "input_kwargs": {},
+                        "status": "Completed",
+                        "output": {
+                            "message_history": [
+                                {
+                                    "role": "user",
+                                    "content": "Create a one-shot cozy adventure scene that uses tools."
+                                },
+                                {
+                                    "role": "assistant",
+                                    "content": [
+                                        {
+                                            "identifier": "call_iMB8nrrPwYwjFkbZAS0DHqCA",
+                                            "name": "check_weather",
+                                            "arguments": {}
+                                        },
+                                        {
+                                            "identifier": "call_vXWiY9lINODsCBYxfSMH9UGU",
+                                            "name": "roll_dice",
+                                            "arguments": {}
+                                        },
+                                        {
+                                            "identifier": "call_fO55YNQTCX04HYtxpYE8R7Km",
+                                            "name": "find_item",
+                                            "arguments": {}
+                                        },
+                                        {
+                                            "identifier": "call_Y0leqjeR6qZLo6kRZ8q274pM",
+                                            "name": "pick_path",
+                                            "arguments": {}
+                                        }
+                                    ]
+                                },
+                                {
+                                    "role": "tool",
+                                    "content": {
+                                        "identifier": "call_iMB8nrrPwYwjFkbZAS0DHqCA",
+                                        "name": "check_weather",
+                                        "result": "The weather is bright sunshine"
+                                    }
+                                },
+                                {
+                                    "role": "tool",
+                                    "content": {
+                                        "identifier": "call_vXWiY9lINODsCBYxfSMH9UGU",
+                                        "name": "roll_dice",
+                                        "result": "4"
+                                    }
+                                },
+                                {
+                                    "role": "tool",
+                                    "content": {
+                                        "identifier": "call_fO55YNQTCX04HYtxpYE8R7Km",
+                                        "name": "find_item",
+                                        "result": "You find a tiny bell"
+                                    }
+                                },
+                                {
+                                    "role": "tool",
+                                    "content": {
+                                        "identifier": "call_Y0leqjeR6qZLo6kRZ8q274pM",
+                                        "name": "pick_path",
+                                        "result": "You choose the garden trail"
+                                    }
+                                },
+                                {
+                                    "role": "assistant",
+                                    "content": "As you step through the quaint town gate, the weather welcomes you with bright sunshine that kisses your cheeks and lifts your spirits. You decide to explore the garden trail, a path lined with vibrant flora and the gentle rustle of leaves. Along the way, you discover a delightful treasure\u2014a tiny bell that jingles softly in your pocket with each step. Taking the initiative, you roll the dice of curiosity and find yourself met by the cheerful sounds of the town's band in the square, practicing for a festival. Content and glowing with the sunshine's warmth and the unexpected joy of your discoveries, you stroll back to your cozy inn room, the bell still chiming quietly in sync with your peaceful heart."
+                                }
+                            ],
+                            "content": "As you step through the quaint town gate, the weather welcomes you with bright sunshine that kisses your cheeks and lifts your spirits. You decide to explore the garden trail, a path lined with vibrant flora and the gentle rustle of leaves. Along the way, you discover a delightful treasure\u2014a tiny bell that jingles softly in your pocket with each step. Taking the initiative, you roll the dice of curiosity and find yourself met by the cheerful sounds of the town's band in the square, practicing for a festival. Content and glowing with the sunshine's warmth and the unexpected joy of your discoveries, you stroll back to your cozy inn room, the bell still chiming quietly in sync with your peaceful heart."
+                        }
+                    },
+                    "parent": {
+                        "source": null,
+                        "target": "c81650d2-1e4e-4d3d-8fcf-ed36d2a9e036",
+                        "identifier": "f88b02ad-67d5-4a48-956c-d9ec07c90bc3",
+                        "stamp": {
+                            "step": 0,
+                            "time": 1773187607.0390017,
+                            "identifier": "START CREATED Tool-Forward Guide"
+                        },
+                        "details": {
+                            "input_args": [
+                                "Create a one-shot cozy adventure scene that uses tools."
+                            ],
+                            "input_kwargs": {},
+                            "status": "Open",
+                            "output": null
+                        },
+                        "parent": null
+                    }
+                }
+            ],
+            "steps": [
+                {
+                    "step": 0,
+                    "time": 1773187607.0390017,
+                    "identifier": "START CREATED Tool-Forward Guide"
+                },
+                {
+                    "step": 1,
+                    "time": 1773187612.3620038,
+                    "identifier": "Tool-Forward Guide CREATED check_weather"
+                },
+                {
+                    "step": 2,
+                    "time": 1773187612.3620038,
+                    "identifier": "Tool-Forward Guide CREATED roll_dice"
+                },
+                {
+                    "step": 3,
+                    "time": 1773187612.3620038,
+                    "identifier": "Tool-Forward Guide CREATED find_item"
+                },
+                {
+                    "step": 4,
+                    "time": 1773187612.3620038,
+                    "identifier": "Tool-Forward Guide CREATED pick_path"
+                },
+                {
+                    "step": 5,
+                    "time": 1773187612.3620038,
+                    "identifier": "Finished executing check_weather"
+                },
+                {
+                    "step": 6,
+                    "time": 1773187612.3620038,
+                    "identifier": "Finished executing roll_dice"
+                },
+                {
+                    "step": 7,
+                    "time": 1773187612.3620038,
+                    "identifier": "Finished executing find_item"
+                },
+                {
+                    "step": 8,
+                    "time": 1773187612.3620038,
+                    "identifier": "Finished executing pick_path"
+                },
+                {
+                    "step": 9,
+                    "time": 1773187616.6515899,
+                    "identifier": "Finished executing Tool-Forward Guide"
+                }
+            ],
+            "start_time": 1773187607.0390017,
+            "end_time": 1773187616.6515899
+        }
+    ]
+}
