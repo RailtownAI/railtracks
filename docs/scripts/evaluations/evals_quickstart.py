@@ -1,6 +1,6 @@
 # --8<-- [start: tutorial]
 import railtracks as rt
-from railtracks import evaluation as eval
+from railtracks import evaluations as eval
 
 # load the data
 data = eval.extract_agent_data_points(".railtracks/data/sessions/")
