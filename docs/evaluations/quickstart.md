@@ -11,8 +11,8 @@ As long as you have previously run an agent using `railtracks`, the script above
 
 ```console
 Multiple agents found in the data:
-  0: FinanceAgent -> 5 data points
-  1: Orchestrator -> 1 data points
+  0: WebsearchAgent -> 5 data points
+  1: FinanceAgent -> 5 data points
 
 Select agent index(es) (comma-separated), or -1 to evaluate all:
 ```
