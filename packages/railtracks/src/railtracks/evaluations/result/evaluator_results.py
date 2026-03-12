@@ -18,7 +18,6 @@ class EvaluatorResult(BaseModel, Generic[TMetric, TMetricResult, TAggregateResul
     evaluator_id: str
     agent_data_ids: set[UUID] = Field(default_factory=set, exclude=True)
     metrics: list[TMetric] = Field(default_factory=list, exclude=True)
-    # metric_results: list[TMetricResult] = Field(default_factory=list, exclude=True)
     metric_results: list[TMetricResult] = Field(default_factory=list)
     aggregate_results: list[TAggregateResult] | AggregateForest
 
