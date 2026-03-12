@@ -75,7 +75,8 @@ agent = rt.agent_node(
 )
 
 # Run it
-result = await rt.call(agent, "What's the weather in Paris?")
+flow = rt.Flow(name="Weather Flow", entry_point=agent)
+result = await flow.invoke("What's the weather in Paris?")
 print(result.text)  # "Based on the current data, it's sunny in Paris!"
 ```
 
@@ -218,49 +219,6 @@ railtracks viz   # See your agent in action
 
 ---
 
-## 💡 Real-World Examples
-
-<details open>
-<summary><b>🔍 Multi-Agent Research System</b></summary>
-
-```python
-# Research coordinator that uses specialized agents
-researcher = rt.agent_node("Researcher", tool_nodes=(web_search, summarize))
-analyst = rt.agent_node("Analyst", tool_nodes=(analyze_data, create_charts))
-writer = rt.agent_node("Writer", tool_nodes=(draft_report, format_document))
-
-coordinator = rt.agent_node(
-    "Research Coordinator",
-    tool_nodes=(researcher, analyst, writer),  # Agents as tools!
-    system_message="Coordinate research tasks between specialists."
-)
-```
-
-</details>
-
-<details open>
-<summary><b>🔄 Complex Workflows Made Simple</b></summary>
-
-```python
-# Customer service system with context sharing
-async def handle_customer_request(query: str):
-    with rt.Session() as session:
-        # Technical support first
-        technical_result = await rt.call(technical_agent, query)
-        
-        # Share context with billing if needed
-        if "billing" in technical_result.text.lower():
-            session.context["technical_notes"] = technical_result.text
-            billing_result = await rt.call(billing_agent, query)
-            return billing_result
-        
-        return technical_result
-```
-
-</details>
-
----
-
 ## 🌟 What Makes Railtracks Special?
 
 A lightweight agentic LLM framework for building modular, multi-LLM workflows with a focus on simplicity and developer experience.
@@ -273,7 +231,6 @@ A lightweight agentic LLM framework for building modular, multi-LLM workflows wi
 | **📊 Built-in visualization** | ✅ |
 | **⚡ Zero setup overhead** | ✅ |
 | **🔄 LLM-agnostic** | ✅ |
-| **🎯 Pythonic style** | ✅ |
 
 </div>
 
