@@ -27,7 +27,7 @@ This will create a `.railtracks` directory in your current working directory set
 
 
 <div style="overflow: hidden; width: 100%; height: 120%;">
-    <img src="../../assets/visualizer.gif"/>
+    <img src="../../assets/visualizer.gif"style="border-radius: 12px;/>
 </div>
 
 
