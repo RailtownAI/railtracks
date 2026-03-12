@@ -62,14 +62,14 @@ The same flow model supports a range of agent architectures without introducing 
 <div class="grid cards">
   <a class="card" href="architectures/validation_loop">
     <h3>Validation Loops</h3>
-    <p>Iterative workflows such as generation with structured validation.</p>
+    <p>Iterative workflows which allow you to iteratively improve output quality.</p>
   </a>
 
 
 
-  <a class="card disabled">
-    <h3>Research Agent</h3>
-    <p>Sequential and branching steps for search, synthesis, and summarization. <strong>Coming soon.</strong></p>
+  <a class="card" href="architectures/sequential">
+    <h3>Sequential Flows</h3>
+    <p>Programmatically defining sequential and branching steps for an agent.</p>
   </a>
 
   <a class="card disabled">

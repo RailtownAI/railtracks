@@ -20,7 +20,7 @@ The same flow model supports multiple agent architectures without introducing ne
     </p>
   </a>
 
-  <div class="card disabled">
+  <a class="card" href="../sequential/">
     <h3>Sequential Agent</h3>
     <p>
       Linear and branching agent steps for research, synthesis, and summarization.
