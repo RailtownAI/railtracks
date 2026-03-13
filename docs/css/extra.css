@@ -110,8 +110,8 @@
     margin: 1em 0;
 }
 
-/* Rounded corners for images in documentation */
-.md-typeset img {
+/* Rounded corners for images in documentation, but not the hero logo */
+.md-typeset img:not(.rt-hero img) {
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }

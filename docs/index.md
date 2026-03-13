@@ -9,9 +9,9 @@ hide:
   <h1>Build agents in pure Python</h1>
   <p>Minimal. Extensible. Designed for developers.</p>
   <div class="rt-video-container">
-    <div class="rt-video-embed">
-      <iframe src="https://player.vimeo.com/video/1166415069" title="Building with Railtracks" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
-    </div>
+    <video controls style="width: 100%; border-radius: 12px;">
+      <source src="https://railtracksstorage.blob.core.windows.net/railtrackswebsite/videos/Introduction.mp4" type="video/mp4">
+    </video>
   </div>
 </div>
 
@@ -25,9 +25,9 @@ hide:
 <div class="rt-section-center">
   <h1>Agent Observability</h1>
   <div class="rt-video-container">
-    <div class="rt-video-embed">
-      <iframe src="https://player.vimeo.com/video/1166415035" title="Observability with Railtracks" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
-    </div>
+    <video controls style="width: 100%; border-radius: 14px;">
+      <source src="https://railtracksstorage.blob.core.windows.net/railtrackswebsite/videos/Visualizer.mp4" type="video/mp4">
+    </video>
   </div>
 </div>
 
@@ -72,14 +72,6 @@ The same flow model supports a range of agent architectures without introducing 
     <h3>Orchestrator / Worker</h3>
     <p>A coordinating agent that delegates work to specialized agents or tools. <strong>Coming soon.</strong></p>
   </a>
-</div>
-
-<div class="rt-section-center">
-  <div class="rt-video-container">
-    <div class="rt-video-embed">
-      <iframe src="https://player.vimeo.com/video/1166415011" title="Flows with Railtracks" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
-    </div>
-  </div>
 </div>
 
 <div class="rt-cta">
