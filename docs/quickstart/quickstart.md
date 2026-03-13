@@ -59,8 +59,10 @@ With Railtracks CLI you can dive deep on your runs. Our observability runs local
     railtracks update
     ```
 
-<div style="overflow: hidden; width: 100%; height: 120%; border-radius: 12px;">
-    <img src="https://railtracksstorage.blob.core.windows.net/railtrackswebsite/visualizer.gif" style="border-radius: 12px;"/>
+<div class="rt-video-container">
+  <video controls style="width: 100%; border-radius: 12px;">
+    <source src="https://railtracksstorage.blob.core.windows.net/railtrackswebsite/videos/Visualizer.mp4" type="video/mp4">
+  </video>
 </div>
 
 This will open a web interface with all of your agent runs. You can dive deep into each step, see token usage, and more.

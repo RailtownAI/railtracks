@@ -26,6 +26,8 @@ The short demo below provides an overview of the available views.
     where the `company` parameter covers the list `["Nvidia", "Apple", "Amazon", "Google", "Microsoft"]`
 
 
-<div style="overflow: hidden; width: 100%; height: 120%;">
-    <img src="../../assets/evaluations/evaluation.gif" style="border-radius: 12px;/>
+<div class="rt-video-container">
+  <video controls style="width: 100%; border-radius: 12px;">
+    <source src="https://railtracksstorage.blob.core.windows.net/railtrackswebsite/videos/Evaluation.mp4" type="video/mp4">
+  </video>
 </div>

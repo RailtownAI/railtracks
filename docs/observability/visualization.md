@@ -26,8 +26,10 @@ Railtracks comes with a built-in visualization tool that runs locally with **no 
 This will create a `.railtracks` directory in your current working directory setting up the web app in your web browser
 
 
-<div style="overflow: hidden; width: 100%; height: 120%;">
-    <img src="https://railtracksstorage.blob.core.windows.net/railtrackswebsite/visualizer.gif"style="border-radius: 12px;/>
+<div class="rt-video-container">
+  <video controls style="width: 100%; border-radius: 12px;">
+    <source src="https://railtracksstorage.blob.core.windows.net/railtrackswebsite/videos/Visualizer.mp4" type="video/mp4">
+  </video>
 </div>
 
 
