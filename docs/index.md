@@ -4,34 +4,34 @@ hide:
   - toc
 ---
 
-
-<div style="text-align:center; margin-top: 2rem; margin-bottom: 1.5rem;">
+<div class="rt-hero">
   <img src="assets/logo.svg" alt="Railtracks Logo" width="260">
-  <h1 style="margin-bottom:0.25rem;">Build agents in pure Python</h1>
-  <p style="margin-top:0; font-size:1rem;">
-    Minimal. Extensible. Designed for developers.
-  </p>
-
-  <div style="margin-top: 1.5rem; max-width: 800px; margin-left: auto; margin-right: auto;">
-    <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 12px;">
-      <iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 12px;" src="https://player.vimeo.com/video/1166415069" title="Building with Railtracks" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+  <h1>Build agents in pure Python</h1>
+  <p>Minimal. Extensible. Designed for developers.</p>
+  <div class="rt-video-container">
+    <div class="rt-video-embed">
+      <iframe src="https://player.vimeo.com/video/1166415069" title="Building with Railtracks" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
     </div>
   </div>
-
-<a href="quickstart/quickstart" class="md-button md-button--primary">Quickstart</a> <a href="https://github.com/RailtownAI/railtracks-examples" class="md-button">Browse examples</a>
-
 </div>
+
+<div class="rt-cta">
+  <a href="quickstart/quickstart" class="md-button md-button--primary">Quickstart</a>
+  <a href="https://github.com/RailtownAI/railtracks-examples" class="md-button">Browse examples</a>
+</div>
+
 ---
 
-<div style="text-align: center;">
+<div class="rt-section-center">
   <h1>Agent Observability</h1>
-<div style="margin-top: -1.0rem; text-align: center; max-width: 800px; margin-left: auto; margin-right: auto;">
-    <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 12px;">
-      <iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 12px;" src="https://player.vimeo.com/video/1166415035" title="Observability with Railtracks" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+  <div class="rt-video-container">
+    <div class="rt-video-embed">
+      <iframe src="https://player.vimeo.com/video/1166415035" title="Observability with Railtracks" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
     </div>
+  </div>
 </div>
-</div>
-<div style="text-align: center; margin-top: 1rem;">
+
+<div class="rt-cta">
   <a href="observability/visualization" class="md-button">Get started with Observability</a>
 </div>
 
@@ -64,26 +64,25 @@ The same flow model supports a range of agent architectures without introducing 
     <h3>Validation Loops</h3>
     <p>Iterative workflows which allow you to iteratively improve output quality.</p>
   </a>
-
-
-
   <a class="card" href="architectures/sequential">
     <h3>Sequential Flows</h3>
     <p>Programmatically defining sequential and branching steps for an agent.</p>
   </a>
-
   <a class="card disabled">
     <h3>Orchestrator / Worker</h3>
     <p>A coordinating agent that delegates work to specialized agents or tools. <strong>Coming soon.</strong></p>
   </a>
+</div>
 
-</div>
-<div style="margin-top: 1.5rem; text-align: center; max-width: 800px; margin-left: auto; margin-right: auto;">
-    <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 12px;">
-      <iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 12px;" src="https://player.vimeo.com/video/1166415011" title="Flows with Railtracks" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+<div class="rt-section-center">
+  <div class="rt-video-container">
+    <div class="rt-video-embed">
+      <iframe src="https://player.vimeo.com/video/1166415011" title="Flows with Railtracks" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
     </div>
+  </div>
 </div>
-<div style="text-align: center; margin-top: 1rem;">
+
+<div class="rt-cta">
   <a href="architectures/overview" class="md-button">Checkout other architectures</a>
 </div>
 
