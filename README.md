@@ -1,7 +1,7 @@
 # Railtracks
 
 <p align="center">
-  <img alt="Railtracks" src="https://railtracksstorage.blob.core.windows.net/railtrackswebsite/images/logo.svg" width="30%">
+  <img alt="Railtracks" src="https://railtracksstorage.blob.core.windows.net/railtrackswebsite/images/logo.svg" width="40%">
 </p>
 <br>
 
@@ -173,10 +173,10 @@ Railtracks integrates with major model providers through a unified interface:
 
 ```python
 # OpenAI
-rt.llm.OpenAILLM("gpt-4o")
+rt.llm.OpenAILLM("gpt-5")
 
 # Anthropic
-rt.llm.AnthropicLLM("claude-3-5-sonnet")
+rt.llm.AnthropicLLM("claude-4-6-sonnet")
 
 # Local models
 rt.llm.OllamaLLM("llama3")
