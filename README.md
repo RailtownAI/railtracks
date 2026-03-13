@@ -210,7 +210,7 @@ railtracks viz   # See your agent in action
 ```
 
 <p align="center">
-  <video src="https://railtracksstorage.blob.core.windows.net/railtrackswebsite/Visualizer.mp4" controls width="90%"></video>
+  <video src="https://railtracksstorage.blob.core.windows.net/railtrackswebsite/videos/Visualizer.mp4" controls width="90%"></video>
   <br>
   <em>🔍 See every step of your agent's execution in real-time</em>
 </p>
