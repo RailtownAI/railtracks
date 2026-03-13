@@ -182,7 +182,7 @@ rt.llm.AnthropicLLM("claude-4-6-sonnet")
 rt.llm.OllamaLLM("llama3")
 ```
 
-Works with **OpenAI**, **Anthropic**, **Google**, **Azure**, and more. See the [full provider list](https://railtownai.github.io/railtracks/llm/).
+Works with **OpenAI**, **Anthropic**, **Google**, **Azure**, and more. See the [full provider list](https://railtownai.github.io/railtracks/llm_support/providers/).
 
 ## Contributing
 
