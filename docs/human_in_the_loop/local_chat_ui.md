@@ -6,9 +6,9 @@ Simply pass any of the agents you've made so far to the `local_chat` method as f
 --8<-- "docs/scripts/chatui.py:interactive"
 ```
 and you will see automatically a window pop open in your browser with the following style:
-![Local Chat UI Example](../assets/local_chat/chatui_messages.png)
+![Local Chat UI Example](https://railtracksstorage.blob.core.windows.net/railtrackswebsite/images/chatui_messages.png)
 Additionally, you can also view the tool invocations that happened throughout your conversation:
-![Local Chat UI Tools](../assets/local_chat/chatui_tools.png)
+![Local Chat UI Tools](https://railtracksstorage.blob.core.windows.net/railtrackswebsite/images/chatui_tools.png)
 After you are finished with talking interactive with the model, you can press **`END SESSION`** and the rest of your workflow will continue to execute.
 
 The possibilities from here on are endless. For instance you can replace the `llm` parameter with a locally running `Ollama` model and have your own locally run agent that you can chat with at your leisure! Give it tools to empower it even more.
@@ -35,7 +35,7 @@ You can expand the section below for a more involved example regarding a convers
     --8<-- "docs/scripts/chatui.py:advanced"
     ```
     Here's the conversation:
-    ![Local Chat UI Advanced](../assets/local_chat/chatui_messages_advanced.png)
+    ![Local Chat UI Advanced](https://railtracksstorage.blob.core.windows.net/railtrackswebsite/images/chatui_messages_advanced.png)
     And here's the output of the `AnalysisAgent`:
     ```
     Confirmed Python 3.10.18; not latest; guidance for C/C++ versions.

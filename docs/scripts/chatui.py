@@ -25,11 +25,16 @@ ChatAgent = rt.agent_node(
     tool_nodes=[programming_language_info],
 )
 
-
-async def main():
+@rt.function_node
+async def chat():
     response = await rt.interactive.local_chat(ChatAgent)
-    print(response.content)
 
+interactive_flow = rt.Flow(
+    name="Interactive Flow",
+    entry_point=chat,
+)
+
+interactive_flow.invoke()
 
 # --8<-- [end: interactive]
 
@@ -40,7 +45,7 @@ AnalysisAgent = rt.agent_node(
     llm=rt.llm.OpenAILLM("gpt-5"),
 )
 
-
+@rt.function_node
 async def analysis():
     response = await rt.interactive.local_chat(ChatAgent)
 
@@ -48,9 +53,12 @@ async def analysis():
         AnalysisAgent,
         f"Analyze the following conversation and provide a summary in less than 10 words:\n\n{response.message_history}",
     )
-    print(analysis_response.content)
 
+analysis_flow = rt.Flow(
+    name="Analysis Flow",
+    entry_point=analysis,
+)
 
+analysis_flow.invoke()
 # --8<-- [end: advanced]
-asyncio.run(main())
-# asyncio.run(analysis())
+

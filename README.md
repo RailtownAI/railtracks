@@ -1,31 +1,9 @@
 # Railtracks
 
-<!--Happy Coding ◊ -->
-
 <p align="center">
-  <img alt="Railtracks Space Banner" src="https://raw.githubusercontent.com/RailtownAI/railtracks/main/docs/assets/hero-banner.svg" width="100%">
+  <img alt="Railtracks" src="https://railtracksstorage.blob.core.windows.net/railtrackswebsite/images/logo.svg" width="40%">
 </p>
-
-<h3 align="center">
-  Agents in minutes • Zero config • Local visualization • Pure Python
-</h3>
-
 <br>
-
-<p align="center">
-  <a href="#-quick-start">
-    <img src="https://img.shields.io/badge/Quick_Start-4285F4?style=for-the-badge&logo=rocket&logoColor=white" alt="Quick Start" />
-  </a>
-  <a href="https://railtownai.github.io/railtracks/">
-    <img src="https://img.shields.io/badge/Documentation-00D4AA?style=for-the-badge&logo=gitbook&logoColor=white" alt="Documentation" />
-  </a>
-  <a href="https://github.com/RailtownAI/railtracks/tree/main/examples">
-    <img src="https://img.shields.io/badge/Examples-FF6B35?style=for-the-badge&logo=github&logoColor=white" alt="Examples" />
-  </a>
-  <a href="https://discord.gg/h5ZcahDc">
-    <img src="https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join Discord" />
-  </a>
-</p>
 
 <p align="center">
   <a href="https://pypi.org/project/railtracks/">
@@ -49,14 +27,9 @@
 
 </div>
 
----
+## What is Railtracks?
 
-## ✨ What is **Railtracks**?
-
-Easy agent building, for no one but **YOU**: Create deployable complex agents using simple, Pythonic style interface with natural control flow.
-
-<!-- Add an empty line or a horizontal rule to ensure separation -->
-<br>
+Railtracks is a Python framework for building agentic systems. Agent behavior, tools, and multi-step flows are defined entirely in standard Python — using the control flow and abstractions you already know.
 
 
 ```python
@@ -75,15 +48,14 @@ agent = rt.agent_node(
 )
 
 # Run it
-result = await rt.call(agent, "What's the weather in Paris?")
+flow = rt.Flow(name="Weather Flow", entry_point=agent)
+result = await flow.invoke("What's the weather in Paris?")
 print(result.text)  # "Based on the current data, it's sunny in Paris!"
 ```
 
-**That's it.** No complex configurations, no learning proprietary syntax. Just Python.
+Execution order, branching, and looping are expressed using standard Python control flow.
 
----
-
-## 🎯 Why Railtracks?
+## Why Railtracks?
 
 <div align="center">
 
@@ -91,57 +63,54 @@ print(result.text)  # "Based on the current data, it's sunny in Paris!"
 <tr>
 <td width="50%" valign="top">
 
-#### 🐍 **Pure Python Experience**
+#### Pure Python
 ```python
 # Write agents like regular functions
 @rt.function_node
 def my_tool(text: str) -> str:
     return process(text)
 ```
-- ✅ No YAML, no DSLs, no magic strings
-- ✅ Use your existing debugging tools
-- ✅ IDE autocomplete & type checking
+- No YAML, no DSLs, no magic strings
+- Compatible with standard debuggers
+- Full IDE autocomplete and type checking
 
 </td>
 <td width="50%" valign="top">
 
-#### 🔧 **Tool-First Architecture**
+#### Tool-First Architecture
 ```python
 # Any function becomes a tool
 agent = rt.agent_node(
     "Assistant",
-    tool_nodes=(my_tool, api_call)
+    tool_nodes=[my_tool, api_call]
 )
 ```
-- ✅ Instant function-to-tool conversion
-- ✅ Seamless API/database integration
-- ✅ MCP protocol support
+- Automatic function-to-tool conversion
+- Seamless API and database integration
+- MCP protocol support
 
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
 
-#### ⚡ **Look Familiar?**
+#### Familiar Interface
 ```python
-# Smart parallelization built-in 
-# with interface similar to asyncio
+# Native Async support
 result = await rt.call(agent, query)
 ```
-- ✅ Easy to learn standardized interface
-- ✅ Built-in validation, error handling & retries
-- ✅ Auto-parallelization management
+- Standardized `call` interface, consistent with asyncio patterns
+- Built-in validation, error handling, and retries
+- Automatic parallelization management
 
 </td>
 <td width="50%" valign="top">
 
-#### 👁️ **Transparent by Design**
-```bash
-railtracks viz  # See everything
-```
-- ✅ Real-time execution visualization
-- ✅ Complete execution history
-- ✅ Debug like regular Python code
+#### Built-in Observability
+
+Railtracks includes a visualizer for inspecting agent runs and evaluations in real-time, run completely locally with no signups required.
+
+See the [Observability documentation](https://railtownai.github.io/railtracks/observability/visualization/) for setup and usage.
 
 </td>
 </tr>
@@ -149,12 +118,10 @@ railtracks viz  # See everything
 
 </div>
 
----
-
-## 🚀 Quick Start
+## Quick Start
 
 <details open>
-<summary><b>📦 Installation</b></summary>
+<summary><b>Installation</b></summary>
 
 ```bash
 pip install railtracks railtracks[cli]
@@ -163,7 +130,7 @@ pip install railtracks railtracks[cli]
 
 
 <details open>
-<summary><b>⚡ Your First Agent in 5 Min</b></summary>
+<summary><b>Your First Agent</b></summary>
 
 
 ```python
@@ -199,222 +166,43 @@ text_flow.invoke("How many 'r's are in 'strawberry'?")
 
 </details>
 
-<details open>
-<summary><b>📊 Visualize Agent locally with a simple command</b></summary>
 
+## LLM Support
 
-```bash
-railtracks init  # Setup visualization (one-time)
-railtracks viz   # See your agent in action
-```
-
-<p align="center">
-  <img src="docs/assets/visualizer.gif" alt="Railtracks Visualizer" width="90%">
-  <br>
-  <em>🔍 See every step of your agent's execution in real-time</em>
-</p>
-
-</details>
-
----
-
-## 💡 Real-World Examples
-
-<details open>
-<summary><b>🔍 Multi-Agent Research System</b></summary>
-
-```python
-# Research coordinator that uses specialized agents
-researcher = rt.agent_node("Researcher", tool_nodes=(web_search, summarize))
-analyst = rt.agent_node("Analyst", tool_nodes=(analyze_data, create_charts))
-writer = rt.agent_node("Writer", tool_nodes=(draft_report, format_document))
-
-coordinator = rt.agent_node(
-    "Research Coordinator",
-    tool_nodes=(researcher, analyst, writer),  # Agents as tools!
-    system_message="Coordinate research tasks between specialists."
-)
-```
-
-</details>
-
-<details open>
-<summary><b>🔄 Complex Workflows Made Simple</b></summary>
-
-```python
-# Customer service system with context sharing
-async def handle_customer_request(query: str):
-    with rt.Session() as session:
-        # Technical support first
-        technical_result = await rt.call(technical_agent, query)
-        
-        # Share context with billing if needed
-        if "billing" in technical_result.text.lower():
-            session.context["technical_notes"] = technical_result.text
-            billing_result = await rt.call(billing_agent, query)
-            return billing_result
-        
-        return technical_result
-```
-
-</details>
-
----
-
-## 🌟 What Makes Railtracks Special?
-
-A lightweight agentic LLM framework for building modular, multi-LLM workflows with a focus on simplicity and developer experience.
-
-<div align="center">
-
-| Feature | Railtracks
-|:--------|:----------:|
-| **🐍 Python-first, no DSL** | ✅ |
-| **📊 Built-in visualization** | ✅ |
-| **⚡ Zero setup overhead** | ✅ |
-| **🔄 LLM-agnostic** | ✅ |
-| **🎯 Pythonic style** | ✅ |
-
-</div>
-
----
-
-## 🔗 Universal LLM Support
-
-Switch between providers effortlessly:
+Railtracks integrates with major model providers through a unified interface:
 
 ```python
 # OpenAI
-rt.llm.OpenAILLM("gpt-4o")
+rt.llm.OpenAILLM("gpt-5")
 
 # Anthropic
-rt.llm.AnthropicLLM("claude-3-5-sonnet")
+rt.llm.AnthropicLLM("claude-4-6-sonnet")
 
 # Local models
 rt.llm.OllamaLLM("llama3")
 ```
 
-Works with **OpenAI**, **Anthropic**, **Google**, **Azure**, and more! Check out our neatly crafted [docs](https://railtownai.github.io/railtracks/llm/).
+Works with **OpenAI**, **Anthropic**, **Google**, **Azure**, and more. See the [full provider list](https://railtownai.github.io/railtracks/llm_support/providers/).
 
-## 🛠️ Powerful Features
+## Contributing
 
-<div align="center">
+Railtracks is developed in the open. Contributions, bug reports, and feature requests are welcome via [GitHub Issues](https://github.com/RailtownAI/railtracks/issues).
 
-<table>
-<tr>
-<td width="50%" valign="top">
-
-### 📦 Rich Tool Ecosystem
-
-Use existing tools or create your own:
-
-- ✅ **Built in Tools** RAG, CoT, etc.
-- ✅ **Functions** → Tools automatically
-- ✅ **MCP Integration** as client or as server
-- ✅ **Agents as Tools** → agent cluster
-
-</td>
-<td width="50%" valign="top">
-
-### 🔍 Built-in Observability
-
-Debug and monitor with ease:
-
-- ✅ Real-time execution graphs
-- ✅ Performance metrics
-- ✅ Error tracking & debugging
-- ✅ Local visualization
-- ✅ Session management
-- ✅ **No signup required!**
-
-</td>
-</tr>
-</table>
-
-</div>
+<p align="center">
+  <a href="https://railtownai.github.io/railtracks/quickstart/quickstart/">
+    <img src="https://img.shields.io/badge/Quick_Start-4285F4?style=for-the-badge&logo=rocket&logoColor=white" alt="Quick Start" />
+  </a>
+  <a href="https://railtownai.github.io/railtracks/">
+    <img src="https://img.shields.io/badge/Documentation-00D4AA?style=for-the-badge&logo=gitbook&logoColor=white" alt="Documentation" />
+  </a>
+  <a href="https://github.com/RailtownAI/railtracks/tree/main/examples">
+    <img src="https://img.shields.io/badge/Examples-FF6B35?style=for-the-badge&logo=github&logoColor=white" alt="Examples" />
+  </a>
+  <a href="https://discord.gg/2JUb2TxjJv">
+    <img src="https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join Discord" />
+  </a>
+</p>
 
 ---
 
-## 📚 Learn More
-
-<div align="center">
-
-<table>
-<tr>
-<td align="center" width="20%">
-<a href="https://railtownai.github.io/railtracks/">
-<img src="https://img.icons8.com/fluency/96/000000/book.png" width="64" height="64" alt="Documentation"/>
-<br><b>Documentation</b>
-</a>
-<br>
-<sub>Complete guides & API reference</sub>
-</td>
-<td align="center" width="20%">
-<a href="https://railtownai.github.io/railtracks/quickstart/quickstart/">
-<img src="https://img.icons8.com/fluency/96/000000/rocket.png" width="64" height="64" alt="Quickstart"/>
-<br><b>Quickstart</b>
-</a>
-<br>
-<sub>Up and running in 5 minutes</sub>
-</td>
-<td align="center" width="20%">
-<a href="https://github.com/RailtownAI/railtracks/tree/main/examples">
-<img src="https://img.icons8.com/fluency/96/000000/code.png" width="64" height="64" alt="Examples"/>
-<br><b>Examples</b>
-</a>
-<br>
-<sub>Real-world implementations</sub>
-</td>
-<td align="center" width="20%">
-<a href="https://discord.gg/h5ZcahDc">
-<img src="https://img.icons8.com/fluency/96/000000/discord-logo.png" width="64" height="64" alt="Discord"/>
-<br><b>Discord</b>
-</a>
-<br>
-<sub>Get help & share creations</sub>
-</td>
-<td align="center" width="20%">
-<a href="./CONTRIBUTING.md">
-<img src="https://img.icons8.com/fluency/96/000000/handshake.png" width="64" height="64" alt="Contributing"/>
-<br><b>Contributing</b>
-</a>
-<br>
-<sub>Help make us better</sub>
-</td>
-</tr>
-</table>
-
-</div>
-
----
-
-
-
-## 🚀 Ready to Build?
-
-```bash
-pip install railtracks[cli]
-```
-<div align="center">
-
-<br>
-
-## ✨ Join developers across the world building the future with AI agents
-
-<br>
-
-<a href="https://github.com/RailtownAI/railtracks/stargazers">
-  <img src="https://img.shields.io/badge/⭐_STAR_THIS_REPO-FFD700?style=for-the-badge&logo=github&logoColor=000" alt="Star this repo" />
-</a>
-
-<br><br>
-
-**You grow, we grow - Railtracks will expand with your ambitions.**
-
-<br>
-
----
-
-<sub>Made with lots of ❤️ and ☕ by the ◊Railtracks◊ team • Licensed under MIT • [Report Bug](https://github.com/RailtownAI/railtracks/issues) • [Request Feature](https://github.com/RailtownAI/railtracks/issues)</sub>
-
-</div>
+<sub>Licensed under MIT · Made by the Railtracks team</sub>

@@ -75,7 +75,7 @@ nav:
   - Architectures:
       - Overview: architectures/overview.md
       - Validation Loops: architectures/validation_loop.md
-    #   - Sequential Flows: architectures/sequential.md
+      - Sequential Flows: architectures/sequential.md
   
   - Tutorials:
       - Building your first agent: tutorials/byfa.md

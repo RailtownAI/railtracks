@@ -19,7 +19,7 @@ In the below colab notebook, we will explore how to built a simple sequential fl
 
   <div class="colab-card-action">
     <a
-      href="https://colab.research.google.com/drive/19r_cH3j6Pz74dvWaRku8TtEWAL_Y4v2R?usp=sharing"
+      href="https://colab.research.google.com/drive/18KkqiC1Vk9YStnhu02WyH24yezizcO9o?usp=sharing"
       target="_blank"
       rel="noopener"
       class="colab-button"
