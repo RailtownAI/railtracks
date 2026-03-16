@@ -160,6 +160,14 @@ class LLMBase(Node[_T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
 
         self._attach_llm_hooks()
 
+    def _pre_invoke(self, context: Any) -> Any:
+        """Override to run logic before the LLM call (e.g. input guardrails). Default: identity."""
+        return context
+
+    def _post_invoke(self, context: Any, result: Any) -> Any:
+        """Override to run logic after the LLM call (e.g. output guardrails). Default: identity."""
+        return result
+
     @classmethod
     def prepare_tool_message_history(
         cls, tool_parameters: Dict[str, Any], tool_params: Iterable[Parameter] = None

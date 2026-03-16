@@ -56,6 +56,9 @@ class TerminalLLM(
         Returns:
             (TerminalLLM.Output): The response message from the llm model
         """
+        context = self._pre_invoke(self.message_hist)
+        self.message_hist = context
+
         try:
             returned_mess = await asyncio.to_thread(
                 self.llm_model.chat, self.message_hist
@@ -65,6 +68,8 @@ class TerminalLLM(
                 reason=f"Exception during llm model chat: {str(e)}",
                 message_history=self.message_hist,
             )
+
+        returned_mess = self._post_invoke(self.message_hist, returned_mess)
 
         if isinstance(returned_mess, Response):
             self._handle_output(returned_mess.message)

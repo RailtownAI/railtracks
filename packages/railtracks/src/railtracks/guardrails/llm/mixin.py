@@ -1,0 +1,102 @@
+"""
+Mixin that implements LLMBase._pre_invoke and _post_invoke by running input/output guardrails.
+
+Use by inheriting from this mixin and an LLM node class (e.g. TerminalLLM). Set guardrails=
+when building the node. The mixin assumes self has message_hist, llm_model, uuid, and
+that the context/result are MessageHistory and Response (for terminal LLM).
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from railtracks.llm.response import Response
+
+from ..core import Guard, GuardRunner, GuardrailBlockedError
+from ..core.decision import GuardrailAction
+from ..core.event import LLMGuardrailEvent, LLMGuardrailPhase
+
+
+class LLMGuardrailsMixin:
+    """
+    Mixin for nodes that invoke an LLM. Overrides _pre_invoke and _post_invoke to run
+    input and output guardrails. Set guardrails= when building the node.
+    """
+
+    guardrails: Guard | None = None
+
+    def _build_input_event(self, context: Any) -> LLMGuardrailEvent:
+        """Build LLMGuardrailEvent for input phase from context (MessageHistory)."""
+        model_name = getattr(self.llm_model, "model_name", None)
+        if callable(model_name):
+            model_name = model_name()
+        model_provider = getattr(self.llm_model, "model_provider", None)
+        if callable(model_provider):
+            model_provider = model_provider()
+        return LLMGuardrailEvent(
+            phase=LLMGuardrailPhase.INPUT,
+            messages=context,
+            node_name=self.__class__.name(),
+            node_uuid=self.uuid,
+            model_name=model_name,
+            model_provider=str(model_provider) if model_provider is not None else None,
+            tags={"agent_kind": "terminal"},
+        )
+
+    def _build_output_event(self, context: Any) -> LLMGuardrailEvent:
+        """Build LLMGuardrailEvent for output phase from context (MessageHistory)."""
+        model_name = getattr(self.llm_model, "model_name", None)
+        if callable(model_name):
+            model_name = model_name()
+        model_provider = getattr(self.llm_model, "model_provider", None)
+        if callable(model_provider):
+            model_provider = model_provider()
+        return LLMGuardrailEvent(
+            phase=LLMGuardrailPhase.OUTPUT,
+            messages=context,
+            node_name=self.__class__.name(),
+            node_uuid=self.uuid,
+            model_name=model_name,
+            model_provider=str(model_provider) if model_provider is not None else None,
+            tags={"agent_kind": "terminal"},
+        )
+
+    def _pre_invoke(self, context: Any) -> Any:
+        if self.guardrails is None or not self.guardrails.input:
+            return context
+        event = self._build_input_event(context)
+        new_context, traces, decision = GuardRunner(self.guardrails).run_llm_input(event)
+        if decision is not None and decision.action == GuardrailAction.BLOCK:
+            rail_name = traces[-1].rail_name if traces else None
+            raise GuardrailBlockedError(
+                rail_name=rail_name,
+                reason=decision.reason,
+                user_facing_message=decision.user_facing_message,
+                traces=traces,
+                meta=decision.meta,
+            )
+        if decision is not None and decision.action == GuardrailAction.TRANSFORM and decision.messages is not None:
+            return decision.messages
+        return context
+
+    def _post_invoke(self, context: Any, result: Any) -> Any:
+        if self.guardrails is None or not self.guardrails.output:
+            return result
+        if not isinstance(result, Response):
+            return result
+        event = self._build_output_event(context)
+        new_message, traces, decision = GuardRunner(self.guardrails).run_llm_output(
+            event, result.message
+        )
+        if decision is not None and decision.action == GuardrailAction.BLOCK:
+            rail_name = traces[-1].rail_name if traces else None
+            raise GuardrailBlockedError(
+                rail_name=rail_name,
+                reason=decision.reason,
+                user_facing_message=decision.user_facing_message,
+                traces=traces,
+                meta=decision.meta,
+            )
+        if decision is not None and decision.action == GuardrailAction.TRANSFORM and decision.output_message is not None:
+            return Response(message=decision.output_message, message_info=result.message_info)
+        return result
