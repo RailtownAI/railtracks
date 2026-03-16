@@ -343,12 +343,17 @@ class TestPublisherOrdering:
         while len(_message_1) < 2 or len(_message_2) < 2:
             await asyncio.sleep(0.000001)
 
+        # With sequential processing, callback1 and callback2 run one after the other per message.
+        # So _message_1[0] and _message_2[0] are processed sequentially (not concurrently),
+        # meaning their timestamps will be very close (milliseconds apart, not 0.1s apart).
         assert (
-            abs(_message_1[0][0] - _message_2[0][0] - 0.1) < 0.02
-        ), "Messages should be processed with a delay of 0.1 seconds roughly"
+            abs(_message_1[0][0] - _message_2[0][0]) < 0.01
+        ), "Messages 1 and 2 should be processed nearly simultaneously in sequence"
+        # Between message 1 and message 2, callback1 runs with a 0.1s sleep,
+        # so there should be a delay of roughly 0.1s between them.
         assert (
             abs(_message_2[1][0] - _message_2[0][0] - 0.1) < 0.02
-        ), "Second message should be delayed because of the other blocking operation"
+        ), "Second message should be delayed by callback1's sleep time"
 
 
 # ================ END Publisher ordering/blocking tests ===============
