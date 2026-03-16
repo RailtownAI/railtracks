@@ -217,10 +217,6 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         if self.temperature is not None:
             merged["temperature"] = self.temperature
 
-        warnings.filterwarnings(
-            "ignore", category=UserWarning, module="pydantic.*"
-        )  # Supress pydantic warnings. See issue #204 for more deatils.
-
         completion = litellm.completion(
             model=self._model_name,
             messages=litellm_messages,
