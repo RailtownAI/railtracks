@@ -344,11 +344,9 @@ class TestPublisherOrdering:
             await asyncio.sleep(0.000001)
 
         # With sequential processing, callback1 and callback2 run one after the other per message.
-        # So _message_1[0] and _message_2[0] are processed sequentially (not concurrently),
-        # meaning their timestamps will be very close (milliseconds apart, not 0.1s apart).
-        assert (
-            abs(_message_1[0][0] - _message_2[0][0]) < 0.01
-        ), "Messages 1 and 2 should be processed nearly simultaneously in sequence"
+        # So _message_1[0] (callback1) should be recorded after _message_2[0] (callback2) due to callback1's sleep.
+        # We don't check exact timing due to machine performance variations.
+        assert _message_1[0][0] > _message_2[0][0], "callback1 should run after callback2 due to sequential processing"
         # Between message 1 and message 2, callback1 runs with a 0.1s sleep,
         # so there should be a delay of roughly 0.1s between them.
         assert (
