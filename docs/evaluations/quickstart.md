@@ -1,16 +1,20 @@
 # Evaluations
 
-!!! warning "Coming Soon"
-    Evaluations support is actively in development and will be available soon.
+Evaluations in `railtracks` are a useful tool to analyze, aggregate, and finally visualize agent runs invoked previously. Sessions are automatically stored in `.railtracks/data/sessions`, so evaluations can be run at any time after invoking your agent.
 
-## Follow Along
+## Evaluation Definition
+```python
+--8<-- "docs/scripts/evaluations/evals_quickstart.py:tutorial"
+```
 
-You can track progress and try the work-in-progress on the feature branch:
+As long as you have previously run an agent using `railtracks`, the script above will then prompt you with:
 
-:octicons-git-branch-16: **[feature-branch-838-evaluations](https://github.com/RailtownAI/railtracks/tree/feature-branch-838-evaluations)**
+```console
+Multiple agents found in the data:
+  0: WebsearchAgent -> 5 data points
+  1: FinanceAgent -> 5 data points
 
-## Feature Requests
+Select agent index(es) (comma-separated), or -1 to evaluate all:
+```
 
-Have something you'd like to see? Add it to the parent tracking issue — we'd love to hear from you:
-
-:octicons-issue-opened-16: **[#893 — Evaluations Feature Tracking](https://github.com/RailtownAI/railtracks/issues/893)**
+Upon selection, the results of the evaluation are automatically saved to your `.railtracks/data/evaluations` folder. You can subsequently use the `railtracks viz` command to look and analyze the results.
