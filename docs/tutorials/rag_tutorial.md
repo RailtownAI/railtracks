@@ -27,7 +27,5 @@ You can also use our pre-configured RAG node that automatically collects context
 ```
 
 !!! success "Next Steps"
-    ```
     - Check out the [RAG Reference Documentation](../tools_mcp/RAG.md) to learn how to build RAG applications in Railtracks.
     - Explore the [Tools Documentation](../tools_mcp/tools/tools.md) for integrating any type of tool.
-    ```
