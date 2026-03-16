@@ -49,17 +49,6 @@ To begin you just have to use **`call`** method from Railtracks. This is an asyn
 
 Just like that you have run your first agent!
 
----
-## Calling the Agent within a Session
-Alternatively, you can run your agent within a session using the **`rt.Session`** context manager. This allows you to manage the session state and run multiple agents or workflows within the same session and providing various options such as setting a timeout, a shared context ([Context](../advanced_usage/context.md)), and more.
-
-```python
---8<-- "docs/scripts/first_agent.py:session"
-```
-
-For more details on how to use sessions, please refer to the [Sessions](../advanced_usage/session.md) documentation.
-## Retrieving the Results of a Run
-
 All agents return a response object which you can use to get the last message or the entire message history if you would prefer.
 
 !!! info "Reponse of a Run"
