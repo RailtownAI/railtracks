@@ -1,4 +1,3 @@
-from polars import String
 import pytest
 import railtracks as rt
 from railtracks.built_nodes.concrete.response import StringResponse
