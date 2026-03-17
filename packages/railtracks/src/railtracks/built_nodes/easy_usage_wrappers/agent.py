@@ -5,6 +5,9 @@ from pydantic import BaseModel
 
 from railtracks.built_nodes.concrete import (
     RTFunction,
+    GuardedStreamingStructuredLLM,
+    GuardedStreamingTerminalLLM,
+    GuardedStructuredLLM,
     GuardedTerminalLLM,
     StructuredLLM,
     StructuredToolCallLLM,
@@ -35,6 +38,9 @@ _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 _TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
 
+# --- Tool-calling overloads (guardrails not supported yet) ---
+
+
 @overload
 def agent_node(
     name: str | None = None,
@@ -47,32 +53,6 @@ def agent_node(
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
 ) -> Type[StructuredToolCallLLM[_TBaseModel]]:
-    pass
-
-
-@overload
-def agent_node(
-    name: str | None = None,
-    *,
-    rag: RagConfig | None = None,
-    output_schema: Type[_TBaseModel],
-    llm: ModelBase[Literal[False]] | None = None,
-    system_message: SystemMessage | str | None = None,
-    manifest: ToolManifest | None = None,
-) -> Type[StructuredLLM[_TBaseModel]]:
-    pass
-
-
-@overload
-def agent_node(
-    name: str | None = None,
-    *,
-    rag: RagConfig | None = None,
-    output_schema: Type[_TBaseModel],
-    llm: ModelBase[Literal[True]],
-    system_message: SystemMessage | str | None = None,
-    manifest: ToolManifest | None = None,
-) -> Type[StreamingStructuredLLM[_TBaseModel]]:
     pass
 
 
@@ -102,6 +82,71 @@ def agent_node(
     manifest: ToolManifest | None = None,
 ) -> Type[StreamingToolCallLLM]:
     pass
+
+
+# --- Structured overloads (no guardrails) ---
+
+
+@overload
+def agent_node(
+    name: str | None = None,
+    *,
+    rag: RagConfig | None = None,
+    output_schema: Type[_TBaseModel],
+    llm: ModelBase[Literal[False]] | None = None,
+    system_message: SystemMessage | str | None = None,
+    manifest: ToolManifest | None = None,
+    guardrails: None = None,
+) -> Type[StructuredLLM[_TBaseModel]]:
+    pass
+
+
+@overload
+def agent_node(
+    name: str | None = None,
+    *,
+    rag: RagConfig | None = None,
+    output_schema: Type[_TBaseModel],
+    llm: ModelBase[Literal[True]],
+    system_message: SystemMessage | str | None = None,
+    manifest: ToolManifest | None = None,
+    guardrails: None = None,
+) -> Type[StreamingStructuredLLM[_TBaseModel]]:
+    pass
+
+
+# --- Structured overloads (with guardrails) ---
+
+
+@overload
+def agent_node(
+    name: str | None = None,
+    *,
+    rag: RagConfig | None = None,
+    output_schema: Type[_TBaseModel],
+    llm: ModelBase[Literal[False]] | None = None,
+    system_message: SystemMessage | str | None = None,
+    manifest: ToolManifest | None = None,
+    guardrails: Guard,
+) -> Type[GuardedStructuredLLM[_TBaseModel]]:
+    pass
+
+
+@overload
+def agent_node(
+    name: str | None = None,
+    *,
+    rag: RagConfig | None = None,
+    output_schema: Type[_TBaseModel],
+    llm: ModelBase[Literal[True]],
+    system_message: SystemMessage | str | None = None,
+    manifest: ToolManifest | None = None,
+    guardrails: Guard,
+) -> Type[GuardedStreamingStructuredLLM[_TBaseModel]]:
+    pass
+
+
+# --- Terminal overloads ---
 
 
 @overload
@@ -143,6 +188,19 @@ def agent_node(
     pass
 
 
+@overload
+def agent_node(
+    name: str | None = None,
+    *,
+    rag: RagConfig | None = None,
+    llm: ModelBase[Literal[True]],
+    system_message: SystemMessage | str | None = None,
+    manifest: ToolManifest | None = None,
+    guardrails: Guard,
+) -> Type[GuardedStreamingTerminalLLM]:
+    pass
+
+
 def agent_node(
     name: str | None = None,
     *,
@@ -167,6 +225,7 @@ def agent_node(
         max_tool_calls (int | None): Maximum number of tool calls allowed (if it is a ToolCall Agent).
         system_message (SystemMessage | str | None): System message for the agent.
         manifest (ToolManifest | None): If you want to use this as a tool in other agents you can pass in a ToolManifest.
+        guardrails (Guard | None): Guardrail config. When provided, the agent runs input/output guardrails.
     """
     unpacked_tool_nodes: set[Type[Node]] | None = None
     if tool_nodes is not None:
@@ -191,7 +250,7 @@ def agent_node(
     if unpacked_tool_nodes is not None and len(unpacked_tool_nodes) > 0:
         if guardrails is not None:
             raise NotImplementedError(
-                "Guardrails are only supported for terminal agents in Phase 1.5."
+                "Guardrails are not yet supported for tool-calling agents (planned for Phase 7)."
             )
         if output_schema is not None:
             agent = structured_tool_call_llm(
@@ -214,38 +273,25 @@ def agent_node(
                 tool_details=tool_details,
                 tool_params=tool_params,
             )
+    elif output_schema is not None:
+        agent = structured_llm(
+            output_schema=output_schema,
+            name=name,
+            llm=llm,
+            guardrails=guardrails,
+            system_message=system_message,
+            tool_details=tool_details,
+            tool_params=tool_params,
+        )
     else:
-        if output_schema is not None:
-            if guardrails is not None:
-                raise NotImplementedError(
-                    "Guardrails are only supported for terminal agents in Phase 1.5."
-                )
-            agent = structured_llm(
-                output_schema=output_schema,
-                name=name,
-                llm=llm,
-                system_message=system_message,
-                tool_details=tool_details,
-                tool_params=tool_params,
-            )
-        else:
-            if guardrails is None:
-                agent = terminal_llm(
-                    name=name,
-                    llm=llm,
-                    system_message=system_message,
-                    tool_details=tool_details,
-                    tool_params=tool_params,
-                )
-            else:
-                agent = guarded_terminal_llm(
-                    name=name,
-                    llm=llm,
-                    system_message=system_message,
-                    guardrails=guardrails,
-                    tool_details=tool_details,
-                    tool_params=tool_params,
-                )
+        agent = terminal_llm(
+            name=name,
+            llm=llm,
+            guardrails=guardrails,
+            system_message=system_message,
+            tool_details=tool_details,
+            tool_params=tool_params,
+        )
 
     if rag is not None:
 
