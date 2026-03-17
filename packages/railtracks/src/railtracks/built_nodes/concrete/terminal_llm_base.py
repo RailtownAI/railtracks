@@ -115,6 +115,9 @@ class StreamingTerminalLLM(
         Returns:
             (TerminalLLM.Output): The response message from the llm model
         """
+        context = self._pre_invoke(self.message_hist)
+        self.message_hist = context
+
         try:
             returned_mess = await asyncio.to_thread(
                 self.llm_model.chat, self.message_hist

@@ -5,6 +5,9 @@ __all__ = [
     "StructuredResponse",
     "TerminalLLM",
     "GuardedTerminalLLM",
+    "GuardedStreamingTerminalLLM",
+    "GuardedStructuredLLM",
+    "GuardedStreamingStructuredLLM",
     "StructuredLLM",
     "ToolCallLLM",
     "StructuredToolCallLLM",
@@ -21,7 +24,12 @@ __all__ = [
 from ._llm_base import LLMBase, RequestDetails
 from ._tool_call_base import OutputLessToolCallLLM
 from .chat_tool_call_llm import ChatToolCallLLM
-from .guarded_terminal_llm_base import GuardedTerminalLLM
+from .guarded_terminal_llm_base import (
+    GuardedStreamingStructuredLLM,
+    GuardedStreamingTerminalLLM,
+    GuardedStructuredLLM,
+    GuardedTerminalLLM,
+)
 from .function_base import (
     AsyncDynamicFunctionNode,
     DynamicFunctionNode,

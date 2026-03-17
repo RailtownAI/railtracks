@@ -350,6 +350,7 @@ class LLMBase(Node[_T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
     ) -> Generator[str | _TCollectedOutput, None, _TCollectedOutput]:
         for r in returned_mess:
             if isinstance(r, Response):
+                r = self._post_invoke(self.message_hist, r)
                 message = r.message
 
                 self._handle_output(message)
