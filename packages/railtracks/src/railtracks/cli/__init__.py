@@ -47,8 +47,8 @@ except ImportError:
 latest_ui_url = "https://railtownazureb2c.blob.core.windows.net/cdn/rc-viz/latest.zip"
 
 cli_name = "railtracks"
-UI_VERSION_FILE = ".railtracks/.ui_version"
 cli_directory = ".railtracks"
+UI_VERSION_FILE = f"{cli_directory}/.ui_version"
 DEFAULT_PORT = 3030
 
 # FastAPI app instance
@@ -165,6 +165,7 @@ def download_and_extract_ui():
 
     print_status("Downloading latest frontend UI...")
 
+    temp_zip_path = None
     try:
         # Create temporary file for download
         with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as temp_file:
@@ -188,9 +189,6 @@ def download_and_extract_ui():
         with zipfile.ZipFile(temp_zip_path, "r") as zip_ref:
             zip_ref.extractall(ui_dir)
 
-        # Clean up temporary file
-        os.unlink(temp_zip_path)
-
         # Save the version for future update checks
         if ui_version:
             save_ui_version(ui_version)
@@ -209,6 +207,9 @@ def download_and_extract_ui():
     except Exception as e:
         print_error(f"Unexpected error during UI download/extraction: {e}")
         sys.exit(1)
+    finally:
+        if temp_zip_path and os.path.exists(temp_zip_path):
+            os.unlink(temp_zip_path)
 
 
 def init_railtracks():
@@ -476,8 +477,9 @@ def main():
         # Setup directories
         create_railtracks_dir()
 
-        # Check if a newer UI version is available
-        check_for_ui_update()
+        # Check for a newer UI version in the background (non-blocking)
+        update_thread = threading.Thread(target=check_for_ui_update, daemon=True)
+        update_thread.start()
 
         # Start server
         server = RailtracksServer()

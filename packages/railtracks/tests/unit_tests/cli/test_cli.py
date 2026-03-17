@@ -10,6 +10,7 @@ import shutil
 import socket
 import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -785,6 +786,79 @@ class TestUIVersionTracking(unittest.TestCase):
         mock_print.assert_called_once()
         printed_text = mock_print.call_args[0][0]
         self.assertIn('railtracks update', printed_text)
+
+    # --- UI_VERSION_FILE derivation ---
+
+    def test_ui_version_file_derived_from_cli_directory(self):
+        """UI_VERSION_FILE is derived from cli_directory, not hardcoded separately"""
+        import railtracks.cli as cli_module
+        self.assertTrue(
+            cli_module.UI_VERSION_FILE.startswith(cli_module.cli_directory),
+            "UI_VERSION_FILE should start with cli_directory so they stay in sync",
+        )
+
+    # --- temp file cleanup on failure ---
+
+    @patch('railtracks.cli.sys.exit')
+    @patch('railtracks.cli.urllib.request.urlopen')
+    def test_temp_file_deleted_on_extraction_failure(self, mock_urlopen, mock_exit):
+        """Temp zip file is cleaned up even when zip extraction fails"""
+        # Provide a response that returns invalid zip bytes
+        mock_response = MagicMock()
+        mock_response.__enter__ = lambda s: s
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_response.headers.get.return_value = None
+        mock_response.read.return_value = b"not a zip file"
+        mock_urlopen.return_value = mock_response
+
+        captured_paths = []
+        real_NamedTemporaryFile = tempfile.NamedTemporaryFile
+
+        def capturing_ntf(**kwargs):
+            f = real_NamedTemporaryFile(**kwargs)
+            captured_paths.append(f.name)
+            return f
+
+        with patch('railtracks.cli.tempfile.NamedTemporaryFile', side_effect=capturing_ntf):
+            import railtracks.cli as cli_module
+            cli_module.download_and_extract_ui()
+
+        # sys.exit should have been called due to BadZipFile
+        mock_exit.assert_called()
+        # The temp file should have been deleted by the finally block
+        for path in captured_paths:
+            self.assertFalse(os.path.exists(path), f"Temp file {path} was not cleaned up")
+
+    # --- background thread for update check ---
+
+    @patch('railtracks.cli.check_for_ui_update')
+    @patch('railtracks.cli.RailtracksServer')
+    @patch('railtracks.cli.create_railtracks_dir')
+    @patch('railtracks.cli.is_port_in_use', return_value=False)
+    @patch('railtracks.cli.sys.argv', ['railtracks', 'viz'])
+    def test_viz_runs_update_check_in_background_thread(self, _mock_port, _mock_dir,
+                                                         mock_server, mock_check):
+        """viz command runs check_for_ui_update in a daemon thread, not blocking main"""
+        thread_kwargs = {}
+
+        real_Thread = threading.Thread
+
+        def capturing_thread(**kwargs):
+            if kwargs.get('target') is mock_check:
+                thread_kwargs.update(kwargs)
+            return real_Thread(**kwargs)
+
+        mock_server_instance = MagicMock()
+        mock_server.return_value = mock_server_instance
+
+        import railtracks.cli as cli_module
+        with patch('railtracks.cli.threading.Thread', side_effect=capturing_thread):
+            cli_module.main()
+
+        self.assertIs(thread_kwargs.get('target'), mock_check,
+                      "check_for_ui_update should be the thread target")
+        self.assertTrue(thread_kwargs.get('daemon'),
+                        "Update-check thread should be a daemon thread")
 
 
 if __name__ == "__main__":
