@@ -153,7 +153,9 @@ def check_for_ui_update():
 
 
 def _print_update_available():
-    print(f"{Fore.YELLOW}[{cli_name}] A newer UI is available! Run 'railtracks update' to upgrade.{Style.RESET_ALL}")
+    print(
+        f"{Fore.YELLOW}[{cli_name}] A newer UI is available! Run 'railtracks update' to upgrade.{Style.RESET_ALL}"
+    )
 
 
 def download_and_extract_ui():
@@ -172,7 +174,9 @@ def download_and_extract_ui():
         print_status(f"Downloading from: {ui_url}")
         ui_version = None
         with urllib.request.urlopen(ui_url) as response:
-            ui_version = response.headers.get("ETag") or response.headers.get("Last-Modified")
+            ui_version = response.headers.get("ETag") or response.headers.get(
+                "Last-Modified"
+            )
             with open(temp_zip_path, "wb") as f:
                 f.write(response.read())
 

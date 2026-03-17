@@ -17,15 +17,20 @@ from unittest.mock import MagicMock, patch
 from fastapi.testclient import TestClient
 
 from railtracks.cli import (
+    _print_update_available,
     app,
+    check_for_ui_update,
     create_railtracks_dir,
+    get_remote_ui_version,
     get_script_directory,
+    get_stored_ui_version,
     is_port_in_use,
     migrate_railtracks,
     print_error,
     print_status,
     print_success,
     print_warning,
+    save_ui_version,
 )
 
 
@@ -662,6 +667,124 @@ class TestMigrateRailtracks(unittest.TestCase):
         # File should be moved
         self.assertTrue((sessions_dir / "test.json").exists())
         self.assertFalse(test_file.exists())
+
+
+class TestUIVersionTracking(unittest.TestCase):
+    """Test UI version persistence and update-check logic"""
+
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.original_cwd = os.getcwd()
+        os.chdir(self.test_dir)
+        # Create .railtracks dir so the version file path is valid
+        Path(".railtracks").mkdir()
+
+    def tearDown(self):
+        os.chdir(self.original_cwd)
+        shutil.rmtree(self.test_dir)
+
+    # --- get_stored_ui_version ---
+
+    def test_get_stored_ui_version_no_file(self):
+        """Returns None when the version file does not exist"""
+        result = get_stored_ui_version()
+        self.assertIsNone(result)
+
+    def test_get_stored_ui_version_with_file(self):
+        """Returns the stored version string when the file exists"""
+        Path(".railtracks/.ui_version").write_text('"abc-etag-123"')
+        result = get_stored_ui_version()
+        self.assertEqual(result, '"abc-etag-123"')
+
+    def test_get_stored_ui_version_strips_whitespace(self):
+        """Strips leading/trailing whitespace from the stored value"""
+        Path(".railtracks/.ui_version").write_text('  etag-value  \n')
+        result = get_stored_ui_version()
+        self.assertEqual(result, 'etag-value')
+
+    # --- save_ui_version ---
+
+    def test_save_ui_version_writes_file(self):
+        """Writes the version string to the version file"""
+        save_ui_version('"new-etag"')
+        content = Path(".railtracks/.ui_version").read_text()
+        self.assertEqual(content, '"new-etag"')
+
+    def test_save_ui_version_overwrites_existing(self):
+        """Overwrites an existing version file"""
+        Path(".railtracks/.ui_version").write_text('old-etag')
+        save_ui_version('new-etag')
+        self.assertEqual(Path(".railtracks/.ui_version").read_text(), 'new-etag')
+
+    # --- get_remote_ui_version ---
+
+    @patch('railtracks.cli.urllib.request.urlopen')
+    def test_get_remote_ui_version_returns_etag(self, mock_urlopen):
+        """Returns the ETag header from the remote HEAD response"""
+        mock_response = MagicMock()
+        mock_response.headers.get.side_effect = lambda k: '"remote-etag"' if k == 'ETag' else None
+        mock_urlopen.return_value.__enter__.return_value = mock_response
+
+        result = get_remote_ui_version()
+        self.assertEqual(result, '"remote-etag"')
+
+    @patch('railtracks.cli.urllib.request.urlopen')
+    def test_get_remote_ui_version_falls_back_to_last_modified(self, mock_urlopen):
+        """Falls back to Last-Modified when ETag is absent"""
+        mock_response = MagicMock()
+        mock_response.headers.get.side_effect = lambda k: 'Mon, 16 Mar 2026 00:00:00 GMT' if k == 'Last-Modified' else None
+        mock_urlopen.return_value.__enter__.return_value = mock_response
+
+        result = get_remote_ui_version()
+        self.assertEqual(result, 'Mon, 16 Mar 2026 00:00:00 GMT')
+
+    @patch('railtracks.cli.urllib.request.urlopen', side_effect=Exception('network error'))
+    def test_get_remote_ui_version_returns_none_on_error(self, _mock_urlopen):
+        """Returns None when the network request fails"""
+        result = get_remote_ui_version()
+        self.assertIsNone(result)
+
+    # --- check_for_ui_update ---
+
+    @patch('railtracks.cli._print_update_available')
+    def test_check_no_stored_version_skips_check(self, mock_print):
+        """Does nothing when no version is stored (first-time install)"""
+        check_for_ui_update()
+        mock_print.assert_not_called()
+
+    @patch('railtracks.cli.get_remote_ui_version', return_value=None)
+    @patch('railtracks.cli._print_update_available')
+    def test_check_remote_unavailable_skips_warning(self, mock_print, _mock_remote):
+        """Does not warn when the remote version cannot be fetched"""
+        Path(".railtracks/.ui_version").write_text('stored-etag')
+        check_for_ui_update()
+        mock_print.assert_not_called()
+
+    @patch('railtracks.cli.get_remote_ui_version', return_value='stored-etag')
+    @patch('railtracks.cli._print_update_available')
+    def test_check_versions_match_no_warning(self, mock_print, _mock_remote):
+        """Does not warn when stored and remote versions are the same"""
+        Path(".railtracks/.ui_version").write_text('stored-etag')
+        check_for_ui_update()
+        mock_print.assert_not_called()
+
+    @patch('railtracks.cli.get_remote_ui_version', return_value='new-etag')
+    @patch('railtracks.cli._print_update_available')
+    def test_check_versions_differ_shows_warning(self, mock_print, _mock_remote):
+        """Calls _print_update_available when remote version differs from stored"""
+        Path(".railtracks/.ui_version").write_text('old-etag')
+        check_for_ui_update()
+        mock_print.assert_called_once()
+
+    # --- _print_update_available ---
+
+    @patch('builtins.print')
+    def test_print_update_available_contains_update_command(self, mock_print):
+        """Printed message includes the 'railtracks update' command"""
+        _print_update_available()
+        mock_print.assert_called_once()
+        printed_text = mock_print.call_args[0][0]
+        self.assertIn('railtracks update', printed_text)
 
 
 if __name__ == "__main__":
