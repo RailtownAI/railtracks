@@ -8,7 +8,7 @@ uuid, and that the context/result are MessageHistory and Response.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from railtracks.llm.response import Response
 
@@ -40,7 +40,10 @@ class LLMGuardrailsMixin:
         model_provider = getattr(self.llm_model, "model_provider", None)
         if callable(model_provider):
             model_provider = model_provider()
-        return model_name, str(model_provider) if model_provider is not None else None
+        return (
+            cast(str | None, model_name),
+            str(model_provider) if model_provider is not None else None,
+        )
 
     def _build_input_event(self, context: Any) -> LLMGuardrailEvent:
         """Build LLMGuardrailEvent for input phase from context (MessageHistory)."""
@@ -82,9 +85,8 @@ class LLMGuardrailsMixin:
                 traces=traces,
                 meta=decision.meta,
             )
-        if decision is not None and decision.action == GuardrailAction.TRANSFORM and decision.messages is not None:
-            return decision.messages
-        return context
+
+        return new_context
 
     def _post_invoke(self, context: Any, result: Any) -> Any:
         if self.guardrails is None or not self.guardrails.output:
