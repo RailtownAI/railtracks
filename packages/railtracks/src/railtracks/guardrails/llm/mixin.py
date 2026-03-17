@@ -1,9 +1,9 @@
 """
 Mixin that implements LLMBase._pre_invoke and _post_invoke by running input/output guardrails.
 
-Use by inheriting from this mixin and an LLM node class (e.g. TerminalLLM). Set guardrails=
-when building the node. The mixin assumes self has message_hist, llm_model, uuid, and
-that the context/result are MessageHistory and Response (for terminal LLM).
+Use by inheriting from this mixin and an LLM node class (e.g. TerminalLLM, StructuredLLM).
+Set guardrails= when building the node. The mixin assumes self has message_hist, llm_model,
+uuid, and that the context/result are MessageHistory and Response.
 """
 
 from __future__ import annotations
@@ -25,40 +25,47 @@ class LLMGuardrailsMixin:
 
     guardrails: Guard | None = None
 
-    def _build_input_event(self, context: Any) -> LLMGuardrailEvent:
-        """Build LLMGuardrailEvent for input phase from context (MessageHistory)."""
+    def _guardrail_agent_kind(self) -> str:
+        cls_name = self.__class__.__name__.lower()
+        if "structured" in cls_name:
+            return "structured"
+        if "terminal" in cls_name:
+            return "terminal"
+        return "llm"
+
+    def _resolve_model_metadata(self) -> tuple[str | None, str | None]:
         model_name = getattr(self.llm_model, "model_name", None)
         if callable(model_name):
             model_name = model_name()
         model_provider = getattr(self.llm_model, "model_provider", None)
         if callable(model_provider):
             model_provider = model_provider()
+        return model_name, str(model_provider) if model_provider is not None else None
+
+    def _build_input_event(self, context: Any) -> LLMGuardrailEvent:
+        """Build LLMGuardrailEvent for input phase from context (MessageHistory)."""
+        model_name, model_provider = self._resolve_model_metadata()
         return LLMGuardrailEvent(
             phase=LLMGuardrailPhase.INPUT,
             messages=context,
             node_name=self.__class__.name(),
             node_uuid=self.uuid,
             model_name=model_name,
-            model_provider=str(model_provider) if model_provider is not None else None,
-            tags={"agent_kind": "terminal"},
+            model_provider=model_provider,
+            tags={"agent_kind": self._guardrail_agent_kind()},
         )
 
     def _build_output_event(self, context: Any) -> LLMGuardrailEvent:
         """Build LLMGuardrailEvent for output phase from context (MessageHistory)."""
-        model_name = getattr(self.llm_model, "model_name", None)
-        if callable(model_name):
-            model_name = model_name()
-        model_provider = getattr(self.llm_model, "model_provider", None)
-        if callable(model_provider):
-            model_provider = model_provider()
+        model_name, model_provider = self._resolve_model_metadata()
         return LLMGuardrailEvent(
             phase=LLMGuardrailPhase.OUTPUT,
             messages=context,
             node_name=self.__class__.name(),
             node_uuid=self.uuid,
             model_name=model_name,
-            model_provider=str(model_provider) if model_provider is not None else None,
-            tags={"agent_kind": "terminal"},
+            model_provider=model_provider,
+            tags={"agent_kind": self._guardrail_agent_kind()},
         )
 
     def _pre_invoke(self, context: Any) -> Any:
