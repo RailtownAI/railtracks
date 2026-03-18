@@ -1,5 +1,11 @@
 # Image Input
 
+<div class="rt-video-container">
+  <video controls style="width: 100%; border-radius: 12px;">
+    <source src="https://railtracksstorage.blob.core.windows.net/railtrackswebsite/videos/Multimodal.mp4" type="video/mp4">
+  </video>
+</div>
+
 Inputting the images to your agents is quite simple and follows the same logic as text with a few minor differences. There are currently three ways to supply an agent with an image:
 
 1. Path to a local image file
@@ -39,6 +45,7 @@ Below you can find all three methods in play. Simply provide the **`attachment`*
 The rest of the invocation (tool_calling, structured_output, etc) will remain the same.
 !!! warning "File Types"
     Supported file types will correspond to the file types supported by the underlying LLM used.
+
 
 # Image Output
 We're currently not natively supporting outputing images. You can however wrap any image generation logic within a tool and provide your agent with that tool's specifications to achieve this behaviour.
