@@ -415,7 +415,7 @@ class StringOutputMixIn:
                 reason="ModelLLM did not return a message with content. This is known error with `gemini-2.5-flash-lite`, and can be fixed",
                 message_history=self.message_hist,
             )
-        
+
         return StringResponse(
             content=message.content,
             message_history=self.message_hist.removed_system_messages(),
