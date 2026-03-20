@@ -1,5 +1,11 @@
 # Agents as Tools
 
+<div class="rt-video-container">
+  <video controls style="width: 100%; border-radius: 12px;">
+    <source src="https://railtracksstorage.blob.core.windows.net/railtrackswebsite/videos/Multiagent.mp4" type="video/mp4">
+  </video>
+</div>
+
 In Railtracks, you can use any **Agent** as a tool that other agents can use. This allows you to create complex agents that can be composed of smaller, reusable components. 
 
 !!! info "What are Nodes?"
