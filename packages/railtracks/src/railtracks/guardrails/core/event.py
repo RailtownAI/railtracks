@@ -94,10 +94,21 @@ def _deserialize_message(payload: dict[str, Any]) -> Message:
 
 
 class LLMGuardrailEvent(BaseModel):
+    """
+    Event passed to LLM guardrails.
+
+    - ``messages``: conversation context (usually the history *before* the current
+      assistant reply is appended to the node).
+    - ``output_message``: for ``phase == OUTPUT``, the assistant ``Message`` being
+      guarded this turn; ``None`` for INPUT phase or when not applicable.
+    """
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     phase: LLMGuardrailPhase
     messages: MessageHistory
+    output_message: Message | None = None
+
     node_name: str | None = None
     node_uuid: str | None = None
     run_id: str | None = None
@@ -128,3 +139,26 @@ class LLMGuardrailEvent(BaseModel):
                 "messages must be a MessageHistory or serialized list of messages."
             )
         return MessageHistory([_deserialize_message(message) for message in value])
+
+    @field_serializer("output_message")
+    def _serialize_output_message(self, output_message: Message | None):
+        if output_message is None:
+            return None
+        return {
+            "role": output_message.role.value,
+            "inject_prompt": output_message.inject_prompt,
+            "content": _serialize_content(output_message.content),
+        }
+
+    @field_validator("output_message", mode="before")
+    @classmethod
+    def _deserialize_output_message(cls, value: Any):
+        if value is None:
+            return None
+        if isinstance(value, Message):
+            return value
+        if isinstance(value, dict):
+            return _deserialize_message(value)
+        raise ValueError(
+            "output_message must be None, a Message, or a serialized message dict."
+        )

@@ -100,12 +100,15 @@ class GuardRunner:
             if decision.action == GuardrailAction.TRANSFORM:
                 try:
                     value = apply_transform(value, decision)
-                    # Propagate intermediate transforms so subsequent rails see the updated messages
+                    # Propagate intermediate transforms so subsequent rails see updates.
                     if phase == LLMGuardrailPhase.INPUT:
                         event = event.model_copy(
                             update={"messages": cast(MessageHistory, value)}
                         )
-                    # TODO: Make a decision on whether to propagate transforms to output rails.
+                    elif phase == LLMGuardrailPhase.OUTPUT:
+                        event = event.model_copy(
+                            update={"output_message": cast(Message, value)}
+                        )
                 except Exception as e:
                     traces.append(
                         _trace_for_exception(rail=rail, phase=phase, exc=e)
@@ -154,6 +157,7 @@ class GuardRunner:
             if event.phase == LLMGuardrailPhase.INPUT
             else event.model_copy(update={"phase": LLMGuardrailPhase.INPUT})
         )
+        input_event = input_event.model_copy(update={"output_message": None})
 
         def apply_transform(
             current: MessageHistory, decision: GuardrailDecision
@@ -186,6 +190,7 @@ class GuardRunner:
             if event.phase == LLMGuardrailPhase.OUTPUT
             else event.model_copy(update={"phase": LLMGuardrailPhase.OUTPUT})
         )
+        output_event = output_event.model_copy(update={"output_message": output})
 
         def apply_transform(current: Message, decision: GuardrailDecision) -> Message:
             # Same rationale as input: signature stays uniform across phases.

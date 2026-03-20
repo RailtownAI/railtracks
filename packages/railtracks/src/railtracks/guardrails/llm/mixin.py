@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import Any, cast
 
+from railtracks.llm.message import Message
 from railtracks.llm.response import Response
 
 from ..core import Guard, GuardRunner, GuardrailBlockedError
@@ -58,12 +59,15 @@ class LLMGuardrailsMixin:
             tags={"agent_kind": self._guardrail_agent_kind()},
         )
 
-    def _build_output_event(self, context: Any) -> LLMGuardrailEvent:
-        """Build LLMGuardrailEvent for output phase from context (MessageHistory)."""
+    def _build_output_event(
+        self, context: Any, assistant_message: Message
+    ) -> LLMGuardrailEvent:
+        """Build LLMGuardrailEvent for output phase: context is message history; assistant_message is this turn's output."""
         model_name, model_provider = self._resolve_model_metadata()
         return LLMGuardrailEvent(
             phase=LLMGuardrailPhase.OUTPUT,
             messages=context,
+            output_message=assistant_message,
             node_name=self.__class__.name(),
             node_uuid=self.uuid,
             model_name=model_name,
@@ -93,7 +97,7 @@ class LLMGuardrailsMixin:
             return result
         if not isinstance(result, Response):
             return result
-        event = self._build_output_event(context)
+        event = self._build_output_event(context, result.message)
         new_message, traces, decision = GuardRunner(self.guardrails).run_llm_output(
             event, result.message
         )
@@ -106,6 +110,5 @@ class LLMGuardrailsMixin:
                 traces=traces,
                 meta=decision.meta,
             )
-        if decision is not None and decision.action == GuardrailAction.TRANSFORM and decision.output_message is not None:
-            return Response(message=decision.output_message, message_info=result.message_info)
-        return result
+
+        return Response(message=new_message, message_info=result.message_info)

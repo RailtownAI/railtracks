@@ -11,7 +11,8 @@ class Guard(BaseModel):
 
     ``input`` and ``output`` are lists of LLM guardrails (see :class:`LLMGuardrail`).
     The runner expects each rail to be callable with :class:`LLMGuardrailEvent` and
-    return a :class:`GuardrailDecision`.
+    return a :class:`GuardrailDecision`. For output rails, the guarded assistant
+    message is ``event.output_message`` (see :class:`~railtracks.guardrails.core.event.LLMGuardrailEvent`).
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)

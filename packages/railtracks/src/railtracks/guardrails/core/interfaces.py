@@ -13,6 +13,10 @@ class LLMGuardrail(Protocol):
 
     Use this type when you need to accept any guardrail-like object (e.g. in APIs)
     without requiring a specific base class.
+
+    For OUTPUT-phase rails, read the model reply from ``event.output_message`` (not
+    ``event.messages[-1]``), which may omit the current assistant reply until the node
+    appends it to history.
     """
 
     name: str
@@ -42,6 +46,11 @@ class InputGuard(BaseLLMGuardrail):
 
 
 class OutputGuard(BaseLLMGuardrail):
-    """Base for guardrails that run on LLM output (e.g. model response)."""
+    """
+    Base for guardrails that run on LLM output (e.g. model response).
+
+    Inspect ``event.output_message`` for the assistant message produced this turn.
+    ``event.messages`` is conversation context and may not yet include that reply.
+    """
 
     phase = LLMGuardrailPhase.OUTPUT
