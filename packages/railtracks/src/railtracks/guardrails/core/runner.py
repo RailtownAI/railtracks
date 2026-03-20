@@ -100,6 +100,12 @@ class GuardRunner:
             if decision.action == GuardrailAction.TRANSFORM:
                 try:
                     value = apply_transform(value, decision)
+                    # Propagate intermediate transforms so subsequent rails see the updated messages
+                    if phase == LLMGuardrailPhase.INPUT:
+                        event = event.model_copy(
+                            update={"messages": cast(MessageHistory, value)}
+                        )
+                    # TODO: Make a decision on whether to propagate transforms to output rails.
                 except Exception as e:
                     traces.append(
                         _trace_for_exception(rail=rail, phase=phase, exc=e)
