@@ -50,4 +50,3 @@ def guarded_terminal_llm(
         builder.tool_callable_llm(tool_details, tool_params)
 
     return builder.build()
-

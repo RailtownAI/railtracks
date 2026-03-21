@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Callable, Iterable, TypeVar, cast
 
-from railtracks.llm.message import Message
 from railtracks.llm.history import MessageHistory
+from railtracks.llm.message import Message
 
 from .config import Guard
 from .decision import GuardrailAction, GuardrailDecision
@@ -110,9 +110,7 @@ class GuardRunner:
                             update={"output_message": cast(Message, value)}
                         )
                 except Exception as e:
-                    traces.append(
-                        _trace_for_exception(rail=rail, phase=phase, exc=e)
-                    )
+                    traces.append(_trace_for_exception(rail=rail, phase=phase, exc=e))
                     if self.guard.fail_open:
                         continue
                     block = GuardrailDecision.block(
@@ -208,4 +206,3 @@ class GuardRunner:
             apply_transform=apply_transform,
         )
         return value, traces, blocked
-

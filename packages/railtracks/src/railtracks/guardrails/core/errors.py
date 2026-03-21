@@ -49,4 +49,3 @@ class GuardrailBlockedError(NodeInvocationError):
             notes=[*(notes or []), *derived_notes],
             fatal=fatal,
         )
-

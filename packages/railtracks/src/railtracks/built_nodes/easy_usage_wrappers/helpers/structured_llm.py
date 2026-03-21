@@ -57,7 +57,9 @@ def structured_llm(
     is_streaming = llm is not None and llm.stream
 
     if guardrails is not None:
-        base_cls = GuardedStreamingStructuredLLM if is_streaming else GuardedStructuredLLM
+        base_cls = (
+            GuardedStreamingStructuredLLM if is_streaming else GuardedStructuredLLM
+        )
     else:
         base_cls = StreamingStructuredLLM if is_streaming else StructuredLLM
 

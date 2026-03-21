@@ -13,7 +13,7 @@ from typing import Any, cast
 from railtracks.llm.message import Message
 from railtracks.llm.response import Response
 
-from ..core import Guard, GuardRunner, GuardrailBlockedError
+from ..core import Guard, GuardrailBlockedError, GuardRunner
 from ..core.decision import GuardrailAction
 from ..core.event import LLMGuardrailEvent, LLMGuardrailPhase
 
@@ -79,7 +79,9 @@ class LLMGuardrailsMixin:
         if self.guardrails is None or not self.guardrails.input:
             return context
         event = self._build_input_event(context)
-        new_context, traces, decision = GuardRunner(self.guardrails).run_llm_input(event)
+        new_context, traces, decision = GuardRunner(self.guardrails).run_llm_input(
+            event
+        )
         if decision is not None and decision.action == GuardrailAction.BLOCK:
             rail_name = traces[-1].rail_name if traces else None
             raise GuardrailBlockedError(

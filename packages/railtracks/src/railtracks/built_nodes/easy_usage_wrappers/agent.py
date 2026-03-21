@@ -4,11 +4,11 @@ from typing import Callable, Iterable, Literal, Type, TypeVar, overload
 from pydantic import BaseModel
 
 from railtracks.built_nodes.concrete import (
-    RTFunction,
     GuardedStreamingStructuredLLM,
     GuardedStreamingTerminalLLM,
     GuardedStructuredLLM,
     GuardedTerminalLLM,
+    RTFunction,
     StructuredLLM,
     StructuredToolCallLLM,
     TerminalLLM,
@@ -19,17 +19,16 @@ from railtracks.built_nodes.concrete.rag import RagConfig, update_context
 from railtracks.built_nodes.concrete.structured_llm_base import StreamingStructuredLLM
 from railtracks.built_nodes.concrete.terminal_llm_base import StreamingTerminalLLM
 from railtracks.built_nodes.concrete.tool_call_llm_base import StreamingToolCallLLM
+from railtracks.guardrails.core import Guard
 from railtracks.llm.message import SystemMessage
 from railtracks.llm.model import ModelBase
 from railtracks.nodes.manifest import ToolManifest
 from railtracks.nodes.nodes import Node
 from railtracks.nodes.utils import extract_node_from_function
-from railtracks.guardrails.core import Guard
 
 from .helpers import (
     structured_llm,
     structured_tool_call_llm,
-    guarded_terminal_llm,
     terminal_llm,
     tool_call_llm,
 )

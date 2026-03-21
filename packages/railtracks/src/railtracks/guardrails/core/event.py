@@ -87,7 +87,9 @@ def _deserialize_message(payload: dict[str, Any]) -> Message:
         return AssistantMessage(content=content, inject_prompt=inject_prompt)
     if role == Role.tool.value:
         if not isinstance(content, ToolResponse):
-            raise ValueError("Tool messages must deserialize into ToolResponse content.")
+            raise ValueError(
+                "Tool messages must deserialize into ToolResponse content."
+            )
         return ToolMessage(content=content)
 
     raise ValueError(f"Unknown serialized message role: {role}")
