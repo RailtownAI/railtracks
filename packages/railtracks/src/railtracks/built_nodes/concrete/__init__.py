@@ -24,7 +24,7 @@ __all__ = [
 from ._llm_base import LLMBase, RequestDetails
 from ._tool_call_base import OutputLessToolCallLLM
 from .chat_tool_call_llm import ChatToolCallLLM
-from .guarded_terminal_llm_base import (
+from .guarded_llm import (
     GuardedStreamingStructuredLLM,
     GuardedStreamingTerminalLLM,
     GuardedStructuredLLM,
