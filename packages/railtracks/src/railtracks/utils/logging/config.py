@@ -15,6 +15,8 @@ AllowableLogLevels = Literal[
     "NONE",
 ]
 
+LoggerNameDisplay = Literal["full", "short"]
+
 str_to_log_level: Dict[str, int] = {
     "DEBUG": logging.DEBUG,
     "INFO": logging.INFO,
@@ -28,7 +30,7 @@ str_to_log_level: Dict[str, int] = {
 rt_logger_name = "RT"
 rt_logger = logging.getLogger(rt_logger_name)
 
-_default_format_string = "%(timestamp_color)s[+%(relative_seconds)-7ss] %(level_color)s%(name)-12s: %(levelname)-8s - %(message)s%(default_color)s"
+_default_format_string = "%(timestamp_color)s[+%(relative_seconds)-7ss] %(level_color)s%(rt_display_name)-12s: %(levelname)-8s - %(message)s%(default_color)s"
 
 
 _file_format_string = (
@@ -47,6 +49,31 @@ _module_logging_file: ContextVar[str | os.PathLike | None] = ContextVar(
 
 # Initialize colorama
 init(autoreset=True)
+
+
+def _short_suffix_label(segment: str) -> str:
+    """
+    Last path segment for console short mode: drop leading non-letters (e.g. `_`),
+    then capitalize so the label starts with an uppercase letter.
+    """
+    cleaned = re.sub(r"^[^a-zA-Z]+", "", segment)
+    if not cleaned:
+        return segment
+    return cleaned.capitalize()
+
+
+def _console_display_name(
+    logger_name: str, *, name_style: LoggerNameDisplay, rt_prefix: str
+) -> str:
+    if name_style == "full":
+        return logger_name
+    if logger_name == rt_prefix:
+        return rt_prefix
+    prefix_dot = f"{rt_prefix}."
+    if logger_name.startswith(prefix_dot):
+        suffix = logger_name.split(".")[-1]
+        return f"{rt_prefix}.{_short_suffix_label(suffix)}"
+    return logger_name
 
 
 class ThreadAwareFilter(logging.Filter):
@@ -82,8 +109,15 @@ class ColorfulFormatter(logging.Formatter):
     A simple formatter that can be used to format log messages with colours based on the log level and specific keywords.
     """
 
-    def __init__(self, fmt=None, datefmt=None):
+    def __init__(
+        self,
+        fmt=None,
+        datefmt=None,
+        *,
+        name_style: LoggerNameDisplay = "short",
+    ):
         super().__init__(fmt, datefmt)
+        self.name_style: LoggerNameDisplay = name_style
         self.level_colors = {
             logging.DEBUG: Fore.CYAN,
             logging.INFO: Fore.WHITE,  # White for logger.info
@@ -123,6 +157,12 @@ class ColorfulFormatter(logging.Formatter):
                 f"{color}\\1{level_color}",
                 colored_message,
             )
+
+        record.rt_display_name = _console_display_name(
+            record.name,
+            name_style=self.name_style,
+            rt_prefix=rt_logger_name,
+        )
 
         record.timestamp_color = self.timestamp_color
         record.level_color = level_color
@@ -179,6 +219,7 @@ def prepare_logger(
     *,
     setting: AllowableLogLevels | None,
     path: str | os.PathLike | None = None,
+    name_style: LoggerNameDisplay = "short",
 ):
     """
     Prepares the logger based on the setting and optionally sets up the file handler if a path is provided.
@@ -188,7 +229,7 @@ def prepare_logger(
         setup_file_handler(file_name=path, file_logging_level=logging.INFO)
 
     console_handler = logging.StreamHandler()
-    formatter = ColorfulFormatter(fmt=_default_format_string)
+    formatter = ColorfulFormatter(fmt=_default_format_string, name_style=name_style)
     console_handler.setFormatter(formatter)
 
     logger = logging.getLogger(rt_logger_name)
@@ -225,6 +266,8 @@ def detach_logging_handlers():
 def initialize_module_logging(
     level: AllowableLogLevels | None = None,
     log_file: str | os.PathLike | None = None,
+    *,
+    name_style: LoggerNameDisplay = "short",
 ) -> None:
     """
     Initialize module-level logging (internal). Use enable_logging() for the public API.
@@ -268,7 +311,7 @@ def initialize_module_logging(
 
     console_handler = logging.StreamHandler()
     console_handler.addFilter(ThreadAwareFilter())
-    formatter = ColorfulFormatter(fmt=_default_format_string)
+    formatter = ColorfulFormatter(fmt=_default_format_string, name_style=name_style)
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
 
@@ -280,6 +323,8 @@ def initialize_module_logging(
 def enable_logging(
     level: AllowableLogLevels = "INFO",
     log_file: str | os.PathLike | None = None,
+    *,
+    name_style: LoggerNameDisplay = "short",
 ) -> None:
     """
     Opt-in helper to enable Railtracks logging. Call this explicitly from your
@@ -293,5 +338,8 @@ def enable_logging(
     Args:
         level: Logging level (default "INFO"). Overridden by RT_LOG_LEVEL when None.
         log_file: Optional path for a log file. Overridden by RT_LOG_FILE when None.
+        name_style: Console column for logger name: ``full`` (dotted name) or
+            ``short`` (``RT.<Label>``: last segment with leading non-letters stripped,
+            then capitalized). Default ``short``.
     """
-    initialize_module_logging(level=level, log_file=log_file)
+    initialize_module_logging(level=level, log_file=log_file, name_style=name_style)
