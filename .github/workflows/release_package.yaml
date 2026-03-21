@@ -47,6 +47,11 @@ jobs:
           echo "VERSION_CLEANED=$VERSION_CLEANED" >> $GITHUB_ENV
           echo "Publishing railtracks version: $VERSION_CLEANED"
 
+      - name: Update version in claude-plugin plugin.json
+        run: |
+          sed -i -E 's/"version": ".+"/"version": "'"$VERSION_CLEANED"'"/' claude-plugin/.claude-plugin/plugin.json
+          echo "Updated claude-plugin plugin.json to version $VERSION_CLEANED"
+          
       - name: Update version in railtracks __init__.py
         run: |
           sed -i -E 's/__version__ = ".+"/__version__ = "'"$VERSION_CLEANED"'"/' packages/railtracks/src/railtracks/__init__.py
