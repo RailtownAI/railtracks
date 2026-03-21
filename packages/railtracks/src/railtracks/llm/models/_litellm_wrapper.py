@@ -39,6 +39,7 @@ _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 
 # Dropped unsupported parameters from the request to the model.
 litellm.drop_params = True
+litellm.modify_params = True
 
 
 def _process_single_parameter(p: Parameter) -> tuple[str, Dict[str, Any], bool]:
@@ -216,10 +217,6 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
 
         if self.temperature is not None:
             merged["temperature"] = self.temperature
-
-        warnings.filterwarnings(
-            "ignore", category=UserWarning, module="pydantic.*"
-        )  # Supress pydantic warnings. See issue #204 for more deatils.
 
         completion = litellm.completion(
             model=self._model_name,
@@ -714,12 +711,6 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         # only time this is true is tool calls, need to return litellm.utils.Message
         elif isinstance(msg.content, list):
             assert all(isinstance(t_c, ToolCall) for t_c in msg.content)
-            # If a raw litellm message was stored (e.g. to preserve Gemini
-            # thought_signature), return it directly so litellm round-trips the
-            # provider-specific metadata automatically.
-            raw = getattr(msg, "raw_litellm_message", None)
-            if raw is not None:
-                return raw
             base["content"] = ""
             base["tool_calls"] = [
                 litellm.utils.ChatCompletionMessageToolCall(
@@ -731,6 +722,29 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
                 )
                 for tool_call in msg.content
             ]
+            # Copy provider-specific metadata (e.g. Gemini thought_signature)
+            # from the raw litellm message without returning it wholesale,
+            # since msg.content may have been truncated and returning the raw
+            # message would re-introduce tool_call_ids that lack responses.
+            raw = getattr(msg, "raw_litellm_message", None)
+            if raw is not None:
+                _standard_fields = {
+                    "role",
+                    "content",
+                    "tool_calls",
+                    "function_call",
+                    "name",
+                }
+                raw_dict = (
+                    raw
+                    if isinstance(raw, dict)
+                    else vars(raw)
+                    if hasattr(raw, "__dict__")
+                    else {}
+                )
+                for key, value in raw_dict.items():
+                    if key not in _standard_fields and value is not None:
+                        base[key] = value
         else:
             base["content"] = msg.content
         return base
