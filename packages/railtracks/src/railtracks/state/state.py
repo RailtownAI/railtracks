@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, ParamSpec, Tuple, TypeVar
 
-from ..context.central import update_parent_id
+from ..context.central import update_parent_id, runner_context, safe_get_runner_context
 from ..execution.coordinator import Coordinator
 from ..execution.task import Task
 from ..pubsub.messages import (
@@ -88,18 +88,23 @@ class RTState:
         if isinstance(item, RequestFinishedBase):
             await self.handle_result(item)
         if isinstance(item, RequestCreation):
+            previous_context = safe_get_runner_context()
             if item.current_node_id is not None:
                 update_parent_id(item.current_node_id, item.current_run_id)
 
-            assert item.new_request_id not in self._request_heap.heap().keys()
+            try:
+                assert item.new_request_id not in self._request_heap.heap().keys()
 
-            await self.call_nodes(
-                parent_node_id=item.current_node_id,
-                request_id=item.new_request_id,
-                node=item.new_node_type,
-                args=item.args,
-                kwargs=item.kwargs,
-            )
+                await self.call_nodes(
+                    parent_node_id=item.current_node_id,
+                    request_id=item.new_request_id,
+                    node=item.new_node_type,
+                    args=item.args,
+                    kwargs=item.kwargs,
+                )
+            finally:
+                # restore publisher context after dispatching child tasks so root calls don't inherit stale run IDs
+                runner_context.set(previous_context)
 
     def shutdown(self):
         """
