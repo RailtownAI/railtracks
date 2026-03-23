@@ -4,6 +4,7 @@ import json
 import time
 import warnings
 from abc import ABC
+from enum import Enum
 from json import JSONDecodeError
 from typing import (
     Any,
@@ -34,6 +35,15 @@ from ..model import ModelBase
 from ..response import MessageInfo, Response
 from ..tools import Tool
 from ..tools.parameters import Parameter
+
+# We should monitor litellm.types.llms.openai.OpenAIChatCompletionFinishReason
+# and add any new finish reasons to this enum as needed.
+class FinishReason(str, Enum):
+    STOP = "stop"
+    CONTENT_FILTER = "content_filter"
+    TOOL_CALLS = "tool_calls"
+    LENGTH = "length"
+
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 
@@ -456,7 +466,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
 
     def _is_stream_finished(self, choice) -> bool:
         """Check if the stream has finished."""
-        return choice.finish_reason in ("stop", "tool_calls")
+        return choice.finish_reason in FinishReason._value2member_map_
 
     def _finalize_remaining_tool_calls(
         self, active_tool_calls: dict[int, StreamedToolCall]
@@ -538,26 +548,35 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         Handle the response from litellm.completion when using tools.
         """
         choice = raw.choices[0]
+        finish_reason = FinishReason(choice.finish_reason) if choice.finish_reason in FinishReason._value2member_map_ else None
 
-        if choice.finish_reason == "stop" and not choice.message.tool_calls:
-            return Response(
-                message=AssistantMessage(content=choice.message.content),
-                message_info=info,
-            )
-
-        calls: List[ToolCall] = []
-        for tc in choice.message.tool_calls:
-            args = json.loads(tc.function.arguments)
-            calls.append(
-                ToolCall(identifier=tc.id, name=tc.function.name, arguments=args)
-            )
-
-        assistant_msg = AssistantMessage(content=calls)
-
-        # Preserve the raw litellm message so that provider-specific metadata
-        # (e.g. Gemini thought_signature) is round-tripped back verbatim.
-        assistant_msg.raw_litellm_message = choice.message
-        return Response(message=assistant_msg, message_info=info)
+        match finish_reason:
+            case FinishReason.STOP | FinishReason.LENGTH:
+                return Response(
+                    message=AssistantMessage(content=choice.message.content),
+                    message_info=info,
+                )
+            case FinishReason.CONTENT_FILTER:
+                return Response(
+                    message=AssistantMessage(content="[Content Filtered]"),
+                    message_info=info,
+                )
+            case FinishReason.TOOL_CALLS:
+                calls: List[ToolCall] = []
+                for tc in choice.message.tool_calls:
+                    args = json.loads(tc.function.arguments)
+                    calls.append(
+                        ToolCall(identifier=tc.id, name=tc.function.name, arguments=args)
+                    )
+                assistant_msg = AssistantMessage(content=calls)
+                # Preserve the raw litellm message so that provider-specific metadata
+                # (e.g. Gemini thought_signature) is round-tripped back verbatim.
+                assistant_msg.raw_litellm_message = choice.message
+                return Response(message=assistant_msg, message_info=info)
+            case _:
+                raise ValueError(
+                    f"Unexpected finish reason: {choice.finish_reason!r}. Full response: {raw}"
+                )
 
     # ================ END Base Handlers ===============
 
