@@ -47,9 +47,7 @@ def _unpack_tool_nodes(
         if isinstance(node, FunctionType):
             unpacked.add(extract_node_from_function(node))
         else:
-            assert issubclass(node, Node), (
-                f"Expected {node} to be a subclass of Node"
-            )
+            assert issubclass(node, Node), f"Expected {node} to be a subclass of Node"
             unpacked.add(node)
     return unpacked
 

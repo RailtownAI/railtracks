@@ -77,7 +77,10 @@ class GuardRunner:
         traces: list[GuardrailTrace],
         value: _TValue,
         reason_prefix: str,
-    ) -> tuple[Literal["continue"], _TValue] | tuple[Literal["stop"], _TValue, GuardrailDecision]:
+    ) -> (
+        tuple[Literal["continue"], _TValue]
+        | tuple[Literal["stop"], _TValue, GuardrailDecision]
+    ):
         traces.append(_trace_for_exception(rail=rail, phase=phase, exc=exc))
         if self.guard.fail_open:
             return ("continue", value)
@@ -151,9 +154,10 @@ class GuardRunner:
         value: _TValue,
         traces: list[GuardrailTrace],
         apply_transform: Callable[[_TValue, GuardrailDecision], _TValue],
-    ) -> tuple[Literal["continue"], _TValue, LLMGuardrailEvent] | tuple[
-        Literal["stop"], _TValue, GuardrailDecision
-    ]:
+    ) -> (
+        tuple[Literal["continue"], _TValue, LLMGuardrailEvent]
+        | tuple[Literal["stop"], _TValue, GuardrailDecision]
+    ):
         try:
             decision = rail(event)
             if not isinstance(decision, GuardrailDecision):
@@ -173,9 +177,7 @@ class GuardRunner:
                 return ("continue", value, event)
             return ("stop", outcome[1], outcome[2])
 
-        traces.append(
-            _trace_from_decision(rail=rail, phase=phase, decision=decision)
-        )
+        traces.append(_trace_from_decision(rail=rail, phase=phase, decision=decision))
 
         if decision.action == GuardrailAction.ALLOW:
             return ("continue", value, event)
