@@ -20,8 +20,6 @@ from railtracks.pubsub.messages import (
     RequestFinishedBase,
 )
 
-from packages.railtracks.tests.unit_tests.execution.conftest import mock_node
-
 # ============================ START Helper Classes ============================
 
 
