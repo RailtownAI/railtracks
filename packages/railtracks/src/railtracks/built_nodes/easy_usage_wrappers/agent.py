@@ -37,6 +37,80 @@ _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 _TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
 
+def _unpack_tool_nodes(
+    tool_nodes: Iterable[Type[Node] | Callable | RTFunction] | None,
+) -> set[Type[Node]] | None:
+    if tool_nodes is None:
+        return None
+    unpacked: set[Type[Node]] = set()
+    for node in tool_nodes:
+        if isinstance(node, FunctionType):
+            unpacked.add(extract_node_from_function(node))
+        else:
+            assert issubclass(node, Node), (
+                f"Expected {node} to be a subclass of Node"
+            )
+            unpacked.add(node)
+    return unpacked
+
+
+def _build_dynamic_agent(
+    *,
+    unpacked_tool_nodes: set[Type[Node]] | None,
+    output_schema: Type[_TBaseModel] | None,
+    name: str | None,
+    llm: ModelBase[_TStream] | None,
+    max_tool_calls: int | None,
+    system_message: SystemMessage | str | None,
+    tool_details: str | None,
+    tool_params: set | Iterable | None,
+    guardrails: Guard | None,
+):
+    if unpacked_tool_nodes is not None and len(unpacked_tool_nodes) > 0:
+        if guardrails is not None:
+            raise NotImplementedError(
+                "Guardrails are not yet supported for tool-calling agents (planned for Phase 7)."
+            )
+        if output_schema is not None:
+            return structured_tool_call_llm(
+                tool_nodes=unpacked_tool_nodes,
+                output_schema=output_schema,
+                name=name,
+                llm=llm,
+                max_tool_calls=max_tool_calls,
+                system_message=system_message,
+                tool_details=tool_details,
+                tool_params=tool_params,
+            )
+        return tool_call_llm(
+            tool_nodes=unpacked_tool_nodes,
+            name=name,
+            llm=llm,
+            max_tool_calls=max_tool_calls,
+            system_message=system_message,
+            tool_details=tool_details,
+            tool_params=tool_params,
+        )
+    if output_schema is not None:
+        return structured_llm(
+            output_schema=output_schema,
+            name=name,
+            llm=llm,
+            guardrails=guardrails,
+            system_message=system_message,
+            tool_details=tool_details,
+            tool_params=tool_params,
+        )
+    return terminal_llm(
+        name=name,
+        llm=llm,
+        guardrails=guardrails,
+        system_message=system_message,
+        tool_details=tool_details,
+        tool_params=tool_params,
+    )
+
+
 # --- Tool-calling overloads (guardrails not supported yet) ---
 
 
@@ -226,17 +300,7 @@ def agent_node(
         manifest (ToolManifest | None): If you want to use this as a tool in other agents you can pass in a ToolManifest.
         guardrails (Guard | None): Guardrail config. When provided, the agent runs input/output guardrails.
     """
-    unpacked_tool_nodes: set[Type[Node]] | None = None
-    if tool_nodes is not None:
-        unpacked_tool_nodes = set()
-        for node in tool_nodes:
-            if isinstance(node, FunctionType):
-                unpacked_tool_nodes.add(extract_node_from_function(node))
-            else:
-                assert issubclass(node, Node), (
-                    f"Expected {node} to be a subclass of Node"
-                )
-                unpacked_tool_nodes.add(node)
+    unpacked_tool_nodes = _unpack_tool_nodes(tool_nodes)
 
     # See issue (___) this logic should be migrated soon.
     if manifest is not None:
@@ -246,59 +310,28 @@ def agent_node(
         tool_details = None
         tool_params = None
 
-    if unpacked_tool_nodes is not None and len(unpacked_tool_nodes) > 0:
-        if guardrails is not None:
-            raise NotImplementedError(
-                "Guardrails are not yet supported for tool-calling agents (planned for Phase 7)."
-            )
-        if output_schema is not None:
-            agent = structured_tool_call_llm(
-                tool_nodes=unpacked_tool_nodes,
-                output_schema=output_schema,
-                name=name,
-                llm=llm,
-                max_tool_calls=max_tool_calls,
-                system_message=system_message,
-                tool_details=tool_details,
-                tool_params=tool_params,
-            )
-        else:
-            agent = tool_call_llm(
-                tool_nodes=unpacked_tool_nodes,
-                name=name,
-                llm=llm,
-                max_tool_calls=max_tool_calls,
-                system_message=system_message,
-                tool_details=tool_details,
-                tool_params=tool_params,
-            )
-    elif output_schema is not None:
-        agent = structured_llm(
-            output_schema=output_schema,
-            name=name,
-            llm=llm,
-            guardrails=guardrails,
-            system_message=system_message,
-            tool_details=tool_details,
-            tool_params=tool_params,
-        )
-    else:
-        agent = terminal_llm(
-            name=name,
-            llm=llm,
-            guardrails=guardrails,
-            system_message=system_message,
-            tool_details=tool_details,
-            tool_params=tool_params,
-        )
+    agent = _build_dynamic_agent(
+        unpacked_tool_nodes=unpacked_tool_nodes,
+        output_schema=output_schema,
+        name=name,
+        llm=llm,
+        max_tool_calls=max_tool_calls,
+        system_message=system_message,
+        tool_details=tool_details,
+        tool_params=tool_params,
+        guardrails=guardrails,
+    )
 
     if rag is not None:
 
-        def _update_message_history(node: LLMBase):
+        def _update_message_history(node: Node):
+            # `pre_invokes` may be shared across Node subclasses; only LLM agents
+            # have `message_hist` / RAG context to update.
+            if not isinstance(node, LLMBase):
+                return
             node.message_hist = update_context(
                 node.message_hist, vs=rag.vector_store, top_k=rag.top_k
             )
-            return
 
         agent.add_pre_invoke(_update_message_history)
 
