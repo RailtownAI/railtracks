@@ -1,6 +1,5 @@
 from railtracks.exceptions.errors import NodeInvocationError
 from railtracks.exceptions.messages.exception_messages import (
-    ExceptionMessageKey,
     get_message,
     get_notes,
 )
@@ -44,12 +43,4 @@ def check_llm_model(llm: ModelBase | None):
             message=get_message("MODEL_REQUIRED_MSG"),
             notes=get_notes("MODEL_REQUIRED_NOTES"),
             fatal=True,
-        )
-
-
-def check_max_tool_calls(max_tool_calls: int | None):
-    if max_tool_calls is not None and max_tool_calls < 0:
-        raise NodeInvocationError(
-            get_message(ExceptionMessageKey.MAX_TOOL_CALLS_NEGATIVE_MSG),
-            notes=get_notes(ExceptionMessageKey.MAX_TOOL_CALLS_NEGATIVE_NOTES),
         )

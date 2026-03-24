@@ -81,7 +81,6 @@ agent = rt.agent_node(
     tool_nodes={*tools},
     system_message="""You are an infomation gathering agent that can search the web.""",
     llm=rt.llm.OpenAILLM("gpt-4o"),
-    max_tool_calls=10,
 )
 
 async def call_node():

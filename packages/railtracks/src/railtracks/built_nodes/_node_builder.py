@@ -34,7 +34,6 @@ from railtracks.llm.type_mapping import TypeMapper
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_creation.validation import (
     _check_duplicate_param_names,
-    _check_max_tool_calls,
     _check_system_message,
     _check_tool_params_and_details,
     check_connected_nodes,
@@ -127,17 +126,15 @@ class NodeBuilder(Generic[_TNode]):
     def tool_calling_llm(
         self,
         connected_nodes: Iterable[Union[Type[Node], Callable]],
-        max_tool_calls: int | None = None,
     ):
         """
-        Configure the node subclass to have a tool_nodes method and max_tool_calls method.
+        Configure the node subclass to have a tool_nodes method.
 
         This method creates methods that are helpful for tool calling llms with their tools
         stored in tool_nodes and with a limit on the number of tool calls they can make.
 
         Args:
             connected_nodes (Set[Union[Type[Node], Callable]]): The nodes/tools/functions that this node can call.
-            max_tool_calls (int): The maximum number of tool calls allowed during a single invocation.
 
         Raises:
             AssertionError: If the node class is not a subclass of a ToolCallingLLM in the RT framework.
@@ -158,11 +155,9 @@ class NodeBuilder(Generic[_TNode]):
         if not isinstance(connected_nodes, set):
             connected_nodes = set(connected_nodes)
 
-        _check_max_tool_calls(max_tool_calls)
         check_connected_nodes(connected_nodes, Node)
 
         self._with_override("tool_nodes", classmethod(lambda cls: connected_nodes))
-        self._with_override("max_tool_calls", max_tool_calls)
 
     @overload
     def setup_function_node(
