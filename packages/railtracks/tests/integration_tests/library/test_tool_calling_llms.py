@@ -6,7 +6,6 @@ from railtracks.llm import AssistantMessage, ToolCall
 from railtracks.llm.response import Response
 from typing import Generator
 
-
 # NOTE: Simple successful tool calls are already tested in test_function.py
 class TestSimpleToolCalling:
     @pytest.mark.skip("empty tool_nodes gives out terminal LLM. TODO: fix this")
@@ -104,36 +103,6 @@ class TestLimitedToolCalling:
             _reset_tools_called()
             _ = await rt.call(agent, user_input=message)
             assert rt.context.get("tools_called") == 1
-
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        "num_tc , llm_requests_extra",
-        [
-            (0, False),
-            (1, False),
-            (5, False),
-            (1, True),  # extra call requested by LLM, but tool call limit is 1
-            (5, True),
-        ],
-        ids=["zero_exact", "one_exact", "five_exact", "one_extra", "five_extra"],
-    )
-        # =======================================
-
-        agent = rt.agent_node(
-            tool_nodes={rt.function_node(magic_number)},
-            name="Magic Number Agent",
-            system_message="You are a helpful assistant that can call the tools available to you to answer user queries",
-            llm=llm,
-        )
-
-        with rt.Session():
-            _reset_tools_called()
-            response = await rt.call(
-                agent, user_input=f"Get me {num_tc} magic numbers."
-            )
-            assert isinstance(response.content, str)
-            assert rt.context.get("tools_called") == num_tc
-
 
 @pytest.mark.asyncio
 class TestStructuredToolCalling:

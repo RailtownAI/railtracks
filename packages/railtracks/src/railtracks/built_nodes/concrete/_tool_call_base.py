@@ -313,7 +313,7 @@ class StreamingOutputLessToolCallLLM(
 
             if len(first_item.message.tool_calls) > 0:
                 is_tool, _ = await self._handle_response(
-                    first_item.message, self._get_allowed_tool_calls()
+                    first_item.message
                 )
 
                 if not is_tool:
