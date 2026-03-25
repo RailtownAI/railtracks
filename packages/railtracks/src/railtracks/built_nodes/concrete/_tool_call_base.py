@@ -312,9 +312,7 @@ class StreamingOutputLessToolCallLLM(
             assert first_item.message.role == Role.assistant
 
             if len(first_item.message.tool_calls) > 0:
-                is_tool, _ = await self._handle_response(
-                    first_item.message
-                )
+                is_tool, _ = await self._handle_response(first_item.message)
 
                 if not is_tool:
                     raise LLMError(
