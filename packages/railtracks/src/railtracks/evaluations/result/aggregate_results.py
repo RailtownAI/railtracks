@@ -17,7 +17,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, computed_field, model_serializer
 
-from ..evaluators.metrics import Categorical, LLMMetric, Numerical, ToolMetric
+from ..evaluators.metrics import Categorical, Numerical
 from .metric_results import LLMMetricResult, MetricResult, ToolMetricResult
 
 TMetric = TypeVar("TMetric", Numerical, Categorical)
@@ -42,12 +42,12 @@ class AggregateForest(BaseModel, Generic[TAggregateNode, TMetricResult]):
             raise KeyError(f"Node with id {node_id} not found in forest")
         return node
 
-    @model_serializer(mode='wrap')
+    @model_serializer(mode="wrap")
     def _serialize(self, serializer: Any) -> dict[str, Any]:
         """Custom serializer to handle generic union types in nodes dict."""
         return {
-            'roots': self.roots,
-            'nodes': {k: v.model_dump() for k, v in self.nodes.items()}
+            "roots": self.roots,
+            "nodes": {k: v.model_dump() for k, v in self.nodes.items()},
         }
 
 
