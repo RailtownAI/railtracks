@@ -1,5 +1,5 @@
 ---
-name: agent
+name: agent-builder
 description: Build an agent using the railtracks Python framework. Use when the user wants to create an AI agent, tool-calling workflow, or multi-agent system with railtracks.
 argument-hint: "[describe what the agent should do]"
 ---
@@ -25,10 +25,9 @@ The user wants to build an agent using the railtracks framework: $ARGUMENTS
 ### LLM Providers
 
 ```python
-rt.llm.AnthropicLLM("claude-sonnet-4-6")   # recommended default
-rt.llm.OpenAILLM("gpt-4o")
-rt.llm.GeminiLLM("gemini-1.5-pro")
-rt.llm.OllamaLLM("llama3")
+rt.llm.AnthropicLLM("claude-sonnet-4-6")
+rt.llm.OpenAILLM("gpt-5")
+rt.llm.GeminiLLM("gemini-3-flash-preview")
 rt.llm.OpenAICompatibleProvider(base_url="...", model="...")
 ```
 
