@@ -33,18 +33,6 @@ class ChatToolCallLLM(StringOutputMixIn, OutputLessToolCallLLM[StringResponse], 
             )
 
         while True:
-            current_tool_calls = len(
-                [m for m in self.message_hist if isinstance(m, ToolMessage)]
-            )
-            allowed_tool_calls = (
-                self.max_tool_calls - current_tool_calls
-                if self.max_tool_calls is not None
-                else None
-            )
-            if self.max_tool_calls is not None and allowed_tool_calls <= 0:
-                await self._on_max_tool_calls_exceeded()
-                break
-
             # collect the response from the model
             returned_mess = self.llm_model.chat_with_tools(
                 self.message_hist, tools=self.tools()
@@ -58,11 +46,6 @@ class ChatToolCallLLM(StringOutputMixIn, OutputLessToolCallLLM[StringResponse], 
                     )
 
                     tool_calls = returned_mess.message.content
-                    if (
-                        allowed_tool_calls is not None
-                        and len(tool_calls) > allowed_tool_calls
-                    ):
-                        tool_calls = tool_calls[:allowed_tool_calls]
 
                     # append the requested tool calls assistant message, once the tool calls have been verified and truncated (if needed)
                     self.message_hist.append(AssistantMessage(content=tool_calls))

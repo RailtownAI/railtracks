@@ -14,6 +14,12 @@ rt.enable_logging(level="CRITICAL")
 rt.enable_logging(level="NONE")
 # --8<-- [end: logging_setup]
 
+# --8<-- [start: logging_name_style]
+# Console column for the logger name (default is short).
+rt.enable_logging(level="INFO")  # name_style="short" (default)
+rt.enable_logging(level="INFO", name_style="full")  # full dotted name, e.g. RT.railtracks.foo.bar
+# --8<-- [end: logging_name_style]
+
 # --8<-- [start: logging_to_file]
 rt.enable_logging(level="INFO", log_file="my_logs.log")
 # --8<-- [end: logging_to_file]

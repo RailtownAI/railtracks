@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import warnings
 from abc import ABC, abstractmethod
 from typing import (
     Any,
@@ -34,7 +33,6 @@ from railtracks.llm.providers import ModelProvider
 from railtracks.llm.response import Response
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_creation.validation import check_connected_nodes
-from railtracks.validation.node_invocation.validation import check_max_tool_calls
 
 from ._llm_base import LLMBase
 
@@ -90,7 +88,6 @@ class OutputLessToolCallLLMBase(
         self,
         user_input: MessageHistory | UserMessage | str | list[Message],
         llm: ModelBase[_TStream] | None = None,
-        max_tool_calls: int | None = None,
     ):
         super().__init__(llm=llm, user_input=user_input)
         model = self.get_llm()
@@ -106,22 +103,6 @@ class OutputLessToolCallLLMBase(
                     "Create a new issue on the railtracks repo or switch to openai's models"
                 ],
             )
-        # Set max_tool_calls for non easy usage wrappers
-        if not hasattr(self, "max_tool_calls"):
-            # Check max_tool_calls (including warning for None)
-            check_max_tool_calls(max_tool_calls)
-            self.max_tool_calls = max_tool_calls
-
-        # Warn user that two max_tool_calls are set and we will use the parameter
-        else:
-            if max_tool_calls is not None:
-                warnings.warn(
-                    "You have provided max_tool_calls as a parameter and as a class variable. We will use the parameter."
-                )
-                check_max_tool_calls(max_tool_calls)
-                self.max_tool_calls = max_tool_calls
-            else:
-                check_max_tool_calls(self.max_tool_calls)
 
     @classmethod
     def name(cls) -> str:
@@ -214,15 +195,12 @@ class OutputLessToolCallLLMBase(
     async def _handle_response(
         self,
         message: Message[_TContent, Literal[Role.assistant]],
-        allowed_tool_calls: int | None,
     ):
         # if the returned item is a list then it is a list of tool calls
         if isinstance(message.content, list):
             assert all(isinstance(x, ToolCall) for x in message.content)
 
             tool_calls = message.content
-            if allowed_tool_calls is not None and len(tool_calls) > allowed_tool_calls:
-                tool_calls = tool_calls[:allowed_tool_calls]
 
             hist_msg = AssistantMessage(
                 content=tool_calls
@@ -243,44 +221,17 @@ class OutputLessToolCallLLMBase(
             self.message_hist.append(message)
             return False, message
 
-    def _get_allowed_tool_calls(self) -> int | None:
-        current_tool_calls = len(
-            [m for m in self.message_hist if isinstance(m, ToolMessage)]
-        )
-        allowed_tool_calls = (
-            self.max_tool_calls - current_tool_calls
-            if self.max_tool_calls is not None
-            else None
-        )
-        return allowed_tool_calls
-
 
 class OutputLessToolCallLLM(
     OutputLessToolCallLLMBase[_TCollectedOutput, _TCollectedOutput, Literal[False]],
     ABC,
     Generic[_TCollectedOutput],
 ):
-    async def _on_max_tool_calls_exceeded(self):
-        """force a final response. This function will add it to the message history and return the message. This function shoudld only be called on non streaming llms."""
-        response = await asyncio.to_thread(
-            self.llm_model.chat,
-            self.message_hist,
-        )
-
-        if not response.message.role == Role.assistant:
-            raise LLMError(
-                reason=f"The LLM returned an unexpected message type. Expected AssistantMessage but got {type(response.message)}",
-                message_history=self.message_hist,
-            )
-
-        return response.message
-
     async def _handle_tool_calls(self) -> tuple[bool, Message | None]:
         """
         Handles the execution of tool calls for the node, including LLM interaction and message history updates.
 
         This method:
-        - Checks if the maximum number of tool calls has been reached and triggers a final response if so.
         - Interacts with the LLM to get a tool call request or final answers.
         - Executes a tool call and appends the results to the message history.
         - Handles malformed LLM responses and raises errors as needed.
@@ -292,11 +243,6 @@ class OutputLessToolCallLLM(
         Raises:
             LLMError: If the LLM returns an unexpected message type or the message is malformed.
         """
-        allowed_tool_calls = self._get_allowed_tool_calls()
-
-        if allowed_tool_calls is not None and allowed_tool_calls <= 0:
-            message = await self._on_max_tool_calls_exceeded()
-            return False, message
 
         # collect the response from the llm model
         response = await asyncio.to_thread(
@@ -309,7 +255,7 @@ class OutputLessToolCallLLM(
                 message_history=self.message_hist,
             )
 
-        return await self._handle_response(response.message, allowed_tool_calls)
+        return await self._handle_response(response.message)
 
     async def invoke(self):
         message = None
@@ -366,9 +312,7 @@ class StreamingOutputLessToolCallLLM(
             assert first_item.message.role == Role.assistant
 
             if len(first_item.message.tool_calls) > 0:
-                is_tool, _ = await self._handle_response(
-                    first_item.message, self._get_allowed_tool_calls()
-                )
+                is_tool, _ = await self._handle_response(first_item.message)
 
                 if not is_tool:
                     raise LLMError(
