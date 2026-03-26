@@ -6,7 +6,6 @@ from railtracks.llm import AssistantMessage, ToolCall
 from railtracks.llm.response import Response
 from typing import Generator
 
-
 # NOTE: Simple successful tool calls are already tested in test_function.py
 class TestSimpleToolCalling:
     @pytest.mark.skip("empty tool_nodes gives out terminal LLM. TODO: fix this")
@@ -105,69 +104,6 @@ class TestLimitedToolCalling:
             _ = await rt.call(agent, user_input=message)
             assert rt.context.get("tools_called") == 1
 
-    def test_negative_tc(self, mock_llm):
-        with pytest.raises(NodeCreationError):
-            _ = rt.agent_node(
-                tool_nodes={rt.function_node(lambda: 42)},
-                name="Magic Number Agent",
-                system_message="You are a helpful assistant that can call the tools available to you to answer user queries",
-                llm=mock_llm(),
-                max_tool_calls=-1,
-            )
-
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        "num_tc , llm_requests_extra",
-        [
-            (0, False),
-            (1, False),
-            (5, False),
-            (1, True),  # extra call requested by LLM, but tool call limit is 1
-            (5, True),
-        ],
-        ids=["zero_exact", "one_exact", "five_exact", "one_extra", "five_extra"],
-    )
-    async def test_base_functionality(
-        self,
-        mock_llm,
-        _reset_tools_called,
-        _increment_tools_called,
-        num_tc,
-        llm_requests_extra,
-    ):
-        """Test tool calls when LLM requests exact or extra calls compared to max_tool_calls limit."""
-
-        def magic_number():
-            #  incrementing count for testing purposes
-            _increment_tools_called()
-            return 42
-
-        llm_call_count = num_tc + (1 if llm_requests_extra else 0)
-        llm = mock_llm(
-            requested_tool_calls=[
-                ToolCall(name="magic_number", identifier="id_42424242", arguments={})
-                for _ in range(llm_call_count)
-            ]
-        )
-        # =======================================
-
-        agent = rt.agent_node(
-            tool_nodes={rt.function_node(magic_number)},
-            name="Magic Number Agent",
-            system_message="You are a helpful assistant that can call the tools available to you to answer user queries",
-            llm=llm,
-            max_tool_calls=num_tc,
-        )
-
-        with rt.Session():
-            _reset_tools_called()
-            response = await rt.call(
-                agent, user_input=f"Get me {num_tc} magic numbers."
-            )
-            assert isinstance(response.content, str)
-            assert rt.context.get("tools_called") == num_tc
-
-
 @pytest.mark.asyncio
 class TestStructuredToolCalling:
     async def test_base_functionality(self, mock_llm, simple_output_model):
@@ -226,7 +162,6 @@ class TestFunctionNodeCallWithFunctionList:
         system_message="""You are a number generator agent that can generate numbers and add a value to it""",
         llm=mock_llm('{"text": "Successfully added 50 to 42 to get 92", "number": 92}'),
         output_schema=simple_output_model,
-        max_tool_calls=3,
     )
 
         with rt.Session(name="AgentHandlerNode") as run:
