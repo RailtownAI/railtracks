@@ -59,7 +59,7 @@ NodeBuilder provides several methods to decide your node's capabilities, mirrori
 |--------|---------|--------------|
 | `structured(output_schema)` | Define structured output format | Structured classes |
 | `tool_callable_llm(tool_details, tool_params)` | Enable tool invocation capabilities | ToolCall classes |
-| `tool_calling_llm(tool_nodes, max_tool_calls)` | Configure tool calling behavior | ToolCall classes |
+| `tool_calling_llm(tool_nodes)` | Configure tool calling behavior | ToolCall classes |
 
 ```python
 # Structured output
@@ -67,7 +67,7 @@ builder.structured(output_schema)
 
 # Tool capabilities
 builder.tool_callable_llm(tool_details, tool_params)
-builder.tool_calling_llm(tool_nodes, max_tool_calls)
+builder.tool_calling_llm(tool_nodes)
 ```
 
 ### Custom Attributes
@@ -112,7 +112,7 @@ builder = NodeBuilder[StructuredToolCallLLM[_TOutput]](
 builder.llm_base(llm_model, system_message)
 
 # Add tool functionality
-builder.tool_calling_llm(set(tool_nodes), max_tool_calls)
+builder.tool_calling_llm(set(tool_nodes))
 builder.tool_callable_llm(tool_details, tool_params)
 
 # Configure structured output
