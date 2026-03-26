@@ -12,10 +12,10 @@ Tree Structure:
 from __future__ import annotations
 
 from collections import Counter
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, computed_field
+from pydantic import BaseModel, Field, computed_field, model_serializer
 
 from ..evaluators.metrics import Categorical, Numerical
 from .metric_results import LLMMetricResult, MetricResult, ToolMetricResult
@@ -41,6 +41,14 @@ class AggregateForest(BaseModel, Generic[TAggregateNode, TMetricResult]):
         if node is None:
             raise KeyError(f"Node with id {node_id} not found in forest")
         return node
+
+    @model_serializer(mode="wrap")
+    def _serialize(self, serializer: Any) -> dict[str, Any]:
+        """Custom serializer to handle generic union types in nodes dict."""
+        return {
+            "roots": self.roots,
+            "nodes": {k: v.model_dump() for k, v in self.nodes.items()},
+        }
 
 
 class AggregateTreeNode(BaseModel, Generic[TMetric]):
