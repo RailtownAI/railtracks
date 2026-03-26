@@ -125,7 +125,7 @@ See the [Observability documentation](https://railtownai.github.io/railtracks/ob
 <summary><b>Installation</b></summary>
 
 ```bash
-pip install railtracks railtracks[cli]
+pip install railtracks 'railtracks[cli]'
 ```
 </details>
 

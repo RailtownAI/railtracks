@@ -14,7 +14,7 @@ Railtracks comes with a built-in visualization tool that runs locally with **no 
 !!! tip "Usage"    
 
     ```bash title="Install CLI Tool"
-    pip install railtracks[cli]
+    pip install 'railtracks[cli]'
     ```
 
 
