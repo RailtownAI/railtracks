@@ -104,9 +104,8 @@ class Publisher(Generic[_T]):
                 )
 
                 try:
-                    contracts = [sub.trigger(message) for sub in self._subscribers]
-
-                    await asyncio.gather(*contracts)
+                    for sub in self._subscribers:
+                        await sub.trigger(message)
 
                 # we need a broad exception clause to catch any errors that might occur in the subs.
                 except Exception:
