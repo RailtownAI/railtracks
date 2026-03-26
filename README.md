@@ -29,7 +29,7 @@
 
 ## What is Railtracks?
 
-Railtracks is a Python framework for building agentic systems. Agent behavior, tools, and multi-step flows are defined entirely in standard Python — using the control flow and abstractions you already know.
+Railtracks is a Python framework for building agentic systems. Agent behavior, tools, and multi-step flows are defined entirely in standard Python using the control flow and abstractions you already know.
 
 
 ```python

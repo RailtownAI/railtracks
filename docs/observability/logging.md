@@ -34,6 +34,21 @@ Call `enable_logging()` once at application startup. The library never calls it 
 
 You can set the level and an optional log file path. If you omit them, Railtracks reads `RT_LOG_LEVEL` and `RT_LOG_FILE` from the environment (see below).
 
+### Console logger name
+
+Loggers use dotted names (often from `__name__`), e.g. `RT.railtracks._session`. The **terminal** line can show either a short label or the full name, controlled by `name_style` on `enable_logging()`:
+
+| `name_style` | Console column | Typical use |
+|--------------|----------------|-------------|
+| `short` (default) | `RT.` plus a short label from the **last** segment: non-letters at the start of that segment are stripped, then it is capitalized (e.g. `…._session` → `RT.Session`, `….state.state` → `RT.State`) | Less cluttered output while keeping a hint of origin |
+| `full` | The full logger name (e.g. `RT.railtracks.state.state`) | Debugging when you need the exact module path in every line |
+
+```python
+--8<-- "docs/scripts/_logging.py:logging_name_style"
+```
+
+File output from `log_file` / `RT_LOG_FILE` still records the **full** dotted `name` on each record; only the console formatter applies `name_style`.
+
 ### Logging Levels
 
 Railtracks supports six logging levels aligned with the standard Python logging framework:

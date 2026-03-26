@@ -8,6 +8,8 @@ import pytest
 from railtracks.utils.logging.config import (
     ColorfulFormatter,
     ThreadAwareFilter,
+    _default_format_string,
+    _short_suffix_label,
     detach_logging_handlers,
     enable_logging,
     initialize_module_logging,
@@ -61,6 +63,86 @@ def test_colorful_formatter_restores_original_msg():
     # Verify original values are restored
     assert record.msg == original_msg
     assert record.args == original_args
+
+
+def test_short_suffix_label_strips_leading_underscores():
+    assert _short_suffix_label("_session") == "Session"
+    assert _short_suffix_label("state") == "State"
+
+
+def test_colorful_formatter_short_display_name_underscore_module():
+    formatter = ColorfulFormatter(fmt=_default_format_string, name_style="short")
+    record = logging.LogRecord(
+        name="RT.railtracks._session",
+        level=logging.INFO,
+        pathname="",
+        lineno=0,
+        msg="hello",
+        args=(),
+        exc_info=None,
+    )
+    record.relativeCreated = 1000.0
+
+    out = formatter.format(record)
+
+    assert "RT.Session" in out
+    assert "_session" not in out
+
+
+def test_colorful_formatter_short_display_name_rt_capitalized_suffix():
+    formatter = ColorfulFormatter(fmt=_default_format_string, name_style="short")
+    record = logging.LogRecord(
+        name="RT.railtracks.state.state",
+        level=logging.INFO,
+        pathname="",
+        lineno=0,
+        msg="hello",
+        args=(),
+        exc_info=None,
+    )
+    record.relativeCreated = 1000.0
+
+    out = formatter.format(record)
+
+    assert "RT.State" in out
+    assert "railtracks.state.state" not in out
+
+
+def test_colorful_formatter_full_display_name_preserves_dotted_name():
+    formatter = ColorfulFormatter(fmt=_default_format_string, name_style="full")
+    record = logging.LogRecord(
+        name="RT.railtracks.state.state",
+        level=logging.INFO,
+        pathname="",
+        lineno=0,
+        msg="hello",
+        args=(),
+        exc_info=None,
+    )
+    record.relativeCreated = 1000.0
+
+    out = formatter.format(record)
+
+    assert "RT.railtracks.state.state" in out
+
+
+def test_colorful_formatter_short_display_name_root_rt():
+    formatter = ColorfulFormatter(fmt=_default_format_string, name_style="short")
+    record = logging.LogRecord(
+        name="RT",
+        level=logging.INFO,
+        pathname="",
+        lineno=0,
+        msg="hello",
+        args=(),
+        exc_info=None,
+    )
+    record.relativeCreated = 1000.0
+
+    out = formatter.format(record)
+
+    assert "RT          :" in out
+    assert "RT." not in out.split(":")[0]
 
 
 # ================= ThreadAwareFilter Tests =================

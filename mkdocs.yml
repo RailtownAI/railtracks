@@ -15,17 +15,19 @@ theme:
   custom_dir: docs/overrides
 
   palette:
-    - scheme: default
-      primary: white
-      toggle:
-        icon: material/brightness-4
-        name: Switch to dark mode
-
-    - scheme: slate
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
       primary: black
       toggle:
         icon: material/brightness-5
         name: Switch to light mode
+
+    - media: "(prefers-color-scheme: light)" 
+      scheme: default
+      primary: white
+      toggle:
+        icon: material/brightness-4
+        name: Switch to dark mode
 
   features:
     - navigation.indexes
