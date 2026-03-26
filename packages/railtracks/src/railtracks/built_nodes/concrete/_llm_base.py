@@ -419,7 +419,12 @@ class StringOutputMixIn:
         ):  # if no message is provided, use the last message from message history
             message = self.message_hist[-1]
 
-        assert isinstance(message.content, str), "The final output must be a string"
+        if message.content is None:
+            raise LLMError(
+                reason="ModelLLM did not return a message with content. This is known error with `gemini-2.5-flash-lite`, and can be fixed",
+                message_history=self.message_hist,
+            )
+
         return StringResponse(
             content=message.content,
             message_history=self.message_hist.removed_system_messages(),

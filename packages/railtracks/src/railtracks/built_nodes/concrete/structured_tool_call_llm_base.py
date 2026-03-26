@@ -67,13 +67,12 @@ class StructuredToolCallLLM(
         self,
         user_input: MessageHistory | UserMessage | str | list[Message],
         llm: ModelBase[Literal[False]] | None = None,
-        max_tool_calls: int | None = None,
     ):
         # as of right now we do not support streaming with structured tool calls.
         if llm is not None and llm.stream:
             raise ValueError("StructuredToolCallLLM does not support streaming.")
 
-        super().__init__(user_input=user_input, llm=llm, max_tool_calls=max_tool_calls)
+        super().__init__(user_input=user_input, llm=llm)
         self.structured_output: _TBaseModel | Exception | None = None
 
     async def invoke(self):

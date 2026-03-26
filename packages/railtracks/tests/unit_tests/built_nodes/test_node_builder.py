@@ -95,10 +95,9 @@ def test_nodebuilder_structured():
 def test_nodebuilder_tool_calling_llm_with_function():
         builder = NodeBuilder(DummyToolCallNode)
         builder.llm_base(llm_model(), system_message=SystemMessage(content="sysmsg"))
-        builder.tool_calling_llm({dummy_func}, max_tool_calls=10)
+        builder.tool_calling_llm({dummy_func})
         node_cls = builder.build()
         assert dummy_function_node().node_type in node_cls.tool_nodes()
-        assert node_cls.max_tool_calls == 10
         assert isinstance(node_cls.get_llm(), type(llm_model()))
         assert node_cls.system_message().content == "sysmsg"
         assert node_cls.system_message().role == "system"
@@ -106,10 +105,9 @@ def test_nodebuilder_tool_calling_llm_with_function():
 def test_nodebuilder_tool_calling_llm_with_function_node():
         builder = NodeBuilder(DummyToolCallNode)
         builder.llm_base(llm_model(), system_message=SystemMessage(content="sysmsg"))
-        builder.tool_calling_llm({dummy_function_node()}, max_tool_calls=10)
+        builder.tool_calling_llm({dummy_function_node()})
         node_cls = builder.build()
         assert dummy_function_node().node_type in node_cls.tool_nodes()
-        assert node_cls.max_tool_calls == 10
         assert isinstance(node_cls.get_llm(), type(llm_model()))
         assert node_cls.system_message().content == "sysmsg"
         assert node_cls.system_message().role == "system"
@@ -182,12 +180,6 @@ def test_nodebuilder_duplicate_param_names_error():
     builder = NodeBuilder(DummyNode, name="LLMNode")
     with pytest.raises(NodeCreationError):
         builder.tool_callable_llm(tool_details="details", tool_params=[Parameter(name="x", param_type="integer", description="desc"), Parameter(name="x", param_type="integer", description="desc")])
-
-def test_nodebuilder_negative_max_tool_calls_error():
-        builder = NodeBuilder(DummyToolCallNode, name="ToolNode")
-        builder.llm_base(llm_model(), system_message=SystemMessage(content="sysmsg"))
-        with pytest.raises(NodeCreationError):
-            builder.tool_calling_llm({dummy_func}, max_tool_calls=-1)
 
 def test_nodebuilder_override_tool_info_conflict():
     builder = NodeBuilder(DummyNode, name="TestNode")

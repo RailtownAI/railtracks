@@ -25,6 +25,7 @@ import sys
 import tempfile
 import threading
 import time
+import urllib.error
 import urllib.request
 import webbrowser
 import zipfile
@@ -32,6 +33,7 @@ from pathlib import Path
 
 try:
     import uvicorn
+    from colorama import Fore, Style
     from fastapi import FastAPI
     from fastapi.responses import FileResponse, JSONResponse
 except ImportError:
@@ -46,6 +48,7 @@ latest_ui_url = "https://railtownazureb2c.blob.core.windows.net/cdn/rc-viz/lates
 
 cli_name = "railtracks"
 cli_directory = ".railtracks"
+UI_VERSION_FILE = f"{cli_directory}/.ui_version"
 DEFAULT_PORT = 3030
 
 # FastAPI app instance
@@ -109,6 +112,52 @@ def create_railtracks_dir():
         print_success(f"Created .gitignore with {cli_directory}")
 
 
+def get_stored_ui_version():
+    """Get the stored UI version (ETag) from disk"""
+    version_file = Path(UI_VERSION_FILE)
+    try:
+        if version_file.exists():
+            return version_file.read_text().strip()
+    except Exception:
+        pass
+    return None
+
+
+def save_ui_version(version: str):
+    """Save the UI version (ETag) to disk"""
+    version_file = Path(UI_VERSION_FILE)
+    try:
+        version_file.write_text(version)
+    except Exception:
+        pass
+
+
+def get_remote_ui_version():
+    """Get the remote UI version (ETag or Last-Modified) via HEAD request"""
+    try:
+        req = urllib.request.Request(latest_ui_url, method="HEAD")
+        with urllib.request.urlopen(req, timeout=5) as response:
+            return response.headers.get("ETag") or response.headers.get("Last-Modified")
+    except Exception:
+        return None
+
+
+def check_for_ui_update():
+    """Check if there's an updated UI available and notify the user"""
+    stored = get_stored_ui_version()
+    if stored is None:
+        return
+    remote = get_remote_ui_version()
+    if remote is not None and remote != stored:
+        _print_update_available()
+
+
+def _print_update_available():
+    print(
+        f"{Fore.YELLOW}[{cli_name}] A newer UI is available! Run 'railtracks update' to upgrade.{Style.RESET_ALL}"
+    )
+
+
 def download_and_extract_ui():
     """Download the latest frontend UI and extract it to .railtracks/ui"""
     ui_url = latest_ui_url
@@ -116,14 +165,21 @@ def download_and_extract_ui():
 
     print_status("Downloading latest frontend UI...")
 
+    temp_zip_path = None
     try:
         # Create temporary file for download
         with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as temp_file:
             temp_zip_path = temp_file.name
 
-        # Download the zip file
+        # Download the zip file and capture the ETag/version for future update checks
         print_status(f"Downloading from: {ui_url}")
-        urllib.request.urlretrieve(ui_url, temp_zip_path)
+        ui_version = None
+        with urllib.request.urlopen(ui_url) as response:
+            ui_version = response.headers.get("ETag") or response.headers.get(
+                "Last-Modified"
+            )
+            with open(temp_zip_path, "wb") as f:
+                f.write(response.read())
 
         # Create ui directory if it doesn't exist
         ui_dir.mkdir(parents=True, exist_ok=True)
@@ -133,8 +189,9 @@ def download_and_extract_ui():
         with zipfile.ZipFile(temp_zip_path, "r") as zip_ref:
             zip_ref.extractall(ui_dir)
 
-        # Clean up temporary file
-        os.unlink(temp_zip_path)
+        # Save the version for future update checks
+        if ui_version:
+            save_ui_version(ui_version)
 
         print_success("Frontend UI downloaded and extracted successfully")
         print_status(f"UI files available in: {ui_dir}")
@@ -150,6 +207,9 @@ def download_and_extract_ui():
     except Exception as e:
         print_error(f"Unexpected error during UI download/extraction: {e}")
         sys.exit(1)
+    finally:
+        if temp_zip_path and os.path.exists(temp_zip_path):
+            os.unlink(temp_zip_path)
 
 
 def init_railtracks():
@@ -416,6 +476,10 @@ def main():
 
         # Setup directories
         create_railtracks_dir()
+
+        # Check for a newer UI version in the background (non-blocking)
+        update_thread = threading.Thread(target=check_for_ui_update, daemon=True)
+        update_thread.start()
 
         # Start server
         server = RailtracksServer()

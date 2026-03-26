@@ -58,7 +58,6 @@ def _build_dynamic_agent(
     output_schema: Type[_TBaseModel] | None,
     name: str | None,
     llm: ModelBase[_TStream] | None,
-    max_tool_calls: int | None,
     system_message: SystemMessage | str | None,
     tool_details: str | None,
     tool_params: set | Iterable | None,
@@ -75,7 +74,6 @@ def _build_dynamic_agent(
                 output_schema=output_schema,
                 name=name,
                 llm=llm,
-                max_tool_calls=max_tool_calls,
                 system_message=system_message,
                 tool_details=tool_details,
                 tool_params=tool_params,
@@ -84,7 +82,6 @@ def _build_dynamic_agent(
             tool_nodes=unpacked_tool_nodes,
             name=name,
             llm=llm,
-            max_tool_calls=max_tool_calls,
             system_message=system_message,
             tool_details=tool_details,
             tool_params=tool_params,
@@ -120,7 +117,6 @@ def agent_node(
     tool_nodes: Iterable[Type[Node] | Callable | RTFunction],
     output_schema: Type[_TBaseModel],
     llm: ModelBase[Literal[False]] | None = None,
-    max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
 ) -> Type[StructuredToolCallLLM[_TBaseModel]]:
@@ -134,7 +130,6 @@ def agent_node(
     rag: RagConfig | None = None,
     tool_nodes: Iterable[Type[Node] | Callable | RTFunction],
     llm: ModelBase[Literal[False]] | None = None,
-    max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
 ) -> Type[ToolCallLLM]:
@@ -148,7 +143,6 @@ def agent_node(
     rag: RagConfig | None = None,
     tool_nodes: Iterable[Type[Node] | Callable | RTFunction],
     llm: ModelBase[Literal[True]],
-    max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
 ) -> Type[StreamingToolCallLLM]:
@@ -279,7 +273,6 @@ def agent_node(
     tool_nodes: Iterable[Type[Node] | Callable | RTFunction] | None = None,
     output_schema: Type[_TBaseModel] | None = None,
     llm: ModelBase[_TStream] | None = None,
-    max_tool_calls: int | None = None,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
     guardrails: Guard | None = None,
@@ -293,7 +286,6 @@ def agent_node(
         tool_nodes (set[Type[Node] | Callable | RTFunction] | None): If your agent is a LLM with access to tools, what does it have access to?
         output_schema (Type[_TBaseModel] | None): If your agent should return a structured output, what is the output_schema?
         llm (ModelBase): The LLM model to use. If None it will need to be passed in at instance time.
-        max_tool_calls (int | None): Maximum number of tool calls allowed (if it is a ToolCall Agent).
         system_message (SystemMessage | str | None): System message for the agent.
         manifest (ToolManifest | None): If you want to use this as a tool in other agents you can pass in a ToolManifest.
         guardrails (Guard | None): Guardrail config. When provided, the agent runs input/output guardrails.
@@ -313,7 +305,6 @@ def agent_node(
         output_schema=output_schema,
         name=name,
         llm=llm,
-        max_tool_calls=max_tool_calls,
         system_message=system_message,
         tool_details=tool_details,
         tool_params=tool_params,
