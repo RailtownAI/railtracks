@@ -8,6 +8,124 @@ Railtracks is a Python framework for building agentic systems. This is a monorep
 - `packages/railtracks/` - Core SDK with optional LLM, MCP, and integration features
 - `packages/railtracks-cli/` - Command-line visualization and development tools
 
+## Railtracks Framework Concepts
+
+### How Railtracks Works
+- **Tools** are plain Python functions decorated with `@rt.function_node`. Type hints become the parameter schema; the docstring becomes the description.
+- **Agents** are created with `rt.agent_node()`. The type is auto-selected based on whether tools and/or a structured output schema are provided.
+- **Flows** wrap an agent or async function as the entry point and handle execution, config, and context.
+- **`rt.call()`** is used inside async workflows to call agents or nodes directly.
+
+### Agent Type Selection
+| Has `tool_nodes`? | Has `output_schema`? | Agent type |
+|---|---|---|
+| No | No | `TerminalLLM` — plain chat |
+| No | Yes | `StructuredLLM` — structured output, no tools |
+| Yes | No | `ToolCallLLM` — tools, text output |
+| Yes | Yes | `StructuredToolCallLLM` — tools + structured output |
+
+### LLM Providers
+```python
+rt.llm.AnthropicLLM("claude-sonnet-4-6")
+rt.llm.OpenAILLM("gpt-5")
+rt.llm.GeminiLLM("gemini-3-flash-preview")
+rt.llm.OpenAICompatibleProvider(base_url="...", model="...")
+```
+
+### Agent Patterns
+
+#### Simple Agent with Tools
+```python
+import railtracks as rt
+
+@rt.function_node
+def my_tool(param: str) -> str:
+    """One-line description.
+    Args:
+        param: What this parameter is.
+    Returns:
+        What this returns.
+    """
+    return f"result for {param}"
+
+llm = rt.llm.AnthropicLLM("claude-sonnet-4-6")
+# agent_node returns a class (type), not an instance — use PascalCase
+MyAgent = rt.agent_node(
+    "Agent Name",
+    tool_nodes=[my_tool],
+    llm=llm,
+    system_message="You are a helpful assistant that ...",
+)
+flow = rt.Flow(name="My Flow", entry_point=MyAgent)
+if __name__ == "__main__":
+    result = flow.invoke("user query here")
+    print(result)
+```
+
+#### Structured Output
+```python
+from pydantic import BaseModel
+
+class Output(BaseModel):
+    field1: str
+    field2: int
+
+StructuredAgent = rt.agent_node(
+    "Structured Agent",
+    output_schema=Output,
+    tool_nodes=[my_tool],
+    llm=llm,
+)
+```
+
+#### Multi-Agent Workflow
+```python
+@rt.function_node
+async def pipeline(query: str):
+    step1 = await rt.call(AgentA, query)
+    step2 = await rt.call(AgentB, step1)
+    return step2
+
+flow = rt.Flow(name="Pipeline", entry_point=pipeline)
+```
+
+#### Agent as a Tool (Multi-Agent Orchestration)
+```python
+from railtracks.llm import Parameter
+
+SubAgent = rt.agent_node(
+    "Sub Agent",
+    tool_nodes=[tool_a],
+    llm=llm,
+    manifest=rt.ToolManifest(
+        description="Does X given a topic. Call this when you need X.",
+        parameters=[
+            Parameter(name="topic", description="The topic to process", param_type="string"),
+        ],
+    ),
+)
+Orchestrator = rt.agent_node(
+    "Orchestrator",
+    tool_nodes=[SubAgent],  # SubAgent is now a tool the orchestrator can call
+    llm=llm,
+    system_message="You are an orchestrator. Delegate to sub-agents as needed.",
+)
+```
+
+#### MCP Tools
+```python
+server = rt.connect_mcp(rt.MCPStdioParams(command="python", args=["-m", "my_mcp_server"]))
+agent = rt.agent_node("MCP Agent", tool_nodes=server.tools, llm=llm)
+```
+
+### Things to Avoid
+- Don't use vague docstrings — the docstring is the tool description the LLM sees.
+- Don't skip type hints — they define the tool's parameter schema.
+- Don't create a `Flow` and a manual `await rt.call()` for the same agent at the top level — pick one entry point.
+- Don't add unnecessary tools. Only give the agent what it needs.
+
+---
+
 ## Working Effectively
 
 ### Prerequisites and Setup
