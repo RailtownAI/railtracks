@@ -39,7 +39,7 @@ try:
 except ImportError:
     print(
         "[railtracks] The CLI requires additional dependencies.\n"
-        "Install them with: pip install railtracks[cli]"
+        "Install them with: pip install 'railtracks[cli]'"
     )
     sys.exit(1)
 

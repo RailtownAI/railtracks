@@ -7,7 +7,7 @@ In this quickstart, you’ll install Railtracks, run your first agent, and visua
 
 ```bash title="Install Library"
 pip install railtracks
-pip install railtracks[cli]
+pip install 'railtracks[cli]'
 ```
 !!! note 
     `railtracks[cli]` is optional, but required for the visualization step. 
@@ -46,7 +46,7 @@ With Railtracks CLI you can dive deep on your runs. Our observability runs local
 !!! tip "Setup"    
 
     ```bash title="Install CLI Tool"
-    pip install railtracks[cli]
+    pip install 'railtracks[cli]'
     ```
 
 

@@ -80,6 +80,7 @@ StructuredAgent = rt.agent_node(
 
 #### Multi-Agent Workflow
 ```python
+@rt.function_node
 async def pipeline(query: str):
     step1 = await rt.call(AgentA, query)
     step2 = await rt.call(AgentB, step1)
