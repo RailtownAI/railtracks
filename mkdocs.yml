@@ -141,6 +141,10 @@ nav:
 
       - Streaming: llm_support/streaming.md
 
+  - Guardrails:
+      - Overview: guardrails/overview.md
+      - Quickstart: guardrails/quickstart.md
+
   - Evaluations:
       - Preface: evaluations/preface.md
       - Quickstart: evaluations/quickstart.md
