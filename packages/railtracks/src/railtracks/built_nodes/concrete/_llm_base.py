@@ -156,6 +156,7 @@ class LLMBase(Node[_T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
 
         self.message_hist = message_history_copy
 
+        self._details["guard_details"] = []
         self._details["llm_details"] = []
 
         self._attach_llm_hooks()

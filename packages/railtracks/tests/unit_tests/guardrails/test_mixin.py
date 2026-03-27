@@ -12,6 +12,7 @@ from railtracks.guardrails.core import (
 )
 from railtracks.guardrails.llm.mixin import LLMGuardrailsMixin
 from railtracks.llm import AssistantMessage, MessageHistory, UserMessage
+from railtracks.nodes.nodes import DebugDetails
 from railtracks.llm.providers import ModelProvider
 from railtracks.llm.response import MessageInfo, Response
 
@@ -29,7 +30,19 @@ class _StubLLMCallableAttrs:
         return ModelProvider.ANTHROPIC
 
 
-class GuardedTerminalStub(LLMGuardrailsMixin):
+class _StubWithDetails:
+    """Minimal node-like `details` so mixin can append guardrail traces (matches LLMBase ordering)."""
+
+    def __init__(self):
+        self._details = DebugDetails()
+        self._details["guard_details"] = []
+
+    @property
+    def details(self):
+        return self._details
+
+
+class GuardedTerminalStub(_StubWithDetails, LLMGuardrailsMixin):
     """Class name contains 'terminal' for agent_kind tagging."""
 
     guardrails: Guard | None = None
@@ -41,7 +54,7 @@ class GuardedTerminalStub(LLMGuardrailsMixin):
         return "Terminal LLM"
 
 
-class GuardedStructuredStub(LLMGuardrailsMixin):
+class GuardedStructuredStub(_StubWithDetails, LLMGuardrailsMixin):
     """Class name contains 'structured' for agent_kind tagging."""
 
     guardrails: Guard | None = None
@@ -53,7 +66,7 @@ class GuardedStructuredStub(LLMGuardrailsMixin):
         return "Structured LLM (X)"
 
 
-class GuardedOtherStub(LLMGuardrailsMixin):
+class GuardedOtherStub(_StubWithDetails, LLMGuardrailsMixin):
     guardrails: Guard | None = None
     llm_model = _StubLLM()
     uuid = "uuid-other"
@@ -90,6 +103,7 @@ def test_pre_invoke_blocks():
     assert err.user_facing_message == "u"
     assert err.traces
     assert err.traces[-1].action == "block"
+    assert node.details["guard_details"] == err.traces
 
 
 def test_pre_invoke_transforms_messages():
@@ -106,6 +120,8 @@ def test_pre_invoke_transforms_messages():
     mh = MessageHistory([UserMessage("x")])
     out = node._pre_invoke(mh)
     assert out == new_hist
+    assert len(node.details["guard_details"]) == 1
+    assert node.details["guard_details"][0].action == "transform"
 
 
 def test_post_invoke_skips_when_not_response():
@@ -139,6 +155,7 @@ def test_post_invoke_output_block():
     with pytest.raises(GuardrailBlockedError) as exc_info:
         node._post_invoke(MessageHistory([UserMessage("q")]), resp)
     assert exc_info.value.traces[-1].phase == "llm_output"
+    assert node.details["guard_details"] == exc_info.value.traces
 
 
 def test_post_invoke_output_transform_preserves_message_info():
@@ -158,6 +175,26 @@ def test_post_invoke_output_transform_preserves_message_info():
     assert isinstance(out, Response)
     assert out.message == new_msg
     assert out.message_info is info
+    assert len(node.details["guard_details"]) == 1
+    assert node.details["guard_details"][0].action == "transform"
+
+
+def test_pre_then_post_appends_guard_details_in_order():
+    node = GuardedTerminalStub()
+    node.guardrails = Guard(
+        input=[lambda _e: GuardrailDecision.allow(reason="ok in")],
+        output=[lambda _e: GuardrailDecision.allow(reason="ok out")],
+    )
+    mh = MessageHistory([UserMessage("x")])
+    node._pre_invoke(mh)
+    resp = Response(
+        message=AssistantMessage("hi"),
+        message_info=MessageInfo(model_name="m"),
+    )
+    node._post_invoke(mh, resp)
+    assert len(node.details["guard_details"]) == 2
+    assert node.details["guard_details"][0].phase == "llm_input"
+    assert node.details["guard_details"][1].phase == "llm_output"
 
 
 def test_build_input_event_tags_and_metadata():

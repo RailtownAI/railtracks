@@ -16,6 +16,7 @@ from railtracks.llm.response import Response
 from ..core import Guard, GuardrailBlockedError, GuardRunner
 from ..core.decision import GuardrailAction
 from ..core.event import LLMGuardrailEvent, LLMGuardrailPhase
+from ..core.trace import GuardrailTrace
 
 
 class LLMGuardrailsMixin:
@@ -25,6 +26,11 @@ class LLMGuardrailsMixin:
     """
 
     guardrails: Guard | None = None
+
+    def _append_guard_traces(self, traces: list[GuardrailTrace]) -> None:
+        if not traces:
+            return
+        self._details["guard_details"].extend(traces)
 
     def _guardrail_agent_kind(self) -> str:
         cls_name = self.__class__.__name__.lower()
@@ -82,6 +88,7 @@ class LLMGuardrailsMixin:
         new_context, traces, decision = GuardRunner(self.guardrails).run_llm_input(
             event
         )
+        self._append_guard_traces(traces)
         if decision is not None and decision.action == GuardrailAction.BLOCK:
             rail_name = traces[-1].rail_name if traces else None
             raise GuardrailBlockedError(
@@ -103,6 +110,7 @@ class LLMGuardrailsMixin:
         new_message, traces, decision = GuardRunner(self.guardrails).run_llm_output(
             event, result.message
         )
+        self._append_guard_traces(traces)
         if decision is not None and decision.action == GuardrailAction.BLOCK:
             rail_name = traces[-1].rail_name if traces else None
             raise GuardrailBlockedError(
