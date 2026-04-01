@@ -66,7 +66,7 @@ def _build_dynamic_agent(
     if unpacked_tool_nodes is not None and len(unpacked_tool_nodes) > 0:
         if guardrails is not None:
             raise NotImplementedError(
-                "Guardrails are not yet supported for tool-calling agents (planned for Phase 7)."
+                "Guardrails are not yet supported for tool-calling agents (see https://github.com/RailtownAI/railtracks/issues/1047)."
             )
         if output_schema is not None:
             return structured_tool_call_llm(

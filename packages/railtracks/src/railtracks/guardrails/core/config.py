@@ -4,6 +4,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from .interfaces import InputGuard, OutputGuard
+
 
 class Guard(BaseModel):
     """
@@ -17,11 +19,11 @@ class Guard(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    input: list[Any] = Field(
+    input: list[InputGuard] = Field(
         default_factory=list,
         description="Guardrails run on LLM input (prompt / message history).",
     )
-    output: list[Any] = Field(
+    output: list[OutputGuard] = Field(
         default_factory=list,
         description="Guardrails run on LLM output (model response).",
     )
@@ -32,7 +34,9 @@ class Guard(BaseModel):
 
     @field_validator("input", "output", "tool_call", "tool_response")
     @classmethod
-    def _validate_callable_rails(cls, value: list[Any]) -> list[Any]:
+    def _validate_callable_rails(
+        cls, value: list[InputGuard | OutputGuard]
+    ) -> list[InputGuard | OutputGuard]:
         for rail in value:
             if not callable(rail):
                 raise TypeError(
