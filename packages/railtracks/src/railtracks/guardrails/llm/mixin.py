@@ -8,9 +8,10 @@ uuid, and that the context/result are MessageHistory and Response.
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any, Callable, cast
 
 from railtracks.llm.message import Message
+from railtracks.llm.model import ModelBase
 from railtracks.llm.response import Response
 
 from ..core import Guard, GuardrailBlockedError, GuardRunner
@@ -26,6 +27,10 @@ class LLMGuardrailsMixin:
     """
 
     guardrails: Guard | None = None
+    _details: dict[str, Any]
+    llm_model: ModelBase
+    uuid: str
+    name: Callable[[], str]
 
     def _append_guard_traces(self, traces: list[GuardrailTrace]) -> None:
         if not traces:
@@ -58,7 +63,7 @@ class LLMGuardrailsMixin:
         return LLMGuardrailEvent(
             phase=LLMGuardrailPhase.INPUT,
             messages=context,
-            node_name=self.__class__.name(),
+            node_name=self.name(),
             node_uuid=self.uuid,
             model_name=model_name,
             model_provider=model_provider,
@@ -74,7 +79,7 @@ class LLMGuardrailsMixin:
             phase=LLMGuardrailPhase.OUTPUT,
             messages=context,
             output_message=assistant_message,
-            node_name=self.__class__.name(),
+            node_name=self.name(),
             node_uuid=self.uuid,
             model_name=model_name,
             model_provider=model_provider,
