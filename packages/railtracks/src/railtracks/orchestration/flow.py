@@ -54,7 +54,7 @@ class Flow(Generic[_P, _TOutput]):
         ) = None,
         prompt_injection: bool | None = None,
         save_state: bool | None = None,
-        payload_callback: Callable[[dict[str, Any]], None] | None = None,
+        payload_callback: Callable[[dict[str, Any]], Any] | None = None,
     ) -> None:
         self.entry_point: Callable[_P, Node[_TOutput]]
 
