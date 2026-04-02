@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
 from railtracks.guardrails.core import Guard
 
@@ -15,10 +16,10 @@ def test_guard_empty_lists():
 
 
 def test_guard_rejects_non_callable_input():
-    with pytest.raises(TypeError, match="callable"):
+    with pytest.raises(ValidationError):
         Guard(input=[object()])  # type: ignore[list-item]
 
 
 def test_guard_rejects_non_callable_output():
-    with pytest.raises(TypeError, match="callable"):
+    with pytest.raises(ValidationError):
         Guard(output=[123])  # type: ignore[list-item]

@@ -13,7 +13,29 @@ from railtracks.built_nodes.concrete import (
     GuardedTerminalLLM,
 )
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
-from railtracks.guardrails import Guard, GuardrailBlockedError, GuardrailDecision
+from railtracks.guardrails import Guard, GuardrailBlockedError, GuardrailDecision, InputGuard, LLMGuardrailEvent, OutputGuard
+
+
+class FnInputGuard(InputGuard):
+    """Wrap a plain callable as an InputGuard for testing."""
+
+    def __init__(self, fn, name: str | None = None):
+        super().__init__(name=name)
+        self._fn = fn
+
+    def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
+        return self._fn(event)
+
+
+class FnOutputGuard(OutputGuard):
+    """Wrap a plain callable as an OutputGuard for testing."""
+
+    def __init__(self, fn, name: str | None = None):
+        super().__init__(name=name)
+        self._fn = fn
+
+    def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
+        return self._fn(event)
 def _counting_chat(llm: rt.llm.ModelBase):
     state = {"n": 0}
     real = llm._chat
@@ -162,14 +184,14 @@ async def test_structured_input_block_skips_llm(mock_llm, block_input):
 async def test_structured_output_block_after_llm(mock_llm, allow_input):
     llm = mock_llm(custom_response='{"text":"x"}')
 
-    def block_out(_e) -> GuardrailDecision:  # type: ignore[no-untyped-def]
-        return GuardrailDecision.block(reason="output policy")
-
     Agent = rt.agent_node(
         name="out-block",
         output_schema=_Answer,
         llm=llm,
-        guardrails=Guard(input=[allow_input], output=[block_out]),
+        guardrails=Guard(
+            input=[allow_input],
+            output=[FnOutputGuard(lambda _e: GuardrailDecision.block(reason="output policy"))],
+        ),
     )
     with rt.Session():
         with pytest.raises(GuardrailBlockedError):
@@ -217,7 +239,7 @@ def test_tool_agent_guardrails_not_implemented(mock_llm):
             name="tools",
             tool_nodes={rt.function_node(tool_fn)},
             llm=mock_llm(),
-            guardrails=Guard(input=[lambda _e: GuardrailDecision.allow()]),
+            guardrails=Guard(input=[FnInputGuard(lambda _e: GuardrailDecision.allow())]),
         )
 
 
@@ -234,7 +256,7 @@ def test_tool_structured_agent_guardrails_not_implemented(mock_llm):
             tool_nodes={rt.function_node(tool_fn)},
             output_schema=M,
             llm=mock_llm(),
-            guardrails=Guard(input=[lambda _e: GuardrailDecision.allow()]),
+            guardrails=Guard(input=[FnInputGuard(lambda _e: GuardrailDecision.allow())]),
         )
 
 
@@ -242,13 +264,13 @@ def test_tool_structured_agent_guardrails_not_implemented(mock_llm):
 async def test_terminal_output_block(mock_llm, allow_input):
     llm = mock_llm(custom_response="bad-answer")
 
-    def block_out(_e) -> GuardrailDecision:  # type: ignore[no-untyped-def]
-        return GuardrailDecision.block(reason="no")
-
     Agent = rt.agent_node(
         name="term-out",
         llm=llm,
-        guardrails=Guard(input=[allow_input], output=[block_out]),
+        guardrails=Guard(
+            input=[allow_input],
+            output=[FnOutputGuard(lambda _e: GuardrailDecision.block(reason="no"))],
+        ),
     )
     with rt.Session():
         with pytest.raises(GuardrailBlockedError):

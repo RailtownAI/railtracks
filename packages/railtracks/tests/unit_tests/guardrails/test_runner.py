@@ -17,6 +17,28 @@ from railtracks.guardrails.core import (
 from railtracks.llm import AssistantMessage, MessageHistory, UserMessage
 
 
+class FnInputGuard(InputGuard):
+    """Wrap a plain callable as an InputGuard for testing."""
+
+    def __init__(self, fn, name: str | None = None):
+        super().__init__(name=name)
+        self._fn = fn
+
+    def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
+        return self._fn(event)
+
+
+class FnOutputGuard(OutputGuard):
+    """Wrap a plain callable as an OutputGuard for testing."""
+
+    def __init__(self, fn, name: str | None = None):
+        super().__init__(name=name)
+        self._fn = fn
+
+    def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
+        return self._fn(event)
+
+
 def make_input_event(messages: MessageHistory | None = None) -> LLMGuardrailEvent:
     return LLMGuardrailEvent(
         phase=LLMGuardrailPhase.INPUT,
@@ -68,7 +90,7 @@ def test_run_llm_input_forces_input_phase_and_clears_output():
         seen.append(ev)
         return GuardrailDecision.allow()
 
-    g = Guard(input=[capture])
+    g = Guard(input=[FnInputGuard(capture)])
     GuardRunner(g).run_llm_input(event)
     assert len(seen) == 1
     assert seen[0].phase == LLMGuardrailPhase.INPUT
@@ -78,8 +100,8 @@ def test_run_llm_input_forces_input_phase_and_clears_output():
 def test_run_llm_input_allow_then_allow(sample_history):
     g = Guard(
         input=[
-            lambda _e: GuardrailDecision.allow(reason="a"),
-            lambda _e: GuardrailDecision.allow(reason="b"),
+            FnInputGuard(lambda _e: GuardrailDecision.allow(reason="a")),
+            FnInputGuard(lambda _e: GuardrailDecision.allow(reason="b")),
         ]
     )
     out, traces, blocked = GuardRunner(g).run_llm_input(make_input_event(sample_history))
@@ -93,7 +115,7 @@ def test_run_llm_input_block_short_circuits(sample_history):
 
     g = Guard(
         input=[
-            lambda _e: GuardrailDecision.block(reason="stop"),
+            FnInputGuard(lambda _e: GuardrailDecision.block(reason="stop")),
             second,
         ]
     )
@@ -108,16 +130,20 @@ def test_run_llm_input_block_short_circuits(sample_history):
 def test_run_llm_input_transform_updates_value_and_event_for_next_rail(sample_history):
     h2 = MessageHistory([UserMessage("two")])
 
-    def first(_e: LLMGuardrailEvent) -> GuardrailDecision:
-        return GuardrailDecision.transform_messages(messages=h2, reason="t1")
-
     seen: list[str] = []
 
-    def second(e: LLMGuardrailEvent) -> GuardrailDecision:
-        seen.append(e.messages[-1].content)  # type: ignore[union-attr]
-        return GuardrailDecision.allow()
-
-    g = Guard(input=[first, second])
+    g = Guard(
+        input=[
+            FnInputGuard(
+                lambda _e: GuardrailDecision.transform_messages(messages=h2, reason="t1")
+            ),
+            FnInputGuard(
+                lambda e: (
+                    seen.append(e.messages[-1].content) or GuardrailDecision.allow()  # type: ignore[func-returns-value, union-attr]
+                )
+            ),
+        ]
+    )
     out, traces, blocked = GuardRunner(g).run_llm_input(make_input_event(sample_history))
     assert blocked is None
     assert out == h2
@@ -126,10 +152,7 @@ def test_run_llm_input_transform_updates_value_and_event_for_next_rail(sample_hi
 
 
 def test_run_llm_input_transform_missing_messages_fail_closed(sample_history):
-    class BadTransform:
-        name = "BadTransform"
-        phase = LLMGuardrailPhase.INPUT
-
+    class BadTransform(InputGuard):
         def __call__(self, _e: LLMGuardrailEvent) -> GuardrailDecision:
             return GuardrailDecision(
                 action=GuardrailAction.TRANSFORM,
@@ -137,7 +160,7 @@ def test_run_llm_input_transform_missing_messages_fail_closed(sample_history):
                 messages=None,
             )
 
-    g = Guard(input=[BadTransform()], fail_open=False)
+    g = Guard(input=[BadTransform(name="BadTransform")], fail_open=False)
     out, traces, blocked = GuardRunner(g).run_llm_input(make_input_event(sample_history))
     assert blocked is not None
     assert blocked.action == GuardrailAction.BLOCK
@@ -146,10 +169,7 @@ def test_run_llm_input_transform_missing_messages_fail_closed(sample_history):
 
 
 def test_run_llm_input_transform_missing_messages_fail_open(sample_history):
-    class BadTransform:
-        name = "BadTransform"
-        phase = LLMGuardrailPhase.INPUT
-
+    class BadTransform(InputGuard):
         def __call__(self, _e: LLMGuardrailEvent) -> GuardrailDecision:
             return GuardrailDecision(
                 action=GuardrailAction.TRANSFORM,
@@ -159,7 +179,7 @@ def test_run_llm_input_transform_missing_messages_fail_open(sample_history):
 
     second = CountingInputGuard(lambda _e: GuardrailDecision.allow())
 
-    g = Guard(input=[BadTransform(), second], fail_open=True)
+    g = Guard(input=[BadTransform(name="BadTransform"), second], fail_open=True)
     out, traces, blocked = GuardRunner(g).run_llm_input(make_input_event(sample_history))
     assert blocked is None
     assert second.count == 1
@@ -170,7 +190,7 @@ def test_run_llm_input_rail_raises_fail_closed(sample_history):
     def boom(_e: LLMGuardrailEvent) -> GuardrailDecision:
         raise RuntimeError("rail error")
 
-    g = Guard(input=[boom], fail_open=False)
+    g = Guard(input=[FnInputGuard(boom)], fail_open=False)
     _out, traces, blocked = GuardRunner(g).run_llm_input(make_input_event(sample_history))
     assert blocked is not None
     assert "raised exception" in blocked.reason.lower()
@@ -185,7 +205,7 @@ def test_run_llm_input_rail_raises_fail_open(sample_history):
 
     second = CountingInputGuard(lambda _e: GuardrailDecision.allow())
 
-    g = Guard(input=[boom, second], fail_open=True)
+    g = Guard(input=[FnInputGuard(boom), second], fail_open=True)
     out, traces, blocked = GuardRunner(g).run_llm_input(make_input_event(sample_history))
     assert blocked is None
     assert second.count == 1
@@ -196,7 +216,7 @@ def test_run_llm_input_wrong_return_type_fail_closed(sample_history):
     def bad(_e: LLMGuardrailEvent):
         return "not a decision"
 
-    g = Guard(input=[bad], fail_open=False)
+    g = Guard(input=[FnInputGuard(bad)], fail_open=False)
     _out, traces, blocked = GuardRunner(g).run_llm_input(make_input_event(sample_history))
     assert blocked is not None
     assert "raised exception" in blocked.reason.lower()
@@ -224,7 +244,7 @@ def test_run_llm_output_block_short_circuits():
 
     g = Guard(
         output=[
-            lambda _e: GuardrailDecision.block(reason="stop"),
+            FnOutputGuard(lambda _e: GuardrailDecision.block(reason="stop")),
             second,
         ]
     )
@@ -245,17 +265,20 @@ def test_run_llm_output_transform_chain():
     m0 = AssistantMessage(content="a")
     m1 = AssistantMessage(content="b")
 
-    def t1(_e: LLMGuardrailEvent) -> GuardrailDecision:
-        return GuardrailDecision.transform_output(output_message=m1, reason="t1")
-
     seen: list[str] = []
 
-    def t2(e: LLMGuardrailEvent) -> GuardrailDecision:
-        assert e.output_message is not None
-        seen.append(e.output_message.content)  # type: ignore[arg-type]
-        return GuardrailDecision.allow()
-
-    g = Guard(output=[t1, t2])
+    g = Guard(
+        output=[
+            FnOutputGuard(
+                lambda _e: GuardrailDecision.transform_output(output_message=m1, reason="t1")
+            ),
+            FnOutputGuard(
+                lambda e: (
+                    seen.append(e.output_message.content) or GuardrailDecision.allow()  # type: ignore[func-returns-value, union-attr]
+                )
+            ),
+        ]
+    )
     out, traces, blocked = GuardRunner(g).run_llm_output(
         LLMGuardrailEvent(
             phase=LLMGuardrailPhase.OUTPUT,
@@ -273,10 +296,7 @@ def test_run_llm_output_transform_missing_output_fail_closed():
     hist = MessageHistory([UserMessage("u")])
     m0 = AssistantMessage(content="a")
 
-    class BadOut:
-        name = "BadOut"
-        phase = LLMGuardrailPhase.OUTPUT
-
+    class BadOut(OutputGuard):
         def __call__(self, _e: LLMGuardrailEvent) -> GuardrailDecision:
             return GuardrailDecision(
                 action=GuardrailAction.TRANSFORM,
@@ -284,7 +304,7 @@ def test_run_llm_output_transform_missing_output_fail_closed():
                 output_message=None,
             )
 
-    g = Guard(output=[BadOut()], fail_open=False)
+    g = Guard(output=[BadOut(name="BadOut")], fail_open=False)
     _out, traces, blocked = GuardRunner(g).run_llm_output(
         LLMGuardrailEvent(
             phase=LLMGuardrailPhase.OUTPUT,
@@ -298,9 +318,7 @@ def test_run_llm_output_transform_missing_output_fail_closed():
 
 
 def test_trace_rail_name_fallback_to_class():
-    class UnnamedRail:
-        phase = LLMGuardrailPhase.INPUT
-
+    class UnnamedRail(InputGuard):
         def __call__(self, _e: LLMGuardrailEvent) -> GuardrailDecision:
             return GuardrailDecision.allow()
 
@@ -310,13 +328,10 @@ def test_trace_rail_name_fallback_to_class():
 
 
 def test_trace_uses_rail_name_attr():
-    class NamedRail:
-        name = "custom"
-        phase = LLMGuardrailPhase.INPUT
-
+    class NamedRail(InputGuard):
         def __call__(self, _e: LLMGuardrailEvent) -> GuardrailDecision:
             return GuardrailDecision.allow()
 
-    g = Guard(input=[NamedRail()])
+    g = Guard(input=[NamedRail(name="custom")])
     _out, traces, _b = GuardRunner(g).run_llm_input(make_input_event())
     assert traces[0].rail_name == "custom"

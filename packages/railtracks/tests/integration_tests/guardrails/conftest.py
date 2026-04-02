@@ -2,27 +2,32 @@
 
 from __future__ import annotations
 
-from typing import Callable
-
 import pytest
 
-from railtracks.guardrails import GuardrailDecision, LLMGuardrailEvent
+from railtracks.guardrails import GuardrailDecision, InputGuard, LLMGuardrailEvent
+
+
+class _FixtureInputGuard(InputGuard):
+    """Wrap a plain callable as an InputGuard for test fixtures."""
+
+    def __init__(self, fn, name: str | None = None):
+        super().__init__(name=name)
+        self._fn = fn
+
+    def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
+        return self._fn(event)
 
 
 @pytest.fixture
-def block_input() -> Callable[[LLMGuardrailEvent], GuardrailDecision]:
-    def _block(_event: LLMGuardrailEvent) -> GuardrailDecision:
-        return GuardrailDecision.block(
+def block_input() -> InputGuard:
+    return _FixtureInputGuard(
+        lambda _event: GuardrailDecision.block(
             reason="integration block",
             user_facing_message="blocked",
         )
-
-    return _block
+    )
 
 
 @pytest.fixture
-def allow_input() -> Callable[[LLMGuardrailEvent], GuardrailDecision]:
-    def _allow(_event: LLMGuardrailEvent) -> GuardrailDecision:
-        return GuardrailDecision.allow()
-
-    return _allow
+def allow_input() -> InputGuard:
+    return _FixtureInputGuard(lambda _event: GuardrailDecision.allow())

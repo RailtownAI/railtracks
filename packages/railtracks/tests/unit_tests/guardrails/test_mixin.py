@@ -14,7 +14,30 @@ from railtracks.guardrails.llm.mixin import LLMGuardrailsMixin
 from railtracks.llm import AssistantMessage, MessageHistory, UserMessage
 from railtracks.nodes.nodes import DebugDetails
 from railtracks.llm.providers import ModelProvider
+from railtracks.guardrails.core import InputGuard, LLMGuardrailEvent, OutputGuard
 from railtracks.llm.response import MessageInfo, Response
+
+
+class FnInputGuard(InputGuard):
+    """Wrap a plain callable as an InputGuard for testing."""
+
+    def __init__(self, fn, name: str | None = None):
+        super().__init__(name=name)
+        self._fn = fn
+
+    def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
+        return self._fn(event)
+
+
+class FnOutputGuard(OutputGuard):
+    """Wrap a plain callable as an OutputGuard for testing."""
+
+    def __init__(self, fn, name: str | None = None):
+        super().__init__(name=name)
+        self._fn = fn
+
+    def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
+        return self._fn(event)
 
 
 class _StubLLM:
@@ -93,7 +116,7 @@ def test_pre_invoke_empty_input_rails():
 def test_pre_invoke_blocks():
     node = GuardedTerminalStub()
     node.guardrails = Guard(
-        input=[lambda _e: GuardrailDecision.block(reason="nope", user_facing_message="u")],
+        input=[FnInputGuard(lambda _e: GuardrailDecision.block(reason="nope", user_facing_message="u"))],
     )
     mh = MessageHistory([UserMessage("x")])
     with pytest.raises(GuardrailBlockedError) as exc_info:
@@ -112,9 +135,9 @@ def test_pre_invoke_transforms_messages():
     node = GuardedTerminalStub()
     node.guardrails = Guard(
         input=[
-            lambda _e: GuardrailDecision.transform_messages(
+            FnInputGuard(lambda _e: GuardrailDecision.transform_messages(
                 messages=new_hist, reason="edit"
-            ),
+            )),
         ],
     )
     mh = MessageHistory([UserMessage("x")])
@@ -127,7 +150,7 @@ def test_pre_invoke_transforms_messages():
 def test_post_invoke_skips_when_not_response():
     node = GuardedTerminalStub()
     node.guardrails = Guard(
-        output=[lambda _e: GuardrailDecision.block(reason="should not run")],
+        output=[FnOutputGuard(lambda _e: GuardrailDecision.block(reason="should not run"))],
     )
     assert node._post_invoke(MessageHistory([]), {"not": "response"}) == {"not": "response"}
 
@@ -146,7 +169,7 @@ def test_post_invoke_skips_when_no_output_rails():
 def test_post_invoke_output_block():
     node = GuardedTerminalStub()
     node.guardrails = Guard(
-        output=[lambda _e: GuardrailDecision.block(reason="bad output")],
+        output=[FnOutputGuard(lambda _e: GuardrailDecision.block(reason="bad output"))],
     )
     resp = Response(
         message=AssistantMessage("evil"),
@@ -164,9 +187,9 @@ def test_post_invoke_output_transform_preserves_message_info():
     node = GuardedTerminalStub()
     node.guardrails = Guard(
         output=[
-            lambda _e: GuardrailDecision.transform_output(
+            FnOutputGuard(lambda _e: GuardrailDecision.transform_output(
                 output_message=new_msg, reason="fix"
-            ),
+            )),
         ],
     )
     info = MessageInfo(input_tokens=3, output_tokens=5, model_name="m")
@@ -182,8 +205,8 @@ def test_post_invoke_output_transform_preserves_message_info():
 def test_pre_then_post_appends_guard_details_in_order():
     node = GuardedTerminalStub()
     node.guardrails = Guard(
-        input=[lambda _e: GuardrailDecision.allow(reason="ok in")],
-        output=[lambda _e: GuardrailDecision.allow(reason="ok out")],
+        input=[FnInputGuard(lambda _e: GuardrailDecision.allow(reason="ok in"))],
+        output=[FnOutputGuard(lambda _e: GuardrailDecision.allow(reason="ok out"))],
     )
     mh = MessageHistory([UserMessage("x")])
     node._pre_invoke(mh)
