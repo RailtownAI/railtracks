@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable, Iterable, Literal, TypeVar, cast
+from typing import Any, Iterable, Literal, cast
 
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import Message
@@ -10,8 +10,6 @@ from .decision import GuardrailAction, GuardrailDecision
 from .event import LLMGuardrailEvent, LLMGuardrailPhase
 from .interfaces import BaseLLMGuardrail
 from .trace import GuardrailTrace
-
-_TValue = TypeVar("_TValue")
 
 
 def _rail_name(rail: BaseLLMGuardrail) -> str:
@@ -54,6 +52,22 @@ def _trace_for_exception(
     )
 
 
+def _extract_transform_value(
+    phase: LLMGuardrailPhase, decision: GuardrailDecision
+) -> Any:
+    if phase == LLMGuardrailPhase.INPUT:
+        if decision.messages is None:
+            raise ValueError(
+                "Input guardrail returned TRANSFORM without decision.messages."
+            )
+        return decision.messages
+    if decision.output_message is None:
+        raise ValueError(
+            "Output guardrail returned TRANSFORM without decision.output_message."
+        )
+    return decision.output_message
+
+
 class GuardRunner:
     def __init__(self, guard: Guard):
         self.guard = guard
@@ -62,7 +76,7 @@ class GuardRunner:
         self,
         phase: LLMGuardrailPhase,
         event: LLMGuardrailEvent,
-        value: _TValue,
+        value: Any,
     ) -> LLMGuardrailEvent:
         if phase == LLMGuardrailPhase.INPUT:
             return event.model_copy(update={"messages": cast(MessageHistory, value)})
@@ -75,11 +89,10 @@ class GuardRunner:
         phase: LLMGuardrailPhase,
         exc: Exception,
         traces: list[GuardrailTrace],
-        value: _TValue,
+        value: Any,
         reason_prefix: str,
     ) -> (
-        tuple[Literal["continue"], _TValue]
-        | tuple[Literal["stop"], _TValue, GuardrailDecision]
+        tuple[Literal["continue"], Any] | tuple[Literal["stop"], Any, GuardrailDecision]
     ):
         traces.append(_trace_for_exception(rail=rail, phase=phase, exc=exc))
         if self.guard.fail_open:
@@ -100,17 +113,16 @@ class GuardRunner:
         rail: BaseLLMGuardrail,
         phase: LLMGuardrailPhase,
         event: LLMGuardrailEvent,
-        value: _TValue,
+        value: Any,
         decision: GuardrailDecision,
         traces: list[GuardrailTrace],
-        apply_transform: Callable[[_TValue, GuardrailDecision], _TValue],
     ) -> (
-        tuple[Literal["continue"], _TValue, LLMGuardrailEvent]
-        | tuple[Literal["stop"], _TValue, GuardrailDecision]
+        tuple[Literal["continue"], Any, LLMGuardrailEvent]
+        | tuple[Literal["stop"], Any, GuardrailDecision]
     ):
         if decision.action == GuardrailAction.TRANSFORM:
             try:
-                value = apply_transform(value, decision)
+                value = _extract_transform_value(phase, decision)
                 event = self._sync_event_after_transform(phase, event, value)
             except Exception as e:
                 outcome = self._handle_rail_exception(
@@ -151,12 +163,11 @@ class GuardRunner:
         rail: BaseLLMGuardrail,
         phase: LLMGuardrailPhase,
         event: LLMGuardrailEvent,
-        value: _TValue,
+        value: Any,
         traces: list[GuardrailTrace],
-        apply_transform: Callable[[_TValue, GuardrailDecision], _TValue],
     ) -> (
-        tuple[Literal["continue"], _TValue, LLMGuardrailEvent]
-        | tuple[Literal["stop"], _TValue, GuardrailDecision]
+        tuple[Literal["continue"], Any, LLMGuardrailEvent]
+        | tuple[Literal["stop"], Any, GuardrailDecision]
     ):
         try:
             decision = rail(event)
@@ -189,7 +200,6 @@ class GuardRunner:
             value=value,
             decision=decision,
             traces=traces,
-            apply_transform=apply_transform,
         )
 
     def _run_chain(
@@ -198,9 +208,8 @@ class GuardRunner:
         rails: Iterable[BaseLLMGuardrail],
         phase: LLMGuardrailPhase,
         event: LLMGuardrailEvent,
-        value: _TValue,
-        apply_transform: Callable[[_TValue, GuardrailDecision], _TValue],
-    ) -> tuple[_TValue, list[GuardrailTrace], GuardrailDecision | None]:
+        value: Any,
+    ) -> tuple[Any, list[GuardrailTrace], GuardrailDecision | None]:
         traces: list[GuardrailTrace] = []
 
         for rail in rails:
@@ -210,7 +219,6 @@ class GuardRunner:
                 event=event,
                 value=value,
                 traces=traces,
-                apply_transform=apply_transform,
             )
             if step[0] == "stop":
                 return step[1], traces, step[2]
@@ -228,26 +236,11 @@ class GuardRunner:
         )
         input_event = input_event.model_copy(update={"output_message": None})
 
-        def apply_transform(
-            current: MessageHistory, decision: GuardrailDecision
-        ) -> MessageHistory:
-            # NOTE: `current` is intentionally unused here. We keep a uniform
-            # (current_value, decision) -> new_value adapter signature for both
-            # input/output so `_run_chain` can stay generic. If we later want
-            # incremental/patch transforms, we can start using `current` (or
-            # change the signature).
-            if decision.messages is None:
-                raise ValueError(
-                    "Input guardrail returned TRANSFORM without decision.messages."
-                )
-            return decision.messages
-
         value, traces, blocked = self._run_chain(
             rails=cast(Iterable[BaseLLMGuardrail], self.guard.input),
             phase=LLMGuardrailPhase.INPUT,
             event=input_event,
             value=input_event.messages,
-            apply_transform=apply_transform,
         )
         return value, traces, blocked
 
@@ -259,21 +252,13 @@ class GuardRunner:
             if event.phase == LLMGuardrailPhase.OUTPUT
             else event.model_copy(update={"phase": LLMGuardrailPhase.OUTPUT})
         )
-        output_event = output_event.model_copy(update={"output_message": output})
-
-        def apply_transform(current: Message, decision: GuardrailDecision) -> Message:
-            # Same rationale as input: signature stays uniform across phases.
-            if decision.output_message is None:
-                raise ValueError(
-                    "Output guardrail returned TRANSFORM without decision.output_message."
-                )
-            return decision.output_message
+        output_event = output_event.model_copy()
+        output_event.output_message = output
 
         value, traces, blocked = self._run_chain(
             rails=cast(Iterable[BaseLLMGuardrail], self.guard.output),
             phase=LLMGuardrailPhase.OUTPUT,
             event=output_event,
             value=output,
-            apply_transform=apply_transform,
         )
         return value, traces, blocked
