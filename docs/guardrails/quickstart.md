@@ -47,8 +47,3 @@ This request contains the blocked keyword, so Railtracks raises `GuardrailBlocke
     - user_message='Ask for something else instead.'
     ```
 
-## What this shows
-
-- Input guardrails run before the LLM call.
-- Safe requests pass through as normal.
-- Blocked requests fail with `GuardrailBlockedError`.

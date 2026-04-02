@@ -1,13 +1,26 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Protocol
+from typing import Any, Protocol
 
 from .decision import GuardrailDecision
 from .event import LLMGuardrailEvent, LLMGuardrailPhase
 
 
-class LLMGuardrail(Protocol):
+class Guardrail(Protocol):
+    """
+    Base protocol for all guardrails: callable with a name.
+
+    Subtype protocols (e.g. :class:`LLMGuardrail`) narrow the event type and
+    add domain-specific attributes like ``phase``.
+    """
+
+    name: str
+
+    def __call__(self, event: Any) -> GuardrailDecision: ...
+
+
+class LLMGuardrail(Guardrail, Protocol):
     """
     Protocol for LLM guardrails: callable with name and phase.
 
@@ -19,20 +32,28 @@ class LLMGuardrail(Protocol):
     appends it to history.
     """
 
-    name: str
     phase: LLMGuardrailPhase
 
     def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision: ...
 
 
-class BaseLLMGuardrail(ABC):
-    """Abstract base class for guardrails that run on LLM input or output."""
+class BaseGuardrail(ABC):
+    """Abstract base class for all guardrails."""
 
-    phase: LLMGuardrailPhase
     name: str
 
     def __init__(self, name: str | None = None):
         self.name = name or self.__class__.__name__
+
+    @abstractmethod
+    def __call__(self, event: Any) -> GuardrailDecision:
+        pass
+
+
+class BaseLLMGuardrail(BaseGuardrail):
+    """Abstract base class for guardrails that run on LLM input or output."""
+
+    phase: LLMGuardrailPhase
 
     @abstractmethod
     def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:

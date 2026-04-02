@@ -134,10 +134,6 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
         """
         Add a method to be run immeadetly prior to the invoke.
         """
-        if "pre_invokes" not in cls.__dict__:
-            # Guard against mutating the parent-class list, which is shared
-            # across all Node subclasses that haven't defined their own list.
-            cls.pre_invokes = list(cls.pre_invokes)
         cls.pre_invokes.append(function)
 
     async def tracked_invoke(self) -> _TOutput:
