@@ -156,9 +156,18 @@ class LLMBase(Node[_T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
 
         self.message_hist = message_history_copy
 
+        self._details["guard_details"] = []
         self._details["llm_details"] = []
 
         self._attach_llm_hooks()
+
+    def _pre_invoke(self, context: Any) -> Any:
+        """Override to run logic before the LLM call (e.g. input guardrails). Default: identity."""
+        return context
+
+    def _post_invoke(self, context: Any, result: Any) -> Any:
+        """Override to run logic after the LLM call (e.g. output guardrails). Default: identity."""
+        return result
 
     @classmethod
     def prepare_tool_message_history(
@@ -342,6 +351,7 @@ class LLMBase(Node[_T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
     ) -> Generator[str | _TCollectedOutput, None, _TCollectedOutput]:
         for r in returned_mess:
             if isinstance(r, Response):
+                r = self._post_invoke(self.message_hist, r)
                 message = r.message
 
                 self._handle_output(message)

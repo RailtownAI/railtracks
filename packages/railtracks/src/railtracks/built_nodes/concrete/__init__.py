@@ -4,6 +4,10 @@ __all__ = [
     "StringResponse",
     "StructuredResponse",
     "TerminalLLM",
+    "GuardedTerminalLLM",
+    "GuardedStreamingTerminalLLM",
+    "GuardedStructuredLLM",
+    "GuardedStreamingStructuredLLM",
     "StructuredLLM",
     "ToolCallLLM",
     "StructuredToolCallLLM",
@@ -27,6 +31,12 @@ from .function_base import (
     RTFunction,
     RTSyncFunction,
     SyncDynamicFunctionNode,
+)
+from .guarded_llm import (
+    GuardedStreamingStructuredLLM,
+    GuardedStreamingTerminalLLM,
+    GuardedStructuredLLM,
+    GuardedTerminalLLM,
 )
 from .response import StringResponse, StructuredResponse
 from .structured_llm_base import StructuredLLM
