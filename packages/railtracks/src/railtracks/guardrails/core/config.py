@@ -11,7 +11,7 @@ class Guard(BaseModel):
     """
     Configuration for guardrails: input/output (and future tool) rails plus behavior flags.
 
-    ``input`` and ``output`` are lists of LLM guardrails (see :class:`LLMGuardrail`).
+    ``input`` and ``output`` are lists of LLM guardrails (see :class:`BaseLLMGuardrail`).
     The runner expects each rail to be callable with :class:`LLMGuardrailEvent` and
     return a :class:`GuardrailDecision`. For output rails, the guarded assistant
     message is ``event.output_message`` (see :class:`~railtracks.guardrails.core.event.LLMGuardrailEvent`).

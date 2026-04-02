@@ -8,13 +8,13 @@ from railtracks.llm.message import Message
 from .config import Guard
 from .decision import GuardrailAction, GuardrailDecision
 from .event import LLMGuardrailEvent, LLMGuardrailPhase
-from .interfaces import LLMGuardrail
+from .interfaces import BaseLLMGuardrail
 from .trace import GuardrailTrace
 
 _TValue = TypeVar("_TValue")
 
 
-def _rail_name(rail: LLMGuardrail) -> str:
+def _rail_name(rail: BaseLLMGuardrail) -> str:
     name = getattr(rail, "name", None)
     if isinstance(name, str) and name.strip():
         return name
@@ -23,7 +23,7 @@ def _rail_name(rail: LLMGuardrail) -> str:
 
 def _trace_from_decision(
     *,
-    rail: LLMGuardrail,
+    rail: BaseLLMGuardrail,
     phase: LLMGuardrailPhase,
     decision: GuardrailDecision,
 ) -> GuardrailTrace:
@@ -38,7 +38,7 @@ def _trace_from_decision(
 
 def _trace_for_exception(
     *,
-    rail: LLMGuardrail,
+    rail: BaseLLMGuardrail,
     phase: LLMGuardrailPhase,
     exc: Exception,
 ) -> GuardrailTrace:
@@ -71,7 +71,7 @@ class GuardRunner:
     def _handle_rail_exception(
         self,
         *,
-        rail: LLMGuardrail,
+        rail: BaseLLMGuardrail,
         phase: LLMGuardrailPhase,
         exc: Exception,
         traces: list[GuardrailTrace],
@@ -97,7 +97,7 @@ class GuardRunner:
     def _dispatch_non_allow_decision(
         self,
         *,
-        rail: LLMGuardrail,
+        rail: BaseLLMGuardrail,
         phase: LLMGuardrailPhase,
         event: LLMGuardrailEvent,
         value: _TValue,
@@ -148,7 +148,7 @@ class GuardRunner:
 
     def _eval_one_rail(
         self,
-        rail: LLMGuardrail,
+        rail: BaseLLMGuardrail,
         phase: LLMGuardrailPhase,
         event: LLMGuardrailEvent,
         value: _TValue,
@@ -195,7 +195,7 @@ class GuardRunner:
     def _run_chain(
         self,
         *,
-        rails: Iterable[LLMGuardrail],
+        rails: Iterable[BaseLLMGuardrail],
         phase: LLMGuardrailPhase,
         event: LLMGuardrailEvent,
         value: _TValue,
@@ -243,7 +243,7 @@ class GuardRunner:
             return decision.messages
 
         value, traces, blocked = self._run_chain(
-            rails=cast(Iterable[LLMGuardrail], self.guard.input),
+            rails=cast(Iterable[BaseLLMGuardrail], self.guard.input),
             phase=LLMGuardrailPhase.INPUT,
             event=input_event,
             value=input_event.messages,
@@ -270,7 +270,7 @@ class GuardRunner:
             return decision.output_message
 
         value, traces, blocked = self._run_chain(
-            rails=cast(Iterable[LLMGuardrail], self.guard.output),
+            rails=cast(Iterable[BaseLLMGuardrail], self.guard.output),
             phase=LLMGuardrailPhase.OUTPUT,
             event=output_event,
             value=output,

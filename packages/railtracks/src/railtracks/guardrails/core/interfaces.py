@@ -11,30 +11,13 @@ class Guardrail(Protocol):
     """
     Base protocol for all guardrails: callable with a name.
 
-    Subtype protocols (e.g. :class:`LLMGuardrail`) narrow the event type and
-    add domain-specific attributes like ``phase``.
+    Concrete ABC hierarchies (e.g. :class:`BaseLLMGuardrail`) narrow the event
+    type and add domain-specific attributes like ``phase``.
     """
 
     name: str
 
     def __call__(self, event: Any) -> GuardrailDecision: ...
-
-
-class LLMGuardrail(Guardrail, Protocol):
-    """
-    Protocol for LLM guardrails: callable with name and phase.
-
-    Use this type when you need to accept any guardrail-like object (e.g. in APIs)
-    without requiring a specific base class.
-
-    For OUTPUT-phase rails, read the model reply from ``event.output_message`` (not
-    ``event.messages[-1]``), which may omit the current assistant reply until the node
-    appends it to history.
-    """
-
-    phase: LLMGuardrailPhase
-
-    def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision: ...
 
 
 class BaseGuardrail(ABC):

@@ -7,7 +7,6 @@ from .interfaces import (
     BaseLLMGuardrail,
     Guardrail,
     InputGuard,
-    LLMGuardrail,
     OutputGuard,
 )
 from .runner import GuardRunner
@@ -22,7 +21,6 @@ __all__ = [
     "GuardRunner",
     "Guardrail",
     "BaseGuardrail",
-    "LLMGuardrail",
     "BaseLLMGuardrail",
     "InputGuard",
     "OutputGuard",
