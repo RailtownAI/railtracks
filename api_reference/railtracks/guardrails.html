@@ -1,0 +1,1743 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="generator" content="pdoc 15.0.4"/>
+    <title>railtracks.guardrails API documentation</title>
+
+    <style>/*! * Bootstrap Reboot v5.0.0 (https://getbootstrap.com/) * Copyright 2011-2021 The Bootstrap Authors * Copyright 2011-2021 Twitter, Inc. * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE) * Forked from Normalize.css, licensed MIT (https://github.com/necolas/normalize.css/blob/master/LICENSE.md) */*,::after,::before{box-sizing:border-box}@media (prefers-reduced-motion:no-preference){:root{scroll-behavior:smooth}}body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans","Liberation Sans",sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";font-size:1rem;font-weight:400;line-height:1.5;color:#212529;background-color:#fff;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}hr{margin:1rem 0;color:inherit;background-color:currentColor;border:0;opacity:.25}hr:not([size]){height:1px}h1,h2,h3,h4,h5,h6{margin-top:0;margin-bottom:.5rem;font-weight:500;line-height:1.2}h1{font-size:calc(1.375rem + 1.5vw)}@media (min-width:1200px){h1{font-size:2.5rem}}h2{font-size:calc(1.325rem + .9vw)}@media (min-width:1200px){h2{font-size:2rem}}h3{font-size:calc(1.3rem + .6vw)}@media (min-width:1200px){h3{font-size:1.75rem}}h4{font-size:calc(1.275rem + .3vw)}@media (min-width:1200px){h4{font-size:1.5rem}}h5{font-size:1.25rem}h6{font-size:1rem}p{margin-top:0;margin-bottom:1rem}abbr[data-bs-original-title],abbr[title]{-webkit-text-decoration:underline dotted;text-decoration:underline dotted;cursor:help;-webkit-text-decoration-skip-ink:none;text-decoration-skip-ink:none}address{margin-bottom:1rem;font-style:normal;line-height:inherit}ol,ul{padding-left:2rem}dl,ol,ul{margin-top:0;margin-bottom:1rem}ol ol,ol ul,ul ol,ul ul{margin-bottom:0}dt{font-weight:700}dd{margin-bottom:.5rem;margin-left:0}blockquote{margin:0 0 1rem}b,strong{font-weight:bolder}small{font-size:.875em}mark{padding:.2em;background-color:#fcf8e3}sub,sup{position:relative;font-size:.75em;line-height:0;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}a{color:#0d6efd;text-decoration:underline}a:hover{color:#0a58ca}a:not([href]):not([class]),a:not([href]):not([class]):hover{color:inherit;text-decoration:none}code,kbd,pre,samp{font-family:SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:1em;direction:ltr;unicode-bidi:bidi-override}pre{display:block;margin-top:0;margin-bottom:1rem;overflow:auto;font-size:.875em}pre code{font-size:inherit;color:inherit;word-break:normal}code{font-size:.875em;color:#d63384;word-wrap:break-word}a>code{color:inherit}kbd{padding:.2rem .4rem;font-size:.875em;color:#fff;background-color:#212529;border-radius:.2rem}kbd kbd{padding:0;font-size:1em;font-weight:700}figure{margin:0 0 1rem}img,svg{vertical-align:middle}table{caption-side:bottom;border-collapse:collapse}caption{padding-top:.5rem;padding-bottom:.5rem;color:#6c757d;text-align:left}th{text-align:inherit;text-align:-webkit-match-parent}tbody,td,tfoot,th,thead,tr{border-color:inherit;border-style:solid;border-width:0}label{display:inline-block}button{border-radius:0}button:focus:not(:focus-visible){outline:0}button,input,optgroup,select,textarea{margin:0;font-family:inherit;font-size:inherit;line-height:inherit}button,select{text-transform:none}[role=button]{cursor:pointer}select{word-wrap:normal}select:disabled{opacity:1}[list]::-webkit-calendar-picker-indicator{display:none}[type=button],[type=reset],[type=submit],button{-webkit-appearance:button}[type=button]:not(:disabled),[type=reset]:not(:disabled),[type=submit]:not(:disabled),button:not(:disabled){cursor:pointer}::-moz-focus-inner{padding:0;border-style:none}textarea{resize:vertical}fieldset{min-width:0;padding:0;margin:0;border:0}legend{float:left;width:100%;padding:0;margin-bottom:.5rem;font-size:calc(1.275rem + .3vw);line-height:inherit}@media (min-width:1200px){legend{font-size:1.5rem}}legend+*{clear:left}::-webkit-datetime-edit-day-field,::-webkit-datetime-edit-fields-wrapper,::-webkit-datetime-edit-hour-field,::-webkit-datetime-edit-minute,::-webkit-datetime-edit-month-field,::-webkit-datetime-edit-text,::-webkit-datetime-edit-year-field{padding:0}::-webkit-inner-spin-button{height:auto}[type=search]{outline-offset:-2px;-webkit-appearance:textfield}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-color-swatch-wrapper{padding:0}::file-selector-button{font:inherit}::-webkit-file-upload-button{font:inherit;-webkit-appearance:button}output{display:inline-block}iframe{border:0}summary{display:list-item;cursor:pointer}progress{vertical-align:baseline}[hidden]{display:none!important}</style>
+    <style>/*! syntax-highlighting.css */pre{line-height:125%;}span.linenos{color:inherit; background-color:transparent; padding-left:5px; padding-right:20px;}.pdoc-code .hll{background-color:#ffffcc}.pdoc-code{background:#f8f8f8;}.pdoc-code .c{color:#3D7B7B; font-style:italic}.pdoc-code .err{border:1px solid #FF0000}.pdoc-code .k{color:#008000; font-weight:bold}.pdoc-code .o{color:#666666}.pdoc-code .ch{color:#3D7B7B; font-style:italic}.pdoc-code .cm{color:#3D7B7B; font-style:italic}.pdoc-code .cp{color:#9C6500}.pdoc-code .cpf{color:#3D7B7B; font-style:italic}.pdoc-code .c1{color:#3D7B7B; font-style:italic}.pdoc-code .cs{color:#3D7B7B; font-style:italic}.pdoc-code .gd{color:#A00000}.pdoc-code .ge{font-style:italic}.pdoc-code .gr{color:#E40000}.pdoc-code .gh{color:#000080; font-weight:bold}.pdoc-code .gi{color:#008400}.pdoc-code .go{color:#717171}.pdoc-code .gp{color:#000080; font-weight:bold}.pdoc-code .gs{font-weight:bold}.pdoc-code .gu{color:#800080; font-weight:bold}.pdoc-code .gt{color:#0044DD}.pdoc-code .kc{color:#008000; font-weight:bold}.pdoc-code .kd{color:#008000; font-weight:bold}.pdoc-code .kn{color:#008000; font-weight:bold}.pdoc-code .kp{color:#008000}.pdoc-code .kr{color:#008000; font-weight:bold}.pdoc-code .kt{color:#B00040}.pdoc-code .m{color:#666666}.pdoc-code .s{color:#BA2121}.pdoc-code .na{color:#687822}.pdoc-code .nb{color:#008000}.pdoc-code .nc{color:#0000FF; font-weight:bold}.pdoc-code .no{color:#880000}.pdoc-code .nd{color:#AA22FF}.pdoc-code .ni{color:#717171; font-weight:bold}.pdoc-code .ne{color:#CB3F38; font-weight:bold}.pdoc-code .nf{color:#0000FF}.pdoc-code .nl{color:#767600}.pdoc-code .nn{color:#0000FF; font-weight:bold}.pdoc-code .nt{color:#008000; font-weight:bold}.pdoc-code .nv{color:#19177C}.pdoc-code .ow{color:#AA22FF; font-weight:bold}.pdoc-code .w{color:#bbbbbb}.pdoc-code .mb{color:#666666}.pdoc-code .mf{color:#666666}.pdoc-code .mh{color:#666666}.pdoc-code .mi{color:#666666}.pdoc-code .mo{color:#666666}.pdoc-code .sa{color:#BA2121}.pdoc-code .sb{color:#BA2121}.pdoc-code .sc{color:#BA2121}.pdoc-code .dl{color:#BA2121}.pdoc-code .sd{color:#BA2121; font-style:italic}.pdoc-code .s2{color:#BA2121}.pdoc-code .se{color:#AA5D1F; font-weight:bold}.pdoc-code .sh{color:#BA2121}.pdoc-code .si{color:#A45A77; font-weight:bold}.pdoc-code .sx{color:#008000}.pdoc-code .sr{color:#A45A77}.pdoc-code .s1{color:#BA2121}.pdoc-code .ss{color:#19177C}.pdoc-code .bp{color:#008000}.pdoc-code .fm{color:#0000FF}.pdoc-code .vc{color:#19177C}.pdoc-code .vg{color:#19177C}.pdoc-code .vi{color:#19177C}.pdoc-code .vm{color:#19177C}.pdoc-code .il{color:#666666}</style>
+    <style>/*! theme.css */:root{--pdoc-background:#fff;}.pdoc{--text:#212529;--muted:#6c757d;--link:#3660a5;--link-hover:#1659c5;--code:#f8f8f8;--active:#fff598;--accent:#eee;--accent2:#c1c1c1;--nav-hover:rgba(255, 255, 255, 0.5);--name:#0066BB;--def:#008800;--annotation:#007020;}</style>
+    <style>/*! layout.css */html, body{width:100%;height:100%;}html, main{scroll-behavior:smooth;}body{background-color:var(--pdoc-background);}@media (max-width:769px){#navtoggle{cursor:pointer;position:absolute;width:50px;height:40px;top:1rem;right:1rem;border-color:var(--text);color:var(--text);display:flex;opacity:0.8;z-index:999;}#navtoggle:hover{opacity:1;}#togglestate + div{display:none;}#togglestate:checked + div{display:inherit;}main, header{padding:2rem 3vw;}header + main{margin-top:-3rem;}.git-button{display:none !important;}nav input[type="search"]{max-width:77%;}nav input[type="search"]:first-child{margin-top:-6px;}nav input[type="search"]:valid ~ *{display:none !important;}}@media (min-width:770px){:root{--sidebar-width:clamp(12.5rem, 28vw, 22rem);}nav{position:fixed;overflow:auto;height:100vh;width:var(--sidebar-width);}main, header{padding:3rem 2rem 3rem calc(var(--sidebar-width) + 3rem);width:calc(54rem + var(--sidebar-width));max-width:100%;}header + main{margin-top:-4rem;}#navtoggle{display:none;}}#togglestate{position:absolute;height:0;opacity:0;}nav.pdoc{--pad:clamp(0.5rem, 2vw, 1.75rem);--indent:1.5rem;background-color:var(--accent);border-right:1px solid var(--accent2);box-shadow:0 0 20px rgba(50, 50, 50, .2) inset;padding:0 0 0 var(--pad);overflow-wrap:anywhere;scrollbar-width:thin; scrollbar-color:var(--accent2) transparent; z-index:1}nav.pdoc::-webkit-scrollbar{width:.4rem; }nav.pdoc::-webkit-scrollbar-thumb{background-color:var(--accent2); }nav.pdoc > div{padding:var(--pad) 0;}nav.pdoc .module-list-button{display:inline-flex;align-items:center;color:var(--text);border-color:var(--muted);margin-bottom:1rem;}nav.pdoc .module-list-button:hover{border-color:var(--text);}nav.pdoc input[type=search]{display:block;outline-offset:0;width:calc(100% - var(--pad));}nav.pdoc .logo{max-width:calc(100% - var(--pad));max-height:35vh;display:block;margin:0 auto 1rem;transform:translate(calc(-.5 * var(--pad)), 0);}nav.pdoc ul{list-style:none;padding-left:0;}nav.pdoc > div > ul{margin-left:calc(0px - var(--pad));}nav.pdoc li a{padding:.2rem 0 .2rem calc(var(--pad) + var(--indent));}nav.pdoc > div > ul > li > a{padding-left:var(--pad);}nav.pdoc li{transition:all 100ms;}nav.pdoc li:hover{background-color:var(--nav-hover);}nav.pdoc a, nav.pdoc a:hover{color:var(--text);}nav.pdoc a{display:block;}nav.pdoc > h2:first-of-type{margin-top:1.5rem;}nav.pdoc .class:before{content:"class ";color:var(--muted);}nav.pdoc .function:after{content:"()";color:var(--muted);}nav.pdoc footer:before{content:"";display:block;width:calc(100% - var(--pad));border-top:solid var(--accent2) 1px;margin-top:1.5rem;padding-top:.5rem;}nav.pdoc footer{font-size:small;}</style>
+    <style>/*! content.css */.pdoc{color:var(--text);box-sizing:border-box;line-height:1.5;background:none;}.pdoc .pdoc-button{cursor:pointer;display:inline-block;border:solid black 1px;border-radius:2px;font-size:.75rem;padding:calc(0.5em - 1px) 1em;transition:100ms all;}.pdoc .alert{padding:1rem 1rem 1rem calc(1.5rem + 24px);border:1px solid transparent;border-radius:.25rem;background-repeat:no-repeat;background-position:.75rem center;margin-bottom:1rem;}.pdoc .alert > em{display:none;}.pdoc .alert > *:last-child{margin-bottom:0;}.pdoc .alert.note{color:#084298;background-color:#cfe2ff;border-color:#b6d4fe;background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2224%22%20height%3D%2224%22%20fill%3D%22%23084298%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M8%2016A8%208%200%201%200%208%200a8%208%200%200%200%200%2016zm.93-9.412-1%204.705c-.07.34.029.533.304.533.194%200%20.487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703%200-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381%202.29-.287zM8%205.5a1%201%200%201%201%200-2%201%201%200%200%201%200%202z%22/%3E%3C/svg%3E");}.pdoc .alert.tip{color:#0a3622;background-color:#d1e7dd;border-color:#a3cfbb;background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2224%22%20height%3D%2224%22%20fill%3D%22%230a3622%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M2%206a6%206%200%201%201%2010.174%204.31c-.203.196-.359.4-.453.619l-.762%201.769A.5.5%200%200%201%2010.5%2013a.5.5%200%200%201%200%201%20.5.5%200%200%201%200%201l-.224.447a1%201%200%200%201-.894.553H6.618a1%201%200%200%201-.894-.553L5.5%2015a.5.5%200%200%201%200-1%20.5.5%200%200%201%200-1%20.5.5%200%200%201-.46-.302l-.761-1.77a2%202%200%200%200-.453-.618A5.98%205.98%200%200%201%202%206m6-5a5%205%200%200%200-3.479%208.592c.263.254.514.564.676.941L5.83%2012h4.342l.632-1.467c.162-.377.413-.687.676-.941A5%205%200%200%200%208%201%22/%3E%3C/svg%3E");}.pdoc .alert.important{color:#055160;background-color:#cff4fc;border-color:#9eeaf9;background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2224%22%20height%3D%2224%22%20fill%3D%22%23055160%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M2%200a2%202%200%200%200-2%202v12a2%202%200%200%200%202%202h12a2%202%200%200%200%202-2V2a2%202%200%200%200-2-2zm6%204c.535%200%20.954.462.9.995l-.35%203.507a.552.552%200%200%201-1.1%200L7.1%204.995A.905.905%200%200%201%208%204m.002%206a1%201%200%201%201%200%202%201%201%200%200%201%200-2%22/%3E%3C/svg%3E");}.pdoc .alert.warning{color:#664d03;background-color:#fff3cd;border-color:#ffecb5;background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2224%22%20height%3D%2224%22%20fill%3D%22%23664d03%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M8.982%201.566a1.13%201.13%200%200%200-1.96%200L.165%2013.233c-.457.778.091%201.767.98%201.767h13.713c.889%200%201.438-.99.98-1.767L8.982%201.566zM8%205c.535%200%20.954.462.9.995l-.35%203.507a.552.552%200%200%201-1.1%200L7.1%205.995A.905.905%200%200%201%208%205zm.002%206a1%201%200%201%201%200%202%201%201%200%200%201%200-2z%22/%3E%3C/svg%3E");}.pdoc .alert.caution{color:#842029;background-color:#f8d7da;border-color:#f5c2c7;background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2224%22%20height%3D%2224%22%20fill%3D%22%23842029%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M11.46.146A.5.5%200%200%200%2011.107%200H4.893a.5.5%200%200%200-.353.146L.146%204.54A.5.5%200%200%200%200%204.893v6.214a.5.5%200%200%200%20.146.353l4.394%204.394a.5.5%200%200%200%20.353.146h6.214a.5.5%200%200%200%20.353-.146l4.394-4.394a.5.5%200%200%200%20.146-.353V4.893a.5.5%200%200%200-.146-.353zM8%204c.535%200%20.954.462.9.995l-.35%203.507a.552.552%200%200%201-1.1%200L7.1%204.995A.905.905%200%200%201%208%204m.002%206a1%201%200%201%201%200%202%201%201%200%200%201%200-2%22/%3E%3C/svg%3E");}.pdoc .alert.danger{color:#842029;background-color:#f8d7da;border-color:#f5c2c7;background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2224%22%20height%3D%2224%22%20fill%3D%22%23842029%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M5.52.359A.5.5%200%200%201%206%200h4a.5.5%200%200%201%20.474.658L8.694%206H12.5a.5.5%200%200%201%20.395.807l-7%209a.5.5%200%200%201-.873-.454L6.823%209.5H3.5a.5.5%200%200%201-.48-.641l2.5-8.5z%22/%3E%3C/svg%3E");}.pdoc .visually-hidden{position:absolute !important;width:1px !important;height:1px !important;padding:0 !important;margin:-1px !important;overflow:hidden !important;clip:rect(0, 0, 0, 0) !important;white-space:nowrap !important;border:0 !important;}.pdoc h1, .pdoc h2, .pdoc h3{font-weight:300;margin:.3em 0;padding:.2em 0;}.pdoc > section:not(.module-info) h1{font-size:1.5rem;font-weight:500;}.pdoc > section:not(.module-info) h2{font-size:1.4rem;font-weight:500;}.pdoc > section:not(.module-info) h3{font-size:1.3rem;font-weight:500;}.pdoc > section:not(.module-info) h4{font-size:1.2rem;}.pdoc > section:not(.module-info) h5{font-size:1.1rem;}.pdoc a{text-decoration:none;color:var(--link);}.pdoc a:hover{color:var(--link-hover);}.pdoc blockquote{margin-left:2rem;}.pdoc pre{border-top:1px solid var(--accent2);border-bottom:1px solid var(--accent2);margin-top:0;margin-bottom:1em;padding:.5rem 0 .5rem .5rem;overflow-x:auto;background-color:var(--code);}.pdoc code{color:var(--text);padding:.2em .4em;margin:0;font-size:85%;background-color:var(--accent);border-radius:6px;}.pdoc a > code{color:inherit;}.pdoc pre > code{display:inline-block;font-size:inherit;background:none;border:none;padding:0;}.pdoc > section:not(.module-info){margin-bottom:1.5rem;}.pdoc .modulename{margin-top:0;font-weight:bold;}.pdoc .modulename a{color:var(--link);transition:100ms all;}.pdoc .git-button{float:right;border:solid var(--link) 1px;}.pdoc .git-button:hover{background-color:var(--link);color:var(--pdoc-background);}.view-source-toggle-state,.view-source-toggle-state ~ .pdoc-code{display:none;}.view-source-toggle-state:checked ~ .pdoc-code{display:block;}.view-source-button{display:inline-block;float:right;font-size:.75rem;line-height:1.5rem;color:var(--muted);padding:0 .4rem 0 1.3rem;cursor:pointer;text-indent:-2px;}.view-source-button > span{visibility:hidden;}.module-info .view-source-button{float:none;display:flex;justify-content:flex-end;margin:-1.2rem .4rem -.2rem 0;}.view-source-button::before{position:absolute;content:"View Source";display:list-item;list-style-type:disclosure-closed;}.view-source-toggle-state:checked ~ .attr .view-source-button::before,.view-source-toggle-state:checked ~ .view-source-button::before{list-style-type:disclosure-open;}.pdoc .docstring{margin-bottom:1.5rem;}.pdoc section:not(.module-info) .docstring{margin-left:clamp(0rem, 5vw - 2rem, 1rem);}.pdoc .docstring .pdoc-code{margin-left:1em;margin-right:1em;}.pdoc h1:target,.pdoc h2:target,.pdoc h3:target,.pdoc h4:target,.pdoc h5:target,.pdoc h6:target,.pdoc .pdoc-code > pre > span:target{background-color:var(--active);box-shadow:-1rem 0 0 0 var(--active);}.pdoc .pdoc-code > pre > span:target{display:block;}.pdoc div:target > .attr,.pdoc section:target > .attr,.pdoc dd:target > a{background-color:var(--active);}.pdoc *{scroll-margin:2rem;}.pdoc .pdoc-code .linenos{user-select:none;}.pdoc .attr:hover{filter:contrast(0.95);}.pdoc section, .pdoc .classattr{position:relative;}.pdoc .headerlink{--width:clamp(1rem, 3vw, 2rem);position:absolute;top:0;left:calc(0rem - var(--width));transition:all 100ms ease-in-out;opacity:0;}.pdoc .headerlink::before{content:"#";display:block;text-align:center;width:var(--width);height:2.3rem;line-height:2.3rem;font-size:1.5rem;}.pdoc .attr:hover ~ .headerlink,.pdoc *:target > .headerlink,.pdoc .headerlink:hover{opacity:1;}.pdoc .attr{display:block;margin:.5rem 0 .5rem;padding:.4rem .4rem .4rem 1rem;background-color:var(--accent);overflow-x:auto;}.pdoc .classattr{margin-left:2rem;}.pdoc .decorator-deprecated{color:#842029;}.pdoc .decorator-deprecated ~ span{filter:grayscale(1) opacity(0.8);}.pdoc .name{color:var(--name);font-weight:bold;}.pdoc .def{color:var(--def);font-weight:bold;}.pdoc .signature{background-color:transparent;}.pdoc .param, .pdoc .return-annotation{white-space:pre;}.pdoc .signature.multiline .param{display:block;}.pdoc .signature.condensed .param{display:inline-block;}.pdoc .annotation{color:var(--annotation);}.pdoc .view-value-toggle-state,.pdoc .view-value-toggle-state ~ .default_value{display:none;}.pdoc .view-value-toggle-state:checked ~ .default_value{display:inherit;}.pdoc .view-value-button{font-size:.5rem;vertical-align:middle;border-style:dashed;margin-top:-0.1rem;}.pdoc .view-value-button:hover{background:white;}.pdoc .view-value-button::before{content:"show";text-align:center;width:2.2em;display:inline-block;}.pdoc .view-value-toggle-state:checked ~ .view-value-button::before{content:"hide";}.pdoc .inherited{margin-left:2rem;}.pdoc .inherited dt{font-weight:700;}.pdoc .inherited dt, .pdoc .inherited dd{display:inline;margin-left:0;margin-bottom:.5rem;}.pdoc .inherited dd:not(:last-child):after{content:", ";}.pdoc .inherited .class:before{content:"class ";}.pdoc .inherited .function a:after{content:"()";}.pdoc .search-result .docstring{overflow:auto;max-height:25vh;}.pdoc .search-result.focused > .attr{background-color:var(--active);}.pdoc .attribution{margin-top:2rem;display:block;opacity:0.5;transition:all 200ms;filter:grayscale(100%);}.pdoc .attribution:hover{opacity:1;filter:grayscale(0%);}.pdoc .attribution img{margin-left:5px;height:35px;vertical-align:middle;width:70px;transition:all 200ms;}.pdoc table{display:block;width:max-content;max-width:100%;overflow:auto;margin-bottom:1rem;}.pdoc table th{font-weight:600;}.pdoc table th, .pdoc table td{padding:6px 13px;border:1px solid var(--accent2);}</style>
+    <style>/*! custom.css */</style></head>
+<body>
+    <nav class="pdoc">
+        <label id="navtoggle" for="togglestate" class="pdoc-button"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'><path stroke-linecap='round' stroke="currentColor" stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/></svg></label>
+        <input id="togglestate" type="checkbox" aria-hidden="true" tabindex="-1">
+        <div>            <a class="pdoc-button module-list-button" href="../railtracks.html">
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-box-arrow-in-left" viewBox="0 0 16 16">
+  <path fill-rule="evenodd" d="M10 3.5a.5.5 0 0 0-.5-.5h-8a.5.5 0 0 0-.5.5v9a.5.5 0 0 0 .5.5h8a.5.5 0 0 0 .5-.5v-2a.5.5 0 0 1 1 0v2A1.5 1.5 0 0 1 9.5 14h-8A1.5 1.5 0 0 1 0 12.5v-9A1.5 1.5 0 0 1 1.5 2h8A1.5 1.5 0 0 1 11 3.5v2a.5.5 0 0 1-1 0v-2z"/>
+  <path fill-rule="evenodd" d="M4.146 8.354a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L5.707 7.5H14.5a.5.5 0 0 1 0 1H5.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3z"/>
+</svg>                &nbsp;railtracks</a>
+
+            <img src="https://raw.githubusercontent.com/RailtownAI/railtracks/main/docs/assets/logo.svg" class="logo" alt="project logo"/>
+
+            <input type="search" placeholder="Search..." role="searchbox" aria-label="search"
+                   pattern=".+" required>
+
+
+            <h2>Submodules</h2>
+            <ul>
+                    <li><a href="guardrails/llm.html">llm</a></li>
+            </ul>
+
+            <h2>API Documentation</h2>
+                <ul class="memberlist">
+            <li>
+                    <a class="class" href="#Guard">Guard</a>
+                            <ul class="memberlist">
+                        <li>
+                                <a class="variable" href="#Guard.model_config">model_config</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#Guard.input">input</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#Guard.output">output</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#Guard.tool_call">tool_call</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#Guard.tool_response">tool_response</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#Guard.fail_open">fail_open</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#Guard.trace">trace</a>
+                        </li>
+                </ul>
+
+            </li>
+            <li>
+                    <a class="class" href="#Guardrail">Guardrail</a>
+                            <ul class="memberlist">
+                        <li>
+                                <a class="function" href="#Guardrail.__init__">Guardrail</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#Guardrail.name">name</a>
+                        </li>
+                </ul>
+
+            </li>
+            <li>
+                    <a class="class" href="#BaseGuardrail">BaseGuardrail</a>
+                            <ul class="memberlist">
+                        <li>
+                                <a class="variable" href="#BaseGuardrail.name">name</a>
+                        </li>
+                </ul>
+
+            </li>
+            <li>
+                    <a class="class" href="#GuardrailAction">GuardrailAction</a>
+                            <ul class="memberlist">
+                        <li>
+                                <a class="variable" href="#GuardrailAction.ALLOW">ALLOW</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#GuardrailAction.TRANSFORM">TRANSFORM</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#GuardrailAction.BLOCK">BLOCK</a>
+                        </li>
+                </ul>
+
+            </li>
+            <li>
+                    <a class="class" href="#GuardrailBlockedError">GuardrailBlockedError</a>
+                            <ul class="memberlist">
+                        <li>
+                                <a class="function" href="#GuardrailBlockedError.__init__">GuardrailBlockedError</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#GuardrailBlockedError.rail_name">rail_name</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#GuardrailBlockedError.reason">reason</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#GuardrailBlockedError.user_facing_message">user_facing_message</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#GuardrailBlockedError.traces">traces</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#GuardrailBlockedError.meta">meta</a>
+                        </li>
+                </ul>
+
+            </li>
+            <li>
+                    <a class="class" href="#GuardrailDecision">GuardrailDecision</a>
+                            <ul class="memberlist">
+                        <li>
+                                <a class="variable" href="#GuardrailDecision.model_config">model_config</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#GuardrailDecision.action">action</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#GuardrailDecision.reason">reason</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#GuardrailDecision.messages">messages</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#GuardrailDecision.output_message">output_message</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#GuardrailDecision.user_facing_message">user_facing_message</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#GuardrailDecision.meta">meta</a>
+                        </li>
+                        <li>
+                                <a class="function" href="#GuardrailDecision.allow">allow</a>
+                        </li>
+                        <li>
+                                <a class="function" href="#GuardrailDecision.block">block</a>
+                        </li>
+                        <li>
+                                <a class="function" href="#GuardrailDecision.transform_messages">transform_messages</a>
+                        </li>
+                        <li>
+                                <a class="function" href="#GuardrailDecision.transform_output">transform_output</a>
+                        </li>
+                </ul>
+
+            </li>
+            <li>
+                    <a class="class" href="#GuardrailTrace">GuardrailTrace</a>
+                            <ul class="memberlist">
+                        <li>
+                                <a class="variable" href="#GuardrailTrace.rail_name">rail_name</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#GuardrailTrace.phase">phase</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#GuardrailTrace.action">action</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#GuardrailTrace.reason">reason</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#GuardrailTrace.meta">meta</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#GuardrailTrace.model_config">model_config</a>
+                        </li>
+                </ul>
+
+            </li>
+            <li>
+                    <a class="class" href="#BaseLLMGuardrail">BaseLLMGuardrail</a>
+                            <ul class="memberlist">
+                        <li>
+                                <a class="variable" href="#BaseLLMGuardrail.phase">phase</a>
+                        </li>
+                </ul>
+
+            </li>
+            <li>
+                    <a class="class" href="#InputGuard">InputGuard</a>
+                            <ul class="memberlist">
+                        <li>
+                                <a class="variable" href="#InputGuard.phase">phase</a>
+                        </li>
+                </ul>
+
+            </li>
+            <li>
+                    <a class="class" href="#OutputGuard">OutputGuard</a>
+                            <ul class="memberlist">
+                        <li>
+                                <a class="variable" href="#OutputGuard.phase">phase</a>
+                        </li>
+                </ul>
+
+            </li>
+            <li>
+                    <a class="class" href="#LLMGuardrailEvent">LLMGuardrailEvent</a>
+                            <ul class="memberlist">
+                        <li>
+                                <a class="variable" href="#LLMGuardrailEvent.model_config">model_config</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#LLMGuardrailEvent.phase">phase</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#LLMGuardrailEvent.messages">messages</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#LLMGuardrailEvent.output_message">output_message</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#LLMGuardrailEvent.node_name">node_name</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#LLMGuardrailEvent.node_uuid">node_uuid</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#LLMGuardrailEvent.run_id">run_id</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#LLMGuardrailEvent.model_name">model_name</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#LLMGuardrailEvent.model_provider">model_provider</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#LLMGuardrailEvent.tags">tags</a>
+                        </li>
+                </ul>
+
+            </li>
+            <li>
+                    <a class="class" href="#LLMGuardrailPhase">LLMGuardrailPhase</a>
+                            <ul class="memberlist">
+                        <li>
+                                <a class="variable" href="#LLMGuardrailPhase.INPUT">INPUT</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#LLMGuardrailPhase.OUTPUT">OUTPUT</a>
+                        </li>
+                </ul>
+
+            </li>
+    </ul>
+
+
+
+        <a class="attribution" title="pdoc: Python API documentation generator" href="https://pdoc.dev" target="_blank">
+            built with <span class="visually-hidden">pdoc</span><img
+                alt="pdoc logo"
+                src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20role%3D%22img%22%20aria-label%3D%22pdoc%20logo%22%20width%3D%22300%22%20height%3D%22150%22%20viewBox%3D%22-1%200%2060%2030%22%3E%3Ctitle%3Epdoc%3C/title%3E%3Cpath%20d%3D%22M29.621%2021.293c-.011-.273-.214-.475-.511-.481a.5.5%200%200%200-.489.503l-.044%201.393c-.097.551-.695%201.215-1.566%201.704-.577.428-1.306.486-2.193.182-1.426-.617-2.467-1.654-3.304-2.487l-.173-.172a3.43%203.43%200%200%200-.365-.306.49.49%200%200%200-.286-.196c-1.718-1.06-4.931-1.47-7.353.191l-.219.15c-1.707%201.187-3.413%202.131-4.328%201.03-.02-.027-.49-.685-.141-1.763.233-.721.546-2.408.772-4.076.042-.09.067-.187.046-.288.166-1.347.277-2.625.241-3.351%201.378-1.008%202.271-2.586%202.271-4.362%200-.976-.272-1.935-.788-2.774-.057-.094-.122-.18-.184-.268.033-.167.052-.339.052-.516%200-1.477-1.202-2.679-2.679-2.679-.791%200-1.496.352-1.987.9a6.3%206.3%200%200%200-1.001.029c-.492-.564-1.207-.929-2.012-.929-1.477%200-2.679%201.202-2.679%202.679A2.65%202.65%200%200%200%20.97%206.554c-.383.747-.595%201.572-.595%202.41%200%202.311%201.507%204.29%203.635%205.107-.037.699-.147%202.27-.423%203.294l-.137.461c-.622%202.042-2.515%208.257%201.727%2010.643%201.614.908%203.06%201.248%204.317%201.248%202.665%200%204.492-1.524%205.322-2.401%201.476-1.559%202.886-1.854%206.491.82%201.877%201.393%203.514%201.753%204.861%201.068%202.223-1.713%202.811-3.867%203.399-6.374.077-.846.056-1.469.054-1.537zm-4.835%204.313c-.054.305-.156.586-.242.629-.034-.007-.131-.022-.307-.157-.145-.111-.314-.478-.456-.908.221.121.432.25.675.355.115.039.219.051.33.081zm-2.251-1.238c-.05.33-.158.648-.252.694-.022.001-.125-.018-.307-.157-.217-.166-.488-.906-.639-1.573.358.344.754.693%201.198%201.036zm-3.887-2.337c-.006-.116-.018-.231-.041-.342.635.145%201.189.368%201.599.625.097.231.166.481.174.642-.03.049-.055.101-.067.158-.046.013-.128.026-.298.004-.278-.037-.901-.57-1.367-1.087zm-1.127-.497c.116.306.176.625.12.71-.019.014-.117.045-.345.016-.206-.027-.604-.332-.986-.695.41-.051.816-.056%201.211-.031zm-4.535%201.535c.209.22.379.47.358.598-.006.041-.088.138-.351.234-.144.055-.539-.063-.979-.259a11.66%2011.66%200%200%200%20.972-.573zm.983-.664c.359-.237.738-.418%201.126-.554.25.237.479.548.457.694-.006.042-.087.138-.351.235-.174.064-.694-.105-1.232-.375zm-3.381%201.794c-.022.145-.061.29-.149.401-.133.166-.358.248-.69.251h-.002c-.133%200-.306-.26-.45-.621.417.091.854.07%201.291-.031zm-2.066-8.077a4.78%204.78%200%200%201-.775-.584c.172-.115.505-.254.88-.378l-.105.962zm-.331%202.302a10.32%2010.32%200%200%201-.828-.502c.202-.143.576-.328.984-.49l-.156.992zm-.45%202.157l-.701-.403c.214-.115.536-.249.891-.376a11.57%2011.57%200%200%201-.19.779zm-.181%201.716c.064.398.194.702.298.893-.194-.051-.435-.162-.736-.398.061-.119.224-.3.438-.495zM8.87%204.141c0%20.152-.123.276-.276.276s-.275-.124-.275-.276.123-.276.276-.276.275.124.275.276zm-.735-.389a1.15%201.15%200%200%200-.314.783%201.16%201.16%200%200%200%201.162%201.162c.457%200%20.842-.27%201.032-.653.026.117.042.238.042.362a1.68%201.68%200%200%201-1.679%201.679%201.68%201.68%200%200%201-1.679-1.679c0-.843.626-1.535%201.436-1.654zM5.059%205.406A1.68%201.68%200%200%201%203.38%207.085a1.68%201.68%200%200%201-1.679-1.679c0-.037.009-.072.011-.109.21.3.541.508.935.508a1.16%201.16%200%200%200%201.162-1.162%201.14%201.14%200%200%200-.474-.912c.015%200%20.03-.005.045-.005.926.001%201.679.754%201.679%201.68zM3.198%204.141c0%20.152-.123.276-.276.276s-.275-.124-.275-.276.123-.276.276-.276.275.124.275.276zM1.375%208.964c0-.52.103-1.035.288-1.52.466.394%201.06.64%201.717.64%201.144%200%202.116-.725%202.499-1.738.383%201.012%201.355%201.738%202.499%201.738.867%200%201.631-.421%202.121-1.062.307.605.478%201.267.478%201.942%200%202.486-2.153%204.51-4.801%204.51s-4.801-2.023-4.801-4.51zm24.342%2019.349c-.985.498-2.267.168-3.813-.979-3.073-2.281-5.453-3.199-7.813-.705-1.315%201.391-4.163%203.365-8.423.97-3.174-1.786-2.239-6.266-1.261-9.479l.146-.492c.276-1.02.395-2.457.444-3.268a6.11%206.11%200%200%200%201.18.115%206.01%206.01%200%200%200%202.536-.562l-.006.175c-.802.215-1.848.612-2.021%201.25-.079.295.021.601.274.837.219.203.415.364.598.501-.667.304-1.243.698-1.311%201.179-.02.144-.022.507.393.787.213.144.395.26.564.365-1.285.521-1.361.96-1.381%201.126-.018.142-.011.496.427.746l.854.489c-.473.389-.971.914-.999%201.429-.018.278.095.532.316.713.675.556%201.231.721%201.653.721.059%200%20.104-.014.158-.02.207.707.641%201.64%201.513%201.64h.013c.8-.008%201.236-.345%201.462-.626.173-.216.268-.457.325-.692.424.195.93.374%201.372.374.151%200%20.294-.021.423-.068.732-.27.944-.704.993-1.021.009-.061.003-.119.002-.179.266.086.538.147.789.147.15%200%20.294-.021.423-.069.542-.2.797-.489.914-.754.237.147.478.258.704.288.106.014.205.021.296.021.356%200%20.595-.101.767-.229.438.435%201.094.992%201.656%201.067.106.014.205.021.296.021a1.56%201.56%200%200%200%20.323-.035c.17.575.453%201.289.866%201.605.358.273.665.362.914.362a.99.99%200%200%200%20.421-.093%201.03%201.03%200%200%200%20.245-.164c.168.428.39.846.68%201.068.358.273.665.362.913.362a.99.99%200%200%200%20.421-.093c.317-.148.512-.448.639-.762.251.157.495.257.726.257.127%200%20.25-.024.37-.071.427-.17.706-.617.841-1.314.022-.015.047-.022.068-.038.067-.051.133-.104.196-.159-.443%201.486-1.107%202.761-2.086%203.257zM8.66%209.925a.5.5%200%201%200-1%200c0%20.653-.818%201.205-1.787%201.205s-1.787-.552-1.787-1.205a.5.5%200%201%200-1%200c0%201.216%201.25%202.205%202.787%202.205s2.787-.989%202.787-2.205zm4.4%2015.965l-.208.097c-2.661%201.258-4.708%201.436-6.086.527-1.542-1.017-1.88-3.19-1.844-4.198a.4.4%200%200%200-.385-.414c-.242-.029-.406.164-.414.385-.046%201.249.367%203.686%202.202%204.896.708.467%201.547.7%202.51.7%201.248%200%202.706-.392%204.362-1.174l.185-.086a.4.4%200%200%200%20.205-.527c-.089-.204-.326-.291-.527-.206zM9.547%202.292c.093.077.205.114.317.114a.5.5%200%200%200%20.318-.886L8.817.397a.5.5%200%200%200-.703.068.5.5%200%200%200%20.069.703l1.364%201.124zm-7.661-.065c.086%200%20.173-.022.253-.068l1.523-.893a.5.5%200%200%200-.506-.863l-1.523.892a.5.5%200%200%200-.179.685c.094.158.261.247.432.247z%22%20transform%3D%22matrix%28-1%200%200%201%2058%200%29%22%20fill%3D%22%233bb300%22/%3E%3Cpath%20d%3D%22M.3%2021.86V10.18q0-.46.02-.68.04-.22.18-.5.28-.54%201.34-.54%201.06%200%201.42.28.38.26.44.78.76-1.04%202.38-1.04%201.64%200%203.1%201.54%201.46%201.54%201.46%203.58%200%202.04-1.46%203.58-1.44%201.54-3.08%201.54-1.64%200-2.38-.92v4.04q0%20.46-.04.68-.02.22-.18.5-.14.3-.5.42-.36.12-.98.12-.62%200-1-.12-.36-.12-.52-.4-.14-.28-.18-.5-.02-.22-.02-.68zm3.96-9.42q-.46.54-.46%201.18%200%20.64.46%201.18.48.52%201.2.52.74%200%201.24-.52.52-.52.52-1.18%200-.66-.48-1.18-.48-.54-1.26-.54-.76%200-1.22.54zm14.741-8.36q.16-.3.54-.42.38-.12%201-.12.64%200%201.02.12.38.12.52.42.16.3.18.54.04.22.04.68v11.94q0%20.46-.04.7-.02.22-.18.5-.3.54-1.7.54-1.38%200-1.54-.98-.84.96-2.34.96-1.8%200-3.28-1.56-1.48-1.58-1.48-3.66%200-2.1%201.48-3.68%201.5-1.58%203.28-1.58%201.48%200%202.3%201v-4.2q0-.46.02-.68.04-.24.18-.52zm-3.24%2010.86q.52.54%201.26.54.74%200%201.22-.54.5-.54.5-1.18%200-.66-.48-1.22-.46-.56-1.26-.56-.8%200-1.28.56-.48.54-.48%201.2%200%20.66.52%201.2zm7.833-1.2q0-2.4%201.68-3.96%201.68-1.56%203.84-1.56%202.16%200%203.82%201.56%201.66%201.54%201.66%203.94%200%201.66-.86%202.96-.86%201.28-2.1%201.9-1.22.6-2.54.6-1.32%200-2.56-.64-1.24-.66-2.1-1.92-.84-1.28-.84-2.88zm4.18%201.44q.64.48%201.3.48.66%200%201.32-.5.66-.5.66-1.48%200-.98-.62-1.46-.62-.48-1.34-.48-.72%200-1.34.5-.62.5-.62%201.48%200%20.96.64%201.46zm11.412-1.44q0%20.84.56%201.32.56.46%201.18.46.64%200%201.18-.36.56-.38.9-.38.6%200%201.46%201.06.46.58.46%201.04%200%20.76-1.1%201.42-1.14.8-2.8.8-1.86%200-3.58-1.34-.82-.64-1.34-1.7-.52-1.08-.52-2.36%200-1.3.52-2.34.52-1.06%201.34-1.7%201.66-1.32%203.54-1.32.76%200%201.48.22.72.2%201.06.4l.32.2q.36.24.56.38.52.4.52.92%200%20.5-.42%201.14-.72%201.1-1.38%201.1-.38%200-1.08-.44-.36-.34-1.04-.34-.66%200-1.24.48-.58.48-.58%201.34z%22%20fill%3D%22green%22/%3E%3C/svg%3E"/>
+        </a>
+</div>
+    </nav>
+    <main class="pdoc">
+            <section class="module-info">
+                    <h1 class="modulename">
+<a href="./../railtracks.html">railtracks</a><wbr>.guardrails    </h1>
+
+                
+                        <input id="mod-guardrails-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+
+                        <label class="view-source-button" for="mod-guardrails-view-source"><span>View Source</span></label>
+
+                        <div class="pdoc-code codehilite"><pre><span></span><span id="L-1"><a href="#L-1"><span class="linenos"> 1</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">llm</span>
+</span><span id="L-2"><a href="#L-2"><span class="linenos"> 2</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.core</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+</span><span id="L-3"><a href="#L-3"><span class="linenos"> 3</span></a>    <span class="n">BaseGuardrail</span><span class="p">,</span>
+</span><span id="L-4"><a href="#L-4"><span class="linenos"> 4</span></a>    <span class="n">BaseLLMGuardrail</span><span class="p">,</span>
+</span><span id="L-5"><a href="#L-5"><span class="linenos"> 5</span></a>    <span class="n">Guard</span><span class="p">,</span>
+</span><span id="L-6"><a href="#L-6"><span class="linenos"> 6</span></a>    <span class="n">Guardrail</span><span class="p">,</span>
+</span><span id="L-7"><a href="#L-7"><span class="linenos"> 7</span></a>    <span class="n">GuardrailAction</span><span class="p">,</span>
+</span><span id="L-8"><a href="#L-8"><span class="linenos"> 8</span></a>    <span class="n">GuardrailBlockedError</span><span class="p">,</span>
+</span><span id="L-9"><a href="#L-9"><span class="linenos"> 9</span></a>    <span class="n">GuardrailDecision</span><span class="p">,</span>
+</span><span id="L-10"><a href="#L-10"><span class="linenos">10</span></a>    <span class="n">GuardrailTrace</span><span class="p">,</span>
+</span><span id="L-11"><a href="#L-11"><span class="linenos">11</span></a>    <span class="n">InputGuard</span><span class="p">,</span>
+</span><span id="L-12"><a href="#L-12"><span class="linenos">12</span></a>    <span class="n">LLMGuardrailEvent</span><span class="p">,</span>
+</span><span id="L-13"><a href="#L-13"><span class="linenos">13</span></a>    <span class="n">LLMGuardrailPhase</span><span class="p">,</span>
+</span><span id="L-14"><a href="#L-14"><span class="linenos">14</span></a>    <span class="n">OutputGuard</span><span class="p">,</span>
+</span><span id="L-15"><a href="#L-15"><span class="linenos">15</span></a><span class="p">)</span>
+</span><span id="L-16"><a href="#L-16"><span class="linenos">16</span></a>
+</span><span id="L-17"><a href="#L-17"><span class="linenos">17</span></a><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+</span><span id="L-18"><a href="#L-18"><span class="linenos">18</span></a>    <span class="s2">&quot;Guard&quot;</span><span class="p">,</span>
+</span><span id="L-19"><a href="#L-19"><span class="linenos">19</span></a>    <span class="s2">&quot;Guardrail&quot;</span><span class="p">,</span>
+</span><span id="L-20"><a href="#L-20"><span class="linenos">20</span></a>    <span class="s2">&quot;BaseGuardrail&quot;</span><span class="p">,</span>
+</span><span id="L-21"><a href="#L-21"><span class="linenos">21</span></a>    <span class="s2">&quot;GuardrailAction&quot;</span><span class="p">,</span>
+</span><span id="L-22"><a href="#L-22"><span class="linenos">22</span></a>    <span class="s2">&quot;GuardrailBlockedError&quot;</span><span class="p">,</span>
+</span><span id="L-23"><a href="#L-23"><span class="linenos">23</span></a>    <span class="s2">&quot;GuardrailDecision&quot;</span><span class="p">,</span>
+</span><span id="L-24"><a href="#L-24"><span class="linenos">24</span></a>    <span class="s2">&quot;GuardrailTrace&quot;</span><span class="p">,</span>
+</span><span id="L-25"><a href="#L-25"><span class="linenos">25</span></a>    <span class="s2">&quot;BaseLLMGuardrail&quot;</span><span class="p">,</span>
+</span><span id="L-26"><a href="#L-26"><span class="linenos">26</span></a>    <span class="s2">&quot;InputGuard&quot;</span><span class="p">,</span>
+</span><span id="L-27"><a href="#L-27"><span class="linenos">27</span></a>    <span class="s2">&quot;OutputGuard&quot;</span><span class="p">,</span>
+</span><span id="L-28"><a href="#L-28"><span class="linenos">28</span></a>    <span class="s2">&quot;LLMGuardrailEvent&quot;</span><span class="p">,</span>
+</span><span id="L-29"><a href="#L-29"><span class="linenos">29</span></a>    <span class="s2">&quot;LLMGuardrailPhase&quot;</span><span class="p">,</span>
+</span><span id="L-30"><a href="#L-30"><span class="linenos">30</span></a>    <span class="s2">&quot;llm&quot;</span><span class="p">,</span>
+</span><span id="L-31"><a href="#L-31"><span class="linenos">31</span></a><span class="p">]</span>
+</span></pre></div>
+
+
+            </section>
+                <section id="Guard">
+                            <input id="Guard-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr class">
+            
+    <span class="def">class</span>
+    <span class="name">Guard</span><wbr>(<span class="base">pydantic.main.BaseModel</span>):
+
+                <label class="view-source-button" for="Guard-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#Guard"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="Guard-11"><a href="#Guard-11"><span class="linenos">11</span></a><span class="k">class</span><span class="w"> </span><span class="nc">Guard</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+</span><span id="Guard-12"><a href="#Guard-12"><span class="linenos">12</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="Guard-13"><a href="#Guard-13"><span class="linenos">13</span></a><span class="sd">    Configuration for guardrails: input/output (and future tool) rails plus behavior flags.</span>
+</span><span id="Guard-14"><a href="#Guard-14"><span class="linenos">14</span></a>
+</span><span id="Guard-15"><a href="#Guard-15"><span class="linenos">15</span></a><span class="sd">    ``input`` and ``output`` are lists of LLM guardrails (see :class:`BaseLLMGuardrail`).</span>
+</span><span id="Guard-16"><a href="#Guard-16"><span class="linenos">16</span></a><span class="sd">    The runner expects each rail to be callable with :class:`LLMGuardrailEvent` and</span>
+</span><span id="Guard-17"><a href="#Guard-17"><span class="linenos">17</span></a><span class="sd">    return a :class:`GuardrailDecision`. For output rails, the guarded assistant</span>
+</span><span id="Guard-18"><a href="#Guard-18"><span class="linenos">18</span></a><span class="sd">    message is ``event.output_message`` (see :class:`~railtracks.guardrails.core.event.LLMGuardrailEvent`).</span>
+</span><span id="Guard-19"><a href="#Guard-19"><span class="linenos">19</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="Guard-20"><a href="#Guard-20"><span class="linenos">20</span></a>
+</span><span id="Guard-21"><a href="#Guard-21"><span class="linenos">21</span></a>    <span class="n">model_config</span> <span class="o">=</span> <span class="n">ConfigDict</span><span class="p">(</span><span class="n">arbitrary_types_allowed</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span id="Guard-22"><a href="#Guard-22"><span class="linenos">22</span></a>
+</span><span id="Guard-23"><a href="#Guard-23"><span class="linenos">23</span></a>    <span class="nb">input</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">InputGuard</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+</span><span id="Guard-24"><a href="#Guard-24"><span class="linenos">24</span></a>        <span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">,</span>
+</span><span id="Guard-25"><a href="#Guard-25"><span class="linenos">25</span></a>        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Guardrails run on LLM input (prompt / message history).&quot;</span><span class="p">,</span>
+</span><span id="Guard-26"><a href="#Guard-26"><span class="linenos">26</span></a>    <span class="p">)</span>
+</span><span id="Guard-27"><a href="#Guard-27"><span class="linenos">27</span></a>    <span class="n">output</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">OutputGuard</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+</span><span id="Guard-28"><a href="#Guard-28"><span class="linenos">28</span></a>        <span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">,</span>
+</span><span id="Guard-29"><a href="#Guard-29"><span class="linenos">29</span></a>        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Guardrails run on LLM output (model response).&quot;</span><span class="p">,</span>
+</span><span id="Guard-30"><a href="#Guard-30"><span class="linenos">30</span></a>    <span class="p">)</span>
+</span><span id="Guard-31"><a href="#Guard-31"><span class="linenos">31</span></a>    <span class="n">tool_call</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+</span><span id="Guard-32"><a href="#Guard-32"><span class="linenos">32</span></a>    <span class="n">tool_response</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+</span><span id="Guard-33"><a href="#Guard-33"><span class="linenos">33</span></a>    <span class="n">fail_open</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+</span><span id="Guard-34"><a href="#Guard-34"><span class="linenos">34</span></a>    <span class="n">trace</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+</span><span id="Guard-35"><a href="#Guard-35"><span class="linenos">35</span></a>
+</span><span id="Guard-36"><a href="#Guard-36"><span class="linenos">36</span></a>    <span class="nd">@field_validator</span><span class="p">(</span><span class="s2">&quot;input&quot;</span><span class="p">,</span> <span class="s2">&quot;output&quot;</span><span class="p">,</span> <span class="s2">&quot;tool_call&quot;</span><span class="p">,</span> <span class="s2">&quot;tool_response&quot;</span><span class="p">)</span>
+</span><span id="Guard-37"><a href="#Guard-37"><span class="linenos">37</span></a>    <span class="nd">@classmethod</span>
+</span><span id="Guard-38"><a href="#Guard-38"><span class="linenos">38</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">_validate_callable_rails</span><span class="p">(</span>
+</span><span id="Guard-39"><a href="#Guard-39"><span class="linenos">39</span></a>        <span class="bp">cls</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">InputGuard</span> <span class="o">|</span> <span class="n">OutputGuard</span><span class="p">]</span>
+</span><span id="Guard-40"><a href="#Guard-40"><span class="linenos">40</span></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">InputGuard</span> <span class="o">|</span> <span class="n">OutputGuard</span><span class="p">]:</span>
+</span><span id="Guard-41"><a href="#Guard-41"><span class="linenos">41</span></a>        <span class="k">for</span> <span class="n">rail</span> <span class="ow">in</span> <span class="n">value</span><span class="p">:</span>
+</span><span id="Guard-42"><a href="#Guard-42"><span class="linenos">42</span></a>            <span class="k">if</span> <span class="ow">not</span> <span class="nb">callable</span><span class="p">(</span><span class="n">rail</span><span class="p">):</span>
+</span><span id="Guard-43"><a href="#Guard-43"><span class="linenos">43</span></a>                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+</span><span id="Guard-44"><a href="#Guard-44"><span class="linenos">44</span></a>                    <span class="sa">f</span><span class="s2">&quot;Every guardrail must be callable, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">rail</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">.&quot;</span>
+</span><span id="Guard-45"><a href="#Guard-45"><span class="linenos">45</span></a>                <span class="p">)</span>
+</span><span id="Guard-46"><a href="#Guard-46"><span class="linenos">46</span></a>        <span class="k">return</span> <span class="n">value</span>
+</span></pre></div>
+
+
+            <div class="docstring"><p>Configuration for guardrails: input/output (and future tool) rails plus behavior flags.</p>
+
+<p><code><a href="#Guard.input">input</a></code> and <code><a href="#Guard.output">output</a></code> are lists of LLM guardrails (see <code><a href="#BaseLLMGuardrail">BaseLLMGuardrail</a></code>).
+The runner expects each rail to be callable with <code><a href="#LLMGuardrailEvent">LLMGuardrailEvent</a></code> and
+return a <code><a href="#GuardrailDecision">GuardrailDecision</a></code>. For output rails, the guarded assistant
+message is <code>event.output_message</code> (see <code>~<a href="#LLMGuardrailEvent">railtracks.guardrails.core.event.LLMGuardrailEvent</a></code>).</p>
+</div>
+
+
+                            <div id="Guard.model_config" class="classattr">
+                                <div class="attr variable">
+            <span class="name">model_config</span>        =
+<span class="default_value">{&#39;arbitrary_types_allowed&#39;: True}</span>
+
+        
+    </div>
+    <a class="headerlink" href="#Guard.model_config"></a>
+    
+            <div class="docstring"><p>Configuration for the model, should be a dictionary conforming to [<code>ConfigDict</code>][pydantic.config.ConfigDict].</p>
+</div>
+
+
+                            </div>
+                            <div id="Guard.input" class="classattr">
+                                <div class="attr variable">
+            <span class="name">input</span><span class="annotation">: list[<a href="#InputGuard">InputGuard</a>]</span>
+
+        
+    </div>
+    <a class="headerlink" href="#Guard.input"></a>
+    
+    
+
+                            </div>
+                            <div id="Guard.output" class="classattr">
+                                <div class="attr variable">
+            <span class="name">output</span><span class="annotation">: list[<a href="#OutputGuard">OutputGuard</a>]</span>
+
+        
+    </div>
+    <a class="headerlink" href="#Guard.output"></a>
+    
+    
+
+                            </div>
+                            <div id="Guard.tool_call" class="classattr">
+                                <div class="attr variable">
+            <span class="name">tool_call</span><span class="annotation">: list[typing.Any]</span>
+
+        
+    </div>
+    <a class="headerlink" href="#Guard.tool_call"></a>
+    
+    
+
+                            </div>
+                            <div id="Guard.tool_response" class="classattr">
+                                <div class="attr variable">
+            <span class="name">tool_response</span><span class="annotation">: list[typing.Any]</span>
+
+        
+    </div>
+    <a class="headerlink" href="#Guard.tool_response"></a>
+    
+    
+
+                            </div>
+                            <div id="Guard.fail_open" class="classattr">
+                                <div class="attr variable">
+            <span class="name">fail_open</span><span class="annotation">: bool</span>
+
+        
+    </div>
+    <a class="headerlink" href="#Guard.fail_open"></a>
+    
+    
+
+                            </div>
+                            <div id="Guard.trace" class="classattr">
+                                <div class="attr variable">
+            <span class="name">trace</span><span class="annotation">: bool</span>
+
+        
+    </div>
+    <a class="headerlink" href="#Guard.trace"></a>
+    
+    
+
+                            </div>
+                </section>
+                <section id="Guardrail">
+                            <input id="Guardrail-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr class">
+            
+    <span class="def">class</span>
+    <span class="name">Guardrail</span><wbr>(<span class="base">typing.Protocol</span>):
+
+                <label class="view-source-button" for="Guardrail-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#Guardrail"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="Guardrail-11"><a href="#Guardrail-11"><span class="linenos">11</span></a><span class="k">class</span><span class="w"> </span><span class="nc">Guardrail</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
+</span><span id="Guardrail-12"><a href="#Guardrail-12"><span class="linenos">12</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="Guardrail-13"><a href="#Guardrail-13"><span class="linenos">13</span></a><span class="sd">    Base protocol for all guardrails: callable with a name.</span>
+</span><span id="Guardrail-14"><a href="#Guardrail-14"><span class="linenos">14</span></a>
+</span><span id="Guardrail-15"><a href="#Guardrail-15"><span class="linenos">15</span></a><span class="sd">    Concrete ABC hierarchies (e.g. :class:`BaseLLMGuardrail`) narrow the event</span>
+</span><span id="Guardrail-16"><a href="#Guardrail-16"><span class="linenos">16</span></a><span class="sd">    type and add domain-specific attributes like ``phase``.</span>
+</span><span id="Guardrail-17"><a href="#Guardrail-17"><span class="linenos">17</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="Guardrail-18"><a href="#Guardrail-18"><span class="linenos">18</span></a>
+</span><span id="Guardrail-19"><a href="#Guardrail-19"><span class="linenos">19</span></a>    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+</span><span id="Guardrail-20"><a href="#Guardrail-20"><span class="linenos">20</span></a>
+</span><span id="Guardrail-21"><a href="#Guardrail-21"><span class="linenos">21</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">GuardrailDecision</span><span class="p">:</span> <span class="o">...</span>
+</span></pre></div>
+
+
+            <div class="docstring"><p>Base protocol for all guardrails: callable with a name.</p>
+
+<p>Concrete ABC hierarchies (e.g. <code><a href="#BaseLLMGuardrail">BaseLLMGuardrail</a></code>) narrow the event
+type and add domain-specific attributes like <code>phase</code>.</p>
+</div>
+
+
+                            <div id="Guardrail.__init__" class="classattr">
+                                        <input id="Guardrail.__init__-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+            
+        <span class="name">Guardrail</span><span class="signature pdoc-code condensed">(<span class="param"><span class="o">*</span><span class="n">args</span>, </span><span class="param"><span class="o">**</span><span class="n">kwargs</span></span>)</span>
+
+                <label class="view-source-button" for="Guardrail.__init__-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#Guardrail.__init__"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="Guardrail.__init__-1431"><a href="#Guardrail.__init__-1431"><span class="linenos">1431</span></a><span class="k">def</span><span class="w"> </span><span class="nf">_no_init_or_replace_init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="Guardrail.__init__-1432"><a href="#Guardrail.__init__-1432"><span class="linenos">1432</span></a>    <span class="bp">cls</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</span><span id="Guardrail.__init__-1433"><a href="#Guardrail.__init__-1433"><span class="linenos">1433</span></a>
+</span><span id="Guardrail.__init__-1434"><a href="#Guardrail.__init__-1434"><span class="linenos">1434</span></a>    <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_is_protocol</span><span class="p">:</span>
+</span><span id="Guardrail.__init__-1435"><a href="#Guardrail.__init__-1435"><span class="linenos">1435</span></a>        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Protocols cannot be instantiated&#39;</span><span class="p">)</span>
+</span><span id="Guardrail.__init__-1436"><a href="#Guardrail.__init__-1436"><span class="linenos">1436</span></a>
+</span><span id="Guardrail.__init__-1437"><a href="#Guardrail.__init__-1437"><span class="linenos">1437</span></a>    <span class="c1"># Already using a custom `__init__`. No need to calculate correct</span>
+</span><span id="Guardrail.__init__-1438"><a href="#Guardrail.__init__-1438"><span class="linenos">1438</span></a>    <span class="c1"># `__init__` to call. This can lead to RecursionError. See bpo-45121.</span>
+</span><span id="Guardrail.__init__-1439"><a href="#Guardrail.__init__-1439"><span class="linenos">1439</span></a>    <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="fm">__init__</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">_no_init_or_replace_init</span><span class="p">:</span>
+</span><span id="Guardrail.__init__-1440"><a href="#Guardrail.__init__-1440"><span class="linenos">1440</span></a>        <span class="k">return</span>
+</span><span id="Guardrail.__init__-1441"><a href="#Guardrail.__init__-1441"><span class="linenos">1441</span></a>
+</span><span id="Guardrail.__init__-1442"><a href="#Guardrail.__init__-1442"><span class="linenos">1442</span></a>    <span class="c1"># Initially, `__init__` of a protocol subclass is set to `_no_init_or_replace_init`.</span>
+</span><span id="Guardrail.__init__-1443"><a href="#Guardrail.__init__-1443"><span class="linenos">1443</span></a>    <span class="c1"># The first instantiation of the subclass will call `_no_init_or_replace_init` which</span>
+</span><span id="Guardrail.__init__-1444"><a href="#Guardrail.__init__-1444"><span class="linenos">1444</span></a>    <span class="c1"># searches for a proper new `__init__` in the MRO. The new `__init__`</span>
+</span><span id="Guardrail.__init__-1445"><a href="#Guardrail.__init__-1445"><span class="linenos">1445</span></a>    <span class="c1"># replaces the subclass&#39; old `__init__` (ie `_no_init_or_replace_init`). Subsequent</span>
+</span><span id="Guardrail.__init__-1446"><a href="#Guardrail.__init__-1446"><span class="linenos">1446</span></a>    <span class="c1"># instantiation of the protocol subclass will thus use the new</span>
+</span><span id="Guardrail.__init__-1447"><a href="#Guardrail.__init__-1447"><span class="linenos">1447</span></a>    <span class="c1"># `__init__` and no longer call `_no_init_or_replace_init`.</span>
+</span><span id="Guardrail.__init__-1448"><a href="#Guardrail.__init__-1448"><span class="linenos">1448</span></a>    <span class="k">for</span> <span class="n">base</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__mro__</span><span class="p">:</span>
+</span><span id="Guardrail.__init__-1449"><a href="#Guardrail.__init__-1449"><span class="linenos">1449</span></a>        <span class="n">init</span> <span class="o">=</span> <span class="n">base</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;__init__&#39;</span><span class="p">,</span> <span class="n">_no_init_or_replace_init</span><span class="p">)</span>
+</span><span id="Guardrail.__init__-1450"><a href="#Guardrail.__init__-1450"><span class="linenos">1450</span></a>        <span class="k">if</span> <span class="n">init</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">_no_init_or_replace_init</span><span class="p">:</span>
+</span><span id="Guardrail.__init__-1451"><a href="#Guardrail.__init__-1451"><span class="linenos">1451</span></a>            <span class="bp">cls</span><span class="o">.</span><span class="fm">__init__</span> <span class="o">=</span> <span class="n">init</span>
+</span><span id="Guardrail.__init__-1452"><a href="#Guardrail.__init__-1452"><span class="linenos">1452</span></a>            <span class="k">break</span>
+</span><span id="Guardrail.__init__-1453"><a href="#Guardrail.__init__-1453"><span class="linenos">1453</span></a>    <span class="k">else</span><span class="p">:</span>
+</span><span id="Guardrail.__init__-1454"><a href="#Guardrail.__init__-1454"><span class="linenos">1454</span></a>        <span class="c1"># should not happen</span>
+</span><span id="Guardrail.__init__-1455"><a href="#Guardrail.__init__-1455"><span class="linenos">1455</span></a>        <span class="bp">cls</span><span class="o">.</span><span class="fm">__init__</span> <span class="o">=</span> <span class="nb">object</span><span class="o">.</span><span class="fm">__init__</span>
+</span><span id="Guardrail.__init__-1456"><a href="#Guardrail.__init__-1456"><span class="linenos">1456</span></a>
+</span><span id="Guardrail.__init__-1457"><a href="#Guardrail.__init__-1457"><span class="linenos">1457</span></a>    <span class="bp">cls</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</span></pre></div>
+
+
+    
+
+                            </div>
+                            <div id="Guardrail.name" class="classattr">
+                                <div class="attr variable">
+            <span class="name">name</span><span class="annotation">: str</span>
+
+        
+    </div>
+    <a class="headerlink" href="#Guardrail.name"></a>
+    
+    
+
+                            </div>
+                </section>
+                <section id="BaseGuardrail">
+                            <input id="BaseGuardrail-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr class">
+            
+    <span class="def">class</span>
+    <span class="name">BaseGuardrail</span><wbr>(<span class="base">abc.ABC</span>):
+
+                <label class="view-source-button" for="BaseGuardrail-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#BaseGuardrail"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="BaseGuardrail-24"><a href="#BaseGuardrail-24"><span class="linenos">24</span></a><span class="k">class</span><span class="w"> </span><span class="nc">BaseGuardrail</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
+</span><span id="BaseGuardrail-25"><a href="#BaseGuardrail-25"><span class="linenos">25</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Abstract base class for all guardrails.&quot;&quot;&quot;</span>
+</span><span id="BaseGuardrail-26"><a href="#BaseGuardrail-26"><span class="linenos">26</span></a>
+</span><span id="BaseGuardrail-27"><a href="#BaseGuardrail-27"><span class="linenos">27</span></a>    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+</span><span id="BaseGuardrail-28"><a href="#BaseGuardrail-28"><span class="linenos">28</span></a>
+</span><span id="BaseGuardrail-29"><a href="#BaseGuardrail-29"><span class="linenos">29</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+</span><span id="BaseGuardrail-30"><a href="#BaseGuardrail-30"><span class="linenos">30</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span>
+</span><span id="BaseGuardrail-31"><a href="#BaseGuardrail-31"><span class="linenos">31</span></a>
+</span><span id="BaseGuardrail-32"><a href="#BaseGuardrail-32"><span class="linenos">32</span></a>    <span class="nd">@abstractmethod</span>
+</span><span id="BaseGuardrail-33"><a href="#BaseGuardrail-33"><span class="linenos">33</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">GuardrailDecision</span><span class="p">:</span>
+</span><span id="BaseGuardrail-34"><a href="#BaseGuardrail-34"><span class="linenos">34</span></a>        <span class="k">pass</span>
+</span></pre></div>
+
+
+            <div class="docstring"><p>Abstract base class for all guardrails.</p>
+</div>
+
+
+                            <div id="BaseGuardrail.name" class="classattr">
+                                <div class="attr variable">
+            <span class="name">name</span><span class="annotation">: str</span>
+
+        
+    </div>
+    <a class="headerlink" href="#BaseGuardrail.name"></a>
+    
+    
+
+                            </div>
+                </section>
+                <section id="GuardrailAction">
+                            <input id="GuardrailAction-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr class">
+            
+    <span class="def">class</span>
+    <span class="name">GuardrailAction</span><wbr>(<span class="base">builtins.str</span>, <span class="base">enum.Enum</span>):
+
+                <label class="view-source-button" for="GuardrailAction-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#GuardrailAction"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="GuardrailAction-12"><a href="#GuardrailAction-12"><span class="linenos">12</span></a><span class="k">class</span><span class="w"> </span><span class="nc">GuardrailAction</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
+</span><span id="GuardrailAction-13"><a href="#GuardrailAction-13"><span class="linenos">13</span></a>    <span class="n">ALLOW</span> <span class="o">=</span> <span class="s2">&quot;allow&quot;</span>
+</span><span id="GuardrailAction-14"><a href="#GuardrailAction-14"><span class="linenos">14</span></a>    <span class="n">TRANSFORM</span> <span class="o">=</span> <span class="s2">&quot;transform&quot;</span>
+</span><span id="GuardrailAction-15"><a href="#GuardrailAction-15"><span class="linenos">15</span></a>    <span class="n">BLOCK</span> <span class="o">=</span> <span class="s2">&quot;block&quot;</span>
+</span></pre></div>
+
+
+            <div class="docstring"><p>An enumeration.</p>
+</div>
+
+
+                            <div id="GuardrailAction.ALLOW" class="classattr">
+                                <div class="attr variable">
+            <span class="name">ALLOW</span>        =
+<span class="default_value">&lt;<a href="#GuardrailAction.ALLOW">GuardrailAction.ALLOW</a>: &#39;allow&#39;&gt;</span>
+
+        
+    </div>
+    <a class="headerlink" href="#GuardrailAction.ALLOW"></a>
+    
+    
+
+                            </div>
+                            <div id="GuardrailAction.TRANSFORM" class="classattr">
+                                <div class="attr variable">
+            <span class="name">TRANSFORM</span>        =
+<span class="default_value">&lt;<a href="#GuardrailAction.TRANSFORM">GuardrailAction.TRANSFORM</a>: &#39;transform&#39;&gt;</span>
+
+        
+    </div>
+    <a class="headerlink" href="#GuardrailAction.TRANSFORM"></a>
+    
+    
+
+                            </div>
+                            <div id="GuardrailAction.BLOCK" class="classattr">
+                                <div class="attr variable">
+            <span class="name">BLOCK</span>        =
+<span class="default_value">&lt;<a href="#GuardrailAction.BLOCK">GuardrailAction.BLOCK</a>: &#39;block&#39;&gt;</span>
+
+        
+    </div>
+    <a class="headerlink" href="#GuardrailAction.BLOCK"></a>
+    
+    
+
+                            </div>
+                </section>
+                <section id="GuardrailBlockedError">
+                            <input id="GuardrailBlockedError-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr class">
+            
+    <span class="def">class</span>
+    <span class="name">GuardrailBlockedError</span><wbr>(<span class="base">railtracks.exceptions.errors.NodeInvocationError</span>):
+
+                <label class="view-source-button" for="GuardrailBlockedError-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#GuardrailBlockedError"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="GuardrailBlockedError-12"><a href="#GuardrailBlockedError-12"><span class="linenos">12</span></a><span class="k">class</span><span class="w"> </span><span class="nc">GuardrailBlockedError</span><span class="p">(</span><span class="n">NodeInvocationError</span><span class="p">):</span>
+</span><span id="GuardrailBlockedError-13"><a href="#GuardrailBlockedError-13"><span class="linenos">13</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="GuardrailBlockedError-14"><a href="#GuardrailBlockedError-14"><span class="linenos">14</span></a><span class="sd">    Raised when guardrails deterministically block an operation (e.g. LLM input).</span>
+</span><span id="GuardrailBlockedError-15"><a href="#GuardrailBlockedError-15"><span class="linenos">15</span></a>
+</span><span id="GuardrailBlockedError-16"><a href="#GuardrailBlockedError-16"><span class="linenos">16</span></a><span class="sd">    This error is intended to remain distinguishable from `LLMError` so callers/tests can</span>
+</span><span id="GuardrailBlockedError-17"><a href="#GuardrailBlockedError-17"><span class="linenos">17</span></a><span class="sd">    assert guardrail rejection explicitly.</span>
+</span><span id="GuardrailBlockedError-18"><a href="#GuardrailBlockedError-18"><span class="linenos">18</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="GuardrailBlockedError-19"><a href="#GuardrailBlockedError-19"><span class="linenos">19</span></a>
+</span><span id="GuardrailBlockedError-20"><a href="#GuardrailBlockedError-20"><span class="linenos">20</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+</span><span id="GuardrailBlockedError-21"><a href="#GuardrailBlockedError-21"><span class="linenos">21</span></a>        <span class="bp">self</span><span class="p">,</span>
+</span><span id="GuardrailBlockedError-22"><a href="#GuardrailBlockedError-22"><span class="linenos">22</span></a>        <span class="o">*</span><span class="p">,</span>
+</span><span id="GuardrailBlockedError-23"><a href="#GuardrailBlockedError-23"><span class="linenos">23</span></a>        <span class="n">rail_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="GuardrailBlockedError-24"><a href="#GuardrailBlockedError-24"><span class="linenos">24</span></a>        <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span id="GuardrailBlockedError-25"><a href="#GuardrailBlockedError-25"><span class="linenos">25</span></a>        <span class="n">user_facing_message</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="GuardrailBlockedError-26"><a href="#GuardrailBlockedError-26"><span class="linenos">26</span></a>        <span class="n">traces</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="s2">&quot;GuardrailTrace&quot;</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="GuardrailBlockedError-27"><a href="#GuardrailBlockedError-27"><span class="linenos">27</span></a>        <span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="GuardrailBlockedError-28"><a href="#GuardrailBlockedError-28"><span class="linenos">28</span></a>        <span class="n">notes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="GuardrailBlockedError-29"><a href="#GuardrailBlockedError-29"><span class="linenos">29</span></a>        <span class="n">fatal</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span id="GuardrailBlockedError-30"><a href="#GuardrailBlockedError-30"><span class="linenos">30</span></a>    <span class="p">):</span>
+</span><span id="GuardrailBlockedError-31"><a href="#GuardrailBlockedError-31"><span class="linenos">31</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">rail_name</span> <span class="o">=</span> <span class="n">rail_name</span>
+</span><span id="GuardrailBlockedError-32"><a href="#GuardrailBlockedError-32"><span class="linenos">32</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">reason</span> <span class="o">=</span> <span class="n">reason</span>
+</span><span id="GuardrailBlockedError-33"><a href="#GuardrailBlockedError-33"><span class="linenos">33</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">user_facing_message</span> <span class="o">=</span> <span class="n">user_facing_message</span>
+</span><span id="GuardrailBlockedError-34"><a href="#GuardrailBlockedError-34"><span class="linenos">34</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">traces</span> <span class="o">=</span> <span class="n">traces</span>
+</span><span id="GuardrailBlockedError-35"><a href="#GuardrailBlockedError-35"><span class="linenos">35</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">meta</span> <span class="o">=</span> <span class="n">meta</span>
+</span><span id="GuardrailBlockedError-36"><a href="#GuardrailBlockedError-36"><span class="linenos">36</span></a>
+</span><span id="GuardrailBlockedError-37"><a href="#GuardrailBlockedError-37"><span class="linenos">37</span></a>        <span class="n">base_message</span> <span class="o">=</span> <span class="s2">&quot;Blocked by guardrails&quot;</span>
+</span><span id="GuardrailBlockedError-38"><a href="#GuardrailBlockedError-38"><span class="linenos">38</span></a>        <span class="k">if</span> <span class="n">rail_name</span><span class="p">:</span>
+</span><span id="GuardrailBlockedError-39"><a href="#GuardrailBlockedError-39"><span class="linenos">39</span></a>            <span class="n">base_message</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot; (</span><span class="si">{</span><span class="n">rail_name</span><span class="si">}</span><span class="s2">)&quot;</span>
+</span><span id="GuardrailBlockedError-40"><a href="#GuardrailBlockedError-40"><span class="linenos">40</span></a>        <span class="n">base_message</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;: </span><span class="si">{</span><span class="n">reason</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span id="GuardrailBlockedError-41"><a href="#GuardrailBlockedError-41"><span class="linenos">41</span></a>
+</span><span id="GuardrailBlockedError-42"><a href="#GuardrailBlockedError-42"><span class="linenos">42</span></a>        <span class="n">derived_notes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span id="GuardrailBlockedError-43"><a href="#GuardrailBlockedError-43"><span class="linenos">43</span></a>        <span class="k">if</span> <span class="n">user_facing_message</span><span class="p">:</span>
+</span><span id="GuardrailBlockedError-44"><a href="#GuardrailBlockedError-44"><span class="linenos">44</span></a>            <span class="n">derived_notes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;user_message=</span><span class="si">{</span><span class="n">user_facing_message</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="GuardrailBlockedError-45"><a href="#GuardrailBlockedError-45"><span class="linenos">45</span></a>        <span class="k">if</span> <span class="n">meta</span><span class="p">:</span>
+</span><span id="GuardrailBlockedError-46"><a href="#GuardrailBlockedError-46"><span class="linenos">46</span></a>            <span class="n">derived_notes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;meta attached (see exception.meta)&quot;</span><span class="p">)</span>
+</span><span id="GuardrailBlockedError-47"><a href="#GuardrailBlockedError-47"><span class="linenos">47</span></a>
+</span><span id="GuardrailBlockedError-48"><a href="#GuardrailBlockedError-48"><span class="linenos">48</span></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+</span><span id="GuardrailBlockedError-49"><a href="#GuardrailBlockedError-49"><span class="linenos">49</span></a>            <span class="n">message</span><span class="o">=</span><span class="n">base_message</span><span class="p">,</span>
+</span><span id="GuardrailBlockedError-50"><a href="#GuardrailBlockedError-50"><span class="linenos">50</span></a>            <span class="n">notes</span><span class="o">=</span><span class="p">[</span><span class="o">*</span><span class="p">(</span><span class="n">notes</span> <span class="ow">or</span> <span class="p">[]),</span> <span class="o">*</span><span class="n">derived_notes</span><span class="p">],</span>
+</span><span id="GuardrailBlockedError-51"><a href="#GuardrailBlockedError-51"><span class="linenos">51</span></a>            <span class="n">fatal</span><span class="o">=</span><span class="n">fatal</span><span class="p">,</span>
+</span><span id="GuardrailBlockedError-52"><a href="#GuardrailBlockedError-52"><span class="linenos">52</span></a>        <span class="p">)</span>
+</span></pre></div>
+
+
+            <div class="docstring"><p>Raised when guardrails deterministically block an operation (e.g. LLM input).</p>
+
+<p>This error is intended to remain distinguishable from <code>LLMError</code> so callers/tests can
+assert guardrail rejection explicitly.</p>
+</div>
+
+
+                            <div id="GuardrailBlockedError.__init__" class="classattr">
+                                        <input id="GuardrailBlockedError.__init__-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+            
+        <span class="name">GuardrailBlockedError</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="o">*</span>,</span><span class="param">	<span class="n">rail_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>,</span><span class="param">	<span class="n">reason</span><span class="p">:</span> <span class="nb">str</span>,</span><span class="param">	<span class="n">user_facing_message</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>,</span><span class="param">	<span class="n">traces</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n"><a href="#GuardrailTrace">GuardrailTrace</a></span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>,</span><span class="param">	<span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">typing</span><span class="o">.</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>,</span><span class="param">	<span class="n">notes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>,</span><span class="param">	<span class="n">fatal</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span></span>)</span>
+
+                <label class="view-source-button" for="GuardrailBlockedError.__init__-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#GuardrailBlockedError.__init__"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="GuardrailBlockedError.__init__-20"><a href="#GuardrailBlockedError.__init__-20"><span class="linenos">20</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+</span><span id="GuardrailBlockedError.__init__-21"><a href="#GuardrailBlockedError.__init__-21"><span class="linenos">21</span></a>        <span class="bp">self</span><span class="p">,</span>
+</span><span id="GuardrailBlockedError.__init__-22"><a href="#GuardrailBlockedError.__init__-22"><span class="linenos">22</span></a>        <span class="o">*</span><span class="p">,</span>
+</span><span id="GuardrailBlockedError.__init__-23"><a href="#GuardrailBlockedError.__init__-23"><span class="linenos">23</span></a>        <span class="n">rail_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="GuardrailBlockedError.__init__-24"><a href="#GuardrailBlockedError.__init__-24"><span class="linenos">24</span></a>        <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span id="GuardrailBlockedError.__init__-25"><a href="#GuardrailBlockedError.__init__-25"><span class="linenos">25</span></a>        <span class="n">user_facing_message</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="GuardrailBlockedError.__init__-26"><a href="#GuardrailBlockedError.__init__-26"><span class="linenos">26</span></a>        <span class="n">traces</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="s2">&quot;GuardrailTrace&quot;</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="GuardrailBlockedError.__init__-27"><a href="#GuardrailBlockedError.__init__-27"><span class="linenos">27</span></a>        <span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="GuardrailBlockedError.__init__-28"><a href="#GuardrailBlockedError.__init__-28"><span class="linenos">28</span></a>        <span class="n">notes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="GuardrailBlockedError.__init__-29"><a href="#GuardrailBlockedError.__init__-29"><span class="linenos">29</span></a>        <span class="n">fatal</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span id="GuardrailBlockedError.__init__-30"><a href="#GuardrailBlockedError.__init__-30"><span class="linenos">30</span></a>    <span class="p">):</span>
+</span><span id="GuardrailBlockedError.__init__-31"><a href="#GuardrailBlockedError.__init__-31"><span class="linenos">31</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">rail_name</span> <span class="o">=</span> <span class="n">rail_name</span>
+</span><span id="GuardrailBlockedError.__init__-32"><a href="#GuardrailBlockedError.__init__-32"><span class="linenos">32</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">reason</span> <span class="o">=</span> <span class="n">reason</span>
+</span><span id="GuardrailBlockedError.__init__-33"><a href="#GuardrailBlockedError.__init__-33"><span class="linenos">33</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">user_facing_message</span> <span class="o">=</span> <span class="n">user_facing_message</span>
+</span><span id="GuardrailBlockedError.__init__-34"><a href="#GuardrailBlockedError.__init__-34"><span class="linenos">34</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">traces</span> <span class="o">=</span> <span class="n">traces</span>
+</span><span id="GuardrailBlockedError.__init__-35"><a href="#GuardrailBlockedError.__init__-35"><span class="linenos">35</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">meta</span> <span class="o">=</span> <span class="n">meta</span>
+</span><span id="GuardrailBlockedError.__init__-36"><a href="#GuardrailBlockedError.__init__-36"><span class="linenos">36</span></a>
+</span><span id="GuardrailBlockedError.__init__-37"><a href="#GuardrailBlockedError.__init__-37"><span class="linenos">37</span></a>        <span class="n">base_message</span> <span class="o">=</span> <span class="s2">&quot;Blocked by guardrails&quot;</span>
+</span><span id="GuardrailBlockedError.__init__-38"><a href="#GuardrailBlockedError.__init__-38"><span class="linenos">38</span></a>        <span class="k">if</span> <span class="n">rail_name</span><span class="p">:</span>
+</span><span id="GuardrailBlockedError.__init__-39"><a href="#GuardrailBlockedError.__init__-39"><span class="linenos">39</span></a>            <span class="n">base_message</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot; (</span><span class="si">{</span><span class="n">rail_name</span><span class="si">}</span><span class="s2">)&quot;</span>
+</span><span id="GuardrailBlockedError.__init__-40"><a href="#GuardrailBlockedError.__init__-40"><span class="linenos">40</span></a>        <span class="n">base_message</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;: </span><span class="si">{</span><span class="n">reason</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span id="GuardrailBlockedError.__init__-41"><a href="#GuardrailBlockedError.__init__-41"><span class="linenos">41</span></a>
+</span><span id="GuardrailBlockedError.__init__-42"><a href="#GuardrailBlockedError.__init__-42"><span class="linenos">42</span></a>        <span class="n">derived_notes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span id="GuardrailBlockedError.__init__-43"><a href="#GuardrailBlockedError.__init__-43"><span class="linenos">43</span></a>        <span class="k">if</span> <span class="n">user_facing_message</span><span class="p">:</span>
+</span><span id="GuardrailBlockedError.__init__-44"><a href="#GuardrailBlockedError.__init__-44"><span class="linenos">44</span></a>            <span class="n">derived_notes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;user_message=</span><span class="si">{</span><span class="n">user_facing_message</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="GuardrailBlockedError.__init__-45"><a href="#GuardrailBlockedError.__init__-45"><span class="linenos">45</span></a>        <span class="k">if</span> <span class="n">meta</span><span class="p">:</span>
+</span><span id="GuardrailBlockedError.__init__-46"><a href="#GuardrailBlockedError.__init__-46"><span class="linenos">46</span></a>            <span class="n">derived_notes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;meta attached (see exception.meta)&quot;</span><span class="p">)</span>
+</span><span id="GuardrailBlockedError.__init__-47"><a href="#GuardrailBlockedError.__init__-47"><span class="linenos">47</span></a>
+</span><span id="GuardrailBlockedError.__init__-48"><a href="#GuardrailBlockedError.__init__-48"><span class="linenos">48</span></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+</span><span id="GuardrailBlockedError.__init__-49"><a href="#GuardrailBlockedError.__init__-49"><span class="linenos">49</span></a>            <span class="n">message</span><span class="o">=</span><span class="n">base_message</span><span class="p">,</span>
+</span><span id="GuardrailBlockedError.__init__-50"><a href="#GuardrailBlockedError.__init__-50"><span class="linenos">50</span></a>            <span class="n">notes</span><span class="o">=</span><span class="p">[</span><span class="o">*</span><span class="p">(</span><span class="n">notes</span> <span class="ow">or</span> <span class="p">[]),</span> <span class="o">*</span><span class="n">derived_notes</span><span class="p">],</span>
+</span><span id="GuardrailBlockedError.__init__-51"><a href="#GuardrailBlockedError.__init__-51"><span class="linenos">51</span></a>            <span class="n">fatal</span><span class="o">=</span><span class="n">fatal</span><span class="p">,</span>
+</span><span id="GuardrailBlockedError.__init__-52"><a href="#GuardrailBlockedError.__init__-52"><span class="linenos">52</span></a>        <span class="p">)</span>
+</span></pre></div>
+
+
+    
+
+                            </div>
+                            <div id="GuardrailBlockedError.rail_name" class="classattr">
+                                <div class="attr variable">
+            <span class="name">rail_name</span>
+
+        
+    </div>
+    <a class="headerlink" href="#GuardrailBlockedError.rail_name"></a>
+    
+    
+
+                            </div>
+                            <div id="GuardrailBlockedError.reason" class="classattr">
+                                <div class="attr variable">
+            <span class="name">reason</span>
+
+        
+    </div>
+    <a class="headerlink" href="#GuardrailBlockedError.reason"></a>
+    
+    
+
+                            </div>
+                            <div id="GuardrailBlockedError.user_facing_message" class="classattr">
+                                <div class="attr variable">
+            <span class="name">user_facing_message</span>
+
+        
+    </div>
+    <a class="headerlink" href="#GuardrailBlockedError.user_facing_message"></a>
+    
+    
+
+                            </div>
+                            <div id="GuardrailBlockedError.traces" class="classattr">
+                                <div class="attr variable">
+            <span class="name">traces</span>
+
+        
+    </div>
+    <a class="headerlink" href="#GuardrailBlockedError.traces"></a>
+    
+    
+
+                            </div>
+                            <div id="GuardrailBlockedError.meta" class="classattr">
+                                <div class="attr variable">
+            <span class="name">meta</span>
+
+        
+    </div>
+    <a class="headerlink" href="#GuardrailBlockedError.meta"></a>
+    
+    
+
+                            </div>
+                </section>
+                <section id="GuardrailDecision">
+                            <input id="GuardrailDecision-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr class">
+            
+    <span class="def">class</span>
+    <span class="name">GuardrailDecision</span><wbr>(<span class="base">pydantic.main.BaseModel</span>):
+
+                <label class="view-source-button" for="GuardrailDecision-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#GuardrailDecision"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="GuardrailDecision-18"><a href="#GuardrailDecision-18"><span class="linenos">18</span></a><span class="k">class</span><span class="w"> </span><span class="nc">GuardrailDecision</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+</span><span id="GuardrailDecision-19"><a href="#GuardrailDecision-19"><span class="linenos">19</span></a>    <span class="n">model_config</span> <span class="o">=</span> <span class="n">ConfigDict</span><span class="p">(</span><span class="n">arbitrary_types_allowed</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span id="GuardrailDecision-20"><a href="#GuardrailDecision-20"><span class="linenos">20</span></a>
+</span><span id="GuardrailDecision-21"><a href="#GuardrailDecision-21"><span class="linenos">21</span></a>    <span class="n">action</span><span class="p">:</span> <span class="n">GuardrailAction</span>
+</span><span id="GuardrailDecision-22"><a href="#GuardrailDecision-22"><span class="linenos">22</span></a>    <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span>
+</span><span id="GuardrailDecision-23"><a href="#GuardrailDecision-23"><span class="linenos">23</span></a>    <span class="n">messages</span><span class="p">:</span> <span class="n">MessageHistory</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span id="GuardrailDecision-24"><a href="#GuardrailDecision-24"><span class="linenos">24</span></a>    <span class="n">output_message</span><span class="p">:</span> <span class="n">Message</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span id="GuardrailDecision-25"><a href="#GuardrailDecision-25"><span class="linenos">25</span></a>    <span class="n">user_facing_message</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span id="GuardrailDecision-26"><a href="#GuardrailDecision-26"><span class="linenos">26</span></a>    <span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span id="GuardrailDecision-27"><a href="#GuardrailDecision-27"><span class="linenos">27</span></a>
+</span><span id="GuardrailDecision-28"><a href="#GuardrailDecision-28"><span class="linenos">28</span></a>    <span class="nd">@classmethod</span>
+</span><span id="GuardrailDecision-29"><a href="#GuardrailDecision-29"><span class="linenos">29</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">allow</span><span class="p">(</span>
+</span><span id="GuardrailDecision-30"><a href="#GuardrailDecision-30"><span class="linenos">30</span></a>        <span class="bp">cls</span><span class="p">,</span> <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;Allowed by guardrail.&quot;</span><span class="p">,</span> <span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span id="GuardrailDecision-31"><a href="#GuardrailDecision-31"><span class="linenos">31</span></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;GuardrailDecision&quot;</span><span class="p">:</span>
+</span><span id="GuardrailDecision-32"><a href="#GuardrailDecision-32"><span class="linenos">32</span></a>        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">action</span><span class="o">=</span><span class="n">GuardrailAction</span><span class="o">.</span><span class="n">ALLOW</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="n">reason</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="n">meta</span><span class="p">)</span>
+</span><span id="GuardrailDecision-33"><a href="#GuardrailDecision-33"><span class="linenos">33</span></a>
+</span><span id="GuardrailDecision-34"><a href="#GuardrailDecision-34"><span class="linenos">34</span></a>    <span class="nd">@classmethod</span>
+</span><span id="GuardrailDecision-35"><a href="#GuardrailDecision-35"><span class="linenos">35</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">block</span><span class="p">(</span>
+</span><span id="GuardrailDecision-36"><a href="#GuardrailDecision-36"><span class="linenos">36</span></a>        <span class="bp">cls</span><span class="p">,</span>
+</span><span id="GuardrailDecision-37"><a href="#GuardrailDecision-37"><span class="linenos">37</span></a>        <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span id="GuardrailDecision-38"><a href="#GuardrailDecision-38"><span class="linenos">38</span></a>        <span class="n">user_facing_message</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="GuardrailDecision-39"><a href="#GuardrailDecision-39"><span class="linenos">39</span></a>        <span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="GuardrailDecision-40"><a href="#GuardrailDecision-40"><span class="linenos">40</span></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;GuardrailDecision&quot;</span><span class="p">:</span>
+</span><span id="GuardrailDecision-41"><a href="#GuardrailDecision-41"><span class="linenos">41</span></a>        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
+</span><span id="GuardrailDecision-42"><a href="#GuardrailDecision-42"><span class="linenos">42</span></a>            <span class="n">action</span><span class="o">=</span><span class="n">GuardrailAction</span><span class="o">.</span><span class="n">BLOCK</span><span class="p">,</span>
+</span><span id="GuardrailDecision-43"><a href="#GuardrailDecision-43"><span class="linenos">43</span></a>            <span class="n">reason</span><span class="o">=</span><span class="n">reason</span><span class="p">,</span>
+</span><span id="GuardrailDecision-44"><a href="#GuardrailDecision-44"><span class="linenos">44</span></a>            <span class="n">user_facing_message</span><span class="o">=</span><span class="n">user_facing_message</span><span class="p">,</span>
+</span><span id="GuardrailDecision-45"><a href="#GuardrailDecision-45"><span class="linenos">45</span></a>            <span class="n">meta</span><span class="o">=</span><span class="n">meta</span><span class="p">,</span>
+</span><span id="GuardrailDecision-46"><a href="#GuardrailDecision-46"><span class="linenos">46</span></a>        <span class="p">)</span>
+</span><span id="GuardrailDecision-47"><a href="#GuardrailDecision-47"><span class="linenos">47</span></a>
+</span><span id="GuardrailDecision-48"><a href="#GuardrailDecision-48"><span class="linenos">48</span></a>    <span class="nd">@classmethod</span>
+</span><span id="GuardrailDecision-49"><a href="#GuardrailDecision-49"><span class="linenos">49</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">transform_messages</span><span class="p">(</span>
+</span><span id="GuardrailDecision-50"><a href="#GuardrailDecision-50"><span class="linenos">50</span></a>        <span class="bp">cls</span><span class="p">,</span>
+</span><span id="GuardrailDecision-51"><a href="#GuardrailDecision-51"><span class="linenos">51</span></a>        <span class="n">messages</span><span class="p">:</span> <span class="n">MessageHistory</span><span class="p">,</span>
+</span><span id="GuardrailDecision-52"><a href="#GuardrailDecision-52"><span class="linenos">52</span></a>        <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span id="GuardrailDecision-53"><a href="#GuardrailDecision-53"><span class="linenos">53</span></a>        <span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="GuardrailDecision-54"><a href="#GuardrailDecision-54"><span class="linenos">54</span></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;GuardrailDecision&quot;</span><span class="p">:</span>
+</span><span id="GuardrailDecision-55"><a href="#GuardrailDecision-55"><span class="linenos">55</span></a>        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
+</span><span id="GuardrailDecision-56"><a href="#GuardrailDecision-56"><span class="linenos">56</span></a>            <span class="n">action</span><span class="o">=</span><span class="n">GuardrailAction</span><span class="o">.</span><span class="n">TRANSFORM</span><span class="p">,</span>
+</span><span id="GuardrailDecision-57"><a href="#GuardrailDecision-57"><span class="linenos">57</span></a>            <span class="n">reason</span><span class="o">=</span><span class="n">reason</span><span class="p">,</span>
+</span><span id="GuardrailDecision-58"><a href="#GuardrailDecision-58"><span class="linenos">58</span></a>            <span class="n">messages</span><span class="o">=</span><span class="n">messages</span><span class="p">,</span>
+</span><span id="GuardrailDecision-59"><a href="#GuardrailDecision-59"><span class="linenos">59</span></a>            <span class="n">meta</span><span class="o">=</span><span class="n">meta</span><span class="p">,</span>
+</span><span id="GuardrailDecision-60"><a href="#GuardrailDecision-60"><span class="linenos">60</span></a>        <span class="p">)</span>
+</span><span id="GuardrailDecision-61"><a href="#GuardrailDecision-61"><span class="linenos">61</span></a>
+</span><span id="GuardrailDecision-62"><a href="#GuardrailDecision-62"><span class="linenos">62</span></a>    <span class="nd">@classmethod</span>
+</span><span id="GuardrailDecision-63"><a href="#GuardrailDecision-63"><span class="linenos">63</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">transform_output</span><span class="p">(</span>
+</span><span id="GuardrailDecision-64"><a href="#GuardrailDecision-64"><span class="linenos">64</span></a>        <span class="bp">cls</span><span class="p">,</span>
+</span><span id="GuardrailDecision-65"><a href="#GuardrailDecision-65"><span class="linenos">65</span></a>        <span class="n">output_message</span><span class="p">:</span> <span class="n">Message</span><span class="p">,</span>
+</span><span id="GuardrailDecision-66"><a href="#GuardrailDecision-66"><span class="linenos">66</span></a>        <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span id="GuardrailDecision-67"><a href="#GuardrailDecision-67"><span class="linenos">67</span></a>        <span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="GuardrailDecision-68"><a href="#GuardrailDecision-68"><span class="linenos">68</span></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;GuardrailDecision&quot;</span><span class="p">:</span>
+</span><span id="GuardrailDecision-69"><a href="#GuardrailDecision-69"><span class="linenos">69</span></a>        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
+</span><span id="GuardrailDecision-70"><a href="#GuardrailDecision-70"><span class="linenos">70</span></a>            <span class="n">action</span><span class="o">=</span><span class="n">GuardrailAction</span><span class="o">.</span><span class="n">TRANSFORM</span><span class="p">,</span>
+</span><span id="GuardrailDecision-71"><a href="#GuardrailDecision-71"><span class="linenos">71</span></a>            <span class="n">reason</span><span class="o">=</span><span class="n">reason</span><span class="p">,</span>
+</span><span id="GuardrailDecision-72"><a href="#GuardrailDecision-72"><span class="linenos">72</span></a>            <span class="n">output_message</span><span class="o">=</span><span class="n">output_message</span><span class="p">,</span>
+</span><span id="GuardrailDecision-73"><a href="#GuardrailDecision-73"><span class="linenos">73</span></a>            <span class="n">meta</span><span class="o">=</span><span class="n">meta</span><span class="p">,</span>
+</span><span id="GuardrailDecision-74"><a href="#GuardrailDecision-74"><span class="linenos">74</span></a>        <span class="p">)</span>
+</span></pre></div>
+
+
+            <div class="docstring"><p>!!! abstract "Usage Documentation"
+    <a href="../concepts/models.md">Models</a></p>
+
+<p>A base class for creating Pydantic models.</p>
+
+<h6 id="attributes">Attributes:</h6>
+
+<ul>
+<li><strong>__class_vars__:</strong>  The names of the class variables defined on the model.</li>
+<li><strong>__private_attributes__:</strong>  Metadata about the private attributes of the model.</li>
+<li><strong>__signature__:</strong>  The synthesized <code><a href="#GuardrailDecision.__init__">__init__</a></code> [<code>Signature</code>][inspect.Signature] of the model.</li>
+<li><strong>__pydantic_complete__:</strong>  Whether model building is completed, or if there are still undefined fields.</li>
+<li><strong>__pydantic_core_schema__:</strong>  The core schema of the model.</li>
+<li><strong>__pydantic_custom_init__:</strong>  Whether the model has a custom <code><a href="#GuardrailDecision.__init__">__init__</a></code> function.</li>
+<li><strong>__pydantic_decorators__:</strong>  Metadata containing the decorators defined on the model.
+This replaces <code>Model.__validators__</code> and <code>Model.__root_validators__</code> from Pydantic V1.</li>
+<li><strong>__pydantic_generic_metadata__:</strong>  Metadata for generic models; contains data used for a similar purpose to
+__args__, __origin__, __parameters__ in typing-module generics. May eventually be replaced by these.</li>
+<li><strong>__pydantic_parent_namespace__:</strong>  Parent namespace of the model, used for automatic rebuilding of models.</li>
+<li><strong>__pydantic_post_init__:</strong>  The name of the post-init method for the model, if defined.</li>
+<li><strong>__pydantic_root_model__:</strong>  Whether the model is a [<code>RootModel</code>][pydantic.root_model.RootModel].</li>
+<li><strong>__pydantic_serializer__:</strong>  The <code>pydantic-core</code> <code>SchemaSerializer</code> used to dump instances of the model.</li>
+<li><strong>__pydantic_validator__:</strong>  The <code>pydantic-core</code> <code>SchemaValidator</code> used to validate instances of the model.</li>
+<li><strong>__pydantic_fields__:</strong>  A dictionary of field names and their corresponding [<code>FieldInfo</code>][pydantic.fields.FieldInfo] objects.</li>
+<li><strong>__pydantic_computed_fields__:</strong>  A dictionary of computed field names and their corresponding [<code>ComputedFieldInfo</code>][pydantic.fields.ComputedFieldInfo] objects.</li>
+<li><strong>__pydantic_extra__:</strong>  A dictionary containing extra values, if [<code>extra</code>][pydantic.config.ConfigDict.extra]
+is set to <code>'allow'</code>.</li>
+<li><strong>__pydantic_fields_set__:</strong>  The names of fields explicitly set during instantiation.</li>
+<li><strong>__pydantic_private__:</strong>  Values of private attributes set on the model instance.</li>
+</ul>
+</div>
+
+
+                            <div id="GuardrailDecision.model_config" class="classattr">
+                                <div class="attr variable">
+            <span class="name">model_config</span>        =
+<span class="default_value">{&#39;arbitrary_types_allowed&#39;: True}</span>
+
+        
+    </div>
+    <a class="headerlink" href="#GuardrailDecision.model_config"></a>
+    
+            <div class="docstring"><p>Configuration for the model, should be a dictionary conforming to [<code>ConfigDict</code>][pydantic.config.ConfigDict].</p>
+</div>
+
+
+                            </div>
+                            <div id="GuardrailDecision.action" class="classattr">
+                                <div class="attr variable">
+            <span class="name">action</span><span class="annotation">: <a href="#GuardrailAction">GuardrailAction</a></span>
+
+        
+    </div>
+    <a class="headerlink" href="#GuardrailDecision.action"></a>
+    
+    
+
+                            </div>
+                            <div id="GuardrailDecision.reason" class="classattr">
+                                <div class="attr variable">
+            <span class="name">reason</span><span class="annotation">: str</span>
+
+        
+    </div>
+    <a class="headerlink" href="#GuardrailDecision.reason"></a>
+    
+    
+
+                            </div>
+                            <div id="GuardrailDecision.messages" class="classattr">
+                                <div class="attr variable">
+            <span class="name">messages</span><span class="annotation">: <a href="llm.html#MessageHistory">railtracks.llm.MessageHistory</a> | None</span>
+
+        
+    </div>
+    <a class="headerlink" href="#GuardrailDecision.messages"></a>
+    
+    
+
+                            </div>
+                            <div id="GuardrailDecision.output_message" class="classattr">
+                                <div class="attr variable">
+            <span class="name">output_message</span><span class="annotation">: <a href="llm.html#Message">railtracks.llm.Message</a> | None</span>
+
+        
+    </div>
+    <a class="headerlink" href="#GuardrailDecision.output_message"></a>
+    
+    
+
+                            </div>
+                            <div id="GuardrailDecision.user_facing_message" class="classattr">
+                                <div class="attr variable">
+            <span class="name">user_facing_message</span><span class="annotation">: str | None</span>
+
+        
+    </div>
+    <a class="headerlink" href="#GuardrailDecision.user_facing_message"></a>
+    
+    
+
+                            </div>
+                            <div id="GuardrailDecision.meta" class="classattr">
+                                <div class="attr variable">
+            <span class="name">meta</span><span class="annotation">: dict[str, typing.Any] | None</span>
+
+        
+    </div>
+    <a class="headerlink" href="#GuardrailDecision.meta"></a>
+    
+    
+
+                            </div>
+                            <div id="GuardrailDecision.allow" class="classattr">
+                                        <input id="GuardrailDecision.allow-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+                    <div class="decorator decorator-classmethod">@classmethod</div>
+
+        <span class="def">def</span>
+        <span class="name">allow</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">cls</span>,</span><span class="param">	<span class="n">reason</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;Allowed by guardrail.&#39;</span>,</span><span class="param">	<span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">typing</span><span class="o">.</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span></span><span class="return-annotation">) -> <span class="n"><a href="#GuardrailDecision">GuardrailDecision</a></span>:</span></span>
+
+                <label class="view-source-button" for="GuardrailDecision.allow-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#GuardrailDecision.allow"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="GuardrailDecision.allow-28"><a href="#GuardrailDecision.allow-28"><span class="linenos">28</span></a>    <span class="nd">@classmethod</span>
+</span><span id="GuardrailDecision.allow-29"><a href="#GuardrailDecision.allow-29"><span class="linenos">29</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">allow</span><span class="p">(</span>
+</span><span id="GuardrailDecision.allow-30"><a href="#GuardrailDecision.allow-30"><span class="linenos">30</span></a>        <span class="bp">cls</span><span class="p">,</span> <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;Allowed by guardrail.&quot;</span><span class="p">,</span> <span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span id="GuardrailDecision.allow-31"><a href="#GuardrailDecision.allow-31"><span class="linenos">31</span></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;GuardrailDecision&quot;</span><span class="p">:</span>
+</span><span id="GuardrailDecision.allow-32"><a href="#GuardrailDecision.allow-32"><span class="linenos">32</span></a>        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">action</span><span class="o">=</span><span class="n">GuardrailAction</span><span class="o">.</span><span class="n">ALLOW</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="n">reason</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="n">meta</span><span class="p">)</span>
+</span></pre></div>
+
+
+    
+
+                            </div>
+                            <div id="GuardrailDecision.block" class="classattr">
+                                        <input id="GuardrailDecision.block-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+                    <div class="decorator decorator-classmethod">@classmethod</div>
+
+        <span class="def">def</span>
+        <span class="name">block</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">cls</span>,</span><span class="param">	<span class="n">reason</span><span class="p">:</span> <span class="nb">str</span>,</span><span class="param">	<span class="n">user_facing_message</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>,</span><span class="param">	<span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">typing</span><span class="o">.</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span></span><span class="return-annotation">) -> <span class="n"><a href="#GuardrailDecision">GuardrailDecision</a></span>:</span></span>
+
+                <label class="view-source-button" for="GuardrailDecision.block-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#GuardrailDecision.block"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="GuardrailDecision.block-34"><a href="#GuardrailDecision.block-34"><span class="linenos">34</span></a>    <span class="nd">@classmethod</span>
+</span><span id="GuardrailDecision.block-35"><a href="#GuardrailDecision.block-35"><span class="linenos">35</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">block</span><span class="p">(</span>
+</span><span id="GuardrailDecision.block-36"><a href="#GuardrailDecision.block-36"><span class="linenos">36</span></a>        <span class="bp">cls</span><span class="p">,</span>
+</span><span id="GuardrailDecision.block-37"><a href="#GuardrailDecision.block-37"><span class="linenos">37</span></a>        <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span id="GuardrailDecision.block-38"><a href="#GuardrailDecision.block-38"><span class="linenos">38</span></a>        <span class="n">user_facing_message</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="GuardrailDecision.block-39"><a href="#GuardrailDecision.block-39"><span class="linenos">39</span></a>        <span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="GuardrailDecision.block-40"><a href="#GuardrailDecision.block-40"><span class="linenos">40</span></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;GuardrailDecision&quot;</span><span class="p">:</span>
+</span><span id="GuardrailDecision.block-41"><a href="#GuardrailDecision.block-41"><span class="linenos">41</span></a>        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
+</span><span id="GuardrailDecision.block-42"><a href="#GuardrailDecision.block-42"><span class="linenos">42</span></a>            <span class="n">action</span><span class="o">=</span><span class="n">GuardrailAction</span><span class="o">.</span><span class="n">BLOCK</span><span class="p">,</span>
+</span><span id="GuardrailDecision.block-43"><a href="#GuardrailDecision.block-43"><span class="linenos">43</span></a>            <span class="n">reason</span><span class="o">=</span><span class="n">reason</span><span class="p">,</span>
+</span><span id="GuardrailDecision.block-44"><a href="#GuardrailDecision.block-44"><span class="linenos">44</span></a>            <span class="n">user_facing_message</span><span class="o">=</span><span class="n">user_facing_message</span><span class="p">,</span>
+</span><span id="GuardrailDecision.block-45"><a href="#GuardrailDecision.block-45"><span class="linenos">45</span></a>            <span class="n">meta</span><span class="o">=</span><span class="n">meta</span><span class="p">,</span>
+</span><span id="GuardrailDecision.block-46"><a href="#GuardrailDecision.block-46"><span class="linenos">46</span></a>        <span class="p">)</span>
+</span></pre></div>
+
+
+    
+
+                            </div>
+                            <div id="GuardrailDecision.transform_messages" class="classattr">
+                                        <input id="GuardrailDecision.transform_messages-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+                    <div class="decorator decorator-classmethod">@classmethod</div>
+
+        <span class="def">def</span>
+        <span class="name">transform_messages</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">cls</span>,</span><span class="param">	<span class="n">messages</span><span class="p">:</span> <span class="n"><a href="llm.html#MessageHistory">railtracks.llm.MessageHistory</a></span>,</span><span class="param">	<span class="n">reason</span><span class="p">:</span> <span class="nb">str</span>,</span><span class="param">	<span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">typing</span><span class="o">.</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span></span><span class="return-annotation">) -> <span class="n"><a href="#GuardrailDecision">GuardrailDecision</a></span>:</span></span>
+
+                <label class="view-source-button" for="GuardrailDecision.transform_messages-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#GuardrailDecision.transform_messages"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="GuardrailDecision.transform_messages-48"><a href="#GuardrailDecision.transform_messages-48"><span class="linenos">48</span></a>    <span class="nd">@classmethod</span>
+</span><span id="GuardrailDecision.transform_messages-49"><a href="#GuardrailDecision.transform_messages-49"><span class="linenos">49</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">transform_messages</span><span class="p">(</span>
+</span><span id="GuardrailDecision.transform_messages-50"><a href="#GuardrailDecision.transform_messages-50"><span class="linenos">50</span></a>        <span class="bp">cls</span><span class="p">,</span>
+</span><span id="GuardrailDecision.transform_messages-51"><a href="#GuardrailDecision.transform_messages-51"><span class="linenos">51</span></a>        <span class="n">messages</span><span class="p">:</span> <span class="n">MessageHistory</span><span class="p">,</span>
+</span><span id="GuardrailDecision.transform_messages-52"><a href="#GuardrailDecision.transform_messages-52"><span class="linenos">52</span></a>        <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span id="GuardrailDecision.transform_messages-53"><a href="#GuardrailDecision.transform_messages-53"><span class="linenos">53</span></a>        <span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="GuardrailDecision.transform_messages-54"><a href="#GuardrailDecision.transform_messages-54"><span class="linenos">54</span></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;GuardrailDecision&quot;</span><span class="p">:</span>
+</span><span id="GuardrailDecision.transform_messages-55"><a href="#GuardrailDecision.transform_messages-55"><span class="linenos">55</span></a>        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
+</span><span id="GuardrailDecision.transform_messages-56"><a href="#GuardrailDecision.transform_messages-56"><span class="linenos">56</span></a>            <span class="n">action</span><span class="o">=</span><span class="n">GuardrailAction</span><span class="o">.</span><span class="n">TRANSFORM</span><span class="p">,</span>
+</span><span id="GuardrailDecision.transform_messages-57"><a href="#GuardrailDecision.transform_messages-57"><span class="linenos">57</span></a>            <span class="n">reason</span><span class="o">=</span><span class="n">reason</span><span class="p">,</span>
+</span><span id="GuardrailDecision.transform_messages-58"><a href="#GuardrailDecision.transform_messages-58"><span class="linenos">58</span></a>            <span class="n">messages</span><span class="o">=</span><span class="n">messages</span><span class="p">,</span>
+</span><span id="GuardrailDecision.transform_messages-59"><a href="#GuardrailDecision.transform_messages-59"><span class="linenos">59</span></a>            <span class="n">meta</span><span class="o">=</span><span class="n">meta</span><span class="p">,</span>
+</span><span id="GuardrailDecision.transform_messages-60"><a href="#GuardrailDecision.transform_messages-60"><span class="linenos">60</span></a>        <span class="p">)</span>
+</span></pre></div>
+
+
+    
+
+                            </div>
+                            <div id="GuardrailDecision.transform_output" class="classattr">
+                                        <input id="GuardrailDecision.transform_output-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+                    <div class="decorator decorator-classmethod">@classmethod</div>
+
+        <span class="def">def</span>
+        <span class="name">transform_output</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">cls</span>,</span><span class="param">	<span class="n">output_message</span><span class="p">:</span> <span class="n"><a href="llm.html#Message">railtracks.llm.Message</a></span>,</span><span class="param">	<span class="n">reason</span><span class="p">:</span> <span class="nb">str</span>,</span><span class="param">	<span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">typing</span><span class="o">.</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span></span><span class="return-annotation">) -> <span class="n"><a href="#GuardrailDecision">GuardrailDecision</a></span>:</span></span>
+
+                <label class="view-source-button" for="GuardrailDecision.transform_output-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#GuardrailDecision.transform_output"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="GuardrailDecision.transform_output-62"><a href="#GuardrailDecision.transform_output-62"><span class="linenos">62</span></a>    <span class="nd">@classmethod</span>
+</span><span id="GuardrailDecision.transform_output-63"><a href="#GuardrailDecision.transform_output-63"><span class="linenos">63</span></a>    <span class="k">def</span><span class="w"> </span><span class="nf">transform_output</span><span class="p">(</span>
+</span><span id="GuardrailDecision.transform_output-64"><a href="#GuardrailDecision.transform_output-64"><span class="linenos">64</span></a>        <span class="bp">cls</span><span class="p">,</span>
+</span><span id="GuardrailDecision.transform_output-65"><a href="#GuardrailDecision.transform_output-65"><span class="linenos">65</span></a>        <span class="n">output_message</span><span class="p">:</span> <span class="n">Message</span><span class="p">,</span>
+</span><span id="GuardrailDecision.transform_output-66"><a href="#GuardrailDecision.transform_output-66"><span class="linenos">66</span></a>        <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span id="GuardrailDecision.transform_output-67"><a href="#GuardrailDecision.transform_output-67"><span class="linenos">67</span></a>        <span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="GuardrailDecision.transform_output-68"><a href="#GuardrailDecision.transform_output-68"><span class="linenos">68</span></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;GuardrailDecision&quot;</span><span class="p">:</span>
+</span><span id="GuardrailDecision.transform_output-69"><a href="#GuardrailDecision.transform_output-69"><span class="linenos">69</span></a>        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
+</span><span id="GuardrailDecision.transform_output-70"><a href="#GuardrailDecision.transform_output-70"><span class="linenos">70</span></a>            <span class="n">action</span><span class="o">=</span><span class="n">GuardrailAction</span><span class="o">.</span><span class="n">TRANSFORM</span><span class="p">,</span>
+</span><span id="GuardrailDecision.transform_output-71"><a href="#GuardrailDecision.transform_output-71"><span class="linenos">71</span></a>            <span class="n">reason</span><span class="o">=</span><span class="n">reason</span><span class="p">,</span>
+</span><span id="GuardrailDecision.transform_output-72"><a href="#GuardrailDecision.transform_output-72"><span class="linenos">72</span></a>            <span class="n">output_message</span><span class="o">=</span><span class="n">output_message</span><span class="p">,</span>
+</span><span id="GuardrailDecision.transform_output-73"><a href="#GuardrailDecision.transform_output-73"><span class="linenos">73</span></a>            <span class="n">meta</span><span class="o">=</span><span class="n">meta</span><span class="p">,</span>
+</span><span id="GuardrailDecision.transform_output-74"><a href="#GuardrailDecision.transform_output-74"><span class="linenos">74</span></a>        <span class="p">)</span>
+</span></pre></div>
+
+
+    
+
+                            </div>
+                </section>
+                <section id="GuardrailTrace">
+                            <input id="GuardrailTrace-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr class">
+            
+    <span class="def">class</span>
+    <span class="name">GuardrailTrace</span><wbr>(<span class="base">pydantic.main.BaseModel</span>):
+
+                <label class="view-source-button" for="GuardrailTrace-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#GuardrailTrace"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="GuardrailTrace-9"><a href="#GuardrailTrace-9"><span class="linenos"> 9</span></a><span class="k">class</span><span class="w"> </span><span class="nc">GuardrailTrace</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+</span><span id="GuardrailTrace-10"><a href="#GuardrailTrace-10"><span class="linenos">10</span></a>    <span class="n">rail_name</span><span class="p">:</span> <span class="nb">str</span>
+</span><span id="GuardrailTrace-11"><a href="#GuardrailTrace-11"><span class="linenos">11</span></a>    <span class="n">phase</span><span class="p">:</span> <span class="nb">str</span>
+</span><span id="GuardrailTrace-12"><a href="#GuardrailTrace-12"><span class="linenos">12</span></a>    <span class="n">action</span><span class="p">:</span> <span class="nb">str</span>
+</span><span id="GuardrailTrace-13"><a href="#GuardrailTrace-13"><span class="linenos">13</span></a>    <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span>
+</span><span id="GuardrailTrace-14"><a href="#GuardrailTrace-14"><span class="linenos">14</span></a>    <span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span></pre></div>
+
+
+            <div class="docstring"><p>!!! abstract "Usage Documentation"
+    <a href="../concepts/models.md">Models</a></p>
+
+<p>A base class for creating Pydantic models.</p>
+
+<h6 id="attributes">Attributes:</h6>
+
+<ul>
+<li><strong>__class_vars__:</strong>  The names of the class variables defined on the model.</li>
+<li><strong>__private_attributes__:</strong>  Metadata about the private attributes of the model.</li>
+<li><strong>__signature__:</strong>  The synthesized <code><a href="#GuardrailTrace.__init__">__init__</a></code> [<code>Signature</code>][inspect.Signature] of the model.</li>
+<li><strong>__pydantic_complete__:</strong>  Whether model building is completed, or if there are still undefined fields.</li>
+<li><strong>__pydantic_core_schema__:</strong>  The core schema of the model.</li>
+<li><strong>__pydantic_custom_init__:</strong>  Whether the model has a custom <code><a href="#GuardrailTrace.__init__">__init__</a></code> function.</li>
+<li><strong>__pydantic_decorators__:</strong>  Metadata containing the decorators defined on the model.
+This replaces <code>Model.__validators__</code> and <code>Model.__root_validators__</code> from Pydantic V1.</li>
+<li><strong>__pydantic_generic_metadata__:</strong>  Metadata for generic models; contains data used for a similar purpose to
+__args__, __origin__, __parameters__ in typing-module generics. May eventually be replaced by these.</li>
+<li><strong>__pydantic_parent_namespace__:</strong>  Parent namespace of the model, used for automatic rebuilding of models.</li>
+<li><strong>__pydantic_post_init__:</strong>  The name of the post-init method for the model, if defined.</li>
+<li><strong>__pydantic_root_model__:</strong>  Whether the model is a [<code>RootModel</code>][pydantic.root_model.RootModel].</li>
+<li><strong>__pydantic_serializer__:</strong>  The <code>pydantic-core</code> <code>SchemaSerializer</code> used to dump instances of the model.</li>
+<li><strong>__pydantic_validator__:</strong>  The <code>pydantic-core</code> <code>SchemaValidator</code> used to validate instances of the model.</li>
+<li><strong>__pydantic_fields__:</strong>  A dictionary of field names and their corresponding [<code>FieldInfo</code>][pydantic.fields.FieldInfo] objects.</li>
+<li><strong>__pydantic_computed_fields__:</strong>  A dictionary of computed field names and their corresponding [<code>ComputedFieldInfo</code>][pydantic.fields.ComputedFieldInfo] objects.</li>
+<li><strong>__pydantic_extra__:</strong>  A dictionary containing extra values, if [<code>extra</code>][pydantic.config.ConfigDict.extra]
+is set to <code>'allow'</code>.</li>
+<li><strong>__pydantic_fields_set__:</strong>  The names of fields explicitly set during instantiation.</li>
+<li><strong>__pydantic_private__:</strong>  Values of private attributes set on the model instance.</li>
+</ul>
+</div>
+
+
+                            <div id="GuardrailTrace.rail_name" class="classattr">
+                                <div class="attr variable">
+            <span class="name">rail_name</span><span class="annotation">: str</span>
+
+        
+    </div>
+    <a class="headerlink" href="#GuardrailTrace.rail_name"></a>
+    
+    
+
+                            </div>
+                            <div id="GuardrailTrace.phase" class="classattr">
+                                <div class="attr variable">
+            <span class="name">phase</span><span class="annotation">: str</span>
+
+        
+    </div>
+    <a class="headerlink" href="#GuardrailTrace.phase"></a>
+    
+    
+
+                            </div>
+                            <div id="GuardrailTrace.action" class="classattr">
+                                <div class="attr variable">
+            <span class="name">action</span><span class="annotation">: str</span>
+
+        
+    </div>
+    <a class="headerlink" href="#GuardrailTrace.action"></a>
+    
+    
+
+                            </div>
+                            <div id="GuardrailTrace.reason" class="classattr">
+                                <div class="attr variable">
+            <span class="name">reason</span><span class="annotation">: str</span>
+
+        
+    </div>
+    <a class="headerlink" href="#GuardrailTrace.reason"></a>
+    
+    
+
+                            </div>
+                            <div id="GuardrailTrace.meta" class="classattr">
+                                <div class="attr variable">
+            <span class="name">meta</span><span class="annotation">: dict[str, typing.Any] | None</span>
+
+        
+    </div>
+    <a class="headerlink" href="#GuardrailTrace.meta"></a>
+    
+    
+
+                            </div>
+                            <div id="GuardrailTrace.model_config" class="classattr">
+                                <div class="attr variable">
+            <span class="name">model_config</span><span class="annotation">: ClassVar[pydantic.config.ConfigDict]</span>        =
+<span class="default_value">{}</span>
+
+        
+    </div>
+    <a class="headerlink" href="#GuardrailTrace.model_config"></a>
+    
+            <div class="docstring"><p>Configuration for the model, should be a dictionary conforming to [<code>ConfigDict</code>][pydantic.config.ConfigDict].</p>
+</div>
+
+
+                            </div>
+                </section>
+                <section id="BaseLLMGuardrail">
+                            <input id="BaseLLMGuardrail-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr class">
+            
+    <span class="def">class</span>
+    <span class="name">BaseLLMGuardrail</span><wbr>(<span class="base"><a href="#BaseGuardrail">railtracks.guardrails.BaseGuardrail</a></span>):
+
+                <label class="view-source-button" for="BaseLLMGuardrail-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#BaseLLMGuardrail"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="BaseLLMGuardrail-37"><a href="#BaseLLMGuardrail-37"><span class="linenos">37</span></a><span class="k">class</span><span class="w"> </span><span class="nc">BaseLLMGuardrail</span><span class="p">(</span><span class="n">BaseGuardrail</span><span class="p">):</span>
+</span><span id="BaseLLMGuardrail-38"><a href="#BaseLLMGuardrail-38"><span class="linenos">38</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Abstract base class for guardrails that run on LLM input or output.&quot;&quot;&quot;</span>
+</span><span id="BaseLLMGuardrail-39"><a href="#BaseLLMGuardrail-39"><span class="linenos">39</span></a>
+</span><span id="BaseLLMGuardrail-40"><a href="#BaseLLMGuardrail-40"><span class="linenos">40</span></a>    <span class="n">phase</span><span class="p">:</span> <span class="n">LLMGuardrailPhase</span>
+</span><span id="BaseLLMGuardrail-41"><a href="#BaseLLMGuardrail-41"><span class="linenos">41</span></a>
+</span><span id="BaseLLMGuardrail-42"><a href="#BaseLLMGuardrail-42"><span class="linenos">42</span></a>    <span class="nd">@abstractmethod</span>
+</span><span id="BaseLLMGuardrail-43"><a href="#BaseLLMGuardrail-43"><span class="linenos">43</span></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">:</span> <span class="n">LLMGuardrailEvent</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">GuardrailDecision</span><span class="p">:</span>
+</span><span id="BaseLLMGuardrail-44"><a href="#BaseLLMGuardrail-44"><span class="linenos">44</span></a>        <span class="k">pass</span>
+</span></pre></div>
+
+
+            <div class="docstring"><p>Abstract base class for guardrails that run on LLM input or output.</p>
+</div>
+
+
+                            <div id="BaseLLMGuardrail.phase" class="classattr">
+                                <div class="attr variable">
+            <span class="name">phase</span><span class="annotation">: <a href="#LLMGuardrailPhase">LLMGuardrailPhase</a></span>
+
+        
+    </div>
+    <a class="headerlink" href="#BaseLLMGuardrail.phase"></a>
+    
+    
+
+                            </div>
+                </section>
+                <section id="InputGuard">
+                            <input id="InputGuard-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr class">
+            
+    <span class="def">class</span>
+    <span class="name">InputGuard</span><wbr>(<span class="base"><a href="#BaseLLMGuardrail">railtracks.guardrails.BaseLLMGuardrail</a></span>):
+
+                <label class="view-source-button" for="InputGuard-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#InputGuard"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="InputGuard-47"><a href="#InputGuard-47"><span class="linenos">47</span></a><span class="k">class</span><span class="w"> </span><span class="nc">InputGuard</span><span class="p">(</span><span class="n">BaseLLMGuardrail</span><span class="p">):</span>
+</span><span id="InputGuard-48"><a href="#InputGuard-48"><span class="linenos">48</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Base for guardrails that run on LLM input (e.g. prompt / message history).&quot;&quot;&quot;</span>
+</span><span id="InputGuard-49"><a href="#InputGuard-49"><span class="linenos">49</span></a>
+</span><span id="InputGuard-50"><a href="#InputGuard-50"><span class="linenos">50</span></a>    <span class="n">phase</span> <span class="o">=</span> <span class="n">LLMGuardrailPhase</span><span class="o">.</span><span class="n">INPUT</span>
+</span></pre></div>
+
+
+            <div class="docstring"><p>Base for guardrails that run on LLM input (e.g. prompt / message history).</p>
+</div>
+
+
+                            <div id="InputGuard.phase" class="classattr">
+                                <div class="attr variable">
+            <span class="name">phase</span>        =
+<span class="default_value">&lt;<a href="#LLMGuardrailPhase.INPUT">LLMGuardrailPhase.INPUT</a>: &#39;llm_input&#39;&gt;</span>
+
+        
+    </div>
+    <a class="headerlink" href="#InputGuard.phase"></a>
+    
+    
+
+                            </div>
+                </section>
+                <section id="OutputGuard">
+                            <input id="OutputGuard-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr class">
+            
+    <span class="def">class</span>
+    <span class="name">OutputGuard</span><wbr>(<span class="base"><a href="#BaseLLMGuardrail">railtracks.guardrails.BaseLLMGuardrail</a></span>):
+
+                <label class="view-source-button" for="OutputGuard-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#OutputGuard"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="OutputGuard-53"><a href="#OutputGuard-53"><span class="linenos">53</span></a><span class="k">class</span><span class="w"> </span><span class="nc">OutputGuard</span><span class="p">(</span><span class="n">BaseLLMGuardrail</span><span class="p">):</span>
+</span><span id="OutputGuard-54"><a href="#OutputGuard-54"><span class="linenos">54</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="OutputGuard-55"><a href="#OutputGuard-55"><span class="linenos">55</span></a><span class="sd">    Base for guardrails that run on LLM output (e.g. model response).</span>
+</span><span id="OutputGuard-56"><a href="#OutputGuard-56"><span class="linenos">56</span></a>
+</span><span id="OutputGuard-57"><a href="#OutputGuard-57"><span class="linenos">57</span></a><span class="sd">    Inspect ``event.output_message`` for the assistant message produced this turn.</span>
+</span><span id="OutputGuard-58"><a href="#OutputGuard-58"><span class="linenos">58</span></a><span class="sd">    ``event.messages`` is conversation context and may not yet include that reply.</span>
+</span><span id="OutputGuard-59"><a href="#OutputGuard-59"><span class="linenos">59</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="OutputGuard-60"><a href="#OutputGuard-60"><span class="linenos">60</span></a>
+</span><span id="OutputGuard-61"><a href="#OutputGuard-61"><span class="linenos">61</span></a>    <span class="n">phase</span> <span class="o">=</span> <span class="n">LLMGuardrailPhase</span><span class="o">.</span><span class="n">OUTPUT</span>
+</span></pre></div>
+
+
+            <div class="docstring"><p>Base for guardrails that run on LLM output (e.g. model response).</p>
+
+<p>Inspect <code>event.output_message</code> for the assistant message produced this turn.
+<code>event.messages</code> is conversation context and may not yet include that reply.</p>
+</div>
+
+
+                            <div id="OutputGuard.phase" class="classattr">
+                                <div class="attr variable">
+            <span class="name">phase</span>        =
+<span class="default_value">&lt;<a href="#LLMGuardrailPhase.OUTPUT">LLMGuardrailPhase.OUTPUT</a>: &#39;llm_output&#39;&gt;</span>
+
+        
+    </div>
+    <a class="headerlink" href="#OutputGuard.phase"></a>
+    
+    
+
+                            </div>
+                </section>
+                <section id="LLMGuardrailEvent">
+                            <input id="LLMGuardrailEvent-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr class">
+            
+    <span class="def">class</span>
+    <span class="name">LLMGuardrailEvent</span><wbr>(<span class="base">pydantic.main.BaseModel</span>):
+
+                <label class="view-source-button" for="LLMGuardrailEvent-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#LLMGuardrailEvent"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="LLMGuardrailEvent-19"><a href="#LLMGuardrailEvent-19"><span class="linenos">19</span></a><span class="k">class</span><span class="w"> </span><span class="nc">LLMGuardrailEvent</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+</span><span id="LLMGuardrailEvent-20"><a href="#LLMGuardrailEvent-20"><span class="linenos">20</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="LLMGuardrailEvent-21"><a href="#LLMGuardrailEvent-21"><span class="linenos">21</span></a><span class="sd">    Event passed to LLM guardrails.</span>
+</span><span id="LLMGuardrailEvent-22"><a href="#LLMGuardrailEvent-22"><span class="linenos">22</span></a>
+</span><span id="LLMGuardrailEvent-23"><a href="#LLMGuardrailEvent-23"><span class="linenos">23</span></a><span class="sd">    - ``messages``: conversation context (usually the history *before* the current</span>
+</span><span id="LLMGuardrailEvent-24"><a href="#LLMGuardrailEvent-24"><span class="linenos">24</span></a><span class="sd">      assistant reply is appended to the node).</span>
+</span><span id="LLMGuardrailEvent-25"><a href="#LLMGuardrailEvent-25"><span class="linenos">25</span></a><span class="sd">    - ``output_message``: for ``phase == OUTPUT``, the assistant ``Message`` being</span>
+</span><span id="LLMGuardrailEvent-26"><a href="#LLMGuardrailEvent-26"><span class="linenos">26</span></a><span class="sd">      guarded this turn; ``None`` for INPUT phase or when not applicable.</span>
+</span><span id="LLMGuardrailEvent-27"><a href="#LLMGuardrailEvent-27"><span class="linenos">27</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="LLMGuardrailEvent-28"><a href="#LLMGuardrailEvent-28"><span class="linenos">28</span></a>
+</span><span id="LLMGuardrailEvent-29"><a href="#LLMGuardrailEvent-29"><span class="linenos">29</span></a>    <span class="n">model_config</span> <span class="o">=</span> <span class="n">ConfigDict</span><span class="p">(</span><span class="n">arbitrary_types_allowed</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span id="LLMGuardrailEvent-30"><a href="#LLMGuardrailEvent-30"><span class="linenos">30</span></a>
+</span><span id="LLMGuardrailEvent-31"><a href="#LLMGuardrailEvent-31"><span class="linenos">31</span></a>    <span class="n">phase</span><span class="p">:</span> <span class="n">LLMGuardrailPhase</span>
+</span><span id="LLMGuardrailEvent-32"><a href="#LLMGuardrailEvent-32"><span class="linenos">32</span></a>    <span class="n">messages</span><span class="p">:</span> <span class="n">MessageHistory</span>
+</span><span id="LLMGuardrailEvent-33"><a href="#LLMGuardrailEvent-33"><span class="linenos">33</span></a>    <span class="n">output_message</span><span class="p">:</span> <span class="n">Message</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span id="LLMGuardrailEvent-34"><a href="#LLMGuardrailEvent-34"><span class="linenos">34</span></a>
+</span><span id="LLMGuardrailEvent-35"><a href="#LLMGuardrailEvent-35"><span class="linenos">35</span></a>    <span class="n">node_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span id="LLMGuardrailEvent-36"><a href="#LLMGuardrailEvent-36"><span class="linenos">36</span></a>    <span class="n">node_uuid</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span id="LLMGuardrailEvent-37"><a href="#LLMGuardrailEvent-37"><span class="linenos">37</span></a>    <span class="n">run_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span id="LLMGuardrailEvent-38"><a href="#LLMGuardrailEvent-38"><span class="linenos">38</span></a>    <span class="n">model_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span id="LLMGuardrailEvent-39"><a href="#LLMGuardrailEvent-39"><span class="linenos">39</span></a>    <span class="n">model_provider</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span id="LLMGuardrailEvent-40"><a href="#LLMGuardrailEvent-40"><span class="linenos">40</span></a>    <span class="n">tags</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span></pre></div>
+
+
+            <div class="docstring"><p>Event passed to LLM guardrails.</p>
+
+<ul>
+<li><code><a href="#LLMGuardrailEvent.messages">messages</a></code>: conversation context (usually the history <em>before</em> the current
+assistant reply is appended to the node).</li>
+<li><code><a href="#LLMGuardrailEvent.output_message">output_message</a></code>: for <code>phase == OUTPUT</code>, the assistant <code>Message</code> being
+guarded this turn; <code>None</code> for INPUT phase or when not applicable.</li>
+</ul>
+</div>
+
+
+                            <div id="LLMGuardrailEvent.model_config" class="classattr">
+                                <div class="attr variable">
+            <span class="name">model_config</span>        =
+<span class="default_value">{&#39;arbitrary_types_allowed&#39;: True}</span>
+
+        
+    </div>
+    <a class="headerlink" href="#LLMGuardrailEvent.model_config"></a>
+    
+            <div class="docstring"><p>Configuration for the model, should be a dictionary conforming to [<code>ConfigDict</code>][pydantic.config.ConfigDict].</p>
+</div>
+
+
+                            </div>
+                            <div id="LLMGuardrailEvent.phase" class="classattr">
+                                <div class="attr variable">
+            <span class="name">phase</span><span class="annotation">: <a href="#LLMGuardrailPhase">LLMGuardrailPhase</a></span>
+
+        
+    </div>
+    <a class="headerlink" href="#LLMGuardrailEvent.phase"></a>
+    
+    
+
+                            </div>
+                            <div id="LLMGuardrailEvent.messages" class="classattr">
+                                <div class="attr variable">
+            <span class="name">messages</span><span class="annotation">: <a href="llm.html#MessageHistory">railtracks.llm.MessageHistory</a></span>
+
+        
+    </div>
+    <a class="headerlink" href="#LLMGuardrailEvent.messages"></a>
+    
+    
+
+                            </div>
+                            <div id="LLMGuardrailEvent.output_message" class="classattr">
+                                <div class="attr variable">
+            <span class="name">output_message</span><span class="annotation">: <a href="llm.html#Message">railtracks.llm.Message</a> | None</span>
+
+        
+    </div>
+    <a class="headerlink" href="#LLMGuardrailEvent.output_message"></a>
+    
+    
+
+                            </div>
+                            <div id="LLMGuardrailEvent.node_name" class="classattr">
+                                <div class="attr variable">
+            <span class="name">node_name</span><span class="annotation">: str | None</span>
+
+        
+    </div>
+    <a class="headerlink" href="#LLMGuardrailEvent.node_name"></a>
+    
+    
+
+                            </div>
+                            <div id="LLMGuardrailEvent.node_uuid" class="classattr">
+                                <div class="attr variable">
+            <span class="name">node_uuid</span><span class="annotation">: str | None</span>
+
+        
+    </div>
+    <a class="headerlink" href="#LLMGuardrailEvent.node_uuid"></a>
+    
+    
+
+                            </div>
+                            <div id="LLMGuardrailEvent.run_id" class="classattr">
+                                <div class="attr variable">
+            <span class="name">run_id</span><span class="annotation">: str | None</span>
+
+        
+    </div>
+    <a class="headerlink" href="#LLMGuardrailEvent.run_id"></a>
+    
+    
+
+                            </div>
+                            <div id="LLMGuardrailEvent.model_name" class="classattr">
+                                <div class="attr variable">
+            <span class="name">model_name</span><span class="annotation">: str | None</span>
+
+        
+    </div>
+    <a class="headerlink" href="#LLMGuardrailEvent.model_name"></a>
+    
+    
+
+                            </div>
+                            <div id="LLMGuardrailEvent.model_provider" class="classattr">
+                                <div class="attr variable">
+            <span class="name">model_provider</span><span class="annotation">: str | None</span>
+
+        
+    </div>
+    <a class="headerlink" href="#LLMGuardrailEvent.model_provider"></a>
+    
+    
+
+                            </div>
+                            <div id="LLMGuardrailEvent.tags" class="classattr">
+                                <div class="attr variable">
+            <span class="name">tags</span><span class="annotation">: dict[str, str] | None</span>
+
+        
+    </div>
+    <a class="headerlink" href="#LLMGuardrailEvent.tags"></a>
+    
+    
+
+                            </div>
+                </section>
+                <section id="LLMGuardrailPhase">
+                            <input id="LLMGuardrailPhase-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr class">
+            
+    <span class="def">class</span>
+    <span class="name">LLMGuardrailPhase</span><wbr>(<span class="base">builtins.str</span>, <span class="base">enum.Enum</span>):
+
+                <label class="view-source-button" for="LLMGuardrailPhase-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#LLMGuardrailPhase"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="LLMGuardrailPhase-14"><a href="#LLMGuardrailPhase-14"><span class="linenos">14</span></a><span class="k">class</span><span class="w"> </span><span class="nc">LLMGuardrailPhase</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
+</span><span id="LLMGuardrailPhase-15"><a href="#LLMGuardrailPhase-15"><span class="linenos">15</span></a>    <span class="n">INPUT</span> <span class="o">=</span> <span class="s2">&quot;llm_input&quot;</span>
+</span><span id="LLMGuardrailPhase-16"><a href="#LLMGuardrailPhase-16"><span class="linenos">16</span></a>    <span class="n">OUTPUT</span> <span class="o">=</span> <span class="s2">&quot;llm_output&quot;</span>
+</span></pre></div>
+
+
+            <div class="docstring"><p>An enumeration.</p>
+</div>
+
+
+                            <div id="LLMGuardrailPhase.INPUT" class="classattr">
+                                <div class="attr variable">
+            <span class="name">INPUT</span>        =
+<span class="default_value">&lt;<a href="#LLMGuardrailPhase.INPUT">LLMGuardrailPhase.INPUT</a>: &#39;llm_input&#39;&gt;</span>
+
+        
+    </div>
+    <a class="headerlink" href="#LLMGuardrailPhase.INPUT"></a>
+    
+    
+
+                            </div>
+                            <div id="LLMGuardrailPhase.OUTPUT" class="classattr">
+                                <div class="attr variable">
+            <span class="name">OUTPUT</span>        =
+<span class="default_value">&lt;<a href="#LLMGuardrailPhase.OUTPUT">LLMGuardrailPhase.OUTPUT</a>: &#39;llm_output&#39;&gt;</span>
+
+        
+    </div>
+    <a class="headerlink" href="#LLMGuardrailPhase.OUTPUT"></a>
+    
+    
+
+                            </div>
+                </section>
+    </main>
+<script>
+    function escapeHTML(html) {
+        return document.createElement('div').appendChild(document.createTextNode(html)).parentNode.innerHTML;
+    }
+
+    const originalContent = document.querySelector("main.pdoc");
+    let currentContent = originalContent;
+
+    function setContent(innerHTML) {
+        let elem;
+        if (innerHTML) {
+            elem = document.createElement("main");
+            elem.classList.add("pdoc");
+            elem.innerHTML = innerHTML;
+        } else {
+            elem = originalContent;
+        }
+        if (currentContent !== elem) {
+            currentContent.replaceWith(elem);
+            currentContent = elem;
+        }
+    }
+
+    function getSearchTerm() {
+        return (new URL(window.location)).searchParams.get("search");
+    }
+
+    const searchBox = document.querySelector(".pdoc input[type=search]");
+    searchBox.addEventListener("input", function () {
+        let url = new URL(window.location);
+        if (searchBox.value.trim()) {
+            url.hash = "";
+            url.searchParams.set("search", searchBox.value);
+        } else {
+            url.searchParams.delete("search");
+        }
+        history.replaceState("", "", url.toString());
+        onInput();
+    });
+    window.addEventListener("popstate", onInput);
+
+
+    let search, searchErr;
+
+    async function initialize() {
+        try {
+            search = await new Promise((resolve, reject) => {
+                const script = document.createElement("script");
+                script.type = "text/javascript";
+                script.async = true;
+                script.onload = () => resolve(window.pdocSearch);
+                script.onerror = (e) => reject(e);
+                script.src = "../search.js";
+                document.getElementsByTagName("head")[0].appendChild(script);
+            });
+        } catch (e) {
+            console.error("Cannot fetch pdoc search index");
+            searchErr = "Cannot fetch search index.";
+        }
+        onInput();
+
+        document.querySelector("nav.pdoc").addEventListener("click", e => {
+            if (e.target.hash) {
+                searchBox.value = "";
+                searchBox.dispatchEvent(new Event("input"));
+            }
+        });
+    }
+
+    function onInput() {
+        setContent((() => {
+            const term = getSearchTerm();
+            if (!term) {
+                return null
+            }
+            if (searchErr) {
+                return `<h3>Error: ${searchErr}</h3>`
+            }
+            if (!search) {
+                return "<h3>Searching...</h3>"
+            }
+
+            window.scrollTo({top: 0, left: 0, behavior: 'auto'});
+
+            const results = search(term);
+
+            let html;
+            if (results.length === 0) {
+                html = `No search results for '${escapeHTML(term)}'.`
+            } else {
+                html = `<h4>${results.length} search result${results.length > 1 ? "s" : ""} for '${escapeHTML(term)}'.</h4>`;
+            }
+            for (let result of results.slice(0, 10)) {
+                let doc = result.doc;
+                let url = `../${doc.modulename.replaceAll(".", "/")}.html`;
+                if (doc.qualname) {
+                    url += `#${doc.qualname}`;
+                }
+
+                let heading;
+                switch (result.doc.kind) {
+                    case "function":
+                        if (doc.fullname.endsWith(".__init__")) {
+                            heading = `<span class="name">${doc.fullname.replace(/\.__init__$/, "")}</span>${doc.signature}`;
+                        } else {
+                            heading = `<span class="def">${doc.funcdef}</span> <span class="name">${doc.fullname}</span>${doc.signature}`;
+                        }
+                        break;
+                    case "class":
+                        heading = `<span class="def">class</span> <span class="name">${doc.fullname}</span>`;
+                        if (doc.bases)
+                            heading += `<wbr>(<span class="base">${doc.bases}</span>)`;
+                        heading += `:`;
+                        break;
+                    case "variable":
+                        heading = `<span class="name">${doc.fullname}</span>`;
+                        if (doc.annotation)
+                            heading += `<span class="annotation">${doc.annotation}</span>`;
+                        if (doc.default_value)
+                            heading += `<span class="default_value"> = ${doc.default_value}</span>`;
+                        break;
+                    default:
+                        heading = `<span class="name">${doc.fullname}</span>`;
+                        break;
+                }
+                html += `
+                        <section class="search-result">
+                        <a href="${url}" class="attr ${doc.kind}">${heading}</a>
+                        <div class="docstring">${doc.doc}</div>
+                        </section>
+                    `;
+
+            }
+            return html;
+        })());
+    }
+
+    if (getSearchTerm()) {
+        initialize();
+        searchBox.value = getSearchTerm();
+        onInput();
+    } else {
+        searchBox.addEventListener("focus", initialize, {once: true});
+    }
+
+    searchBox.addEventListener("keydown", e => {
+        if (["ArrowDown", "ArrowUp", "Enter"].includes(e.key)) {
+            let focused = currentContent.querySelector(".search-result.focused");
+            if (!focused) {
+                currentContent.querySelector(".search-result").classList.add("focused");
+            } else if (
+                e.key === "ArrowDown"
+                && focused.nextElementSibling
+                && focused.nextElementSibling.classList.contains("search-result")
+            ) {
+                focused.classList.remove("focused");
+                focused.nextElementSibling.classList.add("focused");
+                focused.nextElementSibling.scrollIntoView({
+                    behavior: "smooth",
+                    block: "nearest",
+                    inline: "nearest"
+                });
+            } else if (
+                e.key === "ArrowUp"
+                && focused.previousElementSibling
+                && focused.previousElementSibling.classList.contains("search-result")
+            ) {
+                focused.classList.remove("focused");
+                focused.previousElementSibling.classList.add("focused");
+                focused.previousElementSibling.scrollIntoView({
+                    behavior: "smooth",
+                    block: "nearest",
+                    inline: "nearest"
+                });
+            } else if (
+                e.key === "Enter"
+            ) {
+                focused.querySelector("a").click();
+            }
+        }
+    });
+</script></body>
+</html>
