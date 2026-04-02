@@ -13,7 +13,7 @@ import railtracks as rt
 from dotenv import load_dotenv
 load_dotenv()  # Load environment variables from .env file
 
-model = rt.llm.AnthropicLLM("claude-sonnet-4")
+model = rt.llm.AnthropicLLM("claude-sonnet-4-6")
 # --8<-- [end: anthropic]
 
 # --8<-- [start: cohere]
@@ -82,7 +82,7 @@ model = rt.llm.HuggingFaceLLM("together/deepseek-ai/DeepSeek-R1")
 
 # --8<-- [start: to_agent]
 # Insert the model you want to use in your agent.
-GeneralAgent = rt.agent_node(
+Agent = rt.agent_node(
     llm=model,
     system_message="You are a helpful AI assistant.",
 )
