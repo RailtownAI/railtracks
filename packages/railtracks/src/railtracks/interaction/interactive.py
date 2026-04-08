@@ -1,10 +1,9 @@
-from typing import Literal, Type, TypeVar
+from typing import Any, Literal, Type, TypeVar
 
 from railtracks.built_nodes.concrete.response import LLMResponse
 
 from ..built_nodes.concrete._llm_base import LLMBase
-from ..human_in_the_loop import ChatUI, HILMessage
-from ..human_in_the_loop.local_chat_ui import UserMessageAttachment
+from ..human_in_the_loop import ChatUI, HIL, HILMessage, UserMessageAttachment
 from ..llm.history import MessageHistory
 from ..llm.message import AssistantMessage, UserMessage
 from ..utils.logging.create import get_rt_logger
@@ -15,11 +14,11 @@ logger = get_rt_logger(__name__)
 _TOutput = TypeVar("_TOutput", bound=LLMResponse)
 
 
-def _process_attachment(attachments: list[UserMessageAttachment]) -> list[str]:
+def _process_attachment(attachments: list[Any]) -> list[str]:
     """Processes a list of attachments and returns their data or URLs.
 
     Args:
-        attachments: A list of UserMessageAttachment objects.
+        attachments: A list of attachment objects.
 
     Returns:
         A list of strings containing the processed data or URLs.
@@ -33,8 +32,8 @@ def _process_attachment(attachments: list[UserMessageAttachment]) -> list[str]:
     return processed
 
 
-async def _chat_ui_interactive(
-    chat_ui: ChatUI,
+async def _hil_interactive(
+    chat_ui: HIL,
     node: Type[LLMBase[_TOutput, _TOutput, Literal[False]]],
     initial_message_to_user: str | None,
     initial_message_to_agent: str | None,
@@ -44,7 +43,7 @@ async def _chat_ui_interactive(
 ) -> _TOutput:
     """Handles the interactive session logic using the ChatUI interface.
     Args:
-        chat_ui: An instance of the ChatUI class to manage the user interface.
+        chat_ui: An instance of the HIL class to manage the user interface.
         node: The LLMBase class to interact with.
         initial_message_to_user: An optional message to display to the user at the start of the chat session.
         initial_message_to_agent: An optional message to send to the agent to initiate the conversation.
@@ -71,7 +70,7 @@ async def _chat_ui_interactive(
             continue  # could be `break` but I want to ensure chat_ui.is_connected is updated properly
 
         attachments = []
-        if message.attachments is not None:
+        if hasattr(message, 'attachments') and message.attachments is not None:
             attachments = _process_attachment(message.attachments)
         msg_history.append(UserMessage(content=message.content, attachment=attachments))
 
@@ -151,7 +150,7 @@ async def local_chat(
 
         await chat_ui.connect()
 
-        response = await _chat_ui_interactive(
+        response = await _hil_interactive(
             chat_ui,
             node,
             initial_message_to_user,
@@ -163,5 +162,46 @@ async def local_chat(
 
     except Exception as e:
         logger.error(f"Error during interactive session: {e}")
+    finally:
+        return response  # type: ignore
+
+
+async def cli(
+    node: type[LLMBase[_TOutput, _TOutput, Literal[False]]],
+    initial_message_to_user: str | None = None,
+    initial_message_to_agent: str | None = None,
+    turns: int | None = None,
+    *args,
+    **kwargs,
+) -> _TOutput:
+    """Starts an interactive CLI session with an LLM-based agent."""
+
+    if not issubclass(node, LLMBase):
+        raise ValueError(
+            "Interactive sessions only support nodes that are children of LLMBase."
+        )
+
+    response = None
+
+    try:
+        logger.info("Connecting with CLI Session")
+
+        from ..human_in_the_loop import CliUI
+
+        chat_ui = CliUI()
+        await chat_ui.connect()
+
+        response = await _hil_interactive(
+            chat_ui,
+            node,
+            initial_message_to_user,
+            initial_message_to_agent,
+            turns,
+            *args,
+            **kwargs,
+        )
+
+    except Exception as e:
+        logger.error(f"Error during CLI session: {e}")
     finally:
         return response  # type: ignore

@@ -1,15 +1,35 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
+
+
+class UserMessageAttachment(BaseModel):
+    type: str  # "file" or "url"
+    url: Optional[str] = None
+    data: Optional[str] = None
+    name: Optional[str] = None
+
+    @model_validator(mode="after")
+    def validate_attachment(self) -> "UserMessageAttachment":
+        if self.url is None and self.data is None:
+            raise ValueError("Either 'url' or 'data' must be provided.")
+        return self
 
 
 class HILMessage(BaseModel):
     content: str
     metadata: Dict[str, Any] | None = None
+    attachments: Optional[list[UserMessageAttachment]] = None
 
 
 class HIL(ABC):
+    @property
+    @abstractmethod
+    def is_connected(self) -> bool:
+        """Returns True when the interface is currently connected."""
+        pass
+
     @abstractmethod
     async def connect(self) -> None:
         """
@@ -53,4 +73,9 @@ class HIL(ABC):
         Returns:
             The user input if received within the timeout period, None otherwise.
         """
+        pass
+
+    @abstractmethod
+    async def update_tools(self, tool_invocations: list[Any]) -> bool:
+        """Sends tool invocation information to the UI."""
         pass

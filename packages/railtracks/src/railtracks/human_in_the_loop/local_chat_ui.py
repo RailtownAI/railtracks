@@ -15,27 +15,9 @@ from pydantic import BaseModel
 from railtracks.llm import ToolCall, ToolResponse
 
 from ..utils.logging.create import get_rt_logger
-from .human_in_the_loop import HIL, HILMessage
+from .human_in_the_loop import HIL, HILMessage, UserMessageAttachment
 
 logger = get_rt_logger(__name__)
-
-
-class UserMessageAttachment(BaseModel):
-    type: str  # "file" or "url"
-    url: Optional[str] = None  # for URL type
-    data: Optional[str] = None  # for file type (base64)
-    name: Optional[str] = None  # optional name of the attachment
-
-    def __init__(
-        self,
-        type: str,
-        url: Optional[str] = None,
-        data: Optional[str] = None,
-        name: Optional[str] = None,
-    ):
-        if url is None and data is None:
-            raise ValueError("Either 'url' or 'data' must be provided.")
-        super().__init__(type=type, url=url, data=data, name=name)
 
 
 class UIUserMessage(HILMessage):
@@ -86,7 +68,15 @@ class ChatUI(HIL):
         self.server_thread = None
         self.server_task = None
         self.server_started = threading.Event()
-        self.is_connected = False
+        self._is_connected = False
+
+    @property
+    def is_connected(self) -> bool:
+        return self._is_connected
+
+    @is_connected.setter
+    def is_connected(self, value: bool) -> None:
+        self._is_connected = value
 
     def _get_static_file_content(self, filename: str) -> str:
         """
@@ -134,7 +124,7 @@ class ChatUI(HIL):
         @app.post("/shutdown")
         async def shutdown():
             """Shutdown the chat interface"""
-            self.is_connected = False
+            self._is_connected = False
             await self.disconnect()
             return {"status": "success", "message": "Chat interface shutting down"}
 
@@ -232,14 +222,14 @@ class ChatUI(HIL):
             await asyncio.sleep(1)  # wait a bit before openning the browser
             webbrowser.open(localhost_url)
 
-        self.is_connected = True
+        self._is_connected = True
         logger.info(f"ChatUI server started at {localhost_url}")
 
     async def disconnect(self) -> None:
         """
         Disconnects the user interface component.
         """
-        self.is_connected = False
+        self._is_connected = False
         self.shutdown_event.set()
 
     async def send_message(
