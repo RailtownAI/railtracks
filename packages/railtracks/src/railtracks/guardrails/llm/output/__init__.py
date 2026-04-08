@@ -1,1 +1,3 @@
-__all__: list[str] = []
+from .pii_redact import PIIRedactOutputGuard
+
+__all__ = ["PIIRedactOutputGuard"]
