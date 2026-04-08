@@ -193,7 +193,7 @@ Railtracks is developed in the open. Contributions, bug reports, and feature req
   <a href="https://railtownai.github.io/railtracks/quickstart/quickstart/">
     <img src="https://img.shields.io/badge/Quick_Start-4285F4?style=for-the-badge&logo=rocket&logoColor=white" alt="Quick Start" />
   </a>
-  <a href="https://railtownai.github.io/railtracks/">
+  <a href="https://docs.railtracks.org/">
     <img src="https://img.shields.io/badge/Documentation-00D4AA?style=for-the-badge&logo=gitbook&logoColor=white" alt="Documentation" />
   </a>
   <a href="https://github.com/RailtownAI/railtracks/tree/main/examples">
