@@ -46,7 +46,7 @@ msg = (
     "My name is Alice and my email is alice@example.com "
     "and my SIN is 163-180-003"
 )
-result = redact_input.evaluate(msg)
+result = redact_input.decide(msg)
 # result.messages — redacted user message(s)
 # --8<-- [end:pii_configured_demo]
 
@@ -60,7 +60,7 @@ custom_config = PIIRedactConfig(
 
 guard_with_custom = PIIRedactInputGuard(config=custom_config)
 
-result = guard_with_custom.evaluate(
+result = guard_with_custom.decide(
     "My ID is EMP-123456; contact hr@company.example internally."
 )
 # result.messages — redacted user message(s), e.g. [EMPLOYEE_ID] and [EMAIL_ADDRESS]
@@ -89,7 +89,7 @@ def main() -> None:
         "My name is Alice and my email is alice@example.com "
         "and my SIN is 163-180-003"
     )
-    print(demo_guard.evaluate(demo_msg).messages)
+    print(demo_guard.decide(demo_msg).messages)
 
 
 if __name__ == "__main__":

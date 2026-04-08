@@ -67,7 +67,7 @@ class InputGuard(BaseLLMGuardrail):
 
     phase = LLMGuardrailPhase.INPUT
 
-    def evaluate(
+    def decide(
         self,
         input: str | Any | MessageHistory | LLMGuardrailEvent,
     ) -> GuardrailDecision:
@@ -99,7 +99,7 @@ class OutputGuard(BaseLLMGuardrail):
 
     phase = LLMGuardrailPhase.OUTPUT
 
-    def evaluate(
+    def decide(
         self,
         output: str | Any | MessageHistory | LLMGuardrailEvent,
     ) -> GuardrailDecision:
@@ -121,7 +121,7 @@ class OutputGuard(BaseLLMGuardrail):
             messages = MessageHistory()
         elif isinstance(output, MessageHistory):
             if not output:
-                raise ValueError("Cannot evaluate an empty MessageHistory.")
+                raise ValueError("Cannot decide with an empty MessageHistory.")
             output_message = output[-1]
             messages = MessageHistory(output[:-1])
         else:

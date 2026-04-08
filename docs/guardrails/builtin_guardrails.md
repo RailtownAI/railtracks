@@ -1,6 +1,6 @@
 # Built-in guardrails
 
-This page describes guardrails shipped with Railtracks, how they are organized, and how to try them in isolation with `evaluate()`. For attaching rails to agents and the `Guard` container, see [Overview](overview.md) and [Quickstart](quickstart.md).
+This page describes guardrails shipped with Railtracks, how they are organized, and how to try them in isolation with `decide()`. For attaching rails to agents and the `Guard` container, see [Overview](overview.md) and [Quickstart](quickstart.md).
 
 ## Introduction
 
@@ -14,14 +14,14 @@ This page describes guardrails shipped with Railtracks, how they are organized, 
 --8<-- "docs/scripts/builtin_guardrails_examples.py:llm_builtin_imports"
 ```
 
-**`evaluate()`.** `InputGuard` and `OutputGuard` define `evaluate(...)` so you can run a guard without building an `LLMGuardrailEvent` by hand. For input guards, a `str` is treated as a single user message. For output guards, a `str` becomes the assistant message under inspection. You can also pass `Message`, `MessageHistory`, or a full `LLMGuardrailEvent`. On a match, inspect `GuardrailDecision.messages` (input guard) or `GuardrailDecision.output_message` (output guard) for the rewritten content.
+**`decide()`.** `InputGuard` and `OutputGuard` define `decide(...)` so you can run a guard without building an `LLMGuardrailEvent` by hand. For input guards, a `str` is treated as a single user message. For output guards, a `str` becomes the assistant message under inspection. You can also pass `Message`, `MessageHistory`, or a full `LLMGuardrailEvent`. On a match, inspect `GuardrailDecision.messages` (input guard) or `GuardrailDecision.output_message` (output guard) for the rewritten content.
 
 PII guards return `TRANSFORM` when they rewrite text, with redacted content on `decision.messages` (input) or `decision.output_message` (output). They return `ALLOW` when there is nothing to change.
 
 ## Contributing a built-in guardrail
 
 1. Implement the guard in `packages/railtracks/src/railtracks/guardrails/llm/` (e.g. `input/` and `output/` modules, shared logic in a private subpackage such as `_pii/`).
-2. Subclass `InputGuard` or `OutputGuard`, implement `__call__(self, event: LLMGuardrailEvent) -> GuardrailDecision`, and rely on `evaluate()` from the base class for ad hoc testing.
+2. Subclass `InputGuard` or `OutputGuard`, implement `__call__(self, event: LLMGuardrailEvent) -> GuardrailDecision`, and rely on `decide()` from the base class for ad hoc testing.
 3. Export public names from `railtracks/guardrails/llm/__init__.py` (and submodules’ `__init__.py` if you split them).
 4. Add unit tests under `packages/railtracks/tests/unit_tests/guardrails/`.
 5. Extend `docs/scripts/builtin_guardrails_examples.py` with snippet regions and document the guard in this file under **Guardrails**.
