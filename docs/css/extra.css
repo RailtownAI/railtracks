@@ -35,6 +35,33 @@
   display: none;
 }
 
+/* ── Train on active top nav tab ─────────────────────────── */
+@keyframes train-chug {
+  0%   { transform: translateY(0); }
+  25%  { transform: translateY(-1.5px); }
+  55%  { transform: translateY(0.5px); }
+  100% { transform: translateY(0); }
+}
+
+.md-tabs__item--active .md-tabs__link::before {
+  content: '';
+  display: inline-block;
+  width: 1.8em;
+  height: 1em;
+  -webkit-mask-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 20'><rect x='4' y='7' width='20' height='9' rx='2'/><rect x='6' y='3' width='3' height='5' rx='1'/><rect x='22' y='3' width='9' height='13' rx='1'/><polygon points='0,16 4,10 4,16'/><circle cx='9' cy='17' r='3'/><circle cx='19' cy='17' r='3'/><circle cx='29' cy='17' r='2'/></svg>");
+  mask-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 20'><rect x='4' y='7' width='20' height='9' rx='2'/><rect x='6' y='3' width='3' height='5' rx='1'/><rect x='22' y='3' width='9' height='13' rx='1'/><polygon points='0,16 4,10 4,16'/><circle cx='9' cy='17' r='3'/><circle cx='19' cy='17' r='3'/><circle cx='29' cy='17' r='2'/></svg>");
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  mask-position: center;
+  background-color: var(--md-accent-fg-color);
+  margin-right: 0.35em;
+  vertical-align: middle;
+  animation: train-chug 0.8s ease-in-out infinite;
+}
+
 :root {
   --color-card-bg: var(--md-default-bg-color);
   --color-card-border: var(--md-accent-fg-color);
