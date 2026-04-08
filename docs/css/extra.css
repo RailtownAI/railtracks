@@ -5,29 +5,81 @@
   width: auto;
 }
 
+/* Widen the overall grid to use available horizontal space */
+.md-grid {
+  max-width: 1600px;
+}
+
+/* Give the main content more breathing room */
+.md-content {
+  max-width: none;
+}
+
+.md-typeset {
+  font-size: .8rem;
+}
+
+/* Widen the sidebar to fit nav items on one line */
+@media screen and (min-width: 76.25em) {
+  :root {
+    --md-sidebar-width: 16.4rem;
+  }
+
+  .md-sidebar--primary {
+    width: 16.4rem !important;
+  }
+
+  .md-sidebar--primary .md-sidebar__scrollwrap {
+    width: 14rem !important;
+  }
+}
+
 /* Section headers — blue, uppercase, spaced */
 .md-nav__item--section > .md-nav__link {
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--md-accent-fg-color) !important;
   margin-top: 1.2rem;
   padding-bottom: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Nav item — rounded pill highlight on hover */
+/* Nav item — base styles */
 .md-nav__item .md-nav__link {
   border-radius: 6px;
   padding-left: 0.8rem;
   padding-right: 0.8rem;
   padding-top: 0.2rem;
   padding-bottom: 0.2rem;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  font-size: 0.85rem;
+  color: var(--md-default-fg-color--light);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
+/* Hover state */
 .md-nav__item .md-nav__link:hover {
   background-color: color-mix(in srgb, black 20%, transparent);
+  color: var(--md-default-fg-color);
+}
+
+/* Active item — left accent bar + tinted background */
+.md-nav__item .md-nav__link--active {
+  color: var(--md-accent-fg-color) !important;
+  background-color: color-mix(in srgb, var(--md-accent-fg-color) 10%, transparent);
+  border-left: 2px solid var(--md-accent-fg-color);
+  padding-left: calc(0.8rem - 2px);
+  font-weight: 500;
+}
+
+.md-nav__item .md-nav__link--active:hover {
+  background-color: color-mix(in srgb, var(--md-accent-fg-color) 15%, transparent);
 }
 
 /* Hide the top-level tab section header repeated in the sidebar */
