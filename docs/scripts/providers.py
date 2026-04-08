@@ -29,7 +29,7 @@ import railtracks as rt
 from dotenv import load_dotenv
 load_dotenv()  # Load environment variables from .env file
 
-model = rt.llm.GeminiLLM("gemini-2.5-flash")
+model = rt.llm.GeminiLLM(model_name="gemini-3-flash-preview")
 # --8<-- [end: gemini]
 
 # --8<-- [start: azure]

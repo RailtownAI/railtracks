@@ -1,4 +1,26 @@
 
+/* ── Layout ──────────────────────────────────────────────── */
+.md-header__button.md-logo img {
+  height: 40px;
+  width: auto;
+}
+
+/* Section headers — blue, uppercase, spaced */
+.md-nav__item--section > .md-nav__link {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--md-accent-fg-color) !important;
+  margin-top: 1.2rem;
+  padding-bottom: 0.25rem;
+}
+
+/* Hide the top-level tab section header repeated in the sidebar */
+.md-nav--primary > .md-nav__list > .md-nav__item--section > .md-nav__link {
+  display: none;
+}
+
 :root {
   --color-card-bg: var(--md-default-bg-color);
   --color-card-border: var(--md-accent-fg-color);
@@ -8,6 +30,44 @@
   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+/* ── Code highlighting token colors — GitHub Dark / Light ── */
+/* Dark mode (GitHub Dark) */
+[data-md-color-scheme="slate"] {
+  --md-code-fg-color:             #e6edf3;
+  --md-code-bg-color:             #0d1117;
+  --md-code-hl-color:             rgba(136, 198, 255, 0.15);
+  --md-code-hl-string-color:      #a5d6ff;
+  --md-code-hl-keyword-color:     #ff7b72;
+  --md-code-hl-function-color:    #d2a8ff;
+  --md-code-hl-number-color:      #79c0ff;
+  --md-code-hl-comment-color:     #8b949e;
+  --md-code-hl-name-color:        #ffa657;
+  --md-code-hl-constant-color:    #79c0ff;
+  --md-code-hl-operator-color:    #ff7b72;
+  --md-code-hl-punctuation-color: #e6edf3;
+  --md-code-hl-variable-color:    #ffa657;
+  --md-code-hl-special-color:     #ff7b72;
+  --md-code-hl-generic-color:     #8b949e;
+}
+
+/* Light mode (GitHub Light) */
+[data-md-color-scheme="default"] {
+  --md-code-fg-color:             #1f2328;
+  --md-code-bg-color:             #f6f8fa;
+  --md-code-hl-color:             rgba(234, 238, 242, 0.5);
+  --md-code-hl-string-color:      #0a3069;
+  --md-code-hl-keyword-color:     #cf222e;
+  --md-code-hl-function-color:    #8250df;
+  --md-code-hl-number-color:      #0550ae;
+  --md-code-hl-comment-color:     #6e7781;
+  --md-code-hl-name-color:        #953800;
+  --md-code-hl-constant-color:    #0550ae;
+  --md-code-hl-operator-color:    #cf222e;
+  --md-code-hl-punctuation-color: #1f2328;
+  --md-code-hl-variable-color:    #953800;
+  --md-code-hl-special-color:     #cf222e;
+  --md-code-hl-generic-color:     #6e7781;
+}
 
 .card-row {
   display: flex;
@@ -101,7 +161,7 @@
 
 /* Code block styling */
 .md-typeset .highlight {
-  border: 1px solid #4a90d9;
+  border: 1px solid var(--md-default-fg-color--lightest);
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
@@ -110,12 +170,16 @@
 
 .md-typeset .highlight code,
 .md-typeset .highlight pre {
-  background-color: color-mix(in srgb, black 8%, var(--md-default-bg-color));
+  background-color: var(--md-code-bg-color);
+}
+
+[data-md-color-scheme="slate"] .md-typeset .highlight {
+  border-color: #30363d;
 }
 
 [data-md-color-scheme="slate"] .md-typeset .highlight code,
 [data-md-color-scheme="slate"] .md-typeset .highlight pre {
-  background-color: color-mix(in srgb, black 20%, var(--md-default-bg-color));
+  background-color: #0d1117;
 }
 
 /* Language title bar */
@@ -125,8 +189,8 @@
   padding: 0.45em 1em;
   font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  text-transform: none;
 }
 
 .md-typeset .highlight pre {

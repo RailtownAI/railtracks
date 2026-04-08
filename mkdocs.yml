@@ -15,21 +15,21 @@ theme:
   custom_dir: docs/overrides
 
   palette:
-    - media: "(prefers-color-scheme: dark)"
-      scheme: slate
+    - scheme: slate
       primary: black
       toggle:
         icon: material/brightness-5
         name: Switch to light mode
 
-    - media: "(prefers-color-scheme: light)" 
-      scheme: default
+    - scheme: default
       primary: white
       toggle:
         icon: material/brightness-4
         name: Switch to dark mode
 
   features:
+    - navigation.tabs
+    - navigation.sections
     - navigation.indexes
     - navigation.prefetch
     - navigation.path
@@ -70,60 +70,75 @@ extra:
   generator: false
 
 nav:
-  - Home: index.md
+#   - Home: index.md
 
-  - Quickstart: quickstart/quickstart.md
+#   - Quickstart: quickstart/quickstart.md
 
-  - Architectures:
-      - Overview: architectures/overview.md
-      - Validation Loops: architectures/validation_loop.md
-      - Sequential Flows: architectures/sequential.md
-  
-  - Tutorials:
-      - Building your first agent: tutorials/byfa.md
-      - Running your first agent: tutorials/ryfa.md
-      - RAG system: tutorials/rag_tutorial.md
-      - Vector Stores: tutorials/vector_store_tutorial.md
+  - Agent Development: 
+    - Getting Started:
+        - Installation: documentation/getting_started/installation.md
+        - LLM Setup: documentation/getting_started/llm_setup.md
 
-  - Background:
-      - Agents: background/agents.md
-      - Tools: background/tools.md
-      - RAG: background/RAG.md
-      - Async/Await: background/async_await.md
-      - Vector Stores: background/vector_store.md
+    - Tools + MCP:
+        - Equip your LLMs: tools_mcp/tools_mcp.md
+        - MCP:
+            - Model Context Protocol: tools_mcp/mcp/mcp.md
+            - Using MCP: tools_mcp/mcp/MCP_tools_in_RT.md
+            - Creating an MCP Server: tools_mcp/mcp/RTtoMCP.md
 
-  - Tools + MCP:
-      - Equip your LLMs: tools_mcp/tools_mcp.md
-      - MCP:
-          - Model Context Protocol: tools_mcp/mcp/mcp.md
-          - Using MCP: tools_mcp/mcp/MCP_tools_in_RT.md
-          - Creating an MCP Server: tools_mcp/mcp/RTtoMCP.md
+        - Tools:
+            - What is a Tool: tools_mcp/tools/tools.md
+            - Functions as Tools: tools_mcp/tools/functions_as_tools.md
+            - Agents as Tools: tools_mcp/tools/agents_as_tools.md
 
-      - Tools:
-          - What is a Tool: tools_mcp/tools/tools.md
-          - Functions as Tools: tools_mcp/tools/functions_as_tools.md
-          - Agents as Tools: tools_mcp/tools/agents_as_tools.md
+        - Integrations:
+            - Notion: tools_mcp/guides/notion.md
+            - Github: tools_mcp/guides/github.md
+            - Python Sandbox: tools_mcp/guides/python_sandbox.md
+            - Shell Bash: tools_mcp/guides/shell_bash.md
+            - Slack: tools_mcp/guides/slack.md
+            - Web Search: tools_mcp/guides/websearch_integration.md
 
-      - Integrations:
-          - Notion: tools_mcp/guides/notion.md
-          - Github: tools_mcp/guides/github.md
-          - Python Sandbox: tools_mcp/guides/python_sandbox.md
-          - Shell Bash: tools_mcp/guides/shell_bash.md
-          - Slack: tools_mcp/guides/slack.md
-          - Web Search: tools_mcp/guides/websearch_integration.md
+        - RAG: tools_mcp/RAG.md
 
-      - RAG: tools_mcp/RAG.md
-  
-  - Vector Stores:
-      - Overview: vector_stores/vector_store_info.md
-      - Filtering: vector_stores/filtering.md
-      - Integrations:
-          - Chroma: vector_stores/integrations/chroma.md
+    - Human in the Loop:
+        - Overview: human_in_the_loop/overview.md
+        - Local Chat UI: human_in_the_loop/local_chat_ui.md
+        - Human in the Loop: human_in_the_loop/hil.md
 
-  - Human in the Loop:
-      - Overview: human_in_the_loop/overview.md
-      - Local Chat UI: human_in_the_loop/local_chat_ui.md
-      - Human in the Loop: human_in_the_loop/hil.md
+    - LLM Support:
+        - Supported Providers: llm_support/providers.md
+        - Prompts and Context Injection: llm_support/prompts.md
+
+        - Multimodal:
+            - Overview: llm_support/multimodal/overview.md
+            - Vision: llm_support/multimodal/vision.md
+
+        - Streaming: llm_support/streaming.md
+
+    - Guardrails:
+        - Overview: guardrails/overview.md
+        - Quickstart: guardrails/quickstart.md
+
+    - Advanced Usage:
+        - Flows: advanced_usage/flows.md
+        - Session: advanced_usage/session.md
+        - Context: advanced_usage/context.md
+
+  - Evaluations:
+    - Preface: evaluations/preface.md
+    - Quickstart: evaluations/quickstart.md
+    - Visualization: evaluations/visualization.md
+    - Metrics: 
+        - Metrics Overview: evaluations/metrics/metrics.md
+        - Categorical Metrics: evaluations/metrics/categorical.md
+        - Numerical Metrics: evaluations/metrics/numerical.md
+    - Evaluators: 
+        - Evaluator Abstraction: evaluations/evaluators/evaluators.md
+        - ToolUseEvaluator: evaluations/evaluators/tool_use_evaluator.md
+        - LLMInferenceEvaluator: evaluations/evaluators/llm_inference_evaluator.md
+        - JudgeEvaluator: evaluations/evaluators/judge_evaluator.md
+        
 
   - Observability:
       - Visualization: observability/visualization.md
@@ -131,54 +146,42 @@ nav:
       - Broadcasting: observability/broadcasting.md
       - Error Handling: observability/error_handling.md
 
-  - LLM Support:
-      - Supported Providers: llm_support/providers.md
-      - Prompts and Context Injection: llm_support/prompts.md
-
-      - Multimodal:
-          - Overview: llm_support/multimodal/overview.md
-          - Vision: llm_support/multimodal/vision.md
-
-      - Streaming: llm_support/streaming.md
-
-  - Guardrails:
-      - Overview: guardrails/overview.md
-      - Quickstart: guardrails/quickstart.md
-
-  - Evaluations:
-      - Preface: evaluations/preface.md
-      - Quickstart: evaluations/quickstart.md
-      - Visualization: evaluations/visualization.md
-      - Metrics: 
-        - Metrics Overview: evaluations/metrics/metrics.md
-        - Categorical Metrics: evaluations/metrics/categorical.md
-        - Numerical Metrics: evaluations/metrics/numerical.md
-      - Evaluators: 
-        - Evaluator Abstraction: evaluations/evaluators/evaluators.md
-        - ToolUseEvaluator: evaluations/evaluators/tool_use_evaluator.md
-        - LLMInferenceEvaluator: evaluations/evaluators/llm_inference_evaluator.md
-        - JudgeEvaluator: evaluations/evaluators/judge_evaluator.md
-        
-  - Advanced Usage:
-      - Flows: advanced_usage/flows.md
-      - Session: advanced_usage/session.md
-      - Context: advanced_usage/context.md
-
-      # - Configuration: advanced_usage/config.md
-
-  # - Samples:
-  #     - samples/index.md
-
-#   - System Internals:
-#       - Overview: system_internals/overview.md
-#       - Core Concepts: system_internals/concepts.md
-#       - Node Abstraction: system_internals/node.md
-#       - Session Management: system_internals/session.md
-#       - PubSub Messaging: system_internals/pubsub.md
-#       - Coordinator Orchestration: system_internals/coordinator.md
-
-  - API Reference: api_reference/railtracks.html
-
-
-
+  - Integrations:
     
+    - Overview: integrations/overview.md
+    
+    - Large Language Models:
+        - Providers: integrations/llms/providers.md
+        - Platforms: integrations/llms/platforms.md
+    #     - Overview: integrations/llms/overview.md
+    #     - OpenAI: integrations/llms/openai.md
+    #     - Azure OpenAI: integrations/llms/azure_openai.md
+    #     - Hugging Face: integrations/llms/hugging_face.md
+#   - Examples:
+#         - Agent Examples: examples/agent_examples.md
+
+    - Vector Stores:
+        - Overview: vector_stores/vector_store_info.md
+        - Filtering: vector_stores/filtering.md
+        - Integrations:
+            - Chroma: vector_stores/integrations/chroma.md
+  - Tutorials:
+    - Building your first agent: tutorials/byfa.md
+    - Running your first agent: tutorials/ryfa.md
+    - RAG system: tutorials/rag_tutorial.md
+    - Vector Stores: tutorials/vector_store_tutorial.md
+
+  - Concepts:
+    - Core: 
+        - Agents: concepts/agents.md
+        - Tools: concepts/tools.md
+        - RAG: concepts/RAG.md
+        - Async/Await: concepts/async_await.md
+        - Vector Stores: concepts/vector_store.md
+        
+    - Agentic Architectures: 
+        - Overview: concepts/architectures/overview.md
+        - Validation Loops: concepts/architectures/validation_loop.md
+        - Sequential Flows: concepts/architectures/sequential.md
+
+  - API Reference: api_reference.md
