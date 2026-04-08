@@ -1,6 +1,7 @@
 from ._call import call
 from .batch import call_batch
 from .broadcast_ import broadcast
+from .cli import cli
 from .interactive import local_chat
 
 __all__ = [
@@ -8,4 +9,5 @@ __all__ = [
     "call_batch",
     "broadcast",
     "local_chat",
+    "cli",
 ]
