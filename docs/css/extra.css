@@ -16,6 +16,20 @@
   padding-bottom: 0.25rem;
 }
 
+/* Nav item — rounded pill highlight on hover */
+.md-nav__item .md-nav__link {
+  border-radius: 6px;
+  padding-left: 0.8rem;
+  padding-right: 0.8rem;
+  padding-top: 0.2rem;
+  padding-bottom: 0.2rem;
+  transition: background-color 0.15s ease;
+}
+
+.md-nav__item .md-nav__link:hover {
+  background-color: color-mix(in srgb, black 20%, transparent);
+}
+
 /* Hide the top-level tab section header repeated in the sidebar */
 .md-nav--primary > .md-nav__list > .md-nav__item--section > .md-nav__link {
   display: none;
