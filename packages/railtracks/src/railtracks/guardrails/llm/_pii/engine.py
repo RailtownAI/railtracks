@@ -6,7 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from .config import PIICustomPattern, PIIEntity, PIIRedactConfig
+from .config import PIIEntity, PIIRedactConfig
 
 _BUILTIN_PATTERNS: dict[PIIEntity, str] = {
     PIIEntity.EMAIL_ADDRESS: r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}",
@@ -20,6 +20,7 @@ _BUILTIN_PATTERNS: dict[PIIEntity, str] = {
     ),
     PIIEntity.CREDIT_CARD: r"\b(?:\d[ \-]?){13,16}\b",
     PIIEntity.US_SSN: r"\b\d{3}-\d{2}-\d{4}\b",
+    PIIEntity.CA_SIN: r"\b\d{3}-\d{3}-\d{3}\b",
     PIIEntity.IP_ADDRESS: r"\b(?:\d{1,3}\.){3}\d{1,3}\b",
     PIIEntity.URL: r"https?://[^\s<>\"']+",
     PIIEntity.IBAN_CODE: r"\b[A-Z]{2}\d{2}[\s]?[\dA-Z]{4}[\s]?(?:[\dA-Z]{4}[\s]?){1,7}[\dA-Z]{1,4}\b",
@@ -31,9 +32,18 @@ _PATTERN_PRIORITY: list[PIIEntity] = [
     PIIEntity.CREDIT_CARD,
     PIIEntity.IBAN_CODE,
     PIIEntity.US_SSN,
+    PIIEntity.CA_SIN,
     PIIEntity.IP_ADDRESS,
     PIIEntity.PHONE_NUMBER,
 ]
+
+
+_LUHN_VALIDATED: frozenset[str] = frozenset(
+    {
+        PIIEntity.CREDIT_CARD.value,
+        PIIEntity.CA_SIN.value,
+    }
+)
 
 
 def _passes_luhn(digits: str) -> bool:
@@ -89,13 +99,9 @@ class PIIEngine:
             raw = _BUILTIN_PATTERNS.get(entity)
             if raw is None:
                 continue
-            self._patterns.append(
-                (re.compile(raw), entity.value, f"[{entity.value}]")
-            )
+            self._patterns.append((re.compile(raw), entity.value, f"[{entity.value}]"))
         for cp in config.custom_patterns:
-            self._patterns.append(
-                (re.compile(cp.regex), cp.name, f"[{cp.name}]")
-            )
+            self._patterns.append((re.compile(cp.regex), cp.name, f"[{cp.name}]"))
 
     def redact(self, text: str) -> tuple[str, list[RedactionRecord]]:
         spans = self._detect(text)
@@ -127,7 +133,7 @@ class PIIEngine:
         spans: list[_Span] = []
         for priority, (pattern, entity_type, placeholder) in enumerate(self._patterns):
             for m in pattern.finditer(text):
-                if entity_type == PIIEntity.CREDIT_CARD.value:
+                if entity_type in _LUHN_VALIDATED:
                     digits = re.sub(r"\D", "", m.group())
                     if not _passes_luhn(digits):
                         continue

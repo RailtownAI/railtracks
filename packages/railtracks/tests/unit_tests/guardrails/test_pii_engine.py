@@ -81,6 +81,23 @@ class TestSSNRedaction:
         assert records[0].entity_type == "US_SSN"
 
 
+class TestCASINRedaction:
+    def test_valid_sin_redacted(self, all_entities_engine: PIIEngine) -> None:
+        text = "My SIN is 046-454-286 on file."
+        result, records = all_entities_engine.redact(text)
+        assert result == "My SIN is [CA_SIN] on file."
+        assert len(records) == 1
+        assert records[0].entity_type == "CA_SIN"
+
+    def test_invalid_luhn_sin_not_redacted(self) -> None:
+        config = PIIRedactConfig(entities=[PIIEntity.CA_SIN])
+        engine = PIIEngine(config)
+        text = "Number 111-222-333 here."
+        result, records = engine.redact(text)
+        assert "111-222-333" in result
+        assert not any(r.entity_type == "CA_SIN" for r in records)
+
+
 class TestIPAddressRedaction:
     def test_ipv4_redacted(self, all_entities_engine: PIIEngine) -> None:
         text = "Server at 192.168.1.1 is down."
