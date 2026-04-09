@@ -8,8 +8,15 @@ from pydantic import BaseModel
 
 from .config import PIIEntity, PIIRedactConfig
 
+# Insertion order defines overlap precedence (earlier = wins in _merge_spans).
 _BUILTIN_PATTERNS: dict[PIIEntity, str] = {
     PIIEntity.EMAIL_ADDRESS: r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}",
+    PIIEntity.URL: r"https?://[^\s<>\"']+",
+    PIIEntity.CREDIT_CARD: r"\b(?:\d[ \-]?){13,16}\b",
+    PIIEntity.IBAN_CODE: r"\b[A-Z]{2}\d{2}[\s]?[\dA-Z]{4}[\s]?(?:[\dA-Z]{4}[\s]?){1,7}[\dA-Z]{1,4}\b",
+    PIIEntity.US_SSN: r"\b\d{3}-\d{2}-\d{4}\b",
+    PIIEntity.CA_SIN: r"\b\d{3}-\d{3}-\d{3}\b",
+    PIIEntity.IP_ADDRESS: r"\b(?:\d{1,3}\.){3}\d{1,3}\b",
     PIIEntity.PHONE_NUMBER: (
         r"(?<![.\d/])"
         r"(?:\+\d{1,3}[\s\-.]?)?"
@@ -18,24 +25,7 @@ _BUILTIN_PATTERNS: dict[PIIEntity, str] = {
         r"(?!\d)"
         r"(?!\.\d)"
     ),
-    PIIEntity.CREDIT_CARD: r"\b(?:\d[ \-]?){13,16}\b",
-    PIIEntity.US_SSN: r"\b\d{3}-\d{2}-\d{4}\b",
-    PIIEntity.CA_SIN: r"\b\d{3}-\d{3}-\d{3}\b",
-    PIIEntity.IP_ADDRESS: r"\b(?:\d{1,3}\.){3}\d{1,3}\b",
-    PIIEntity.URL: r"https?://[^\s<>\"']+",
-    PIIEntity.IBAN_CODE: r"\b[A-Z]{2}\d{2}[\s]?[\dA-Z]{4}[\s]?(?:[\dA-Z]{4}[\s]?){1,7}[\dA-Z]{1,4}\b",
 }
-
-_PATTERN_PRIORITY: list[PIIEntity] = [
-    PIIEntity.EMAIL_ADDRESS,
-    PIIEntity.URL,
-    PIIEntity.CREDIT_CARD,
-    PIIEntity.IBAN_CODE,
-    PIIEntity.US_SSN,
-    PIIEntity.CA_SIN,
-    PIIEntity.IP_ADDRESS,
-    PIIEntity.PHONE_NUMBER,
-]
 
 
 _LUHN_VALIDATED: frozenset[str] = frozenset(
@@ -91,8 +81,6 @@ class RedactionRecord(BaseModel):
 class _Span:
     """Internal mutable span used during detection before merging."""
 
-    __slots__ = ("start", "end", "entity_type", "placeholder", "priority")
-
     def __init__(
         self, start: int, end: int, entity_type: str, placeholder: str, priority: int
     ):
@@ -113,12 +101,10 @@ class PIIEngine:
     def __init__(self, config: PIIRedactConfig) -> None:
         self._patterns: list[tuple[re.Pattern[str], str, str]] = []
         entity_set = set(config.entities)
-        for entity in _PATTERN_PRIORITY:
+        for entity in _BUILTIN_PATTERNS:
             if entity not in entity_set:
                 continue
-            raw = _BUILTIN_PATTERNS.get(entity)
-            if raw is None:
-                continue
+            raw = _BUILTIN_PATTERNS[entity]
             self._patterns.append((re.compile(raw), entity.value, f"[{entity.value}]"))
         for cp in config.custom_patterns:
             self._patterns.append((re.compile(cp.regex), cp.name, f"[{cp.name}]"))
