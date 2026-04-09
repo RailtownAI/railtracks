@@ -19,7 +19,11 @@ class PIIEntity(str, Enum):
 
     @classmethod
     def available(cls) -> dict[str, str]:
-        """Return a mapping of entity name to a human-readable description."""
+        """Return built-in entity codes and short descriptions for UI or docs.
+
+        Returns:
+            Mapping from entity value string (e.g. ``EMAIL_ADDRESS``) to description.
+        """
         return {e.value: _ENTITY_DESCRIPTIONS[e] for e in cls}
 
 
@@ -41,6 +45,10 @@ class PIICustomPattern(BaseModel):
 
     ``name`` becomes the placeholder label: e.g. ``"EMPLOYEE_ID"`` yields
     ``[EMPLOYEE_ID]`` in redacted text.
+
+    Attributes:
+        name: Label used in placeholders and metadata.
+        regex: Pattern passed to :func:`re.compile` for matching.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -55,6 +63,10 @@ class PIIRedactConfig(BaseModel):
 
     Frozen so a single instance can safely be shared between input and output
     guard instances.
+
+    Attributes:
+        entities: Built-in :class:`PIIEntity` kinds to detect; defaults to all members.
+        custom_patterns: Extra :class:`PIICustomPattern` rows merged into detection.
     """
 
     model_config = ConfigDict(frozen=True)

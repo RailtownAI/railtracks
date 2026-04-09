@@ -11,10 +11,7 @@ from .._pii.engine import PIIEngine, build_redaction_meta
 
 
 class PIIRedactOutputGuard(OutputGuard):
-    """
-    Output guardrail that redacts PII from the assistant's response after
-    LLM generation.
-    """
+    """Redacts PII from the assistant string response after LLM generation."""
 
     def __init__(
         self,
@@ -22,11 +19,26 @@ class PIIRedactOutputGuard(OutputGuard):
         *,
         name: str | None = None,
     ) -> None:
+        """Initialize the output PII redactor.
+
+        Args:
+            config: Which built-in entities and custom patterns to apply; defaults to
+                all built-in entity kinds.
+            name: Optional rail name for traces (see :class:`OutputGuard`).
+        """
         super().__init__(name=name)
         self._config = config or PIIRedactConfig()
         self._engine = PIIEngine(self._config)
 
     def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
+        """Redact PII from string assistant content on ``event.output_message``.
+
+        Returns:
+            ``ALLOW`` when there is nothing to scan or no PII, or ``TRANSFORM`` with the
+            rewritten message on
+            :attr:`~railtracks.guardrails.core.decision.GuardrailDecision.output_message`
+            and redaction metadata in ``meta``.
+        """
         msg = event.output_message
         if msg is None or not isinstance(msg.content, str):
             return GuardrailDecision.allow(reason="No string output to scan.")

@@ -47,6 +47,19 @@ _LUHN_VALIDATED: frozenset[str] = frozenset(
 
 
 def _passes_luhn(digits: str) -> bool:
+    """Return whether ``digits`` satisfies the Luhn (mod 10) checksum.
+
+    See: https://en.wikipedia.org/wiki/Luhn_algorithm
+
+    Used to cut false positives on credit-card and Canadian SIN patterns.
+
+    Args:
+        digits: Only decimal digit characters (non-digits should be stripped by the
+            caller).
+
+    Returns:
+        True if the Luhn check passes.
+    """
     total = 0
     reverse = digits[::-1]
     for i, ch in enumerate(reverse):
@@ -60,7 +73,14 @@ def _passes_luhn(digits: str) -> bool:
 
 
 class RedactionRecord(BaseModel):
-    """A single redacted span (no raw value stored)."""
+    """One redacted substring (placeholder only; original text is not stored).
+
+    Attributes:
+        entity_type: Detector label (built-in entity value or custom pattern name).
+        placeholder: Replacement text inserted into the string (e.g. ``[EMAIL_ADDRESS]``).
+        start: Start offset in the original string.
+        end: End offset (exclusive) in the original string.
+    """
 
     entity_type: str
     placeholder: str
@@ -104,6 +124,15 @@ class PIIEngine:
             self._patterns.append((re.compile(cp.regex), cp.name, f"[{cp.name}]"))
 
     def redact(self, text: str) -> tuple[str, list[RedactionRecord]]:
+        """Replace detected spans with placeholders, merging overlaps by priority.
+
+        Args:
+            text: Input string to scan.
+
+        Returns:
+            The redacted string and a list of :class:`RedactionRecord` entries for
+            each placeholder segment (offsets refer to ``text``).
+        """
         spans = self._detect(text)
         if not spans:
             return text, []
@@ -167,7 +196,16 @@ def _merge_spans(spans: list[_Span]) -> list[_Span]:
 def build_redaction_meta(
     records: list[RedactionRecord], messages_affected: int | None = None
 ) -> dict[str, Any]:
-    """Build the ``meta`` dict for ``GuardrailDecision``."""
+    """Build the ``meta`` dict for :class:`~railtracks.guardrails.core.decision.GuardrailDecision`.
+
+    Args:
+        records: Redaction rows from :meth:`PIIEngine.redact`.
+        messages_affected: For input guards, how many messages contained redactions.
+
+    Returns:
+        A dict with ``redacted_entities`` (counts per entity type) and optionally
+        ``messages_affected``.
+    """
     counts: Counter[str] = Counter()
     for r in records:
         counts[r.entity_type] += 1

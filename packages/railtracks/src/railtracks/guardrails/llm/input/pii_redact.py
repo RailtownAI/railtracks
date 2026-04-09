@@ -15,10 +15,7 @@ _SCANNABLE_ROLES = frozenset({Role.user, Role.system})
 
 
 class PIIRedactInputGuard(InputGuard):
-    """
-    Input guardrail that redacts PII from user and system messages before
-    they reach the LLM.
-    """
+    """Redacts PII from user and system string messages before they reach the LLM."""
 
     def __init__(
         self,
@@ -26,11 +23,25 @@ class PIIRedactInputGuard(InputGuard):
         *,
         name: str | None = None,
     ) -> None:
+        """Initialize the input PII redactor.
+
+        Args:
+            config: Redaction settings; defaults to all built-in entity kinds and no
+                custom patterns (see :class:`~railtracks.guardrails.llm.PIIRedactConfig`).
+            name: Optional rail name for traces (see :class:`InputGuard`).
+        """
         super().__init__(name=name)
         self._config = config or PIIRedactConfig()
         self._engine = PIIEngine(self._config)
 
     def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
+        """Scan user/system string content and redact matches.
+
+        Returns:
+            ``ALLOW`` when no PII is found, or ``TRANSFORM`` with rewritten messages on
+            :attr:`~railtracks.guardrails.core.decision.GuardrailDecision.messages`
+            and redaction metadata in ``meta``.
+        """
         all_records: list[RedactionRecord] = []
         new_messages: list[Message] = []
         messages_affected = 0

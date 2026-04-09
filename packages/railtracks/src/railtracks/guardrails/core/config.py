@@ -15,6 +15,17 @@ class Guard(BaseModel):
     The runner expects each rail to be callable with :class:`LLMGuardrailEvent` and
     return a :class:`GuardrailDecision`. For output rails, the guarded assistant
     message is ``event.output_message`` (see :class:`~railtracks.guardrails.core.event.LLMGuardrailEvent`).
+
+    Attributes:
+        input: LLM input guardrails (prompt / message history).
+        output: LLM output guardrails (model response).
+        tool_call: Reserved for future tool-call guardrails (not yet wired).
+        tool_response: Reserved for future tool-response guardrails (not yet wired).
+        fail_open: If True, a rail exception, bad transform, or unknown action is
+            recorded but does not stop the chain; if False, the runner stops and
+            returns a blocking decision.
+        trace: Reserved to toggle whether nodes attach per-rail traces (e.g. to
+            ``details``); the mixin currently always collects traces when rails run.
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
