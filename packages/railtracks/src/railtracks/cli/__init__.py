@@ -546,7 +546,9 @@ def _add_cursor(skill_name: str, meta: dict, content: str, force: bool) -> None:
             sys.exit(0)
 
     target.parent.mkdir(parents=True, exist_ok=True)
-    frontmatter = f"---\ndescription: {meta['description']}\nalwaysApply: false\n---\n\n"
+    frontmatter = (
+        f"---\ndescription: {meta['description']}\nalwaysApply: false\n---\n\n"
+    )
     target.write_text(frontmatter + content, encoding="utf-8")
     print_success(f"Installed '{skill_name}' for Cursor → {target}")
 
@@ -588,39 +590,77 @@ def add_skill(spec: str, force: bool = False) -> None:
     _TOOL_HANDLERS[tool](skill_name, meta, content, force)
 
 
+def _print_help():
+    """Print styled help output."""
+    rst = Style.RESET_ALL
+    bold = Style.BRIGHT
+    dim = Style.DIM
+    cyan = Fore.CYAN
+    green = Fore.GREEN
+    yellow = Fore.YELLOW
+
+    def cmd(name, description):
+        return f"  {cyan}{bold}{name:<10}{rst}  {description}"
+
+    def example(invocation, comment):
+        return f"  {green}{invocation}{rst}  {dim}# {comment}{rst}"
+
+    print()
+    print(f"  {cyan}{bold}{cli_name}{rst}  {dim}— AI agent framework{rst}")
+    print()
+    print(f"  {bold}Usage:{rst}  {cli_name} {yellow}<command>{rst}")
+    print()
+    print(f"  {bold}Commands:{rst}")
+    print(
+        cmd(
+            "init",
+            f"Initialize {cli_name} environment (setup directories, download portable UI)",
+        )
+    )
+    print(cmd("update", "Update the frontend UI to the latest version"))
+    print(cmd("viz", f"Start the {cli_name} development server"))
+    print(cmd("migrate", f"Verify and migrate the structure of .{cli_name}/ directory"))
+    print(
+        cmd(
+            "add",
+            f"Install an AI coding assistant skill  {dim}(e.g. {cli_name} add claude:agent-builder){rst}",
+        )
+    )
+    print()
+    print(f"  {bold}Examples:{rst}")
+    print(example(f"{cli_name} init", "Initialize visualizer environment"))
+    print(example(f"{cli_name} viz", "Start visualizer web app"))
+    print(
+        example(
+            f"{cli_name} migrate",
+            f"Verify and migrate .{cli_name}/ directory structure",
+        )
+    )
+    print(
+        example(
+            f"{cli_name} add claude:agent-builder",
+            "Install agent-builder skill for Claude Code",
+        )
+    )
+    print(
+        example(
+            f"{cli_name} add copilot:agent-builder",
+            "Install agent-builder skill for GitHub Copilot",
+        )
+    )
+    print(
+        example(
+            f"{cli_name} add cursor:agent-builder",
+            "Install agent-builder skill for Cursor",
+        )
+    )
+    print()
+
+
 def main():
     """Main function"""
     if len(sys.argv) < 2:
-        print(f"Usage: {cli_name} [command]")
-        print("")
-        print("Commands:")
-        print(
-            f"  init    Initialize {cli_name} environment (setup directories, download portable UI)"
-        )
-        print("  update  Update the frontend UI to the latest version")
-        print(f"  viz     Start the {cli_name} development server")
-        print(f"  migrate Verify and migrate the structure of .{cli_name}/ directory")
-        print(
-            f"  add     Install an AI coding assistant skill  (e.g. {cli_name} add claude:agent-builder)"
-        )
-        print("")
-        print("Examples:")
-        print(
-            f"  {cli_name} init                      # Initialize development environment"
-        )
-        print(f"  {cli_name} viz                       # Start visualizer web app")
-        print(
-            f"  {cli_name} migrate                   # Verify and migrate .{cli_name}/ directory structure"
-        )
-        print(
-            f"  {cli_name} add claude:agent-builder  # Install agent-builder skill for Claude Code"
-        )
-        print(
-            f"  {cli_name} add copilot:agent-builder # Install agent-builder skill for GitHub Copilot"
-        )
-        print(
-            f"  {cli_name} add cursor:agent-builder  # Install agent-builder skill for Cursor"
-        )
+        _print_help()
         sys.exit(1)
 
     command = sys.argv[1]
@@ -659,8 +699,10 @@ def main():
         spec = next((a for a in args if not a.startswith("-")), None)
         add_skill(spec, force=force)
     else:
-        print(f"Unknown command: {command}")
-        print("Available commands: init, update, viz, migrate, add")
+        print(f"{Fore.RED}Unknown command: {command}{Style.RESET_ALL}")
+        print(
+            f"{Style.DIM}Available commands: init, update, viz, migrate, add{Style.RESET_ALL}"
+        )
         sys.exit(1)
 
 
