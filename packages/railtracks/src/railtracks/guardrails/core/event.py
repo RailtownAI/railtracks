@@ -11,18 +11,32 @@ from railtracks.llm.message import Message
 
 
 class LLMGuardrailPhase(str, Enum):
+    """Which side of the LLM call a guardrail observes.
+
+    Members:
+        INPUT: Before the model (prompt / history), value ``llm_input``.
+        OUTPUT: After the model (assistant message), value ``llm_output``.
+    """
+
     INPUT = "llm_input"
     OUTPUT = "llm_output"
 
 
 class LLMGuardrailEvent(BaseModel):
-    """
-    Event passed to LLM guardrails.
+    """Payload for LLM input and output guardrails.
 
-    - ``messages``: conversation context (usually the history *before* the current
-      assistant reply is appended to the node).
-    - ``output_message``: for ``phase == OUTPUT``, the assistant ``Message`` being
-      guarded this turn; ``None`` for INPUT phase or when not applicable.
+    Attributes:
+        phase: Whether this is an input-phase or output-phase check.
+        messages: Conversation context, usually the history before the current
+            assistant reply is appended by the node.
+        output_message: For ``OUTPUT`` phase, the assistant :class:`~railtracks.llm.message.Message`
+            under inspection; ``None`` for input phase or when not applicable.
+        node_name: Optional node label for observability.
+        node_uuid: Optional stable node id for observability.
+        run_id: Optional run correlation id.
+        model_name: Optional resolved model name for observability.
+        model_provider: Optional provider string for observability.
+        tags: Optional key/value metadata (e.g. ``agent_kind`` from the mixin).
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)

@@ -21,9 +21,19 @@ from ..core.trace import GuardrailTrace
 
 
 class LLMGuardrailsMixin:
-    """
-    Mixin for nodes that invoke an LLM. Overrides _pre_invoke and _post_invoke to run
-    input and output guardrails. Set guardrails= when building the node.
+    """Mixin for nodes that invoke an LLM.
+
+    Overrides ``_pre_invoke`` and ``_post_invoke`` to run input and output guardrails.
+    Set ``guardrails=`` when building the node. Expects ``self._details`` to contain a
+    ``guard_details`` list; each run extends it with :class:`~railtracks.guardrails.core.trace.GuardrailTrace`
+    rows when rails execute.
+
+    Output rails run only when ``_post_invoke`` receives a :class:`~railtracks.llm.response.Response`;
+    other result types are returned unchanged.
+
+    Raises:
+        GuardrailBlockedError: When a rail returns ``BLOCK`` (runner stops the chain
+            with a blocking decision).
     """
 
     guardrails: Guard | None = None

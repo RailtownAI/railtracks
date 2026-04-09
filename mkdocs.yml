@@ -144,6 +144,7 @@ nav:
   - Guardrails:
       - Overview: guardrails/overview.md
       - Quickstart: guardrails/quickstart.md
+      - Built-in guardrails: guardrails/builtin_guardrails.md
 
   - Evaluations:
       - Preface: evaluations/preface.md

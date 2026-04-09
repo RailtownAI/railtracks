@@ -69,6 +69,14 @@ def _extract_transform_value(
 
 
 class GuardRunner:
+    """Runs LLM input and output guardrail chains for a :class:`Guard` configuration.
+
+    For each rail, records a :class:`GuardrailTrace`. If a rail raises, returns invalid
+    output types, or uses an unknown action, behavior depends on ``guard.fail_open``:
+    when True, processing continues with the last good value; when False, the chain
+    stops and the third return value is a blocking :class:`GuardrailDecision`.
+    """
+
     def __init__(self, guard: Guard):
         self.guard = guard
 
@@ -229,6 +237,24 @@ class GuardRunner:
     def run_llm_input(
         self, event: LLMGuardrailEvent
     ) -> tuple[MessageHistory, list[GuardrailTrace], GuardrailDecision | None]:
+        """Run all input rails on ``event.messages``.
+
+        Normalizes ``event`` to input phase and clears ``output_message`` so input
+        guards see a consistent :class:`LLMGuardrailEvent`.
+
+        Args:
+            event: Any LLM guardrail event; phase may be coerced to ``INPUT`` and
+                ``output_message`` cleared before running the chain.
+
+        Returns:
+            A tuple ``(messages, traces, decision)``. ``messages`` is the possibly
+            transformed :class:`~railtracks.llm.history.MessageHistory`. ``traces``
+            lists each rail outcome, including ``action="error"`` when a rail raised
+            or returned an invalid result (if ``fail_open`` allowed continuation).
+            ``decision`` is ``None`` when the chain completed without a stop.
+            Otherwise it is a :class:`GuardrailDecision` with action ``block`` produced
+            when ``fail_open`` is False (rail exception, bad transform, unknown action).
+        """
         input_event = (
             event
             if event.phase == LLMGuardrailPhase.INPUT
@@ -247,6 +273,25 @@ class GuardRunner:
     def run_llm_output(
         self, event: LLMGuardrailEvent, output: Message
     ) -> tuple[Message, list[GuardrailTrace], GuardrailDecision | None]:
+        """Run all output rails on ``output`` with ``event`` as context.
+
+        Ensures ``event.phase`` is ``OUTPUT`` and sets ``event.output_message`` to
+        ``output`` before running the chain.
+
+        Args:
+            event: Conversation context for the guardrail call; phase may be coerced to
+                ``OUTPUT``.
+            output: The assistant :class:`~railtracks.llm.message.Message` to guard.
+
+        Returns:
+            A tuple ``(message, traces, decision)``. ``message`` is the possibly
+            transformed assistant message. ``traces`` lists each rail outcome, including
+            ``action="error"`` when a rail raised or returned an invalid result (if
+            ``fail_open`` allowed continuation). ``decision`` is ``None`` when the
+            chain completed without a stop. Otherwise it is a blocking
+            :class:`GuardrailDecision` when ``fail_open`` is False (rail exception,
+            bad transform, unknown action).
+        """
         output_event = (
             event
             if event.phase == LLMGuardrailPhase.OUTPUT
