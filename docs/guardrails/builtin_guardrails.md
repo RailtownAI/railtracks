@@ -36,6 +36,8 @@ Keep dependencies optional or zero unless the feature truly needs them; document
 
 Detection uses a fixed priority when patterns overlap (for example, email and URL win over the broader phone pattern). `CREDIT_CARD` and `CA_SIN` matches are accepted only when they pass a Luhn checksum check.
 
+---
+
 #### Entities
 
 Built-in entity enum `PIIEntity` includes:
@@ -57,6 +59,8 @@ Discover names and short descriptions at runtime:
 --8<-- "docs/scripts/builtin_guardrails_examples.py:pii_available"
 ```
 
+---
+
 #### Configuration
 
 `PIIRedactConfig` is a **frozen** Pydantic model: default `entities` is the full list above; `custom_patterns` defaults to empty. Each `PIICustomPattern` has a `name` (used in the placeholder) and a `regex` string.
@@ -70,6 +74,8 @@ Discover names and short descriptions at runtime:
     user: My name is Alice and my email is [EMAIL_ADDRESS] and my SIN is [CA_SIN]
     ```
 
+---
+
 #### Custom patterns
 
 You are not limited to `PIIEntity` values. Add `PIICustomPattern(name=..., regex=...)` entries to `custom_patterns`; each `name` becomes the placeholder label (for example `EMPLOYEE_ID` produces `[EMPLOYEE_ID]`). Use them alone or together with any built-in entities in the same `PIIRedactConfig`.
@@ -82,6 +88,8 @@ You are not limited to `PIIEntity` values. Add `PIICustomPattern(name=..., regex
     For the sample string in the snippet above, the user message content may look like: `My ID is [EMPLOYEE_ID]; contact [EMAIL_ADDRESS] internally.`
 
 Use the same `PIIRedactConfig` instance for both input and output guards if you want identical rules.
+
+---
 
 #### Agent usage
 
