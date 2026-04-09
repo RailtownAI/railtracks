@@ -79,7 +79,11 @@ nav:
     - Getting Started:
         - Installation: documentation/getting_started/installation.md
         - LLM Setup: documentation/getting_started/llm_setup.md
-
+        - AI Coding Assistant Setup:
+            - GitHub Copilot: documentation/getting_started/ai_setup/copilot_setup.md
+            - Cusor: documentation/getting_started/ai_setup/cursor_setup.md
+            - Claude Code: documentation/getting_started/ai_setup/claude_code.md
+    
     - Tools + MCP:
         - Equip your LLMs: tools_mcp/tools_mcp.md
         - MCP:

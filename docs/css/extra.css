@@ -1,42 +1,51 @@
-
 /* ── Layout ──────────────────────────────────────────────── */
 .md-header__button.md-logo img {
   height: 40px;
   width: auto;
 }
 
-/* Widen the overall grid to use available horizontal space */
-.md-grid {
-  max-width: 1600px;
+/* Brighter blue for dark mode visibility */
+[data-md-color-scheme="slate"] {
+  --md-accent-fg-color: #6ca6ff;
+  --md-accent-bg-color: #6ca6ff;
 }
 
-/* Give the main content more breathing room */
+.md-grid {
+  max-width: 80%;
+}
+
 .md-content {
   max-width: none;
 }
 
 .md-typeset {
-  font-size: .8rem;
+  font-size: 0.8rem;
 }
 
-/* Widen the sidebar to fit nav items on one line */
+/* Ensure consistent page height */
+.md-content__inner {
+  min-height: calc(100vh - 300px);
+}
+
 @media screen and (min-width: 76.25em) {
   :root {
-    --md-sidebar-width: 16.4rem;
+    --md-sidebar-width: 20rem;
   }
 
   .md-sidebar--primary {
-    width: 16.4rem !important;
+    width: 20rem !important;
   }
 
   .md-sidebar--primary .md-sidebar__scrollwrap {
-    width: 14rem !important;
+    width: 16rem !important;
   }
 }
 
-/* Section headers — blue, uppercase, spaced */
+/* ── Sidebar nav ─────────────────────────────────────────── */
+
+/* Section headers */
 .md-nav__item--section > .md-nav__link {
-  font-size: 0.68rem;
+  font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -47,29 +56,27 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
-/* Nav item — base styles */
+.md-sidebar__inner {
+        padding-right: calc(100% - 13rem);
+}
+/* Nav items */
 .md-nav__item .md-nav__link {
   border-radius: 6px;
-  padding-left: 0.8rem;
-  padding-right: 0.8rem;
-  padding-top: 0.2rem;
-  padding-bottom: 0.2rem;
+  padding: 0.2rem 0.8rem;
   transition: background-color 0.15s ease, color 0.15s ease;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   color: var(--md-default-fg-color--light);
-  white-space: nowrap;
+  /* white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: ellipsis; */
 }
 
-/* Hover state */
 .md-nav__item .md-nav__link:hover {
   background-color: color-mix(in srgb, black 20%, transparent);
   color: var(--md-default-fg-color);
 }
 
-/* Active item — left accent bar + tinted background */
+/* Active item */
 .md-nav__item .md-nav__link--active {
   color: var(--md-accent-fg-color) !important;
   background-color: color-mix(in srgb, var(--md-accent-fg-color) 10%, transparent);
@@ -82,7 +89,7 @@
   background-color: color-mix(in srgb, var(--md-accent-fg-color) 15%, transparent);
 }
 
-/* Hide the top-level tab section header repeated in the sidebar */
+/* Hide top-level tab label repeated as sidebar section header */
 .md-nav--primary > .md-nav__list > .md-nav__item--section > .md-nav__link {
   display: none;
 }
@@ -114,17 +121,7 @@
   animation: train-chug 0.8s ease-in-out infinite;
 }
 
-:root {
-  --color-card-bg: var(--md-default-bg-color);
-  --color-card-border: var(--md-accent-fg-color);
-  --color-card-text: var(--md-typeset-color);
-  --color-card-hover: var(--md-primary-fg-color);
-  --radius-card: 12px;
-  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-/* ── Code highlighting token colors — GitHub Dark / Light ── */
-/* Dark mode (GitHub Dark) */
+/* ── Code highlighting — GitHub Dark / Light ─────────────── */
 [data-md-color-scheme="slate"] {
   --md-code-fg-color:             #e6edf3;
   --md-code-bg-color:             #0d1117;
@@ -143,7 +140,6 @@
   --md-code-hl-generic-color:     #8b949e;
 }
 
-/* Light mode (GitHub Light) */
 [data-md-color-scheme="default"] {
   --md-code-fg-color:             #1f2328;
   --md-code-bg-color:             #f6f8fa;
@@ -162,40 +158,53 @@
   --md-code-hl-generic-color:     #6e7781;
 }
 
+/* ── Code blocks ─────────────────────────────────────────── */
+.md-typeset .highlight {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  margin: 1em 0;
+}
+
+.md-typeset .highlight code,
+.md-typeset .highlight pre {
+  background-color: var(--md-code-bg-color);
+}
+
+.md-typeset .highlight pre {
+  border-radius: 0;
+  margin: 0;
+}
+
+[data-md-color-scheme="slate"] .md-typeset .highlight {
+  border-color: #30363d;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+}
+
+[data-md-color-scheme="slate"] .md-typeset .highlight code,
+[data-md-color-scheme="slate"] .md-typeset .highlight pre {
+  background-color: #0d1117;
+}
+
+/* Code block title bar */
+.md-typeset .highlight .filename {
+  background-color: color-mix(in srgb, var(--md-default-fg-color--lightest) 60%, transparent);
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+  padding: 0.45em 1em;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+/* ── Cards ───────────────────────────────────────────────── */
 .card-row {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
   justify-content: space-evenly;
   margin-bottom: 2rem;
-}
-
-.card {
-  display: block;
-  text-decoration: none;
-  background-color: var(--md-default-bg-color);
-  border: 2px solid var(--md-default-fg-color--lightest);
-  border-radius: 0.5rem;
-  transition: border-color 0.25s ease, background-color 0.25s ease, box-shadow 0.25s ease;
-  color: inherit;
-  padding: 1rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-    border-color: var(--md-primary-fg-color);
-}
-
-.card:hover {
-  background-color: color-mix(in srgb, var(--md-primary-fg-color) 19%, transparent);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
-}
-
-
-.code-card {
-  background: #1e1e2f;
-  border-radius: 12px;
-  padding: 16px;
-  font-family: 'Fira Code', monospace;
-  color: #f8f8f2;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 .grid.cards {
@@ -209,17 +218,11 @@
   display: block;
   padding: 1.25rem 1.25rem 1.4rem;
   border-radius: 10px;
-
   background-color: var(--md-default-bg-color);
   border: 1px solid var(--md-default-fg-color--lightest);
-
   text-decoration: none;
   color: inherit;
-
-  transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease,
-    border-color 0.15s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 .card h3 {
@@ -241,104 +244,34 @@
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
 }
 
-
-
-
-/* Extra CSS for MkDocs */
-
-/* Mermaid diagram styling */
-.mermaid {
-    text-align: center;
-    margin: 20px 0;
+.card.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
-/* Code block styling */
-.md-typeset .highlight {
-  border: 1px solid var(--md-default-fg-color--lightest);
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-  margin: 1em 0;
+.card.disabled:hover {
+  transform: none;
+  box-shadow: none;
 }
 
-.md-typeset .highlight code,
-.md-typeset .highlight pre {
-  background-color: var(--md-code-bg-color);
-}
-
-[data-md-color-scheme="slate"] .md-typeset .highlight {
-  border-color: #30363d;
-}
-
-[data-md-color-scheme="slate"] .md-typeset .highlight code,
-[data-md-color-scheme="slate"] .md-typeset .highlight pre {
-  background-color: #0d1117;
-}
-
-/* Language title bar */
-.md-typeset .highlight .filename {
-  background-color: color-mix(in srgb, var(--md-default-fg-color--lightest) 60%, transparent);
-  border-bottom: 1px solid var(--md-default-fg-color--lightest);
-  padding: 0.45em 1em;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: none;
-}
-
-.md-typeset .highlight pre {
-  border-radius: 0;
-  margin: 0;
-}
-
-/* Dark mode adjustments */
-[data-md-color-scheme="slate"] .md-typeset .highlight {
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
-}
-
-/* Ensure diagrams are responsive */
-.mermaid svg {
-    max-width: 100%;
-    height: auto;
-}
-
-/* Better spacing for code blocks */
-.codehilite {
-    margin: 1em 0;
-}
-
-/* Rounded corners for images in documentation, but not the hero logo */
-.md-typeset img:not(.rt-hero img) {
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
+/* ── Colab card ──────────────────────────────────────────── */
 .colab-card {
   display: flex;
   align-items: center;
   gap: 1.25rem;
   padding: 1.25rem 1.5rem;
   margin: 1.5rem 0;
-
   border-radius: 10px;
   border: 1px solid var(--md-default-fg-color--lighter);
   background: var(--md-default-bg-color);
-
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 }
 
-.colab-card-left {
-  flex-shrink: 0;
-}
-
-.colab-logo {
-  width: 48px;
-  height: auto;
-}
-
-.colab-card-content {
-  flex: 1;
-}
+.colab-card-left { flex-shrink: 0; }
+.colab-logo { width: 48px; height: auto; }
+.colab-card-content { flex: 1; }
+.colab-card-action { flex-shrink: 0; }
 
 .colab-card-title {
   font-size: 1.05rem;
@@ -351,19 +284,13 @@
   opacity: 0.8;
 }
 
-.colab-card-action {
-  flex-shrink: 0;
-}
-
 .colab-button {
   display: inline-block;
   padding: 0.5rem 0.9rem;
-
   border-radius: 6px;
   font-weight: 600;
   font-size: 0.85rem;
-
-  background: #f9ab00; /* Colab yellow */
+  background: #f9ab00;
   color: #000 !important;
   text-decoration: none;
 }
@@ -372,51 +299,45 @@
   background: #f29900;
 }
 
-/* Disabled / Coming Soon cards */
-.card.disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-  pointer-events: none;
+/* ── Mermaid diagrams ────────────────────────────────────── */
+.mermaid {
+  text-align: center;
+  margin: 20px 0;
 }
 
-.card.disabled:hover {
-  transform: none;
-  box-shadow: none;
+.mermaid svg {
+  max-width: 100%;
+  height: auto;
 }
 
-/* ── Index page layout helpers ───────────────────────────────────────── */
+/* ── Images ──────────────────────────────────────────────── */
+.md-typeset img:not(.rt-hero img) {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
 
-/* Hero / centered intro block */
+/* ── Index page helpers ──────────────────────────────────── */
 .rt-hero {
   text-align: center;
   margin-top: 2rem;
   margin-bottom: 1.5rem;
 }
 
-.rt-hero h1 {
-  margin-bottom: 0.25rem;
-}
+.rt-hero h1 { margin-bottom: 0.25rem; }
+.rt-hero p { margin-top: 0; font-size: 1rem; }
 
-.rt-hero p {
-  margin-top: 0;
-  font-size: 1rem;
-}
-
-/* Centered section heading */
 .rt-section-center {
   text-align: center;
   margin-top: 2rem;
   margin-bottom: 1.5rem;
 }
 
-/* CTA button row */
 .rt-cta {
   text-align: center;
   margin-top: 1rem;
   margin-bottom: 1.5rem;
 }
 
-/* Responsive 16:9 video container */
 .rt-video-container {
   margin-top: 1.5rem;
   max-width: 800px;
@@ -440,5 +361,3 @@
   height: 100%;
   border-radius: 12px;
 }
-
-
