@@ -7,7 +7,6 @@ Usage: railtracks [command]
 Commands:
   init    Initialize railtracks environment (setup directories, download UI)
   viz     Start the railtracks development server
-  migrate Verify and migrate the structure of .railtracks/ directory
 
 - Checks to see if there is a .railtracks directory
 - If not, it creates one (and adds it to the .gitignore)
@@ -19,7 +18,6 @@ For testing purposes, you can add `alias railtracks="python railtracks.py"` to y
 
 import json
 import os
-import shutil
 import socket
 import sys
 import tempfile
@@ -249,60 +247,6 @@ def update_railtracks():
     print_status("Updating frontend UI to the latest version...")
     download_and_extract_ui()
     print_success("Frontend UI updated successfully!")
-
-
-def migrate_railtracks():
-    """Migrate and verify the structure of .railtracks directory"""
-    print_status("Verifying .railtracks directory structure...")
-
-    # Get the .railtracks directory path
-    railtracks_dir = Path(cli_directory)
-
-    # Verify/create .railtracks directory
-    if not railtracks_dir.exists():
-        print_status(f"Creating {cli_directory} directory...")
-        railtracks_dir.mkdir(exist_ok=True)
-        print_success(f"Created {cli_directory} directory")
-
-    # Verify/create .railtracks/data directory
-    data_dir = railtracks_dir / "data"
-    if not data_dir.exists():
-        print_status("Creating .railtracks/data directory...")
-        data_dir.mkdir(parents=True, exist_ok=True)
-        print_success("Created .railtracks/data directory")
-
-    # Verify/create .railtracks/data/evaluations directory
-    evaluations_dir = data_dir / "evaluations"
-    if not evaluations_dir.exists():
-        print_status("Creating .railtracks/data/evaluations directory...")
-        evaluations_dir.mkdir(parents=True, exist_ok=True)
-        print_success("Created .railtracks/data/evaluations directory")
-
-    # Verify/create .railtracks/data/sessions directory
-    sessions_dir = data_dir / "sessions"
-    if not sessions_dir.exists():
-        print_status("Creating .railtracks/data/sessions directory...")
-        sessions_dir.mkdir(parents=True, exist_ok=True)
-        print_success("Created .railtracks/data/sessions directory")
-
-    # Find all JSON files in .railtracks root only (not recursive, not in subdirectories)
-    json_files = list(railtracks_dir.glob("*.json"))
-
-    if json_files:
-        print_status(
-            f"Found {len(json_files)} JSON file(s) in .railtracks root to migrate..."
-        )
-        for json_file in json_files:
-            destination = sessions_dir / json_file.name
-            shutil.move(str(json_file), str(destination))
-            print_success(f"Migrated {json_file.name} to .railtracks/data/sessions/")
-        print_success(
-            f"Migration completed: {len(json_files)} file(s) moved to .railtracks/data/sessions/"
-        )
-    else:
-        print_status("No JSON files found in .railtracks root to migrate")
-
-    print_success("Directory structure verification and migration completed!")
 
 
 # FastAPI endpoints
@@ -619,7 +563,6 @@ def _print_help():
     )
     print(cmd("update", "Update the frontend UI to the latest version"))
     print(cmd("viz", f"Start the {cli_name} development server"))
-    print(cmd("migrate", f"Verify and migrate the structure of .{cli_name}/ directory"))
     print(
         cmd(
             "add",
@@ -630,12 +573,6 @@ def _print_help():
     print(f"  {bold}Examples:{rst}")
     print(example(f"{cli_name} init", "Initialize visualizer environment"))
     print(example(f"{cli_name} viz", "Start visualizer web app"))
-    print(
-        example(
-            f"{cli_name} migrate",
-            f"Verify and migrate .{cli_name}/ directory structure",
-        )
-    )
     print(
         example(
             f"{cli_name} add claude:agent-builder",
@@ -686,8 +623,6 @@ def main():
         # Start server
         server = RailtracksServer()
         server.start()
-    elif command == "migrate":
-        migrate_railtracks()
     elif command == "add":
         args = sys.argv[2:]
         if not args or args[0].startswith("-"):
@@ -700,9 +635,7 @@ def main():
         add_skill(spec, force=force)
     else:
         print(f"{Fore.RED}Unknown command: {command}{Style.RESET_ALL}")
-        print(
-            f"{Style.DIM}Available commands: init, update, viz, migrate, add{Style.RESET_ALL}"
-        )
+        print(f"{Style.DIM}Available commands: init, update, viz, add{Style.RESET_ALL}")
         sys.exit(1)
 
 
