@@ -1,9 +1,3 @@
----
-name: agent-builder
-description: Build an agent using the railtracks Python framework. Use when the user wants to create an AI agent, tool-calling workflow, or multi-agent system with railtracks.
-argument-hint: "[describe what the agent should do]"
----
-
 # Build a Railtracks Agent
 
 The user wants to build an agent using the railtracks framework: $ARGUMENTS
