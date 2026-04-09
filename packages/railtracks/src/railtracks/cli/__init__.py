@@ -31,6 +31,24 @@ import webbrowser
 import zipfile
 from pathlib import Path
 
+# ---------------------------------------------------------------------------
+# Skill registry — maps skill names to their metadata
+# ---------------------------------------------------------------------------
+
+SKILLS = {
+    "agent-builder": {
+        "name": "agent-builder",
+        "description": (
+            "Build an agent using the railtracks Python framework. "
+            "Use when the user wants to create an AI agent, tool-calling workflow, "
+            "or multi-agent system with railtracks."
+        ),
+        "argument_hint": "[describe what the agent should do]",
+    },
+}
+
+SUPPORTED_TOOLS = ("claude", "copilot", "cursor")
+
 try:
     import uvicorn
     from colorama import Fore, Style
@@ -440,25 +458,209 @@ class RailtracksServer:
             print_success("railtracks stopped.")
 
 
+# ---------------------------------------------------------------------------
+# `railtracks add` command
+# ---------------------------------------------------------------------------
+
+
+def _load_skill_content(skill_name: str) -> str:
+    """Load bundled skill content from the skills directory."""
+    skills_dir = Path(__file__).parent / "skills"
+    skill_file = skills_dir / f"{skill_name}.md"
+    if not skill_file.exists():
+        print_error(f"Skill '{skill_name}' not found in bundled skills.")
+        sys.exit(1)
+    return skill_file.read_text(encoding="utf-8")
+
+
+def _confirm_overwrite(file_path: Path) -> bool:
+    """Prompt the user to confirm overwriting an existing file. Returns True to proceed."""
+    try:
+        answer = (
+            input(f"[{cli_name}] '{file_path}' already exists. Overwrite? [y/N] ")
+            .strip()
+            .lower()
+        )
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return False
+    return answer in ("y", "yes")
+
+
+def _add_claude(skill_name: str, meta: dict, content: str, force: bool) -> None:
+    """Install skill for Claude Code as a SKILL.md file."""
+    target = Path(".claude") / "skills" / skill_name / "SKILL.md"
+    if target.exists() and not force:
+        if not _confirm_overwrite(target):
+            print_status("Aborted.")
+            sys.exit(0)
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    frontmatter = (
+        "---\n"
+        f"name: {meta['name']}\n"
+        f"description: {meta['description']}\n"
+        f'argument-hint: "{meta["argument_hint"]}"\n'
+        "---\n\n"
+    )
+    target.write_text(frontmatter + content, encoding="utf-8")
+    print_success(f"Installed '{skill_name}' for Claude Code → {target}")
+
+
+def _add_copilot(skill_name: str, meta: dict, content: str, force: bool) -> None:  # noqa: ARG001
+    """Install skill for GitHub Copilot by appending to copilot-instructions.md."""
+    target = Path(".github") / "copilot-instructions.md"
+    start_marker = f"<!-- railtracks:{skill_name}:start -->"
+    end_marker = f"<!-- railtracks:{skill_name}:end -->"
+
+    if target.exists():
+        existing = target.read_text(encoding="utf-8")
+        if start_marker in existing:
+            print_warning(
+                f"Skill '{skill_name}' is already present in {target}. "
+                "Remove the existing section and re-run to update it, or use --force."
+            )
+            if not force:
+                sys.exit(0)
+            # Remove old section before re-appending
+            start_idx = existing.index(start_marker)
+            end_idx = existing.index(end_marker) + len(end_marker)
+            existing = existing[:start_idx].rstrip() + existing[end_idx:]
+            target.write_text(existing, encoding="utf-8")
+    else:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("", encoding="utf-8")
+
+    section = f"\n\n{start_marker}\n{content.strip()}\n{end_marker}\n"
+    with open(target, "a", encoding="utf-8") as f:
+        f.write(section)
+    print_success(f"Installed '{skill_name}' for GitHub Copilot → {target}")
+
+
+def _add_cursor(skill_name: str, meta: dict, content: str, force: bool) -> None:
+    """Install skill for Cursor as a .mdc rules file."""
+    target = Path(".cursor") / "rules" / f"{skill_name}.mdc"
+    if target.exists() and not force:
+        if not _confirm_overwrite(target):
+            print_status("Aborted.")
+            sys.exit(0)
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    frontmatter = (
+        f"---\ndescription: {meta['description']}\nalwaysApply: false\n---\n\n"
+    )
+    target.write_text(frontmatter + content, encoding="utf-8")
+    print_success(f"Installed '{skill_name}' for Cursor → {target}")
+
+
+_TOOL_HANDLERS = {
+    "claude": _add_claude,
+    "copilot": _add_copilot,
+    "cursor": _add_cursor,
+}
+
+
+def add_skill(spec: str, force: bool = False) -> None:
+    """Parse <tool>:<skill-name> and install the skill for the given AI coding tool."""
+    if ":" not in spec:
+        print_error(
+            f"Invalid format '{spec}'. Expected '<tool>:<skill>', e.g. 'claude:agent-builder'."
+        )
+        print_status(f"Supported tools: {', '.join(SUPPORTED_TOOLS)}")
+        print_status(f"Available skills: {', '.join(SKILLS)}")
+        sys.exit(1)
+
+    tool, skill_name = spec.split(":", 1)
+    tool = tool.lower()
+
+    if tool not in _TOOL_HANDLERS:
+        print_error(
+            f"Unknown tool '{tool}'. Supported tools: {', '.join(SUPPORTED_TOOLS)}"
+        )
+        sys.exit(1)
+
+    if skill_name not in SKILLS:
+        print_error(
+            f"Unknown skill '{skill_name}'. Available skills: {', '.join(SKILLS)}"
+        )
+        sys.exit(1)
+
+    meta = SKILLS[skill_name]
+    content = _load_skill_content(skill_name)
+    _TOOL_HANDLERS[tool](skill_name, meta, content, force)
+
+
+def _print_help():
+    """Print styled help output."""
+    rst = Style.RESET_ALL
+    bold = Style.BRIGHT
+    dim = Style.DIM
+    cyan = Fore.CYAN
+    green = Fore.GREEN
+    yellow = Fore.YELLOW
+
+    def cmd(name, description):
+        return f"  {cyan}{bold}{name:<10}{rst}  {description}"
+
+    def example(invocation, comment):
+        return f"  {green}{invocation}{rst}  {dim}# {comment}{rst}"
+
+    print()
+    print(f"  {cyan}{bold}{cli_name}{rst}  {dim}— AI agent framework{rst}")
+    print()
+    print(f"  {bold}Usage:{rst}  {cli_name} {yellow}<command>{rst}")
+    print()
+    print(f"  {bold}Commands:{rst}")
+    print(
+        cmd(
+            "init",
+            f"Initialize {cli_name} environment (setup directories, download portable UI)",
+        )
+    )
+    print(cmd("update", "Update the frontend UI to the latest version"))
+    print(cmd("viz", f"Start the {cli_name} development server"))
+    print(cmd("migrate", f"Verify and migrate the structure of .{cli_name}/ directory"))
+    print(
+        cmd(
+            "add",
+            f"Install an AI coding assistant skill  {dim}(e.g. {cli_name} add claude:agent-builder){rst}",
+        )
+    )
+    print()
+    print(f"  {bold}Examples:{rst}")
+    print(example(f"{cli_name} init", "Initialize visualizer environment"))
+    print(example(f"{cli_name} viz", "Start visualizer web app"))
+    print(
+        example(
+            f"{cli_name} migrate",
+            f"Verify and migrate .{cli_name}/ directory structure",
+        )
+    )
+    print(
+        example(
+            f"{cli_name} add claude:agent-builder",
+            "Install agent-builder skill for Claude Code",
+        )
+    )
+    print(
+        example(
+            f"{cli_name} add copilot:agent-builder",
+            "Install agent-builder skill for GitHub Copilot",
+        )
+    )
+    print(
+        example(
+            f"{cli_name} add cursor:agent-builder",
+            "Install agent-builder skill for Cursor",
+        )
+    )
+    print()
+
+
 def main():
     """Main function"""
     if len(sys.argv) < 2:
-        print(f"Usage: {cli_name} [command]")
-        print("")
-        print("Commands:")
-        print(
-            f"  init    Initialize {cli_name} environment (setup directories, download portable UI)"
-        )
-        print("  update  Update the frontend UI to the latest version")
-        print(f"  viz     Start the {cli_name} development server")
-        print(f"  migrate Verify and migrate the structure of .{cli_name}/ directory")
-        print("")
-        print("Examples:")
-        print(f"  {cli_name} init    # Initialize development environment")
-        print(f"  {cli_name} viz     # Start visualizer web app")
-        print(
-            f"  {cli_name} migrate # Verify and migrate .{cli_name}/ directory structure"
-        )
+        _print_help()
         sys.exit(1)
 
     command = sys.argv[1]
@@ -486,9 +688,21 @@ def main():
         server.start()
     elif command == "migrate":
         migrate_railtracks()
+    elif command == "add":
+        args = sys.argv[2:]
+        if not args or args[0].startswith("-"):
+            print_error("Usage: railtracks add [--force] <tool>:<skill>")
+            print_status(f"Supported tools: {', '.join(SUPPORTED_TOOLS)}")
+            print_status(f"Available skills: {', '.join(SKILLS)}")
+            sys.exit(1)
+        force = "--force" in args
+        spec = next((a for a in args if not a.startswith("-")), None)
+        add_skill(spec, force=force)
     else:
-        print(f"Unknown command: {command}")
-        print("Available commands: init, update, viz, migrate")
+        print(f"{Fore.RED}Unknown command: {command}{Style.RESET_ALL}")
+        print(
+            f"{Style.DIM}Available commands: init, update, viz, migrate, add{Style.RESET_ALL}"
+        )
         sys.exit(1)
 
 
