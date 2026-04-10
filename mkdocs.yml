@@ -31,6 +31,7 @@ theme:
     - navigation.tabs
     - navigation.tabs.sticky
     - navigation.sections
+    - navigation.expand
     - navigation.indexes
     - navigation.prefetch
     - navigation.path
@@ -80,52 +81,70 @@ nav:
         - Installation: documentation/getting_started/installation.md
         - LLM Setup: documentation/getting_started/llm_setup.md
         - AI Coding Assistants: documentation/getting_started/ai_setup.md
-    
-    - Tools + MCP:
-        - Equip your LLMs: tools_mcp/tools_mcp.md
-        - MCP:
-            - Model Context Protocol: tools_mcp/mcp/mcp.md
-            - Using MCP: tools_mcp/mcp/MCP_tools_in_RT.md
-            - Creating an MCP Server: tools_mcp/mcp/RTtoMCP.md
 
+    - Agent Design:
+        - Overview: documentation/agent_design/overview.md
         - Tools:
-            - What is a Tool: tools_mcp/tools/tools.md
-            - Functions as Tools: tools_mcp/tools/functions_as_tools.md
-            - Agents as Tools: tools_mcp/tools/agents_as_tools.md
+            - Function Tools: documentation/agent_design/tools/function_tools.md
+            - Agents as Tools:  documentation/agent_design/tools/agents_as_tools.md
+        - Modalities: documentation/agent_design/modalities.md
 
-        - Integrations:
-            - Notion: tools_mcp/guides/notion.md
-            - Github: tools_mcp/guides/github.md
-            - Python Sandbox: tools_mcp/guides/python_sandbox.md
-            - Shell Bash: tools_mcp/guides/shell_bash.md
-            - Slack: tools_mcp/guides/slack.md
-            - Web Search: tools_mcp/guides/websearch_integration.md
+        - Agentic Architectures: documentation/agent_design/architectures.md
+    - Agent Invocation:
+        - Overview: documentation/agent_invocation/overview.md
+        - Flows: documentation/agent_invocation/flows.md
+    - Advanced:
+        - Guardrails:
+            - Overview: documentation/advanced/guardrails/overview.md
+            - Quickstart: documentation/advanced/guardrails/quickstart.md
+        - Agent Context:
+            - Overview: documentation/advanced/context/overview.md
+            - Techniques: documentation/advanced/context/techniques.md
+    # - Tools + MCP:
+    #     - Equip your LLMs: tools_mcp/tools_mcp.md
+    #     - MCP:
+    #         - Model Context Protocol: tools_mcp/mcp/mcp.md
+    #         - Using MCP: tools_mcp/mcp/MCP_tools_in_RT.md
+    #         - Creating an MCP Server: tools_mcp/mcp/RTtoMCP.md
 
-        - RAG: tools_mcp/RAG.md
+    #     - Tools:
+    #         - What is a Tool: tools_mcp/tools/tools.md
+    #         - Functions as Tools: tools_mcp/tools/functions_as_tools.md
+    #         - Agents as Tools: tools_mcp/tools/agents_as_tools.md
 
-    - Human in the Loop:
-        - Overview: human_in_the_loop/overview.md
-        - Local Chat UI: human_in_the_loop/local_chat_ui.md
-        - Human in the Loop: human_in_the_loop/hil.md
+    #     - Integrations:
+    #         - Notion: tools_mcp/guides/notion.md
+    #         - Github: tools_mcp/guides/github.md
+    #         - Python Sandbox: tools_mcp/guides/python_sandbox.md
+    #         - Shell Bash: tools_mcp/guides/shell_bash.md
+    #         - Slack: tools_mcp/guides/slack.md
+    #         - Web Search: tools_mcp/guides/websearch_integration.md
 
-    - LLM Support:
-        - Supported Providers: llm_support/providers.md
-        - Prompts and Context Injection: llm_support/prompts.md
+    #     - RAG: tools_mcp/RAG.md
 
-        - Multimodal:
-            - Overview: llm_support/multimodal/overview.md
-            - Vision: llm_support/multimodal/vision.md
+    # - Human in the Loop:
+    #     - Overview: human_in_the_loop/overview.md
+    #     - Local Chat UI: human_in_the_loop/local_chat_ui.md
+    #     - Human in the Loop: human_in_the_loop/hil.md
 
-        - Streaming: llm_support/streaming.md
+    # - LLM Support:
+    #     - Supported Providers: llm_support/providers.md
+    #     - Prompts and Context Injection: llm_support/prompts.md
 
-    - Guardrails:
-        - Overview: guardrails/overview.md
-        - Quickstart: guardrails/quickstart.md
+    #     - Multimodal:
+    #         - Overview: llm_support/multimodal/overview.md
+    #         - Vision: llm_support/multimodal/vision.md
 
-    - Advanced Usage:
-        - Flows: advanced_usage/flows.md
-        - Session: advanced_usage/session.md
-        - Context: advanced_usage/context.md
+    #     - Streaming: llm_support/streaming.md
+
+    # - Guardrails:
+    #     - Overview: guardrails/overview.md
+    #     - Quickstart: guardrails/quickstart.md
+
+    # - Advanced Usage:
+    #     - Flows: advanced_usage/flows.md
+    #     - Session: advanced_usage/session.md
+    #     - Context: advanced_usage/context.md
 
   - Evaluations:
     - Preface: evaluations/preface.md

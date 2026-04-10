@@ -89,9 +89,35 @@
   background-color: color-mix(in srgb, var(--md-accent-fg-color) 15%, transparent);
 }
 
+/* Collapsible section labels */
+/* .md-nav__item--nested:not(.md-nav__item--section) > .md-nav__link {
+  color: #06ca8c !important;
+} */
+
 /* Hide top-level tab label repeated as sidebar section header */
 .md-nav--primary > .md-nav__list > .md-nav__item--section > .md-nav__link {
   display: none;
+}
+
+/* ── Expand / Collapse all button ───────────────────────── */
+.nav-expand-toggle {
+  display: block;
+  width: 100%;
+  margin-bottom: 0.75rem;
+  padding: 0.3rem 0.8rem;
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 20%, transparent);
+  border-radius: 6px;
+  color: var(--md-default-fg-color--light);
+  font-size: 0.7rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.nav-expand-toggle:hover {
+  background-color: color-mix(in srgb, black 20%, transparent);
+  color: var(--md-default-fg-color);
 }
 
 /* ── Train on active top nav tab ─────────────────────────── */
@@ -156,6 +182,13 @@
   --md-code-hl-variable-color:    #953800;
   --md-code-hl-special-color:     #cf222e;
   --md-code-hl-generic-color:     #6e7781;
+}
+
+/* ── Inline code ─────────────────────────────────────────── */
+.md-typeset code:not(.highlight code):not(pre code) {
+  background-color: transparent;
+  color: #e03e3e;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
 }
 
 /* ── Code blocks ─────────────────────────────────────────── */
