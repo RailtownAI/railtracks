@@ -336,7 +336,7 @@ class TestPortChecking(unittest.TestCase):
 
         # Mock the main function to test just the viz command logic
         with patch('railtracks.cli.create_railtracks_dir'), \
-             patch('railtracks.cli.RailtracksServer'):
+             patch('railtracks.cli.viz_server.RailtracksServer'):
 
             # Simulate the viz command logic
             if mock_is_port_in_use.return_value:
@@ -587,7 +587,7 @@ class TestUIVersionTracking(unittest.TestCase):
     # --- background thread for update check ---
 
     @patch('railtracks.cli.check_for_ui_update')
-    @patch('railtracks.cli.RailtracksServer')
+    @patch('railtracks.cli.viz_server.RailtracksServer')
     @patch('railtracks.cli.create_railtracks_dir')
     @patch('railtracks.cli.is_port_in_use', return_value=False)
     @patch('railtracks.cli.sys.argv', ['railtracks', 'viz'])

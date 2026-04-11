@@ -1,18 +1,30 @@
-from typing import Literal, Type, TypeVar
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Literal, Type, TypeVar
 
 from railtracks.built_nodes.concrete.response import LLMResponse
 
 from ..built_nodes.concrete._llm_base import LLMBase
-from ..human_in_the_loop import ChatUI, HILMessage
-from ..human_in_the_loop.local_chat_ui import UserMessageAttachment
+from ..human_in_the_loop import HILMessage
 from ..llm.history import MessageHistory
 from ..llm.message import AssistantMessage, UserMessage
 from ..utils.logging.create import get_rt_logger
 from ._call import call
 
+if TYPE_CHECKING:
+    from ..human_in_the_loop.local_chat_ui import UserMessageAttachment
+
 logger = get_rt_logger(__name__)
 
 _TOutput = TypeVar("_TOutput", bound=LLMResponse)
+
+
+def __getattr__(name: str):
+    if name == "ChatUI":
+        from ..human_in_the_loop import ChatUI
+
+        return ChatUI
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def _process_attachment(attachments: list[UserMessageAttachment]) -> list[str]:
@@ -34,7 +46,7 @@ def _process_attachment(attachments: list[UserMessageAttachment]) -> list[str]:
 
 
 async def _chat_ui_interactive(
-    chat_ui: ChatUI,
+    chat_ui,
     node: Type[LLMBase[_TOutput, _TOutput, Literal[False]]],
     initial_message_to_user: str | None,
     initial_message_to_agent: str | None,
@@ -42,19 +54,7 @@ async def _chat_ui_interactive(
     *args,
     **kwargs,
 ) -> _TOutput:
-    """Handles the interactive session logic using the ChatUI interface.
-    Args:
-        chat_ui: An instance of the ChatUI class to manage the user interface.
-        node: The LLMBase class to interact with.
-        initial_message_to_user: An optional message to display to the user at the start of the chat session.
-        initial_message_to_agent: An optional message to send to the agent to initiate the conversation.
-        turns: The maximum number of conversational turns before the session terminates. If None,
-               the session continues until manually closed.
-        *args: Additional positional arguments to pass to the node constructor.
-        **kwargs: Additional keyword arguments to pass to the node constructor.
-    Returns:
-        The final output from the node after the interactive session concludes.
-    """
+    """Handles the interactive session logic using the ChatUI interface."""
     msg_history = MessageHistory([])
 
     if initial_message_to_user is not None:
@@ -63,12 +63,12 @@ async def _chat_ui_interactive(
     if initial_message_to_agent is not None:
         msg_history.append(UserMessage(content=initial_message_to_agent))
 
-    last_tool_idx = 0  # To track the last processed tool response, not sure how efficient this makes things
+    last_tool_idx = 0
 
     while chat_ui.is_connected:
         message = await chat_ui.receive_message()
         if message is None:
-            continue  # could be `break` but I want to ensure chat_ui.is_connected is updated properly
+            continue
 
         attachments = []
         if message.attachments is not None:
@@ -123,14 +123,14 @@ async def local_chat(
         host: The network host for the web server. Defaults to 'localhost'.
         auto_open: If `True`, automatically opens the chat interface in a
             web browser.
-        *args: Additional positional arguments to pass to the `node` constructor.
-        **kwargs: Additional keyword arguments to pass to the `node` constructor.
+        *args: Additional positional arguments to pass to the node constructor.
+        **kwargs: Additional keyword arguments to pass to the node constructor.
+            ``interactive_interface`` may be supplied for tests (mock ChatUI class).
 
     Returns:
         The final output from the node after the interactive session concludes.
         The return type matches the node's `_TOutput` generic type.
     """
-
     chat_ui_kwargs = {}
     if port is not None:
         chat_ui_kwargs["port"] = port
@@ -138,6 +138,8 @@ async def local_chat(
         chat_ui_kwargs["host"] = host
     if auto_open is not None:
         chat_ui_kwargs["auto_open"] = auto_open
+
+    interactive_interface = kwargs.pop("interactive_interface", None)
 
     if not issubclass(node, LLMBase):
         raise ValueError(
@@ -147,7 +149,12 @@ async def local_chat(
     try:
         logger.info("Connecting with Local Chat Session")
 
-        chat_ui = ChatUI(**chat_ui_kwargs)
+        if interactive_interface is not None:
+            chat_ui_cls = interactive_interface
+        else:
+            from ..human_in_the_loop import ChatUI as chat_ui_cls
+
+        chat_ui = chat_ui_cls(**chat_ui_kwargs)
 
         await chat_ui.connect()
 
