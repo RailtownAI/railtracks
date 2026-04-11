@@ -7,19 +7,24 @@ Allowing your agents to use your `python` functions as tools for your agents is 
 
     @rt.function_node # (1)!
     def tool_name(arg1: arg1_type, arg2: arg2_type)->return_type:
-    """
-    Information on what this tool does
+        """
+        Information on what this tool does
 
-    Args:
-        arg1: what this arg is
-        arg2: what this arg is
+        Args:
+            arg1: what this arg is
+            arg2: what this arg is
 
-    Returns:
-        information about return type
-    """
-    ...
-    ```
+        Returns:
+            information about return type
+        """
+        ...
     
+    Agent = rt.agent_node(
+        ...
+        tool_nodes=[rt.function_node(some_tool)]
+    )
+    ```
+
     1. Simply add the `railtracks.function_node` decorator before the definition of your function. This transforms your function into a node type usable upon passing to any agent.
 
 === "Agent Specific"

@@ -86,20 +86,18 @@ nav:
         - Overview: documentation/agent_design/overview.md
         - Tools:
             - Function Tools: documentation/agent_design/tools/function_tools.md
-            - Agents as Tools:  documentation/agent_design/tools/agents_as_tools.md
+            - Agents as Tools: documentation/agent_design/tools/agents_as_tools.md
+            - MCP: documentation/agent_design/tools/mcp.md
         - Modalities: documentation/agent_design/modalities.md
 
-        - Agentic Architectures: documentation/agent_design/architectures.md
     - Agent Invocation:
-        - Overview: documentation/agent_invocation/overview.md
-        - Flows: documentation/agent_invocation/flows.md
+        - Direct Invocation: documentation/invocation/call.md
+        - Flow Invocation: documentation/invocation/flows.md
     - Advanced:
         - Guardrails:
             - Overview: documentation/advanced/guardrails/overview.md
             - Quickstart: documentation/advanced/guardrails/quickstart.md
-        - Agent Context:
-            - Overview: documentation/advanced/context/overview.md
-            - Techniques: documentation/advanced/context/techniques.md
+        - Agent Context: documentation/advanced/context/context.md
     # - Tools + MCP:
     #     - Equip your LLMs: tools_mcp/tools_mcp.md
     #     - MCP:
@@ -200,7 +198,7 @@ nav:
         - Async/Await: concepts/async_await.md
         - Vector Stores: concepts/vector_store.md
         
-    - Agentic Architectures: 
+    - Architectures: 
         - Overview: concepts/architectures/overview.md
         - Validation Loops: concepts/architectures/validation_loop.md
         - Sequential Flows: concepts/architectures/sequential.md
