@@ -5,8 +5,6 @@ site_description: "Railtracks is a framework for building LLM-powered agents and
 repo_name: railtracks
 repo_url: https://github.com/RailtownAI/railtracks/
 
-
-
 theme:
   name: material
   logo: assets/logo.svg
@@ -22,7 +20,7 @@ theme:
         icon: material/brightness-5
         name: Switch to light mode
 
-    - media: "(prefers-color-scheme: light)" 
+    - media: "(prefers-color-scheme: light)"
       scheme: default
       primary: white
       toggle:
@@ -78,12 +76,14 @@ nav:
       - Overview: architectures/overview.md
       - Validation Loops: architectures/validation_loop.md
       - Sequential Flows: architectures/sequential.md
-  
+
   - Tutorials:
       - Building your first agent: tutorials/byfa.md
       - Running your first agent: tutorials/ryfa.md
       - RAG system: tutorials/rag_tutorial.md
       - Vector Stores: tutorials/vector_store_tutorial.md
+      - Weather Agent: tutorials/weather_agent.md
+      - FastAPI Integration: tutorials/fastapi.md
 
   - Background:
       - Agents: background/agents.md
@@ -113,7 +113,7 @@ nav:
           - Web Search: tools_mcp/guides/websearch_integration.md
 
       - RAG: tools_mcp/RAG.md
-  
+
   - Vector Stores:
       - Overview: vector_stores/vector_store_info.md
       - Filtering: vector_stores/filtering.md
@@ -150,16 +150,16 @@ nav:
       - Preface: evaluations/preface.md
       - Quickstart: evaluations/quickstart.md
       - Visualization: evaluations/visualization.md
-      - Metrics: 
-        - Metrics Overview: evaluations/metrics/metrics.md
-        - Categorical Metrics: evaluations/metrics/categorical.md
-        - Numerical Metrics: evaluations/metrics/numerical.md
-      - Evaluators: 
-        - Evaluator Abstraction: evaluations/evaluators/evaluators.md
-        - ToolUseEvaluator: evaluations/evaluators/tool_use_evaluator.md
-        - LLMInferenceEvaluator: evaluations/evaluators/llm_inference_evaluator.md
-        - JudgeEvaluator: evaluations/evaluators/judge_evaluator.md
-        
+      - Metrics:
+          - Metrics Overview: evaluations/metrics/metrics.md
+          - Categorical Metrics: evaluations/metrics/categorical.md
+          - Numerical Metrics: evaluations/metrics/numerical.md
+      - Evaluators:
+          - Evaluator Abstraction: evaluations/evaluators/evaluators.md
+          - ToolUseEvaluator: evaluations/evaluators/tool_use_evaluator.md
+          - LLMInferenceEvaluator: evaluations/evaluators/llm_inference_evaluator.md
+          - JudgeEvaluator: evaluations/evaluators/judge_evaluator.md
+
   - Advanced Usage:
       - Flows: advanced_usage/flows.md
       - Session: advanced_usage/session.md
@@ -170,16 +170,12 @@ nav:
   # - Samples:
   #     - samples/index.md
 
-#   - System Internals:
-#       - Overview: system_internals/overview.md
-#       - Core Concepts: system_internals/concepts.md
-#       - Node Abstraction: system_internals/node.md
-#       - Session Management: system_internals/session.md
-#       - PubSub Messaging: system_internals/pubsub.md
-#       - Coordinator Orchestration: system_internals/coordinator.md
+  #   - System Internals:
+  #       - Overview: system_internals/overview.md
+  #       - Core Concepts: system_internals/concepts.md
+  #       - Node Abstraction: system_internals/node.md
+  #       - Session Management: system_internals/session.md
+  #       - PubSub Messaging: system_internals/pubsub.md
+  #       - Coordinator Orchestration: system_internals/coordinator.md
 
   - API Reference: api_reference/railtracks.html
-
-
-
-    
