@@ -19,14 +19,6 @@ logger = get_rt_logger(__name__)
 _TOutput = TypeVar("_TOutput", bound=LLMResponse)
 
 
-def __getattr__(name: str):
-    if name == "ChatUI":
-        from ..human_in_the_loop import ChatUI
-
-        return ChatUI
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-
-
 def _process_attachment(attachments: list[UserMessageAttachment]) -> list[str]:
     """Processes a list of attachments and returns their data or URLs.
 

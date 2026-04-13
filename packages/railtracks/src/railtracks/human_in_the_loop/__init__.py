@@ -20,3 +20,7 @@ def __getattr__(name: str):
                 "(or 'railtracks[cli]' for backward compatibility)."
             ) from e
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__() -> list[str]:
+    return sorted(set(__all__))
