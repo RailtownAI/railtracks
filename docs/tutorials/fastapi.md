@@ -2,13 +2,13 @@
 
 Railtracks framework makes it incredibly easy to expose your flows and agents as a REST API using FastAPI. Because Railtracks natively relies on Python's `async`/`await` patterns for execution, it integrates seamlessly to FastAPI's async route handlers. This enables you to host your agents in robust web servers for production environments.
 
-In this tutorial, you will learn how to:
+In this tutorial,e you will learn how to:
 
 * Wrap an agent or flow inside a FastAPI route
 * Serve an agent as a REST endpoint
 * Connect external services to your railtracks logic
 
-For a full interactive walkthrough with code, be sure to check out our [FastAPI Integration Notebook](../../examples/tutorials/fastapi_agent.ipynb) which runs you through creating and testing the API directly!
+For a full interactive walkthrough with code, be sure to check out our [FastAPI Integration Notebook](https://drive.google.com/file/d/1sDmdHVHlkirXzoqI_H5Vumk6dsMJ-PO8/view?usp=sharing) which runs you through creating and testing the API directly!
 
 ## Example: Creating a simple endpoint
 
