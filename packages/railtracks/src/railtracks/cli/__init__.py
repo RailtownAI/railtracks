@@ -19,7 +19,6 @@ For testing purposes, you can add `alias railtracks="python railtracks.py"` to y
 from __future__ import annotations
 
 import importlib.util
-import json
 import os
 import socket
 import sys
@@ -161,9 +160,7 @@ def get_remote_ui_version():
     try:
         req = urllib.request.Request(latest_ui_url, method="HEAD")
         with urllib.request.urlopen(req, timeout=5) as response:
-            return response.headers.get("ETag") or response.headers.get(
-                "Last-Modified"
-            )
+            return response.headers.get("ETag") or response.headers.get("Last-Modified")
     except Exception:
         return None
 

@@ -12,9 +12,9 @@ def __getattr__(name: str):
 
             return ChatUI
         except ImportError as e:
-            from railtracks.visual_extra import VisualExtraRequired
+            from railtracks.visual_extra import VisualExtraRequiredError
 
-            raise VisualExtraRequired(
+            raise VisualExtraRequiredError(
                 "The local chat UI requires optional dependencies. "
                 "Install with: pip install 'railtracks[visual]' "
                 "(or 'railtracks[cli]' for backward compatibility)."

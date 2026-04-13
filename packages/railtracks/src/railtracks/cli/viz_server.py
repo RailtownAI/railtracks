@@ -115,9 +115,7 @@ class RailtracksServer:
         """Start the FastAPI server"""
         self.running = True
 
-        print_success(
-            f"🚀 railtracks server running at http://localhost:{self.port}"
-        )
+        print_success(f"🚀 railtracks server running at http://localhost:{self.port}")
         print_status(f"📁 Serving files from: {cli_directory}/ui/")
         print_status("📋 API endpoints:")
         print_status("   GET  /api/evaluations - Get all evaluation JSON files")

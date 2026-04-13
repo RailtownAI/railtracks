@@ -142,11 +142,11 @@ async def local_chat(
         logger.info("Connecting with Local Chat Session")
 
         if interactive_interface is not None:
-            chat_ui_cls = interactive_interface
+            chat_ui = interactive_interface(**chat_ui_kwargs)
         else:
-            from ..human_in_the_loop import ChatUI as chat_ui_cls
+            from ..human_in_the_loop import ChatUI
 
-        chat_ui = chat_ui_cls(**chat_ui_kwargs)
+            chat_ui = ChatUI(**chat_ui_kwargs)
 
         await chat_ui.connect()
 
