@@ -31,7 +31,6 @@ theme:
     - navigation.tabs
     - navigation.tabs.sticky
     - navigation.sections
-    - navigation.expand
     - navigation.indexes
     - navigation.prefetch
     - navigation.path
@@ -88,6 +87,7 @@ nav:
             - Function Tools: documentation/agent_design/tools/function_tools.md
             - Agents as Tools: documentation/agent_design/tools/agents_as_tools.md
             - MCP: documentation/agent_design/tools/mcp.md
+        - Structured Extraction: documentation/agent_design/structured_extraction.md
         - Modalities: documentation/agent_design/modalities.md
 
     - Agent Invocation:
@@ -97,7 +97,7 @@ nav:
         - Guardrails:
             - Overview: documentation/advanced/guardrails/overview.md
             - Quickstart: documentation/advanced/guardrails/quickstart.md
-        - Agent Context: documentation/advanced/context/context.md
+        - Agent Context: documentation/advanced/context.md
     # - Tools + MCP:
     #     - Equip your LLMs: tools_mcp/tools_mcp.md
     #     - MCP:
