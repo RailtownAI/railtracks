@@ -12,12 +12,11 @@ def __getattr__(name: str):
 
             return ChatUI
         except ImportError as e:
-            from railtracks.visual_extra import VisualExtraRequiredError
+            from railtracks.exceptions import VisualExtraRequiredError
 
             raise VisualExtraRequiredError(
                 "The local chat UI requires optional dependencies. "
-                "Install with: pip install 'railtracks[visual]' "
-                "(or 'railtracks[cli]' for backward compatibility)."
+                "Install with: pip install 'railtracks[visual]'."
             ) from e
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 

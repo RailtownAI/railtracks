@@ -95,8 +95,7 @@ def _warn_if_visual_deps_missing() -> None:
         return
     print_warning(
         "The visualizer (railtracks viz) requires extra dependencies. "
-        "Install with: pip install 'railtracks[visual]' "
-        "(or pip install 'railtracks[cli]' for backward compatibility)."
+        "Install with: pip install 'railtracks[visual]'."
     )
 
 
@@ -438,9 +437,6 @@ def _print_help():
 def _exit_visual_deps_missing() -> None:
     print_error("The visualizer requires optional dependencies.")
     print_status("Install with: pip install 'railtracks[visual]'")
-    print_status(
-        "(or: pip install 'railtracks[cli]' — same dependencies, backward compatible)"
-    )
     sys.exit(1)
 
 
