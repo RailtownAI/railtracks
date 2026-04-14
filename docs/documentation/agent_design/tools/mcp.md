@@ -55,7 +55,7 @@ Once you've connected to an MCP server, you can use the tools with your Railtrac
     ```python
     --8<-- "docs/scripts/MCP_tools_in_RT.py:web_search_example"
     ```
-    Guide: [Websearch Server](../guides/websearch_integration.md)
+    Guide: [Websearch Server](../../../integrations/other/websearch_integration.md)
 
 ??? Tip "GitHub Server"
     
@@ -64,7 +64,7 @@ Once you've connected to an MCP server, you can use the tools with your Railtrac
     --8<-- "docs/scripts/MCP_tools_in_RT.py:github_example"
     ```
 
-    Guide: [Github Server](../guides/github.md)
+    Guide: [Github Server](../../../integrations/mcps/github.md)
 
 
     !!! Warning
@@ -83,7 +83,7 @@ Once you've connected to an MCP server, you can use the tools with your Railtrac
     ```python
     --8<-- "docs/scripts/MCP_tools_in_RT.py:notion_example"
     ```
-    Guide: [Notion Server](../guides/notion.md)
+    Guide: [Notion Server](../../../integrations/mcps/notion.md)
     
 
 ### Combining Multiple MCP Tools
@@ -98,17 +98,17 @@ You can combine tools from different MCP's into one single agent.
 
 For detailed setup and usage instructions for specific MCP tools:
 
-- [GitHub Tool Guide](../guides/github.md)
-- [Notion Tool Guide](../guides/notion.md)
-- [Slack Tool Guide](../guides/slack.md)
-- [Web Search Integration Guide](../guides/websearch_integration.md)
+- [GitHub Tool Guide](../../../integrations/mcps/github.md)
+- [Notion Tool Guide](../../../integrations/mcps//notion.md)
+- [Slack Tool Guide](../../../integrations/mcps//slack.md)
+- [Web Search Integration Guide](../../../integrations/other/websearch_integration.md)
 
-## 2. Exposing RT Tools as MCP Tools
+## 2. Exposing Railtracks Nodes as MCP Tools
 
 
 ### Overview
 
-You can expose any RT Tool as an MCP-compatible tool, making it accessible to any MCP client or LLM agent that supports the [Model Context Protocol (MCP)](mcp.md). This allows you to share your custom RT logic with other frameworks, agents, or applications that use MCP.
+You can expose any Railtrack Node as an MCP-compatible tool, making it accessible to any MCP client or LLM agent that supports the [Model Context Protocol (MCP)](mcp.md). This allows you to share your custom RT logic with other frameworks, agents, or applications that use MCP.
 
 RC provides utilities to convert your Nodes into MCP tools and run a FastMCP server, so your tools are discoverable and callable via standard MCP transports (HTTP, SSE, stdio).
 

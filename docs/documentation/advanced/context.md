@@ -42,7 +42,7 @@ In agentic systems, you can use context to store important facts or constraints 
 One of the most powerful features built on top of the context system is "prompt injection" (also called "context injection"). This allows dynamically inserting values from the global context into prompts for LLMs:
 
 !!! tip
-    For more details on prompt injection, see the [Prompts and Context Injection](../llm_support/prompts.md) documentation.
+    For more details on prompt injection, see the [Prompts and Context Injection Tutorial](../../tutorials/prompts_and_context.md) documentation.
 
 ## Benefits of Using Context
 

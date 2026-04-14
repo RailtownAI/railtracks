@@ -53,7 +53,7 @@ graph TD
 
 ## Handling More Complex Flows
 While `function_node` works well for linear flows, some scenarios require transferring between different agents like moving from technical support to billing in a customer service system.
-In these cases, you need to pass data directly between agents without mutations or the "telephone game" effect of traditional handoffs. Railtracks solves this with [context](../advanced_usage/context.md), a mechanism for sharing data across agent transfers while preserving integrity.
+In these cases, you need to pass data directly between agents without mutations or the "telephone game" effect of traditional handoffs. Railtracks solves this with [context](../documentation/advanced/context.md), a mechanism for sharing data across agent transfers while preserving integrity.
 Let's see how context enables reliable multi-agent workflows.
 
 ### Customer Service Agents

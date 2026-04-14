@@ -26,7 +26,7 @@ These errors are automatically raised by Railtracks when issues occur during exe
 - **`NodeInvocationError`** - Raised during node execution (has `fatal` flag)
 - **`LLMError`** - Raised during LLM operations (includes `message_history`)
 - **`GlobalTimeOutError`** - Raised when execution exceeds timeout
-- **`ContextError`** - Raised for [context](../advanced_usage/context.md) related issues
+- **`ContextError`** - Raised for [context](../documentation/advanced/context.md) related issues
 
 All internal errors include helpful debugging notes and formatted error messages to guide troubleshooting.
 

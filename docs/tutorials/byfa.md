@@ -1,6 +1,6 @@
 # Build Your First Agent
 
-In the [quickstart](../quickstart/quickstart.md), you ran a ready-made agent. Now let’s build your own step by step, starting from the simplest form and gradually adding more abilities.
+In the [quickstart](../documentation/getting_started/quickstart.md), you ran a ready-made agent. Now let’s build your own step by step, starting from the simplest form and gradually adding more abilities.
 
 ## Simple LLM Agent
 Start with minimal ingredients: a model + a system message
@@ -10,17 +10,17 @@ Start with minimal ingredients: a model + a system message
 ```
 
 ??? question "Supported LLMs"
-    Check out our full list of [supported providers](../llm_support/providers.md)
+    Check out our full list of [supported providers](../integrations/llms/providers.md)
 
 ## Adding Tool Calling
-What if your agent needs real-world data? You will need to give it [tools](../tools_mcp/tools/tools.md). This allows your agent to go beyond static responses and actually interact with the real world.
+What if your agent needs real-world data? You will need to give it _tools_. This allows your agent to go beyond static responses and actually interact with the real world.
 
 ??? tip "Creating a Tool"
     All you need is a Python function with docstring and the `rt.function_node` decorator
     ```python 
     --8<-- "docs/scripts/first_agent.py:general_tool"
     ```
-    [Learn more about tools](../tools_mcp/tools/tools.md)
+    [Learn more about tools](../concepts/tools.md)
 
 
 
@@ -33,7 +33,7 @@ What if your agent needs real-world data? You will need to give it [tools](../to
 ???+ note "Using MCP servers"
     MCP servers can be used as tools in the RT framework. 
 
-    To connect to an MCP, please refer to our [guide](../tools_mcp/mcp/mcp.md)
+    To connect to an MCP, please refer to our [guide](../concepts/mcp.md)
 
 ## Adding a Structured Output
 Now that you've seen how to add tools. Let's look at your agent can respond with reliable typed outputs. Schemas give you reliable, machine-checked outputs you can safely consume in code, rather than brittle strings.

@@ -17,7 +17,7 @@ In practice, you attach guardrails with `agent_node(..., guardrails=Guard(...))`
     GEMINI_API_KEY="..."
     ```
 
-    Railtracks supports multiple providers. See [Supported Providers](../llm_support/providers.md).
+    Railtracks supports multiple providers. See [Supported Providers](../../../integrations/llms/providers.md).
 
 ## Passing request
 

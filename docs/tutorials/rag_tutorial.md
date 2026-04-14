@@ -3,10 +3,10 @@
 This tutorial will take you from zero to a RAG-powered agent in just a few minutes. We'll cover how Railtracks can help you build the perfect RAG agent for your needs.
 
 !!! tip "New to RAG?"
-    Not sure what RAG is or why you might want to use it? Check out our brief explainer [here](../background/RAG.md).
+    Not sure what RAG is or why you might want to use it? Check out our brief explainer [here](../concepts/RAG.md).
 
 !!! warning "Vector Stores"
-    To use RAG in Railtracks, you’ll need to understand how our vector stores work. You can read about them [here](../vector_stores/vector_store_info.md).
+    To use RAG in Railtracks, you’ll need to understand how our vector stores work. You can read about them [here](../integrations/vector_stores/vector_store_info.md).
 
 You have two options when connecting your agent to RAG. Let's start with the best, most “agentic” method.
 
@@ -28,4 +28,4 @@ You can also use our pre-configured RAG node that automatically collects context
 
 !!! success "Next Steps"
     - Check out the [RAG Reference Documentation](../tools_mcp/RAG.md) to learn how to build RAG applications in Railtracks.
-    - Explore the [Tools Documentation](../tools_mcp/tools/tools.md) for integrating any type of tool.
+    - Explore the [Agent Design Documentation(../documentation/agent_design/overview.md) for integrating any type of tool.
