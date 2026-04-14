@@ -8,8 +8,12 @@ from __future__ import annotations
 
 import importlib
 import logging
+from typing import TYPE_CHECKING
 
 from dotenv import load_dotenv
+
+if TYPE_CHECKING:
+    import railtracks.interaction.interactive as interactive
 
 __all__ = [
     "Session",

@@ -10,7 +10,7 @@ pip install railtracks
 pip install 'railtracks[visual]'
 ```
 !!! note 
-    `railtracks[visual]` (or `railtracks[cli]` — same extras, backward compatible) is optional, but required for the visualization step. 
+    `railtracks[visual]` is optional, but required for the visualization step.
 
 
 ### 2. Running your Agent

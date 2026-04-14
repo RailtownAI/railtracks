@@ -46,7 +46,21 @@ async def _chat_ui_interactive(
     *args,
     **kwargs,
 ) -> _TOutput:
-    """Handles the interactive session logic using the ChatUI interface."""
+    """Handles the interactive session logic using the ChatUI interface.
+
+    Args:
+        chat_ui: An instance of the ChatUI class to manage the user interface.
+        node: The LLMBase class to interact with.
+        initial_message_to_user: An optional message to display to the user at the start of the chat session.
+        initial_message_to_agent: An optional message to send to the agent to initiate the conversation.
+        turns: The maximum number of conversational turns before the session terminates. If None,
+            the session continues until manually closed.
+        *args: Additional positional arguments to pass to the node constructor.
+        **kwargs: Additional keyword arguments to pass to the node constructor.
+
+    Returns:
+        The final output from the node after the interactive session concludes.
+    """
     msg_history = MessageHistory([])
 
     if initial_message_to_user is not None:
