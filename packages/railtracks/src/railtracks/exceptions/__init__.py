@@ -6,6 +6,7 @@ from .errors import (
     NodeCreationError,
     NodeInvocationError,
 )
+from .optional import VisualExtraRequiredError
 
 __all__ = [
     "FatalError",
@@ -14,4 +15,5 @@ __all__ = [
     "GlobalTimeOutError",
     "LLMError",
     "ContextError",
+    "VisualExtraRequiredError",
 ]

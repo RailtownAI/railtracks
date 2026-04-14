@@ -15,22 +15,25 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
-
 from railtracks.cli import (
-    _print_update_available,
-    app,
+    _visual_dependencies_available,
     check_for_ui_update,
     create_railtracks_dir,
     get_remote_ui_version,
     get_script_directory,
     get_stored_ui_version,
     is_port_in_use,
+    main,
+    save_ui_version,
+)
+from railtracks.cli.io import (
+    _print_update_available,
     print_error,
     print_status,
     print_success,
     print_warning,
-    save_ui_version,
 )
+from railtracks.cli.viz_server import app
 
 
 class TestUtilityFunctions(unittest.TestCase):
@@ -323,39 +326,17 @@ class TestPortChecking(unittest.TestCase):
             result = is_port_in_use(test_port)
             self.assertTrue(result)
 
-    @patch('railtracks.cli.sys.exit')
     @patch('railtracks.cli.print_error')
-    @patch('railtracks.cli.print_warning')
-    @patch('railtracks.cli.print_status')
-    @patch('railtracks.cli.is_port_in_use')
-    def test_viz_command_port_in_use(self, mock_is_port_in_use, mock_print_status,
-                                   mock_print_warning, mock_print_error, mock_sys_exit):
-        """Test viz command behavior when port is in use"""
-        # Mock port as in use
-        mock_is_port_in_use.return_value = True
+    @patch('railtracks.cli.is_port_in_use', return_value=True)
+    @patch('railtracks.cli._visual_dependencies_available', return_value=True)
+    @patch('railtracks.cli.sys.argv', ['railtracks', 'viz'])
+    def test_viz_command_port_in_use(self, _mock_deps, _mock_port, mock_print_error):
+        """Test viz command exits with error when port is in use"""
+        with self.assertRaises(SystemExit) as ctx:
+            main()
 
-        # Mock the main function to test just the viz command logic
-        with patch('railtracks.cli.create_railtracks_dir'), \
-             patch('railtracks.cli.RailtracksServer'):
-
-            # Simulate the viz command logic
-            if mock_is_port_in_use.return_value:
-                mock_print_error.assert_not_called()  # Not called yet
-                mock_print_warning.assert_not_called()  # Not called yet
-                mock_print_status.assert_not_called()  # Not called yet
-                mock_sys_exit.assert_not_called()  # Not called yet
-
-                # Simulate the actual error handling
-                mock_print_error("Port 3030 is already in use!")
-                mock_print_warning("You already have a railtracks viz server running.")
-                mock_print_status("Please stop the existing server or use a different port.")
-                mock_sys_exit(1)
-
-                # Verify the calls were made
-                mock_print_error.assert_called_with("Port 3030 is already in use!")
-                mock_print_warning.assert_called_with("You already have a railtracks viz server running.")
-                mock_print_status.assert_called_with("Please stop the existing server or use a different port.")
-                mock_sys_exit.assert_called_with(1)
+        self.assertEqual(ctx.exception.code, 1)
+        mock_print_error.assert_any_call("Port 3030 is already in use!")
 
     def test_viz_command_port_available(self):
         """Test viz command behavior when port is available"""
@@ -587,12 +568,14 @@ class TestUIVersionTracking(unittest.TestCase):
     # --- background thread for update check ---
 
     @patch('railtracks.cli.check_for_ui_update')
-    @patch('railtracks.cli.RailtracksServer')
+    @patch('railtracks.cli.viz_server.RailtracksServer')
     @patch('railtracks.cli.create_railtracks_dir')
     @patch('railtracks.cli.is_port_in_use', return_value=False)
+    @patch('railtracks.cli._visual_dependencies_available', return_value=True)
     @patch('railtracks.cli.sys.argv', ['railtracks', 'viz'])
-    def test_viz_runs_update_check_in_background_thread(self, _mock_port, _mock_dir,
-                                                         mock_server, mock_check):
+    def test_viz_runs_update_check_in_background_thread(self, _mock_deps, _mock_port,
+                                                         _mock_dir, mock_server,
+                                                         mock_check):
         """viz command runs check_for_ui_update in a daemon thread, not blocking main"""
         thread_kwargs = {}
 
@@ -614,6 +597,106 @@ class TestUIVersionTracking(unittest.TestCase):
                       "check_for_ui_update should be the thread target")
         self.assertTrue(thread_kwargs.get('daemon'),
                         "Update-check thread should be a daemon thread")
+
+
+class TestMainDispatch(unittest.TestCase):
+    """Test the main() CLI entrypoint dispatching"""
+
+    @patch('railtracks.cli._print_help')
+    @patch('railtracks.cli.sys.argv', ['railtracks'])
+    def test_no_args_shows_help_and_exits(self, mock_help):
+        """main() with no command shows help and exits"""
+        with self.assertRaises(SystemExit) as ctx:
+            main()
+        self.assertEqual(ctx.exception.code, 1)
+        mock_help.assert_called_once()
+
+    @patch('builtins.print')
+    @patch('railtracks.cli.sys.argv', ['railtracks', 'bogus'])
+    def test_unknown_command_exits(self, mock_print):
+        """main() with an unknown command prints error and exits"""
+        with self.assertRaises(SystemExit) as ctx:
+            main()
+        self.assertEqual(ctx.exception.code, 1)
+        printed = [call[0][0] for call in mock_print.call_args_list]
+        self.assertTrue(any('bogus' in s for s in printed))
+
+    @patch('railtracks.cli.print_error')
+    @patch('railtracks.cli.print_status')
+    @patch('railtracks.cli._visual_dependencies_available', return_value=False)
+    @patch('railtracks.cli.sys.argv', ['railtracks', 'viz'])
+    def test_viz_exits_when_visual_deps_missing(self, _mock_deps,
+                                                mock_status, mock_error):
+        """main() viz exits gracefully when visual extras are not installed"""
+        with self.assertRaises(SystemExit) as ctx:
+            main()
+        self.assertEqual(ctx.exception.code, 1)
+        error_messages = ' '.join(c[0][0] for c in mock_error.call_args_list)
+        self.assertIn('optional dependencies', error_messages)
+
+    @patch('railtracks.cli.init_railtracks')
+    @patch('railtracks.cli.sys.argv', ['railtracks', 'init'])
+    def test_init_command(self, mock_init):
+        """main() dispatches 'init' to init_railtracks()"""
+        main()
+        mock_init.assert_called_once()
+
+    @patch('railtracks.cli.update_railtracks')
+    @patch('railtracks.cli.sys.argv', ['railtracks', 'update'])
+    def test_update_command(self, mock_update):
+        """main() dispatches 'update' to update_railtracks()"""
+        main()
+        mock_update.assert_called_once()
+
+    @patch('railtracks.cli.print_error')
+    @patch('railtracks.cli.sys.argv', ['railtracks', 'add'])
+    def test_add_no_spec_exits(self, mock_error):
+        """main() add with no spec shows usage and exits"""
+        with self.assertRaises(SystemExit) as ctx:
+            main()
+        self.assertEqual(ctx.exception.code, 1)
+
+
+class TestVisualDepsCheck(unittest.TestCase):
+    """Test _visual_dependencies_available()"""
+
+    @patch('railtracks.cli.importlib.util.find_spec')
+    def test_returns_true_when_both_present(self, mock_find_spec):
+        mock_find_spec.return_value = MagicMock()
+        self.assertTrue(_visual_dependencies_available())
+
+    @patch('railtracks.cli.importlib.util.find_spec')
+    def test_returns_false_when_fastapi_missing(self, mock_find_spec):
+        mock_find_spec.side_effect = lambda name: None if name == 'fastapi' else MagicMock()
+        self.assertFalse(_visual_dependencies_available())
+
+    @patch('railtracks.cli.importlib.util.find_spec')
+    def test_returns_false_when_uvicorn_missing(self, mock_find_spec):
+        mock_find_spec.side_effect = lambda name: None if name == 'uvicorn' else MagicMock()
+        self.assertFalse(_visual_dependencies_available())
+
+
+class TestLazyGetattr(unittest.TestCase):
+    """Test __getattr__ lazy exports on railtracks.cli"""
+
+    def test_app_resolves(self):
+        """railtracks.cli.app lazily loads the FastAPI app from viz_server"""
+        import railtracks.cli as cli_module
+        self.assertIsNotNone(cli_module.app)
+        from railtracks.cli.viz_server import app as direct_app
+        self.assertIs(cli_module.app, direct_app)
+
+    def test_railtracks_server_resolves(self):
+        """railtracks.cli.RailtracksServer lazily loads the class from viz_server"""
+        import railtracks.cli as cli_module
+        from railtracks.cli.viz_server import RailtracksServer
+        self.assertIs(cli_module.RailtracksServer, RailtracksServer)
+
+    def test_unknown_attr_raises(self):
+        """Accessing an undefined name raises AttributeError"""
+        import railtracks.cli as cli_module
+        with self.assertRaises(AttributeError):
+            _ = cli_module.nonexistent_thing
 
 
 if __name__ == "__main__":

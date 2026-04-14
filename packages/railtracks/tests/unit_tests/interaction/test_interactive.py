@@ -97,17 +97,13 @@ async def test_local_chat_session_success_path(
     mock_response = create_mock_response("Hello from user", "Hello from agent")
     mock_agent_call = AsyncMock(return_value=mock_response)
 
-    with (
-        patch.object(interactive, "ChatUI", mock_chat_ui_class),
-        patch.object(interactive, "call", mock_agent_call),
-    ):
+    with patch.object(interactive, "call", mock_agent_call):
         final_response = await interactive.local_chat(
             node=MockLLMNode,
             interactive_interface=mock_chat_ui_class,
             initial_message_to_user="Welcome!",
         )
 
-    # Verify initialization
     mock_chat_ui_class.assert_called_once()
     mock_chat_ui_instance.connect.assert_awaited_once()
 
@@ -138,13 +134,10 @@ async def test_local_chat_loop_never_runs(
     setup_mock_chat_ui(mock_chat_ui_instance, messages=[], connected_states=[False])
     mock_agent_call = AsyncMock()
 
-    with (
-        patch.object(interactive, "ChatUI", mock_chat_ui_class),
-        patch.object(interactive, "call", mock_agent_call),
-    ):
+    with patch.object(interactive, "call", mock_agent_call):
         final_response = await interactive.local_chat(
-            node=MockLLMNode, 
-            interactive_interface=mock_chat_ui_class
+            node=MockLLMNode,
+            interactive_interface=mock_chat_ui_class,
         )
 
     # Verify no interaction occurred
@@ -172,14 +165,11 @@ async def test_local_chat_terminates_on_turns(
     mock_response = LLMResponse(content="Response", message_history=MessageHistory())
     mock_agent_call = AsyncMock(return_value=mock_response)
 
-    with (
-        patch.object(interactive, "ChatUI", mock_chat_ui_class),
-        patch.object(interactive, "call", mock_agent_call),
-    ):
+    with patch.object(interactive, "call", mock_agent_call):
         await interactive.local_chat(
-            node=MockLLMNode, 
-            turns=1, 
-            interactive_interface=mock_chat_ui_class
+            node=MockLLMNode,
+            turns=1,
+            interactive_interface=mock_chat_ui_class,
         )
 
     mock_chat_ui_instance.disconnect.assert_awaited_once()
@@ -249,10 +239,7 @@ async def test_local_chat_with_url_attachments(
     )
     mock_agent_call = AsyncMock(return_value=mock_response)
 
-    with (
-        patch.object(interactive, "ChatUI", mock_chat_ui_class),
-        patch.object(interactive, "call", mock_agent_call),
-    ):
+    with patch.object(interactive, "call", mock_agent_call):
         await interactive.local_chat(
             node=MockLLMNode,
             interactive_interface=mock_chat_ui_class,
@@ -289,10 +276,7 @@ async def test_local_chat_with_multiple_url_attachments(
     )
     mock_agent_call = AsyncMock(return_value=mock_response)
 
-    with (
-        patch.object(interactive, "ChatUI", mock_chat_ui_class),
-        patch.object(interactive, "call", mock_agent_call),
-    ):
+    with patch.object(interactive, "call", mock_agent_call):
         await interactive.local_chat(
             node=MockLLMNode,
             interactive_interface=mock_chat_ui_class,
@@ -321,10 +305,7 @@ async def test_local_chat_with_no_attachments(
     mock_response = create_mock_response("Just a text message", "Response")
     mock_agent_call = AsyncMock(return_value=mock_response)
 
-    with (
-        patch.object(interactive, "ChatUI", mock_chat_ui_class),
-        patch.object(interactive, "call", mock_agent_call),
-    ):
+    with patch.object(interactive, "call", mock_agent_call):
         await interactive.local_chat(
             node=MockLLMNode,
             interactive_interface=mock_chat_ui_class,

@@ -6,9 +6,14 @@
 
 from __future__ import annotations
 
+import importlib
 import logging
+from typing import TYPE_CHECKING
 
 from dotenv import load_dotenv
+
+if TYPE_CHECKING:
+    import railtracks.interaction.interactive as interactive
 
 __all__ = [
     "Session",
@@ -60,7 +65,7 @@ from . import (
 )
 from ._session import ExecutionInfo, Session, session
 from .context.central import session_id, set_config
-from .interaction import broadcast, call, call_batch, interactive
+from .interaction import broadcast, call, call_batch
 from .nodes.manifest import ToolManifest
 from .orchestration.flow import Flow
 from .rt_mcp import MCPHttpParams, MCPStdioParams, connect_mcp, create_mcp_server
@@ -75,3 +80,13 @@ logging.getLogger("RT").addHandler(logging.NullHandler())
 
 # Do not worry about changing this version number manually. It will updated on release.
 __version__ = "1.0.0"
+
+
+def __getattr__(name: str):
+    if name == "interactive":
+        return importlib.import_module("railtracks.interaction.interactive")
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__() -> list[str]:
+    return sorted(set(__all__))

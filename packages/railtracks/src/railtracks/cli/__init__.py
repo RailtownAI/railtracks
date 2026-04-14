@@ -9,25 +9,42 @@ Commands:
   viz     Start the railtracks development server
 
 - Checks to see if there is a .railtracks directory
-- If not, it creates one (and adds it to the .gitignore)
+- If not, it creates one (and adds it to .gitignore)
 - If there is a build directory, it runs the build command
 - If there is a .railtracks directory, it starts the server
 
 For testing purposes, you can add `alias railtracks="python railtracks.py"` to your .bashrc or .zshrc
 """
 
-import json
+from __future__ import annotations
+
+import importlib.util
 import os
 import socket
 import sys
 import tempfile
 import threading
-import time
 import urllib.error
 import urllib.request
-import webbrowser
 import zipfile
 from pathlib import Path
+
+from colorama import Fore, Style
+
+from .constants import (
+    DEFAULT_PORT,
+    UI_VERSION_FILE,
+    cli_directory,
+    cli_name,
+    latest_ui_url,
+)
+from .io import (
+    _print_update_available,
+    print_error,
+    print_status,
+    print_success,
+    print_warning,
+)
 
 # ---------------------------------------------------------------------------
 # Skill registry — maps skill names to their metadata
@@ -47,28 +64,18 @@ SKILLS = {
 
 SUPPORTED_TOOLS = ("claude", "copilot", "cursor")
 
-try:
-    import uvicorn
-    from colorama import Fore, Style
-    from fastapi import FastAPI
-    from fastapi.responses import FileResponse, JSONResponse
-except ImportError:
-    print(
-        "[railtracks] The CLI requires additional dependencies.\n"
-        "Install them with: pip install 'railtracks[cli]'"
-    )
-    sys.exit(1)
 
-# TODO: Once we are releasing to PyPi change this to the release asset instead
-latest_ui_url = "https://railtownazureb2c.blob.core.windows.net/cdn/rc-viz/latest.zip"
+def __getattr__(name: str):
+    """Lazy exports for tests (app / RailtracksServer require railtracks[visual])."""
+    if name == "app":
+        from . import viz_server
 
-cli_name = "railtracks"
-cli_directory = ".railtracks"
-UI_VERSION_FILE = f"{cli_directory}/.ui_version"
-DEFAULT_PORT = 3030
+        return viz_server.app
+    if name == "RailtracksServer":
+        from .viz_server import RailtracksServer
 
-# FastAPI app instance
-app = FastAPI()
+        return RailtracksServer
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def get_script_directory():
@@ -76,20 +83,20 @@ def get_script_directory():
     return Path(__file__).parent.absolute()
 
 
-def print_status(message):
-    print(f"[{cli_name}] {message}")
+def _visual_dependencies_available() -> bool:
+    return (
+        importlib.util.find_spec("fastapi") is not None
+        and importlib.util.find_spec("uvicorn") is not None
+    )
 
 
-def print_success(message):
-    print(f"[{cli_name}] {message}")
-
-
-def print_warning(message):
-    print(f"[{cli_name}] {message}")
-
-
-def print_error(message):
-    print(f"[{cli_name}] {message}")
+def _warn_if_visual_deps_missing() -> None:
+    if _visual_dependencies_available():
+        return
+    print_warning(
+        "The visualizer (railtracks viz) requires extra dependencies. "
+        "Install with: pip install 'railtracks[visual]'."
+    )
 
 
 def is_port_in_use(port):
@@ -110,7 +117,6 @@ def create_railtracks_dir():
         railtracks_dir.mkdir(exist_ok=True)
         print_success(f"Created {cli_directory} directory")
 
-    # Check if cli_directory is in .gitignore
     gitignore_path = Path(".gitignore")
     if gitignore_path.exists():
         with open(gitignore_path) as f:
@@ -168,12 +174,6 @@ def check_for_ui_update():
         _print_update_available()
 
 
-def _print_update_available():
-    print(
-        f"{Fore.YELLOW}[{cli_name}] A newer UI is available! Run 'railtracks update' to upgrade.{Style.RESET_ALL}"
-    )
-
-
 def download_and_extract_ui():
     """Download the latest frontend UI and extract it to .railtracks/ui"""
     ui_url = latest_ui_url
@@ -183,11 +183,9 @@ def download_and_extract_ui():
 
     temp_zip_path = None
     try:
-        # Create temporary file for download
         with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as temp_file:
             temp_zip_path = temp_file.name
 
-        # Download the zip file and capture the ETag/version for future update checks
         print_status(f"Downloading from: {ui_url}")
         ui_version = None
         with urllib.request.urlopen(ui_url) as response:
@@ -197,20 +195,18 @@ def download_and_extract_ui():
             with open(temp_zip_path, "wb") as f:
                 f.write(response.read())
 
-        # Create ui directory if it doesn't exist
         ui_dir.mkdir(parents=True, exist_ok=True)
 
-        # Extract the zip file
         print_status("Extracting UI files...")
         with zipfile.ZipFile(temp_zip_path, "r") as zip_ref:
             zip_ref.extractall(ui_dir)
 
-        # Save the version for future update checks
         if ui_version:
             save_ui_version(ui_version)
 
         print_success("Frontend UI downloaded and extracted successfully")
         print_status(f"UI files available in: {ui_dir}")
+        _warn_if_visual_deps_missing()
 
     except urllib.error.URLError as e:
         print_error(f"Failed to download UI: {e}")
@@ -232,10 +228,8 @@ def init_railtracks():
     """Initialize the railtracks environment"""
     print_status("Initializing railtracks environment...")
 
-    # Setup directories
     create_railtracks_dir()
 
-    # Download and extract UI
     download_and_extract_ui()
 
     print_success("railtracks initialization completed!")
@@ -244,162 +238,9 @@ def init_railtracks():
 
 def update_railtracks():
     """Update the frontend UI to the latest version"""
-    print_status("Updating frontend UI to the latest version...")
+    print_status("Updating the frontend UI to the latest version...")
     download_and_extract_ui()
     print_success("Frontend UI updated successfully!")
-
-
-# FastAPI endpoints
-
-
-def get_railtracks_dir():
-    """Get the .railtracks directory path"""
-    return Path(cli_directory)
-
-
-def get_data_dir(subdir):
-    """Get a data subdirectory path (e.g., evaluations, sessions)"""
-    return get_railtracks_dir() / "data" / subdir
-
-
-@app.get("/api/evaluations")
-async def get_evaluations():
-    """Get all evaluation JSON files from .railtracks/data/evaluations/"""
-    evaluations_dir = get_data_dir("evaluations")
-    evaluations = []
-
-    if evaluations_dir.exists():
-        for file_path in evaluations_dir.glob("*.json"):
-            try:
-                with open(file_path, encoding="utf-8") as f:
-                    content = json.load(f)
-                    evaluations.append(content)
-            except (json.JSONDecodeError, IOError) as e:
-                print_error(f"Error reading evaluation file {file_path.name}: {e}")
-
-    return JSONResponse(content=evaluations)
-
-
-@app.get("/api/sessions")
-async def get_sessions():
-    """Get all session JSON files from .railtracks/data/sessions/"""
-    sessions_dir = get_data_dir("sessions")
-    sessions = []
-
-    if sessions_dir.exists():
-        for file_path in sessions_dir.glob("*.json"):
-            try:
-                with open(file_path, encoding="utf-8") as f:
-                    content = json.load(f)
-                    sessions.append(content)
-            except (json.JSONDecodeError, IOError) as e:
-                print_error(f"Error reading session file {file_path.name}: {e}")
-
-    return JSONResponse(content=sessions)
-
-
-@app.get("/api/sessions/{guid}")
-async def get_session(guid: str):
-    """Get a specific session JSON file by GUID from .railtracks/data/sessions/"""
-    sessions_dir = get_data_dir("sessions")
-    file_path = sessions_dir / f"{guid}.json"
-    if not file_path.exists():
-        # Sessions may be saved as {flow_name}_{guid}.json
-        matches = list(sessions_dir.glob(f"*_{guid}.json"))
-        if matches:
-            file_path = matches[0]
-
-    if not file_path.exists():
-        return JSONResponse(content={"error": "Session not found"}, status_code=404)
-
-    try:
-        with open(file_path, encoding="utf-8") as f:
-            content = json.load(f)
-        return JSONResponse(content=content)
-    except json.JSONDecodeError as e:
-        print_error(f"Invalid JSON in {file_path.name}: {e}")
-        return JSONResponse(content={"error": f"Invalid JSON: {e}"}, status_code=400)
-    except Exception as e:
-        print_error(f"Error reading session file {file_path.name}: {e}")
-        return JSONResponse(content={"error": "Internal Server Error"}, status_code=500)
-
-
-@app.get("/{full_path:path}")
-async def serve_ui_or_404(full_path: str):
-    """Serve UI files with SPA routing fallback (catch-all route)"""
-    # Skip API routes
-    if full_path.startswith("api/"):
-        return JSONResponse(content={"error": "Not Found"}, status_code=404)
-
-    ui_dir = Path(f"{cli_directory}/ui")
-    ui_file = ui_dir / full_path
-    if ui_file.exists() and ui_file.is_file():
-        return FileResponse(str(ui_file))
-    # Fallback to index.html for SPA routing
-    index_file = ui_dir / "index.html"
-    if index_file.exists():
-        return FileResponse(str(index_file))
-    return JSONResponse(content={"error": "File not found"}, status_code=404)
-
-
-class RailtracksServer:
-    """Main server class"""
-
-    def __init__(self, port=DEFAULT_PORT):
-        self.port = port
-        self.running = False
-        self.config = None
-
-    def start(self):
-        """Start the FastAPI server"""
-        self.running = True
-
-        # Print server info
-        print_success(f"🚀 railtracks server running at http://localhost:{self.port}")
-        print_status(f"📁 Serving files from: {cli_directory}/ui/")
-        print_status("📋 API endpoints:")
-        print_status("   GET  /api/evaluations - Get all evaluation JSON files")
-        print_status("   GET  /api/sessions - Get all session JSON files")
-        print_status("   GET  /api/sessions/{guid} - Get a specific session by GUID")
-        print_status("Press Ctrl+C to stop the server")
-
-        # Open browser after a short delay to ensure server is ready
-        def open_browser():
-            time.sleep(1)  # Give server a moment to fully start
-            url = f"http://localhost:{self.port}"
-            print_status(f"Opening browser to {url}")
-            try:
-                webbrowser.open(url)
-            except Exception as e:
-                print_warning(f"Could not open browser automatically: {e}")
-                print_status(f"Please manually open: {url}")
-
-        browser_thread = threading.Thread(target=open_browser)
-        browser_thread.daemon = True
-        browser_thread.start()
-
-        # Start uvicorn server
-        try:
-            config = uvicorn.Config(
-                app,
-                host="localhost",
-                port=self.port,
-                log_level="info",
-                access_log=False,  # We handle our own logging
-            )
-            server = uvicorn.Server(config)
-            self.config = config
-            server.run()
-        except KeyboardInterrupt:
-            self.stop()
-
-    def stop(self):
-        """Stop the server and cleanup"""
-        if self.running:
-            print_status("Shutting down railtracks...")
-            self.running = False
-
-            print_success("railtracks stopped.")
 
 
 # ---------------------------------------------------------------------------
@@ -466,7 +307,6 @@ def _add_copilot(skill_name: str, meta: dict, content: str, force: bool) -> None
             )
             if not force:
                 sys.exit(0)
-            # Remove old section before re-appending
             start_idx = existing.index(start_marker)
             end_idx = existing.index(end_marker) + len(end_marker)
             existing = existing[:start_idx].rstrip() + existing[end_idx:]
@@ -594,6 +434,12 @@ def _print_help():
     print()
 
 
+def _exit_visual_deps_missing() -> None:
+    print_error("The visualizer requires optional dependencies.")
+    print_status("Install with: pip install 'railtracks[visual]'")
+    sys.exit(1)
+
+
 def main():
     """Main function"""
     if len(sys.argv) < 2:
@@ -607,20 +453,21 @@ def main():
     elif command == "update":
         update_railtracks()
     elif command == "viz":
-        # Check if port is already in use
+        if not _visual_dependencies_available():
+            _exit_visual_deps_missing()
+
         if is_port_in_use(DEFAULT_PORT):
             print_error(f"Port {DEFAULT_PORT} is already in use!")
             print_status("Please stop the existing server.")
             sys.exit(1)
 
-        # Setup directories
+        from .viz_server import RailtracksServer
+
         create_railtracks_dir()
 
-        # Check for a newer UI version in the background (non-blocking)
         update_thread = threading.Thread(target=check_for_ui_update, daemon=True)
         update_thread.start()
 
-        # Start server
         server = RailtracksServer()
         server.start()
     elif command == "add":
