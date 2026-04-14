@@ -112,10 +112,18 @@ nav:
         - JudgeEvaluator: evaluations/evaluators/judge_evaluator.md
 
   - Observability:
-      - Visualization: observability/visualization.md
-      - Logging: observability/logging.md
-      - Broadcasting: observability/broadcasting.md
-      - Error Handling: observability/error_handling.md
+      - AgentHub:
+        - Local: observability/visualization.md
+        - Cloud: observability/cloud.md
+      - Human in the Loop:
+        - Overview: observability/human_in_the_loop/overview.md
+        - Local Chat Interface: observability/human_in_the_loop/local_chat_ui.md
+        - Terminal Interface: observability/human_in_the_loop/terminal.md
+        - Custom: observability/human_in_the_loop/hil.md
+      - Tracking:       
+        - Logging: observability/logging.md
+        - Broadcasting: observability/broadcasting.md
+        - Error Handling: observability/error_handling.md
 
   - Integrations:
     - Overview: integrations/overview.md

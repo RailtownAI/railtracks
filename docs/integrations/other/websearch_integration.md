@@ -1,6 +1,6 @@
-# Web Search Integration with RequestCompletion
+# Web Search Integration
 
-This guide demonstrates how to create a web search integration for RequestCompletion (RC) using both MCP (Model Context Protocol) servers and custom Google API tools. This setup allows your AI agent to search the web and fetch content from URLs.
+This guide demonstrates how to create a web search integration using both MCP (Model Context Protocol) servers and custom Google API tools. This setup allows your AI agent to search the web and fetch content from URLs.
 
 ## Prerequisites
 
@@ -37,7 +37,6 @@ The MCP server provides tools that can fetch and process content from URLs:
 ```python
 --8<-- "docs/scripts/tools_mcp_guides.py:fetch_mcp_server"
 ```
-Read more about the `from_mcp_server` utility [TODO: change this link](../mcp/mcp.md). <br>
 This connects to a [remote MCP server](https://remote-mcp-servers.com/servers/ecc7629a-9f3a-487d-86fb-039f46016621) that provides URL fetching capabilities.
 
 ### Step 3: Create Custom Google Search Tool

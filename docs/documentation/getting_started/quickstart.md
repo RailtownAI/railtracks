@@ -3,7 +3,7 @@ Railtracks gives them structure, tools, and visibility so you can build agents t
 
 In this quickstart, you’ll install Railtracks, run your first agent, and visualize its execution — all in a few minutes.
 
-### 1. Installation
+## 1. Installation
 
 ```bash title="Install Library"
 pip install railtracks
@@ -13,12 +13,12 @@ pip install 'railtracks[cli]'
     `railtracks[cli]` is optional, but required for the visualization step. 
 
 
-### 2. Running your Agent
+## 2. Running your Agent
 
 Define an agent with a model and system message, then call it with a prompt:
 
 ```python
---8<-- "docs/scripts/quickstart.py:setup"
+--8<-- "docs/scripts/documentation/quickstart.py:setup"
 ```
 
 !!! example "Example Output"
@@ -40,7 +40,7 @@ Define an agent with a model and system message, then call it with a prompt:
 ??? tip "Jupyter Notebooks"
     If you’re running this in a Jupyter notebook, remember that notebooks already run inside an event loop. In that case, call `await flow.ainvoke(...)` directly:
    
-### 3. Visualize the Run
+## 3. Visualize the Run
 With Railtracks CLI you can dive deep on your runs. Our observability runs locally from the command line. 
 
 !!! tip "Setup"    
@@ -66,20 +66,3 @@ With Railtracks CLI you can dive deep on your runs. Our observability runs local
 </div>
 
 This will open a web interface with all of your agent runs. You can dive deep into each step, see token usage, and more.
-
-----
-
-!!! Tip "Next Steps"
-    You’ve got your first agent running! Here’s where to go next:
-
-    **Learn the Basics**
-
-    **Build Something**
-
-    - [Building your First Agent](../tutorials/byfa.md)
-    - [Running your First Agent](../tutorials/ryfa.md)
-    
-    - [What is an Agent?](../background/agents.md)
-    - [What is a Tool?](../background/tools.md)
-    
-

@@ -11,7 +11,7 @@
 }
 
 .md-grid {
-  max-width: 80%;
+  max-width: 90%;
 }
 
 .md-content {
@@ -245,7 +245,7 @@
   grid-template-columns: repeat(2, 1fr);
   gap: 1.25rem;
   margin: 1.5rem auto;
-  max-width: 60%;
+  max-width: 80%;
 }
 
 .grid.cards > .card {
