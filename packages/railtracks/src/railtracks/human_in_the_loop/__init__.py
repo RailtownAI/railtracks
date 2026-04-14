@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from .human_in_the_loop import HIL, HILMessage
+
+if TYPE_CHECKING:
+    from .local_chat_ui import ChatUI
 
 __all__ = ["HIL", "HILMessage", "ChatUI"]
 
