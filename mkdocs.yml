@@ -113,7 +113,7 @@ nav:
 
   - Observability:
       - AgentHub:
-        - Local: observability/visualization.md
+        - Local: observability/local.md
         - Cloud: observability/cloud.md
       - Human in the Loop:
         - Overview: observability/human_in_the_loop/overview.md
