@@ -128,7 +128,6 @@ See the [Observability documentation](https://railtownai.github.io/railtracks/ob
 pip install railtracks 'railtracks[visual]'
 ```
 
-(`railtracks[cli]` is an alias for the same optional dependencies, for backward compatibility.)
 </details>
 
 
