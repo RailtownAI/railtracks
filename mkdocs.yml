@@ -134,7 +134,7 @@ nav:
 
   - Integrations:
     - Overview: integrations/overview.md
-    - Large Language Models:
+    - Language Models:
         - Providers: integrations/llms/providers.md
         - Platforms: integrations/llms/platforms.md
         - Streaming: integrations/llms/streaming.md
@@ -155,8 +155,10 @@ nav:
       - Flows: tutorials/walkthroughs/flows.md
       - RAG system: tutorials/walkthroughs/rag_tutorial.md
       - Vector Stores: tutorials/walkthroughs/vector_store_tutorial.md
+      - FastAPI Integration: tutorials/walkthroughs/fastapi.md
     - Notebooks:
       - Agent Architectures: tutorials/notebooks/architectures.md
+      - FastAPI Integration: tutorials/notebooks/fastapi.md
     - Concepts:
       - Core: 
           - Agents: tutorials/concepts/agents.md
