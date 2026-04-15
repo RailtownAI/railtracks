@@ -12,8 +12,6 @@ Railtracks requires **Python 3.10+**. Install it using your preferred package ma
     pip install 'railtracks[visual]'
     ```
 
-    The `[visual]` extra installs the Railtracks CLI's obervability components, which includes the local visualization server for observing agent runs in your browser. Read more at [Observability](../../observability/agenthub/local.md).
-
 === "uv"
 
     [uv](https://docs.astral.sh/uv/) is a fast, modern Python package manager. If you don't have it yet, install it with `pip install uv`.
@@ -33,10 +31,10 @@ Railtracks requires **Python 3.10+**. Install it using your preferred package ma
     ```
 
     ```bash title="SDK + local observability"
-    pip install 'railtracks[visual]'
+    pip install 'railtracks[visual]' # (1)!
     ```
-
-    The `[cli]` extra is only available via pip. Run the second command inside your active conda environment.
+    
+    1. From within your newly created Conda environment
 
 === "poetry"
 
@@ -47,8 +45,10 @@ Railtracks requires **Python 3.10+**. Install it using your preferred package ma
     ```
 
     ```bash title="SDK + local observability"
-    poetry add 'railtracks[cli]'
+    poetry add 'railtracks[visual]'
     ```
+
+The `[visual]` extra installs the Railtracks CLI's obervability components, which includes the local visualization server for observing agent runs in your browser. Read more at [Observability](../../observability/agenthub/local.md).
 
 ---
 
