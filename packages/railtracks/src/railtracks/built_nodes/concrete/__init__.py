@@ -8,6 +8,9 @@ __all__ = [
     "GuardedStreamingTerminalLLM",
     "GuardedStructuredLLM",
     "GuardedStreamingStructuredLLM",
+    "GuardedToolCallLLM",
+    "GuardedStreamingToolCallLLM",
+    "GuardedStructuredToolCallLLM",
     "StructuredLLM",
     "ToolCallLLM",
     "StructuredToolCallLLM",
@@ -35,8 +38,11 @@ from .function_base import (
 from .guarded_llm import (
     GuardedStreamingStructuredLLM,
     GuardedStreamingTerminalLLM,
+    GuardedStreamingToolCallLLM,
     GuardedStructuredLLM,
+    GuardedStructuredToolCallLLM,
     GuardedTerminalLLM,
+    GuardedToolCallLLM,
 )
 from .response import StringResponse, StructuredResponse
 from .structured_llm_base import StructuredLLM

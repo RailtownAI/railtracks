@@ -1,12 +1,14 @@
 from typing import Any, Callable
 
 from railtracks.built_nodes._node_builder import NodeBuilder
-from railtracks.built_nodes.concrete import (
+from railtracks.built_nodes.concrete.guarded_llm import (
     GuardedStreamingTerminalLLM,
     GuardedTerminalLLM,
+)
+from railtracks.built_nodes.concrete.terminal_llm_base import (
+    StreamingTerminalLLM,
     TerminalLLM,
 )
-from railtracks.built_nodes.concrete.terminal_llm_base import StreamingTerminalLLM
 from railtracks.guardrails.core import Guard
 from railtracks.llm import ModelBase, SystemMessage
 from railtracks.llm.tools import Parameter

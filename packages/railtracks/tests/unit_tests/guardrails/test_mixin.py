@@ -247,3 +247,37 @@ def test_build_output_event_has_output_message():
 def test_guardrail_agent_kind_fallback():
     node = GuardedOtherStub()
     assert node._guardrail_agent_kind() == "llm"
+
+
+class GuardedToolCallStub(_StubWithDetails, LLMGuardrailsMixin):
+    """Class name contains 'toolcall' (but not 'structured') for agent_kind tagging."""
+
+    guardrails: Guard | None = None
+    llm_model = _StubLLM()
+    uuid = "uuid-toolcall"
+
+    @classmethod
+    def name(cls) -> str:
+        return "ToolCall"
+
+
+class GuardedStructuredToolCallStub(_StubWithDetails, LLMGuardrailsMixin):
+    """Class name contains both 'structured' and 'toolcall' for agent_kind tagging."""
+
+    guardrails: Guard | None = None
+    llm_model = _StubLLM()
+    uuid = "uuid-structured-toolcall"
+
+    @classmethod
+    def name(cls) -> str:
+        return "Structured ToolCall"
+
+
+def test_guardrail_agent_kind_tool_call():
+    node = GuardedToolCallStub()
+    assert node._guardrail_agent_kind() == "tool_call"
+
+
+def test_guardrail_agent_kind_structured_tool_call():
+    node = GuardedStructuredToolCallStub()
+    assert node._guardrail_agent_kind() == "structured_tool_call"
