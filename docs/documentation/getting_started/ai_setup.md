@@ -9,7 +9,7 @@ Without a skill, your assistant has to guess at the API. With one, it knows exac
 Make sure the CLI is installed first:
 
 ```bash
-pip install 'railtracks[cli]'
+pip install 'railtracks[visual]'
 ```
 
 
