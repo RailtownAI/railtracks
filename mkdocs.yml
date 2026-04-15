@@ -5,8 +5,6 @@ site_description: "Railtracks is a framework for building LLM-powered agents and
 repo_name: railtracks
 repo_url: https://github.com/RailtownAI/railtracks/
 
-
-
 theme:
   name: material
   logo: assets/logo.svg

@@ -27,6 +27,19 @@ class GuardrailBlockedError(NodeInvocationError):
         notes: list[str] | None = None,
         fatal: bool = False,
     ):
+        """Create a block error with optional trace and user-facing context.
+
+        Args:
+            rail_name: Name of the rail that blocked, if known.
+            reason: Machine-oriented explanation (also embedded in the base message).
+            user_facing_message: Optional short text for clients or UIs.
+            traces: Optional list of :class:`~railtracks.guardrails.core.trace.GuardrailTrace`
+                from the failed run.
+            meta: Optional structured details copied from the blocking decision.
+            notes: Extra debug lines forwarded to :class:`NodeInvocationError`.
+            fatal: Passed through to :class:`NodeInvocationError` (whether the run is
+                considered unrecoverable).
+        """
         self.rail_name = rail_name
         self.reason = reason
         self.user_facing_message = user_facing_message

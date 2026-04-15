@@ -11,6 +11,7 @@ authors = [
     { name = "Amir Refaee", email = "amir@railtown.ai" },
     { name = "Aryan Ballani", email = "aryan@railtown.ai" },
     { name = "Tristan Brown", email = "tristan@railtown.ai" },
+    { name = "Pooria Ashrafian", email = "pooria@railtown.ai" }
 ]
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -54,11 +55,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-chat = ["fastapi >= 0.104.0"]
-cli = [
+visual = [
     "fastapi >= 0.104.0",
     "uvicorn[standard] >= 0.24.0",
 ]
+cli = ["railtracks[visual]"]
+chat = ["railtracks[visual]"]
 # For each Integration package dependencies go here.
 rag = ["litellm >= 1.70.2"]
 chroma = [
@@ -69,7 +71,7 @@ chroma = [
 portkey = ["portkey_ai >= 2.0.2"]
 integrations = ["railtracks[portkey]", "railtracks[chroma]"]
 
-all = ["railtracks[chat,cli,integrations]"]
+all = ["railtracks[visual]", "railtracks[integrations]"]
 
 [project.scripts]
 railtracks = "railtracks.cli:main"

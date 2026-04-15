@@ -8,7 +8,6 @@ import json
 import os
 import shutil
 import socket
-import sys
 import tempfile
 import threading
 import unittest
@@ -16,23 +15,25 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
-
 from railtracks.cli import (
-    _print_update_available,
-    app,
+    _visual_dependencies_available,
     check_for_ui_update,
     create_railtracks_dir,
     get_remote_ui_version,
     get_script_directory,
     get_stored_ui_version,
     is_port_in_use,
-    migrate_railtracks,
+    main,
+    save_ui_version,
+)
+from railtracks.cli.io import (
+    _print_update_available,
     print_error,
     print_status,
     print_success,
     print_warning,
-    save_ui_version,
 )
+from railtracks.cli.viz_server import app
 
 
 class TestUtilityFunctions(unittest.TestCase):
@@ -325,39 +326,17 @@ class TestPortChecking(unittest.TestCase):
             result = is_port_in_use(test_port)
             self.assertTrue(result)
 
-    @patch('railtracks.cli.sys.exit')
     @patch('railtracks.cli.print_error')
-    @patch('railtracks.cli.print_warning')
-    @patch('railtracks.cli.print_status')
-    @patch('railtracks.cli.is_port_in_use')
-    def test_viz_command_port_in_use(self, mock_is_port_in_use, mock_print_status,
-                                   mock_print_warning, mock_print_error, mock_sys_exit):
-        """Test viz command behavior when port is in use"""
-        # Mock port as in use
-        mock_is_port_in_use.return_value = True
+    @patch('railtracks.cli.is_port_in_use', return_value=True)
+    @patch('railtracks.cli._visual_dependencies_available', return_value=True)
+    @patch('railtracks.cli.sys.argv', ['railtracks', 'viz'])
+    def test_viz_command_port_in_use(self, _mock_deps, _mock_port, mock_print_error):
+        """Test viz command exits with error when port is in use"""
+        with self.assertRaises(SystemExit) as ctx:
+            main()
 
-        # Mock the main function to test just the viz command logic
-        with patch('railtracks.cli.create_railtracks_dir'), \
-             patch('railtracks.cli.RailtracksServer'):
-
-            # Simulate the viz command logic
-            if mock_is_port_in_use.return_value:
-                mock_print_error.assert_not_called()  # Not called yet
-                mock_print_warning.assert_not_called()  # Not called yet
-                mock_print_status.assert_not_called()  # Not called yet
-                mock_sys_exit.assert_not_called()  # Not called yet
-
-                # Simulate the actual error handling
-                mock_print_error(f"Port 3030 is already in use!")
-                mock_print_warning("You already have a railtracks viz server running.")
-                mock_print_status("Please stop the existing server or use a different port.")
-                mock_sys_exit(1)
-
-                # Verify the calls were made
-                mock_print_error.assert_called_with("Port 3030 is already in use!")
-                mock_print_warning.assert_called_with("You already have a railtracks viz server running.")
-                mock_print_status.assert_called_with("Please stop the existing server or use a different port.")
-                mock_sys_exit.assert_called_with(1)
+        self.assertEqual(ctx.exception.code, 1)
+        mock_print_error.assert_any_call("Port 3030 is already in use!")
 
     def test_viz_command_port_available(self):
         """Test viz command behavior when port is available"""
@@ -426,249 +405,6 @@ class TestPortChecking(unittest.TestCase):
 
         result = is_port_in_use(3030)
         self.assertTrue(result)  # Should return True when socket fails to bind
-
-
-class TestMigrateRailtracks(unittest.TestCase):
-    """Test migrate_railtracks function"""
-
-    def setUp(self):
-        """Set up temporary directory for testing"""
-        self.test_dir = tempfile.mkdtemp()
-        self.original_cwd = os.getcwd()
-        os.chdir(self.test_dir)
-
-    def tearDown(self):
-        """Clean up temporary directory"""
-        os.chdir(self.original_cwd)
-        shutil.rmtree(self.test_dir)
-
-    @patch('railtracks.cli.print_status')
-    @patch('railtracks.cli.print_success')
-    def test_migrate_creates_all_directories(self, mock_success, mock_status):
-        """Test that all required directories are created when they don't exist"""
-        # Ensure .railtracks doesn't exist
-        railtracks_dir = Path(".railtracks")
-        self.assertFalse(railtracks_dir.exists())
-
-        migrate_railtracks()
-
-        # Verify all directories exist
-        self.assertTrue(railtracks_dir.exists())
-        self.assertTrue(railtracks_dir.is_dir())
-
-        data_dir = railtracks_dir / "data"
-        self.assertTrue(data_dir.exists())
-        self.assertTrue(data_dir.is_dir())
-
-        evaluations_dir = data_dir / "evaluations"
-        self.assertTrue(evaluations_dir.exists())
-        self.assertTrue(evaluations_dir.is_dir())
-
-        sessions_dir = data_dir / "sessions"
-        self.assertTrue(sessions_dir.exists())
-        self.assertTrue(sessions_dir.is_dir())
-
-        # Should have called print functions
-        mock_status.assert_called()
-        mock_success.assert_called()
-
-    @patch('railtracks.cli.print_status')
-    @patch('railtracks.cli.print_success')
-    def test_migrate_with_existing_directories(self, mock_success, mock_status):
-        """Test that existing directories are not recreated (idempotent)"""
-        # Create all directories first
-        railtracks_dir = Path(".railtracks")
-        railtracks_dir.mkdir()
-        data_dir = railtracks_dir / "data"
-        data_dir.mkdir()
-        evaluations_dir = data_dir / "evaluations"
-        evaluations_dir.mkdir()
-        sessions_dir = data_dir / "sessions"
-        sessions_dir.mkdir()
-
-        # Run migration
-        migrate_railtracks()
-
-        # All directories should still exist
-        self.assertTrue(railtracks_dir.exists())
-        self.assertTrue(data_dir.exists())
-        self.assertTrue(evaluations_dir.exists())
-        self.assertTrue(sessions_dir.exists())
-
-    @patch('railtracks.cli.print_status')
-    @patch('railtracks.cli.print_success')
-    def test_migrate_moves_json_files_from_root(self, mock_success, mock_status):
-        """Test moving JSON files from .railtracks root to .railtracks/data/sessions/"""
-        # Create .railtracks directory
-        railtracks_dir = Path(".railtracks")
-        railtracks_dir.mkdir()
-
-        # Create JSON files in root
-        test_file1 = railtracks_dir / "test1.json"
-        test_file2 = railtracks_dir / "test2.json"
-
-        with open(test_file1, "w") as f:
-            json.dump({"test": "data1"}, f)
-        with open(test_file2, "w") as f:
-            json.dump({"test": "data2"}, f)
-
-        # Run migration
-        migrate_railtracks()
-
-        # Files should be moved to data/sessions/
-        sessions_dir = railtracks_dir / "data" / "sessions"
-        self.assertTrue((sessions_dir / "test1.json").exists())
-        self.assertTrue((sessions_dir / "test2.json").exists())
-
-        # Files should no longer be in root
-        self.assertFalse(test_file1.exists())
-        self.assertFalse(test_file2.exists())
-
-        # Verify file contents
-        with open(sessions_dir / "test1.json") as f:
-            content1 = json.load(f)
-            self.assertEqual(content1, {"test": "data1"})
-
-        with open(sessions_dir / "test2.json") as f:
-            content2 = json.load(f)
-            self.assertEqual(content2, {"test": "data2"})
-
-    @patch('railtracks.cli.print_status')
-    @patch('railtracks.cli.print_success')
-    def test_migrate_does_not_move_subdirectory_json(self, mock_success, mock_status):
-        """Test that JSON files in subdirectories are NOT moved"""
-        # Create .railtracks directory structure
-        railtracks_dir = Path(".railtracks")
-        railtracks_dir.mkdir()
-
-        # Create JSON file in root
-        root_file = railtracks_dir / "root.json"
-        with open(root_file, "w") as f:
-            json.dump({"location": "root"}, f)
-
-        # Create subdirectories with JSON files
-        ui_dir = railtracks_dir / "ui"
-        ui_dir.mkdir()
-        ui_file = ui_dir / "ui.json"
-        with open(ui_file, "w") as f:
-            json.dump({"location": "ui"}, f)
-
-        data_dir = railtracks_dir / "data"
-        data_dir.mkdir()
-        data_file = data_dir / "data.json"
-        with open(data_file, "w") as f:
-            json.dump({"location": "data"}, f)
-
-        # Run migration
-        migrate_railtracks()
-
-        # Root file should be moved
-        sessions_dir = railtracks_dir / "data" / "sessions"
-        self.assertTrue((sessions_dir / "root.json").exists())
-        self.assertFalse(root_file.exists())
-
-        # Subdirectory files should NOT be moved
-        self.assertTrue(ui_file.exists())
-        self.assertTrue(data_file.exists())
-
-    @patch('railtracks.cli.print_status')
-    @patch('railtracks.cli.print_success')
-    def test_migrate_no_json_files(self, mock_success, mock_status):
-        """Test handling when no JSON files exist in root"""
-        # Create .railtracks directory
-        railtracks_dir = Path(".railtracks")
-        railtracks_dir.mkdir()
-
-        # Run migration
-        migrate_railtracks()
-
-        # Directories should be created
-        sessions_dir = railtracks_dir / "data" / "sessions"
-        self.assertTrue(sessions_dir.exists())
-
-        # Should have printed appropriate message
-        calls = [str(call) for call in mock_status.call_args_list]
-        self.assertTrue(any("No JSON files" in str(call) for call in calls))
-
-    @patch('railtracks.cli.print_status')
-    @patch('railtracks.cli.print_success')
-    def test_migrate_console_output(self, mock_success, mock_status):
-        """Test console output messages"""
-        # Create .railtracks directory with JSON file
-        railtracks_dir = Path(".railtracks")
-        railtracks_dir.mkdir()
-
-        test_file = railtracks_dir / "migration_test.json"
-        with open(test_file, "w") as f:
-            json.dump({"test": "data"}, f)
-
-        # Run migration
-        migrate_railtracks()
-
-        # Check that status messages were called
-        mock_status.assert_called()
-        mock_success.assert_called()
-
-        # Check for specific migration message
-        success_calls = [str(call) for call in mock_success.call_args_list]
-        self.assertTrue(any("Migrated migration_test.json" in str(call) for call in success_calls))
-
-    @patch('railtracks.cli.print_status')
-    @patch('railtracks.cli.print_success')
-    def test_migrate_multiple_files(self, mock_success, mock_status):
-        """Test migration of multiple JSON files"""
-        # Create .railtracks directory
-        railtracks_dir = Path(".railtracks")
-        railtracks_dir.mkdir()
-
-        # Create multiple JSON files
-        files = ["file1.json", "file2.json", "file3.json"]
-        for filename in files:
-            test_file = railtracks_dir / filename
-            with open(test_file, "w") as f:
-                json.dump({"file": filename}, f)
-
-        # Run migration
-        migrate_railtracks()
-
-        # All files should be moved
-        sessions_dir = railtracks_dir / "data" / "sessions"
-        for filename in files:
-            self.assertTrue((sessions_dir / filename).exists())
-            self.assertFalse((railtracks_dir / filename).exists())
-
-        # Check migration summary message
-        success_calls = [str(call) for call in mock_success.call_args_list]
-        self.assertTrue(any("3 file(s) moved" in str(call) for call in success_calls))
-
-    @patch('railtracks.cli.print_status')
-    @patch('railtracks.cli.print_success')
-    def test_migrate_partial_directory_structure(self, mock_success, mock_status):
-        """Test migration when some directories already exist"""
-        # Create .railtracks and data directories
-        railtracks_dir = Path(".railtracks")
-        railtracks_dir.mkdir()
-        data_dir = railtracks_dir / "data"
-        data_dir.mkdir()
-
-        # Create JSON file in root
-        test_file = railtracks_dir / "test.json"
-        with open(test_file, "w") as f:
-            json.dump({"test": "data"}, f)
-
-        # Run migration
-        migrate_railtracks()
-
-        # Missing directories should be created
-        evaluations_dir = data_dir / "evaluations"
-        sessions_dir = data_dir / "sessions"
-        self.assertTrue(evaluations_dir.exists())
-        self.assertTrue(sessions_dir.exists())
-
-        # File should be moved
-        self.assertTrue((sessions_dir / "test.json").exists())
-        self.assertFalse(test_file.exists())
-
 
 class TestUIVersionTracking(unittest.TestCase):
     """Test UI version persistence and update-check logic"""
@@ -812,10 +548,10 @@ class TestUIVersionTracking(unittest.TestCase):
         mock_urlopen.return_value = mock_response
 
         captured_paths = []
-        real_NamedTemporaryFile = tempfile.NamedTemporaryFile
+        real_named_temporary_file = tempfile.NamedTemporaryFile
 
         def capturing_ntf(**kwargs):
-            f = real_NamedTemporaryFile(**kwargs)
+            f = real_named_temporary_file(**kwargs)
             captured_paths.append(f.name)
             return f
 
@@ -832,21 +568,23 @@ class TestUIVersionTracking(unittest.TestCase):
     # --- background thread for update check ---
 
     @patch('railtracks.cli.check_for_ui_update')
-    @patch('railtracks.cli.RailtracksServer')
+    @patch('railtracks.cli.viz_server.RailtracksServer')
     @patch('railtracks.cli.create_railtracks_dir')
     @patch('railtracks.cli.is_port_in_use', return_value=False)
+    @patch('railtracks.cli._visual_dependencies_available', return_value=True)
     @patch('railtracks.cli.sys.argv', ['railtracks', 'viz'])
-    def test_viz_runs_update_check_in_background_thread(self, _mock_port, _mock_dir,
-                                                         mock_server, mock_check):
+    def test_viz_runs_update_check_in_background_thread(self, _mock_deps, _mock_port,
+                                                         _mock_dir, mock_server,
+                                                         mock_check):
         """viz command runs check_for_ui_update in a daemon thread, not blocking main"""
         thread_kwargs = {}
 
-        real_Thread = threading.Thread
+        real_thread = threading.Thread
 
         def capturing_thread(**kwargs):
             if kwargs.get('target') is mock_check:
                 thread_kwargs.update(kwargs)
-            return real_Thread(**kwargs)
+            return real_thread(**kwargs)
 
         mock_server_instance = MagicMock()
         mock_server.return_value = mock_server_instance
@@ -859,6 +597,106 @@ class TestUIVersionTracking(unittest.TestCase):
                       "check_for_ui_update should be the thread target")
         self.assertTrue(thread_kwargs.get('daemon'),
                         "Update-check thread should be a daemon thread")
+
+
+class TestMainDispatch(unittest.TestCase):
+    """Test the main() CLI entrypoint dispatching"""
+
+    @patch('railtracks.cli._print_help')
+    @patch('railtracks.cli.sys.argv', ['railtracks'])
+    def test_no_args_shows_help_and_exits(self, mock_help):
+        """main() with no command shows help and exits"""
+        with self.assertRaises(SystemExit) as ctx:
+            main()
+        self.assertEqual(ctx.exception.code, 1)
+        mock_help.assert_called_once()
+
+    @patch('builtins.print')
+    @patch('railtracks.cli.sys.argv', ['railtracks', 'bogus'])
+    def test_unknown_command_exits(self, mock_print):
+        """main() with an unknown command prints error and exits"""
+        with self.assertRaises(SystemExit) as ctx:
+            main()
+        self.assertEqual(ctx.exception.code, 1)
+        printed = [call[0][0] for call in mock_print.call_args_list]
+        self.assertTrue(any('bogus' in s for s in printed))
+
+    @patch('railtracks.cli.print_error')
+    @patch('railtracks.cli.print_status')
+    @patch('railtracks.cli._visual_dependencies_available', return_value=False)
+    @patch('railtracks.cli.sys.argv', ['railtracks', 'viz'])
+    def test_viz_exits_when_visual_deps_missing(self, _mock_deps,
+                                                mock_status, mock_error):
+        """main() viz exits gracefully when visual extras are not installed"""
+        with self.assertRaises(SystemExit) as ctx:
+            main()
+        self.assertEqual(ctx.exception.code, 1)
+        error_messages = ' '.join(c[0][0] for c in mock_error.call_args_list)
+        self.assertIn('optional dependencies', error_messages)
+
+    @patch('railtracks.cli.init_railtracks')
+    @patch('railtracks.cli.sys.argv', ['railtracks', 'init'])
+    def test_init_command(self, mock_init):
+        """main() dispatches 'init' to init_railtracks()"""
+        main()
+        mock_init.assert_called_once()
+
+    @patch('railtracks.cli.update_railtracks')
+    @patch('railtracks.cli.sys.argv', ['railtracks', 'update'])
+    def test_update_command(self, mock_update):
+        """main() dispatches 'update' to update_railtracks()"""
+        main()
+        mock_update.assert_called_once()
+
+    @patch('railtracks.cli.print_error')
+    @patch('railtracks.cli.sys.argv', ['railtracks', 'add'])
+    def test_add_no_spec_exits(self, mock_error):
+        """main() add with no spec shows usage and exits"""
+        with self.assertRaises(SystemExit) as ctx:
+            main()
+        self.assertEqual(ctx.exception.code, 1)
+
+
+class TestVisualDepsCheck(unittest.TestCase):
+    """Test _visual_dependencies_available()"""
+
+    @patch('railtracks.cli.importlib.util.find_spec')
+    def test_returns_true_when_both_present(self, mock_find_spec):
+        mock_find_spec.return_value = MagicMock()
+        self.assertTrue(_visual_dependencies_available())
+
+    @patch('railtracks.cli.importlib.util.find_spec')
+    def test_returns_false_when_fastapi_missing(self, mock_find_spec):
+        mock_find_spec.side_effect = lambda name: None if name == 'fastapi' else MagicMock()
+        self.assertFalse(_visual_dependencies_available())
+
+    @patch('railtracks.cli.importlib.util.find_spec')
+    def test_returns_false_when_uvicorn_missing(self, mock_find_spec):
+        mock_find_spec.side_effect = lambda name: None if name == 'uvicorn' else MagicMock()
+        self.assertFalse(_visual_dependencies_available())
+
+
+class TestLazyGetattr(unittest.TestCase):
+    """Test __getattr__ lazy exports on railtracks.cli"""
+
+    def test_app_resolves(self):
+        """railtracks.cli.app lazily loads the FastAPI app from viz_server"""
+        import railtracks.cli as cli_module
+        self.assertIsNotNone(cli_module.app)
+        from railtracks.cli.viz_server import app as direct_app
+        self.assertIs(cli_module.app, direct_app)
+
+    def test_railtracks_server_resolves(self):
+        """railtracks.cli.RailtracksServer lazily loads the class from viz_server"""
+        import railtracks.cli as cli_module
+        from railtracks.cli.viz_server import RailtracksServer
+        self.assertIs(cli_module.RailtracksServer, RailtracksServer)
+
+    def test_unknown_attr_raises(self):
+        """Accessing an undefined name raises AttributeError"""
+        import railtracks.cli as cli_module
+        with self.assertRaises(AttributeError):
+            _ = cli_module.nonexistent_thing
 
 
 if __name__ == "__main__":
