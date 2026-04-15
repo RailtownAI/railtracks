@@ -227,7 +227,9 @@ class OutputLessToolCallLLM(
     ABC,
     Generic[_TCollectedOutput],
 ):
-    async def _handle_tool_calls(self) -> tuple[bool, Message | None]:
+    async def _handle_tool_calls(
+        self,
+    ) -> tuple[bool, Message | None, Response | None]:
         """
         Handles the execution of tool calls for the node, including LLM interaction and message history updates.
 
@@ -237,14 +239,16 @@ class OutputLessToolCallLLM(
         - Handles malformed LLM responses and raises errors as needed.
 
         Returns:
-            bool: True if more tool calls are expected (the tool call loop should continue),
-                  False if the tool call process is finished and a final answer is available.
+            A 3-tuple ``(still_looping, final_message, final_response)``.
+            ``still_looping`` is True when tool calls were dispatched and the
+            caller should loop again, False when the LLM produced a final text
+            reply.  ``final_message`` and ``final_response`` are non-None only
+            when ``still_looping`` is False.
 
         Raises:
             LLMError: If the LLM returns an unexpected message type or the message is malformed.
         """
 
-        # collect the response from the llm model
         response = await asyncio.to_thread(
             self.llm_model.chat_with_tools, self.message_hist, tools=self.tools()
         )
@@ -255,14 +259,28 @@ class OutputLessToolCallLLM(
                 message_history=self.message_hist,
             )
 
-        return await self._handle_response(response.message)
+        is_tool, message = await self._handle_response(response.message)
+        final_response = None if is_tool else response
+        return is_tool, message, final_response
 
     async def invoke(self):
+        context = self._pre_invoke(self.message_hist)
+        self.message_hist = context
+
         message = None
+        final_response = None
         while True:
-            still_tool_calls, message = await self._handle_tool_calls()
+            still_tool_calls, message, final_response = (
+                await self._handle_tool_calls()
+            )
             if not still_tool_calls:
                 break
+
+        if final_response is not None:
+            guarded = self._post_invoke(self.message_hist, final_response)
+            if isinstance(guarded, Response) and guarded is not final_response:
+                message = guarded.message
+                self.message_hist[-1] = message
 
         return self.return_output(message)
 
@@ -326,10 +344,14 @@ class StreamingOutputLessToolCallLLM(
                 )
 
     async def invoke(self):
-        """Makes a call containing the inputted message and system prompt to the llm model and returns the response
-        Returns:
-            (TerminalLLM.Output): The response message from the llm model
+        """Makes a call containing the inputted message and system prompt to the llm model and returns the response.
+
+        Note: only input guardrails are wired here.  Output guardrails on the
+        streaming tool-call path are deferred because the inner generator
+        bypasses ``LLMBase._gen_wrapper`` where ``_post_invoke`` normally runs.
         """
+        context = self._pre_invoke(self.message_hist)
+        self.message_hist = context
 
         while True:
             result = await self._handle_tool_calls()

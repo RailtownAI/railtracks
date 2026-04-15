@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Generic, Literal, TypeVar
+from typing import Any, ClassVar, Generic, Literal, Type, TypeVar, cast
 
 from pydantic import BaseModel
 
@@ -14,10 +14,9 @@ from railtracks.llm import (
 )
 
 from ._llm_base import StructuredOutputMixIn
-from ._tool_call_base import (
-    OutputLessToolCallLLM,
-)
+from ._tool_call_base import OutputLessToolCallLLM
 from .response import StructuredResponse
+from .structured_llm_base import StructuredLLM
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 _TStream = TypeVar("_TStream", Literal[True], Literal[False])
@@ -34,6 +33,8 @@ class StructuredToolCallLLM(
     This class is used to define the structure of the tool call and handle the
     structured output.
     """
+
+    structured_resp_node: ClassVar[Type[StructuredLLM[Any]]]
 
     def __init_subclass__(cls):
         system_structured = (
@@ -55,10 +56,17 @@ class StructuredToolCallLLM(
 
         # we only want to verify the output_schema is the class is not abstract
         if not has_abstract_methods:
-            cls.structured_resp_node = structured_llm(
-                cls.output_schema(),
-                system_message=system_structured,
-                llm=None,
+            # structured_llm() is always called with llm=None here, so the
+            # result is always a non-streaming StructuredLLM subclass.  The
+            # cast aligns with the ClassVar annotation and the actual runtime
+            # type; the union in structured_llm's return signature is too wide.
+            cls.structured_resp_node = cast(
+                Type[StructuredLLM[Any]],
+                structured_llm(
+                    cls.output_schema(),
+                    system_message=system_structured,
+                    llm=None,
+                ),
             )
 
         super().__init_subclass__()
@@ -76,6 +84,12 @@ class StructuredToolCallLLM(
         self.structured_output: _TBaseModel | Exception | None = None
 
     async def invoke(self):
+        # Input guardrail runs once before the tool loop.
+        # NOTE: Output guardrails are deferred for StructuredToolCallLLM because the
+        # final AssistantMessage contains a pydantic model, not raw text.
+        context = self._pre_invoke(self.message_hist)
+        self.message_hist = context
+
         await self._handle_tool_calls()
 
         try:
@@ -89,7 +103,6 @@ class StructuredToolCallLLM(
 
             structured_output = response
         except Exception as e:
-            # the original exception will be presented with our wrapped one.
             raise LLMError(
                 reason="Failed to parse assistant response into structured output.",
                 message_history=self.message_hist,
