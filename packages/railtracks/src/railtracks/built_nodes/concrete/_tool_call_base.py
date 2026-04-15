@@ -270,9 +270,7 @@ class OutputLessToolCallLLM(
         message = None
         final_response = None
         while True:
-            still_tool_calls, message, final_response = (
-                await self._handle_tool_calls()
-            )
+            still_tool_calls, message, final_response = await self._handle_tool_calls()
             if not still_tool_calls:
                 break
 
