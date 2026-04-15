@@ -52,7 +52,7 @@ Alternatively, you can set environment variables directly in your shell:
     $env:OPENAI_API_KEY="sk-..."
     ```
 
-Each provider uses a different environment variable name. See the [Supported Providers](../../llm_support/providers.md) page for the full list.
+Each provider uses a different environment variable name. See the [Supported Providers](../../integrations/llms/providers.md) page for the full list.
 
 ---
 

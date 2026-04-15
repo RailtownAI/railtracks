@@ -145,5 +145,5 @@ Any MCP-compatible client or LLM agent can now discover and invoke your tool. As
 ## Related Topics
 
 - [What is MCP?](mcp.md)
-- [Railtracks to MCP: Exposing RT Tools as MCP Tools](RTtoMCP.md)
+- [Railtracks to MCP: Exposing RT Tools as MCP Tools](#2-exposing-railtracks-nodes-as-mcp-tools)
 

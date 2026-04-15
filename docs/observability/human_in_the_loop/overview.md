@@ -1,6 +1,6 @@
 Quite often an agentic workflow needs further input from a human user (or another agent) in a muli-turn style conversation or verification.
 
-Revisiting the figure from the background on [agents](../background/agents.md), we can take a new view:
+Revisiting the figure from the background on [agents](../../tutorials/concepts/agents.md), we can take a new view:
 
 ```mermaid
 graph LR

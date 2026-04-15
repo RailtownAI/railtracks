@@ -24,7 +24,7 @@ Railtracks allows you to convert MCP tools into Tools that can be used by Railtr
     --8<-- "docs/scripts/MCP_tools_in_RT.py:http_example"
     ```
 
-For a complete guide and more examples, see [Using MCP Tools in Railtracks](../documentation/agent_design/tools/mcp.md).
+For a complete guide and more examples, see [Using MCP Tools in Railtracks](../../documentation/agent_design/tools/mcp.md).
 
 ## Railtracks to MCP
 
@@ -36,7 +36,7 @@ This enables you to:
 - Use your tools in other MCP-compatible frameworks
 - Create a unified toolset across different AI systems
 
-See the [Railtracks to MCP](../documentation/agent_design/tools/mcp.md) page for more details on how to set this up.
+See the [Railtracks to MCP](../../documentation/agent_design/tools/mcp.md) page for more details on how to set this up.
 
 ## Available MCP Servers
 
@@ -44,7 +44,7 @@ Railtracks supports pre-built integrations with various MCP servers, including:
 
 | MCP Server    | Description | Setup Guide                                 |
 |---------------|-------------|---------------------------------------------|
-| **Websearch** | Retrieve and process content from URLs | [Guide](../guides/websearch_integration.md) |
-| **GitHub**    | Interact with GitHub repositories | [Guide](../guides/github.md)                |
-| **Notion**    | Create and manage Notion pages | [Guide](../guides/notion.md)                |
-| **Slack**     | Send and receive Slack messages | [Guide](../guides/slack.md)                 |
+| **Websearch** | Retrieve and process content from URLs | [Guide](../../integrations/other/websearch_integration.md) |
+| **GitHub**    | Interact with GitHub repositories | [Guide](../../integrations/mcps/github.md)                |
+| **Notion**    | Create and manage Notion pages | [Guide](../../integrations/mcps/notion.md)                |
+| **Slack**     | Send and receive Slack messages | [Guide](../../integrations/mcps/slack.md)                 |

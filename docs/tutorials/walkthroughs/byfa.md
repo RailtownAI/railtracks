@@ -1,6 +1,6 @@
 # Build Your First Agent
 
-In the [quickstart](../documentation/getting_started/quickstart.md), you ran a ready-made agent. Now let’s build your own step by step, starting from the simplest form and gradually adding more abilities.
+In the [quickstart](../../documentation/getting_started/quickstart.md), you ran a ready-made agent. Now let's build your own step by step, starting from the simplest form and gradually adding more abilities.
 
 ## Simple LLM Agent
 Start with minimal ingredients: a model + a system message
@@ -10,7 +10,7 @@ Start with minimal ingredients: a model + a system message
 ```
 
 ??? question "Supported LLMs"
-    Check out our full list of [supported providers](../integrations/llms/providers.md)
+    Check out our full list of [supported providers](../../integrations/llms/providers.md)
 
 ## Adding Tool Calling
 What if your agent needs real-world data? You will need to give it _tools_. This allows your agent to go beyond static responses and actually interact with the real world.

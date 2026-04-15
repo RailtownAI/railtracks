@@ -6,7 +6,7 @@ This tutorial will take you from zero to a RAG-powered agent in just a few minut
     Not sure what RAG is or why you might want to use it? Check out our brief explainer [here](../../rag/RAG.md).
 
 !!! warning "Vector Stores"
-    To use RAG in Railtracks, you’ll need to understand how our vector stores work. You can read about them [here](../rag/vector_stores/vector_store_info.md).
+    To use RAG in Railtracks, you'll need to understand how our vector stores work. You can read about them [here](../../rag/vector_stores/vector_store_info.md).
 
 You have two options when connecting your agent to RAG. Let's start with the best, most “agentic” method.
 

@@ -82,8 +82,8 @@ For maximum control and customization, build your own RAG node.
 
 ### Features & Concepts
 
-- [Tool Usage Patterns](tools/tools.md)
-- [Advanced Context Management](../advanced_usage/context.md)
+- [Tool Usage Patterns](../tutorials/concepts/tools.md)
+- [Advanced Context Management](../documentation/advanced/context.md)
 
 ### External Libraries
 

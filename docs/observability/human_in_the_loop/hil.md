@@ -11,7 +11,7 @@ The `HIL` abstract class defines a contract for bidirectional communication with
 - `send_message()` - Send messages to the user
 - `receive_message()` - Receive input from the user
 
-??? info "The HIL Interface: [human_in_the_loop.py](packages/railtracks/src/railtracks/human_in_the_loop/human_in_the_loop.py)"
+??? info "The HIL Interface: human_in_the_loop.py"
 
     ```python
     --8<-- "packages/railtracks/src/railtracks/human_in_the_loop/human_in_the_loop.py"
@@ -92,7 +92,7 @@ Below are some of our suggestions for such implementation, however, your way of 
 
 ## Reference Implementation
 
-For a complete example, see the `ChatUI` class in [local_chat_ui.py](packages/railtracks/src/railtracks/human_in_the_loop/local_chat_ui.py)
+For a complete example, see the `ChatUI` class in `local_chat_ui.py`
 
 
 The `ChatUI` implementation demonstrates:

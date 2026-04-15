@@ -52,7 +52,7 @@ Agents are already being used in real world applications such as:
 ## Build Your Own
 
 We have build **Railtracks** with developers in mind; with just a simple prompt and a bit of Python, you’re
-already well on your way to building your first agent. Get started [Building with Railtracks](../tutorials/byfa.md)
+already well on your way to building your first agent. Get started [Building with Railtracks](../walkthroughs/byfa.md)
 
 
 

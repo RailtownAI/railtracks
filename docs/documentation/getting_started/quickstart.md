@@ -35,7 +35,7 @@ Define an agent with a model and system message, then call it with a prompt:
     ANTHROPIC_API_KEY="..."
     ```
 
-    Railtracks supports many of the most popular model providers. See the [full list](../llm_support/providers.md)
+    Railtracks supports many of the most popular model providers. See the [full list](../../integrations/llms/providers.md)
 
 ??? tip "Jupyter Notebooks"
     If you’re running this in a Jupyter notebook, remember that notebooks already run inside an event loop. In that case, call `await flow.ainvoke(...)` directly:

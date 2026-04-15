@@ -12,7 +12,7 @@ Railtracks requires **Python 3.10+**. Install it using your preferred package ma
     pip install 'railtracks[visual]'
     ```
 
-    The `[cli]` extra installs the Railtracks CLI, which includes the local visualization server for observing agent runs in your browser.
+    The `[visual]` extra installs the Railtracks CLI's obervability components, which includes the local visualization server for observing agent runs in your browser. Read more at [Observability](../../observability/agenthub/local.md).
 
 === "uv"
 
