@@ -5,10 +5,7 @@ from typing import Any, Callable, Iterable, Type, TypeVar, Union
 from pydantic import BaseModel
 
 from railtracks.built_nodes._node_builder import NodeBuilder
-from railtracks.built_nodes.concrete import (
-    GuardedStructuredToolCallLLM,
-    StructuredToolCallLLM,
-)
+from railtracks.built_nodes.concrete.structured_tool_call_llm_base import StructuredToolCallLLM
 from railtracks.guardrails.core import Guard
 from railtracks.llm import (
     ModelBase,
@@ -57,7 +54,11 @@ def structured_tool_call_llm(
     Returns:
         Type[StructuredToolCallLLM]: The dynamically generated node class with the specified configuration.
     """
-    base_cls = GuardedStructuredToolCallLLM if guardrails is not None else StructuredToolCallLLM
+    if guardrails is not None:
+        from railtracks.built_nodes.concrete.guarded_llm import GuardedStructuredToolCallLLM
+        base_cls = GuardedStructuredToolCallLLM
+    else:
+        base_cls = StructuredToolCallLLM
 
     builder = NodeBuilder[StructuredToolCallLLM[_TOutput]](
         base_cls,

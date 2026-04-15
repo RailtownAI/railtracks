@@ -3,12 +3,7 @@ from __future__ import annotations
 from typing import Any, Callable, Iterable, Type, Union
 
 from railtracks.built_nodes._node_builder import NodeBuilder
-from railtracks.built_nodes.concrete import (
-    GuardedStreamingToolCallLLM,
-    GuardedToolCallLLM,
-    ToolCallLLM,
-)
-from railtracks.built_nodes.concrete.tool_call_llm_base import StreamingToolCallLLM
+from railtracks.built_nodes.concrete.tool_call_llm_base import StreamingToolCallLLM, ToolCallLLM
 from railtracks.guardrails.core import Guard
 from railtracks.llm import (
     ModelBase,
@@ -56,6 +51,10 @@ def tool_call_llm(
     """
     is_streaming = llm is not None and llm.stream
     if guardrails is not None:
+        from railtracks.built_nodes.concrete.guarded_llm import (
+            GuardedStreamingToolCallLLM,
+            GuardedToolCallLLM,
+        )
         base_cls = GuardedStreamingToolCallLLM if is_streaming else GuardedToolCallLLM
     else:
         base_cls = StreamingToolCallLLM if is_streaming else ToolCallLLM
