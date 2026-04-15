@@ -6,7 +6,7 @@ In Railtracks, you can use any **Agent** as a tool that other agents can use. Th
     Nodes are the building blocks of Railtracks. They are responsible for executing a single task and returning a result. Read more about [**Nodes**](../../system_internals/node.md).
 
 !!! info "How to build an Agent?"
-    Read more about how to build an agent [**Build your First Agent**](../../tutorials/byfa.md).
+    Read more about how to build an agent [**Build your First Agent**](../../tutorials/walkthroughs/byfa.md).
 
 ## Understanding **`ToolManifest`**
 
@@ -99,11 +99,11 @@ Congratulations! You have created an agent that can be used as a tool by other a
 
 Want to go further with tools in Railtracks?
 
-* [What are tools?](../tools/tools.md) <br>
+* [What are tools?](../concepts/tools.md) <br>
   Learn how tools fit into the bigger picture of Railtracks and agent orchestration.
 
-* [Functions as Tools](./functions_as_tools.md) <br>
+* [Functions as Tools](../../documentation/agent_design/tools/function_tools.md) <br>
   Learn how to turn Python functions into tools.
 
-* [How to build your first agent](../../tutorials/byfa.md) <br>
+* [How to build your first agent](../../tutorials/walkthroughs/byfa.md) <br>
   Start with the basics of agent creation.

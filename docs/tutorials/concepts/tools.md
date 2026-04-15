@@ -25,13 +25,28 @@ Here’s a conceptual diagram of an LLM agent using tools to interact with diffe
 
 ```mermaid
 graph TD
-    A[LLM Agent] -->|Tool Call| B[SlackTool]
-    A -->|Tool Call| C[GitHubTool]
-    A -->|Tool Call| D[CodeExecutionTool]
-    B --> E[Send Message]
-    C --> F[Create Comment]
-    C --> G[List Issues]
-    D --> H[Run Python Code]
+    A[LLM Agent]:::agent
+    B[SlackTool]:::tool
+    C[GitHubTool]:::tool
+    D[CodeExecutionTool]:::tool
+    E[Send Message]:::action
+    F[Create Comment]:::action
+    G[List Issues]:::action
+    H[Run Python Code]:::action
+    
+    A -->|Tool Call| B
+    A -->|Tool Call| C
+    A -->|Tool Call| D
+    B --> E
+    C --> F
+    C --> G
+    D --> H
+    
+    classDef agent fill:#60A5FA,fill-opacity:0.4
+    classDef tool fill:#FBBF24,fill-opacity:0.4
+    classDef action fill:#34D399,fill-opacity:0.4
+    
+    linkStyle default stroke:#A78BFA,stroke-width:2px
 ```
 
 !!! info "Each tool defines:"

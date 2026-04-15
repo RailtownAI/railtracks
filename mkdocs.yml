@@ -149,13 +149,20 @@ nav:
 
   - Tutorials:
     - Walkthroughs:
-      - Building your first agent: tutorials/walkthroughs/byfa.md
-      - Running your first agent: tutorials/walkthroughs/ryfa.md
-      - Prompts and Context: tutorials/walkthroughs/prompts_and_context.md
-      - Flows: tutorials/walkthroughs/flows.md
-      - RAG system: tutorials/walkthroughs/rag_tutorial.md
-      - Vector Stores: tutorials/walkthroughs/vector_store_tutorial.md
-      - FastAPI Integration: tutorials/walkthroughs/fastapi.md
+      - Guides:
+        - Building your first agent: tutorials/walkthroughs/byfa.md
+        - Running your first agent: tutorials/walkthroughs/ryfa.md
+        - Agents as Tools: tutorials/walkthroughs/agents_as_tools.md
+        - Prompts and Context: tutorials/walkthroughs/prompts_and_context.md
+        - Flows: tutorials/walkthroughs/flows.md
+        - RAG system: tutorials/walkthroughs/rag_tutorial.md
+        - Vector Stores: tutorials/walkthroughs/vector_store_tutorial.md
+        - FastAPI Integration: tutorials/walkthroughs/fastapi.md
+      - Videos:
+          - Multiagent Systems: tutorials/videos/multiagent.md
+          - Multimodal Agent: tutorials/videos/multimodal_agent.md
+          - AgentHub: tutorials/videos/agenthub.md
+          - Evaluation: tutorials/videos/evaluation.md
     - Notebooks:
       - Agent Architectures: tutorials/notebooks/architectures.md
       - FastAPI Integration: tutorials/notebooks/fastapi.md
@@ -172,10 +179,6 @@ nav:
           - Overview: tutorials/concepts/architectures/overview.md
           - Validation Loops: tutorials/concepts/architectures/validation_loop.md
           - Sequential Flows: tutorials/concepts/architectures/sequential.md
-    - Videos:
-        - Multimodal Agent: tutorials/videos/multimodal_agent.md
-        - AgentHub: tutorials/videos/agenthub.md
-        - Evaluation: tutorials/videos/evaluation.md
 
 
   - API Reference: api_reference.md
