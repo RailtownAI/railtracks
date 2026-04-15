@@ -1,8 +1,15 @@
+from __future__ import annotations
+
 from typing import Any, Callable, Iterable, Type, Union
 
 from railtracks.built_nodes._node_builder import NodeBuilder
-from railtracks.built_nodes.concrete import ToolCallLLM
+from railtracks.built_nodes.concrete import (
+    GuardedStreamingToolCallLLM,
+    GuardedToolCallLLM,
+    ToolCallLLM,
+)
 from railtracks.built_nodes.concrete.tool_call_llm_base import StreamingToolCallLLM
+from railtracks.guardrails.core import Guard
 from railtracks.llm import (
     ModelBase,
     SystemMessage,
@@ -22,6 +29,7 @@ def tool_call_llm(
     return_into: str | None = None,
     format_for_return: Callable[[Any], Any] | None = None,
     format_for_context: Callable[[Any], Any] | None = None,
+    guardrails: Guard | None = None,
 ) -> Type[ToolCallLLM | StreamingToolCallLLM]:
     """
     Dynamically create a ToolCallLLM node class with custom configuration for tool calling.
@@ -41,12 +49,19 @@ def tool_call_llm(
         return_into (str, optional): The key to store the result of the tool call into context. If not specified, the result will not be put into context.
         format_for_return (Callable[[Any], Any] | None, optional): A function to format the result before returning it, only if return_into is provided. If not specified when while return_into is provided, None will be returned.
         format_for_context (Callable[[Any], Any] | None, optional): A function to format the result before putting it into context, only if return_into is provided. If not provided, the response will be put into context as is.
+        guardrails (Guard or None, optional): Guardrail config. When provided, the node runs input/output guardrails around the tool-call loop.
 
     Returns:
         Type[ToolCallLLM]: The dynamically generated node class with the specified configuration.
     """
+    is_streaming = llm is not None and llm.stream
+    if guardrails is not None:
+        base_cls = GuardedStreamingToolCallLLM if is_streaming else GuardedToolCallLLM
+    else:
+        base_cls = StreamingToolCallLLM if is_streaming else ToolCallLLM
+
     builder = NodeBuilder(
-        StreamingToolCallLLM if llm is not None and llm.stream else ToolCallLLM,
+        base_cls,
         name=name,
         class_name="EasyToolCallLLM",
         return_into=return_into,
@@ -57,5 +72,8 @@ def tool_call_llm(
     builder.tool_calling_llm(tool_nodes)
     if tool_details is not None or tool_params is not None:
         builder.tool_callable_llm(tool_details, tool_params)
+
+    if guardrails is not None:
+        builder.add_attribute("guardrails", guardrails, make_function=False)
 
     return builder.build()

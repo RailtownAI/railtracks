@@ -13,6 +13,7 @@ from typing import Any, Callable, cast
 from railtracks.llm.message import Message
 from railtracks.llm.model import ModelBase
 from railtracks.llm.response import Response
+from railtracks.nodes.nodes import DebugDetails
 
 from ..core import Guard, GuardrailBlockedError, GuardRunner
 from ..core.decision import GuardrailAction
@@ -37,7 +38,7 @@ class LLMGuardrailsMixin:
     """
 
     guardrails: Guard | None = None
-    _details: dict[str, Any]
+    _details: DebugDetails
     llm_model: ModelBase
     uuid: str
     name: Callable[[], str]
@@ -49,6 +50,10 @@ class LLMGuardrailsMixin:
 
     def _guardrail_agent_kind(self) -> str:
         cls_name = self.__class__.__name__.lower()
+        if "structured" in cls_name and "toolcall" in cls_name:
+            return "structured_tool_call"
+        if "toolcall" in cls_name:
+            return "tool_call"
         if "structured" in cls_name:
             return "structured"
         if "terminal" in cls_name:

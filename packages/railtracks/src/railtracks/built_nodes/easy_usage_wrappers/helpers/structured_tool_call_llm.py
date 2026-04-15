@@ -1,9 +1,15 @@
+from __future__ import annotations
+
 from typing import Any, Callable, Iterable, Type, TypeVar, Union
 
 from pydantic import BaseModel
 
 from railtracks.built_nodes._node_builder import NodeBuilder
-from railtracks.built_nodes.concrete import StructuredToolCallLLM
+from railtracks.built_nodes.concrete import (
+    GuardedStructuredToolCallLLM,
+    StructuredToolCallLLM,
+)
+from railtracks.guardrails.core import Guard
 from railtracks.llm import (
     ModelBase,
     SystemMessage,
@@ -26,6 +32,7 @@ def structured_tool_call_llm(
     return_into: str | None = None,
     format_for_return: Callable[[Any], Any] | None = None,
     format_for_context: Callable[[Any], Any] | None = None,
+    guardrails: Guard | None = None,
 ) -> Type[StructuredToolCallLLM[_TOutput]]:
     """
     Dynamically create a StructuredToolCallLLM node class with custom configuration for tool calling.
@@ -45,13 +52,15 @@ def structured_tool_call_llm(
         return_into (str, optional): The key to store the result of the tool call into context. If not specified, the result will not be put into context.
         format_for_return (Callable[[Any], Any] | None, optional): A function to format the result before returning it, only if return_into is provided. If not specified when while return_into is provided, None will be returned.
         format_for_context (Callable[[Any], Any] | None, optional): A function to format the result before putting it into context, only if return_into is provided. If not provided, the response will be put into context as is.
+        guardrails (Guard or None, optional): Guardrail config. When provided, the node runs input guardrails before the tool-call loop. Output guardrails are deferred for structured tool-call agents.
 
     Returns:
         Type[StructuredToolCallLLM]: The dynamically generated node class with the specified configuration.
     """
+    base_cls = GuardedStructuredToolCallLLM if guardrails is not None else StructuredToolCallLLM
 
     builder = NodeBuilder[StructuredToolCallLLM[_TOutput]](
-        StructuredToolCallLLM,
+        base_cls,
         name=name,
         class_name="EasyStructuredToolCallLLM",
         return_into=return_into,
@@ -65,5 +74,8 @@ def structured_tool_call_llm(
     if tool_details is not None or tool_params is not None:
         builder.tool_callable_llm(tool_details, tool_params)
     builder.structured(output_schema)
+
+    if guardrails is not None:
+        builder.add_attribute("guardrails", guardrails, make_function=False)
 
     return builder.build()
