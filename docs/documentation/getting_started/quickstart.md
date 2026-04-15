@@ -1,7 +1,4 @@
-Large Language Models (LLMs) are powerful, but they’re not enough on their own.  
-Railtracks gives them structure, tools, and visibility so you can build agents that actually get things done.  
-
-In this quickstart, you’ll install Railtracks, run your first agent, and visualize its execution — all in a few minutes.
+In this quickstart, you’ll install Railtracks, run your first agent, and visualize its execution; all in a few minutes.
 
 ## 1. Installation
 
@@ -37,8 +34,8 @@ Define an agent with a model and system message, then call it with a prompt:
 
     Railtracks supports many of the most popular model providers. See the [full list](../../integrations/llms/providers.md)
 
-??? tip "Jupyter Notebooks"
-    If you’re running this in a Jupyter notebook, remember that notebooks already run inside an event loop. In that case, call `await flow.ainvoke(...)` directly:
+???+ tip "Jupyter Notebooks"
+    If you’re running this in a Jupyter notebook, remember that notebooks already run inside an event loop. In that case, use `await flow.ainvoke(...)` instead of `flow.invoke(...)`. Head to [Async/Await](../../tutorials/concepts/async_await.md) for more on _async_ features in Python. 
    
 ## 3. Visualize the Run
 With Railtracks CLI you can dive deep on your runs. Our observability runs locally from the command line. 
@@ -60,7 +57,7 @@ With Railtracks CLI you can dive deep on your runs. Our observability runs local
     ```
 
 <div class="rt-video-container">
-  <video controls style="width: 100%; border-radius: 12px;">
+  <video controls style="width: 100%; border-radius: 24px;">
     <source src="https://railtracksstorage.blob.core.windows.net/railtrackswebsite/videos/Visualizer.mp4" type="video/mp4">
   </video>
 </div>
