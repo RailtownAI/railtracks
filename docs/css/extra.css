@@ -1,4 +1,40 @@
 /* ── Layout ──────────────────────────────────────────────── */
+
+/* Home page hero + cards layout */
+.rt-home-layout {
+  display: flex;
+  align-items: center;
+  gap: 3rem;
+}
+
+.rt-hero {
+  flex: 0 0 auto;
+  text-align: center;
+}
+
+.rt-home-cards {
+  flex: 1;
+}
+
+@media screen and (max-width: 768px) {
+  .rt-home-layout {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .rt-hero {
+    width: 100%;
+  }
+
+  .rt-hero img {
+    width: 180px;
+  }
+
+  .rt-home-cards {
+    width: 100%;
+  }
+}
+
 .md-header__button.md-logo img {
   height: 60px;
   width: auto;

@@ -58,8 +58,6 @@ Often you will want the best of both worlds, an agent capable of both tool calli
 --8<-- "docs/scripts/first_agent.py:first_agent_all"
 ```
 
-
-
 ---
 # Running Agents
 Congratulations, you’ve now built agents that call tools, return structured outputs, and even combine both. Next, let’s actually run them and see them in action -> [Running your First Agent](ryfa.md).

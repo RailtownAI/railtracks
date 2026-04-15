@@ -86,7 +86,6 @@ nav:
             - Agents as Tools: documentation/agent_design/tools/agents_as_tools.md
             - MCP: documentation/agent_design/tools/mcp.md
         - Structured Extraction: documentation/agent_design/structured_extraction.md
-        - RAG: documentation/agent_design/rag.md
         - Modalities: documentation/agent_design/modalities.md
     - Agent Invocation:
         - Direct Invocation: documentation/invocation/call.md
@@ -96,6 +95,14 @@ nav:
             - Overview: documentation/advanced/guardrails/overview.md
             - Quickstart: documentation/advanced/guardrails/quickstart.md
         - Agent Context: documentation/advanced/context.md
+
+  - RAG:
+    - RAG: rag/RAG.md
+    - Vector Stores:
+        - Overview: rag/vector_stores/vector_store_info.md
+        - Filtering: rag/vector_stores/filtering.md
+        - Integrations:
+            - Chroma: rag/vector_stores/integrations/chroma.md
 
   - Evaluations:
     - Preface: evaluations/preface.md
@@ -113,17 +120,18 @@ nav:
 
   - Observability:
       - AgentHub:
-        - Local: observability/local.md
-        - Cloud: observability/cloud.md
+        - Local: observability/agenthub/local.md
+        - Cloud: observability/agenthub/cloud.md
       - Human in the Loop:
         - Overview: observability/human_in_the_loop/overview.md
         - Local Chat Interface: observability/human_in_the_loop/local_chat_ui.md
         - Terminal Interface: observability/human_in_the_loop/terminal.md
         - Custom: observability/human_in_the_loop/hil.md
       - Tracking:       
-        - Logging: observability/logging.md
-        - Broadcasting: observability/broadcasting.md
-        - Error Handling: observability/error_handling.md
+        - Logging: observability/tracking/logging.md
+        - Broadcasting: observability/tracking/broadcasting.md
+        - Error Handling: observability/tracking/error_handling.md
+        
 
   - Integrations:
     - Overview: integrations/overview.md
@@ -131,11 +139,6 @@ nav:
         - Providers: integrations/llms/providers.md
         - Platforms: integrations/llms/platforms.md
         - Streaming: integrations/llms/streaming.md
-    - Vector Stores:
-        - Overview: integrations/vector_stores/vector_store_info.md
-        - Filtering: integrations/vector_stores/filtering.md
-        - Integrations:
-            - Chroma: integrations/vector_stores/integrations/chroma.md
     - MCP:
         - Github: integrations/mcps/github.md
         - Slack: integrations/mcps/slack.md
@@ -147,24 +150,31 @@ nav:
 
   - Tutorials:
     - Walkthroughs:
-      - Building your first agent: tutorials/byfa.md
-      - Running your first agent: tutorials/ryfa.md
-      - Prompts and Context: tutorials/prompts_and_context.md
-      - RAG system: tutorials/rag_tutorial.md
-      - Vector Stores: tutorials/vector_store_tutorial.md
+      - Building your first agent: tutorials/walkthroughs/byfa.md
+      - Running your first agent: tutorials/walkthroughs/ryfa.md
+      - Prompts and Context: tutorials/walkthroughs/prompts_and_context.md
+      - Flows: tutorials/walkthroughs/flows.md
+      - RAG system: tutorials/walkthroughs/rag_tutorial.md
+      - Vector Stores: tutorials/walkthroughs/vector_store_tutorial.md
+    - Notebooks:
+      - Agent Architectures: tutorials/notebooks/architectures.md
+    - Concepts:
+      - Core: 
+          - Agents: tutorials/concepts/agents.md
+          - Tools: tutorials/concepts/tools.md
+          - MCP: tutorials/concepts/mcp.md
+          - Prompts and Context: tutorials/concepts/prompts_and_context.md
+          - RAG: tutorials/concepts/RAG.md
+          - Async/Await: tutorials/concepts/async_await.md
+          - Vector Stores: tutorials/concepts/vector_store.md
+      - Architectures: 
+          - Overview: tutorials/concepts/architectures/overview.md
+          - Validation Loops: tutorials/concepts/architectures/validation_loop.md
+          - Sequential Flows: tutorials/concepts/architectures/sequential.md
+    - Videos:
+        - Multimodal Agent: tutorials/videos/multimodal_agent.md
+        - AgentHub: tutorials/videos/agenthub.md
+        - Evaluation: tutorials/videos/evaluation.md
 
-  - Concepts:
-    - Core: 
-        - Agents: concepts/agents.md
-        - Tools: concepts/tools.md
-        - MCP: concepts/mcp.md
-        - Prompts and Context: concepts/prompts_and_context.md
-        - RAG: concepts/RAG.md
-        - Async/Await: concepts/async_await.md
-        - Vector Stores: concepts/vector_store.md
-    - Architectures: 
-        - Overview: concepts/architectures/overview.md
-        - Validation Loops: concepts/architectures/validation_loop.md
-        - Sequential Flows: concepts/architectures/sequential.md
 
   - API Reference: api_reference.md

@@ -9,7 +9,7 @@ Railtracks requires **Python 3.10+**. Install it using your preferred package ma
     ```
 
     ```bash title="SDK + local observability"
-    pip install 'railtracks[cli]'
+    pip install 'railtracks[visual]'
     ```
 
     The `[cli]` extra installs the Railtracks CLI, which includes the local visualization server for observing agent runs in your browser.
@@ -23,7 +23,7 @@ Railtracks requires **Python 3.10+**. Install it using your preferred package ma
     ```
 
     ```bash title="SDK + local observability"
-    uv add 'railtracks[cli]'
+    uv add 'railtracks[visual]'
     ```
 
 === "conda"
@@ -33,7 +33,7 @@ Railtracks requires **Python 3.10+**. Install it using your preferred package ma
     ```
 
     ```bash title="SDK + local observability"
-    pip install 'railtracks[cli]'
+    pip install 'railtracks[visual]'
     ```
 
     The `[cli]` extra is only available via pip. Run the second command inside your active conda environment.
