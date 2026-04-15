@@ -10,7 +10,7 @@ hide:
 </div>
 
 <div class="grid cards rt-home-cards">
-  <a class="card" href="concepts/agents">
+  <a class="card" href="tutorials/concepts/agents">
     <h3>Learn</h3>
     <p>If you are curious to learn about AI Agents, how they work, and other concepts.</p>
   </a>
@@ -18,7 +18,7 @@ hide:
     <h3>Build</h3>
     <p>If you want to know how to build agents using Railtracks</p>
   </a>
-  <a class="card" href="observability/visualization">
+  <a class="card" href="observability/agenthub/local">
     <h3>Observe</h3>
     <p>If you want to inspect, track, and visualize your Agents</p>
   </a>

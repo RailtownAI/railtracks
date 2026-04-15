@@ -14,7 +14,8 @@ This page describes guardrails shipped with Railtracks, how they are organized, 
 --8<-- "docs/scripts/builtin_guardrails_examples.py:llm_builtin_imports"
 ```
 
-**`decide()`.** `InputGuard` and `OutputGuard` define `decide(...)` so you can run a guard without building an `LLMGuardrailEvent` by hand. For input guards, a `str` is treated as a single user message. For output guards, a `str` becomes the assistant message under inspection. You can also pass `Message`, `MessageHistory`, or a full `LLMGuardrailEvent`. On a match, inspect `GuardrailDecision.messages` (input guard) or `GuardrailDecision.output_message` (output guard) for the rewritten content.
+!!! info "**`decide()`**" 
+    `InputGuard` and `OutputGuard` define `decide(...)` so you can run a guard without building an `LLMGuardrailEvent` by hand. For input guards, a `str` is treated as a single user message. For output guards, a `str` becomes the assistant message under inspection. You can also pass `Message`, `MessageHistory`, or a full `LLMGuardrailEvent`. On a match, inspect `GuardrailDecision.messages` (input guard) or `GuardrailDecision.output_message` (output guard) for the rewritten content.
 
 PII guards return `TRANSFORM` when they rewrite text, with redacted content on `decision.messages` (input) or `decision.output_message` (output). They return `ALLOW` when there is nothing to change.
 

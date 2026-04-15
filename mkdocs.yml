@@ -92,6 +92,7 @@ nav:
         - Guardrails:
             - Overview: documentation/advanced/guardrails/overview.md
             - Quickstart: documentation/advanced/guardrails/quickstart.md
+            - Built-in Guardrails: documentation/advanced/guardrails/builtin_guardrails.md
         - Agent Context: documentation/advanced/context.md
 
   - RAG:
