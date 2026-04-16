@@ -3,7 +3,7 @@
 After running evaluations, results are automatically saved to `.railtracks/data/evaluations`. The built-in visualizer lets you explore these results locally with no sign up required.
 
 !!! tip "Setting up the visualizer"
-    See [Observability → Visualization](../observability/visualization.md) for installation and setup instructions.
+    See [Observability → Visualization](../observability/agenthub/local.md) for installation and setup instructions.
 
 ## Exploring Evaluation Results
 

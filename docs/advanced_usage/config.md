@@ -1,6 +1,6 @@
 # Configuration
 
-Railtracks provides flexible configuration options to customize the behavior of your agent executions. You can control timeouts, error handling, and more through a simple configuration system. Logging is configured separately via `rt.enable_logging()` at application startup (see [Logging](../observability/logging.md)).
+Railtracks provides flexible configuration options to customize the behavior of your agent executions. You can control timeouts, error handling, and more through a simple configuration system. Logging is configured separately via `rt.enable_logging()` at application startup (see [Logging](../observability/tracking/logging.md)).
 
 ## Configuration Methods
 
