@@ -3,12 +3,14 @@ from typing import Any, Callable, Iterable, Type, TypeVar
 from pydantic import BaseModel
 
 from railtracks.built_nodes._node_builder import NodeBuilder
-from railtracks.built_nodes.concrete import (
+from railtracks.built_nodes.concrete.guarded_llm import (
     GuardedStreamingStructuredLLM,
     GuardedStructuredLLM,
+)
+from railtracks.built_nodes.concrete.structured_llm_base import (
+    StreamingStructuredLLM,
     StructuredLLM,
 )
-from railtracks.built_nodes.concrete.structured_llm_base import StreamingStructuredLLM
 from railtracks.guardrails.core import Guard
 from railtracks.llm import (
     ModelBase,

@@ -6,8 +6,11 @@ from pydantic import BaseModel
 from railtracks.built_nodes.concrete import (
     GuardedStreamingStructuredLLM,
     GuardedStreamingTerminalLLM,
+    GuardedStreamingToolCallLLM,
     GuardedStructuredLLM,
+    GuardedStructuredToolCallLLM,
     GuardedTerminalLLM,
+    GuardedToolCallLLM,
     RTFunction,
     StructuredLLM,
     StructuredToolCallLLM,
@@ -64,10 +67,6 @@ def _build_dynamic_agent(
     guardrails: Guard | None,
 ):
     if unpacked_tool_nodes is not None and len(unpacked_tool_nodes) > 0:
-        if guardrails is not None:
-            raise NotImplementedError(
-                "Guardrails are not yet supported for tool-calling agents (see https://github.com/RailtownAI/railtracks/issues/1047)."
-            )
         if output_schema is not None:
             return structured_tool_call_llm(
                 tool_nodes=unpacked_tool_nodes,
@@ -77,6 +76,7 @@ def _build_dynamic_agent(
                 system_message=system_message,
                 tool_details=tool_details,
                 tool_params=tool_params,
+                guardrails=guardrails,
             )
         return tool_call_llm(
             tool_nodes=unpacked_tool_nodes,
@@ -85,6 +85,7 @@ def _build_dynamic_agent(
             system_message=system_message,
             tool_details=tool_details,
             tool_params=tool_params,
+            guardrails=guardrails,
         )
     if output_schema is not None:
         return structured_llm(
@@ -106,7 +107,7 @@ def _build_dynamic_agent(
     )
 
 
-# --- Tool-calling overloads (guardrails not supported yet) ---
+# --- Tool-calling overloads (no guardrails) ---
 
 
 @overload
@@ -119,6 +120,7 @@ def agent_node(
     llm: ModelBase[Literal[False]] | None = None,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
+    guardrails: None = None,
 ) -> Type[StructuredToolCallLLM[_TBaseModel]]:
     pass
 
@@ -132,6 +134,7 @@ def agent_node(
     llm: ModelBase[Literal[False]] | None = None,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
+    guardrails: None = None,
 ) -> Type[ToolCallLLM]:
     pass
 
@@ -145,7 +148,54 @@ def agent_node(
     llm: ModelBase[Literal[True]],
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
+    guardrails: None = None,
 ) -> Type[StreamingToolCallLLM]:
+    pass
+
+
+# --- Tool-calling overloads (with guardrails) ---
+
+
+@overload
+def agent_node(
+    name: str | None = None,
+    *,
+    rag: RagConfig | None = None,
+    tool_nodes: Iterable[Type[Node] | Callable | RTFunction],
+    output_schema: Type[_TBaseModel],
+    llm: ModelBase[Literal[False]] | None = None,
+    system_message: SystemMessage | str | None = None,
+    manifest: ToolManifest | None = None,
+    guardrails: Guard,
+) -> Type[GuardedStructuredToolCallLLM[_TBaseModel]]:
+    pass
+
+
+@overload
+def agent_node(
+    name: str | None = None,
+    *,
+    rag: RagConfig | None = None,
+    tool_nodes: Iterable[Type[Node] | Callable | RTFunction],
+    llm: ModelBase[Literal[False]] | None = None,
+    system_message: SystemMessage | str | None = None,
+    manifest: ToolManifest | None = None,
+    guardrails: Guard,
+) -> Type[GuardedToolCallLLM]:
+    pass
+
+
+@overload
+def agent_node(
+    name: str | None = None,
+    *,
+    rag: RagConfig | None = None,
+    tool_nodes: Iterable[Type[Node] | Callable | RTFunction],
+    llm: ModelBase[Literal[True]],
+    system_message: SystemMessage | str | None = None,
+    manifest: ToolManifest | None = None,
+    guardrails: Guard,
+) -> Type[GuardedStreamingToolCallLLM]:
     pass
 
 

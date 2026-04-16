@@ -16,7 +16,9 @@ from pydantic import BaseModel
 from railtracks.guardrails.llm.mixin import LLMGuardrailsMixin
 
 from .structured_llm_base import StreamingStructuredLLM, StructuredLLM
+from .structured_tool_call_llm_base import StructuredToolCallLLM
 from .terminal_llm_base import StreamingTerminalLLM, TerminalLLM
+from .tool_call_llm_base import StreamingToolCallLLM, ToolCallLLM
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 
@@ -37,5 +39,19 @@ class GuardedStructuredLLM(
 
 class GuardedStreamingStructuredLLM(
     LLMGuardrailsMixin, StreamingStructuredLLM[_TBaseModel], Generic[_TBaseModel]
+):
+    pass
+
+
+class GuardedToolCallLLM(LLMGuardrailsMixin, ToolCallLLM):
+    pass
+
+
+class GuardedStreamingToolCallLLM(LLMGuardrailsMixin, StreamingToolCallLLM):
+    pass
+
+
+class GuardedStructuredToolCallLLM(
+    LLMGuardrailsMixin, StructuredToolCallLLM[_TBaseModel], Generic[_TBaseModel]
 ):
     pass
