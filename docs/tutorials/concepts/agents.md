@@ -22,18 +22,28 @@ accomplish complex tasks and goals. This ability makes them uniquely suited to o
 system.
 
 ```mermaid
-graph LR
-    User[User] --> LLM[LLM Agent]
-    LLM --> Tools[Tools]
-    Tools --> Environment[Environment]
-    Environment --> Tools
-    Tools --> LLM
-    LLM --> User
+graph TB
+    User[User]
+    LLM[LLM Agent]
+    Tools[Tools]
+    Env[Environment]
     
-    style LLM fill:#e1f5fe, fill-opacity:0.3
-    style User fill:#f3e5f5, fill-opacity:0.3
-    style Tools fill:#fff3e0, fill-opacity:0.3
-    style Environment fill:#e8f5e8, fill-opacity:0.3
+    User -->|Query| LLM
+    LLM -->|Response| User
+    LLM -->|Select & invoke| Tools
+    Tools -->|Results| LLM
+    Tools -->|Actions| Env
+    Env -->|State updates| Tools
+    
+    classDef userClass fill:#60A5FA,fill-opacity:0.3
+    classDef agentClass fill:#FBBF24,fill-opacity:0.3
+    classDef toolClass fill:#FECACA,fill-opacity:0.3
+    classDef envClass fill:#34D399,fill-opacity:0.3
+    
+    class User userClass;
+    class LLM agentClass;
+    class Tools toolClass;
+    class Env envClass;
 ```
 
 # Real World Applications
