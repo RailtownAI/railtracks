@@ -4,8 +4,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from railtracks.rag.loaders.base import BaseDocumentLoader
-from railtracks.rag.models import Document
+from railtracks.retrieval.loaders.base import BaseDocumentLoader
+from railtracks.retrieval.models import Document
 
 
 class JSONLoader(BaseDocumentLoader):

@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from abc import ABC, abstractmethod
 
-from railtracks.rag.models import Document
+from railtracks.retrieval.models import Document
 
 
 class BaseDocumentLoader(ABC):

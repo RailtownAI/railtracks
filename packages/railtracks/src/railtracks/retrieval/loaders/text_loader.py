@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from railtracks.rag.loaders.base import BaseDocumentLoader
-from railtracks.rag.models import Document
+from railtracks.retrieval.loaders.base import BaseDocumentLoader
+from railtracks.retrieval.models import Document
 
 _SUPPORTED_EXTENSIONS = {".txt", ".md"}
 
