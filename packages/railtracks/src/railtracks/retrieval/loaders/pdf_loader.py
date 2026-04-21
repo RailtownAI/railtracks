@@ -99,6 +99,7 @@ class PDFLoader(BaseDocumentLoader):
                 documents.append(
                     Document(
                         content=content,
+                        type="pdf",
                         source=source,
                         metadata={"total_pages": total_pages},
                     )
@@ -109,6 +110,7 @@ class PDFLoader(BaseDocumentLoader):
                     documents.append(
                         Document(
                             content=self._extract_page_content(page),
+                            type="pdf",
                             source=source,
                             metadata={
                                 "page": page.page_number - 1,

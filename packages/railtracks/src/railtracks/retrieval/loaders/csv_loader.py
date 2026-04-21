@@ -75,6 +75,7 @@ class CSVLoader(BaseDocumentLoader):
                 documents.append(
                     Document(
                         content=content,
+                        type="csv",
                         source=str(path),
                         metadata=metadata,
                     )

@@ -25,8 +25,10 @@ class TextLoader(BaseDocumentLoader):
 
     def _load_file(self, path: Path) -> Document:
         content = path.read_text(encoding=self._encoding)
+        doc_type = "markdown" if path.suffix.lower() == ".md" else "text"
         return Document(
             content=content,
+            type=doc_type,
             source=str(path),
             metadata={
                 "file_type": path.suffix.lower(),

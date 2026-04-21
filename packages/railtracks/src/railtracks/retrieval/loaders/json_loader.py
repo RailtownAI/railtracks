@@ -63,7 +63,7 @@ class JSONLoader(BaseDocumentLoader):
         }
         metadata["index"] = index
 
-        return Document(content=content, source=source, metadata=metadata)
+        return Document(content=content, type="json", source=source, metadata=metadata)
 
     def _load_file(self, path: Path) -> list[Document]:
         source = str(path)
