@@ -159,7 +159,7 @@ text_analyzer = rt.agent_node(
 
 # 3. Use it to solve the classic "How many r's in strawberry?" problem
 text_flow = rt.Flow(
-  name="Text Analysis Flow"
+  name="Text Analysis Flow",
   entry_point=text_analyzer
 )
 
