@@ -47,9 +47,7 @@ class BlockTextInputGuard(InputGuard):
                 continue
             if self._pattern.search(msg.content):
                 return GuardrailDecision.block(
-                    reason=(
-                        f"Input blocked: matched pattern '{self._pattern.pattern}'."
-                    ),
+                    reason=("Input blocked: prohibited content detected."),
                     user_facing_message=self._user_facing_message,
                 )
         return GuardrailDecision.allow(reason="No blocked patterns detected in input.")

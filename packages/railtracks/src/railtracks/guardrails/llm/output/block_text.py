@@ -45,7 +45,7 @@ class BlockTextOutputGuard(OutputGuard):
 
         if self._pattern.search(msg.content):
             return GuardrailDecision.block(
-                reason=(f"Output blocked: matched pattern '{self._pattern.pattern}'."),
+                reason=("Output blocked: prohibited content detected."),
                 user_facing_message=self._user_facing_message,
             )
         return GuardrailDecision.allow(reason="No blocked patterns detected in output.")
