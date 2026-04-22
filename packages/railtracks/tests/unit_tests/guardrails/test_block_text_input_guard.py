@@ -48,11 +48,12 @@ class TestBlock:
         decision = guard(event)
         assert decision.action == GuardrailAction.BLOCK
 
-    def test_block_reason_contains_pattern(self) -> None:
+    def test_block_reason_does_not_leak_pattern(self) -> None:
         guard = BlockTextInputGuard(pattern=r"bad_word")
         event = _make_input_event(MessageHistory([UserMessage("This has bad_word")]))
         decision = guard(event)
-        assert "bad_word" in decision.reason
+        assert decision.reason == "Input blocked: prohibited content detected."
+        assert "bad_word" not in decision.reason
 
 
 class TestAllow:

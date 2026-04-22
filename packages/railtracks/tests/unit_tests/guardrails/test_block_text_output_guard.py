@@ -28,11 +28,12 @@ class TestBlock:
         decision = guard(event)
         assert decision.action == GuardrailAction.BLOCK
 
-    def test_block_reason_contains_pattern(self) -> None:
+    def test_block_reason_does_not_leak_pattern(self) -> None:
         guard = BlockTextOutputGuard(pattern=r"SECRET")
         event = _make_output_event("The SECRET is here")
         decision = guard(event)
-        assert "SECRET" in decision.reason
+        assert decision.reason == "Output blocked: prohibited content detected."
+        assert "SECRET" not in decision.reason
 
 
 class TestAllow:
