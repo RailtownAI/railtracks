@@ -6,9 +6,8 @@ from railtracks.retrieval.loaders.langchain_adapter import LangChainLoaderAdapte
 from railtracks.retrieval.loaders.text_loader import TextLoader
 
 # Optional-dep loaders are importable directly from their modules:
-#   from railtracks.rag.loaders.pdf_loader import PDFLoader
-#   from railtracks.rag.loaders.html_loader import HTMLLoader
-#   from railtracks.rag.loaders.docx_loader import DocxLoader
+#   from railtracks.retrieval.loaders.pdf_loader import PyPDFLoader
+#   from railtracks.retrieval.loaders.html_loader import HTMLLoader
 
 __all__ = [
     "BaseDocumentLoader",
