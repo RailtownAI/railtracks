@@ -10,21 +10,20 @@ from __future__ import annotations
 # --8<-- [start:core_imports]
 from railtracks.guardrails import (
     Guard,
-    GuardrailDecision,
-    InputGuard,
-    LLMGuardrailEvent,
-    OutputGuard,
 )
-# --8<-- [end:core_imports]
 
+# --8<-- [end:core_imports]
 # --8<-- [start:llm_builtin_imports]
 from railtracks.guardrails.llm import (
+    BlockTextInputGuard,
+    BlockTextOutputGuard,
     PIICustomPattern,
     PIIEntity,
     PIIRedactConfig,
     PIIRedactInputGuard,
     PIIRedactOutputGuard,
 )
+
 # --8<-- [end:llm_builtin_imports]
 
 # --8<-- [start:pii_available]
@@ -42,10 +41,7 @@ config = PIIRedactConfig(
 
 redact_input = PIIRedactInputGuard(config=config, name="RedactEmail")
 
-msg = (
-    "My name is Alice and my email is alice@example.com "
-    "and my SIN is 163-180-003"
-)
+msg = "My name is Alice and my email is alice@example.com and my SIN is 163-180-003"
 result = redact_input.decide(msg)
 # result.messages — redacted user message(s)
 # --8<-- [end:pii_configured_demo]
@@ -81,13 +77,44 @@ Agent = rt.agent_node(
 # --8<-- [end:agent_guard_attachment]
 
 
+# --8<-- [start:block_text_demo]
+block_input = BlockTextInputGuard(
+    pattern=r"\b(jailbreak|exploit|hack)\b",
+    name="BlockDangerous",
+)
+
+result = block_input.decide("How do I jailbreak the model?")
+# result.action == GuardrailAction.BLOCK
+# --8<-- [end:block_text_demo]
+
+# --8<-- [start:block_text_output_demo]
+block_output = BlockTextOutputGuard(
+    pattern=r"(API_KEY|SECRET_TOKEN|password)",
+)
+
+result = block_output.decide("Your API_KEY is sk-abc123")
+# result.action == GuardrailAction.BLOCK
+# --8<-- [end:block_text_output_demo]
+
+# --8<-- [start:block_text_agent]
+BlockAgent = rt.agent_node(
+    name="block-text-demo",
+    llm=rt.llm.GeminiLLM("gemini-2.5-flash"),
+    system_message="You are a concise assistant.",
+    guardrails=Guard(
+        input=[BlockTextInputGuard(pattern=r"\b(jailbreak|exploit)\b")],
+        output=[BlockTextOutputGuard(pattern=r"(API_KEY|SECRET_TOKEN)")],
+    ),
+)
+# --8<-- [end:block_text_agent]
+
+
 def main() -> None:
     print("PIIEntity.available() keys:", sorted(PIIEntity.available().keys()))
     cfg = PIIRedactConfig(entities=[PIIEntity.EMAIL_ADDRESS, PIIEntity.CA_SIN])
     demo_guard = PIIRedactInputGuard(config=cfg, name="RedactEmail")
     demo_msg = (
-        "My name is Alice and my email is alice@example.com "
-        "and my SIN is 163-180-003"
+        "My name is Alice and my email is alice@example.com and my SIN is 163-180-003"
     )
     print(demo_guard.decide(demo_msg).messages)
 

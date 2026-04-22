@@ -31,6 +31,41 @@ Keep dependencies optional or zero unless the feature truly needs them; document
 
 ## Guardrails
 
+### Block text
+
+`BlockTextInputGuard` and `BlockTextOutputGuard` reject an LLM interaction when a user-supplied **regex pattern** matches. Unlike PII redaction, these guards do **not** transform content — they return ``BLOCK`` on a match and ``ALLOW`` otherwise.
+
+The input guard scans user and system messages; assistant and tool messages are ignored. The output guard scans the model's output message. Non-string content is skipped.
+
+---
+
+#### Usage
+
+Pass a regex string to `pattern`. The pattern is compiled once at construction time; an invalid regex raises `re.error` immediately.
+
+```python
+--8<-- "docs/scripts/builtin_guardrails_examples.py:block_text_demo"
+```
+
+```python
+--8<-- "docs/scripts/builtin_guardrails_examples.py:block_text_output_demo"
+```
+
+---
+
+#### Agent usage
+
+Attach like any other guard:
+
+```python
+--8<-- "docs/scripts/builtin_guardrails_examples.py:block_text_agent"
+```
+
+!!! note "Scope"
+    These guards perform a simple `re.search` against string message content. They do not inspect tool-call arguments, multi-part content lists, or streaming chunks.
+
+---
+
 ### PII redaction
 
 `PIIRedactInputGuard` and `PIIRedactOutputGuard` scan **string** message content with regex. Matches are replaced by placeholders such as `[EMAIL_ADDRESS]`. The input guard scans user and system messages; assistant and tool messages are left unchanged. The output guard scans the model’s output message. Non-string content is passed through unchanged.
