@@ -53,13 +53,13 @@ _MARKDOWN_TEXT = (
 
 @pytest.fixture
 def empty_doc() -> Document:
-    return Document(content="", type="text/plain", metadata={"kind": "empty"})
+    return Document(content="", type="text", metadata={"kind": "empty"})
 
 
 @pytest.fixture
 def short_doc() -> Document:
     return Document(
-        content=_SHORT_TEXT, type="text/plain", metadata={"kind": "short"}
+        content=_SHORT_TEXT, type="text", metadata={"kind": "short"}
     )
 
 
@@ -67,7 +67,7 @@ def short_doc() -> Document:
 def multi_paragraph_doc() -> Document:
     return Document(
         content=_MULTI_PARAGRAPH_TEXT,
-        type="text/plain",
+        type="text",
         metadata={"kind": "multi_paragraph", "lang": "en"},
     )
 
@@ -76,7 +76,7 @@ def multi_paragraph_doc() -> Document:
 def markdown_doc() -> Document:
     return Document(
         content=_MARKDOWN_TEXT,
-        type="text/markdown",
+        type="markdown",
         metadata={"kind": "markdown"},
     )
 

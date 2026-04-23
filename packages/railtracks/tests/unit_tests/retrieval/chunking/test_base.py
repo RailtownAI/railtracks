@@ -22,7 +22,7 @@ def test_chunker_is_abstract():
 
 def test_make_chunks_propagates_document_id_and_index():
     doc = Document(
-        content="abc def", type="text/plain", metadata={"source": "test"}
+        content="abc def", type="text", metadata={"source": "test"}
     )
     chunker = _PassthroughChunker()
     pieces = ["abc ", "def"]
@@ -37,7 +37,7 @@ def test_make_chunks_propagates_document_id_and_index():
 
 def test_make_chunks_extra_metadata_overrides_inherited_keys():
     doc = Document(
-        content="text", type="text/plain", metadata={"category": "base"}
+        content="text", type="text", metadata={"category": "base"}
     )
     chunker = _PassthroughChunker()
     chunks = chunker._make_chunks(
@@ -51,7 +51,7 @@ def test_make_chunks_extra_metadata_overrides_inherited_keys():
 
 def test_make_chunks_metadata_is_isolated():
     doc = Document(
-        content="text", type="text/plain", metadata={"shared": ["a"]}
+        content="text", type="text", metadata={"shared": ["a"]}
     )
     chunker = _PassthroughChunker()
     chunks = chunker._make_chunks(doc, ["text"])
@@ -66,21 +66,21 @@ def test_make_chunks_metadata_is_isolated():
 
 
 def test_make_chunks_rejects_offsets_length_mismatch():
-    doc = Document(content="ab", type="text/plain")
+    doc = Document(content="ab", type="text")
     chunker = _PassthroughChunker()
     with pytest.raises(ValueError):
         chunker._make_chunks(doc, ["a", "b"], offsets=[(0, 1)])
 
 
 def test_make_chunks_rejects_extra_metadata_length_mismatch():
-    doc = Document(content="ab", type="text/plain")
+    doc = Document(content="ab", type="text")
     chunker = _PassthroughChunker()
     with pytest.raises(ValueError):
         chunker._make_chunks(doc, ["a", "b"], extra_metadata=[{}])
 
 
 def test_make_chunks_propagates_parent_chunk_id():
-    doc = Document(content="abc", type="text/plain")
+    doc = Document(content="abc", type="text")
     parent = Chunk(content="abc", document_id=doc.id)
     chunker = _PassthroughChunker()
     chunks = chunker._make_chunks(doc, ["a", "bc"], parent_chunk_id=parent.id)

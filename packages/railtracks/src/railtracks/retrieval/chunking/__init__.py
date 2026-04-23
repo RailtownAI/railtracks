@@ -23,7 +23,7 @@ Start from a :class:`~railtracks.retrieval.Document`:
 
     doc = Document(
         content=open("notes.md").read(),
-        type="text/markdown",
+        type="markdown",
         source="notes.md",
         metadata={"lang": "en"},
     )

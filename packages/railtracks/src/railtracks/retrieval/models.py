@@ -32,7 +32,7 @@ class Document:
     """
 
     content: str
-    type: str  # mime-like, e.g. "text/plain", "application/pdf"
+    type: str  # short type name, e.g. "text", "markdown", "pdf", "csv", "json"
     id: UUID = field(default_factory=uuid4)
     source: str | None = None  # URI, path, or opaque identifier
     metadata: dict[str, Any] = field(default_factory=dict)

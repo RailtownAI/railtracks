@@ -15,14 +15,14 @@ from railtracks.retrieval import (
 
 
 def test_document_defaults():
-    doc = Document(content="hello", type="text/plain")
+    doc = Document(content="hello", type="text")
     assert isinstance(doc.id, UUID)
     assert doc.source is None
     assert doc.metadata == {}
 
 
 def test_chunk_defaults():
-    doc = Document(content="c", type="text/plain")
+    doc = Document(content="c", type="text")
     chunk = Chunk(content="c", document_id=doc.id)
     assert isinstance(chunk.id, UUID)
     assert chunk.index == 0
@@ -32,7 +32,7 @@ def test_chunk_defaults():
 
 
 def test_embedded_retrieved_and_result():
-    doc = Document(content="c", type="text/plain")
+    doc = Document(content="c", type="text")
     chunk = Chunk(content="c", document_id=doc.id)
 
     embedded = EmbeddedChunk(

@@ -27,7 +27,7 @@ def test_offsets_are_none_by_design(multi_paragraph_doc):
 def test_overlap_window_matches_expected_tokens():
     chunker = FixedTokenChunker(chunk_size=8, overlap=3)
     text = " ".join(f"w{i}" for i in range(40))
-    doc = Document(content=text, type="text/plain")
+    doc = Document(content=text, type="text")
     chunks = chunker.chunk(doc)
     encoded = [chunker.tokenizer.encode(c.content) for c in chunks]
     for i in range(len(encoded) - 1):
@@ -39,7 +39,7 @@ def test_overlap_window_matches_expected_tokens():
 def test_zero_overlap_produces_contiguous_chunks():
     chunker = FixedTokenChunker(chunk_size=5, overlap=0)
     text = "one two three four five six seven eight nine ten"
-    doc = Document(content=text, type="text/plain")
+    doc = Document(content=text, type="text")
     chunks = chunker.chunk(doc)
     total_tokens = sum(chunker.tokenizer.count(c.content) for c in chunks)
     assert total_tokens == chunker.tokenizer.count(text)

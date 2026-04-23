@@ -58,7 +58,7 @@ class Chunker(ABC):
     ) -> list[Chunk]:
         """Convenience wrapper for callers without a :class:`Document`.
 
-        Synthesizes a transient ``Document`` with ``type="text/plain"``
+        Synthesizes a transient ``Document`` with ``type="text"``
         and calls :meth:`chunk`. Production callers should build and
         track their own ``Document`` objects so document-level lifecycle
         operations remain possible.
@@ -73,7 +73,7 @@ class Chunker(ABC):
         """
         kwargs: dict[str, Any] = {
             "content": text,
-            "type": "text/plain",
+            "type": "text",
             "metadata": dict(metadata) if metadata is not None else {},
         }
         if document_id is not None:
