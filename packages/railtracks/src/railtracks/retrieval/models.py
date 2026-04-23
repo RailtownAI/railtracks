@@ -1,40 +1,27 @@
-"""Core domain types for the retrieval module.
-
-These are plain dataclasses and carry no behaviour beyond construction
-defaults. They are deliberately kept storage-backend-agnostic so they can
-feed vector stores, BM25 / keyword-only indexes, graph stores, or plain
-SQL archives without modification.
-
-Rules
------
-* ``Chunk`` must remain backend-agnostic. Vectors / embeddings never live on
-  ``Chunk``; they belong on :class:`EmbeddedChunk`.
-* No Pydantic, no ABCs, no protocols in this file. Those live next to their
-  implementations (``chunking/base.py``, ...).
-* Metadata is the escape hatch. Only promote a metadata key to a dedicated
-  field when a majority of chunkers / retrievers will set it.
-"""
-
 from __future__ import annotations
 
+from uuid import UUID, uuid4
 from dataclasses import dataclass, field
 from typing import Any
-from uuid import UUID, uuid4
+
 
 
 @dataclass
 class Document:
-    """A source document, prior to chunking.
+    """A single piece of source content produced by a loader.
 
-    The unit ingestion produces and the vector store tracks for
-    document-level lifecycle operations (re-index, delete-by-document,
-    list).
+    Attributes:
+        content: The raw text content.
+        id: Unique identifier, auto-generated as a UUID if not provided.
+        source: Origin of the content — file path, URL, database key, etc.
+        metadata: Arbitrary key-value pairs attached by the loader (page number,
+            language, author, etc.).
     """
 
     content: str
-    type: str  # short type name, e.g. "text", "markdown", "pdf", "csv", "json"
+    type: str
     id: UUID = field(default_factory=uuid4)
-    source: str | None = None  # URI, path, or opaque identifier
+    source: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
 

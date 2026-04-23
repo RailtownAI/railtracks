@@ -97,6 +97,23 @@ nav:
 
   - RAG:
     - RAG: rag/RAG.md
+    - Components:
+      - overview: rag/components/overview.md
+      - Ingestion:
+          - Overview: rag/components/ingestion/overview.md
+          - Text and Markdown: rag/components/ingestion/text_markdown.md
+          - CSV: rag/components/ingestion/csv.md
+          - PDFs: rag/components/ingestion/pdfs.md
+          - Custom Ingestors: rag/components/ingestion/custom.md
+      - Chunking:
+          - Overview: rag/components/chunking/overview.md
+          - Built-in Methods: rag/components/chunking/methods.md
+      - Embeddings:
+        - Overview: rag/embeddings/overview.md
+        - Built-in Methods: rag/embeddings/methods.md
+      - Storage and Retrieval:
+         - Overview: rag/storage_retrieval/overview.md
+         - Built-in Methods: rag/storage_retrieval/methods.md      
     - Vector Stores:
         - Overview: rag/vector_stores/vector_store_info.md
         - Filtering: rag/vector_stores/filtering.md
