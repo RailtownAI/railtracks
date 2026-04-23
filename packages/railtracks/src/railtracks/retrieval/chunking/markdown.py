@@ -165,15 +165,23 @@ class MarkdownHeaderChunker(Chunker):
             nonlocal current_body_start, current_body_end
             if current_body_start is None:
                 return
-            body_text = text[current_body_start:body_end]
-            sections.append(
-                {
-                    "headers": list(current_headers),
-                    "body": body_text,
-                    "body_start": current_body_start,
-                    "body_end": body_end,
-                }
-            )
+            raw_body = text[current_body_start:body_end]
+            stripped = raw_body.strip()
+            if stripped:
+                # Tighten offsets to the stripped body so that
+                # doc.content[body_start:body_end] == stripped.
+                leading = len(raw_body) - len(raw_body.lstrip())
+                trailing = len(raw_body) - len(raw_body.rstrip())
+                tight_start = current_body_start + leading
+                tight_end = body_end - trailing
+                sections.append(
+                    {
+                        "headers": list(current_headers),
+                        "body": stripped,
+                        "body_start": tight_start,
+                        "body_end": tight_end,
+                    }
+                )
             current_body_start = None
             current_body_end = None
 

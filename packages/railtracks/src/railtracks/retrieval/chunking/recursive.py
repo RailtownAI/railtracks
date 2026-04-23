@@ -143,7 +143,9 @@ class RecursiveSplitter(Splitter):
                 continue
 
             if buffer and buffer_len + piece_len > self.chunk_size:
-                chunks.append(_join_span(buffer))
+                span = _tighten_span(*_join_span(buffer))
+                if span is not None:
+                    chunks.append(span)
                 # shrink buffer from the front until it fits both the
                 # overlap budget and the incoming piece
                 while buffer and (
@@ -159,7 +161,9 @@ class RecursiveSplitter(Splitter):
             buffer_len += piece_len
 
         if buffer:
-            chunks.append(_join_span(buffer))
+            span = _tighten_span(*_join_span(buffer))
+            if span is not None:
+                chunks.append(span)
 
         return chunks
 
@@ -274,3 +278,22 @@ def _join_span(buffer: list[tuple[str, int, int]]) -> tuple[str, int, int]:
     start = buffer[0][1]
     end = buffer[-1][2]
     return content, start, end
+
+
+def _tighten_span(raw: str, start: int, end: int) -> tuple[str, int, int] | None:
+    """Strip leading/trailing whitespace from a raw chunk and tighten its
+    character-offset span accordingly.
+
+    Separator characters (e.g. ``\\n\\n``) that end up as the first or last
+    characters of a merged chunk are noise for embedding purposes; stripping
+    them here keeps chunk content clean.
+
+    Returns ``None`` when the stripped text is empty (the caller should skip
+    the chunk entirely rather than emit an empty one).
+    """
+    stripped = raw.strip()
+    if not stripped:
+        return None
+    leading = len(raw) - len(raw.lstrip())
+    trailing = len(raw) - len(raw.rstrip())
+    return stripped, start + leading, end - trailing
