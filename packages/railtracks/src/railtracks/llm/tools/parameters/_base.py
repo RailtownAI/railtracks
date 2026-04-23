@@ -44,7 +44,9 @@ def _normalize_param_type_scalar(
 T = TypeVar("T", bound="Parameter")
 
 ParameterTypeInputScalar = Union[str, ParameterType, type]
-ParameterTypeInput = Optional[Union[ParameterTypeInputScalar, List[ParameterTypeInputScalar]]]
+ParameterTypeInput = Optional[
+    Union[ParameterTypeInputScalar, List[ParameterTypeInputScalar]]
+]
 
 
 class Parameter(ABC):
@@ -85,7 +87,9 @@ class Parameter(ABC):
         self.default_present = default_present
         if param_type is not None:
             if isinstance(param_type, list):
-                self.param_type = [_normalize_param_type_scalar(pt) for pt in param_type]
+                self.param_type = [
+                    _normalize_param_type_scalar(pt) for pt in param_type
+                ]
             else:
                 self.param_type = _normalize_param_type_scalar(param_type)
         elif hasattr(self, "param_type") and self.param_type is None:
