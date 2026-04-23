@@ -12,12 +12,12 @@ from __future__ import annotations
 from typing import Callable
 
 from ..models import Chunk, Document
-from .base import Chunker
+from .base import Chunker, Splitter
 
 DEFAULT_SEPARATORS: list[str] = ["\n\n", "\n", ". ", " ", ""]
 
 
-class RecursiveSplitter:
+class RecursiveSplitter(Splitter):
     """Reusable recursive character splitter.
 
     Implements the ``Splitter`` protocol (``split(text) -> list[str]``) so

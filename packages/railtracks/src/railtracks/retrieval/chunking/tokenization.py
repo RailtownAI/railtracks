@@ -26,7 +26,7 @@ class Tokenizer(Protocol):
     def count(self, text: str) -> int: ...
 
 
-class TiktokenTokenizer:
+class TiktokenTokenizer(Tokenizer):
     """Default :class:`Tokenizer` backed by ``tiktoken``.
 
     Args:

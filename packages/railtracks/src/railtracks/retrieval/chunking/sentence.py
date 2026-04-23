@@ -26,7 +26,7 @@ from .base import Chunker, Splitter
 _SENTENCE_END_PATTERN = re.compile(r"(?<=[.!?])\s+")
 
 
-class RegexSentenceSplitter:
+class RegexSentenceSplitter(Splitter):
     """Simple regex-based sentence splitter satisfying the ``Splitter`` protocol.
 
     Returns a list of sentences; trailing / leading whitespace that was
