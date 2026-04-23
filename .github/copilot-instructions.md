@@ -112,6 +112,8 @@ Orchestrator = rt.agent_node(
 )
 ```
 
+`Parameter.param_type` may be a JSON schema type string (e.g. `"string"`) or a Python builtin (`str`, `int`, …) mapped to the same schema types.
+
 #### MCP Tools
 ```python
 server = rt.connect_mcp(rt.MCPStdioParams(command="python", args=["-m", "my_mcp_server"]))

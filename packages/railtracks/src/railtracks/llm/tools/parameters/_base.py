@@ -29,8 +29,22 @@ class ParameterType(str, Enum):
         return mapping.get(py_type, cls.OBJECT)
 
 
+def _normalize_param_type_scalar(
+    param_type: Union[str, ParameterType, type],
+) -> str:
+    """Map ParameterType enum, JSON schema type string, or Python type to a schema type string."""
+    if isinstance(param_type, ParameterType):
+        return param_type.value
+    if isinstance(param_type, type):
+        return ParameterType.from_python_type(param_type).value
+    return param_type
+
+
 # Generic Type for subclass methods that return Parameter
 T = TypeVar("T", bound="Parameter")
+
+ParameterTypeInputScalar = Union[str, ParameterType, type]
+ParameterTypeInput = Optional[Union[ParameterTypeInputScalar, List[ParameterTypeInputScalar]]]
 
 
 class Parameter(ABC):
@@ -48,7 +62,7 @@ class Parameter(ABC):
         default: Any = None,
         enum: Optional[List[Any]] = None,
         default_present: bool = False,
-        param_type: Optional[Union[str, List[str]]] = None,
+        param_type: ParameterTypeInput = None,
     ):
         """
         Initialize a Parameter instance.
@@ -60,7 +74,8 @@ class Parameter(ABC):
             default (Any): Default value for the parameter.
             enum (Optional[List[Any]]): Allowed values for the parameter.
             default_present (bool): Whether a default value is explicitly set.
-            param_type (Optional[Union[str, List[str]]]): The type or types of the parameter.
+            param_type: JSON schema type string (e.g. ``\"string\"``), :class:`ParameterType`,
+                a Python builtin type (e.g. ``str`` → ``\"string\"``), or a list for unions.
         """
         self.name = name
         self.description = description or ""
@@ -69,19 +84,10 @@ class Parameter(ABC):
         self.enum = enum
         self.default_present = default_present
         if param_type is not None:
-            # Accept either list[str], str, or ParameterType enum or list of them
-            # Normalize to str or List[str]
             if isinstance(param_type, list):
-                self.param_type = [
-                    pt.value if isinstance(pt, ParameterType) else pt
-                    for pt in param_type
-                ]
+                self.param_type = [_normalize_param_type_scalar(pt) for pt in param_type]
             else:
-                self.param_type = (
-                    param_type.value
-                    if isinstance(param_type, ParameterType)
-                    else param_type
-                )
+                self.param_type = _normalize_param_type_scalar(param_type)
         elif hasattr(self, "param_type") and self.param_type is None:
             self.param_type = None
 
