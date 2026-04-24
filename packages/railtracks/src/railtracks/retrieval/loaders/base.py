@@ -2,54 +2,70 @@ from __future__ import annotations
 
 import asyncio
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 
 from railtracks.retrieval.models import Document
 
 
 class BaseDocumentLoader(ABC):
-    """Base class for all document loaders.
+    """Abstract base class for all document loaders.
 
-    Subclass this to integrate any new document source. Only `load()`
-    must be implemented. `aload()` and `astream()` have default
-    implementations but can be overridden for true async or streaming I/O.
+    Defines the streaming interface for loading documents from any source.
+    Subclasses must implement `astream()`, which is the single primitive
+    from which all other methods are derived.
 
-    `RAGPipeline` always consumes `astream()` internally so documents
-    flow into the chunker as they become ready rather than waiting for
-    the full corpus to load. Loaders backed by cloud OCR or other slow
-    per-document I/O should override `astream()` to yield documents
-    concurrently.
+    The pipeline always consumes `astream()` internally, allowing documents
+    to flow into the chunker as they become ready rather than waiting for the
+    full corpus to load. This enables true streaming behaviour where a document
+    is chunked and embedded while subsequent documents are still being loaded.
+
+    Example:
+        ::
+
+            class MyLoader(BaseDocumentLoader):
+                async def astream(self) -> AsyncGenerator[Document, None]:
+                    for item in my_source:
+                        yield Document(content=item.text, source=item.url)
+
+            loader = MyLoader()
+            async for doc in loader.astream():
+                print(doc.content)
     """
 
     @abstractmethod
-    def load(self) -> list[Document]:
-        """Loads and returns a list of Documents.
+    async def astream(self) -> AsyncGenerator[Document, None]:
+        """Stream documents one at a time as they become ready.
 
-        Returns:
-            A list of `Document` objects.
-        """
-        ...
-
-    async def aload(self) -> list[Document]:
-        """Async variant of `load()`. Defaults to running `load()` in a thread pool.
-
-        Override this method in subclasses that support native async I/O.
-
-        Returns:
-            A list of `Document` objects.
-        """
-        return await asyncio.to_thread(self.load)
-
-    async def astream(self) -> AsyncIterator[Document]:
-        """Streams Documents one at a time as they become ready.
-
-        The default implementation materialises `aload()` and yields
-        from the result. Override this in loaders that can produce
-        documents incrementally (e.g. cloud OCR, paginated APIs) to
-        avoid holding the full corpus in memory.
+        The single primitive from which `load()` and `aload()` are
+        derived. Documents must be yielded individually as soon as they
+        are available — implementations must not buffer the full corpus
+        before yielding.
 
         Yields:
-            Individual `Document` objects.
+            Document: The next available document from the source.
         """
-        for doc in await self.aload():
-            yield doc
+        yield # This needs to be here to make this an async generator, read: https://discuss.python.org/t/overloads-of-async-generators-inconsistent-coroutine-wrapping/56665
+
+    async def aload(self) -> list[Document]:
+        """Load all documents and return them as a list.
+
+        Collects all documents from `astream()` into memory. Prefer
+        `astream()` for large corpora to avoid holding the full corpus
+        in memory.
+
+        Returns:
+            list[Document]: All documents produced by this loader.
+        """
+        return [doc async for doc in self.astream()]
+
+    def load(self) -> list[Document]:
+        """Load all documents synchronously and return them as a list.
+
+        Blocking wrapper around `aload()` for use outside of an async
+        context. Prefer `astream()` or `aload()` wherever async I/O
+        is available.
+
+        Returns:
+            list[Document]: All documents produced by this loader.
+        """
+        return asyncio.run(self.aload())

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import csv
+from collections.abc import AsyncGenerator
 from pathlib import Path
 
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
@@ -8,25 +10,38 @@ from railtracks.retrieval.models import Document, DocumentType
 
 
 class CSVLoader(BaseDocumentLoader):
-    """Loads CSV files, converting each row into a Document.
+    """Loads CSV files as `Document` objects.
 
     If `file_path` points to a directory, all `.csv` files are loaded
-    recursively. If it points to a file, that file is loaded.
+    recursively in sorted order. If it points to a file, that file is loaded.
 
-    Note on column handling:
-    - `content_columns`: values are concatenated (via `content_separator`)
-      to form `Document.content`. When `None`, all columns are used.
-    - `ignore_columns`: columns dropped entirely — not content, not metadata.
+    Each row is converted to a `Document` and yielded as soon as it is read,
+    without buffering the full file in memory.
+
+    Column handling:
+
+    - `content_columns`: values are concatenated via `content_separator` to
+      form `Document.content`. When `None`, all columns are used as content.
+    - `ignore_columns`: columns dropped entirely from both content and metadata.
     - Every remaining column (not in `content_columns`, not in
       `ignore_columns`) is added to `Document.metadata`.
 
     Args:
-        file_path: Path to a `.csv` file or directory.
-        content_columns: Ordered list of columns to concatenate into `Document.content`.
-            `None` means all columns.
-        ignore_columns: Columns to drop entirely.
+        file_path: Path to a `.csv` file or a directory containing `.csv`
+            files.
+        content_columns: Ordered list of columns to concatenate into
+            `Document.content`. Defaults to `None`, which uses all columns.
+        ignore_columns: Columns to drop entirely from both content and
+            metadata.
         content_separator: String used to join multiple content-column values.
-        encoding: File encoding (default `utf-8-sig`).
+            Defaults to `"\\n"`.
+        encoding: File encoding. Defaults to `utf-8-sig`.
+
+    Raises:
+        FileNotFoundError: If `file_path` does not exist.
+        ValueError: If `file_path` points to a file with an unsupported
+            extension, or any column in `content_columns` is not found in
+            the CSV headers.
     """
 
     def __init__(
@@ -43,53 +58,85 @@ class CSVLoader(BaseDocumentLoader):
         self._content_separator = content_separator
         self._encoding = encoding
 
-    def _load_file(self, path: Path) -> list[Document]:
-        documents: list[Document] = []
+    async def _stream_file(self, path: Path) -> AsyncGenerator[Document, None]:
+        """Stream documents from a single CSV file, one row at a time.
 
-        with path.open(encoding=self._encoding, newline="") as f:
-            reader = csv.DictReader(f)
+        Args:
+            path: Path to the CSV file to read.
 
-            if reader.fieldnames is None:
-                return documents
+        Yields:
+            Document: The next row as a document.
 
-            fieldnames = list(reader.fieldnames)
-            content_columns = self._content_columns if self._content_columns is not None else fieldnames
+        Raises:
+            ValueError: If any column in `content_columns` is not found in
+                the CSV headers.
+        """
+        source = str(path)
 
-            unknown = [c for c in content_columns if c not in fieldnames]
-            if unknown:
-                raise ValueError(f"content_columns not found in CSV headers: {unknown}")
+        def _iter_rows():
+            with path.open(encoding=self._encoding, newline="") as f:
+                reader = csv.DictReader(f)
 
-            content_col_set = set(content_columns)
+                if reader.fieldnames is None:
+                    return
 
-            for row_index, row in enumerate(reader):
-                content = self._content_separator.join(
-                    f"{col}: {row[col]}" for col in content_columns
+                fieldnames = list(reader.fieldnames)
+                content_columns = (
+                    self._content_columns
+                    if self._content_columns is not None
+                    else fieldnames
                 )
-                metadata = {
-                    col: row[col]
-                    for col in fieldnames
-                    if col not in content_col_set and col not in self._ignore_columns
-                }
-                metadata["row_index"] = row_index
 
-                documents.append(
-                    Document(
+                unknown = [c for c in content_columns if c not in fieldnames]
+                if unknown:
+                    raise ValueError(
+                        f"content_columns not found in CSV headers: {unknown}"
+                    )
+
+                content_col_set = set(content_columns)
+
+                for row_index, row in enumerate(reader):
+                    content = self._content_separator.join(
+                        f"{col}: {row[col]}" for col in content_columns
+                    )
+                    metadata = {
+                        col: row[col]
+                        for col in fieldnames
+                        if col not in content_col_set
+                        and col not in self._ignore_columns
+                    }
+                    metadata["row_index"] = row_index
+                    yield Document(
                         content=content,
                         type=DocumentType.CSV,
-                        source=str(path),
+                        source=source,
                         metadata=metadata,
                     )
-                )
 
-        return documents
+        for doc in await asyncio.to_thread(lambda: list(_iter_rows())):
+            yield doc
 
-    def load(self) -> list[Document]:
+    async def astream(self) -> AsyncGenerator[Document, None]:
+        """Stream documents one at a time as each CSV row is read.
+
+        For a directory, files are streamed in sorted order. Within each
+        file, rows are yielded individually without buffering the full file
+        in memory.
+
+        Yields:
+            Document: The next row as a document.
+
+        Raises:
+            FileNotFoundError: If the path does not exist.
+            ValueError: If the path points to a file with an unsupported
+                extension.
+        """
         if self._path.is_dir():
-            docs: list[Document] = []
-            for p in sorted(self._path.rglob("*.csv")):
-                if p.is_file():
-                    docs.extend(self._load_file(p))
-            return docs
+            for path in sorted(self._path.rglob("*.csv")):
+                if path.is_file():
+                    async for doc in self._stream_file(path):
+                        yield doc
+            return
 
         if not self._path.is_file():
             raise FileNotFoundError(f"File not found: {self._path}")
@@ -98,4 +145,5 @@ class CSVLoader(BaseDocumentLoader):
                 f"CSVLoader expects a .csv file, got {self._path.suffix!r}"
             )
 
-        return self._load_file(self._path)
+        async for doc in self._stream_file(self._path):
+            yield doc
