@@ -70,9 +70,12 @@ class PyPDFLoader(BaseDocumentLoader):
             )
         else:
             for page_number, page in enumerate(reader.pages, start=1):
+                text = page.extract_text() or ""
+                if not text.strip():
+                    continue
                 documents.append(
                     Document(
-                        content=page.extract_text() or "",
+                        content=text,
                         type=DocumentType.PDF,
                         source=source,
                         metadata={
@@ -93,11 +96,11 @@ class PyPDFLoader(BaseDocumentLoader):
                     docs.extend(self._load_file(p))
             return docs
 
+        if not self._path.is_file():
+            raise FileNotFoundError(f"File not found: {self._path}")
         if self._path.suffix.lower() != ".pdf":
             raise ValueError(
                 f"PyPDFLoader expects a .pdf file, got {self._path.suffix!r}"
             )
-        if not self._path.is_file():
-            raise FileNotFoundError(f"File not found: {self._path}")
 
         return self._load_file(self._path)

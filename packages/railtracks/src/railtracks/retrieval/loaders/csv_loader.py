@@ -91,11 +91,11 @@ class CSVLoader(BaseDocumentLoader):
                     docs.extend(self._load_file(p))
             return docs
 
+        if not self._path.is_file():
+            raise FileNotFoundError(f"File not found: {self._path}")
         if self._path.suffix.lower() != ".csv":
             raise ValueError(
                 f"CSVLoader expects a .csv file, got {self._path.suffix!r}"
             )
-        if not self._path.is_file():
-            raise FileNotFoundError(f"File not found: {self._path}")
 
         return self._load_file(self._path)

@@ -16,10 +16,10 @@ class TextLoader(BaseDocumentLoader):
 
     Args:
         file_path: Path to a file or directory.
-        encoding: File encoding (default `utf-8`).
+        encoding: File encoding (default `utf-8-sig`).
     """
 
-    def __init__(self, file_path: str, encoding: str = "utf-8") -> None:
+    def __init__(self, file_path: str, encoding: str = "utf-8-sig") -> None:
         self._path = Path(file_path)
         self._encoding = encoding
 

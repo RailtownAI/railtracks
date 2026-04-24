@@ -44,25 +44,25 @@ class JSONLoader(BaseDocumentLoader):
             unknown = [k for k in self._content_keys if k not in obj]
             if unknown:
                 raise ValueError(
-                    f"content_keys {unknown} not found in object at index {index}"
+                    f"content_keys {unknown} not found in object at index {index} in {source}"
                 )
             content = self._content_separator.join(
                 f"{k}: {obj[k]}" for k in self._content_keys
             )
+            content_key_set = set(self._content_keys)
+            metadata: dict[str, Any] = {
+                k: v
+                for k, v in obj.items()
+                if k not in content_key_set and k not in self._ignore_keys
+            }
         else:
             content = json.dumps(
                 {k: v for k, v in obj.items() if k not in self._ignore_keys},
                 ensure_ascii=False,
             )
+            metadata = {}
 
-        content_key_set = set(self._content_keys or [])
-        metadata = {
-            k: v
-            for k, v in obj.items()
-            if k not in content_key_set and k not in self._ignore_keys
-        }
         metadata["index"] = index
-
         return Document(content=content, type=DocumentType.JSON, source=source, metadata=metadata)
 
     def _load_file(self, path: Path) -> list[Document]:
@@ -86,11 +86,11 @@ class JSONLoader(BaseDocumentLoader):
                     docs.extend(self._load_file(p))
             return docs
 
+        if not self._path.is_file():
+            raise FileNotFoundError(f"File not found: {self._path}")
         if self._path.suffix.lower() != ".json":
             raise ValueError(
                 f"JSONLoader expects a .json file, got {self._path.suffix!r}"
             )
-        if not self._path.is_file():
-            raise FileNotFoundError(f"File not found: {self._path}")
 
         return self._load_file(self._path)
