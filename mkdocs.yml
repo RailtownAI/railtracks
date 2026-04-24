@@ -98,7 +98,7 @@ nav:
   - RAG:
     - RAG: rag/RAG.md
     - Components:
-      - overview: rag/components/overview.md
+      - Design: rag/components/design.md
       - Ingestion:
           - Overview: rag/components/ingestion/overview.md
           - Text and Markdown: rag/components/ingestion/text_markdown.md
