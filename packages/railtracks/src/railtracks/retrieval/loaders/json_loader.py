@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
-from railtracks.retrieval.models import Document
+from railtracks.retrieval.models import Document, DocumentType
 
 
 class JSONLoader(BaseDocumentLoader):
@@ -63,7 +63,7 @@ class JSONLoader(BaseDocumentLoader):
         }
         metadata["index"] = index
 
-        return Document(content=content, type="json", source=source, metadata=metadata)
+        return Document(content=content, type=DocumentType.JSON, source=source, metadata=metadata)
 
     def _load_file(self, path: Path) -> list[Document]:
         source = str(path)

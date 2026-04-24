@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Literal
 
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
-from railtracks.retrieval.models import Document
+from railtracks.retrieval.models import Document, DocumentType
 
 try:
     from pypdf import PdfReader
@@ -63,7 +63,7 @@ class PyPDFLoader(BaseDocumentLoader):
             documents.append(
                 Document(
                     content=content,
-                    type="pdf",
+                    type=DocumentType.PDF,
                     source=source,
                     metadata={"total_pages": total_pages, "file_type": ".pdf"},
                 )
@@ -73,7 +73,7 @@ class PyPDFLoader(BaseDocumentLoader):
                 documents.append(
                     Document(
                         content=page.extract_text() or "",
-                        type="pdf",
+                        type=DocumentType.PDF,
                         source=source,
                         metadata={
                             "page": page_number,

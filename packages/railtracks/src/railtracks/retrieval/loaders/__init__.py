@@ -4,6 +4,7 @@ from railtracks.retrieval.loaders.csv_loader import CSVLoader
 
 from railtracks.retrieval.loaders.langchain_adapter import LangChainLoaderAdapter
 from railtracks.retrieval.loaders.text_loader import TextLoader
+from railtracks.retrieval.models import DocumentType
 
 # Optional-dep loaders are importable directly from their modules:
 #   from railtracks.retrieval.loaders.pdf_loader import PyPDFLoader
@@ -13,6 +14,7 @@ __all__ = [
     "BaseDocumentLoader",
     "CodeLoader",
     "CSVLoader",
+    "DocumentType",
     "EXTENSION_TO_LANGUAGE",
     "LangChainLoaderAdapter",
     "TextLoader",

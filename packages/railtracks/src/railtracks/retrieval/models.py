@@ -1,8 +1,19 @@
 from __future__ import annotations
 
+from enum import Enum
 from uuid import UUID, uuid4
 from dataclasses import dataclass, field
 from typing import Any
+
+
+class DocumentType(str, Enum):
+    TEXT = "text"
+    MARKDOWN = "markdown"
+    CSV = "csv"
+    PDF = "pdf"
+    JSON = "json"
+    HTML = "html"
+    CODE = "code"
 
 
 
@@ -19,7 +30,7 @@ class Document:
     """
 
     content: str
-    type: str
+    type: DocumentType
     id: UUID = field(default_factory=uuid4)
     source: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)

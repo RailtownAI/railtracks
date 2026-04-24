@@ -4,7 +4,7 @@ import csv
 from pathlib import Path
 
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
-from railtracks.retrieval.models import Document
+from railtracks.retrieval.models import Document, DocumentType
 
 
 class CSVLoader(BaseDocumentLoader):
@@ -75,7 +75,7 @@ class CSVLoader(BaseDocumentLoader):
                 documents.append(
                     Document(
                         content=content,
-                        type="csv",
+                        type=DocumentType.CSV,
                         source=str(path),
                         metadata=metadata,
                     )

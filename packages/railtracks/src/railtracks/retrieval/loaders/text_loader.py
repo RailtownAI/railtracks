@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
-from railtracks.retrieval.models import Document
+from railtracks.retrieval.models import Document, DocumentType
 
 _SUPPORTED_EXTENSIONS = {".txt", ".md"}
 
@@ -25,7 +25,7 @@ class TextLoader(BaseDocumentLoader):
 
     def _load_file(self, path: Path) -> Document:
         content = path.read_text(encoding=self._encoding)
-        doc_type = "markdown" if path.suffix.lower() == ".md" else "text"
+        doc_type = DocumentType.MARKDOWN if path.suffix.lower() == ".md" else DocumentType.TEXT
         return Document(
             content=content,
             type=doc_type,
