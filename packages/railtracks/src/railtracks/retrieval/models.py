@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from uuid import UUID, uuid4
 from dataclasses import dataclass, field
 from typing import Any
-
+from uuid import UUID, uuid4
 
 
 @dataclass

@@ -55,7 +55,9 @@ class RecursiveSplitter(Splitter):
 
         self.chunk_size = chunk_size
         self.overlap = overlap
-        self.separators = list(separators) if separators is not None else list(DEFAULT_SEPARATORS)
+        self.separators = (
+            list(separators) if separators is not None else list(DEFAULT_SEPARATORS)
+        )
         self.length_fn: Callable[[str], int] = length_fn or len
 
     # ------------------------------------------------------------------
@@ -249,7 +251,9 @@ def _split_keeping_separator(
         idx = text.find(separator, start)
         if idx < 0:
             if start < len(text):
-                pieces.append((text[start:], base_offset + start, base_offset + len(text)))
+                pieces.append(
+                    (text[start:], base_offset + start, base_offset + len(text))
+                )
             break
         end = idx + sep_len
         pieces.append((text[start:end], base_offset + start, base_offset + end))
@@ -259,7 +263,9 @@ def _split_keeping_separator(
     return pieces
 
 
-def _hard_chop(text: str, base_offset: int, chunk_size: int) -> list[tuple[str, int, int]]:
+def _hard_chop(
+    text: str, base_offset: int, chunk_size: int
+) -> list[tuple[str, int, int]]:
     """Character-level fallback used only when no separator remains and a
     piece is still too large under a custom ``length_fn``.
     """

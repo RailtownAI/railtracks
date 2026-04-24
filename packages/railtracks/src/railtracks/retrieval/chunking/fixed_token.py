@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from ..models import Chunk, Document
 from .base import Chunker
-from .tokenization import Tokenizer, TiktokenTokenizer
+from .tokenization import TiktokenTokenizer, Tokenizer
 
 
 class FixedTokenChunker(Chunker):

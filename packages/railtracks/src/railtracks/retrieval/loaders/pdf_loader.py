@@ -28,7 +28,7 @@ class PyPDFLoader(BaseDocumentLoader):
 
     - `"page"` *(default)*: one Document per page. `metadata` includes
       `page` (1-based), `total_pages`, and `file_type`.
-    - `"document"`: entire PDF as one Document, pages joined by `"\\n\\n"`. 
+    - `"document"`: entire PDF as one Document, pages joined by `"\\n\\n"`.
         `metadata` includes `total_pages` and `file_type`.
 
     Requires: `pip install "railtracks[pdf]"`

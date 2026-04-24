@@ -53,7 +53,11 @@ class CSVLoader(BaseDocumentLoader):
                 return documents
 
             fieldnames = list(reader.fieldnames)
-            content_columns = self._content_columns if self._content_columns is not None else fieldnames
+            content_columns = (
+                self._content_columns
+                if self._content_columns is not None
+                else fieldnames
+            )
 
             unknown = [c for c in content_columns if c not in fieldnames]
             if unknown:

@@ -39,7 +39,9 @@ class JSONLoader(BaseDocumentLoader):
         self._content_separator = content_separator
         self._encoding = encoding
 
-    def _object_to_document(self, obj: dict[str, Any], source: str, index: int) -> Document:
+    def _object_to_document(
+        self, obj: dict[str, Any], source: str, index: int
+    ) -> Document:
         if self._content_keys is not None:
             unknown = [k for k in self._content_keys if k not in obj]
             if unknown:
@@ -71,12 +73,16 @@ class JSONLoader(BaseDocumentLoader):
 
         objects: list[dict[str, Any]] = [raw] if isinstance(raw, dict) else raw
 
-        if not isinstance(objects, list) or not all(isinstance(o, dict) for o in objects):
+        if not isinstance(objects, list) or not all(
+            isinstance(o, dict) for o in objects
+        ):
             raise ValueError(
                 f"JSON file must contain an object or an array of objects: {path}"
             )
 
-        return [self._object_to_document(obj, source, i) for i, obj in enumerate(objects)]
+        return [
+            self._object_to_document(obj, source, i) for i, obj in enumerate(objects)
+        ]
 
     def load(self) -> list[Document]:
         if self._path.is_dir():

@@ -128,7 +128,9 @@ class SentenceChunker(Chunker):
                 break
             start += step
 
-        return self._make_chunks(document, pieces, offsets=offsets, extra_metadata=extra_meta)
+        return self._make_chunks(
+            document, pieces, offsets=offsets, extra_metadata=extra_meta
+        )
 
     def _split_sentences(self, text: str) -> list[tuple[str, int, int]]:
         """Run the configured splitter and obtain ``(sentence, start, end)`` tuples.

@@ -53,7 +53,11 @@ class MarkdownHeaderChunker(Chunker):
         if chunk_size is not None and chunk_size <= 0:
             raise ValueError("'chunk_size' must be greater than 0 when provided")
 
-        headers = list(headers_to_split_on) if headers_to_split_on is not None else list(_DEFAULT_HEADERS)
+        headers = (
+            list(headers_to_split_on)
+            if headers_to_split_on is not None
+            else list(_DEFAULT_HEADERS)
+        )
         for h in headers:
             if not h or set(h) != {"#"}:
                 raise ValueError(
@@ -112,9 +116,7 @@ class MarkdownHeaderChunker(Chunker):
                 continue
 
             # Delegate oversized bodies to the fallback splitter.
-            sub_pieces_with_offsets = self._fallback_with_offsets(
-                body, body_start
-            )
+            sub_pieces_with_offsets = self._fallback_with_offsets(body, body_start)
             for sub, s, e in sub_pieces_with_offsets:
                 pieces.append(sub)
                 offsets.append((s, e))
@@ -148,7 +150,9 @@ class MarkdownHeaderChunker(Chunker):
         heading_stack: list[tuple[int, str]] = []  # (level, full_line "# Title")
 
         # Split into lines with positions.
-        line_entries: list[tuple[str, int, int]] = []  # (line_text_without_newline, start, end_including_newline)
+        line_entries: list[
+            tuple[str, int, int]
+        ] = []  # (line_text_without_newline, start, end_including_newline)
         cursor = 0
         for line in text.splitlines(keepends=True):
             stripped = line.rstrip("\n\r")
@@ -207,9 +211,7 @@ class MarkdownHeaderChunker(Chunker):
             flush(current_body_end if current_body_end is not None else len(text))
 
         # Strip sections whose body is entirely empty/whitespace.
-        return [
-            s for s in sections if s["body"].strip() or s["headers"]
-        ]
+        return [s for s in sections if s["body"].strip() or s["headers"]]
 
     def _fallback_with_offsets(
         self, body: str, base_offset: int
