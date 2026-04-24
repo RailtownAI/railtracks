@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
 from railtracks.retrieval.models import Document, DocumentType
@@ -19,7 +19,10 @@ class JSONLoader(BaseDocumentLoader):
     Args:
         file_path: Path to a `.json` file or directory.
         content_keys: Keys whose values are concatenated to form `Document.content`.
-            When `None`, the entire object is serialized as content.
+            Use ``"*"`` (default) to serialize the entire object as content; all
+            remaining fields are excluded from metadata in that case. Pass an
+            explicit list to control which fields become content — every other
+            non-ignored field is then added to ``Document.metadata``.
         ignore_keys: Keys to drop entirely — not content, not metadata.
         content_separator: String used to join multiple content-key values.
         encoding: File encoding (default `utf-8-sig`).
@@ -28,7 +31,7 @@ class JSONLoader(BaseDocumentLoader):
     def __init__(
         self,
         file_path: str,
-        content_keys: list[str] | None = None,
+        content_keys: list[str] | Literal["*"] = "*",
         ignore_keys: list[str] | None = None,
         content_separator: str = "\n",
         encoding: str = "utf-8-sig",
@@ -40,7 +43,13 @@ class JSONLoader(BaseDocumentLoader):
         self._encoding = encoding
 
     def _object_to_document(self, obj: dict[str, Any], source: str, index: int) -> Document:
-        if self._content_keys is not None:
+        if self._content_keys == "*":
+            content = json.dumps(
+                {k: v for k, v in obj.items() if k not in self._ignore_keys},
+                ensure_ascii=False,
+            )
+            metadata: dict[str, Any] = {}
+        else:
             unknown = [k for k in self._content_keys if k not in obj]
             if unknown:
                 raise ValueError(
@@ -50,17 +59,11 @@ class JSONLoader(BaseDocumentLoader):
                 f"{k}: {obj[k]}" for k in self._content_keys
             )
             content_key_set = set(self._content_keys)
-            metadata: dict[str, Any] = {
+            metadata = {
                 k: v
                 for k, v in obj.items()
                 if k not in content_key_set and k not in self._ignore_keys
             }
-        else:
-            content = json.dumps(
-                {k: v for k, v in obj.items() if k not in self._ignore_keys},
-                ensure_ascii=False,
-            )
-            metadata = {}
 
         metadata["index"] = index
         return Document(content=content, type=DocumentType.JSON, source=source, metadata=metadata)
