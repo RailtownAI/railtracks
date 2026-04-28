@@ -6,7 +6,7 @@ from uuid import UUID
 
 from railtracks.retrieval import (
     Chunk,
-    CostBudget,
+    Cost,
     Document,
     EmbeddedChunk,
     RetrievalResult,
@@ -50,10 +50,10 @@ def test_embedded_retrieved_and_result():
     assert result.metadata == {}
 
 
-def test_cost_budget_is_frozen():
-    budget = CostBudget(tokens=100)
+def test_cost_is_frozen():
+    budget = Cost(tokens=100)
     try:
         budget.tokens = 200  # type: ignore[misc]
     except Exception:
         return
-    raise AssertionError("CostBudget should be frozen")
+    raise AssertionError("Cost should be frozen")

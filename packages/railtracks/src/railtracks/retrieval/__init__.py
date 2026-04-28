@@ -8,7 +8,7 @@ and the module becomes user-facing.
 
 from .models import (
     Chunk,
-    CostBudget,
+    Cost,
     Document,
     EmbeddedChunk,
     RetrievalResult,
@@ -17,7 +17,7 @@ from .models import (
 
 __all__ = [
     "Chunk",
-    "CostBudget",
+    "Cost",
     "Document",
     "EmbeddedChunk",
     "RetrievalResult",

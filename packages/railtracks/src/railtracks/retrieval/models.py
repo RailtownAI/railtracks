@@ -108,7 +108,7 @@ class RetrievalResult:
 
 
 @dataclass(frozen=True)
-class CostBudget:
+class Cost:
     """Declarative budget threaded through retrieval."""
 
     tokens: int | None = None  # retrieved token cap
