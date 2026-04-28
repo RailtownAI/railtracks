@@ -18,7 +18,7 @@ doc = docs[0]
 print(doc.content)            # full file text
 print(doc.type)               # "text" or "markdown"
 print(doc.source)             # "notes.txt"
-print(doc.metadata)           # {"file_type": ".txt", "encoding": "utf-8"}
+print(doc.metadata)           # {"file_type": ".txt", "encoding": "utf-8-sig"}
 ```
 
 Markdown files are automatically identified by their `.md` extension and get `type="markdown"`:
@@ -49,7 +49,7 @@ Files are returned in sorted order by path.
 
 ## Encoding
 
-The default encoding is `utf-8`. Override it with the `encoding` argument:
+The default encoding is `utf-8-sig` (BOM-aware). Override it with the `encoding` argument:
 
 ```python
 loader = TextLoader("legacy_docs/", encoding="latin-1")
@@ -78,7 +78,7 @@ docs = await loader.aload()
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `file_path` | `str` | — | Path to a `.txt`/`.md` file or a directory |
-| `encoding` | `str` | `"utf-8"` | File encoding |
+| `encoding` | `str` | `"utf-8-sig"` | File encoding (BOM-aware by default) |
 
 ---
 

@@ -6,11 +6,13 @@ When the built-in loaders don't cover your source, you can write your own by sub
 
 ## Writing a Custom Loader
 
-Subclass `BaseDocumentLoader` and implement `load()`. Async support comes for free — `aload()` runs `load()` in a thread pool by default, and you can override it if your source supports native async I/O.
+Subclass `BaseDocumentLoader` and implement `astream()`. It must be an async generator that yields `Document` objects one at a time. `aload()` and `load()` come for free — they both derive from `astream()`.
 
 ```python
+from collections.abc import AsyncGenerator
+
 from railtracks.retrieval.loaders import BaseDocumentLoader
-from railtracks.retrieval.models import Document
+from railtracks.retrieval.models import Document, DocumentType
 
 
 class MyDatabaseLoader(BaseDocumentLoader):
@@ -20,40 +22,40 @@ class MyDatabaseLoader(BaseDocumentLoader):
         self._connection_string = connection_string
         self._table = table
 
-    def load(self) -> list[Document]:
-        # Replace with your actual database logic
-        rows = fetch_rows(self._connection_string, self._table)
-        return [
-            Document(
+    async def astream(self) -> AsyncGenerator[Document, None]:
+        rows = await async_fetch_rows(self._connection_string, self._table)
+        for row in rows:
+            yield Document(
                 content=row["body"],
-                type="database",
+                type=DocumentType.TEXT,
                 source=f"{self._table}:{row['id']}",
                 metadata={"author": row["author"], "created_at": row["created_at"]},
             )
-            for row in rows
-        ]
 ```
 
 Then use it like any other loader:
 
 ```python
 loader = MyDatabaseLoader("postgresql://...", table="articles")
-docs = loader.load()
+docs = loader.load()                   # sync
+docs = await loader.aload()            # async, all at once
+async for doc in loader.astream():     # async, one at a time
+    ...
 ```
 
-### Overriding `aload()` for True Async I/O
+### Wrapping a Sync Source
 
-If your source has a native async API, override `aload()` directly:
+If your source only has a synchronous API, use `asyncio.to_thread()` to avoid blocking the event loop:
 
 ```python
-class MyAsyncLoader(BaseDocumentLoader):
-    async def aload(self) -> list[Document]:
-        rows = await async_fetch_rows(...)
-        return [Document(content=r["text"], type="custom", ...) for r in rows]
+import asyncio
+from collections.abc import AsyncGenerator
 
-    def load(self) -> list[Document]:
-        import asyncio
-        return asyncio.run(self.aload())
+class MySyncLoader(BaseDocumentLoader):
+    async def astream(self) -> AsyncGenerator[Document, None]:
+        rows = await asyncio.to_thread(fetch_rows_sync, ...)
+        for row in rows:
+            yield Document(content=row["text"], type=DocumentType.TEXT, ...)
 ```
 
 ---
@@ -99,7 +101,7 @@ print(doc.metadata)  # {"author": "Alice", "index": 0}
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `file_path` | `str` | — | Path to a `.json` file or directory |
-| `content_keys` | `list[str] \| None` | `None` | Keys whose values form `Document.content`. `None` serializes the whole object. |
+| `content_keys` | `list[str] \| "*"` | `"*"` | Keys whose values form `Document.content`. `"*"` serialises the whole object as JSON. |
 | `ignore_keys` | `list[str] \| None` | `None` | Keys to drop entirely |
 | `content_separator` | `str` | `"\n"` | Separator used to join content-key values |
 | `encoding` | `str` | `"utf-8-sig"` | File encoding |

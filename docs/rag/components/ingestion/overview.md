@@ -1,6 +1,6 @@
 # Ingestion Overview
 
-Ingestion is the first step in a RAG pipeline. A **document loader** reads raw data from a source — file, directory, URL, database — and converts it into a list of [`Document`](#the-document-object) objects that the rest of the pipeline (chunking, embedding, storage) can consume.
+Ingestion is the first step in a RAG pipeline. A **document loader** reads raw data from a source; file, directory, URL, database, and converts it into a list of [`Document`](#the-document-object) objects that the rest of the pipeline (chunking, embedding, storage) can consume.
 
 ---
 
@@ -11,45 +11,46 @@ Every loader produces `Document` instances:
 ```python
 @dataclass
 class Document:
-    content: str          # Raw text extracted from the source
-    type: str             # Loader-assigned type: "text", "markdown", "csv", "pdf", …
-    id: UUID              # Auto-generated unique identifier
-    source: str | None    # File path or URL the document came from
-    metadata: dict        # Loader-specific key/value pairs (page number, language, …)
+    content: str               # Raw text extracted from the source
+    type: DocumentType         # "text", "markdown", "csv", "pdf", "json", "html", "code"
+    id: UUID                   # Auto-generated unique identifier
+    source: str | None         # File path or URL the document came from
+    metadata: dict             # Loader-specific key/value pairs (page number, language, …)
 ```
 
 ---
 
 ## Available Loaders
 
-| Loader | Import | Handles | Extra install? |
-|--------|--------|---------|----------------|
-| `TextLoader` | `from railtracks.retrieval.loaders import TextLoader` | `.txt`, `.md` files & directories | No |
-| `CSVLoader` | `from railtracks.retrieval.loaders import CSVLoader` | `.csv` files & directories | No |
-| `PyPDFLoader` | `from railtracks.retrieval.loaders.pdf_loader import PyPDFLoader` | `.pdf` files & directories | `pip install "railtracks[pdf]"` |
-| `HTMLLoader` | `from railtracks.retrieval.loaders.html_loader import HTMLLoader` | HTML files & URLs | `pip install "railtracks[html]"` |
-| `CodeLoader` | `from railtracks.retrieval.loaders import CodeLoader` | Source code files | No |
-| `JSONLoader` | `from railtracks.retrieval.loaders.json_loader import JSONLoader` | `.json` files & directories | No |
-| `LangChainLoaderAdapter` | `from railtracks.retrieval.loaders import LangChainLoaderAdapter` | Any LangChain loader | Depends on wrapped loader |
+| Loader | Handles | Extra install? |
+|--------|---------|----------------|
+| `TextLoader` | `.txt`, `.md` files & directories | No |
+| `CSVLoader`  | `.csv` files & directories | No |
+| `PyPDFLoader` | `.pdf` files & directories | `pip install "railtracks[pdf]"` |
+| `HTMLLoader`  | HTML files & URLs | `pip install "railtracks[html]"` |
+| `CodeLoader`  | Source code files | No |
+| `JSONLoader`  | `.json` files & directories | No |
+| `LangChainLoaderAdapter` | Any LangChain loader | Depends on wrapped loader |
 
 ---
 
 ## Loading Documents
 
-All loaders share the same interface. Call `load()` for synchronous use, or `aload()` inside an async workflow:
+All loaders share the same interface. Use `load()` for synchronous use, `aload()` to collect all documents at once in an async context, or `astream()` to process documents one at a time as they become ready:
 
 ```python
 from railtracks.retrieval.loaders import TextLoader
 
 loader = TextLoader("docs/")
-docs = loader.load()           # sync
-# docs = await loader.aload()  # async
+docs = loader.load()                         # sync, returns list[Document]
 
-for doc in docs:
+# async — collect all at once
+docs = await loader.aload()
+
+# async — process one at a time (preferred for large corpora)
+async for doc in loader.astream():
     print(doc.source, doc.type, len(doc.content))
 ```
-
-`aload()` defaults to running `load()` in a thread pool — you never need to worry about blocking the event loop.
 
 ---
 
