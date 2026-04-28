@@ -223,7 +223,7 @@
 /* ── Inline code ─────────────────────────────────────────── */
 .md-typeset code:not(.highlight code):not(pre code) {
   background-color: transparent;
-  color: #e03e3e;
+  color: #eb6607;
   font-family: "JetBrains Mono", "Fira Code", monospace;
 }
 
