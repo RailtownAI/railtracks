@@ -10,6 +10,11 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
+try:
+    import tiktoken as _tiktoken
+except ModuleNotFoundError:  # pragma: no cover - exercised only when rag extras are missing
+    _tiktoken = None
+
 
 @runtime_checkable
 class Tokenizer(Protocol):
@@ -35,10 +40,14 @@ class TiktokenTokenizer(Tokenizer):
     """
 
     def __init__(self, encoding_name: str = "cl100k_base") -> None:
-        import tiktoken  # local import keeps the chunking subsystem importable without tiktoken installed until a tokenizer is actually constructed
+        if _tiktoken is None:
+            raise ModuleNotFoundError(
+                "tiktoken is required to use TiktokenTokenizer. "
+                "Install railtracks with the rag extra: pip install 'railtracks[rag]'."
+            )
 
         self.encoding_name = encoding_name
-        self._encoding = tiktoken.get_encoding(encoding_name)
+        self._encoding = _tiktoken.get_encoding(encoding_name)
 
     def encode(self, text: str) -> list[int]:
         return self._encoding.encode(text)

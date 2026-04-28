@@ -63,10 +63,7 @@ visual = [
 cli = ["railtracks[visual]"]
 chat = ["railtracks[visual]"]
 # For each Integration package dependencies go here.
-rag = [
-    "litellm >= 1.70.2",
-    "tiktoken>=0.10.0, <=0.12.0"
-]
+rag = ["tiktoken>=0.10.0, <=0.12.0"]
 chroma = [
     "chromadb > 1.3.0",
     "pdfplumber >= 0.10.1"
