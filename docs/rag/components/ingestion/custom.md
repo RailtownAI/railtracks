@@ -1,7 +1,6 @@
 # Custom Ingestors
 
-When the built-in loaders don't cover your source, you can write your own by subclassing `BaseDocumentLoader`, or bridge any LangChain-compatible loader with `LangChainLoaderAdapter`.
-
+When the built-in loaders don't cover your source, you can write your own by subclassing `BaseDocumentLoader`.
 ---
 
 ## Writing a Custom Loader
@@ -60,23 +59,6 @@ class MySyncLoader(BaseDocumentLoader):
 
 ---
 
-## LangChain Loader Adapter
-
-`LangChainLoaderAdapter` wraps any LangChain-compatible loader and converts its output to Railtracks `Document` objects. `langchain-core` is **not** a required dependency — any object whose `.load()` returns items with `.page_content` and `.metadata` attributes is accepted.
-
-```python
-from langchain_community.document_loaders import NotionDirectoryLoader
-from railtracks.retrieval.loaders import LangChainLoaderAdapter
-
-docs = LangChainLoaderAdapter(
-    NotionDirectoryLoader("notion_export/")
-).load()
-```
-
-`aload()` calls the wrapped loader's own `.aload()` if it exists, otherwise falls back to the thread-pool default.
-
----
-
 ## Other Built-in Loaders
 
 ### JSON
@@ -107,55 +89,3 @@ print(doc.metadata)  # {"author": "Alice", "index": 0}
 | `encoding` | `str` | `"utf-8-sig"` | File encoding |
 
 ---
-
-### HTML
-
-`HTMLLoader` loads an HTML file or URL, strips tags, and returns a single `Document` with the plain text. Requires the optional `html` extra:
-
-```bash
-pip install "railtracks[html]"
-```
-
-```python
-from railtracks.retrieval.loaders.html_loader import HTMLLoader
-
-# From a URL
-loader = HTMLLoader("https://example.com/page")
-docs = loader.load()
-
-# From a local file, extracting only article content
-loader = HTMLLoader("page.html", tags_to_extract=["article", "main"])
-docs = loader.load()
-```
-
-Metadata includes `title` (from `<title>`), `source`, and any `<meta>` tags with both `name` and `content` attributes.
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `source` | `str` | — | File path or HTTP/HTTPS URL |
-| `tags_to_extract` | `list[str] \| None` | `None` | HTML tags to extract text from. `None` extracts the full body. |
-| `encoding` | `str` | `"utf-8"` | Encoding for local files |
-
----
-
-### Code
-
-`CodeLoader` loads a single source-code file as one `Document` and detects the programming language from the file extension.
-
-```python
-from railtracks.retrieval.loaders import CodeLoader
-
-loader = CodeLoader("src/utils.py")
-docs = loader.load()
-
-doc = docs[0]
-print(doc.metadata["language"])   # "python"
-print(doc.metadata["extension"])  # ".py"
-```
-
-Supported languages: Python, TypeScript, JavaScript, Go, Rust, Java, C++, C, C#, Ruby, PHP, Swift, Kotlin, Bash, SQL, HTML, CSS, YAML, JSON, TOML. Unknown extensions default to `"text"`.
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `file_path` | `str` | — | Path to the source file |
-| `encoding` | `str` | `"utf-8"` | File encoding |
