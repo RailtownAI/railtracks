@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from railtracks.retrieval import Document
@@ -64,3 +66,40 @@ def test_regex_sentence_splitter_returns_sentences():
     splitter = RegexSentenceSplitter()
     out = splitter.split("First one. Second! Third?")
     assert out == ["First one.", "Second!", "Third?"]
+
+
+# -------------------------------------------------------------------
+# Async: achunk parity
+# -------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_achunk_matches_sync_chunk(multi_paragraph_doc):
+    chunker = SentenceChunker(chunk_size=2, overlap=1)
+    sync_chunks = chunker.chunk(multi_paragraph_doc)
+    async_chunks = await chunker.achunk(multi_paragraph_doc)
+
+    assert len(async_chunks) == len(sync_chunks)
+    for sc, ac in zip(sync_chunks, async_chunks):
+        assert sc.content == ac.content
+        assert sc.offsets == ac.offsets
+        assert sc.metadata["sentence_count"] == ac.metadata["sentence_count"]
+
+
+@pytest.mark.asyncio
+async def test_achunk_empty_document(empty_doc):
+    chunker = SentenceChunker(chunk_size=3, overlap=1)
+    assert await chunker.achunk(empty_doc) == []
+
+
+@pytest.mark.asyncio
+async def test_concurrent_achunk():
+    chunker = SentenceChunker(chunk_size=3, overlap=1)
+    docs = [
+        Document(content=f"Sentence {i} one. Sentence {i} two. Sentence {i} three. " * 3, type="text")
+        for i in range(5)
+    ]
+    results = await asyncio.gather(*[chunker.achunk(doc) for doc in docs])
+    assert len(results) == 5
+    for doc, chunks in zip(docs, results):
+        assert all(c.document_id == doc.id for c in chunks)

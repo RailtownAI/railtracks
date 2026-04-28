@@ -1,8 +1,19 @@
 from __future__ import annotations
 
+from enum import Enum
 from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID, uuid4
+
+
+class DocumentType(str, Enum):
+    TEXT = "text"
+    MARKDOWN = "markdown"
+    CSV = "csv"
+    PDF = "pdf"
+    JSON = "json"
+    HTML = "html"
+    CODE = "code"
 
 
 @dataclass

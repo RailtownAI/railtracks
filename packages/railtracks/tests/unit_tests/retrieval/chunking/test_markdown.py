@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from railtracks.retrieval import Document
@@ -116,3 +118,44 @@ def test_rejects_invalid_header_specifiers():
         MarkdownHeaderChunker(headers_to_split_on=[""])
     with pytest.raises(ValueError):
         MarkdownHeaderChunker(chunk_size=0)
+
+
+# -------------------------------------------------------------------
+# Async: achunk parity
+# -------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_achunk_matches_sync_chunk(markdown_doc):
+    chunker = MarkdownHeaderChunker()
+    sync_chunks = chunker.chunk(markdown_doc)
+    async_chunks = await chunker.achunk(markdown_doc)
+
+    assert len(async_chunks) == len(sync_chunks)
+    for sc, ac in zip(sync_chunks, async_chunks):
+        assert sc.content == ac.content
+        assert sc.offsets == ac.offsets
+        assert sc.metadata["headers"] == ac.metadata["headers"]
+        assert sc.metadata["section"] == ac.metadata["section"]
+
+
+@pytest.mark.asyncio
+async def test_achunk_empty_document(empty_doc):
+    chunker = MarkdownHeaderChunker()
+    assert await chunker.achunk(empty_doc) == []
+
+
+@pytest.mark.asyncio
+async def test_concurrent_achunk():
+    chunker = MarkdownHeaderChunker()
+    docs = [
+        Document(
+            content=f"# Doc {i}\nIntro.\n\n## Section\nBody text.\n",
+            type="markdown",
+        )
+        for i in range(5)
+    ]
+    results = await asyncio.gather(*[chunker.achunk(doc) for doc in docs])
+    assert len(results) == 5
+    for doc, chunks in zip(docs, results):
+        assert all(c.document_id == doc.id for c in chunks)
