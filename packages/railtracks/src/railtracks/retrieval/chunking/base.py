@@ -5,13 +5,22 @@ detection. ``Chunker`` is an ABC that turns a :class:`Document` into a list
 of :class:`Chunk` objects while enforcing all cross-chunker invariants in
 a single protected helper (``_make_chunks``).
 
+The chunking module provides async support for pipeline composition:
+``achunk()`` offloads CPU-bound text splitting to a thread via
+:func:`asyncio.to_thread`, and ``astream_documents()`` connects a
+loader's async document stream to chunking without blocking the event
+loop. Subclasses only implement the synchronous ``chunk()`` method;
+the base class derives all async methods from it.
+
 Subclasses decide *where* to split. They never construct :class:`Chunk`
 objects directly; they delegate to ``_make_chunks``.
 """
 
 from __future__ import annotations
 
+import asyncio
 from abc import ABC, abstractmethod
+from collections.abc import AsyncGenerator
 from typing import Any, Protocol, runtime_checkable
 from uuid import UUID
 
@@ -44,11 +53,79 @@ class Chunker(ABC):
 
     Subclasses must go through :meth:`_make_chunks` to assemble their
     output; this is where every invariant lives.
+
+    **Async contract:**
+
+    Subclasses implement only the synchronous :meth:`chunk` method.
+    The base class derives all async methods from it:
+
+    * :meth:`achunk` — offloads ``chunk()`` to a thread via
+      :func:`asyncio.to_thread`.
+    * :meth:`astream_documents` — pipeline combinator that processes
+      documents from an async stream, calling ``achunk()`` per document
+      and yielding each chunk.
+    * :meth:`achunk_text` — async convenience wrapper around
+      ``achunk()``.
     """
+
+    # ------------------------------------------------------------------
+    # Sync primitive (abstract)
+    # ------------------------------------------------------------------
 
     @abstractmethod
     def chunk(self, document: Document) -> list[Chunk]:
-        """Split a :class:`Document` into a list of :class:`Chunk` objects."""
+        """Split a :class:`Document` into a list of :class:`Chunk` objects.
+
+        This is the single method subclasses must implement. It must be
+        a pure, synchronous function: no file I/O, no network, no
+        mutation of inputs.
+        """
+
+    # ------------------------------------------------------------------
+    # Async — offloads chunk() to a thread
+    # ------------------------------------------------------------------
+
+    async def achunk(self, document: Document) -> list[Chunk]:
+        """Chunk a document asynchronously.
+
+        Offloads the synchronous :meth:`chunk` call to a thread via
+        :func:`asyncio.to_thread` so the event loop is not blocked by
+        CPU-bound text splitting.
+
+        Returns:
+            list[Chunk]: All chunks produced from the document.
+        """
+        return await asyncio.to_thread(self.chunk, document)
+
+    # ------------------------------------------------------------------
+    # Pipeline composition
+    # ------------------------------------------------------------------
+
+    async def astream_documents(
+        self,
+        documents: AsyncGenerator[Document, None],
+    ) -> AsyncGenerator[Chunk, None]:
+        """Stream chunks for every document in an async document stream.
+
+        Connects directly to a loader's ``astream()`` output::
+
+            async for chunk in chunker.astream_documents(loader.astream()):
+                await embedder.embed(chunk)
+
+        Args:
+            documents: An async generator of :class:`Document` objects
+                (e.g. from ``BaseDocumentLoader.astream()``).
+
+        Yields:
+            Chunk: Chunks produced from each document, in document order.
+        """
+        async for doc in documents:
+            for chunk in await self.achunk(doc):
+                yield chunk
+
+    # ------------------------------------------------------------------
+    # Text convenience — sync
+    # ------------------------------------------------------------------
 
     def chunk_text(
         self,
@@ -71,6 +148,45 @@ class Chunker(ABC):
                 document. Inherited (shallow-copied) onto every produced
                 chunk.
         """
+        document = self._build_transient_document(text, document_id, metadata)
+        return self.chunk(document)
+
+    # ------------------------------------------------------------------
+    # Text convenience — async
+    # ------------------------------------------------------------------
+
+    async def achunk_text(
+        self,
+        text: str,
+        document_id: UUID | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> list[Chunk]:
+        """Async convenience wrapper for callers without a :class:`Document`.
+
+        Synthesizes a transient ``Document`` with ``type="text"`` and
+        calls :meth:`achunk`.
+
+        Args:
+            text: Raw text to chunk.
+            document_id: Optional UUID for the transient document.
+            metadata: Optional metadata for the transient document.
+
+        Returns:
+            list[Chunk]: All chunks produced from the text.
+        """
+        document = self._build_transient_document(text, document_id, metadata)
+        return await self.achunk(document)
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _build_transient_document(
+        text: str,
+        document_id: UUID | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> Document:
         kwargs: dict[str, Any] = {
             "content": text,
             "type": "text",
@@ -78,8 +194,7 @@ class Chunker(ABC):
         }
         if document_id is not None:
             kwargs["id"] = document_id
-        document = Document(**kwargs)
-        return self.chunk(document)
+        return Document(**kwargs)
 
     # -----------------------------------------------------------------
     # Helpers available to subclasses; not part of the public surface.
