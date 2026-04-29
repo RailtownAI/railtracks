@@ -18,8 +18,8 @@ class Embedding(ABC):
     - ``aembed``: override if the provider has a native async API 
       to avoid the default ``asyncio.to_thread`` wrapper.
     - ``default_batch_size``: set at the class level to declare the provider's
-      sensible batch ceiling (used by ``astream_chunks`` and as the ``batch_size``
-      fallback in implementations that accept it).
+      sensible batch ceiling, used by ``astream_chunks`` when no explicit
+      ``batch_size`` is passed.
     """
 
     default_batch_size: int = 64
@@ -47,7 +47,7 @@ class Embedding(ABC):
 
 class MultimodalEmbedding(Embedding, ABC):
     """Extends Embedding with image support. Reserved for providers (e.g. Voyage)
-    that accept image inputs alongside text. No concrete implementation yet.
+    that accept image inputs alongside tex t. No concrete implementation yet.
 
     Subclasses must implement ``embed_multimodal``. As with ``Embedding.aembed``,
     override ``aembed_multimodal`` directly if the provider has a native async path.
