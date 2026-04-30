@@ -22,6 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Development Status :: 4 - Beta",
@@ -53,7 +54,7 @@ visual = [
 cli = ["railtracks[visual]"]
 chat = ["railtracks[visual]"]
 chroma = [
-    "chromadb > 1.3.0",
+    "chromadb >= 1.3.0",
     "pdfplumber >= 0.10.1",
 ]
 portkey = ["portkey_ai >= 2.0.2"]
@@ -77,6 +78,3 @@ include = ["docs/", "README.md", "LICENSE"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-
-[tool.setuptools.package-data]
-railtracks = ["py.typed"]
