@@ -65,7 +65,7 @@ all = ["railtracks[visual]", "railtracks[integrations]"]
 railtracks = "railtracks.cli:main"
 
 [project.urls]
-documentation = "https://railtownai.github.io/railtracks/"
+documentation = "https://docs.railtracks.org/"
 "Release Notes" = "https://github.com/RailtownAI/railtracks/releases"
 repository = "https://github.com/RailtownAI/railtracks"
 home = "https://railtracks.org"
