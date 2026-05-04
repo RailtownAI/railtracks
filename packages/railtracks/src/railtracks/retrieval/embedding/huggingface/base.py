@@ -15,10 +15,15 @@ from ..models import EmbeddingMetrics, EmbeddingResult
 logger = get_rt_logger(__name__)
 
 
-def _to_vectors(output: Any) -> list[list[float]]:
+def _to_vectors(output: Any, model: str) -> list[list[float]]:
     arr = np.asarray(output)
     if arr.ndim == 3:
-        arr = arr.mean(axis=1)  # mean-pool token-level models over sequence length
+        logger.debug(
+            "Model %r returned token-level embeddings (shape %s) — mean-pooling over sequence dimension.",
+            model,
+            arr.shape,
+        )
+        arr = arr.mean(axis=1)
     elif arr.ndim == 1:
         arr = arr.reshape(1, -1)
     return arr.tolist()
@@ -57,7 +62,7 @@ class HuggingFaceEmbedding(Embedding):
             model=self._model,
         )
         latency = time.perf_counter() - t0
-        vectors = _to_vectors(output)
+        vectors = _to_vectors(output, self._model)
         embedded = [
             EmbeddedChunk(chunk=chunk, vector=vec, embedding_model=self._model)
             for chunk, vec in zip(chunks, vectors)
@@ -81,7 +86,7 @@ class HuggingFaceEmbedding(Embedding):
             model=self._model,
         )
         latency = time.perf_counter() - t0
-        vectors = _to_vectors(output)
+        vectors = _to_vectors(output, self._model)
         embedded = [
             EmbeddedChunk(chunk=chunk, vector=vec, embedding_model=self._model)
             for chunk, vec in zip(chunks, vectors)
