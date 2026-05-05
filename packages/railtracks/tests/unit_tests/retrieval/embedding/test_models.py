@@ -33,3 +33,24 @@ def test_metrics_sum_builtin():
     total = sum(metrics, EmbeddingMetrics())
     assert total.input_tokens == 7
     assert total.total_cost == pytest.approx(0.003)
+
+
+def test_metrics_add_raises_on_model_mismatch():
+    a = EmbeddingMetrics(model="text-embedding-3-small")
+    b = EmbeddingMetrics(model="text-embedding-3-large")
+    with pytest.raises(ValueError, match="different models"):
+        a + b
+
+
+def test_metrics_add_provider_prefix_does_not_raise():
+    a = EmbeddingMetrics(model="openai/text-embedding-3-small")
+    b = EmbeddingMetrics(model="text-embedding-3-small")
+    c = a + b
+    assert c.model == "openai/text-embedding-3-small"
+
+
+def test_metrics_add_raises_on_dimension_mismatch():
+    a = EmbeddingMetrics(dimension=1536)
+    b = EmbeddingMetrics(dimension=3072)
+    with pytest.raises(ValueError, match="different dimensions"):
+        a + b

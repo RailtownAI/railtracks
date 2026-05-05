@@ -15,6 +15,15 @@ class EmbeddingMetrics:
     dimension: int | None = None
 
     def __add__(self, other: EmbeddingMetrics) -> EmbeddingMetrics:
+        if self.model and other.model:
+            if self.model.split("/")[-1] != other.model.split("/")[-1]:
+                raise ValueError(
+                    f"Cannot add EmbeddingMetrics with different models: {self.model!r} vs {other.model!r}"
+                )
+        if self.dimension and other.dimension and self.dimension != other.dimension:
+            raise ValueError(
+                f"Cannot add EmbeddingMetrics with different dimensions: {self.dimension} vs {other.dimension}"
+            )
         tokens = [x for x in (self.input_tokens, other.input_tokens) if x is not None]
         costs = [x for x in (self.total_cost, other.total_cost) if x is not None]
         return EmbeddingMetrics(
@@ -25,6 +34,7 @@ class EmbeddingMetrics:
             model=self.model if self.model is not None else other.model,
             dimension=self.dimension if self.dimension is not None else other.dimension,
         )
+
 
 @dataclass
 class TextEmbeddings:
@@ -43,7 +53,7 @@ class EmbeddingResult:
 @dataclass
 class EmbeddingFailure:
     chunks: list[Chunk]
-    error: Exception
+    errors: list[Exception]
 
 
 @dataclass

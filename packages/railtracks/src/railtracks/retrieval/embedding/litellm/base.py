@@ -4,12 +4,9 @@ import time
 from typing import Any
 
 import litellm
-from dotenv import load_dotenv
 
 from ..base import Embedding
 from ..models import EmbeddingMetrics, TextEmbeddings
-
-load_dotenv()
 
 
 def _get_vector(item: Any) -> list[float]:

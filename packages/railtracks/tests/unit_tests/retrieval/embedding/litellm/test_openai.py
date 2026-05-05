@@ -26,3 +26,16 @@ async def test_openai_embedding_uses_openai_prefix():
 def test_openai_embedding_default_model():
     emb = OpenAIEmbedding()
     assert emb._model == "openai/text-embedding-3-small"
+
+
+@pytest.mark.asyncio
+async def test_openai_embedding_dimensions_forwarded():
+    with patch("litellm.aembedding", new=AsyncMock(return_value=_fake_response([[0.1]]))) as mock:
+        emb = OpenAIEmbedding(dimensions=256)
+        await emb.aembed(["x"])
+    assert mock.call_args.kwargs["dimensions"] == 256
+
+
+def test_openai_embedding_no_dimensions_by_default():
+    emb = OpenAIEmbedding()
+    assert "dimensions" not in emb._kwargs

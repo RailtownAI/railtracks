@@ -10,7 +10,6 @@ from ..utils import abatched
 from .models import (
     EmbeddingFailure,
     EmbeddingResult,
-    MultimodalInput,
     TextEmbeddings,
 )
 
@@ -25,15 +24,17 @@ async def _iter_list(lst: list) -> AsyncGenerator:
 class Embedding(ABC):
     """Text embedding contract.
 
-    Subclasses must implement ``aembed``. 
-    
+    Subclasses must implement ``aembed`` and declare ``default_batch_size``
+    at the class level. Leaving ``default_batch_size = None`` (the default)
+    requires callers to pass ``batch_size`` explicitly to ``astream_batches``.
+
     Override points:
 
     - ``default_batch_size``: set at the class level to declare the provider's
-      sensible batch ceiling, used by ``aembed_chunks`` and ``astream_batches``.
+      sensible batch ceiling, used by ``astream_batches``.
     """
 
-    default_batch_size: int = 64
+    default_batch_size: int | None = None
 
     @abstractmethod
     async def aembed(self, texts: list[str]) -> TextEmbeddings: ...
@@ -45,49 +46,88 @@ class Embedding(ABC):
         except RuntimeError:
             pass
         else:
+            try:
+                from IPython import get_ipython
+
+                if get_ipython() is not None:
+                    raise RuntimeError(
+                        "embed() cannot be called from a Jupyter notebook; "
+                        "use `result = await embedder.aembed(texts)` instead."
+                    )
+            except ImportError:
+                pass
             raise RuntimeError(
-                "embed() cannot be called from an async context; use aembed() instead"
+                "embed() cannot be called from an async context; use `await aembed()` instead."
             )
         return asyncio.run(self.aembed(texts))
+
+    async def _embed_one_batch(
+        self, batch: list[Chunk]
+    ) -> EmbeddingResult | EmbeddingFailure:
+        try:
+            text_result = await self.aembed([c.content for c in batch])
+            if len(text_result.vectors) != len(batch):
+                raise ValueError(
+                    f"Provider returned {len(text_result.vectors)} vectors for {len(batch)} inputs"
+                )
+            model_name = text_result.metrics.model or ""
+            embedded = [
+                EmbeddedChunk(chunk=c, vector=v, embedding_model=model_name)
+                for c, v in zip(batch, text_result.vectors)
+            ]
+            return EmbeddingResult(chunks=embedded, metrics=text_result.metrics)
+        except Exception as exc:
+            logger.warning(
+                "Embedding batch failed: %d chunks will be skipped. error=%s",
+                len(batch),
+                exc,
+            )
+            return EmbeddingFailure(chunks=batch, errors=[exc])
 
     async def astream_batches(
         self,
         chunks: list[Chunk] | AsyncIterable[Chunk],
         batch_size: int | None = None,
+        concurrency: int = 1,
     ) -> AsyncGenerator[EmbeddingResult | EmbeddingFailure, None]:
-        """Embed an async chunk stream in fixed-size batches, yielding one
-        ``EmbeddingResult`` per successful batch and ``EmbeddingFailure`` per
-        failed batch. The stream continues past failures."""
-        bs = batch_size or self.default_batch_size
-        source = _iter_list(chunks) if isinstance(chunks, list) else chunks
-        async for batch in abatched(source, bs):
-            try:
-                text_result = await self.aembed([c.content for c in batch])
-            except Exception as exc:
-                logger.warning(
-                    f"Embedding batch failed: {len(batch)} chunks will be skipped. error={exc}",
-                )
-                yield EmbeddingFailure(chunks=batch, error=exc)
-                continue
-            model_name = text_result.metrics.model or ""
-            embedded = [
-                EmbeddedChunk(chunk=chunk, vector=vec, embedding_model=model_name)
-                for chunk, vec in zip(batch, text_result.vectors)
-            ]
-            yield EmbeddingResult(chunks=embedded, metrics=text_result.metrics)
+        """Embed a chunk stream in fixed-size batches.
 
-    async def astream_chunks(
-        self,
-        chunks: list[Chunk] | AsyncIterable[Chunk],
-        batch_size: int | None = None,
-    ) -> AsyncGenerator[EmbeddedChunk, None]:
-        """Flat version of ``astream_batches``. Yields ``EmbeddedChunk`` objects
-        and re-raises any batch failure rather than swallowing it."""
-        async for result in self.astream_batches(chunks, batch_size):
-            if isinstance(result, EmbeddingFailure):
-                raise result.error
-            for ec in result.chunks:
-                yield ec
+        Yields one ``EmbeddingResult`` per successful batch and one
+        ``EmbeddingFailure`` per failed batch. The stream continues past
+        failures.
+
+        ``concurrency`` controls how many batches are sent to the provider
+        simultaneously. Results are always yielded in input order. Defaults
+        to 1 (serial). Raise it to hide network latency during large ingestion
+        runs (e.g. ``concurrency=4`` gives ~4× throughput for network-bound
+        providers like OpenAI).
+        """
+        bs = batch_size or self.default_batch_size
+        if bs is None:
+            raise ValueError(
+                f"{type(self).__name__} does not declare a default_batch_size. "
+                "Pass batch_size= explicitly or set default_batch_size on the class."
+            )
+        source = _iter_list(chunks) if isinstance(chunks, list) else chunks
+
+        if concurrency <= 1:
+            async for batch in abatched(source, bs):
+                yield await self._embed_one_batch(batch)
+        else:
+            window: list[list[Chunk]] = []
+            async for batch in abatched(source, bs):
+                window.append(batch)
+                if len(window) >= concurrency:
+                    for result in await asyncio.gather(
+                        *[self._embed_one_batch(b) for b in window]
+                    ):
+                        yield result
+                    window.clear()
+            if window:
+                for result in await asyncio.gather(
+                    *[self._embed_one_batch(b) for b in window]
+                ):
+                    yield result
 
 
 class SyncEmbedding(Embedding, ABC):
@@ -101,18 +141,3 @@ class SyncEmbedding(Embedding, ABC):
 
     async def aembed(self, texts: list[str]) -> TextEmbeddings:
         return await asyncio.to_thread(self._embed_sync, texts)
-
-
-class MultimodalEmbedder(Embedding, ABC):
-    """Extends Embedding with image support. Reserved for providers (e.g. Voyage)
-    that accept image inputs alongside text. No concrete implementation yet.
-
-    Subclasses must implement ``embed_multimodal``. As with ``Embedding.aembed``,
-    override ``aembed_multimodal`` directly if the provider has a native async path.
-    """
-
-    @abstractmethod
-    def embed_multimodal(self, inputs: list[MultimodalInput]) -> EmbeddingResult: ...
-
-    async def aembed_multimodal(self, inputs: list[MultimodalInput]) -> EmbeddingResult:
-        return await asyncio.to_thread(self.embed_multimodal, inputs)

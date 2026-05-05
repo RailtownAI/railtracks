@@ -12,11 +12,10 @@ from railtracks.retrieval.embedding import (
     EmbeddingMetrics,
     EmbeddingResult,
     LiteLLMEmbedding,
-    MultimodalEmbedder,
     SyncEmbedding,
     TextEmbeddings,
 )
-from railtracks.retrieval.models import EmbeddedChunk, Chunk
+from railtracks.retrieval.models import Chunk, EmbeddedChunk
 
 
 def _chunk(content: str = "hello world") -> Chunk:
@@ -46,13 +45,8 @@ def test_embedding_is_abstract():
         Embedding()  # type: ignore[abstract]
 
 
-def test_multimodal_embedder_is_abstract():
-    with pytest.raises(TypeError):
-        MultimodalEmbedder()  # type: ignore[abstract]
-
-
 # ---------------------------------------------------------------------------
-# astream_batches
+# astream_batches — basic behaviour
 # ---------------------------------------------------------------------------
 
 
@@ -97,39 +91,98 @@ async def test_astream_batches_accepts_plain_list():
     fake = _fake_response([[0.1, 0.2], [0.3, 0.4]])
     with patch("litellm.aembedding", new=AsyncMock(return_value=fake)):
         emb = LiteLLMEmbedding(model="openai/text-embedding-3-small")
-        results = [r async for r in emb.astream_batches(chunks)]
+        results = [r async for r in emb.astream_batches(chunks, batch_size=10)]
     assert len(results) == 1
 
 
-# ---------------------------------------------------------------------------
-# astream_chunks
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.asyncio
-async def test_astream_chunks_yields_embedded_chunks():
-    chunks = [_chunk("x"), _chunk("y")]
-    fake = _fake_response([[1.0, 2.0], [3.0, 4.0]])
+async def test_astream_batches_accepts_async_iterable():
+    async def chunk_stream():
+        for c in [_chunk("a"), _chunk("b"), _chunk("c")]:
+            yield c
+
+    fake = _fake_response([[0.1, 0.2]] * 3)
     with patch("litellm.aembedding", new=AsyncMock(return_value=fake)):
         emb = LiteLLMEmbedding(model="openai/text-embedding-3-small")
-        collected = [ec async for ec in emb.astream_chunks(chunks)]
-    assert len(collected) == 2
-    assert all(isinstance(ec, EmbeddedChunk) for ec in collected)
+        results = [r async for r in emb.astream_batches(chunk_stream(), batch_size=10)]
+    assert len(results) == 1
+    assert isinstance(results[0], EmbeddingResult)
+
+
+# ---------------------------------------------------------------------------
+# astream_batches — default_batch_size guard
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_astream_chunks_raises_on_failure():
+async def test_astream_batches_raises_when_no_batch_size():
+    class NoBatchSizeEmb(Embedding):
+        async def aembed(self, texts):
+            return TextEmbeddings(vectors=[[0.1]] * len(texts), metrics=EmbeddingMetrics())
+
+    emb = NoBatchSizeEmb()
+    with pytest.raises(ValueError, match="default_batch_size"):
+        async for _ in emb.astream_batches([_chunk("a")]):
+            pass
+
+
+# ---------------------------------------------------------------------------
+# astream_batches — vector count mismatch guard
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_astream_batches_failure_on_vector_count_mismatch():
     chunks = [_chunk("a"), _chunk("b")]
-    with patch("litellm.aembedding", new=AsyncMock(side_effect=RuntimeError("boom"))):
+    # provider returns only 1 vector for 2 inputs
+    fake = _fake_response([[0.1, 0.2]])
+    with patch("litellm.aembedding", new=AsyncMock(return_value=fake)):
         emb = LiteLLMEmbedding(model="openai/text-embedding-3-small")
-        with pytest.raises(RuntimeError, match="boom"):
-            async for _ in emb.astream_chunks(chunks):
-                pass
+        results = [r async for r in emb.astream_batches(chunks, batch_size=10)]
+    assert len(results) == 1
+    assert isinstance(results[0], EmbeddingFailure)
+    assert len(results[0].errors) == 1
+
+
+# ---------------------------------------------------------------------------
+# astream_batches — concurrency
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_astream_batches_concurrency_yields_in_order():
+    chunks = [_chunk(f"c{i}") for i in range(4)]
+    call_order: list[int] = []
+
+    async def fake_aembedding(model, input, **kwargs):
+        call_order.append(len(input))
+        return _fake_response([[float(i)] * 2 for i in range(len(input))])
+
+    with patch("litellm.aembedding", side_effect=fake_aembedding):
+        emb = LiteLLMEmbedding(model="openai/text-embedding-3-small")
+        results = [
+            r async for r in emb.astream_batches(chunks, batch_size=2, concurrency=2)
+        ]
+
+    assert len(results) == 2
+    assert all(isinstance(r, EmbeddingResult) for r in results)
+    # chunks from both batches should be present and in original order
+    all_chunks = [ec.chunk for r in results for ec in r.chunks]
+    assert [c.content for c in all_chunks] == [f"c{i}" for i in range(4)]
 
 
 # ---------------------------------------------------------------------------
 # Sync guards
 # ---------------------------------------------------------------------------
+
+
+def test_embed_works_in_sync_context():
+    fake = _fake_response([[0.1, 0.2]])
+    with patch("litellm.aembedding", new=AsyncMock(return_value=fake)):
+        emb = LiteLLMEmbedding(model="openai/text-embedding-3-small")
+        result = emb.embed(["hello"])
+    assert isinstance(result, TextEmbeddings)
+    assert result.vectors == [[0.1, 0.2]]
 
 
 @pytest.mark.asyncio
