@@ -9,7 +9,6 @@ from ..models import Chunk, EmbeddedChunk
 from ..utils import abatched
 from .models import (
     EmbeddingFailure,
-    EmbeddingMetrics,
     EmbeddingResult,
     MultimodalInput,
     TextEmbeddings,
@@ -26,7 +25,9 @@ async def _iter_list(lst: list) -> AsyncGenerator:
 class Embedding(ABC):
     """Text embedding contract.
 
-    Subclasses must implement ``aembed``. Override points:
+    Subclasses must implement ``aembed``. 
+    
+    Override points:
 
     - ``default_batch_size``: set at the class level to declare the provider's
       sensible batch ceiling, used by ``aembed_chunks`` and ``astream_batches``.
@@ -48,44 +49,6 @@ class Embedding(ABC):
                 "embed() cannot be called from an async context; use aembed() instead"
             )
         return asyncio.run(self.aembed(texts))
-
-    async def aembed_query(self, text: str) -> list[float]:
-        """Embed a single query string, returning one vector."""
-        result = await self.aembed([text])
-        return result.vectors[0]
-
-    def embed_query(self, text: str) -> list[float]:
-        """Sync embed_query. Raises if called from an async context."""
-        try:
-            asyncio.get_running_loop()
-        except RuntimeError:
-            pass
-        else:
-            raise RuntimeError(
-                "embed_query() cannot be called from an async context; use aembed_query() instead"
-            )
-        return asyncio.run(self.aembed_query(text))
-
-    async def aembed_chunks(self, chunks: list[Chunk]) -> EmbeddingResult:
-        """Embed chunks in batches of ``default_batch_size``, accumulating metrics."""
-        if not chunks:
-            return EmbeddingResult(chunks=[], metrics=EmbeddingMetrics())
-        all_embedded: list[EmbeddedChunk] = []
-        all_metrics: list[EmbeddingMetrics] = []
-        bs = self.default_batch_size
-        for i in range(0, len(chunks), bs):
-            batch = chunks[i : i + bs]
-            text_result = await self.aembed([c.content for c in batch])
-            model_name = text_result.metrics.model or ""
-            all_embedded.extend(
-                EmbeddedChunk(chunk=chunk, vector=vec, embedding_model=model_name)
-                for chunk, vec in zip(batch, text_result.vectors)
-            )
-            all_metrics.append(text_result.metrics)
-        return EmbeddingResult(
-            chunks=all_embedded,
-            metrics=sum(all_metrics, EmbeddingMetrics()),
-        )
 
     async def astream_batches(
         self,
