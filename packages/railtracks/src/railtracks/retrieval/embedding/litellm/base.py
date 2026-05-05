@@ -6,9 +6,8 @@ from typing import Any
 import litellm
 from dotenv import load_dotenv
 
-from ....retrieval.models import Chunk, EmbeddedChunk
 from ..base import Embedding
-from ..models import EmbeddingMetrics, EmbeddingResult
+from ..models import EmbeddingMetrics, TextEmbeddings
 
 load_dotenv()
 
@@ -22,9 +21,9 @@ class LiteLLMEmbedding(Embedding):
     """Generic litellm-backed embedding. Routes to any supported provider via
     the ``model`` name prefix (e.g. ``openai/...``, ``azure/...``).
 
-    ``embed`` and ``aembed`` make a single API call with whatever list they
-    receive. Batching is the caller's responsibility: use ``astream_chunks``
-    for large inputs, which batches the stream using ``default_batch_size``.
+    ``aembed`` makes a single API call with whatever list it receives. Batching
+    is the caller's responsibility: use ``aembed_chunks`` or ``astream_batches``
+    for large inputs.
 
     Subclasses should override ``default_batch_size`` at the class level to
     declare the provider's sensible batch ceiling.
@@ -41,43 +40,42 @@ class LiteLLMEmbedding(Embedding):
         self._model = model
         self._kwargs: dict[str, Any] = {
             k: v
-            for k, v in {"api_key": api_key, "api_base": api_base, "api_version": api_version, **litellm_kwargs}.items()
+            for k, v in {
+                "api_key": api_key,
+                "api_base": api_base,
+                "api_version": api_version,
+                **litellm_kwargs,
+            }.items()
             if v is not None
         }
 
-    def embed(self, chunks: list[Chunk]) -> EmbeddingResult:
-        if not chunks:
-            return EmbeddingResult(chunks=[], metrics=EmbeddingMetrics())
+    async def aembed(self, texts: list[str]) -> TextEmbeddings:
+        if not texts:
+            return TextEmbeddings(vectors=[], metrics=EmbeddingMetrics())
         t0 = time.perf_counter()
-        response = litellm.embedding(model=self._model, input=[c.content for c in chunks], **self._kwargs)
+        response = await litellm.aembedding(
+            model=self._model, input=texts, **self._kwargs
+        )
         latency = time.perf_counter() - t0
-        embedded = [
-            EmbeddedChunk(chunk=chunk, vector=list(_get_vector(item)), embedding_model=self._model)
-            for chunk, item in zip(chunks, response.data)
-        ]
-        return EmbeddingResult(chunks=embedded, metrics=self._extract_metrics(response, latency, len(embedded)))
+        vectors = [list(_get_vector(item)) for item in response.data]
+        return TextEmbeddings(
+            vectors=vectors,
+            metrics=self._extract_metrics(response, latency, len(vectors)),
+        )
 
-    async def aembed(self, chunks: list[Chunk]) -> EmbeddingResult:
-        if not chunks:
-            return EmbeddingResult(chunks=[], metrics=EmbeddingMetrics())
-        t0 = time.perf_counter()
-        response = await litellm.aembedding(model=self._model, input=[c.content for c in chunks], **self._kwargs)
-        latency = time.perf_counter() - t0
-        embedded = [
-            EmbeddedChunk(chunk=chunk, vector=list(_get_vector(item)), embedding_model=self._model)
-            for chunk, item in zip(chunks, response.data)
-        ]
-        return EmbeddingResult(chunks=embedded, metrics=self._extract_metrics(response, latency, len(embedded)))
-
-    def _extract_metrics(self, response: Any, latency: float, vector_count: int) -> EmbeddingMetrics:
+    def _extract_metrics(
+        self, response: Any, latency: float, vector_count: int
+    ) -> EmbeddingMetrics:
         usage = getattr(response, "usage", None)
         hidden = getattr(response, "_hidden_params", None) or {}
         data = getattr(response, "data", None) or []
         return EmbeddingMetrics(
-            input_tokens=getattr(usage, "prompt_tokens", None),
-            total_cost=hidden.get("response_cost"),
+            input_tokens=getattr(usage, "prompt_tokens", None)
+            if usage is not None
+            else None,
+            total_cost=hidden.get("response_cost") or None,
             latency=latency,
-            model=getattr(response, "model", None),
             vector_count=vector_count,
+            model=getattr(response, "model", None),
             dimension=len(_get_vector(data[0])) if data else None,
         )

@@ -8,9 +8,8 @@ from huggingface_hub import AsyncInferenceClient, InferenceClient
 from huggingface_hub.inference._providers import PROVIDER_OR_POLICY_T
 
 from ....utils.logging.create import get_rt_logger
-from ...models import Chunk, EmbeddedChunk
 from ..base import Embedding
-from ..models import EmbeddingMetrics, EmbeddingResult
+from ..models import EmbeddingMetrics, TextEmbeddings
 
 logger = get_rt_logger(__name__)
 
@@ -53,50 +52,19 @@ class HuggingFaceEmbedding(Embedding):
         self._sync_client = InferenceClient(provider=provider, token=token)
         self._async_client = AsyncInferenceClient(provider=provider, token=token)
 
-    def embed(self, chunks: list[Chunk]) -> EmbeddingResult:
-        if not chunks:
-            return EmbeddingResult(chunks=[], metrics=EmbeddingMetrics())
+    async def aembed(self, texts: list[str]) -> TextEmbeddings:
+        if not texts:
+            return TextEmbeddings(vectors=[], metrics=EmbeddingMetrics())
         t0 = time.perf_counter()
-        output = self._sync_client.feature_extraction(
-            [c.content for c in chunks],
-            model=self._model,
-        )
+        output = await self._async_client.feature_extraction(texts, model=self._model)
         latency = time.perf_counter() - t0
         vectors = _to_vectors(output, self._model)
-        embedded = [
-            EmbeddedChunk(chunk=chunk, vector=vec, embedding_model=self._model)
-            for chunk, vec in zip(chunks, vectors)
-        ]
-        return EmbeddingResult(
-            chunks=embedded,
+        return TextEmbeddings(
+            vectors=vectors,
             metrics=EmbeddingMetrics(
                 latency=latency,
                 model=self._model,
-                vector_count=len(embedded),
-                dimension=len(vectors[0]) if vectors else None,
-            ),
-        )
-
-    async def aembed(self, chunks: list[Chunk]) -> EmbeddingResult:
-        if not chunks:
-            return EmbeddingResult(chunks=[], metrics=EmbeddingMetrics())
-        t0 = time.perf_counter()
-        output = await self._async_client.feature_extraction(
-            [c.content for c in chunks],
-            model=self._model,
-        )
-        latency = time.perf_counter() - t0
-        vectors = _to_vectors(output, self._model)
-        embedded = [
-            EmbeddedChunk(chunk=chunk, vector=vec, embedding_model=self._model)
-            for chunk, vec in zip(chunks, vectors)
-        ]
-        return EmbeddingResult(
-            chunks=embedded,
-            metrics=EmbeddingMetrics(
-                latency=latency,
-                model=self._model,
-                vector_count=len(embedded),
+                vector_count=len(vectors),
                 dimension=len(vectors[0]) if vectors else None,
             ),
         )
