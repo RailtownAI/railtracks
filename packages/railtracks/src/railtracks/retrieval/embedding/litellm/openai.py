@@ -6,9 +6,13 @@ from .base import LiteLLMEmbedding
 
 
 class OpenAIEmbedding(LiteLLMEmbedding):
-    """OpenAI text embedding. Defaults to ``text-embedding-3-small``.
+    """OpenAI text embedding.
 
-    ``dimensions`` truncates the output vector (supported by ``text-embedding-3-*`` models only).
+    Args:
+        model: Embedding model name. Defaults to ``text-embedding-3-small``.
+        api_key: OpenAI API key. Falls back to ``OPENAI_API_KEY``.
+        dimensions: Truncate output vectors to this size. Only supported by
+            ``text-embedding-3-*`` models.
     """
 
     def __init__(

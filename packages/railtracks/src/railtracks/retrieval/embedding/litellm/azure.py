@@ -4,8 +4,14 @@ from .base import LiteLLMEmbedding
 
 
 class AzureEmbedding(LiteLLMEmbedding):
-    """Azure OpenAI embedding. All three connection params are required — there
-    are no sensible defaults for Azure deployments."""
+    """Azure OpenAI embedding.
+
+    Args:
+        deployment: Azure deployment name.
+        api_base: Azure OpenAI endpoint URL.
+        api_version: Azure OpenAI API version string.
+        api_key: Azure API key. Falls back to ``AZURE_API_KEY``.
+    """
 
     def __init__(
         self,

@@ -7,6 +7,17 @@ from ..models import Chunk, EmbeddedChunk
 
 @dataclass
 class EmbeddingMetrics:
+    """Usage and performance metrics for a single embedding call.
+
+    Attributes:
+        input_tokens: Number of tokens in the input, if reported by the provider.
+        total_cost: Estimated cost in USD, if reported by the provider.
+        latency: Wall-clock time in seconds for the embedding call.
+        vector_count: Number of vectors returned.
+        model: Provider-reported model identifier.
+        dimension: Vector dimensionality.
+    """
+
     input_tokens: int | None = None
     total_cost: float | None = None
     latency: float = 0.0
@@ -46,18 +57,40 @@ class TextEmbeddings:
 
 @dataclass
 class EmbeddingResult:
+    """A successful batch embedding result.
+
+    Attributes:
+        chunks: Embedded chunks with their vectors attached.
+        metrics: Usage and performance metrics for this batch.
+    """
+
     chunks: list[EmbeddedChunk]
     metrics: EmbeddingMetrics = field(default_factory=EmbeddingMetrics)
 
 
 @dataclass
 class EmbeddingFailure:
+    """A failed batch embedding attempt.
+
+    Attributes:
+        chunks: Source chunks that could not be embedded.
+        errors: Exceptions raised during embedding.
+    """
+
     chunks: list[Chunk]
     errors: list[Exception]
 
 
 @dataclass
 class MultimodalInput:
+    """A single multimodal embedding input.
+
+    Attributes:
+        text: Text component of the input.
+        image_url: URL or base64 data URI for the image component.
+        metadata: Arbitrary key-value pairs for caller use.
+    """
+
     text: str | None = None
     image_url: str | None = None  # URL or base64 data URI
     metadata: dict = field(default_factory=dict)

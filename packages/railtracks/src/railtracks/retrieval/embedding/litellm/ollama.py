@@ -4,9 +4,13 @@ from .base import LiteLLMEmbedding
 
 
 class OllamaEmbedding(LiteLLMEmbedding):
-    """Ollama embedding. Defaults to ``nomic-embed-text`` and a local server.
+    """Ollama embedding.
 
     Ollama processes one request at a time, so ``default_batch_size`` is 1.
+
+    Args:
+        model: Ollama model name. Defaults to ``nomic-embed-text``.
+        api_base: Ollama server URL. Defaults to ``http://localhost:11434``.
     """
 
     default_batch_size = 1

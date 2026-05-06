@@ -15,15 +15,19 @@ def _get_vector(item: Any) -> list[float]:
 
 
 class LiteLLMEmbedding(Embedding):
-    """Generic litellm-backed embedding. Routes to any supported provider via
-    the ``model`` name prefix (e.g. ``openai/...``, ``azure/...``).
+    """Generic litellm-backed embedding provider.
 
-    ``aembed`` makes a single API call with whatever list it receives. Batching
-    is the caller's responsibility: use ``aembed_chunks`` or ``astream_batches``
-    for large inputs.
+    Routes to any supported provider via the ``model`` name prefix
+    (e.g. ``openai/...``, ``azure/...``). ``aembed`` makes one API call per
+    invocation; use ``astream_batches`` for large inputs.
 
-    Subclasses should override ``default_batch_size`` at the class level to
-    declare the provider's sensible batch ceiling.
+    Args:
+        model: LiteLLM model string (e.g. ``"openai/text-embedding-3-small"``).
+        api_key: Provider API key. Falls back to the provider's environment variable.
+        api_base: Override the provider's default base URL.
+        api_version: API version string (required for some providers, e.g. Azure).
+        **litellm_kwargs: Additional keyword arguments forwarded to
+            ``litellm.aembedding``.
     """
 
     def __init__(

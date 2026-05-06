@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator, AsyncIterable
 
@@ -25,13 +26,12 @@ class Embedding(ABC):
     """Text embedding contract.
 
     Subclasses must implement ``aembed`` and declare ``default_batch_size``
-    at the class level. Leaving ``default_batch_size = None`` (the default)
-    requires callers to pass ``batch_size`` explicitly to ``astream_batches``.
+    at the class level.
 
-    Override points:
-
-    - ``default_batch_size``: set at the class level to declare the provider's
-      sensible batch ceiling, used by ``astream_batches``.
+    Attributes:
+        default_batch_size: Provider's sensible batch ceiling used by
+            ``astream_batches``. Subclasses should override at the class level.
+            ``None`` requires callers to pass ``batch_size`` explicitly.
     """
 
     default_batch_size: int | None = None
@@ -46,16 +46,11 @@ class Embedding(ABC):
         except RuntimeError:
             pass
         else:
-            try:
-                from IPython import get_ipython
-
-                if get_ipython() is not None:
-                    raise RuntimeError(
-                        "embed() cannot be called from a Jupyter notebook; "
-                        "use `result = await embedder.aembed(texts)` instead."
-                    )
-            except ImportError:
-                pass
+            if "ipykernel" in sys.modules:
+                raise RuntimeError(
+                    "embed() cannot be called from a Jupyter notebook; "
+                    "use `result = await embedder.aembed(texts)` instead."
+                )
             raise RuntimeError(
                 "embed() cannot be called from an async context; use `await aembed()` instead."
             )
@@ -88,19 +83,20 @@ class Embedding(ABC):
         self,
         chunks: list[Chunk] | AsyncIterable[Chunk],
         batch_size: int | None = None,
-        concurrency: int = 1,
     ) -> AsyncGenerator[EmbeddingResult | EmbeddingFailure, None]:
         """Embed a chunk stream in fixed-size batches.
 
-        Yields one ``EmbeddingResult`` per successful batch and one
-        ``EmbeddingFailure`` per failed batch. The stream continues past
-        failures.
+        The stream continues past failures; each batch yields either a result
+        or a failure record with the source chunks.
 
-        ``concurrency`` controls how many batches are sent to the provider
-        simultaneously. Results are always yielded in input order. Defaults
-        to 1 (serial). Raise it to hide network latency during large ingestion
-        runs (e.g. ``concurrency=4`` gives ~4× throughput for network-bound
-        providers like OpenAI).
+        Args:
+            chunks: Source chunks as a list or async iterable.
+            batch_size: Items per batch. Falls back to ``default_batch_size``
+                when omitted; raises if neither is set.
+
+        Yields:
+            EmbeddingResult | EmbeddingFailure: One per batch — a result on
+                success or a failure record on error.
         """
         bs = batch_size or self.default_batch_size
         if bs is None:
@@ -109,25 +105,8 @@ class Embedding(ABC):
                 "Pass batch_size= explicitly or set default_batch_size on the class."
             )
         source = _iter_list(chunks) if isinstance(chunks, list) else chunks
-
-        if concurrency <= 1:
-            async for batch in abatched(source, bs):
-                yield await self._embed_one_batch(batch)
-        else:
-            window: list[list[Chunk]] = []
-            async for batch in abatched(source, bs):
-                window.append(batch)
-                if len(window) >= concurrency:
-                    for result in await asyncio.gather(
-                        *[self._embed_one_batch(b) for b in window]
-                    ):
-                        yield result
-                    window.clear()
-            if window:
-                for result in await asyncio.gather(
-                    *[self._embed_one_batch(b) for b in window]
-                ):
-                    yield result
+        async for batch in abatched(source, bs):
+            yield await self._embed_one_batch(batch)
 
 
 class SyncEmbedding(Embedding, ABC):

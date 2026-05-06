@@ -145,33 +145,6 @@ async def test_astream_batches_failure_on_vector_count_mismatch():
 
 
 # ---------------------------------------------------------------------------
-# astream_batches — concurrency
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_astream_batches_concurrency_yields_in_order():
-    chunks = [_chunk(f"c{i}") for i in range(4)]
-    call_order: list[int] = []
-
-    async def fake_aembedding(model, input, **kwargs):
-        call_order.append(len(input))
-        return _fake_response([[float(i)] * 2 for i in range(len(input))])
-
-    with patch("litellm.aembedding", side_effect=fake_aembedding):
-        emb = LiteLLMEmbedding(model="openai/text-embedding-3-small")
-        results = [
-            r async for r in emb.astream_batches(chunks, batch_size=2, concurrency=2)
-        ]
-
-    assert len(results) == 2
-    assert all(isinstance(r, EmbeddingResult) for r in results)
-    # chunks from both batches should be present and in original order
-    all_chunks = [ec.chunk for r in results for ec in r.chunks]
-    assert [c.content for c in all_chunks] == [f"c{i}" for i in range(4)]
-
-
-# ---------------------------------------------------------------------------
 # Sync guards
 # ---------------------------------------------------------------------------
 
