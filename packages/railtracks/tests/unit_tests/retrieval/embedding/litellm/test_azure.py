@@ -28,3 +28,17 @@ async def test_azure_embedding_passes_connection_params():
     assert kw["model"] == "azure/my-deploy"
     assert kw["api_base"] == "https://my.openai.azure.com"
     assert kw["api_version"] == "2024-02-01"
+    assert "dimensions" not in kw
+
+
+@pytest.mark.asyncio
+async def test_azure_embedding_passes_dimensions():
+    with patch("litellm.aembedding", new=AsyncMock(return_value=_fake_response([[0.1]]))) as mock:
+        emb = AzureEmbedding(
+            deployment="my-deploy",
+            api_base="https://my.openai.azure.com",
+            api_version="2024-02-01",
+            dimensions=512,
+        )
+        await emb.aembed(["x"])
+    assert mock.call_args.kwargs["dimensions"] == 512

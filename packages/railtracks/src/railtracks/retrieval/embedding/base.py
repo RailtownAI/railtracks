@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from typing import TypeVar
 import sys
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator, AsyncIterable
@@ -16,8 +17,8 @@ from .models import (
 
 logger = get_rt_logger(__name__)
 
-
-async def _iter_list(lst: list) -> AsyncGenerator:
+_T = TypeVar("_T")
+async def _to_async_iterable(lst: list[_T]) -> AsyncGenerator[_T, None]:
     for item in lst:
         yield item
 
@@ -98,13 +99,13 @@ class Embedding(ABC):
             EmbeddingResult | EmbeddingFailure: One per batch — a result on
                 success or a failure record on error.
         """
-        bs = batch_size or self.default_batch_size
+        bs = batch_size if batch_size is not None else self.default_batch_size
         if bs is None:
             raise ValueError(
                 f"{type(self).__name__} does not declare a default_batch_size. "
                 "Pass batch_size= explicitly or set default_batch_size on the class."
             )
-        source = _iter_list(chunks) if isinstance(chunks, list) else chunks
+        source = _to_async_iterable(chunks) if isinstance(chunks, list) else chunks
         async for batch in abatched(source, bs):
             yield await self._embed_one_batch(batch)
 
