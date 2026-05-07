@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import copy
 import json
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 from uuid import UUID, uuid4
@@ -59,9 +58,18 @@ def _entry_to_payload(entry: MemoryEntry) -> dict:
     if entry.valid_until is not None:
         payload["valid_until"] = entry.valid_until.isoformat()
 
-    payload["chunk_content"] = entry.chunk.chunk.content
-    payload["chunk_id"] = str(entry.chunk.chunk.id)
-    payload["document_id"] = str(entry.chunk.chunk.document_id)
+    chunk = entry.chunk.chunk
+    payload["chunk_content"] = chunk.content
+    payload["chunk_id"] = str(chunk.id)
+    payload["document_id"] = str(chunk.document_id)
+    payload["chunk_index"] = chunk.index
+    if chunk.parent_chunk_id is not None:
+        payload["chunk_parent_chunk_id"] = str(chunk.parent_chunk_id)
+    if chunk.offsets is not None:
+        payload["chunk_offsets"] = list(chunk.offsets)
+    if chunk.metadata:
+        payload["chunk_metadata"] = json.dumps(chunk.metadata)
+
     payload["embedding_model"] = entry.chunk.embedding_model
 
     if entry.chunk.embedding_version is not None:
@@ -84,10 +92,24 @@ def _entry_to_payload(entry: MemoryEntry) -> dict:
 
 
 def _payload_to_entry(id: str, vector: list[float], payload: dict) -> MemoryEntry:
+    offsets_raw = payload.get("chunk_offsets")
+    offsets: tuple[int, int] | None = (
+        (int(offsets_raw[0]), int(offsets_raw[1])) if offsets_raw is not None else None
+    )
+    parent_chunk_id_raw = payload.get("chunk_parent_chunk_id")
+    parent_chunk_id = UUID(parent_chunk_id_raw) if parent_chunk_id_raw else None
+    metadata = (
+        json.loads(payload["chunk_metadata"]) if "chunk_metadata" in payload else {}
+    )
+
     chunk = Chunk(
         content=payload.get("chunk_content", ""),
         document_id=UUID(payload["document_id"]) if "document_id" in payload else uuid4(),
         id=UUID(payload["chunk_id"]) if "chunk_id" in payload else uuid4(),
+        index=int(payload.get("chunk_index", 0)),
+        parent_chunk_id=parent_chunk_id,
+        offsets=offsets,
+        metadata=metadata,
     )
     embedded = EmbeddedChunk(
         chunk=chunk,
@@ -161,30 +183,13 @@ def _apply_detail_level(entry: MemoryEntry, level: DetailLevel) -> MemoryEntry:
     original_embedded = entry.chunk
     original_chunk = original_embedded.chunk
 
-    if level is DetailLevel.L0:
-        new_chunk = Chunk(
-            content="",
-            document_id=original_chunk.document_id,
-            id=original_chunk.id,
-            index=original_chunk.index,
-            metadata=original_chunk.metadata,
-        )
-        new_embedded = EmbeddedChunk(
-            chunk=new_chunk,
-            vector=original_embedded.vector,
-            embedding_model=original_embedded.embedding_model,
-            embedding_version=original_embedded.embedding_version,
-        )
-        entry.chunk = new_embedded
-        entry.summary = ""
-        return entry
-
-    # L1: zero chunk content, keep summary
     new_chunk = Chunk(
         content="",
         document_id=original_chunk.document_id,
         id=original_chunk.id,
         index=original_chunk.index,
+        parent_chunk_id=original_chunk.parent_chunk_id,
+        offsets=original_chunk.offsets,
         metadata=original_chunk.metadata,
     )
     new_embedded = EmbeddedChunk(
@@ -194,6 +199,10 @@ def _apply_detail_level(entry: MemoryEntry, level: DetailLevel) -> MemoryEntry:
         embedding_version=original_embedded.embedding_version,
     )
     entry.chunk = new_embedded
+
+    if level is DetailLevel.L0:
+        entry.summary = ""
+
     return entry
 
 

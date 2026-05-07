@@ -207,6 +207,77 @@ async def test_cosine_ranking_correctness():
     assert results[0].entry.id == near.id
 
 
+async def test_chunk_roundtrip_preserves_all_fields():
+    store = VectorStore(InMemoryBackend())
+
+    document_id = uuid4()
+    chunk_id = uuid4()
+    parent_chunk_id = uuid4()
+    chunk = Chunk(
+        content="full content",
+        document_id=document_id,
+        id=chunk_id,
+        index=7,
+        parent_chunk_id=parent_chunk_id,
+        offsets=(12, 48),
+        metadata={"section": "intro", "lang": "en"},
+    )
+    embedded = EmbeddedChunk(
+        chunk=chunk,
+        vector=[1.0, 0.0, 0.0],
+        embedding_model="toy",
+        embedding_version="v1",
+    )
+    entry = MemoryEntry(
+        id=uuid4(),
+        chunk=embedded,
+        abstract="abs",
+        summary="sum",
+        scope=MemoryScope(user_id="alice"),
+    )
+
+    await store.write(entry)
+    results = await store.read(_make_query(detail_level=DetailLevel.L2))
+
+    assert len(results) == 1
+    got = results[0].entry.chunk.chunk
+    assert got.id == chunk_id
+    assert got.document_id == document_id
+    assert got.index == 7
+    assert got.parent_chunk_id == parent_chunk_id
+    assert got.offsets == (12, 48)
+    assert got.metadata == {"section": "intro", "lang": "en"}
+    assert results[0].entry.chunk.embedding_version == "v1"
+
+
+async def test_detail_level_preserves_chunk_offsets_and_parent():
+    store = VectorStore(InMemoryBackend())
+
+    parent_chunk_id = uuid4()
+    chunk = Chunk(
+        content="full content",
+        document_id=uuid4(),
+        parent_chunk_id=parent_chunk_id,
+        offsets=(3, 9),
+    )
+    embedded = EmbeddedChunk(chunk=chunk, vector=[1.0, 0.0, 0.0], embedding_model="toy")
+    entry = MemoryEntry(
+        id=uuid4(),
+        chunk=embedded,
+        abstract="abs",
+        summary="sum",
+        scope=MemoryScope(user_id="alice"),
+    )
+    await store.write(entry)
+
+    for level in (DetailLevel.L0, DetailLevel.L1):
+        results = await store.read(_make_query(detail_level=level))
+        got = results[0].entry.chunk.chunk
+        assert got.content == ""
+        assert got.parent_chunk_id == parent_chunk_id
+        assert got.offsets == (3, 9)
+
+
 async def test_read_raises_without_embedding():
     store = VectorStore(InMemoryBackend())
     query = MemoryQuery(
