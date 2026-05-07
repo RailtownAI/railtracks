@@ -9,7 +9,7 @@ class MetricResult(BaseModel):
     result_name: str  # primary for human readability and debugging
     metric_id: str
     agent_data_id: list[UUID]
-    value: str | float | int
+    value: str | float | int | None
 
 
 class ToolMetricResult(MetricResult):
