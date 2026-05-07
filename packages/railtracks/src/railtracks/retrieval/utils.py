@@ -1,19 +1,17 @@
-from __future__ import annotations
-
-from collections.abc import AsyncGenerator, AsyncIterable
 from typing import TypeVar
+from collections.abc import AsyncGenerator, AsyncIterable
 
 _T = TypeVar("_T")
 
-
 async def abatched(
-    source: AsyncIterable[_T], batch_size: int
+    iterable: AsyncIterable[_T],
+    n: int,
 ) -> AsyncGenerator[list[_T], None]:
-    """Collect items from an async iterable into fixed-size batches."""
+    """Group an async iterable into fixed-size lists of up to ``n`` items."""
     batch: list[_T] = []
-    async for item in source:
+    async for item in iterable:
         batch.append(item)
-        if len(batch) >= batch_size:
+        if len(batch) >= n:
             yield batch
             batch = []
     if batch:
