@@ -73,7 +73,8 @@ chroma = [
 portkey = ["portkey_ai >= 2.0.2"]
 integrations = ["railtracks[portkey]", "railtracks[chroma]"]
 stores-vector = ["asyncpg>=0.29", "pgvector>=0.3"]
-stores-all = ["railtracks[stores-vector]"]
+stores-chroma = ["chromadb>1.3.0"]
+stores-all = ["railtracks[stores-vector]", "railtracks[stores-chroma]"]
 
 all = ["railtracks[visual]", "railtracks[integrations]"]
 

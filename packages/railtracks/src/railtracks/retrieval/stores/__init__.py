@@ -9,10 +9,12 @@ from .models import (
 )
 from .protocol import Store
 from .vector import VectorStore
+from .vector.backends import ChromaBackend
 from .vector.backends import InMemoryBackend as InMemoryVectorBackend
 from .vector.backends import PgvectorBackend
 
 __all__ = [
+    "ChromaBackend",
     "DetailLevel",
     "Entity",
     "InMemoryVectorBackend",
