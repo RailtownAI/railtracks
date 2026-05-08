@@ -19,7 +19,9 @@ from railtracks.retrieval.stores.models import (
 from railtracks.retrieval.stores.vector.backends.pgvector import (
     PgvectorBackend,
     _build_where,
+    _pg_to_score,
 )
+from railtracks.retrieval.stores.vector.metric import DistanceMetric
 from railtracks.retrieval.stores.vector.base import VectorStore
 
 
@@ -262,24 +264,25 @@ async def test_search_returns_empty_when_no_rows():
 
 async def test_search_maps_rows_to_tuples():
     conn, pool = _make_pool()
+    # Rows carry raw distance; score conversion happens in Python
     conn.fetch.return_value = [
-        {"id": "a", "score": 0.9, "payload": json.dumps({"k": "v1"})},
-        {"id": "b", "score": 0.7, "payload": json.dumps({"k": "v2"})},
+        {"id": "a", "distance": 0.1, "payload": json.dumps({"k": "v1"})},
+        {"id": "b", "distance": 0.3, "payload": json.dumps({"k": "v2"})},
     ]
     backend = _injected_backend(pool)
 
     results = await backend.search([1.0], 5, {})
 
     assert len(results) == 2
-    assert results[0] == ("a", pytest.approx(0.9), {"k": "v1"})
-    assert results[1] == ("b", pytest.approx(0.7), {"k": "v2"})
+    assert results[0] == ("a", pytest.approx(0.9), {"k": "v1"})  # 1 - 0.1
+    assert results[1] == ("b", pytest.approx(0.7), {"k": "v2"})  # 1 - 0.3
 
 
 async def test_search_decodes_payload_dict_directly():
     """_decode_payload should handle dict payload (not just JSON strings)."""
     conn, pool = _make_pool()
     conn.fetch.return_value = [
-        {"id": "a", "score": 0.8, "payload": {"k": "v"}},
+        {"id": "a", "distance": 0.2, "payload": {"k": "v"}},
     ]
     backend = _injected_backend(pool)
 
@@ -316,12 +319,53 @@ async def test_search_no_where_clause_when_filters_empty():
 async def test_search_sql_contains_cosine_operator():
     conn, pool = _make_pool()
     conn.fetch.return_value = []
-    backend = _injected_backend(pool)
+    backend = _injected_backend(pool)  # default COSINE
 
     await backend.search([1.0], 5, {})
 
     sql = conn.fetch.call_args.args[0]
     assert "<=>" in sql
+
+
+async def test_search_uses_l2_operator():
+    conn, pool = _make_pool()
+    conn.fetch.return_value = []
+    backend = PgvectorBackend("postgresql://test/test", metric=DistanceMetric.L2)
+    backend._pool = pool
+
+    await backend.search([1.0], 5, {})
+
+    sql = conn.fetch.call_args.args[0]
+    assert "<->" in sql
+
+
+async def test_search_uses_ip_operator():
+    conn, pool = _make_pool()
+    conn.fetch.return_value = []
+    backend = PgvectorBackend("postgresql://test/test", metric=DistanceMetric.IP)
+    backend._pool = pool
+
+    await backend.search([1.0], 5, {})
+
+    sql = conn.fetch.call_args.args[0]
+    assert "<#>" in sql
+
+
+def test_pg_to_score_cosine():
+    assert _pg_to_score(DistanceMetric.COSINE, 0.1) == pytest.approx(0.9)
+    assert _pg_to_score(DistanceMetric.COSINE, 0.0) == pytest.approx(1.0)
+
+
+def test_pg_to_score_l2():
+    assert _pg_to_score(DistanceMetric.L2, 0.0) == pytest.approx(1.0)
+    assert _pg_to_score(DistanceMetric.L2, 1.0) == pytest.approx(0.5)
+    assert _pg_to_score(DistanceMetric.L2, 3.0) == pytest.approx(0.25)
+
+
+def test_pg_to_score_ip():
+    # pgvector <#> returns -dot_product → score = -distance = dot_product
+    assert _pg_to_score(DistanceMetric.IP, -0.8) == pytest.approx(0.8)
+    assert _pg_to_score(DistanceMetric.IP, -0.3) == pytest.approx(0.3)
 
 
 # ---------------------------------------------------------------------------
@@ -382,7 +426,7 @@ async def test_vector_store_write_read_via_pgvector():
     conn.fetch.return_value = [
         {
             "id": str(entry.id),
-            "score": 0.95,
+            "distance": 0.05,  # cosine distance → score = 1 - 0.05 = 0.95
             "payload": json.dumps(payload),
         }
     ]

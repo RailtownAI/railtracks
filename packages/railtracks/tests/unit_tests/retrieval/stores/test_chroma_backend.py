@@ -17,8 +17,10 @@ from railtracks.retrieval.stores.models import (
 )
 from railtracks.retrieval.stores.vector.backends.chroma import (
     ChromaBackend,
+    _chroma_to_score,
     _to_chroma_where,
 )
+from railtracks.retrieval.stores.vector.metric import DistanceMetric
 from railtracks.retrieval.stores.vector.base import VectorStore
 
 
@@ -139,9 +141,22 @@ async def test_initialize_uses_ephemeral_client_by_default():
 
     mock_chroma.EphemeralClient.assert_called_once()
     mock_chroma.EphemeralClient.return_value.get_or_create_collection.assert_called_once_with(
-        "my-collection"
+        "my-collection", metadata={"hnsw:space": "cosine"}
     )
     assert backend._collection is mock_collection
+
+
+async def test_initialize_passes_metric_space_to_collection():
+    mock_chroma = MagicMock()
+    mock_chroma.EphemeralClient.return_value.get_or_create_collection.return_value = MagicMock()
+
+    with patch.dict("sys.modules", {"chromadb": mock_chroma}):
+        backend = ChromaBackend("col", metric=DistanceMetric.L2)
+        await backend.initialize()
+
+    mock_chroma.EphemeralClient.return_value.get_or_create_collection.assert_called_once_with(
+        "col", metadata={"hnsw:space": "l2"}
+    )
 
 
 async def test_initialize_uses_persistent_client_when_path_given():
@@ -245,6 +260,24 @@ async def test_search_passes_where_filter():
 
     _, call_kwargs = col.query.call_args
     assert call_kwargs["where"] == {"scope_user_id": {"$eq": "alice"}}
+
+
+def test_chroma_to_score_cosine():
+    assert _chroma_to_score(DistanceMetric.COSINE, 0.1) == pytest.approx(0.9)
+    assert _chroma_to_score(DistanceMetric.COSINE, 0.0) == pytest.approx(1.0)
+
+
+def test_chroma_to_score_l2_applies_sqrt():
+    # Chroma returns squared L2; score = 1 / (1 + sqrt(d))
+    import math
+    assert _chroma_to_score(DistanceMetric.L2, 0.0) == pytest.approx(1.0)
+    assert _chroma_to_score(DistanceMetric.L2, 1.0) == pytest.approx(0.5)
+    assert _chroma_to_score(DistanceMetric.L2, 4.0) == pytest.approx(1.0 / 3.0)
+
+
+def test_chroma_to_score_ip():
+    # Chroma ip: distance = 1 - dot_product → score = 1 - distance = dot_product
+    assert _chroma_to_score(DistanceMetric.IP, 0.3) == pytest.approx(0.7)
 
 
 async def test_search_passes_no_where_when_filters_empty():

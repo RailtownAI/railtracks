@@ -2,10 +2,33 @@ from __future__ import annotations
 
 import json
 
+from ..metric import DistanceMetric
+
 
 _NOT_INITIALIZED = (
     "call await PgvectorBackend.initialize() first and ensure asyncpg and pgvector are installed"
 )
+
+_PG_OPERATOR = {
+    DistanceMetric.COSINE: "<=>",
+    DistanceMetric.L2:     "<->",
+    DistanceMetric.IP:     "<#>",
+}
+
+
+def _pg_to_score(metric: DistanceMetric, distance: float) -> float:
+    """Convert a raw pgvector distance to a similarity score (higher = better).
+
+    pgvector operator conventions:
+        <=>  cosine distance (1 - cos_sim)   → score = 1 - d
+        <->  L2 distance (||a-b||)           → score = 1 / (1 + d)
+        <#>  negative inner product (-⟨a,b⟩) → score = -d  (= dot_product)
+    """
+    if metric is DistanceMetric.COSINE:
+        return 1.0 - distance
+    if metric is DistanceMetric.L2:
+        return 1.0 / (1.0 + distance)
+    return -distance  # IP
 
 
 def _build_where(filters: dict, start_index: int = 1) -> tuple[str, list]:
@@ -32,17 +55,16 @@ class PgvectorBackend:
     """PostgreSQL + pgvector VectorBackend.
 
     Stores vectors in a single table with columns (id TEXT, embedding vector,
-    payload JSONB). Filters are applied as JSONB text equality. Similarity
-    is cosine: score = 1 - cosine_distance.
+    payload JSONB). Filters are applied as JSONB text equality.
 
     Call initialize() before any other method.
 
     Args:
-        dsn:   asyncpg connection string.
-        table: Table name (created if absent).
-        dim:   Vector dimension. When given the column is typed vector(dim),
-               which enables index creation. Omit to use an untyped vector
-               column (fine for development, no ANN index support).
+        dsn:    asyncpg connection string.
+        table:  Table name (created if absent).
+        dim:    Vector dimension. When given the column is typed vector(dim),
+                which enables ANN index creation. Omit for development use.
+        metric: Distance metric used for similarity search. Defaults to COSINE.
     """
 
     def __init__(
@@ -51,10 +73,12 @@ class PgvectorBackend:
         *,
         table: str = "memory_entries",
         dim: int | None = None,
+        metric: DistanceMetric = DistanceMetric.COSINE,
     ) -> None:
         self._dsn = dsn
         self._table = table
         self._dim = dim
+        self._metric = metric
         self._pool = None
 
     async def initialize(self) -> None:
@@ -78,9 +102,9 @@ class PgvectorBackend:
             await conn.execute(
                 f"""
                 CREATE TABLE IF NOT EXISTS "{self._table}" (
-                    id      TEXT PRIMARY KEY,
+                    id        TEXT PRIMARY KEY,
                     embedding {vec_type},
-                    payload JSONB NOT NULL DEFAULT '{{}}'::jsonb
+                    payload   JSONB NOT NULL DEFAULT '{{}}'::jsonb
                 )
                 """
             )
@@ -108,21 +132,26 @@ class PgvectorBackend:
         if self._pool is None:
             raise RuntimeError(_NOT_INITIALIZED)
 
+        op = _PG_OPERATOR[self._metric]
         where, params = _build_where(filters, start_index=2)
         sql = f"""
             SELECT id,
-                   1 - (embedding <=> $1::vector) AS score,
+                   embedding {op} $1::vector AS distance,
                    payload
             FROM   "{self._table}"
             {where}
-            ORDER  BY embedding <=> $1::vector
+            ORDER  BY embedding {op} $1::vector
             LIMIT  {top_k}
         """
         async with self._pool.acquire() as conn:
             rows = await conn.fetch(sql, vector, *params)
 
         return [
-            (row["id"], float(row["score"]), _decode_payload(row["payload"]))
+            (
+                row["id"],
+                _pg_to_score(self._metric, float(row["distance"])),
+                _decode_payload(row["payload"]),
+            )
             for row in rows
         ]
 

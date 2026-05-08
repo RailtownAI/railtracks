@@ -6,9 +6,11 @@ from pathlib import Path
 
 import numpy as np
 
+from ..metric import DistanceMetric
+
 
 class InMemoryBackend:
-    """Reference VectorBackend using numpy for cosine similarity.
+    """Reference VectorBackend using numpy.
 
     Thread-safe via asyncio.Lock. When snapshot_path is provided the state is
     loaded from that file on construction and flushed back to it after every
@@ -16,10 +18,16 @@ class InMemoryBackend:
     persistence without any external dependencies.
     """
 
-    def __init__(self, snapshot_path: str | Path | None = None) -> None:
+    def __init__(
+        self,
+        snapshot_path: str | Path | None = None,
+        *,
+        metric: DistanceMetric = DistanceMetric.COSINE,
+    ) -> None:
         self._vectors: dict[str, list[float]] = {}
         self._payloads: dict[str, dict] = {}
         self._lock = asyncio.Lock()
+        self._metric = metric
         self._snapshot_path = Path(snapshot_path) if snapshot_path is not None else None
 
         if self._snapshot_path is not None and self._snapshot_path.exists():
@@ -47,17 +55,24 @@ class InMemoryBackend:
                 return []
 
             query_vec = np.asarray(vector, dtype=np.float64)
-            q_norm = np.linalg.norm(query_vec)
-            if q_norm == 0:
-                return [(c, 0.0, dict(self._payloads[c])) for c in candidates[:top_k]]
-
             stored = np.array(
                 [self._vectors[c] for c in candidates], dtype=np.float64
             )
-            norms = np.linalg.norm(stored, axis=1)
-            norms[norms == 0] = 1.0
 
-            scores = (stored @ query_vec) / (norms * q_norm)
+            if self._metric is DistanceMetric.COSINE:
+                q_norm = np.linalg.norm(query_vec)
+                if q_norm == 0:
+                    return [(c, 0.0, dict(self._payloads[c])) for c in candidates[:top_k]]
+                norms = np.linalg.norm(stored, axis=1)
+                norms[norms == 0] = 1.0
+                scores = (stored @ query_vec) / (norms * q_norm)
+
+            elif self._metric is DistanceMetric.L2:
+                distances = np.linalg.norm(stored - query_vec, axis=1)
+                scores = 1.0 / (1.0 + distances)
+
+            else:  # IP
+                scores = stored @ query_vec
 
             top_indices = np.argsort(scores)[::-1][:top_k]
             return [

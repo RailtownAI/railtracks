@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import math
+
+from ..metric import DistanceMetric
 
 
 _NOT_INITIALIZED = (
@@ -14,6 +17,19 @@ def _to_chroma_where(filters: dict) -> dict:
     if len(conditions) == 1:
         return conditions[0]
     return {"$and": conditions}
+
+
+def _chroma_to_score(metric: DistanceMetric, distance: float) -> float:
+    """Convert a raw Chroma distance to a similarity score (higher = better).
+
+    Chroma (via hnswlib) distance conventions:
+        cosine  1 - cosine_similarity       → score = 1 - d
+        l2      squared L2 (||a-b||²)       → score = 1 / (1 + sqrt(d))
+        ip      1 - dot_product             → score = 1 - d  (= dot_product)
+    """
+    if metric is DistanceMetric.L2:
+        return 1.0 / (1.0 + math.sqrt(distance))
+    return 1.0 - distance  # COSINE and IP share the same formula
 
 
 class ChromaBackend:
@@ -35,18 +51,17 @@ class ChromaBackend:
         path: str | None = None,
         host: str | None = None,
         port: int | None = None,
+        metric: DistanceMetric = DistanceMetric.COSINE,
     ) -> None:
         self._collection_name = collection_name
         self._path = path
         self._host = host
         self._port = port
+        self._metric = metric
         self._collection = None
 
     async def initialize(self) -> None:
-        """Create the Chroma client and collection.
-
-        Guards the chromadb import so a missing dependency raises a clear error.
-        """
+        """Create the Chroma client and collection."""
         try:
             import chromadb
         except ImportError:
@@ -55,6 +70,8 @@ class ChromaBackend:
                 "Install it with: pip install railtracks[stores-chroma]"
             ) from None
 
+        metric = self._metric
+
         def _setup():
             if self._path:
                 client = chromadb.PersistentClient(path=self._path)
@@ -62,7 +79,10 @@ class ChromaBackend:
                 client = chromadb.HttpClient(host=self._host, port=self._port)
             else:
                 client = chromadb.EphemeralClient()
-            return client.get_or_create_collection(self._collection_name)
+            return client.get_or_create_collection(
+                self._collection_name,
+                metadata={"hnsw:space": metric.value},
+            )
 
         self._collection = await asyncio.to_thread(_setup)
 
@@ -105,10 +125,7 @@ class ChromaBackend:
             results["distances"][0],
             results["metadatas"][0],
         ):
-            # Chroma stores cosine distance (0 = identical, 2 = opposite).
-            # Convert to similarity so higher = more relevant, consistent with
-            # InMemoryBackend.
-            hits.append((id_, 1.0 - distance, dict(metadata)))
+            hits.append((id_, _chroma_to_score(self._metric, distance), dict(metadata)))
         return hits
 
     async def delete(self, id: str) -> None:
