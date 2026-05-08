@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import math
+from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -287,6 +289,40 @@ async def test_read_raises_without_embedding():
     )
     with pytest.raises(ValueError, match="query.embedding"):
         await store.read(query)
+
+
+async def test_snapshot_persists_across_instances(tmp_path: Path):
+    path = tmp_path / "store.json"
+
+    store_a = VectorStore(InMemoryBackend(snapshot_path=path))
+    entry = _make_entry()
+    await store_a.write(entry)
+
+    assert path.exists()
+
+    store_b = VectorStore(InMemoryBackend(snapshot_path=path))
+    results = await store_b.read(_make_query())
+    assert len(results) == 1
+    assert results[0].entry.id == entry.id
+
+
+async def test_snapshot_reflects_deletes(tmp_path: Path):
+    path = tmp_path / "store.json"
+
+    store = VectorStore(InMemoryBackend(snapshot_path=path))
+    entry = _make_entry()
+    await store.write(entry)
+    await store.delete(entry.id)
+
+    reloaded = VectorStore(InMemoryBackend(snapshot_path=path))
+    results = await reloaded.read(_make_query())
+    assert results == []
+
+
+async def test_snapshot_no_path_leaves_no_file(tmp_path: Path):
+    store = VectorStore(InMemoryBackend())
+    await store.write(_make_entry())
+    assert list(tmp_path.iterdir()) == []
 
 
 async def test_pgvector_import_error():

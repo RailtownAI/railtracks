@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import json
+from pathlib import Path
 
 import numpy as np
 
@@ -8,18 +10,28 @@ import numpy as np
 class InMemoryBackend:
     """Reference VectorBackend using numpy for cosine similarity.
 
-    Thread-safe via asyncio.Lock. No persistence across process restarts.
+    Thread-safe via asyncio.Lock. When snapshot_path is provided the state is
+    loaded from that file on construction and flushed back to it after every
+    mutating operation (upsert, delete, delete_where), giving lightweight
+    persistence without any external dependencies.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, snapshot_path: str | Path | None = None) -> None:
         self._vectors: dict[str, list[float]] = {}
         self._payloads: dict[str, dict] = {}
         self._lock = asyncio.Lock()
+        self._snapshot_path = Path(snapshot_path) if snapshot_path is not None else None
+
+        if self._snapshot_path is not None and self._snapshot_path.exists():
+            data = json.loads(self._snapshot_path.read_text())
+            self._vectors = data.get("vectors", {})
+            self._payloads = data.get("payloads", {})
 
     async def upsert(self, id: str, vector: list[float], payload: dict) -> None:
         async with self._lock:
             self._vectors[id] = vector
             self._payloads[id] = payload
+            self._flush()
 
     async def search(
         self, vector: list[float], top_k: int, filters: dict
@@ -57,6 +69,7 @@ class InMemoryBackend:
         async with self._lock:
             self._vectors.pop(id, None)
             self._payloads.pop(id, None)
+            self._flush()
 
     async def delete_where(self, filters: dict) -> None:
         async with self._lock:
@@ -68,6 +81,15 @@ class InMemoryBackend:
             for id in to_remove:
                 del self._vectors[id]
                 del self._payloads[id]
+            self._flush()
+
+    def _flush(self) -> None:
+        """Write current state to snapshot_path. Must be called while holding _lock."""
+        if self._snapshot_path is None:
+            return
+        self._snapshot_path.write_text(
+            json.dumps({"vectors": self._vectors, "payloads": self._payloads})
+        )
 
 
 def _matches_filters(payload: dict, filters: dict) -> bool:
