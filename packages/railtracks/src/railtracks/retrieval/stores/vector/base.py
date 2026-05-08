@@ -66,7 +66,7 @@ def _entry_to_payload(entry: MemoryEntry) -> dict:
     if chunk.parent_chunk_id is not None:
         payload["chunk_parent_chunk_id"] = str(chunk.parent_chunk_id)
     if chunk.offsets is not None:
-        payload["chunk_offsets"] = list(chunk.offsets)
+        payload["chunk_offsets"] = json.dumps(list(chunk.offsets))
     if chunk.metadata:
         payload["chunk_metadata"] = json.dumps(chunk.metadata)
 
@@ -93,9 +93,10 @@ def _entry_to_payload(entry: MemoryEntry) -> dict:
 
 def _payload_to_entry(id: str, vector: list[float], payload: dict) -> MemoryEntry:
     offsets_raw = payload.get("chunk_offsets")
-    offsets: tuple[int, int] | None = (
-        (int(offsets_raw[0]), int(offsets_raw[1])) if offsets_raw is not None else None
-    )
+    offsets: tuple[int, int] | None = None
+    if offsets_raw is not None:
+        parsed = json.loads(offsets_raw) if isinstance(offsets_raw, str) else offsets_raw
+        offsets = (int(parsed[0]), int(parsed[1]))
     parent_chunk_id_raw = payload.get("chunk_parent_chunk_id")
     parent_chunk_id = UUID(parent_chunk_id_raw) if parent_chunk_id_raw else None
     metadata = (
