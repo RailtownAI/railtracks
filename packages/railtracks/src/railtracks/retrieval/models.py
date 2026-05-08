@@ -24,6 +24,9 @@ class Document:
         content: The raw text content.
         id: Unique identifier, auto-generated as a UUID if not provided.
         source: Origin of the content — file path, URL, database key, etc.
+        content_hash: SHA-256 of ``content``. Computed by the runtime at
+            ingest time; loaders should leave this ``None``. Used by
+            staleness-detection to skip re-embedding unchanged documents.
         metadata: Arbitrary key-value pairs attached by the loader (page number,
             language, author, etc.).
     """
@@ -32,6 +35,7 @@ class Document:
     type: DocumentType
     id: UUID = field(default_factory=uuid4)
     source: str | None = None
+    content_hash: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
