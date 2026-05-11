@@ -160,14 +160,14 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         api_base: str | None = None,
         api_key: str | None = None,
         temperature: float | None = None,
-        retry_config: RetryApproach | None = None,
+        retry_approach: RetryApproach | None = None,
     ):
         super().__init__(stream=stream)
         self._model_name = model_name
         self.api_base = api_base
         self.api_key = api_key
         self.temperature = temperature
-        self.retry_config = retry_config
+        self.retry_approach = retry_approach
 
     @overload
     def _invoke(
@@ -222,12 +222,18 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         if self.temperature is not None:
             merged["temperature"] = self.temperature
 
-        completion = litellm.completion(
+
+        completion_function = lambda: litellm.completion(
             model=self._model_name,
             messages=litellm_messages,
             stream=self.stream,
             **merged,
         )
+
+        if self.retry_approach is not None:
+            completion = self.retry_approach.call_with_retry(completion_function)
+        else:
+            completion = completion_function()
 
         if isinstance(completion, CustomStreamWrapper):
             return completion, start_time
@@ -286,12 +292,20 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
             "ignore", category=UserWarning, module="pydantic.*"
         )  # Supress pydantic warnings. See issue #204 for more deatils.
 
-        completion = await litellm.acompletion(
+
+        completion_function = lambda: litellm.acompletion(
             model=self._model_name,
             messages=litellm_messages,
             stream=self.stream,
             **merged,
         )
+
+        if self.retry_approach is not None:
+            completion = await self.retry_approach.acall_with_retry(completion_function)
+        else:
+            completion = await completion_function()
+        
+
         if isinstance(completion, CustomStreamWrapper):
             return completion, start_time
         else:
