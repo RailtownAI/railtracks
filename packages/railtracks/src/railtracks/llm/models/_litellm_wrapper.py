@@ -26,6 +26,8 @@ from litellm.litellm_core_utils.streaming_handler import CustomStreamWrapper
 from litellm.types.utils import ModelResponse
 from pydantic import BaseModel, Field
 
+from railtracks.llm.retries import RetryApproach
+
 from ...exceptions.errors import LLMError, NodeInvocationError
 from ..content import ToolCall
 from ..history import MessageHistory
@@ -158,12 +160,14 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         api_base: str | None = None,
         api_key: str | None = None,
         temperature: float | None = None,
+        retry_config: RetryApproach | None = None,
     ):
         super().__init__(stream=stream)
         self._model_name = model_name
         self.api_base = api_base
         self.api_key = api_key
         self.temperature = temperature
+        self.retry_config = retry_config
 
     @overload
     def _invoke(
@@ -281,6 +285,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         warnings.filterwarnings(
             "ignore", category=UserWarning, module="pydantic.*"
         )  # Supress pydantic warnings. See issue #204 for more deatils.
+
         completion = await litellm.acompletion(
             model=self._model_name,
             messages=litellm_messages,
