@@ -67,7 +67,7 @@ class TerminalLLM(
             raise LLMError(
                 reason=f"Exception during llm model chat: {str(e)}",
                 message_history=self.message_hist,
-            )
+            ) from e
 
         returned_mess = self._post_invoke(self.message_hist, returned_mess)
 
@@ -126,6 +126,6 @@ class StreamingTerminalLLM(
             raise LLMError(
                 reason=f"Exception during llm model chat: {str(e)}",
                 message_history=self.message_hist,
-            )
+            ) from e
 
         return self._gen_wrapper(returned_mess)

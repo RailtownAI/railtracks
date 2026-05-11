@@ -24,6 +24,8 @@ from .tools import (
     UnionParameter,
 )
 
+from . import retries
+
 __all__ = [
     "ModelBase",
     "ToolCall",
@@ -55,4 +57,5 @@ __all__ = [
     "ArrayParameter",
     "ObjectParameter",
     "RefParameter",
+    "retries",
 ]

@@ -5,6 +5,7 @@ import litellm
 
 from ...providers import ModelProvider
 from .._litellm_wrapper import LiteLLMWrapper
+from ...retries import RetryApproach
 
 # litellm.drop_params=True
 from .._model_exception_base import FunctionCallingNotSupportedError, ModelError
@@ -31,6 +32,7 @@ class AzureAILLM(LiteLLMWrapper[_TStream]):
         model_name: str,
         *,
         temperature: float | None = None,
+        retry_approach: RetryApproach | None = None,
         **kwargs,
     ):
         """Initialize an Azure AI LLM instance.
@@ -44,7 +46,7 @@ class AzureAILLM(LiteLLMWrapper[_TStream]):
         Raises:
             AzureAIError: If the specified model is not available or if there are issues with the Azure AI service.
         """
-        super().__init__(model_name, temperature=temperature, **kwargs)
+        super().__init__(model_name, temperature=temperature, retry_approach=retry_approach, **kwargs)
 
         # Currently matching names to Azure models is case sensitive
         self._available_models = [model.lower() for model in litellm.azure_ai_models]

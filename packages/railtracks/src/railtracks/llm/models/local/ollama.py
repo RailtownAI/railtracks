@@ -2,6 +2,7 @@ import logging
 import os
 from typing import Literal, TypeVar
 
+from ...retries.base import RetryApproach
 import requests
 from litellm.utils import supports_function_calling
 
@@ -29,6 +30,7 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
         domain: Literal["default", "auto", "custom"] = "default",
         custom_domain: str | None = None,
         temperature: float | None = None,
+        retry_approach: RetryApproach | None = None,
         **kwargs,
     ):
         """Initialize an Ollama LLM instance.
@@ -63,6 +65,7 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
             model_name=model_name,
             stream=stream,
             temperature=temperature,
+            retry_approach=retry_approach,
             **kwargs,
         )
 

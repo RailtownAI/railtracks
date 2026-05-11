@@ -26,7 +26,7 @@ from litellm.litellm_core_utils.streaming_handler import CustomStreamWrapper
 from litellm.types.utils import ModelResponse
 from pydantic import BaseModel, Field
 
-from railtracks.llm.retries import RetryApproach
+from ..retries import RetryApproach
 
 from ...exceptions.errors import LLMError, NodeInvocationError
 from ..content import ToolCall
