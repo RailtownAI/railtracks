@@ -1,9 +1,11 @@
-import litellm
-from typing import Callable, Awaitable, TypeVar
-from abc import ABC, abstractmethod
-import time 
-from .._exceptions import RetryError
 import asyncio
+import time
+from abc import ABC, abstractmethod
+from typing import Awaitable, Callable, TypeVar
+
+import litellm
+
+from .._exceptions import RetryError
 
 _TResult = TypeVar("_TResult")
 
@@ -101,4 +103,3 @@ class RetryApproach(ABC):
                     await asyncio.sleep(self._compute_delay(attempt))
 
         assert False, "Unreachable code"
-

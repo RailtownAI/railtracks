@@ -1,6 +1,7 @@
-from .base import RetryApproach
-import warnings
 import random
+import warnings
+
+from .base import RetryApproach
 
 _MAX_RECOMONDED_RETRY_TIME_EXPONETIAL = (
     1000  # 1000 seconds feels like a reasonable bound
@@ -52,4 +53,3 @@ class ExponentialRetry(RetryApproach):
     def _compute_delay(self, attempt: int) -> float:
         delay = self._base**attempt
         return random.uniform(0, delay) if self._jitter else delay
-    

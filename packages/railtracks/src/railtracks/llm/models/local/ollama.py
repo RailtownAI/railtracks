@@ -2,11 +2,11 @@ import logging
 import os
 from typing import Literal, TypeVar
 
-from ...retries.base import RetryApproach
 import requests
 from litellm.utils import supports_function_calling
 
 from ...providers import ModelProvider
+from ...retries.base import RetryApproach
 from .._litellm_wrapper import LiteLLMWrapper
 from .._model_exception_base import FunctionCallingNotSupportedError, ModelError
 

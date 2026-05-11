@@ -297,7 +297,7 @@ class StreamingOutputLessToolCallLLM(
     ABC,
     Generic[_TCollectedOutput],
 ):
-    async def _handle_tool_calls(self):
+    async def _handle_tool_calls(self): # noqa: C901
         try:
             returned_mess = await asyncio.to_thread(
                 self.llm_model.chat_with_tools, self.message_hist, tools=self.tools()

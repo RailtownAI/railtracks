@@ -1,7 +1,9 @@
+import random
+
+from .base import RetryApproach
 
 _MAX_RETRY_TIMES_LINEAR = 100
-from .base import RetryApproach
-import random
+
 
 
 class LinearRetry(RetryApproach):
@@ -30,9 +32,7 @@ class LinearRetry(RetryApproach):
         if step < 0:
             raise ValueError("step must be >= 0")
 
-        super().__init__(
-            max_tries=max_tries
-        )
+        super().__init__(max_tries=max_tries)
         self._step = step
         self._jitter = jitter
 
@@ -43,4 +43,3 @@ class LinearRetry(RetryApproach):
     def _compute_delay(self, attempt: int) -> float:
         delay = self._step * (attempt + 1)
         return random.uniform(0, delay) if self._jitter else delay
-

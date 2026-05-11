@@ -3,7 +3,6 @@ from typing import Literal, TypeVar
 
 from ...providers import ModelProvider
 from ...retries import RetryApproach
-
 from ..api_providers._openai_compatable_provider_wrapper import OpenAICompatibleProvider
 
 _TStream = TypeVar("_TStream", Literal[True], Literal[False])

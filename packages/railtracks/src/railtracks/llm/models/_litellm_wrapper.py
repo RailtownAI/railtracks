@@ -26,14 +26,13 @@ from litellm.litellm_core_utils.streaming_handler import CustomStreamWrapper
 from litellm.types.utils import ModelResponse
 from pydantic import BaseModel, Field
 
-from ..retries import RetryApproach
-
 from ...exceptions.errors import LLMError, NodeInvocationError
 from ..content import ToolCall
 from ..history import MessageHistory
 from ..message import AssistantMessage, Message, ToolMessage, UserMessage
 from ..model import ModelBase
 from ..response import MessageInfo, Response
+from ..retries import RetryApproach
 from ..tools import Tool
 from ..tools.parameters import Parameter
 
@@ -222,13 +221,13 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         if self.temperature is not None:
             merged["temperature"] = self.temperature
 
-
-        completion_function = lambda: litellm.completion(
-            model=self._model_name,
-            messages=litellm_messages,
-            stream=self.stream,
-            **merged,
-        )
+        def completion_function():
+            return litellm.completion(
+                model=self._model_name,
+                messages=litellm_messages,
+                stream=self.stream,
+                **merged,
+            )
 
         if self.retry_approach is not None:
             completion = self.retry_approach.call_with_retry(completion_function)
@@ -292,19 +291,18 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
             "ignore", category=UserWarning, module="pydantic.*"
         )  # Supress pydantic warnings. See issue #204 for more deatils.
 
-
-        completion_function = lambda: litellm.acompletion(
-            model=self._model_name,
-            messages=litellm_messages,
-            stream=self.stream,
-            **merged,
-        )
+        def completion_function():
+            return litellm.acompletion(
+                model=self._model_name,
+                messages=litellm_messages,
+                stream=self.stream,
+                **merged,
+            )
 
         if self.retry_approach is not None:
             completion = await self.retry_approach.acall_with_retry(completion_function)
         else:
             completion = await completion_function()
-        
 
         if isinstance(completion, CustomStreamWrapper):
             return completion, start_time

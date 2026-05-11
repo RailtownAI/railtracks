@@ -1,3 +1,4 @@
+from . import retries
 from .content import ToolCall, ToolResponse
 from .history import MessageHistory
 from .message import AssistantMessage, Message, SystemMessage, ToolMessage, UserMessage
@@ -23,8 +24,6 @@ from .tools import (
     Tool,
     UnionParameter,
 )
-
-from . import retries
 
 __all__ = [
     "ModelBase",

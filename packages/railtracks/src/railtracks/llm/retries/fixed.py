@@ -2,6 +2,7 @@ from .base import RetryApproach
 
 _MAX_RETRY_TIMES_FIXED = 100
 
+
 class FixedRetry(RetryApproach):
     """Fixed backoff: waits the same ``delay`` seconds before every retry.
 
@@ -25,9 +26,7 @@ class FixedRetry(RetryApproach):
         if delay < 0:
             raise ValueError("delay must be >= 0")
 
-        super().__init__(
-            max_tries=max_tries
-        )
+        super().__init__(max_tries=max_tries)
         self._delay = delay
 
     @classmethod

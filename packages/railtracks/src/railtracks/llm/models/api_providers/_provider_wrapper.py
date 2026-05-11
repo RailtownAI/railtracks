@@ -3,11 +3,11 @@ from typing import Any, Generic, List, Literal, TypeVar
 
 import litellm
 from litellm.litellm_core_utils.get_llm_provider_logic import get_llm_provider
-from ...retries.base import RetryApproach
 
 from ...history import MessageHistory
 from ...providers import ModelProvider
 from ...response import Response
+from ...retries.base import RetryApproach
 from ...tools import Tool
 from .._litellm_wrapper import LiteLLMWrapper
 from .._model_exception_base import FunctionCallingNotSupportedError, ModelNotFoundError
