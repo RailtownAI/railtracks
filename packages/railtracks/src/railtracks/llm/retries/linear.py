@@ -5,7 +5,6 @@ from .base import RetryApproach
 _MAX_RETRY_TIMES_LINEAR = 100
 
 
-
 class LinearRetry(RetryApproach):
     """Linear backoff: delay = ``step * (attempt + 1)`` seconds.
 
