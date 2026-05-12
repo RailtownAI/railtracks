@@ -18,6 +18,7 @@ from typing import (
 )
 
 from pydantic import BaseModel
+from .retries.base import RetryApproach
 
 from .history import MessageHistory
 from .providers import ModelProvider
@@ -45,6 +46,7 @@ class ModelBase(ABC, Generic[_TStream]):
         __exception_hooks: List[Callable[[MessageHistory, Exception], None]]
         | None = None,
         stream: _TStream = False,
+        retry_approach: RetryApproach | None = None,
     ):
         if __pre_hooks is None:
             pre_hooks: List[Callable[[MessageHistory], MessageHistory]] = []
@@ -65,6 +67,7 @@ class ModelBase(ABC, Generic[_TStream]):
         self._post_hooks = post_hooks
         self._exception_hooks = exception_hooks
         self.stream = stream
+        self.retry_approach = retry_approach
 
     def add_pre_hook(self, hook: Callable[[MessageHistory], MessageHistory]) -> None:
         """Adds a pre-hook to modify messages before sending them to the model."""

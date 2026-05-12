@@ -6,8 +6,6 @@ import pytest
 from litellm.utils import ModelResponse
 
 from railtracks.llm._exceptions import RetryError
-from railtracks.llm.history import MessageHistory
-from railtracks.llm.message import UserMessage
 from railtracks.llm.models.api_providers import AnthropicLLM, OpenAILLM
 from railtracks.llm.retries import ExponentialRetry, FixedRetry
 
@@ -22,11 +20,6 @@ def _rate_limit_error() -> litellm.exceptions.RateLimitError:
     return litellm.exceptions.RateLimitError(
         message="rate limited", llm_provider="anthropic", model="claude-haiku-4-5-20251001"
     )
-
-
-@pytest.fixture
-def message_history():
-    return MessageHistory([UserMessage("hi")])
 
 
 # ---------------------------------------------------------------------------

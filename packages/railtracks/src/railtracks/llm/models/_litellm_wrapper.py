@@ -161,12 +161,11 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         temperature: float | None = None,
         retry_approach: RetryApproach | None = None,
     ):
-        super().__init__(stream=stream)
+        super().__init__(stream=stream, retry_approach=retry_approach)
         self._model_name = model_name
         self.api_base = api_base
         self.api_key = api_key
         self.temperature = temperature
-        self.retry_approach = retry_approach
 
     @overload
     def _invoke(
