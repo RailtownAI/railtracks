@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import json
 
+from typing_extensions import Self
+
 from ..metric import DistanceMetric
 
 
 _NOT_INITIALIZED = (
-    "call await PgvectorBackend.initialize() first and ensure asyncpg and pgvector are installed"
+    "PgvectorBackend is not initialized — "
+    "call await PgvectorBackend.create(...) or await backend.initialize() first"
 )
 
 _PG_OPERATOR = {
@@ -81,6 +84,24 @@ class PgvectorBackend:
         self._metric = metric
         self._pool = None
 
+    def _require_initialized(self) -> None:
+        if self._pool is None:
+            raise RuntimeError(_NOT_INITIALIZED)
+
+    @classmethod
+    async def create(
+        cls,
+        dsn: str,
+        *,
+        table: str = "memory_entries",
+        dim: int | None = None,
+        metric: DistanceMetric = DistanceMetric.COSINE,
+    ) -> Self:
+        """Create and initialize a PgvectorBackend in one step."""
+        backend = cls(dsn, table=table, dim=dim, metric=metric)
+        await backend.initialize()
+        return backend
+
     async def initialize(self) -> None:
         try:
             import asyncpg
@@ -110,8 +131,7 @@ class PgvectorBackend:
             )
 
     async def upsert(self, id: str, vector: list[float], payload: dict) -> None:
-        if self._pool is None:
-            raise RuntimeError(_NOT_INITIALIZED)
+        self._require_initialized()
         async with self._pool.acquire() as conn:
             await conn.execute(
                 f"""
@@ -129,8 +149,7 @@ class PgvectorBackend:
     async def search(
         self, vector: list[float], top_k: int, filters: dict
     ) -> list[tuple[str, float, dict]]:
-        if self._pool is None:
-            raise RuntimeError(_NOT_INITIALIZED)
+        self._require_initialized()
 
         op = _PG_OPERATOR[self._metric]
         where, params = _build_where(filters, start_index=2)
@@ -156,16 +175,14 @@ class PgvectorBackend:
         ]
 
     async def delete(self, id: str) -> None:
-        if self._pool is None:
-            raise RuntimeError(_NOT_INITIALIZED)
+        self._require_initialized()
         async with self._pool.acquire() as conn:
             await conn.execute(
                 f'DELETE FROM "{self._table}" WHERE id = $1', id
             )
 
     async def delete_where(self, filters: dict) -> None:
-        if self._pool is None:
-            raise RuntimeError(_NOT_INITIALIZED)
+        self._require_initialized()
         if not filters:
             return
         where, params = _build_where(filters, start_index=1)

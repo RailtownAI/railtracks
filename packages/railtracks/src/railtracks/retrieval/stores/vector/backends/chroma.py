@@ -3,11 +3,14 @@ from __future__ import annotations
 import asyncio
 import math
 
+from typing_extensions import Self
+
 from ..metric import DistanceMetric
 
 
 _NOT_INITIALIZED = (
-    "call await ChromaBackend.initialize() first and ensure chromadb is installed"
+    "ChromaBackend is not initialized — "
+    "call await ChromaBackend.create(...) or await backend.initialize() first"
 )
 
 
@@ -60,6 +63,25 @@ class ChromaBackend:
         self._metric = metric
         self._collection = None
 
+    def _require_initialized(self) -> None:
+        if self._collection is None:
+            raise RuntimeError(_NOT_INITIALIZED)
+
+    @classmethod
+    async def create(
+        cls,
+        collection_name: str,
+        *,
+        path: str | None = None,
+        host: str | None = None,
+        port: int | None = None,
+        metric: DistanceMetric = DistanceMetric.COSINE,
+    ) -> Self:
+        """Create and initialize a ChromaBackend in one step."""
+        backend = cls(collection_name, path=path, host=host, port=port, metric=metric)
+        await backend.initialize()
+        return backend
+
     async def initialize(self) -> None:
         """Create the Chroma client and collection."""
         try:
@@ -87,8 +109,7 @@ class ChromaBackend:
         self._collection = await asyncio.to_thread(_setup)
 
     async def upsert(self, id: str, vector: list[float], payload: dict) -> None:
-        if self._collection is None:
-            raise RuntimeError(_NOT_INITIALIZED)
+        self._require_initialized()
         collection = self._collection
         await asyncio.to_thread(
             collection.upsert,
@@ -100,8 +121,7 @@ class ChromaBackend:
     async def search(
         self, vector: list[float], top_k: int, filters: dict
     ) -> list[tuple[str, float, dict]]:
-        if self._collection is None:
-            raise RuntimeError(_NOT_INITIALIZED)
+        self._require_initialized()
         collection = self._collection
 
         count = await asyncio.to_thread(collection.count)
@@ -129,14 +149,12 @@ class ChromaBackend:
         return hits
 
     async def delete(self, id: str) -> None:
-        if self._collection is None:
-            raise RuntimeError(_NOT_INITIALIZED)
+        self._require_initialized()
         collection = self._collection
         await asyncio.to_thread(collection.delete, ids=[id])
 
     async def delete_where(self, filters: dict) -> None:
-        if self._collection is None:
-            raise RuntimeError(_NOT_INITIALIZED)
+        self._require_initialized()
         if not filters:
             return
         collection = self._collection

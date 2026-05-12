@@ -8,7 +8,6 @@ from uuid import uuid4
 
 import pytest
 
-from railtracks.retrieval.models import Chunk, EmbeddedChunk
 from railtracks.retrieval.stores.models import (
     DetailLevel,
     MemoryEntry,
@@ -112,11 +111,13 @@ def _injected_backend(collection: MagicMock) -> ChromaBackend:
 def _make_entry(user_id: str = "alice", vector: list[float] | None = None) -> MemoryEntry:
     if vector is None:
         vector = [1.0, 0.0, 0.0]
-    chunk = Chunk(content="hello", document_id=uuid4())
-    embedded = EmbeddedChunk(chunk=chunk, vector=vector, embedding_model="toy")
     return MemoryEntry(
         id=uuid4(),
-        chunk=embedded,
+        content="hello",
+        vector=vector,
+        embedding_model="toy",
+        chunk_id=uuid4(),
+        document_id=uuid4(),
         abstract="abs",
         summary="sum",
         scope=MemoryScope(user_id=user_id),
@@ -365,4 +366,4 @@ async def test_vector_store_write_read_via_chroma():
     assert len(results) == 1
     assert results[0].entry.id == entry.id
     assert results[0].score == pytest.approx(0.95)
-    assert results[0].entry.chunk.chunk.content == "hello"
+    assert results[0].entry.content == "hello"
