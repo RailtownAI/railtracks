@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from uuid import UUID
-
-from railtracks.retrieval.models import EmbeddedChunk
 
 
 @dataclass(frozen=True)
@@ -21,6 +19,8 @@ class MemoryScope:
     """Hard-filter namespace for memory entries.
 
     All non-None fields are enforced by stores as mandatory equality filters.
+    The scope_ prefix in to_payload_filters() avoids key collisions in flat
+    payload dicts that also carry content fields.
     """
 
     user_id: str | None = None
@@ -28,8 +28,15 @@ class MemoryScope:
     session_id: str | None = None
     run_id: str | None = None
 
-    def as_filter_dict(self) -> dict[str, str]:
-        return {k: v for k, v in self.__dict__.items() if v is not None}
+    def to_payload_filters(self) -> dict[str, str]:
+        return {f"scope_{k}": v for k, v in self.__dict__.items() if v is not None}
+
+
+class MemoryCategory(str, Enum):
+    EPISODIC = "episodic"
+    SEMANTIC = "semantic"
+    SKILL = "skill"
+    PROCEDURAL = "procedural"
 
 
 class RetrievalStrategy(Enum):
@@ -47,15 +54,29 @@ class DetailLevel(Enum):
 
 @dataclass
 class MemoryEntry:
+    # Required fields
     id: UUID
-    chunk: EmbeddedChunk
+    content: str
+    vector: list[float]
+    embedding_model: str
+    chunk_id: UUID
+    document_id: UUID
     abstract: str
     summary: str
     scope: MemoryScope
+    # Optional chunk provenance
+    chunk_index: int = 0
+    parent_chunk_id: UUID | None = None
+    chunk_offsets: tuple[int, int] | None = None
+    chunk_metadata: dict = field(default_factory=dict)
+    # Optional embedding provenance
+    embedding_version: str | None = None
+    # Optional memory metadata
     entities: list[Entity] | None = None
-    memory_category: str | None = None
+    memory_category: MemoryCategory | None = None
     valid_from: datetime | None = None
     valid_until: datetime | None = None
+    created_at: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
 
 @dataclass
@@ -77,4 +98,5 @@ class MemoryQuery:
         default_factory=lambda: [RetrievalStrategy.VECTOR]
     )
     detail_level: DetailLevel = DetailLevel.L1
-    filters: dict = field(default_factory=dict)
+    memory_category: MemoryCategory | None = None
+    metadata_filters: dict[str, str] | None = None

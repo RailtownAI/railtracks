@@ -5,9 +5,9 @@ from __future__ import annotations
 from dataclasses import FrozenInstanceError
 from uuid import uuid4
 
-from railtracks.retrieval.models import Chunk, EmbeddedChunk
 from railtracks.retrieval.stores.models import (
     DetailLevel,
+    MemoryCategory,
     MemoryEntry,
     MemoryQuery,
     MemoryScope,
@@ -22,11 +22,13 @@ def _make_entry(
     summary: str = "a summary",
     abstract: str = "an abstract",
 ) -> MemoryEntry:
-    chunk = Chunk(content=content, document_id=uuid4())
-    embedded = EmbeddedChunk(chunk=chunk, vector=[0.1, 0.2], embedding_model="toy")
     return MemoryEntry(
         id=uuid4(),
-        chunk=embedded,
+        content=content,
+        vector=[0.1, 0.2],
+        embedding_model="toy",
+        chunk_id=uuid4(),
+        document_id=uuid4(),
         abstract=abstract,
         summary=summary,
         scope=MemoryScope(user_id=user_id),
@@ -42,22 +44,22 @@ def test_memory_scope_is_frozen():
     raise AssertionError("MemoryScope should be frozen")
 
 
-def test_memory_scope_as_filter_dict_omits_none():
+def test_memory_scope_to_payload_filters_omits_none():
     scope = MemoryScope(user_id="alice", agent_id="agent-1")
-    result = scope.as_filter_dict()
-    assert result == {"user_id": "alice", "agent_id": "agent-1"}
-    assert "session_id" not in result
-    assert "run_id" not in result
+    result = scope.to_payload_filters()
+    assert result == {"scope_user_id": "alice", "scope_agent_id": "agent-1"}
+    assert "scope_session_id" not in result
+    assert "scope_run_id" not in result
 
 
-def test_memory_scope_as_filter_dict_empty():
+def test_memory_scope_to_payload_filters_empty():
     scope = MemoryScope()
-    assert scope.as_filter_dict() == {}
+    assert scope.to_payload_filters() == {}
 
 
 def test_memory_entry_stores_all_fields():
     entry = _make_entry()
-    assert entry.chunk.chunk.content == "hello world"
+    assert entry.content == "hello world"
     assert entry.abstract == "an abstract"
     assert entry.summary == "a summary"
     assert entry.scope.user_id == "alice"
@@ -65,11 +67,12 @@ def test_memory_entry_stores_all_fields():
     assert entry.memory_category is None
     assert entry.valid_from is None
     assert entry.valid_until is None
+    assert entry.created_at is not None
 
 
-def test_memory_entry_chunk_content_reachable():
+def test_memory_entry_content_accessible():
     entry = _make_entry(content="deep content")
-    assert entry.chunk.chunk.content == "deep content"
+    assert entry.content == "deep content"
 
 
 def test_memory_query_defaults():
@@ -78,7 +81,19 @@ def test_memory_query_defaults():
     assert query.detail_level is DetailLevel.L1
     assert query.top_k == 10
     assert query.embedding is None
-    assert query.filters == {}
+    assert query.metadata_filters is None
+    assert query.memory_category is None
+
+
+def test_memory_category_values():
+    assert MemoryCategory.EPISODIC.value == "episodic"
+    assert MemoryCategory.SEMANTIC.value == "semantic"
+    assert MemoryCategory.SKILL.value == "skill"
+    assert MemoryCategory.PROCEDURAL.value == "procedural"
+
+
+def test_memory_category_is_str_enum():
+    assert MemoryCategory("episodic") is MemoryCategory.EPISODIC
 
 
 def test_detail_level_l2_value():

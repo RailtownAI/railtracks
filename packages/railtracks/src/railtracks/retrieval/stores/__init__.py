@@ -1,6 +1,7 @@
 from .models import (
     DetailLevel,
     Entity,
+    MemoryCategory,
     MemoryEntry,
     MemoryQuery,
     MemoryScope,
@@ -20,6 +21,7 @@ __all__ = [
     "DistanceMetric",
     "Entity",
     "InMemoryVectorBackend",
+    "MemoryCategory",
     "MemoryEntry",
     "MemoryQuery",
     "MemoryScope",

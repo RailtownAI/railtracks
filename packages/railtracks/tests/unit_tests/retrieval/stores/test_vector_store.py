@@ -2,15 +2,12 @@
 
 from __future__ import annotations
 
-import json
-import math
 from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
 
-from railtracks.retrieval.models import Chunk, EmbeddedChunk
 from railtracks.retrieval.stores.models import (
     DetailLevel,
     MemoryEntry,
@@ -37,11 +34,13 @@ def _make_entry(
 ) -> MemoryEntry:
     if vector is None:
         vector = [1.0, 0.0, 0.0]
-    chunk = Chunk(content=content, document_id=uuid4())
-    embedded = EmbeddedChunk(chunk=chunk, vector=vector, embedding_model="toy")
     return MemoryEntry(
         id=uuid4(),
-        chunk=embedded,
+        content=content,
+        vector=vector,
+        embedding_model="toy",
+        chunk_id=uuid4(),
+        document_id=uuid4(),
         abstract=abstract,
         summary=summary,
         scope=MemoryScope(user_id=user_id),
@@ -113,7 +112,7 @@ async def test_detail_level_l0():
     results = await store.read(_make_query(detail_level=DetailLevel.L0))
     assert len(results) == 1
     assert results[0].entry.summary == ""
-    assert results[0].entry.chunk.chunk.content == ""
+    assert results[0].entry.content == ""
 
 
 async def test_detail_level_l1():
@@ -124,7 +123,7 @@ async def test_detail_level_l1():
     results = await store.read(_make_query(detail_level=DetailLevel.L1))
     assert len(results) == 1
     assert results[0].entry.summary == "important summary"
-    assert results[0].entry.chunk.chunk.content == ""
+    assert results[0].entry.content == ""
 
 
 async def test_detail_level_l2():
@@ -135,7 +134,7 @@ async def test_detail_level_l2():
     results = await store.read(_make_query(detail_level=DetailLevel.L2))
     assert len(results) == 1
     assert results[0].entry.summary == "important summary"
-    assert results[0].entry.chunk.chunk.content == "full content"
+    assert results[0].entry.content == "full content"
 
 
 async def test_delete():
@@ -215,24 +214,18 @@ async def test_chunk_roundtrip_preserves_all_fields():
     document_id = uuid4()
     chunk_id = uuid4()
     parent_chunk_id = uuid4()
-    chunk = Chunk(
+    entry = MemoryEntry(
+        id=uuid4(),
         content="full content",
-        document_id=document_id,
-        id=chunk_id,
-        index=7,
-        parent_chunk_id=parent_chunk_id,
-        offsets=(12, 48),
-        metadata={"section": "intro", "lang": "en"},
-    )
-    embedded = EmbeddedChunk(
-        chunk=chunk,
         vector=[1.0, 0.0, 0.0],
         embedding_model="toy",
         embedding_version="v1",
-    )
-    entry = MemoryEntry(
-        id=uuid4(),
-        chunk=embedded,
+        chunk_id=chunk_id,
+        document_id=document_id,
+        chunk_index=7,
+        parent_chunk_id=parent_chunk_id,
+        chunk_offsets=(12, 48),
+        chunk_metadata={"section": "intro", "lang": "en"},
         abstract="abs",
         summary="sum",
         scope=MemoryScope(user_id="alice"),
@@ -242,30 +235,29 @@ async def test_chunk_roundtrip_preserves_all_fields():
     results = await store.read(_make_query(detail_level=DetailLevel.L2))
 
     assert len(results) == 1
-    got = results[0].entry.chunk.chunk
-    assert got.id == chunk_id
+    got = results[0].entry
+    assert got.chunk_id == chunk_id
     assert got.document_id == document_id
-    assert got.index == 7
+    assert got.chunk_index == 7
     assert got.parent_chunk_id == parent_chunk_id
-    assert got.offsets == (12, 48)
-    assert got.metadata == {"section": "intro", "lang": "en"}
-    assert results[0].entry.chunk.embedding_version == "v1"
+    assert got.chunk_offsets == (12, 48)
+    assert got.chunk_metadata == {"section": "intro", "lang": "en"}
+    assert got.embedding_version == "v1"
 
 
 async def test_detail_level_preserves_chunk_offsets_and_parent():
     store = VectorStore(InMemoryBackend())
 
     parent_chunk_id = uuid4()
-    chunk = Chunk(
-        content="full content",
-        document_id=uuid4(),
-        parent_chunk_id=parent_chunk_id,
-        offsets=(3, 9),
-    )
-    embedded = EmbeddedChunk(chunk=chunk, vector=[1.0, 0.0, 0.0], embedding_model="toy")
     entry = MemoryEntry(
         id=uuid4(),
-        chunk=embedded,
+        content="full content",
+        vector=[1.0, 0.0, 0.0],
+        embedding_model="toy",
+        chunk_id=uuid4(),
+        document_id=uuid4(),
+        parent_chunk_id=parent_chunk_id,
+        chunk_offsets=(3, 9),
         abstract="abs",
         summary="sum",
         scope=MemoryScope(user_id="alice"),
@@ -274,10 +266,10 @@ async def test_detail_level_preserves_chunk_offsets_and_parent():
 
     for level in (DetailLevel.L0, DetailLevel.L1):
         results = await store.read(_make_query(detail_level=level))
-        got = results[0].entry.chunk.chunk
+        got = results[0].entry
         assert got.content == ""
         assert got.parent_chunk_id == parent_chunk_id
-        assert got.offsets == (3, 9)
+        assert got.chunk_offsets == (3, 9)
 
 
 async def test_read_raises_without_embedding():
