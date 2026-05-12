@@ -18,11 +18,11 @@ from typing import (
 )
 
 from pydantic import BaseModel
-from .retries.base import RetryApproach
 
 from .history import MessageHistory
 from .providers import ModelProvider
 from .response import Response
+from .retries.base import RetryApproach
 from .tools import Tool
 
 _TStream = TypeVar("_TStream", Literal[True], Literal[False])
