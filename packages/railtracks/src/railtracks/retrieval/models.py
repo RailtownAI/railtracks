@@ -61,5 +61,5 @@ class RetrievalResult:
 @dataclass(frozen=True)
 class Cost:
     tokens: int | None = None
-    latency_ms: float | None = None  
+    latency_ms: float | None = None
     dollars: float | None = None
