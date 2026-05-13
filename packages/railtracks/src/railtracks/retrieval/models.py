@@ -16,7 +16,7 @@ class DocumentType(str, Enum):
 @dataclass
 class Document:
     content: str
-    type: str
+    type: DocumentType
     id: UUID = field(default_factory=uuid4)
     source: str | None = None
     metadata: dict = field(default_factory=dict)
@@ -60,4 +60,6 @@ class RetrievalResult:
 
 @dataclass(frozen=True)
 class Cost:
-    tokens: int
+    tokens: int | None = None
+    latency_ms: float | None = None  
+    dollars: float | None = None
