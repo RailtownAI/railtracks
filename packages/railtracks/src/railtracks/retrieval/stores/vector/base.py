@@ -34,41 +34,35 @@ class VectorBackend(Protocol):
 # ---------------------------------------------------------------------------
 
 
-def _entry_to_payload(entry: StoreEntry) -> dict:
-    payload: dict = {}
-
-    if entry.scope is not None:
-        payload.update(entry.scope.to_payload_filters())
-
-    if entry.abstract is not None:
-        payload["abstract"] = entry.abstract
-    if entry.summary is not None:
-        payload["summary"] = entry.summary
-
-    payload["content"] = entry.content
-    payload["chunk_id"] = str(entry.chunk_id)
-    payload["document_id"] = str(entry.document_id)
-    payload["chunk_index"] = entry.chunk_index
-    payload["embedding_model"] = entry.embedding_model
-    payload["created_at"] = entry.created_at.isoformat()
-
+def _encode_provenance(entry: StoreEntry) -> dict:
+    out: dict = {}
     if entry.parent_chunk_id is not None:
-        payload["parent_chunk_id"] = str(entry.parent_chunk_id)
+        out["parent_chunk_id"] = str(entry.parent_chunk_id)
     if entry.chunk_offsets is not None:
-        payload["chunk_offsets"] = json.dumps(list(entry.chunk_offsets))
+        out["chunk_offsets"] = json.dumps(list(entry.chunk_offsets))
     if entry.chunk_metadata:
-        payload["chunk_metadata"] = json.dumps(entry.chunk_metadata)
+        out["chunk_metadata"] = json.dumps(entry.chunk_metadata)
     if entry.embedding_version is not None:
-        payload["embedding_version"] = entry.embedding_version
-    if entry.store_category is not None:
-        payload["store_category"] = entry.store_category.value
-    if entry.valid_from is not None:
-        payload["valid_from"] = entry.valid_from.isoformat()
-    if entry.valid_until is not None:
-        payload["valid_until"] = entry.valid_until.isoformat()
+        out["embedding_version"] = entry.embedding_version
+    return out
 
+
+def _encode_enrichment(entry: StoreEntry) -> dict:
+    out: dict = {}
+    if entry.scope is not None:
+        out.update(entry.scope.to_payload_filters())
+    if entry.abstract is not None:
+        out["abstract"] = entry.abstract
+    if entry.summary is not None:
+        out["summary"] = entry.summary
+    if entry.store_category is not None:
+        out["store_category"] = entry.store_category.value
+    if entry.valid_from is not None:
+        out["valid_from"] = entry.valid_from.isoformat()
+    if entry.valid_until is not None:
+        out["valid_until"] = entry.valid_until.isoformat()
     if entry.entities is not None:
-        payload["entities"] = json.dumps(
+        out["entities"] = json.dumps(
             [
                 {
                     "name": e.name,
@@ -79,7 +73,20 @@ def _entry_to_payload(entry: StoreEntry) -> dict:
                 for e in entry.entities
             ]
         )
+    return out
 
+
+def _entry_to_payload(entry: StoreEntry) -> dict:
+    payload: dict = {
+        "content": entry.content,
+        "chunk_id": str(entry.chunk_id),
+        "document_id": str(entry.document_id),
+        "chunk_index": entry.chunk_index,
+        "embedding_model": entry.embedding_model,
+        "created_at": entry.created_at.isoformat(),
+    }
+    payload.update(_encode_provenance(entry))
+    payload.update(_encode_enrichment(entry))
     return payload
 
 
