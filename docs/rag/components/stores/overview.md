@@ -91,6 +91,21 @@ All four fields are optional, so a `StoreScope()` with no arguments is valid and
 
 ---
 
+### Entity
+
+`Entity` is a frozen dataclass for named entities extracted from a chunk. It is stored in `StoreEntry.entities` and round-tripped through the payload.
+
+```python
+@dataclass(frozen=True)
+class Entity:
+    name: str
+    type: str
+    source_chunk_id: UUID
+    metadata: dict = ...
+```
+
+---
+
 ### StoreCategory
 
 `StoreCategory` is a string enum that classifies entries by knowledge type. It is stored in the payload and can be used as a filter in `StoreQuery`.
@@ -139,8 +154,32 @@ query = StoreQuery(
     embedding=embed("What is the refund policy?"),   # pre-computed
     top_k=5,
     detail_level=DetailLevel.L2,
+    store_category=StoreCategory.SEMANTIC,   # optional hard filter
+    metadata_filters={"source": "handbook"},  # optional extra payload filters
 )
 ```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `text` | `str` | required | Raw query string |
+| `scope` | `StoreScope` | required | Namespace filter applied to every search |
+| `embedding` | `list[float] \| None` | `None` | Pre-computed query vector (required by `VectorStore`) |
+| `top_k` | `int` | `10` | Maximum results to return |
+| `strategies` | `list[RetrievalStrategy]` | `[VECTOR]` | Retrieval strategies to use |
+| `detail_level` | `DetailLevel` | `L2` | Controls how much of each entry is returned |
+| `store_category` | `StoreCategory \| None` | `None` | Hard filter by category |
+| `metadata_filters` | `dict[str, str] \| None` | `None` | Additional payload equality filters |
+
+### RetrievalStrategy
+
+`RetrievalStrategy` signals which retrieval method a store implementation should use. `VectorStore` always uses `VECTOR`; the other strategies are reserved for future hybrid retrieval implementations.
+
+| Value | Meaning |
+|-------|---------|
+| `VECTOR` | Dense vector similarity search |
+| `KEYWORD` | BM25 / full-text keyword search |
+| `GRAPH` | Knowledge-graph traversal |
+| `TEMPORAL` | Time-ordered retrieval |
 
 ### DetailLevel
 

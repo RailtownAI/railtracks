@@ -10,7 +10,20 @@ class VectorBackend(Protocol):
     async def delete_where(self, filters: dict) -> None: ...
 ```
 
-All backends must be **initialised** before use by calling `await backend.initialize()`. This is where connection pools are created and schema migrations run — it is intentionally separated from `__init__` so construction stays synchronous and cheap.
+`ChromaBackend` and `PgvectorBackend` must be **initialised** before use. Both expose an async `create(...)` factory that constructs and initialises in one call — prefer this over calling `__init__` + `initialize()` separately:
+
+```python
+backend = await PgvectorBackend.create(dsn="postgresql://...", table="my_index", dim=1536)
+```
+
+`initialize()` is also available for cases where construction must stay synchronous (e.g. dependency injection containers):
+
+```python
+backend = PgvectorBackend(dsn="postgresql://...")
+await backend.initialize()
+```
+
+`InMemoryBackend` requires neither — it is ready immediately after construction.
 
 ---
 
@@ -24,7 +37,22 @@ from railtracks.retrieval.stores import VectorStore, InMemoryVectorBackend
 store = VectorStore(InMemoryVectorBackend())
 ```
 
-`InMemoryBackend` does not require `initialize()` — it is ready immediately after construction.
+### Distance metric
+
+`InMemoryBackend` accepts the same `DistanceMetric` enum as the other backends:
+
+```python
+from railtracks.retrieval.stores.vector.metric import DistanceMetric
+from railtracks.retrieval.stores.vector.backends import InMemoryBackend
+
+backend = InMemoryBackend(metric=DistanceMetric.L2)
+```
+
+| `DistanceMetric` | Score formula |
+|-----------------|---------------|
+| `COSINE` (default) | `cosine_similarity(q, v)` |
+| `L2` | `1 / (1 + ‖q - v‖)` |
+| `IP` | `q · v` (raw dot product) |
 
 ### Snapshots
 
@@ -44,7 +72,7 @@ store2 = VectorStore(InMemoryBackend(snapshot_path=Path("index.json")))
 |----------|-------|
 | Install | No extra dependencies |
 | Persistence | Optional JSON snapshot |
-| Distance metric | Cosine (fixed) |
+| Distance metrics | COSINE, L2, IP |
 | Suitable for | Development, tests, small corpora |
 
 ---
@@ -60,8 +88,8 @@ pip install "railtracks[stores-chroma]"
 ```python
 from railtracks.retrieval.stores import VectorStore, ChromaBackend
 
-backend = ChromaBackend("my-collection")
-await backend.initialize()
+# Preferred: create() constructs and initialises in one step
+backend = await ChromaBackend.create("my-collection")
 store = VectorStore(backend)
 ```
 
@@ -117,12 +145,12 @@ pip install "railtracks[stores-vector]"
 ```python
 from railtracks.retrieval.stores import VectorStore, PgvectorBackend
 
-backend = PgvectorBackend(dsn="postgresql://user:pass@localhost/mydb")
-await backend.initialize()   # creates extension + table if not present
+# Preferred: create() constructs and initialises in one step
+backend = await PgvectorBackend.create(dsn="postgresql://user:pass@localhost/mydb")
 store = VectorStore(backend)
 ```
 
-`initialize()` runs `CREATE EXTENSION IF NOT EXISTS vector` and `CREATE TABLE IF NOT EXISTS` — safe to call on every startup.
+`initialize()` (called by `create()`) runs `CREATE EXTENSION IF NOT EXISTS vector` and `CREATE TABLE IF NOT EXISTS` — safe to call on every startup.
 
 ### Dimensionality
 
