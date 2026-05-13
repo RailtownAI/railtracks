@@ -97,6 +97,6 @@ class MemoryQuery:
     strategies: list[RetrievalStrategy] = field(
         default_factory=lambda: [RetrievalStrategy.VECTOR]
     )
-    detail_level: DetailLevel = DetailLevel.L1
+    detail_level: DetailLevel = DetailLevel.L2
     memory_category: MemoryCategory | None = None
     metadata_filters: dict[str, str] | None = None
