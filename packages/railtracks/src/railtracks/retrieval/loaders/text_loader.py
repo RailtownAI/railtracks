@@ -46,7 +46,9 @@ class TextLoader(BaseDocumentLoader):
             Document: The loaded document.
         """
         content = path.read_text(encoding=self._encoding)
-        doc_type = DocumentType.MARKDOWN if path.suffix.lower() == ".md" else DocumentType.TEXT
+        doc_type = (
+            DocumentType.MARKDOWN if path.suffix.lower() == ".md" else DocumentType.TEXT
+        )
         return Document(
             content=content,
             type=doc_type,
@@ -74,7 +76,8 @@ class TextLoader(BaseDocumentLoader):
         """
         if self._path.is_dir():
             paths = sorted(
-                p for p in self._path.rglob("*")
+                p
+                for p in self._path.rglob("*")
                 if p.suffix.lower() in _SUPPORTED_EXTENSIONS and p.is_file()
             )
             for path in paths:
