@@ -73,7 +73,7 @@ class PgvectorBackend:
         self,
         dsn: str,
         *,
-        table: str = "memory_entries",
+        table: str = "store_entries",
         dim: int | None = None,
         metric: DistanceMetric = DistanceMetric.COSINE,
     ) -> None:
@@ -92,7 +92,7 @@ class PgvectorBackend:
         cls,
         dsn: str,
         *,
-        table: str = "memory_entries",
+        table: str = "store_entries",
         dim: int | None = None,
         metric: DistanceMetric = DistanceMetric.COSINE,
     ) -> Self:
