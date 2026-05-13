@@ -87,7 +87,9 @@ def _payload_to_entry(id: str, payload: dict) -> StoreEntry:
     offsets_raw = payload.get("chunk_offsets")
     offsets: tuple[int, int] | None = None
     if offsets_raw is not None:
-        parsed = json.loads(offsets_raw) if isinstance(offsets_raw, str) else offsets_raw
+        parsed = (
+            json.loads(offsets_raw) if isinstance(offsets_raw, str) else offsets_raw
+        )
         offsets = (int(parsed[0]), int(parsed[1]))
 
     parent_chunk_id_raw = payload.get("parent_chunk_id")
@@ -111,10 +113,14 @@ def _payload_to_entry(id: str, payload: dict) -> StoreEntry:
         ]
 
     valid_from = (
-        datetime.fromisoformat(payload["valid_from"]) if "valid_from" in payload else None
+        datetime.fromisoformat(payload["valid_from"])
+        if "valid_from" in payload
+        else None
     )
     valid_until = (
-        datetime.fromisoformat(payload["valid_until"]) if "valid_until" in payload else None
+        datetime.fromisoformat(payload["valid_until"])
+        if "valid_until" in payload
+        else None
     )
 
     created_at_raw = payload.get("created_at")

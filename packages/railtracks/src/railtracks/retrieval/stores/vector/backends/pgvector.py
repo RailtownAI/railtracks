@@ -6,7 +6,6 @@ from typing_extensions import Self
 
 from ..metric import DistanceMetric
 
-
 _NOT_INITIALIZED = (
     "PgvectorBackend is not initialized — "
     "call await PgvectorBackend.create(...) or await backend.initialize() first"
@@ -14,8 +13,8 @@ _NOT_INITIALIZED = (
 
 _PG_OPERATOR = {
     DistanceMetric.COSINE: "<=>",
-    DistanceMetric.L2:     "<->",
-    DistanceMetric.IP:     "<#>",
+    DistanceMetric.L2: "<->",
+    DistanceMetric.IP: "<#>",
 }
 
 
@@ -177,9 +176,7 @@ class PgvectorBackend:
     async def delete(self, id: str) -> None:
         self._require_initialized()
         async with self._pool.acquire() as conn:
-            await conn.execute(
-                f'DELETE FROM "{self._table}" WHERE id = $1', id
-            )
+            await conn.execute(f'DELETE FROM "{self._table}" WHERE id = $1', id)
 
     async def delete_where(self, filters: dict) -> None:
         self._require_initialized()
@@ -187,6 +184,4 @@ class PgvectorBackend:
             return
         where, params = _build_where(filters, start_index=1)
         async with self._pool.acquire() as conn:
-            await conn.execute(
-                f'DELETE FROM "{self._table}" {where}', *params
-            )
+            await conn.execute(f'DELETE FROM "{self._table}" {where}', *params)

@@ -55,14 +55,14 @@ class InMemoryBackend:
                 return []
 
             query_vec = np.asarray(vector, dtype=np.float64)
-            stored = np.array(
-                [self._vectors[c] for c in candidates], dtype=np.float64
-            )
+            stored = np.array([self._vectors[c] for c in candidates], dtype=np.float64)
 
             if self._metric is DistanceMetric.COSINE:
                 q_norm = np.linalg.norm(query_vec)
                 if q_norm == 0:
-                    return [(c, 0.0, dict(self._payloads[c])) for c in candidates[:top_k]]
+                    return [
+                        (c, 0.0, dict(self._payloads[c])) for c in candidates[:top_k]
+                    ]
                 norms = np.linalg.norm(stored, axis=1)
                 norms[norms == 0] = 1.0
                 scores = (stored @ query_vec) / (norms * q_norm)

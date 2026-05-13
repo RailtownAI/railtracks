@@ -7,7 +7,6 @@ from typing_extensions import Self
 
 from ..metric import DistanceMetric
 
-
 _NOT_INITIALIZED = (
     "ChromaBackend is not initialized — "
     "call await ChromaBackend.create(...) or await backend.initialize() first"
