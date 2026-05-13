@@ -1,19 +1,16 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from enum import Enum
 from uuid import UUID, uuid4
-from dataclasses import dataclass, field
-from typing import Any
 
 
 class DocumentType(str, Enum):
     TEXT = "text"
     MARKDOWN = "markdown"
-    CSV = "csv"
     PDF = "pdf"
+    CSV = "csv"
     JSON = "json"
-    HTML = "html"
-    CODE = "code"
 
 
 @dataclass
@@ -41,80 +38,42 @@ class Document:
 
 @dataclass
 class Chunk:
-    """A chunk of a :class:`Document`, produced by a ``Chunker``.
-
-    ``Chunk`` is intentionally storage-backend-agnostic. The same chunker
-    output is consumed by vector stores, BM25 indexes, graph stores, or
-    plain SQL archives. Embedding vectors are stored on
-    :class:`EmbeddedChunk`, never here.
-
-    Attributes:
-        content: Chunk text.
-        document_id: UUID of the source :class:`Document`.
-        id: Stable identifier for this chunk.
-        index: Dense, 0-based position within the parent document
-            (``0, 1, 2, ...``).
-        parent_chunk_id: For hierarchical / auto-merging retrieval, the
-            coarser chunk this one was derived from.
-        offsets: ``(start, end)`` character offsets into
-            ``Document.content`` for this chunk. Optional; some chunkers
-            (notably token-based ones) cannot populate it and leave
-            it ``None``.
-        metadata: Arbitrary key-value metadata. Inherited as a shallow
-            copy from the source ``Document`` and then extended by the
-            chunker.
-    """
-
     content: str
     document_id: UUID
     id: UUID = field(default_factory=uuid4)
     index: int = 0
     parent_chunk_id: UUID | None = None
     offsets: tuple[int, int] | None = None
-    metadata: dict[str, Any] = field(default_factory=dict)
+    metadata: dict = field(default_factory=dict)
 
 
 @dataclass
 class EmbeddedChunk:
-    """A :class:`Chunk` plus its embedding vector.
-
-    Produced by an ``Embedder``; consumed by a ``VectorStore``.
-    """
-
     chunk: Chunk
     vector: list[float]
     embedding_model: str
-    embedding_version: str | None = None  # for safe embedding migrations
+    embedding_version: str | None = None
 
 
 @dataclass
 class RetrievedChunk:
-    """A :class:`Chunk` returned from a retriever, annotated with search
-    signals.
-    """
-
     chunk: Chunk
     score: float
-    rank: int  # 0-based position in the retrieved set
-    source_retriever: str | None = None  # e.g. "dense", "bm25"
+    rank: int
+    source_retriever: str | None = None
     rerank_score: float | None = None
-    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class RetrievalResult:
-    """The output of a retriever call."""
-
     query: str
     chunks: list[RetrievedChunk]
-    total_candidates: int | None = None  # considered before top_k selection
-    metadata: dict[str, Any] = field(default_factory=dict)
+    total_candidates: int | None = None
+    metadata: dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
 class Cost:
-    """Declarative budget threaded through retrieval."""
-
-    tokens: int | None = None  # retrieved token cap
-    latency_ms: float | None = None  # soft target
-    dollars: float | None = None  # hard ceiling
+    tokens: int | None = None
+    latency_ms: float | None = None
+    dollars: float | None = None

@@ -12,7 +12,9 @@ from typing import Protocol, runtime_checkable
 
 try:
     import tiktoken as _tiktoken
-except ModuleNotFoundError:  # pragma: no cover - exercised only when rag extras are missing
+except (
+    ModuleNotFoundError
+):  # pragma: no cover - exercised only when rag extras are missing
     _tiktoken = None
 
 

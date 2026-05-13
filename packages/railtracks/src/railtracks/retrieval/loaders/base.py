@@ -33,7 +33,7 @@ class BaseDocumentLoader(ABC):
         Yields:
             Document: The next available document from the source.
         """
-        yield # type: ignore This needs to be here to make this an async generator, read: https://discuss.python.org/t/overloads-of-async-generators-inconsistent-coroutine-wrapping/56665
+        yield  # type: ignore This needs to be here to make this an async generator, read: https://discuss.python.org/t/overloads-of-async-generators-inconsistent-coroutine-wrapping/56665
 
     async def aload(self) -> list[Document]:
         """Load all documents and return them as a list.

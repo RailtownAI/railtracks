@@ -1,7 +1,8 @@
-from typing import TypeVar
 from collections.abc import AsyncGenerator, AsyncIterable
+from typing import TypeVar
 
 _T = TypeVar("_T")
+
 
 async def abatched(
     iterable: AsyncIterable[_T],
