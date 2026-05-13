@@ -10,9 +10,9 @@ import pytest
 
 from railtracks.retrieval.stores.models import (
     DetailLevel,
-    MemoryEntry,
-    MemoryQuery,
-    MemoryScope,
+    StoreEntry,
+    StoreQuery,
+    StoreScope,
 )
 from railtracks.retrieval.stores.vector.backends.chroma import (
     ChromaBackend,
@@ -108,10 +108,10 @@ def _injected_backend(collection: MagicMock) -> ChromaBackend:
     return backend
 
 
-def _make_entry(user_id: str = "alice", vector: list[float] | None = None) -> MemoryEntry:
+def _make_entry(user_id: str = "alice", vector: list[float] | None = None) -> StoreEntry:
     if vector is None:
         vector = [1.0, 0.0, 0.0]
-    return MemoryEntry(
+    return StoreEntry(
         id=uuid4(),
         content="hello",
         vector=vector,
@@ -120,7 +120,7 @@ def _make_entry(user_id: str = "alice", vector: list[float] | None = None) -> Me
         document_id=uuid4(),
         abstract="abs",
         summary="sum",
-        scope=MemoryScope(user_id=user_id),
+        scope=StoreScope(user_id=user_id),
     )
 
 
@@ -355,9 +355,9 @@ async def test_vector_store_write_read_via_chroma():
     assert write_id == str(entry.id)
 
     results = await store.read(
-        MemoryQuery(
+        StoreQuery(
             text="q",
-            scope=MemoryScope(user_id="alice"),
+            scope=StoreScope(user_id="alice"),
             embedding=[1.0, 0.0, 0.0],
             detail_level=DetailLevel.L2,
         )

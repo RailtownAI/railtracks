@@ -10,9 +10,9 @@ import pytest
 
 from railtracks.retrieval.stores.models import (
     DetailLevel,
-    MemoryEntry,
-    MemoryQuery,
-    MemoryScope,
+    StoreEntry,
+    StoreQuery,
+    StoreScope,
     RetrievalStrategy,
 )
 from railtracks.retrieval.stores.protocol import Store
@@ -28,13 +28,13 @@ from railtracks.retrieval.stores.vector.base import VectorStore
 def _make_entry(
     user_id: str = "alice",
     content: str = "hello world",
-    summary: str = "a summary",
-    abstract: str = "an abstract",
+    summary: str | None = "a summary",
+    abstract: str | None = "an abstract",
     vector: list[float] | None = None,
-) -> MemoryEntry:
+) -> StoreEntry:
     if vector is None:
         vector = [1.0, 0.0, 0.0]
-    return MemoryEntry(
+    return StoreEntry(
         id=uuid4(),
         content=content,
         vector=vector,
@@ -43,7 +43,7 @@ def _make_entry(
         document_id=uuid4(),
         abstract=abstract,
         summary=summary,
-        scope=MemoryScope(user_id=user_id),
+        scope=StoreScope(user_id=user_id),
     )
 
 
@@ -52,12 +52,12 @@ def _make_query(
     embedding: list[float] | None = None,
     top_k: int = 10,
     detail_level: DetailLevel = DetailLevel.L1,
-) -> MemoryQuery:
+) -> StoreQuery:
     if embedding is None:
         embedding = [1.0, 0.0, 0.0]
-    return MemoryQuery(
+    return StoreQuery(
         text="query",
-        scope=MemoryScope(user_id=user_id),
+        scope=StoreScope(user_id=user_id),
         embedding=embedding,
         top_k=top_k,
         detail_level=detail_level,
@@ -151,8 +151,8 @@ async def test_delete():
 async def test_clear_scope():
     store = VectorStore(InMemoryBackend())
 
-    scope_a = MemoryScope(user_id="alice")
-    scope_b = MemoryScope(user_id="bob")
+    scope_a = StoreScope(user_id="alice")
+    scope_b = StoreScope(user_id="bob")
 
     entry_a1 = _make_entry(user_id="alice", vector=[1.0, 0.0, 0.0])
     entry_a2 = _make_entry(user_id="alice", vector=[0.0, 1.0, 0.0])
@@ -214,7 +214,7 @@ async def test_chunk_roundtrip_preserves_all_fields():
     document_id = uuid4()
     chunk_id = uuid4()
     parent_chunk_id = uuid4()
-    entry = MemoryEntry(
+    entry = StoreEntry(
         id=uuid4(),
         content="full content",
         vector=[1.0, 0.0, 0.0],
@@ -228,7 +228,7 @@ async def test_chunk_roundtrip_preserves_all_fields():
         chunk_metadata={"section": "intro", "lang": "en"},
         abstract="abs",
         summary="sum",
-        scope=MemoryScope(user_id="alice"),
+        scope=StoreScope(user_id="alice"),
     )
 
     await store.write(entry)
@@ -249,7 +249,7 @@ async def test_detail_level_preserves_chunk_offsets_and_parent():
     store = VectorStore(InMemoryBackend())
 
     parent_chunk_id = uuid4()
-    entry = MemoryEntry(
+    entry = StoreEntry(
         id=uuid4(),
         content="full content",
         vector=[1.0, 0.0, 0.0],
@@ -260,7 +260,7 @@ async def test_detail_level_preserves_chunk_offsets_and_parent():
         chunk_offsets=(3, 9),
         abstract="abs",
         summary="sum",
-        scope=MemoryScope(user_id="alice"),
+        scope=StoreScope(user_id="alice"),
     )
     await store.write(entry)
 
@@ -274,9 +274,9 @@ async def test_detail_level_preserves_chunk_offsets_and_parent():
 
 async def test_read_raises_without_embedding():
     store = VectorStore(InMemoryBackend())
-    query = MemoryQuery(
+    query = StoreQuery(
         text="hello",
-        scope=MemoryScope(user_id="alice"),
+        scope=StoreScope(user_id="alice"),
         embedding=None,
     )
     with pytest.raises(ValueError, match="query.embedding"):

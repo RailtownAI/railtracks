@@ -3,7 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from uuid import UUID
+from uuid import UUID, uuid4
+
+from ..models import EmbeddedChunk
 
 
 @dataclass(frozen=True)
@@ -15,8 +17,8 @@ class Entity:
 
 
 @dataclass(frozen=True)
-class MemoryScope:
-    """Hard-filter namespace for memory entries.
+class StoreScope:
+    """Hard-filter namespace for store entries.
 
     All non-None fields are enforced by stores as mandatory equality filters.
     The scope_ prefix in to_payload_filters() avoids key collisions in flat
@@ -32,7 +34,7 @@ class MemoryScope:
         return {f"scope_{k}": v for k, v in self.__dict__.items() if v is not None}
 
 
-class MemoryCategory(str, Enum):
+class StoreCategory(str, Enum):
     EPISODIC = "episodic"
     SEMANTIC = "semantic"
     SKILL = "skill"
@@ -53,7 +55,7 @@ class DetailLevel(Enum):
 
 
 @dataclass
-class MemoryEntry:
+class StoreEntry:
     # Required fields
     id: UUID
     content: str
@@ -61,9 +63,10 @@ class MemoryEntry:
     embedding_model: str
     chunk_id: UUID
     document_id: UUID
-    abstract: str
-    summary: str
-    scope: MemoryScope
+    # Optional enrichment fields
+    abstract: str | None = None
+    summary: str | None = None
+    scope: StoreScope | None = None
     # Optional chunk provenance
     chunk_index: int = 0
     parent_chunk_id: UUID | None = None
@@ -71,17 +74,52 @@ class MemoryEntry:
     chunk_metadata: dict = field(default_factory=dict)
     # Optional embedding provenance
     embedding_version: str | None = None
-    # Optional memory metadata
+    # Optional store metadata
     entities: list[Entity] | None = None
-    memory_category: MemoryCategory | None = None
+    store_category: StoreCategory | None = None
     valid_from: datetime | None = None
     valid_until: datetime | None = None
     created_at: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
+    @classmethod
+    def from_chunk(
+        cls,
+        embedded_chunk: EmbeddedChunk,
+        *,
+        scope: StoreScope | None = None,
+        abstract: str | None = None,
+        summary: str | None = None,
+        store_category: StoreCategory | None = None,
+        entities: list[Entity] | None = None,
+        valid_from: datetime | None = None,
+        valid_until: datetime | None = None,
+    ) -> StoreEntry:
+        chunk = embedded_chunk.chunk
+        return cls(
+            id=uuid4(),
+            content=chunk.content,
+            vector=embedded_chunk.vector,
+            embedding_model=embedded_chunk.embedding_model,
+            embedding_version=embedded_chunk.embedding_version,
+            chunk_id=chunk.id,
+            document_id=chunk.document_id,
+            chunk_index=chunk.index,
+            parent_chunk_id=chunk.parent_chunk_id,
+            chunk_offsets=chunk.offsets,
+            chunk_metadata=chunk.metadata,
+            scope=scope,
+            abstract=abstract,
+            summary=summary,
+            store_category=store_category,
+            entities=entities,
+            valid_from=valid_from,
+            valid_until=valid_until,
+        )
+
 
 @dataclass
-class RetrievedMemoryEntry:
-    entry: MemoryEntry
+class RetrievedStoreEntry:
+    entry: StoreEntry
     score: float
     rank: int
     source_retriever: str | None = None
@@ -89,14 +127,14 @@ class RetrievedMemoryEntry:
 
 
 @dataclass
-class MemoryQuery:
+class StoreQuery:
     text: str
-    scope: MemoryScope
+    scope: StoreScope
     embedding: list[float] | None = None
     top_k: int = 10
     strategies: list[RetrievalStrategy] = field(
         default_factory=lambda: [RetrievalStrategy.VECTOR]
     )
     detail_level: DetailLevel = DetailLevel.L2
-    memory_category: MemoryCategory | None = None
+    store_category: StoreCategory | None = None
     metadata_filters: dict[str, str] | None = None

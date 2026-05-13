@@ -5,33 +5,33 @@ from __future__ import annotations
 from uuid import UUID
 
 from railtracks.retrieval.stores.models import (
-    MemoryEntry,
-    MemoryQuery,
-    MemoryScope,
-    RetrievedMemoryEntry,
+    RetrievedStoreEntry,
+    StoreEntry,
+    StoreQuery,
+    StoreScope,
 )
 from railtracks.retrieval.stores.protocol import Store
 
 
 class _CompleteStore:
-    async def write(self, entry: MemoryEntry) -> str:
+    async def write(self, entry: StoreEntry) -> str:
         return str(entry.id)
 
-    async def read(self, query: MemoryQuery) -> list[RetrievedMemoryEntry]:
+    async def read(self, query: StoreQuery) -> list[RetrievedStoreEntry]:
         return []
 
     async def delete(self, id: UUID) -> None:
         pass
 
-    async def clear(self, scope: MemoryScope) -> None:
+    async def clear(self, scope: StoreScope) -> None:
         pass
 
 
 class _IncompleteStore:
-    async def write(self, entry: MemoryEntry) -> str:
+    async def write(self, entry: StoreEntry) -> str:
         return str(entry.id)
 
-    async def read(self, query: MemoryQuery) -> list[RetrievedMemoryEntry]:
+    async def read(self, query: StoreQuery) -> list[RetrievedStoreEntry]:
         return []
 
     # missing delete and clear

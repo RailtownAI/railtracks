@@ -9,11 +9,11 @@ from uuid import UUID
 from ..models import (
     DetailLevel,
     Entity,
-    MemoryCategory,
-    MemoryEntry,
-    MemoryQuery,
-    MemoryScope,
-    RetrievedMemoryEntry,
+    RetrievedStoreEntry,
+    StoreCategory,
+    StoreEntry,
+    StoreQuery,
+    StoreScope,
 )
 
 
@@ -34,13 +34,17 @@ class VectorBackend(Protocol):
 # ---------------------------------------------------------------------------
 
 
-def _entry_to_payload(entry: MemoryEntry) -> dict:
+def _entry_to_payload(entry: StoreEntry) -> dict:
     payload: dict = {}
 
-    payload.update(entry.scope.to_payload_filters())
+    if entry.scope is not None:
+        payload.update(entry.scope.to_payload_filters())
 
-    payload["abstract"] = entry.abstract
-    payload["summary"] = entry.summary
+    if entry.abstract is not None:
+        payload["abstract"] = entry.abstract
+    if entry.summary is not None:
+        payload["summary"] = entry.summary
+
     payload["content"] = entry.content
     payload["chunk_id"] = str(entry.chunk_id)
     payload["document_id"] = str(entry.document_id)
@@ -56,8 +60,8 @@ def _entry_to_payload(entry: MemoryEntry) -> dict:
         payload["chunk_metadata"] = json.dumps(entry.chunk_metadata)
     if entry.embedding_version is not None:
         payload["embedding_version"] = entry.embedding_version
-    if entry.memory_category is not None:
-        payload["memory_category"] = entry.memory_category.value
+    if entry.store_category is not None:
+        payload["store_category"] = entry.store_category.value
     if entry.valid_from is not None:
         payload["valid_from"] = entry.valid_from.isoformat()
     if entry.valid_until is not None:
@@ -79,7 +83,7 @@ def _entry_to_payload(entry: MemoryEntry) -> dict:
     return payload
 
 
-def _payload_to_entry(id: str, payload: dict) -> MemoryEntry:
+def _payload_to_entry(id: str, payload: dict) -> StoreEntry:
     offsets_raw = payload.get("chunk_offsets")
     offsets: tuple[int, int] | None = None
     if offsets_raw is not None:
@@ -120,10 +124,10 @@ def _payload_to_entry(id: str, payload: dict) -> MemoryEntry:
         else datetime.now(tz=timezone.utc)
     )
 
-    memory_category_raw = payload.get("memory_category")
-    memory_category = MemoryCategory(memory_category_raw) if memory_category_raw else None
+    store_category_raw = payload.get("store_category")
+    store_category = StoreCategory(store_category_raw) if store_category_raw else None
 
-    return MemoryEntry(
+    return StoreEntry(
         id=UUID(id),
         content=payload["content"],
         # Document vectors are not round-tripped through read results — the
@@ -134,9 +138,9 @@ def _payload_to_entry(id: str, payload: dict) -> MemoryEntry:
         chunk_id=UUID(payload["chunk_id"]),
         document_id=UUID(payload["document_id"]),
         chunk_index=int(payload.get("chunk_index", 0)),
-        abstract=payload.get("abstract", ""),
-        summary=payload.get("summary", ""),
-        scope=MemoryScope(
+        abstract=payload.get("abstract"),
+        summary=payload.get("summary"),
+        scope=StoreScope(
             user_id=payload.get("scope_user_id"),
             agent_id=payload.get("scope_agent_id"),
             session_id=payload.get("scope_session_id"),
@@ -147,14 +151,14 @@ def _payload_to_entry(id: str, payload: dict) -> MemoryEntry:
         chunk_offsets=offsets,
         chunk_metadata=chunk_metadata,
         entities=entities,
-        memory_category=memory_category,
+        store_category=store_category,
         valid_from=valid_from,
         valid_until=valid_until,
         created_at=created_at,
     )
 
 
-def _apply_detail_level(entry: MemoryEntry, level: DetailLevel) -> MemoryEntry:
+def _apply_detail_level(entry: StoreEntry, level: DetailLevel) -> StoreEntry:
     if level is DetailLevel.L2:
         return entry
     if level is DetailLevel.L1:
@@ -168,7 +172,7 @@ def _apply_detail_level(entry: MemoryEntry, level: DetailLevel) -> MemoryEntry:
 
 
 class VectorStore:
-    """Cosine similarity search over MemoryEntry vectors.
+    """Cosine similarity search over StoreEntry vectors.
 
     Satisfies the Store protocol. Does not inherit from any base class.
     """
@@ -176,13 +180,13 @@ class VectorStore:
     def __init__(self, backend: VectorBackend) -> None:
         self._backend = backend
 
-    async def write(self, entry: MemoryEntry) -> str:
+    async def write(self, entry: StoreEntry) -> str:
         await self._backend.upsert(
             str(entry.id), entry.vector, _entry_to_payload(entry)
         )
         return str(entry.id)
 
-    async def read(self, query: MemoryQuery) -> list[RetrievedMemoryEntry]:
+    async def read(self, query: StoreQuery) -> list[RetrievedStoreEntry]:
         if query.embedding is None:
             raise ValueError(
                 "VectorStore.read requires query.embedding to be set; "
@@ -190,19 +194,19 @@ class VectorStore:
             )
 
         filters = query.scope.to_payload_filters()
-        if query.memory_category is not None:
-            filters["memory_category"] = query.memory_category.value
+        if query.store_category is not None:
+            filters["store_category"] = query.store_category.value
         if query.metadata_filters:
             filters.update(query.metadata_filters)
 
         raw_hits = await self._backend.search(query.embedding, query.top_k, filters)
 
-        results: list[RetrievedMemoryEntry] = []
+        results: list[RetrievedStoreEntry] = []
         for rank, (hit_id, score, payload) in enumerate(raw_hits):
             entry = _payload_to_entry(hit_id, payload)
             entry = _apply_detail_level(entry, query.detail_level)
             results.append(
-                RetrievedMemoryEntry(
+                RetrievedStoreEntry(
                     entry=entry,
                     score=score,
                     rank=rank,
@@ -214,23 +218,23 @@ class VectorStore:
     async def delete(self, id: UUID) -> None:
         await self._backend.delete(str(id))
 
-    async def clear(self, scope: MemoryScope) -> None:
+    async def clear(self, scope: StoreScope) -> None:
         await self._backend.delete_where(scope.to_payload_filters())
 
     async def nearest_neighbors(
         self,
         embedding: list[float],
         k: int,
-        scope: MemoryScope | None = None,
-    ) -> list[RetrievedMemoryEntry]:
+        scope: StoreScope | None = None,
+    ) -> list[RetrievedStoreEntry]:
         filters = scope.to_payload_filters() if scope is not None else {}
         raw_hits = await self._backend.search(embedding, k, filters)
 
-        results: list[RetrievedMemoryEntry] = []
+        results: list[RetrievedStoreEntry] = []
         for rank, (hit_id, score, payload) in enumerate(raw_hits):
             entry = _payload_to_entry(hit_id, payload)
             results.append(
-                RetrievedMemoryEntry(
+                RetrievedStoreEntry(
                     entry=entry,
                     score=score,
                     rank=rank,

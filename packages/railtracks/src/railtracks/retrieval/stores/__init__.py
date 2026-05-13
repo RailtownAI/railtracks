@@ -1,12 +1,12 @@
 from .models import (
     DetailLevel,
     Entity,
-    MemoryCategory,
-    MemoryEntry,
-    MemoryQuery,
-    MemoryScope,
     RetrievalStrategy,
-    RetrievedMemoryEntry,
+    RetrievedStoreEntry,
+    StoreCategory,
+    StoreEntry,
+    StoreQuery,
+    StoreScope,
 )
 from .protocol import Store
 from .vector import VectorStore
@@ -21,13 +21,13 @@ __all__ = [
     "DistanceMetric",
     "Entity",
     "InMemoryVectorBackend",
-    "MemoryCategory",
-    "MemoryEntry",
-    "MemoryQuery",
-    "MemoryScope",
     "PgvectorBackend",
     "RetrievalStrategy",
-    "RetrievedMemoryEntry",
+    "RetrievedStoreEntry",
     "Store",
+    "StoreCategory",
+    "StoreEntry",
+    "StoreQuery",
+    "StoreScope",
     "VectorStore",
 ]
