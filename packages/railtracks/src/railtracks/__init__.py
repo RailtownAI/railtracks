@@ -62,6 +62,7 @@ from . import (
     prebuilt,
     rag,
     vector_stores,
+    compression,
 )
 from ._session import ExecutionInfo, Session, session
 from .context.central import session_id, set_config

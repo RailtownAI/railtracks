@@ -17,6 +17,8 @@ from typing import (
     overload,
 )
 
+from litellm.utils import token_counter as _litellm_token_counter
+
 from pydantic import BaseModel
 
 from .history import MessageHistory
@@ -93,6 +95,11 @@ class ModelBase(ABC, Generic[_TStream]):
     def remove_exception_hooks(self) -> None:
         """Removes all of the hooks that handle exceptions during model interactions."""
         self._exception_hooks = []
+
+    def token_counter(self) -> Callable[[str], int]:
+        """Returns a token-counting function bound to this model's tokenizer."""
+        model = self.model_name()
+        return lambda text: _litellm_token_counter(model=model, text=text)
 
     @abstractmethod
     def model_name(self) -> str:

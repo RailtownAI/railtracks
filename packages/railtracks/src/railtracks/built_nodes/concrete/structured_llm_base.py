@@ -88,9 +88,10 @@ class StructuredLLM(
         context = self._pre_invoke(self.message_hist)
         self.message_hist = context
 
-        returned_mess = await asyncio.to_thread(
+        returned_mess = await self.wrapped_call(
             self.llm_model.structured, self.message_hist, schema=self.output_schema()
         )
+        
 
         returned_mess = self._post_invoke(self.message_hist, returned_mess)
 
@@ -139,7 +140,7 @@ class StreamingStructuredLLM(
         context = self._pre_invoke(self.message_hist)
         self.message_hist = context
 
-        returned_mess = await asyncio.to_thread(
+        returned_mess = await self.wrapped_call(
             self.llm_model.structured, self.message_hist, schema=self.output_schema()
         )
 

@@ -60,7 +60,7 @@ class TerminalLLM(
         self.message_hist = context
 
         try:
-            returned_mess = await asyncio.to_thread(
+            returned_mess = await self.wrapped_call(
                 self.llm_model.chat, self.message_hist
             )
         except Exception as e:
@@ -119,7 +119,7 @@ class StreamingTerminalLLM(
         self.message_hist = context
 
         try:
-            returned_mess = await asyncio.to_thread(
+            returned_mess = await self.wrapped_call(
                 self.llm_model.chat, self.message_hist
             )
         except Exception as e:

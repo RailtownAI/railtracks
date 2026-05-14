@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing_extensions import ParamSpec
+import asyncio
 from copy import deepcopy
 from typing import (
     Any,
+    Callable,
     Dict,
     Generator,
     Generic,
@@ -13,6 +16,7 @@ from typing import (
 )
 
 from pydantic import BaseModel
+from railtracks.compression._base import ContextCompression
 from typing_extensions import Self
 
 from railtracks.exceptions.errors import LLMError, NodeInvocationError
@@ -41,6 +45,8 @@ from .response import LLMResponse, StringResponse, StructuredResponse
 logger = get_rt_logger(__name__)
 
 _T = TypeVar("_T")
+_P = ParamSpec("_P")
+_TOutput = TypeVar("_TOutput")
 
 
 class RequestDetails:
@@ -96,6 +102,7 @@ class LLMBase(Node[_T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
         self,
         user_input: MessageHistory | UserMessage | str | list[Message],
         llm: ModelBase[_TStream] | None = None,
+        context_compression: ContextCompression | None = None,
     ):
         super().__init__()
 
@@ -153,6 +160,7 @@ class LLMBase(Node[_T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
             "unwrapped_llm_model must be an instance of llm.ModelBase"
         )
         self.llm_model = unwrapped_llm_model
+        self.context_compression = context_compression
 
         self.message_hist = message_history_copy
 
@@ -346,6 +354,17 @@ class LLMBase(Node[_T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
     def type(cls):
         return "Agent"
 
+    async def wrapped_call(self, function: Callable[_P, _TOutput], *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
+        if self.context_compression:
+            compressed_history = await self.context_compression.run(
+                self.message_hist, self.llm_model.token_counter())
+            
+            self.message_hist = compressed_history
+
+        result = await asyncio.to_thread(function, *args, **kwargs)
+        return result
+
+
     def _gen_wrapper(
         self, returned_mess: Generator[str | Response, None, Response]
     ) -> Generator[str | _TCollectedOutput, None, _TCollectedOutput]:
@@ -379,6 +398,8 @@ class LLMBase(Node[_T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
             )
 
         self.message_hist.append(output)
+
+    
 
 
 _TStructured = TypeVar("_TStructured", bound=BaseModel)

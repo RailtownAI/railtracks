@@ -15,6 +15,7 @@ from typing import (
 )
 
 from railtracks.built_nodes.concrete.response import LLMResponse
+from railtracks.compression._base import ContextCompression
 from railtracks.exceptions import LLMError, NodeCreationError
 from railtracks.interaction._call import call
 from railtracks.llm import (
@@ -88,8 +89,9 @@ class OutputLessToolCallLLMBase(
         self,
         user_input: MessageHistory | UserMessage | str | list[Message],
         llm: ModelBase[_TStream] | None = None,
+        context_compression: ContextCompression | None = None,
     ):
-        super().__init__(llm=llm, user_input=user_input)
+        super().__init__(llm=llm, user_input=user_input, context_compression=context_compression)
         model = self.get_llm()
         # we only support Openai for streaming calls atm.
         if (
@@ -248,10 +250,10 @@ class OutputLessToolCallLLM(
         Raises:
             LLMError: If the LLM returns an unexpected message type or the message is malformed.
         """
-
-        response = await asyncio.to_thread(
+        response = await self.wrapped_call(
             self.llm_model.chat_with_tools, self.message_hist, tools=self.tools()
         )
+        
 
         if not response.message.role == Role.assistant:
             raise LLMError(
@@ -293,7 +295,7 @@ class StreamingOutputLessToolCallLLM(
     Generic[_TCollectedOutput],
 ):
     async def _handle_tool_calls(self):
-        returned_mess = await asyncio.to_thread(
+        returned_mess = await self.wrapped_call(
             self.llm_model.chat_with_tools, self.message_hist, tools=self.tools()
         )
 

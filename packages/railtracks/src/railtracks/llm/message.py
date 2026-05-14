@@ -4,7 +4,7 @@ import logging
 import os
 from copy import deepcopy
 from enum import Enum
-from typing import Generic, TypeVar
+from typing import Callable, Generic, TypeVar
 
 from .content import Content, ToolCall, ToolResponse
 from .encoding import detect_source, encode, ensure_data_uri
@@ -146,6 +146,9 @@ class Message(Generic[_T, _TRole]):
 
     def __repr__(self):
         return str(self)
+
+    def num_tokens(self, token_function: Callable[[str], int]) -> int:
+        return token_function(str(self))
 
     @property
     def tool_calls(self):

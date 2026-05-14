@@ -91,6 +91,9 @@ class LLMError(RTError):
             )
             return f"\n{self._color(base, self.RED)}{notes_str}"
         return self._color(base, self.RED)
+    
+class ContextCompressionError(RTError):
+    pass
 
 
 class GlobalTimeOutError(RTError):

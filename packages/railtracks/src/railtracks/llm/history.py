@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List
+from typing import Callable, List
 
 from .message import Message, Role
 
@@ -19,3 +19,6 @@ class MessageHistory(List[Message]):
         Returns a new MessageHistory object with all SystemMessages removed.
         """
         return MessageHistory([msg for msg in self if msg.role != Role.system])
+    
+    def num_tokens(self, token_function: Callable[[str], int]) -> int:
+        return sum(msg.num_tokens(token_function) for msg in self)
