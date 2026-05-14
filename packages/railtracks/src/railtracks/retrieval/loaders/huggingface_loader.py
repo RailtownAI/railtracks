@@ -52,7 +52,8 @@ class HuggingFaceDatasetLoader(BaseDocumentLoader):
 
     Raises:
         ValueError: If `content_columns` is empty, or if any name in
-            `content_columns` isn't present in the dataset schema.
+            `content_columns` or `metadata_columns` isn't present in the
+            dataset schema.
     """
 
     def __init__(
@@ -84,8 +85,8 @@ class HuggingFaceDatasetLoader(BaseDocumentLoader):
             Document: The next row as a document.
 
         Raises:
-            ValueError: If a column in `content_columns` isn't present in
-                the dataset schema.
+            ValueError: If a column in `content_columns` or
+                `metadata_columns` isn't present in the dataset schema.
         """
         kwargs = dict(self._dataset_kwargs)
         kwargs.setdefault("streaming", True)
@@ -104,19 +105,22 @@ class HuggingFaceDatasetLoader(BaseDocumentLoader):
                 return
 
             if not validated:
-                missing = [c for c in self._content_columns if c not in row]
-                if missing:
+                missing_content = [c for c in self._content_columns if c not in row]
+                missing_metadata = [c for c in self._metadata_columns if c not in row]
+                if missing_content:
                     raise ValueError(
-                        f"content_columns not found in dataset schema: {missing}"
+                        f"content_columns not found in dataset schema: {missing_content}"
+                    )
+                if missing_metadata:
+                    raise ValueError(
+                        f"metadata_columns not found in dataset schema: {missing_metadata}"
                     )
                 validated = True
 
             content = self._content_separator.join(
                 str(row[col]) for col in self._content_columns
             )
-            metadata: dict[str, Any] = {
-                col: row[col] for col in self._metadata_columns if col in row
-            }
+            metadata: dict[str, Any] = {col: row[col] for col in self._metadata_columns}
             metadata["row_index"] = row_index
 
             yield Document(

@@ -144,6 +144,20 @@ class TestHuggingFaceLoaderValidation:
         ):
             await loader.aload()
 
+    async def test_unknown_metadata_column_raises_value_error(
+        self, mock_load_dataset
+    ):
+        loader = HuggingFaceDatasetLoader(
+            "fake/ds",
+            split="train",
+            content_columns=["query"],
+            metadata_columns=["does_not_exist"],
+        )
+        with pytest.raises(
+            ValueError, match="metadata_columns not found in dataset schema"
+        ):
+            await loader.aload()
+
 
 class TestHuggingFaceLoaderStreaming:
     """Laziness guarantees and ``load_dataset`` call shape."""
