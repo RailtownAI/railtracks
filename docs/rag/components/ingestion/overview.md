@@ -30,6 +30,7 @@ class Document:
 | `HTMLLoader`  | HTML files & URLs | `pip install "railtracks[html]"` |
 | `CodeLoader`  | Source code files | No |
 | `JSONLoader`  | `.json` files & directories | No |
+| `HuggingFaceDatasetLoader` | Hugging Face Hub datasets (streaming) | `pip install "railtracks[huggingface]"` |
 | `LangChainLoaderAdapter` | Any LangChain loader | Depends on wrapped loader |
 
 ---

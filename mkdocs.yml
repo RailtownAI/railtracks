@@ -104,6 +104,7 @@ nav:
           - Text and Markdown: rag/components/ingestion/text_markdown.md
           - CSV: rag/components/ingestion/csv.md
           - PDFs: rag/components/ingestion/pdfs.md
+          - Hugging Face Datasets: rag/components/ingestion/huggingface.md
           - Custom Ingestors: rag/components/ingestion/custom.md
       - Chunking:
           - Overview: rag/components/chunking/overview.md
