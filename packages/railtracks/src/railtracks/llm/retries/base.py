@@ -67,7 +67,6 @@ class RetryApproach(ABC):
                         exceptions,
                     ) from e
 
-                 
                 time.sleep(self._compute_delay(attempt))
 
         assert False, "Unreachable code"
