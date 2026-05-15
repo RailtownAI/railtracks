@@ -67,12 +67,8 @@ class RetryApproach(ABC):
                         exceptions,
                     ) from e
 
-                delay: float | None = None
-
-                if delay is not None:
-                    time.sleep(delay)
-                else:
-                    time.sleep(self._compute_delay(attempt))
+                 
+                time.sleep(self._compute_delay(attempt))
 
         assert False, "Unreachable code"
 
