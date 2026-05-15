@@ -4,7 +4,7 @@ LLM failures are inevitable. In your agent design you must handle these failures
 ## Types of Failures
 LLM failures fall into two categories, and the right handling differs between them:
 
-1. **Retryable Failures**: Known, anticipated errors you can recover from. Including, rate limits (`429`), timeouts, transient server errors. Safe to retry with backoff.
+1. **Retryable Failures**: Known anticipated errors you can recover from. Including, rate limits (`429`), timeouts, transient server errors. Safe to retry with backoff.
 
 2. **Fatal Failures**: Unexpected errors that retrying won't fix — unhandled exceptions, malformed responses, or hard API errors. These should fail fast and surface to the caller.
 
