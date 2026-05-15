@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict, Iterable, List, Type
 from pydantic import BaseModel
 from typing_extensions import Self
 
-from .._exception_base import RTLLMError
+from .._exceptions import RTLLMError
 from .docstring_parser import extract_main_description, parse_docstring_args
 from .parameter_handlers import (
     DefaultParameterHandler,

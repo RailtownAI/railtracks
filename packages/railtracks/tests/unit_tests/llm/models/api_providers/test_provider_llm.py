@@ -2,7 +2,7 @@ import pytest
 import litellm
 from railtracks.llm import OpenAILLM, GeminiLLM, AnthropicLLM, HuggingFaceLLM, CohereLLM
 from railtracks.llm.history import MessageHistory
-from railtracks.llm._exception_base import RTLLMError
+from railtracks.llm._exceptions import RTLLMError
 from unittest.mock import patch
 
 

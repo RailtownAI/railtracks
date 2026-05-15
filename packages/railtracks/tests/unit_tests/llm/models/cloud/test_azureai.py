@@ -3,7 +3,7 @@ import litellm
 from unittest.mock import patch
 
 from railtracks.llm.models import AzureAILLM
-from railtracks.llm._exception_base import RTLLMError
+from railtracks.llm._exceptions import RTLLMError
 from railtracks.llm.models._litellm_wrapper import LiteLLMWrapper
 
 from railtracks.llm.response import Response

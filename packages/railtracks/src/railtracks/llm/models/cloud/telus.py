@@ -1,8 +1,8 @@
 import os
 from typing import Literal, TypeVar
 
-from railtracks.llm.providers import ModelProvider
-
+from ...providers import ModelProvider
+from ...retries import RetryApproach
 from ..api_providers._openai_compatable_provider_wrapper import OpenAICompatibleProvider
 
 _TStream = TypeVar("_TStream", Literal[True], Literal[False])
@@ -17,6 +17,7 @@ class TelusLLM(OpenAICompatibleProvider[_TStream]):
         api_base: str,
         api_key: str | None = None,
         temperature: float | None = None,
+        retry_approach: RetryApproach | None = None,
     ):
         # we need to map the telus API key to the OpenAI API key
         if api_key is None:
@@ -33,6 +34,7 @@ class TelusLLM(OpenAICompatibleProvider[_TStream]):
             api_base=api_base,
             api_key=api_key,
             temperature=temperature,
+            retry_approach=retry_approach,
         )
 
     @classmethod

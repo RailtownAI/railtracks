@@ -1,10 +1,11 @@
 import os
 from typing import Literal, TypeVar
 
-from railtracks.llm.models.api_providers._openai_compatable_provider_wrapper import (
+from ...models.api_providers._openai_compatable_provider_wrapper import (
     OpenAICompatibleProvider,
 )
-from railtracks.llm.providers import ModelProvider
+from ...providers import ModelProvider
+from ...retries import RetryApproach
 
 _TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
@@ -17,6 +18,7 @@ class PortKeyLLM(OpenAICompatibleProvider[_TStream]):
         stream: _TStream = False,
         api_key: str | None = None,
         temperature: float | None = None,
+        retry_approach: RetryApproach | None = None,
     ):
         try:
             from portkey_ai import Portkey
@@ -39,6 +41,7 @@ class PortKeyLLM(OpenAICompatibleProvider[_TStream]):
             api_base=portkey.base_url,
             api_key=portkey.api_key,
             temperature=temperature,
+            retry_approach=retry_approach,
         )
 
     @classmethod
