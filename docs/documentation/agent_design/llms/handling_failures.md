@@ -1,5 +1,5 @@
 # Handling LLM Failures
-LLM failures are inevitable. In your agent design you must handle these failures accoridingly Railtracks gives you the tooling to handle them gracefully.
+LLM failures are inevitable. In your agent design you must handle these failures accordingly. Railtracks gives you the tooling to handle them gracefully.
 
 ## Types of Failures
 LLM failures fall into two categories, and the right handling differs between them:
