@@ -86,7 +86,6 @@ nav:
         - LLMs:
             - Modalities: documentation/agent_design/llms/modalities.md
             - Failures: documentation/agent_design/llms/handling_failures.md
-            - Structured Extraction: documentation/agent_design/llms/structured_extraction.md
 
     - Agent Invocation:
         - Direct Invocation: documentation/invocation/call.md
