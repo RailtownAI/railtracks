@@ -124,7 +124,7 @@ class StreamingTerminalLLM(
             )
         except Exception as e:
             raise LLMError(
-                reason=f"Exception during llm model chat: {str(e)}",
+                reason=f"Exception during llm model chat: {repr(e)}",
                 message_history=self.message_hist,
             ) from e
 
