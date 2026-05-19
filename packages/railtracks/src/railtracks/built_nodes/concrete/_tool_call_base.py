@@ -248,10 +248,15 @@ class OutputLessToolCallLLM(
         Raises:
             LLMError: If the LLM returns an unexpected message type or the message is malformed.
         """
-
-        response = await asyncio.to_thread(
-            self.llm_model.chat_with_tools, self.message_hist, tools=self.tools()
-        )
+        try:
+            response = await asyncio.to_thread(
+                self.llm_model.chat_with_tools, self.message_hist, tools=self.tools()
+            )
+        except Exception as e:
+            raise LLMError(
+                reason=f"Exception during llm model chat: {repr(e)}",
+                message_history=self.message_hist,
+            ) from e
 
         if not response.message.role == Role.assistant:
             raise LLMError(
@@ -292,10 +297,16 @@ class StreamingOutputLessToolCallLLM(
     ABC,
     Generic[_TCollectedOutput],
 ):
-    async def _handle_tool_calls(self):
-        returned_mess = await asyncio.to_thread(
-            self.llm_model.chat_with_tools, self.message_hist, tools=self.tools()
-        )
+    async def _handle_tool_calls(self):  # noqa: C901
+        try:
+            returned_mess = await asyncio.to_thread(
+                self.llm_model.chat_with_tools, self.message_hist, tools=self.tools()
+            )
+        except Exception as e:
+            raise LLMError(
+                reason=f"Exception during llm model chat: {repr(e)}",
+                message_history=self.message_hist,
+            ) from e
 
         first_item = next(returned_mess)
         if isinstance(first_item, str):

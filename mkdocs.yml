@@ -83,8 +83,10 @@ nav:
             - Function Tools: documentation/agent_design/tools/function_tools.md
             - Agents as Tools: documentation/agent_design/tools/agents_as_tools.md
             - MCP: documentation/agent_design/tools/mcp.md
-        - Structured Extraction: documentation/agent_design/structured_extraction.md
-        - Modalities: documentation/agent_design/modalities.md
+        - LLMs:
+            - Modalities: documentation/agent_design/llms/modalities.md
+            - Failures: documentation/agent_design/llms/handling_failures.md
+
     - Agent Invocation:
         - Direct Invocation: documentation/invocation/call.md
         - Flow Invocation: documentation/invocation/flows.md

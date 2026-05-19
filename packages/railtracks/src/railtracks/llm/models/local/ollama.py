@@ -6,6 +6,7 @@ import requests
 from litellm.utils import supports_function_calling
 
 from ...providers import ModelProvider
+from ...retries.base import RetryApproach
 from .._litellm_wrapper import LiteLLMWrapper
 from .._model_exception_base import FunctionCallingNotSupportedError, ModelError
 
@@ -29,6 +30,7 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
         domain: Literal["default", "auto", "custom"] = "default",
         custom_domain: str | None = None,
         temperature: float | None = None,
+        retry_approach: RetryApproach | None = None,
         **kwargs,
     ):
         """Initialize an Ollama LLM instance.
@@ -63,6 +65,7 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
             model_name=model_name,
             stream=stream,
             temperature=temperature,
+            retry_approach=retry_approach,
             **kwargs,
         )
 
