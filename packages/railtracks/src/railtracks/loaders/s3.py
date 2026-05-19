@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional
+from typing import Any, Optional
 
 from railtracks.vector_stores.chunking.base_chunker import Chunk
 
 from .base import BaseStorageLoader
-
-if TYPE_CHECKING:
-    import boto3 as _boto3
 
 
 class S3Loader(BaseStorageLoader):

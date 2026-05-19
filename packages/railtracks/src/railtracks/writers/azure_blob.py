@@ -67,7 +67,7 @@ class AzureBlobWriter(BaseStorageWriter):
         key_fn: Optional[Callable[[Chunk], str]] = None,
     ) -> None:
         try:
-            from azure.storage.blob import BlobServiceClient, ContentSettings
+            from azure.storage.blob import ContainerClient
         except ImportError:
             raise ImportError(
                 "azure-storage-blob is required for Azure Blob writing. "
@@ -90,8 +90,6 @@ class AzureBlobWriter(BaseStorageWriter):
         self._encoding = encoding
         self._content_type = content_type
         self._key_fn = key_fn
-
-        from azure.storage.blob import ContainerClient
 
         self._container_client = ContainerClient(
             account_url=self._account_url,
