@@ -46,3 +46,9 @@ core-licenses-summary.md
 
 # Ignore Files copied during release workflow for PyPI packaging (for Flit)
 packages/railtracks/docs/
+temp/
+temp_2/
+.agent_temp/
+demo
+examples/
+.gitignore
