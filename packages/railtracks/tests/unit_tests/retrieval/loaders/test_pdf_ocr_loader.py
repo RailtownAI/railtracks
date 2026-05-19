@@ -112,9 +112,13 @@ class TestPyPDFOCRLoaderTextLayer:
         pdfium = _make_pdfium(page_count=1)
 
         reader_patch, pdfium_patch = _patch_pdf_backends(reader, pdfium)
-        with reader_patch, pdfium_patch, patch(
-            "railtracks.retrieval.loaders.pdf_ocr_loader.pytesseract.image_to_string"
-        ) as mock_ocr:
+        with (
+            reader_patch,
+            pdfium_patch,
+            patch(
+                "railtracks.retrieval.loaders.pdf_ocr_loader.pytesseract.image_to_string"
+            ) as mock_ocr,
+        ):
             docs = await PyPDFOCRLoader(str(pdf)).aload()
 
         assert len(docs) == 1
@@ -143,10 +147,14 @@ class TestPyPDFOCRLoaderOCRFallback:
         pdfium = _make_pdfium(page_count=1)
 
         reader_patch, pdfium_patch = _patch_pdf_backends(reader, pdfium)
-        with reader_patch, pdfium_patch, patch(
-            "railtracks.retrieval.loaders.pdf_ocr_loader.pytesseract.image_to_string",
-            return_value="ocr extracted text",
-        ) as mock_ocr:
+        with (
+            reader_patch,
+            pdfium_patch,
+            patch(
+                "railtracks.retrieval.loaders.pdf_ocr_loader.pytesseract.image_to_string",
+                return_value="ocr extracted text",
+            ) as mock_ocr,
+        ):
             docs = await PyPDFOCRLoader(str(pdf)).aload()
 
         assert len(docs) == 1
@@ -162,9 +170,13 @@ class TestPyPDFOCRLoaderOCRFallback:
         pdfium = _make_pdfium(page_count=1)
 
         reader_patch, pdfium_patch = _patch_pdf_backends(reader, pdfium)
-        with reader_patch, pdfium_patch, patch(
-            "railtracks.retrieval.loaders.pdf_ocr_loader.pytesseract.image_to_string",
-            return_value="scanned content",
+        with (
+            reader_patch,
+            pdfium_patch,
+            patch(
+                "railtracks.retrieval.loaders.pdf_ocr_loader.pytesseract.image_to_string",
+                return_value="scanned content",
+            ),
         ):
             docs = await PyPDFOCRLoader(str(pdf)).aload()
 
@@ -179,9 +191,13 @@ class TestPyPDFOCRLoaderOCRFallback:
         pdfium = _make_pdfium(page_count=3)
 
         reader_patch, pdfium_patch = _patch_pdf_backends(reader, pdfium)
-        with reader_patch, pdfium_patch, patch(
-            "railtracks.retrieval.loaders.pdf_ocr_loader.pytesseract.image_to_string",
-            return_value="page 2 ocr",
+        with (
+            reader_patch,
+            pdfium_patch,
+            patch(
+                "railtracks.retrieval.loaders.pdf_ocr_loader.pytesseract.image_to_string",
+                return_value="page 2 ocr",
+            ),
         ):
             docs = await PyPDFOCRLoader(str(pdf)).aload()
 
@@ -201,10 +217,14 @@ class TestPyPDFOCRLoaderOCRFallback:
         pdfium = _make_pdfium(page_count=1)
 
         reader_patch, pdfium_patch = _patch_pdf_backends(reader, pdfium)
-        with reader_patch, pdfium_patch, patch(
-            "railtracks.retrieval.loaders.pdf_ocr_loader.pytesseract.image_to_string",
-            return_value="ja text",
-        ) as mock_ocr:
+        with (
+            reader_patch,
+            pdfium_patch,
+            patch(
+                "railtracks.retrieval.loaders.pdf_ocr_loader.pytesseract.image_to_string",
+                return_value="ja text",
+            ) as mock_ocr,
+        ):
             await PyPDFOCRLoader(str(pdf), language="jpn").aload()
 
         _, kwargs = mock_ocr.call_args
@@ -222,10 +242,14 @@ class TestPyPDFOCRLoaderForceOCR:
         pdfium = _make_pdfium(page_count=1)
 
         reader_patch, pdfium_patch = _patch_pdf_backends(reader, pdfium)
-        with reader_patch, pdfium_patch, patch(
-            "railtracks.retrieval.loaders.pdf_ocr_loader.pytesseract.image_to_string",
-            return_value="forced ocr text",
-        ) as mock_ocr:
+        with (
+            reader_patch,
+            pdfium_patch,
+            patch(
+                "railtracks.retrieval.loaders.pdf_ocr_loader.pytesseract.image_to_string",
+                return_value="forced ocr text",
+            ) as mock_ocr,
+        ):
             docs = await PyPDFOCRLoader(str(pdf), force_ocr=True).aload()
 
         assert docs[0].content == "forced ocr text"
@@ -257,9 +281,13 @@ class TestPyPDFOCRLoaderPageStrategy:
         reader = _make_reader(["", ""])
         pdfium = _make_pdfium(page_count=2)
         reader_patch, pdfium_patch = _patch_pdf_backends(reader, pdfium)
-        with reader_patch, pdfium_patch, patch(
-            "railtracks.retrieval.loaders.pdf_ocr_loader.pytesseract.image_to_string",
-            return_value="",
+        with (
+            reader_patch,
+            pdfium_patch,
+            patch(
+                "railtracks.retrieval.loaders.pdf_ocr_loader.pytesseract.image_to_string",
+                return_value="",
+            ),
         ):
             docs = await PyPDFOCRLoader(str(pdf)).aload()
         assert docs == []
@@ -275,9 +303,7 @@ class TestPyPDFOCRLoaderDocumentStrategy:
         pdfium = _make_pdfium(page_count=2)
         reader_patch, pdfium_patch = _patch_pdf_backends(reader, pdfium)
         with reader_patch, pdfium_patch:
-            docs = await PyPDFOCRLoader(
-                str(pdf), breakdown_strategy="document"
-            ).aload()
+            docs = await PyPDFOCRLoader(str(pdf), breakdown_strategy="document").aload()
         assert len(docs) == 1
 
     async def test_pages_joined_with_double_newline(self, tmp_path):
@@ -287,9 +313,7 @@ class TestPyPDFOCRLoaderDocumentStrategy:
         pdfium = _make_pdfium(page_count=2)
         reader_patch, pdfium_patch = _patch_pdf_backends(reader, pdfium)
         with reader_patch, pdfium_patch:
-            docs = await PyPDFOCRLoader(
-                str(pdf), breakdown_strategy="document"
-            ).aload()
+            docs = await PyPDFOCRLoader(str(pdf), breakdown_strategy="document").aload()
         assert docs[0].content == "first\n\nsecond"
 
     async def test_ocr_pages_metadata_records_which_pages_used_ocr(self, tmp_path):
@@ -299,13 +323,15 @@ class TestPyPDFOCRLoaderDocumentStrategy:
         reader = _make_reader(["text", "", "text", ""])
         pdfium = _make_pdfium(page_count=4)
         reader_patch, pdfium_patch = _patch_pdf_backends(reader, pdfium)
-        with reader_patch, pdfium_patch, patch(
-            "railtracks.retrieval.loaders.pdf_ocr_loader.pytesseract.image_to_string",
-            return_value="ocr",
+        with (
+            reader_patch,
+            pdfium_patch,
+            patch(
+                "railtracks.retrieval.loaders.pdf_ocr_loader.pytesseract.image_to_string",
+                return_value="ocr",
+            ),
         ):
-            docs = await PyPDFOCRLoader(
-                str(pdf), breakdown_strategy="document"
-            ).aload()
+            docs = await PyPDFOCRLoader(str(pdf), breakdown_strategy="document").aload()
         assert docs[0].metadata["ocr_pages"] == [2, 4]
 
 

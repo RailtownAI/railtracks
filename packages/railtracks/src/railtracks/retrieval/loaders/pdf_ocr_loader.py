@@ -123,9 +123,7 @@ class PyPDFOCRLoader(BaseOCRLoader):
         bitmap = pdf_page.render(scale=scale)
         return bitmap.to_pil()
 
-    async def _extract_embedded_text(
-        self, reader: PdfReader, page_index: int
-    ) -> str:
+    async def _extract_embedded_text(self, reader: PdfReader, page_index: int) -> str:
         """Return embedded text for a page, or `""` if none/whitespace-only."""
         page = reader.pages[page_index]
         text = await asyncio.to_thread(page.extract_text)
@@ -184,9 +182,7 @@ class PyPDFOCRLoader(BaseOCRLoader):
                 return
 
             for page_index in range(total_pages):
-                text, used_ocr = await self._resolve_page_text(
-                    reader, pdf, page_index
-                )
+                text, used_ocr = await self._resolve_page_text(reader, pdf, page_index)
                 if not text or not text.strip():
                     continue
                 yield Document(
