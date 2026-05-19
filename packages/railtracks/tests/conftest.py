@@ -1,12 +1,13 @@
 import json
 import os
-from typing import Type
+from typing import Callable, Type
 
 import pytest
 import railtracks as rt
 from pydantic import BaseModel
 from railtracks.llm.message import AssistantMessage
 from railtracks.llm.response import MessageInfo, Response
+from railtracks.llm.retries.base import RetryApproach
 
 
 class MockLLM(rt.llm.ModelBase):
@@ -15,15 +16,20 @@ class MockLLM(rt.llm.ModelBase):
         custom_response: str | None = None,
         requested_tool_calls: list[rt.llm.ToolCall] | None = None,
         stream: bool = False,
+        errors: list[Callable[[], Exception]] | None = None,
+        retry_approach: RetryApproach | None = None,
     ):
         """
         Creates a new instance of the MockLLM class.
         Args:
             custom_response_message (Message | None, optional): The custom response message to use for the LLM. Defaults to None.
+            errors: Optional list of zero-argument callables, each returning an Exception to raise on successive calls before returning a normal response. Use callables (not instances) so the LLM deepcopies cleanly.
+            retry_approach: Optional retry strategy applied around chat calls.
         """
-        super().__init__(stream=stream)
+        super().__init__(stream=stream, retry_approach=retry_approach)
         self.custom_response = custom_response
         self.requested_tool_calls = requested_tool_calls
+        self._errors = list(errors) if errors else []
         self.mocked_message_info = MessageInfo(
             input_tokens=42,
             output_tokens=42,
@@ -51,12 +57,24 @@ class MockLLM(rt.llm.ModelBase):
     # =======================================================================================
 
     # ================ Base responses (common for sync and async versions) ==================
-    def _base_chat(self):
+    def _make_chat_response(self) -> Response:
+        """Pop and invoke the next pending error factory, or return the normal mocked Response."""
+        if self._errors:
+            raise self._errors.pop(0)()
         if self.custom_response:
             assert isinstance(self.custom_response, str), "custom_response must be a string for terminal LLMs"
         return_message = self.custom_response or "mocked Message"
-        # Streaming case
+        return Response(
+            message=AssistantMessage(return_message),
+            message_info=self.mocked_message_info,
+        )
+
+    def _base_chat(self):
+        # Streaming case — error injection not supported for streams
         if self.stream:
+            if self.custom_response:
+                assert isinstance(self.custom_response, str), "custom_response must be a string for terminal LLMs"
+            return_message = self.custom_response or "mocked Message"
             def make_generator():
                     for char in return_message:
                         yield char
@@ -65,16 +83,14 @@ class MockLLM(rt.llm.ModelBase):
                         message=AssistantMessage(content=return_message),
                         message_info=self.mocked_message_info,
                     )
-                    yield r 
+                    yield r
                     return r
-                
+
             return make_generator()
-        
-        # general case 
-        return Response(
-            message=AssistantMessage(return_message),
-            message_info=self.mocked_message_info,
-        )
+
+        if self.retry_approach is not None:
+            return self.retry_approach.call_with_retry(self._make_chat_response)
+        return self._make_chat_response()
 
     def _base_structured(self, messages, schema):
         class DummyStructured(BaseModel):
@@ -152,7 +168,11 @@ class MockLLM(rt.llm.ModelBase):
     # ==========================================================
     # Override all methods that make network calls with mocks
     async def _achat(self, messages, **kwargs):
-        return self._base_chat()
+        if self.retry_approach is not None:
+            async def _async_response():
+                return self._make_chat_response()
+            return await self.retry_approach.acall_with_retry(_async_response)
+        return self._make_chat_response()
 
     async def _astructured(self, messages, schema, **kwargs):
         return self._base_structured(messages, schema)
@@ -195,12 +215,17 @@ class MockLLM(rt.llm.ModelBase):
 def mock_llm() -> Type[MockLLM]:
     """
     Fixture to mock LLM methods with configurable responses.
-    Pass a custom_response_message to override the message in all default responses.
+    Returns the MockLLM class; instantiate it inside the test.
     Usage:
-        model = mock_model(
-                    custom_response_message=r"custom")
-                    requested_tool_calls=[ToolCall(name="secret_phrase", identifier="id_42424242", arguments={})]
-                )
+        llm = mock_llm(custom_response="hello")
+        llm = mock_llm(
+            custom_response="ok",
+            errors=[lambda: RateLimitError(...), lambda: RateLimitError(...)],
+            retry_approach=FixedRetry(max_tries=5, delay=0.0),
+        )
+        llm = mock_llm(
+            requested_tool_calls=[ToolCall(name="secret_phrase", identifier="id_42424242", arguments={})]
+        )
     """
     return MockLLM
 

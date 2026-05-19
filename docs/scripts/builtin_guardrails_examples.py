@@ -17,6 +17,8 @@ from railtracks.guardrails import (
 from railtracks.guardrails.llm import (
     BlockTextInputGuard,
     BlockTextOutputGuard,
+    InputLengthGuard,
+    OutputLengthGuard,
     PIICustomPattern,
     PIIEntity,
     PIIRedactConfig,
@@ -107,6 +109,34 @@ BlockAgent = rt.agent_node(
     ),
 )
 # --8<-- [end:block_text_agent]
+
+
+# --8<-- [start:length_input_demo]
+input_length = InputLengthGuard(max_chars=4000)
+
+result = input_length.decide("a" * 5000)
+# result.action == GuardrailAction.BLOCK
+# result.meta == {"total_chars": 5000, "max_chars": 4000}
+# --8<-- [end:length_input_demo]
+
+# --8<-- [start:length_output_demo]
+output_length = OutputLengthGuard(max_chars=2000)
+
+result = output_length.decide("ok")
+# result.action == GuardrailAction.ALLOW
+# --8<-- [end:length_output_demo]
+
+# --8<-- [start:length_agent]
+Agent = rt.agent_node(
+    name="length-guard-demo",
+    llm=rt.llm.GeminiLLM("gemini-2.5-flash"),
+    system_message="You are a concise assistant.",
+    guardrails=Guard(
+        input=[InputLengthGuard(max_chars=4000)],
+        output=[OutputLengthGuard(max_chars=2000)],
+    ),
+)
+# --8<-- [end:length_agent]
 
 
 def main() -> None:

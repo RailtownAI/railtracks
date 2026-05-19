@@ -55,7 +55,7 @@ class ToolCall(BaseModel):
     name: str
     arguments: ToolArguments
     output: Any
-    runtime: float
+    runtime: float | None = None
     status: Status
 
 
@@ -83,10 +83,10 @@ class LLMCall(BaseModel):
     model_provider: str
     input: list[LLMIO]
     output: LLMIO
-    input_tokens: int
-    output_tokens: int
-    total_cost: float
-    latency: float
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    total_cost: float | None = None
+    latency: float | None = None
     index: int
 
 
@@ -134,10 +134,10 @@ def extract_llm_details(llm_details: list[dict]) -> LLMDetails:
                 model_provider=detail.get("model_provider", ""),
                 input=inputs,
                 output=output,
-                input_tokens=detail.get("input_tokens", -1),
-                output_tokens=detail.get("output_tokens", -1),
-                total_cost=detail.get("total_cost", -1),
-                latency=detail.get("latency", -1),
+                input_tokens=detail.get("input_tokens"),
+                output_tokens=detail.get("output_tokens"),
+                total_cost=detail.get("total_cost"),
+                latency=detail.get("latency"),
                 index=idx,
             )
         )
@@ -222,7 +222,7 @@ def extract_tool_details(
                 output=edge.details.get("output", None),
                 runtime=target.details.get("internals", {})
                 .get("latency", {})
-                .get("total_time", 0),
+                .get("total_time"),
                 status=Status(edge.details.get("status")),
             )
         )
