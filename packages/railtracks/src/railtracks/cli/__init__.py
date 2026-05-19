@@ -465,6 +465,11 @@ def main():
 
         create_railtracks_dir()
 
+        ui_index = Path(f"{cli_directory}/ui/index.html")
+        if not ui_index.exists():
+            print_status("UI not found — downloading...")
+            download_and_extract_ui()
+
         update_thread = threading.Thread(target=check_for_ui_update, daemon=True)
         update_thread.start()
 
