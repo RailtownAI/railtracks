@@ -35,9 +35,6 @@ class _CompleteStore:
     ) -> list[StoreEntry]:
         return []
 
-    async def count(self, filters: dict[str, Any] | None = None) -> int:
-        return 0
-
 
 class _IncompleteStore:
     async def write(self, entry: StoreEntry) -> str:
