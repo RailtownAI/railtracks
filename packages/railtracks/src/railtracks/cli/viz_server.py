@@ -10,7 +10,9 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 
-from .constants import DEFAULT_PORT, cli_directory
+from railtracks.paths import resolve_railtracks_home
+
+from .constants import DEFAULT_PORT
 from .io import print_error, print_status, print_success, print_warning
 
 app = FastAPI()
@@ -18,7 +20,7 @@ app = FastAPI()
 
 def get_railtracks_dir() -> Path:
     """Get the .railtracks directory path"""
-    return Path(cli_directory)
+    return resolve_railtracks_home()
 
 
 def get_data_dir(subdir: str) -> Path:
@@ -93,7 +95,7 @@ async def serve_ui_or_404(full_path: str):
     if full_path.startswith("api/"):
         return JSONResponse(content={"error": "Not Found"}, status_code=404)
 
-    ui_dir = Path(f"{cli_directory}/ui")
+    ui_dir = get_railtracks_dir() / "ui"
     ui_file = ui_dir / full_path
     if ui_file.exists() and ui_file.is_file():
         return FileResponse(str(ui_file))
@@ -116,7 +118,7 @@ class RailtracksServer:
         self.running = True
 
         print_success(f"🚀 railtracks server running at http://localhost:{self.port}")
-        print_status(f"📁 Serving files from: {cli_directory}/ui/")
+        print_status(f"📁 Serving files from: {get_railtracks_dir() / 'ui'}")
         print_status("📋 API endpoints:")
         print_status("   GET  /api/evaluations - Get all evaluation JSON files")
         print_status("   GET  /api/sessions - Get all session JSON files")

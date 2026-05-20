@@ -1,17 +1,16 @@
 import inspect
 import json
-import os
 import time
 import uuid
 import warnings
 from functools import wraps
-from pathlib import Path
 from typing import Any, Callable, Coroutine, Dict, ParamSpec, Tuple, TypeVar, overload
 
 from railtracks.exceptions.messages.exception_messages import (
     ExceptionMessageKey,
     get_message,
 )
+from railtracks.paths import resolve_railtracks_home
 
 from .context.central import (
     delete_globals,
@@ -167,8 +166,7 @@ class Session:
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.executor_config.save_state:
             try:
-                railtracks_home = os.environ.get("RAILTRACKS_HOME", ".railtracks")
-                railtracks_dir = Path(railtracks_home)
+                railtracks_dir = resolve_railtracks_home()
                 sessions_dir = railtracks_dir / "data" / "sessions"
                 sessions_dir.mkdir(
                     parents=True, exist_ok=True
