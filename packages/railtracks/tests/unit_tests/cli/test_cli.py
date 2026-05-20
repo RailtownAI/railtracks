@@ -523,14 +523,16 @@ class TestUIVersionTracking(unittest.TestCase):
         printed_text = mock_print.call_args[0][0]
         self.assertIn('railtracks update', printed_text)
 
-    # --- UI_VERSION_FILE derivation ---
+    # --- version file location ---
 
-    def test_ui_version_file_derived_from_cli_directory(self):
-        """UI_VERSION_FILE is derived from cli_directory, not hardcoded separately"""
-        import railtracks.cli as cli_module
+    def test_ui_version_file_inside_railtracks_home(self):
+        """Version file is stored inside the resolved railtracks home directory"""
+        from railtracks.paths import resolve_railtracks_home
+        version_file = resolve_railtracks_home() / ".ui_version"
+        save_ui_version("test-etag")
         self.assertTrue(
-            cli_module.UI_VERSION_FILE.startswith(cli_module.cli_directory),
-            "UI_VERSION_FILE should start with cli_directory so they stay in sync",
+            version_file.exists(),
+            f"Version file not found at expected location: {version_file}",
         )
 
     # --- temp file cleanup on failure ---
