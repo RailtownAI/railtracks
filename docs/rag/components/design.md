@@ -1,30 +1,32 @@
-# RAG Design
+# Retrieval Module Design
 
-Railtracks RAG is built around a clean four-stage pipeline: **load → chunk → embed → store**. Each stage is a discrete, swappable component backed by an abstract base class. The design prioritises async-first embedding, cost transparency, and a single unified module.
-## Pipeline Overview
+`railtracks.retrieval` is structured around a four-stage pipeline — **load →
+chunk → embed → store** — orchestrated by `RetrievalRuntime`. Each stage is a
+discrete, swappable component behind a small interface; the runtime owns the
+wiring.
+
+## Pipeline overview
 
 ```mermaid
 flowchart LR
-    Sources["Sources\n(files, URLs, dirs)"]
+    Sources["Sources<br/>(files, URLs, dirs)"]
     Loader{{"Loader"}}
     Chunker{{"Chunker"}}
-    Embedder{{"Embedding\nService"}}
-    Store[("Vector\nStore")]
+    Embedder{{"Embedder"}}
+    Store[("Store")]
     Query(["Query"])
-    Results>"Search\nResults"]
+    Results>"RetrievalResult"]
 
     Sources --> Loader
     Loader --> |Documents| Chunker
     Chunker --> |Chunks| Embedder
-    Embedder --> |Vectors + Stats| Store
+    Embedder --> |EmbeddedChunks| Store
     Query --> Embedder
     Store --> Results
 
-    %% === COLOR THEMING ===
     classDef source fill:#60A5FA,fill-opacity:0.3
     classDef process fill:#FBBF24,fill-opacity:0.3
     classDef store fill:#34D399,fill-opacity:0.3
-    classDef artifact fill:#BFDBFE,fill-opacity:0.3
     classDef output fill:#FECACA,fill-opacity:0.3
 
     class Sources,Query source;
@@ -33,127 +35,146 @@ flowchart LR
     class Results output;
 ```
 
-## Concurrency Model
+## Streaming, not batched
 
-The pipeline is **async streaming** under the hood. Rather than loading all documents into memory before chunking, each stage yields results as they are ready — `RAGPipeline.aindex()` consumes `loader.astream()`, pipes each document into the chunker, and feeds each chunk into the embedder. No stage waits for the previous one to fully drain, and the full corpus is never held in memory at once.
-
-Each stage is an async generator that subscribes to the previous stage's output and yields into the next.
-
-| Pub/Sub topic | Streaming equivalent |
-|---|---|
-| `doc.loaded` | `loader.astream()` |
-| `chunk.ready` | `chunker.astream(loader.astream())` |
-| `chunk.embedded` | `embedder.astream(chunker.astream(...))` |
-
-Concurrency is applied selectively based on where the real cost lives:
-
-| Stage | Strategy | Reason |
-|---|---|---|
-| Load | Loader-controlled | Simple file I/O is sequential; loaders backed by cloud OCR (e.g. Textract) implement their own concurrency in `astream()` |
-| Chunk | Sequential | CPU-bound, no I/O — never the bottleneck relative to OCR or embedding |
-| **Embed** | **Concurrent batches** | Network-bound, rate-limited API, 100k+ chunks at scale |
-| Store | Sequential | DB handles its own concurrency |
-
-`LiteLLMEmbeddingService` dispatches multiple batches in parallel by default, controlled by `max_concurrent_batches` to stay within API rate limits.
+`RetrievalRuntime` does **not** wait for the loader to finish before chunking,
+or for chunking to finish before embedding. Each stage is async and yields
+documents/chunks/batches one at a time:
 
 ```mermaid
-flowchart LR
-    subgraph LoaderPool["Loader: strategy per implementation"]
-        direction TB
-        L1["doc.loaded"]
+flowchart TD
+    subgraph T1 ["t=1"]
+        D1L["Doc 1 → Load"]
+    end
+    subgraph T2 ["t=2"]
+        D1C["Doc 1 → Chunk"]
+        D2L["Doc 2 → Load"]
+    end
+    subgraph T3 ["t=3"]
+        D1E["Doc 1 → Embed"]
+        D2C["Doc 2 → Chunk"]
+        D3L["Doc 3 → Load"]
+    end
+    subgraph T4 ["t=4"]
+        D1S["Doc 1 → Write"]
+        D2E["Doc 2 → Embed"]
+        D3C["Doc 3 → Chunk"]
     end
 
-    subgraph ChunkerPool["Chunker"]
-        direction TB
-        C1["chunk.ready"]
-    end
-
-    subgraph EmbedPool["Embedding Service: concurrent batches"]
-        direction TB
-        B1["Batch 1"]
-        B2["Batch 2"]
-        B3["Batch 3"]
-    end
-
-    Store[("Vector\nStore")]
-
-    L1 -->|stream| C1
-    C1 -->|stream| EmbedPool
-    EmbedPool -->|Vectors + Stats| Store
-
-    %% === COLOR THEMING ===
-    classDef load fill:#60A5FA,fill-opacity:0.3
-    classDef chunk fill:#FBBF24,fill-opacity:0.3
-    classDef embed fill:#FECACA,fill-opacity:0.3
-    classDef store fill:#34D399,fill-opacity:0.3
-
-    class L1 load;
-    class C1 chunk;
-    class B1,B2,B3 embed;
-    class Store store;
-
-    style LoaderPool fill:transparent,stroke:#60A5FA,stroke-width:1px
-    style ChunkerPool fill:transparent,stroke:#FBBF24,stroke-width:1px
-    style EmbedPool fill:transparent,stroke:#FECACA,stroke-width:1px
+    T1 --> T2 --> T3 --> T4
 ```
 
-## Components
+Each yielded `BatchIngested` event reaches the consumer as soon as the batch
+finishes writing, so callers can surface progress without buffering the
+corpus.
+
+## Module layout
+
+```
+railtracks/retrieval/
+├── runtime.py          # RetrievalRuntime + IngestionEvents
+├── errors.py           # EmbeddingModelMismatchError
+├── models.py           # Document, Chunk, EmbeddedChunk, RetrievedChunk, RetrievalResult
+├── loaders/            # BaseDocumentLoader + Text/CSV/JSON/PDF/HF loaders + SanitizingLoader
+├── chunking/           # Chunker ABC, FixedToken / Sentence / Recursive / Markdown chunkers, Tokenizer
+├── embedding/          # Embedding ABC, EmbeddingResult/Failure, LiteLLM-backed providers
+└── stores/             # Store protocol + StoreEntry/StoreQuery/StoreScope models
+    └── vector/         # VectorStore (Store-implementing) + InMemory/Chroma/Pgvector backends
+```
+
+## Stage contracts
 
 ### Loaders
-`BaseDocumentLoader` defines three methods: `astream() → AsyncGenerator[Document, None]` (the abstract primitive that subclasses must implement), `aload() → list[Document]` (collects `astream()` into a list), and `load()` (synchronous wrapper around `aload()`). `RAGPipeline` always consumes `astream()` so documents flow into the chunker as they become ready rather than waiting for the full corpus to load.
 
-Built-in loaders:
+`BaseDocumentLoader.astream() → AsyncGenerator[Document, None]` is the single
+abstract primitive. `aload()` and `load()` are derived from it. Subclasses
+must not buffer the corpus; documents are yielded as soon as they are
+available.
 
-| Loader | Source | Dep |
-|---|---|---|
-| `TextLoader` | `.txt`, `.md` | stdlib |
-| `CSVLoader` | `.csv` (rows as Documents) | stdlib |
-| `JSONLoader` | `.json` (objects as Documents) | stdlib |
-| `PyPDFLoader` | `.pdf` | `railtracks[pdf]` |
-| `HTMLLoader` | files or URLs | `railtracks[html]` |
-| `CodeLoader` | source files (auto-detects language) | stdlib |
+Wrap any loader in `SanitizingLoader(inner, sanitizer)` to redact PII or
+normalize content before it reaches the embedder.
 
 ### Chunkers
-`BaseChunker` exposes `chunk(doc) → list[Chunk]` and `chunk_many(docs) → list[Chunk]`. Each `Chunk` carries a `document_id` for full lineage back to the source `Document`. Three strategies ship out of the box: `FixedCharChunker`, `FixedTokenChunker`, and `RecursiveChunker`.
 
-### Embedding Service
-`BaseEmbeddingService` requires both `embed()` and `aembed()`. Every response is an `EmbeddingResponse` containing the vectors **and** an `EmbeddingStats` object with model name, token count, cost, and latency — cost tracking is not optional.
+`Chunker.chunk(document) → list[Chunk]` is the sync split primitive;
+`achunk` and `astream_documents` are derived. Subclasses delegate to a
+shared `_make_chunks` helper that enforces cross-chunker invariants
+(dense 0-based `index`, `document_id` propagation, metadata copy).
 
-The default implementation, `LiteLLMEmbeddingService`, handles batching automatically and reads cost from litellm's `_hidden_params["response_cost"]`.
+### Embedders
 
-### Vector Stores
-`AbstractVectorStore` defines a uniform interface (`add`, `search`, `delete`, `count`, `persist`, `load`) across all backends. The filter DSL (`F["field"] == value`) is evaluated in Python for the in-memory store and translated to native query syntax for external backends.
+`Embedding.aembed(list[str]) → TextEmbeddings` returns vectors plus
+`EmbeddingMetrics` (model, token count, latency, cost). `astream_batches`
+batches a chunk stream into fixed-size groups, yielding
+`EmbeddingResult | EmbeddingFailure` per batch — the stream continues past
+individual batch failures.
 
-| Store | Dep |
-|---|---|
-| `InMemoryVectorStore` | stdlib |
-| `ChromaVectorStore` | `railtracks[chroma]` |
-| `PineconeVectorStore` | `railtracks[pinecone]` |
-| `WeaviateVectorStore` | `railtracks[weaviate]` |
+### Stores
 
-## RAGPipeline
-
-`RAGPipeline` wires all four stages together. Stages are all optional with sensible defaults:
+The `Store` protocol exposes six async methods:
 
 ```python
-pipeline = RAGPipeline(
-    loader=PyPDFLoader("docs/"),
-    chunker=RecursiveChunker(chunk_size=512),
-    embedding_service=LiteLLMEmbeddingService("text-embedding-3-small"),
-    vector_store=InMemoryVectorStore(),
-)
-
-stats: IndexingStats = await pipeline.aindex()
-results: SearchResult = await pipeline.aquery("What is the return policy?", top_k=5)
+class Store(Protocol):
+    async def write(self, entry: StoreEntry) -> str: ...
+    async def read(self, query: StoreQuery) -> list[RetrievedStoreEntry]: ...
+    async def delete(self, id: UUID) -> None: ...
+    async def clear(self, scope: StoreScope) -> None: ...
+    async def delete_where(self, filters: dict[str, Any]) -> None: ...
+    async def find(self, filters: dict[str, Any], limit: int = 1) -> list[StoreEntry]: ...
 ```
 
-`IndexingStats` reports documents indexed, chunks created, and the full `EmbeddingStats` from the run. `RAGPipeline` also exposes `as_node()` to wrap the query path as an `rt.function_node`, making it directly usable as a tool inside any agent.
+`VectorStore` is the canonical implementation. It delegates index operations
+to a `VectorBackend` (InMemory, Chroma, or Pgvector) and owns payload
+serialization, scope filtering, and `DetailLevel` projection. The backend
+protocol is small enough that adding a new one is a single-file change.
 
-## Data Model
-
-All data models live in `rag/models.py` and are registered with `RTJSONEncoder` for serialisation.
+## Data flow through StoreEntry
 
 ```
-Document ──► Chunk ──► VectorRecord ──► SearchEntry
-  (source)   (doc_id)   (chunk_id)        (score)
+Document ──► Chunk ──► EmbeddedChunk ──► StoreEntry ──► RetrievedStoreEntry
+ (source)  (doc_id)    (vector + model)    (payload)         (score, rank)
 ```
+
+The runtime always converts back to `RetrievedChunk` (a thin shape around
+`Chunk`) so the user-facing `RetrievalResult` doesn't expose store-internal
+fields like `scope` or `embedding_version`.
+
+## Upsert and staleness
+
+Two protocol additions make ingestion safe to re-run:
+
+- **`delete_where`** lets the runtime clear prior chunks for a document
+  before writing new ones, giving upsert semantics. The delete fires
+  *after* the first successful batch, so a total embedding failure leaves
+  the prior version intact.
+- **`find`** is a metadata-only lookup (no vector search). The runtime
+  uses it to check whether a document with the same `source_path` and
+  `content_hash` already exists, and short-circuits with `DocumentSkipped`
+  if so. This makes re-running `ingest()` idempotent.
+
+## Embedding-model guard
+
+Mixing vectors from different embedding models produces meaningless
+similarity scores. The runtime captures the embedder's model name on the
+first successful batch and raises `EmbeddingModelMismatchError` at retrieve
+time if the embedder later reports a different model. This is in-process
+only — cross-process consistency (different agent restart, same store) is
+out of scope today.
+
+## Multi-tenancy
+
+`StoreScope(user_id, agent_id, session_id, run_id)` is a hard-filter
+namespace. Any non-`None` field becomes a mandatory equality filter on
+every write and every read. Pass it once to `RetrievalRuntime(scope=...)`
+and it threads through unconditionally; per-call overrides are supported
+via `runtime.retrieve(scope=...)`.
+
+## What's not in scope (yet)
+
+- **Boolean filter DSL.** Filters are flat `dict[str, Any]` equality. If
+  you need `OR` / `is_in`, post-filter in Python or open an issue.
+- **Cross-process embedding-model guard.** The current check is in-memory.
+  Promoting it to a `Store`-side property is a future addition.
+- **Hybrid search (BM25 + vector).** Today's `Store` protocol is dense-only.
+- **Reranker stage.** Add one yourself in user code; a built-in
+  `Reranker` protocol is on the roadmap.

@@ -24,7 +24,7 @@ from collections.abc import AsyncGenerator
 from typing import Any, Protocol, runtime_checkable
 from uuid import UUID
 
-from ..models import Chunk, Document
+from ..models import Chunk, Document, DocumentType
 
 
 @runtime_checkable
@@ -189,7 +189,7 @@ class Chunker(ABC):
     ) -> Document:
         kwargs: dict[str, Any] = {
             "content": text,
-            "type": "text",
+            "type": DocumentType.TEXT,
             "metadata": dict(metadata) if metadata is not None else {},
         }
         if document_id is not None:

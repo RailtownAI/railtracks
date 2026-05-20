@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 from typing_extensions import Self
 
@@ -36,16 +37,24 @@ def _pg_to_score(metric: DistanceMetric, distance: float) -> float:
 def _build_where(filters: dict, start_index: int = 1) -> tuple[str, list]:
     """Build a parameterized WHERE clause from a flat equality dict.
 
-    Payload fields are accessed as JSONB text: payload->>'key' = $N.
-    start_index controls the first $N used, allowing callers to offset
-    around other positional params (e.g. $1 = query vector in search).
+    Each filter contributes two positional params: the key (text) and the value
+    (JSONB). Comparison is done JSONB-to-JSONB via ``payload->$K::text = $V::jsonb``,
+    so non-string scalars (int, bool, None) preserve their JSON type — equivalent
+    to using ``json.dumps(v)`` and matching the JSONB literal pgvector stores.
+
+    ``start_index`` controls the first $N used so callers can offset around
+    other positional params (e.g. $1 = query vector in search).
     """
     if not filters:
         return "", []
-    conditions = [
-        f"payload->>'{k}' = ${start_index + i}" for i, k in enumerate(filters)
-    ]
-    params = [str(v) for v in filters.values()]
+    conditions: list[str] = []
+    params: list = []
+    idx = start_index
+    for k, v in filters.items():
+        conditions.append(f"payload->${idx}::text = ${idx + 1}::jsonb")
+        params.append(k)
+        params.append(json.dumps(v))
+        idx += 2
     return "WHERE " + " AND ".join(conditions), params
 
 
@@ -67,6 +76,9 @@ class PgvectorBackend:
         dim:    Vector dimension. When given the column is typed vector(dim),
                 which enables ANN index creation. Omit for development use.
         metric: Distance metric used for similarity search. Defaults to COSINE.
+        pool_kwargs: Extra keyword arguments forwarded to ``asyncpg.create_pool``.
+                Use this to tune ``min_size`` / ``max_size`` / ``max_inactive_connection_lifetime``
+                for production workloads.
     """
 
     def __init__(
@@ -76,11 +88,13 @@ class PgvectorBackend:
         table: str = "store_entries",
         dim: int | None = None,
         metric: DistanceMetric = DistanceMetric.COSINE,
+        pool_kwargs: dict[str, Any] | None = None,
     ) -> None:
         self._dsn = dsn
         self._table = table
         self._dim = dim
         self._metric = metric
+        self._pool_kwargs = dict(pool_kwargs) if pool_kwargs else {}
         self._pool = None
 
     def _require_initialized(self) -> None:
@@ -95,9 +109,12 @@ class PgvectorBackend:
         table: str = "store_entries",
         dim: int | None = None,
         metric: DistanceMetric = DistanceMetric.COSINE,
+        pool_kwargs: dict[str, Any] | None = None,
     ) -> Self:
         """Create and initialize a PgvectorBackend in one step."""
-        backend = cls(dsn, table=table, dim=dim, metric=metric)
+        backend = cls(
+            dsn, table=table, dim=dim, metric=metric, pool_kwargs=pool_kwargs
+        )
         await backend.initialize()
         return backend
 
@@ -114,7 +131,9 @@ class PgvectorBackend:
         async def _init_conn(conn) -> None:
             await register_vector(conn)
 
-        self._pool = await asyncpg.create_pool(self._dsn, init=_init_conn)
+        self._pool = await asyncpg.create_pool(
+            self._dsn, init=_init_conn, **self._pool_kwargs
+        )
 
         vec_type = f"vector({self._dim})" if self._dim else "vector"
         async with self._pool.acquire() as conn:
@@ -185,3 +204,20 @@ class PgvectorBackend:
         where, params = _build_where(filters, start_index=1)
         async with self._pool.acquire() as conn:
             await conn.execute(f'DELETE FROM "{self._table}" {where}', *params)
+
+    async def list_where(
+        self, filters: dict, limit: int
+    ) -> list[tuple[str, dict]]:
+        self._require_initialized()
+        where, params = _build_where(filters, start_index=1)
+        sql = f'SELECT id, payload FROM "{self._table}" {where} LIMIT {int(limit)}'
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(sql, *params)
+        return [(row["id"], _decode_payload(row["payload"])) for row in rows]
+
+    async def count(self, filters: dict) -> int:
+        self._require_initialized()
+        where, params = _build_where(filters, start_index=1)
+        sql = f'SELECT COUNT(*) FROM "{self._table}" {where}'
+        async with self._pool.acquire() as conn:
+            return int(await conn.fetchval(sql, *params))

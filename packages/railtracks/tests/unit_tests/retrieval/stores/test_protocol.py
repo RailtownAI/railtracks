@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Any
 from uuid import UUID
 
 from railtracks.retrieval.stores.models import (
@@ -26,6 +27,17 @@ class _CompleteStore:
     async def clear(self, scope: StoreScope) -> None:
         pass
 
+    async def delete_where(self, filters: dict[str, Any]) -> None:
+        pass
+
+    async def find(
+        self, filters: dict[str, Any], limit: int = 1
+    ) -> list[StoreEntry]:
+        return []
+
+    async def count(self, filters: dict[str, Any] | None = None) -> int:
+        return 0
+
 
 class _IncompleteStore:
     async def write(self, entry: StoreEntry) -> str:
@@ -34,7 +46,7 @@ class _IncompleteStore:
     async def read(self, query: StoreQuery) -> list[RetrievedStoreEntry]:
         return []
 
-    # missing delete and clear
+    # missing delete, clear, delete_where, find
 
 
 def test_complete_implementation_satisfies_store():

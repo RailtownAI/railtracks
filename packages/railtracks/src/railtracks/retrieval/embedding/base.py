@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TypeVar
 import sys
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator, AsyncIterable
+from typing import TypeVar
 
 from railtracks.utils.logging.create import get_rt_logger
+
 from ..models import Chunk, EmbeddedChunk
 from ..utils import abatched
 from .models import (

@@ -1,6 +1,6 @@
-import pytest
 from collections.abc import AsyncGenerator
 
+import pytest
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
 from railtracks.retrieval.models import Document, DocumentType
 

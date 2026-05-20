@@ -4,8 +4,11 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
-from railtracks.retrieval.embedding import EmbeddingMetrics, LiteLLMEmbedding, TextEmbeddings
+from railtracks.retrieval.embedding import (
+    EmbeddingMetrics,
+    LiteLLMEmbedding,
+    TextEmbeddings,
+)
 
 
 def _fake_response(

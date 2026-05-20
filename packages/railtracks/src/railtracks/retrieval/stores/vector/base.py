@@ -3,7 +3,7 @@ from __future__ import annotations
 import dataclasses
 import json
 from datetime import datetime, timezone
-from typing import Protocol
+from typing import Any, Protocol
 from uuid import UUID
 
 from ..models import (
@@ -28,6 +28,12 @@ class VectorBackend(Protocol):
 
     async def delete_where(self, filters: dict) -> None: ...
 
+    async def list_where(
+        self, filters: dict, limit: int
+    ) -> list[tuple[str, dict]]: ...
+
+    async def count(self, filters: dict) -> int: ...
+
 
 # ---------------------------------------------------------------------------
 # Payload serialization helpers
@@ -41,7 +47,13 @@ def _encode_provenance(entry: StoreEntry) -> dict:
     if entry.chunk_offsets is not None:
         out["chunk_offsets"] = json.dumps(list(entry.chunk_offsets))
     if entry.chunk_metadata:
+        # JSON-encoded for clean roundtrip back into chunk_metadata.
         out["chunk_metadata"] = json.dumps(entry.chunk_metadata)
+        # Also spread scalar values at top level so they are filterable
+        # via `metadata_filters` / `find` with a flat equality dict.
+        for k, v in entry.chunk_metadata.items():
+            if isinstance(v, (str, int, float, bool)) or v is None:
+                out[k] = v
     if entry.embedding_version is not None:
         out["embedding_version"] = entry.embedding_version
     return out
@@ -143,10 +155,8 @@ def _payload_to_entry(id: str, payload: dict) -> StoreEntry:
     return StoreEntry(
         id=UUID(id),
         content=payload["content"],
-        # Document vectors are not round-tripped through read results — the
-        # backend owns the stored vector; callers should not rely on this field
-        # on retrieved entries.
-        vector=[],
+        # Read results do not round-trip the vector — the backend owns it.
+        vector=None,
         embedding_model=payload["embedding_model"],
         chunk_id=UUID(payload["chunk_id"]),
         document_id=UUID(payload["document_id"]),
@@ -206,7 +216,9 @@ class VectorStore:
                 "caller must supply a pre-computed embedding."
             )
 
-        filters = query.scope.to_payload_filters()
+        filters: dict[str, Any] = (
+            query.scope.to_payload_filters() if query.scope is not None else {}
+        )
         if query.store_category is not None:
             filters["store_category"] = query.store_category.value
         if query.metadata_filters:
@@ -233,6 +245,18 @@ class VectorStore:
 
     async def clear(self, scope: StoreScope) -> None:
         await self._backend.delete_where(scope.to_payload_filters())
+
+    async def delete_where(self, filters: dict[str, Any]) -> None:
+        await self._backend.delete_where(filters)
+
+    async def find(
+        self, filters: dict[str, Any], limit: int = 1
+    ) -> list[StoreEntry]:
+        raw_hits = await self._backend.list_where(filters, limit)
+        return [_payload_to_entry(hit_id, payload) for hit_id, payload in raw_hits]
+
+    async def count(self, filters: dict[str, Any] | None = None) -> int:
+        return await self._backend.count(filters or {})
 
     async def nearest_neighbors(
         self,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any
 from uuid import UUID, uuid4
 
 
@@ -19,6 +20,7 @@ class Document:
 
     Attributes:
         content: The raw text content.
+        type: Document MIME-ish category. Defaults to TEXT.
         id: Unique identifier, auto-generated as a UUID if not provided.
         source: Origin of the content — file path, URL, database key, etc.
         content_hash: SHA-256 of ``content``. Computed by the runtime at
@@ -29,7 +31,7 @@ class Document:
     """
 
     content: str
-    type: DocumentType
+    type: DocumentType = DocumentType.TEXT
     id: UUID = field(default_factory=uuid4)
     source: str | None = None
     content_hash: str | None = None
@@ -44,7 +46,7 @@ class Chunk:
     index: int = 0
     parent_chunk_id: UUID | None = None
     offsets: tuple[int, int] | None = None
-    metadata: dict = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -69,7 +71,7 @@ class RetrievalResult:
     query: str
     chunks: list[RetrievedChunk]
     total_candidates: int | None = None
-    metadata: dict = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

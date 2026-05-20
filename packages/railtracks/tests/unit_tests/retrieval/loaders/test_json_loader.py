@@ -1,7 +1,6 @@
 import json
 
 import pytest
-
 from railtracks.retrieval.loaders.json_loader import JSONLoader
 from railtracks.retrieval.models import DocumentType
 

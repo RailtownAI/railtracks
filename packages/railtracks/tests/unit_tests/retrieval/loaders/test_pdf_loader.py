@@ -1,7 +1,6 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from railtracks.retrieval.loaders.pdf_loader import PyPDFLoader
 from railtracks.retrieval.models import DocumentType
 

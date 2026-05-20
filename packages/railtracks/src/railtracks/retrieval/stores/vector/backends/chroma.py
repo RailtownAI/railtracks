@@ -159,3 +159,32 @@ class ChromaBackend:
         collection = self._collection
         where = _to_chroma_where(filters)
         await asyncio.to_thread(collection.delete, where=where)
+
+    async def list_where(
+        self, filters: dict, limit: int
+    ) -> list[tuple[str, dict]]:
+        self._require_initialized()
+        collection = self._collection
+        where = _to_chroma_where(filters) if filters else None
+        result = await asyncio.to_thread(
+            collection.get,
+            where=where,
+            limit=limit,
+            include=["metadatas"],
+        )
+        return [
+            (id_, dict(metadata) if metadata is not None else {})
+            for id_, metadata in zip(result["ids"], result["metadatas"])
+        ]
+
+    async def count(self, filters: dict) -> int:
+        self._require_initialized()
+        collection = self._collection
+        if not filters:
+            return await asyncio.to_thread(collection.count)
+        result = await asyncio.to_thread(
+            collection.get,
+            where=_to_chroma_where(filters),
+            include=[],
+        )
+        return len(result["ids"])

@@ -115,11 +115,6 @@ nav:
       - Stores:
           - Overview: rag/components/stores/overview.md
           - Backends: rag/components/stores/backends.md
-    - Vector Stores:
-        - Overview: rag/vector_stores/vector_store_info.md
-        - Filtering: rag/vector_stores/filtering.md
-        - Integrations:
-            - Chroma: rag/vector_stores/integrations/chroma.md
 
   - Evaluations:
     - Preface: evaluations/preface.md
@@ -173,8 +168,6 @@ nav:
         - Agents as Tools: tutorials/walkthroughs/agents_as_tools.md
         - Prompts and Context: tutorials/walkthroughs/prompts_and_context.md
         - Flows: tutorials/walkthroughs/flows.md
-        - RAG system: tutorials/walkthroughs/rag_tutorial.md
-        - Vector Stores: tutorials/walkthroughs/vector_store_tutorial.md
         - FastAPI Integration: tutorials/walkthroughs/fastapi.md
       - Videos:
           - Multiagent Systems: tutorials/videos/multiagent.md

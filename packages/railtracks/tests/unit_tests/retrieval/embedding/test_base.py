@@ -5,7 +5,6 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
-
 from railtracks.retrieval.embedding import (
     Embedding,
     EmbeddingFailure,
@@ -15,7 +14,7 @@ from railtracks.retrieval.embedding import (
     SyncEmbedding,
     TextEmbeddings,
 )
-from railtracks.retrieval.models import Chunk, EmbeddedChunk
+from railtracks.retrieval.models import Chunk
 
 
 def _chunk(content: str = "hello world") -> Chunk:

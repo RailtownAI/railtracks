@@ -7,18 +7,15 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
-
 from railtracks.retrieval.stores.models import (
     DetailLevel,
     StoreEntry,
     StoreQuery,
     StoreScope,
-    RetrievalStrategy,
 )
 from railtracks.retrieval.stores.protocol import Store
 from railtracks.retrieval.stores.vector.backends.in_memory import InMemoryBackend
 from railtracks.retrieval.stores.vector.base import VectorStore
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -170,6 +167,72 @@ async def test_clear_scope():
     results_b = await store.read(_make_query(user_id="bob"))
     assert len(results_b) == 1
     assert results_b[0].entry.id == entry_b.id
+
+
+async def test_count_empty_store():
+    store = VectorStore(InMemoryBackend())
+    assert await store.count() == 0
+    assert await store.count({"scope_user_id": "alice"}) == 0
+
+
+async def test_count_all_entries():
+    store = VectorStore(InMemoryBackend())
+    await store.write(_make_entry(user_id="alice"))
+    await store.write(_make_entry(user_id="alice"))
+    await store.write(_make_entry(user_id="bob"))
+
+    assert await store.count() == 3
+    assert await store.count(None) == 3
+    assert await store.count({}) == 3
+
+
+async def test_count_with_filters():
+    store = VectorStore(InMemoryBackend())
+    await store.write(_make_entry(user_id="alice"))
+    await store.write(_make_entry(user_id="alice"))
+    await store.write(_make_entry(user_id="bob"))
+
+    assert await store.count({"scope_user_id": "alice"}) == 2
+    assert await store.count({"scope_user_id": "bob"}) == 1
+    assert await store.count({"scope_user_id": "carol"}) == 0
+
+
+async def test_search_drops_nonfinite_vectors_without_warnings(caplog):
+    """Pathological stored vectors (NaN / inf) must not produce numpy
+    warnings, must not appear in results, must not poison the rank
+    ordering of valid neighbors, and must be logged so users can spot
+    the bad data in their store."""
+    import logging
+    import warnings
+
+    store = VectorStore(InMemoryBackend())
+
+    good = _make_entry(user_id="alice", vector=[1.0, 0.0, 0.0])
+    nan_vec = _make_entry(user_id="alice", vector=[float("nan"), 0.0, 0.0])
+    inf_vec = _make_entry(user_id="alice", vector=[float("inf"), 0.0, 0.0])
+
+    await store.write(good)
+    await store.write(nan_vec)
+    await store.write(inf_vec)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        with caplog.at_level(logging.WARNING):
+            results = await store.read(_make_query(user_id="alice"))
+
+    ids = {r.entry.id for r in results}
+    assert good.id in ids
+    assert nan_vec.id not in ids
+    assert inf_vec.id not in ids
+
+    # Confirm the bad vectors got logged (count and ids visible to caller).
+    warnings_for_bad_vectors = [
+        rec for rec in caplog.records if "non-finite" in rec.getMessage()
+    ]
+    assert len(warnings_for_bad_vectors) == 1
+    msg = warnings_for_bad_vectors[0].getMessage()
+    assert "2 candidate" in msg
+    assert str(nan_vec.id) in msg or str(inf_vec.id) in msg
 
 
 async def test_nearest_neighbors_rank_order():

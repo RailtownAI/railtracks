@@ -1,9 +1,16 @@
 """High-level orchestration of the retrieval pipeline.
 
 :class:`RetrievalRuntime` wires together a chunker, embedder, and
-:class:`VectorStore` into the full ingest/retrieve flow. Loaders are passed
-into ``ingest()`` rather than constructor-time so a single runtime can
-ingest from multiple sources or update existing documents.
+:class:`~railtracks.retrieval.stores.Store` into the full ingest/retrieve
+flow. Loaders are passed into ``ingest()`` rather than constructor-time
+so a single runtime can ingest from multiple sources or update existing
+documents.
+
+Upsert semantics: before writing the first chunk of a document, the
+runtime issues ``store.delete_where({"document_id": str(doc.id)})`` to
+clear any prior version. Writes are then per-chunk; a crash mid-write
+leaves the document partial. The delete only fires when at least one
+batch succeeds, so a total embedding failure preserves the prior version.
 """
 
 from __future__ import annotations
@@ -11,45 +18,47 @@ from __future__ import annotations
 import hashlib
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
-from typing import Union
+from typing import Any, Callable, Union
 from uuid import UUID
 
-from railtracks.vector_stores.filter import BaseExpr
+from railtracks.utils.logging.create import get_rt_logger
 
 from .chunking.base import Chunker
+from .chunking.tokenization import Tokenizer
 from .embedding.base import Embedding
-from .embedding.models import EmbeddingFailure, EmbeddingResult
+from .embedding.models import EmbeddingFailure, EmbeddingMetrics, EmbeddingResult
+from .errors import EmbeddingModelMismatchError
 from .loaders.base import BaseDocumentLoader
-from .models import EmbeddedChunk, RetrievalResult
-from .storage.base import VectorStore
+from .models import Chunk, EmbeddedChunk, RetrievalResult, RetrievedChunk
+from .stores.models import StoreEntry, StoreQuery, StoreScope
+from .stores.protocol import Store
 
-
-class EmbeddingModelMismatchError(RuntimeError):
-    """Raised when the runtime's embedder model differs from the store's.
-
-    Mixing vectors from different embedding models silently produces
-    meaningless similarity scores, so the runtime fails loudly before
-    issuing the search.
-    """
+logger = get_rt_logger(__name__)
 
 
 @dataclass
 class BatchIngested:
-    """A batch of chunks that finished embedding for a document."""
+    """A batch of chunks that finished embedding and was written to the store.
+
+    ``metrics`` carries the per-batch usage and timing reported by the
+    embedder (tokens, dollar cost, latency, vector count). Use it to track
+    per-ingest cost without having to wrap the embedder.
+    """
 
     document_id: UUID
     embedded_chunks: list[EmbeddedChunk]
     batch_index: int
+    metrics: EmbeddingMetrics | None = None
 
 
 @dataclass
 class DocumentFailed:
     """A document that had at least one failed embedding batch.
 
-    Emitted once per document at end-of-document when any of its batches
-    failed. The document is not written to the store; callers can use
-    ``source`` (when available) to drive a targeted retry without
-    re-iterating the entire loader.
+    Note: successful batches for the same document *are* written to the
+    store. ``DocumentFailed`` is an informational signal that the document
+    is now partial — callers may want to retry, delete, or accept the
+    partial state.
     """
 
     document_id: UUID
@@ -57,66 +66,149 @@ class DocumentFailed:
     errors: list[Exception]
 
 
-IngestionEvent = Union[BatchIngested, EmbeddingFailure, DocumentFailed]
+@dataclass
+class DocumentSkipped:
+    """A document skipped during ingest because the store already has an
+    entry with the same ``source_path`` and ``content_hash``."""
+
+    document_id: UUID
+    source: str
+    reason: str = "unchanged"
+
+
+IngestionEvent = Union[
+    BatchIngested, EmbeddingFailure, DocumentFailed, DocumentSkipped
+]
 
 
 @dataclass
 class IngestionStats:
-    """Summary of a complete ingest run."""
+    """Summary of a complete ingest run.
+
+    ``total_metrics`` accumulates per-batch ``EmbeddingMetrics`` (tokens,
+    dollar cost, latency, vector count) across every successful batch in
+    the run, so callers can read a single total for billing/observability.
+    """
 
     documents_loaded: int = 0
     documents_failed: int = 0
+    documents_skipped: int = 0
     chunks_created: int = 0
     chunks_embedded: int = 0
     batches_failed: int = 0
     batch_failures: list[EmbeddingFailure] = field(default_factory=list)
     failed_documents: list[DocumentFailed] = field(default_factory=list)
+    total_metrics: EmbeddingMetrics = field(default_factory=EmbeddingMetrics)
 
 
 def _content_hash(content: str) -> str:
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
+def _entry_to_chunk(entry: StoreEntry) -> Chunk:
+    return Chunk(
+        id=entry.chunk_id,
+        content=entry.content,
+        document_id=entry.document_id,
+        index=entry.chunk_index,
+        parent_chunk_id=entry.parent_chunk_id,
+        offsets=entry.chunk_offsets,
+        metadata=entry.chunk_metadata,
+    )
+
+
 class RetrievalRuntime:
     """Orchestrates loading, chunking, embedding, storage, and retrieval.
 
     The runtime captures *how* to process documents (chunker + embedder +
-    store); the loader passed to :meth:`ingest` decides *what* to
-    process. This split lets a single runtime ingest from multiple
-    sources, mix chunking strategies via separate runtimes against the
-    same store, and update existing documents by re-ingesting them.
+    store + scope); the loader passed to :meth:`ingest` decides *what* to
+    process. A single runtime can ingest from multiple sources, mix
+    chunking strategies via separate runtimes against the same store,
+    and update existing documents by re-ingesting them.
 
     Args:
         chunker: Splits documents into chunks.
         embedder: Embeds chunk text into vectors.
-        store: Receives embedded chunks and serves similarity search.
+        store: Receives written ``StoreEntry``s and serves similarity search.
         batch_size: Items per embedding batch. Falls back to
-            ``embedder.default_batch_size`` when omitted; raises at
-            ingest time if neither is set.
+            ``embedder.default_batch_size`` when omitted; raises
+            ``ValueError`` at construction if neither is set.
+        scope: Applied to every entry written and to every read query.
+            Single-tenant callers can leave this ``None``.
+        on_ingest: Synchronous callback invoked with each ``IngestionEvent``
+            as it is yielded. Wrap in ``asyncio.create_task`` for async logging.
+        on_retrieve: Synchronous callback invoked with the query string and
+            the ``RetrievalResult`` after each retrieve call.
+        max_tokens: When set, chunks whose token count exceeds this limit
+            are dropped before embedding and reported via
+            ``EmbeddingFailure`` rather than being sent to the provider.
+            Requires ``tokenizer`` (defaults to ``TiktokenTokenizer``).
+        tokenizer: Tokenizer used to enforce ``max_tokens``. Defaults to
+            ``TiktokenTokenizer`` lazily when ``max_tokens`` is set.
     """
 
     def __init__(
         self,
         chunker: Chunker,
         embedder: Embedding,
-        store: VectorStore,
+        store: Store,
         *,
         batch_size: int | None = None,
+        scope: StoreScope | None = None,
+        on_ingest: Callable[[IngestionEvent], None] | None = None,
+        on_retrieve: Callable[[str, RetrievalResult], None] | None = None,
+        max_tokens: int | None = None,
+        tokenizer: Tokenizer | None = None,
     ) -> None:
         self._chunker = chunker
         self._embedder = embedder
         self._store = store
-        self._batch_size = batch_size
+        self._scope = scope
+        self._batch_size = self._resolve_batch_size(batch_size, embedder)
+        self._on_ingest = on_ingest
+        self._on_retrieve = on_retrieve
+        self._max_tokens = max_tokens
+        if max_tokens is not None and tokenizer is None:
+            from .chunking.tokenization import TiktokenTokenizer
 
-    def _resolve_batch_size(self) -> int:
-        bs = (
-            self._batch_size
-            if self._batch_size is not None
-            else self._embedder.default_batch_size
-        )
+            tokenizer = TiktokenTokenizer()
+        self._tokenizer = tokenizer
+        # Captured on the first successful embedded batch and checked at
+        # retrieve time; in-process only.
+        self._captured_model: str | None = None
+
+    @property
+    def store(self) -> Store:
+        return self._store
+
+    @property
+    def embedder(self) -> Embedding:
+        return self._embedder
+
+    @property
+    def chunker(self) -> Chunker:
+        return self._chunker
+
+    @property
+    def scope(self) -> StoreScope | None:
+        return self._scope
+
+    @property
+    def batch_size(self) -> int:
+        return self._batch_size
+
+    @property
+    def max_tokens(self) -> int | None:
+        return self._max_tokens
+
+    @staticmethod
+    def _resolve_batch_size(
+        batch_size: int | None, embedder: Embedding
+    ) -> int:
+        bs = batch_size if batch_size is not None else embedder.default_batch_size
         if bs is None:
             raise ValueError(
-                f"{type(self._embedder).__name__} does not declare a "
+                f"{type(embedder).__name__} does not declare a "
                 "default_batch_size. Pass batch_size= to RetrievalRuntime "
                 "or set default_batch_size on the embedder class."
             )
@@ -128,23 +220,24 @@ class RetrievalRuntime:
         """Stream loader → chunker → embedder → store, yielding per-batch events.
 
         Yields:
-            ``BatchIngested`` per successfully embedded batch,
-            ``EmbeddingFailure`` per failed batch, and ``DocumentFailed``
+            ``BatchIngested`` after each successful batch finishes writing,
+            ``EmbeddingFailure`` for any failed batch, and ``DocumentFailed``
             once at end-of-document for each document that had any failed
-            batch. A document with any failed batch is *not* written to
-            the store, so partial documents never appear in search
-            results; ``DocumentFailed.source`` lets callers drive a
-            targeted retry.
+            batch. Successful batches for a partially-failed document are
+            still written; ``DocumentFailed`` signals the partial state.
         """
         stats = IngestionStats()
         async for event in self._ingest_with_stats(loader, stats):
+            if self._on_ingest is not None:
+                self._on_ingest(event)
             yield event
 
     async def ingest_all(self, loader: BaseDocumentLoader) -> IngestionStats:
         """Drain :meth:`ingest` and return aggregate counts."""
         stats = IngestionStats()
-        async for _ in self._ingest_with_stats(loader, stats):
-            pass
+        async for event in self._ingest_with_stats(loader, stats):
+            if self._on_ingest is not None:
+                self._on_ingest(event)
         return stats
 
     async def _ingest_with_stats(
@@ -152,28 +245,103 @@ class RetrievalRuntime:
         loader: BaseDocumentLoader,
         stats: IngestionStats,
     ) -> AsyncGenerator[IngestionEvent, None]:
-        bs = self._resolve_batch_size()
         batch_index = 0
         async for doc in loader.astream():
             stats.documents_loaded += 1
             doc.content_hash = _content_hash(doc.content)
+
+            # Staleness check: if the store already holds chunks for this
+            # source at the same content_hash, skip re-embedding entirely.
+            # find() is metadata-only, no vector search.
+            if doc.source is not None:
+                existing = await self._store.find(
+                    {
+                        "source_path": doc.source,
+                        "content_hash": doc.content_hash,
+                    },
+                    limit=1,
+                )
+                if existing:
+                    stats.documents_skipped += 1
+                    yield DocumentSkipped(
+                        document_id=doc.id, source=doc.source
+                    )
+                    continue
+
             chunks = await self._chunker.achunk(doc)
             stats.chunks_created += len(chunks)
             if not chunks:
                 continue
 
-            embedded_for_doc: list[EmbeddedChunk] = []
+            # Inject staleness-detection metadata into every chunk so future
+            # `find` calls can identify whether this document has changed.
+            for chunk in chunks:
+                if doc.source is not None:
+                    chunk.metadata.setdefault("source_path", doc.source)
+                if doc.content_hash is not None:
+                    chunk.metadata.setdefault("content_hash", doc.content_hash)
+
+            # Token-size guard: drop oversized chunks before embedding to
+            # avoid provider 4xx errors. Each oversize chunk surfaces as
+            # an EmbeddingFailure with a descriptive error.
             doc_errors: list[Exception] = []
+            if self._max_tokens is not None and self._tokenizer is not None:
+                ok_chunks: list[Chunk] = []
+                for chunk in chunks:
+                    tokens = self._tokenizer.count(chunk.content)
+                    if tokens > self._max_tokens:
+                        err = ValueError(
+                            f"chunk {chunk.id} has {tokens} tokens "
+                            f"(>{self._max_tokens}); dropped before embedding"
+                        )
+                        doc_errors.append(err)
+                        stats.batches_failed += 1
+                        failure = EmbeddingFailure(chunks=[chunk], errors=[err])
+                        stats.batch_failures.append(failure)
+                        yield failure
+                    else:
+                        ok_chunks.append(chunk)
+                chunks = ok_chunks
+                if not chunks:
+                    if doc_errors:
+                        failed = DocumentFailed(
+                            document_id=doc.id,
+                            source=doc.source,
+                            errors=doc_errors,
+                        )
+                        stats.documents_failed += 1
+                        stats.failed_documents.append(failed)
+                        yield failed
+                    continue
+
+            delete_done = False
             async for batch in self._embedder.astream_batches(
-                chunks, batch_size=bs
+                chunks, batch_size=self._batch_size
             ):
                 if isinstance(batch, EmbeddingResult):
-                    embedded_for_doc.extend(batch.chunks)
+                    if not delete_done:
+                        await self._store.delete_where(
+                            {"document_id": str(doc.id)}
+                        )
+                        delete_done = True
+                    for embedded in batch.chunks:
+                        if self._captured_model is None and embedded.embedding_model:
+                            self._captured_model = embedded.embedding_model
+                            logger.info(
+                                "RetrievalRuntime captured embedding model %r "
+                                "from first successful batch; subsequent retrieve() "
+                                "calls will enforce this model.",
+                                self._captured_model,
+                            )
+                        entry = StoreEntry.from_chunk(embedded, scope=self._scope)
+                        await self._store.write(entry)
                     stats.chunks_embedded += len(batch.chunks)
+                    stats.total_metrics = stats.total_metrics + batch.metrics
                     yield BatchIngested(
                         document_id=doc.id,
                         embedded_chunks=batch.chunks,
                         batch_index=batch_index,
+                        metrics=batch.metrics,
                     )
                 else:
                     doc_errors.extend(batch.errors)
@@ -191,32 +359,67 @@ class RetrievalRuntime:
                 stats.documents_failed += 1
                 stats.failed_documents.append(failed)
                 yield failed
-            elif embedded_for_doc:
-                await self._store.add_document(doc.id, embedded_for_doc)
+
+    async def delete_document(self, document_id: UUID) -> None:
+        """Remove all chunks for a document from the store.
+
+        Convenience wrapper around ``store.delete_where({"document_id": ...})``
+        so callers don't need to know the metadata key.
+        """
+        await self._store.delete_where({"document_id": str(document_id)})
 
     async def retrieve(
         self,
         query: str,
         top_k: int = 5,
-        where: BaseExpr | None = None,
+        metadata_filters: dict[str, Any] | None = None,
+        scope: StoreScope | None = None,
     ) -> RetrievalResult:
         """Embed ``query`` and return the top ``top_k`` matches from the store.
 
+        Args:
+            query: The text to embed and search with.
+            top_k: Maximum number of results.
+            metadata_filters: Additional equality filters on chunk metadata.
+            scope: Overrides the runtime's default scope for this call.
+
         Raises:
-            EmbeddingModelMismatchError: When the embedder reports a
-                different model than the store was built with.
+            EmbeddingModelMismatchError: When the embedder reports a model
+                different from the one captured on first ingest.
         """
         text_result = await self._embedder.aembed([query])
         embed_model = text_result.metrics.model
-        store_model = self._store.embedding_model
-        if embed_model and embed_model != store_model:
+        if (
+            self._captured_model is not None
+            and embed_model
+            and embed_model != self._captured_model
+        ):
             raise EmbeddingModelMismatchError(
                 f"Embedder produced vectors with model {embed_model!r} but "
-                f"store was built with {store_model!r}. Similarity scores "
-                "across models are meaningless; rebuild the store with the "
-                "correct embedder or switch embedders."
+                f"store was built with {self._captured_model!r}. Similarity "
+                "scores across models are meaningless; rebuild the store "
+                "with the correct embedder or switch embedders."
             )
-        chunks = await self._store.search(
-            text_result.vectors[0], top_k=top_k, where=where
+
+        store_query = StoreQuery(
+            text=query,
+            scope=scope if scope is not None else self._scope,
+            embedding=text_result.vectors[0],
+            top_k=top_k,
+            metadata_filters=metadata_filters,
         )
-        return RetrievalResult(query=query, chunks=chunks)
+        store_hits = await self._store.read(store_query)
+        chunks = [
+            RetrievedChunk(
+                chunk=_entry_to_chunk(hit.entry),
+                score=hit.score,
+                rank=hit.rank,
+                source_retriever=hit.source_retriever,
+                rerank_score=hit.rerank_score,
+            )
+            for hit in store_hits
+        ]
+        result = RetrievalResult(query=query, chunks=chunks)
+        if self._on_retrieve is not None:
+            self._on_retrieve(query, result)
+        return result

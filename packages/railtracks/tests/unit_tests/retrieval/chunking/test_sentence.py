@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-
 from railtracks.retrieval import Document
 from railtracks.retrieval.chunking import RegexSentenceSplitter, SentenceChunker
 
