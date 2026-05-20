@@ -320,6 +320,45 @@ async def test_retrieve_raises_on_model_mismatch():
         await runtime.retrieve("alpha")
 
 
+async def test_document_id_is_deterministic_from_source():
+    """Same source → same id; different sources → different ids;
+    sourceless → random ids; explicit id wins."""
+    d1 = Document(source="docs/handbook.md", content="anything")
+    d2 = Document(source="docs/handbook.md", content="different content")
+    d3 = Document(source="docs/onboarding.txt", content="anything")
+    d4 = Document(content="no source")
+    d5 = Document(content="no source either")
+    explicit = uuid4()
+    d6 = Document(id=explicit, source="docs/handbook.md", content="anything")
+
+    assert d1.id == d2.id, "same source must derive the same id"
+    assert d1.id != d3.id, "different sources must derive different ids"
+    assert d4.id != d5.id, "sourceless documents must get random ids"
+    assert d6.id == explicit, "explicit id must override derivation"
+
+
+async def test_reingest_with_default_id_replaces_prior_version():
+    """The realistic loader case: callers don't set Document.id by hand.
+    Same source must yield the same derived id so the runtime's
+    delete_where finds and clears the prior chunks. Without the
+    deterministic-id fix this test would find both versions and fail."""
+    store = _store()
+    runtime, _, _ = _runtime(store=store)
+
+    doc_v1 = Document(source="docs/handbook.md", content="one two three four")
+    async for _ in runtime.ingest(_ListLoader([doc_v1])):
+        pass
+
+    doc_v2 = Document(source="docs/handbook.md", content="only two words")
+    assert doc_v2.id == doc_v1.id
+    async for _ in runtime.ingest(_ListLoader([doc_v2])):
+        pass
+
+    chunks = await store.find({"source_path": "docs/handbook.md"}, limit=20)
+    assert len(chunks) == 3, "prior version's chunks should be replaced, not retained"
+    assert {e.content for e in chunks} == {"only", "two", "words"}
+
+
 async def test_runtime_exposes_public_properties():
     embedder = _FakeEmbedder()
     store = _store()
