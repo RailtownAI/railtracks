@@ -160,9 +160,7 @@ class ChromaBackend:
         where = _to_chroma_where(filters)
         await asyncio.to_thread(collection.delete, where=where)
 
-    async def list_where(
-        self, filters: dict, limit: int
-    ) -> list[tuple[str, dict]]:
+    async def list_where(self, filters: dict, limit: int) -> list[tuple[str, dict]]:
         self._require_initialized()
         collection = self._collection
         where = _to_chroma_where(filters) if filters else None

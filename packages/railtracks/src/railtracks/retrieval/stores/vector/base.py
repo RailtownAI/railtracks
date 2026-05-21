@@ -28,9 +28,7 @@ class VectorBackend(Protocol):
 
     async def delete_where(self, filters: dict) -> None: ...
 
-    async def list_where(
-        self, filters: dict, limit: int
-    ) -> list[tuple[str, dict]]: ...
+    async def list_where(self, filters: dict, limit: int) -> list[tuple[str, dict]]: ...
 
     async def count(self, filters: dict) -> int: ...
 
@@ -249,9 +247,7 @@ class VectorStore:
     async def delete_where(self, filters: dict[str, Any]) -> None:
         await self._backend.delete_where(filters)
 
-    async def find(
-        self, filters: dict[str, Any], limit: int = 1
-    ) -> list[StoreEntry]:
+    async def find(self, filters: dict[str, Any], limit: int = 1) -> list[StoreEntry]:
         raw_hits = await self._backend.list_where(filters, limit)
         return [_payload_to_entry(hit_id, payload) for hit_id, payload in raw_hits]
 

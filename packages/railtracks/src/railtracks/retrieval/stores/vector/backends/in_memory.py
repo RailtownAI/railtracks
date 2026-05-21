@@ -121,9 +121,7 @@ class InMemoryBackend:
                 del self._payloads[id]
             await self._flush()
 
-    async def list_where(
-        self, filters: dict, limit: int
-    ) -> list[tuple[str, dict]]:
+    async def list_where(self, filters: dict, limit: int) -> list[tuple[str, dict]]:
         async with self._lock:
             matches: list[tuple[str, dict]] = []
             for id, payload in self._payloads.items():

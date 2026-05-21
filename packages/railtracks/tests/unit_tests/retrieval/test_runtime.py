@@ -125,6 +125,23 @@ async def test_ingest_yields_batchingested_per_batch():
     assert all(e.document_id == doc.id for e in batches)
 
 
+async def test_batch_index_is_per_document():
+    """batch_index resets to 0 for each document instead of running globally
+    across the whole ingest."""
+    runtime, _, _ = _runtime()  # _FakeEmbedder batch_size=2, one chunk per word
+    doc_a = Document(content="alpha beta gamma delta")  # 4 chunks -> 2 batches
+    doc_b = Document(content="epsilon zeta")  # 2 chunks -> 1 batch
+
+    events = [e async for e in runtime.ingest(_ListLoader([doc_a, doc_b]))]
+    batches = [e for e in events if isinstance(e, BatchIngested)]
+
+    a_indices = [e.batch_index for e in batches if e.document_id == doc_a.id]
+    b_indices = [e.batch_index for e in batches if e.document_id == doc_b.id]
+
+    assert a_indices == [0, 1]
+    assert b_indices == [0]  # resets per document; not [2] as a global counter
+
+
 async def test_ingest_writes_one_entry_per_chunk():
     runtime, store, _ = _runtime()
     doc = Document(content="alpha beta gamma")  # 3 chunks

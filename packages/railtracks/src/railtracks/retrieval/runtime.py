@@ -29,7 +29,7 @@ from .embedding.base import Embedding
 from .embedding.models import EmbeddingFailure, EmbeddingMetrics, EmbeddingResult
 from .errors import EmbeddingModelMismatchError
 from .loaders.base import BaseDocumentLoader
-from .models import Chunk, EmbeddedChunk, RetrievalResult, RetrievedChunk
+from .models import Chunk, Document, EmbeddedChunk, RetrievalResult, RetrievedChunk
 from .stores.models import StoreEntry, StoreQuery, StoreScope
 from .stores.protocol import Store
 
@@ -39,6 +39,11 @@ logger = get_rt_logger(__name__)
 @dataclass
 class BatchIngested:
     """A batch of chunks that finished embedding and was written to the store.
+
+    ``batch_index`` is **per-document**: it starts at 0 for each document and
+    counts that document's batches (both successful and failed) in order. It
+    is not a run-global counter — to track overall progress, count events or
+    read ``IngestionStats``.
 
     ``metrics`` carries the per-batch usage and timing reported by the
     embedder (tokens, dollar cost, latency, vector count). Use it to track
@@ -76,9 +81,7 @@ class DocumentSkipped:
     reason: str = "unchanged"
 
 
-IngestionEvent = Union[
-    BatchIngested, EmbeddingFailure, DocumentFailed, DocumentSkipped
-]
+IngestionEvent = Union[BatchIngested, EmbeddingFailure, DocumentFailed, DocumentSkipped]
 
 
 @dataclass
@@ -202,9 +205,7 @@ class RetrievalRuntime:
         return self._max_tokens
 
     @staticmethod
-    def _resolve_batch_size(
-        batch_size: int | None, embedder: Embedding
-    ) -> int:
+    def _resolve_batch_size(batch_size: int | None, embedder: Embedding) -> int:
         bs = batch_size if batch_size is not None else embedder.default_batch_size
         if bs is None:
             raise ValueError(
@@ -216,7 +217,9 @@ class RetrievalRuntime:
 
     async def ingest(
         self, loader: BaseDocumentLoader
-    ) -> AsyncGenerator[BatchIngested| EmbeddingFailure| DocumentFailed| DocumentSkipped, None]:
+    ) -> AsyncGenerator[
+        BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped, None
+    ]:
         """Stream loader → chunker → embedder → store, yielding per-batch events.
 
         Yields:
@@ -245,142 +248,180 @@ class RetrievalRuntime:
         loader: BaseDocumentLoader,
         stats: IngestionStats,
     ) -> AsyncGenerator[IngestionEvent, None]:
-        batch_index = 0
         async for doc in loader.astream():
-            stats.documents_loaded += 1
-            doc.content_hash = _content_hash(doc.content)
+            async for event in self._ingest_document(doc, stats):
+                yield event
 
-            # Staleness check: skip re-embedding only when the store holds a
-            # *complete* prior version of this document — i.e. as many chunks
-            # as the last write expected. A partially-written document (some
-            # chunks present after an interrupted ingest) has fewer than
-            # expected and is re-ingested rather than left broken. find() is
-            # metadata-only (no vector search); the second call caps its work
-            # at the document's own chunk count, and only runs when a prior
-            # version exists. (Counting is done via find() rather than a
-            # count() call so the runtime depends only on the Store protocol.)
-            if doc.source is not None:
-                stale_filters = {
-                    "source_path": doc.source,
-                    "content_hash": doc.content_hash,
-                }
-                existing = await self._store.find(stale_filters, limit=1)
-                if existing:
-                    expected = existing[0].chunk_metadata.get("doc_chunk_count")
-                    if expected is None:
-                        # Legacy entry written before count-aware staleness:
-                        # preserve the original "exists => complete" behavior.
-                        complete = True
-                    else:
-                        present = await self._store.find(
-                            stale_filters, limit=expected
-                        )
-                        complete = len(present) >= expected
-                    if complete:
-                        stats.documents_skipped += 1
-                        yield DocumentSkipped(
-                            document_id=doc.id, source=doc.source
-                        )
-                        continue
+    async def _ingest_document(
+        self, doc: Document, stats: IngestionStats
+    ) -> AsyncGenerator[IngestionEvent, None]:
+        stats.documents_loaded += 1
+        doc.content_hash = _content_hash(doc.content)
 
-            chunks = await self._chunker.achunk(doc)
-            stats.chunks_created += len(chunks)
-            if not chunks:
-                continue
+        if await self._is_complete_duplicate(doc):
+            stats.documents_skipped += 1
+            yield DocumentSkipped(document_id=doc.id, source=doc.source)
+            return
 
-            # Inject staleness-detection metadata into every chunk so future
-            # `find` calls can identify whether this document has changed.
-            for chunk in chunks:
-                if doc.source is not None:
-                    chunk.metadata.setdefault("source_path", doc.source)
-                if doc.content_hash is not None:
-                    chunk.metadata.setdefault("content_hash", doc.content_hash)
+        chunks = await self._chunker.achunk(doc)
+        stats.chunks_created += len(chunks)
+        if not chunks:
+            return
 
-            # Token-size guard: drop oversized chunks before embedding to
-            # avoid provider 4xx errors. Each oversize chunk surfaces as
-            # an EmbeddingFailure with a descriptive error.
-            doc_errors: list[Exception] = []
-            if self._max_tokens is not None and self._tokenizer is not None:
-                ok_chunks: list[Chunk] = []
-                for chunk in chunks:
-                    tokens = self._tokenizer.count(chunk.content)
-                    if tokens > self._max_tokens:
-                        err = ValueError(
-                            f"chunk {chunk.id} has {tokens} tokens "
-                            f"(>{self._max_tokens}); dropped before embedding"
-                        )
-                        doc_errors.append(err)
-                        stats.batches_failed += 1
-                        failure = EmbeddingFailure(chunks=[chunk], errors=[err])
-                        stats.batch_failures.append(failure)
-                        yield failure
-                    else:
-                        ok_chunks.append(chunk)
-                chunks = ok_chunks
-                if not chunks:
-                    if doc_errors:
-                        failed = DocumentFailed(
-                            document_id=doc.id,
-                            source=doc.source,
-                            errors=doc_errors,
-                        )
-                        stats.documents_failed += 1
-                        stats.failed_documents.append(failed)
-                        yield failed
-                    continue
+        self._stamp_staleness_metadata(doc, chunks)
 
-            # Stamp the final (post-token-guard) chunk count onto every chunk
-            # so a later staleness check can tell a complete document from a
-            # partially-written one. Every chunk carries the same total, so
-            # reading any one persisted chunk reveals how many were expected.
-            for chunk in chunks:
-                chunk.metadata["doc_chunk_count"] = len(chunks)
-
-            delete_done = False
-            async for batch in self._embedder.astream_batches(
-                chunks, batch_size=self._batch_size
-            ):
-                if isinstance(batch, EmbeddingResult):
-                    if not delete_done:
-                        await self._store.delete_where(
-                            {"document_id": str(doc.id)}
-                        )
-                        delete_done = True
-                    for embedded in batch.chunks:
-                        if self._captured_model is None and embedded.embedding_model:
-                            self._captured_model = embedded.embedding_model
-                            logger.info(
-                                "RetrievalRuntime captured embedding model %r "
-                                "from first successful batch; subsequent retrieve() "
-                                "calls will enforce this model.",
-                                self._captured_model,
-                            )
-                        entry = StoreEntry.from_chunk(embedded, scope=self._scope)
-                        await self._store.write(entry)
-                    stats.chunks_embedded += len(batch.chunks)
-                    stats.total_metrics = stats.total_metrics + batch.metrics
-                    yield BatchIngested(
-                        document_id=doc.id,
-                        embedded_chunks=batch.chunks,
-                        batch_index=batch_index,
-                        metrics=batch.metrics,
-                    )
-                else:
-                    doc_errors.extend(batch.errors)
-                    stats.batches_failed += 1
-                    stats.batch_failures.append(batch)
-                    yield batch
-                batch_index += 1
-
+        # Token-size guard: drop oversized chunks before embedding to avoid
+        # provider 4xx errors. Each oversize chunk surfaces as an
+        # EmbeddingFailure carried into the document's accumulated errors.
+        doc_errors: list[Exception] = []
+        chunks, failures = self._split_oversized(chunks, stats)
+        for failure in failures:
+            doc_errors.extend(failure.errors)
+            yield failure
+        if not chunks:
             if doc_errors:
-                failed = DocumentFailed(
-                    document_id=doc.id,
-                    source=doc.source,
-                    errors=doc_errors,
+                yield self._record_document_failed(doc, doc_errors, stats)
+            return
+
+        # Stamp the final (post-token-guard) chunk count onto every chunk so a
+        # later staleness check can tell a complete document from a
+        # partially-written one. Every chunk carries the same total, so reading
+        # any one persisted chunk reveals how many were expected.
+        for chunk in chunks:
+            chunk.metadata["doc_chunk_count"] = len(chunks)
+
+        async for event in self._embed_and_store(doc, chunks, stats, doc_errors):
+            yield event
+
+        if doc_errors:
+            yield self._record_document_failed(doc, doc_errors, stats)
+
+    async def _is_complete_duplicate(self, doc: Document) -> bool:
+        """Whether the store already holds a *complete* copy of ``doc``.
+
+        Skip re-embedding only when as many chunks are present as the last
+        write expected. A partially-written document (some chunks present after
+        an interrupted ingest) has fewer than expected and is re-ingested rather
+        than left broken. find() is metadata-only (no vector search); the second
+        call caps its work at the document's own chunk count, and only runs when
+        a prior version exists. (Counting is done via find() rather than a
+        count() call so the runtime depends only on the Store protocol.)
+        """
+        if doc.source is None:
+            return False
+        stale_filters = {
+            "source_path": doc.source,
+            "content_hash": doc.content_hash,
+        }
+        existing = await self._store.find(stale_filters, limit=1)
+        if not existing:
+            return False
+        expected = existing[0].chunk_metadata.get("doc_chunk_count")
+        if expected is None:
+            # Legacy entry written before count-aware staleness:
+            # preserve the original "exists => complete" behavior.
+            return True
+        present = await self._store.find(stale_filters, limit=expected)
+        return len(present) >= expected
+
+    @staticmethod
+    def _stamp_staleness_metadata(doc: Document, chunks: list[Chunk]) -> None:
+        """Inject staleness-detection metadata into every chunk so future
+        `find` calls can identify whether this document has changed."""
+        for chunk in chunks:
+            if doc.source is not None:
+                chunk.metadata.setdefault("source_path", doc.source)
+            if doc.content_hash is not None:
+                chunk.metadata.setdefault("content_hash", doc.content_hash)
+
+    def _split_oversized(
+        self, chunks: list[Chunk], stats: IngestionStats
+    ) -> tuple[list[Chunk], list[EmbeddingFailure]]:
+        """Partition chunks into embeddable ones and per-chunk failures.
+
+        Returns ``(ok_chunks, failures)``; each oversize chunk becomes a
+        single-chunk ``EmbeddingFailure`` and is recorded in ``stats``.
+        """
+        if self._max_tokens is None or self._tokenizer is None:
+            return chunks, []
+        ok_chunks: list[Chunk] = []
+        failures: list[EmbeddingFailure] = []
+        for chunk in chunks:
+            tokens = self._tokenizer.count(chunk.content)
+            if tokens > self._max_tokens:
+                err = ValueError(
+                    f"chunk {chunk.id} has {tokens} tokens "
+                    f"(>{self._max_tokens}); dropped before embedding"
                 )
-                stats.documents_failed += 1
-                stats.failed_documents.append(failed)
-                yield failed
+                stats.batches_failed += 1
+                failure = EmbeddingFailure(chunks=[chunk], errors=[err])
+                stats.batch_failures.append(failure)
+                failures.append(failure)
+            else:
+                ok_chunks.append(chunk)
+        return ok_chunks, failures
+
+    async def _embed_and_store(
+        self,
+        doc: Document,
+        chunks: list[Chunk],
+        stats: IngestionStats,
+        doc_errors: list[Exception],
+    ) -> AsyncGenerator[IngestionEvent, None]:
+        # batch_index is per-document: it counts batches (successful and
+        # failed) within this document and resets for the next one.
+        batch_index = 0
+        delete_done = False
+        async for batch in self._embedder.astream_batches(
+            chunks, batch_size=self._batch_size
+        ):
+            if isinstance(batch, EmbeddingResult):
+                if not delete_done:
+                    await self._store.delete_where({"document_id": str(doc.id)})
+                    delete_done = True
+                for embedded in batch.chunks:
+                    self._capture_model(embedded)
+                    entry = StoreEntry.from_chunk(embedded, scope=self._scope)
+                    await self._store.write(entry)
+                stats.chunks_embedded += len(batch.chunks)
+                stats.total_metrics = stats.total_metrics + batch.metrics
+                yield BatchIngested(
+                    document_id=doc.id,
+                    embedded_chunks=batch.chunks,
+                    batch_index=batch_index,
+                    metrics=batch.metrics,
+                )
+            else:
+                doc_errors.extend(batch.errors)
+                stats.batches_failed += 1
+                stats.batch_failures.append(batch)
+                yield batch
+            batch_index += 1
+
+    def _capture_model(self, embedded: EmbeddedChunk) -> None:
+        """Record the embedding model from the first successful chunk so later
+        retrieve() calls can enforce model consistency."""
+        if self._captured_model is None and embedded.embedding_model:
+            self._captured_model = embedded.embedding_model
+            logger.info(
+                "RetrievalRuntime captured embedding model %r "
+                "from first successful batch; subsequent retrieve() "
+                "calls will enforce this model.",
+                self._captured_model,
+            )
+
+    @staticmethod
+    def _record_document_failed(
+        doc: Document, doc_errors: list[Exception], stats: IngestionStats
+    ) -> DocumentFailed:
+        failed = DocumentFailed(
+            document_id=doc.id,
+            source=doc.source,
+            errors=doc_errors,
+        )
+        stats.documents_failed += 1
+        stats.failed_documents.append(failed)
+        return failed
 
     async def delete_document(self, document_id: UUID) -> None:
         """Remove all chunks for a document from the store.

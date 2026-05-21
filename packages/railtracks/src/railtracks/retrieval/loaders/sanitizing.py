@@ -5,8 +5,8 @@ before content reaches the embedder construct their own ``Sanitizer``
 and wrap their existing loader::
 
     class MyRedactor:
-        def sanitize(self, document: Document) -> Document:
-            ...
+        def sanitize(self, document: Document) -> Document: ...
+
 
     loader = SanitizingLoader(TextLoader(...), MyRedactor())
 
@@ -36,18 +36,14 @@ class Sanitizer(Protocol):
     Errors raised here propagate; the framework does not swallow them.
     """
 
-    def sanitize(
-        self, document: Document
-    ) -> Union[Document, Awaitable[Document]]: ...
+    def sanitize(self, document: Document) -> Union[Document, Awaitable[Document]]: ...
 
 
 class SanitizingLoader(BaseDocumentLoader):
     """Wraps an inner loader and runs every yielded document through a
     caller-supplied ``Sanitizer``."""
 
-    def __init__(
-        self, inner: BaseDocumentLoader, sanitizer: Sanitizer
-    ) -> None:
+    def __init__(self, inner: BaseDocumentLoader, sanitizer: Sanitizer) -> None:
         self._inner = inner
         self._sanitizer = sanitizer
 

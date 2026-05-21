@@ -19,6 +19,8 @@ from .models import (
 logger = get_rt_logger(__name__)
 
 _T = TypeVar("_T")
+
+
 async def _to_async_iterable(lst: list[_T]) -> AsyncGenerator[_T, None]:
     for item in lst:
         yield item

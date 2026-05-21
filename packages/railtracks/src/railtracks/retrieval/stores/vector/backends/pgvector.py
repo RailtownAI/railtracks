@@ -112,9 +112,7 @@ class PgvectorBackend:
         pool_kwargs: dict[str, Any] | None = None,
     ) -> Self:
         """Create and initialize a PgvectorBackend in one step."""
-        backend = cls(
-            dsn, table=table, dim=dim, metric=metric, pool_kwargs=pool_kwargs
-        )
+        backend = cls(dsn, table=table, dim=dim, metric=metric, pool_kwargs=pool_kwargs)
         await backend.initialize()
         return backend
 
@@ -205,9 +203,7 @@ class PgvectorBackend:
         async with self._pool.acquire() as conn:
             await conn.execute(f'DELETE FROM "{self._table}" {where}', *params)
 
-    async def list_where(
-        self, filters: dict, limit: int
-    ) -> list[tuple[str, dict]]:
+    async def list_where(self, filters: dict, limit: int) -> list[tuple[str, dict]]:
         self._require_initialized()
         where, params = _build_where(filters, start_index=1)
         sql = f'SELECT id, payload FROM "{self._table}" {where} LIMIT {int(limit)}'
