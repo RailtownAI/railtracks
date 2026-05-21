@@ -1,20 +1,21 @@
+import json
+from json import JSONDecodeError
 from typing import Generator, Literal
 from unittest.mock import patch
+
+import litellm
 import pytest
+from pydantic import BaseModel
+from railtracks.llm import AssistantMessage, UserMessage
+from railtracks.llm.errors import LLMError
 from railtracks.llm.models._litellm_wrapper import (
     LiteLLMWrapper,
     _parameters_to_json_schema,
     _to_litellm_tool,
 )
-from railtracks.exceptions import NodeInvocationError, LLMError
-from railtracks.llm import AssistantMessage, UserMessage
+from railtracks.llm.models._model_exception_base import ModelError
 from railtracks.llm.providers import ModelProvider
-from pydantic import BaseModel
 from railtracks.llm.response import Response
-from json import JSONDecodeError
-import litellm
-from railtracks.llm.content import Stream
-import json
 
 
 class _ConcreteLiteLLMWrapperForTest(LiteLLMWrapper[Literal[False]]):
@@ -54,7 +55,7 @@ class TestHelpers:
         """
         Test _parameters_to_json_schema with invalid input.
         """
-        with pytest.raises(NodeInvocationError):
+        with pytest.raises(ModelError):
             _parameters_to_json_schema(123)  # type: ignore
 
     # =================================== END _parameters_to_json_schema Tests ====================================
@@ -252,9 +253,9 @@ class TestCompletionMethods:
             wrapper = mock_litellm_wrapper(content="Invalid JSON")
             method = getattr(wrapper, method_name)
             if is_async:
-                result = await method(message_history, schema=Schema)
+                await method(message_history, schema=Schema)
             else:
-                result = method(message_history, schema=Schema)
+                method(message_history, schema=Schema)
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("method_name,is_async", [
@@ -270,9 +271,9 @@ class TestCompletionMethods:
             wrapper = mock_litellm_wrapper(content='{"field": "VAL", "invalid": "json"}')
             method = getattr(wrapper, method_name)
             if is_async:
-                result = await method(message_history, schema=Schema)
+                await method(message_history, schema=Schema)
             else:
-                result = method(message_history, schema=Schema)
+                method(message_history, schema=Schema)
 
     @pytest.mark.parametrize("method_name,is_async,stream", [
         ("_chat_with_tools", False, False),
@@ -324,7 +325,7 @@ class TestCompletionMethods:
                         assert calls[0]["name"] == "tool_x"
                         assert calls[0]["arguments"] == {"foo": 1}
                         assert calls[0]["identifier"] == "id123"
-                    except Exception as e:
+                    except Exception:
                         pytest.fail("Structured response did not match schema")
                 elif not isinstance(chunk, str):
                     pytest.fail("Stream yielded non-string, non-Response chunk")

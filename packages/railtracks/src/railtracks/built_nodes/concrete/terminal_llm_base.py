@@ -4,7 +4,7 @@ import asyncio
 from abc import ABC
 from typing import Generator, Generic, Literal, TypeVar
 
-from railtracks.exceptions import LLMError
+from railtracks.llm.errors import LLMError
 from railtracks.llm.response import Response
 
 from ._llm_base import LLMBase, StringOutputMixIn

@@ -1,5 +1,6 @@
 from . import retries
 from .content import ToolCall, ToolResponse
+from .errors import LLMError
 from .history import MessageHistory
 from .message import AssistantMessage, Message, SystemMessage, ToolMessage, UserMessage
 from .model import ModelBase
@@ -27,6 +28,7 @@ from .tools import (
 
 __all__ = [
     "ModelBase",
+    "LLMError",
     "ToolCall",
     "ToolResponse",
     "UserMessage",

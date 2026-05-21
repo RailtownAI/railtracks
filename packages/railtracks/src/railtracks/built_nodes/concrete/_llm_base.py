@@ -15,7 +15,7 @@ from typing import (
 from pydantic import BaseModel
 from typing_extensions import Self
 
-from railtracks.exceptions.errors import LLMError, NodeInvocationError
+from railtracks.exceptions.errors import NodeInvocationError
 from railtracks.exceptions.messages.exception_messages import get_message
 from railtracks.llm import (
     Message,
@@ -26,6 +26,7 @@ from railtracks.llm import (
     SystemMessage,
     UserMessage,
 )
+from railtracks.llm.errors import LLMError
 from railtracks.llm.response import Response
 from railtracks.nodes.nodes import Node
 from railtracks.prompts.prompt import inject_context
