@@ -71,12 +71,15 @@ class TestCreateRailtracksDir(unittest.TestCase):
         """Set up temporary directory for testing"""
         self.test_dir = tempfile.mkdtemp()
         self.original_cwd = os.getcwd()
+        self._original_railtracks_home = os.environ.pop("RAILTRACKS_HOME", None)
         os.chdir(self.test_dir)
 
     def tearDown(self):
         """Clean up temporary directory"""
         os.chdir(self.original_cwd)
         shutil.rmtree(self.test_dir)
+        if self._original_railtracks_home is not None:
+            os.environ["RAILTRACKS_HOME"] = self._original_railtracks_home
 
     @patch('railtracks.cli.print_status')
     @patch('railtracks.cli.print_success')
@@ -166,11 +169,13 @@ class TestFastAPIEndpoints(unittest.TestCase):
         """Set up test environment"""
         self.test_dir = tempfile.mkdtemp()
         self.original_cwd = os.getcwd()
+        self._original_railtracks_home = os.environ.pop("RAILTRACKS_HOME", None)
         os.chdir(self.test_dir)
 
         # Create .railtracks directory
-        railtracks_dir = Path(os.environ.get("RAILTRACKS_HOME", ".railtracks"))
-        railtracks_dir.mkdir()
+        from railtracks.paths import resolve_railtracks_home
+        railtracks_dir = resolve_railtracks_home()
+        railtracks_dir.mkdir(parents=True, exist_ok=True)
 
         # Create test JSON files in root
         self.test_files = {
@@ -192,6 +197,8 @@ class TestFastAPIEndpoints(unittest.TestCase):
         """Clean up test environment"""
         os.chdir(self.original_cwd)
         shutil.rmtree(self.test_dir)
+        if self._original_railtracks_home is not None:
+            os.environ["RAILTRACKS_HOME"] = self._original_railtracks_home
 
     def test_get_evaluations_empty(self):
         """Test /api/evaluations endpoint with no data directory"""
@@ -412,6 +419,7 @@ class TestUIVersionTracking(unittest.TestCase):
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
         self.original_cwd = os.getcwd()
+        self._original_railtracks_home = os.environ.pop("RAILTRACKS_HOME", None)
         os.chdir(self.test_dir)
         # Create .railtracks dir so the version file path is valid
         Path(".railtracks").mkdir()
@@ -419,6 +427,8 @@ class TestUIVersionTracking(unittest.TestCase):
     def tearDown(self):
         os.chdir(self.original_cwd)
         shutil.rmtree(self.test_dir)
+        if self._original_railtracks_home is not None:
+            os.environ["RAILTRACKS_HOME"] = self._original_railtracks_home
 
     # --- get_stored_ui_version ---
 
