@@ -166,6 +166,11 @@ class PyPDFOCRLoader(BaseOCRLoader):
                     text, used_ocr = await self._resolve_page_text(
                         reader, pdf, page_index
                     )
+                    # Skip empty/whitespace-only pages so the joined output
+                    # doesn't accumulate blank `\n\n` gaps where blank pages
+                    # would have been. Matches the page-strategy behaviour.
+                    if not text or not text.strip():
+                        continue
                     page_texts.append(text)
                     if used_ocr:
                         ocr_pages.append(page_index + 1)
@@ -197,7 +202,11 @@ class PyPDFOCRLoader(BaseOCRLoader):
                     },
                 )
         finally:
+            # Both backends hold the file open until explicitly closed.
+            # Skipping either would leak a file handle per PDF, which
+            # becomes a real problem when streaming a directory.
             await asyncio.to_thread(pdf.close)
+            await asyncio.to_thread(reader.close)
 
     async def astream(self) -> AsyncGenerator[Document, None]:
         """Stream documents one at a time as each page or file is processed.

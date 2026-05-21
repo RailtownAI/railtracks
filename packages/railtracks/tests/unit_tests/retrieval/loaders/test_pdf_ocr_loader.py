@@ -334,6 +334,29 @@ class TestPyPDFOCRLoaderDocumentStrategy:
             docs = await PyPDFOCRLoader(str(pdf), breakdown_strategy="document").aload()
         assert docs[0].metadata["ocr_pages"] == [2, 4]
 
+    async def test_empty_pages_excluded_from_concatenated_document(self, tmp_path):
+        """Empty pages must not leave double-newline gaps in the joined output.
+
+        Mirrors the page-strategy behaviour where empty pages are skipped, so
+        a 3-page PDF with an empty middle page reads as `"p1\\n\\np3"`, not
+        `"p1\\n\\n\\n\\np3"`.
+        """
+        pdf = tmp_path / "doc.pdf"
+        pdf.touch()
+        reader = _make_reader(["page 1 text", "", "page 3 text"])
+        pdfium = _make_pdfium(page_count=3)
+        reader_patch, pdfium_patch = _patch_pdf_backends(reader, pdfium)
+        with (
+            reader_patch,
+            pdfium_patch,
+            patch(
+                "railtracks.retrieval.loaders.pdf_ocr_loader.pytesseract.image_to_string",
+                return_value="",
+            ),
+        ):
+            docs = await PyPDFOCRLoader(str(pdf), breakdown_strategy="document").aload()
+        assert docs[0].content == "page 1 text\n\npage 3 text"
+
 
 class TestPyPDFOCRLoaderDirectory:
     """Directory loading mirrors PyPDFLoader: sorted, .pdf-only, recursive."""
