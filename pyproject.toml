@@ -6,7 +6,6 @@ description = "Root workspace for dev tools and workspace packages"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "moto[s3]>=5.2.1",
     "railtracks",
 ]
 
