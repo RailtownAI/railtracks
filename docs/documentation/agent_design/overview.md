@@ -3,6 +3,7 @@
 Design and complexity of agent systems scales with the problem domain they are intended to solve. By definition, they can range from a single LLM answering questions all the way to a multi-agent architecture, with tools enabling interactionsf with databases and external services.
 
 At its core, the design is two pronged:
+
 1. Agent Level Design
 2. Agent Interaction Design
 
