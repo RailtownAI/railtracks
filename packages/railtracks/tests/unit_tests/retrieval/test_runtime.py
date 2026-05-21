@@ -32,6 +32,8 @@ from railtracks.retrieval.loaders.sanitizing import (
     SanitizingLoader,
 )
 from railtracks.retrieval.models import Chunk
+from railtracks.retrieval.runtime import _content_hash
+from railtracks.retrieval.stores.models import StoreEntry
 from railtracks.retrieval.stores.vector.backends.in_memory import InMemoryBackend
 
 # ---------------------------------------------------------------------------
@@ -464,6 +466,82 @@ async def test_changed_document_is_reembedded():
 
     assert not any(isinstance(e, DocumentSkipped) for e in events)
     assert any(isinstance(e, BatchIngested) for e in events)
+
+
+async def test_partial_document_is_reingested_not_skipped():
+    """Count-aware staleness: if a prior ingest left only some of a document's
+    chunks in the store, the next run must NOT skip it — it must re-ingest and
+    end up complete. Simulates a partial write by deleting one chunk."""
+    store = _store()
+    runtime, _, _ = _runtime(store=store)
+    doc = Document(source="path/to/doc", content="alpha beta gamma")  # 3 chunks
+
+    await runtime.ingest_all(_ListLoader([doc]))
+    entries = await store.find({"source_path": "path/to/doc"}, limit=10)
+    assert len(entries) == 3
+    assert entries[0].chunk_metadata["doc_chunk_count"] == 3
+
+    # Simulate an interrupted ingest: drop one chunk so the store is partial.
+    await store.delete(entries[0].id)
+    assert await store.count({"source_path": "path/to/doc"}) == 2
+
+    # Re-ingest the *same* content. Old find()-only logic would skip (an entry
+    # still exists). Count-aware logic sees 2 < 3 and re-ingests.
+    runtime2, _, embedder2 = _runtime(store=store)
+    same = Document(source="path/to/doc", content="alpha beta gamma")
+    events = [e async for e in runtime2.ingest(_ListLoader([same]))]
+
+    assert not any(isinstance(e, DocumentSkipped) for e in events)
+    assert embedder2.calls, "partial document should have been re-embedded"
+    # And it ends up complete again — exactly 3 chunks, no duplicates.
+    assert await store.count({"source_path": "path/to/doc"}) == 3
+
+
+async def test_complete_document_with_count_metadata_is_skipped():
+    """A fully-written document (have == doc_chunk_count) still skips."""
+    store = _store()
+    runtime, _, _ = _runtime(store=store)
+    doc = Document(source="path/to/doc", content="alpha beta gamma")
+
+    await runtime.ingest_all(_ListLoader([doc]))
+
+    runtime2, _, embedder2 = _runtime(store=store)
+    same = Document(source="path/to/doc", content="alpha beta gamma")
+    events = [e async for e in runtime2.ingest(_ListLoader([same]))]
+
+    assert any(isinstance(e, DocumentSkipped) for e in events)
+    assert embedder2.calls == []
+
+
+async def test_legacy_entry_without_count_metadata_is_skipped():
+    """Backward compat: entries written before count-aware staleness have no
+    doc_chunk_count. The runtime must fall back to 'exists => complete' and
+    skip, rather than re-embedding every document in an existing store."""
+    store = _store()
+
+    # Hand-write an entry that mimics pre-upgrade data: source_path +
+    # content_hash present, but no doc_chunk_count in metadata.
+    runtime, _, _ = _runtime(store=store)
+    content = "alpha beta gamma"
+    doc = Document(source="path/to/doc", content=content)
+    chunk_hash = _content_hash(content)
+
+    legacy = StoreEntry(
+        id=uuid4(),
+        content="alpha",
+        vector=[1.0, 0.0, 0.0],
+        embedding_model="toy",
+        chunk_id=uuid4(),
+        document_id=doc.id,
+        chunk_metadata={"source_path": "path/to/doc", "content_hash": chunk_hash},
+    )
+    await store.write(legacy)
+
+    runtime2, _, embedder2 = _runtime(store=store)
+    events = [e async for e in runtime2.ingest(_ListLoader([doc]))]
+
+    assert any(isinstance(e, DocumentSkipped) for e in events)
+    assert embedder2.calls == []
 
 
 async def test_skip_requires_source():

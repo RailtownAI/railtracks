@@ -216,7 +216,7 @@ class RetrievalRuntime:
 
     async def ingest(
         self, loader: BaseDocumentLoader
-    ) -> AsyncGenerator[IngestionEvent, None]:
+    ) -> AsyncGenerator[BatchIngested| EmbeddingFailure| DocumentFailed| DocumentSkipped, None]:
         """Stream loader → chunker → embedder → store, yielding per-batch events.
 
         Yields:
@@ -233,7 +233,7 @@ class RetrievalRuntime:
             yield event
 
     async def ingest_all(self, loader: BaseDocumentLoader) -> IngestionStats:
-        """Drain :meth:`ingest` and return aggregate counts."""
+        """Drain `ingest` and return aggregate counts."""
         stats = IngestionStats()
         async for event in self._ingest_with_stats(loader, stats):
             if self._on_ingest is not None:
@@ -250,23 +250,38 @@ class RetrievalRuntime:
             stats.documents_loaded += 1
             doc.content_hash = _content_hash(doc.content)
 
-            # Staleness check: if the store already holds chunks for this
-            # source at the same content_hash, skip re-embedding entirely.
-            # find() is metadata-only, no vector search.
+            # Staleness check: skip re-embedding only when the store holds a
+            # *complete* prior version of this document — i.e. as many chunks
+            # as the last write expected. A partially-written document (some
+            # chunks present after an interrupted ingest) has fewer than
+            # expected and is re-ingested rather than left broken. find() is
+            # metadata-only (no vector search); the second call caps its work
+            # at the document's own chunk count, and only runs when a prior
+            # version exists. (Counting is done via find() rather than a
+            # count() call so the runtime depends only on the Store protocol.)
             if doc.source is not None:
-                existing = await self._store.find(
-                    {
-                        "source_path": doc.source,
-                        "content_hash": doc.content_hash,
-                    },
-                    limit=1,
-                )
+                stale_filters = {
+                    "source_path": doc.source,
+                    "content_hash": doc.content_hash,
+                }
+                existing = await self._store.find(stale_filters, limit=1)
                 if existing:
-                    stats.documents_skipped += 1
-                    yield DocumentSkipped(
-                        document_id=doc.id, source=doc.source
-                    )
-                    continue
+                    expected = existing[0].chunk_metadata.get("doc_chunk_count")
+                    if expected is None:
+                        # Legacy entry written before count-aware staleness:
+                        # preserve the original "exists => complete" behavior.
+                        complete = True
+                    else:
+                        present = await self._store.find(
+                            stale_filters, limit=expected
+                        )
+                        complete = len(present) >= expected
+                    if complete:
+                        stats.documents_skipped += 1
+                        yield DocumentSkipped(
+                            document_id=doc.id, source=doc.source
+                        )
+                        continue
 
             chunks = await self._chunker.achunk(doc)
             stats.chunks_created += len(chunks)
@@ -313,6 +328,13 @@ class RetrievalRuntime:
                         stats.failed_documents.append(failed)
                         yield failed
                     continue
+
+            # Stamp the final (post-token-guard) chunk count onto every chunk
+            # so a later staleness check can tell a complete document from a
+            # partially-written one. Every chunk carries the same total, so
+            # reading any one persisted chunk reveals how many were expected.
+            for chunk in chunks:
+                chunk.metadata["doc_chunk_count"] = len(chunks)
 
             delete_done = False
             async for batch in self._embedder.astream_batches(
