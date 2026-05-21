@@ -28,9 +28,9 @@ This will create a `.railtracks` directory at your project root and open the web
 !!! tip "Running from multiple directories?"
     Run `railtracks init` once from your project root (the same level as your `.git` folder). All subsequent agent runs across the project will resolve to that single `.railtracks` directory regardless of which subdirectory they are launched from.
 
-    If you need a fixed location outside your project (e.g. a shared drive or CI environment), set the `RAILTRACKS_HOME` environment variable instead:
+    If you need a fixed location outside your project (e.g. a shared drive or CI environment), set the `RAILTRACKS_HOME` environment variable to the **parent directory** where `.railtracks` should live:
     ```bash
-    export RAILTRACKS_HOME=/path/to/my/railtracks-data
+    export RAILTRACKS_HOME=/path/to/my/project   # .railtracks is created inside here
     ```
     `RAILTRACKS_HOME` always takes priority over directory traversal.
 
