@@ -23,7 +23,16 @@ Railtracks comes with a built-in visualization tool that runs locally with **no 
     railtracks viz
     ```
 
-This will create a `.railtracks` directory in your current working directory setting up the web app in your web browser
+This will create a `.railtracks` directory at your project root and open the web app in your browser. Once initialised, railtracks will find that directory automatically, even if you run your agents from a subdirectory, by walking up the folder tree until it locates `.railtracks`.
+
+!!! tip "Running from multiple directories?"
+    Run `railtracks init` once from your project root (the same level as your `.git` folder). All subsequent agent runs across the project will resolve to that single `.railtracks` directory regardless of which subdirectory they are launched from.
+
+    If you need a fixed location outside your project (e.g. a shared drive or CI environment), set the `RAILTRACKS_HOME` environment variable instead:
+    ```bash
+    export RAILTRACKS_HOME=/path/to/my/railtracks-data
+    ```
+    `RAILTRACKS_HOME` always takes priority over directory traversal.
 
 
 <div class="rt-video-container">
