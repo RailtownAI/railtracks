@@ -76,9 +76,7 @@ class PyPDFLoader(BaseDocumentLoader):
         source = str(path)
 
         if self._breakdown_strategy == "document":
-            content = "\n\n".join(
-                page.extract_text() or "" for page in reader.pages
-            )
+            content = "\n\n".join(page.extract_text() or "" for page in reader.pages)
             yield Document(
                 content=content,
                 type=DocumentType.PDF,
