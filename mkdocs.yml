@@ -191,6 +191,7 @@ nav:
     - Notebooks:
       - Agent Architectures: tutorials/notebooks/architectures.md
       - FastAPI Integration: tutorials/notebooks/fastapi.md
+      - File Embedding (RAG): tutorials/notebooks/file_embedding.md
     - Concepts:
       - Core: 
           - Agents: tutorials/concepts/agents.md
