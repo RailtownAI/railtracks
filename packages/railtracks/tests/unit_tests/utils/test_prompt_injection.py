@@ -18,6 +18,32 @@ def test_formatter_missing_key_returns_placeholder():
     formatted = f.format("Hello, {name}")
     assert formatted == "Hello, {name}"
 
+def test_formatter_treats_unknown_attribute_like_field_as_literal():
+    f = KeyOnlyFormatter()
+    formatted = f.format("We define the set {x. some property} and keep it.")
+    assert formatted == "We define the set {x. some property} and keep it."
+
+def test_formatter_treats_json_like_content_as_literal():
+    f = KeyOnlyFormatter()
+    formatted = f.format('Payload: {"items": [1, 2], "ok": true}')
+    assert formatted == 'Payload: {"items": [1, 2], "ok": true}'
+
+def test_formatter_treats_unbalanced_braces_as_literal():
+    f = KeyOnlyFormatter()
+    formatted = f.format("Start {x and end }")
+    assert formatted == "Start {x and end }"
+
+def test_formatter_uses_getitem_for_lookup_only_mappings():
+    class LookupOnlyDict(dict):
+        def __getitem__(self, key):
+            if key == "name":
+                return "Alice"
+            raise KeyError(key)
+
+    f = KeyOnlyFormatter()
+    formatted = f.vformat("Hello, {name}", (), LookupOnlyDict())
+    assert formatted == "Hello, Alice"
+
 # ================ END KeyOnlyFormatter tests ===============
 
 
@@ -64,6 +90,18 @@ def test_inject_values_ignores_non_string_content():
 
     result = prompt_injection.inject_values(history, value_dict)
     assert result[0].content == 12345
+
+def test_inject_values_preserves_literal_brace_content():
+    msg = UserMessage(
+        content='We define {x. some property}; JSON: {"items": [1, 2]}.',
+        inject_prompt=True,
+    )
+    history = MessageHistory([msg])
+    value_dict = ValueDict({"name": "Alice"})
+
+    result = prompt_injection.inject_values(history, value_dict)
+    assert result[0].content == 'We define {x. some property}; JSON: {"items": [1, 2]}.'
+    assert result[0].inject_prompt is False
 
 def test_inject_values_catches_valueerror(monkeypatch):
     # Patch fill_prompt to throw ValueError
