@@ -1,10 +1,9 @@
 import json
-from pathlib import Path
 from typing import Any
 
-from .result import EvaluationResult
+from railtracks.paths import resolve_railtracks_home
 
-EVALS_DIR = Path(".railtracks/data/evaluations")
+from .result import EvaluationResult
 
 
 def payload(evaluation_result: EvaluationResult) -> dict[str, Any]:
@@ -14,8 +13,9 @@ def payload(evaluation_result: EvaluationResult) -> dict[str, Any]:
 
 def save(results: list[EvaluationResult]):
     """Save evaluation results to disk."""
+    evals_dir = resolve_railtracks_home() / "data" / "evaluations"
     for result in results:
-        fp = EVALS_DIR / f"{result.evaluation_id}.json"
+        fp = evals_dir / f"{result.evaluation_id}.json"
         fp.parent.mkdir(parents=True, exist_ok=True)
         if fp.exists():
             raise Exception(

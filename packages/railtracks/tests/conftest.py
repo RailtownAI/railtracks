@@ -255,13 +255,19 @@ def disable_persistence_for_tests():
 def allow_persistence():
     """
     Fixture to allow session persistence for specific tests that need to verify persistence.
-    
+
+    Also unsets RAILTRACKS_HOME so that tests relying on monkeypatch.chdir are not
+    redirected to an externally configured directory.
+
     Usage:
         def test_something(allow_persistence):
             # Session persistence will be enabled for this test
             pass
     """
+    previous_home = os.environ.pop("RAILTRACKS_HOME", None)
     os.environ["RAILTRACKS_ALLOW_PERSISTENCE"] = "1"
     yield
     os.environ.pop("RAILTRACKS_ALLOW_PERSISTENCE", None)
+    if previous_home is not None:
+        os.environ["RAILTRACKS_HOME"] = previous_home
 
