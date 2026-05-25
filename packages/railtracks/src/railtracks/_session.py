@@ -180,10 +180,12 @@ class Session:
                 else:
                     name = ""
 
+                candidate = sessions_dir / f"{name}_{self._identifier}.json"
                 try:
-                    file_path = sessions_dir / f"{name}_{self._identifier}.json"
-                    file_path.touch()
-                except FileNotFoundError:
+                    candidate.touch()
+                    candidate.unlink()
+                    file_path = candidate
+                except OSError:
                     logger.warning(
                         get_message(
                             ExceptionMessageKey.INVALID_SESSION_FILE_NAME_WARN
@@ -193,12 +195,14 @@ class Session:
 
                 logger.info("Saving execution info to %s" % file_path)
 
-                file_path.write_text(json.dumps(self.payload()))
+                content = json.dumps(self.payload())
+                file_path.write_text(content)
 
             except Exception as e:
                 logger.error(
-                    "Error while saving to execution info to file",
-                    exc_info=e,
+                    "Error while saving execution info to file: %s",
+                    e,
+                    exc_info=True,
                 )
         try:
             if self.executor_config.payload_callback is not None:
