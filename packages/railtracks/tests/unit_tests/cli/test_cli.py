@@ -19,12 +19,14 @@ from railtracks.cli import (
     _visual_dependencies_available,
     check_for_ui_update,
     create_railtracks_dir,
+    ensure_ui_bundle,
     get_remote_ui_version,
     get_script_directory,
     get_stored_ui_version,
     is_port_in_use,
     main,
     save_ui_version,
+    ui_bundle_exists,
 )
 from railtracks.cli.io import (
     _print_update_available,
@@ -569,13 +571,14 @@ class TestUIVersionTracking(unittest.TestCase):
 
     @patch('railtracks.cli.check_for_ui_update')
     @patch('railtracks.cli.viz_server.RailtracksServer')
+    @patch('railtracks.cli.ensure_ui_bundle')
     @patch('railtracks.cli.create_railtracks_dir')
     @patch('railtracks.cli.is_port_in_use', return_value=False)
     @patch('railtracks.cli._visual_dependencies_available', return_value=True)
     @patch('railtracks.cli.sys.argv', ['railtracks', 'viz'])
     def test_viz_runs_update_check_in_background_thread(self, _mock_deps, _mock_port,
-                                                         _mock_dir, mock_server,
-                                                         mock_check):
+                                                         _mock_dir, _mock_ensure,
+                                                         mock_server, mock_check):
         """viz command runs check_for_ui_update in a daemon thread, not blocking main"""
         thread_kwargs = {}
 
@@ -597,6 +600,74 @@ class TestUIVersionTracking(unittest.TestCase):
                       "check_for_ui_update should be the thread target")
         self.assertTrue(thread_kwargs.get('daemon'),
                         "Update-check thread should be a daemon thread")
+
+
+class TestUIBundleAvailability(unittest.TestCase):
+    """Test visualizer UI bundle detection and download behavior"""
+
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.original_cwd = os.getcwd()
+        os.chdir(self.test_dir)
+
+    def tearDown(self):
+        os.chdir(self.original_cwd)
+        shutil.rmtree(self.test_dir)
+
+    def test_ui_bundle_exists_false_when_index_missing(self):
+        """Returns False when the visualizer index file is missing"""
+        Path(".railtracks/ui").mkdir(parents=True)
+        self.assertFalse(ui_bundle_exists())
+
+    def test_ui_bundle_exists_true_when_index_present(self):
+        """Returns True when the visualizer index file exists"""
+        index_file = Path(".railtracks/ui/index.html")
+        index_file.parent.mkdir(parents=True)
+        index_file.write_text("<!doctype html>")
+
+        self.assertTrue(ui_bundle_exists())
+
+    @patch('railtracks.cli.download_and_extract_ui')
+    @patch('railtracks.cli.print_status')
+    def test_ensure_ui_bundle_downloads_when_missing(self, mock_status, mock_download):
+        """Downloads the UI bundle when index.html is missing"""
+        ensure_ui_bundle()
+
+        mock_status.assert_called_once()
+        mock_download.assert_called_once()
+
+    @patch('railtracks.cli.download_and_extract_ui')
+    @patch('railtracks.cli.print_status')
+    def test_ensure_ui_bundle_skips_download_when_present(self, mock_status,
+                                                          mock_download):
+        """Skips the download when index.html already exists"""
+        index_file = Path(".railtracks/ui/index.html")
+        index_file.parent.mkdir(parents=True)
+        index_file.write_text("<!doctype html>")
+
+        ensure_ui_bundle()
+
+        mock_status.assert_not_called()
+        mock_download.assert_not_called()
+
+    @patch('railtracks.cli.viz_server.RailtracksServer')
+    @patch('railtracks.cli.ensure_ui_bundle')
+    @patch('railtracks.cli.create_railtracks_dir')
+    @patch('railtracks.cli.is_port_in_use', return_value=False)
+    @patch('railtracks.cli._visual_dependencies_available', return_value=True)
+    @patch('railtracks.cli.sys.argv', ['railtracks', 'viz'])
+    def test_viz_ensures_ui_before_starting_server(self, _mock_deps, _mock_port,
+                                                   mock_dir, mock_ensure,
+                                                   mock_server):
+        """viz creates the railtracks dir and ensures UI before server startup"""
+        mock_server_instance = MagicMock()
+        mock_server.return_value = mock_server_instance
+
+        main()
+
+        mock_dir.assert_called_once()
+        mock_ensure.assert_called_once()
+        mock_server_instance.start.assert_called_once()
 
 
 class TestMainDispatch(unittest.TestCase):

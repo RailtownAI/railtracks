@@ -174,6 +174,19 @@ def check_for_ui_update():
         _print_update_available()
 
 
+def ui_bundle_exists() -> bool:
+    """Return whether the visualizer UI entrypoint exists."""
+    return Path(cli_directory, "ui", "index.html").is_file()
+
+
+def ensure_ui_bundle():
+    """Download the visualizer UI when it is missing."""
+    if ui_bundle_exists():
+        return
+    print_status("Visualizer UI bundle not found. Downloading it now...")
+    download_and_extract_ui()
+
+
 def download_and_extract_ui():
     """Download the latest frontend UI and extract it to .railtracks/ui"""
     ui_url = latest_ui_url
@@ -464,6 +477,7 @@ def main():
         from .viz_server import RailtracksServer
 
         create_railtracks_dir()
+        ensure_ui_bundle()
 
         update_thread = threading.Thread(target=check_for_ui_update, daemon=True)
         update_thread.start()
