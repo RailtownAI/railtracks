@@ -105,6 +105,7 @@ nav:
           - CSV: rag/components/ingestion/csv.md
           - PDFs: rag/components/ingestion/pdfs.md
           - Hugging Face Datasets: rag/components/ingestion/huggingface.md
+          - LangChain Loaders: rag/components/ingestion/langchain.md
           - Custom Ingestors: rag/components/ingestion/custom.md
       - Chunking:
           - Overview: rag/components/chunking/overview.md
