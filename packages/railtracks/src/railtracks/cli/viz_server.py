@@ -95,8 +95,13 @@ async def serve_ui_or_404(full_path: str):
     if full_path.startswith("api/"):
         return JSONResponse(content={"error": "Not Found"}, status_code=404)
 
-    ui_dir = get_railtracks_dir() / "ui"
-    ui_file = ui_dir / full_path
+    ui_dir = (get_railtracks_dir() / "ui").resolve()
+    ui_file = (ui_dir / full_path).resolve()
+    try:
+        ui_file.relative_to(ui_dir)
+    except ValueError:
+        return JSONResponse(content={"error": "Not Found"}, status_code=404)
+
     if ui_file.exists() and ui_file.is_file():
         return FileResponse(str(ui_file))
     index_file = ui_dir / "index.html"
