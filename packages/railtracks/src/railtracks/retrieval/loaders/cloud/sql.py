@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import warnings
 from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -91,14 +92,12 @@ class SQLLoader(BaseDocumentLoader):
         engine_kwargs: Optional[dict[str, Any]] = None,
     ) -> None:
         try:
-            import sqlalchemy  # noqa: F401
+            import sqlalchemy as sa  # noqa: F401
         except ImportError:
             raise ImportError(
                 "sqlalchemy is required for SQL loading. "
                 "Install it via `pip install railtracks[sql]` or `uv add railtracks[sql]`."
             )
-
-        import sqlalchemy as sa
 
         self._content_column = content_column
         self._metadata_columns = metadata_columns
@@ -230,5 +229,13 @@ class SQLLoader(BaseDocumentLoader):
             Document: The next row as a document.
         """
         rows = await asyncio.to_thread(self._fetch_rows)
+        if rows and self._metadata_columns is not None:
+            missing = [col for col in self._metadata_columns if col not in rows[0]]
+            if missing:
+                warnings.warn(
+                    f"metadata_columns {missing} not found in query results and will be omitted. "
+                    f"Available columns: {sorted(rows[0].keys())}.",
+                    stacklevel=2,
+                )
         for row in rows:
             yield self._row_to_document(row)
