@@ -91,10 +91,3 @@ class RetrievalResult:
     chunks: list[RetrievedChunk]
     total_candidates: int | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class Cost:
-    tokens: int | None = None
-    latency_ms: float | None = None
-    dollars: float | None = None

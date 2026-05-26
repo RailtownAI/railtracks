@@ -1,24 +1,9 @@
-"""High-level orchestration of the retrieval pipeline.
-
-:class:`RetrievalRuntime` wires together a chunker, embedder, and
-:class:`~railtracks.retrieval.stores.Store` into the full ingest/retrieve
-flow. Loaders are passed into ``ingest()`` rather than constructor-time
-so a single runtime can ingest from multiple sources or update existing
-documents.
-
-Upsert semantics: before writing the first chunk of a document, the
-runtime issues ``store.delete_where({"document_id": str(doc.id)})`` to
-clear any prior version. Writes are then per-chunk; a crash mid-write
-leaves the document partial. The delete only fires when at least one
-batch succeeds, so a total embedding failure preserves the prior version.
-"""
-
 from __future__ import annotations
 
 import hashlib
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
-from typing import Any, Callable, Union
+from typing import Any, Callable
 from uuid import UUID
 
 from railtracks.utils.logging.create import get_rt_logger
@@ -77,11 +62,8 @@ class DocumentSkipped:
     entry with the same ``source_path`` and ``content_hash``."""
 
     document_id: UUID
-    source: str
+    source: str | None
     reason: str = "unchanged"
-
-
-IngestionEvent = Union[BatchIngested, EmbeddingFailure, DocumentFailed, DocumentSkipped]
 
 
 @dataclass
@@ -158,7 +140,10 @@ class RetrievalRuntime:
         *,
         batch_size: int | None = None,
         scope: StoreScope | None = None,
-        on_ingest: Callable[[IngestionEvent], None] | None = None,
+        on_ingest: Callable[
+            [BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped], None
+        ]
+        | None = None,
         on_retrieve: Callable[[str, RetrievalResult], None] | None = None,
         max_tokens: int | None = None,
         tokenizer: Tokenizer | None = None,
@@ -247,14 +232,18 @@ class RetrievalRuntime:
         self,
         loader: BaseDocumentLoader,
         stats: IngestionStats,
-    ) -> AsyncGenerator[IngestionEvent, None]:
+    ) -> AsyncGenerator[
+        BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped, None
+    ]:
         async for doc in loader.astream():
             async for event in self._ingest_document(doc, stats):
                 yield event
 
     async def _ingest_document(
         self, doc: Document, stats: IngestionStats
-    ) -> AsyncGenerator[IngestionEvent, None]:
+    ) -> AsyncGenerator[
+        BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped, None
+    ]:
         stats.documents_loaded += 1
         doc.content_hash = _content_hash(doc.content)
 
@@ -367,7 +356,9 @@ class RetrievalRuntime:
         chunks: list[Chunk],
         stats: IngestionStats,
         doc_errors: list[Exception],
-    ) -> AsyncGenerator[IngestionEvent, None]:
+    ) -> AsyncGenerator[
+        BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped, None
+    ]:
         # batch_index is per-document: it counts batches (successful and
         # failed) within this document and resets for the next one.
         batch_index = 0
