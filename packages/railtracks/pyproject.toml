@@ -39,7 +39,7 @@ classifiers = [
 dependencies = [
     "colorama >= 0.4.6",
     "litellm >= 1.83.0, <= 1.83.12",
-    "mcp >= 1.9.0, <2",
+    "mcp >= 1.23.0, <2",
     "pydantic >= 2.5.3, <3",
     "python-dotenv >= 1.0.0",
     "PyYAML >= 6.0",

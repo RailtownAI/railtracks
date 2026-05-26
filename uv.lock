@@ -3303,7 +3303,7 @@ requires-dist = [
     { name = "colorama", specifier = ">=0.4.6" },
     { name = "fastapi", marker = "extra == 'visual'", specifier = ">=0.104.0" },
     { name = "litellm", specifier = ">=1.83.0,<=1.83.12" },
-    { name = "mcp", specifier = ">=1.9.0,<2" },
+    { name = "mcp", specifier = ">=1.23.0,<2" },
     { name = "pdfplumber", marker = "extra == 'chroma'", specifier = ">=0.10.1" },
     { name = "portkey-ai", marker = "extra == 'portkey'", specifier = ">=2.0.2" },
     { name = "pydantic", specifier = ">=2.5.3,<3" },
