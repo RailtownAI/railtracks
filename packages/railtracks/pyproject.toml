@@ -38,8 +38,8 @@ classifiers = [
 ]
 dependencies = [
     "colorama >= 0.4.6",
-    "litellm >= 1.70.2, != 1.82.7, != 1.82.8, <= 1.83.12",
-    "mcp >= 1.9.0, <2",
+    "litellm >= 1.83.0, <= 1.83.12",
+    "mcp >= 1.23.0, <2",
     "pydantic >= 2.5.3, <3",
     "python-dotenv >= 1.0.0",
     "PyYAML >= 6.0",
@@ -47,7 +47,7 @@ dependencies = [
 
 [project.optional-dependencies]
 visual = [
-    "fastapi >= 0.104.0",
+    "fastapi >= 0.121.0",
     "uvicorn[standard] >= 0.24.0",
 ]
 # cli and chat both require the visual extras (may diverge in future)
