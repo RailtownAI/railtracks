@@ -15,6 +15,33 @@ class DocumentType(str, Enum):
 
 @dataclass
 class Document:
+    """A unit of source content produced by a loader.
+
+    Attributes:
+        content: The decoded textual content of the document. Always a string;
+            binary loaders are responsible for their own decoding.
+        type: A :class:`DocumentType` describing the content format. Cloud
+            loaders infer it from the object's file extension; structured
+            loaders (CSV, SQL) set it explicitly.
+        id: An auto-generated :class:`uuid.UUID` identifying this instance
+            **in memory**. Stable for the lifetime of the object but not
+            persisted by any loader — re-loading the same source produces a
+            different ``id``. Treat as a process-local handle, not a primary
+            key.
+        source: The natural identifier of where this document came from —
+            a URI (``s3://bucket/key``, ``gs://bucket/name``, ``https://...``),
+            a file path, or a relational id. Cloud loaders always set this;
+            user-constructed documents may leave it ``None``.
+
+            Writers that derive a storage key (when no ``key_fn`` is supplied)
+            look here first; the cloud writers also strip their own URI prefix
+            so that "load from S3, write back to S3" produces a clean key
+            rather than a nested URI.
+        metadata: Arbitrary provider-specific or user-attached key-value data.
+            Loaders use this to expose details like ``bucket``, ``key``,
+            ``page``, ``row_index``, etc.
+    """
+
     content: str
     type: DocumentType
     id: UUID = field(default_factory=uuid4)

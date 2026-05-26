@@ -1,4 +1,6 @@
-"""Shared fixtures for storage loader unit tests."""
+"""Shared fixtures for cloud loader unit tests."""
+
+from __future__ import annotations
 
 import sys
 from contextlib import contextmanager
@@ -7,16 +9,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from railtracks.vector_stores.chunking.base_chunker import Chunk
-
-
 # ---------------------------------------------------------------------------
 # S3 helpers
 # ---------------------------------------------------------------------------
 
 
 def make_s3_client(objects: dict[str, str], encoding: str = "utf-8") -> MagicMock:
-    """Return a mock boto3 S3 client pre-loaded with *objects* (key → text)."""
+    """Return a mock boto3 S3 client pre-loaded with *objects* (key -> text)."""
     client = MagicMock()
 
     paginator = MagicMock()
@@ -32,21 +31,16 @@ def make_s3_client(objects: dict[str, str], encoding: str = "utf-8") -> MagicMoc
     return client
 
 
-@pytest.fixture
-def s3_client_factory():
-    """Factory fixture: call with a dict[key, text] to get a mock S3 client."""
-    return make_s3_client
-
-
 # ---------------------------------------------------------------------------
 # Azure Blob helpers
 # ---------------------------------------------------------------------------
 
 
-def make_container_client(blobs: dict[str, str], encoding: str = "utf-8") -> MagicMock:
-    """Return a mock ContainerClient pre-loaded with *blobs* (name → text)."""
+def make_container_client_for_loading(
+    blobs: dict[str, str], encoding: str = "utf-8"
+) -> MagicMock:
+    """Mock ContainerClient pre-loaded with *blobs* (name -> text)."""
     container_client = MagicMock()
-
     blob_items = []
     for name in blobs:
         item = MagicMock()
@@ -64,19 +58,14 @@ def make_container_client(blobs: dict[str, str], encoding: str = "utf-8") -> Mag
     return container_client
 
 
-@pytest.fixture
-def container_client_factory():
-    """Factory fixture: call with a dict[name, text] to get a mock ContainerClient."""
-    return make_container_client
-
-
 @contextmanager
 def patch_azure(container_client: MagicMock):
-    """Context manager that patches both azure.storage.blob and azure.identity."""
+    """Patch azure.storage.blob and azure.identity."""
     from unittest.mock import patch
 
     mock_storage = MagicMock()
     mock_storage.ContainerClient.return_value = container_client
+    mock_storage.ContentSettings.return_value = MagicMock()
 
     mock_identity = MagicMock()
 
@@ -95,22 +84,17 @@ def patch_azure(container_client: MagicMock):
         yield mock_storage, mock_identity
 
 
-@pytest.fixture
-def azure_patch():
-    """Fixture exposing the patch_azure context manager."""
-    return patch_azure
-
-
 # ---------------------------------------------------------------------------
 # GCS helpers
 # ---------------------------------------------------------------------------
 
 
-def make_gcs_client(objects: dict[str, str], encoding: str = "utf-8") -> MagicMock:
-    """Return a mock google.cloud.storage.Client pre-loaded with *objects* (name → text)."""
+def make_gcs_client_for_loading(
+    objects: dict[str, str], encoding: str = "utf-8"
+) -> MagicMock:
+    """Mock google.cloud.storage.Client pre-loaded with *objects*."""
     client = MagicMock()
 
-    # list_blobs returns an iterable of blob objects with .name
     blob_items = []
     for name in objects:
         item = MagicMock()
@@ -118,7 +102,6 @@ def make_gcs_client(objects: dict[str, str], encoding: str = "utf-8") -> MagicMo
         blob_items.append(item)
     client.list_blobs.return_value = blob_items
 
-    # client.bucket(...).blob(name).download_as_bytes()
     def _bucket(bucket_name: str) -> MagicMock:
         bucket = MagicMock()
 
@@ -136,7 +119,7 @@ def make_gcs_client(objects: dict[str, str], encoding: str = "utf-8") -> MagicMo
 
 @contextmanager
 def patch_gcs(gcs_client: MagicMock):
-    """Context manager that patches google.cloud.storage."""
+    """Patch google.cloud.storage."""
     from unittest.mock import patch
 
     mock_storage = MagicMock()
@@ -153,32 +136,25 @@ def patch_gcs(gcs_client: MagicMock):
         yield mock_storage
 
 
-@pytest.fixture
-def gcs_client_factory():
-    """Factory fixture: call with a dict[name, text] to get a mock GCS client."""
-    return make_gcs_client
-
-
-@pytest.fixture
-def gcs_patch():
-    """Fixture exposing the patch_gcs context manager."""
-    return patch_gcs
-
-
 # ---------------------------------------------------------------------------
-# SQL helpers  (real in-memory SQLite — no mocking needed)
+# SQL helpers (real in-memory SQLite)
 # ---------------------------------------------------------------------------
 
 
-def make_sqlite_engine(rows: list[dict[str, Any]], table: str = "documents") -> Any:
-    """Create an in-memory SQLite engine pre-populated with *rows*.
+def make_sqlite_engine(
+    rows: list[dict[str, Any]] | None = None,
+    *,
+    table: str = "documents",
+    columns: list[str] | None = None,
+) -> Any:
+    """Create an in-memory SQLite engine.
 
-    Uses ``StaticPool`` so the same underlying connection is reused across all
-    threads — necessary for ``asyncio.to_thread`` calls in async loader tests.
-    The table is created dynamically from the keys of the first row.
-    All column values are stored as TEXT for simplicity.
+    When *rows* is provided the table is created from the keys of the first row
+    and populated with the given rows. When *rows* is ``None`` an empty table
+    is created from *columns* (defaulting to ``["id", "title", "body"]``).
 
-    Returns the SQLAlchemy engine; pass it directly to SQLLoader via ``engine=``.
+    Uses ``StaticPool`` so the same connection is reused across threads (needed
+    for ``asyncio.to_thread`` calls in async loader tests).
     """
     import sqlalchemy as sa
     from sqlalchemy.pool import StaticPool
@@ -188,23 +164,31 @@ def make_sqlite_engine(rows: list[dict[str, Any]], table: str = "documents") -> 
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    if not rows:
-        return engine
 
-    columns = list(rows[0].keys())
+    if rows:
+        columns = list(rows[0].keys())
+    elif columns is None:
+        columns = ["id", "title", "body"]
+
     col_defs = ", ".join(f"{c} TEXT" for c in columns)
     with engine.begin() as conn:
-        conn.execute(sa.text(f"CREATE TABLE IF NOT EXISTS {table} ({col_defs})"))  # noqa: S608
-        for row in rows:
+        conn.execute(sa.text(f"CREATE TABLE {table} ({col_defs})"))  # noqa: S608
+        for row in rows or []:
             placeholders = ", ".join(f":{c}" for c in columns)
             conn.execute(
-                sa.text(f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({placeholders})"),  # noqa: S608
+                sa.text(
+                    f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({placeholders})"  # noqa: S608
+                ),
                 row,
             )
     return engine
 
 
 @pytest.fixture
+def sqlite_engine():
+    return make_sqlite_engine()
+
+
+@pytest.fixture
 def sqlite_engine_factory():
-    """Factory fixture: call with rows and optional table name to get a real SQLite engine."""
     return make_sqlite_engine

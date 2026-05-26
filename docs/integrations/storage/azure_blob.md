@@ -1,9 +1,9 @@
 # Azure Blob Storage
 
-`AzureBlobLoader` fetches blobs from an Azure Blob Storage container and returns them as
-[`Chunk`](../../rag/vector_stores/vector_store_info.md) objects containing
-UTF-8 decoded content plus source metadata (`source`, `account_url`, `container`,
-`blob_name`).
+`AzureBlobLoader` fetches blobs from an Azure Blob Storage container and
+returns them as `Document` objects (`railtracks.retrieval.models.Document`)
+containing UTF-8 decoded content, a `source` URI, and provider metadata
+(`account_url`, `container`, `blob_name`).
 
 ## Installation
 
@@ -63,7 +63,7 @@ Pass an explicit `credential` to override.
 ```
 
 !!! note "Async is thread-backed"
-    `aload()` and `aload_keys()` run the synchronous `azure-storage-blob`
+    `aload()` and `astream()` run the synchronous `azure-storage-blob`
     client on a thread-pool thread via `asyncio.to_thread()`.  This is correct
     for most workloads; for very high concurrency consider the async Azure SDK
     (`azure.storage.blob.aio`).
@@ -82,44 +82,20 @@ Pass an explicit `credential` to override.
 --8<-- "docs/scripts/storage_loaders.py:azure_managed_identity"
 ```
 
-## Chunk metadata
+## Document fields
 
-Each returned `Chunk` carries:
+Each returned `Document` carries:
 
-| Key | Value |
+| Field / metadata key | Value |
 |---|---|
-| `source` | Full blob URL: `https://<account>.blob.core.windows.net/<container>/<blob>` |
-| `account_url` | Storage account URL |
-| `container` | Container name |
-| `blob_name` | Blob name (path within the container) |
+| `Document.source` | Full blob URL: `https://<account>.blob.core.windows.net/<container>/<blob>` |
+| `Document.type` | Inferred from file extension; defaults to `TEXT` |
+| `metadata["account_url"]` | Storage account URL |
+| `metadata["container"]` | Container name |
+| `metadata["blob_name"]` | Blob name (path within the container) |
 
 ## Full RAG pipeline example
 
 ```python
 --8<-- "docs/scripts/storage_loaders.py:pipeline_azure_to_rag"
-```
-
----
-
-## Writing to Azure Blob Storage
-
-`AzureBlobWriter` uploads text content to a blob container.  Existing blobs at
-the same name are overwritten.
-
-### Basic write
-
-```python
---8<-- "docs/scripts/storage_writers.py:azure_write_basic"
-```
-
-### SAS token credential
-
-```python
---8<-- "docs/scripts/storage_writers.py:azure_write_sas"
-```
-
-### Async write
-
-```python
---8<-- "docs/scripts/storage_writers.py:azure_write_async"
 ```

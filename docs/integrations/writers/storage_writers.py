@@ -13,7 +13,7 @@ These snippets assume the relevant extras are installed:
 # ===========================================================================
 
 # --8<-- [start:s3_write_basic]
-from railtracks.writers import S3Writer
+from railtracks.integrations.writers import S3Writer
 
 writer = S3Writer("my-bucket", region_name="us-east-1")
 
@@ -21,25 +21,25 @@ writer = S3Writer("my-bucket", region_name="us-east-1")
 uri = writer.write_key("reports/summary.txt", "Today's executive summary ...")
 print(uri)  # s3://my-bucket/reports/summary.txt
 
-# Write a list of Chunk objects -- key is derived from chunk.id
-uris = writer.write(chunks, prefix="generated/")
+# Write a list of Document objects -- key is derived from document.source / id
+uris = writer.write(documents, prefix="generated/")
 # --8<-- [end:s3_write_basic]
 
 
 # --8<-- [start:s3_write_key_fn]
-from railtracks.writers import S3Writer
+from railtracks.integrations.writers import S3Writer
 
-# Use a custom function to derive the storage key from each chunk
+# Use a custom function to derive the storage key from each document
 writer = S3Writer(
     "my-bucket",
-    key_fn=lambda chunk: f"{chunk.metadata.get('category', 'misc')}/{chunk.id}.txt",
+    key_fn=lambda doc: f"{doc.metadata.get('category', 'misc')}/{doc.id}.txt",
 )
-uris = writer.write(chunks)
+uris = writer.write(documents)
 # --8<-- [end:s3_write_key_fn]
 
 
 # --8<-- [start:s3_write_explicit_creds]
-from railtracks.writers import S3Writer
+from railtracks.integrations.writers import S3Writer
 
 writer = S3Writer(
     "my-bucket",
@@ -54,13 +54,13 @@ uri = writer.write_key("data/result.json", '{"status": "ok"}')
 
 # --8<-- [start:s3_write_async]
 import asyncio
-from railtracks.writers import S3Writer
+from railtracks.integrations.writers import S3Writer
 
 async def write_s3_documents():
     writer = S3Writer("my-bucket", region_name="us-east-1")
 
-    # Write a batch of chunks asynchronously
-    uris = await writer.awrite(chunks, prefix="output/")
+    # Write a batch of documents asynchronously
+    uris = await writer.awrite(documents, prefix="output/")
 
     # Write a single object asynchronously
     uri = await writer.awrite_key("output/summary.txt", "Summary text ...")
@@ -75,7 +75,7 @@ asyncio.run(write_s3_documents())
 # ===========================================================================
 
 # --8<-- [start:azure_write_basic]
-from railtracks.writers import AzureBlobWriter
+from railtracks.integrations.writers import AzureBlobWriter
 
 # DefaultAzureCredential resolves credentials automatically
 writer = AzureBlobWriter(
@@ -87,34 +87,34 @@ writer = AzureBlobWriter(
 uri = writer.write_key("reports/summary.txt", "Today's executive summary ...")
 print(uri)  # https://myaccount.blob.core.windows.net/my-container/reports/summary.txt
 
-# Write a list of Chunk objects
-uris = writer.write(chunks, prefix="generated/")
+# Write a list of Document objects
+uris = writer.write(documents, prefix="generated/")
 # --8<-- [end:azure_write_basic]
 
 
 # --8<-- [start:azure_write_sas]
 from azure.core.credentials import AzureSasCredential
-from railtracks.writers import AzureBlobWriter
+from railtracks.integrations.writers import AzureBlobWriter
 
 writer = AzureBlobWriter(
     "https://myaccount.blob.core.windows.net",
     "my-container",
     credential=AzureSasCredential("<your-sas-token>"),
 )
-uris = writer.write(chunks)
+uris = writer.write(documents)
 # --8<-- [end:azure_write_sas]
 
 
 # --8<-- [start:azure_write_async]
 import asyncio
-from railtracks.writers import AzureBlobWriter
+from railtracks.integrations.writers import AzureBlobWriter
 
 async def write_azure_documents():
     writer = AzureBlobWriter(
         "https://myaccount.blob.core.windows.net",
         "my-container",
     )
-    uris = await writer.awrite(chunks, prefix="output/")
+    uris = await writer.awrite(documents, prefix="output/")
     uri  = await writer.awrite_key("output/summary.txt", "Summary ...")
     return uris
 
@@ -127,7 +127,7 @@ asyncio.run(write_azure_documents())
 # ===========================================================================
 
 # --8<-- [start:gcs_write_basic]
-from railtracks.writers import GCSWriter
+from railtracks.integrations.writers import GCSWriter
 
 # Application Default Credentials resolve automatically
 writer = GCSWriter("my-bucket", project="my-gcp-project")
@@ -136,31 +136,31 @@ writer = GCSWriter("my-bucket", project="my-gcp-project")
 uri = writer.write_key("reports/summary.txt", "Today's executive summary ...")
 print(uri)  # gs://my-bucket/reports/summary.txt
 
-# Write a list of Chunk objects
-uris = writer.write(chunks, prefix="generated/")
+# Write a list of Document objects
+uris = writer.write(documents, prefix="generated/")
 # --8<-- [end:gcs_write_basic]
 
 
 # --8<-- [start:gcs_write_service_account]
 from google.oauth2 import service_account
-from railtracks.writers import GCSWriter
+from railtracks.integrations.writers import GCSWriter
 
 credentials = service_account.Credentials.from_service_account_file(
     "/path/to/service-account.json",
     scopes=["https://www.googleapis.com/auth/cloud-platform"],
 )
 writer = GCSWriter("my-bucket", credentials=credentials)
-uris = writer.write(chunks)
+uris = writer.write(documents)
 # --8<-- [end:gcs_write_service_account]
 
 
 # --8<-- [start:gcs_write_async]
 import asyncio
-from railtracks.writers import GCSWriter
+from railtracks.integrations.writers import GCSWriter
 
 async def write_gcs_documents():
     writer = GCSWriter("my-bucket", project="my-gcp-project")
-    uris = await writer.awrite(chunks, prefix="output/")
+    uris = await writer.awrite(documents, prefix="output/")
     uri  = await writer.awrite_key("output/summary.txt", "Summary ...")
     return uris
 
@@ -173,18 +173,19 @@ asyncio.run(write_gcs_documents())
 # ===========================================================================
 
 # --8<-- [start:sql_write_basic]
-from railtracks.writers import SQLWriter
+from railtracks.integrations.writers import SQLWriter
 
 writer = SQLWriter(
     "postgresql+psycopg2://user:pass@db.example.com:5432/mydb",
     table="documents",
     content_column="body",
     id_column="id",
+    key_fn=lambda d: d.source,   # write a meaningful id, not an auto UUID
     metadata_columns=["title", "category"],
 )
 
-# Write (upsert) a list of Chunk objects
-uris = writer.write(chunks)
+# Write (upsert) a list of Document objects
+uris = writer.write(documents)
 # Returns: ["sql://documents/<id>", ...]
 
 # Write raw content at an explicit id
@@ -195,22 +196,23 @@ uri = writer.write_key("doc-42", "Revised policy text ...")
 
 # --8<-- [start:sql_write_supabase]
 import os
-from railtracks.writers import SQLWriter
+from railtracks.integrations.writers import SQLWriter
 
 writer = SQLWriter(
     os.environ["SUPABASE_DB_URL"],  # postgresql+psycopg2://...
     table="knowledge_base",
     content_column="content",
     id_column="id",
-    document_column="title",
+    key_fn=lambda d: d.source,
+    source_column="title",
     metadata_columns=["category", "updated_at"],
 )
-uris = writer.write(chunks)
+uris = writer.write(documents)
 # --8<-- [end:sql_write_supabase]
 
 
 # --8<-- [start:sql_write_modes]
-from railtracks.writers import SQLWriter
+from railtracks.integrations.writers import SQLWriter
 
 # Default: "upsert" -- existing rows with the same id are replaced
 writer = SQLWriter(
@@ -220,7 +222,7 @@ writer = SQLWriter(
     id_column="id",
     mode="upsert",   # safe to call repeatedly
 )
-writer.write(chunks)
+writer.write(documents)
 
 # "insert" mode -- rows are appended without conflict handling
 append_writer = SQLWriter(
@@ -229,13 +231,13 @@ append_writer = SQLWriter(
     content_column="message",
     mode="insert",
 )
-append_writer.write(chunks)
+append_writer.write(documents)
 # --8<-- [end:sql_write_modes]
 
 
 # --8<-- [start:sql_write_existing_engine]
 import sqlalchemy as sa
-from railtracks.writers import SQLWriter
+from railtracks.integrations.writers import SQLWriter
 
 engine = sa.create_engine(
     "postgresql+psycopg2://user:pass@host/db",
@@ -249,13 +251,13 @@ writer = SQLWriter(
     id_column="id",
     engine=engine,
 )
-uris = writer.write(chunks)
+uris = writer.write(documents)
 # --8<-- [end:sql_write_existing_engine]
 
 
 # --8<-- [start:sql_write_async]
 import asyncio
-from railtracks.writers import SQLWriter
+from railtracks.integrations.writers import SQLWriter
 
 async def write_sql_documents():
     writer = SQLWriter(
@@ -263,8 +265,9 @@ async def write_sql_documents():
         table="documents",
         content_column="body",
         id_column="id",
+        key_fn=lambda d: d.source,
     )
-    uris = await writer.awrite(chunks)
+    uris = await writer.awrite(documents)
     uri  = await writer.awrite_key("doc-99", "New content ...")
     return uris
 
@@ -278,13 +281,13 @@ asyncio.run(write_sql_documents())
 
 # --8<-- [start:pipeline_generate_and_write]
 import railtracks as rt
-from railtracks.loaders import S3Loader
-from railtracks.writers import S3Writer
-from railtracks.vector_stores.chunking.base_chunker import Chunk
+from railtracks.retrieval.loaders import S3Loader
+from railtracks.integrations.writers import S3Writer
+from railtracks.retrieval.models import Document, DocumentType
 
 # 1. Load source documents
-loader = S3Loader("source-bucket", region_name="us-east-1")
-source_chunks = loader.load(prefix="raw/")
+loader = S3Loader("source-bucket", prefix="raw/", region_name="us-east-1")
+source_documents = loader.load()
 
 # 2. Run an agent to generate a summary for each document
 summariser = rt.agent_node(
@@ -295,13 +298,14 @@ summariser = rt.agent_node(
 
 writer = S3Writer("output-bucket", region_name="us-east-1")
 
-for chunk in source_chunks:
-    result = summariser.invoke(chunk.content)
-    summary_chunk = Chunk(
+for doc in source_documents:
+    result = summariser.invoke(doc.content)
+    summary = Document(
         content=result.content,
-        id=f"summary-{chunk.id}",
-        metadata={"source": chunk.metadata["source"], "type": "summary"},
+        type=DocumentType.TEXT,
+        source=doc.source,
+        metadata={"original_source": doc.source, "type": "summary"},
     )
-    uri = writer.write_key(f"summaries/{chunk.id}.txt", summary_chunk.content)
+    uri = writer.write_key(f"summaries/{doc.id}.txt", summary.content)
     print(f"Saved summary -> {uri}")
 # --8<-- [end:pipeline_generate_and_write]

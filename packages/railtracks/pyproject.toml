@@ -89,8 +89,9 @@ integrations = [
     "railtracks[azure-blob]",
     "railtracks[gcp]",
     "railtracks[sql]",
+    "railtracks[huggingface]"
 ]
-all = ["railtracks[visual]", "railtracks[integrations]"]
+all = ["railtracks[visual]", "railtracks[integrations]", "railtracks[rag]", "railtracks[pdf]", "railtracks[stores-all]"]
 
 [project.scripts]
 railtracks = "railtracks.cli:main"

@@ -1,4 +1,6 @@
-"""Shared fixtures and helpers for storage writer unit tests."""
+"""Shared fixtures for document-writer unit tests."""
+
+from __future__ import annotations
 
 import sys
 from contextlib import contextmanager
@@ -14,7 +16,7 @@ import pytest
 
 
 def make_s3_client() -> MagicMock:
-    """Return a mock boto3 S3 client that records put_object calls."""
+    """Mock boto3 S3 client that records put_object calls."""
     client = MagicMock()
     client.put_object.return_value = {}
     return client
@@ -36,12 +38,7 @@ def patch_s3(s3_client: MagicMock):
 
 
 def make_container_client() -> MagicMock:
-    """Return a mock Azure ContainerClient that records upload_blob calls.
-
-    Exposes ``container_client._written`` (name → bytes) and
-    ``container_client._content_types`` (name → content_type str) so tests
-    can verify what was written without chasing side_effect return values.
-    """
+    """Mock ContainerClient that records upload_blob calls."""
     container_client = MagicMock()
     written: dict[str, bytes] = {}
     content_types: dict[str, str] = {}
@@ -52,7 +49,6 @@ def make_container_client() -> MagicMock:
         def _upload(data: bytes, *, overwrite: bool = False, content_settings=None) -> None:
             written[name] = data
             if content_settings is not None:
-                # ContentSettings is a mock; grab content_type if set
                 ct = getattr(content_settings, "content_type", None)
                 if ct:
                     content_types[name] = ct
@@ -98,13 +94,8 @@ def patch_azure(container_client: MagicMock):
 
 
 def make_gcs_client() -> MagicMock:
-    """Return a mock GCS client that records upload_from_string calls.
-
-    Exposes ``client._written`` (name → bytes) and
-    ``client._content_types`` (name → content_type str).
-    """
+    """Mock GCS client recording upload_from_string calls."""
     client = MagicMock()
-
     written: dict[str, bytes] = {}
     content_types: dict[str, str] = {}
 
@@ -151,17 +142,14 @@ def patch_gcs(gcs_client: MagicMock):
 
 
 # ---------------------------------------------------------------------------
-# SQL helpers  (real in-memory SQLite)
+# SQL helpers (real in-memory SQLite)
 # ---------------------------------------------------------------------------
 
 
-def make_sqlite_engine(table: str = "documents", columns: list[str] | None = None) -> Any:
-    """Create an empty in-memory SQLite engine with *columns*.
-
-    Uses ``StaticPool`` so all threads share the same connection — required for
-    ``asyncio.to_thread`` tests.  *columns* defaults to
-    ``["id", "title", "body"]``.
-    """
+def make_sqlite_engine(
+    table: str = "documents", columns: list[str] | None = None
+) -> Any:
+    """Create an empty in-memory SQLite engine."""
     import sqlalchemy as sa
     from sqlalchemy.pool import StaticPool
 

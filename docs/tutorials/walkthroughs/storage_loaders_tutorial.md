@@ -33,17 +33,19 @@ Pick the provider that matches your storage:
     ```
 
 Each loader returns a list of
-[`Chunk`](../../rag/vector_stores/vector_store_info.md) objects. Every chunk carries:
+`Document` objects (`railtracks.retrieval.models.Document`). Every document
+carries:
 
 - **`content`** — the UTF-8 text of the file
-- **`document`** — the key or blob name used as an identifier
-- **`metadata`** — provider-specific fields including a `source` URL for citation
+- **`type`** — a `DocumentType` inferred from the file extension (defaults to `TEXT`)
+- **`source`** — the full provider URI (e.g. `s3://bucket/key`) used for citation
+- **`metadata`** — provider-specific fields (`bucket`, `key`, `container`, …)
 
 ---
 
-## Step 2 — Index the chunks in a vector store
+## Step 2 — Index the documents in a vector store
 
-Pass the chunks straight to `ChromaVectorStore.upsert()` — no conversion needed:
+Pass the documents straight to `ChromaVectorStore.upsert()`:
 
 ```python
 --8<-- "docs/scripts/storage_loaders.py:shared_embedding"
@@ -53,7 +55,7 @@ Pass the chunks straight to `ChromaVectorStore.upsert()` — no conversion neede
 from railtracks.vector_stores import ChromaVectorStore
 
 store = ChromaVectorStore("my-knowledge-base", embedding_function=embedding_function)
-store.upsert(chunks)
+store.upsert(documents)
 ```
 
 ---
@@ -113,4 +115,4 @@ print(response)
     - Add [guardrails](../../documentation/advanced/guardrails/overview.md) to validate
       agent responses before returning them to users.
     - Use [async loading](../../integrations/storage/s3.md#async-usage) (`aload` /
-      `aload_keys`) when integrating with async frameworks such as FastAPI.
+      `astream`) when integrating with async frameworks such as FastAPI.

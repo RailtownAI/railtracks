@@ -1,18 +1,21 @@
 from __future__ import annotations
 
+import asyncio
+from collections.abc import AsyncGenerator
 from typing import Any, Optional
 
-from railtracks.vector_stores.chunking.base_chunker import Chunk
+from railtracks.retrieval.loaders.base import BaseDocumentLoader
+from railtracks.retrieval.loaders.cloud._common import infer_document_type
+from railtracks.retrieval.models import Document
 
-from .base import BaseStorageLoader
 
-
-class S3Loader(BaseStorageLoader):
+class S3Loader(BaseDocumentLoader):
     """Document loader for AWS S3.
 
-    Fetches objects from an S3 bucket and returns them as
-    :class:`~railtracks.vector_stores.chunking.base_chunker.Chunk` objects
-    with UTF-8 decoded content and source metadata.
+    Fetches objects from an S3 bucket and yields them as :class:`Document`
+    instances with UTF-8 decoded content and source metadata. Listing is
+    recursive — any object whose key starts with ``prefix`` is loaded,
+    including those in subfolders (``A/B/file.txt``).
 
     Credentials follow boto3's standard resolution chain: environment variables
     (``AWS_ACCESS_KEY_ID`` / ``AWS_SECRET_ACCESS_KEY``), ``~/.aws/credentials``,
@@ -22,6 +25,10 @@ class S3Loader(BaseStorageLoader):
 
     Args:
         bucket: S3 bucket name.
+        prefix: Optional S3 key prefix. When set, only objects whose keys start
+            with this string are loaded. Ignored when ``keys`` is provided.
+        keys: Explicit list of object keys to load. When set, ``prefix`` is
+            ignored.
         region_name: AWS region (optional).
         aws_access_key_id: Explicit access key ID (optional).
         aws_secret_access_key: Explicit secret access key (optional).
@@ -34,22 +41,25 @@ class S3Loader(BaseStorageLoader):
 
     Example::
 
-        loader = S3Loader("my-bucket", region_name="us-west-2")
-
-        # Load all objects under a prefix
-        chunks = loader.load(prefix="documents/")
+        # Load all objects under a prefix (recursive)
+        loader = S3Loader("my-bucket", prefix="documents/")
+        documents = loader.load()
 
         # Load specific keys
-        chunks = loader.load_keys(["readme.txt", "data/report.txt"])
+        loader = S3Loader("my-bucket", keys=["readme.txt", "data/report.txt"])
+        documents = loader.load()
 
-        # Async usage
-        chunks = await loader.aload(prefix="documents/")
+        # Stream documents as they are downloaded
+        async for doc in S3Loader("my-bucket", prefix="docs/").astream():
+            ...
     """
 
     def __init__(
         self,
         bucket: str,
         *,
+        prefix: Optional[str] = None,
+        keys: Optional[list[str]] = None,
         region_name: Optional[str] = None,
         aws_access_key_id: Optional[str] = None,
         aws_secret_access_key: Optional[str] = None,
@@ -66,6 +76,8 @@ class S3Loader(BaseStorageLoader):
             )
 
         self._bucket = bucket
+        self._prefix = prefix
+        self._keys = list(keys) if keys is not None else None
         self._encoding = encoding
         self._client = boto3.client(
             "s3",
@@ -79,53 +91,41 @@ class S3Loader(BaseStorageLoader):
     def __repr__(self) -> str:
         return f"S3Loader(bucket={self._bucket!r})"
 
-    def load(self, prefix: Optional[str] = None) -> list[Chunk]:
-        """Load all objects from the bucket, optionally filtered by prefix.
-
-        Uses the S3 list-objects paginator so buckets with more than 1 000
-        objects are handled correctly.
-
-        Args:
-            prefix: Optional S3 key prefix. Only objects whose keys start with
-                this string are loaded.
-
-        Returns:
-            list[Chunk]: All matching objects as Chunk objects.
-        """
+    def _list_keys(self) -> list[str]:
         kwargs: dict[str, Any] = {"Bucket": self._bucket}
-        if prefix is not None:
-            kwargs["Prefix"] = prefix
+        if self._prefix is not None:
+            kwargs["Prefix"] = self._prefix
 
         keys: list[str] = []
         paginator = self._client.get_paginator("list_objects_v2")
         for page in paginator.paginate(**kwargs):
             for obj in page.get("Contents", []):
                 keys.append(obj["Key"])
+        return keys
 
-        return self.load_keys(keys)
+    def _fetch_document(self, key: str) -> Document:
+        response = self._client.get_object(Bucket=self._bucket, Key=key)
+        content = response["Body"].read().decode(self._encoding)
+        return Document(
+            content=content,
+            type=infer_document_type(key),
+            source=f"s3://{self._bucket}/{key}",
+            metadata={
+                "bucket": self._bucket,
+                "key": key,
+            },
+        )
 
-    def load_keys(self, keys: list[str]) -> list[Chunk]:
-        """Load specific objects from the bucket by key.
+    async def astream(self) -> AsyncGenerator[Document, None]:
+        """Stream documents one at a time as each S3 object is fetched.
 
-        Args:
-            keys: List of S3 object keys to load.
-
-        Returns:
-            list[Chunk]: Specified objects as Chunk objects.
+        Yields:
+            Document: The next loaded document.
         """
-        chunks: list[Chunk] = []
+        if self._keys is not None:
+            keys = self._keys
+        else:
+            keys = await asyncio.to_thread(self._list_keys)
+
         for key in keys:
-            response = self._client.get_object(Bucket=self._bucket, Key=key)
-            content = response["Body"].read().decode(self._encoding)
-            chunks.append(
-                Chunk(
-                    content=content,
-                    document=key,
-                    metadata={
-                        "source": f"s3://{self._bucket}/{key}",
-                        "bucket": self._bucket,
-                        "key": key,
-                    },
-                )
-            )
-        return chunks
+            yield await asyncio.to_thread(self._fetch_document, key)

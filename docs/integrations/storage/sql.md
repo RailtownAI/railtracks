@@ -1,8 +1,9 @@
 # SQL / Relational Databases
 
-`SQLLoader` reads rows from any **SQLAlchemy-compatible relational database** and
-returns them as [`Chunk`](../../rag/vector_stores/vector_store_info.md) objects.
-Works with PostgreSQL, Supabase, MySQL, SQLite, and more.
+`SQLLoader` reads rows from any **SQLAlchemy-compatible relational database**
+and returns them as `Document` objects
+(`railtracks.retrieval.models.Document`). Works with PostgreSQL, Supabase,
+MySQL, SQLite, and more.
 
 ## Installation
 
@@ -96,7 +97,8 @@ transforming data before it reaches the loader:
 ```
 
 !!! note
-    `load_keys()` requires `id_column` to be set when constructing the loader.
+    Filtering by `keys=` requires `id_column` to be set when constructing the
+    loader.
 
 ## Reuse an existing engine
 
@@ -121,13 +123,13 @@ releasing the connection pool avoids resource leaks:
 # Explicit close
 loader = SQLLoader(connection_string, "documents", "body")
 try:
-    chunks = loader.load()
+    documents = loader.load()
 finally:
     loader.close()
 
 # Context-manager (preferred)
 with SQLLoader(connection_string, "documents", "body") as loader:
-    chunks = loader.load()
+    documents = loader.load()
 ```
 
 ## Async usage
@@ -137,21 +139,22 @@ with SQLLoader(connection_string, "documents", "body") as loader:
 ```
 
 !!! note "Async is thread-backed"
-    `aload()` and `aload_keys()` run the synchronous SQLAlchemy driver on a
+    `aload()` and `astream()` run the synchronous SQLAlchemy driver on a
     thread-pool thread via `asyncio.to_thread()`.  This works correctly but
     occupies a thread for the full duration of the query.  For very
     high-concurrency workloads consider wiring up a true async engine
     (e.g. `asyncpg` with `sqlalchemy.ext.asyncio`) and passing it via the
     `engine` parameter.
 
-## Chunk metadata
+## Document fields
 
-Each returned `Chunk` carries:
+Each returned `Document` carries:
 
-| Key | Value |
+| Field / metadata key | Value |
 |---|---|
-| `source` | The `table_or_query` string used to construct the loader |
-| _any `metadata_columns`_ | One key per column listed in `metadata_columns` |
+| `Document.source` | Value of `source_column` (if set), otherwise the value of `id_column`, otherwise the `table_or_query` string |
+| `Document.type` | `DocumentType.TEXT` |
+| `metadata[<col>]` | One entry per column listed in `metadata_columns` |
 
 When `metadata_columns` is `None`, all columns except `content_column` and
 `id_column` are included automatically.
@@ -164,109 +167,16 @@ When `metadata_columns` is `None`, all columns except `content_column` and
 
 ---
 
-## Writing to SQL databases
-
-`SQLWriter` inserts or upserts rows into any SQLAlchemy-compatible database.
-The table must already exist.
-
-### Basic write — PostgreSQL
-
-```python
---8<-- "docs/scripts/storage_writers.py:sql_write_basic"
-```
-
-### Supabase
-
-```python
---8<-- "docs/scripts/storage_writers.py:sql_write_supabase"
-```
-
-### Insert vs upsert modes
-
-```python
---8<-- "docs/scripts/storage_writers.py:sql_write_modes"
-```
-
-!!! note "Upsert mechanics"
-    In `"upsert"` mode the writer issues a `DELETE` followed by an `INSERT`
-    inside a single transaction, which works across all SQLAlchemy-compatible
-    databases including SQLite, PostgreSQL, and MySQL.  This is not the same
-    as a native `ON CONFLICT DO UPDATE` — it acquires a delete lock for the
-    duration of the insert, which may affect concurrent write throughput under
-    heavy load.
-
-!!! warning "All-or-nothing batch writes"
-    All chunks passed to a single `write()` call are committed inside **one
-    transaction**.  If any individual row fails (constraint violation, type
-    mismatch, etc.) the **entire batch is rolled back** and no rows are
-    written.  The exception from the failing row is re-raised so you can
-    inspect it.
-
-    To tolerate partial failures, call `write_key()` per chunk in a loop:
-
-    ```python
-    writer = SQLWriter(connection_string, "documents", "body", id_column="id")
-    written, failed = [], []
-    for chunk in chunks:
-        try:
-            uri = writer.write_key(chunk.id, chunk.content)
-            written.append(uri)
-        except Exception as exc:
-            failed.append((chunk, exc))
-    ```
-
-### Engine lifecycle — close and context manager
-
-```python
-# Context-manager (preferred)
-with SQLWriter(connection_string, "documents", "body", id_column="id") as writer:
-    writer.write(chunks)
-
-# Explicit close
-writer = SQLWriter(connection_string, "documents", "body", id_column="id")
-try:
-    writer.write(chunks)
-finally:
-    writer.close()
-```
-
-### Reuse an existing engine
-
-```python
---8<-- "docs/scripts/storage_writers.py:sql_write_existing_engine"
-```
-
-### Async write
-
-```python
---8<-- "docs/scripts/storage_writers.py:sql_write_async"
-```
-
-!!! note "Async is thread-backed"
-    `awrite()` and `awrite_key()` delegate to `asyncio.to_thread()`, the same
-    as the loader.  See the async note in the loader section above.
-
-### Chunk-to-row mapping
-
-| Chunk field | SQL column |
-|---|---|
-| `chunk.content` | `content_column` (required) |
-| `chunk.id` | `id_column` (when set) |
-| `chunk.document` | `document_column` (when set) |
-| `chunk.metadata[col]` | Each column in `metadata_columns` |
-
----
-
 ## Security considerations
 
 !!! danger "Never pass user-controlled strings as identifiers"
-    `table_or_query`, `content_column`, `id_column`, `document_column`, and
+    `table_or_query`, `content_column`, `id_column`, `source_column`, and
     `metadata_columns` are interpolated directly into SQL as structural
     identifiers (table and column names).  SQLAlchemy cannot parameterise these
     the way it can parameterise values.
 
-    Both `SQLLoader` and `SQLWriter` validate every identifier against a strict
-    allowlist (`[A-Za-z_][A-Za-z0-9_$]*`) at construction time and raise
+    `SQLLoader` validates every identifier against a strict allowlist
+    (`[A-Za-z_][A-Za-z0-9_$]*`) at construction time and raises
     `ValueError` on any value that contains SQL metacharacters.  This catches
     misconfiguration early, but **the best protection is to use only
     hard-coded, developer-controlled strings** — never values derived from
