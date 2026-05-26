@@ -1,5 +1,4 @@
 import pytest
-
 from railtracks.retrieval.loaders.csv_loader import CSVLoader
 from railtracks.retrieval.models import DocumentType
 
