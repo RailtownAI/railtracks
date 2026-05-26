@@ -2,6 +2,9 @@ site_name: Railtracks Docs
 site_url: https://docs.railtracks.org/
 site_description: "Railtracks is a framework for building LLM-powered agents and applications."
 
+hooks:
+  - mkdocs_hooks.py
+
 repo_name: railtracks
 repo_url: https://github.com/RailtownAI/railtracks/
 
@@ -71,116 +74,114 @@ extra:
 nav:
   - Home: index.md
 
-  - Agent Development: 
-    - Getting Started:
-        - Quickstart: documentation/getting_started/quickstart.md
-        - Installation: documentation/getting_started/installation.md
-        - LLM Setup: documentation/getting_started/llm_setup.md
-        - AI Coding Assistants: documentation/getting_started/ai_setup.md
-    - Agent Design:
-        - Overview: documentation/agent_design/overview.md
-        - Tools:
-            - Function Tools: documentation/agent_design/tools/function_tools.md
-            - Agents as Tools: documentation/agent_design/tools/agents_as_tools.md
-            - MCP: documentation/agent_design/tools/mcp.md
-        - LLMs:
-            - Modalities: documentation/agent_design/llms/modalities.md
-            - Failures: documentation/agent_design/llms/handling_failures.md
+  - Agent Development:
+      - Getting Started:
+          - Quickstart: documentation/getting_started/quickstart.md
+          - Installation: documentation/getting_started/installation.md
+          - LLM Setup: documentation/getting_started/llm_setup.md
+          - AI Coding Assistants: documentation/getting_started/ai_setup.md
+      - Agent Design:
+          - Overview: documentation/agent_design/overview.md
+          - Tools:
+              - Function Tools: documentation/agent_design/tools/function_tools.md
+              - Agents as Tools: documentation/agent_design/tools/agents_as_tools.md
+              - MCP: documentation/agent_design/tools/mcp.md
+          - LLMs:
+              - Modalities: documentation/agent_design/llms/modalities.md
+              - Failures: documentation/agent_design/llms/handling_failures.md
 
-    - Agent Invocation:
-        - Direct Invocation: documentation/invocation/call.md
-        - Flow Invocation: documentation/invocation/flows.md
-    - Advanced:
-        - Guardrails:
-            - Overview: documentation/advanced/guardrails/overview.md
-            - Quickstart: documentation/advanced/guardrails/quickstart.md
-            - Built-in Guardrails: documentation/advanced/guardrails/builtin_guardrails.md
-        - Agent Context: documentation/advanced/context.md
+      - Agent Invocation:
+          - Direct Invocation: documentation/invocation/call.md
+          - Flow Invocation: documentation/invocation/flows.md
+      - Advanced:
+          - Guardrails:
+              - Overview: documentation/advanced/guardrails/overview.md
+              - Quickstart: documentation/advanced/guardrails/quickstart.md
+              - Built-in Guardrails: documentation/advanced/guardrails/builtin_guardrails.md
+          - Agent Context: documentation/advanced/context.md
 
   - RAG:
-    - RAG: rag/RAG.md
-    - Vector Stores:
-        - Overview: rag/vector_stores/vector_store_info.md
-        - Filtering: rag/vector_stores/filtering.md
-        - Integrations:
-            - Chroma: rag/vector_stores/integrations/chroma.md
+      - RAG: rag/RAG.md
+      - Vector Stores:
+          - Overview: rag/vector_stores/vector_store_info.md
+          - Filtering: rag/vector_stores/filtering.md
+          - Integrations:
+              - Chroma: rag/vector_stores/integrations/chroma.md
 
   - Evaluations:
-    - Preface: evaluations/preface.md
-    - Quickstart: evaluations/quickstart.md
-    - Visualization: evaluations/visualization.md
-    - Metrics: 
-        - Metrics Overview: evaluations/metrics/metrics.md
-        - Categorical Metrics: evaluations/metrics/categorical.md
-        - Numerical Metrics: evaluations/metrics/numerical.md
-    - Evaluators: 
-        - Evaluator Abstraction: evaluations/evaluators/evaluators.md
-        - ToolUseEvaluator: evaluations/evaluators/tool_use_evaluator.md
-        - LLMInferenceEvaluator: evaluations/evaluators/llm_inference_evaluator.md
-        - JudgeEvaluator: evaluations/evaluators/judge_evaluator.md
+      - Preface: evaluations/preface.md
+      - Quickstart: evaluations/quickstart.md
+      - Visualization: evaluations/visualization.md
+      - Metrics:
+          - Metrics Overview: evaluations/metrics/metrics.md
+          - Categorical Metrics: evaluations/metrics/categorical.md
+          - Numerical Metrics: evaluations/metrics/numerical.md
+      - Evaluators:
+          - Evaluator Abstraction: evaluations/evaluators/evaluators.md
+          - ToolUseEvaluator: evaluations/evaluators/tool_use_evaluator.md
+          - LLMInferenceEvaluator: evaluations/evaluators/llm_inference_evaluator.md
+          - JudgeEvaluator: evaluations/evaluators/judge_evaluator.md
 
   - Observability:
       - AgentHub:
-        - Local: observability/agenthub/local.md
-        - Cloud: observability/agenthub/cloud.md
+          - Local: observability/agenthub/local.md
+          - Cloud: observability/agenthub/cloud.md
       - Human in the Loop:
-        - Overview: observability/human_in_the_loop/overview.md
-        - Local Chat Interface: observability/human_in_the_loop/local_chat_ui.md
-        - Terminal Interface: observability/human_in_the_loop/terminal.md
-        - Custom: observability/human_in_the_loop/hil.md
-      - Tracking:       
-        - Logging: observability/tracking/logging.md
-        - Broadcasting: observability/tracking/broadcasting.md
-        - Error Handling: observability/tracking/error_handling.md
-        
+          - Overview: observability/human_in_the_loop/overview.md
+          - Local Chat Interface: observability/human_in_the_loop/local_chat_ui.md
+          - Terminal Interface: observability/human_in_the_loop/terminal.md
+          - Custom: observability/human_in_the_loop/hil.md
+      - Tracking:
+          - Logging: observability/tracking/logging.md
+          - Broadcasting: observability/tracking/broadcasting.md
+          - Error Handling: observability/tracking/error_handling.md
 
   - Integrations:
-    - Overview: integrations/overview.md
-    - Language Models:
-        - Providers: integrations/llms/providers.md
-        - Platforms: integrations/llms/platforms.md
-        - Streaming: integrations/llms/streaming.md
-    - MCP:
-        - Github: integrations/mcps/github.md
-        - Slack: integrations/mcps/slack.md
-        - Email: integrations/mcps/notion.md
-    - Other:
-        - Python Sandbox: integrations/other/python_sandbox.md
-        - Shell: integrations/other/shell_bash.md
-        - Websearch: integrations/other/websearch_integration.md
+      - Overview: integrations/overview.md
+      - Language Models:
+          - Providers: integrations/llms/providers.md
+          - Platforms: integrations/llms/platforms.md
+          - Streaming: integrations/llms/streaming.md
+      - MCP:
+          - Github: integrations/mcps/github.md
+          - Slack: integrations/mcps/slack.md
+          - Email: integrations/mcps/notion.md
+      - Other:
+          - Python Sandbox: integrations/other/python_sandbox.md
+          - Shell: integrations/other/shell_bash.md
+          - Websearch: integrations/other/websearch_integration.md
 
   - Tutorials:
-    - Walkthroughs:
-      - Guides:
-        - Building your first agent: tutorials/walkthroughs/byfa.md
-        - Running your first agent: tutorials/walkthroughs/ryfa.md
-        - Agents as Tools: tutorials/walkthroughs/agents_as_tools.md
-        - Prompts and Context: tutorials/walkthroughs/prompts_and_context.md
-        - Flows: tutorials/walkthroughs/flows.md
-        - RAG system: tutorials/walkthroughs/rag_tutorial.md
-        - Vector Stores: tutorials/walkthroughs/vector_store_tutorial.md
-        - FastAPI Integration: tutorials/walkthroughs/fastapi.md
-      - Videos:
-          - Multiagent Systems: tutorials/videos/multiagent.md
-          - Multimodal Agent: tutorials/videos/multimodal_agent.md
-          - AgentHub: tutorials/videos/agenthub.md
-          - Evaluation: tutorials/videos/evaluation.md
-    - Notebooks:
-      - Agent Architectures: tutorials/notebooks/architectures.md
-      - FastAPI Integration: tutorials/notebooks/fastapi.md
-    - Concepts:
-      - Core: 
-          - Agents: tutorials/concepts/agents.md
-          - Tools: tutorials/concepts/tools.md
-          - MCP: tutorials/concepts/mcp.md
-          - Prompts and Context: tutorials/concepts/prompts_and_context.md
-          - RAG: tutorials/concepts/RAG.md
-          - Async/Await: tutorials/concepts/async_await.md
-          - Vector Stores: tutorials/concepts/vector_store.md
-      - Architectures: 
-          - Overview: tutorials/concepts/architectures/overview.md
-          - Validation Loops: tutorials/concepts/architectures/validation_loop.md
-          - Sequential Flows: tutorials/concepts/architectures/sequential.md
-
+      - Walkthroughs:
+          - Guides:
+              - Building your first agent: tutorials/walkthroughs/byfa.md
+              - Running your first agent: tutorials/walkthroughs/ryfa.md
+              - Agents as Tools: tutorials/walkthroughs/agents_as_tools.md
+              - Prompts and Context: tutorials/walkthroughs/prompts_and_context.md
+              - Flows: tutorials/walkthroughs/flows.md
+              - RAG system: tutorials/walkthroughs/rag_tutorial.md
+              - Vector Stores: tutorials/walkthroughs/vector_store_tutorial.md
+              - FastAPI Integration: tutorials/walkthroughs/fastapi.md
+          - Videos:
+              - Multiagent Systems: tutorials/videos/multiagent.md
+              - Multimodal Agent: tutorials/videos/multimodal_agent.md
+              - AgentHub: tutorials/videos/agenthub.md
+              - Evaluation: tutorials/videos/evaluation.md
+      - Notebooks:
+          - Agent Architectures: tutorials/notebooks/architectures.md
+          - FastAPI Integration: tutorials/notebooks/fastapi.md
+      - Concepts:
+          - Core:
+              - Agents: tutorials/concepts/agents.md
+              - Tools: tutorials/concepts/tools.md
+              - MCP: tutorials/concepts/mcp.md
+              - Prompts and Context: tutorials/concepts/prompts_and_context.md
+              - RAG: tutorials/concepts/RAG.md
+              - Async/Await: tutorials/concepts/async_await.md
+              - Vector Stores: tutorials/concepts/vector_store.md
+          - Architectures:
+              - Overview: tutorials/concepts/architectures/overview.md
+              - Validation Loops: tutorials/concepts/architectures/validation_loop.md
+              - Sequential Flows: tutorials/concepts/architectures/sequential.md
 
   - API Reference: api_reference.md

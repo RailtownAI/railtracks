@@ -11,18 +11,12 @@ railtracks/
 ├── pyproject.toml              # Root development environment
 ├── docs/                       # Shared documentation
 ├── packages/
-│   ├── railtracks/            # Core SDK package
-│   │   ├── src/railtracks/    # Python module (underscore)
-│   │   ├── tests/             # SDK tests
-│   │   └── pyproject.toml
-│   └── railtracks-cli/        # CLI package  
-│       ├── src/railtracks_cli/ # Python module (underscore)
-│       ├── tests/             # CLI tests
+│   └── railtracks/            # Core SDK package
+│       ├── src/railtracks/    # Python module (underscore)
+│       ├── tests/             # SDK tests
 │       └── pyproject.toml
 └── LICENSE
 ```
-
-**Important:** Package names use dashes (`railtracks-cli`) but Python modules use underscores (`railtracks_cli`).
 
 ## Development Setup
 
@@ -30,12 +24,11 @@ railtracks/
 
 - Python 3.10 or higher
 
-### Installation
+### Installing code and dependencies
 
 1. **Clone the repository**
    ```bash
    git clone https://github.com/RailtownAI/railtracks
-   cd railtracks
    ```
 
 2. **Install development dependencies**
@@ -48,27 +41,20 @@ railtracks/
 ## Development Workflow
 
 ### Code Style
-
+Ensure linting is enabled on auto or ran before commits. We check `ruff` for linting and formatting. You can run it manually with:
 ```bash
-# Run linter
-ruff check
-
-# Fix auto-fixable issues
+# Fix potential bugs and security alert and raise alert for others.
 ruff check --fix
-
-# Format code
+# Fix formatting issue like margins
 ruff format
 ```
 
 ### Documentation
 
-```bash
-# Serve documentation locally
-cd docs
-mkdocs serve
+Run the following command on root to build and launch documentation locally. A `site/` directory will be generated with the built documentation that you can open in your browser (default: localhost:8000).
 
-# Build documentation
-mkdocs build
+```bash
+uv run --group docs mkdocs serve
 ```
 
 ### Package Installation for End Users
@@ -77,27 +63,16 @@ Individual packages can be installed separately:
 
 ```bash
 # Core SDK
-pip install railtracks
-pip install "railtracks[integrations]"  # With integrations
-pip install "railtracks[all]"           # With all extras
-
-# CLI tool (includes core SDK)
-pip install railtracks-cli
+pip install railtracks # or
+pip install railtracks[all] # With all extras
 ```
 
-## Package Structure
-
-### Core SDK (`packages/railtracks/`)
-
-The main SDK with optional dependencies:
+Dependencies can be added in pyproject.toml, if developing sub-module, add under `optional-dependencies`. Examples include:
 - `chat` - FastAPI chat interface
 - `integrations` - The integration tooling to connect to various data sources.
 - `all` - All optional dependencies
 
-### CLI (`packages/railtracks-cli/`)
-Command-line interface that gives you a visualizer to use with the system. 
-
-## Testing Guidelines
+### Testing Guidelines
 
 - Write tests in the appropriate `tests/` directory of the package of intrest
 - Use `pytest` for running tests
