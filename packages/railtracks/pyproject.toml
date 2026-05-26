@@ -47,7 +47,7 @@ dependencies = [
 
 [project.optional-dependencies]
 visual = [
-    "fastapi >= 0.104.0",
+    "fastapi >= 0.121.0",
     "uvicorn[standard] >= 0.24.0",
 ]
 # cli and chat both require the visual extras (may diverge in future)
