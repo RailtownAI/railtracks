@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
+from typing import Any
 from uuid import UUID, uuid4
 
 from ..models import EmbeddedChunk
@@ -41,13 +42,6 @@ class StoreCategory(str, Enum):
     PROCEDURAL = "procedural"
 
 
-class RetrievalStrategy(Enum):
-    VECTOR = "vector"
-    KEYWORD = "keyword"
-    GRAPH = "graph"
-    TEMPORAL = "temporal"
-
-
 class DetailLevel(Enum):
     L0 = "abstract"
     L1 = "summary"
@@ -59,7 +53,7 @@ class StoreEntry:
     # Required fields
     id: UUID
     content: str
-    vector: list[float]
+    vector: list[float] | None
     embedding_model: str
     chunk_id: UUID
     document_id: UUID
@@ -129,12 +123,9 @@ class RetrievedStoreEntry:
 @dataclass
 class StoreQuery:
     text: str
-    scope: StoreScope
+    scope: StoreScope | None = None
     embedding: list[float] | None = None
     top_k: int = 10
-    strategies: list[RetrievalStrategy] = field(
-        default_factory=lambda: [RetrievalStrategy.VECTOR]
-    )
     detail_level: DetailLevel = DetailLevel.L2
     store_category: StoreCategory | None = None
-    metadata_filters: dict[str, str] | None = None
+    metadata_filters: dict[str, Any] | None = None

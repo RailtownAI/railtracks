@@ -1,5 +1,4 @@
 import pytest
-
 from railtracks.retrieval.loaders.text_loader import TextLoader
 from railtracks.retrieval.models import DocumentType
 

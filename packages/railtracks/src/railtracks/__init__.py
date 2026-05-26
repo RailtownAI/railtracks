@@ -40,8 +40,6 @@ __all__ = [
     "ToolManifest",
     "session_id",
     "evaluations",
-    "vector_stores",
-    "rag",
     "retrieval",
     "RagConfig",
     "Flow",
@@ -61,9 +59,7 @@ from . import (
     integrations,
     llm,
     prebuilt,
-    rag,
     retrieval,
-    vector_stores,
 )
 from ._session import ExecutionInfo, Session, session
 from .context.central import session_id, set_config

@@ -115,11 +115,6 @@ nav:
       - Stores:
           - Overview: rag/components/stores/overview.md
           - Backends: rag/components/stores/backends.md
-    - Vector Stores:
-        - Overview: rag/vector_stores/vector_store_info.md
-        - Filtering: rag/vector_stores/filtering.md
-        - Integrations:
-            - Chroma: rag/vector_stores/integrations/chroma.md
 
   - Evaluations:
     - Preface: evaluations/preface.md

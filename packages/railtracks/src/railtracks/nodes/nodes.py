@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import time
 import uuid
 from abc import ABC, abstractmethod
@@ -143,7 +144,9 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
         start_time = time.time()
         try:
             for func in self.pre_invokes:
-                func(self)
+                result = func(self)
+                if inspect.iscoroutine(result):
+                    await result
             return await self.invoke()
         except Exception as e:
             raise e

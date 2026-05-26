@@ -27,7 +27,7 @@ class StoreEntry:
     # Required — sourced from EmbeddedChunk
     id: UUID
     content: str
-    vector: list[float]
+    vector: list[float] | None
     embedding_model: str
     chunk_id: UUID
     document_id: UUID
@@ -162,24 +162,12 @@ query = StoreQuery(
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `text` | `str` | required | Raw query string |
-| `scope` | `StoreScope` | required | Namespace filter applied to every search |
+| `scope` | `StoreScope \| None` | `None` | Optional namespace filter applied to the search |
 | `embedding` | `list[float] \| None` | `None` | Pre-computed query vector (required by `VectorStore`) |
 | `top_k` | `int` | `10` | Maximum results to return |
-| `strategies` | `list[RetrievalStrategy]` | `[VECTOR]` | Retrieval strategies to use |
 | `detail_level` | `DetailLevel` | `L2` | Controls how much of each entry is returned |
 | `store_category` | `StoreCategory \| None` | `None` | Hard filter by category |
-| `metadata_filters` | `dict[str, str] \| None` | `None` | Additional payload equality filters |
-
-### RetrievalStrategy
-
-`RetrievalStrategy` signals which retrieval method a store implementation should use. `VectorStore` always uses `VECTOR`; the other strategies are reserved for future hybrid retrieval implementations.
-
-| Value | Meaning |
-|-------|---------|
-| `VECTOR` | Dense vector similarity search |
-| `KEYWORD` | BM25 / full-text keyword search |
-| `GRAPH` | Knowledge-graph traversal |
-| `TEMPORAL` | Time-ordered retrieval |
+| `metadata_filters` | `dict[str, Any] \| None` | `None` | Additional payload equality filters |
 
 ### DetailLevel
 
@@ -205,9 +193,11 @@ class Store(Protocol):
     async def read(self, query: StoreQuery) -> list[RetrievedStoreEntry]: ...
     async def delete(self, id: UUID) -> None: ...
     async def clear(self, scope: StoreScope) -> None: ...
+    async def delete_where(self, filters: dict[str, Any]) -> None: ...
+    async def find(self, filters: dict[str, Any], limit: int = 1) -> list[StoreEntry]: ...
 ```
 
-`write` returns the entry ID as a string. `clear` removes all entries matching the given scope — useful for session cleanup or user data deletion.
+`write` returns the entry ID as a string. `clear` removes all entries matching the given scope — useful for session cleanup or user data deletion. `delete_where` and `find` power the runtime's upsert and staleness-detection paths and operate on metadata-only equality filters.
 
 ---
 
@@ -250,7 +240,7 @@ results = await store.nearest_neighbors(
 
 ### Note on retrieved vectors
 
-Vectors are **not** round-tripped through read results. The backend owns the stored vector; the `vector` field on retrieved `StoreEntry` objects is always `[]`. Only the original `write` call needs a populated vector.
+Vectors are **not** round-tripped through read results. The backend owns the stored vector; the `vector` field on retrieved `StoreEntry` objects is `None`. Only the original `write` call needs a populated vector.
 
 ---
 

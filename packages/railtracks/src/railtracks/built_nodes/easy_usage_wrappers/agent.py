@@ -363,13 +363,13 @@ def agent_node(
 
     if rag is not None:
 
-        def _update_message_history(node: Node):
+        async def _update_message_history(node: Node):
             # `pre_invokes` may be shared across Node subclasses; only LLM agents
             # have `message_hist` / RAG context to update.
             if not isinstance(node, LLMBase):
                 return
-            node.message_hist = update_context(
-                node.message_hist, vs=rag.vector_store, top_k=rag.top_k
+            node.message_hist = await update_context(
+                node.message_hist, runtime=rag.runtime, top_k=rag.top_k
             )
 
         agent.add_pre_invoke(_update_message_history)

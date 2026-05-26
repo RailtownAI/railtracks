@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TypeVar
 import sys
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator, AsyncIterable
+from typing import TypeVar
 
 from railtracks.utils.logging.create import get_rt_logger
+
 from ..models import Chunk, EmbeddedChunk
 from ..utils import abatched
 from .models import (
@@ -18,6 +19,8 @@ from .models import (
 logger = get_rt_logger(__name__)
 
 _T = TypeVar("_T")
+
+
 async def _to_async_iterable(lst: list[_T]) -> AsyncGenerator[_T, None]:
     for item in lst:
         yield item

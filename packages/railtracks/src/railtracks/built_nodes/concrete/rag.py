@@ -1,16 +1,21 @@
 from copy import deepcopy
 
 import railtracks as rt
-from railtracks.vector_stores.vector_store_base import VectorStore
+from railtracks.retrieval import RetrievalRuntime
 
 
 class RagConfig:
     """
     Configuration object for Retrieval-Augmented Generation (RAG).
+
+    Attributes:
+        runtime: A ``RetrievalRuntime`` configured with the chunker,
+            embedder, and store the agent should retrieve against.
+        top_k: Number of chunks fetched per retrieval call.
     """
 
-    def __init__(self, vector_store: VectorStore, top_k: int = 3) -> None:
-        self.vector_store = vector_store
+    def __init__(self, runtime: RetrievalRuntime, top_k: int = 3) -> None:
+        self.runtime = runtime
         self.top_k = top_k
 
 
@@ -65,7 +70,7 @@ def _parse_message_combos(message_history: rt.llm.MessageHistory):
                 break
 
             assistants.append(message)
-            idx_offset += 1  # fixed bug: was "=+ 1"
+            idx_offset += 1
 
         search_chunks.append(
             (_prepare_messages(user_message), _prepare_messages(assistants))
@@ -79,9 +84,9 @@ def _parse_message_combos(message_history: rt.llm.MessageHistory):
     return search_chunks
 
 
-def update_context(
+async def update_context(
     message_history: rt.llm.MessageHistory,
-    vs: rt.vector_stores.vector_store_base.VectorStore,
+    runtime: RetrievalRuntime,
     top_k: int = 3,
 ):
     """
@@ -91,38 +96,31 @@ def update_context(
         1. Deep-copy the message history (original remains untouched).
         2. Convert the history into grouped (user → assistants) chunks.
         3. Generate all possible contiguous subsequences of these chunks.
-        4. Search the vector store using these sequences.
-        5. Collect all unique returned results.
-        6. Construct an injection text block from these results.
+        4. Retrieve against the runtime using each subsequence as the query.
+        5. Collect all unique returned chunks.
+        6. Construct an injection text block from these chunks.
         7. Prepend a new user message containing the contextual information.
 
     Args:
-        message_history (MessageHistory):
-            The original message history to augment.
-        vs (VectorStore):
-            A vector store instance implementing `.search(texts, top_k)`.
-        top_k (int):
-            Number of results to retrieve from each search query.
+        message_history: The original message history to augment.
+        runtime: A configured ``RetrievalRuntime`` to retrieve against.
+        top_k: Number of chunks retrieved per query.
 
     Returns:
-        MessageHistory:
-            A new message history with prepended retrieved context.
+        A new message history with prepended retrieved context.
     """
     message_history = deepcopy(message_history)
 
     parsed_messages = _parse_message_combos(message_history)
-    chunks_to_search = _random_contiguous_subsequence(parsed_messages)
+    queries = _random_contiguous_subsequence(parsed_messages)
 
-    chunks = {}
-    results = vs.search(chunks_to_search, top_k=top_k)
-
-    for r in results:
-        if isinstance(r, list):
-            for item in r:
-                if item.id not in chunks:
-                    chunks[item.id] = item.content
-        else:
-            chunks[r.id] = r.content
+    chunks: dict[str, str] = {}
+    for query_text in queries:
+        result = await runtime.retrieve(query_text, top_k=top_k)
+        for retrieved in result.chunks:
+            chunk_id = str(retrieved.chunk.id)
+            if chunk_id not in chunks:
+                chunks[chunk_id] = retrieved.chunk.content
 
     injection_str = (
         "\n\n\n------------------------------------------------------\n".join(
