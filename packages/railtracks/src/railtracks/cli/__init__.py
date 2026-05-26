@@ -468,7 +468,7 @@ def main():
 
         create_railtracks_dir()
 
-        ui_index = Path(f"{cli_directory}/ui/index.html")
+        ui_index = resolve_railtracks_home() / "ui" / "index.html"
         if not ui_index.exists():
             print_status("UI not found — downloading...")
             download_and_extract_ui()
