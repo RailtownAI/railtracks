@@ -24,14 +24,14 @@ system.
 ```mermaid
 graph TB
     User[User]
-    LLM[LLM Agent]
+    Agent[Agent]
     Tools[Tools]
     Env[Environment]
     
-    User -->|Query| LLM
-    LLM -->|Response| User
-    LLM -->|Select & invoke| Tools
-    Tools -->|Results| LLM
+    User -->|Query| Agent
+    Agent -->|Response| User
+    Agent -->|Select & invoke| Tools
+    Tools -->|Results| Agent
     Tools -->|Actions| Env
     Env -->|State updates| Tools
     
@@ -41,7 +41,7 @@ graph TB
     classDef envClass fill:#34D399,fill-opacity:0.3
     
     class User userClass;
-    class LLM agentClass;
+    class Agent agentClass;
     class Tools toolClass;
     class Env envClass;
 ```
