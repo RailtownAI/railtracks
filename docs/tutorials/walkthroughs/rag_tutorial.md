@@ -29,4 +29,3 @@ You can also use our pre-configured RAG node that automatically collects context
 !!! success "Next Steps"
     - Check out the [RAG Reference Documentation](../../rag/RAG.md) to learn how to build RAG applications in Railtracks.
     - Explore the [Agent Design Documentation](../../documentation/agent_design/overview.md) for integrating any type of tool.
-    - Try the hands-on Colab notebooks: [Local File Embedding](../notebooks/file_embedding.md) and [Remote File Embedding](../notebooks/file_embedding.md#embedding-remote-files).
