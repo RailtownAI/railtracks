@@ -137,6 +137,7 @@ def test_session_saves_data(tmp_path, monkeypatch):
     """Test that session saves execution data to JSON file in temp directory."""
     name = "abs53562j12h267"
     monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
+    monkeypatch.delenv("RAILTRACKS_HOME", raising=False)
     monkeypatch.chdir(tmp_path)
 
     serialization_mock = {"Key": "Value"}
@@ -190,6 +191,7 @@ def test_session_not_saves_data(tmp_path, monkeypatch):
 def test_session_fallback_on_invalid_name(tmp_path, monkeypatch):
     """Test that session falls back to identifier-only filename when name causes issues."""
     monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
+    monkeypatch.delenv("RAILTRACKS_HOME", raising=False)
     monkeypatch.chdir(tmp_path)
     
     # Use a name that would cause issues in file path creation

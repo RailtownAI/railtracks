@@ -31,9 +31,10 @@ from pathlib import Path
 
 from colorama import Fore, Style
 
+from railtracks.paths import resolve_railtracks_home
+
 from .constants import (
     DEFAULT_PORT,
-    UI_VERSION_FILE,
     cli_directory,
     cli_name,
     latest_ui_url,
@@ -111,32 +112,34 @@ def is_port_in_use(port):
 
 def create_railtracks_dir():
     """Create .railtracks directory if it doesn't exist and add to .gitignore"""
-    railtracks_dir = Path(cli_directory)
+    railtracks_dir = resolve_railtracks_home()
     if not railtracks_dir.exists():
         print_status(f"Creating {cli_directory} directory...")
-        railtracks_dir.mkdir(exist_ok=True)
-        print_success(f"Created {cli_directory} directory")
+        railtracks_dir.mkdir(parents=True, exist_ok=True)
+        print_success(f"Created {railtracks_dir}")
 
-    gitignore_path = Path(".gitignore")
-    if gitignore_path.exists():
-        with open(gitignore_path) as f:
-            gitignore_content = f.read()
+        gitignore_path = railtracks_dir.parent / ".gitignore"
+        if gitignore_path.exists():
+            with open(gitignore_path) as f:
+                gitignore_content = f.read()
 
-        if cli_directory not in gitignore_content:
-            print_status(f"Adding {cli_directory} to .gitignore...")
-            with open(gitignore_path, "a") as f:
-                f.write(f"\n{cli_directory}\n")
-            print_success(f"Added {cli_directory} to .gitignore")
+            if cli_directory not in gitignore_content:
+                print_status(f"Adding {cli_directory} to .gitignore...")
+                with open(gitignore_path, "a") as f:
+                    f.write(f"\n{cli_directory}\n")
+                print_success(f"Added {cli_directory} to .gitignore")
+        else:
+            print_status("Creating .gitignore file...")
+            with open(gitignore_path, "w") as f:
+                f.write(f"{cli_directory}\n")
+            print_success(f"Created .gitignore with {cli_directory}")
     else:
-        print_status("Creating .gitignore file...")
-        with open(gitignore_path, "w") as f:
-            f.write(f"{cli_directory}\n")
-        print_success(f"Created .gitignore with {cli_directory}")
+        print_status(f"Using existing {railtracks_dir}")
 
 
 def get_stored_ui_version():
     """Get the stored UI version (ETag) from disk"""
-    version_file = Path(UI_VERSION_FILE)
+    version_file = resolve_railtracks_home() / ".ui_version"
     try:
         if version_file.exists():
             return version_file.read_text().strip()
@@ -147,7 +150,7 @@ def get_stored_ui_version():
 
 def save_ui_version(version: str):
     """Save the UI version (ETag) to disk"""
-    version_file = Path(UI_VERSION_FILE)
+    version_file = resolve_railtracks_home() / ".ui_version"
     try:
         version_file.write_text(version)
     except Exception:
@@ -177,7 +180,7 @@ def check_for_ui_update():
 def download_and_extract_ui():
     """Download the latest frontend UI and extract it to .railtracks/ui"""
     ui_url = latest_ui_url
-    ui_dir = Path(f"{cli_directory}/ui")
+    ui_dir = resolve_railtracks_home() / "ui"
 
     print_status("Downloading latest frontend UI...")
 
@@ -464,6 +467,11 @@ def main():
         from .viz_server import RailtracksServer
 
         create_railtracks_dir()
+
+        ui_index = resolve_railtracks_home() / "ui" / "index.html"
+        if not ui_index.exists():
+            print_status("UI not found — downloading...")
+            download_and_extract_ui()
 
         update_thread = threading.Thread(target=check_for_ui_update, daemon=True)
         update_thread.start()
