@@ -11,7 +11,8 @@ def critical_function():
 # --8<-- [end: fatal_error]
 
 # --8<-- [start: simple_handling]
-from railtracks.exceptions import NodeInvocationError, LLMError
+from railtracks.exceptions import NodeInvocationError
+from railtracks.llm import LLMError
 import logging
 
 logger = logging.getLogger(__name__)
@@ -36,9 +37,10 @@ except LLMError as e:
 
 # --8<-- [start: comprehensive_handling]
 from railtracks.exceptions import (
-    NodeCreationError, NodeInvocationError, 
-    LLMError, GlobalTimeOutError, ContextError, FatalError
+    NodeCreationError, NodeInvocationError,
+    GlobalTimeOutError, ContextError, FatalError
 )
+from railtracks.llm import LLMError
 
 try:
     # Setup phase
