@@ -579,6 +579,7 @@ class TestUIVersionTracking(unittest.TestCase):
 
     # --- background thread for update check ---
 
+    @patch('railtracks.cli.download_and_extract_ui')
     @patch('railtracks.cli.check_for_ui_update')
     @patch('railtracks.cli.viz_server.RailtracksServer')
     @patch('railtracks.cli.create_railtracks_dir')
@@ -587,8 +588,10 @@ class TestUIVersionTracking(unittest.TestCase):
     @patch('railtracks.cli.sys.argv', ['railtracks', 'viz'])
     def test_viz_runs_update_check_in_background_thread(self, _mock_deps, _mock_port,
                                                          _mock_dir, mock_server,
-                                                         mock_check):
+                                                         mock_check, mock_download):
         """viz command runs check_for_ui_update in a daemon thread, not blocking main"""
+        Path(".railtracks/ui").mkdir(parents=True, exist_ok=True)
+        Path(".railtracks/ui/index.html").write_text("ok")
         thread_kwargs = {}
 
         real_thread = threading.Thread
@@ -609,6 +612,25 @@ class TestUIVersionTracking(unittest.TestCase):
                       "check_for_ui_update should be the thread target")
         self.assertTrue(thread_kwargs.get('daemon'),
                         "Update-check thread should be a daemon thread")
+        mock_download.assert_not_called()
+
+    @patch('railtracks.cli.download_and_extract_ui')
+    @patch('railtracks.cli.viz_server.RailtracksServer')
+    @patch('railtracks.cli.create_railtracks_dir')
+    @patch('railtracks.cli.is_port_in_use', return_value=False)
+    @patch('railtracks.cli._visual_dependencies_available', return_value=True)
+    @patch('railtracks.cli.sys.argv', ['railtracks', 'viz'])
+    def test_viz_downloads_ui_when_bundle_missing(self, _mock_deps, _mock_port,
+                                                  _mock_dir, mock_server,
+                                                  mock_download):
+        """viz command downloads UI bundle when local index.html is missing"""
+        mock_server_instance = MagicMock()
+        mock_server.return_value = mock_server_instance
+
+        import railtracks.cli as cli_module
+        cli_module.main()
+
+        mock_download.assert_called_once()
 
 
 class TestMainDispatch(unittest.TestCase):
