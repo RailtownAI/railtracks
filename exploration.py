@@ -54,7 +54,7 @@ class NodeBuilder(Generic[_P, _T]):
     def construct_required(self) -> dict[str, Callable[...] | classmethod | None]:
         return {
             "invoke": self._invoke,
-            "node_class": classmethod(lambda _cls: self._node_class),
+            "type": classmethod(lambda _cls: self._node_class),
         }
     
     def construct_optional(self) -> dict[str, Callable[...] | classmethod | None]:
@@ -83,8 +83,10 @@ class Node(ABC, Generic[_P, _T]):
 
     @classmethod
     @abstractmethod
-    def node_class(cls) -> Literal["tool", "llm"]:
+    def type(cls) -> Literal["Tool", "Agent", "Other"]:
         pass
+
+
 
 
 if __name__ == "__main__":
@@ -96,5 +98,6 @@ if __name__ == "__main__":
     result = FunctionType().invoke()
 
     print(result)
+    print(FunctionType.type())
 
 
