@@ -3,6 +3,11 @@ from __future__ import annotations
 from typing import Callable, Literal, Type, TypeVar, Generic, ParamSpec, cast
 from abc import ABC, abstractmethod
 
+from railtracks.llm.history import MessageHistory
+from railtracks.llm.message import AssistantMessage
+from railtracks.llm.response import Response
+from railtracks.llm.tools.parameters._base import Parameter
+
 _P = ParamSpec("_P")
 _T = TypeVar("_T")
 _P2 = ParamSpec("_P2")
@@ -31,6 +36,8 @@ class NodeBuilder(Generic[_P, _T]):
         self._invoke: Callable[_P, _T] | None = None
         self._node_class: Literal["tool", "llm"] | None = None
         self.node_name: str | None = None
+
+        self.paramater: Parameter | None = None
 
     @classmethod
     def llm(cls, structured: bool, tool_call: bool) -> NodeBuilder[_P, _T]:
@@ -63,13 +70,21 @@ class NodeBuilder(Generic[_P, _T]):
             self.construct_optional(),
         )
         
+# TODO: add over loads here for structured response types
 
+def llm_invoke_factory(
+        structured: bool,
+        llm_call: Callable[[MessageHistory], AssistantMessage]
+    ) -> Callable[[MessageHistory], Response]:
+    pass
+    
+def llm_model_call_factory(
+    
+) -> Callable[[MessageHistory], Response]:
+    pass
     
 
-
 class Node(ABC, Generic[_P, _T]):
-
-
     def __init__(self) -> None:
         pass
 
@@ -79,21 +94,16 @@ class Node(ABC, Generic[_P, _T]):
 
     @classmethod
     @abstractmethod
-<<<<<<< Updated upstream
     def type(cls) -> Literal["Tool", "Agent", "Other"]:
-=======
-    def type(cls) -> Literal["Tool", "llm"]:
->>>>>>> Stashed changes
         pass
 
 
 
 
-<<<<<<< Updated upstream
-=======
 
 
->>>>>>> Stashed changes
+
+
 if __name__ == "__main__":
     def some_function() -> str:
         return "Hello, World!"
