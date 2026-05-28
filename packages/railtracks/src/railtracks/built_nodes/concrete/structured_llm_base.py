@@ -4,8 +4,8 @@ from typing import Generator, Generic, Literal, TypeVar
 
 from pydantic import BaseModel
 
-from railtracks.exceptions.errors import LLMError
 from railtracks.llm import Message, MessageHistory, ModelBase, UserMessage
+from railtracks.llm.errors import LLMError
 from railtracks.validation.node_creation.validation import (
     check_classmethod,
     check_schema,

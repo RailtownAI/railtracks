@@ -26,8 +26,8 @@ from litellm.litellm_core_utils.streaming_handler import CustomStreamWrapper
 from litellm.types.utils import ModelResponse
 from pydantic import BaseModel, Field
 
-from ...exceptions.errors import LLMError, NodeInvocationError
 from ..content import ToolCall
+from ..errors import LLMError
 from ..history import MessageHistory
 from ..message import AssistantMessage, Message, ToolMessage, UserMessage
 from ..model import ModelBase
@@ -35,6 +35,7 @@ from ..response import MessageInfo, Response
 from ..retries import RetryApproach
 from ..tools import Tool
 from ..tools.parameters import Parameter
+from ._model_exception_base import ModelError
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 
@@ -96,12 +97,8 @@ def _parameters_to_json_schema(
     ):
         return _handle_set_of_parameters(list(parameters))
 
-    raise NodeInvocationError(
-        message=f"Unable to parse Tool.parameters. It was {parameters}",
-        fatal=True,
-        notes=[
-            "Tool.parameters must be a set of Parameter objects",
-        ],
+    raise ModelError(
+        reason=f"Unable to parse Tool.parameters. It was {parameters}. Tool.parameters must be a set of Parameter objects.",
     )
 
 

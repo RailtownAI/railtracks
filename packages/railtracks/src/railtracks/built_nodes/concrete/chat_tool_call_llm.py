@@ -1,7 +1,6 @@
 import asyncio
 from abc import ABC
 
-from railtracks.exceptions import LLMError
 from railtracks.interaction import call
 from railtracks.llm import (
     AssistantMessage,
@@ -10,6 +9,7 @@ from railtracks.llm import (
     ToolResponse,
     UserMessage,
 )
+from railtracks.llm.errors import LLMError
 from railtracks.llm.message import Role
 
 from ._llm_base import StringOutputMixIn

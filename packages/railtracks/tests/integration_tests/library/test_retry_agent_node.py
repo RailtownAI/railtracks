@@ -3,9 +3,8 @@ from unittest.mock import patch
 
 import litellm
 import pytest
-
 import railtracks as rt
-from railtracks.exceptions import LLMError
+from railtracks.llm.errors import LLMError
 from railtracks.llm.retries import ExponentialRetry, FixedRetry
 
 

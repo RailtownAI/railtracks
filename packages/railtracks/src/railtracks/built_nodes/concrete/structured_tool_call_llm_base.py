@@ -3,7 +3,6 @@ from typing import Any, ClassVar, Generic, Literal, Type, TypeVar, cast
 
 from pydantic import BaseModel
 
-from railtracks.exceptions.errors import LLMError
 from railtracks.interaction import call
 from railtracks.llm import (
     AssistantMessage,
@@ -12,6 +11,7 @@ from railtracks.llm import (
     ModelBase,
     UserMessage,
 )
+from railtracks.llm.errors import LLMError
 
 from ._llm_base import StructuredOutputMixIn
 from ._tool_call_base import OutputLessToolCallLLM

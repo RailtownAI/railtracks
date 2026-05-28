@@ -15,7 +15,7 @@ from typing import (
 )
 
 from railtracks.built_nodes.concrete.response import LLMResponse
-from railtracks.exceptions import LLMError, NodeCreationError
+from railtracks.exceptions import NodeCreationError
 from railtracks.interaction._call import call
 from railtracks.llm import (
     AssistantMessage,
@@ -28,6 +28,7 @@ from railtracks.llm import (
     UserMessage,
 )
 from railtracks.llm.content import Content
+from railtracks.llm.errors import LLMError
 from railtracks.llm.message import Role
 from railtracks.llm.providers import ModelProvider
 from railtracks.llm.response import Response

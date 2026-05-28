@@ -1,13 +1,13 @@
 import pytest
+from railtracks.exceptions._base import RTError
 from railtracks.exceptions.errors import (
-    NodeInvocationError,
-    NodeCreationError,
-    LLMError,
-    GlobalTimeOutError,
     ContextError,
     FatalError,
+    GlobalTimeOutError,
+    NodeCreationError,
+    NodeInvocationError,
 )
-from railtracks.exceptions._base import RTError
+from railtracks.llm.errors import LLMError
 
 # NOTE: This file contains very basic tests to ensure that the exception classes are working as expected.
 
