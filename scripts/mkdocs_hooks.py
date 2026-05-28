@@ -31,7 +31,9 @@ def _generate_api_reference(repo_root: Path) -> None:
 
 
 def on_pre_build(config, **kwargs):
-    """Regenerate generated docs before MkDocs serves or builds the site."""
+    """Generate API docs on first run; CI handles regeneration explicitly."""
 
     repo_root = Path(__file__).resolve().parent
-    _generate_api_reference(repo_root)
+    output_dir = repo_root / "docs" / "api_reference"
+    if not output_dir.exists():
+        _generate_api_reference(repo_root)
