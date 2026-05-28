@@ -12,7 +12,6 @@ from .embedding.models import EmbeddingFailure
 from .errors import EmbeddingModelMismatchError
 from .models import (
     Chunk,
-    Cost,
     Document,
     DocumentType,
     EmbeddedChunk,
@@ -23,7 +22,6 @@ from .runtime import (
     BatchIngested,
     DocumentFailed,
     DocumentSkipped,
-    IngestionEvent,
     IngestionStats,
     RetrievalRuntime,
 )
@@ -38,7 +36,6 @@ from .stores import (
 __all__ = [
     "BatchIngested",
     "Chunk",
-    "Cost",
     "Document",
     "DocumentFailed",
     "DocumentSkipped",
@@ -46,7 +43,6 @@ __all__ = [
     "EmbeddedChunk",
     "EmbeddingFailure",
     "EmbeddingModelMismatchError",
-    "IngestionEvent",
     "IngestionStats",
     "RetrievalResult",
     "RetrievalRuntime",
