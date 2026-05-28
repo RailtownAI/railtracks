@@ -119,8 +119,8 @@ class LangChainLoaderAdapter(BaseDocumentLoader):
                 if lc_doc is _SENTINEL:
                     return
                 yield self._convert(lc_doc)
-            return
 
-        docs = await asyncio.to_thread(self._loader.load)
-        for lc_doc in docs:
-            yield self._convert(lc_doc)
+        if hasattr(self._loader, "load"):
+            docs = await asyncio.to_thread(self._loader.load)
+            for lc_doc in docs:
+                yield self._convert(lc_doc)
