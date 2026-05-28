@@ -14,21 +14,17 @@ def unpack(item: _T | None  ,/) -> _T:
         raise ValueError("Unpacked Item was None")
     return item
 
-def safe_create_node(class_name: str | None, class_type: type[Node[_P, _T]], required_methods: dict[str, Callable[...] | classmethod | None], optional_methods: dict[str, Callable[...] | classmethod | None]) -> Type[Node[_P, _T]]:
+def safe_create_node(class_name: str | None, required_methods: dict[str, Callable[...] | classmethod], optional_methods: dict[str, Callable[...] | classmethod]) -> Type[Node]:
     if class_name is None:
         raise ValueError("Class name cannot be None")
-
-    for method_name, method in required_methods.items():
-        if method is None:
-            raise ValueError(f"Required method '{method_name}' cannot be None")
+    
+    for method_name in required_methods.keys():
+        if method_name in optional_methods:
+            raise ValueError(f"Required Method shares a name with an optional method: {method_name}")
         
-    for method_name in optional_methods.keys():
-        if optional_methods[method_name] is None:
-            del optional_methods[method_name]
-
     class_dict = {**required_methods, **optional_methods}
 
-    return type(class_name, (class_type,), class_dict)
+    return type(class_name, (Node,), class_dict)
 
 class NodeBuilder(Generic[_P, _T]):
     def __init__(self) -> None:
@@ -51,22 +47,20 @@ class NodeBuilder(Generic[_P, _T]):
         
         return casted_instance
 
-    def construct_required(self) -> dict[str, Callable[...] | classmethod | None]:
+    def construct_required(self) -> dict[str, Callable[...] | classmethod]:
         return {
-            "invoke": self._invoke,
-            "type": classmethod(lambda _cls: self._node_class),
+            "invoke": lambda _self, *args, **kwargs: unpack(self._invoke)(*args, **kwargs),
+            "type": classmethod(lambda _cls: unpack(self._node_class)),
         }
     
-    def construct_optional(self) -> dict[str, Callable[...] | classmethod | None]:
+    def construct_optional(self) -> dict[str, Callable[...] | classmethod]:
         return {}
 
     def build(self) -> Type[Node[_P, _T]]:
-
         return safe_create_node(
-            class_name=self.node_name,
-            class_type=Node,
-            required_methods=self.construct_required(),
-            optional_methods=self.construct_optional(),
+            self.node_name,
+            self.construct_required(),
+            self.construct_optional(),
         )
         
 
@@ -74,6 +68,8 @@ class NodeBuilder(Generic[_P, _T]):
 
 
 class Node(ABC, Generic[_P, _T]):
+
+
     def __init__(self) -> None:
         pass
 
@@ -83,12 +79,21 @@ class Node(ABC, Generic[_P, _T]):
 
     @classmethod
     @abstractmethod
+<<<<<<< Updated upstream
     def type(cls) -> Literal["Tool", "Agent", "Other"]:
+=======
+    def type(cls) -> Literal["Tool", "llm"]:
+>>>>>>> Stashed changes
         pass
 
 
 
 
+<<<<<<< Updated upstream
+=======
+
+
+>>>>>>> Stashed changes
 if __name__ == "__main__":
     def some_function() -> str:
         return "Hello, World!"
