@@ -5,6 +5,9 @@ site_description: "Railtracks is a framework for building LLM-powered agents and
 hooks:
   - scripts/mkdocs_hooks.py
 
+watch:
+  - packages/railtracks/src/railtracks
+
 repo_name: railtracks
 repo_url: https://github.com/RailtownAI/railtracks/
 
@@ -138,7 +141,6 @@ nav:
 
   - Integrations:
       - Overview: integrations/overview.md
-      - Writers: integrations/writers/overview.md
       - Language Models:
           - Providers: integrations/llms/providers.md
           - Platforms: integrations/llms/platforms.md
