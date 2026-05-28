@@ -182,6 +182,88 @@ async def test_initialize_uses_http_client_when_host_port_given():
     mock_chroma.HttpClient.assert_called_once_with(host="localhost", port=8000)
 
 
+async def test_initialize_uses_cloud_client_when_cloud_args_given():
+    mock_chroma = MagicMock()
+    mock_collection = MagicMock()
+    mock_chroma.CloudClient.return_value.get_or_create_collection.return_value = mock_collection
+    mock_ef = MagicMock()
+
+    with patch.dict("sys.modules", {"chromadb": mock_chroma}):
+        backend = ChromaBackend(
+            "col",
+            api_key="key-123",
+            tenant="tenant-abc",
+            database="MyDB",
+            embedding_function=mock_ef,
+        )
+        await backend.initialize()
+
+    mock_chroma.CloudClient.assert_called_once_with(
+        api_key="key-123", tenant="tenant-abc", database="MyDB"
+    )
+    mock_chroma.CloudClient.return_value.get_or_create_collection.assert_called_once_with(
+        "col", embedding_function=mock_ef
+    )
+    assert backend._collection is mock_collection
+
+
+async def test_cloud_client_does_not_pass_hnsw_metadata():
+    mock_chroma = MagicMock()
+    mock_chroma.CloudClient.return_value.get_or_create_collection.return_value = MagicMock()
+
+    with patch.dict("sys.modules", {"chromadb": mock_chroma}):
+        backend = ChromaBackend(
+            "col",
+            api_key="key-123",
+            tenant="tenant-abc",
+            database="MyDB",
+            embedding_function=MagicMock(),
+        )
+        await backend.initialize()
+
+    _, call_kwargs = mock_chroma.CloudClient.return_value.get_or_create_collection.call_args
+    assert "metadata" not in call_kwargs
+
+
+async def test_from_cloud_factory_constructs_and_initializes():
+    mock_chroma = MagicMock()
+    mock_collection = MagicMock()
+    mock_chroma.CloudClient.return_value.get_or_create_collection.return_value = mock_collection
+    mock_ef = MagicMock()
+
+    with patch.dict("sys.modules", {"chromadb": mock_chroma}):
+        backend = await ChromaBackend.from_cloud(
+            "col",
+            api_key="key-123",
+            tenant="tenant-abc",
+            database="MyDB",
+            embedding_function=mock_ef,
+        )
+
+    assert backend._collection is mock_collection
+    assert backend._api_key == "key-123"
+    assert backend._tenant == "tenant-abc"
+    assert backend._database == "MyDB"
+    assert backend._embedding_function is mock_ef
+
+
+async def test_from_cloud_passes_metric_for_score_conversion():
+    mock_chroma = MagicMock()
+    mock_chroma.CloudClient.return_value.get_or_create_collection.return_value = MagicMock()
+
+    with patch.dict("sys.modules", {"chromadb": mock_chroma}):
+        backend = await ChromaBackend.from_cloud(
+            "col",
+            api_key="k",
+            tenant="t",
+            database="d",
+            embedding_function=MagicMock(),
+            metric=DistanceMetric.L2,
+        )
+
+    assert backend._metric is DistanceMetric.L2
+
+
 # ---------------------------------------------------------------------------
 # upsert
 # ---------------------------------------------------------------------------

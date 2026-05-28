@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import math
+from typing import Any
 
 from typing_extensions import Self
 
@@ -40,10 +41,14 @@ class ChromaBackend:
     Wraps a single Chroma collection. All Chroma I/O is synchronous and runs
     in a thread via asyncio.to_thread. Call initialize() before any other method.
 
-    Three client modes are selected by the constructor arguments:
-      - no path/host/port  → EphemeralClient (in-process, no persistence)
-      - path only          → PersistentClient (local disk)
-      - host + port        → HttpClient (remote server)
+    Four client modes are selected by the constructor arguments:
+      - no path/host/port/cloud creds  → EphemeralClient (in-process, no persistence)
+      - path only                      → PersistentClient (local disk)
+      - host + port                    → HttpClient (remote server)
+      - api_key + tenant + database    → CloudClient (Chroma Cloud)
+
+    Use the from_cloud() classmethod for the cloud mode — it requires an explicit
+    embedding_function to avoid the server-side config reconstruction bug.
     """
 
     def __init__(
@@ -54,12 +59,21 @@ class ChromaBackend:
         host: str | None = None,
         port: int | None = None,
         metric: DistanceMetric = DistanceMetric.COSINE,
+        # Cloud-only args — set via from_cloud(), not directly
+        api_key: str | None = None,
+        tenant: str | None = None,
+        database: str | None = None,
+        embedding_function: Any | None = None,
     ) -> None:
         self._collection_name = collection_name
         self._path = path
         self._host = host
         self._port = port
         self._metric = metric
+        self._api_key = api_key
+        self._tenant = tenant
+        self._database = database
+        self._embedding_function = embedding_function
         self._collection = None
 
     def _require_initialized(self) -> None:
@@ -81,6 +95,34 @@ class ChromaBackend:
         await backend.initialize()
         return backend
 
+    @classmethod
+    async def from_cloud(
+        cls,
+        collection_name: str,
+        *,
+        api_key: str,
+        tenant: str,
+        database: str,
+        embedding_function: Any,
+        metric: DistanceMetric = DistanceMetric.COSINE,
+    ) -> Self:
+        """Create and initialize a ChromaBackend backed by Chroma Cloud.
+
+        The embedding_function must be provided explicitly — Chroma Cloud stores
+        the EF config server-side and the local SDK may fail to reconstruct it,
+        so passing the object directly bypasses that code path entirely.
+        """
+        backend = cls(
+            collection_name,
+            metric=metric,
+            api_key=api_key,
+            tenant=tenant,
+            database=database,
+            embedding_function=embedding_function,
+        )
+        await backend.initialize()
+        return backend
+
     async def initialize(self) -> None:
         """Create the Chroma client and collection."""
         try:
@@ -94,6 +136,16 @@ class ChromaBackend:
         metric = self._metric
 
         def _setup():
+            if self._api_key and self._tenant and self._database:
+                client = chromadb.CloudClient(
+                    api_key=self._api_key,
+                    tenant=self._tenant,
+                    database=self._database,
+                )
+                return client.get_or_create_collection(
+                    self._collection_name,
+                    embedding_function=self._embedding_function,
+                )
             if self._path:
                 client = chromadb.PersistentClient(path=self._path)
             elif self._host and self._port:
