@@ -8,9 +8,10 @@ Thank you for your interest in contributing to Railtracks! This guide will help 
 Root
 ├── docs/                         # Shared documentation
 ├── packages/railtracks/
-│   ├── pyproject.toml            # Root development environment
+│   ├── pyproject.toml            # RT dependencies
 │   ├── tests/                    # SDK tests
-│   └── src/railtracks/           # Core SDK package          
+│   └── src/railtracks/           # Core SDK package    
+├── pyproject.toml                # Global dependencies for development and CI, NOT Railtracks package dependencies
 └── configs like CI workflows, README, etc.
 ```
 ### External
@@ -36,6 +37,16 @@ Root
    ```bash
    uv sync --group dev
    ```
+
+3. **Install Railtracks package dependencies**
+
+   Step 2 installs dev tooling but only the base Railtracks package. To install all optional extras (CLI, integrations, etc.) run:
+   ```bash
+   uv pip install -e "packages/railtracks[all]"
+   ```
+   If you only need a specific extra (e.g. `visual`, `integrations`, `chroma`), replace `all` with the relevant extra name. See `packages/railtracks/pyproject.toml` for the full list.
+
+
 ## Development Workflow
 
 ### Identify an issue or feature
@@ -62,10 +73,12 @@ mkdocs serve
 
 ### Dependencies
 
-Dependencies can be added in pyproject.toml, if developing sub-module, add under `optional-dependencies`. Examples include:
+Dependencies can be added in `packages/railtracks/pyproject.toml`, if developing sub-module, add under `optional-dependencies`. Examples include:
 - `chat` - FastAPI chat interface
 - `integrations` - The integration tooling to connect to various data sources.
 - `all` - All optional dependencies
+
+The `pyproject.toml` at root is meant for development related packages, not Railtracks package itself. 
 
 ### Testing
 
@@ -114,7 +127,6 @@ Dependencies can be added in pyproject.toml, if developing sub-module, add under
 Railtracks uses environment variables to prevent filesystem pollution during test runs.
 
 When running the test suite, the `RAILTRACKS_TEST_MODE` environment variable is automatically enabled via `conftest.py`. In this mode:
-
 - Session persistence is disabled by default.
 - No `.railtracks` directory will be created or modified.
 - This prevents accidental deletion or pollution of user data during testing.
