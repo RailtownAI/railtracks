@@ -8,6 +8,7 @@ from railtracks.retrieval.loaders.cloud import (
 )
 from railtracks.retrieval.loaders.csv_loader import CSVLoader
 from railtracks.retrieval.loaders.json_loader import JSONLoader
+from railtracks.retrieval.loaders.langchain_loader import LangChainLoaderAdapter
 from railtracks.retrieval.loaders.sanitizing import Sanitizer, SanitizingLoader
 from railtracks.retrieval.loaders.text_loader import TextLoader
 from railtracks.retrieval.models import DocumentType
@@ -20,6 +21,7 @@ __all__ = [
     "DocumentType",
     "GCSLoader",
     "JSONLoader",
+    "LangChainLoaderAdapter",
     "S3Loader",
     "SQLLoader",
     "Sanitizer",
