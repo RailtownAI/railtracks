@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import functools
 import warnings
 from inspect import isfunction
@@ -8,6 +10,7 @@ from typing import (
     Dict,
     Generic,
     Iterable,
+    Literal,
     ParamSpec,
     Set,
     Type,
@@ -24,6 +27,7 @@ from railtracks.built_nodes.concrete import (
     LLMBase,
 )
 from railtracks.built_nodes.concrete._tool_call_base import OutputLessToolCallLLMBase
+from railtracks.built_nodes.llm_helpers import ModelGateway, llm_invoke_factory, llm_prepare_called_as_tool_factory
 from railtracks.llm import (
     ModelBase,
     Parameter,
@@ -31,7 +35,10 @@ from railtracks.llm import (
     Tool,
 )
 from railtracks.llm.type_mapping import TypeMapper
+from railtracks.nodes.mappers import MapInputs, MapOutputs
+from railtracks.nodes.mappers import MapInputs
 from railtracks.nodes.nodes import Node
+from railtracks.nodes.wrappers import Wrapper
 from railtracks.validation.node_creation.validation import (
     _check_duplicate_param_names,
     _check_system_message,
@@ -39,8 +46,246 @@ from railtracks.validation.node_creation.validation import (
     check_connected_nodes,
 )
 
+
+def classmethod_preserving_function_meta(func):
+    @functools.wraps(func)
+    def wrapper(_cls, *args, **kwargs):
+        return func(*args, **kwargs)
+
+    return classmethod(wrapper)
+
+
 _TNode = TypeVar("_TNode", bound=Node)
 _P = ParamSpec("_P")
+_T = TypeVar("_T")
+_P2 = ParamSpec("_P2")
+_T2 = TypeVar("_T2")
+
+
+def unpack(item: _T | None, /) -> _T:
+    if item is None:
+        raise ValueError("Unpacked Item was None")
+    return item
+
+
+def safe_create_node(
+    class_name: str,
+    required_methods: dict[str, Any],
+    optional_methods: dict[str, Any],
+) -> Type[Node]:
+    if class_name is None:
+        raise ValueError("Class name cannot be None")
+
+    for method_name in required_methods.keys():
+        if method_name in optional_methods:
+            raise ValueError(
+                f"Required Method shares a name with an optional method: {method_name}"
+            )
+
+    for method_name in optional_methods.keys():
+        if optional_methods[method_name] is None:
+            del optional_methods[method_name]
+
+    class_dict = {**required_methods, **optional_methods}
+
+    return type(class_name + "Node", (Node,), class_dict)
+
+
+class NodeBuilderv2(Generic[_P, _T]):
+    def __init__(self) -> None:
+        self._class_name: str | None = None
+
+        self._invoke: Callable[_P, _T] | None = None
+        self._node_class: Literal["Tool", "Agent"] | None = None
+        self._node_name: str | None = None
+
+        self._tool_info: Callable[[], Tool] | None = None
+        self._prepare_arguments: Callable[..., dict[str, Any]] | None = None
+
+        self._frozen_wrappers: list[Wrapper[_P, _T]] = []
+        self._frozen_input_maps: list[MapInputs] = []
+        self._frozen_output_maps: list[MapOutputs[_T]] = []
+
+    @classmethod
+    def llm(
+        cls,
+        name: str,
+        class_name: str | None = None,
+        /,
+        *,
+        model_gateway: ModelGateway,
+        system_message: SystemMessage | None = None,
+        schema: Type[BaseModel] | None = None,
+        connected_nodes: Iterable[Type[Node]] | None = None,
+        tool_details: str | None = None,
+        tool_params: list[Parameter] | None = None,
+        wrappers: list[Wrapper] | None = None,
+        input_maps: list[MapInputs] | None = None,
+        output_maps: list[MapOutputs] | None = None,
+    ):
+        
+        instance = cls()
+        casted_instance = cast(NodeBuilderv2, instance)
+        casted_instance._class_name = class_name or name
+        casted_instance._node_name = name
+        casted_instance._node_class = "Agent"
+
+
+        casted_instance._invoke = llm_invoke_factory(
+            model_gateway=model_gateway,
+            system_message=system_message,
+            tool_nodes=list(connected_nodes) if connected_nodes else None,
+            schema=schema
+        )
+
+        if tool_details is not None:
+            tool = cls._prepare_llm_tool(
+                name=name,
+                tool_details=tool_details,
+                tool_params=tool_params
+            )
+
+            casted_instance._tool_info = lambda: tool
+            casted_instance._prepare_arguments = lambda **kwargs: {"user_input": llm_prepare_called_as_tool_factory(unpack(tool_params))(**kwargs)}
+
+        casted_instance._frozen_wrappers = wrappers or []
+        casted_instance._frozen_input_maps = input_maps or []
+        casted_instance._frozen_output_maps = output_maps or []
+
+        return casted_instance
+
+
+    @classmethod
+    def _prepare_llm_tool(
+        cls,
+        name: str,
+        tool_details: str,
+        tool_params: list[Parameter] | None = None 
+    ):
+        _check_tool_params_and_details(tool_params, tool_details)
+        _check_duplicate_param_names(tool_params or [])
+
+        tool = Tool(
+            name=name.replace(" ", "_"),
+            detail=tool_details,
+            parameters=tool_params,
+        )
+
+        return tool
+    
+
+    @overload
+    @classmethod
+    def function(
+        cls,
+        function: Callable[_P2, _T2],
+        class_name: str | None = None,
+        name: str | None = None,
+        /,
+        *,
+        wrappers: list[Wrapper[_P2, _T2]] | None = None,
+        input_maps: list[MapInputs] | None = None,
+        output_maps: list[MapOutputs[_T2]] | None = None,
+    ) -> NodeBuilderv2[_P2, _T2]: ...
+
+    @overload
+    @classmethod
+    def function(
+        cls,
+        function: Callable[_P2, _T2],
+        class_name: str | None = None,
+        name: str | None = None,
+        /,
+        *,
+        wrappers: list[Wrapper[_P2, _T2]] | None = None,
+        input_maps: list[MapInputs] | None = None,
+        output_maps: list[MapOutputs[_T2]] | None = None,
+        tool_details: str,
+        tool_params: list[Parameter] | Type[BaseModel] | dict[str, Any] | None = None,
+    ) -> NodeBuilderv2[_P2, _T2]: ...
+
+    @classmethod
+    def function(
+        cls,
+        function: Callable[_P2, _T2],
+        class_name: str | None = None,
+        name: str | None = None,
+        /,
+        *,
+        wrappers: list[Wrapper[_P2, _T2]] | None = None,
+        input_maps: list[MapInputs] | None = None,
+        output_maps: list[MapOutputs[_T2]] | None = None,
+        tool_details: str | None = None,
+        tool_params: list[Parameter] | Type[BaseModel] | dict[str, Any] | None = None,
+    ) -> NodeBuilderv2[_P2, _T2]:
+        instance = cls()
+        casted_instance = cast(NodeBuilderv2[_P2, _T2], instance)
+
+        casted_instance._class_name = (
+            class_name or f"Dynamic{function.__name__.capitalize()}"
+        )
+        casted_instance._invoke = function
+        casted_instance._node_class = "Tool"
+        casted_instance._node_name = name or function.__name__
+
+        tm = TypeMapper(function)
+        tool = Tool.from_function(function, details=tool_details, params=tool_params)
+        casted_instance._tool_info = lambda: tool
+
+        casted_instance._prepare_arguments = tm.convert_kwargs_to_appropriate_types
+
+        casted_instance._frozen_wrappers = wrappers or []
+        casted_instance._frozen_input_maps = input_maps or []
+        casted_instance._frozen_output_maps = output_maps or []
+
+        return casted_instance
+
+    def construct_required(self) -> dict[str, Any]:
+        return {
+            "invoke": lambda _self, *args, **kwargs: unpack(self._invoke)(
+                *args, **kwargs
+            ),
+            "type": classmethod_preserving_function_meta(
+                lambda _cls: unpack(self._node_class)
+            ),
+            "name": classmethod_preserving_function_meta(
+                lambda _cls: unpack(self._node_name)
+            ),
+        }
+
+    def construct_optional(self) -> dict[str, Any]:
+        return {
+            "tool_info": self._construct_tool_info(),
+            "prepare_tool": self._construct_prepared_arguments(),
+            "frozen_wrappers": self._frozen_wrappers,
+            "frozen_input_maps": self._frozen_input_maps,
+            "frozen_output_maps": self._frozen_output_maps,
+        }
+
+    def _construct_prepared_arguments(self, **kwargs):
+        if self._prepare_arguments is None:
+            return None
+
+        return classmethod_preserving_function_meta(
+            lambda _cls, **kwargs: unpack(self._prepare_arguments)(kwargs)
+        )
+
+    def _construct_tool_info(self):
+        if self._tool_info is None:
+            return None
+
+        return classmethod_preserving_function_meta(
+            lambda _cls: unpack(self._tool_info)()
+        )
+
+    def build(self) -> Type[Node[_P, _T]]:
+        assert self._class_name is not None, "Class name must be set before building the node."
+
+        return safe_create_node(
+            self._class_name,
+            self.construct_required(),
+            self.construct_optional(),
+        )
 
 
 class NodeBuilder(Generic[_TNode]):
@@ -380,11 +625,3 @@ class NodeBuilder(Generic[_TNode]):
         casted_klass = cast(Type[_TNode], klass)  # Ensure type consistency
 
         return casted_klass
-
-
-def classmethod_preserving_function_meta(func):
-    @functools.wraps(func)
-    def wrapper(cls, *args, **kwargs):
-        return func(*args, **kwargs)
-
-    return classmethod(wrapper)

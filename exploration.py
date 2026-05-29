@@ -21,8 +21,8 @@ def unpack(item: _T | None, /) -> _T:
 
 def safe_create_node(
     class_name: str | None,
-    required_methods: dict[str, Callable[...] | classmethod],
-    optional_methods: dict[str, Callable[...] | classmethod | None],
+    required_methods: dict[str, Any],
+    optional_methods: dict[str, Any],
 ) -> Type[Node]:
     if class_name is None:
         raise ValueError("Class name cannot be None")
@@ -51,6 +51,10 @@ class NodeBuilder(Generic[_P, _T]):
         self._tool_info: Callable[[], Tool] | None = None
         self._prepare_arguments: Callable[..., dict[str, Any]] | None = None
 
+        self._frozen_wrappers: list[Wrapper[_P, _T]] = []
+        self._frozen_input_maps: list[MapInputs] = []
+        self._frozen_output_maps: list[MapOutputs[_T]] = []
+
     @classmethod
     def llm(cls, structured: bool, tool_call: bool) -> NodeBuilder[_P, _T]:
         # TODO: implement functionality to build functionality of the base type
@@ -61,6 +65,10 @@ class NodeBuilder(Generic[_P, _T]):
         cls,
         function: Callable[_P2, _T2],
         name: str | None = None,
+        *,
+        wrappers: list[Wrapper[_P2, _T2]] | None = None,
+        input_maps: list[MapInputs] | None = None,
+        output_maps: list[MapOutputs[_T2]] | None = None,
     ) -> NodeBuilder[_P2, _T2]:
         instance = cls()
         casted_instance = cast(NodeBuilder[_P2, _T2], instance)
@@ -74,9 +82,15 @@ class NodeBuilder(Generic[_P, _T]):
 
         casted_instance._prepare_arguments = tm.convert_kwargs_to_appropriate_types
 
+        casted_instance._frozen_wrappers = wrappers or []
+        casted_instance._frozen_input_maps = input_maps or []
+        casted_instance._frozen_output_maps = output_maps or []
+
+        casted_instance._prepare_arguments = tm.convert_kwargs_to_appropriate_types
+
         return casted_instance
 
-    def construct_required(self) -> dict[str, Callable[...] | classmethod]:
+    def construct_required(self) -> dict[str, Any]:
         return {
             "invoke": lambda _self, *args, **kwargs: unpack(self._invoke)(
                 *args, **kwargs
@@ -85,27 +99,28 @@ class NodeBuilder(Generic[_P, _T]):
             "name": classmethod(lambda _cls: unpack(self._node_name)),
         }
 
-    def construct_optional(self) -> dict[str, Callable[...] | classmethod | None]:
+    def construct_optional(self) -> dict[str, Any]:
         return {
             "tool_info": self._construct_tool_info(),
-            "prepare_arguments": self._construct_prepared_arguments(),
+            "prepare_tool": self._construct_prepared_arguments(),
+            "frozen_wrappers": self._frozen_wrappers,
+            "frozen_input_maps": self._frozen_input_maps,
+            "frozen_output_maps": self._frozen_output_maps,
         }
-    
+
     def _construct_prepared_arguments(self, **kwargs):
         if self._prepare_arguments is None:
             return None
-        
+
         return classmethod(
-                lambda _cls, **kwargs: unpack(self._prepare_arguments)(**kwargs)
-            )
-    
+            lambda _cls, **kwargs: unpack(self._prepare_arguments)(kwargs)
+        )
+
     def _construct_tool_info(self):
         if self._tool_info is None:
             return None
-        
-        return classmethod(lambda _cls: unpack(self._tool_info))
-            
 
+        return classmethod(lambda _cls: unpack(self._tool_info)())
 
     def build(self) -> Type[Node[_P, _T]]:
         return safe_create_node(
@@ -113,7 +128,6 @@ class NodeBuilder(Generic[_P, _T]):
             self.construct_required(),
             self.construct_optional(),
         )
-
 
 
 import asyncio
@@ -142,9 +156,19 @@ _T = TypeVar("_T")
 
 
 class Wrapper(Protocol, Generic[_P, _T]):
+    # the most general of wrappers, it takes in a function and returns a function with the same signature
     def __call__(
         self, function: Callable[_P, Coroutine[Any, Any, _T]]
     ) -> Callable[_P, Coroutine[Any, Any, _T]]: ...
+
+
+class MapInputs(Protocol):
+    async def __call__(self, *args, **kwargs) -> tuple[list[Any], dict[str, Any]]: ...
+
+
+class MapOutputs(Protocol, Generic[_T]):
+    async def __call__(self, output: _T) -> _T: ...
+
 
 class NodeState(Generic[_TNode]):
     """
@@ -215,13 +239,18 @@ class Node(ABC, Generic[_P, _TOutput]):
         # without this direct call to the parent __init_subclass__ method the generic resolutions will not work correctly
         super().__init_subclass__()
 
-    wrappers: list[Wrapper[_P, _TOutput]] = []
+    frozen_wrappers: list[Wrapper[_P, _TOutput]] = []
+    frozen_input_maps: list[MapInputs] = []
+    frozen_output_maps: list[MapOutputs[_TOutput]] = []
 
     def __init__(
         self,
     ):
         # each fresh node will have a generated uuid that identifies it.
         self.uuid = str(uuid.uuid4())
+        self.wrappers = deepcopy(self.frozen_wrappers)
+        self.input_maps = deepcopy(self.frozen_input_maps)
+        self.output_maps = deepcopy(self.frozen_output_maps)
 
     @classmethod
     @abstractmethod
@@ -246,7 +275,16 @@ class Node(ABC, Generic[_P, _TOutput]):
         for wrapper in self.wrappers:
             invoke_method = wrapper(invoke_method)
 
-        return await invoke_method(*args, **kwargs)
+        prelim_args, prelim_kwargs = args, kwargs
+        for input_map in self.input_maps:
+            prelim_args, prelim_kwargs = await input_map(*prelim_args, **prelim_kwargs)
+
+        result: _TOutput = await invoke_method(*prelim_args, **prelim_kwargs)  # type: ignore
+
+        for output_map in self.output_maps:
+            result = await output_map(result)
+
+        return result
 
     def __repr__(self):
         return f"{self.name()} <{hex(id(self))}>"
@@ -268,27 +306,50 @@ class Node(ABC, Generic[_P, _TOutput]):
         )
 
     @classmethod
-    def prepare_arguments(cls, **kwargs) -> dict[str, Any]:
+    def prepare_args(cls, **kwargs) -> dict[str, Any]:
         """
-        This method creates a new set of arguments for the node by unpacking the tool parameters.
+        This method creates a new instance of the node by unpacking the tool parameters.
 
         If you would like any custom behavior please override this method.
         """
         return kwargs
 
 
-if __name__ == "__main__":
+async def add_exclamation(*args, **kwargs):
+    result = [a + "!" for a in args], {k: v + "!" for k, v in kwargs.items()}
+    return result
 
-    def some_function() -> str:
+
+async def upper_case(output: str) -> str:
+    return output.upper()
+
+
+async def main():
+    def some_function(message: str) -> str:
         """
         A simple function that returns a string.
+
+        Args:
+            message (str): The message to return.
+
+        Returns:
+            str: The message.
+
         """
-        return "Hello, World!"
+        return "-- " + message + " --"
 
-    FunctionType = NodeBuilder.function(some_function).build()
+    FunctionType = NodeBuilder.function(
+        some_function, input_maps=[add_exclamation], output_maps=[upper_case]
+    ).build()
 
-    result = FunctionType().invoke()
+    result = await FunctionType().wrapped_invoke(message="Hello, World")
 
     print(result)
     print(FunctionType.type())
     print(FunctionType.tool_info())
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    asyncio.run(main())

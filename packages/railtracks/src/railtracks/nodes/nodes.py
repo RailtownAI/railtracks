@@ -5,8 +5,11 @@ import time
 import uuid
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Callable, Dict, Generic, Literal, TypeVar
+from typing import Any, Callable, Dict, Generic, Literal, ParamSpec, TypeVar
 
+from railtracks.llm.tools.tool import Tool
+from railtracks.nodes.mappers import MapInputs, MapOutputs
+from railtracks.nodes.wrappers import Wrapper
 from typing_extensions import Self
 
 from railtracks.validation.node_creation.validation import (
@@ -63,7 +66,10 @@ class LatencyDetails:
         self.total_time = total_time
 
 
-class Node(ABC, ToolCallable, Generic[_TOutput]):
+_P = ParamSpec("_P")
+
+
+class Node(ABC, Generic[_P, _TOutput]):
     """An abstract base class which defines some the functionality of a node"""
 
     def __init_subclass__(cls):
@@ -95,24 +101,18 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
         # without this direct call to the parent __init_subclass__ method the generic resolutions will not work correctly
         super().__init_subclass__()
 
-    pre_invokes: list[Callable[[Self], None]] = []
+    frozen_wrappers: list[Wrapper[_P, _TOutput]] = []
+    frozen_input_maps: list[MapInputs] = []
+    frozen_output_maps: list[MapOutputs[_TOutput]] = []
 
     def __init__(
         self,
-        *,
-        debug_details: DebugDetails | None = None,
     ):
         # each fresh node will have a generated uuid that identifies it.
         self.uuid = str(uuid.uuid4())
-        self._details: DebugDetails = debug_details or DebugDetails()
-
-    @property
-    def details(self) -> DebugDetails:
-        """
-        Returns a debug details object that contains information about the node.
-        This is used for debugging and logging purposes.
-        """
-        return self._details
+        self.wrappers = deepcopy(self.frozen_wrappers)
+        self.input_maps = deepcopy(self.frozen_input_maps)
+        self.output_maps = deepcopy(self.frozen_output_maps)
 
     @classmethod
     @abstractmethod
@@ -123,49 +123,29 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
         pass
 
     @abstractmethod
-    async def invoke(self) -> _TOutput:
+    async def invoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
         """
         The main method that runs when this node is called
         """
         pass
 
-    @classmethod
-    def add_pre_invoke(cls, function: Callable[[Self], None]):
-        """
-        Add a method to be run immeadetly prior to the invoke.
-        """
-        cls.pre_invokes.append(function)
-
-    async def tracked_invoke(self) -> _TOutput:
+    async def wrapped_invoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
         """
         A special method that will track and save the latency of the running of this invoke method.
         """
-        start_time = time.time()
-        try:
-            for func in self.pre_invokes:
-                func(self)
-            return await self.invoke()
-        except Exception as e:
-            raise e
-        finally:
-            latency = time.time() - start_time
-            self.details["latency"] = LatencyDetails(total_time=latency)
+        invoke_method = self.invoke
+        for wrapper in self.wrappers:
+            invoke_method = wrapper(invoke_method)
 
-    def state_details(self) -> Dict[str, str]:
-        """
-        Places the __dict__ of the current object into a dictionary of strings.
-        """
-        di = {k: str(v) for k, v in self.__dict__.items()}
-        return di
+        prelim_args, prelim_kwargs = args, kwargs
+        for input_map in self.input_maps:
+            prelim_args, prelim_kwargs = await input_map(*prelim_args, **prelim_kwargs)
 
-    def safe_copy(self) -> Self:
-        """
-        A method used to create a new pass by value copy of every element of the node.
-        """
-        cls = self.__class__
-        result = cls.__new__(cls)
-        for k, v in self.__dict__.items():
-            setattr(result, k, deepcopy(v))
+        result: _TOutput = await invoke_method(*prelim_args, **prelim_kwargs)  # type: ignore
+
+        for output_map in self.output_maps:
+            result = await output_map(result)
+
         return result
 
     def __repr__(self):
@@ -175,3 +155,23 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
     @abstractmethod
     def type(cls) -> Literal["Tool", "Agent", "Other"]:
         pass
+
+    @classmethod
+    def tool_info(cls) -> Tool:
+        """
+        A method used to provide information about the node in the form of a tool definition.
+        This is commonly used with LLMs Tool Calling tooling.
+        """
+        # TODO: this should default to interfacing within the init method of the class
+        raise NotImplementedError(
+            "You must implement the tool_info method in your node"
+        )
+
+    @classmethod
+    def prepare_args(cls, **kwargs) -> dict[str, Any]:
+        """
+        This method creates a new instance of the node by unpacking the tool parameters.
+
+        If you would like any custom behavior please override this method.
+        """
+        return kwargs
