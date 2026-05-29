@@ -8,7 +8,6 @@ from uuid import uuid4
 from railtracks.retrieval.models import Chunk, EmbeddedChunk
 from railtracks.retrieval.stores.models import (
     DetailLevel,
-    RetrievalStrategy,
     RetrievedStoreEntry,
     StoreCategory,
     StoreEntry,
@@ -126,12 +125,16 @@ def test_store_entry_from_chunk_minimal():
 
 def test_store_query_defaults():
     query = StoreQuery(text="hello", scope=StoreScope())
-    assert query.strategies == [RetrievalStrategy.VECTOR]
     assert query.detail_level is DetailLevel.L2
     assert query.top_k == 10
     assert query.embedding is None
     assert query.metadata_filters is None
     assert query.store_category is None
+
+
+def test_store_query_scope_optional():
+    query = StoreQuery(text="hello")
+    assert query.scope is None
 
 
 def test_store_category_values():
@@ -147,13 +150,6 @@ def test_store_category_is_str_enum():
 
 def test_detail_level_l2_value():
     assert DetailLevel.L2.value == "full"
-
-
-def test_retrieval_strategy_values():
-    assert RetrievalStrategy.VECTOR.value == "vector"
-    assert RetrievalStrategy.KEYWORD.value == "keyword"
-    assert RetrievalStrategy.GRAPH.value == "graph"
-    assert RetrievalStrategy.TEMPORAL.value == "temporal"
 
 
 def test_retrieved_store_entry():

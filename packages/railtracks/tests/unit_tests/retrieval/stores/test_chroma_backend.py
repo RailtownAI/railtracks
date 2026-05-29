@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import builtins
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
-
 from railtracks.retrieval.stores.models import (
     DetailLevel,
     StoreEntry,
@@ -19,9 +18,8 @@ from railtracks.retrieval.stores.vector.backends.chroma import (
     _chroma_to_score,
     _to_chroma_where,
 )
-from railtracks.retrieval.stores.vector.metric import DistanceMetric
 from railtracks.retrieval.stores.vector.base import VectorStore
-
+from railtracks.retrieval.stores.vector.metric import DistanceMetric
 
 # ---------------------------------------------------------------------------
 # _to_chroma_where
@@ -270,7 +268,6 @@ def test_chroma_to_score_cosine():
 
 def test_chroma_to_score_l2_applies_sqrt():
     # Chroma returns squared L2; score = 1 / (1 + sqrt(d))
-    import math
     assert _chroma_to_score(DistanceMetric.L2, 0.0) == pytest.approx(1.0)
     assert _chroma_to_score(DistanceMetric.L2, 1.0) == pytest.approx(0.5)
     assert _chroma_to_score(DistanceMetric.L2, 4.0) == pytest.approx(1.0 / 3.0)

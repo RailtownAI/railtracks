@@ -1,7 +1,6 @@
 from .models import (
     DetailLevel,
     Entity,
-    RetrievalStrategy,
     RetrievedStoreEntry,
     StoreCategory,
     StoreEntry,
@@ -20,7 +19,6 @@ __all__ = [
     "Entity",
     "InMemoryVectorBackend",
     "PgvectorBackend",
-    "RetrievalStrategy",
     "RetrievedStoreEntry",
     "Store",
     "StoreCategory",

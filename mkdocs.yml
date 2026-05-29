@@ -116,11 +116,6 @@ nav:
       - Stores:
           - Overview: rag/components/stores/overview.md
           - Backends: rag/components/stores/backends.md
-    - Vector Stores:
-        - Overview: rag/vector_stores/vector_store_info.md
-        - Filtering: rag/vector_stores/filtering.md
-        - Integrations:
-            - Chroma: rag/vector_stores/integrations/chroma.md
 
   - Evaluations:
     - Preface: evaluations/preface.md
@@ -161,6 +156,12 @@ nav:
         - Github: integrations/mcps/github.md
         - Slack: integrations/mcps/slack.md
         - Email: integrations/mcps/notion.md
+    - Storage & Databases:
+        - Overview: integrations/storage/overview.md
+        - AWS S3: integrations/storage/s3.md
+        - Azure Blob Storage: integrations/storage/azure_blob.md
+        - Google Cloud Storage: integrations/storage/gcs.md
+        - SQL Databases: integrations/storage/sql.md
     - Other:
         - Python Sandbox: integrations/other/python_sandbox.md
         - Shell: integrations/other/shell_bash.md
@@ -176,6 +177,7 @@ nav:
         - Flows: tutorials/walkthroughs/flows.md
         - RAG system: tutorials/walkthroughs/rag_tutorial.md
         - Vector Stores: tutorials/walkthroughs/vector_store_tutorial.md
+        - Cloud Storage Loaders: tutorials/walkthroughs/storage_loaders_tutorial.md
         - FastAPI Integration: tutorials/walkthroughs/fastapi.md
       - Videos:
           - Multiagent Systems: tutorials/videos/multiagent.md
@@ -185,6 +187,7 @@ nav:
     - Notebooks:
       - Agent Architectures: tutorials/notebooks/architectures.md
       - FastAPI Integration: tutorials/notebooks/fastapi.md
+      - File Embedding (RAG): tutorials/notebooks/file_embedding.md
     - Concepts:
       - Core: 
           - Agents: tutorials/concepts/agents.md

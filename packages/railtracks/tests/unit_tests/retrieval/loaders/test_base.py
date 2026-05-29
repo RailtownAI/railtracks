@@ -1,6 +1,6 @@
-import pytest
 from collections.abc import AsyncGenerator
 
+import pytest
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
 from railtracks.retrieval.models import Document, DocumentType
 
@@ -81,3 +81,16 @@ class TestBaseDocumentLoaderLoad:
         loader = ConcreteLoader([])
         result = loader.load()
         assert result == []
+
+    @pytest.mark.asyncio
+    async def test_load_works_from_running_event_loop(self):
+        """Calling sync load() from inside a running event loop must not raise.
+
+        Previously this raised "asyncio.run() cannot be called from a running
+        event loop" — fatal in Jupyter and async test contexts. The fix
+        offloads execution to a worker thread when a loop is already running.
+        """
+        docs = [_make_doc("x"), _make_doc("y")]
+        loader = ConcreteLoader(docs)
+        result = loader.load()
+        assert result == docs

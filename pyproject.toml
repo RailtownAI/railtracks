@@ -5,7 +5,9 @@ version = "0.0.0"
 description = "Root workspace for dev tools and workspace packages"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["railtracks"]
+dependencies = [
+    "railtracks",
+]
 
 
 [tool.uv.sources]
@@ -13,7 +15,7 @@ railtracks = { workspace = true }
 
 [tool.uv.workspace]
 members = [
-    "packages/*",
+    "packages/railtracks",
 ]
 
 
