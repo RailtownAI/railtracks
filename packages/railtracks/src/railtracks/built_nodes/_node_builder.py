@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import functools
+from tkinter import Message
 import warnings
 from inspect import isfunction
 from typing import (
@@ -27,13 +28,18 @@ from railtracks.built_nodes.concrete import (
     LLMBase,
 )
 from railtracks.built_nodes.concrete._tool_call_base import OutputLessToolCallLLMBase
+from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
 from railtracks.built_nodes.llm_helpers import ModelGateway, llm_invoke_factory, llm_prepare_called_as_tool_factory
 from railtracks.llm import (
     ModelBase,
     Parameter,
     SystemMessage,
     Tool,
+
 )
+
+from railtracks.llm.message import Message
+from railtracks.llm.history import MessageHistory
 from railtracks.llm.type_mapping import TypeMapper
 from railtracks.nodes.mappers import MapInputs, MapOutputs
 from railtracks.nodes.mappers import MapInputs
@@ -60,6 +66,9 @@ _P = ParamSpec("_P")
 _T = TypeVar("_T")
 _P2 = ParamSpec("_P2")
 _T2 = TypeVar("_T2")
+_TStructured = TypeVar("_TStructured", bound=BaseModel)
+
+UserInput = Union[str, MessageHistory, list[Message]]
 
 
 def unpack(item: _T | None, /) -> _T:
@@ -106,6 +115,7 @@ class NodeBuilderv2(Generic[_P, _T]):
         self._frozen_input_maps: list[MapInputs] = []
         self._frozen_output_maps: list[MapOutputs[_T]] = []
 
+    @overload
     @classmethod
     def llm(
         cls,
@@ -115,14 +125,51 @@ class NodeBuilderv2(Generic[_P, _T]):
         *,
         model_gateway: ModelGateway,
         system_message: SystemMessage | None = None,
-        schema: Type[BaseModel] | None = None,
+        schema: None = None,
         connected_nodes: Iterable[Type[Node]] | None = None,
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
         wrappers: list[Wrapper] | None = None,
         input_maps: list[MapInputs] | None = None,
         output_maps: list[MapOutputs] | None = None,
-    ):
+    ) -> NodeBuilderv2[[UserInput], StringResponse]: ...
+
+    @overload
+    @classmethod
+    def llm(
+        cls,
+        name: str,
+        class_name: str | None = None,
+        /,
+        *,
+        model_gateway: ModelGateway,
+        system_message: SystemMessage | None = None,
+        schema: Type[_TStructured],
+        connected_nodes: Iterable[Type[Node]] | None = None,
+        tool_details: str | None = None,
+        tool_params: list[Parameter] | None = None,
+        wrappers: list[Wrapper] | None = None,
+        input_maps: list[MapInputs] | None = None,
+        output_maps: list[MapOutputs] | None = None,
+    ) -> NodeBuilderv2[[UserInput], StructuredResponse[_TStructured]]: ...
+    
+    @classmethod
+    def llm(
+        cls,
+        name: str,
+        class_name: str | None = None,
+        /,
+        *,
+        model_gateway: ModelGateway,
+        system_message: SystemMessage | None = None,
+        schema: Type[_TStructured] | None = None,
+        connected_nodes: Iterable[Type[Node]] | None = None,
+        tool_details: str | None = None,
+        tool_params: list[Parameter] | None = None,
+        wrappers: list[Wrapper] | None = None,
+        input_maps: list[MapInputs] | None = None,
+        output_maps: list[MapOutputs] | None = None,
+    ) -> NodeBuilderv2[[UserInput], StructuredResponse[_TStructured] | StringResponse]:
         
         instance = cls()
         casted_instance = cast(NodeBuilderv2, instance)
@@ -625,3 +672,28 @@ class NodeBuilder(Generic[_TNode]):
         casted_klass = cast(Type[_TNode], klass)  # Ensure type consistency
 
         return casted_klass
+
+
+if __name__ == "__main__":
+    import railtracks as rt
+    
+
+    function_node = NodeBuilderv2.function(lambda x: x + 1)
+    FunctionNode = function_node.build()
+
+    class Examples(BaseModel):
+        pass
+
+    llm_node = NodeBuilderv2.llm(
+        "TestNode",
+        model_gateway=ModelGateway(rt.llm.AnthropicLLM(model_name="claude-2")),
+        connected_nodes=[FunctionNode],
+        schema=Examples
+    )
+
+    LLMNode = llm_node.build()
+    
+
+    result = await rt.call(LLMNode, 10000)
+
+    

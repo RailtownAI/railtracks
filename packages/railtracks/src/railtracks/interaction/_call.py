@@ -39,24 +39,8 @@ _P = ParamSpec("_P")
 _TOutput = TypeVar("_TOutput")
 
 
-@overload
 async def call(
-    node_: RTFunction[_P, _TOutput],
-    *args: _P.args,
-    **kwargs: _P.kwargs,
-) -> _TOutput: ...
-
-
-@overload
-async def call(
-    node_: Callable[_P, Node[_TOutput]],
-    *args: _P.args,
-    **kwargs: _P.kwargs,
-) -> _TOutput: ...
-
-
-async def call(
-    node_: Callable[_P, Node[_TOutput]] | RTFunction[_P, _TOutput],
+    node_: type[Node[_P, _TOutput]],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput:

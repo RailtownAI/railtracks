@@ -1,7 +1,16 @@
-
 import asyncio
 from copy import deepcopy
-from typing import Any, Callable, Coroutine, Generic, Literal, Protocol, TypeVar, cast, overload
+from typing import (
+    Any,
+    Callable,
+    Coroutine,
+    Generic,
+    Literal,
+    Protocol,
+    TypeVar,
+    cast,
+    overload,
+)
 from urllib import response
 from urllib import response
 
@@ -41,6 +50,7 @@ class StructuredLLMInvoke(Protocol[_TStructured]):
 
 class GatewayCall(Protocol[_TResponseCo]):
     """The core model call as seen by gateway middleware."""
+
     def __call__(
         self,
         messages: MessageHistory,
@@ -52,6 +62,7 @@ class GatewayCall(Protocol[_TResponseCo]):
 class GatewayWrapper(Protocol[_TResponse]):
     """Takes a GatewayCall and returns a GatewayCall with the same signature.
     Used for retry logic, fallback models, logging, etc."""
+
     def __call__(
         self,
         fn: GatewayCall[_TResponse],
@@ -60,6 +71,7 @@ class GatewayWrapper(Protocol[_TResponse]):
 
 class GatewayPreMapper(Protocol):
     """Transforms inputs before the model call (e.g. message injection, schema rewriting)."""
+
     def __call__(
         self,
         messages: MessageHistory,
@@ -70,6 +82,7 @@ class GatewayPreMapper(Protocol):
 
 class GatewayPostMapper(Protocol[_TResponse]):
     """Transforms the model response (e.g. normalisation, redaction)."""
+
     def __call__(self, response: _TResponse) -> _TResponse: ...
 
 
@@ -87,15 +100,19 @@ class ModelGateway(Generic[_TStructured]):
         self._post_mapping = post_mappers or []
 
     def invoke(
-        self, 
+        self,
         messages: MessageHistory,
         *,
         schema: type[BaseModel] | None = None,
-        tools: list[Tool] | None = None
+        tools: list[Tool] | None = None,
     ):
         model = self._get_model()
 
-        def _core_llm_call(messages: MessageHistory, schema: type[BaseModel] | None, tools: list[Tool] | None):
+        def _core_llm_call(
+            messages: MessageHistory,
+            schema: type[BaseModel] | None,
+            tools: list[Tool] | None,
+        ):
             for pre_map in self._pre_mapping:
                 messages, schema, tools = pre_map(messages, schema, tools)
 
@@ -110,7 +127,7 @@ class ModelGateway(Generic[_TStructured]):
                 response = post_map(response)
 
             return response
-            
+
         llm_function = _core_llm_call
 
         for wrapper in self._wrappers:
@@ -118,9 +135,7 @@ class ModelGateway(Generic[_TStructured]):
 
         response = llm_function(messages, schema, tools)
 
-    
         return response
-
 
 
 @overload
@@ -131,6 +146,7 @@ def llm_invoke_factory(
     schema: None = None,
 ) -> StringLLMInvoke: ...
 
+
 @overload
 def llm_invoke_factory(
     model_gateway: ModelGateway[_TStructured],
@@ -139,6 +155,7 @@ def llm_invoke_factory(
     schema: type[_TStructured] = ...,
 ) -> StructuredLLMInvoke[_TStructured]: ...
 
+
 def llm_invoke_factory(
     model_gateway: ModelGateway[_TStructured],
     system_message: SystemMessage | None,
@@ -146,14 +163,17 @@ def llm_invoke_factory(
     schema: type[_TStructured] | None = None,
 ):
     tools = [x.tool_info() for x in tool_nodes] if tool_nodes else None
+
     async def llm_invoke(
         user_input: MessageHistory | UserMessage | str | list[Message],
     ):
         message_history = prepare_message_history(system_message, user_input)
-        
+
         while True:
             try:
-                returned_mess = await asyncio.to_thread(model_gateway.invoke, message_history, schema=schema, tools=tools)
+                returned_mess = await asyncio.to_thread(
+                    model_gateway.invoke, message_history, schema=schema, tools=tools
+                )
             except Exception as e:
                 raise LLMError(
                     reason=f"Exception during model gateway invoke: {repr(e)}",
@@ -171,11 +191,11 @@ def llm_invoke_factory(
                 # TODO: handle tool calls here by running them and appending them to the results
                 pass
 
-        
     return llm_invoke
 
+
 def llm_prepare_called_as_tool_factory(
-    params: list[Parameter],   
+    params: list[Parameter],
 ):
     def prepare_called_as_tool(**kwargs):
         """
@@ -224,8 +244,6 @@ def llm_prepare_called_as_tool_factory(
     return prepare_called_as_tool
 
 
-
-
 def process_message(
     response: Response,
     schema: type[_TStructured] | None,
@@ -251,11 +269,14 @@ def prepare_message_history(
 ) -> MessageHistory:
     message_history = create_message_history(user_input)
 
-    check_message_history(message_history, system_message.content if system_message else None)
+    check_message_history(
+        message_history, system_message.content if system_message else None
+    )
 
     append_system_message(message_history, system_message)
 
     return message_history
+
 
 def create_message_history(
     user_input: MessageHistory | UserMessage | str | list[Message],
@@ -272,45 +293,45 @@ def create_message_history(
             raise ValueError("All items in the list must be instances of Message.")
         message_history = MessageHistory(user_input)
     else:
-        raise ValueError("Invalid input type for user_input. Must be MessageHistory, UserMessage, str, or list of Messages.") 
-        
+        raise ValueError(
+            "Invalid input type for user_input. Must be MessageHistory, UserMessage, str, or list of Messages."
+        )
+
     return deepcopy(message_history)
 
+
 def append_system_message(
-    message_history: MessageHistory,
-    system_message: SystemMessage | None
+    message_history: MessageHistory, system_message: SystemMessage | None
 ):
     """Modifies the object in place"""
     if system_message:
         # Prepend the system message to the message history
         message_history.insert(0, system_message)
-    
+
 
 def prepare_structured_response(
-        message_history: MessageHistory,
-        schema: type[_TStructured]
-    ) -> StructuredResponse[_TStructured]:
-        last_message = message_history[-1]
+    message_history: MessageHistory, schema: type[_TStructured]
+) -> StructuredResponse[_TStructured]:
+    last_message = message_history[-1]
 
-        content = last_message.content
+    content = last_message.content
 
-        assert isinstance(content, schema), "Content of the last message must be a dict to be converted into a structured response"
+    assert isinstance(content, schema), (
+        "Content of the last message must be a dict to be converted into a structured response"
+    )
 
-        return StructuredResponse(
-            content=content,
-            message_history=message_history
-        )
-    
+    return StructuredResponse(content=content, message_history=message_history)
+
+
 def prepare_string_response(
-        message_history: MessageHistory,
-    ) -> StringResponse:
-        last_message = message_history[-1]
+    message_history: MessageHistory,
+) -> StringResponse:
+    last_message = message_history[-1]
 
-        content = last_message.content
+    content = last_message.content
 
-        assert isinstance(content, str), "Content of the last message must be a string to be returned as is"
+    assert isinstance(content, str), (
+        "Content of the last message must be a string to be returned as is"
+    )
 
-        return StringResponse(
-            content=content,
-            message_history=message_history
-        )
+    return StringResponse(content=content, message_history=message_history)
