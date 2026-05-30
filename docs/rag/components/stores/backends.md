@@ -79,7 +79,7 @@ store2 = VectorStore(InMemoryBackend(snapshot_path=Path("index.json")))
 
 ## ChromaBackend
 
-A backend powered by [Chroma](https://www.trychroma.com/). Supports ephemeral (in-process), persistent (on-disk), and HTTP (remote server) client modes.
+A backend powered by [Chroma](https://www.trychroma.com/). Supports ephemeral (in-process), persistent (on-disk), HTTP (remote server), and Chroma Cloud client modes.
 
 ```python
 pip install "railtracks[stores-chroma]"
@@ -97,9 +97,10 @@ store = VectorStore(backend)
 
 | Mode | When | Configuration |
 |------|------|---------------|
-| Ephemeral | No `path` or `host` given | In-process, data lost on exit |
+| Ephemeral | No `path`, `host`, or cloud args | In-process, data lost on exit |
 | Persistent | `path="/path/to/dir"` | Data persisted to disk |
 | HTTP | `host="localhost", port=8000` | Remote Chroma server |
+| Cloud | `from_cloud(...)` | Chroma Cloud (managed) |
 
 ```python
 # Persistent
@@ -109,9 +110,38 @@ backend = ChromaBackend("my-collection", path="/data/chroma")
 backend = ChromaBackend("my-collection", host="chroma.internal", port=8000)
 ```
 
+### Chroma Cloud
+
+Use the `from_cloud()` classmethod to connect to [Chroma Cloud](https://www.trychroma.com/). An `embedding_function` is required — Chroma Cloud stores the EF configuration server-side, and providing the object directly avoids a known reconstruction issue with certain EF configs.
+
+```python
+from chromadb.utils.embedding_functions.chroma_cloud_qwen_embedding_function import (
+    ChromaCloudQwenEmbeddingFunction,
+    ChromaCloudQwenEmbeddingModel,
+)
+from railtracks.retrieval.stores import VectorStore, ChromaBackend
+
+ef = ChromaCloudQwenEmbeddingFunction(
+    model=ChromaCloudQwenEmbeddingModel.QWEN3_EMBEDDING_0p6B,
+    task="nl_to_code",
+    api_key_env_var="CHROMA_API_KEY",  # reads from environment
+)
+
+backend = await ChromaBackend.from_cloud(
+    "my-collection",
+    api_key="ck-...",
+    tenant="your-tenant-id",
+    database="your-database",
+    embedding_function=ef,
+)
+store = VectorStore(backend)
+```
+
+Any Chroma-compatible embedding function can be passed — `from_cloud()` is not tied to the Qwen EF specifically.
+
 ### Distance metric
 
-Chroma's `hnsw:space` is set at collection creation time and cannot be changed later. The default is cosine.
+Chroma's `hnsw:space` is set at collection creation time and cannot be changed later. The default is cosine. For Chroma Cloud collections, `metric` controls the score conversion formula only — the space is managed by the server.
 
 ```python
 from railtracks.retrieval.stores.vector.metric import DistanceMetric
