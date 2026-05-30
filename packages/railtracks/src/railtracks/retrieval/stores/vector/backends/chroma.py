@@ -162,10 +162,12 @@ class ChromaBackend:
     async def upsert(self, id: str, vector: list[float], payload: dict) -> None:
         self._require_initialized()
         collection = self._collection
+        content = payload.get("content")
         await asyncio.to_thread(
             collection.upsert,
             ids=[id],
             embeddings=[vector],
+            documents=[content] if content is not None else None,
             metadatas=[payload],
         )
 

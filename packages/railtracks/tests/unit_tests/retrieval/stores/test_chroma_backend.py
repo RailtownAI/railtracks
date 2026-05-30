@@ -273,11 +273,26 @@ async def test_upsert_calls_collection_with_correct_args():
     col = _make_collection()
     backend = _injected_backend(col)
 
+    await backend.upsert("entry-1", [0.1, 0.2], {"content": "hello", "scope_user_id": "alice"})
+
+    col.upsert.assert_called_once_with(
+        ids=["entry-1"],
+        embeddings=[[0.1, 0.2]],
+        documents=["hello"],
+        metadatas=[{"content": "hello", "scope_user_id": "alice"}],
+    )
+
+
+async def test_upsert_passes_none_documents_when_no_content():
+    col = _make_collection()
+    backend = _injected_backend(col)
+
     await backend.upsert("entry-1", [0.1, 0.2], {"scope_user_id": "alice"})
 
     col.upsert.assert_called_once_with(
         ids=["entry-1"],
         embeddings=[[0.1, 0.2]],
+        documents=None,
         metadatas=[{"scope_user_id": "alice"}],
     )
 
