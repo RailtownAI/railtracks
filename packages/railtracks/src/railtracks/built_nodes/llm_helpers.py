@@ -17,8 +17,16 @@ from urllib import response
 from pydantic import BaseModel
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
 from railtracks.exceptions.errors import LLMError
+from railtracks.interaction._call import call
+from railtracks.llm.content import ToolCall, ToolResponse
 from railtracks.llm.history import MessageHistory
-from railtracks.llm.message import SystemMessage, UserMessage, Message
+from railtracks.llm.message import (
+    AssistantMessage,
+    SystemMessage,
+    ToolMessage,
+    UserMessage,
+    Message,
+)
 from railtracks.llm.model import ModelBase
 from railtracks.llm.response import Response
 from railtracks.llm.tools.parameters._base import Parameter
@@ -183,15 +191,97 @@ def llm_invoke_factory(
             path = process_message(returned_mess, schema)
 
             if path == "Content":
+                message_history.append(AssistantMessage(returned_mess.message.content))
                 return prepare_string_response(message_history)
             elif path == "Structured":
+                message_history.append(AssistantMessage(returned_mess.message.content))
                 assert schema is not None
                 return prepare_structured_response(message_history, schema)
             elif path == "Tool":
-                # TODO: handle tool calls here by running them and appending them to the results
-                pass
+                await run_tools(returned_mess, message_history, tool_nodes or [])
+                continue
 
     return llm_invoke
+
+
+async def run_tools(
+    response: Response,
+    message_history: MessageHistory,
+    tool_nodes: list[type[Node]],
+):
+    assert len(tool_nodes) > 0, "No tool nodes provided to run_tools"
+    tool_calls = response.message.tool_calls
+
+    hist_msg = AssistantMessage(content=tool_calls)
+
+    raw = getattr(response.message, "raw_content", None)
+    if raw is not None:
+        hist_msg.raw_litellm_message = raw
+
+    message_history.append(hist_msg)
+
+    tool_messages = await invoke_tools(tool_calls, tool_nodes)
+
+    message_history.extend(tool_messages)
+
+
+async def invoke_tools(tool_calls: list[ToolCall], tool_nodes: list[type[Node]]):
+    contracts = []
+
+    for tool_call in tool_calls:
+        contract = invoke_tool(tool_call, tool_nodes)
+        contracts.append(contract)
+
+    tool_results = await asyncio.gather(*contracts)
+    stringified_results = [
+        (
+            str(x)
+            if not isinstance(x, Exception)
+            else f"There was an error during tool execution: {repr(x)}"
+        )
+        for x in tool_results
+    ]
+
+    tool_ids = [tool_call.identifier for tool_call in tool_calls]
+    tool_names = [tool_call.name for tool_call in tool_calls]
+
+    tool_messages: list[ToolMessage] = []
+
+    for tool_id, tool_name, result in zip(tool_ids, tool_names, stringified_results):
+        tool_messages.append(
+            ToolMessage(
+                ToolResponse(
+                    identifier=tool_id,
+                    name=tool_name,
+                    result=result,
+                )
+            )
+        )
+
+    return tool_messages
+
+
+async def invoke_tool(tool_call: ToolCall, tool_nodes: list[type[Node]]):
+    ToolNode = get_node_from_name(tool_call.name, tool_nodes)
+
+    prepared_args = ToolNode.prepare_args(**tool_call.arguments)
+
+    return await call(ToolNode, **prepared_args)
+
+
+def get_node_from_name(tool_name: str, tool_nodes: list[type[Node]]) -> type[Node]:
+    candidate_list = [x for x in tool_nodes if x.name() == tool_name]
+
+    if len(candidate_list) == 0:
+        # TODO: better error here
+        raise TypeError(
+            f"LLM called tool '{tool_name}' which was not found in the provided tool nodes.",
+        )
+    assert len(candidate_list) > 1, (
+        f"Multiple tool nodes found with name '{tool_name}'. This should not happen, please ensure all tool nodes have unique names. Offending nodes: {candidate_list}"
+    )
+
+    return candidate_list[0]
 
 
 def llm_prepare_called_as_tool_factory(

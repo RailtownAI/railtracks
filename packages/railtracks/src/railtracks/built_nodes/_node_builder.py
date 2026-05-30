@@ -29,13 +29,16 @@ from railtracks.built_nodes.concrete import (
 )
 from railtracks.built_nodes.concrete._tool_call_base import OutputLessToolCallLLMBase
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
-from railtracks.built_nodes.llm_helpers import ModelGateway, llm_invoke_factory, llm_prepare_called_as_tool_factory
+from railtracks.built_nodes.llm_helpers import (
+    ModelGateway,
+    llm_invoke_factory,
+    llm_prepare_called_as_tool_factory,
+)
 from railtracks.llm import (
     ModelBase,
     Parameter,
     SystemMessage,
     Tool,
-
 )
 
 from railtracks.llm.message import Message
@@ -152,7 +155,7 @@ class NodeBuilderv2(Generic[_P, _T]):
         input_maps: list[MapInputs] | None = None,
         output_maps: list[MapOutputs] | None = None,
     ) -> NodeBuilderv2[[UserInput], StructuredResponse[_TStructured]]: ...
-    
+
     @classmethod
     def llm(
         cls,
@@ -170,30 +173,30 @@ class NodeBuilderv2(Generic[_P, _T]):
         input_maps: list[MapInputs] | None = None,
         output_maps: list[MapOutputs] | None = None,
     ) -> NodeBuilderv2[[UserInput], StructuredResponse[_TStructured] | StringResponse]:
-        
         instance = cls()
         casted_instance = cast(NodeBuilderv2, instance)
         casted_instance._class_name = class_name or name
         casted_instance._node_name = name
         casted_instance._node_class = "Agent"
 
-
         casted_instance._invoke = llm_invoke_factory(
             model_gateway=model_gateway,
             system_message=system_message,
             tool_nodes=list(connected_nodes) if connected_nodes else None,
-            schema=schema
+            schema=schema,
         )
 
         if tool_details is not None:
             tool = cls._prepare_llm_tool(
-                name=name,
-                tool_details=tool_details,
-                tool_params=tool_params
+                name=name, tool_details=tool_details, tool_params=tool_params
             )
 
             casted_instance._tool_info = lambda: tool
-            casted_instance._prepare_arguments = lambda **kwargs: {"user_input": llm_prepare_called_as_tool_factory(unpack(tool_params))(**kwargs)}
+            casted_instance._prepare_arguments = lambda **kwargs: {
+                "user_input": llm_prepare_called_as_tool_factory(unpack(tool_params))(
+                    **kwargs
+                )
+            }
 
         casted_instance._frozen_wrappers = wrappers or []
         casted_instance._frozen_input_maps = input_maps or []
@@ -201,13 +204,9 @@ class NodeBuilderv2(Generic[_P, _T]):
 
         return casted_instance
 
-
     @classmethod
     def _prepare_llm_tool(
-        cls,
-        name: str,
-        tool_details: str,
-        tool_params: list[Parameter] | None = None 
+        cls, name: str, tool_details: str, tool_params: list[Parameter] | None = None
     ):
         _check_tool_params_and_details(tool_params, tool_details)
         _check_duplicate_param_names(tool_params or [])
@@ -219,7 +218,6 @@ class NodeBuilderv2(Generic[_P, _T]):
         )
 
         return tool
-    
 
     @overload
     @classmethod
@@ -326,7 +324,9 @@ class NodeBuilderv2(Generic[_P, _T]):
         )
 
     def build(self) -> Type[Node[_P, _T]]:
-        assert self._class_name is not None, "Class name must be set before building the node."
+        assert self._class_name is not None, (
+            "Class name must be set before building the node."
+        )
 
         return safe_create_node(
             self._class_name,
@@ -676,7 +676,6 @@ class NodeBuilder(Generic[_TNode]):
 
 if __name__ == "__main__":
     import railtracks as rt
-    
 
     function_node = NodeBuilderv2.function(lambda x: x + 1)
     FunctionNode = function_node.build()
@@ -688,12 +687,9 @@ if __name__ == "__main__":
         "TestNode",
         model_gateway=ModelGateway(rt.llm.AnthropicLLM(model_name="claude-2")),
         connected_nodes=[FunctionNode],
-        schema=Examples
+        schema=Examples,
     )
 
     LLMNode = llm_node.build()
-    
 
     result = await rt.call(LLMNode, 10000)
-
-    

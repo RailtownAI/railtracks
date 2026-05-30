@@ -174,7 +174,6 @@ class LLMBase(Node[_T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
         cls, tool_parameters: Dict[str, Any], tool_params: Iterable[Parameter] = None
     ) -> MessageHistory:
         pass
-        
 
     @abstractmethod
     def return_output(self, message: Message | None = None) -> _TCollectedOutput: ...
