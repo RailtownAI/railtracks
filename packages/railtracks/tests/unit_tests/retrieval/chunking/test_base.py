@@ -5,10 +5,8 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator
 
 import pytest
-
 from railtracks.retrieval import Chunk, Document
 from railtracks.retrieval.chunking import Chunker
-
 
 # -------------------------------------------------------------------
 # Test chunker subclass

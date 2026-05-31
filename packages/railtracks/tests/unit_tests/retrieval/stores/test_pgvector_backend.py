@@ -8,7 +8,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
-
 from railtracks.retrieval.stores.models import (
     DetailLevel,
     StoreEntry,
@@ -20,9 +19,8 @@ from railtracks.retrieval.stores.vector.backends.pgvector import (
     _build_where,
     _pg_to_score,
 )
-from railtracks.retrieval.stores.vector.metric import DistanceMetric
 from railtracks.retrieval.stores.vector.base import VectorStore
-
+from railtracks.retrieval.stores.vector.metric import DistanceMetric
 
 # ---------------------------------------------------------------------------
 # _build_where
@@ -37,24 +35,40 @@ def test_build_where_empty():
 
 def test_build_where_single():
     clause, params = _build_where({"scope_user_id": "alice"})
-    assert clause == "WHERE payload->>'scope_user_id' = $1"
-    assert params == ["alice"]
+    assert clause == "WHERE payload->$1::text = $2::jsonb"
+    assert params == ["scope_user_id", json.dumps("alice")]
 
 
 def test_build_where_multiple():
     clause, params = _build_where(
         {"scope_user_id": "alice", "scope_agent_id": "bot"}
     )
-    assert "payload->>'scope_user_id' = $1" in clause
-    assert "payload->>'scope_agent_id' = $2" in clause
-    assert "$1" in clause and "$2" in clause
-    assert params == ["alice", "bot"]
+    assert "payload->$1::text = $2::jsonb" in clause
+    assert "payload->$3::text = $4::jsonb" in clause
+    assert params == [
+        "scope_user_id",
+        json.dumps("alice"),
+        "scope_agent_id",
+        json.dumps("bot"),
+    ]
 
 
 def test_build_where_respects_start_index():
     clause, params = _build_where({"scope_user_id": "alice"}, start_index=2)
-    assert clause == "WHERE payload->>'scope_user_id' = $2"
-    assert params == ["alice"]
+    assert clause == "WHERE payload->$2::text = $3::jsonb"
+    assert params == ["scope_user_id", json.dumps("alice")]
+
+
+def test_build_where_preserves_jsonb_types_for_non_string_values():
+    """Booleans, integers, floats, and None must round-trip as their JSONB
+    type — not be coerced to Python's str() form (e.g. ``True`` -> ``'True'``)
+    which JSONB renders as ``'true'`` and would never match."""
+    clause, params = _build_where({"page": 3, "active": True, "tag": None})
+    # Each value is JSON-encoded so the comparison is JSONB-to-JSONB.
+    assert params == ["page", "3", "active", "true", "tag", "null"]
+    assert "payload->$1::text = $2::jsonb" in clause
+    assert "payload->$3::text = $4::jsonb" in clause
+    assert "payload->$5::text = $6::jsonb" in clause
 
 
 # ---------------------------------------------------------------------------
@@ -299,11 +313,12 @@ async def test_search_passes_where_clause_for_filters():
 
     await backend.search([1.0], 5, {"scope_user_id": "alice"})
 
-    sql, vec_arg, filter_arg = conn.fetch.call_args.args
-    assert "payload->>'scope_user_id'" in sql
+    sql, vec_arg, key_arg, value_arg = conn.fetch.call_args.args
+    assert "payload->$2::text = $3::jsonb" in sql
     assert "WHERE" in sql
     assert vec_arg == [1.0]
-    assert filter_arg == "alice"
+    assert key_arg == "scope_user_id"
+    assert value_arg == json.dumps("alice")
 
 
 async def test_search_no_where_clause_when_filters_empty():
@@ -396,10 +411,11 @@ async def test_delete_where_passes_where_clause():
 
     await backend.delete_where({"scope_user_id": "alice"})
 
-    sql, filter_arg = conn.execute.call_args.args
+    sql, key_arg, value_arg = conn.execute.call_args.args
     assert "DELETE" in sql
-    assert "payload->>'scope_user_id'" in sql
-    assert filter_arg == "alice"
+    assert "payload->$1::text = $2::jsonb" in sql
+    assert key_arg == "scope_user_id"
+    assert value_arg == json.dumps("alice")
 
 
 async def test_delete_where_empty_filters_is_noop():

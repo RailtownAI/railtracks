@@ -4,7 +4,6 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
 from railtracks.retrieval.embedding import OpenAIEmbedding
 
 

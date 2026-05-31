@@ -11,7 +11,6 @@ import asyncio
 from collections.abc import AsyncGenerator
 
 import pytest
-
 from railtracks.retrieval import Document
 from railtracks.retrieval.chunking import (
     Chunker,

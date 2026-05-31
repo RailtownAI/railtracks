@@ -8,7 +8,6 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-
 _FORBIDDEN_PREFIXES = (
     "railtracks.orchestration",
     "railtracks.nodes",

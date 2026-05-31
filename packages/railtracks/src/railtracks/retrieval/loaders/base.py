@@ -50,11 +50,30 @@ class BaseDocumentLoader(ABC):
     def load(self) -> list[Document]:
         """Load all documents synchronously and return them as a list.
 
-        Blocking wrapper around `aload()` for use outside of an async
-        context. Prefer `astream()` or `aload()` wherever async I/O
-        is available.
+        Blocking wrapper around `aload()`. Safe to call from anywhere:
+
+        - **No event loop running** (plain scripts): runs `aload()` directly
+          via `asyncio.run()`.
+        - **Event loop already running** (Jupyter, FastAPI handlers, other
+          coroutines): runs `aload()` on a temporary worker thread with its
+          own event loop, blocking the caller until results are ready.
+
+        Prefer `astream()` or `aload()` directly wherever async I/O is
+        available — this method only exists for sync convenience.
 
         Returns:
             list[Document]: All documents produced by this loader.
         """
-        return asyncio.run(self.aload())
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            # No loop in this thread — safe to spin one up.
+            return asyncio.run(self.aload())
+
+        # A loop is already running. Run aload() on a worker thread that
+        # creates its own event loop. Avoids "asyncio.run() cannot be called
+        # from a running event loop" in Jupyter / async contexts.
+        import concurrent.futures
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(asyncio.run, self.aload()).result()
