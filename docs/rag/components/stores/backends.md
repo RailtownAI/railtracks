@@ -3,24 +3,19 @@
 `VectorStore` delegates all index I/O to a **backend** that implements the `VectorBackend` protocol. The three built-in backends cover local development, managed vector databases, and production Postgres deployments.
 
 ```python
-class VectorBackend(Protocol):
-    async def upsert(self, id: str, vector: list[float], payload: dict) -> None: ...
-    async def search(self, vector: list[float], top_k: int, filters: dict) -> list[tuple[str, float, dict]]: ...
-    async def delete(self, id: str) -> None: ...
-    async def delete_where(self, filters: dict) -> None: ...
+--8<-- "docs/scripts/vector_backends.py:protocol"
 ```
 
 `ChromaBackend` and `PgvectorBackend` must be **initialised** before use. Both expose an async `create(...)` factory that constructs and initialises in one call — prefer this over calling `__init__` + `initialize()` separately:
 
 ```python
-backend = await PgvectorBackend.create(dsn="postgresql://...", table="my_index", dim=1536)
+--8<-- "docs/scripts/vector_backends.py:create_factory"
 ```
 
 `initialize()` is also available for cases where construction must stay synchronous (e.g. dependency injection containers):
 
 ```python
-backend = PgvectorBackend(dsn="postgresql://...")
-await backend.initialize()
+--8<-- "docs/scripts/vector_backends.py:initialize_deferred"
 ```
 
 `InMemoryBackend` requires neither — it is ready immediately after construction.
@@ -32,9 +27,7 @@ await backend.initialize()
 A fully in-process backend backed by a Python dict. No external dependencies. Cosine similarity is computed in pure Python.
 
 ```python
-from railtracks.retrieval.stores import VectorStore, InMemoryVectorBackend
-
-store = VectorStore(InMemoryVectorBackend())
+--8<-- "docs/scripts/vector_backends.py:inmemory_basic"
 ```
 
 ### Distance metric
@@ -42,10 +35,7 @@ store = VectorStore(InMemoryVectorBackend())
 `InMemoryBackend` accepts the same `DistanceMetric` enum as the other backends:
 
 ```python
-from railtracks.retrieval.stores.vector.metric import DistanceMetric
-from railtracks.retrieval.stores.vector.backends import InMemoryBackend
-
-backend = InMemoryBackend(metric=DistanceMetric.L2)
+--8<-- "docs/scripts/vector_backends.py:inmemory_metric"
 ```
 
 | `DistanceMetric` | Score formula |
@@ -59,13 +49,7 @@ backend = InMemoryBackend(metric=DistanceMetric.L2)
 Snapshots let you persist the index between process restarts without any external infrastructure. Pass a `snapshot_path` and the store is saved to disk as JSON after every write or delete.
 
 ```python
-from pathlib import Path
-from railtracks.retrieval.stores.vector.backends import InMemoryBackend
-
-store = VectorStore(InMemoryBackend(snapshot_path=Path("index.json")))
-
-# The file is loaded automatically on next construction
-store2 = VectorStore(InMemoryBackend(snapshot_path=Path("index.json")))
+--8<-- "docs/scripts/vector_backends.py:inmemory_snapshot"
 ```
 
 | Property | Value |
@@ -86,11 +70,7 @@ pip install "railtracks[stores-chroma]"
 ```
 
 ```python
-from railtracks.retrieval.stores import VectorStore, ChromaBackend
-
-# Preferred: create() constructs and initialises in one step
-backend = await ChromaBackend.create("my-collection")
-store = VectorStore(backend)
+--8<-- "docs/scripts/vector_backends.py:chroma_basic"
 ```
 
 ### Client modes
@@ -103,11 +83,7 @@ store = VectorStore(backend)
 | Cloud | `from_cloud(...)` | Chroma Cloud (managed) |
 
 ```python
-# Persistent
-backend = ChromaBackend("my-collection", path="/data/chroma")
-
-# Remote
-backend = ChromaBackend("my-collection", host="chroma.internal", port=8000)
+--8<-- "docs/scripts/vector_backends.py:chroma_client_modes"
 ```
 
 ### Chroma Cloud
@@ -115,26 +91,7 @@ backend = ChromaBackend("my-collection", host="chroma.internal", port=8000)
 Use the `from_cloud()` classmethod to connect to [Chroma Cloud](https://www.trychroma.com/). An `embedding_function` is required — Chroma Cloud stores the EF configuration server-side, and providing the object directly avoids a known reconstruction issue with certain EF configs.
 
 ```python
-from chromadb.utils.embedding_functions.chroma_cloud_qwen_embedding_function import (
-    ChromaCloudQwenEmbeddingFunction,
-    ChromaCloudQwenEmbeddingModel,
-)
-from railtracks.retrieval.stores import VectorStore, ChromaBackend
-
-ef = ChromaCloudQwenEmbeddingFunction(
-    model=ChromaCloudQwenEmbeddingModel.QWEN3_EMBEDDING_0p6B,
-    task="nl_to_code",
-    api_key_env_var="CHROMA_API_KEY",  # reads from environment
-)
-
-backend = await ChromaBackend.from_cloud(
-    "my-collection",
-    api_key="ck-...",
-    tenant="your-tenant-id",
-    database="your-database",
-    embedding_function=ef,
-)
-store = VectorStore(backend)
+--8<-- "docs/scripts/vector_backends.py:chroma_cloud"
 ```
 
 Any Chroma-compatible embedding function can be passed — `from_cloud()` is not tied to the Qwen EF specifically.
@@ -144,9 +101,7 @@ Any Chroma-compatible embedding function can be passed — `from_cloud()` is not
 Chroma's `hnsw:space` is set at collection creation time and cannot be changed later. The default is cosine. For Chroma Cloud collections, `metric` controls the score conversion formula only — the space is managed by the server.
 
 ```python
-from railtracks.retrieval.stores.vector.metric import DistanceMetric
-
-backend = ChromaBackend("my-collection", metric=DistanceMetric.L2)
+--8<-- "docs/scripts/vector_backends.py:chroma_metric"
 ```
 
 | `DistanceMetric` | Chroma space | Score formula |
@@ -173,11 +128,7 @@ pip install "railtracks[stores-vector]"
 ```
 
 ```python
-from railtracks.retrieval.stores import VectorStore, PgvectorBackend
-
-# Preferred: create() constructs and initialises in one step
-backend = await PgvectorBackend.create(dsn="postgresql://user:pass@localhost/mydb")
-store = VectorStore(backend)
+--8<-- "docs/scripts/vector_backends.py:pgvector_basic"
 ```
 
 `initialize()` (called by `create()`) runs `CREATE EXTENSION IF NOT EXISTS vector` and `CREATE TABLE IF NOT EXISTS` — safe to call on every startup.
@@ -187,10 +138,7 @@ store = VectorStore(backend)
 If you know the embedding dimension upfront, pass `dim` to enable Postgres's typed vector column and let pgvector optimise the index:
 
 ```python
-backend = PgvectorBackend(
-    dsn="postgresql://user:pass@localhost/mydb",
-    dim=1536,   # e.g. text-embedding-3-small
-)
+--8<-- "docs/scripts/vector_backends.py:pgvector_dim"
 ```
 
 Without `dim`, the column is created as an untyped `vector`, which still works but cannot use `ivfflat` or `hnsw` indexes.
@@ -198,9 +146,7 @@ Without `dim`, the column is created as an untyped `vector`, which still works b
 ### Distance metric
 
 ```python
-from railtracks.retrieval.stores.vector.metric import DistanceMetric
-
-backend = PgvectorBackend(dsn="...", metric=DistanceMetric.IP)
+--8<-- "docs/scripts/vector_backends.py:pgvector_metric"
 ```
 
 | `DistanceMetric` | SQL operator | Score formula |
@@ -235,25 +181,7 @@ backend = PgvectorBackend(dsn="...", metric=DistanceMetric.IP)
 Any class that satisfies the `VectorBackend` protocol can be passed to `VectorStore`. The four methods (`upsert`, `search`, `delete`, `delete_where`) are the only contract:
 
 ```python
-from railtracks.retrieval.stores.vector.base import VectorBackend
-
-class MyBackend:
-    async def upsert(self, id: str, vector: list[float], payload: dict) -> None:
-        ...
-
-    async def search(
-        self, vector: list[float], top_k: int, filters: dict
-    ) -> list[tuple[str, float, dict]]:
-        # Return (id, score, payload) triples, score in [0, 1]
-        ...
-
-    async def delete(self, id: str) -> None:
-        ...
-
-    async def delete_where(self, filters: dict) -> None:
-        ...
-
-store = VectorStore(MyBackend())
+--8<-- "docs/scripts/vector_backends.py:custom_backend"
 ```
 
 `filters` is a flat `dict[str, str]` built from `StoreScope.to_payload_filters()` plus any `metadata_filters` from the query. All keys must match for an entry to be returned.
