@@ -100,9 +100,7 @@ def test_identify_breakpoints_empty_for_no_distances():
 def test_identify_breakpoints_finds_outlier_distance():
     chunker = SemanticChunker(embedder=_FakeEmbedder(), threshold_percentile=50.0)
     distances = [0.1, 0.1, 0.9, 0.1]
-    assert chunker._identify_breakpoints(distances, chunker.threshold_percentile) == [
-        2
-    ]
+    assert chunker._identify_breakpoints(distances, chunker.threshold_percentile) == [2]
 
 
 def test_threshold_percentile_must_be_in_range():
