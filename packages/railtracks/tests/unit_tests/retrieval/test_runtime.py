@@ -358,6 +358,32 @@ async def test_retrieve_raises_on_model_mismatch():
         await runtime.retrieve("alpha")
 
 
+async def test_fresh_runtime_catches_cross_process_model_mismatch():
+    """The model guard survives process restarts: a brand-new runtime
+    pointed at an existing store seeds ``_captured_model`` from any
+    entry on disk, so a mismatched embedder is caught at the next
+    ingest or retrieve."""
+    store = _store()
+
+    # "Process 1": writes with model-v1.
+    runtime_v1, _, _ = _runtime(store=store, embedder=_FakeEmbedder(model="model-v1"))
+    await runtime_v1.ingest_all(_ListLoader([Document(content="alpha beta")]))
+    assert len(await store.find({}, limit=10)) == 2
+
+    # "Process 2": fresh runtime, different embedder, same store.
+    runtime_v2, _, _ = _runtime(store=store, embedder=_FakeEmbedder(model="model-v2"))
+
+    with pytest.raises(EmbeddingModelMismatchError):
+        await runtime_v2.retrieve("alpha")
+
+    with pytest.raises(EmbeddingModelMismatchError):
+        await runtime_v2.ingest_all(_ListLoader([Document(content="gamma delta")]))
+
+    # Mismatch must abort before any writes — store still holds only
+    # the two model-v1 chunks.
+    assert len(await store.find({}, limit=10)) == 2
+
+
 async def test_document_id_is_deterministic_from_source():
     """Same source → same id; different sources → different ids;
     sourceless → random ids; explicit id wins."""

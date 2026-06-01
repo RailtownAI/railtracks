@@ -255,6 +255,8 @@ class RetrievalRuntime:
         stats.documents_loaded += 1
         doc.content_hash = _content_hash(doc.content)
 
+        await self._ensure_captured_model_seeded()
+
         if await self._is_complete_duplicate(doc):
             stats.documents_skipped += 1
             yield DocumentSkipped(document_id=doc.id, source=doc.source)
@@ -376,6 +378,9 @@ class RetrievalRuntime:
             chunks, batch_size=self._batch_size
         ):
             if isinstance(batch, EmbeddingResult):
+                # Check model BEFORE delete_where / write — a mismatch here
+                # must not corrupt the store by clearing prior chunks first.
+                self._check_model(batch.metrics.model)
                 if not delete_done:
                     await self._store.delete_where({"document_id": str(doc.id)})
                     delete_done = True
@@ -408,6 +413,36 @@ class RetrievalRuntime:
                 "from first successful batch; subsequent retrieve() "
                 "calls will enforce this model.",
                 self._captured_model,
+            )
+
+    async def _ensure_captured_model_seeded(self) -> None:
+        """Lazily seed ``_captured_model`` from an existing store entry so the
+        guard survives across process restarts. ``StoreEntry.embedding_model``
+        is recorded on every persisted entry, so a single ``find`` call is
+        enough — no schema change required."""
+        if self._captured_model is not None:
+            return
+        existing = await self._store.find({}, limit=1)
+        if existing and existing[0].embedding_model:
+            self._captured_model = existing[0].embedding_model
+            logger.info(
+                "RetrievalRuntime seeded captured embedding model %r from "
+                "an existing store entry; mismatched embedders will raise.",
+                self._captured_model,
+            )
+
+    def _check_model(self, embed_model: str | None) -> None:
+        """Raise if ``embed_model`` disagrees with the captured model."""
+        if (
+            self._captured_model is not None
+            and embed_model
+            and embed_model != self._captured_model
+        ):
+            raise EmbeddingModelMismatchError(
+                f"Embedder produced vectors with model {embed_model!r} but "
+                f"store was built with {self._captured_model!r}. Similarity "
+                "scores across models are meaningless; rebuild the store "
+                "with the correct embedder or switch embedders."
             )
 
     @staticmethod
@@ -451,19 +486,9 @@ class RetrievalRuntime:
             EmbeddingModelMismatchError: When the embedder reports a model
                 different from the one captured on first ingest.
         """
+        await self._ensure_captured_model_seeded()
         text_result = await self._embedder.aembed([query])
-        embed_model = text_result.metrics.model
-        if (
-            self._captured_model is not None
-            and embed_model
-            and embed_model != self._captured_model
-        ):
-            raise EmbeddingModelMismatchError(
-                f"Embedder produced vectors with model {embed_model!r} but "
-                f"store was built with {self._captured_model!r}. Similarity "
-                "scores across models are meaningless; rebuild the store "
-                "with the correct embedder or switch embedders."
-            )
+        self._check_model(text_result.metrics.model)
 
         store_query = StoreQuery(
             text=query,

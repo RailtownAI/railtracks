@@ -230,13 +230,20 @@ Mixing vectors from different embedding models produces meaningless
 similarity scores. For instance, `text-embedding-3-small` and `text-embedding-3-large`
 live in entirely different vector spaces. The runtime captures the
 embedder's model name on the first successful batch and raises
-`EmbeddingModelMismatchError` at retrieve time if the embedder later
-reports a different model.
+`EmbeddingModelMismatchError` at both ingest and retrieve time if the
+embedder later reports a different model.
 
-This guard is **in-process only**. A process restart with a different
-embedder pointed at the same store will silently mix vectors. Promoting
-the check to a `Store`-side property is on the roadmap; for now, version
-your stores per embedder if you switch models.
+The check is **cross-process**. On the first call after construction, the
+runtime seeds itself by reading `embedding_model` off any one existing
+`StoreEntry` (via `Store.find({}, limit=1)`) so a brand-new runtime
+pointed at a store written by an earlier process inherits the captured
+model and catches a mismatched embedder before any writes happen. On
+ingest the check fires before `delete_where`, so a mismatched batch can
+never corrupt the store by clearing prior chunks first.
+
+The guard is best-effort: if your embedder doesn't report a model name
+(some adapters return `None`), the check is a no-op. Empty stores have
+nothing to seed from, so the first writer always wins.
 
 ---
 
