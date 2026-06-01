@@ -106,7 +106,9 @@ class SemanticChunker(Chunker):
         texts_to_embed = self._prepare_embed_inputs(split_texts)
         embeddings = self.embedder.embed(texts_to_embed).vectors
         distances = self._calculate_distances(embeddings)
-        breakpoints = self._identify_breakpoints(distances, self.threshold_percentile)
+        breakpoints = self._identify_breakpoints(
+            distances, self.threshold_percentile
+        )
         pieces = self._create_chunks(split_texts, breakpoints)
         return self._make_chunks(document, pieces)
 
