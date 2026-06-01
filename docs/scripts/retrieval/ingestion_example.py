@@ -8,6 +8,25 @@ so docs can pull individual snippets via mkdocs-material's snippets extension.
 # inside each section so optional dependencies don't break import-checks.
 from railtracks.retrieval.loaders import BaseDocumentLoader  # noqa: E402
 
+from railtracks.retrieval.loaders import TextLoader
+
+async def base_example():
+# --8<-- [start:base]
+    loader = TextLoader("docs/")
+
+    # Sync, returns list[Document]. Fine for tests, small corpora, scripts.
+    docs = loader.load()
+
+    # Async, collects all documents before returning. Same memory profile as load().
+    docs = await loader.aload()
+
+    # Async, yields one Document at a time. The only mode that streams.
+    async for doc in loader.astream():
+        print(doc.source, doc.type, len(doc.content))
+# --8<-- [end:base]
+
+
+
 # --8<-- [start:runtime_setup]
 import asyncio
 

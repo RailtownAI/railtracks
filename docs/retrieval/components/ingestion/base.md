@@ -58,19 +58,7 @@ might not fit in memory**: it's the only path that interleaves with
 chunking/embedding/storage:
 
 ```python
-from railtracks.retrieval.loaders import TextLoader
-
-loader = TextLoader("docs/")
-
-# Sync, returns list[Document]. Fine for tests, small corpora, scripts.
-docs = loader.load()
-
-# Async, collects all documents before returning. Same memory profile as load().
-docs = await loader.aload()
-
-# Async, yields one Document at a time. The only mode that streams.
-async for doc in loader.astream():
-    print(doc.source, doc.type, len(doc.content))
+--8<-- "docs/scripts/retrieval/ingestion_example.py:base"
 ```
 
 `load()` and `aload()` are convenience wrappers around `astream()`. They
