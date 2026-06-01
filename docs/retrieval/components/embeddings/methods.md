@@ -1,6 +1,6 @@
-# Embeddings — Built-in methods
+# Embeddings: Built-in methods
 
-Four embedders ship with Railtracks. The picks below are opinionated —
+Four embedders ship with Railtracks. The picks below are opinionated -
 they reflect what works in production today, not an exhaustive enumeration.
 
 ---
@@ -45,20 +45,14 @@ OpenAIEmbedding(
 | `dimensions` | Truncate vectors to this size. Only supported by `text-embedding-3-*` models. |
 
 ```python
-from railtracks.retrieval.embedding import OpenAIEmbedding
-
-# Default — small model, full dimensionality
-embedder = OpenAIEmbedding()
-
-# Large model with truncated vectors (smaller storage, slight quality cost)
-embedder = OpenAIEmbedding(model="text-embedding-3-large", dimensions=256)
+--8<-- "docs/scripts/retrieval/embedding.py:openai"
 ```
 
 **When to use:** production workloads on OpenAI. Start with
 `text-embedding-3-small`; switch to `text-embedding-3-large` when
 retrieval quality plateaus. Truncating dimensions on the large model
 (`dimensions=256` or `512`) gives most of the quality at a fraction of
-storage cost — measure before you commit to the full 3072.
+storage cost; measure before you commit to the full 3072.
 
 ---
 
@@ -82,18 +76,12 @@ AzureEmbedding(
 | `api_key` | Azure API key. Falls back to `AZURE_API_KEY`. |
 
 ```python
-from railtracks.retrieval.embedding import AzureEmbedding
-
-embedder = AzureEmbedding(
-    deployment="my-embedding-deployment",
-    api_base="https://my-resource.openai.azure.com",
-    api_version="2024-02-01",
-)
+--8<-- "docs/scripts/retrieval/embedding.py:azure"
 ```
 
 **When to use:** when your organisation routes OpenAI calls through Azure
 for compliance, networking, or billing reasons. Behaves identically to
-`OpenAIEmbedding` at the model level — pick based on infra constraints,
+`OpenAIEmbedding` at the model level; pick based on infra constraints,
 not retrieval quality.
 
 ---
@@ -114,18 +102,12 @@ OllamaEmbedding(
 | `api_base` | Ollama server URL. Defaults to `http://localhost:11434`. |
 
 `OllamaEmbedding.default_batch_size` is `1` because Ollama processes
-requests sequentially — `astream_batches` becomes one API call per chunk.
+requests sequentially: `astream_batches` becomes one API call per chunk.
 That's fine for local dev; **don't use Ollama for bulk re-indexing**
 unless you're prepared for the wall-clock hit.
 
 ```python
-from railtracks.retrieval.embedding import OllamaEmbedding
-
-# Local server, default model
-embedder = OllamaEmbedding()
-
-# Different model or remote Ollama instance
-embedder = OllamaEmbedding(model="mxbai-embed-large", api_base="http://gpu-box:11434")
+--8<-- "docs/scripts/retrieval/embedding.py:ollama"
 ```
 
 **When to use:** local development without API costs, air-gapped
@@ -175,18 +157,7 @@ To add a provider not covered above, subclass `Embedding` and implement
 `aembed`:
 
 ```python
-from railtracks.retrieval.embedding import Embedding, EmbeddingMetrics, TextEmbeddings
-
-
-class MyEmbedding(Embedding):
-    default_batch_size = 64
-
-    async def aembed(self, texts: list[str]) -> TextEmbeddings:
-        vectors = await my_async_client.encode(texts)
-        return TextEmbeddings(
-            vectors=vectors,
-            metrics=EmbeddingMetrics(vector_count=len(vectors)),
-        )
+--8<-- "docs/scripts/retrieval/embedding.py:custom_async"
 ```
 
 If your provider only has a blocking API, subclass `SyncEmbedding` instead
@@ -194,24 +165,16 @@ and implement `_embed_sync`. The mixin runs it in a thread pool so the
 rest of the pipeline stays non-blocking:
 
 ```python
-from railtracks.retrieval.embedding import SyncEmbedding, TextEmbeddings
-
-
-class MyBlockingEmbedding(SyncEmbedding):
-    default_batch_size = 32
-
-    def _embed_sync(self, texts: list[str]) -> TextEmbeddings:
-        vectors = my_blocking_client.encode(texts)
-        return TextEmbeddings(vectors=vectors)
+--8<-- "docs/scripts/retrieval/embedding.py:custom_sync"
 ```
 
 ---
 
 ## See also
 
-- [Embeddings overview](index.md) — data models, batch streaming API,
+- [Embeddings overview](index.md): data models, batch streaming API,
   and the `Embedding` contract.
-- [Chunking overview](../components/chunking/index.md) — producing
+- [Chunking overview](../components/chunking/index.md): producing
   `Chunk` objects upstream.
-- [Ingestion → Token guard](../../ingestion.md#token-guard) — keeping
+- [Ingestion → Token guard](../../ingestion.md#token-guard): keeping
   oversize chunks out of the provider call.
