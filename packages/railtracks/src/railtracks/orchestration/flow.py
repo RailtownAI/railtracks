@@ -7,10 +7,8 @@ from copy import deepcopy
 from typing import Any, Callable, Coroutine, Generic, ParamSpec, TypeVar
 
 from railtracks._session import Session
-from railtracks.built_nodes.concrete.function_base import (
-    RTAsyncFunction,
-    RTSyncFunction,
-)
+
+from railtracks.built_nodes.concrete.function_base import RTFunction
 from railtracks.interaction._call import call
 
 from ..nodes.nodes import Node
@@ -41,9 +39,8 @@ class Flow(Generic[_P, _TOutput]):
         self,
         name: str,
         entry_point: (
-            Callable[_P, Node[_TOutput]]
-            | RTSyncFunction[_P, _TOutput]
-            | RTAsyncFunction[_P, _TOutput]
+            type[Node[_P, _TOutput]]
+            | RTFunction[_P, _TOutput]
         ),
         *,
         context: dict[str, Any] | None = None,
@@ -56,7 +53,7 @@ class Flow(Generic[_P, _TOutput]):
         save_state: bool | None = None,
         payload_callback: Callable[[dict[str, Any]], Any] | None = None,
     ) -> None:
-        self.entry_point: Callable[_P, Node[_TOutput]]
+        self.entry_point: type[Node[_P, _TOutput]]
 
         if hasattr(entry_point, "node_type"):
             self.entry_point = entry_point.node_type

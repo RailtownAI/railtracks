@@ -1,20 +1,16 @@
 import asyncio
 from copy import deepcopy
 from typing import (
-    Any,
     Callable,
-    Coroutine,
     Generic,
     Literal,
     Protocol,
     TypeVar,
-    cast,
     overload,
 )
-from urllib import response
-from urllib import response
 
 from pydantic import BaseModel
+
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
 from railtracks.exceptions.errors import LLMError
 from railtracks.interaction._call import call
@@ -22,17 +18,16 @@ from railtracks.llm.content import ToolCall, ToolResponse
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import (
     AssistantMessage,
+    Message,
     SystemMessage,
     ToolMessage,
     UserMessage,
-    Message,
 )
 from railtracks.llm.model import ModelBase
 from railtracks.llm.response import Response
 from railtracks.llm.tools.parameters._base import Parameter
 from railtracks.llm.tools.tool import Tool
 from railtracks.nodes.nodes import Node
-from railtracks.nodes.wrappers import Wrapper
 from railtracks.validation.node_invocation.validation import check_message_history
 
 _TStructured = TypeVar("_TStructured", bound=BaseModel)
@@ -262,7 +257,7 @@ async def invoke_tools(tool_calls: list[ToolCall], tool_nodes: list[type[Node]])
 
 
 async def invoke_tool(tool_call: ToolCall, tool_nodes: list[type[Node]]):
-    ToolNode = get_node_from_name(tool_call.name, tool_nodes)
+    ToolNode = get_node_from_name(tool_call.name, tool_nodes) # noqa: N806
 
     prepared_args = ToolNode.prepare_args(**tool_call.arguments)
 
@@ -277,7 +272,7 @@ def get_node_from_name(tool_name: str, tool_nodes: list[type[Node]]) -> type[Nod
         raise TypeError(
             f"LLM called tool '{tool_name}' which was not found in the provided tool nodes.",
         )
-    assert len(candidate_list) > 1, (
+    assert len(candidate_list) == 1, (
         f"Multiple tool nodes found with name '{tool_name}'. This should not happen, please ensure all tool nodes have unique names. Offending nodes: {candidate_list}"
     )
 

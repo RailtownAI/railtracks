@@ -1,22 +1,17 @@
 from __future__ import annotations
 
 import asyncio
-import time
 import uuid
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Callable, Dict, Generic, Literal, ParamSpec, TypeVar
+from typing import Any, Generic, Literal, ParamSpec, TypeVar
 
 from railtracks.llm.tools.tool import Tool
 from railtracks.nodes.mappers import MapInputs, MapOutputs
 from railtracks.nodes.wrappers import Wrapper
-from typing_extensions import Self
-
 from railtracks.validation.node_creation.validation import (
     check_classmethod,
 )
-
-from .tool_callable import ToolCallable
 
 _TOutput = TypeVar("_TOutput")
 
@@ -175,3 +170,15 @@ class Node(ABC, Generic[_P, _TOutput]):
         If you would like any custom behavior please override this method.
         """
         return kwargs
+
+    def safe_copy(self) -> Node[_P, _TOutput]:
+        """
+        Creates a copy of the node that is safe to pass across process barriers. This is done by creating a new instance
+        of the node and copying over any relevant information. Note that this will not copy over any non picklable
+        information such as open file handles or database connections.
+        """
+        cls = self.__class__
+        result = cls.__new__(cls)  # type: ignore
+        for key, value in self.__dict__.items():
+            setattr(result, key, deepcopy(value))
+        return result

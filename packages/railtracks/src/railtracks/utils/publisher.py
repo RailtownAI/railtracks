@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from typing import Callable, Coroutine, Generic, List, TypeVar
+from typing import Any, Callable, Coroutine, Generic, List, TypeVar
 
 from .logging.create import get_rt_logger
 
@@ -160,7 +160,7 @@ class Publisher(Generic[_T]):
     async def listener(
         self,
         message_filter: Callable[[_T], bool],
-        result_mapping: Callable[[_T], _TOutput] = lambda x: x,
+        result_mapping: Callable[[_T], Any] = lambda x: x,
         listener_name: str | None = None,
     ):
         """

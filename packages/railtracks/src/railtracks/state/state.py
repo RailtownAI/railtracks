@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, ParamSpec, Tuple, TypeVar
+from typing import TYPE_CHECKING, Any, Dict, List, ParamSpec, Tuple, TypeVar
 
 from ..context.central import runner_context, safe_get_runner_context, update_parent_id
 from ..execution.coordinator import Coordinator
@@ -148,9 +148,9 @@ class RTState:
         *,
         parent_node_id: str,
         request_id: str | None,
-        node: Callable[_P, Node],
-        args: _P.args,
-        kwargs: _P.kwargs,
+        node: type[Node[_P, _TOutput]],
+        args,
+        kwargs,
     ) -> str:
         """
         Creates a node using the creator function (node).
@@ -170,7 +170,7 @@ class RTState:
         """
 
         # 1. Create the node here
-        node = node(*args, **kwargs)
+        node_instance = node()
 
         # 2. Add it to the node heap.
         sc = self._stamper.stamp_creator()
@@ -179,19 +179,19 @@ class RTState:
 
         request_creation_obj = RequestCreationAction(
             parent_node_name=parent_node_name,
-            child_node_name=node.name(),
+            child_node_name=node_instance.name(),
             input_args=args,
             input_kwargs=kwargs,
         )
 
         stamp = sc(request_creation_obj.to_logging_msg())
 
-        self._node_heap.update(node, stamp)
+        self._node_heap.update(node_instance, stamp)
 
         # 3. Attach the requests that will tied to this node.
         request_ids = self._create_new_request_set(
             parent_node=parent_node_id,
-            children=[node.uuid],
+            children=[node_instance.uuid],
             input_args=[args],
             input_kwargs=[kwargs],
             stamp=stamp,
@@ -207,9 +207,9 @@ class RTState:
         *,
         parent_node_id: str | None,
         request_id: str | None,
-        node: Callable[_P, Node[_TOutput]],
-        args: _P.args,
-        kwargs: _P.kwargs,
+        node: type[Node[_P, _TOutput]],
+        args,
+        kwargs,
     ):
         """
         This function will handle the creation of the node and the subsequent running of the node returning the result.
@@ -228,6 +228,7 @@ class RTState:
             The output of the node that was run. It will match the output type of the child node that was run.
 
         """
+        
         try:
             request_id = self._create_node_and_request(
                 parent_node_id=parent_node_id,
@@ -322,7 +323,11 @@ class RTState:
         child_node_id = self._request_heap[request_id].sink_id
         node = self._node_heap[child_node_id].node
         return await self.rc_coordinator.submit(
-            task=Task(request_id=request_id, node=node),
+            task=Task(
+                request_id=request_id,
+                node=node,
+                arguments=self._request_heap[request_id].input,
+            ),
             mode="async",
         )
 

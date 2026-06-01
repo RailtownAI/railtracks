@@ -78,7 +78,7 @@ _TStream = TypeVar("_TStream", Literal[True], Literal[False])
 _TCollectedOutput = TypeVar("_TCollectedOutput", bound=LLMResponse)
 
 
-class LLMBase(Node[_T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
+class LLMBase(Node[..., _T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
     """
     A basic LLM base class that encapsulates the attaching of an LLM model and message history object.
 
