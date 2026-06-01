@@ -184,27 +184,27 @@ def build_with_token_guard():
 
 
 # --8<-- [start:text_single_file]
-from railtracks.retrieval.loaders import TextLoader  # noqa: E402, F811
+from railtracks.retrieval.loaders import TextLoader
 
 
-def text_single_file():
-    loader = TextLoader("notes.txt")
-    docs = loader.load()
 
-    doc = docs[0]
-    print(doc.content)            # full file text
-    print(doc.type)               # "text" or "markdown"
-    print(doc.source)             # "notes.txt"
-    print(doc.metadata)           # {"file_type": ".txt", "encoding": "utf-8-sig"}
+loader = TextLoader("notes.txt")
+docs = loader.load()
+
+doc = docs[0]
+print(doc.content)            # full file text
+print(doc.type)               # "text" or "markdown"
+print(doc.source)             # "notes.txt"
+print(doc.metadata)           # {"file_type": ".txt", "encoding": "utf-8-sig"}
 # --8<-- [end:text_single_file]
 
 
 # --8<-- [start:text_directory]
-def text_directory():
-    # Recursively loads .txt and .md files, sorted by path.
-    docs = TextLoader("knowledge_base/").load()
-    print(len(docs))
-    print(docs[0].source)
+
+# Recursively loads .txt and .md files, sorted by path.
+docs = TextLoader("knowledge_base/").load()
+print(len(docs))
+print(docs[0].source)
 # --8<-- [end:text_directory]
 
 
@@ -225,128 +225,120 @@ async def text_async():
 
 
 # --8<-- [start:csv_basic]
-from railtracks.retrieval.loaders import CSVLoader  # noqa: E402
+from railtracks.retrieval.loaders import CSVLoader
 
 
-def csv_basic():
-    # Every row becomes a Document. By default, all columns end up in content.
-    docs = CSVLoader("products.csv").load()
 
-    doc = docs[0]
-    print(doc.content)   # "name: Widget\nprice: 9.99\ndescription: ..."
-    print(doc.type)      # "csv"
-    print(doc.metadata)  # {"row_index": 0}
+# Every row becomes a Document. By default, all columns end up in content.
+docs = CSVLoader("products.csv").load()
+
+doc = docs[0]
+print(doc.content)   # "name: Widget\nprice: 9.99\ndescription: ..."
+print(doc.type)      # "csv"
+print(doc.metadata)  # {"row_index": 0}
 # --8<-- [end:csv_basic]
 
 
 # --8<-- [start:csv_content_columns]
-def csv_content_columns():
-    # Columns in content_columns form the searchable text.
-    # Everything else automatically becomes metadata (filterable downstream).
-    loader = CSVLoader(
-        "products.csv",
-        content_columns=["name", "description"],
-    )
-    docs = loader.load()
-    print(docs[0].content)   # "name: Widget\ndescription: ..."
-    print(docs[0].metadata)  # {"price": "9.99", "row_index": 0}
+
+# Columns in content_columns form the searchable text.
+# Everything else automatically becomes metadata (filterable downstream).
+loader = CSVLoader(
+    "products.csv",
+    content_columns=["name", "description"],
+)
+docs = loader.load()
+print(docs[0].content)   # "name: Widget\ndescription: ..."
+print(docs[0].metadata)  # {"price": "9.99", "row_index": 0}
 # --8<-- [end:csv_content_columns]
 
 
 # --8<-- [start:csv_ignore_columns]
-def csv_ignore_columns():
-    # ignore_columns drops columns entirely — neither content nor metadata.
-    CSVLoader(
-        "products.csv",
-        content_columns=["name", "description"],
-        ignore_columns=["internal_id", "last_updated"],
-    )
+
+# ignore_columns drops columns entirely — neither content nor metadata.
+CSVLoader(
+    "products.csv",
+    content_columns=["name", "description"],
+    ignore_columns=["internal_id", "last_updated"],
+)
 # --8<-- [end:csv_ignore_columns]
 
 
 # --8<-- [start:csv_separator]
-def csv_separator():
-    # Default content_separator is "\n". Change it for single-line records.
-    CSVLoader(
-        "products.csv",
-        content_columns=["name", "description"],
-        content_separator=" | ",
-    )
+
+# Default content_separator is "\n". Change it for single-line records.
+CSVLoader(
+    "products.csv",
+    content_columns=["name", "description"],
+    content_separator=" | ",
+)
 # --8<-- [end:csv_separator]
 
-
-# --8<-- [start:csv_directory]
-def csv_directory():
-    # Recursive: one Document per row, across every .csv under data/.
-    CSVLoader("data/").load()
-# --8<-- [end:csv_directory]
-
-
 # --8<-- [start:pdf_basic]
-def pdf_basic():
-    # Requires: pip install "railtracks[pdf]"
-    from railtracks.retrieval.loaders.pdf_loader import PyPDFLoader
 
-    docs = PyPDFLoader("report.pdf").load()
-    doc = docs[0]
-    print(doc.content)   # extracted text from page 1
-    print(doc.type)      # "pdf"
-    print(doc.metadata)  # {"page": 1, "total_pages": 42, "file_type": ".pdf"}
+# Requires: pip install "railtracks[pdf]"
+from railtracks.retrieval.loaders.pdf_loader import PyPDFLoader
+
+docs = PyPDFLoader("report.pdf").load()
+doc = docs[0]
+print(doc.content)   # extracted text from page 1
+print(doc.type)      # "pdf"
+print(doc.metadata)  # {"page": 1, "total_pages": 42, "file_type": ".pdf"}
 # --8<-- [end:pdf_basic]
 
 
 # --8<-- [start:pdf_page_strategy]
-def pdf_page_strategy():
-    from railtracks.retrieval.loaders.pdf_loader import PyPDFLoader
 
-    # One Document per page. Best for retrieval — keeps page numbers in
-    # metadata, which makes citations trivial.
-    docs = PyPDFLoader("report.pdf", breakdown_strategy="page").load()
-    print(len(docs))              # number of pages
-    print(docs[0].metadata)       # {"page": 1, "total_pages": 42, "file_type": ".pdf"}
+from railtracks.retrieval.loaders.pdf_loader import PyPDFLoader
+
+# One Document per page. Best for retrieval — keeps page numbers in
+# metadata, which makes citations trivial.
+docs = PyPDFLoader("report.pdf", breakdown_strategy="page").load()
+print(len(docs))              # number of pages
+print(docs[0].metadata)       # {"page": 1, "total_pages": 42, "file_type": ".pdf"}
 # --8<-- [end:pdf_page_strategy]
 
 
 # --8<-- [start:pdf_document_strategy]
-def pdf_document_strategy():
-    from railtracks.retrieval.loaders.pdf_loader import PyPDFLoader
 
-    # Single Document. Pages joined with "\n\n". Use only when the whole PDF
-    # is small enough to chunk together or you want to apply custom splitting.
-    docs = PyPDFLoader("report.pdf", breakdown_strategy="document").load()
-    print(len(docs))        # always 1
+from railtracks.retrieval.loaders.pdf_loader import PyPDFLoader
+
+# Single Document. Pages joined with "\n\n". Use only when the whole PDF
+# is small enough to chunk together or you want to apply custom splitting.
+docs = PyPDFLoader("report.pdf", breakdown_strategy="document").load()
+print(len(docs))        # always 1
 # --8<-- [end:pdf_document_strategy]
 
 
 # --8<-- [start:pdf_ocr_basic]
-def pdf_ocr_basic():
-    # Requires: pip install "railtracks[ocr]" + Tesseract on PATH.
-    from railtracks.retrieval.loaders.pdf_ocr_loader import PyPDFOCRLoader
 
-    docs = PyPDFOCRLoader("scanned_invoice.pdf").load()
-    doc = docs[0]
-    print(doc.content)         # OCR'd or pypdf-extracted text
-    print(doc.metadata["ocr"]) # True if OCR was used for this page
+# Requires: pip install "railtracks[ocr]" + Tesseract on PATH.
+from railtracks.retrieval.loaders.pdf_ocr_loader import PyPDFOCRLoader
+
+docs = PyPDFOCRLoader("scanned_invoice.pdf").load()
+doc = docs[0]
+print(doc.content)         # OCR'd or pypdf-extracted text
+print(doc.metadata["ocr"]) # True if OCR was used for this page
 # --8<-- [end:pdf_ocr_basic]
 
 
 # --8<-- [start:pdf_ocr_force]
-def pdf_ocr_force():
-    from railtracks.retrieval.loaders.pdf_ocr_loader import PyPDFOCRLoader
 
-    # Skip the text-extraction fast path. Useful when pypdf returns a
-    # garbled or incomplete text layer that you'd rather re-OCR.
-    docs = PyPDFOCRLoader("messy_scan.pdf", force_ocr=True).load()
-    assert all(d.metadata["ocr"] for d in docs)
+from railtracks.retrieval.loaders.pdf_ocr_loader import PyPDFOCRLoader
+
+# Skip the text-extraction fast path. Useful when pypdf returns a
+# garbled or incomplete text layer that you'd rather re-OCR.
+docs = PyPDFOCRLoader("messy_scan.pdf", force_ocr=True).load()
+assert all(d.metadata["ocr"] for d in docs)
 # --8<-- [end:pdf_ocr_force]
 
 
 # --8<-- [start:pdf_ocr_document_strategy]
-def pdf_ocr_document_strategy():
-    from railtracks.retrieval.loaders.pdf_ocr_loader import PyPDFOCRLoader
 
-    docs = PyPDFOCRLoader("report.pdf", breakdown_strategy="document").load()
-    print(docs[0].metadata)
+from railtracks.retrieval.loaders.pdf_ocr_loader import PyPDFOCRLoader
+
+docs = PyPDFOCRLoader("report.pdf", breakdown_strategy="document").load()
+print(docs[0].metadata)
     # {"total_pages": 42, "file_type": ".pdf", "ocr_pages": [3, 7, 8]}
 # --8<-- [end:pdf_ocr_document_strategy]
 
@@ -370,72 +362,72 @@ async def hf_basic():
 
 
 # --8<-- [start:hf_multi_column]
-def hf_multi_column():
-    from railtracks.retrieval.loaders.huggingface_loader import HuggingFaceDatasetLoader
 
-    # Many datasets split "the text" across columns. Join them with
-    # content_separator instead of stitching things yourself downstream.
-    HuggingFaceDatasetLoader(
-        dataset_name="squad",
-        split="validation",
-        content_columns=["question", "context"],
-        content_separator="\n\n",
-    )
+from railtracks.retrieval.loaders.huggingface_loader import HuggingFaceDatasetLoader
+
+# Many datasets split "the text" across columns. Join them with
+# content_separator instead of stitching things yourself downstream.
+HuggingFaceDatasetLoader(
+    dataset_name="squad",
+    split="validation",
+    content_columns=["question", "context"],
+    content_separator="\n\n",
+)
 # --8<-- [end:hf_multi_column]
 
 
 # --8<-- [start:hf_metadata_columns]
-def hf_metadata_columns():
-    from railtracks.retrieval.loaders.huggingface_loader import HuggingFaceDatasetLoader
 
-    # metadata_columns are copied into Document.metadata for later filtering
-    # or citation. Anything not in content_columns or metadata_columns is dropped.
-    HuggingFaceDatasetLoader(
-        dataset_name="squad",
-        split="validation",
-        content_columns=["question", "context"],
-        metadata_columns=["title", "id"],
-    )
+from railtracks.retrieval.loaders.huggingface_loader import HuggingFaceDatasetLoader
+
+# metadata_columns are copied into Document.metadata for later filtering
+# or citation. Anything not in content_columns or metadata_columns is dropped.
+HuggingFaceDatasetLoader(
+    dataset_name="squad",
+    split="validation",
+    content_columns=["question", "context"],
+    metadata_columns=["title", "id"],
+)
 # --8<-- [end:hf_metadata_columns]
 
 
 # --8<-- [start:hf_kwargs]
-def hf_kwargs():
-    from railtracks.retrieval.loaders.huggingface_loader import HuggingFaceDatasetLoader
 
-    # dataset_kwargs is forwarded straight to datasets.load_dataset.
-    # Use it for subsets, revisions, gated-dataset tokens, or to disable streaming.
-    HuggingFaceDatasetLoader(
-        dataset_name="ms_marco",
-        split="validation",
-        content_columns=["query", "passages"],
-        dataset_kwargs={"name": "v2.1"},
-    )
+from railtracks.retrieval.loaders.huggingface_loader import HuggingFaceDatasetLoader
+
+# dataset_kwargs is forwarded straight to datasets.load_dataset.
+# Use it for subsets, revisions, gated-dataset tokens, or to disable streaming.
+HuggingFaceDatasetLoader(
+    dataset_name="ms_marco",
+    split="validation",
+    content_columns=["query", "passages"],
+    dataset_kwargs={"name": "v2.1"},
+)
 # --8<-- [end:hf_kwargs]
 
 
 # --8<-- [start:json_loader]
-def json_loader():
-    from railtracks.retrieval.loaders import JSONLoader
 
-    # Root must be an object or array of objects. content_keys selects which
-    # keys form the searchable text; ignore_keys drops keys entirely.
-    docs = JSONLoader(
-        "articles.json",
-        content_keys=["title", "body"],
-        ignore_keys=["internal_id"],
-    ).load()
+from railtracks.retrieval.loaders import JSONLoader
 
-    print(docs[0].content)   # "title: Getting started\nbody: ..."
-    print(docs[0].metadata)  # {"author": "Alice", "index": 0}
+# Root must be an object or array of objects. content_keys selects which
+# keys form the searchable text; ignore_keys drops keys entirely.
+docs = JSONLoader(
+    "articles.json",
+    content_keys=["title", "body"],
+    ignore_keys=["internal_id"],
+).load()
+
+print(docs[0].content)   # "title: Getting started\nbody: ..."
+print(docs[0].metadata)  # {"author": "Alice", "index": 0}
 # --8<-- [end:json_loader]
 
 
 # --8<-- [start:custom_loader]
-from collections.abc import AsyncGenerator  # noqa: E402, F811
+from collections.abc import AsyncGenerator
 
-from railtracks.retrieval import Document, DocumentType  # noqa: E402
-from railtracks.retrieval.loaders import BaseDocumentLoader  # noqa: E402
+from railtracks.retrieval import Document, DocumentType  
+from railtracks.retrieval.loaders import BaseDocumentLoader  
 
 
 class MyDatabaseLoader(BaseDocumentLoader):
@@ -458,10 +450,10 @@ class MyDatabaseLoader(BaseDocumentLoader):
 
 
 # --8<-- [start:custom_usage]
-def use_custom_loader():
-    loader = MyDatabaseLoader("postgresql://...", table="articles")
-    # Implementing astream() gets you load() and aload() for free.
-    loader.load()
+
+loader = MyDatabaseLoader("postgresql://...", table="articles")
+# Implementing astream() gets you load() and aload() for free.
+loader.load()
 # --8<-- [end:custom_usage]
 
 
