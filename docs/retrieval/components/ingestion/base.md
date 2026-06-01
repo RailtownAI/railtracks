@@ -85,9 +85,6 @@ collect everything into a list before returning, so use them only when
 
 | You want to… | Read |
 |---|---|
-| Load text and markdown files | [Text and Markdown](text_markdown.md) |
-| Load CSV rows as documents | [CSV](csv.md) |
-| Load PDFs (with or without OCR) | [PDFs](pdfs.md) |
-| Stream Hugging Face datasets | [Hugging Face Datasets](huggingface.md) |
-| Read JSON or write a custom loader | [Custom Ingestors](custom.md) |
-| Run the pipeline end-to-end | [Ingestion](../../ingestion.md) (write path) |
+| See the built-in loaders (text, CSV, JSON, PDF, OCR, Hugging Face) | [Built-in loaders](methods.md) |
+| Write your own loader for an unsupported source | [Custom loaders](methods.md#custom-loaders) |
+| Run the pipeline end-to-end | [Ingestion](../../runtime/ingestion.md) (write path) |

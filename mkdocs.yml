@@ -104,11 +104,7 @@ nav:
       - Design: retrieval/components/design.md
       - Loading:
           - Base Class: retrieval/components/ingestion/base.md
-          - Text and Markdown: retrieval/components/ingestion/text_markdown.md
-          - CSV: retrieval/components/ingestion/csv.md
-          - PDFs: retrieval/components/ingestion/pdfs.md
-          - Hugging Face Datasets: retrieval/components/ingestion/huggingface.md
-          - Custom Loaders: retrieval/components/ingestion/custom.md
+          - Built-in Loaders: retrieval/components/ingestion/methods.md
       - Chunking:
           - Base Class: retrieval/components/chunking/base.md
           - Built-in Methods: retrieval/components/chunking/methods.md

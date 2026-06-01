@@ -1,9 +1,8 @@
 # Design
 
-The internals of `railtracks.retrieval`: stage contracts, the streaming
-concurrency model, the `Store` protocol, and the invariants the runtime
-enforces. Read this when you're customizing a stage, adding a backend, or
-debugging cross-stage behaviour.
+This page documents the low-level details of the internals of `railtracks.retrieval` including 
+stage contracts, streaming async model, the `Store` protocol, and the invanriants enforced. Read this
+if you are customizing a stage, adding a back, or debugging cross-stage behaviour.
 
 For task-oriented entry points (how to ingest, how to retrieve, how to
 attach to an agent) see [Overview](../index.md), [Ingestion](../ingestion.md),
@@ -11,9 +10,9 @@ and [Retrieval](../retrieval.md).
 
 ---
 
-## The two paths
+## The Two Paths
 
-The runtime is a thin orchestrator over four protocols. Each arrow below
+`RetrievalRuntime` is a convenient orchestrator over four submodules. Each arrow below
 is a concrete data type; each node names the abstract interface, not its
 implementation. The same `Embedding` and `Store` are reused across the
 write and read paths.
@@ -77,25 +76,24 @@ flowchart LR
 ```
 
 The `Store` owns scope filtering, payload projection, and the conversion
-back to a user-facing `RetrievedStoreEntry` — the `VectorBackend` only
+back to a user-facing `RetrievedStoreEntry` and the `VectorBackend` only
 sees vectors, IDs, and a flat metadata filter dict. That split is what
 makes adding a backend a single-file change.
 
 ### Reading off both diagrams
 
-- **Stages are protocols, not classes.** The runtime depends on
-  `BaseDocumentLoader` / `Chunker` / `Embedding` / `Store` — never on
-  concrete implementations. Swap any of them without touching the others.
+- **Abstraction over implementation** The runtime depends on
+  `BaseDocumentLoader` / `Chunker` / `Embedding` / `Store` instead of
+  concrete implementations allowing easy swapping of components to fit unique needs
 - **The `Store` protocol owns its backend.** `VectorStore` is the canonical
-  `Store`; it delegates index ops to a `VectorBackend` and handles payload
+  `Store`; it delegates index operations to a `VectorBackend` and handles payload
   serialization, scope filtering, and projection itself.
 - **Same `Embedding` on both paths.** The model used to embed documents at
   ingest time must match the model used to embed queries at retrieve time
-  — that invariant is enforced by the embedding-model guard (below).
+  to ensure accurate retrieval. This invariant is enforced by the embedding-model guard (below).
 
-Each stage is also usable independently — you can call `Chunker.achunk()`
-or `Store.read()` directly when the runtime's pipelining isn't what you
-want.
+Each stage is also usable independently; you can call `Chunker.achunk()`
+or `Store.read()` directly when the runtime's pipelining does not fit your needs.
 
 | Submodule | Role |
 |---|---|
@@ -137,8 +135,7 @@ flowchart LR
 
 Each `BatchIngested` event reaches the consumer as soon as its batch
 finishes writing. Callers can surface progress without buffering the corpus
-— important for Hugging Face streams, multi-GB document trees, or any source
-that's larger than memory.
+ensuring safe handling of memory constraints.
 
 ---
 
@@ -148,8 +145,8 @@ that's larger than memory.
 
 `BaseDocumentLoader.astream() → AsyncGenerator[Document, None]` is the
 single abstract primitive. `aload()` and `load()` are derived. Subclasses
-must yield documents as soon as they're available — no buffering the
-corpus and yielding at the end. That breaks the streaming model.
+must yield documents as soon as they're available instead of buffering the
+corpus and yielding at the end which breaks the streaming model.
 
 Wrap any loader in `SanitizingLoader(inner, sanitizer)` to redact PII or
 normalize content before it reaches the embedder. The sanitizer runs once
@@ -167,17 +164,13 @@ shared `_make_chunks` helper that enforces cross-chunker invariants:
 - Shallow metadata copy with chunker-specific overlay.
 - Optional `(start, end)` offsets when the chunker knows them.
 
-If you build a custom chunker, always assemble output via `_make_chunks` —
-those invariants are what downstream stages rely on.
-
 ### Embedders
 
 `Embedding.aembed(list[str]) → TextEmbeddings` returns vectors plus
 `EmbeddingMetrics` (model, token count, latency, cost). `astream_batches`
 batches a chunk stream into fixed-size groups and yields
 `EmbeddingResult | EmbeddingFailure` per batch. **The stream continues
-past individual batch failures** — one 429 doesn't abort a million-chunk
-re-index.
+past individual batch failures** delegating the handling of failed batches to the users.
 
 ### Stores
 
@@ -226,8 +219,7 @@ Two protocol additions make ingestion safe to re-run:
   `content_hash` already exists, and short-circuits with `DocumentSkipped`
   if so. This is what makes `ingest()` cheaply idempotent.
 
-Both fire automatically — there's nothing you need to wire up to get
-upsert semantics. The cost is one extra `find` call per document; the
+Both fire automatically. The cost is one extra `find` call per document; the
 benefit is that re-ingesting a folder is a no-op when nothing changed.
 
 ---
@@ -235,7 +227,7 @@ benefit is that re-ingesting a folder is a no-op when nothing changed.
 ## Embedding-model guard
 
 Mixing vectors from different embedding models produces meaningless
-similarity scores — `text-embedding-3-small` and `text-embedding-3-large`
+similarity scores. For instance, `text-embedding-3-small` and `text-embedding-3-large`
 live in entirely different vector spaces. The runtime captures the
 embedder's model name on the first successful batch and raises
 `EmbeddingModelMismatchError` at retrieve time if the embedder later
