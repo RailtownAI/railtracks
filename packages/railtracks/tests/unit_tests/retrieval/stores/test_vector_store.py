@@ -8,7 +8,6 @@ from uuid import uuid4
 
 import pytest
 from railtracks.retrieval.stores.models import (
-    DetailLevel,
     StoreEntry,
     StoreQuery,
     StoreScope,
@@ -40,7 +39,7 @@ def _make_entry(
         document_id=uuid4(),
         abstract=abstract,
         summary=summary,
-        scope=StoreScope(user_id=user_id),
+        scope=StoreScope(labels={"user_id": user_id}),
     )
 
 
@@ -48,16 +47,14 @@ def _make_query(
     user_id: str = "alice",
     embedding: list[float] | None = None,
     top_k: int = 10,
-    detail_level: DetailLevel = DetailLevel.L1,
 ) -> StoreQuery:
     if embedding is None:
         embedding = [1.0, 0.0, 0.0]
     return StoreQuery(
         text="query",
-        scope=StoreScope(user_id=user_id),
+        scope=StoreScope(labels={"user_id": user_id}),
         embedding=embedding,
         top_k=top_k,
-        detail_level=detail_level,
     )
 
 
@@ -101,34 +98,14 @@ async def test_scope_filter_enforcement():
     assert results[0].entry.id == entry_bob.id
 
 
-async def test_detail_level_l0():
+async def test_read_returns_full_entry():
+    """Read returns the entry with content and summary intact —
+    no projection layer between backend and caller."""
     store = VectorStore(InMemoryBackend())
     entry = _make_entry(summary="important summary", content="full content")
     await store.write(entry)
 
-    results = await store.read(_make_query(detail_level=DetailLevel.L0))
-    assert len(results) == 1
-    assert results[0].entry.summary == ""
-    assert results[0].entry.content == ""
-
-
-async def test_detail_level_l1():
-    store = VectorStore(InMemoryBackend())
-    entry = _make_entry(summary="important summary", content="full content")
-    await store.write(entry)
-
-    results = await store.read(_make_query(detail_level=DetailLevel.L1))
-    assert len(results) == 1
-    assert results[0].entry.summary == "important summary"
-    assert results[0].entry.content == ""
-
-
-async def test_detail_level_l2():
-    store = VectorStore(InMemoryBackend())
-    entry = _make_entry(summary="important summary", content="full content")
-    await store.write(entry)
-
-    results = await store.read(_make_query(detail_level=DetailLevel.L2))
+    results = await store.read(_make_query())
     assert len(results) == 1
     assert results[0].entry.summary == "important summary"
     assert results[0].entry.content == "full content"
@@ -148,8 +125,8 @@ async def test_delete():
 async def test_clear_scope():
     store = VectorStore(InMemoryBackend())
 
-    scope_a = StoreScope(user_id="alice")
-    scope_b = StoreScope(user_id="bob")
+    scope_a = StoreScope(labels={"user_id": "alice"})
+    scope_b = StoreScope(labels={"user_id": "bob"})
 
     entry_a1 = _make_entry(user_id="alice", vector=[1.0, 0.0, 0.0])
     entry_a2 = _make_entry(user_id="alice", vector=[0.0, 1.0, 0.0])
@@ -291,11 +268,11 @@ async def test_chunk_roundtrip_preserves_all_fields():
         chunk_metadata={"section": "intro", "lang": "en"},
         abstract="abs",
         summary="sum",
-        scope=StoreScope(user_id="alice"),
+        scope=StoreScope(labels={"user_id": "alice"}),
     )
 
     await store.write(entry)
-    results = await store.read(_make_query(detail_level=DetailLevel.L2))
+    results = await store.read(_make_query())
 
     assert len(results) == 1
     got = results[0].entry
@@ -308,38 +285,11 @@ async def test_chunk_roundtrip_preserves_all_fields():
     assert got.embedding_version == "v1"
 
 
-async def test_detail_level_preserves_chunk_offsets_and_parent():
-    store = VectorStore(InMemoryBackend())
-
-    parent_chunk_id = uuid4()
-    entry = StoreEntry(
-        id=uuid4(),
-        content="full content",
-        vector=[1.0, 0.0, 0.0],
-        embedding_model="toy",
-        chunk_id=uuid4(),
-        document_id=uuid4(),
-        parent_chunk_id=parent_chunk_id,
-        chunk_offsets=(3, 9),
-        abstract="abs",
-        summary="sum",
-        scope=StoreScope(user_id="alice"),
-    )
-    await store.write(entry)
-
-    for level in (DetailLevel.L0, DetailLevel.L1):
-        results = await store.read(_make_query(detail_level=level))
-        got = results[0].entry
-        assert got.content == ""
-        assert got.parent_chunk_id == parent_chunk_id
-        assert got.chunk_offsets == (3, 9)
-
-
 async def test_read_raises_without_embedding():
     store = VectorStore(InMemoryBackend())
     query = StoreQuery(
         text="hello",
-        scope=StoreScope(user_id="alice"),
+        scope=StoreScope(labels={"user_id": "alice"}),
         embedding=None,
     )
     with pytest.raises(ValueError, match="query.embedding"):

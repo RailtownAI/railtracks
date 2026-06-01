@@ -157,13 +157,6 @@
 }
 
 /* ── Train on active top nav tab ─────────────────────────── */
-@keyframes train-chug {
-  0%   { transform: translateY(0); }
-  25%  { transform: translateY(-1.5px); }
-  55%  { transform: translateY(0.5px); }
-  100% { transform: translateY(0); }
-}
-
 .md-tabs__item--active .md-tabs__link::before {
   content: '';
   display: inline-block;
@@ -180,7 +173,6 @@
   background-color: var(--md-accent-fg-color);
   margin-right: none;
   vertical-align: middle;
-  animation: train-chug 0.8s ease-in-out infinite;
 }
 
 /* ── Code highlighting — GitHub Dark / Light ─────────────── */

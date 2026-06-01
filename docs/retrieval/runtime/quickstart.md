@@ -10,7 +10,7 @@ search**, with the same runtime answering both.
 `RetrievalRuntime` pipelines the four stages:
 
 ```mermaid
-flowchart TD
+flowchart LR
     Sources["Sources<br/>(files, URLs, dirs)"]
     Loader{{"1. Loader"}}
     Chunker{{"2. Chunker"}}
@@ -55,24 +55,24 @@ Three options decide the shape of a runtime: **chunker**, **embedder**,
 | You want to… | Read |
 |---|---|
 | Get documents into the store (streaming events, re-ingest, multi-tenant writes, sanitization, token guards) | **[Ingestion](ingestion.md)** |
-| Run vector search (top-k, metadata filters, scope overrides) or attach a runtime to an agent | **[Retrieval](retrieval.md)** |
-| Understand the internals, stage contracts, the `Store` protocol, concurrency model | **[Components → Design](components/design.md)** |
+| Run vector search (top-k, metadata filters, per-call scope) or attach a runtime to an agent | **[Retrieval](retrieval.md)** |
+| Understand the internals, async model, and to customize things | **[Components → Design](components/design.md)** |
 
 ---
 
 ## Key types
 
-The shapes that flow through the pipeline. Each links to the page that owns
+The following data models flow through the pipeline. Each links to the page that owns
 its full description.
 
 | Type | What it is |
 |---|---|
-| [`Document`](components/ingestion/overview.md#the-document-object) | One unit of source content. Produced by a loader. |
-| [`Chunk`](components/chunking/overview.md#the-chunk-object) | A slice of a Document. Produced by a chunker, carries `document_id` and metadata. |
-| [`EmbeddedChunk`](embeddings/overview.md#the-embeddedchunk-object) | A chunk plus its embedding vector and model name. |
-| [`StoreEntry`](components/stores/overview.md#data-model) | The atomic unit a store reads and writes. |
+| [`Document`](components/ingestion/index.md#the-document-object) | One unit of source content produced by a loader. |
+| [`Chunk`](components/chunking/index.md#the-chunk-object) | A slice of a Document produced by a chunker carrying `document_id` and metadata. |
+| [`EmbeddedChunk`](embeddings/index.md#the-embeddedchunk-object) | A chunk plus its embedding vector and model name. |
+| [`StoreEntry`](components/stores/index.md#data-model) | The atomic unit a store reads and writes. |
 | [`RetrievalResult`](retrieval.md) | What `runtime.retrieve()` returns: ranked `RetrievedChunk`s plus the query. |
-| [`StoreScope`](components/stores/overview.md#storescope) | A hard-filter namespace (`user_id`, `agent_id`, `session_id`, `run_id`). |
+| [`StoreScope`](components/stores/index.md#storescope) | A hard-filter namespace — a label dict (`{"user_id": "alice"}`, `{"organization": "acme"}`, etc.) enforced as equality filters on every read and write. |
 
 ---
 
@@ -83,7 +83,7 @@ covers the trade-offs.
 
 | Stage | Built-in options | Picked by |
 |---|---|---|
-| **Load** | `TextLoader`, `CSVLoader`, `PyPDFLoader`, `PyPDFOCRLoader`, `HuggingFaceDatasetLoader`, `JSONLoader`, `LangChainLoaderAdapter` | [Ingestion overview](components/ingestion/overview.md) |
+| **Load** | `TextLoader`, `CSVLoader`, `PyPDFLoader`, `PyPDFOCRLoader`, `HuggingFaceDatasetLoader`, `JSONLoader`, `LangChainLoaderAdapter` | [Ingestion overview](components/ingestion/index.md) |
 | **Chunk** | `RecursiveCharacterChunker`, `MarkdownHeaderChunker`, `SentenceChunker`, `FixedTokenChunker` | [Chunking methods](components/chunking/methods.md) |
 | **Embed** | `OpenAIEmbedding`, `AzureEmbedding`, `OllamaEmbedding`, `LiteLLMEmbedding` | [Embeddings methods](embeddings/methods.md) |
 | **Store** | `VectorStore` with `InMemoryVectorBackend`, `ChromaBackend`, or `PgvectorBackend` | [Store backends](components/stores/backends.md) |

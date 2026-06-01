@@ -1,16 +1,13 @@
 from __future__ import annotations
 
-import dataclasses
 import json
 from datetime import datetime, timezone
 from typing import Any, Protocol
 from uuid import UUID
 
 from ..models import (
-    DetailLevel,
     Entity,
     RetrievedStoreEntry,
-    StoreCategory,
     StoreEntry,
     StoreQuery,
     StoreScope,
@@ -65,8 +62,6 @@ def _encode_enrichment(entry: StoreEntry) -> dict:
         out["abstract"] = entry.abstract
     if entry.summary is not None:
         out["summary"] = entry.summary
-    if entry.store_category is not None:
-        out["store_category"] = entry.store_category.value
     if entry.valid_from is not None:
         out["valid_from"] = entry.valid_from.isoformat()
     if entry.valid_until is not None:
@@ -147,9 +142,6 @@ def _payload_to_entry(id: str, payload: dict) -> StoreEntry:
         else datetime.now(tz=timezone.utc)
     )
 
-    store_category_raw = payload.get("store_category")
-    store_category = StoreCategory(store_category_raw) if store_category_raw else None
-
     return StoreEntry(
         id=UUID(id),
         content=payload["content"],
@@ -162,29 +154,21 @@ def _payload_to_entry(id: str, payload: dict) -> StoreEntry:
         abstract=payload.get("abstract"),
         summary=payload.get("summary"),
         scope=StoreScope(
-            user_id=payload.get("scope_user_id"),
-            agent_id=payload.get("scope_agent_id"),
-            session_id=payload.get("scope_session_id"),
-            run_id=payload.get("scope_run_id"),
+            labels={
+                k.removeprefix("scope_"): v
+                for k, v in payload.items()
+                if k.startswith("scope_")
+            }
         ),
         embedding_version=payload.get("embedding_version"),
         parent_chunk_id=parent_chunk_id,
         chunk_offsets=offsets,
         chunk_metadata=chunk_metadata,
         entities=entities,
-        store_category=store_category,
         valid_from=valid_from,
         valid_until=valid_until,
         created_at=created_at,
     )
-
-
-def _apply_detail_level(entry: StoreEntry, level: DetailLevel) -> StoreEntry:
-    if level is DetailLevel.L2:
-        return entry
-    if level is DetailLevel.L1:
-        return dataclasses.replace(entry, content="")
-    return dataclasses.replace(entry, content="", summary="")
 
 
 # ---------------------------------------------------------------------------
@@ -217,8 +201,6 @@ class VectorStore:
         filters: dict[str, Any] = (
             query.scope.to_payload_filters() if query.scope is not None else {}
         )
-        if query.store_category is not None:
-            filters["store_category"] = query.store_category.value
         if query.metadata_filters:
             filters.update(query.metadata_filters)
 
@@ -227,7 +209,6 @@ class VectorStore:
         results: list[RetrievedStoreEntry] = []
         for rank, (hit_id, score, payload) in enumerate(raw_hits):
             entry = _payload_to_entry(hit_id, payload)
-            entry = _apply_detail_level(entry, query.detail_level)
             results.append(
                 RetrievedStoreEntry(
                     entry=entry,

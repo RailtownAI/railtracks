@@ -1,4 +1,4 @@
-"""Minimal end-to-end retrieval example used by docs/rag/overview.md."""
+"""Minimal end-to-end retrieval example used by docs/retrieval/index.md."""
 
 from rich import print
 # --8<-- [start:minimal]

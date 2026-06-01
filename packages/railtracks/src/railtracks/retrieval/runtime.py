@@ -106,10 +106,12 @@ class RetrievalRuntime:
     """Orchestrates loading, chunking, embedding, storage, and retrieval.
 
     The runtime captures *how* to process documents (chunker + embedder +
-    store + scope); the loader passed to :meth:`ingest` decides *what* to
+    store); the loader passed to :meth:`ingest` decides *what* to
     process. A single runtime can ingest from multiple sources, mix
     chunking strategies via separate runtimes against the same store,
-    and update existing documents by re-ingesting them.
+    and update existing documents by re-ingesting them. Multi-tenant
+    callers share one runtime and pass ``scope`` per :meth:`ingest` or
+    :meth:`retrieve` call.
 
     Args:
         chunker: Splits documents into chunks.
@@ -118,8 +120,6 @@ class RetrievalRuntime:
         batch_size: Items per embedding batch. Falls back to
             ``embedder.default_batch_size`` when omitted; raises
             ``ValueError`` at construction if neither is set.
-        scope: Applied to every entry written and to every read query.
-            Single-tenant callers can leave this ``None``.
         on_ingest: Synchronous callback invoked with each ``IngestionEvent``
             as it is yielded. Wrap in ``asyncio.create_task`` for async logging.
         on_retrieve: Synchronous callback invoked with the query string and
@@ -139,7 +139,6 @@ class RetrievalRuntime:
         store: Store,
         *,
         batch_size: int | None = None,
-        scope: StoreScope | None = None,
         on_ingest: Callable[
             [BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped], None
         ]
@@ -151,7 +150,6 @@ class RetrievalRuntime:
         self._chunker = chunker
         self._embedder = embedder
         self._store = store
-        self._scope = scope
         self._batch_size = self._resolve_batch_size(batch_size, embedder)
         self._on_ingest = on_ingest
         self._on_retrieve = on_retrieve
@@ -178,10 +176,6 @@ class RetrievalRuntime:
         return self._chunker
 
     @property
-    def scope(self) -> StoreScope | None:
-        return self._scope
-
-    @property
     def batch_size(self) -> int:
         return self._batch_size
 
@@ -201,11 +195,19 @@ class RetrievalRuntime:
         return bs
 
     async def ingest(
-        self, loader: BaseDocumentLoader
+        self,
+        loader: BaseDocumentLoader,
+        *,
+        scope: StoreScope | None = None,
     ) -> AsyncGenerator[
         BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped, None
     ]:
         """Stream loader → chunker → embedder → store, yielding per-batch events.
+
+        Args:
+            loader: Source of ``Document`` objects to ingest.
+            scope: Tag written onto every ``StoreEntry`` produced by this
+                call. Single-tenant callers can leave this ``None``.
 
         Yields:
             ``BatchIngested`` after each successful batch finishes writing,
@@ -215,15 +217,20 @@ class RetrievalRuntime:
             still written; ``DocumentFailed`` signals the partial state.
         """
         stats = IngestionStats()
-        async for event in self._ingest_with_stats(loader, stats):
+        async for event in self._ingest_with_stats(loader, stats, scope):
             if self._on_ingest is not None:
                 self._on_ingest(event)
             yield event
 
-    async def ingest_all(self, loader: BaseDocumentLoader) -> IngestionStats:
+    async def ingest_all(
+        self,
+        loader: BaseDocumentLoader,
+        *,
+        scope: StoreScope | None = None,
+    ) -> IngestionStats:
         """Drain `ingest` and return aggregate counts."""
         stats = IngestionStats()
-        async for event in self._ingest_with_stats(loader, stats):
+        async for event in self._ingest_with_stats(loader, stats, scope):
             if self._on_ingest is not None:
                 self._on_ingest(event)
         return stats
@@ -232,15 +239,16 @@ class RetrievalRuntime:
         self,
         loader: BaseDocumentLoader,
         stats: IngestionStats,
+        scope: StoreScope | None,
     ) -> AsyncGenerator[
         BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped, None
     ]:
         async for doc in loader.astream():
-            async for event in self._ingest_document(doc, stats):
+            async for event in self._ingest_document(doc, stats, scope):
                 yield event
 
     async def _ingest_document(
-        self, doc: Document, stats: IngestionStats
+        self, doc: Document, stats: IngestionStats, scope: StoreScope | None
     ) -> AsyncGenerator[
         BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped, None
     ]:
@@ -279,7 +287,7 @@ class RetrievalRuntime:
         for chunk in chunks:
             chunk.metadata["doc_chunk_count"] = len(chunks)
 
-        async for event in self._embed_and_store(doc, chunks, stats, doc_errors):
+        async for event in self._embed_and_store(doc, chunks, stats, doc_errors, scope):
             yield event
 
         if doc_errors:
@@ -356,6 +364,7 @@ class RetrievalRuntime:
         chunks: list[Chunk],
         stats: IngestionStats,
         doc_errors: list[Exception],
+        scope: StoreScope | None,
     ) -> AsyncGenerator[
         BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped, None
     ]:
@@ -372,7 +381,7 @@ class RetrievalRuntime:
                     delete_done = True
                 for embedded in batch.chunks:
                     self._capture_model(embedded)
-                    entry = StoreEntry.from_chunk(embedded, scope=self._scope)
+                    entry = StoreEntry.from_chunk(embedded, scope=scope)
                     await self._store.write(entry)
                 stats.chunks_embedded += len(batch.chunks)
                 stats.total_metrics = stats.total_metrics + batch.metrics
@@ -435,7 +444,8 @@ class RetrievalRuntime:
             query: The text to embed and search with.
             top_k: Maximum number of results.
             metadata_filters: Additional equality filters on chunk metadata.
-            scope: Overrides the runtime's default scope for this call.
+            scope: Restricts the search to entries written with the same
+                scope. Leave ``None`` to search across all scopes.
 
         Raises:
             EmbeddingModelMismatchError: When the embedder reports a model
@@ -457,7 +467,7 @@ class RetrievalRuntime:
 
         store_query = StoreQuery(
             text=query,
-            scope=scope if scope is not None else self._scope,
+            scope=scope,
             embedding=text_result.vectors[0],
             top_k=top_k,
             metadata_filters=metadata_filters,
