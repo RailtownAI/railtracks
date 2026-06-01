@@ -72,7 +72,7 @@ its full description.
 | [`EmbeddedChunk`](embeddings/index.md#the-embeddedchunk-object) | A chunk plus its embedding vector and model name. |
 | [`StoreEntry`](components/stores/index.md#data-model) | The atomic unit a store reads and writes. |
 | [`RetrievalResult`](retrieval.md) | What `runtime.retrieve()` returns: ranked `RetrievedChunk`s plus the query. |
-| [`StoreScope`](components/stores/index.md#storescope) | A hard-filter namespace — a label dict (`{"user_id": "alice"}`, `{"organization": "acme"}`, etc.) enforced as equality filters on every read and write. |
+| [`StoreScope`](components/stores/index.md#storescope) | A hard-filter namespace: a label dict (`{"user_id": "alice"}`, `{"organization": "acme"}`, etc.) enforced as equality filters on every read and write. |
 
 ---
 

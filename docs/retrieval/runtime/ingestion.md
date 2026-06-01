@@ -31,7 +31,7 @@ failures, or stream events to another system.
 
 ## Streaming events
 
-`runtime.ingest()` is an async generator. Each yield is a typed event —
+`runtime.ingest()` is an async generator. Each yield is a typed event -
 match on it to log, retry, or short-circuit:
 
 ```python
@@ -78,14 +78,14 @@ Pass `StoreScope` per call to allow stores to hold multi-tenants:
 --8<-- "docs/scripts/retrieval/ingestion_example.py:scope_on_write"
 ```
 
-`StoreScope` wraps an open `labels: Mapping[str, Any]` — pick whichever
+`StoreScope` wraps an open `labels: Mapping[str, Any]`. Pick whichever
 axes fit your tenancy model. `{"user_id": "alice"}` for SaaS,
 `{"organization": "acme", "environment": "prod"}` for B2B, anything else
 that makes sense. Each label becomes a mandatory equality filter on every
-write and read. One store can back any number of tenants — the cost of
+write and read. One store can back any number of tenants; the cost of
 multi-tenancy is the cost of one extra payload field.
 
-Scope is request-level context, not runtime config — that's why it lives
+Scope is request-level context, not runtime config; that's why it lives
 on `ingest()` / `ingest_all()` / `retrieve()` rather than on the
 constructor. Single-tenant callers just omit it.
 
@@ -95,15 +95,15 @@ constructor. Single-tenant callers just omit it.
 
 `SanitizingLoader(inner, sanitizer)` wraps any loader and passes every
 `Document` through your `Sanitizer` before it reaches the chunker. The
-`Sanitizer` protocol is one method — `.sanitize(document: Document) ->
-Document` — sync or async. Use it for PII redaction or any per-document
+`Sanitizer` protocol is one method: `.sanitize(document: Document) ->
+Document` (sync or async). Use it for PII redaction or any per-document
 normalization:
 
 ```python
 --8<-- "docs/scripts/retrieval/ingestion_example.py:sanitizing"
 ```
 
-Sanitization runs once per document, not per chunk — content_hash is
+Sanitization runs once per document, not per chunk; content_hash is
 computed on the sanitized text, so the skip-by-hash path stays accurate.
 
 ---
@@ -148,9 +148,9 @@ provider counts differently than tiktoken.
 
 ## Related
 
-- **[Retrieval](retrieval.md)** — the read path: `retrieve()`, filters,
+- **[Retrieval](retrieval.md)**: the read path: `retrieve()`, filters,
   scope overrides, and patterns for wiring retrieval into an agent.
-- **[Components → Ingestion](components/ingestion/index.md)** — the
+- **[Components → Ingestion](components/ingestion/index.md)**: the
   built-in loaders, the `Document` shape, custom loaders.
-- **[Components → Design](components/design.md)** — internals: streaming
+- **[Components → Design](components/design.md)**: internals: streaming
   concurrency model, the `Store` protocol, stage contracts.

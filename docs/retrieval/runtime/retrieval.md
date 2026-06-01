@@ -107,10 +107,10 @@ agent.
 
 ## Related
 
-- **[Ingestion](ingestion.md)** — the write path: streaming events,
+- **[Ingestion](ingestion.md)**: the write path: streaming events,
   re-ingest, multi-tenant writes, sanitization, token guards.
-- **[Components → Stores](../components/stores/base.md)** — the `Store`
+- **[Components → Stores](../components/stores/base.md)**: the `Store`
   protocol, `StoreQuery`, and the low-level `nearest_neighbors` bypass.
-- **[Components → Design](../components/design.md)** — embedding-model guard,
+- **[Components → Design](../components/design.md)**: embedding-model guard,
   staleness check, what's not in scope yet (boolean filters, hybrid search,
   built-in reranker).
