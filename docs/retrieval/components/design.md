@@ -250,21 +250,21 @@ nothing to seed from, so the first writer always wins.
 ## Multi-tenancy
 
 `StoreScope` wraps an open `labels: Mapping[str, Any]`. Each entry is a
-mandatory equality filter on every write and read — the retrieval module
+mandatory equality filter on every write and read. The retrieval module
 doesn't know what dimensions you scope by. Common shapes:
 `{"user_id": "alice"}`, `{"organization": "acme", "environment": "prod"}`,
 `{"agent_id": "docs-bot", "session_id": "s1"}`. Pass it per call:
 `runtime.ingest(loader, scope=...)` / `runtime.retrieve(query, scope=...)`.
-Scope is request-level context, so it isn't a constructor argument —
+Scope is request-level context, so it isn't a constructor argument and
 one runtime serves any number of tenants.
 
-The scope filter lives in `Store.read`, not the runtime — even direct
+The scope filter lives in `Store.read`, not the runtime meaning even direct
 calls to `VectorStore.nearest_neighbors()` honor it. Two tenants can
 share an `InMemoryVectorBackend` without leaking data across.
 
 ---
 
-## What's not in scope (yet)
+## On the roadmap but not currently implemented:
 
 - **Boolean filter DSL.** Filters are flat `dict[str, Any]` equality. If
   you need `OR` / `is_in` / range, post-filter in Python or open an issue.
