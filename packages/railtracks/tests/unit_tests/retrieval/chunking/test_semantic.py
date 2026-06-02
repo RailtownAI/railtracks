@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from railtracks.retrieval import Document
@@ -55,7 +57,7 @@ def test_chunk_produces_chunks_for_document():
 async def test_achunk_matches_sync_chunk():
     doc = Document(content="First. Second. Third.", type="text")
     chunker = SemanticChunker(embedder=_FakeEmbedder(), threshold_percentile=95.0)
-    sync_chunks = chunker.chunk(doc)
+    sync_chunks = await asyncio.to_thread(chunker.chunk, doc)
     async_chunks = await chunker.achunk(doc)
     assert [c.content for c in async_chunks] == [c.content for c in sync_chunks]
     assert [c.index for c in async_chunks] == [c.index for c in sync_chunks]

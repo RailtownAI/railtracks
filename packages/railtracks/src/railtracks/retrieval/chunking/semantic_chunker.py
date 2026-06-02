@@ -11,7 +11,7 @@ Requires ``scikit-learn`` (and ``numpy``) — install via
 from __future__ import annotations
 
 import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.metrics.pairwise import paired_cosine_distances
 
 from railtracks.utils.logging.create import get_rt_logger
 
@@ -178,17 +178,14 @@ class SemanticChunker(Chunker):
             embeddings: One vector per text unit, in document order.
 
         Returns:
-            ``distances[i]`` is ``1 - cosine_similarity(embeddings[i],
-            embeddings[i + 1])``. Empty when fewer than two embeddings are
-            provided.
+            ``distances[i]`` is the paired cosine distance between
+            ``embeddings[i]`` and ``embeddings[i + 1]``. Empty when fewer than
+            two embeddings are provided.
         """
         if len(embeddings) < 2:
             return []
-        distances: list[float] = []
-        for i in range(len(embeddings) - 1):
-            similarity = cosine_similarity([embeddings[i]], [embeddings[i + 1]])[0][0]
-            distances.append(1.0 - similarity)
-        return distances
+        vectors = np.asarray(embeddings)
+        return paired_cosine_distances(vectors[:-1], vectors[1:]).tolist()
 
     def _identify_breakpoints(
         self, distances: list[float], threshold_percentile: float
