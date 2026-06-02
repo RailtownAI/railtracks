@@ -494,3 +494,35 @@ async def _async_fetch_rows(_dsn: str, _table: str) -> list[dict]:
 
 def _fetch_rows_sync() -> list[dict]:
     return []
+
+class WikipediaLoader:
+    def __init__(self, query):
+        pass
+
+from railtracks.retrieval.loaders import LangChainLoaderAdapter
+async def langchain_adapter():
+# --8<-- [start:langchain_adapter]
+    adapter = LangChainLoaderAdapter(
+        WikipediaLoader(query="Python (programming language)"),
+    )
+
+    async for doc in adapter.astream():
+        print(doc.source, len(doc.content))
+# --8<-- [end:langchain_adapter]
+
+from railtracks.retrieval.loaders import LangChainLoaderAdapter, DocumentType
+# --8<-- [start:langchain_adapter_type]
+async def langchain_adapter_doc():
+    adapter = LangChainLoaderAdapter(
+        WikipediaLoader(query="Python (programming language)"),
+        document_type=DocumentType.MARKDOWN,
+    )
+    docs = await adapter.aload()
+# --8<-- [end:langchain_adapter_type]
+loader = WikipediaLoader(query="Python (programming language)")
+# --8<-- [start:langcahin_adapter_init]
+adapter = LangChainLoaderAdapter(
+    loader,
+    source="internal://corpus/2026-q1",
+)
+# --8<-- [end:langcahin_adapter_init]
