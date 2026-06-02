@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 from typing import Any, Protocol
 from uuid import UUID
 
+from railtracks.utils.logging.create import get_rt_logger
+
 from ..models import (
     Entity,
     RetrievedStoreEntry,
@@ -12,6 +14,8 @@ from ..models import (
     StoreQuery,
     StoreScope,
 )
+
+logger = get_rt_logger(__name__)
 
 
 class VectorBackend(Protocol):
@@ -186,6 +190,17 @@ class VectorStore:
         self._backend = backend
 
     async def write(self, entry: StoreEntry) -> str:
+        if entry.vector is None:
+            logger.error(
+                "VectorStore.write called with entry.vector=None (entry_id=%s, "
+                "chunk_id=%s); the entry must be embedded before writing.",
+                entry.id,
+                entry.chunk_id,
+            )
+            raise ValueError(
+                f"VectorStore.write requires entry.vector to be set "
+                f"(entry_id={entry.id}); embed the chunk before writing."
+            )
         await self._backend.upsert(
             str(entry.id), entry.vector, _entry_to_payload(entry)
         )

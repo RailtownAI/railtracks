@@ -109,8 +109,8 @@ nav:
           - Base Class: retrieval/components/chunking/base.md
           - Built-in Methods: retrieval/components/chunking/methods.md
       - Embeddings:
-        - Overview: retrieval/embeddings/index.md
-        - Built-in Methods: retrieval/embeddings/methods.md
+        - Overview: retrieval/components/embeddings/overview.md
+        - Built-in Methods: retrieval/components/embeddings/methods.md
       - Stores:
           - Base Class: retrieval/components/stores/base.md
           - Backends: retrieval/components/stores/backends.md
