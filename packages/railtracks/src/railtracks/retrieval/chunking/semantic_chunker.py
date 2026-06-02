@@ -40,9 +40,9 @@ class SemanticChunker(Chunker):
        :meth:`_make_chunks`.
 
     Args:
-        embedder: Embedding provider. :meth:`chunk` calls
-            ``embedder.embed(...)`` synchronously; do not invoke from inside
-            a running async event loop.
+        embedder: Embedding provider. :meth:`chunk` uses ``embedder.embed``;
+            :meth:`achunk` uses ``embedder.aembed`` (preferred in async
+            pipelines).
         sentence_splitter: Unit splitter implementing the ``Splitter`` protocol.
             Defaults to :class:`RegexSentenceSplitter`.
         threshold_percentile: Percentile (0–100) of pairwise distances used
@@ -92,6 +92,9 @@ class SemanticChunker(Chunker):
     def chunk(self, document: Document) -> list[Chunk]:
         """Split *document* into semantically coherent chunks.
 
+        Uses ``embedder.embed`` synchronously. Prefer :meth:`achunk` inside
+        async code.
+
         Args:
             document: Source document whose ``content`` is split and embedded.
 
@@ -99,12 +102,68 @@ class SemanticChunker(Chunker):
             Ordered :class:`Chunk` list with dense 0-based ``index`` values.
             Returns ``[]`` when ``document.content`` is empty.
         """
-        if not document.content:
+        prepared = self._prepare_document_units(document)
+        if prepared is None:
             return []
+        split_texts, texts_to_embed = prepared
+        embed_result = self.embedder.embed(texts_to_embed)
+        embeddings = self._validate_embedding_vectors(
+            embed_result.vectors, texts_to_embed
+        )
+        return self._chunks_from_units(document, split_texts, embeddings)
 
+    async def achunk(self, document: Document) -> list[Chunk]:
+        """Split *document* into semantically coherent chunks asynchronously.
+
+        Uses ``embedder.aembed`` so embedding I/O does not block the event
+        loop. Text splitting and distance/breakpoint logic run on the caller's
+        task after embeddings return.
+
+        Args:
+            document: Source document whose ``content`` is split and embedded.
+
+        Returns:
+            Ordered :class:`Chunk` list with dense 0-based ``index`` values.
+            Returns ``[]`` when ``document.content`` is empty.
+        """
+        prepared = self._prepare_document_units(document)
+        if prepared is None:
+            return []
+        split_texts, texts_to_embed = prepared
+        embed_result = await self.embedder.aembed(texts_to_embed)
+        embeddings = self._validate_embedding_vectors(
+            embed_result.vectors, texts_to_embed
+        )
+        return self._chunks_from_units(document, split_texts, embeddings)
+
+    def _prepare_document_units(
+        self, document: Document
+    ) -> tuple[list[str], list[str]] | None:
+        """Split *document* and build embed inputs, or ``None`` if empty."""
+        if not document.content:
+            return None
         split_texts = self.sentence_splitter.split(document.content)
         texts_to_embed = self._prepare_embed_inputs(split_texts)
-        embeddings = self.embedder.embed(texts_to_embed).vectors
+        if not texts_to_embed:
+            return None
+        return split_texts, texts_to_embed
+
+    @staticmethod
+    def _validate_embedding_vectors(
+        vectors: list[list[float]], texts: list[str]
+    ) -> list[list[float]]:
+        if len(vectors) != len(texts):
+            raise ValueError(
+                f"embedder returned {len(vectors)} vectors for {len(texts)} texts"
+            )
+        return vectors
+
+    def _chunks_from_units(
+        self,
+        document: Document,
+        split_texts: list[str],
+        embeddings: list[list[float]],
+    ) -> list[Chunk]:
         distances = self._calculate_distances(embeddings)
         breakpoints = self._identify_breakpoints(
             distances, self.threshold_percentile
@@ -178,9 +237,9 @@ class SemanticChunker(Chunker):
         chunks: list[str] = []
         start_idx = 0
 
-        for breakpoint in breakpoints:
-            chunks.append(" ".join(sentences[start_idx : breakpoint + 1]))
-            start_idx = breakpoint + 1
+        for bp in breakpoints:
+            chunks.append(" ".join(sentences[start_idx: bp + 1]))
+            start_idx = bp + 1
 
         chunks.append(" ".join(sentences[start_idx:]))
         return chunks

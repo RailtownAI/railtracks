@@ -27,6 +27,19 @@ def test_empty_document_returns_empty_list(empty_doc):
     assert SemanticChunker(embedder=_FakeEmbedder()).chunk(empty_doc) == []
 
 
+class _BadLengthEmbedder(Embedding):
+    default_batch_size = 8
+
+    async def aembed(self, texts: list[str]) -> TextEmbeddings:
+        return TextEmbeddings(vectors=[[0.0]], metrics=EmbeddingMetrics())
+
+
+def test_embed_vector_count_mismatch_raises():
+    doc = Document(content="One. Two.", type="text")
+    with pytest.raises(ValueError, match="embedder returned"):
+        SemanticChunker(embedder=_BadLengthEmbedder()).chunk(doc)
+
+
 def test_chunk_produces_chunks_for_document():
     doc = Document(content="First. Second. Third.", type="text")
     chunker = SemanticChunker(embedder=_FakeEmbedder(), threshold_percentile=95.0)
@@ -37,6 +50,31 @@ def test_chunk_produces_chunks_for_document():
     assert "".join(c.content for c in chunks).replace(" ", "") == (
         doc.content.replace(" ", "")
     )
+
+
+async def test_achunk_matches_sync_chunk():
+    doc = Document(content="First. Second. Third.", type="text")
+    chunker = SemanticChunker(embedder=_FakeEmbedder(), threshold_percentile=95.0)
+    sync_chunks = chunker.chunk(doc)
+    async_chunks = await chunker.achunk(doc)
+    assert [c.content for c in async_chunks] == [c.content for c in sync_chunks]
+    assert [c.index for c in async_chunks] == [c.index for c in sync_chunks]
+
+
+async def test_achunk_empty_document(empty_doc):
+    assert await SemanticChunker(embedder=_FakeEmbedder()).achunk(empty_doc) == []
+
+
+async def test_achunk_uses_aembed_not_embed(monkeypatch):
+    doc = Document(content="One. Two.", type="text")
+    embedder = _FakeEmbedder()
+    chunker = SemanticChunker(embedder=embedder)
+
+    def fail_embed(_texts: list[str]):
+        raise AssertionError("achunk should call aembed, not embed")
+
+    monkeypatch.setattr(embedder, "embed", fail_embed)
+    await chunker.achunk(doc)
 
 
 def test_add_context_combines_neighbors():
