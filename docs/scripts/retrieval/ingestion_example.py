@@ -148,7 +148,7 @@ class EmailRedactor:
 
 
 # Wrap any loader. Sanitizer runs once per Document, before chunking.
-loader = SanitizingLoader(TextLoader("./hr_docs"), sanitizer=EmailRedactor())
+loader: BaseDocumentLoader = SanitizingLoader(TextLoader("./hr_docs"), sanitizer=EmailRedactor())
 # --8<-- [end:sanitizing]
 
 
