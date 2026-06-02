@@ -32,6 +32,7 @@ from ..history import MessageHistory
 from ..message import AssistantMessage, Message, ToolMessage, UserMessage
 from ..model import ModelBase
 from ..response import MessageInfo, Response
+from ..retries import RetryApproach
 from ..tools import Tool
 from ..tools.parameters import Parameter
 
@@ -158,8 +159,9 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         api_base: str | None = None,
         api_key: str | None = None,
         temperature: float | None = None,
+        retry_approach: RetryApproach | None = None,
     ):
-        super().__init__(stream=stream)
+        super().__init__(stream=stream, retry_approach=retry_approach)
         self._model_name = model_name
         self.api_base = api_base
         self.api_key = api_key
@@ -218,12 +220,18 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         if self.temperature is not None:
             merged["temperature"] = self.temperature
 
-        completion = litellm.completion(
-            model=self._model_name,
-            messages=litellm_messages,
-            stream=self.stream,
-            **merged,
-        )
+        def completion_function():
+            return litellm.completion(
+                model=self._model_name,
+                messages=litellm_messages,
+                stream=self.stream,
+                **merged,
+            )
+
+        if self.retry_approach is not None:
+            completion = self.retry_approach.call_with_retry(completion_function)
+        else:
+            completion = completion_function()
 
         if isinstance(completion, CustomStreamWrapper):
             return completion, start_time
@@ -281,12 +289,20 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         warnings.filterwarnings(
             "ignore", category=UserWarning, module="pydantic.*"
         )  # Supress pydantic warnings. See issue #204 for more deatils.
-        completion = await litellm.acompletion(
-            model=self._model_name,
-            messages=litellm_messages,
-            stream=self.stream,
-            **merged,
-        )
+
+        def completion_function():
+            return litellm.acompletion(
+                model=self._model_name,
+                messages=litellm_messages,
+                stream=self.stream,
+                **merged,
+            )
+
+        if self.retry_approach is not None:
+            completion = await self.retry_approach.acall_with_retry(completion_function)
+        else:
+            completion = await completion_function()
+
         if isinstance(completion, CustomStreamWrapper):
             return completion, start_time
         else:

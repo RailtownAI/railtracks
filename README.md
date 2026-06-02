@@ -111,7 +111,7 @@ result = await rt.call(agent, query)
 
 Railtracks includes a visualizer for inspecting agent runs and evaluations in real-time, run completely locally with no signups required.
 
-See the [Observability documentation](https://railtownai.github.io/railtracks/observability/visualization/) for setup and usage.
+See the [Observability documentation](https://docs.railtracks.org/observability/agenthub/local/) for setup and usage.
 
 </td>
 </tr>
@@ -159,7 +159,7 @@ text_analyzer = rt.agent_node(
 
 # 3. Use it to solve the classic "How many r's in strawberry?" problem
 text_flow = rt.Flow(
-  name="Text Analysis Flow"
+  name="Text Analysis Flow",
   entry_point=text_analyzer
 )
 
@@ -184,14 +184,14 @@ rt.llm.AnthropicLLM("claude-4-6-sonnet")
 rt.llm.OllamaLLM("llama3")
 ```
 
-Works with **OpenAI**, **Anthropic**, **Google**, **Azure**, and more. See the [full provider list](https://railtownai.github.io/railtracks/llm_support/providers/).
+Works with **OpenAI**, **Anthropic**, **Google**, **Azure**, and more. See the [full provider list](https://docs.railtracks.org/integrations/llms/providers/).
 
 ## Contributing
 
 Railtracks is developed in the open. Contributions, bug reports, and feature requests are welcome via [GitHub Issues](https://github.com/RailtownAI/railtracks/issues).
 
 <p align="center">
-  <a href="https://railtownai.github.io/railtracks/quickstart/quickstart/">
+  <a href="https://docs.railtracks.org/documentation/getting_started/quickstart/">
     <img src="https://img.shields.io/badge/Quick_Start-4285F4?style=for-the-badge&logo=rocket&logoColor=white" alt="Quick Start" />
   </a>
   <a href="https://docs.railtracks.org/">

@@ -1,8 +1,8 @@
 from abc import ABC
 from typing import Literal, TypeVar
 
-from railtracks.llm.providers import ModelProvider
-
+from ...providers import ModelProvider
+from ...retries import RetryApproach
 from ._provider_wrapper import ProviderLLMWrapper
 
 _TStream = TypeVar("_TStream", Literal[True], Literal[False])
@@ -17,6 +17,7 @@ class OpenAICompatibleProvider(ProviderLLMWrapper[_TStream], ABC):
         api_base: str,
         api_key: str,
         temperature: float | None = None,
+        retry_approach: RetryApproach | None = None,
     ):
         super().__init__(
             model_name,
@@ -24,6 +25,7 @@ class OpenAICompatibleProvider(ProviderLLMWrapper[_TStream], ABC):
             api_base=api_base,
             api_key=api_key,
             temperature=temperature,
+            retry_approach=retry_approach,
         )
 
     def full_model_name(self, model_name: str) -> str:

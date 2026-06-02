@@ -8,7 +8,7 @@ import litellm
 from litellm.litellm_core_utils.streaming_handler import CustomStreamWrapper
 
 from railtracks.llm.models.local.ollama import OllamaLLM
-from railtracks.llm._exception_base import RTLLMError
+from railtracks.llm._exceptions import RTLLMError
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import UserMessage
 

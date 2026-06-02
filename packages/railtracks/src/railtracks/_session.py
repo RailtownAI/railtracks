@@ -1,17 +1,16 @@
 import inspect
 import json
-import os
 import time
 import uuid
 import warnings
 from functools import wraps
-from pathlib import Path
 from typing import Any, Callable, Coroutine, Dict, ParamSpec, Tuple, TypeVar, overload
 
 from railtracks.exceptions.messages.exception_messages import (
     ExceptionMessageKey,
     get_message,
 )
+from railtracks.paths import resolve_railtracks_home
 
 from .context.central import (
     delete_globals,
@@ -167,8 +166,7 @@ class Session:
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.executor_config.save_state:
             try:
-                railtracks_home = os.environ.get("RAILTRACKS_HOME", ".railtracks")
-                railtracks_dir = Path(railtracks_home)
+                railtracks_dir = resolve_railtracks_home()
                 sessions_dir = railtracks_dir / "data" / "sessions"
                 sessions_dir.mkdir(
                     parents=True, exist_ok=True
@@ -182,10 +180,12 @@ class Session:
                 else:
                     name = ""
 
+                candidate = sessions_dir / f"{name}_{self._identifier}.json"
                 try:
-                    file_path = sessions_dir / f"{name}_{self._identifier}.json"
-                    file_path.touch()
-                except FileNotFoundError:
+                    candidate.touch()
+                    candidate.unlink()
+                    file_path = candidate
+                except OSError:
                     logger.warning(
                         get_message(
                             ExceptionMessageKey.INVALID_SESSION_FILE_NAME_WARN
@@ -195,12 +195,14 @@ class Session:
 
                 logger.info("Saving execution info to %s" % file_path)
 
-                file_path.write_text(json.dumps(self.payload()))
+                content = json.dumps(self.payload())
+                file_path.write_text(content)
 
             except Exception as e:
                 logger.error(
-                    "Error while saving to execution info to file",
-                    exc_info=e,
+                    "Error while saving execution info to file: %s",
+                    e,
+                    exc_info=True,
                 )
         try:
             if self.executor_config.payload_callback is not None:

@@ -1,4 +1,5 @@
-import pytest
+import json
+
 from railtracks.llm.tools.parameters._base import Parameter, ParameterType
 
 
@@ -26,3 +27,22 @@ def test_param_type_from_python_type():
     assert ParameterType.from_python_type(list) == ParameterType.ARRAY
     assert ParameterType.from_python_type(dict) == ParameterType.OBJECT
     assert ParameterType.from_python_type(type(None)) == ParameterType.NONE
+
+
+def test_parameter_accepts_python_type_str():
+    p = Parameter("query", description="The search query string.", param_type=str)
+    assert p.param_type == "string"
+    assert p.to_json_schema()["type"] == "string"
+    json.dumps(p.to_json_schema())
+
+
+def test_parameter_accepts_python_type_int():
+    p = Parameter("n", description="A number.", param_type=int)
+    assert p.param_type == "integer"
+    assert p.to_json_schema()["type"] == "integer"
+    json.dumps(p.to_json_schema())
+
+
+def test_parameter_list_accepts_mixed_python_and_schema_types():
+    p = Parameter("x", param_type=[str, "null"])
+    assert p.param_type == ["string", "null"]

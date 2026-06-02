@@ -124,7 +124,7 @@ Orchestrator = rt.agent_node(
 `Parameter` fields:
 - `name` — the argument name the orchestrator LLM passes
 - `description` — explains what to put in this argument
-- `param_type` — JSON schema type string: `"string"`, `"integer"`, `"number"`, `"boolean"`
+- `param_type` — JSON schema type string (`"string"`, `"integer"`, `"number"`, `"boolean"`, …) **or** a Python builtin mapped the same way: `str`, `int`, `float` (→ `"number"`), `bool`, `list` / `tuple` / `set` (→ `"array"`), `dict` (→ `"object"`), `type(None)` (→ `"null"`). Unknown types fall back to `"object"`.
 - `required` — defaults to `True`
 - `enum` — optional list of allowed values
 
