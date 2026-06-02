@@ -30,8 +30,8 @@ class Flow(Generic[_P, _TOutput]):
     Typical usage::
 
         flow = Flow("my-agent", entry_point=my_node, context={"user": "alice"})
-        result = await flow.ainvoke(query)   # async (preferred)
-        result = flow.invoke(query)          # sync
+        result = await flow.ainvoke(query)  # async (preferred)
+        result = flow.invoke(query)  # sync
 
     Args:
         name: Unique human-readable name used in logging and state filenames.
