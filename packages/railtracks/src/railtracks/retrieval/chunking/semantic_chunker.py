@@ -54,10 +54,6 @@ class SemanticChunker(Chunker):
             units are embedded exactly as split.
         window: Neighbor radius used only when ``combine_neighbors`` is
             ``True``.
-
-    Notes:
-        Produced :class:`Chunk` objects inherit ``document.metadata`` but do
-        not currently populate :attr:`~railtracks.retrieval.models.Chunk.offsets`.
     """
 
     def __init__(
@@ -105,12 +101,12 @@ class SemanticChunker(Chunker):
         prepared = self._prepare_document_units(document)
         if prepared is None:
             return []
-        split_texts, texts_to_embed = prepared
+        units, texts_to_embed = prepared
         embed_result = self.embedder.embed(texts_to_embed)
         embeddings = self._validate_embedding_vectors(
             embed_result.vectors, texts_to_embed
         )
-        return self._chunks_from_units(document, split_texts, embeddings)
+        return self._chunks_from_units(document, units, embeddings)
 
     async def achunk(self, document: Document) -> list[Chunk]:
         """Split *document* into semantically coherent chunks asynchronously.
@@ -129,24 +125,50 @@ class SemanticChunker(Chunker):
         prepared = self._prepare_document_units(document)
         if prepared is None:
             return []
-        split_texts, texts_to_embed = prepared
+        units, texts_to_embed = prepared
         embed_result = await self.embedder.aembed(texts_to_embed)
         embeddings = self._validate_embedding_vectors(
             embed_result.vectors, texts_to_embed
         )
-        return self._chunks_from_units(document, split_texts, embeddings)
+        return self._chunks_from_units(document, units, embeddings)
 
     def _prepare_document_units(
         self, document: Document
-    ) -> tuple[list[str], list[str]] | None:
+    ) -> tuple[list[tuple[str, int, int]], list[str]] | None:
         """Split *document* and build embed inputs, or ``None`` if empty."""
         if not document.content:
             return None
-        split_texts = self.sentence_splitter.split(document.content)
-        texts_to_embed = self._prepare_embed_inputs(split_texts)
-        if not texts_to_embed:
+        units = self._split_units(document.content)
+        if not units:
             return None
-        return split_texts, texts_to_embed
+        texts_to_embed = self._prepare_embed_inputs([unit[0] for unit in units])
+        return units, texts_to_embed
+
+    def _split_units(self, text: str) -> list[tuple[str, int, int]]:
+        """Split ``text`` into ``(unit, start, end)`` tuples.
+
+        Prefers an offset-aware ``split_with_positions`` method when the
+        splitter exposes one; otherwise falls back to ``str.find`` on the
+        document text.
+        """
+        splitter = self.sentence_splitter
+        if hasattr(splitter, "split_with_positions"):
+            return splitter.split_with_positions(text)
+
+        out: list[tuple[str, int, int]] = []
+        cursor = 0
+        for unit in splitter.split(text):
+            if not unit:
+                continue
+            idx = text.find(unit, cursor)
+            if idx < 0:
+                idx = text.find(unit)
+            if idx < 0:
+                idx = cursor
+            end = idx + len(unit)
+            out.append((unit, idx, end))
+            cursor = end
+        return out
 
     @staticmethod
     def _validate_embedding_vectors(
@@ -161,15 +183,17 @@ class SemanticChunker(Chunker):
     def _chunks_from_units(
         self,
         document: Document,
-        split_texts: list[str],
+        units: list[tuple[str, int, int]],
         embeddings: list[list[float]],
     ) -> list[Chunk]:
         distances = self._calculate_distances(embeddings)
         breakpoints = self._identify_breakpoints(
             distances, self.threshold_percentile
         )
-        pieces = self._create_chunks(split_texts, breakpoints)
-        return self._make_chunks(document, pieces)
+        pieces, offsets = self._create_chunks(
+            document.content, units, breakpoints
+        )
+        return self._make_chunks(document, pieces, offsets=offsets)
 
     def _calculate_distances(self, embeddings: list[list[float]]) -> list[float]:
         """Compute cosine distance between each consecutive embedding pair.
@@ -216,30 +240,46 @@ class SemanticChunker(Chunker):
         threshold = np.percentile(distances, threshold_percentile)
         return [i for i, dist in enumerate(distances) if dist > threshold]
 
-    def _create_chunks(self, sentences: list[str], breakpoints: list[int]) -> list[str]:
-        """Merge split units into chunk strings at the given breakpoints.
+    def _create_chunks(
+        self,
+        text: str,
+        units: list[tuple[str, int, int]],
+        breakpoints: list[int],
+    ) -> tuple[list[str], list[tuple[int, int]]]:
+        """Merge split units into chunk strings and character offsets.
 
         Args:
-            sentences: Ordered unit texts (e.g. sentences).
+            text: Full document text (``document.content``).
+            units: Ordered ``(unit, start, end)`` spans from :meth:`_split_units`.
             breakpoints: Indices from :meth:`_identify_breakpoints`. Each
                 index ends the current chunk and starts the next after it.
 
         Returns:
-            Chunk text strings joined with spaces. Returns ``[]`` when
-            ``sentences`` is empty.
+            Parallel lists of chunk texts and ``(start, end)`` offsets into
+            ``text``. Each piece is ``text[first_start:last_end]`` for the
+            merged unit window. Returns ``([], [])`` when ``units`` is empty.
         """
-        if not sentences:
-            return []
+        if not units:
+            return [], []
 
-        chunks: list[str] = []
+        pieces: list[str] = []
+        offsets: list[tuple[int, int]] = []
         start_idx = 0
 
         for bp in breakpoints:
-            chunks.append(" ".join(sentences[start_idx: bp + 1]))
+            window = units[start_idx : bp + 1]
+            first_start = window[0][1]
+            last_end = window[-1][2]
+            pieces.append(text[first_start:last_end])
+            offsets.append((first_start, last_end))
             start_idx = bp + 1
 
-        chunks.append(" ".join(sentences[start_idx:]))
-        return chunks
+        window = units[start_idx:]
+        first_start = window[0][1]
+        last_end = window[-1][2]
+        pieces.append(text[first_start:last_end])
+        offsets.append((first_start, last_end))
+        return pieces, offsets
 
     def _prepare_embed_inputs(self, sentences: list[str]) -> list[str]:
         """Select texts to send to the embedder for each unit.

@@ -17,14 +17,31 @@ from railtracks.retrieval.chunking import (
     FixedTokenChunker,
     MarkdownHeaderChunker,
     RecursiveCharacterChunker,
+    SemanticChunker,
     SentenceChunker,
 )
+from railtracks.retrieval.embedding import Embedding, EmbeddingMetrics, TextEmbeddings
+
+
+class _FakeEmbedder(Embedding):
+    default_batch_size = 8
+
+    def embed(self, texts: list[str]) -> TextEmbeddings:
+        return TextEmbeddings(
+            vectors=[[float(len(t))] for t in texts],
+            metrics=EmbeddingMetrics(vector_count=len(texts)),
+        )
+
+    async def aembed(self, texts: list[str]) -> TextEmbeddings:
+        return self.embed(texts)
+
 
 ALL_CHUNKERS = [
     lambda: FixedTokenChunker(chunk_size=50, overlap=10),
     lambda: RecursiveCharacterChunker(chunk_size=80, overlap=20),
     lambda: SentenceChunker(chunk_size=2, overlap=0),
     lambda: MarkdownHeaderChunker(),
+    lambda: SemanticChunker(embedder=_FakeEmbedder()),
 ]
 
 

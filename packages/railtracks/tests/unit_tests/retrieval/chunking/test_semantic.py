@@ -150,22 +150,42 @@ def test_threshold_percentile_must_be_in_range():
         SemanticChunker(embedder=_FakeEmbedder(), threshold_percentile=101.0)
 
 
+def test_split_units_uses_split_with_positions():
+    chunker = SemanticChunker(embedder=_FakeEmbedder())
+    text = "First. Second."
+    units = chunker._split_units(text)
+    assert units == [("First.", 0, 6), ("Second.", 7, 14)]
+
+
+def test_offsets_slice_back():
+    text = "First. Second! Third? Fourth. Fifth."
+    doc = Document(content=text, type="text")
+    chunker = SemanticChunker(embedder=_FakeEmbedder(), threshold_percentile=95.0)
+    chunks = chunker.chunk(doc)
+    for chunk in chunks:
+        assert chunk.offsets is not None
+        start, end = chunk.offsets
+        assert doc.content[start:end] == chunk.content
+
+
 def test_create_chunks_with_no_breakpoints():
     chunker = SemanticChunker(embedder=_FakeEmbedder())
-    sentences = ["A.", "B.", "C."]
-    assert chunker._create_chunks(sentences, []) == ["A. B. C."]
+    text = "A. B. C."
+    units = [("A.", 0, 2), ("B.", 3, 5), ("C.", 6, 8)]
+    pieces, offsets = chunker._create_chunks(text, units, [])
+    assert pieces == ["A. B. C."]
+    assert offsets == [(0, 8)]
 
 
 def test_create_chunks_splits_at_breakpoints():
     chunker = SemanticChunker(embedder=_FakeEmbedder())
-    sentences = ["A.", "B.", "C.", "D."]
-    assert chunker._create_chunks(sentences, [1, 2]) == [
-        "A. B.",
-        "C.",
-        "D.",
-    ]
+    text = "A. B. C. D."
+    units = [("A.", 0, 2), ("B.", 3, 5), ("C.", 6, 8), ("D.", 9, 11)]
+    pieces, offsets = chunker._create_chunks(text, units, [1, 2])
+    assert pieces == ["A. B.", "C.", "D."]
+    assert offsets == [(0, 5), (6, 8), (9, 11)]
 
 
-def test_create_chunks_empty_sentences():
+def test_create_chunks_empty_units():
     chunker = SemanticChunker(embedder=_FakeEmbedder())
-    assert chunker._create_chunks([], [0]) == []
+    assert chunker._create_chunks("text", [], [0]) == ([], [])
