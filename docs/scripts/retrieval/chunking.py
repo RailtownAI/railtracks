@@ -25,7 +25,8 @@ for c in chunks:
     print("-----")
 # --8<-- [end:quickstart]
 
-md_text = long_text = "..."
+long_text = "..."
+md_text = "..."
 
 # --8<-- [start:recursive]
 from railtracks.retrieval import Document

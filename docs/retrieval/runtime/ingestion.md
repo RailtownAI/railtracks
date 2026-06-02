@@ -150,7 +150,7 @@ provider counts differently than tiktoken.
 
 - **[Retrieval](retrieval.md)**: the read path: `retrieve()`, filters,
   scope overrides, and patterns for wiring retrieval into an agent.
-- **[Components → Ingestion](components/ingestion/index.md)**: the
+- **[Components → Ingestion](../components/ingestion/base.md)**: the
   built-in loaders, the `Document` shape, custom loaders.
-- **[Components → Design](components/design.md)**: internals: streaming
+- **[Components → Design](../components/design.md)**: internals: streaming
   concurrency model, the `Store` protocol, stage contracts.

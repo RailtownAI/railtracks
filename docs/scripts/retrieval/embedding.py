@@ -1,7 +1,9 @@
+from uuid import uuid4
+
 from railtracks.retrieval import Chunk
-from railtracks.retrieval.stores import VectorStore, InMemoryVectorBackend
-from uuid import UUID
-chunks = [Chunk(content="Example chunk", document_id=UUID(""))]
+from railtracks.retrieval.stores import InMemoryVectorBackend, VectorStore
+
+chunks = [Chunk(content="Example chunk", document_id=uuid4())]
 vector_store = VectorStore(backend=InMemoryVectorBackend())
 
 

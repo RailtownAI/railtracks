@@ -6,7 +6,7 @@ objects. Loaders are stage one of the pipeline; everything downstream
 (chunkers, embedders, stores) consumes `Document`s.
 
 For the streaming-and-safety side of ingestion (events, re-ingest,
-multi-tenant writes, sanitization), see the [Ingestion page](../../ingestion.md).
+multi-tenant writes, sanitization), see the [Ingestion page](../../runtime/ingestion.md).
 
 ---
 

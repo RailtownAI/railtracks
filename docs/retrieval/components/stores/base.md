@@ -17,7 +17,7 @@ list[RetrievedStoreEntry]
 ```
 
 For raw vector search at the runtime level (`runtime.retrieve(...)`), see
-[Retrieval](../../retrieval.md). For the backends (`InMemory`, `Chroma`,
+[Retrieval](../../runtime/retrieval.md). For the backends (`InMemory`, `Chroma`,
 `Pgvector`) that plug into `VectorStore`, see [Backends](backends.md).
 
 ---
@@ -115,5 +115,5 @@ From `EmbeddedChunk` to indexed entry to query result:
 
 - **[Backends](backends.md)**: choosing and configuring InMemory, Chroma,
   and Pgvector backends.
-- **[Retrieval](../../retrieval.md)**: using `runtime.retrieve(...)` so
+- **[Retrieval](../../runtime/retrieval.md)**: using `runtime.retrieve(...)` so
   you don't have to build `StoreQuery` yourself.

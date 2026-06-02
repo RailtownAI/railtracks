@@ -118,7 +118,7 @@ than one chunker.
 
 ## See also
 
-- [Chunking overview](index.md): objects, layers, pipeline placement.
-- [Ingestion components](../ingestion/index.md): upstream `Document` production.
-- [Embeddings methods](../../embeddings/methods.md): picking an embedder
+- [Chunking overview](base.md): objects, layers, pipeline placement.
+- [Ingestion components](../ingestion/base.md): upstream `Document` production.
+- [Embeddings methods](../embeddings/methods.md): picking an embedder
   whose token limit matches your chunk size.

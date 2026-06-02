@@ -14,7 +14,7 @@ they reflect what works in production today, not an exhaustive enumeration.
 | `OllamaEmbedding` | Local Ollama | `1` |
 | `LiteLLMEmbedding` | Any LiteLLM provider | `None` (set per call) |
 
-All four inherit from `Embedding` (see [overview](index.md) for the
+All four inherit from `Embedding` (see [overview](overview.md) for the
 base class API) and are re-exported from `railtracks.retrieval.embedding`.
 
 **Defaults you should know:**
@@ -172,9 +172,9 @@ rest of the pipeline stays non-blocking:
 
 ## See also
 
-- [Embeddings overview](index.md): data models, batch streaming API,
+- [Embeddings overview](overview.md): data models, batch streaming API,
   and the `Embedding` contract.
-- [Chunking overview](../components/chunking/index.md): producing
+- [Chunking overview](../chunking/base.md): producing
   `Chunk` objects upstream.
-- [Ingestion → Token guard](../../ingestion.md#token-guard): keeping
+- [Ingestion → Token guard](../../runtime/ingestion.md#token-guard): keeping
   oversize chunks out of the provider call.

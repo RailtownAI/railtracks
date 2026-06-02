@@ -2,10 +2,12 @@
     `railtracks.rag` and `railtracks.vector_stores` are removed. Everything
     now lives under `railtracks.retrieval`.
 
-# Overview
+# Quickstart
+
 `railtracks.retrieval` is the module for everything that turns raw sources
-into a searchable index and queries it back: **ingestion(loading, chunking, embedding)** and **vector
-search**, with the same runtime answering both.
+into a searchable index and queries it back — **ingestion** (loading,
+chunking, embedding) and **vector search**, with the same runtime
+answering both.
 
 `RetrievalRuntime` pipelines the four stages:
 
@@ -67,12 +69,12 @@ its full description.
 
 | Type | What it is |
 |---|---|
-| [`Document`](components/ingestion/index.md#the-document-object) | One unit of source content produced by a loader. |
-| [`Chunk`](components/chunking/index.md#the-chunk-object) | A slice of a Document produced by a chunker carrying `document_id` and metadata. |
-| [`EmbeddedChunk`](embeddings/index.md#the-embeddedchunk-object) | A chunk plus its embedding vector and model name. |
-| [`StoreEntry`](components/stores/index.md#data-model) | The atomic unit a store reads and writes. |
+| [`Document`](../components/ingestion/base.md#the-document-object) | One unit of source content produced by a loader. |
+| [`Chunk`](../components/chunking/base.md#the-chunk-object) | A slice of a Document produced by a chunker carrying `document_id` and metadata. |
+| [`EmbeddedChunk`](../components/embeddings/overview.md#the-embeddedchunk-object) | A chunk plus its embedding vector and model name. |
+| [`StoreEntry`](../components/stores/base.md#data-models) | The atomic unit a store reads and writes. |
 | [`RetrievalResult`](retrieval.md) | What `runtime.retrieve()` returns: ranked `RetrievedChunk`s plus the query. |
-| [`StoreScope`](components/stores/index.md#storescope) | A hard-filter namespace: a label dict (`{"user_id": "alice"}`, `{"organization": "acme"}`, etc.) enforced as equality filters on every read and write. |
+| [`StoreScope`](../components/stores/base.md#data-models) | A hard-filter namespace: a label dict (`{"user_id": "alice"}`, `{"organization": "acme"}`, etc.) enforced as equality filters on every read and write. |
 
 ---
 
@@ -83,7 +85,7 @@ covers the trade-offs.
 
 | Stage | Built-in options | Picked by |
 |---|---|---|
-| **Load** | `TextLoader`, `CSVLoader`, `PyPDFLoader`, `PyPDFOCRLoader`, `HuggingFaceDatasetLoader`, `JSONLoader`, `LangChainLoaderAdapter` | [Ingestion overview](components/ingestion/index.md) |
-| **Chunk** | `RecursiveCharacterChunker`, `MarkdownHeaderChunker`, `SentenceChunker`, `FixedTokenChunker` | [Chunking methods](components/chunking/methods.md) |
-| **Embed** | `OpenAIEmbedding`, `AzureEmbedding`, `OllamaEmbedding`, `LiteLLMEmbedding` | [Embeddings methods](embeddings/methods.md) |
-| **Store** | `VectorStore` with `InMemoryVectorBackend`, `ChromaBackend`, or `PgvectorBackend` | [Store backends](components/stores/backends.md) |
+| **Load** | `TextLoader`, `CSVLoader`, `PyPDFLoader`, `PyPDFOCRLoader`, `HuggingFaceDatasetLoader`, `JSONLoader`, `LangChainLoaderAdapter` | [Ingestion overview](../components/ingestion/base.md) |
+| **Chunk** | `RecursiveCharacterChunker`, `MarkdownHeaderChunker`, `SentenceChunker`, `FixedTokenChunker` | [Chunking methods](../components/chunking/methods.md) |
+| **Embed** | `OpenAIEmbedding`, `AzureEmbedding`, `OllamaEmbedding`, `LiteLLMEmbedding` | [Embeddings methods](../components/embeddings/methods.md) |
+| **Store** | `VectorStore` with `InMemoryVectorBackend`, `ChromaBackend`, or `PgvectorBackend` | [Store backends](../components/stores/backends.md) |

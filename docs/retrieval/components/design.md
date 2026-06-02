@@ -1,12 +1,12 @@
 # Design
 
-This page documents the low-level details of the internals of `railtracks.retrieval` including 
-stage contracts, streaming async model, the `Store` protocol, and the invanriants enforced. Read this
-if you are customizing a stage, adding a back, or debugging cross-stage behaviour.
+This page documents the low-level details of the internals of `railtracks.retrieval` including
+stage contracts, streaming async model, the `Store` protocol, and the invariants enforced. Read this
+if you are customizing a stage, adding a backend, or debugging cross-stage behaviour.
 
 For task-oriented entry points (how to ingest, how to retrieve, how to
-attach to an agent) see [Overview](../index.md), [Ingestion](../ingestion.md),
-and [Retrieval](../retrieval.md).
+attach to an agent) see [Quickstart](../runtime/quickstart.md),
+[Ingestion](../runtime/ingestion.md), and [Retrieval](../runtime/retrieval.md).
 
 ---
 
@@ -268,7 +268,6 @@ share an `InMemoryVectorBackend` without leaking data across.
 
 - **Boolean filter DSL.** Filters are flat `dict[str, Any]` equality. If
   you need `OR` / `is_in` / range, post-filter in Python or open an issue.
-- **Cross-process embedding-model guard.** The current check is in-memory.
 - **Hybrid search (BM25 + vector).** Today's `Store` protocol is dense-only.
 - **Reranker stage.** Add one yourself in user code; a built-in `Reranker`
   protocol is on the roadmap.

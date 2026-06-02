@@ -336,7 +336,7 @@ of unchanged documents. Without a stable `source`, every run looks
 
 ## See also
 
-- [Loading overview](index.md): the `Document` object, `BaseDocumentLoader`
+- [Loading overview](base.md): the `Document` object, `BaseDocumentLoader`
   contract, the loader → chunker handoff.
 - [Chunking methods](../chunking/methods.md): what to do with the
   `Document`s these loaders produce.

@@ -160,8 +160,10 @@ class RetrievalRuntime:
             tokenizer = TiktokenTokenizer()
         self._tokenizer = tokenizer
         # Captured on the first successful embedded batch and checked at
-        # retrieve time; in-process only.
+        # retrieve time; survives process restarts by lazy-seeding from
+        # an existing store entry on the first ingest/retrieve.
         self._captured_model: str | None = None
+        self._seed_attempted: bool = False
 
     @property
     def store(self) -> Store:
@@ -419,9 +421,12 @@ class RetrievalRuntime:
         """Lazily seed ``_captured_model`` from an existing store entry so the
         guard survives across process restarts. ``StoreEntry.embedding_model``
         is recorded on every persisted entry, so a single ``find`` call is
-        enough — no schema change required."""
-        if self._captured_model is not None:
+        enough — no schema change required. Runs at most once per runtime;
+        a miss against an empty store sets ``_seed_attempted`` so we don't
+        re-query on every doc."""
+        if self._captured_model is not None or self._seed_attempted:
             return
+        self._seed_attempted = True
         existing = await self._store.find({}, limit=1)
         if existing and existing[0].embedding_model:
             self._captured_model = existing[0].embedding_model

@@ -1,6 +1,6 @@
 # Chunking
 
-Chunking turns each [`Document`](../ingestion/index.md#the-document-object)
+Chunking turns each [`Document`](../ingestion/base.md#the-document-object)
 produced by a loader into a list of smaller **`Chunk`** objects. Embedders,
 stores, and retrieval all operate on chunks, not whole documents.
 
@@ -71,9 +71,9 @@ and you should too unless you have a specific reason not to.
     [`asyncio.to_thread`](https://docs.python.org/3/library/asyncio-task.html#asyncio.to_thread).
     That keeps the event loop responsive for pure text splitting, but it
     ties up a worker thread per call. If your chunker genuinely needs
-    async I/, e.g., a remote tokenization service., override
-    `achunk()` directly with a real async implementation rather than
-    leaning on the default `to_thread` wrapper.
+    async I/O (e.g. a remote tokenization service), override `achunk()`
+    directly with a real async implementation rather than leaning on the
+    default `to_thread` wrapper.
 
 ---
 
@@ -99,7 +99,7 @@ Content: 'Chunkers are useful for breaking up large texts for retrieval and ques
 
 - **[Built-in Methods](methods.md)**: parameters, defaults, and when to
   use each chunker.
-- **[Ingestion components](../ingestion/index.md)**: producing
+- **[Ingestion components](../ingestion/base.md)**: producing
   `Document` instances upstream.
-- **[Embeddings](../../embeddings/index.md)**: vectorizing the chunks
+- **[Embeddings](../embeddings/overview.md)**: vectorizing the chunks
   this stage produces.

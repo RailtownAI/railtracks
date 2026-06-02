@@ -17,7 +17,7 @@ For the embedders that ship (OpenAI, Azure, Ollama, LiteLLM) see
 
 ---
 
-## The EmbeddedChunk object`
+## The `EmbeddedChunk` object
 
 The output of the embedding stage is a list of `EmbeddedChunk` instances -
 one per input chunk:
@@ -157,7 +157,7 @@ implement `_embed_sync`. The mixin runs it in a thread pool via
 
 - **[Built-in Methods](methods.md)**: all provider classes, parameters,
   and when to use each.
-- **[Chunking overview](../components/chunking/index.md)**: producing
+- **[Chunking overview](../chunking/base.md)**: producing
   `Chunk` objects upstream.
-- **[Stores overview](../components/stores/index.md)**: where the
+- **[Stores overview](../stores/base.md)**: where the
   resulting vectors land.
