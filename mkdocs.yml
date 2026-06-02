@@ -95,27 +95,25 @@ nav:
             - Built-in Guardrails: documentation/advanced/guardrails/builtin_guardrails.md
         - Agent Context: documentation/advanced/context.md
 
-  - RAG:
-    - RAG: rag/RAG.md
+  - Retrieval:
+    - Retrieval Runtime:
+      - Quickstart: retrieval/runtime/quickstart.md
+      - Ingestion: retrieval/runtime/ingestion.md
+      - Retrieval: retrieval/runtime/retrieval.md
     - Components:
-      - Design: rag/components/design.md
-      - Ingestion:
-          - Overview: rag/components/ingestion/overview.md
-          - Text and Markdown: rag/components/ingestion/text_markdown.md
-          - CSV: rag/components/ingestion/csv.md
-          - PDFs: rag/components/ingestion/pdfs.md
-          - Hugging Face Datasets: rag/components/ingestion/huggingface.md
-          - LangChain Loaders: rag/components/ingestion/langchain.md
-          - Custom Ingestors: rag/components/ingestion/custom.md
+      - Design: retrieval/components/design.md
+      - Loading:
+          - Base Class: retrieval/components/ingestion/base.md
+          - Built-in Loaders: retrieval/components/ingestion/methods.md
       - Chunking:
-          - Overview: rag/components/chunking/overview.md
-          - Built-in Methods: rag/components/chunking/methods.md
+          - Base Class: retrieval/components/chunking/base.md
+          - Built-in Methods: retrieval/components/chunking/methods.md
       - Embeddings:
-        - Overview: rag/embeddings/overview.md
-        - Built-in Methods: rag/embeddings/methods.md
+        - Overview: retrieval/components/embeddings/overview.md
+        - Built-in Methods: retrieval/components/embeddings/methods.md
       - Stores:
-          - Overview: rag/components/stores/overview.md
-          - Backends: rag/components/stores/backends.md
+          - Base Class: retrieval/components/stores/base.md
+          - Backends: retrieval/components/stores/backends.md
 
   - Evaluations:
     - Preface: evaluations/preface.md

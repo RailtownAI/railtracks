@@ -106,10 +106,12 @@ class RetrievalRuntime:
     """Orchestrates loading, chunking, embedding, storage, and retrieval.
 
     The runtime captures *how* to process documents (chunker + embedder +
-    store + scope); the loader passed to :meth:`ingest` decides *what* to
+    store); the loader passed to :meth:`ingest` decides *what* to
     process. A single runtime can ingest from multiple sources, mix
     chunking strategies via separate runtimes against the same store,
-    and update existing documents by re-ingesting them.
+    and update existing documents by re-ingesting them. Multi-tenant
+    callers share one runtime and pass ``scope`` per :meth:`ingest` or
+    :meth:`retrieve` call.
 
     Args:
         chunker: Splits documents into chunks.
@@ -118,8 +120,6 @@ class RetrievalRuntime:
         batch_size: Items per embedding batch. Falls back to
             ``embedder.default_batch_size`` when omitted; raises
             ``ValueError`` at construction if neither is set.
-        scope: Applied to every entry written and to every read query.
-            Single-tenant callers can leave this ``None``.
         on_ingest: Synchronous callback invoked with each ``IngestionEvent``
             as it is yielded. Wrap in ``asyncio.create_task`` for async logging.
         on_retrieve: Synchronous callback invoked with the query string and
@@ -139,7 +139,6 @@ class RetrievalRuntime:
         store: Store,
         *,
         batch_size: int | None = None,
-        scope: StoreScope | None = None,
         on_ingest: Callable[
             [BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped], None
         ]
@@ -151,7 +150,6 @@ class RetrievalRuntime:
         self._chunker = chunker
         self._embedder = embedder
         self._store = store
-        self._scope = scope
         self._batch_size = self._resolve_batch_size(batch_size, embedder)
         self._on_ingest = on_ingest
         self._on_retrieve = on_retrieve
@@ -162,8 +160,10 @@ class RetrievalRuntime:
             tokenizer = TiktokenTokenizer()
         self._tokenizer = tokenizer
         # Captured on the first successful embedded batch and checked at
-        # retrieve time; in-process only.
+        # retrieve time; survives process restarts by lazy-seeding from
+        # an existing store entry on the first ingest/retrieve.
         self._captured_model: str | None = None
+        self._seed_attempted: bool = False
 
     @property
     def store(self) -> Store:
@@ -176,10 +176,6 @@ class RetrievalRuntime:
     @property
     def chunker(self) -> Chunker:
         return self._chunker
-
-    @property
-    def scope(self) -> StoreScope | None:
-        return self._scope
 
     @property
     def batch_size(self) -> int:
@@ -201,11 +197,19 @@ class RetrievalRuntime:
         return bs
 
     async def ingest(
-        self, loader: BaseDocumentLoader
+        self,
+        loader: BaseDocumentLoader,
+        *,
+        scope: StoreScope | None = None,
     ) -> AsyncGenerator[
         BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped, None
     ]:
         """Stream loader → chunker → embedder → store, yielding per-batch events.
+
+        Args:
+            loader: Source of ``Document`` objects to ingest.
+            scope: Tag written onto every ``StoreEntry`` produced by this
+                call. Single-tenant callers can leave this ``None``.
 
         Yields:
             ``BatchIngested`` after each successful batch finishes writing,
@@ -215,15 +219,20 @@ class RetrievalRuntime:
             still written; ``DocumentFailed`` signals the partial state.
         """
         stats = IngestionStats()
-        async for event in self._ingest_with_stats(loader, stats):
+        async for event in self._ingest_with_stats(loader, stats, scope):
             if self._on_ingest is not None:
                 self._on_ingest(event)
             yield event
 
-    async def ingest_all(self, loader: BaseDocumentLoader) -> IngestionStats:
+    async def ingest_all(
+        self,
+        loader: BaseDocumentLoader,
+        *,
+        scope: StoreScope | None = None,
+    ) -> IngestionStats:
         """Drain `ingest` and return aggregate counts."""
         stats = IngestionStats()
-        async for event in self._ingest_with_stats(loader, stats):
+        async for event in self._ingest_with_stats(loader, stats, scope):
             if self._on_ingest is not None:
                 self._on_ingest(event)
         return stats
@@ -232,20 +241,23 @@ class RetrievalRuntime:
         self,
         loader: BaseDocumentLoader,
         stats: IngestionStats,
+        scope: StoreScope | None,
     ) -> AsyncGenerator[
         BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped, None
     ]:
         async for doc in loader.astream():
-            async for event in self._ingest_document(doc, stats):
+            async for event in self._ingest_document(doc, stats, scope):
                 yield event
 
     async def _ingest_document(
-        self, doc: Document, stats: IngestionStats
+        self, doc: Document, stats: IngestionStats, scope: StoreScope | None
     ) -> AsyncGenerator[
         BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped, None
     ]:
         stats.documents_loaded += 1
         doc.content_hash = _content_hash(doc.content)
+
+        await self._ensure_captured_model_seeded()
 
         if await self._is_complete_duplicate(doc):
             stats.documents_skipped += 1
@@ -279,7 +291,7 @@ class RetrievalRuntime:
         for chunk in chunks:
             chunk.metadata["doc_chunk_count"] = len(chunks)
 
-        async for event in self._embed_and_store(doc, chunks, stats, doc_errors):
+        async for event in self._embed_and_store(doc, chunks, stats, doc_errors, scope):
             yield event
 
         if doc_errors:
@@ -356,6 +368,7 @@ class RetrievalRuntime:
         chunks: list[Chunk],
         stats: IngestionStats,
         doc_errors: list[Exception],
+        scope: StoreScope | None,
     ) -> AsyncGenerator[
         BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped, None
     ]:
@@ -367,12 +380,15 @@ class RetrievalRuntime:
             chunks, batch_size=self._batch_size
         ):
             if isinstance(batch, EmbeddingResult):
+                # Check model BEFORE delete_where / write — a mismatch here
+                # must not corrupt the store by clearing prior chunks first.
+                self._check_model(batch.metrics.model)
                 if not delete_done:
                     await self._store.delete_where({"document_id": str(doc.id)})
                     delete_done = True
                 for embedded in batch.chunks:
                     self._capture_model(embedded)
-                    entry = StoreEntry.from_chunk(embedded, scope=self._scope)
+                    entry = StoreEntry.from_chunk(embedded, scope=scope)
                     await self._store.write(entry)
                 stats.chunks_embedded += len(batch.chunks)
                 stats.total_metrics = stats.total_metrics + batch.metrics
@@ -399,6 +415,39 @@ class RetrievalRuntime:
                 "from first successful batch; subsequent retrieve() "
                 "calls will enforce this model.",
                 self._captured_model,
+            )
+
+    async def _ensure_captured_model_seeded(self) -> None:
+        """Lazily seed ``_captured_model`` from an existing store entry so the
+        guard survives across process restarts. ``StoreEntry.embedding_model``
+        is recorded on every persisted entry, so a single ``find`` call is
+        enough — no schema change required. Runs at most once per runtime;
+        a miss against an empty store sets ``_seed_attempted`` so we don't
+        re-query on every doc."""
+        if self._captured_model is not None or self._seed_attempted:
+            return
+        self._seed_attempted = True
+        existing = await self._store.find({}, limit=1)
+        if existing and existing[0].embedding_model:
+            self._captured_model = existing[0].embedding_model
+            logger.info(
+                "RetrievalRuntime seeded captured embedding model %r from "
+                "an existing store entry; mismatched embedders will raise.",
+                self._captured_model,
+            )
+
+    def _check_model(self, embed_model: str | None) -> None:
+        """Raise if ``embed_model`` disagrees with the captured model."""
+        if (
+            self._captured_model is not None
+            and embed_model
+            and embed_model != self._captured_model
+        ):
+            raise EmbeddingModelMismatchError(
+                f"Embedder produced vectors with model {embed_model!r} but "
+                f"store was built with {self._captured_model!r}. Similarity "
+                "scores across models are meaningless; rebuild the store "
+                "with the correct embedder or switch embedders."
             )
 
     @staticmethod
@@ -435,29 +484,20 @@ class RetrievalRuntime:
             query: The text to embed and search with.
             top_k: Maximum number of results.
             metadata_filters: Additional equality filters on chunk metadata.
-            scope: Overrides the runtime's default scope for this call.
+            scope: Restricts the search to entries written with the same
+                scope. Leave ``None`` to search across all scopes.
 
         Raises:
             EmbeddingModelMismatchError: When the embedder reports a model
                 different from the one captured on first ingest.
         """
+        await self._ensure_captured_model_seeded()
         text_result = await self._embedder.aembed([query])
-        embed_model = text_result.metrics.model
-        if (
-            self._captured_model is not None
-            and embed_model
-            and embed_model != self._captured_model
-        ):
-            raise EmbeddingModelMismatchError(
-                f"Embedder produced vectors with model {embed_model!r} but "
-                f"store was built with {self._captured_model!r}. Similarity "
-                "scores across models are meaningless; rebuild the store "
-                "with the correct embedder or switch embedders."
-            )
+        self._check_model(text_result.metrics.model)
 
         store_query = StoreQuery(
             text=query,
-            scope=scope if scope is not None else self._scope,
+            scope=scope,
             embedding=text_result.vectors[0],
             top_k=top_k,
             metadata_filters=metadata_filters,

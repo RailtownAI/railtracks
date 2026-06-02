@@ -7,9 +7,7 @@ from uuid import uuid4
 
 from railtracks.retrieval.models import Chunk, EmbeddedChunk
 from railtracks.retrieval.stores.models import (
-    DetailLevel,
     RetrievedStoreEntry,
-    StoreCategory,
     StoreEntry,
     StoreQuery,
     StoreScope,
@@ -31,30 +29,45 @@ def _make_entry(
         document_id=uuid4(),
         abstract=abstract,
         summary=summary,
-        scope=StoreScope(user_id=user_id),
+        scope=StoreScope(labels={"user_id": user_id}),
     )
 
 
 def test_store_scope_is_frozen():
-    scope = StoreScope(user_id="alice")
+    scope = StoreScope(labels={"user_id": "alice"})
     try:
-        scope.user_id = "bob"  # type: ignore[misc]
+        scope.labels = {"user_id": "bob"}  # type: ignore[misc]
     except FrozenInstanceError:
         return
     raise AssertionError("StoreScope should be frozen")
 
 
-def test_store_scope_to_payload_filters_omits_none():
-    scope = StoreScope(user_id="alice", agent_id="agent-1")
-    result = scope.to_payload_filters()
-    assert result == {"scope_user_id": "alice", "scope_agent_id": "agent-1"}
-    assert "scope_session_id" not in result
-    assert "scope_run_id" not in result
+def test_store_scope_to_payload_filters_prefixes_keys():
+    scope = StoreScope(labels={"user_id": "alice", "agent_id": "agent-1"})
+    assert scope.to_payload_filters() == {
+        "scope_user_id": "alice",
+        "scope_agent_id": "agent-1",
+    }
 
 
 def test_store_scope_to_payload_filters_empty():
-    scope = StoreScope()
-    assert scope.to_payload_filters() == {}
+    assert StoreScope().to_payload_filters() == {}
+
+
+def test_store_scope_accepts_arbitrary_dimensions():
+    scope = StoreScope(labels={"organization": "acme", "environment": "prod"})
+    assert scope.to_payload_filters() == {
+        "scope_organization": "acme",
+        "scope_environment": "prod",
+    }
+
+
+def test_store_scope_accepts_non_string_scalars():
+    scope = StoreScope(labels={"account_id": 42, "is_prod": True})
+    assert scope.to_payload_filters() == {
+        "scope_account_id": 42,
+        "scope_is_prod": True,
+    }
 
 
 def test_store_entry_stores_all_fields():
@@ -62,9 +75,8 @@ def test_store_entry_stores_all_fields():
     assert entry.content == "hello world"
     assert entry.abstract == "an abstract"
     assert entry.summary == "a summary"
-    assert entry.scope.user_id == "alice"
+    assert entry.scope.labels == {"user_id": "alice"}
     assert entry.entities is None
-    assert entry.store_category is None
     assert entry.valid_from is None
     assert entry.valid_until is None
     assert entry.created_at is not None
@@ -92,7 +104,7 @@ def test_store_entry_content_accessible():
 def test_store_entry_from_chunk():
     chunk = Chunk(content="chunk text", document_id=uuid4(), index=3)
     embedded = EmbeddedChunk(chunk=chunk, vector=[0.1, 0.2], embedding_model="toy", embedding_version="v2")
-    scope = StoreScope(user_id="alice")
+    scope = StoreScope(labels={"user_id": "alice"})
 
     entry = StoreEntry.from_chunk(
         embedded,
@@ -125,31 +137,14 @@ def test_store_entry_from_chunk_minimal():
 
 def test_store_query_defaults():
     query = StoreQuery(text="hello", scope=StoreScope())
-    assert query.detail_level is DetailLevel.L2
     assert query.top_k == 10
     assert query.embedding is None
     assert query.metadata_filters is None
-    assert query.store_category is None
 
 
 def test_store_query_scope_optional():
     query = StoreQuery(text="hello")
     assert query.scope is None
-
-
-def test_store_category_values():
-    assert StoreCategory.EPISODIC.value == "episodic"
-    assert StoreCategory.SEMANTIC.value == "semantic"
-    assert StoreCategory.SKILL.value == "skill"
-    assert StoreCategory.PROCEDURAL.value == "procedural"
-
-
-def test_store_category_is_str_enum():
-    assert StoreCategory("episodic") is StoreCategory.EPISODIC
-
-
-def test_detail_level_l2_value():
-    assert DetailLevel.L2.value == "full"
 
 
 def test_retrieved_store_entry():

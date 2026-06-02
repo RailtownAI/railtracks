@@ -20,9 +20,8 @@ from railtracks.retrieval import (
     EmbeddingFailure,
     EmbeddingModelMismatchError,
     RetrievalRuntime,
-    StoreScope,
-    VectorStore,
 )
+from railtracks.retrieval.stores import StoreScope, VectorStore
 from railtracks.retrieval.chunking.base import Chunker
 from railtracks.retrieval.embedding.base import Embedding
 from railtracks.retrieval.embedding.models import EmbeddingMetrics, TextEmbeddings
@@ -95,7 +94,6 @@ def _runtime(
     embedder: Embedding | None = None,
     store: VectorStore | None = None,
     batch_size: int | None = None,
-    scope: StoreScope | None = None,
 ) -> tuple[RetrievalRuntime, VectorStore, _FakeEmbedder]:
     embedder = embedder or _FakeEmbedder()
     store = store or _store()
@@ -104,7 +102,6 @@ def _runtime(
         embedder=embedder,
         store=store,
         batch_size=batch_size,
-        scope=scope,
     )
     return runtime, store, embedder  # type: ignore[return-value]
 
@@ -293,9 +290,27 @@ async def test_retrieve_passes_metadata_filters():
     assert seen_queries[-1].metadata_filters == {"kind": "test"}
 
 
-async def test_retrieve_uses_runtime_scope_when_not_overridden():
-    scope = StoreScope(user_id="alice")
-    runtime, store, _ = _runtime(scope=scope)
+async def test_retrieve_passes_scope_to_store():
+    """Scope passed to retrieve() is forwarded onto the StoreQuery."""
+    runtime, store, _ = _runtime()
+    seen_queries = []
+    real_read = store.read
+
+    async def tracking_read(query):
+        seen_queries.append(query)
+        return await real_read(query)
+
+    store.read = tracking_read  # type: ignore[method-assign]
+
+    scope = StoreScope(labels={"user_id": "alice"})
+    await runtime.ingest_all(_ListLoader([Document(content="alpha")]), scope=scope)
+    await runtime.retrieve("alpha", scope=scope)
+    assert seen_queries[-1].scope == scope
+
+
+async def test_retrieve_without_scope_searches_unscoped():
+    """No scope on retrieve → no scope filter applied at the store layer."""
+    runtime, store, _ = _runtime()
     seen_queries = []
     real_read = store.read
 
@@ -307,24 +322,28 @@ async def test_retrieve_uses_runtime_scope_when_not_overridden():
 
     await runtime.ingest_all(_ListLoader([Document(content="alpha")]))
     await runtime.retrieve("alpha")
-    assert seen_queries[-1].scope == scope
+    assert seen_queries[-1].scope is None
 
 
-async def test_retrieve_scope_arg_overrides_runtime_scope():
-    runtime, store, _ = _runtime(scope=StoreScope(user_id="alice"))
-    seen_queries = []
-    real_read = store.read
+async def test_ingest_writes_entries_with_call_scope():
+    """Scope passed to ingest() ends up on every written StoreEntry."""
+    runtime, store, _ = _runtime()
+    alice = StoreScope(labels={"user_id": "alice"})
+    bob = StoreScope(labels={"user_id": "bob"})
 
-    async def tracking_read(query):
-        seen_queries.append(query)
-        return await real_read(query)
+    await runtime.ingest_all(
+        _ListLoader([Document(content="alpha beta", source="a")]),
+        scope=alice,
+    )
+    await runtime.ingest_all(
+        _ListLoader([Document(content="gamma delta", source="b")]),
+        scope=bob,
+    )
 
-    store.read = tracking_read  # type: ignore[method-assign]
-
-    override = StoreScope(user_id="bob")
-    await runtime.ingest_all(_ListLoader([Document(content="alpha")]))
-    await runtime.retrieve("alpha", scope=override)
-    assert seen_queries[-1].scope == override
+    alice_entries = await store.find({"scope_user_id": "alice"}, limit=10)
+    bob_entries = await store.find({"scope_user_id": "bob"}, limit=10)
+    assert {e.content for e in alice_entries} == {"alpha", "beta"}
+    assert {e.content for e in bob_entries} == {"gamma", "delta"}
 
 
 async def test_retrieve_raises_on_model_mismatch():
@@ -337,6 +356,32 @@ async def test_retrieve_raises_on_model_mismatch():
 
     with pytest.raises(EmbeddingModelMismatchError):
         await runtime.retrieve("alpha")
+
+
+async def test_fresh_runtime_catches_cross_process_model_mismatch():
+    """The model guard survives process restarts: a brand-new runtime
+    pointed at an existing store seeds ``_captured_model`` from any
+    entry on disk, so a mismatched embedder is caught at the next
+    ingest or retrieve."""
+    store = _store()
+
+    # "Process 1": writes with model-v1.
+    runtime_v1, _, _ = _runtime(store=store, embedder=_FakeEmbedder(model="model-v1"))
+    await runtime_v1.ingest_all(_ListLoader([Document(content="alpha beta")]))
+    assert len(await store.find({}, limit=10)) == 2
+
+    # "Process 2": fresh runtime, different embedder, same store.
+    runtime_v2, _, _ = _runtime(store=store, embedder=_FakeEmbedder(model="model-v2"))
+
+    with pytest.raises(EmbeddingModelMismatchError):
+        await runtime_v2.retrieve("alpha")
+
+    with pytest.raises(EmbeddingModelMismatchError):
+        await runtime_v2.ingest_all(_ListLoader([Document(content="gamma delta")]))
+
+    # Mismatch must abort before any writes — store still holds only
+    # the two model-v1 chunks.
+    assert len(await store.find({}, limit=10)) == 2
 
 
 async def test_document_id_is_deterministic_from_source():
@@ -381,19 +426,16 @@ async def test_reingest_with_default_id_replaces_prior_version():
 async def test_runtime_exposes_public_properties():
     embedder = _FakeEmbedder()
     store = _store()
-    scope = StoreScope(user_id="alice")
     runtime = RetrievalRuntime(
         chunker=_OneChunkPerWordChunker(),
         embedder=embedder,
         store=store,
         batch_size=3,
-        scope=scope,
     )
 
     assert runtime.store is store
     assert runtime.embedder is embedder
     assert isinstance(runtime.chunker, _OneChunkPerWordChunker)
-    assert runtime.scope is scope
     assert runtime.batch_size == 3
     assert runtime.max_tokens is None
 
