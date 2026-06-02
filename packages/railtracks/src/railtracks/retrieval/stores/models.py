@@ -25,10 +25,10 @@ class StoreScope:
     write and read. The retrieval module is agnostic about what dimensions
     you scope by — pick whichever axes fit your tenancy model::
 
-        StoreScope(labels={"user_id": "alice"})                              # SaaS tenancy
-        StoreScope(labels={"organization": "acme", "environment": "prod"})   # B2B
-        StoreScope(labels={"agent_id": "docs-bot", "session_id": "s1"})      # agent context
-        StoreScope(labels={"account_id": 42, "is_prod": True})               # non-string scalars
+        StoreScope(labels={"user_id": "alice"})  # SaaS tenancy
+        StoreScope(labels={"organization": "acme", "environment": "prod"})  # B2B
+        StoreScope(labels={"agent_id": "docs-bot", "session_id": "s1"})  # agent context
+        StoreScope(labels={"account_id": 42, "is_prod": True})  # non-string scalars
 
     The ``scope_`` prefix applied in :meth:`to_payload_filters` avoids key
     collisions in flat payload dicts that also carry content fields.

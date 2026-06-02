@@ -75,8 +75,7 @@ class GCSLoader(BaseDocumentLoader):
         if self._prefix is not None:
             kwargs["prefix"] = self._prefix
         return [
-            blob.name
-            for blob in self._client.list_blobs(self._bucket_name, **kwargs)
+            blob.name for blob in self._client.list_blobs(self._bucket_name, **kwargs)
         ]
 
     def _fetch_document(self, name: str) -> Document:
