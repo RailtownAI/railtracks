@@ -52,7 +52,11 @@ visual = [
     "uvicorn[standard] >= 0.24.0",
 ]
 # For each Integration package dependencies go here.
-rag = ["tiktoken>=0.10.0, <=0.12.0"]
+portkey = ["portkey_ai >= 2.0.2"]
+
+# Retrieval-stack extras. These are not pulled in by `[all]` — install
+# `railtracks[retrieval]` to opt in.
+tiktok = ["tiktoken>=0.10.0, <=0.12.0"]
 pdf = ["pypdf >= 4.0.0, <= 6.10.2"]
 ocr = [
     "pypdfium2 >= 4.30.0",
@@ -65,7 +69,6 @@ chroma = [
     "chromadb >= 1.3.0",
     "pdfplumber >= 0.10.1",
 ]
-portkey = ["portkey_ai >= 2.0.2"]
 aws = ["boto3 >= 1.26.0"]
 azure-blob = [
     "azure-storage-blob >= 12.0.0",
@@ -76,16 +79,20 @@ sql = ["sqlalchemy >= 2.0.0"]
 stores-vector = ["asyncpg>=0.29", "pgvector>=0.3"]
 stores-chroma = ["chromadb>1.3.0"]
 stores-all = ["railtracks[stores-vector]", "railtracks[stores-chroma]"]
-integrations = [
-    "railtracks[portkey]",
+retrieval = [
+    "railtracks[tiktok]",
+    "railtracks[pdf]",
+    "railtracks[ocr]",
+    "railtracks[huggingface]",
     "railtracks[chroma]",
     "railtracks[aws]",
     "railtracks[azure-blob]",
     "railtracks[gcp]",
     "railtracks[sql]",
-    "railtracks[huggingface]"
+    "railtracks[stores-all]",
 ]
-all = ["railtracks[visual]", "railtracks[integrations]", "railtracks[rag]", "railtracks[pdf]", "railtracks[stores-all]"]
+
+all = ["railtracks[visual]", "railtracks[portkey]"]
 
 [project.scripts]
 railtracks = "railtracks.cli:main"
