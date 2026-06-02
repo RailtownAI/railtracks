@@ -26,9 +26,8 @@ class Flow(Generic[_P, _TOutput]):
 
     A ``Flow`` binds an entry-point node to a fixed set of runtime options
     (context, timeout, callbacks, etc.) so the same configuration can be
-    invoked repeatedly without repeating arguments.  Each call to
-    :meth:`invoke` / :meth:`ainvoke` creates an isolated :class:`Session` —
-    flows never share state between runs.
+    invoked repeatedly without repeating arguments.  Each invocation is fully
+    isolated — flows never share state between runs.
 
     Typical usage::
 
@@ -50,7 +49,7 @@ class Flow(Generic[_P, _TOutput]):
         timeout: Maximum seconds to wait for the top-level call to complete.
             ``None`` means no limit.
         end_on_error: When ``True``, the first unhandled exception aborts the
-            run immediately.  Defaults to the session-level setting.
+            run immediately.
         broadcast_callback: Called with each broadcast string emitted by
             ``rt.broadcast()``.  May be sync or async.
         prompt_injection: When ``True``, prompt text is automatically injected
@@ -115,9 +114,7 @@ class Flow(Generic[_P, _TOutput]):
     async def ainvoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
         """Run the flow asynchronously and return the entry-point result.
 
-        Creates a new :class:`Session`, executes the entry-point node with
-        the supplied arguments, then tears down the session.  This is the
-        preferred invocation path — call it directly from any async context::
+        Preferred invocation path — call it directly from any async context::
 
             result = await flow.ainvoke(arg1, arg2)
 
@@ -159,8 +156,8 @@ class Flow(Generic[_P, _TOutput]):
         - **Running loop** (Jupyter, FastAPI, async test runner) —
           submits the coroutine to a ``ThreadPoolExecutor`` running its own
           fresh event loop.  ``contextvars.copy_context()`` propagates the
-          current context into the worker thread so Session and logging
-          ContextVars are visible inside the run.
+          current context into the worker thread so all ContextVars are
+          visible inside the run.
 
         .. note::
             Prefer ``await flow.ainvoke()`` in async contexts — ``invoke``
@@ -188,8 +185,7 @@ class Flow(Generic[_P, _TOutput]):
         """Return a stable hash that identifies this flow's configuration.
 
         Two flows with the same name produce the same hash regardless of
-        other parameters (timeout, context, etc.).  Used internally to
-        tag session records with a flow identity that survives restarts.
+        other parameters (timeout, context, etc.).
         """
         config_string = json.dumps(self._get_hash_content(), sort_keys=True)
         return hashlib.sha256(config_string.encode()).hexdigest()
