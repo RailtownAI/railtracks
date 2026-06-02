@@ -24,40 +24,29 @@ _P = ParamSpec("_P")
 class Flow(Generic[_P, _TOutput]):
     """A reusable, configured entry point for running an agent graph.
 
-    A ``Flow`` binds an entry-point node to a fixed set of runtime options
-    (context, timeout, callbacks, etc.) so the same configuration can be
-    invoked repeatedly without repeating arguments.  Each invocation is fully
-    isolated — flows never share state between runs.
+    Binds an entry-point node to a fixed set of runtime options so the same
+    configuration can be invoked repeatedly.  Each invocation is fully isolated.
 
     Typical usage::
 
         flow = Flow("my-agent", entry_point=my_node, context={"user": "alice"})
-
-        # async (preferred — native event loop, no overhead)
-        result = await flow.ainvoke(query)
-
-        # sync (works in scripts and Jupyter; dispatches to a worker thread
-        # when an event loop is already running)
-        result = flow.invoke(query)
+        result = await flow.ainvoke(query)   # async (preferred)
+        result = flow.invoke(query)          # sync
 
     Args:
         name: Unique human-readable name used in logging and state filenames.
         entry_point: The node (or decorated function) that starts the graph.
-        context: Key/value pairs made available to every node via
-            ``rt.context`` for the duration of the run.  Deep-copied at
-            invocation time so mutations inside a run never affect later runs.
-        timeout: Maximum seconds to wait for the top-level call to complete.
-            ``None`` means no limit.
-        end_on_error: When ``True``, the first unhandled exception aborts the
-            run immediately.
-        broadcast_callback: Called with each broadcast string emitted by
-            ``rt.broadcast()``.  May be sync or async.
-        prompt_injection: When ``True``, prompt text is automatically injected
-            from context variables before the run starts.
-        save_state: When ``True``, the session state is persisted to
-            ``.railtracks/data/sessions/`` after the run completes.
-        payload_callback: Called with the final result payload once the run
-            finishes successfully.
+        context: Key/value pairs available to every node via ``rt.context``.
+            Deep-copied at invocation time so mutations never affect later runs.
+        timeout: Maximum seconds to wait for the run. ``None`` means no limit.
+        end_on_error: When ``True``, the first unhandled exception aborts the run.
+        broadcast_callback: Called with each string emitted by ``rt.broadcast()``.
+            May be sync or async.
+        prompt_injection: When ``True``, prompt text is injected from context
+            variables before the run starts.
+        save_state: When ``True``, session state is persisted to
+            ``.railtracks/data/sessions/`` after the run.
+        payload_callback: Called with the final result payload on success.
     """
 
     def __init__(
@@ -114,14 +103,6 @@ class Flow(Generic[_P, _TOutput]):
     async def ainvoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
         """Run the flow asynchronously and return the entry-point result.
 
-        Preferred invocation path — call it directly from any async context::
-
-            result = await flow.ainvoke(arg1, arg2)
-
-        Each call is fully isolated: context is deep-copied at the start so
-        mutations inside the run never affect subsequent calls or other
-        concurrent runs.
-
         Args:
             *args: Positional arguments forwarded to the entry-point node.
             **kwargs: Keyword arguments forwarded to the entry-point node.
@@ -148,21 +129,7 @@ class Flow(Generic[_P, _TOutput]):
     def invoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
         """Run the flow synchronously and return the entry-point result.
 
-        Thin synchronous wrapper around :meth:`ainvoke`.  Behaviour depends
-        on whether an event loop is already running in the current thread:
-
-        - **No running loop** (plain script, ``pytest``, etc.) —
-          delegates to ``asyncio.run()``, which creates a fresh event loop.
-        - **Running loop** (Jupyter, FastAPI, async test runner) —
-          submits the coroutine to a ``ThreadPoolExecutor`` running its own
-          fresh event loop.  ``contextvars.copy_context()`` propagates the
-          current context into the worker thread so all ContextVars are
-          visible inside the run.
-
-        .. note::
-            Prefer ``await flow.ainvoke()`` in async contexts — ``invoke``
-            adds thread-dispatch overhead and is provided as a convenience
-            for callers that cannot use ``await``.
+        Prefer ``await flow.ainvoke()`` in async contexts.
 
         Args:
             *args: Positional arguments forwarded to the entry-point node.
@@ -170,6 +137,11 @@ class Flow(Generic[_P, _TOutput]):
 
         Returns:
             The value returned by the entry-point node.
+
+        Note:
+            When no event loop is running, delegates to ``asyncio.run()``.
+            When a loop is already running (e.g. Jupyter, FastAPI), submits
+            the coroutine to a ``ThreadPoolExecutor`` worker thread.
         """
         try:
             asyncio.get_running_loop()
