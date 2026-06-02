@@ -78,6 +78,26 @@ class TestTextLoaderDirectory:
         assert len(docs) == 1
         assert docs[0].content == "keep"
 
+    async def test_directory_recurses_into_subfolders(self, tmp_path):
+        """Files in nested subfolders (e.g. A/B.txt) are picked up."""
+        (tmp_path / "root.txt").write_text("root", encoding="utf-8")
+        sub_a = tmp_path / "A"
+        sub_a.mkdir()
+        (sub_a / "B.txt").write_text("nested", encoding="utf-8")
+        deep = tmp_path / "A" / "deep" / "more"
+        deep.mkdir(parents=True)
+        (deep / "C.md").write_text("# deep", encoding="utf-8")
+
+        docs = await TextLoader(str(tmp_path)).aload()
+        contents = sorted(d.content for d in docs)
+        assert contents == ["# deep", "nested", "root"]
+
+        # source must reflect the actual nested path so downstream code
+        # can reconstruct the relative location.
+        sources = sorted(d.source for d in docs)
+        assert any(str(sub_a / "B.txt") in s for s in sources)
+        assert any(str(deep / "C.md") in s for s in sources)
+
 
 class TestTextLoaderErrors:
     """Tests for error conditions in TextLoader."""

@@ -1,0 +1,101 @@
+# Azure Blob Storage
+
+`AzureBlobLoader` fetches blobs from an Azure Blob Storage container and
+returns them as `Document` objects (`railtracks.retrieval.models.Document`)
+containing UTF-8 decoded content, a `source` URI, and provider metadata
+(`account_url`, `container`, `blob_name`).
+
+## Installation
+
+=== "pip"
+
+    ```bash
+    pip install railtracks[azure-blob]
+    ```
+
+=== "uv"
+
+    ```bash
+    uv add railtracks[azure-blob]
+    ```
+
+## Authentication
+
+Authentication defaults to **`DefaultAzureCredential`**, which automatically resolves
+credentials from the following sources (in order):
+
+1. Environment variables (`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_CLIENT_SECRET`)
+2. Workload identity (Kubernetes)
+3. Managed identity (Azure-hosted compute)
+4. Azure CLI (`az login`)
+5. Azure PowerShell / Visual Studio / IntelliJ
+
+Pass an explicit `credential` to override.
+
+!!! tip "Prefer managed identity over connection strings"
+    Managed identity is the recommended authentication method for Azure-hosted
+    workloads — it requires no secrets and rotates automatically.  Avoid
+    embedding storage account keys or SAS tokens in source code; store them
+    in Azure Key Vault or environment variables instead.
+
+## Basic usage
+
+```python
+--8<-- "docs/scripts/storage_loaders.py:azure_basic"
+```
+
+## Load by prefix
+
+```python
+--8<-- "docs/scripts/storage_loaders.py:azure_prefix"
+```
+
+## Load specific blobs
+
+```python
+--8<-- "docs/scripts/storage_loaders.py:azure_load_keys"
+```
+
+## Async usage
+
+```python
+--8<-- "docs/scripts/storage_loaders.py:azure_async"
+```
+
+!!! note "Async is thread-backed"
+    `aload()` and `astream()` run the synchronous `azure-storage-blob`
+    client on a thread-pool thread via `asyncio.to_thread()`.  This is correct
+    for most workloads; for very high concurrency consider the async Azure SDK
+    (`azure.storage.blob.aio`).
+
+## Override credentials
+
+**SAS token**
+
+```python
+--8<-- "docs/scripts/storage_loaders.py:azure_sas"
+```
+
+**System-assigned or user-assigned managed identity**
+
+```python
+--8<-- "docs/scripts/storage_loaders.py:azure_managed_identity"
+```
+
+## Document fields
+
+Each returned `Document` carries:
+
+| Field / metadata key | Value |
+|---|---|
+| `Document.source` | Full blob URL: `https://<account>.blob.core.windows.net/<container>/<blob>` |
+| `Document.type` | Inferred from file extension; defaults to `TEXT` |
+| `metadata["account_url"]` | Storage account URL |
+| `metadata["container"]` | Container name |
+| `metadata["blob_name"]` | Blob name (path within the container) |
+
+## Full RAG pipeline example
+
+```python
+--8<-- "docs/scripts/storage_loaders.py:pipeline_azure_to_rag"
+```
