@@ -19,13 +19,21 @@ runs:
       with:
         python-version: ${{ inputs.python-version }}
 
+    - name: Compute cache slug from extras
+      id: cache-slug
+      shell: bash
+      run: |
+        slug="${{ inputs.extras }}"
+        slug="${slug//,/+}"
+        echo "value=${slug}" >> "$GITHUB_OUTPUT"
+
     - name: Cache pip dependencies
       uses: actions/cache@v4
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ inputs.extras }}-${{ hashFiles('**/pyproject.toml', '**/requirements*.txt') }}
+        key: ${{ runner.os }}-pip-${{ steps.cache-slug.outputs.value }}-${{ hashFiles('**/pyproject.toml', '**/requirements*.txt') }}
         restore-keys: |
-          ${{ runner.os }}-pip-${{ inputs.extras }}-
+          ${{ runner.os }}-pip-${{ steps.cache-slug.outputs.value }}-
           ${{ runner.os }}-pip-
 
     - name: Install dependencies

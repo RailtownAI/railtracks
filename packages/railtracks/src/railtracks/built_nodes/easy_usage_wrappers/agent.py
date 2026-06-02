@@ -17,8 +17,6 @@ from railtracks.built_nodes.concrete import (
     TerminalLLM,
     ToolCallLLM,
 )
-from railtracks.built_nodes.concrete._llm_base import LLMBase
-from railtracks.built_nodes.concrete.rag import RagConfig, update_context
 from railtracks.built_nodes.concrete.structured_llm_base import StreamingStructuredLLM
 from railtracks.built_nodes.concrete.terminal_llm_base import StreamingTerminalLLM
 from railtracks.built_nodes.concrete.tool_call_llm_base import StreamingToolCallLLM
@@ -114,7 +112,6 @@ def _build_dynamic_agent(
 def agent_node(
     name: str | None = None,
     *,
-    rag: RagConfig | None = None,
     tool_nodes: Iterable[Type[Node] | Callable | RTFunction],
     output_schema: Type[_TBaseModel],
     llm: ModelBase[Literal[False]] | None = None,
@@ -129,7 +126,6 @@ def agent_node(
 def agent_node(
     name: str | None = None,
     *,
-    rag: RagConfig | None = None,
     tool_nodes: Iterable[Type[Node] | Callable | RTFunction],
     llm: ModelBase[Literal[False]] | None = None,
     system_message: SystemMessage | str | None = None,
@@ -143,7 +139,6 @@ def agent_node(
 def agent_node(
     name: str | None = None,
     *,
-    rag: RagConfig | None = None,
     tool_nodes: Iterable[Type[Node] | Callable | RTFunction],
     llm: ModelBase[Literal[True]],
     system_message: SystemMessage | str | None = None,
@@ -160,7 +155,6 @@ def agent_node(
 def agent_node(
     name: str | None = None,
     *,
-    rag: RagConfig | None = None,
     tool_nodes: Iterable[Type[Node] | Callable | RTFunction],
     output_schema: Type[_TBaseModel],
     llm: ModelBase[Literal[False]] | None = None,
@@ -175,7 +169,6 @@ def agent_node(
 def agent_node(
     name: str | None = None,
     *,
-    rag: RagConfig | None = None,
     tool_nodes: Iterable[Type[Node] | Callable | RTFunction],
     llm: ModelBase[Literal[False]] | None = None,
     system_message: SystemMessage | str | None = None,
@@ -189,7 +182,6 @@ def agent_node(
 def agent_node(
     name: str | None = None,
     *,
-    rag: RagConfig | None = None,
     tool_nodes: Iterable[Type[Node] | Callable | RTFunction],
     llm: ModelBase[Literal[True]],
     system_message: SystemMessage | str | None = None,
@@ -206,7 +198,6 @@ def agent_node(
 def agent_node(
     name: str | None = None,
     *,
-    rag: RagConfig | None = None,
     output_schema: Type[_TBaseModel],
     llm: ModelBase[Literal[False]] | None = None,
     system_message: SystemMessage | str | None = None,
@@ -220,7 +211,6 @@ def agent_node(
 def agent_node(
     name: str | None = None,
     *,
-    rag: RagConfig | None = None,
     output_schema: Type[_TBaseModel],
     llm: ModelBase[Literal[True]],
     system_message: SystemMessage | str | None = None,
@@ -237,7 +227,6 @@ def agent_node(
 def agent_node(
     name: str | None = None,
     *,
-    rag: RagConfig | None = None,
     output_schema: Type[_TBaseModel],
     llm: ModelBase[Literal[False]] | None = None,
     system_message: SystemMessage | str | None = None,
@@ -251,7 +240,6 @@ def agent_node(
 def agent_node(
     name: str | None = None,
     *,
-    rag: RagConfig | None = None,
     output_schema: Type[_TBaseModel],
     llm: ModelBase[Literal[True]],
     system_message: SystemMessage | str | None = None,
@@ -268,7 +256,6 @@ def agent_node(
 def agent_node(
     name: str | None = None,
     *,
-    rag: RagConfig | None = None,
     llm: ModelBase[Literal[False]] | None = None,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
@@ -281,7 +268,6 @@ def agent_node(
 def agent_node(
     name: str | None = None,
     *,
-    rag: RagConfig | None = None,
     llm: ModelBase[Literal[False]] | None = None,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
@@ -294,7 +280,6 @@ def agent_node(
 def agent_node(
     name: str | None = None,
     *,
-    rag: RagConfig | None = None,
     llm: ModelBase[Literal[True]],
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
@@ -307,7 +292,6 @@ def agent_node(
 def agent_node(
     name: str | None = None,
     *,
-    rag: RagConfig | None = None,
     llm: ModelBase[Literal[True]],
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
@@ -319,7 +303,6 @@ def agent_node(
 def agent_node(
     name: str | None = None,
     *,
-    rag: RagConfig | None = None,
     tool_nodes: Iterable[Type[Node] | Callable | RTFunction] | None = None,
     output_schema: Type[_TBaseModel] | None = None,
     llm: ModelBase[_TStream] | None = None,
@@ -332,7 +315,6 @@ def agent_node(
 
     Args:
         name (str | None): The name of the agent. If none the default will be used.
-        rag (RagConfig | None): If your agent is a rag agent put in the vector store it is connected to.
         tool_nodes (set[Type[Node] | Callable | RTFunction] | None): If your agent is a LLM with access to tools, what does it have access to?
         output_schema (Type[_TBaseModel] | None): If your agent should return a structured output, what is the output_schema?
         llm (ModelBase): The LLM model to use. If None it will need to be passed in at instance time.
@@ -350,7 +332,7 @@ def agent_node(
         tool_details = None
         tool_params = None
 
-    agent = _build_dynamic_agent(
+    return _build_dynamic_agent(
         unpacked_tool_nodes=unpacked_tool_nodes,
         output_schema=output_schema,
         name=name,
@@ -360,18 +342,3 @@ def agent_node(
         tool_params=tool_params,
         guardrails=guardrails,
     )
-
-    if rag is not None:
-
-        async def _update_message_history(node: Node):
-            # `pre_invokes` may be shared across Node subclasses; only LLM agents
-            # have `message_hist` / RAG context to update.
-            if not isinstance(node, LLMBase):
-                return
-            node.message_hist = await update_context(
-                node.message_hist, runtime=rag.runtime, top_k=rag.top_k
-            )
-
-        agent.add_pre_invoke(_update_message_history)
-
-    return agent

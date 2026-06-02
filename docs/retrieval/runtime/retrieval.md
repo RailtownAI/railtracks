@@ -97,11 +97,10 @@ Neither pattern hides the retrieval call; you control the query, the
 embedders, chunkers, or stores by passing a different runtime to the
 agent.
 
-!!! warning "`RagConfig` is being deprecated"
+!!! note "`RagConfig` has been removed"
     Earlier versions exposed a `RagConfig` shortcut that wired the
-    pre-invoke pattern in one line. It's being removed and the patterns
-    above are currently the supported way to attach retrieval to an agent going
-    forward.
+    pre-invoke pattern in one line. It has been removed; the patterns
+    above are the supported way to attach retrieval to an agent.
 
 ---
 
