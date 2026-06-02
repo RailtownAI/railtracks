@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
+import contextvars
 import hashlib
 import json
 from copy import deepcopy
@@ -20,21 +22,31 @@ _P = ParamSpec("_P")
 
 
 class Flow(Generic[_P, _TOutput]):
-    """
-    Initializes a Flow object with a provided entry point and a unique name.
+    """A reusable, configured entry point for running an agent graph.
 
-    A flow object is the configuration where you can run your agent with different input arguments.
+    Binds an entry-point node to a fixed set of runtime options so the same
+    configuration can be invoked repeatedly.  Each invocation is fully isolated.
+
+    Typical usage::
+
+        flow = Flow("my-agent", entry_point=my_node, context={"user": "alice"})
+        result = await flow.ainvoke(query)  # async (preferred)
+        result = flow.invoke(query)  # sync
 
     Args:
-        name (str): A unique name for the flow. This is used for logging and state management.
-        entry_point (Callable | RTSyncFunction | RTAsyncFunction): The starting point of your flow.
-        context (dict[str, Any], optional): Context to be passed to all instantiations (or runs) of this flow. Note that the context can be overridden at invocation time.
-        timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
-        end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
-        broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
-        prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
-        save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
-        payload_callback (Callable[[dict[str, Any]], None], optional): A callback function that will run upon completion of the flow with the final payload as an argument.
+        name: Unique human-readable name used in logging and state filenames.
+        entry_point: The node (or decorated function) that starts the graph.
+        context: Key/value pairs available to every node via ``rt.context``.
+            Deep-copied at invocation time so mutations never affect later runs.
+        timeout: Maximum seconds to wait for the run. ``None`` means no limit.
+        end_on_error: When ``True``, the first unhandled exception aborts the run.
+        broadcast_callback: Called with each string emitted by ``rt.broadcast()``.
+            May be sync or async.
+        prompt_injection: When ``True``, prompt text is injected from context
+            variables before the run starts.
+        save_state: When ``True``, session state is persisted to
+            ``.railtracks/data/sessions/`` after the run.
+        payload_callback: Called with the final result payload on success.
     """
 
     def __init__(
@@ -73,14 +85,31 @@ class Flow(Generic[_P, _TOutput]):
         self._payload_callback = payload_callback
 
     def update_context(self, context: dict[str, Any]) -> Flow[_P, _TOutput]:
-        """
-        Creates a new Flow with the updated context. Note this will include the previous context values.
+        """Return a new Flow with additional context values merged in.
+
+        The original flow is not modified.  Values in ``context`` override
+        any existing keys; keys not present in ``context`` are preserved.
+
+        Args:
+            context: Entries to add or override in the flow's context.
+
+        Returns:
+            A new :class:`Flow` instance with the merged context.
         """
         new_obj = deepcopy(self)
         new_obj._context.update(context)
         return new_obj
 
     async def ainvoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
+        """Run the flow asynchronously and return the entry-point result.
+
+        Args:
+            *args: Positional arguments forwarded to the entry-point node.
+            **kwargs: Keyword arguments forwarded to the entry-point node.
+
+        Returns:
+            The value returned by the entry-point node.
+        """
         with Session(
             context=deepcopy(self._context),
             flow_name=self.name,
@@ -98,17 +127,37 @@ class Flow(Generic[_P, _TOutput]):
         return result
 
     def invoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
+        """Run the flow synchronously and return the entry-point result.
+
+        Prefer ``await flow.ainvoke()`` in async contexts.
+
+        Args:
+            *args: Positional arguments forwarded to the entry-point node.
+            **kwargs: Keyword arguments forwarded to the entry-point node.
+
+        Returns:
+            The value returned by the entry-point node.
+
+        Note:
+            When no event loop is running, delegates to ``asyncio.run()``.
+            When a loop is already running (e.g. Jupyter, FastAPI), submits
+            the coroutine to a ``ThreadPoolExecutor`` worker thread.
+        """
         try:
+            asyncio.get_running_loop()
+        except RuntimeError:
             return asyncio.run(self.ainvoke(*args, **kwargs))
 
-        except RuntimeError:
-            raise RuntimeError(
-                "Cannot invoke flow synchronously within an active event loop. Use 'ainvoke' instead."
-            )
+        ctx = contextvars.copy_context()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(ctx.run, asyncio.run, self.ainvoke(*args, **kwargs))
+            return future.result()
 
     def equality_hash(self) -> str:
-        """
-        Generates a hash based on the flow's configuration for equality checks.
+        """Return a stable hash that identifies this flow's configuration.
+
+        Two flows with the same name produce the same hash regardless of
+        other parameters (timeout, context, etc.).
         """
         config_string = json.dumps(self._get_hash_content(), sort_keys=True)
         return hashlib.sha256(config_string.encode()).hexdigest()
