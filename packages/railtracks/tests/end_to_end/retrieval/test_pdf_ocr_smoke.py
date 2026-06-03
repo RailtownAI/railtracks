@@ -4,16 +4,16 @@ Exercises the full OCR chain against real binaries:
 
     Pillow (synthesize scanned PDF) → pypdfium2 (rasterize) → Tesseract (OCR)
 
-Excluded from regular CI: the `end_to_end/rag` directory is ignored in
-the workspace `pyproject.toml`'s `addopts`, so this only runs when invoked
-explicitly. It requires:
+Excluded from regular CI: the `end_to_end/retrieval` directory is ignored
+in the workspace `pyproject.toml`'s `addopts`, so this only runs when
+invoked explicitly. It requires:
 
     1. `pip install "railtracks[ocr]"` for the Python OCR libs
     2. The Tesseract binary installed and on PATH
 
 Run manually with:
 
-    uv run pytest packages/railtracks/tests/end_to_end/rag/test_pdf_ocr_smoke.py -v -s
+    uv run pytest packages/railtracks/tests/end_to_end/retrieval/test_pdf_ocr_smoke.py -v -s
 """
 
 from __future__ import annotations
