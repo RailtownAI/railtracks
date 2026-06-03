@@ -9,12 +9,6 @@ from typing import (
     ParamSpec,
     TypeVar,
 )
-
-if TYPE_CHECKING:
-    from railtracks.built_nodes.easy_usage_wrappers import (
-        _AsyncNodeAttachedFunc,
-        _SyncNodeAttachedFunc,
-    )
 from railtracks.nodes.nodes import Node
 
 from ._call import call
@@ -25,9 +19,7 @@ _TOutput = TypeVar("_TOutput")
 
 async def call_batch(
     node: Callable[..., Node[_TOutput]]
-    | Callable[..., _TOutput]
-    | _AsyncNodeAttachedFunc[_P, _TOutput]
-    | _SyncNodeAttachedFunc[_P, _TOutput],
+    | Callable[..., _TOutput],
     *iterables: Iterable[Any],
     return_exceptions: bool = True,
 ):
