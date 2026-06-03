@@ -408,32 +408,4 @@ def prepare_string_response(
     return StringResponse(content=content, message_history=message_history)
 
 
-if __name__ == "__main__":
-    # Example usage
-    class RetryNTimes(GatewayWrapper[_TResponse]):
-        def __call__(self, function: GatewayCall[_TResponse]) -> GatewayCall[_TResponse]:
-            async def wrapped(messages, schema, tools):
-                retries = 3
-                for attempt in range(retries):
-                    try:
-                        return await function(messages, schema, tools)
-                    except Exception as e:
-                        print(f"Attempt {attempt + 1} failed with error: {repr(e)}")
-                raise LLMError(
-                    reason=f"All {retries} attempts failed.",
-                    message_history=messages,
-                )
 
-            return wrapped
-
-    class Identity(GatewayPreMapper):
-        async def __call__(self, messages, schema, tools):
-            return messages, schema, tools
-        
-    from railtracks.nodes.mappers import MapInputs
-
-    def some_func(x: MapInputs):
-        pass
-
-    some_func(Identity())
-        
