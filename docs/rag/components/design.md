@@ -76,7 +76,7 @@ railtracks/retrieval/
 ├── errors.py           # EmbeddingModelMismatchError
 ├── models.py           # Document, Chunk, EmbeddedChunk, RetrievedChunk, RetrievalResult
 ├── loaders/            # BaseDocumentLoader + Text/CSV/JSON/PDF/HF loaders + SanitizingLoader
-├── chunking/           # Chunker ABC, FixedToken / Sentence / Recursive / Markdown chunkers, Tokenizer
+├── chunking/           # Chunker ABC, FixedToken / Sentence / Recursive / Markdown / Semantic chunkers, Tokenizer
 ├── embedding/          # Embedding ABC, EmbeddingResult/Failure, LiteLLM-backed providers
 └── stores/             # Store protocol + StoreEntry/StoreQuery/StoreScope models
     └── vector/         # VectorStore (Store-implementing) + InMemory/Chroma/Pgvector backends

@@ -110,6 +110,7 @@ nav:
       - Chunking:
           - Overview: rag/components/chunking/overview.md
           - Built-in Methods: rag/components/chunking/methods.md
+          - SemanticChunker: retrieval/components/chunking/methods.md
       - Embeddings:
         - Overview: rag/embeddings/overview.md
         - Built-in Methods: rag/embeddings/methods.md
