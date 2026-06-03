@@ -8,9 +8,9 @@ vector_store = VectorStore(backend=InMemoryVectorBackend())
 
 
 # --8<-- [start:quickstart]
-from railtracks.retrieval.embedding import OpenAIEmbedding
+from railtracks.retrieval.embedding import Embedding, OpenAIEmbedding
 
-embedder = OpenAIEmbedding()  # reads OPENAI_API_KEY from environment
+embedder: Embedding = OpenAIEmbedding()  # reads OPENAI_API_KEY from environment
 
 async def wrapper(query: list[str]):
     result = await embedder.aembed(query)

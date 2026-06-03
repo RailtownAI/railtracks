@@ -72,5 +72,6 @@ you don't anticipate memory constraints.
 | You want to… | Read |
 |---|---|
 | See the built-in loaders (text, CSV, JSON, PDF, OCR, Hugging Face) | [Built-in loaders](methods.md) |
+| Check out [Integrations](../../../integrations/storage/overview.md) for loaders that read data from cloud services (ie AWS S3, Azure Blob, etc) |
 | Write your own loader for an unsupported source | [Custom loaders](methods.md#custom-loaders) |
 | Run the pipeline end-to-end | [Ingestion](../../runtime/ingestion.md) (write path) |
