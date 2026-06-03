@@ -48,13 +48,13 @@ Pass a [SQLAlchemy database URL](https://docs.sqlalchemy.org/en/20/core/engines.
 ## Basic usage — PostgreSQL
 
 ```python
---8<-- "docs/scripts/storage_loaders.py:sql_basic_postgres"
+--8<-- "docs/scripts/integrations/storage_loaders.py:sql_basic_postgres"
 ```
 
 ## Supabase
 
 ```python
---8<-- "docs/scripts/storage_loaders.py:sql_supabase"
+--8<-- "docs/scripts/integrations/storage_loaders.py:sql_supabase"
 ```
 
 ## Raw SQL query
@@ -63,7 +63,7 @@ Pass any `SELECT` statement instead of a table name for filtering, joining, or
 transforming data before it reaches the loader:
 
 ```python
---8<-- "docs/scripts/storage_loaders.py:sql_raw_query"
+--8<-- "docs/scripts/integrations/storage_loaders.py:sql_raw_query"
 ```
 
 !!! warning "CTE (`WITH`) queries are not supported directly"
@@ -93,7 +93,7 @@ transforming data before it reaches the loader:
 ## Load specific rows by ID
 
 ```python
---8<-- "docs/scripts/storage_loaders.py:sql_load_keys"
+--8<-- "docs/scripts/integrations/storage_loaders.py:sql_load_keys"
 ```
 
 !!! note
@@ -106,7 +106,7 @@ When you already have a configured `sqlalchemy.Engine` (custom pool size, SSL
 certificates, read replicas, etc.) pass it directly via the `engine` parameter:
 
 ```python
---8<-- "docs/scripts/storage_loaders.py:sql_existing_engine"
+--8<-- "docs/scripts/integrations/storage_loaders.py:sql_existing_engine"
 ```
 
 !!! tip "Engine ownership"
@@ -135,7 +135,7 @@ with SQLLoader(connection_string, "documents", "body") as loader:
 ## Async usage
 
 ```python
---8<-- "docs/scripts/storage_loaders.py:sql_async"
+--8<-- "docs/scripts/integrations/storage_loaders.py:sql_async"
 ```
 
 !!! note "Async is thread-backed"
@@ -158,12 +158,6 @@ Each returned `Document` carries:
 
 When `metadata_columns` is `None`, all columns except `content_column` and
 `id_column` are included automatically.
-
-## Full RAG pipeline example
-
-```python
---8<-- "docs/scripts/storage_loaders.py:pipeline_sql_to_rag"
-```
 
 ---
 

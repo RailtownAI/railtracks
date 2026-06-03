@@ -1,11 +1,11 @@
 # Cloud Storage & Database Loaders
 
-Railtracks ships first-class **loaders** for popular cloud storage providers
+Railtracks ships convenience **loaders** for popular cloud storage providers
 and relational databases.
 
 - **Loaders** fetch data and return it as `Document` objects
-  (`railtracks.retrieval.models.Document`) — pipe remote data straight into a
-  retrieval pipeline without any glue code.
+  (`railtracks.retrieval.models.Document`) allowing you to pipe remote data straight into a
+  retrieval pipeline.
 
 ## Supported providers
 
@@ -30,30 +30,30 @@ Install any combination:
     uv add "railtracks[aws,gcp,azure-blob,sql]"
     ```
 
-## Loading — quick examples
+## Quick Examples
 
 === "AWS S3"
 
     ```python
-    --8<-- "docs/scripts/storage_loaders.py:s3_basic"
+    --8<-- "docs/scripts/integrations/storage_loaders.py:s3_basic"
     ```
 
 === "Azure Blob"
 
     ```python
-    --8<-- "docs/scripts/storage_loaders.py:azure_basic"
+    --8<-- "docs/scripts/integrations/storage_loaders.py:azure_basic"
     ```
 
 === "Google Cloud Storage"
 
     ```python
-    --8<-- "docs/scripts/storage_loaders.py:gcs_basic"
+    --8<-- "docs/scripts/integrations/storage_loaders.py:gcs_basic"
     ```
 
 === "SQL / Database"
 
     ```python
-    --8<-- "docs/scripts/storage_loaders.py:sql_basic_postgres"
+    --8<-- "docs/scripts/integrations/storage_loaders.py:sql_basic_postgres"
     ```
 
 ## Feeding documents into a RAG pipeline
@@ -63,7 +63,7 @@ making it trivial to build a full load → chunk → embed → retrieve → answ
 pipeline:
 
 ```python
---8<-- "docs/scripts/storage_loaders.py:pipeline_s3_to_rag"
+--8<-- "docs/scripts/integrations/storage_loaders.py:pipeline_s3_to_rag"
 ```
 
 ## Async support
@@ -99,4 +99,3 @@ S3Loader("my-bucket", keys=["a.txt", "nested/b.txt"])
 
 !!! tip "Next steps"
     - [AWS S3](s3.md) · [Azure Blob Storage](azure_blob.md) · [Google Cloud Storage](gcs.md) · [SQL](sql.md)
-    - [Cloud Storage Loaders Tutorial](../../tutorials/walkthroughs/storage_loaders_tutorial.md)

@@ -63,7 +63,7 @@ Three options decide the shape of a runtime: **chunker**, **embedder**,
 |---|---|
 | Get documents into the store (streaming events, re-ingest, multi-tenant writes, sanitization, token guards) | **[Ingestion](ingestion.md)** |
 | Run vector search (top-k, metadata filters, per-call scope) or attach a runtime to an agent | **[Retrieval](retrieval.md)** |
-| Understand the internals, async model, and to customize things | **[Components → Design](components/design.md)** |
+| Understand the internals, async model, and to customize things | **[Components → Design](../components/design.md)** |
 
 ---
 

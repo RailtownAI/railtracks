@@ -11,12 +11,6 @@ These snippets assume the relevant extras are installed:
 # ---------------------------------------------------------------------------
 # Shared setup used across sections
 # ---------------------------------------------------------------------------
-# --8<-- [start:shared_embedding]
-from railtracks.rag.embedding_service import EmbeddingService
-
-embedding_function = EmbeddingService().embed
-# --8<-- [end:shared_embedding]
-
 
 # ===========================================================================
 # AWS S3
@@ -193,27 +187,42 @@ documents = asyncio.run(load_azure_documents())
 # ===========================================================================
 # Feeding loaded documents into a RAG pipeline
 # ===========================================================================
-
 # --8<-- [start:pipeline_s3_to_rag]
 import railtracks as rt
+from railtracks.retrieval import RetrievalRuntime
+from railtracks.retrieval.runtime import BatchIngested, DocumentFailed, DocumentSkipped
+from railtracks.retrieval.chunking import SentenceChunker
+from railtracks.retrieval.embedding import OpenAIEmbedding, EmbeddingFailure
+from railtracks.retrieval.stores import VectorStore, InMemoryVectorBackend
 from railtracks.retrieval.loaders import S3Loader
-from railtracks.vector_stores import ChromaVectorStore
-from railtracks.rag.embedding_service import EmbeddingService
+
+# Connect to/Create your Runtime
+runtime = RetrievalRuntime(
+        chunker=SentenceChunker(chunk_size=5, overlap=1),
+        embedder=OpenAIEmbedding(model="text-embedding-3-small"),
+        store=VectorStore(InMemoryVectorBackend()),
+        batch_size=64,
+)
 
 # 1. Load documents from S3
 loader = S3Loader("my-knowledge-bucket", prefix="docs/", region_name="us-east-1")
-documents = loader.load()
-
-# 2. Create a vector store and embed the documents
-embedding_fn = EmbeddingService().embed
-store = ChromaVectorStore("knowledge-base", embedding_function=embedding_fn)
-store.upsert(documents)
+async def create():
+    async for event in runtime.ingest(loader):
+        match event:
+            case BatchIngested(document_id=did, embedded_chunks=ch, batch_index=i):
+                print(f"  + doc={str(did)[:8]} batch={i} chunks={len(ch)}")
+            case EmbeddingFailure(errors=errs):
+                print(f"  ! embedding failed: {errs[0]}")
+            case DocumentFailed(document_id=did):
+                print(f"  ! doc {str(did)[:8]} partially failed")
+            case DocumentSkipped(source=src):
+                print(f"  ~ skipped (unchanged): {src}")
 
 # 3. Expose retrieval as an agent tool
 @rt.function_node
 def search_knowledge_base(query: str) -> str:
     """Search the internal knowledge base for relevant information."""
-    results = store.search(query, top_k=5)
+    results = await runtime.retrieve(query, top_k=5)
     return "\n\n".join(r.content for r in results)
 
 # 4. Build the agent
@@ -289,38 +298,6 @@ async def load_gcs_documents():
 
 documents = asyncio.run(load_gcs_documents())
 # --8<-- [end:gcs_async]
-
-
-# --8<-- [start:pipeline_gcs_to_rag]
-import railtracks as rt
-from railtracks.retrieval.loaders import GCSLoader
-from railtracks.vector_stores import ChromaVectorStore
-from railtracks.rag.embedding_service import EmbeddingService
-
-loader = GCSLoader("my-knowledge-bucket", project="my-gcp-project", prefix="docs/")
-documents = loader.load()
-
-embedding_fn = EmbeddingService().embed
-store = ChromaVectorStore("knowledge-base", embedding_function=embedding_fn)
-store.upsert(documents)
-
-@rt.function_node
-def search_knowledge_base(query: str) -> str:
-    """Search the internal knowledge base for relevant information."""
-    results = store.search(query, top_k=5)
-    return "\n\n".join(r.content for r in results)
-
-agent = rt.agent_node(
-    name="KnowledgeAgent",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
-    system_message="Answer questions using the knowledge base.",
-    tool_nodes=[search_knowledge_base],
-)
-
-flow = rt.Flow("knowledge-flow", entry_point=agent)
-response = flow.invoke("What is our remote work policy?")
-# --8<-- [end:pipeline_gcs_to_rag]
-
 
 # ===========================================================================
 # SQL / Relational Database
@@ -427,79 +404,3 @@ async def load_sql_documents():
 
 documents = asyncio.run(load_sql_documents())
 # --8<-- [end:sql_async]
-
-
-# --8<-- [start:pipeline_sql_to_rag]
-import railtracks as rt
-from railtracks.retrieval.loaders import SQLLoader
-from railtracks.vector_stores import ChromaVectorStore
-from railtracks.rag.embedding_service import EmbeddingService
-
-loader = SQLLoader(
-    "postgresql+psycopg2://user:pass@db.example.com/mydb",
-    table_or_query="knowledge_base",
-    content_column="content",
-    metadata_columns=["title", "category"],
-    id_column="id",
-)
-documents = loader.load()
-
-embedding_fn = EmbeddingService().embed
-store = ChromaVectorStore("sql-knowledge", embedding_function=embedding_fn)
-store.upsert(documents)
-
-@rt.function_node
-def search_database(query: str) -> str:
-    """Search the knowledge base for information relevant to the query."""
-    results = store.search(query, top_k=5)
-    return "\n\n".join(r.content for r in results)
-
-agent = rt.agent_node(
-    name="DatabaseAgent",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
-    system_message="Answer questions using only information from the database.",
-    tool_nodes=[search_database],
-)
-
-flow = rt.Flow("db-knowledge-flow", entry_point=agent)
-response = flow.invoke("What is our refund policy?")
-# --8<-- [end:pipeline_sql_to_rag]
-
-
-# --8<-- [start:pipeline_azure_to_rag]
-import railtracks as rt
-from railtracks.retrieval.loaders import AzureBlobLoader
-from railtracks.vector_stores import ChromaVectorStore
-from railtracks.rag.embedding_service import EmbeddingService
-
-# 1. Load documents from Azure Blob Storage
-loader = AzureBlobLoader(
-    "https://myaccount.blob.core.windows.net",
-    "company-docs",
-    prefix="hr/",
-)
-documents = loader.load()
-
-# 2. Build a vector store
-embedding_fn = EmbeddingService().embed
-store = ChromaVectorStore("hr-docs", embedding_function=embedding_fn)
-store.upsert(documents)
-
-# 3. Expose retrieval as a tool
-@rt.function_node
-def search_hr_docs(query: str) -> str:
-    """Search HR documentation for policies and procedures."""
-    results = store.search(query, top_k=5)
-    return "\n\n".join(r.content for r in results)
-
-# 4. Build the agent
-agent = rt.agent_node(
-    name="HRAgent",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
-    system_message="You are an HR assistant. Answer questions based on company policies.",
-    tool_nodes=[search_hr_docs],
-)
-
-flow = rt.Flow("hr-flow", entry_point=agent)
-response = flow.invoke("How many vacation days do I get?")
-# --8<-- [end:pipeline_azure_to_rag]

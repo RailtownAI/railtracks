@@ -32,7 +32,7 @@ class EmbeddedChunk:
 
 `EmbeddedChunk.chunk` gives you full lineage back to the source `Document`
 via `chunk.document_id`. The `embedding_model` field is what powers the
-runtime's [model-mismatch guard](../components/design.md#embedding-model-guard)
+runtime's [model-mismatch guard](../design.md#embedding-model-guard)
 - don't strip it.
 
 ---

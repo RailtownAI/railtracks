@@ -41,25 +41,25 @@ Pass an explicit `credential` to override.
 ## Basic usage
 
 ```python
---8<-- "docs/scripts/storage_loaders.py:azure_basic"
+--8<-- "docs/scripts/integrations/storage_loaders.py:azure_basic"
 ```
 
 ## Load by prefix
 
 ```python
---8<-- "docs/scripts/storage_loaders.py:azure_prefix"
+--8<-- "docs/scripts/integrations/storage_loaders.py:azure_prefix"
 ```
 
 ## Load specific blobs
 
 ```python
---8<-- "docs/scripts/storage_loaders.py:azure_load_keys"
+--8<-- "docs/scripts/integrations/storage_loaders.py:azure_load_keys"
 ```
 
 ## Async usage
 
 ```python
---8<-- "docs/scripts/storage_loaders.py:azure_async"
+--8<-- "docs/scripts/integrations/storage_loaders.py:azure_async"
 ```
 
 !!! note "Async is thread-backed"
@@ -73,13 +73,13 @@ Pass an explicit `credential` to override.
 **SAS token**
 
 ```python
---8<-- "docs/scripts/storage_loaders.py:azure_sas"
+--8<-- "docs/scripts/integrations/storage_loaders.py:azure_sas"
 ```
 
 **System-assigned or user-assigned managed identity**
 
 ```python
---8<-- "docs/scripts/storage_loaders.py:azure_managed_identity"
+--8<-- "docs/scripts/integrations/storage_loaders.py:azure_managed_identity"
 ```
 
 ## Document fields
@@ -93,9 +93,3 @@ Each returned `Document` carries:
 | `metadata["account_url"]` | Storage account URL |
 | `metadata["container"]` | Container name |
 | `metadata["blob_name"]` | Blob name (path within the container) |
-
-## Full RAG pipeline example
-
-```python
---8<-- "docs/scripts/storage_loaders.py:pipeline_azure_to_rag"
-```

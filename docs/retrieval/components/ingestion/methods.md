@@ -282,7 +282,7 @@ For gated datasets set `HF_TOKEN` in your environment, or pass
 ---
 # LangChain Loaders
 
-`LangChainLoaderAdapter` wraps any [LangChain `BaseLoader`](https://reference.langchain.com/python/langchain-community/document_loaders) and normalises its output to railtracks' [`Document`](overview.md#the-document-object) model. This unlocks LangChain's large community loader ecosystem (Wikipedia, Notion, Confluence, S3, Slack, …) without having to re-implement any of them in railtracks.
+`LangChainLoaderAdapter` wraps any [LangChain `BaseLoader`](https://reference.langchain.com/python/langchain-community/document_loaders) and normalises its output to railtracks' [`Document`](base.md/#the-document-object) model. This unlocks LangChain's large community loader ecosystem (Wikipedia, Notion, Confluence, S3, Slack, …) without having to re-implement any of them in railtracks.
 
 The adapter does not import `langchain` itself — it duck-types on the wrapped loader. Install whichever LangChain package provides the loader you want:
 

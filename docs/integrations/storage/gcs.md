@@ -37,25 +37,25 @@ Pass explicit `credentials` to override ADC.
 ## Basic usage
 
 ```python
---8<-- "docs/scripts/storage_loaders.py:gcs_basic"
+--8<-- "docs/scripts/integrations/storage_loaders.py:gcs_basic"
 ```
 
 ## Load by prefix
 
 ```python
---8<-- "docs/scripts/storage_loaders.py:gcs_prefix"
+--8<-- "docs/scripts/integrations/storage_loaders.py:gcs_prefix"
 ```
 
 ## Load specific objects
 
 ```python
---8<-- "docs/scripts/storage_loaders.py:gcs_load_keys"
+--8<-- "docs/scripts/integrations/storage_loaders.py:gcs_load_keys"
 ```
 
 ## Async usage
 
 ```python
---8<-- "docs/scripts/storage_loaders.py:gcs_async"
+--8<-- "docs/scripts/integrations/storage_loaders.py:gcs_async"
 ```
 
 !!! note "Async is thread-backed"
@@ -66,7 +66,7 @@ Pass explicit `credentials` to override ADC.
 ## Override credentials (service account key file)
 
 ```python
---8<-- "docs/scripts/storage_loaders.py:gcs_service_account"
+--8<-- "docs/scripts/integrations/storage_loaders.py:gcs_service_account"
 ```
 
 ## Document fields
@@ -79,9 +79,3 @@ Each returned `Document` carries:
 | `Document.type` | Inferred from file extension; defaults to `TEXT` |
 | `metadata["bucket"]` | GCS bucket name |
 | `metadata["name"]` | Object name (path within the bucket) |
-
-## Full RAG pipeline example
-
-```python
---8<-- "docs/scripts/storage_loaders.py:pipeline_gcs_to_rag"
-```
