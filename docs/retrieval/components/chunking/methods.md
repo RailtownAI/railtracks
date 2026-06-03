@@ -75,20 +75,11 @@ the regex default is too crude for your language.
 Splits a document into **units** (sentences by default via `RegexSentenceSplitter`), embeds each unit with an injected **`Embedding`** provider, and merges consecutive units wherever **cosine distance** between neighbor embeddings exceeds a **percentile-based** threshold. Chunk count and size adapt to the document rather than a fixed window.
 
 ```python
-from railtracks.retrieval import Document
-from railtracks.retrieval.chunking import SemanticChunker
-from railtracks.retrieval.embedding import OpenAIEmbedding
-
-doc = Document(content=long_text, type="text", source="article.txt")
-chunks = SemanticChunker(
-    embedder=OpenAIEmbedding(),
-    threshold_percentile=95.0,
-).chunk(doc)
+--8<-- "docs/scripts/retrieval/chunking.py:semantic"
 ```
 
 ```python
-# Async pipelines: prefer achunk (calls embedder.aembed)
-chunks = await SemanticChunker(embedder=OpenAIEmbedding()).achunk(doc)
+--8<-- "docs/scripts/retrieval/chunking.py:semantic_achunk"
 ```
 
 | Parameter | Description |

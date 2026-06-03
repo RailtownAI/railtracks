@@ -91,7 +91,7 @@ retrieval-core = [
     "numpy >= 1.24",
 ]
 
-# Kitchen-sink retrieval install: core + every loader/store/integration.
+# Comprehensive retrieval install: core + every loader/store/integration.
 retrieval = [
     "railtracks[retrieval-core]",
     "railtracks[ocr]",

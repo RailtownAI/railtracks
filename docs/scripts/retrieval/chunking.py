@@ -67,6 +67,33 @@ doc = Document(content=long_text, type=DocumentType.TEXT, source="blob.txt")
 chunks = FixedTokenChunker(chunk_size=400, overlap=50).chunk(doc)
 # --8<-- [end:fixed]
 
+# --8<-- [start:semantic]
+from railtracks.retrieval import Document
+from railtracks.retrieval.chunking import SemanticChunker
+from railtracks.retrieval.embedding import OpenAIEmbedding
+
+doc = Document(content=long_text, type=DocumentType.TEXT, source="article.txt"))
+chunks = SemanticChunker(
+    embedder=OpenAIEmbedding(),
+    threshold_percentile=95.0,
+).chunk(doc)
+
+async def async_chunking():
+# --8<-- [start:semantic_achunk]
+    # Async pipelines: prefer achunk (calls embedder.aembed)
+    chunks = await SemanticChunker(embedder=OpenAIEmbedding()).achunk(doc)
+# --8<-- [end:semantic_achunk]
+
+from railtracks.retrieval import Document
+from railtracks.retrieval.chunking import SemanticChunker
+from railtracks.retrieval.embedding import OpenAIEmbedding
+
+doc = Document(content=long_text, type=DocumentType.TEXT, source="article.txt"))
+chunks = SemanticChunker(
+    embedder=OpenAIEmbedding(),
+    threshold_percentile=95.0,
+).chunk(doc)
+# --8<-- [end:semantic]
 # --8<-- [start:custom]
 from railtracks.retrieval import Document
 from railtracks.retrieval.chunking import Chunker
