@@ -7,7 +7,6 @@ from copy import deepcopy
 from typing import Any, Callable, Coroutine, Generic, ParamSpec, TypeVar
 
 from railtracks._session import Session
-
 from railtracks.built_nodes.concrete.function_base import RTFunction
 from railtracks.interaction._call import call
 
@@ -38,10 +37,7 @@ class Flow(Generic[_P, _TOutput]):
     def __init__(
         self,
         name: str,
-        entry_point: (
-            type[Node[_P, _TOutput]]
-            | RTFunction[_P, _TOutput]
-        ),
+        entry_point: (type[Node[_P, _TOutput]] | RTFunction[_P, _TOutput]),
         *,
         context: dict[str, Any] | None = None,
         timeout: float | None = None,

@@ -5,15 +5,23 @@ import functools
 import inspect
 import warnings
 from types import BuiltinFunctionType
-from typing import Any, Callable, Coroutine, Generic, List, ParamSpec, Protocol, TypeVar, overload
+from typing import (
+    Any,
+    Callable,
+    Coroutine,
+    Generic,
+    List,
+    ParamSpec,
+    Protocol,
+    TypeVar,
+    overload,
+)
 
 from railtracks.built_nodes._node_builder import NodeBuilder
-
 from railtracks.built_nodes.concrete.function_base import RTFunction
 from railtracks.exceptions import NodeCreationError
 from railtracks.nodes.manifest import ToolManifest
 from railtracks.nodes.nodes import Node
-from railtracks.state.node import NodeForest
 from railtracks.validation.node_creation.validation import (
     validate_function,
     validate_tool_manifest_against_function,
@@ -21,12 +29,17 @@ from railtracks.validation.node_creation.validation import (
 
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
-    
+
+
 class CallableSyncRTFunction(RTFunction[_P, _TOutput], Protocol, Generic[_P, _TOutput]):
     def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput: ...
 
-class CallableAsyncRTFunction(RTFunction[_P, _TOutput], Protocol, Generic[_P, _TOutput]):
+
+class CallableAsyncRTFunction(
+    RTFunction[_P, _TOutput], Protocol, Generic[_P, _TOutput]
+):
     async def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput: ...
+
 
 @overload
 def function_node(
@@ -112,7 +125,9 @@ def _single_function_node(
             "The provided function has already been converted to a node.",
             UserWarning,
         )
-        assert isinstance(func.node_type, Node), "The provided function has a node_type attribute but it is not a Node. This unexpected behavior"
+        assert issubclass(func.node_type, Node), (
+            "The provided function has a node_type attribute but it is not a Node. This unexpected behavior"
+        )
         return func
 
     if not isinstance(
@@ -140,13 +155,13 @@ def _single_function_node(
 
     unwrapped_func: Callable[_P, Coroutine[None, None, _TOutput]]
     if not asyncio.iscoroutinefunction(func):
+
         async def wrapped_function(*args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
             return await asyncio.to_thread(func, *args, **kwargs)
 
         unwrapped_func = wrapped_function
     else:
         unwrapped_func = func
-
 
     builder = NodeBuilder().function(
         unwrapped_func,
@@ -202,7 +217,6 @@ def function_node(
         return [function_node(f, name=name, manifest=manifest) for f in func]
     else:
         return _single_function_node(func, name=name, manifest=manifest)
-
 
 
 def _function_preserving_metadata(

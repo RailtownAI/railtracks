@@ -1,5 +1,4 @@
 __all__ = [
-
     "StringResponse",
     "StructuredResponse",
     "TerminalLLM",
@@ -15,11 +14,9 @@ __all__ = [
     "StructuredToolCallLLM",
     "ChatToolCallLLM",
     "LLMBase",
-
     "OutputLessToolCallLLM",
     "RequestDetails",
     "RTFunction",
-
 ]
 
 from ._llm_base import LLMBase, RequestDetails

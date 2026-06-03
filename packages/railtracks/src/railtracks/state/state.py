@@ -228,7 +228,7 @@ class RTState:
             The output of the node that was run. It will match the output type of the child node that was run.
 
         """
-        
+
         try:
             request_id = self._create_node_and_request(
                 parent_node_id=parent_node_id,

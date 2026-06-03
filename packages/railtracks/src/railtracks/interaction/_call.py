@@ -37,6 +37,7 @@ if TYPE_CHECKING:
 _P = ParamSpec("_P")
 _TOutput = TypeVar("_TOutput")
 
+
 @overload
 async def call(
     node_: type[Node[_P, _TOutput]],
@@ -44,12 +45,14 @@ async def call(
     **kwargs: _P.kwargs,
 ) -> _TOutput: ...
 
+
 @overload
 async def call(
     node_: RTFunction[_P, _TOutput],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput: ...
+
 
 async def call(
     node_: type[Node[_P, _TOutput]] | RTFunction[_P, _TOutput],
@@ -76,11 +79,12 @@ async def call(
         **kwargs: The keyword arguments to pass to the node
     """
     node: type[Node[_P, _TOutput]]
-    
+
     if hasattr(node_, "node_type"):
         # local import to prevent circular import issues (note it is a purely type checking import)
         print(f"Extracting node from function {node_}")
         from railtracks.built_nodes.concrete import RTFunction
+
         assert isinstance(node_, RTFunction)
         node = extract_node_from_function(node_)
     else:

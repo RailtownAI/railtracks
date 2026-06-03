@@ -73,7 +73,9 @@ class GatewayWrapper(Protocol[_TResponse]):
     ) -> GatewayCall[_TResponse]: ...
 
 
-GatewayPreMapper = MapInputs[tuple[MessageHistory, type[BaseModel] | None, list[Tool] | None]]
+GatewayPreMapper = MapInputs[
+    tuple[MessageHistory, type[BaseModel] | None, list[Tool] | None]
+]
 GatewayPostMapper = MapOutputs[_TResponse]
 
 
@@ -108,9 +110,13 @@ class ModelGateway(Generic[_TStructured]):
                 messages, schema, tools = await pre_map(messages, schema, tools)
 
             if tools is not None and len(tools) > 0:
-                response = await asyncio.to_thread(model.chat_with_tools, messages, tools=tools)
+                response = await asyncio.to_thread(
+                    model.chat_with_tools, messages, tools=tools
+                )
             elif schema is not None:
-                response = await asyncio.to_thread(model.structured, messages, schema=schema)
+                response = await asyncio.to_thread(
+                    model.structured, messages, schema=schema
+                )
             else:
                 response = await asyncio.to_thread(model.chat, messages)
 
@@ -213,7 +219,7 @@ async def invoke_tools(tool_calls: list[ToolCall], tool_nodes: list[type[Node]])
         contract = invoke_tool(tool_call, tool_nodes)
         contracts.append(contract)
 
-    tool_results = await asyncio.gather(*contracts)
+    tool_results = await asyncio.gather(*contracts, return_exceptions=True)
     stringified_results = [
         (
             str(x)
@@ -243,7 +249,7 @@ async def invoke_tools(tool_calls: list[ToolCall], tool_nodes: list[type[Node]])
 
 
 async def invoke_tool(tool_call: ToolCall, tool_nodes: list[type[Node]]):
-    ToolNode = get_node_from_name(tool_call.name, tool_nodes) # noqa: N806
+    ToolNode = get_node_from_name(tool_call.name, tool_nodes)  # noqa: N806
 
     prepared_args = ToolNode.prepare_args(**tool_call.arguments)
 
@@ -406,6 +412,3 @@ def prepare_string_response(
     )
 
     return StringResponse(content=content, message_history=message_history)
-
-
-

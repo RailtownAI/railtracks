@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from asyncio import iscoroutine
 import functools
-from tkinter import Message
 from typing import (
     Any,
     Callable,
@@ -11,7 +9,6 @@ from typing import (
     Iterable,
     Literal,
     ParamSpec,
-    Protocol,
     Type,
     TypeVar,
     Union,
@@ -62,8 +59,6 @@ _TStructured = TypeVar("_TStructured", bound=BaseModel)
 UserInput = Union[str, MessageHistory, list[Message]]
 
 
-
-
 def unpack(item: _T | None, /) -> _T:
     if item is None:
         raise ValueError("Unpacked Item was None")
@@ -88,7 +83,7 @@ def safe_create_node(
     for method_name in optional_methods.keys():
         if optional_methods[method_name] is None:
             deletions.add(method_name)
-    
+
     for deletion in deletions:
         del optional_methods[deletion]
 
@@ -228,9 +223,7 @@ class NodeBuilder(Generic[_P, _T]):
         instance = cls()
         casted_instance = cast(NodeBuilder[_P2, _T2], instance)
 
-        casted_instance._class_name = (
-            class_name or f"{function.__name__.capitalize()}"
-        )
+        casted_instance._class_name = class_name or f"{function.__name__.capitalize()}"
 
         casted_instance._invoke = function
         casted_instance._node_class = "Tool"
@@ -251,6 +244,7 @@ class NodeBuilder(Generic[_P, _T]):
     def construct_required(self) -> dict[str, Any]:
         async def invoke(_self, *args, **kwargs) -> _T:
             return await unpack(self._invoke)(*args, **kwargs)
+
         return {
             "invoke": invoke,
             "type": classmethod_preserving_function_meta(
@@ -282,9 +276,7 @@ class NodeBuilder(Generic[_P, _T]):
         if self._tool_info is None:
             return None
 
-        return classmethod_preserving_function_meta(
-            lambda: unpack(self._tool_info)()
-        )
+        return classmethod_preserving_function_meta(lambda: unpack(self._tool_info)())
 
     def build(self) -> Type[Node[_P, _T]]:
         assert self._class_name is not None, (

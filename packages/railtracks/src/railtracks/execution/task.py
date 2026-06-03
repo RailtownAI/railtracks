@@ -36,5 +36,4 @@ class Task(Generic[_TOutput]):
 
         result = await self.node.wrapped_invoke(*self.arguments[0], **self.arguments[1])
 
-
         return result
