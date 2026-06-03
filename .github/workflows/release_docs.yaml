@@ -4,6 +4,9 @@ on:
   release:
     types: [published]
 
+permissions:
+  contents: write
+
 jobs:
   release-docs:
     name: Update API Documentation
@@ -24,7 +27,7 @@ jobs:
       - name: Generate API documentation
         run: |
           pip install pdoc==15.0.4
-          pip install -e packages/railtracks[all]
+          pip install -e "packages/railtracks[all,retrieval]"
           ./scripts/generate_api_docs.sh
 
       - name: Install dependencies
@@ -32,5 +35,4 @@ jobs:
 
       - name: Deploy to GitHub Pages
         run: mkdocs gh-deploy --force
-
-      
+        

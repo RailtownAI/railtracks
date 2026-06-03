@@ -5,7 +5,7 @@ Splits a document at topic boundaries by embedding consecutive text units
 merging units wherever the distance exceeds a percentile-based threshold.
 
 Requires ``scikit-learn`` (and ``numpy``) — install via
-``pip install 'railtracks[rag]'``.
+``pip install 'railtracks[semantic]'`` (or ``railtracks[retrieval]``).
 """
 
 from __future__ import annotations

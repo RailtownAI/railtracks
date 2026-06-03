@@ -7,6 +7,7 @@ from litellm.litellm_core_utils.get_llm_provider_logic import get_llm_provider
 from ...history import MessageHistory
 from ...providers import ModelProvider
 from ...response import Response
+from ...retries.base import RetryApproach
 from ...tools import Tool
 from .._litellm_wrapper import LiteLLMWrapper
 from .._model_exception_base import FunctionCallingNotSupportedError, ModelNotFoundError
@@ -22,6 +23,7 @@ class ProviderLLMWrapper(LiteLLMWrapper[_TStream], ABC, Generic[_TStream]):
         api_base: str | None = None,
         api_key: str | None = None,
         temperature: float | None = None,
+        retry_approach: RetryApproach | None = None,
     ):
         model_name = self._pre_init_provider_check(model_name)
         super().__init__(
@@ -30,6 +32,7 @@ class ProviderLLMWrapper(LiteLLMWrapper[_TStream], ABC, Generic[_TStream]):
             api_base=api_base,
             api_key=api_key,
             temperature=temperature,
+            retry_approach=retry_approach,
         )
 
     def _pre_init_provider_check(self, model_name: str):

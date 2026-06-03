@@ -9,7 +9,6 @@ from uuid import uuid4
 
 import pytest
 from railtracks.retrieval.stores.models import (
-    DetailLevel,
     StoreEntry,
     StoreQuery,
     StoreScope,
@@ -109,7 +108,7 @@ def _make_entry(user_id: str = "alice", vector: list[float] | None = None) -> St
         document_id=uuid4(),
         abstract="abs",
         summary="sum",
-        scope=StoreScope(user_id=user_id),
+        scope=StoreScope(labels={"user_id": user_id}),
     )
 
 
@@ -455,9 +454,8 @@ async def test_vector_store_write_read_via_pgvector():
     results = await store.read(
         StoreQuery(
             text="q",
-            scope=StoreScope(user_id="alice"),
+            scope=StoreScope(labels={"user_id": "alice"}),
             embedding=[1.0, 0.0, 0.0],
-            detail_level=DetailLevel.L2,
         )
     )
 

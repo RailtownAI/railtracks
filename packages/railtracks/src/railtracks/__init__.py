@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 
 if TYPE_CHECKING:
     import railtracks.interaction.interactive as interactive
+    from railtracks import retrieval
 
 __all__ = [
     "Session",
@@ -41,12 +42,10 @@ __all__ = [
     "session_id",
     "evaluations",
     "retrieval",
-    "RagConfig",
     "Flow",
     "enable_logging",
 ]
 
-from railtracks.built_nodes.concrete.rag import RagConfig
 from railtracks.built_nodes.easy_usage_wrappers import (
     agent_node,
     function_node,
@@ -59,7 +58,6 @@ from . import (
     integrations,
     llm,
     prebuilt,
-    retrieval,
 )
 from ._session import ExecutionInfo, Session, session
 from .context.central import session_id, set_config
@@ -82,7 +80,19 @@ __version__ = "1.0.0"
 
 def __getattr__(name: str):
     if name == "interactive":
-        return importlib.import_module("railtracks.interaction.interactive")
+        module = importlib.import_module("railtracks.interaction.interactive")
+        globals()[name] = module
+        return module
+    if name == "retrieval":
+        try:
+            module = importlib.import_module("railtracks.retrieval")
+        except ImportError as exc:
+            raise ImportError(
+                "railtracks.retrieval requires the retrieval extras. "
+                "Install with: pip install 'railtracks[retrieval]'"
+            ) from exc
+        globals()[name] = module
+        return module
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 

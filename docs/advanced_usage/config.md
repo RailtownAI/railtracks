@@ -22,7 +22,7 @@ Configuration parameters follow a specific precedence order, allowing you to ove
 - **`context`** (`Dict[str, Any]`): Global context variables for execution
 - **`broadcast_callback`** (`Callable`): Callback function for broadcast messages
 - **`prompt_injection`** (`bool`): Automatically inject prompts from context variables
-- **`save_state`** (`bool`): Save execution state to `.railtracks` directory
+- **`save_state`** (`bool`): Save execution state to the `.railtracks` data directory (see [Data directory resolution](#data-directory-railtracks) below)
 
 ## Default Values
 
@@ -146,6 +146,19 @@ with rt.session(
         "Debug this workflow",
     )
 ```
+## Data directory (`.railtracks`)
+
+When `save_state` is enabled, railtracks resolves the `.railtracks` data directory using the following priority order:
+
+1. **`RAILTRACKS_HOME` environment variable** — set this to the **parent directory** where `.railtracks` should live. Useful for CI environments or shared storage locations.
+   ```bash
+   export RAILTRACKS_HOME=/path/to/project-root   # .railtracks is created inside here
+   ```
+2. **Upward directory traversal** — walks up from the current working directory until it finds an existing `.railtracks` folder. This means running scripts from any subdirectory of your project will always resolve to the same directory, as long as you have run `railtracks init` from the project root once.
+3. **Fallback to `cwd()`** — if no `.railtracks` directory is found in any parent, one is created in the current working directory. A warning is emitted to prompt you to run `railtracks init` from the intended project root.
+
+The same resolution logic applies to sessions, evaluations, and the visualizer, so all data always lands in one consistent location.
+
 ## Important Notes
 
 - `rt.set_config()` must be called **before** any agent execution

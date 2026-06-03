@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -19,33 +19,25 @@ class Entity:
 
 @dataclass(frozen=True)
 class StoreScope:
-    """Hard-filter namespace for store entries.
+    """Equality-filter namespace for store entries.
 
-    All non-None fields are enforced by stores as mandatory equality filters.
-    The scope_ prefix in to_payload_filters() avoids key collisions in flat
-    payload dicts that also carry content fields.
+    Each entry in ``labels`` becomes a mandatory equality filter on every
+    write and read. The retrieval module is agnostic about what dimensions
+    you scope by — pick whichever axes fit your tenancy model::
+
+        StoreScope(labels={"user_id": "alice"})  # SaaS tenancy
+        StoreScope(labels={"organization": "acme", "environment": "prod"})  # B2B
+        StoreScope(labels={"agent_id": "docs-bot", "session_id": "s1"})  # agent context
+        StoreScope(labels={"account_id": 42, "is_prod": True})  # non-string scalars
+
+    The ``scope_`` prefix applied in :meth:`to_payload_filters` avoids key
+    collisions in flat payload dicts that also carry content fields.
     """
 
-    user_id: str | None = None
-    agent_id: str | None = None
-    session_id: str | None = None
-    run_id: str | None = None
+    labels: Mapping[str, Any] = field(default_factory=dict)
 
-    def to_payload_filters(self) -> dict[str, str]:
-        return {f"scope_{k}": v for k, v in self.__dict__.items() if v is not None}
-
-
-class StoreCategory(str, Enum):
-    EPISODIC = "episodic"
-    SEMANTIC = "semantic"
-    SKILL = "skill"
-    PROCEDURAL = "procedural"
-
-
-class DetailLevel(Enum):
-    L0 = "abstract"
-    L1 = "summary"
-    L2 = "full"
+    def to_payload_filters(self) -> dict[str, Any]:
+        return {f"scope_{k}": v for k, v in self.labels.items()}
 
 
 @dataclass
@@ -70,7 +62,6 @@ class StoreEntry:
     embedding_version: str | None = None
     # Optional store metadata
     entities: list[Entity] | None = None
-    store_category: StoreCategory | None = None
     valid_from: datetime | None = None
     valid_until: datetime | None = None
     created_at: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
@@ -83,7 +74,6 @@ class StoreEntry:
         scope: StoreScope | None = None,
         abstract: str | None = None,
         summary: str | None = None,
-        store_category: StoreCategory | None = None,
         entities: list[Entity] | None = None,
         valid_from: datetime | None = None,
         valid_until: datetime | None = None,
@@ -104,7 +94,6 @@ class StoreEntry:
             scope=scope,
             abstract=abstract,
             summary=summary,
-            store_category=store_category,
             entities=entities,
             valid_from=valid_from,
             valid_until=valid_until,
@@ -126,6 +115,4 @@ class StoreQuery:
     scope: StoreScope | None = None
     embedding: list[float] | None = None
     top_k: int = 10
-    detail_level: DetailLevel = DetailLevel.L2
-    store_category: StoreCategory | None = None
     metadata_filters: dict[str, Any] | None = None

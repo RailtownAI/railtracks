@@ -1,4 +1,4 @@
-from .._exception_base import RTLLMError
+from .._exceptions import RTLLMError
 from ..history import MessageHistory
 
 

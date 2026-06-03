@@ -108,9 +108,7 @@ class SQLLoader(BaseDocumentLoader):
         self._keys = list(keys) if keys is not None else None
 
         if self._keys is not None and id_column is None:
-            raise ValueError(
-                "An 'id_column' must be set when filtering by 'keys'."
-            )
+            raise ValueError("An 'id_column' must be set when filtering by 'keys'.")
 
         if not self._is_raw_query:
             _validate_identifier(table_or_query, "table_or_query")

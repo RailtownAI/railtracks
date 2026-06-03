@@ -45,7 +45,7 @@ class TiktokenTokenizer(Tokenizer):
         if _tiktoken is None:
             raise ModuleNotFoundError(
                 "tiktoken is required to use TiktokenTokenizer. "
-                "Install railtracks with the rag extra: pip install 'railtracks[rag]'."
+                "Install railtracks with the tiktok extra: pip install 'railtracks[tiktok]'."
             )
 
         self.encoding_name = encoding_name

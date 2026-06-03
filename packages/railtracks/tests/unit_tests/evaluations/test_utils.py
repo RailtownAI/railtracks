@@ -82,34 +82,28 @@ def test_payload_contains_evaluator_results():
 
 
 def test_save_writes_file(tmp_path, monkeypatch):
-    import railtracks.evaluations.utils as utils_mod
-
-    monkeypatch.setattr(utils_mod, "EVALS_DIR", tmp_path)
+    monkeypatch.setattr("railtracks.evaluations.utils.resolve_railtracks_home", lambda: tmp_path)
 
     result = make_evaluation_result()
     save([result])
 
-    expected_file = tmp_path / f"{result.evaluation_id}.json"
+    expected_file = tmp_path / "data" / "evaluations" / f"{result.evaluation_id}.json"
     assert expected_file.exists()
 
 
 def test_save_file_content_is_valid_json(tmp_path, monkeypatch):
-    import railtracks.evaluations.utils as utils_mod
-
-    monkeypatch.setattr(utils_mod, "EVALS_DIR", tmp_path)
+    monkeypatch.setattr("railtracks.evaluations.utils.resolve_railtracks_home", lambda: tmp_path)
 
     result = make_evaluation_result()
     save([result])
 
-    fp = tmp_path / f"{result.evaluation_id}.json"
+    fp = tmp_path / "data" / "evaluations" / f"{result.evaluation_id}.json"
     content = json.loads(fp.read_text())
     assert content["evaluation_id"] == str(result.evaluation_id)
 
 
 def test_save_duplicate_raises(tmp_path, monkeypatch):
-    import railtracks.evaluations.utils as utils_mod
-
-    monkeypatch.setattr(utils_mod, "EVALS_DIR", tmp_path)
+    monkeypatch.setattr("railtracks.evaluations.utils.resolve_railtracks_home", lambda: tmp_path)
 
     result = make_evaluation_result()
     save([result])
@@ -119,24 +113,19 @@ def test_save_duplicate_raises(tmp_path, monkeypatch):
 
 
 def test_save_creates_parent_dirs(tmp_path, monkeypatch):
-    import railtracks.evaluations.utils as utils_mod
-
-    nested = tmp_path / "a" / "b" / "c"
-    monkeypatch.setattr(utils_mod, "EVALS_DIR", nested)
+    monkeypatch.setattr("railtracks.evaluations.utils.resolve_railtracks_home", lambda: tmp_path)
 
     result = make_evaluation_result()
     save([result])
 
-    assert (nested / f"{result.evaluation_id}.json").exists()
+    assert (tmp_path / "data" / "evaluations" / f"{result.evaluation_id}.json").exists()
 
 
 def test_save_multiple_results(tmp_path, monkeypatch):
-    import railtracks.evaluations.utils as utils_mod
-
-    monkeypatch.setattr(utils_mod, "EVALS_DIR", tmp_path)
+    monkeypatch.setattr("railtracks.evaluations.utils.resolve_railtracks_home", lambda: tmp_path)
 
     results = [make_evaluation_result(), make_evaluation_result()]
     save(results)
 
     for result in results:
-        assert (tmp_path / f"{result.evaluation_id}.json").exists()
+        assert (tmp_path / "data" / "evaluations" / f"{result.evaluation_id}.json").exists()

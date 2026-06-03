@@ -85,9 +85,24 @@ async def test_flow_ainvoke_async_returns_value():
 
 @pytest.mark.asyncio
 async def test_flow_invoke_in_an_event_loop():
+    # invoke() must work transparently even when called from inside a running
+    # event loop (e.g. Jupyter) — it should dispatch to a worker thread rather
+    # than raising RuntimeError.
     flow = Flow(name="add-flow", entry_point=add)
-    with pytest.raises(RuntimeError):
-        result = flow.invoke(1, 2)
+    result = flow.invoke(1, 2)
+    assert result == 3
+
+
+@pytest.mark.asyncio
+async def test_flow_invoke_in_event_loop_preserves_context():
+    # Context set on the Flow must be visible inside the worker-thread run.
+    flow = Flow(
+        name="context-invoke-loop-flow",
+        entry_point=read_context_value,
+        context={"env": "notebook"},
+    )
+    result = flow.invoke("env")
+    assert result == "notebook"
 
 
 

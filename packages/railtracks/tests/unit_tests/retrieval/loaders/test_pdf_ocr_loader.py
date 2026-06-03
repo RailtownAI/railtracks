@@ -3,8 +3,15 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
-from railtracks.retrieval.loaders.pdf_ocr_loader import PyPDFOCRLoader
-from railtracks.retrieval.models import DocumentType
+
+# Skip the whole module if the OCR extras aren't installed — the loader's
+# module-level `import pytesseract` would otherwise fail at collection time.
+pytest.importorskip("pypdfium2")
+pytest.importorskip("pytesseract")
+pytest.importorskip("pypdf")
+
+from railtracks.retrieval.loaders.pdf_ocr_loader import PyPDFOCRLoader  # noqa: E402
+from railtracks.retrieval.models import DocumentType  # noqa: E402
 
 
 def _make_reader(page_texts: list[str]) -> MagicMock:

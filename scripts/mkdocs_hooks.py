@@ -1,0 +1,54 @@
+"""MkDocs hooks for generating derived documentation files."""
+
+from __future__ import annotations
+
+import subprocess
+import sys
+from pathlib import Path
+
+
+def _api_reference_is_fresh(src_dir: Path, output_dir: Path) -> bool:
+    """Return True if all output files are newer than all source .py files."""
+    output_files = [f for f in output_dir.rglob("*") if f.is_file()]
+    if not output_files:
+        return False
+    newest_src = max(f.stat().st_mtime for f in src_dir.rglob("*.py"))
+    oldest_out = min(f.stat().st_mtime for f in output_files)
+    return oldest_out > newest_src
+
+
+def _generate_api_reference(repo_root: Path, output_dir: Path) -> None:
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pdoc",
+            "packages/railtracks/src/railtracks",
+            "--output-dir",
+            str(output_dir),
+            "-d",
+            "google",
+            "--include-undocumented",
+            "--logo",
+            "https://raw.githubusercontent.com/RailtownAI/railtracks/main/docs/assets/logo.svg",
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+
+
+def on_pre_build(config, **kwargs):
+    """Regenerate API docs before each build.
+
+    Skips pdoc entirely when output is already newer than all source files,
+    which prevents MkDocs' watcher from detecting a spurious change and
+    triggering an infinite-rebuild loop during `mkdocs serve`.
+    """
+    repo_root = Path(__file__).resolve().parent.parent
+    src_dir = repo_root / "packages" / "railtracks" / "src" / "railtracks"
+    output_dir = repo_root / "docs" / "api_reference"
+
+    if _api_reference_is_fresh(src_dir, output_dir):
+        return
+
+    _generate_api_reference(repo_root, output_dir)
