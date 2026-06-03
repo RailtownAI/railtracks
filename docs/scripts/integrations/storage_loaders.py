@@ -17,9 +17,9 @@ These snippets assume the relevant extras are installed:
 # ===========================================================================
 
 # --8<-- [start:s3_basic]
-from railtracks.retrieval.loaders import S3Loader
+from railtracks.retrieval.loaders import BaseDocumentLoader,S3Loader
 
-loader = S3Loader("my-bucket", region_name="us-east-1")
+loader: BaseDocumentLoader = S3Loader("my-bucket", region_name="us-east-1")
 
 # Load every object in the bucket as Document instances
 documents = loader.load()
@@ -220,10 +220,10 @@ async def create():
 
 # 3. Expose retrieval as an agent tool
 @rt.function_node
-def search_knowledge_base(query: str) -> str:
+async def search_knowledge_base(query: str) -> str:
     """Search the internal knowledge base for relevant information."""
     results = await runtime.retrieve(query, top_k=5)
-    return "\n\n".join(r.content for r in results)
+    return "\n\n".join(r.chunk.content for r in results.chunks)
 
 # 4. Build the agent
 agent = rt.agent_node(
