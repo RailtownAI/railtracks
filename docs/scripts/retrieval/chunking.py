@@ -72,7 +72,7 @@ from railtracks.retrieval import Document
 from railtracks.retrieval.chunking import SemanticChunker
 from railtracks.retrieval.embedding import OpenAIEmbedding
 
-doc = Document(content=long_text, type=DocumentType.TEXT, source="article.txt"))
+doc = Document(content=long_text, type=DocumentType.TEXT, source="article.txt")
 chunks = SemanticChunker(
     embedder=OpenAIEmbedding(),
     threshold_percentile=95.0,
@@ -88,7 +88,7 @@ from railtracks.retrieval import Document
 from railtracks.retrieval.chunking import SemanticChunker
 from railtracks.retrieval.embedding import OpenAIEmbedding
 
-doc = Document(content=long_text, type=DocumentType.TEXT, source="article.txt"))
+doc = Document(content=long_text, type=DocumentType.TEXT, source="article.txt")
 chunks = SemanticChunker(
     embedder=OpenAIEmbedding(),
     threshold_percentile=95.0,

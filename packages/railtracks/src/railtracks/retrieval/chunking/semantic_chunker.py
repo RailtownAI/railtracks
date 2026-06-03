@@ -187,12 +187,8 @@ class SemanticChunker(Chunker):
         embeddings: list[list[float]],
     ) -> list[Chunk]:
         distances = self._calculate_distances(embeddings)
-        breakpoints = self._identify_breakpoints(
-            distances, self.threshold_percentile
-        )
-        pieces, offsets = self._create_chunks(
-            document.content, units, breakpoints
-        )
+        breakpoints = self._identify_breakpoints(distances, self.threshold_percentile)
+        pieces, offsets = self._create_chunks(document.content, units, breakpoints)
         return self._make_chunks(document, pieces, offsets=offsets)
 
     def _calculate_distances(self, embeddings: list[list[float]]) -> list[float]:
