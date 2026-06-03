@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import asyncio
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     Iterable,
     ParamSpec,
     TypeVar,
 )
+
 from railtracks.nodes.nodes import Node
 
 from ._call import call
@@ -18,8 +18,7 @@ _TOutput = TypeVar("_TOutput")
 
 
 async def call_batch(
-    node: Callable[..., Node[_TOutput]]
-    | Callable[..., _TOutput],
+    node: Callable[..., Node[_TOutput]] | Callable[..., _TOutput],
     *iterables: Iterable[Any],
     return_exceptions: bool = True,
 ):
