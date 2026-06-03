@@ -519,7 +519,7 @@ async def langchain_adapter_doc():
     )
     docs = await adapter.aload()
 # --8<-- [end:langchain_adapter_type]
-loader = WikipediaLoader(query="Python (programming language)")
+
 # --8<-- [start:langcahin_adapter_init]
 adapter = LangChainLoaderAdapter(
     loader,

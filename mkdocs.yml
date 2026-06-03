@@ -108,6 +108,7 @@ nav:
       - Quickstart: retrieval/runtime/quickstart.md
       - Ingestion: retrieval/runtime/ingestion.md
       - Retrieval: retrieval/runtime/retrieval.md
+      - Module Packages: retrieval/runtime/module_packages.md
     - Components:
       - Design: retrieval/components/design.md
       - Loading:

@@ -1,6 +1,11 @@
+!!! warning "Beta"
+    `railtracks.retrieval` is in beta. Please expect API changes between minor releases.
+
 !!! warning "Migrated from older modules"
     `railtracks.rag` and `railtracks.vector_stores` are removed. Everything
     now lives under `railtracks.retrieval`.
+
+    This module is in a beta and we are actively polishing the pieces.
 
 # Quickstart
 
