@@ -27,7 +27,7 @@ from railtracks.llm.model import ModelBase
 from railtracks.llm.response import Response
 from railtracks.llm.tools.parameters._base import Parameter
 from railtracks.llm.tools.tool import Tool
-from railtracks.nodes.mappers import MapInputs
+from railtracks.nodes.mappers import MapInputs, MapOutputs
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_invocation.validation import check_message_history
 
@@ -74,12 +74,7 @@ class GatewayWrapper(Protocol[_TResponse]):
 
 
 GatewayPreMapper = MapInputs[tuple[MessageHistory, type[BaseModel] | None, list[Tool] | None]]
-
-
-class GatewayPostMapper(Protocol[_TResponse]):
-    """Transforms the model response (e.g. normalisation, redaction)."""
-
-    async def __call__(self, response: _TResponse) -> _TResponse: ...
+GatewayPostMapper = MapOutputs[_TResponse]
 
 
 class ModelGateway(Generic[_TStructured]):
@@ -88,7 +83,7 @@ class ModelGateway(Generic[_TStructured]):
         model: ModelBase[Literal[False]] | Callable[[], ModelBase[Literal[False]]],
         wrappers: list[GatewayWrapper[Response]] | None = None,
         pre_mappers: list[GatewayPreMapper] | None = None,
-        post_mappers: list[GatewayPostMapper[Response]] | None = None,
+        post_mappers: list[GatewayPostMapper] | None = None,
     ):
         self._get_model = model if callable(model) else lambda: model
         self._wrappers = wrappers or []
@@ -430,4 +425,15 @@ if __name__ == "__main__":
                 )
 
             return wrapped
+
+    class Identity(GatewayPreMapper):
+        async def __call__(self, messages, schema, tools):
+            return messages, schema, tools
+        
+    from railtracks.nodes.mappers import MapInputs
+
+    def some_func(x: MapInputs):
+        pass
+
+    some_func(Identity())
         
