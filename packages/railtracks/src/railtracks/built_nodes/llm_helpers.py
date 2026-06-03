@@ -27,6 +27,7 @@ from railtracks.llm.model import ModelBase
 from railtracks.llm.response import Response
 from railtracks.llm.tools.parameters._base import Parameter
 from railtracks.llm.tools.tool import Tool
+from railtracks.nodes.mappers import MapInputs
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_invocation.validation import check_message_history
 
@@ -54,7 +55,7 @@ class StructuredLLMInvoke(Protocol[_TStructured]):
 class GatewayCall(Protocol[_TResponseCo]):
     """The core model call as seen by gateway middleware."""
 
-    def __call__(
+    async def __call__(
         self,
         messages: MessageHistory,
         schema: type[BaseModel] | None,
@@ -72,21 +73,13 @@ class GatewayWrapper(Protocol[_TResponse]):
     ) -> GatewayCall[_TResponse]: ...
 
 
-class GatewayPreMapper(Protocol):
-    """Transforms inputs before the model call (e.g. message injection, schema rewriting)."""
-
-    def __call__(
-        self,
-        messages: MessageHistory,
-        schema: type[BaseModel] | None,
-        tools: list[Tool] | None,
-    ) -> tuple[MessageHistory, type[BaseModel] | None, list[Tool] | None]: ...
+GatewayPreMapper = MapInputs[tuple[MessageHistory, type[BaseModel] | None, list[Tool] | None]]
 
 
 class GatewayPostMapper(Protocol[_TResponse]):
     """Transforms the model response (e.g. normalisation, redaction)."""
 
-    def __call__(self, response: _TResponse) -> _TResponse: ...
+    async def __call__(self, response: _TResponse) -> _TResponse: ...
 
 
 class ModelGateway(Generic[_TStructured]):
@@ -102,7 +95,7 @@ class ModelGateway(Generic[_TStructured]):
         self._pre_mapping = pre_mappers or []
         self._post_mapping = post_mappers or []
 
-    def invoke(
+    async def invoke(
         self,
         messages: MessageHistory,
         *,
@@ -111,23 +104,23 @@ class ModelGateway(Generic[_TStructured]):
     ):
         model = self._get_model()
 
-        def _core_llm_call(
+        async def _core_llm_call(
             messages: MessageHistory,
             schema: type[BaseModel] | None,
             tools: list[Tool] | None,
         ):
             for pre_map in self._pre_mapping:
-                messages, schema, tools = pre_map(messages, schema, tools)
+                messages, schema, tools = await pre_map(messages, schema, tools)
 
             if tools is not None and len(tools) > 0:
-                response = model.chat_with_tools(messages, tools=tools)
+                response = await asyncio.to_thread(model.chat_with_tools, messages, tools=tools)
             elif schema is not None:
-                response = model.structured(messages, schema=schema)
+                response = await asyncio.to_thread(model.structured, messages, schema=schema)
             else:
-                response = model.chat(messages)
+                response = await asyncio.to_thread(model.chat, messages)
 
             for post_map in self._post_mapping:
-                response = post_map(response)
+                response = await post_map(response)
 
             return response
 
@@ -136,9 +129,7 @@ class ModelGateway(Generic[_TStructured]):
         for wrapper in self._wrappers:
             llm_function = wrapper(llm_function)
 
-        response = llm_function(messages, schema, tools)
-
-        return response
+        return await llm_function(messages, schema, tools)
 
 
 @overload
@@ -174,8 +165,8 @@ def llm_invoke_factory(
 
         while True:
             try:
-                returned_mess = await asyncio.to_thread(
-                    model_gateway.invoke, message_history, schema=schema, tools=tools
+                returned_mess = await model_gateway.invoke(
+                    message_history, schema=schema, tools=tools
                 )
             except Exception as e:
                 raise LLMError(
@@ -420,3 +411,23 @@ def prepare_string_response(
     )
 
     return StringResponse(content=content, message_history=message_history)
+
+
+if __name__ == "__main__":
+    # Example usage
+    class RetryNTimes(GatewayWrapper[_TResponse]):
+        def __call__(self, function: GatewayCall[_TResponse]) -> GatewayCall[_TResponse]:
+            async def wrapped(messages, schema, tools):
+                retries = 3
+                for attempt in range(retries):
+                    try:
+                        return await function(messages, schema, tools)
+                    except Exception as e:
+                        print(f"Attempt {attempt + 1} failed with error: {repr(e)}")
+                raise LLMError(
+                    reason=f"All {retries} attempts failed.",
+                    message_history=messages,
+                )
+
+            return wrapped
+        

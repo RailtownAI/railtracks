@@ -97,7 +97,7 @@ class Node(ABC, Generic[_P, _TOutput]):
         super().__init_subclass__()
 
     frozen_wrappers: list[Wrapper[_P, _TOutput]] = []
-    frozen_input_maps: list[MapInputs] = []
+    frozen_input_maps: list[MapInputs[tuple[list[Any], dict[str, Any]]]] = []
     frozen_output_maps: list[MapOutputs[_TOutput]] = []
 
     def __init__(
