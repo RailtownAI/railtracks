@@ -38,7 +38,7 @@ async def context_injection_gateway_pre_mapper(
     messages: MessageHistory,
     schema: Any,
     tools: Any,
-) -> tuple:
+) -> tuple[MessageHistory, Any, Any]:
     """
     GatewayPreMapper that injects context variables into message prompts.
 
