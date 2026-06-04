@@ -6,7 +6,7 @@ from railtracks.built_nodes.concrete import (
     RTFunction,
 )
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
-from railtracks.built_nodes.llm_helpers import ModelGateway
+from railtracks.built_nodes.llm_helpers import Gateway
 from railtracks.llm.message import SystemMessage
 from railtracks.llm.model import ModelBase
 from railtracks.llm.tools.parameters._base import Parameter
@@ -55,7 +55,7 @@ def _build_dynamic_agent(
     if output_schema is None:
         nb = NodeBuilder.llm(
             name=name if name is not None else "LLM Agent",
-            model_gateway=ModelGateway(llm),
+            gateway=Gateway(llm),
             system_message=resolved_system,
             connected_nodes=unpacked_tool_nodes,
             tool_details=tool_details,
@@ -65,7 +65,7 @@ def _build_dynamic_agent(
     else:
         nb = NodeBuilder.llm(
             name=name if name is not None else "LLM Agent",
-            model_gateway=ModelGateway(llm),
+            gateway=Gateway(llm),
             system_message=resolved_system,
             schema=output_schema,
             connected_nodes=unpacked_tool_nodes,

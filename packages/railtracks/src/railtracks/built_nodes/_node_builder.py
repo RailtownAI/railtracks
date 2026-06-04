@@ -20,7 +20,7 @@ from pydantic import BaseModel
 
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
 from railtracks.built_nodes.llm_helpers import (
-    ModelGateway,
+    Gateway,
     llm_invoke_factory,
     llm_prepare_called_as_tool_factory,
 )
@@ -115,7 +115,7 @@ class NodeBuilder(Generic[_P, _T]):
         name: str,
         class_name: str | None = None,
         *,
-        model_gateway: ModelGateway,
+        gateway: Gateway,
         system_message: SystemMessage | None = None,
         schema: None = None,
         connected_nodes: Iterable[Type[Node]] | None = None,
@@ -134,7 +134,7 @@ class NodeBuilder(Generic[_P, _T]):
         name: str,
         class_name: str | None = None,
         *,
-        model_gateway: ModelGateway,
+        gateway: Gateway,
         system_message: SystemMessage | None = None,
         schema: Type[_TStructured],
         connected_nodes: Iterable[Type[Node]] | None = None,
@@ -152,7 +152,7 @@ class NodeBuilder(Generic[_P, _T]):
         name: str,
         class_name: str | None = None,
         *,
-        model_gateway: ModelGateway,
+        gateway: Gateway,
         system_message: SystemMessage | None = None,
         schema: Type[_TStructured] | None = None,
         connected_nodes: Iterable[Type[Node]] | None = None,
@@ -175,10 +175,10 @@ class NodeBuilder(Generic[_P, _T]):
         # higher-level wrapper (agent_node, etc.) created the node. Disable per-node
         # with context_injection=False, or session-wide via prompt_injection=False.
         if context_injection:
-            model_gateway.add_pre_mapper(context_injection_gateway_pre_mapper)
+            gateway._register_sys_pre(context_injection_gateway_pre_mapper)
 
         casted_instance._invoke = llm_invoke_factory(
-            model_gateway=model_gateway,
+            gateway=gateway,
             system_message=system_message,
             tool_nodes=list(connected_nodes) if connected_nodes else None,
             schema=schema,

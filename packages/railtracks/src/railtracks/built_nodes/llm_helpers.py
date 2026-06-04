@@ -12,6 +12,13 @@ from typing import (
 from pydantic import BaseModel
 
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
+from railtracks.built_nodes.gateway_manager import GatewayManager
+from railtracks.built_nodes.gateway_types import (
+    GatewayCall,
+    GatewayPostMapper,
+    GatewayPreMapper,
+    GatewayWrapper,
+)
 from railtracks.exceptions.errors import LLMError
 from railtracks.interaction._call import call
 from railtracks.llm.content import ToolCall, ToolResponse
@@ -27,7 +34,6 @@ from railtracks.llm.model import ModelBase
 from railtracks.llm.response import Response
 from railtracks.llm.tools.parameters._base import Parameter
 from railtracks.llm.tools.tool import Tool
-from railtracks.nodes.mappers import MapInputs, MapOutputs
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_invocation.validation import check_message_history
 
@@ -52,50 +58,34 @@ class StructuredLLMInvoke(Protocol[_TStructured]):
     ) -> StructuredResponse[_TStructured]: ...
 
 
-class GatewayCall(Protocol[_TResponseCo]):
-    """The core model call as seen by gateway middleware."""
+class Gateway(Generic[_TStructured]):
+    """
+    Coordinates a single LLM invocation: applies pre-mappers, dispatches to the
+    model, then applies post-mappers and any wrappers.
 
-    async def __call__(
-        self,
-        messages: MessageHistory,
-        schema: type[BaseModel] | None,
-        tools: list[Tool] | None,
-    ) -> _TResponseCo: ...
+    ``pre_mappers`` accepts either a plain list or a :class:`GatewayManager`.
+    In both cases an internal ``GatewayManager`` is created from the user input
+    so the original object is never mutated.  System components (e.g. context
+    injection) register their mappers via ``_register_sys_pre``, which writes to
+    the system prefix layer of the manager — completely separate from whatever
+    the user passed.
+    """
 
-
-class GatewayWrapper(Protocol[_TResponse]):
-    """Takes a GatewayCall and returns a GatewayCall with the same signature.
-    Used for retry logic, fallback models, logging, etc."""
-
-    def __call__(
-        self,
-        fn: GatewayCall[_TResponse],
-    ) -> GatewayCall[_TResponse]: ...
-
-
-GatewayPreMapper = MapInputs[
-    tuple[MessageHistory, type[BaseModel] | None, list[Tool] | None]
-]
-GatewayPostMapper = MapOutputs[_TResponse]
-
-
-class ModelGateway(Generic[_TStructured]):
     def __init__(
         self,
         model: ModelBase[Literal[False]] | Callable[[], ModelBase[Literal[False]]],
         wrappers: list[GatewayWrapper[Response]] | None = None,
-        pre_mappers: list[GatewayPreMapper] | None = None,
+        pre_mappers: list[GatewayPreMapper] | GatewayManager | None = None,
         post_mappers: list[GatewayPostMapper] | None = None,
     ):
         self._get_model = model if callable(model) else lambda: model
         self._wrappers = wrappers or []
-        self._pre_mapping = pre_mappers or []
+        self._pre_manager = GatewayManager.from_user_input(pre_mappers)
         self._post_mapping = post_mappers or []
 
-    def add_pre_mapper(self, mapper: GatewayPreMapper) -> None:
-        """Register an additional pre-mapper, applied after any existing ones."""
-        if mapper not in self._pre_mapping:
-            self._pre_mapping.append(mapper)
+    def _register_sys_pre(self, mapper: GatewayPreMapper) -> None:
+        """Register a system-layer pre-mapper (runs before user mappers)."""
+        self._pre_manager._add_sys_pre(mapper)
 
     async def invoke(
         self,
@@ -111,7 +101,7 @@ class ModelGateway(Generic[_TStructured]):
             schema: type[BaseModel] | None,
             tools: list[Tool] | None,
         ):
-            for pre_map in self._pre_mapping:
+            for pre_map in self._pre_manager._execution_order():
                 messages, schema, tools = await pre_map(messages, schema, tools)
 
             if tools is not None and len(tools) > 0:
@@ -138,9 +128,13 @@ class ModelGateway(Generic[_TStructured]):
         return await llm_function(messages, schema, tools)
 
 
+# Backward-compatible alias so existing user code using ModelGateway still works.
+ModelGateway = Gateway
+
+
 @overload
 def llm_invoke_factory(
-    model_gateway: ModelGateway,
+    gateway: Gateway,
     system_message: SystemMessage | None,
     tool_nodes: list[type[Node]] | None = None,
     schema: None = None,
@@ -149,7 +143,7 @@ def llm_invoke_factory(
 
 @overload
 def llm_invoke_factory(
-    model_gateway: ModelGateway[_TStructured],
+    gateway: Gateway[_TStructured],
     system_message: SystemMessage | None,
     tool_nodes: list[type[Node]] | None = None,
     schema: type[_TStructured] = ...,
@@ -157,7 +151,7 @@ def llm_invoke_factory(
 
 
 def llm_invoke_factory(
-    model_gateway: ModelGateway[_TStructured],
+    gateway: Gateway[_TStructured],
     system_message: SystemMessage | None,
     tool_nodes: list[type[Node]] | None = None,
     schema: type[_TStructured] | None = None,
@@ -171,7 +165,7 @@ def llm_invoke_factory(
 
         while True:
             try:
-                returned_mess = await model_gateway.invoke(
+                returned_mess = await gateway.invoke(
                     message_history, schema=schema, tools=tools
                 )
             except Exception as e:
