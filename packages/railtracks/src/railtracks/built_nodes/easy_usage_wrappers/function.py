@@ -5,17 +5,23 @@ import functools
 import inspect
 import warnings
 from types import BuiltinFunctionType
-from typing import Callable, Coroutine, List, ParamSpec, TypeVar, overload
+from typing import (
+    Any,
+    Callable,
+    Coroutine,
+    Generic,
+    List,
+    ParamSpec,
+    Protocol,
+    TypeVar,
+    overload,
+)
 
 from railtracks.built_nodes._node_builder import NodeBuilder
-from railtracks.built_nodes.concrete import (
-    AsyncDynamicFunctionNode,
-    RTAsyncFunction,
-    RTSyncFunction,
-    SyncDynamicFunctionNode,
-)
+from railtracks.built_nodes.concrete.function_base import RTFunction
 from railtracks.exceptions import NodeCreationError
 from railtracks.nodes.manifest import ToolManifest
+from railtracks.nodes.nodes import Node
 from railtracks.validation.node_creation.validation import (
     validate_function,
     validate_tool_manifest_against_function,
@@ -25,6 +31,16 @@ _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
 
 
+class CallableSyncRTFunction(RTFunction[_P, _TOutput], Protocol, Generic[_P, _TOutput]):
+    def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput: ...
+
+
+class CallableAsyncRTFunction(
+    RTFunction[_P, _TOutput], Protocol, Generic[_P, _TOutput]
+):
+    async def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput: ...
+
+
 @overload
 def function_node(
     func: Callable[_P, Coroutine[None, None, _TOutput]],
@@ -32,8 +48,7 @@ def function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-) -> RTAsyncFunction[_P, _TOutput]:
-    pass
+) -> CallableAsyncRTFunction[_P, _TOutput]: ...
 
 
 @overload
@@ -43,18 +58,18 @@ def function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-) -> RTSyncFunction[_P, _TOutput]:
+) -> CallableSyncRTFunction[_P, _TOutput]:
     pass
 
 
 @overload
 def function_node(
-    func: List[Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]],
+    func: List[Callable[..., Any]],
     /,
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-) -> List[RTAsyncFunction[_P, _TOutput] | RTSyncFunction[_P, _TOutput]]:
+) -> List[RTFunction[..., Any]]:
     pass
 
 
@@ -82,14 +97,13 @@ def validate_function_parameters(
         validate_tool_manifest_against_function(func, manifest.parameters)
 
 
-def function_node_(
-    func: Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]
-    | List[Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]],
+def _single_function_node(
+    func: Callable[_P, Coroutine[None, None, _TOutput] | _TOutput],
     /,
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-):
+) -> CallableSyncRTFunction[_P, _TOutput] | CallableAsyncRTFunction[_P, _TOutput]:
     """
     Creates a new Node type from a function that can be used in `rt.call()`.
 
@@ -111,6 +125,9 @@ def function_node_(
             "The provided function has already been converted to a node.",
             UserWarning,
         )
+        assert issubclass(func.node_type, Node), (
+            "The provided function has a node_type attribute but it is not a Node. This unexpected behavior"
+        )
         return func
 
     if not isinstance(
@@ -122,17 +139,13 @@ def function_node_(
     if manifest is not None:
         validate_tool_manifest_against_function(func, manifest.parameters)
 
-    if asyncio.iscoroutinefunction(func):
-        node_class = AsyncDynamicFunctionNode
-    elif inspect.isfunction(func):
-        node_class = SyncDynamicFunctionNode
-    elif inspect.isbuiltin(func):
+    if inspect.isbuiltin(func):
         # builtin functions are written in C and do not have space for the addition of metadata like our node type.
         # so instead we wrap them in a function that allows for the addition of the node type.
         # this logic preserved details like the function name, docstring, and signature, but allows us to add the node type.
         func = _function_preserving_metadata(func)
-        node_class = SyncDynamicFunctionNode
-    else:
+
+    elif not asyncio.iscoroutinefunction(func) and not inspect.isfunction(func):
         raise NodeCreationError(
             message=f"The provided function is not a valid coroutine or sync function it is {type(func)}.",
             notes=[
@@ -140,24 +153,26 @@ def function_node_(
             ],
         )
 
-    builder = NodeBuilder(
-        node_class,
-        name=name if name is not None else f"{func.__name__}",
-    )
+    unwrapped_func: Callable[_P, Coroutine[None, None, _TOutput]]
+    if not asyncio.iscoroutinefunction(func):
 
-    builder.setup_function_node(
-        func,
+        async def wrapped_function(*args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
+            return await asyncio.to_thread(func, *args, **kwargs)
+
+        unwrapped_func = wrapped_function
+    else:
+        unwrapped_func = func
+
+    builder = NodeBuilder().function(
+        unwrapped_func,
+        name=name if name is not None else f"{unwrapped_func.__name__}",
         tool_details=manifest.description if manifest is not None else None,
         tool_params=manifest.parameters if manifest is not None else None,
     )
 
     completed_node_type = builder.build()
 
-    # there is some pretty scary logic here.
-    if issubclass(completed_node_type, AsyncDynamicFunctionNode):
-        setattr(func, "node_type", completed_node_type)
-        return func
-    elif issubclass(completed_node_type, SyncDynamicFunctionNode):
+    if issubclass(completed_node_type, Node):
         setattr(func, "node_type", completed_node_type)
         return func
     else:
@@ -200,70 +215,13 @@ def function_node(
     # handle the case where a list of functions is provided
     if isinstance(func, list):
         return [function_node(f, name=name, manifest=manifest) for f in func]
-
-    # check if the function has already been converted to a node
-    if hasattr(func, "node_type"):
-        warnings.warn(
-            "The provided function has already been converted to a node.",
-            UserWarning,
-        )
-        return func
-
-    # validate_function_parameters is separated out to allow for easier testing.
-    validate_function_parameters(func, manifest)
-
-    # assign the correct node class based on whether the function is async or sync
-    if asyncio.iscoroutinefunction(func):
-        node_class = AsyncDynamicFunctionNode
-    elif inspect.isfunction(func):
-        node_class = SyncDynamicFunctionNode
-    elif inspect.isbuiltin(func):
-        # builtin functions are written in C and do not have space for the addition of metadata like our node type.
-        # so instead we wrap them in a function that allows for the addition of the node type.
-        # this logic preserved details like the function name, docstring, and signature, but allows us to add the node type.
-        func = _function_preserving_metadata(func)
-        node_class = SyncDynamicFunctionNode
     else:
-        raise NodeCreationError(
-            message=f"The provided function is not a valid coroutine or sync function it is {type(func)}.",
-            notes=[
-                "You must provide a valid function or coroutine function to make a node.",
-            ],
-        )
-
-    # build the node using the NodeBuilder
-    builder = NodeBuilder(
-        node_class,
-        name=name if name is not None else f"{func.__name__}",
-    )
-
-    builder.setup_function_node(
-        func,
-        tool_details=manifest.description if manifest is not None else None,
-        tool_params=manifest.parameters if manifest is not None else None,
-    )
-
-    completed_node_type = builder.build()
-
-    # there is some pretty scary logic here.
-    if issubclass(completed_node_type, AsyncDynamicFunctionNode):
-        setattr(func, "node_type", completed_node_type)
-        return func
-    elif issubclass(completed_node_type, SyncDynamicFunctionNode):
-        setattr(func, "node_type", completed_node_type)
-        return func
-    else:
-        raise NodeCreationError(
-            message="The provided function did not create a valid node type.",
-            notes=[
-                "Please make a github issue with the details of what went wrong.",
-            ],
-        )
+        return _single_function_node(func, name=name, manifest=manifest)
 
 
 def _function_preserving_metadata(
     func: Callable[_P, _TOutput],
-):
+) -> Callable[_P, _TOutput]:
     """
     Wraps the given function in a trivial wrapper that preserves its metadata.
     """

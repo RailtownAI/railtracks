@@ -1,272 +1,221 @@
-from pydantic import BaseModel
+import asyncio
+
 import pytest
-from unittest.mock import MagicMock, patch
-from railtracks.built_nodes._node_builder import NodeBuilder, classmethod_preserving_function_meta
-from railtracks.built_nodes.concrete import LLMBase, OutputLessToolCallLLM
-from railtracks import function_node, ToolManifest
-from railtracks.built_nodes.easy_usage_wrappers.function import SyncDynamicFunctionNode
-from railtracks.llm import Parameter, Tool, OpenAILLM
-from railtracks.llm import SystemMessage
+from pydantic import BaseModel
+from unittest.mock import MagicMock
+
+from railtracks.built_nodes._node_builder import (
+    NodeBuilder,
+    classmethod_preserving_function_meta,
+    safe_create_node,
+)
+from railtracks.built_nodes.llm_helpers import ModelGateway
 from railtracks.exceptions.errors import NodeCreationError
+from railtracks.llm import Parameter, SystemMessage
 from railtracks.nodes.nodes import Node
+
 
 class Schema(BaseModel):
     x: int
 
-def dummy_manifest():
-    tool_manifest = ToolManifest(
-            description="A tool to be called",
-            parameters=[Parameter(
-                name="x",
-                description="Input to the tool",
-                param_type="integer",
-            )]
-            )
-    return tool_manifest
-class DummyNode(LLMBase):
-    @classmethod
-    def name(cls): return "DummyNode"
-    async def invoke(self): return "dummy"
-    @classmethod
-    def type(cls): return "Agent"
 
-class DummyToolCallNode(OutputLessToolCallLLM):
-    @classmethod
-    def name(cls): return "DummyNode"
-    async def invoke(self): return "dummy"
-    @classmethod
-    def type(cls): return "Agent"
+def dummy_gateway():
+    return ModelGateway(model=MagicMock())
 
-def dummy_func(x):
+
+async def async_func(x: int) -> int:
     return x
 
-def dummy_function_node():
-    return function_node(dummy_func)
 
-def llm_model():
-    return OpenAILLM(model_name="gpt-4o")
+# --- NodeBuilder.llm ---
 
-def test_nodebuilder_basic_build():
-    builder = NodeBuilder(DummyNode, name="TestNode", class_name="CustomNode")
-    node_cls = builder.build()
-    assert issubclass(node_cls, DummyNode)
-    assert node_cls.__name__ == "CustomNode"
+def test_nodebuilder_llm_basic_build():
+    node_cls = NodeBuilder.llm("TestNode", model_gateway=dummy_gateway()).build()
+    assert issubclass(node_cls, Node)
     assert node_cls.name() == "TestNode"
+    assert node_cls.type() == "Agent"
 
-def test_nodebuilder_basic_build_no_names():
-    builder = NodeBuilder(DummyNode)
-    node_cls = builder.build()
-    assert issubclass(node_cls, DummyNode)
-    assert node_cls.__name__ == "DynamicDummyNode"
-    assert node_cls.name() == "DummyNode"
 
-def test_nodebuilder_add_attribute():
-    builder = NodeBuilder(DummyNode, name="TestNode")
-    builder.add_attribute("my_attr", 42, make_function=False)
-    node_cls = builder.build()
-    assert node_cls.my_attr == 42
-    builder.add_attribute("my_method", lambda cls: 99, make_function=True)
-    node_cls2 = builder.build()
-    assert node_cls2.my_method() == 99
+def test_nodebuilder_llm_default_class_name():
+    node_cls = NodeBuilder.llm("MyLLM", model_gateway=dummy_gateway()).build()
+    assert node_cls.__name__ == "MyLLMNode"
 
-def test_nodebuilder_llm_base():
-    builder = NodeBuilder(DummyNode, name="LLMNode", class_name="LLMNode")
-    builder.llm_base(llm_model(), system_message="sysmsg")
-    node_cls = builder.build()
-    assert isinstance(node_cls.get_llm(), type(llm_model()))
-    assert node_cls.system_message().content == "sysmsg"
-    assert node_cls.system_message().role == "system"
 
-def test_nodebuilder_llm_base_System_message():
-    builder = NodeBuilder(DummyNode, name="LLMNode", class_name="LLMNode")
-    builder.llm_base(llm_model(), system_message=SystemMessage(content="sysmsg"))
-    node_cls = builder.build()
-    assert isinstance(node_cls.get_llm(), type(llm_model()))
-    assert node_cls.system_message().content == "sysmsg"
-    assert node_cls.system_message().role == "system"
+def test_nodebuilder_llm_custom_class_name():
+    node_cls = NodeBuilder.llm("MyLLM", class_name="Custom", model_gateway=dummy_gateway()).build()
+    assert node_cls.__name__ == "CustomNode"
 
-def test_nodebuilder_structured():
-    builder = NodeBuilder(DummyNode, name="TestNode")
-    builder.llm_base(llm_model(), system_message=SystemMessage(content="sysmsg"))
-    builder.structured(Schema)
-    node_cls = builder.build()
-    assert node_cls.output_schema() == Schema
 
-def test_nodebuilder_tool_calling_llm_with_function():
-        builder = NodeBuilder(DummyToolCallNode)
-        builder.llm_base(llm_model(), system_message=SystemMessage(content="sysmsg"))
-        builder.tool_calling_llm({dummy_func})
-        node_cls = builder.build()
-        assert dummy_function_node().node_type in node_cls.tool_nodes()
-        assert isinstance(node_cls.get_llm(), type(llm_model()))
-        assert node_cls.system_message().content == "sysmsg"
-        assert node_cls.system_message().role == "system"
+def test_nodebuilder_llm_has_invoke():
+    node_cls = NodeBuilder.llm("TestNode", model_gateway=dummy_gateway()).build()
+    assert hasattr(node_cls, "invoke")
 
-def test_nodebuilder_tool_calling_llm_with_function_node():
-        builder = NodeBuilder(DummyToolCallNode)
-        builder.llm_base(llm_model(), system_message=SystemMessage(content="sysmsg"))
-        builder.tool_calling_llm({dummy_function_node()})
-        node_cls = builder.build()
-        assert dummy_function_node().node_type in node_cls.tool_nodes()
-        assert isinstance(node_cls.get_llm(), type(llm_model()))
-        assert node_cls.system_message().content == "sysmsg"
-        assert node_cls.system_message().role == "system"
 
-def test_nodebuilder_setup_function_node():
-    builder = NodeBuilder(SyncDynamicFunctionNode, name="FuncNode")
-    builder.setup_function_node(dummy_func, tool_details=dummy_manifest().description, tool_params=dummy_manifest().parameters)
-    node_cls = builder.build()
-    assert issubclass(node_cls, SyncDynamicFunctionNode)
-    assert node_cls.name() == "FuncNode"
-    assert node_cls.func(5) == 5
-    assert node_cls.tool_info().detail == dummy_manifest().description
-    assert node_cls.tool_info().parameters[0].name == dummy_manifest().parameters[0].name
+def test_nodebuilder_llm_no_tool_details_has_no_tool_info():
+    node_cls = NodeBuilder.llm("TestNode", model_gateway=dummy_gateway()).build()
+    assert not hasattr(node_cls, "tool_info")
 
-def test_nodebuilder_tool_callable_llm():
-    builder = NodeBuilder(DummyNode, name="LLMNode")
 
-    params = {dummy_manifest().parameters[0]}
-    builder.tool_callable_llm(tool_details=dummy_manifest().description, tool_params=params)
-    node_cls = builder.build()
+def test_nodebuilder_llm_with_tool_details_has_tool_info():
+    params = [Parameter(name="x", description="Input", param_type="integer")]
+    node_cls = NodeBuilder.llm(
+        "TestNode",
+        model_gateway=dummy_gateway(),
+        tool_details="Does something",
+        tool_params=params,
+    ).build()
     assert hasattr(node_cls, "tool_info")
+    tool = node_cls.tool_info()
+    assert tool.detail == "Does something"
+    assert tool.name == "TestNode"
+
+
+def test_nodebuilder_llm_with_tool_details_has_prepare_tool():
+    params = [Parameter(name="x", description="Input", param_type="integer")]
+    node_cls = NodeBuilder.llm(
+        "TestNode",
+        model_gateway=dummy_gateway(),
+        tool_details="Does something",
+        tool_params=params,
+    ).build()
     assert hasattr(node_cls, "prepare_tool")
-    assert node_cls.tool_info().detail == dummy_manifest().description
-    assert node_cls.tool_info().parameters == params
 
-def test_nodebuilder_override_tool_info_with_tool():
-    builder = NodeBuilder(DummyNode, name="TestNode")
-    builder.tool_callable_llm(tool_details=dummy_manifest().description, tool_params={dummy_manifest().parameters[0]})
-    tool_obj = Tool(name="tool_obj", detail="", parameters=None)
-    builder.override_tool_info(tool=tool_obj)
-    node_cls = builder.build()
-    assert isinstance(node_cls.tool_info(), Tool)
-    assert node_cls.tool_info().name == "tool_obj"
-    builder2 = NodeBuilder(DummyNode, name="TestNode")
-    params = {Parameter(name="x", param_type="integer", description="desc")}
-    builder2.override_tool_info(tool_details="details", tool_params=params)
-    node_cls2 = builder2.build()
-    assert hasattr(node_cls2, "tool_info")
-    assert node_cls2.tool_info().detail == "details"
-    assert node_cls2.tool_info().parameters == params
 
-def test_nodebuilder_override_tool_info_with_parameters():
-    builder = NodeBuilder(DummyNode, name="TestNode")
-    builder.override_tool_info(name="tool_obj")
-    node_cls = builder.build()
-    assert isinstance(node_cls.tool_info(), Tool)
-    assert node_cls.tool_info().name == "tool_obj"
-    builder2 = NodeBuilder(DummyNode, name="TestNode")
-    params = {Parameter(name="x", param_type="integer", description="desc")}
-    builder2.override_tool_info(tool_details="details", tool_params=params)
-    node_cls2 = builder2.build()
-    assert hasattr(node_cls2, "tool_info")
-    assert node_cls2.tool_info().detail == "details"
-    assert node_cls2.tool_info().parameters == params
+def test_nodebuilder_llm_with_system_message_string():
+    node_cls = NodeBuilder.llm(
+        "TestNode",
+        model_gateway=dummy_gateway(),
+        system_message=SystemMessage(content="sysmsg"),
+    ).build()
+    assert issubclass(node_cls, Node)
 
-def test_nodebuilder_add_attribute_override_warning():
-    builder = NodeBuilder(DummyNode, name="TestNode")
-    builder.add_attribute("my_attr", 42, make_function=False)
-    # Should warn on override
-    with patch("warnings.warn") as warn_mock:
-        builder.add_attribute("my_attr", 99, make_function=False)
-        warn_mock.assert_called_once()
 
-def test_nodebuilder_wrong_base_class_error():
-    class NotNode: pass
-    with pytest.raises(AssertionError):
-        NodeBuilder(NotNode, name="BadNode").llm_base(llm="mock_llm")
+def test_nodebuilder_llm_with_schema():
+    node_cls = NodeBuilder.llm(
+        "TestNode",
+        model_gateway=dummy_gateway(),
+        schema=Schema,
+    ).build()
+    assert issubclass(node_cls, Node)
 
-def test_nodebuilder_duplicate_param_names_error():
-    builder = NodeBuilder(DummyNode, name="LLMNode")
+
+def test_nodebuilder_llm_duplicate_param_names_error():
+    params = [
+        Parameter(name="x", param_type="integer", description="desc"),
+        Parameter(name="x", param_type="integer", description="desc"),
+    ]
     with pytest.raises(NodeCreationError):
-        builder.tool_callable_llm(tool_details="details", tool_params=[Parameter(name="x", param_type="integer", description="desc"), Parameter(name="x", param_type="integer", description="desc")])
+        NodeBuilder.llm(
+            "TestNode",
+            model_gateway=dummy_gateway(),
+            tool_details="details",
+            tool_params=params,
+        )
 
-def test_nodebuilder_override_tool_info_conflict():
-    builder = NodeBuilder(DummyNode, name="TestNode")
-    with pytest.raises(AssertionError):
-        builder.override_tool_info(tool=Tool(name="tool_obj", detail="", parameters=None), name="conflict", tool_details="details", tool_params={Parameter(name="x", param_type="integer", description="desc")})
 
-def test_nodebuilder_add_attribute_callable_field():
-    builder = NodeBuilder(DummyNode, name="TestNode")
-    builder.add_attribute("callable_field", lambda: 123, make_function=False)
-    node_cls = builder.build()
-    assert node_cls.callable_field == 123
+# --- NodeBuilder.function ---
 
-def test_nodebuilder_add_attribute_non_callable_field():
-    builder = NodeBuilder(DummyNode, name="TestNode")
-    builder.add_attribute("non_callable_field", 456, make_function=False)
-    node_cls = builder.build()
-    assert node_cls.non_callable_field == 456
+def test_nodebuilder_function_basic_build():
+    node_cls = NodeBuilder.function(async_func).build()
+    assert issubclass(node_cls, Node)
+    assert node_cls.name() == "async_func"
+    assert node_cls.type() == "Tool"
 
-def test_nodebuilder_add_attribute_callable_method():
-    builder = NodeBuilder(DummyNode, name="TestNode")
-    builder.add_attribute("callable_method", lambda cls: 789, make_function=True)
-    node_cls = builder.build()
-    assert node_cls.callable_method() == 789
 
-def test_nodebuilder_add_attribute_non_callable_method():
-    builder = NodeBuilder(DummyNode, name="TestNode")
-    builder.add_attribute("non_callable_method", 101112, make_function=True)
-    node_cls = builder.build()
-    assert node_cls.non_callable_method() == 101112
+def test_nodebuilder_function_default_class_name():
+    node_cls = NodeBuilder.function(async_func).build()
+    assert node_cls.__name__ == "Async_funcNode"
 
-def test_nodebuilder_tool_callable_llm_wrong_base():
-    class NotLLM(Node):
-        @classmethod
-        def name(cls): return "NotLLM"
-        async def invoke(self): return "notllm"
-        @classmethod
-        def type(cls): return "Tool"
-    builder = NodeBuilder(NotLLM, name="NotLLM")
-    with pytest.raises(AssertionError):
-        builder.tool_callable_llm(tool_details="details", tool_params={Parameter(name="x", param_type="integer", description="desc")})
 
-def test_nodebuilder_add_attribute_make_function_with_non_callable():
-    builder = NodeBuilder(DummyNode, name="TestNode")
-    builder.add_attribute("non_callable_func", 123, make_function=True)
-    node_cls = builder.build()
-    assert node_cls.non_callable_func() == 123
+def test_nodebuilder_function_custom_name():
+    node_cls = NodeBuilder.function(async_func, name="MyFunc").build()
+    assert node_cls.name() == "MyFunc"
 
-def test_nodebuilder_llm_base_with_none():
-    builder = NodeBuilder(DummyNode, name="LLMNode")
-    builder.llm_base(llm=None, system_message=None)
-    node_cls = builder.build()
-    assert node_cls.get_llm() is None
-    assert node_cls.system_message() is None
 
-def test_nodebuilder_override_tool_info_with_only_name():
-    builder = NodeBuilder(DummyNode, name="TestNode")
-    node_cls = builder.build()
-    builder.override_tool_info(name="tool_name")
-    node_cls2 = builder.build()
-    assert hasattr(node_cls2, "tool_info")
+def test_nodebuilder_function_custom_class_name():
+    node_cls = NodeBuilder.function(async_func, class_name="MyClass").build()
+    assert node_cls.__name__ == "MyClassNode"
 
-def test_nodebuilder_add_attribute_override_warning_make_function():
-    builder = NodeBuilder(DummyNode, name="TestNode")
-    builder.add_attribute("my_method", lambda cls: 1, make_function=True)
-    with patch("warnings.warn") as warn_mock:
-        builder.add_attribute("my_method", lambda cls: 2, make_function=True)
-        warn_mock.assert_called_once()
 
-def test_nodebuilder_setup_function_node_wrong_base():
-    class NotFunctionNode(Node):
-        @classmethod
-        def name(cls): return "NotFunctionNode"
-        async def invoke(self): return "notfunc"
-        @classmethod
-        def type(cls): return "Tool"
-    builder = NodeBuilder(NotFunctionNode, name="NotFunctionNode")
-    with pytest.raises(AssertionError):
-        builder.setup_function_node(dummy_func)
+def test_nodebuilder_function_has_tool_info():
+    node_cls = NodeBuilder.function(async_func).build()
+    assert hasattr(node_cls, "tool_info")
+
+
+def test_nodebuilder_function_tool_info_detail():
+    params = [Parameter(name="x", param_type="integer", description="Input")]
+    node_cls = NodeBuilder.function(
+        async_func,
+        tool_details="Does a thing",
+        tool_params=params,
+    ).build()
+    assert node_cls.tool_info().detail == "Does a thing"
+
+
+def test_nodebuilder_function_invoke_calls_func():
+    node_cls = NodeBuilder.function(async_func).build()
+    result = asyncio.run(node_cls().invoke(5))
+    assert result == 5
+
+
+# --- safe_create_node ---
+
+def test_safe_create_node_basic():
+    async def invoke(self):
+        return "ok"
+
+    required = {
+        "invoke": invoke,
+        "name": classmethod_preserving_function_meta(lambda: "N"),
+        "type": classmethod_preserving_function_meta(lambda: "Tool"),
+    }
+    node_cls = safe_create_node("TestClass", required, {})
+    assert issubclass(node_cls, Node)
+    assert node_cls.__name__ == "TestClassNode"
+
+
+def test_safe_create_node_none_class_name_raises():
+    with pytest.raises(ValueError):
+        safe_create_node(None, {}, {})  # type: ignore[arg-type]
+
+
+def test_safe_create_node_required_optional_name_collision_raises():
+    with pytest.raises(ValueError):
+        safe_create_node("Foo", {"shared": 1}, {"shared": 2})
+
+
+def test_safe_create_node_optional_none_values_excluded():
+    async def invoke(self):
+        return "ok"
+
+    required = {
+        "invoke": invoke,
+        "name": classmethod_preserving_function_meta(lambda: "N"),
+        "type": classmethod_preserving_function_meta(lambda: "Tool"),
+    }
+    node_cls = safe_create_node("TestClass", required, {"missing_attr": None})
+    assert not hasattr(node_cls, "missing_attr")
+
+
+# --- classmethod_preserving_function_meta ---
 
 def test_classmethod_preserving_function_meta():
-    def f(x): return x + 1
+    def f(x):
+        return x + 1
+
     cm = classmethod_preserving_function_meta(f)
+
     class Dummy(Node):
         @classmethod
-        def name(cls): return "Dummy"
-        async def invoke(self): return "dummy"
+        def name(cls):
+            return "Dummy"
+
+        async def invoke(self):
+            return "dummy"
+
         @classmethod
-        def type(cls): return "Tool"
+        def type(cls):
+            return "Tool"
+
     Dummy.f = cm
     assert Dummy.f(2) == 3

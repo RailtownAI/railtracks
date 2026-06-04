@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-from types import FunctionType
 from typing import (
     TYPE_CHECKING,
     Callable,
@@ -41,7 +40,7 @@ _TOutput = TypeVar("_TOutput")
 
 @overload
 async def call(
-    node_: RTFunction[_P, _TOutput],
+    node_: type[Node[_P, _TOutput]],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput: ...
@@ -49,14 +48,14 @@ async def call(
 
 @overload
 async def call(
-    node_: Callable[_P, Node[_TOutput]],
+    node_: RTFunction[_P, _TOutput],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput: ...
 
 
 async def call(
-    node_: Callable[_P, Node[_TOutput]] | RTFunction[_P, _TOutput],
+    node_: type[Node[_P, _TOutput]] | RTFunction[_P, _TOutput],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput:
@@ -79,12 +78,20 @@ async def call(
         *args: The arguments to pass to the node
         **kwargs: The keyword arguments to pass to the node
     """
-    node: Callable[_P, Node[_TOutput]]
-    # this entire section is a bit of a typing nightmare becuase all overloads we provide.
-    if isinstance(node_, FunctionType):
+    node: type[Node[_P, _TOutput]]
+
+    if hasattr(node_, "node_type"):
+        # local import to prevent circular import issues (note it is a purely type checking import)
+        print(f"Extracting node from function {node_}")
+        from railtracks.built_nodes.concrete import RTFunction
+
+        assert isinstance(node_, RTFunction)
         node = extract_node_from_function(node_)
     else:
         node = node_
+
+    # TODO: make sure the function type branch deletion does not break things.,
+
     # if the context is none then we will need to create a wrapper for the state object to work with.
     if not is_context_present():
         # we have to use lazy import here to prevent a circular import issue. This is a must have unfortunately.
@@ -135,7 +142,7 @@ def _top_level_message_filter(request_id: str):
 
 
 async def _start(
-    node: Callable[_P, Node[_TOutput]],
+    node: type[Node[_P, _TOutput]],
     args,
     kwargs,
 ):
@@ -172,7 +179,7 @@ async def _start(
 
 
 async def _run(
-    node: Callable[_P, Node[_TOutput]],
+    node: type[Node[_P, _TOutput]],
     args,
     kwargs,
 ):
@@ -185,7 +192,7 @@ async def _run(
 
 
 async def _execute(
-    node: Callable[_P, Node[_TOutput]],
+    node: type[Node[_P, _TOutput]],
     args,
     kwargs,
     message_filter: Callable[[str], Callable[[RequestCompletionMessage], bool]],

@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 from railtracks.context.central import get_run_id, update_parent_id
 from railtracks.nodes.nodes import Node
@@ -16,15 +16,16 @@ class Task(Generic[_TOutput]):
     def __init__(
         self,
         request_id: str,
-        node: Node[_TOutput],
+        node: Node[..., _TOutput],
+        arguments: tuple[tuple, dict[str, Any]],
     ):
         self.request_id = request_id
         self.node = node
+        self.arguments = arguments
 
     async def invoke(self):
         """The callable that this task is representing."""
         # if there is no parent run_id then this is the root
-
         if get_run_id() is None:
             # note critically that since these variables only this tree of requests will see this run_id.
             update_parent_id(self.node.uuid, self.node.uuid)
@@ -33,4 +34,6 @@ class Task(Generic[_TOutput]):
         else:
             update_parent_id(self.node.uuid)
 
-        return await self.node.tracked_invoke()
+        result = await self.node.wrapped_invoke(*self.arguments[0], **self.arguments[1])
+
+        return result
