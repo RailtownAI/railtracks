@@ -1,3 +1,4 @@
+import concurrent.futures
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -107,60 +108,40 @@ async def test_async_client_init_http_uses_correct_transport(
 def test_from_mcp_returns_node_class(fake_tool, mcp_http_params):
     mock_loop = MagicMock()
     mock_client = AsyncMock()
-    mock_result = MagicMock(content="abc")
-    mock_client.call_tool.return_value = mock_result
 
-    # Patch run_coroutine_threadsafe to return a Future with result
-    future = MagicMock()
-    future.result.return_value = mock_result
-    with patch("asyncio.run_coroutine_threadsafe", return_value=future):
-        result_class = from_mcp(fake_tool, mock_client, mock_loop)
+    result_class = from_mcp(fake_tool, mock_client, mock_loop)
+    node = result_class()
+    assert result_class.name() == f"{fake_tool.name}"
+    with patch.object(result_class, 'tool_info', wraps=result_class.tool_info):
+        Tool = type("Tool", (), {"from_mcp": staticmethod(lambda tool: "X")})
+        result_class.tool_info = classmethod(lambda cls: Tool.from_mcp(fake_tool))
+        assert result_class.tool_info() == "X"
 
-        node = result_class(bar=1)
-        # must have custom name
-        assert result_class.name() == f"{fake_tool.name}"
-        # must have correct tool_info
-        with patch.object(result_class, 'tool_info', wraps=result_class.tool_info) as ti:
-            Tool = type("Tool", (), {"from_mcp": staticmethod(lambda tool: "X")})
-            result_class.tool_info = classmethod(lambda cls: Tool.from_mcp(fake_tool))
-            assert result_class.tool_info() == "X"
-
-def test_from_mcp_prepare_tool(fake_tool, mcp_http_params):
+def test_from_mcp_prepare_args(fake_tool, mcp_http_params):
     mock_loop = MagicMock()
     mock_client = AsyncMock()
-    mock_result = MagicMock(content="abc")
-    mock_client.call_tool.return_value = mock_result
-
-    # Patch run_coroutine_threadsafe to return a Future with result
-    future = MagicMock()
-    future.result.return_value = mock_result
-    with patch("asyncio.run_coroutine_threadsafe", return_value=future):
-        result_class = from_mcp(fake_tool, mock_client, mock_loop)
-        options = {"one": 1, "two": 2}
-        inst = result_class.prepare_tool(**options)
-        assert isinstance(inst, result_class)
-        assert inst.kwargs == options
+    result_class = from_mcp(fake_tool, mock_client, mock_loop)
+    # prepare_args is inherited from Node — passes kwargs through unchanged
+    assert result_class.prepare_args(one=1, two=2) == {"one": 1, "two": 2}
 
 @pytest.mark.asyncio
 async def test_from_mcp_invoke(fake_tool, mcp_http_params):
     mock_loop = MagicMock()
     mock_client = AsyncMock()
-    mock_result = "abc"
-    mock_client.call_tool.return_value = mock_result
 
-    # Patch run_coroutine_threadsafe to return a Future with result
-    future = MagicMock()
-    future.result.return_value = mock_result
-    with patch("asyncio.run_coroutine_threadsafe", return_value=future):
-        node_cls = from_mcp(fake_tool, mock_client, mock_loop)
-        node = node_cls(bar=2)
-        result = await node.invoke()
+    node_cls = from_mcp(fake_tool, mock_client, mock_loop)
+    node = node_cls()
+
+    fut = concurrent.futures.Future()
+    fut.set_result("abc")
+    with patch("asyncio.run_coroutine_threadsafe", return_value=fut):
+        result = await node.invoke(bar=2)
         assert result == "abc"
 
-        # also test fallback to raw result (no .content)
-        mock_result2 = "valonly"
-        future.result.return_value = mock_result2
-        result = await node.invoke()
+    fut2 = concurrent.futures.Future()
+    fut2.set_result("valonly")
+    with patch("asyncio.run_coroutine_threadsafe", return_value=fut2):
+        result = await node.invoke(bar=2)
         assert result == "valonly"
 
 

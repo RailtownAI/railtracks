@@ -48,7 +48,7 @@ def patch_streamablehttp_client():
     cm_mock = AsyncMock()
     cm_mock.__aenter__.return_value = (AsyncMock(), AsyncMock())
     cm_mock.__aexit__.return_value = None
-    with patch("railtracks.rt_mcp.main.streamablehttp_client", return_value=cm_mock) as p:
+    with patch("railtracks.rt_mcp.main.streamable_http_client", return_value=cm_mock) as p:
         yield p
 
 @pytest.fixture
