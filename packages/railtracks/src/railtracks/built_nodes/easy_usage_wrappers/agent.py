@@ -121,7 +121,7 @@ def agent_node(
 
     Args:
         name (str | None): The name of the agent. If none the default will be used.
-        tool_nodes (set[Type[Node] | RTFunction] | None): If your agent has access to tools, what does it have access to?
+        tool_nodes (Iterable[Type[Node] | RTFunction] | None): If your agent has access to tools, what does it have access to?
         output_schema (Type[_TBaseModel] | None): If your agent should return a structured output, what is the output_schema?
         llm (ModelBase): The LLM model to use.
         system_message (SystemMessage | str | None): System message for the agent.
