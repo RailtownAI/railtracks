@@ -15,7 +15,7 @@ runs:
   using: 'composite'
   steps:
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ inputs.python-version }}
 
@@ -28,7 +28,7 @@ runs:
         echo "value=${slug}" >> "$GITHUB_OUTPUT"
 
     - name: Cache pip dependencies
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ steps.cache-slug.outputs.value }}-${{ hashFiles('**/pyproject.toml', '**/requirements*.txt') }}
