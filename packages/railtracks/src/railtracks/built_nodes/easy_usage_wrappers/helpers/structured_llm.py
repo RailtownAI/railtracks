@@ -33,6 +33,7 @@ def structured_llm(
     return_into: str | None = None,
     format_for_return: Callable[[Any], Any] | None = None,
     format_for_context: Callable[[Any], Any] | None = None,
+    context_injection: bool = True,
 ) -> Type[StructuredLLM[_TOutput] | StreamingStructuredLLM[_TOutput]]:
     """
     Dynamically create a StructuredLastMessageLLM node class with custom configuration for output_schema.
@@ -75,6 +76,8 @@ def structured_llm(
     )
     builder.llm_base(llm, system_message)
     builder.structured(output_schema)
+    if not context_injection:
+        builder.context_injection(False)
     if guardrails is not None:
         builder.add_attribute("guardrails", guardrails, make_function=False)
     if tool_details is not None or tool_params is not None:

@@ -344,6 +344,22 @@ class NodeBuilder(Generic[_TNode]):
             else:
                 self._with_override(name, attribute)
 
+    def context_injection(self, enabled: bool):
+        """
+        Control whether context variable injection is active for this LLM node.
+
+        When disabled, placeholders such as ``{variable}`` in prompts are left as-is
+        regardless of the session context or ``ExecutorConfig.prompt_injection``.
+
+        Args:
+            enabled (bool): ``False`` to turn off injection for this node class.
+        """
+        assert issubclass(self._node_class, LLMBase), (
+            f"context_injection can only be configured on LLMBase subclasses, got {self._node_class}"
+        )
+        self._with_override("context_injection", enabled)
+        return self
+
     def _with_override(self, name: str, method):
         """
         Add an override method for the node.

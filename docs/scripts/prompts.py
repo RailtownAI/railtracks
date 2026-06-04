@@ -19,14 +19,22 @@ response = assistant_flow.update_context({"role": "technical", "domain": "Python
 # --8<-- [end: prompt_basic]
 
 # --8<-- [start: disable_injection]
-# Disable context injection for a specific run
+# 1. LLM level — disable for a specific agent class (takes precedence over session level)
+assistant_no_inject = rt.agent_node(
+    name="Assistant",
+    system_message=system_message,
+    llm=rt.llm.OpenAILLM("gpt-4o"),
+    context_injection=False,
+)
+
+# 2. Session level — disable for an entire session run
 flow = rt.Flow(
     "assistant-flow",
     entry_point=assistant,
-    prompt_injection=False
+    prompt_injection=False,
 )
 
-# or globally via 
+# 3. Global level — disable for all future sessions
 rt.set_config(prompt_injection=False)
 # --8<-- [end: disable_injection]
 

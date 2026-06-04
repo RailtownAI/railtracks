@@ -32,6 +32,7 @@ def structured_tool_call_llm(
     format_for_return: Callable[[Any], Any] | None = None,
     format_for_context: Callable[[Any], Any] | None = None,
     guardrails: Guard | None = None,
+    context_injection: bool = True,
 ) -> Type[StructuredToolCallLLM[_TOutput]]:
     """
     Dynamically create a StructuredToolCallLLM node class with custom configuration for tool calling.
@@ -76,7 +77,8 @@ def structured_tool_call_llm(
 
     builder.llm_base(llm, system_message)
     builder.tool_calling_llm(set(tool_nodes))
-
+    if not context_injection:
+        builder.context_injection(False)
     if tool_details is not None or tool_params is not None:
         builder.tool_callable_llm(tool_details, tool_params)
     builder.structured(output_schema)

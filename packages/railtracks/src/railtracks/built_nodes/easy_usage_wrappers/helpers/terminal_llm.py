@@ -25,6 +25,7 @@ def terminal_llm(
     return_into: str | None = None,
     format_for_return: Callable[[Any], Any] | None = None,
     format_for_context: Callable[[Any], Any] | None = None,
+    context_injection: bool = True,
 ):
     """
     Dynamically create a LastMessageTerminalLLM node class with custom configuration.
@@ -63,6 +64,8 @@ def terminal_llm(
         format_for_context=format_for_context,
     )
     builder.llm_base(llm, system_message)
+    if not context_injection:
+        builder.context_injection(False)
     if guardrails is not None:
         builder.add_attribute("guardrails", guardrails, make_function=False)
     if tool_details is not None or tool_params is not None:

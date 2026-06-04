@@ -28,7 +28,7 @@ from railtracks.llm import (
 )
 from railtracks.llm.response import Response
 from railtracks.nodes.nodes import Node
-from railtracks.prompts.prompt import inject_context
+from railtracks.prompts.context_injection import ContextInjectionPreMapper
 from railtracks.utils.logging import get_rt_logger
 from railtracks.validation.node_invocation.validation import (
     check_llm_model,
@@ -91,6 +91,22 @@ class LLMBase(Node[_T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
             If a UserMessage is provided, it will be converted to a MessageHistory.
             llm: The LLM model to use. If None, the default model will be used.
     """
+
+    context_injection: bool = True
+    """
+    Enable or disable context variable injection for this LLM node class.
+
+    When True (default), placeholders like ``{variable}`` in messages are replaced
+    with values from the active session context before the LLM call.  Can be
+    disabled at three granularities:
+
+    - **LLM level** (this flag): set ``context_injection = False`` on the class,
+      or pass ``context_injection=False`` to ``agent_node()``.
+    - **Session level**: ``rt.Session(prompt_injection=False)`` / ``ExecutorConfig(prompt_injection=False)``.
+    - **Message level**: ``UserMessage(..., inject_prompt=False)``.
+    """
+
+    _context_injection_mapper: ContextInjectionPreMapper = ContextInjectionPreMapper()
 
     def __init__(
         self,
@@ -251,7 +267,10 @@ class LLMBase(Node[_T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
 
     def _pre_llm_hook(self, message_history: MessageHistory) -> MessageHistory:
         """Hook to modify messages before sending them to the llm model."""
-        return inject_context(message_history)
+        if not self.context_injection:
+            return message_history
+        messages, _, _ = self._context_injection_mapper(message_history)
+        return messages
 
     def _post_llm_hook(self, message_history: MessageHistory, response: Response):
         """Hook to store the response details after invoking the llm model."""

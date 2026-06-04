@@ -270,3 +270,35 @@ def test_classmethod_preserving_function_meta():
         def type(cls): return "Tool"
     Dummy.f = cm
     assert Dummy.f(2) == 3
+
+def test_nodebuilder_context_injection_disabled():
+    builder = NodeBuilder(DummyNode, name="TestNode")
+    builder.llm_base(llm_model(), system_message="sysmsg")
+    builder.context_injection(False)
+    node_cls = builder.build()
+    assert node_cls.context_injection is False
+
+def test_nodebuilder_context_injection_enabled_explicitly():
+    builder = NodeBuilder(DummyNode, name="TestNode")
+    builder.llm_base(llm_model(), system_message="sysmsg")
+    builder.context_injection(True)
+    node_cls = builder.build()
+    assert node_cls.context_injection is True
+
+def test_nodebuilder_context_injection_default():
+    builder = NodeBuilder(DummyNode, name="TestNode")
+    builder.llm_base(llm_model(), system_message="sysmsg")
+    node_cls = builder.build()
+    # default inherited from LLMBase
+    assert node_cls.context_injection is True
+
+def test_nodebuilder_context_injection_wrong_base():
+    class NotLLM(Node):
+        @classmethod
+        def name(cls): return "NotLLM"
+        async def invoke(self): return "notllm"
+        @classmethod
+        def type(cls): return "Tool"
+    builder = NodeBuilder(NotLLM, name="NotLLM")
+    with pytest.raises(AssertionError):
+        builder.context_injection(False)

@@ -8,25 +8,31 @@ In this example, the system message will be expanded to: "You are a technical as
 
 ### Enabling and Disabling Context Injection
 
-Context injection is enabled by default but can be disabled if needed:
+Context injection is enabled by default. It can be disabled at three levels — from broadest to narrowest:
 
 ```python
 --8<-- "docs/scripts/prompts.py:disable_injection"
 ```
 
-This may be useful when formatting prompts that should not change based on the context.
+**Choosing the right level:**
+
+| Level | API | When to use |
+|---|---|---|
+| **LLM level** | `agent_node(context_injection=False)` | A specific agent should never do injection, regardless of session config |
+| **Session level** | `rt.Session(prompt_injection=False)` or `rt.Flow(..., prompt_injection=False)` | Disable injection for one session or run |
+| **Global level** | `rt.set_config(prompt_injection=False)` | Disable injection everywhere for the current process |
+
+The LLM-level flag short-circuits the session setting — if `context_injection=False` on the node class, the session config is irrelevant for that node.
 
 !!! note "Message-Level Control"
 
-    Context injection can be controlled at the message level using the `inject_prompt` parameter:
+    Context injection can also be controlled at the message level using the `inject_prompt` parameter:
 
     ```python
     --8<-- "docs/scripts/prompts.py:injection_at_message_level"
     ```
 
-    This can be useful when you want to control which messages should have context injected and which should not. 
-
-    As an example, in a Math Assistant, you might want to inject context into the system message, but not the user message that may contain LaTeX that has `{}` characters. To prevent formatting issues, you can set `inject_prompt=False` for the user message.
+    This is the most granular option. For example, in a Math Assistant you might inject context into the system message but not the user message, which may contain LaTeX `{}` characters that would otherwise be treated as placeholders.
 
 ### Escaping Placeholders
 
@@ -42,7 +48,7 @@ If you need to include literal curly braces in your prompt without triggering co
 If your prompts aren't producing the expected results:
 
 1. **Check context values**: Ensure the context contains the expected values for your placeholders
-2. **Verify prompt injection is enabled**: Check that `prompt_injection=True` in your session configuration
+2. **Verify prompt injection is not disabled**: Context injection is on by default — check that `prompt_injection=False` has not been set in your session, flow, or global config
 3. **Look for syntax errors**: Ensure your placeholders use the correct format `{variable_name}`
 
 

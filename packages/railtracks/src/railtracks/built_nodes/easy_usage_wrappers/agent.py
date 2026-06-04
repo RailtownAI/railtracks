@@ -65,6 +65,7 @@ def _build_dynamic_agent(
     tool_details: str | None,
     tool_params: set | Iterable | None,
     guardrails: Guard | None,
+    context_injection: bool = True,
 ):
     if unpacked_tool_nodes is not None and len(unpacked_tool_nodes) > 0:
         if output_schema is not None:
@@ -77,6 +78,7 @@ def _build_dynamic_agent(
                 tool_details=tool_details,
                 tool_params=tool_params,
                 guardrails=guardrails,
+                context_injection=context_injection,
             )
         return tool_call_llm(
             tool_nodes=unpacked_tool_nodes,
@@ -86,6 +88,7 @@ def _build_dynamic_agent(
             tool_details=tool_details,
             tool_params=tool_params,
             guardrails=guardrails,
+            context_injection=context_injection,
         )
     if output_schema is not None:
         return structured_llm(
@@ -96,6 +99,7 @@ def _build_dynamic_agent(
             system_message=system_message,
             tool_details=tool_details,
             tool_params=tool_params,
+            context_injection=context_injection,
         )
     return terminal_llm(
         name=name,
@@ -104,6 +108,7 @@ def _build_dynamic_agent(
         system_message=system_message,
         tool_details=tool_details,
         tool_params=tool_params,
+        context_injection=context_injection,
     )
 
 
@@ -326,6 +331,7 @@ def agent_node(
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
     guardrails: Guard | None = None,
+    context_injection: bool = True,
 ):
     """
     Dynamically creates an agent based on the provided parameters.
@@ -359,6 +365,7 @@ def agent_node(
         tool_details=tool_details,
         tool_params=tool_params,
         guardrails=guardrails,
+        context_injection=context_injection,
     )
 
     if rag is not None:
