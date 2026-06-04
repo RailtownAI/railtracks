@@ -6,10 +6,10 @@ from typing import Any
 
 import httpx
 from mcp import ClientSession, StdioServerParameters
-from mcp.types import Tool as MCPTool
 from mcp.client.sse import sse_client
 from mcp.client.stdio import stdio_client
 from mcp.client.streamable_http import streamable_http_client
+from mcp.types import Tool as MCPTool
 from pydantic import BaseModel
 from typing_extensions import Type
 
