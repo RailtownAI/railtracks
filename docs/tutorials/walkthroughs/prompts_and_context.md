@@ -8,7 +8,15 @@ In this example, the system message will be expanded to: "You are a technical as
 
 ### Enabling and Disabling Context Injection
 
-Context injection is enabled by default but can be disabled if needed:
+Context injection is enabled by default but can be disabled at three levels, from broadest to narrowest scope:
+
+| Scope | How | When to use |
+| --- | --- | --- |
+| **Session / Flow** | `prompt_injection=False` on `rt.Flow(...)` / `rt.set_config(...)` | Turn injection off for an entire run or globally |
+| **Agent / node** | `context_injection=False` on `rt.agent_node(...)` | Turn injection off for one specific agent, regardless of the session setting |
+| **Message** | `inject_prompt=False` on a `SystemMessage` / `UserMessage` | Turn injection off for one specific message |
+
+#### Session / Flow level
 
 ```python
 --8<-- "docs/scripts/prompts.py:disable_injection"
@@ -16,9 +24,17 @@ Context injection is enabled by default but can be disabled if needed:
 
 This may be useful when formatting prompts that should not change based on the context.
 
+#### Agent / node level
+
+If you only want to disable injection for a particular agent — for example one whose prompt legitimately contains `{}` braces that should be left untouched — pass `context_injection=False` when creating it. This takes effect for that agent even when injection is enabled at the session/flow level:
+
+```python
+--8<-- "docs/scripts/prompts.py:disable_injection_node_level"
+```
+
 !!! note "Message-Level Control"
 
-    Context injection can be controlled at the message level using the `inject_prompt` parameter:
+    Context injection can also be controlled at the message level using the `inject_prompt` parameter:
 
     ```python
     --8<-- "docs/scripts/prompts.py:injection_at_message_level"
@@ -42,7 +58,7 @@ If you need to include literal curly braces in your prompt without triggering co
 If your prompts aren't producing the expected results:
 
 1. **Check context values**: Ensure the context contains the expected values for your placeholders
-2. **Verify prompt injection is enabled**: Check that `prompt_injection=True` in your session configuration
+2. **Verify prompt injection is enabled**: Check that `prompt_injection=True` in your session configuration, that the agent was not created with `context_injection=False`, and that the message was not created with `inject_prompt=False`
 3. **Look for syntax errors**: Ensure your placeholders use the correct format `{variable_name}`
 
 

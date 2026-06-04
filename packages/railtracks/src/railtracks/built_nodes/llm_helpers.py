@@ -92,6 +92,11 @@ class ModelGateway(Generic[_TStructured]):
         self._pre_mapping = pre_mappers or []
         self._post_mapping = post_mappers or []
 
+    def add_pre_mapper(self, mapper: GatewayPreMapper) -> None:
+        """Register an additional pre-mapper, applied after any existing ones."""
+        if mapper not in self._pre_mapping:
+            self._pre_mapping.append(mapper)
+
     async def invoke(
         self,
         messages: MessageHistory,

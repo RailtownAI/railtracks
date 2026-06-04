@@ -1,3 +1,5 @@
+from typing import Any
+
 import railtracks.context as context
 from railtracks.context.central import get_local_config
 from railtracks.exceptions import ContextError
@@ -30,3 +32,18 @@ def inject_context(message_history: MessageHistory):
         inject_values(message_history, _ContextDict())
 
     return message_history
+
+
+async def context_injection_gateway_pre_mapper(
+    messages: MessageHistory,
+    schema: Any,
+    tools: Any,
+) -> tuple:
+    """
+    GatewayPreMapper that injects context variables into message prompts.
+
+    Respects the session-level prompt_injection config flag and per-message
+    inject_prompt flags. No-op when no session is active.
+    """
+    inject_context(messages)
+    return messages, schema, tools

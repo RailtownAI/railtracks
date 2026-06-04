@@ -123,6 +123,7 @@ class NodeBuilder(Generic[_P, _T]):
         wrappers: list[Wrapper] | None = None,
         input_maps: list[MapInputs] | None = None,
         output_maps: list[MapOutputs] | None = None,
+        context_injection: bool = True,
     ) -> NodeBuilder[[UserInput], StringResponse]: ...
 
     @overload
@@ -141,6 +142,7 @@ class NodeBuilder(Generic[_P, _T]):
         wrappers: list[Wrapper] | None = None,
         input_maps: list[MapInputs] | None = None,
         output_maps: list[MapOutputs] | None = None,
+        context_injection: bool = True,
     ) -> NodeBuilder[[UserInput], StructuredResponse[_TStructured]]: ...
 
     @classmethod
@@ -158,12 +160,25 @@ class NodeBuilder(Generic[_P, _T]):
         wrappers: list[Wrapper] | None = None,
         input_maps: list[MapInputs] | None = None,
         output_maps: list[MapOutputs] | None = None,
+        context_injection: bool = True,
     ) -> NodeBuilder[[UserInput], StructuredResponse[_TStructured] | StringResponse]:
         instance = cls()
         casted_instance = cast(NodeBuilder, instance)
         casted_instance._class_name = class_name or name
         casted_instance._node_name = name
         casted_instance._node_class = "Agent"
+
+        # Context injection is the default behaviour for all LLM nodes: rt.context
+        # variables are filled into prompt templates before the model call. It is
+        # wired in as a gateway pre-mapper here so it applies regardless of which
+        # higher-level wrapper (agent_node, etc.) created the node. Disable per-node
+        # with context_injection=False, or session-wide via prompt_injection=False.
+        if context_injection:
+            from railtracks.prompts.prompt import (
+                context_injection_gateway_pre_mapper,
+            )
+
+            model_gateway.add_pre_mapper(context_injection_gateway_pre_mapper)
 
         casted_instance._invoke = llm_invoke_factory(
             model_gateway=model_gateway,

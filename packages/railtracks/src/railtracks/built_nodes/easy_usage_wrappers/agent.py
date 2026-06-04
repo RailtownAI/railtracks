@@ -44,29 +44,30 @@ def _build_dynamic_agent(
     system_message: SystemMessage | str | None,
     tool_details: str | None,
     tool_params: list[Parameter] | None,
+    context_injection: bool = True,
 ):
+    resolved_system = SystemMessage(content=system_message) if isinstance(system_message, str) else system_message
+
     if output_schema is None:
         nb = NodeBuilder.llm(
             name=name if name is not None else "LLM Agent",
             model_gateway=ModelGateway(llm),
-            system_message=SystemMessage(content=system_message)
-            if isinstance(system_message, str)
-            else system_message,
+            system_message=resolved_system,
             connected_nodes=unpacked_tool_nodes,
             tool_details=tool_details,
             tool_params=tool_params,
+            context_injection=context_injection,
         )
     else:
         nb = NodeBuilder.llm(
             name=name if name is not None else "LLM Agent",
             model_gateway=ModelGateway(llm),
-            system_message=SystemMessage(content=system_message)
-            if isinstance(system_message, str)
-            else system_message,
+            system_message=resolved_system,
             schema=output_schema,
             connected_nodes=unpacked_tool_nodes,
             tool_details=tool_details,
             tool_params=tool_params,
+            context_injection=context_injection,
         )
 
     return nb.build()
@@ -84,6 +85,7 @@ def agent_node(
     llm: ModelBase[Literal[False]],
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
+    context_injection: bool = True,
 ) -> type[Node[[UserInput], StringResponse]]: ...
 
 
@@ -96,6 +98,7 @@ def agent_node(
     llm: ModelBase[Literal[False]],
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
+    context_injection: bool = True,
 ) -> type[Node[[UserInput], StructuredResponse[_TBaseModel]]]: ...
 
 
@@ -107,19 +110,22 @@ def agent_node(
     llm: ModelBase[Literal[False]],
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
+    context_injection: bool = True,
 ):
     """
     Dynamically creates an agent based on the provided parameters.
 
     Args:
         name (str | None): The name of the agent. If none the default will be used.
-        rag (RagConfig | None): If your agent is a rag agent put in the vector store it is connected to.
-        tool_nodes (set[Type[Node] | RTFunction] | None): If your agent is a LLM with access to tools, what does it have access to?
+        tool_nodes (set[Type[Node] | RTFunction] | None): If your agent has access to tools, what does it have access to?
         output_schema (Type[_TBaseModel] | None): If your agent should return a structured output, what is the output_schema?
-        llm (ModelBase): The LLM model to use. If None it will need to be passed in at instance time.
+        llm (ModelBase): The LLM model to use.
         system_message (SystemMessage | str | None): System message for the agent.
         manifest (ToolManifest | None): If you want to use this as a tool in other agents you can pass in a ToolManifest.
-        guardrails (Guard | None): Guardrail config. When provided, the agent runs input/output guardrails.
+        context_injection (bool): Whether to inject rt.context variables into prompt templates for this node.
+            Defaults to True. Set to False to disable context injection for this specific agent regardless
+            of the session-level prompt_injection setting. Can also be controlled at the session level via
+            rt.Session(prompt_injection=False) or per-message via message.inject_prompt = False.
     """
     unpacked_tool_nodes = _unpack_tool_nodes(tool_nodes)
 
@@ -139,6 +145,7 @@ def agent_node(
         system_message=system_message,
         tool_details=tool_details,
         tool_params=tool_params,
+        context_injection=context_injection,
     )
 
     return agent
