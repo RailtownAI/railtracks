@@ -35,6 +35,7 @@ from railtracks.llm.type_mapping import TypeMapper
 from railtracks.nodes.mappers import MapInputs, MapOutputs
 from railtracks.nodes.nodes import Node
 from railtracks.nodes.wrappers import Wrapper
+from railtracks.prompts.prompt import context_injection_gateway_pre_mapper
 from railtracks.validation.node_creation.validation import (
     _check_duplicate_param_names,
     _check_tool_params_and_details,
@@ -174,10 +175,6 @@ class NodeBuilder(Generic[_P, _T]):
         # higher-level wrapper (agent_node, etc.) created the node. Disable per-node
         # with context_injection=False, or session-wide via prompt_injection=False.
         if context_injection:
-            from railtracks.prompts.prompt import (
-                context_injection_gateway_pre_mapper,
-            )
-
             model_gateway.add_pre_mapper(context_injection_gateway_pre_mapper)
 
         casted_instance._invoke = llm_invoke_factory(
