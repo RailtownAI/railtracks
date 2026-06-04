@@ -12,17 +12,7 @@ multi-tenant writes, sanitization), see the [Ingestion page](../../runtime/inges
 
 ## The Document object
 
-Every loader produces `Document` instances:
-
-```python
-@dataclass
-class Document:
-    content: str               # Raw text extracted from the source
-    type: DocumentType         # "text", "markdown", "csv", "pdf", "json", "html", "code"
-    id: UUID                   # Auto-generated unique identifier
-    source: str | None         # File path or URL the document came from
-    metadata: dict             # Loader-specific keys (page number, language, …)
-```
+Every loader produces `Document` instances. ([Document API Reference](../../../api_reference/railtracks/retrieval.html#Document))
 
 `source` is the natural identity of a document for re-ingest staleness
 checks. Loaders that read files set it to the file path; HTTP loaders set

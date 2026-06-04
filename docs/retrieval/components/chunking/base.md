@@ -11,19 +11,8 @@ For the chunkers that ship with Railtracks (when to pick which) see
 
 ## The Chunk object
 
-Every chunker returns `Chunk` instances:
+Every chunker returns `Chunk` instances ([Chunk API Reference](../../../api_reference/railtracks/retrieval.html#Chunk))
 
-```python
-@dataclass
-class Chunk:
-    content: str                      # Text for this chunk
-    document_id: UUID                 # Same as parent Document.id
-    id: UUID                          # Unique id for this chunk
-    index: int                        # 0, 1, 2, … within the parent document
-    parent_chunk_id: UUID | None      # Optional hierarchical link
-    offsets: tuple[int, int] | None   # (start, end) into Document.content
-    metadata: dict                    # Document metadata plus chunker-specific keys
-```
 !!! note "`offsets`"
     `offsets`lets you map any chunk back to an
     exact substring of `Document.content` for citation-style grounding,

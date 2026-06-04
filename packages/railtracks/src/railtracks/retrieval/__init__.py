@@ -25,6 +25,7 @@ from .runtime import (
     IngestionStats,
     RetrievalRuntime,
 )
+from .stores import Store, StoreEntry, StoreQuery, StoreScope, VectorStore
 
 __all__ = [
     "BatchIngested",
@@ -40,4 +41,9 @@ __all__ = [
     "RetrievalResult",
     "RetrievalRuntime",
     "RetrievedChunk",
+    "Store",
+    "StoreEntry",
+    "StoreQuery",
+    "StoreScope",
+    "VectorStore",
 ]
