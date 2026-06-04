@@ -4,12 +4,14 @@ from contextlib import AsyncExitStack
 from datetime import timedelta
 from typing import Any
 
+import httpx
 from mcp import ClientSession, StdioServerParameters
+from mcp.types import Tool as MCPTool
 from mcp.client.sse import sse_client
 from mcp.client.stdio import stdio_client
-from mcp.client.streamable_http import streamablehttp_client
+from mcp.client.streamable_http import streamable_http_client
 from pydantic import BaseModel
-from typing_extensions import Self, Type
+from typing_extensions import Type
 
 from railtracks.llm import Tool
 from railtracks.nodes.nodes import Node
@@ -51,13 +53,17 @@ class MCPHttpParams(BaseModel):
         timeout: Connection timeout (default: 30 seconds)
         sse_read_timeout: SSE read timeout (default: 5 minutes)
         terminate_on_close: Whether to terminate connection on close (default: True)
+        auth: Optional HTTPX authentication handler
     """
+
+    model_config = {"arbitrary_types_allowed": True}
 
     url: str
     headers: dict[str, Any] | None = None
     timeout: timedelta = timedelta(seconds=30)
     sse_read_timeout: timedelta = timedelta(seconds=60 * 5)
     terminate_on_close: bool = True
+    auth: httpx.Auth | None = None
 
 
 class MCPAsyncClient:
@@ -138,11 +144,11 @@ class MCPAsyncClient:
         Returns:
             List of available tools
         """
+        assert self.session is not None, "call connect() before list_tools()"
         if self._tools_cache is not None:
             return self._tools_cache
-        else:
-            resp = await self.session.list_tools()
-            self._tools_cache = resp.tools
+        resp = await self.session.list_tools()
+        self._tools_cache = resp.tools
         return self._tools_cache
 
     async def call_tool(self, tool_name: str, tool_args: dict):
@@ -156,6 +162,7 @@ class MCPAsyncClient:
         Returns:
             Tool execution result
         """
+        assert self.session is not None, "call connect() before call_tool()"
         return await self.session.call_tool(tool_name, tool_args)
 
     async def _init_http(self):
@@ -168,6 +175,7 @@ class MCPAsyncClient:
 
         Supports optional OAuth authentication via the 'auth' attribute.
         """
+        assert isinstance(self.config, MCPHttpParams)
         # Determine transport type from URL
         if self.config.url.rstrip("/").endswith("/sse"):
             self.transport_type = "sse"
@@ -181,16 +189,23 @@ class MCPAsyncClient:
                 headers=self.config.headers,
                 timeout=self.config.timeout.total_seconds(),
                 sse_read_timeout=self.config.sse_read_timeout.total_seconds(),
-                auth=self.config.auth if hasattr(self.config, "auth") else None,
+                auth=self.config.auth,
             )
         else:
-            client = streamablehttp_client(
-                url=self.config.url,
+            http_client = httpx.AsyncClient(
                 headers=self.config.headers,
-                timeout=self.config.timeout.total_seconds(),
-                sse_read_timeout=self.config.sse_read_timeout.total_seconds(),
+                timeout=httpx.Timeout(
+                    connect=self.config.timeout.total_seconds(),
+                    read=self.config.sse_read_timeout.total_seconds(),
+                    write=self.config.timeout.total_seconds(),
+                    pool=self.config.timeout.total_seconds(),
+                ),
+                auth=self.config.auth,
+            )
+            client = streamable_http_client(
+                url=self.config.url,
+                http_client=http_client,
                 terminate_on_close=self.config.terminate_on_close,
-                auth=self.config.auth if hasattr(self.config, "auth") else None,
             )
 
         # Initialize session with the client
@@ -374,13 +389,12 @@ class MCPServer:
             Each Node has:
             - name(): Tool name
             - tool_info(): Tool metadata (description, parameters)
-            - prepare_tool(**kwargs): Create tool instance with arguments
         """
         return self._tools
 
 
 def from_mcp(
-    tool: Tool,
+    tool: MCPTool,
     client: MCPAsyncClient,
     loop: asyncio.AbstractEventLoop,
 ) -> Type[Node]:
@@ -398,9 +412,8 @@ def from_mcp(
 
     Returns:
         A Node subclass that:
-        - Implements invoke() to call the MCP tool
+        - Implements invoke(**kwargs) to call the MCP tool
         - Provides tool_info() for schema introspection
-        - Supports prepare_tool() for argument binding
         - Can be used with rt.call() and agent_node()
 
     Example:
@@ -412,30 +425,19 @@ def from_mcp(
     class MCPToolNode(Node):
         """Dynamic Node class representing an MCP tool."""
 
-        def __init__(self, **kwargs):
-            """Initialize with tool arguments."""
-            super().__init__()
-            self.kwargs = kwargs
-
-        def invoke(self):
+        async def invoke(self, **kwargs):
             """
             Execute the MCP tool with the provided arguments.
 
-            Bridges from sync to async by running the tool call in the
-            background thread's event loop and waiting for the result.
-
-            Returns:
-                The tool's execution result
-
-            Raises:
-                RuntimeError: If tool execution fails
+            Submits the call to the MCP background event loop and awaits
+            it via asyncio.wrap_future — non-blocking and type-compatible
+            with Node.invoke.
             """
             try:
                 future = asyncio.run_coroutine_threadsafe(
-                    client.call_tool(tool.name, self.kwargs), loop
+                    client.call_tool(tool.name, kwargs), loop
                 )
-                result = future.result(timeout=client.config.timeout.total_seconds())
-                return result
+                return await asyncio.wrap_future(future)
             except Exception as e:
                 raise RuntimeError(
                     f"Tool invocation failed: {type(e).__name__}: {str(e)}"
@@ -443,35 +445,14 @@ def from_mcp(
 
         @classmethod
         def name(cls):
-            """Return the tool name."""
             return tool.name
 
         @classmethod
         def tool_info(cls) -> Tool:
-            """
-            Get tool metadata including parameters and description.
-
-            Returns:
-                Tool object with name, description, and parameter schemas
-            """
             return Tool.from_mcp(tool)
 
         @classmethod
-        def prepare_tool(cls, **kwargs) -> Self:
-            """
-            Create a tool instance with bound arguments.
-
-            Args:
-                **kwargs: Arguments to pass to the tool
-
-            Returns:
-                Tool instance ready for execution
-            """
-            return cls(**kwargs)
-
-        @classmethod
         def type(cls):
-            """Return the node type identifier."""
             return "Tool"
 
     return MCPToolNode
