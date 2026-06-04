@@ -46,7 +46,11 @@ def _build_dynamic_agent(
     tool_params: list[Parameter] | None,
     context_injection: bool = True,
 ):
-    resolved_system = SystemMessage(content=system_message) if isinstance(system_message, str) else system_message
+    resolved_system = (
+        SystemMessage(content=system_message)
+        if isinstance(system_message, str)
+        else system_message
+    )
 
     if output_schema is None:
         nb = NodeBuilder.llm(
