@@ -103,13 +103,26 @@ nav:
               - Built-in Guardrails: documentation/advanced/guardrails/builtin_guardrails.md
           - Agent Context: documentation/advanced/context.md
 
-  - RAG:
-      - RAG: rag/RAG.md
-      - Vector Stores:
-          - Overview: rag/vector_stores/vector_store_info.md
-          - Filtering: rag/vector_stores/filtering.md
-          - Integrations:
-              - Chroma: rag/vector_stores/integrations/chroma.md
+  - Retrieval:
+    - Retrieval Runtime:
+      - Quickstart: retrieval/runtime/quickstart.md
+      - Ingestion: retrieval/runtime/ingestion.md
+      - Retrieval: retrieval/runtime/retrieval.md
+      - Module Packages: retrieval/runtime/module_packages.md
+    - Components:
+      - Design: retrieval/components/design.md
+      - Loading:
+          - Base Class: retrieval/components/ingestion/base.md
+          - Built-in Loaders: retrieval/components/ingestion/methods.md
+      - Chunking:
+          - Base Class: retrieval/components/chunking/base.md
+          - Built-in Methods: retrieval/components/chunking/methods.md
+      - Embeddings:
+        - Overview: retrieval/components/embeddings/overview.md
+        - Built-in Methods: retrieval/components/embeddings/methods.md
+      - Stores:
+          - Base Class: retrieval/components/stores/base.md
+          - Backends: retrieval/components/stores/backends.md
 
   - Evaluations:
       - Preface: evaluations/preface.md
@@ -140,51 +153,56 @@ nav:
           - Error Handling: observability/tracking/error_handling.md
 
   - Integrations:
-      - Overview: integrations/overview.md
-      - Language Models:
-          - Providers: integrations/llms/providers.md
-          - Platforms: integrations/llms/platforms.md
-          - Streaming: integrations/llms/streaming.md
-      - MCP:
-          - Github: integrations/mcps/github.md
-          - Slack: integrations/mcps/slack.md
-          - Email: integrations/mcps/notion.md
-      - Other:
-          - Python Sandbox: integrations/other/python_sandbox.md
-          - Shell: integrations/other/shell_bash.md
-          - Websearch: integrations/other/websearch_integration.md
+    - Overview: integrations/overview.md
+    - Language Models:
+        - Providers: integrations/llms/providers.md
+        - Platforms: integrations/llms/platforms.md
+        - Streaming: integrations/llms/streaming.md
+    - MCP:
+        - Github: integrations/mcps/github.md
+        - Slack: integrations/mcps/slack.md
+        - Email: integrations/mcps/notion.md
+    - Storage & Databases:
+        - Overview: integrations/storage/overview.md
+        - AWS S3: integrations/storage/s3.md
+        - Azure Blob Storage: integrations/storage/azure_blob.md
+        - Google Cloud Storage: integrations/storage/gcs.md
+        - SQL Databases: integrations/storage/sql.md
+    - Other:
+        - Python Sandbox: integrations/other/python_sandbox.md
+        - Shell: integrations/other/shell_bash.md
+        - Websearch: integrations/other/websearch_integration.md
 
   - Tutorials:
-      - Walkthroughs:
-          - Guides:
-              - Building your first agent: tutorials/walkthroughs/byfa.md
-              - Running your first agent: tutorials/walkthroughs/ryfa.md
-              - Agents as Tools: tutorials/walkthroughs/agents_as_tools.md
-              - Prompts and Context: tutorials/walkthroughs/prompts_and_context.md
-              - Flows: tutorials/walkthroughs/flows.md
-              - RAG system: tutorials/walkthroughs/rag_tutorial.md
-              - Vector Stores: tutorials/walkthroughs/vector_store_tutorial.md
-              - FastAPI Integration: tutorials/walkthroughs/fastapi.md
-          - Videos:
-              - Multiagent Systems: tutorials/videos/multiagent.md
-              - Multimodal Agent: tutorials/videos/multimodal_agent.md
-              - AgentHub: tutorials/videos/agenthub.md
-              - Evaluation: tutorials/videos/evaluation.md
-      - Notebooks:
-          - Agent Architectures: tutorials/notebooks/architectures.md
-          - FastAPI Integration: tutorials/notebooks/fastapi.md
-      - Concepts:
-          - Core:
-              - Agents: tutorials/concepts/agents.md
-              - Tools: tutorials/concepts/tools.md
-              - MCP: tutorials/concepts/mcp.md
-              - Prompts and Context: tutorials/concepts/prompts_and_context.md
-              - RAG: tutorials/concepts/RAG.md
-              - Async/Await: tutorials/concepts/async_await.md
-              - Vector Stores: tutorials/concepts/vector_store.md
-          - Architectures:
-              - Overview: tutorials/concepts/architectures/overview.md
-              - Validation Loops: tutorials/concepts/architectures/validation_loop.md
-              - Sequential Flows: tutorials/concepts/architectures/sequential.md
+    - Walkthroughs:
+      - Guides:
+        - Building your first agent: tutorials/walkthroughs/byfa.md
+        - Running your first agent: tutorials/walkthroughs/ryfa.md
+        - Agents as Tools: tutorials/walkthroughs/agents_as_tools.md
+        - Prompts and Context: tutorials/walkthroughs/prompts_and_context.md
+        - Flows: tutorials/walkthroughs/flows.md
+        - FastAPI Integration: tutorials/walkthroughs/fastapi.md
+      - Videos:
+          - Multiagent Systems: tutorials/videos/multiagent.md
+          - Multimodal Agent: tutorials/videos/multimodal_agent.md
+          - AgentHub: tutorials/videos/agenthub.md
+          - Evaluation: tutorials/videos/evaluation.md
+    - Notebooks:
+      - Agent Architectures: tutorials/notebooks/architectures.md
+      - FastAPI Integration: tutorials/notebooks/fastapi.md
+      - File Embedding (RAG): tutorials/notebooks/file_embedding.md
+    - Concepts:
+      - Core: 
+          - Agents: tutorials/concepts/agents.md
+          - Tools: tutorials/concepts/tools.md
+          - MCP: tutorials/concepts/mcp.md
+          - Prompts and Context: tutorials/concepts/prompts_and_context.md
+          - RAG: tutorials/concepts/RAG.md
+          - Async/Await: tutorials/concepts/async_await.md
+          - Vector Stores: tutorials/concepts/vector_store.md
+      - Architectures: 
+          - Overview: tutorials/concepts/architectures/overview.md
+          - Validation Loops: tutorials/concepts/architectures/validation_loop.md
+          - Sequential Flows: tutorials/concepts/architectures/sequential.md
 
   - API Reference: api_reference.md

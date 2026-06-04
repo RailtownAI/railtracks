@@ -6,6 +6,10 @@ inputs:
     description: 'Python version to use'
     required: false
     default: '3.10'
+  extras:
+    description: 'Comma-separated extras to install (e.g. "all", "all,retrieval")'
+    required: false
+    default: 'all'
 
 runs:
   using: 'composite'
@@ -15,23 +19,32 @@ runs:
       with:
         python-version: ${{ inputs.python-version }}
 
+    - name: Compute cache slug from extras
+      id: cache-slug
+      shell: bash
+      run: |
+        slug="${{ inputs.extras }}"
+        slug="${slug//,/+}"
+        echo "value=${slug}" >> "$GITHUB_OUTPUT"
+
     - name: Cache pip dependencies
       uses: actions/cache@v4
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml', '**/requirements*.txt') }}
+        key: ${{ runner.os }}-pip-${{ steps.cache-slug.outputs.value }}-${{ hashFiles('**/pyproject.toml', '**/requirements*.txt') }}
         restore-keys: |
+          ${{ runner.os }}-pip-${{ steps.cache-slug.outputs.value }}-
           ${{ runner.os }}-pip-
 
     - name: Install dependencies
       shell: bash
       run: |
         python -m pip install --upgrade pip
-        pip install -e packages/railtracks[all]
+        pip install -e "packages/railtracks[${{ inputs.extras }}]"
         pip install -r docs/scripts/requirements.txt
         pip install tomlkit==0.11.8
-        pip install pytest>=8.4.0 
-        pip install pytest-asyncio 
+        pip install pytest>=8.4.0
+        pip install pytest-asyncio
         pip install pytest-timeout
         pip install pytest-cov
         pip install mypy

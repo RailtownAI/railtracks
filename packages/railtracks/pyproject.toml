@@ -43,6 +43,7 @@ dependencies = [
     "pydantic >= 2.5.3, <3",
     "python-dotenv >= 1.0.0",
     "PyYAML >= 6.0",
+    "rich>=13.7.1",
 ]
 
 [project.optional-dependencies]
@@ -50,16 +51,60 @@ visual = [
     "fastapi >= 0.121.0",
     "uvicorn[standard] >= 0.24.0",
 ]
-# cli and chat both require the visual extras (may diverge in future)
-cli = ["railtracks[visual]"]
-chat = ["railtracks[visual]"]
+# For each Integration package dependencies go here.
+portkey = ["portkey_ai >= 2.0.2"]
+
+# Retrieval-stack extras. These are not pulled in by `[all]` — install
+# `railtracks[retrieval]` to opt in.
+tiktok = ["tiktoken>=0.10.0, <=0.12.0"]
+semantic = ["scikit-learn>=1.3.0"]
+pdf = ["pypdf >= 4.0.0, <= 6.10.2"]
+ocr = [
+    "pypdfium2 >= 4.30.0",
+    "pytesseract >= 0.3.10",
+    "pillow >= 10.0.0",
+    "pypdf >= 4.0.0, <= 6.10.2",
+]
+huggingface = ["datasets >= 2.14.0, <= 4.8.5"]
 chroma = [
     "chromadb >= 1.3.0",
     "pdfplumber >= 0.10.1",
 ]
-portkey = ["portkey_ai >= 2.0.2"]
-integrations = ["railtracks[portkey]", "railtracks[chroma]"]
-all = ["railtracks[visual]", "railtracks[integrations]"]
+aws = ["boto3 >= 1.26.0"]
+azure-blob = [
+    "azure-core >= 1.30.0",
+    "azure-identity >= 1.15.0",
+    "azure-storage-blob >= 12.0.0",
+]
+gcp = ["google-cloud-storage >= 2.0.0"]
+sql = ["sqlalchemy >= 2.0.0"]
+stores-vector = ["asyncpg>=0.29", "pgvector>=0.3"]
+stores-chroma = ["chromadb>1.3.0"]
+stores-all = ["railtracks[stores-vector]", "railtracks[stores-chroma]"]
+
+# Minimum needed for the retrieval pipeline (chunking, embedding, in-memory
+# store, basic local-file loaders). No cloud connectors, no heavy backends.
+retrieval-core = [
+    "railtracks[tiktok]",
+    "railtracks[semantic]",
+    "railtracks[pdf]",
+    "numpy >= 1.24",
+]
+
+# Comprehensive retrieval install: core + every loader/store/integration.
+retrieval = [
+    "railtracks[retrieval-core]",
+    "railtracks[ocr]",
+    "railtracks[huggingface]",
+    "railtracks[chroma]",
+    "railtracks[aws]",
+    "railtracks[azure-blob]",
+    "railtracks[gcp]",
+    "railtracks[sql]",
+    "railtracks[stores-all]",
+]
+
+all = ["railtracks[visual]", "railtracks[portkey]"]
 
 [project.scripts]
 railtracks = "railtracks.cli:main"
