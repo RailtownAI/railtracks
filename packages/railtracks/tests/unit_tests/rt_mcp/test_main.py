@@ -67,7 +67,8 @@ async def test_async_client_list_tools(
     server = MCPServer(stdio_config, mock_client_session)
 
     tools = await server.client.list_tools()
-    assert tools == [{"name": "toolA"}]
+    assert len(tools) == 1
+    assert tools[0].name == "toolA"
     assert mock_client_session.list_tools.call_count == 1
 
 @pytest.mark.asyncio

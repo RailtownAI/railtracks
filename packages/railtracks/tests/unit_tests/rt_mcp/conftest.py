@@ -31,7 +31,13 @@ def patch_stdio_client():
 def mock_client_session():
     mock = MagicMock(spec=ClientSession)
     mock.initialize = AsyncMock()
-    mock.list_tools = AsyncMock(return_value=MagicMock(tools=[{"name": "toolA"}]))
+
+    mock_tool = MagicMock()
+    mock_tool.name = "toolA"
+    mock_tool.description = "A test tool"
+    mock_tool.inputSchema = {"type": "object", "properties": {}, "required": []}
+
+    mock.list_tools = AsyncMock(return_value=MagicMock(tools=[mock_tool]))
     mock.call_tool = AsyncMock(return_value=MagicMock(content="output"))
     return mock
 
