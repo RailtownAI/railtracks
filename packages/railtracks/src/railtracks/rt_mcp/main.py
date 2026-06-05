@@ -13,6 +13,7 @@ from mcp.types import Tool as MCPTool
 from pydantic import BaseModel
 from typing_extensions import Type
 
+from railtracks.built_nodes._node_builder import NodeBuilder
 from railtracks.llm import Tool
 from railtracks.nodes.nodes import Node
 
@@ -401,20 +402,13 @@ def from_mcp(
     """
     Convert an MCP tool into a Railtracks Node class.
 
-    Creates a Node subclass that bridges between Railtracks' synchronous API
-    and the MCP tool's asynchronous execution. The Node can be used directly
-    with rt.call() or passed to agents as a tool.
-
     Args:
         tool: The MCP tool object with name, description, and schema
         client: Async client for communicating with the MCP server
         loop: Event loop running in the background thread
 
     Returns:
-        A Node subclass that:
-        - Implements invoke(**kwargs) to call the MCP tool
-        - Provides tool_info() for schema introspection
-        - Can be used with rt.call() and agent_node()
+        A Node class that can be used with rt.call() and passed to agents as a tool.
 
     Example:
         server = rt.connect_mcp(config)
@@ -422,37 +416,17 @@ def from_mcp(
         result = await rt.call(ToolNode, param1="value1")
     """
 
-    class MCPToolNode(Node):
-        """Dynamic Node class representing an MCP tool."""
+    async def invoke(**kwargs):
+        try:
+            future = asyncio.run_coroutine_threadsafe(
+                client.call_tool(tool.name, kwargs), loop
+            )
+            return await asyncio.wrap_future(future)
+        except Exception as e:
+            raise RuntimeError(
+                f"Tool invocation failed: {type(e).__name__}: {str(e)}"
+            ) from e
 
-        async def invoke(self, **kwargs):
-            """
-            Execute the MCP tool with the provided arguments.
-
-            Submits the call to the MCP background event loop and awaits
-            it via asyncio.wrap_future — non-blocking and type-compatible
-            with Node.invoke.
-            """
-            try:
-                future = asyncio.run_coroutine_threadsafe(
-                    client.call_tool(tool.name, kwargs), loop
-                )
-                return await asyncio.wrap_future(future)
-            except Exception as e:
-                raise RuntimeError(
-                    f"Tool invocation failed: {type(e).__name__}: {str(e)}"
-                ) from e
-
-        @classmethod
-        def name(cls):
-            return tool.name
-
-        @classmethod
-        def tool_info(cls) -> Tool:
-            return Tool.from_mcp(tool)
-
-        @classmethod
-        def type(cls):
-            return "Tool"
-
-    return MCPToolNode
+    builder = NodeBuilder.function(invoke, class_name=tool.name, name=tool.name)
+    builder._tool_info = lambda: Tool.from_mcp(tool)
+    return builder.build()
