@@ -427,6 +427,9 @@ def from_mcp(
                 f"Tool invocation failed: {type(e).__name__}: {str(e)}"
             ) from e
 
-    builder = NodeBuilder.function(invoke, class_name=tool.name, name=tool.name)
-    builder._tool_info = lambda: Tool.from_mcp(tool)
-    return builder.build()
+    return NodeBuilder.function(
+        invoke,
+        class_name=tool.name,
+        name=tool.name,
+        tool_info=Tool.from_mcp(tool),
+    ).build()

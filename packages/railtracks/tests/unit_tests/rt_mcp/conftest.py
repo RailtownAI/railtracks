@@ -97,6 +97,14 @@ def stdio_config():
 def fake_tool():
     obj = MagicMock()
     obj.name = "abc"
+    obj.description = "A fake tool for testing"
+    obj.inputSchema = {
+        "type": "object",
+        "properties": {
+            "bar": {"type": "integer", "description": "A bar parameter"},
+        },
+        "required": ["bar"],
+    }
     obj.to_dict = MagicMock(return_value={"name": "abc"})
     return obj
 

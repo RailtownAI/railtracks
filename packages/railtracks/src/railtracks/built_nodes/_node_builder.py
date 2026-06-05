@@ -219,6 +219,7 @@ class NodeBuilder(Generic[_P, _T]):
         output_maps: list[MapOutputs[_T2]] | None = None,
         tool_details: str | None = None,
         tool_params: list[Parameter] | Type[BaseModel] | dict[str, Any] | None = None,
+        tool_info: Tool | None = None,
     ) -> NodeBuilder[_P2, _T2]:
         instance = cls()
         casted_instance = cast(NodeBuilder[_P2, _T2], instance)
@@ -230,8 +231,12 @@ class NodeBuilder(Generic[_P, _T]):
         casted_instance._node_name = name or function.__name__
 
         tm = TypeMapper(function)
-        tool = Tool.from_function(function, details=tool_details, params=tool_params)
-        casted_instance._tool_info = lambda: tool
+        resolved_tool = (
+            tool_info
+            if tool_info is not None
+            else Tool.from_function(function, details=tool_details, params=tool_params)
+        )
+        casted_instance._tool_info = lambda: resolved_tool
 
         casted_instance._prepare_arguments = tm.convert_kwargs_to_appropriate_types
 
