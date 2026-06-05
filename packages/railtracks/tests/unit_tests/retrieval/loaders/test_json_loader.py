@@ -25,10 +25,10 @@ class TestJSONLoaderSingleObject:
         docs = await JSONLoader(str(json_object_file)).aload()
         assert docs[0].type == DocumentType.JSON
 
-    async def test_single_object_source_is_file_path(self, json_object_file):
-        """Document source is the absolute file path."""
+    async def test_single_object_source_includes_index_suffix(self, json_object_file):
+        """Document source is the file path plus the object's index."""
         docs = await JSONLoader(str(json_object_file)).aload()
-        assert docs[0].source == str(json_object_file)
+        assert docs[0].source == f"{json_object_file}#0"
 
     async def test_single_object_index_zero_in_metadata(self, json_object_file):
         """The object's index (0) is stored in metadata."""
@@ -55,6 +55,19 @@ class TestJSONLoaderArray:
         docs = await JSONLoader(str(json_array_file), content_keys=["title"]).aload()
         assert "First" in docs[0].content
         assert "Second" in docs[1].content
+
+    async def test_array_source_includes_index_suffix(self, json_array_file):
+        """Each Document's source carries its array index suffix."""
+        docs = await JSONLoader(str(json_array_file)).aload()
+        assert [d.source for d in docs] == [
+            f"{json_array_file}#0",
+            f"{json_array_file}#1",
+        ]
+
+    async def test_array_document_ids_are_unique_per_object(self, json_array_file):
+        """Per-object sources produce distinct Document IDs (upsert correctness)."""
+        docs = await JSONLoader(str(json_array_file)).aload()
+        assert len({d.id for d in docs}) == len(docs)
 
 
 class TestJSONLoaderContentKeys:
@@ -96,6 +109,57 @@ class TestJSONLoaderContentKeys:
         """A content_key not present in the object raises ValueError."""
         loader = JSONLoader(str(json_object_file), content_keys=["nonexistent"])
         with pytest.raises(ValueError, match="not found in object"):
+            await loader.aload()
+
+
+class TestJSONLoaderIdKey:
+    """Tests for the id_key parameter (per-object source identity)."""
+
+    async def test_id_key_used_in_source(self, tmp_path):
+        """When id_key is set, its value becomes the source suffix."""
+        f = tmp_path / "with_id.json"
+        f.write_text(
+            json.dumps([
+                {"_id": "a1", "body": "first"},
+                {"_id": "a2", "body": "second"},
+            ]),
+            encoding="utf-8",
+        )
+        docs = await JSONLoader(str(f), id_key="_id").aload()
+        assert [d.source for d in docs] == [f"{f}#a1", f"{f}#a2"]
+
+    async def test_id_key_keeps_ids_stable_across_reorder(self, tmp_path):
+        """Same id_key value → same Document.id when the same file is re-loaded
+        with objects reordered. This is the upsert-correctness contract."""
+        f = tmp_path / "data.json"
+        f.write_text(
+            json.dumps([{"_id": "a1", "body": "x"}, {"_id": "a2", "body": "y"}]),
+            encoding="utf-8",
+        )
+        docs1 = await JSONLoader(str(f), id_key="_id").aload()
+
+        f.write_text(
+            json.dumps([{"_id": "a2", "body": "y"}, {"_id": "a1", "body": "x"}]),
+            encoding="utf-8",
+        )
+        docs2 = await JSONLoader(str(f), id_key="_id").aload()
+
+        by_id_1 = {d.source.rsplit("#", 1)[1]: d.id for d in docs1}
+        by_id_2 = {d.source.rsplit("#", 1)[1]: d.id for d in docs2}
+        assert by_id_1 == by_id_2
+
+    async def test_missing_id_key_raises_per_object(self, tmp_path):
+        """id_key validation runs per object: raise when any object lacks the key."""
+        f = tmp_path / "mixed.json"
+        f.write_text(
+            json.dumps([
+                {"_id": "a1", "body": "ok"},
+                {"body": "missing-id"},
+            ]),
+            encoding="utf-8",
+        )
+        loader = JSONLoader(str(f), id_key="_id")
+        with pytest.raises(ValueError, match="id_key '_id' not found in object at index 1"):
             await loader.aload()
 
 

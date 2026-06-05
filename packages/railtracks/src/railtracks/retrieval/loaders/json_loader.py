@@ -20,6 +20,12 @@ class JSONLoader(BaseDocumentLoader):
     For arrays, each element becomes a separate `Document`. For a single
     object, one `Document` is produced.
 
+    `Document.source` is set to `"{file_path}#{obj_id}"`, where `obj_id`
+    is `obj[id_key]` when `id_key` is given and the object's position in
+    the file otherwise. Per-object sources keep `Document.id` stable and
+    unique across objects, which is what the runtime needs for upsert
+    (`delete_where` on `document_id`).
+
     Args:
         file_path: Path to a `.json` file or a directory containing `.json`
             files.
@@ -28,6 +34,12 @@ class JSONLoader(BaseDocumentLoader):
             object as content. Pass an explicit list to control which fields
             become content — all remaining non-ignored fields are added to
             `Document.metadata`.
+        id_key: Top-level key whose value uniquely identifies an object
+            (e.g. `"id"`, `"_id"`). Used as the object id in
+            `Document.source`. Default: `None` (fall back to the object's
+            position in the file). Prefer this when the JSON has a stable
+            id field and objects may be reordered — position is only
+            stable as long as the array order is.
         ignore_keys: Keys to drop entirely from both content and metadata.
         content_separator: String used to join multiple content-key values.
             Defaults to `"\\n"`.
@@ -37,32 +49,35 @@ class JSONLoader(BaseDocumentLoader):
         FileNotFoundError: If `file_path` does not exist.
         ValueError: If `file_path` points to a file with an unsupported
             extension, the JSON structure is not an object or array of
-            objects, or any key in `content_keys` is not found in a parsed
-            object.
+            objects, or any key in `content_keys` or `id_key` is not
+            found in a parsed object.
     """
 
     def __init__(
         self,
         file_path: str,
         content_keys: list[str] | Literal["*"] = "*",
+        id_key: str | None = None,
         ignore_keys: list[str] | None = None,
         content_separator: str = "\n",
         encoding: str = "utf-8-sig",
     ) -> None:
         self._path = Path(file_path)
         self._content_keys = content_keys
+        self._id_key = id_key
         self._ignore_keys = set(ignore_keys or [])
         self._content_separator = content_separator
         self._encoding = encoding
 
     def _object_to_document(
-        self, obj: dict[str, Any], source: str, index: int
+        self, obj: dict[str, Any], source_prefix: str, index: int
     ) -> Document:
         """Convert a single JSON object to a `Document`.
 
         Args:
             obj: The parsed JSON object.
-            source: The source file path, included in the returned `Document`.
+            source_prefix: The source file path; the returned `Document.source`
+                appends a per-object id suffix.
             index: The zero-based position of this object in the source file,
                 added to `Document.metadata`.
 
@@ -70,7 +85,8 @@ class JSONLoader(BaseDocumentLoader):
             Document: The converted document.
 
         Raises:
-            ValueError: If any key in `content_keys` is not present in `obj`.
+            ValueError: If any key in `content_keys` or `id_key` is not
+                present in `obj`.
         """
         if self._content_keys == "*":
             content = json.dumps(
@@ -82,7 +98,7 @@ class JSONLoader(BaseDocumentLoader):
             unknown = [k for k in self._content_keys if k not in obj]
             if unknown:
                 raise ValueError(
-                    f"content_keys {unknown} not found in object at index {index} in {source}"
+                    f"content_keys {unknown} not found in object at index {index} in {source_prefix}"
                 )
             content = self._content_separator.join(
                 f"{k}: {obj[k]}" for k in self._content_keys
@@ -94,11 +110,17 @@ class JSONLoader(BaseDocumentLoader):
                 if k not in content_key_set and k not in self._ignore_keys
             }
 
+        if self._id_key is not None and self._id_key not in obj:
+            raise ValueError(
+                f"id_key {self._id_key!r} not found in object at index {index} in {source_prefix}"
+            )
+        obj_id = str(obj[self._id_key]) if self._id_key is not None else str(index)
+
         metadata["index"] = index
         return Document(
             content=content,
             type=DocumentType.JSON,
-            source=source,
+            source=f"{source_prefix}#{obj_id}",
             metadata=metadata,
         )
 
@@ -117,7 +139,7 @@ class JSONLoader(BaseDocumentLoader):
             ValueError: If the file does not contain an object or array of
                 objects.
         """
-        source = str(path)
+        source_prefix = str(path)
         raw = await asyncio.to_thread(
             lambda: json.loads(path.read_text(encoding=self._encoding))
         )
@@ -132,7 +154,7 @@ class JSONLoader(BaseDocumentLoader):
             )
 
         for i, obj in enumerate(objects):
-            yield self._object_to_document(obj, source, i)
+            yield self._object_to_document(obj, source_prefix, i)
 
     async def astream(self) -> AsyncGenerator[Document, None]:
         """Stream documents one at a time as each JSON object is parsed.

@@ -224,6 +224,8 @@ needed image-based extraction.
 ---
 
 ## `HuggingFaceDatasetLoader`
+!!! warning "Early-exit hang with `HuggingFaceDatasetLoader`"
+    Breaking out of `astream()` before the dataset is exhausted may cause the Python process to hang at shutdown. This is an upstream parquet-streaming bug in [`datasets`](https://github.com/huggingface/datasets) on `pyarrow <= 24`, see [huggingface/datasets#8176](https://github.com/huggingface/datasets/pull/8176) (fixes [#8169](https://github.com/huggingface/datasets/issues/8169) and [#7467](https://github.com/huggingface/datasets/issues/7467)). Workaround: call `gc.collect()` after you stop iterating, or upgrade to a `pyarrow` release that ships the underlying [arrow#45214](https://github.com/apache/arrow/issues/45214) fix.
 
 Streams rows from any dataset on the [Hugging Face Hub](https://huggingface.co/datasets).
 One Document per row, fetched lazily.
