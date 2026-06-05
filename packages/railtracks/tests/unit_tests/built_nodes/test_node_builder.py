@@ -9,7 +9,7 @@ from railtracks.built_nodes._node_builder import (
     classmethod_preserving_function_meta,
     safe_create_node,
 )
-from railtracks.built_nodes.llm_helpers import ModelGateway
+from railtracks.built_nodes.llm_helpers import Gateway
 from railtracks.exceptions.errors import NodeCreationError
 from railtracks.llm import Parameter, SystemMessage
 from railtracks.nodes.nodes import Node
@@ -20,7 +20,7 @@ class Schema(BaseModel):
 
 
 def dummy_gateway():
-    return ModelGateway(model=MagicMock())
+    return Gateway(model=MagicMock())
 
 
 async def async_func(x: int) -> int:
@@ -30,29 +30,29 @@ async def async_func(x: int) -> int:
 # --- NodeBuilder.llm ---
 
 def test_nodebuilder_llm_basic_build():
-    node_cls = NodeBuilder.llm("TestNode", model_gateway=dummy_gateway()).build()
+    node_cls = NodeBuilder.llm("TestNode", gateway=dummy_gateway()).build()
     assert issubclass(node_cls, Node)
     assert node_cls.name() == "TestNode"
     assert node_cls.type() == "Agent"
 
 
 def test_nodebuilder_llm_default_class_name():
-    node_cls = NodeBuilder.llm("MyLLM", model_gateway=dummy_gateway()).build()
+    node_cls = NodeBuilder.llm("MyLLM", gateway=dummy_gateway()).build()
     assert node_cls.__name__ == "MyLLMNode"
 
 
 def test_nodebuilder_llm_custom_class_name():
-    node_cls = NodeBuilder.llm("MyLLM", class_name="Custom", model_gateway=dummy_gateway()).build()
+    node_cls = NodeBuilder.llm("MyLLM", class_name="Custom", gateway=dummy_gateway()).build()
     assert node_cls.__name__ == "CustomNode"
 
 
 def test_nodebuilder_llm_has_invoke():
-    node_cls = NodeBuilder.llm("TestNode", model_gateway=dummy_gateway()).build()
+    node_cls = NodeBuilder.llm("TestNode", gateway=dummy_gateway()).build()
     assert hasattr(node_cls, "invoke")
 
 
 def test_nodebuilder_llm_no_tool_details_has_no_tool_info():
-    node_cls = NodeBuilder.llm("TestNode", model_gateway=dummy_gateway()).build()
+    node_cls = NodeBuilder.llm("TestNode", gateway=dummy_gateway()).build()
     assert not hasattr(node_cls, "tool_info")
 
 
@@ -60,7 +60,7 @@ def test_nodebuilder_llm_with_tool_details_has_tool_info():
     params = [Parameter(name="x", description="Input", param_type="integer")]
     node_cls = NodeBuilder.llm(
         "TestNode",
-        model_gateway=dummy_gateway(),
+        gateway=dummy_gateway(),
         tool_details="Does something",
         tool_params=params,
     ).build()
@@ -74,7 +74,7 @@ def test_nodebuilder_llm_with_tool_details_has_prepare_tool():
     params = [Parameter(name="x", description="Input", param_type="integer")]
     node_cls = NodeBuilder.llm(
         "TestNode",
-        model_gateway=dummy_gateway(),
+        gateway=dummy_gateway(),
         tool_details="Does something",
         tool_params=params,
     ).build()
@@ -84,7 +84,7 @@ def test_nodebuilder_llm_with_tool_details_has_prepare_tool():
 def test_nodebuilder_llm_with_system_message_string():
     node_cls = NodeBuilder.llm(
         "TestNode",
-        model_gateway=dummy_gateway(),
+        gateway=dummy_gateway(),
         system_message=SystemMessage(content="sysmsg"),
     ).build()
     assert issubclass(node_cls, Node)
@@ -93,7 +93,7 @@ def test_nodebuilder_llm_with_system_message_string():
 def test_nodebuilder_llm_with_schema():
     node_cls = NodeBuilder.llm(
         "TestNode",
-        model_gateway=dummy_gateway(),
+        gateway=dummy_gateway(),
         schema=Schema,
     ).build()
     assert issubclass(node_cls, Node)
@@ -107,7 +107,7 @@ def test_nodebuilder_llm_duplicate_param_names_error():
     with pytest.raises(NodeCreationError):
         NodeBuilder.llm(
             "TestNode",
-            model_gateway=dummy_gateway(),
+            gateway=dummy_gateway(),
             tool_details="details",
             tool_params=params,
         )
