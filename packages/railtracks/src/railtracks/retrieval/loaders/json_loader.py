@@ -11,14 +11,18 @@ from railtracks.retrieval.models import Document, DocumentType
 
 
 class JSONLoader(BaseDocumentLoader):
-    """Loads JSON files as `Document` objects.
+    """Loads JSON and JSON Lines files as `Document` objects.
 
-    If `file_path` points to a directory, all `.json` files are loaded
-    recursively in sorted order. If it points to a file, that file is loaded.
+    If `file_path` points to a directory, all `.json` and `.jsonl` files are
+    loaded recursively in sorted order. If it points to a file, that file is
+    loaded; the format is selected by suffix.
 
-    Each file must contain either a JSON object or a JSON array of objects.
-    For arrays, each element becomes a separate `Document`. For a single
-    object, one `Document` is produced.
+    - `.json`: the file root must be a JSON object or an array of objects.
+      For arrays, each element becomes a separate `Document`; for a single
+      object, one `Document` is produced.
+    - `.jsonl`: each non-empty line must be a JSON object; one `Document` per
+      object. Blank lines are skipped. The file is streamed line by line, so
+      JSONL is the preferred format for corpora larger than memory.
 
     `Document.source` is set to `"{file_path}#{obj_id}"`, where `obj_id`
     is `obj[id_key]` when `id_key` is given and the object's position in
@@ -27,8 +31,8 @@ class JSONLoader(BaseDocumentLoader):
     (`delete_where` on `document_id`).
 
     Args:
-        file_path: Path to a `.json` file or a directory containing `.json`
-            files.
+        file_path: Path to a `.json` / `.jsonl` file, or a directory
+            containing them.
         content_keys: Keys whose values are concatenated to form
             `Document.content`. Use `"*"` (default) to serialise the entire
             object as content. Pass an explicit list to control which fields
@@ -39,7 +43,7 @@ class JSONLoader(BaseDocumentLoader):
             `Document.source`. Default: `None` (fall back to the object's
             position in the file). Prefer this when the JSON has a stable
             id field and objects may be reordered — position is only
-            stable as long as the array order is.
+            stable as long as the order is.
         ignore_keys: Keys to drop entirely from both content and metadata.
         content_separator: String used to join multiple content-key values.
             Defaults to `"\\n"`.
@@ -48,9 +52,11 @@ class JSONLoader(BaseDocumentLoader):
     Raises:
         FileNotFoundError: If `file_path` does not exist.
         ValueError: If `file_path` points to a file with an unsupported
-            extension, the JSON structure is not an object or array of
-            objects, or any key in `content_keys` or `id_key` is not
-            found in a parsed object.
+            extension, the JSON/JSONL structure does not match the format
+            (e.g. a `.json` file that is neither object nor array of
+            objects, or a `.jsonl` line that is not a JSON object), or any
+            key in `content_keys` or `id_key` is not found in a parsed
+            object.
     """
 
     def __init__(
@@ -70,7 +76,11 @@ class JSONLoader(BaseDocumentLoader):
         self._encoding = encoding
 
     def _object_to_document(
-        self, obj: dict[str, Any], source_prefix: str, index: int
+        self,
+        obj: dict[str, Any],
+        source_prefix: str,
+        index: int,
+        doc_type: DocumentType = DocumentType.JSON,
     ) -> Document:
         """Convert a single JSON object to a `Document`.
 
@@ -119,26 +129,32 @@ class JSONLoader(BaseDocumentLoader):
         metadata["index"] = index
         return Document(
             content=content,
-            type=DocumentType.JSON,
+            type=doc_type,
             source=f"{source_prefix}#{obj_id}",
             metadata=metadata,
         )
 
     async def _stream_file(self, path: Path) -> AsyncGenerator[Document, None]:
-        """Stream documents from a single JSON file.
+        """Stream documents from a single JSON or JSONL file.
 
-        Parses the file in a thread, then yields one `Document` per object.
+        Dispatches by suffix: `.jsonl` is streamed line by line; `.json`
+        is parsed whole. One `Document` per object is yielded.
 
         Args:
-            path: Path to the JSON file to read.
+            path: Path to the JSON or JSONL file to read.
 
         Yields:
             Document: The next converted document.
 
         Raises:
-            ValueError: If the file does not contain an object or array of
-                objects.
+            ValueError: If a `.json` file does not contain an object or
+                array of objects, or a `.jsonl` line is not a JSON object.
         """
+        if path.suffix.lower() == ".jsonl":
+            async for doc in self._stream_jsonl(path):
+                yield doc
+            return
+
         source_prefix = str(path)
         raw = await asyncio.to_thread(
             lambda: json.loads(path.read_text(encoding=self._encoding))
@@ -156,6 +172,48 @@ class JSONLoader(BaseDocumentLoader):
         for i, obj in enumerate(objects):
             yield self._object_to_document(obj, source_prefix, i)
 
+    async def _stream_jsonl(self, path: Path) -> AsyncGenerator[Document, None]:
+        """Stream documents from a single JSONL file, one object per line.
+
+        Reads and parses the file line by line in a worker thread so the
+        event loop is not blocked and the full file is never held in
+        memory. Blank lines are skipped; the `index` exposed in
+        `Document.metadata` counts only parsed objects, not raw lines.
+
+        Args:
+            path: Path to the JSONL file to read.
+
+        Yields:
+            Document: The next converted document.
+
+        Raises:
+            ValueError: If any non-empty line is not a JSON object.
+        """
+        source_prefix = str(path)
+        f = await asyncio.to_thread(lambda: path.open(encoding=self._encoding))
+        try:
+            index = 0
+            line_no = 0
+            while True:
+                raw_line = await asyncio.to_thread(f.readline)
+                if not raw_line:
+                    break
+                line_no += 1
+                stripped = raw_line.strip()
+                if not stripped:
+                    continue
+                obj = json.loads(stripped)
+                if not isinstance(obj, dict):
+                    raise ValueError(
+                        f"JSONL line must be a JSON object: line {line_no} in {path}"
+                    )
+                yield self._object_to_document(
+                    obj, source_prefix, index, DocumentType.JSONL
+                )
+                index += 1
+        finally:
+            await asyncio.to_thread(f.close)
+
     async def astream(self) -> AsyncGenerator[Document, None]:
         """Stream documents one at a time as each JSON object is parsed.
 
@@ -172,17 +230,22 @@ class JSONLoader(BaseDocumentLoader):
                 extension.
         """
         if self._path.is_dir():
-            for path in sorted(self._path.rglob("*.json")):
-                if path.is_file():
-                    async for doc in self._stream_file(path):
-                        yield doc
+            paths = sorted(
+                p
+                for pattern in ("*.json", "*.jsonl")
+                for p in self._path.rglob(pattern)
+                if p.is_file()
+            )
+            for path in paths:
+                async for doc in self._stream_file(path):
+                    yield doc
             return
 
         if not self._path.is_file():
             raise FileNotFoundError(f"File not found: {self._path}")
-        if self._path.suffix.lower() != ".json":
+        if self._path.suffix.lower() not in (".json", ".jsonl"):
             raise ValueError(
-                f"JSONLoader expects a .json file, got {self._path.suffix!r}"
+                f"JSONLoader expects a .json or .jsonl file, got {self._path.suffix!r}"
             )
 
         async for doc in self._stream_file(self._path):

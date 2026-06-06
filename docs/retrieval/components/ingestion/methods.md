@@ -12,7 +12,7 @@ none of these fit.
 |---|---|---|---|
 | `TextLoader` | `.txt` / `.md` files (or directories) | File | None |
 | `CSVLoader` | `.csv` files (or directories) | Row | None |
-| `JSONLoader` | `.json` files (or directories) | Top-level object | None |
+| `JSONLoader` | `.json` and `.jsonl` files (or directories) | Top-level object / one per line | None |
 | `PyPDFLoader` | PDFs with a text layer | Page (default) or whole file | `railtracks[pdf]` |
 | `PyPDFOCRLoader` | PDFs that include scanned images | Page (default) or whole file | `railtracks[ocr]` + Tesseract binary |
 | `HuggingFaceDatasetLoader` | Any dataset on the [HF Hub](https://huggingface.co/datasets) | Row | `railtracks[huggingface]` |
@@ -95,19 +95,32 @@ Additionally you can decide what you want to use as a _separator_ for merging co
 
 ## `JSONLoader`
 
-Reads `.json` files where the root is an object or array of objects.
-Each object becomes one `Document`.
+Handles two formats, picked by suffix:
+
+- `.json` — root is a single object or an array of objects.
+- `.jsonl` — one JSON object per line (blank lines skipped). Streamed
+  line by line, so reach for `.jsonl` whenever the corpus is larger
+  than memory.
+
+Each object — array element or JSONL line — becomes one `Document`.
 
 ```python
 --8<-- "docs/scripts/retrieval/ingestion_example.py:json_loader"
+```
+
+For `.jsonl`:
+
+```python
+--8<-- "docs/scripts/retrieval/ingestion_example.py:jsonl_loader"
 ```
 
 **Parameters**
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `file_path` | `str` | required | Path to a `.json` file or directory |
+| `file_path` | `str` | required | Path to a `.json` / `.jsonl` file, or a directory containing them |
 | `content_keys` | `list[str] | "*"` | `"*"` | Keys whose values form `content`. `"*"` serialises the whole object. |
+| `id_key` | `str | None` | `None` | Top-level key whose value is the per-object id in `Document.source`. Falls back to position (array index or JSONL line). |
 | `ignore_keys` | `list[str] | None` | `None` | Keys dropped entirely |
 | `content_separator` | `str` | `"\n"` | Used to join content-key values |
 | `encoding` | `str` | `"utf-8-sig"` | File encoding |

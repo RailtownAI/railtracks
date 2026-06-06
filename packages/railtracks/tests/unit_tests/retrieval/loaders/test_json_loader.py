@@ -184,6 +184,70 @@ class TestJSONLoaderIgnoreKeys:
         assert "score" not in docs[0].metadata
 
 
+class TestJSONLoaderJSONL:
+    """Tests for JSONLoader with `.jsonl` (JSON Lines) files."""
+
+    async def test_jsonl_yields_one_document_per_line(self, jsonl_file):
+        """Each non-empty line produces exactly one Document."""
+        docs = await JSONLoader(str(jsonl_file)).aload()
+        assert len(docs) == 3
+
+    async def test_jsonl_blank_lines_are_skipped(self, jsonl_file):
+        """Blank lines do not produce empty Documents or shift indices."""
+        docs = await JSONLoader(str(jsonl_file), content_keys=["title"]).aload()
+        assert [d.metadata["index"] for d in docs] == [0, 1, 2]
+        assert "First" in docs[0].content
+        assert "Second" in docs[1].content
+        assert "Third" in docs[2].content
+
+    async def test_jsonl_source_uses_object_index(self, jsonl_file):
+        """Source suffix counts parsed objects (blanks don't bump the index)."""
+        docs = await JSONLoader(str(jsonl_file)).aload()
+        assert [d.source for d in docs] == [
+            f"{jsonl_file}#0",
+            f"{jsonl_file}#1",
+            f"{jsonl_file}#2",
+        ]
+
+    async def test_jsonl_document_type(self, jsonl_file):
+        """Document type is JSONL for `.jsonl` lines."""
+        docs = await JSONLoader(str(jsonl_file)).aload()
+        assert all(d.type == DocumentType.JSONL for d in docs)
+
+    async def test_jsonl_id_key_used_in_source(self, tmp_path):
+        """When id_key is set, its value becomes the source suffix per line."""
+        f = tmp_path / "data.jsonl"
+        f.write_text(
+            json.dumps({"_id": "a1", "body": "x"}) + "\n"
+            + json.dumps({"_id": "a2", "body": "y"}) + "\n",
+            encoding="utf-8",
+        )
+        docs = await JSONLoader(str(f), id_key="_id").aload()
+        assert [d.source for d in docs] == [f"{f}#a1", f"{f}#a2"]
+
+    async def test_jsonl_non_object_line_raises_value_error(self, tmp_path):
+        """A line that parses to a non-object (e.g. an array) raises."""
+        f = tmp_path / "bad.jsonl"
+        f.write_text(
+            json.dumps({"ok": 1}) + "\n" + json.dumps([1, 2, 3]) + "\n",
+            encoding="utf-8",
+        )
+        loader = JSONLoader(str(f))
+        with pytest.raises(ValueError, match="JSONL line must be a JSON object"):
+            await loader.aload()
+
+    async def test_jsonl_invalid_line_raises(self, tmp_path):
+        """A line that is not valid JSON raises (propagated from json.loads)."""
+        f = tmp_path / "broken.jsonl"
+        f.write_text(
+            json.dumps({"ok": 1}) + "\nnot json\n",
+            encoding="utf-8",
+        )
+        loader = JSONLoader(str(f))
+        with pytest.raises(json.JSONDecodeError):
+            await loader.aload()
+
+
 class TestJSONLoaderDirectory:
     """Tests for JSONLoader loading a directory."""
 
@@ -197,6 +261,20 @@ class TestJSONLoaderDirectory:
         docs = await JSONLoader(str(json_dir), content_keys=["key"]).aload()
         assert "val_a" in docs[0].content
         assert "val_b" in docs[1].content
+
+    async def test_directory_loads_json_and_jsonl_together(self, jsonl_dir):
+        """A directory mixing .json and .jsonl files loads both, sorted, and
+        each Document carries the right type for its source file."""
+        docs = await JSONLoader(str(jsonl_dir), content_keys=["key"]).aload()
+        assert len(docs) == 3
+        assert "val_a" in docs[0].content
+        assert "val_b1" in docs[1].content
+        assert "val_b2" in docs[2].content
+        assert [d.type for d in docs] == [
+            DocumentType.JSON,
+            DocumentType.JSONL,
+            DocumentType.JSONL,
+        ]
 
     async def test_empty_directory_returns_empty_list(self, tmp_path):
         """An empty directory yields no documents."""
@@ -214,11 +292,13 @@ class TestJSONLoaderErrors:
             await loader.aload()
 
     async def test_unsupported_extension_raises_value_error(self, tmp_path):
-        """A file with a non-.json extension raises ValueError."""
+        """A file with a non-.json/.jsonl extension raises ValueError."""
         f = tmp_path / "data.txt"
         f.write_text("{}", encoding="utf-8")
         loader = JSONLoader(str(f))
-        with pytest.raises(ValueError, match="JSONLoader expects a .json file"):
+        with pytest.raises(
+            ValueError, match="JSONLoader expects a .json or .jsonl file"
+        ):
             await loader.aload()
 
     async def test_array_of_scalars_raises_value_error(self, tmp_path):
