@@ -536,3 +536,114 @@ async def test_cloud_create_factory_returns_initialized_backend():
 
     assert isinstance(backend, ChromaCloudBackend)
     assert backend._collection is not None
+
+
+async def test_cloud_create_factory_without_embedding_function():
+    mock_chroma = MagicMock()
+    mock_chroma.CloudClient.return_value.get_or_create_collection.return_value = MagicMock()
+
+    with patch.dict("sys.modules", {"chromadb": mock_chroma}):
+        backend = await ChromaCloudBackend.create(
+            "my-collection",
+            api_key="chk-key",
+            tenant="my-tenant",
+            database="my-db",
+        )
+
+    # embedding_function should NOT be passed to get_or_create_collection
+    mock_chroma.CloudClient.return_value.get_or_create_collection.assert_called_once_with(
+        "my-collection"
+    )
+    assert isinstance(backend, ChromaCloudBackend)
+
+
+# ---------------------------------------------------------------------------
+# ChromaCloudBackend — server-side embeddings: upsert
+# ---------------------------------------------------------------------------
+
+
+async def test_cloud_upsert_omits_embeddings_when_vector_is_none():
+    col = MagicMock()
+    backend = _cloud_backend(collection=col)
+
+    await backend.upsert("entry-1", None, {"content": "hello world", "scope_user_id": "alice"})
+
+    col.upsert.assert_called_once_with(
+        ids=["entry-1"],
+        embeddings=None,
+        documents=["hello world"],
+        metadatas=[{"content": "hello world", "scope_user_id": "alice"}],
+    )
+
+
+async def test_cloud_upsert_passes_embeddings_when_vector_provided():
+    col = MagicMock()
+    backend = _cloud_backend(collection=col)
+
+    await backend.upsert("entry-1", [0.1, 0.2], {"content": "hello", "scope_user_id": "alice"})
+
+    col.upsert.assert_called_once_with(
+        ids=["entry-1"],
+        embeddings=[[0.1, 0.2]],
+        documents=["hello"],
+        metadatas=[{"content": "hello", "scope_user_id": "alice"}],
+    )
+
+
+async def test_cloud_upsert_raises_when_no_vector_and_no_content():
+    col = MagicMock()
+    backend = _cloud_backend(collection=col)
+
+    with pytest.raises(ValueError, match="content"):
+        await backend.upsert("entry-1", None, {"scope_user_id": "alice"})
+
+
+# ---------------------------------------------------------------------------
+# ChromaCloudBackend — server-side embeddings: search
+# ---------------------------------------------------------------------------
+
+
+async def test_cloud_search_uses_query_texts_when_vector_is_none():
+    col = MagicMock()
+    col.count.return_value = 1
+    col.query.return_value = {
+        "ids": [["a"]],
+        "distances": [[0.1]],
+        "metadatas": [[{"content": "hello"}]],
+    }
+    backend = _cloud_backend(collection=col)
+
+    results = await backend.search(None, top_k=5, filters={}, query_text="find me something")
+
+    _, call_kwargs = col.query.call_args
+    assert "query_texts" in call_kwargs
+    assert call_kwargs["query_texts"] == ["find me something"]
+    assert "query_embeddings" not in call_kwargs
+    assert len(results) == 1
+
+
+async def test_cloud_search_uses_query_embeddings_when_vector_provided():
+    col = MagicMock()
+    col.count.return_value = 1
+    col.query.return_value = {
+        "ids": [["a"]],
+        "distances": [[0.1]],
+        "metadatas": [[{"content": "hello"}]],
+    }
+    backend = _cloud_backend(collection=col)
+
+    await backend.search([0.1, 0.2], top_k=5, filters={})
+
+    _, call_kwargs = col.query.call_args
+    assert "query_embeddings" in call_kwargs
+    assert call_kwargs["query_embeddings"] == [[0.1, 0.2]]
+    assert "query_texts" not in call_kwargs
+
+
+async def test_cloud_search_raises_when_no_vector_and_no_query_text():
+    col = MagicMock()
+    col.count.return_value = 1
+    backend = _cloud_backend(collection=col)
+
+    with pytest.raises(ValueError, match="query_text"):
+        await backend.search(None, top_k=5, filters={})

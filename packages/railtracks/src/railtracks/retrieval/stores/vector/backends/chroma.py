@@ -208,9 +208,21 @@ class ChromaCloudBackend(_ChromaBase):
     runs in a thread via asyncio.to_thread. Call initialize() before any other
     method.
 
-    An embedding_function must be provided explicitly — Chroma Cloud stores the
-    EF configuration server-side and the local SDK may fail to reconstruct it,
-    so passing the object directly bypasses that code path entirely.
+    Server-side embeddings
+    ----------------------
+    Chroma Cloud collections can have a built-in embedding function (EF)
+    configured server-side.  When you want Chroma to handle all embedding:
+
+    - Pass ``embedding_function`` to register (or reuse) the EF on the
+      collection.  Omit it if the collection was already created with an EF
+      and you don't want to reconstruct it locally.
+    - Call ``upsert`` with ``vector=None`` — Chroma embeds the document text
+      (the ``content`` field in the payload) automatically.
+    - Call ``search`` with ``vector=None, query_text="..."`` — Chroma embeds
+      the query text automatically.
+
+    When ``vector`` is provided it is always used as-is, regardless of whether
+    an EF is configured.
     """
 
     _NOT_INITIALIZED = (
@@ -225,7 +237,7 @@ class ChromaCloudBackend(_ChromaBase):
         api_key: str,
         tenant: str,
         database: str,
-        embedding_function: Any,
+        embedding_function: Any | None = None,
         metric: DistanceMetric = DistanceMetric.COSINE,
     ) -> None:
         self._collection_name = collection_name
@@ -244,7 +256,7 @@ class ChromaCloudBackend(_ChromaBase):
         api_key: str,
         tenant: str,
         database: str,
-        embedding_function: Any,
+        embedding_function: Any | None = None,
         metric: DistanceMetric = DistanceMetric.COSINE,
     ) -> Self:
         """Create and initialize a ChromaCloudBackend in one step."""
@@ -281,9 +293,70 @@ class ChromaCloudBackend(_ChromaBase):
                 tenant=tenant,
                 database=database,
             )
-            return client.get_or_create_collection(
-                collection_name,
-                embedding_function=embedding_function,
-            )
+            kwargs: dict[str, Any] = {}
+            if embedding_function is not None:
+                kwargs["embedding_function"] = embedding_function
+            return client.get_or_create_collection(collection_name, **kwargs)
 
         self._collection = await asyncio.to_thread(_setup)
+
+    async def upsert(self, id: str, vector: list[float] | None, payload: dict) -> None:
+        self._require_initialized()
+        collection = self._collection
+        content = payload.get("content")
+        if vector is None and content is None:
+            raise ValueError(
+                "ChromaCloudBackend requires either a vector or a 'content' value in "
+                "the payload for server-side embedding."
+            )
+        await asyncio.to_thread(
+            collection.upsert,
+            ids=[id],
+            embeddings=[vector] if vector is not None else None,
+            documents=[content] if content is not None else None,
+            metadatas=[payload],
+        )
+
+    async def search(
+        self,
+        vector: list[float] | None,
+        top_k: int,
+        filters: dict,
+        *,
+        query_text: str | None = None,
+    ) -> list[tuple[str, float, dict]]:
+        if vector is None and query_text is None:
+            raise ValueError(
+                "ChromaCloudBackend requires either a vector or query_text to search. "
+                "Pass query_text to use server-side embedding."
+            )
+        self._require_initialized()
+        collection = self._collection
+
+        count = await asyncio.to_thread(collection.count)
+        if count == 0:
+            return []
+
+        n_results = min(top_k, count)
+        where = _to_chroma_where(filters) if filters else None
+
+        query_kwargs: dict[str, Any] = {
+            "n_results": n_results,
+            "where": where,
+            "include": ["metadatas", "distances"],
+        }
+        if vector is not None:
+            query_kwargs["query_embeddings"] = [vector]
+        else:
+            query_kwargs["query_texts"] = [query_text]
+
+        results = await asyncio.to_thread(collection.query, **query_kwargs)
+
+        hits: list[tuple[str, float, dict]] = []
+        for id_, distance, metadata in zip(
+            results["ids"][0],
+            results["distances"][0],
+            results["metadatas"][0],
+        ):
+            hits.append((id_, _chroma_to_score(self._metric, distance), dict(metadata)))
+        return hits
