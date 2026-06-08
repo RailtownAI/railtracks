@@ -172,6 +172,47 @@ def distance():
     # --8<-- [end:distance]
 
 
+# --8<-- [start:chroma_cloud]
+from railtracks.retrieval.stores import ChromaCloudBackend, VectorStore
+
+
+async def chroma_cloud():
+    # Any Chroma-compatible embedding function works here.
+    # It must be passed explicitly — Chroma Cloud stores the EF config
+    # server-side, and providing the object directly avoids a known
+    # reconstruction issue with certain EF configurations.
+    from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
+
+    ef = DefaultEmbeddingFunction()
+
+    backend = await ChromaCloudBackend.create(
+        "my-collection",
+        api_key="chk-...",
+        tenant="my-tenant",
+        database="my-database",
+        embedding_function=ef,
+    )
+    store = VectorStore(backend)
+# --8<-- [end:chroma_cloud]
+
+
+def chroma_cloud_metric():
+    # --8<-- [start:chroma_cloud_metric]
+    from railtracks.retrieval.stores import ChromaCloudBackend, DistanceMetric
+
+    # metric controls the score conversion formula only —
+    # the hnsw:space is managed server-side for Cloud collections.
+    backend = ChromaCloudBackend(
+        "my-collection",
+        api_key="chk-...",
+        tenant="my-tenant",
+        database="my-database",
+        embedding_function=...,
+        metric=DistanceMetric.L2,
+    )
+    # --8<-- [end:chroma_cloud_metric]
+
+
 # --8<-- [start:custom]
 from railtracks.retrieval.stores import VectorStore
 

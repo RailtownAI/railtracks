@@ -22,9 +22,9 @@ all of them. The choice is about where you want the index to live.
 
 ## Initialization
 
-`ChromaBackend` and `PgvectorBackend` must be initialised before use.
-Both expose an async `create(...)` factory that constructs and initialises
-in one call. 
+`ChromaBackend`, `ChromaCloudBackend`, and `PgvectorBackend` must be
+initialised before use. All three expose an async `create(...)` factory
+that constructs and initialises in one call.
 
 **Prefer `create()`** over manual `__init__` + `initialize()`:
 
@@ -96,7 +96,7 @@ outgrown this backend.
 
 Backend powered by [Chroma](https://www.trychroma.com/). Supports
 ephemeral (in-process), persistent (on-disk), and HTTP (remote server)
-client modes.
+client modes. For Chroma Cloud, use [`ChromaCloudBackend`](#chromacloudbackend).
 
 ```bash
 pip install "railtracks[stores-chroma]"
@@ -138,10 +138,58 @@ changed later**. Pick at create time:
 | Install | `pip install "railtracks[stores-chroma]"` |
 | Persistence | Via client mode |
 | Distance metrics | COSINE, L2, IP |
-| Suitable for | Prototyping, moderate corpora, managed Chroma Cloud |
+| Suitable for | Prototyping, moderate corpora, self-hosted Chroma |
 
 **When to use:** standalone apps where you want a real vector index
-without standing up Postgres, or when you already use Chroma Cloud.
+without standing up Postgres.
+
+---
+
+## `ChromaCloudBackend`
+
+Backend for [Chroma Cloud](https://www.trychroma.com/) — the managed
+Chroma service. Uses the same `stores-chroma` install as `ChromaBackend`
+but has a distinct constructor because the connection args are
+incompatible with local/HTTP modes.
+
+```bash
+pip install "railtracks[stores-chroma]"
+```
+
+```python
+--8<-- "docs/scripts/retrieval/store.py:chroma_cloud"
+```
+
+An `embedding_function` must be provided explicitly. Chroma Cloud stores
+the EF configuration server-side and the local SDK may fail to
+reconstruct it, so passing the object directly bypasses that code path.
+Any Chroma-compatible embedding function works.
+
+### Distance metric
+
+For Cloud collections, `metric` controls the **score conversion formula
+only** — the `hnsw:space` is managed server-side and cannot be set at
+collection creation time.
+
+```python
+--8<-- "docs/scripts/retrieval/store.py:chroma_cloud_metric"
+```
+
+| `DistanceMetric` | Score formula |
+|---|---|
+| `COSINE` (default) | `1 - distance` |
+| `L2` | `1 / (1 + sqrt(distance))` |
+| `IP` | `1 - distance` |
+
+| Property | Value |
+|---|---|
+| Install | `pip install "railtracks[stores-chroma]"` |
+| Persistence | Managed by Chroma Cloud |
+| Distance metrics | COSINE, L2, IP |
+| Suitable for | Managed Chroma Cloud deployments |
+
+**When to use:** when you want a fully managed vector store with no
+infrastructure to run. Requires a Chroma Cloud account.
 
 ---
 
@@ -202,13 +250,13 @@ unless you have a strong reason for a managed vector DB.
 
 ## Choosing a backend
 
-|  | InMemory | Chroma | Pgvector |
-|---|---|---|---|
-| Extra install | None | `stores-chroma` | `stores-vector` |
-| Persistence | Optional snapshot | Client-dependent | Postgres |
-| Scale | Small (in-process) | Medium–Large | Large |
-| Infrastructure | None | Chroma server (optional) | Postgres + pgvector |
-| Best for | Tests & dev | Standalone apps | Postgres-native stacks |
+|  | InMemory | Chroma | ChromaCloud | Pgvector |
+|---|---|---|---|---|
+| Extra install | None | `stores-chroma` | `stores-chroma` | `stores-vector` |
+| Persistence | Optional snapshot | Client-dependent | Managed | Postgres |
+| Scale | Small (in-process) | Medium–Large | Large | Large |
+| Infrastructure | None | Chroma server (optional) | Chroma Cloud account | Postgres + pgvector |
+| Best for | Tests & dev | Standalone apps | Managed vector DB | Postgres-native stacks |
 
 ---
 
