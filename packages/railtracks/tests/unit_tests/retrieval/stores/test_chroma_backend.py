@@ -1,4 +1,4 @@
-"""Tests for ChromaBackend — mocked, no chromadb install required."""
+"""Tests for ChromaBackend and ChromaCloudBackend — mocked, no chromadb install required."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from railtracks.retrieval.stores.models import (
 )
 from railtracks.retrieval.stores.vector.backends.chroma import (
     ChromaBackend,
+    ChromaCloudBackend,
     _chroma_to_score,
     _to_chroma_where,
 )
@@ -195,7 +196,22 @@ async def test_upsert_calls_collection_with_correct_args():
     col.upsert.assert_called_once_with(
         ids=["entry-1"],
         embeddings=[[0.1, 0.2]],
+        documents=None,
         metadatas=[{"scope_user_id": "alice"}],
+    )
+
+
+async def test_upsert_passes_documents_when_content_in_payload():
+    col = _make_collection()
+    backend = _injected_backend(col)
+
+    await backend.upsert("entry-1", [0.1, 0.2], {"content": "hello world", "scope_user_id": "alice"})
+
+    col.upsert.assert_called_once_with(
+        ids=["entry-1"],
+        embeddings=[[0.1, 0.2]],
+        documents=["hello world"],
+        metadatas=[{"content": "hello world", "scope_user_id": "alice"}],
     )
 
 
@@ -362,3 +378,161 @@ async def test_vector_store_write_read_via_chroma():
     assert results[0].entry.id == entry.id
     assert results[0].score == pytest.approx(0.95)
     assert results[0].entry.content == "hello"
+
+
+# ---------------------------------------------------------------------------
+# ChromaCloudBackend helpers
+# ---------------------------------------------------------------------------
+
+
+def _cloud_backend(collection: MagicMock | None = None) -> ChromaCloudBackend:
+    ef = MagicMock()
+    backend = ChromaCloudBackend(
+        "my-collection",
+        api_key="chk-key",
+        tenant="my-tenant",
+        database="my-db",
+        embedding_function=ef,
+    )
+    backend._collection = collection
+    return backend
+
+
+# ---------------------------------------------------------------------------
+# ChromaCloudBackend — not-initialized guard
+# ---------------------------------------------------------------------------
+
+
+async def test_cloud_not_initialized_raises_on_upsert():
+    backend = _cloud_backend(collection=None)
+    with pytest.raises(RuntimeError, match="initialize"):
+        await backend.upsert("id", [0.1], {})
+
+
+async def test_cloud_not_initialized_raises_on_search():
+    backend = _cloud_backend(collection=None)
+    with pytest.raises(RuntimeError, match="initialize"):
+        await backend.search([0.1], 5, {})
+
+
+async def test_cloud_not_initialized_raises_on_delete():
+    backend = _cloud_backend(collection=None)
+    with pytest.raises(RuntimeError, match="initialize"):
+        await backend.delete("id")
+
+
+async def test_cloud_not_initialized_raises_on_delete_where():
+    backend = _cloud_backend(collection=None)
+    with pytest.raises(RuntimeError, match="initialize"):
+        await backend.delete_where({"scope_user_id": "alice"})
+
+
+# ---------------------------------------------------------------------------
+# ChromaCloudBackend — ImportError guard
+# ---------------------------------------------------------------------------
+
+
+async def test_cloud_initialize_raises_import_error_without_chromadb():
+    backend = _cloud_backend(collection=None)
+    real_import = builtins.__import__
+
+    def mock_import(name, *args, **kwargs):
+        if name == "chromadb":
+            raise ImportError("no module named chromadb")
+        return real_import(name, *args, **kwargs)
+
+    with patch("builtins.__import__", side_effect=mock_import):
+        with pytest.raises(ImportError, match="railtracks\\[stores-chroma\\]"):
+            await backend.initialize()
+
+
+# ---------------------------------------------------------------------------
+# ChromaCloudBackend — initialize: uses CloudClient, not EphemeralClient
+# ---------------------------------------------------------------------------
+
+
+async def test_cloud_initialize_uses_cloud_client():
+    mock_chroma = MagicMock()
+    mock_collection = MagicMock()
+    mock_chroma.CloudClient.return_value.get_or_create_collection.return_value = mock_collection
+
+    ef = MagicMock()
+    backend = ChromaCloudBackend(
+        "my-collection",
+        api_key="chk-key",
+        tenant="my-tenant",
+        database="my-db",
+        embedding_function=ef,
+    )
+
+    with patch.dict("sys.modules", {"chromadb": mock_chroma}):
+        await backend.initialize()
+
+    mock_chroma.CloudClient.assert_called_once_with(
+        api_key="chk-key",
+        tenant="my-tenant",
+        database="my-db",
+    )
+    assert backend._collection is mock_collection
+
+
+async def test_cloud_initialize_passes_embedding_function_not_metadata():
+    mock_chroma = MagicMock()
+    mock_chroma.CloudClient.return_value.get_or_create_collection.return_value = MagicMock()
+
+    ef = MagicMock()
+    backend = ChromaCloudBackend(
+        "my-collection",
+        api_key="chk-key",
+        tenant="my-tenant",
+        database="my-db",
+        embedding_function=ef,
+    )
+
+    with patch.dict("sys.modules", {"chromadb": mock_chroma}):
+        await backend.initialize()
+
+    mock_chroma.CloudClient.return_value.get_or_create_collection.assert_called_once_with(
+        "my-collection",
+        embedding_function=ef,
+    )
+
+
+async def test_cloud_initialize_does_not_call_ephemeral_or_http_client():
+    mock_chroma = MagicMock()
+    mock_chroma.CloudClient.return_value.get_or_create_collection.return_value = MagicMock()
+
+    backend = ChromaCloudBackend(
+        "col", api_key="k", tenant="t", database="d", embedding_function=MagicMock()
+    )
+
+    with patch.dict("sys.modules", {"chromadb": mock_chroma}):
+        await backend.initialize()
+
+    mock_chroma.EphemeralClient.assert_not_called()
+    mock_chroma.HttpClient.assert_not_called()
+    mock_chroma.PersistentClient.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# ChromaCloudBackend — create() factory
+# ---------------------------------------------------------------------------
+
+
+async def test_cloud_create_factory_returns_initialized_backend():
+    mock_chroma = MagicMock()
+    mock_chroma.CloudClient.return_value.get_or_create_collection.return_value = MagicMock()
+
+    ef = MagicMock()
+
+    with patch.dict("sys.modules", {"chromadb": mock_chroma}):
+        backend = await ChromaCloudBackend.create(
+            "my-collection",
+            api_key="chk-key",
+            tenant="my-tenant",
+            database="my-db",
+            embedding_function=ef,
+        )
+
+    assert isinstance(backend, ChromaCloudBackend)
+    assert backend._collection is not None
