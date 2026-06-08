@@ -160,10 +160,26 @@ pip install "railtracks[stores-chroma]"
 --8<-- "docs/scripts/retrieval/store.py:chroma_cloud"
 ```
 
-An `embedding_function` must be provided explicitly. Chroma Cloud stores
-the EF configuration server-side and the local SDK may fail to
-reconstruct it, so passing the object directly bypasses that code path.
-Any Chroma-compatible embedding function works.
+`embedding_function` is optional. Pass it to register or reuse a
+specific EF on the collection. When provided, Chroma Cloud stores the EF
+configuration server-side — passing the object directly avoids a known
+SDK reconstruction issue with certain EF configs. Omit it if the
+collection was already created with an EF and you don't need to
+reference it locally.
+
+### Server-side embeddings
+
+When `embedding_function` is configured, Chroma Cloud can embed content
+automatically — no client-side embedder required.
+
+Pass `vector=None` to `upsert` (via `VectorStore.write` or directly) and
+Chroma will embed the document from the `content` field. For search, pass
+`query_text` instead of a pre-computed vector:
+
+```python
+--8<-- "docs/scripts/retrieval/store.py:chroma_cloud_server_embeddings"
+```
+
 
 ### Distance metric
 
