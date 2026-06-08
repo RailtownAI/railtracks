@@ -7,7 +7,12 @@ from .models import (
 )
 from .protocol import Store
 from .vector import VectorStore
-from .vector.backends import ChromaBackend, DistanceMetric, PgvectorBackend, ChromaCloudBackend
+from .vector.backends import (
+    ChromaBackend,
+    ChromaCloudBackend,
+    DistanceMetric,
+    PgvectorBackend,
+)
 from .vector.backends import InMemoryBackend as InMemoryVectorBackend
 
 __all__ = [
