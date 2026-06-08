@@ -29,9 +29,9 @@ class _FakeIterableDataset:
 @pytest.fixture
 def fake_rows() -> list[dict]:
     return [
-        {"query": "what is rag", "passage": "Retrieval-augmented generation.", "label": 1, "topic": "ml"},
-        {"query": "what is bm25", "passage": "BM25 is a ranking function.", "label": 0, "topic": "ir"},
-        {"query": "what is dpr", "passage": "Dense passage retrieval.", "label": 1, "topic": "ir"},
+        {"qid": "q1", "query": "what is rag", "passage": "Retrieval-augmented generation.", "label": 1, "topic": "ml"},
+        {"qid": "q2", "query": "what is bm25", "passage": "BM25 is a ranking function.", "label": 0, "topic": "ir"},
+        {"qid": "q3", "query": "what is dpr", "passage": "Dense passage retrieval.", "label": 1, "topic": "ir"},
     ]
 
 
@@ -64,11 +64,33 @@ class TestHuggingFaceLoaderBasic:
         ).aload()
         assert all(d.type == DocumentType.TEXT for d in docs)
 
-    async def test_source_is_dataset_name_and_split(self, mock_load_dataset):
+    async def test_source_defaults_to_row_index_suffix(self, mock_load_dataset, fake_rows):
         docs = await HuggingFaceDatasetLoader(
             "fake/ds", split="validation", content_columns=["query"]
         ).aload()
-        assert all(d.source == "fake/ds/validation" for d in docs)
+        assert [d.source for d in docs] == [
+            f"fake/ds/validation#{i}" for i in range(len(fake_rows))
+        ]
+
+    async def test_document_ids_are_unique_per_row(self, mock_load_dataset):
+        docs = await HuggingFaceDatasetLoader(
+            "fake/ds", split="train", content_columns=["query"]
+        ).aload()
+        assert len({d.id for d in docs}) == len(docs)
+
+    async def test_id_column_used_in_source_when_provided(self, mock_load_dataset, fake_rows):
+        docs = await HuggingFaceDatasetLoader(
+            "fake/ds", split="train", content_columns=["query"], id_column="qid"
+        ).aload()
+        assert [d.source for d in docs] == [
+            f"fake/ds/train#{r['qid']}" for r in fake_rows
+        ]
+
+    async def test_non_string_id_column_values_are_stringified(self, mock_load_dataset):
+        docs = await HuggingFaceDatasetLoader(
+            "fake/ds", split="train", content_columns=["query"], id_column="label"
+        ).aload()
+        assert docs[0].source == "fake/ds/train#1"
 
     async def test_row_index_in_metadata(self, mock_load_dataset, fake_rows):
         docs = await HuggingFaceDatasetLoader(
@@ -158,6 +180,18 @@ class TestHuggingFaceLoaderValidation:
         ):
             await loader.aload()
 
+    async def test_unknown_id_column_raises_value_error(self, mock_load_dataset):
+        loader = HuggingFaceDatasetLoader(
+            "fake/ds",
+            split="train",
+            content_columns=["query"],
+            id_column="does_not_exist",
+        )
+        with pytest.raises(
+            ValueError, match="id_column not found in dataset schema"
+        ):
+            await loader.aload()
+
 
 class TestHuggingFaceLoaderStreaming:
     """Laziness guarantees and ``load_dataset`` call shape."""
@@ -196,15 +230,16 @@ class TestHuggingFaceLoaderStreaming:
         assert kwargs["name"] == "v2.1"
         assert kwargs["revision"] == "abc"
 
-    async def test_dataset_kwargs_can_override_streaming(self, mock_load_dataset):
-        await HuggingFaceDatasetLoader(
-            "fake/ds",
-            split="train",
-            content_columns=["query"],
-            dataset_kwargs={"streaming": False},
-        ).aload()
+    async def test_dataset_kwargs_streaming_override_is_ignored(self, mock_load_dataset):
+        with pytest.warns(UserWarning, match="streaming.*ignored"):
+            await HuggingFaceDatasetLoader(
+                "fake/ds",
+                split="train",
+                content_columns=["query"],
+                dataset_kwargs={"streaming": False},
+            ).aload()
         _, kwargs = mock_load_dataset.call_args
-        assert kwargs["streaming"] is False
+        assert kwargs["streaming"] is True
 
 
 class TestHuggingFaceLoaderSyncWrapper:

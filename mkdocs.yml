@@ -189,6 +189,7 @@ nav:
           - Evaluation: tutorials/videos/evaluation.md
     - Notebooks:
       - Agent Architectures: tutorials/notebooks/architectures.md
+      - Retrieval Tutorial: tutorials/notebooks/retrieval-benchmark.md
       - FastAPI Integration: tutorials/notebooks/fastapi.md
       - File Embedding (RAG): tutorials/notebooks/file_embedding.md
     - Concepts:
