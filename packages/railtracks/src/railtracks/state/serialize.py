@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import traceback
 from typing import Any
 
 from pydantic import BaseModel
@@ -11,6 +12,8 @@ from railtracks.llm import Message, ToolCall, ToolResponse, UserMessage
 from railtracks.nodes.nodes import LatencyDetails
 from railtracks.utils.profiling import Stamp
 from railtracks.utils.serialization.graph import Edge, Vertex
+
+from .request import Failure
 
 supported_types = (
     Message,
@@ -23,6 +26,7 @@ supported_types = (
     LatencyDetails,
     BaseModel,
     LLMResponse,
+    Failure,
 )
 
 
@@ -62,8 +66,25 @@ def encoder_extender(o) -> dict[str, Any]:  # noqa: C901
         return encode_base_model(o)
     elif isinstance(o, LLMResponse):
         return encode_llm_response(o)
+    elif isinstance(o, Failure):
+        return encode_failure(o)
     else:
         raise TypeError(f"Unsupported type: {type(o)}")
+
+
+def encode_failure(failure: Failure) -> dict[str, Any]:
+    """
+    Encodes a Failure object by surfacing the wrapped exception's type, message,
+    and traceback so the visualizer can show the source of the error.
+    """
+    exc = failure.exception
+    return {
+        "type": type(exc).__name__,
+        "message": str(exc),
+        "traceback": "".join(
+            traceback.format_exception(type(exc), exc, exc.__traceback__)
+        ),
+    }
 
 
 def encode_llm_response(llm_response: LLMResponse):
