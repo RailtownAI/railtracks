@@ -17,6 +17,7 @@ from railtracks.state import serialize
         ("fake_tool_call", {"identifier", "name", "arguments"}, serialize.encode_tool_call, dict),
         ("fake_latency_details", {"total_time"}, serialize.encode_latency_details, dict),
         ("fake_basemodel", {"hello"}, serialize.encode_base_model, dict),
+        ("fake_failure", {"type", "message", "traceback"}, serialize.encode_failure, dict),
     ]
 )
 def test_encoder_extension_encodes_types_correctly(request, fixture_name, expected_keys, encode_func, expected_type):
@@ -39,7 +40,7 @@ def test_encoder_extender_raises_on_unknown():
     [
         "fake_edge", "fake_vertex", "fake_stamp", "fake_request_details",
         "fake_message", "fake_tool_response", "fake_tool_call",
-        "fake_latency_details", "fake_basemodel",
+        "fake_latency_details", "fake_basemodel", "fake_failure",
     ]
 )
 def test_rtjsonencoder_supports_all_supported_types(request, fixture_name):
@@ -60,5 +61,12 @@ def test_rtjsonencoder_fallback_on_unknown_type():
     enc = DummyEnc()
     val = enc.default(to_enc)
     assert "ERROR:" in str(val)
+
+def test_failure_serialization_surfaces_exception_details(fake_failure):
+    encoded = json.loads(json.dumps(fake_failure, cls=serialize.RTJSONEncoder))
+    assert encoded["type"] == "ValueError"
+    assert encoded["message"] == "kaboom"
+    assert "ValueError: kaboom" in encoded["traceback"]
+    assert "ERROR: w/ type" not in json.dumps(encoded)
 
 # =============== END RTJSONEncoder tests =========================
