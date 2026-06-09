@@ -118,6 +118,14 @@ pip install "railtracks[stores-chroma]"
 --8<-- "docs/scripts/retrieval/store.py:servers"
 ```
 
+### Documents and content
+
+Chroma stores text alongside each vector as a *document*. Both Chroma
+backends map `StoreEntry.content` (equivalently, `Chunk.content`) to this
+field automatically — you don't need to set it separately. This is what
+Chroma displays in its UI and what server-side embedding functions receive
+as input when no pre-computed vector is provided.
+
 ### Distance metric
 
 Chroma's `hnsw:space` is set at collection creation and **cannot be
@@ -173,8 +181,9 @@ When `embedding_function` is configured, Chroma Cloud can embed content
 automatically — no client-side embedder required.
 
 Pass `vector=None` to `upsert` (via `VectorStore.write` or directly) and
-Chroma will embed the document from the `content` field. For search, pass
-`query_text` instead of a pre-computed vector:
+Chroma will embed the Chroma document — i.e. `StoreEntry.content` — using
+the configured EF. For search, pass `query_text` instead of a
+pre-computed vector:
 
 ```python
 --8<-- "docs/scripts/retrieval/store.py:chroma_cloud_server_embeddings"
