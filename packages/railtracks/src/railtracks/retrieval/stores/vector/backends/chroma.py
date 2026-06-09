@@ -152,6 +152,18 @@ class ChromaBackend(_ChromaBase):
         port: int | None = None,
         metric: DistanceMetric = DistanceMetric.COSINE,
     ) -> None:
+        """
+        Args:
+            collection_name: Name of the Chroma collection to get or create.
+            path: Local directory for a PersistentClient. Mutually exclusive
+                with ``host``/``port``. Omit for an in-process EphemeralClient.
+            host: Hostname of a remote Chroma server (HttpClient). Requires
+                ``port``.
+            port: Port of the remote Chroma server. Requires ``host``.
+            metric: Distance metric used for similarity search. Sets the
+                ``hnsw:space`` metadata on the collection at creation time and
+                cannot be changed afterwards. Defaults to cosine.
+        """
         self._collection_name = collection_name
         self._path = path
         self._host = host
@@ -240,6 +252,24 @@ class ChromaCloudBackend(_ChromaBase):
         embedding_function: Any | None = None,
         metric: DistanceMetric = DistanceMetric.COSINE,
     ) -> None:
+        """
+        Args:
+            collection_name: Name of the Chroma Cloud collection to get or
+                create.
+            api_key: Chroma Cloud API key (``ck-...``).
+            tenant: Chroma Cloud tenant ID.
+            database: Chroma Cloud database name.
+            embedding_function: A Chroma-compatible embedding function to
+                register on the collection. Pass it to use server-side
+                embeddings — Chroma will embed documents and queries
+                automatically, and you can then call ``upsert`` with
+                ``vector=None`` and ``search`` with ``query_text``. Omit if
+                the collection was already created with an EF and you don't
+                need to reference it locally.
+            metric: Distance metric used for score conversion. Unlike local
+                backends, this does **not** set ``hnsw:space`` — the index
+                space is managed server-side. Defaults to cosine.
+        """
         self._collection_name = collection_name
         self._api_key = api_key
         self._tenant = tenant
