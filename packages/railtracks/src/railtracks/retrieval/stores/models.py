@@ -80,7 +80,7 @@ class StoreEntry:
     ) -> StoreEntry:
         chunk = embedded_chunk.chunk
         return cls(
-            id=uuid4(),
+            id=chunk.id,
             content=chunk.content,
             vector=embedded_chunk.vector,
             embedding_model=embedded_chunk.embedding_model,
