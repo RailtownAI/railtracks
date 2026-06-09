@@ -128,6 +128,12 @@ returns the new result, or the original when the gateway returns `None`.
 unambiguous way to state positional **and** keyword args at once, and the escape hatch
 for the rare "single positional arg that looks like `(tuple, dict)`" case.
 
+`Gateway.__call__` is a thin pass-through to `self._fn` — it preserves decorator
+transparency (a `@gateway`-decorated name stays usable as a plain function) and makes
+generic gateways easy to unit-test or reuse. It deliberately does **not** go through
+`apply_entry`/`apply_exit`, so it returns the raw function result (a coroutine for an
+async gateway).
+
 ## Attach-site integration
 
 ### Node middleware

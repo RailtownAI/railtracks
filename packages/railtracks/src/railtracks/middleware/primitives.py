@@ -218,7 +218,7 @@ class Gateway:
         return result if transformed is None else transformed
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        """Invoke the underlying function directly (a raw passthrough).
+        """Invoke the underlying function directly (a raw pass-through).
 
         Handy for reusing a generic gateway — e.g. a logger or validator — as an
         ordinary function. This calls the wrapped function as-is and does **not** apply

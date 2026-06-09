@@ -147,6 +147,26 @@ async def no_secrets(text: str):
 For richer, ready-made guardrails (PII redaction, length/content checks) see
 [Guardrails](../guardrails/overview.md).
 
+### Calling a gateway directly
+
+A `Gateway` is **directly callable** — it passes straight through to the function you
+wrote. This is handy when the gateway is a generic helper (a logger, a validator) you
+also want to call as an ordinary function:
+
+```python
+@rt.gateway
+def tag(x):
+    return f"[{x}]"
+
+tag("hi")            # -> '[hi]'  (raw function result)
+```
+
+!!! warning "Direct call is the *raw* function, not the slot behaviour"
+    Calling `gateway(...)` runs the underlying function as-is; it does **not** apply the
+    entry/exit interpretation (`None`/`tuple`/`dict` → `(args, kwargs)`). Use
+    `gateway.apply_entry(...)` / `gateway.apply_exit(...)` to see what the engine does.
+    Also: if the gateway is `async`, calling it returns a **coroutine** you must `await`.
+
 ---
 
 ## Grouping with `MiddlewareSet`

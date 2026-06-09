@@ -83,6 +83,27 @@ class TestGateway:
 
         assert isinstance(g, Gateway)
 
+    def test_sync_gateway_is_directly_callable(self):
+        # __call__ is a raw passthrough to the underlying function (no slot semantics).
+        @gateway
+        def tag(x):
+            return f"[{x}]"
+
+        assert tag("a") == "[a]"
+
+    @pytest.mark.asyncio
+    async def test_async_gateway_call_returns_coroutine(self):
+        seen = []
+
+        @gateway
+        async def log(x):
+            seen.append(x)
+            return "raw"
+
+        result = log("hi")            # async fn -> calling returns a coroutine
+        assert await result == "raw"  # raw return, NOT the apply_entry interpretation
+        assert seen == ["hi"]
+
     @pytest.mark.asyncio
     async def test_entry_bare_value_raises(self):
         # No single-value shorthand: a bare value is ambiguous and rejected.
