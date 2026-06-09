@@ -191,10 +191,9 @@ class VectorStore:
 
     async def write(self, entry: StoreEntry) -> str:
         if entry.vector is None:
-            logger.debug(
-                "VectorStore.write called with entry.vector=None (entry_id=%s); "
-                "the backend is expected to handle embedding server-side.",
-                entry.id,
+            raise ValueError(
+                f"VectorStore.write requires entry.vector to be set "
+                f"(entry_id={entry.id}); embed the chunk before writing."
             )
         await self._backend.upsert(
             str(entry.id), entry.vector, _entry_to_payload(entry)

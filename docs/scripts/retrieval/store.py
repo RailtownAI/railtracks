@@ -177,61 +177,14 @@ from railtracks.retrieval.stores import ChromaCloudBackend, VectorStore
 
 
 async def chroma_cloud():
-    # Any Chroma-compatible embedding function works here.
-    # It must be passed explicitly — Chroma Cloud stores the EF config
-    # server-side, and providing the object directly avoids a known
-    # reconstruction issue with certain EF configurations.
-    from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
-
-    ef = DefaultEmbeddingFunction()
-
     backend = await ChromaCloudBackend.create(
         "my-collection",
         api_key="chk-...",
         tenant="my-tenant",
         database="my-database",
-        embedding_function=ef,
     )
     store = VectorStore(backend)
 # --8<-- [end:chroma_cloud]
-
-
-# --8<-- [start:chroma_cloud_server_embeddings]
-async def chroma_cloud_server_embeddings():
-    import uuid
-
-    from railtracks.retrieval.stores import StoreEntry
-    from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
-
-    ef = DefaultEmbeddingFunction()
-    backend = await ChromaCloudBackend.create(
-        "my-collection",
-        api_key="chk-...",
-        tenant="my-tenant",
-        database="my-database",
-        embedding_function=ef,
-    )
-    store = VectorStore(backend)
-
-    # Write — vector=None tells Chroma to embed the content server-side.
-    entry = StoreEntry(
-        id=uuid.uuid4(),
-        content="The quick brown fox jumps over the lazy dog.",
-        vector=None,
-        embedding_model="chroma-cloud-builtin",
-        chunk_id=uuid.uuid4(),
-        document_id=uuid.uuid4(),
-    )
-    await store.write(entry)
-
-    # Search — pass query_text directly to the backend for server-side embedding.
-    results = await backend.search(
-        vector=None,
-        top_k=5,
-        filters={},
-        query_text="fast animal",
-    )
-# --8<-- [end:chroma_cloud_server_embeddings]
 
 
 def chroma_cloud_metric():
@@ -245,7 +198,6 @@ def chroma_cloud_metric():
         api_key="chk-...",
         tenant="my-tenant",
         database="my-database",
-        embedding_function=...,
         metric=DistanceMetric.L2,
     )
     # --8<-- [end:chroma_cloud_metric]

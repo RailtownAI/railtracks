@@ -120,11 +120,10 @@ pip install "railtracks[stores-chroma]"
 
 ### Documents and content
 
-Chroma stores text alongside each vector as a *document*. Both Chroma
+Chroma stores text alongside each vector as a *Document*. Both Chroma
 backends map `StoreEntry.content` (equivalently, `Chunk.content`) to this
 field automatically — you don't need to set it separately. This is what
-Chroma displays in its UI and what server-side embedding functions receive
-as input when no pre-computed vector is provided.
+Chroma displays in its UI and what server-side embedding functions receive.
 
 ### Distance metric
 
@@ -168,27 +167,16 @@ pip install "railtracks[stores-chroma]"
 --8<-- "docs/scripts/retrieval/store.py:chroma_cloud"
 ```
 
-`embedding_function` is optional. Pass it to register or reuse a
-specific EF on the collection. When provided, Chroma Cloud stores the EF
-configuration server-side — passing the object directly avoids a known
-SDK reconstruction issue with certain EF configs. Omit it if the
-collection was already created with an EF and you don't need to
-reference it locally.
+Embeddings must be generated client-side (e.g. via a railtracks embedder)
+and passed as `vector` on every write and search, exactly like the local
+`ChromaBackend`.
 
-### Server-side embeddings
-
-When `embedding_function` is configured, Chroma Cloud can embed content
-automatically — no client-side embedder required.
-
-Pass `vector=None` to `upsert` (via `VectorStore.write` or directly) and
-Chroma will embed the Chroma document — i.e. `StoreEntry.content` — using
-the configured EF. For search, pass `query_text` instead of a
-pre-computed vector:
-
-```python
---8<-- "docs/scripts/retrieval/store.py:chroma_cloud_server_embeddings"
-```
-
+!!! note "Chroma Dashboard semantic search"
+    The Chroma Cloud dashboard's built-in semantic search requires an
+    embedding model to be configured on the collection server-side. If you
+    want that UI feature to work, make sure the model you use to embed your
+    chunks is available as a Chroma-supported embedding function and
+    configure it on the collection directly via the Chroma Cloud console.
 
 ### Distance metric
 
