@@ -12,13 +12,6 @@ from typing import (
 from pydantic import BaseModel
 
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
-from railtracks.built_nodes.gateway_manager import GatewayManager
-from railtracks.built_nodes.gateway_types import (
-    GatewayCall,
-    GatewayPostMapper,
-    GatewayPreMapper,
-    GatewayWrapper,
-)
 from railtracks.exceptions.errors import LLMError
 from railtracks.interaction._call import call
 from railtracks.llm.content import ToolCall, ToolResponse
@@ -34,14 +27,11 @@ from railtracks.llm.model import ModelBase
 from railtracks.llm.response import Response
 from railtracks.llm.tools.parameters._base import Parameter
 from railtracks.llm.tools.tool import Tool
+from railtracks.middleware import Gateway, MiddlewareSet
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_invocation.validation import check_message_history
 
 _TStructured = TypeVar("_TStructured", bound=BaseModel)
-_TStream = TypeVar("_TStream", Literal[True], Literal[False])
-_TResponse = TypeVar("_TResponse")
-
-_TResponseCo = TypeVar("_TResponseCo", covariant=True)
 
 
 class StringLLMInvoke(Protocol):
@@ -58,34 +48,39 @@ class StructuredLLMInvoke(Protocol[_TStructured]):
     ) -> StructuredResponse[_TStructured]: ...
 
 
-class Gateway(Generic[_TStructured]):
+class ModelInvoker(Generic[_TStructured]):
     """
-    Coordinates a single LLM invocation: applies pre-mappers, dispatches to the
-    model, then applies post-mappers and any wrappers.
+    Coordinates a single LLM model call through a :class:`MiddlewareSet`.
 
-    ``pre_mappers`` accepts either a plain list or a :class:`GatewayManager`.
-    In both cases an internal ``GatewayManager`` is created from the user input
-    so the original object is never mutated.  System components (e.g. context
-    injection) register their mappers via ``_register_sys_pre``, which writes to
-    the system prefix layer of the manager — completely separate from whatever
-    the user passed.
+    The middleware operates around the *raw* model call, once per model
+    round-trip (i.e. inside the tool-calling loop). The core callable takes
+    ``(messages, schema, tools)`` and returns a :class:`Response`::
+
+        outer_wrappers
+        └── entry gateways   (transform messages / schema / tools)
+            └── inner_wrappers
+                └── model.chat / structured / chat_with_tools
+            └── (unwind)
+        └── exit gateways    (transform the Response)
+        └── (unwind)
+
+    Accepts a :class:`MiddlewareSet` or a bare list of ``Wrapper`` / ``Gateway``
+    (see :meth:`MiddlewareSet.coerce`). The caller's input is never mutated — a
+    fresh copy is taken so system gateways (e.g. context injection) stay
+    independent per node.
     """
 
     def __init__(
         self,
         model: ModelBase[Literal[False]] | Callable[[], ModelBase[Literal[False]]],
-        wrappers: list[GatewayWrapper[Response]] | None = None,
-        pre_mappers: list[GatewayPreMapper] | GatewayManager | None = None,
-        post_mappers: list[GatewayPostMapper] | None = None,
+        middleware: "MiddlewareSet | list | None" = None,
     ):
         self._get_model = model if callable(model) else lambda: model
-        self._wrappers = wrappers or []
-        self._pre_manager = GatewayManager.from_user_input(pre_mappers)
-        self._post_mapping = post_mappers or []
+        self._middleware = MiddlewareSet.coerce(middleware)
 
-    def _register_sys_pre(self, mapper: GatewayPreMapper) -> None:
-        """Register a system-layer pre-mapper (runs before user mappers)."""
-        self._pre_manager._add_sys_pre(mapper)
+    def register_sys_gateway_entry(self, gw: Gateway) -> None:
+        """Register a system entry gateway around the model call (e.g. context injection)."""
+        self._middleware.register_sys_gateway_entry(gw)
 
     async def invoke(
         self,
@@ -101,40 +96,21 @@ class Gateway(Generic[_TStructured]):
             schema: type[BaseModel] | None,
             tools: list[Tool] | None,
         ):
-            for pre_map in self._pre_manager._execution_order():
-                messages, schema, tools = await pre_map(messages, schema, tools)
-
             if tools is not None and len(tools) > 0:
-                response = await asyncio.to_thread(
+                return await asyncio.to_thread(
                     model.chat_with_tools, messages, tools=tools
                 )
             elif schema is not None:
-                response = await asyncio.to_thread(
-                    model.structured, messages, schema=schema
-                )
+                return await asyncio.to_thread(model.structured, messages, schema=schema)
             else:
-                response = await asyncio.to_thread(model.chat, messages)
+                return await asyncio.to_thread(model.chat, messages)
 
-            for post_map in self._post_mapping:
-                response = await post_map(response)
-
-            return response
-
-        llm_function = _core_llm_call
-
-        for wrapper in self._wrappers:
-            llm_function = wrapper(llm_function)
-
-        return await llm_function(messages, schema, tools)
-
-
-# Backward-compatible alias so existing user code using ModelGateway still works.
-ModelGateway = Gateway
+        return await self._middleware.run(_core_llm_call, (messages, schema, tools), {})
 
 
 @overload
 def llm_invoke_factory(
-    gateway: Gateway,
+    model_invoker: ModelInvoker,
     system_message: SystemMessage | None,
     tool_nodes: list[type[Node]] | None = None,
     schema: None = None,
@@ -143,7 +119,7 @@ def llm_invoke_factory(
 
 @overload
 def llm_invoke_factory(
-    gateway: Gateway[_TStructured],
+    model_invoker: ModelInvoker[_TStructured],
     system_message: SystemMessage | None,
     tool_nodes: list[type[Node]] | None = None,
     schema: type[_TStructured] = ...,
@@ -151,7 +127,7 @@ def llm_invoke_factory(
 
 
 def llm_invoke_factory(
-    gateway: Gateway[_TStructured],
+    model_invoker: ModelInvoker[_TStructured],
     system_message: SystemMessage | None,
     tool_nodes: list[type[Node]] | None = None,
     schema: type[_TStructured] | None = None,
@@ -165,12 +141,12 @@ def llm_invoke_factory(
 
         while True:
             try:
-                returned_mess = await gateway.invoke(
+                returned_mess = await model_invoker.invoke(
                     message_history, schema=schema, tools=tools
                 )
             except Exception as e:
                 raise LLMError(
-                    reason=f"Exception during model gateway invoke: {repr(e)}",
+                    reason=f"Exception during model invoke: {repr(e)}",
                     message_history=message_history,
                 )
 

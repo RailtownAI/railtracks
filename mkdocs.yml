@@ -101,6 +101,9 @@ nav:
               - Overview: documentation/advanced/guardrails/overview.md
               - Quickstart: documentation/advanced/guardrails/quickstart.md
               - Built-in Guardrails: documentation/advanced/guardrails/builtin_guardrails.md
+          - Middleware:
+              - Usage Guide: documentation/advanced/middleware/usage.md
+              - Internals: documentation/advanced/middleware/internals.md
           - Agent Context: documentation/advanced/context.md
 
   - RAG:
@@ -173,6 +176,7 @@ nav:
       - Notebooks:
           - Agent Architectures: tutorials/notebooks/architectures.md
           - FastAPI Integration: tutorials/notebooks/fastapi.md
+          - Gateway Middleware & Context Injection: tutorials/notebooks/gateway_middleware.md
       - Concepts:
           - Core:
               - Agents: tutorials/concepts/agents.md
@@ -186,5 +190,18 @@ nav:
               - Overview: tutorials/concepts/architectures/overview.md
               - Validation Loops: tutorials/concepts/architectures/validation_loop.md
               - Sequential Flows: tutorials/concepts/architectures/sequential.md
+          - Glossary:
+              - Overview: tutorials/concepts/glossary/index.md
+              - Node: tutorials/concepts/glossary/node.md
+              - Agent: tutorials/concepts/glossary/agent.md
+              - Tool / Function Node: tutorials/concepts/glossary/tool.md
+              - Middleware: tutorials/concepts/glossary/middleware.md
+              - Wrapper: tutorials/concepts/glossary/wrapper.md
+              - Gateway: tutorials/concepts/glossary/gateway.md
+              - Guardrail: tutorials/concepts/glossary/guardrail.md
+              - Flow: tutorials/concepts/glossary/flow.md
+              - Session: tutorials/concepts/glossary/session.md
+              - Context: tutorials/concepts/glossary/context.md
+              - Invocation: tutorials/concepts/glossary/invocation.md
 
   - API Reference: api_reference.md

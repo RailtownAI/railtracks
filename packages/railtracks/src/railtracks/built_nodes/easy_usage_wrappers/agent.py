@@ -6,10 +6,10 @@ from railtracks.built_nodes.concrete import (
     RTFunction,
 )
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
-from railtracks.built_nodes.llm_helpers import Gateway
 from railtracks.llm.message import SystemMessage
 from railtracks.llm.model import ModelBase
 from railtracks.llm.tools.parameters._base import Parameter
+from railtracks.middleware import MiddlewareSet
 from railtracks.nodes.manifest import ToolManifest
 from railtracks.nodes.nodes import Node
 from railtracks.nodes.utils import extract_node_from_function
@@ -44,6 +44,8 @@ def _build_dynamic_agent(
     system_message: SystemMessage | str | None,
     tool_details: str | None,
     tool_params: list[Parameter] | None,
+    middleware: MiddlewareSet | list | None = None,
+    model_middleware: MiddlewareSet | list | None = None,
     context_injection: bool = True,
 ):
     resolved_system = (
@@ -55,22 +57,26 @@ def _build_dynamic_agent(
     if output_schema is None:
         nb = NodeBuilder.llm(
             name=name if name is not None else "LLM Agent",
-            gateway=Gateway(llm),
+            model=llm,
             system_message=resolved_system,
             connected_nodes=unpacked_tool_nodes,
             tool_details=tool_details,
             tool_params=tool_params,
+            middleware=middleware,
+            model_middleware=model_middleware,
             context_injection=context_injection,
         )
     else:
         nb = NodeBuilder.llm(
             name=name if name is not None else "LLM Agent",
-            gateway=Gateway(llm),
+            model=llm,
             system_message=resolved_system,
             schema=output_schema,
             connected_nodes=unpacked_tool_nodes,
             tool_details=tool_details,
             tool_params=tool_params,
+            middleware=middleware,
+            model_middleware=model_middleware,
             context_injection=context_injection,
         )
 
@@ -89,6 +95,8 @@ def agent_node(
     llm: ModelBase[Literal[False]],
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
+    middleware: MiddlewareSet | list | None = None,
+    model_middleware: MiddlewareSet | list | None = None,
     context_injection: bool = True,
 ) -> type[Node[[UserInput], StringResponse]]: ...
 
@@ -102,6 +110,8 @@ def agent_node(
     llm: ModelBase[Literal[False]],
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
+    middleware: MiddlewareSet | list | None = None,
+    model_middleware: MiddlewareSet | list | None = None,
     context_injection: bool = True,
 ) -> type[Node[[UserInput], StructuredResponse[_TBaseModel]]]: ...
 
@@ -114,6 +124,8 @@ def agent_node(
     llm: ModelBase[Literal[False]],
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
+    middleware: MiddlewareSet | list | None = None,
+    model_middleware: MiddlewareSet | list | None = None,
     context_injection: bool = True,
 ):
     """
@@ -126,6 +138,11 @@ def agent_node(
         llm (ModelBase): The LLM model to use.
         system_message (SystemMessage | str | None): System message for the agent.
         manifest (ToolManifest | None): If you want to use this as a tool in other agents you can pass in a ToolManifest.
+        middleware (MiddlewareSet | list | None): Middleware applied around the agent's node boundary
+            (user_input -> Response). Accepts a MiddlewareSet or a bare list of Wrapper/Gateway.
+        model_middleware (MiddlewareSet | list | None): Middleware applied around each raw model call
+            (messages/schema/tools -> Response), inside the tool-calling loop. Accepts a MiddlewareSet or a
+            bare list of Wrapper/Gateway.
         context_injection (bool): Whether to inject rt.context variables into prompt templates for this node.
             Defaults to True. Set to False to disable context injection for this specific agent regardless
             of the session-level prompt_injection setting. Can also be controlled at the session level via
@@ -149,6 +166,8 @@ def agent_node(
         system_message=system_message,
         tool_details=tool_details,
         tool_params=tool_params,
+        middleware=middleware,
+        model_middleware=model_middleware,
         context_injection=context_injection,
     )
 
