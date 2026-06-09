@@ -17,6 +17,43 @@ def _to_chroma_where(filters: dict) -> dict:
     return {"$and": conditions}
 
 
+# Chroma Cloud enforces a per-request quota on the ``limit`` value of a get()
+# (rejects anything above 300 with "Quota exceeded: 'Limit value'"). All bulk
+# reads page at this size so no single request ever asks for more.
+_GET_PAGE_SIZE = 300
+
+
+def _get_paged(
+    collection: Any, where: dict | None, limit: int | None, include: list[str]
+) -> tuple[list, list]:
+    """Offset-paged ``collection.get`` capped at ``_GET_PAGE_SIZE`` per request.
+
+    Synchronous — run via ``asyncio.to_thread``. ``limit=None`` reads to
+    exhaustion. Returns ``(ids, metadatas)``; ``metadatas`` is empty when not
+    requested via ``include``.
+    """
+    ids: list = []
+    metadatas: list = []
+    offset = 0
+    while True:
+        page = (
+            _GET_PAGE_SIZE
+            if limit is None
+            else min(_GET_PAGE_SIZE, limit - len(ids))
+        )
+        if page <= 0:
+            break
+        result = collection.get(
+            where=where, limit=page, offset=offset, include=include
+        )
+        ids.extend(result["ids"])
+        metadatas.extend(result.get("metadatas") or [])
+        if len(result["ids"]) < page:
+            break
+        offset += len(result["ids"])
+    return ids, metadatas
+
+
 def _chroma_to_score(metric: DistanceMetric, distance: float) -> float:
     """Convert a raw Chroma distance to a similarity score (higher = better).
 
@@ -100,15 +137,12 @@ class _ChromaBase:
         self._require_initialized()
         collection = self._collection
         where = _to_chroma_where(filters) if filters else None
-        result = await asyncio.to_thread(
-            collection.get,
-            where=where,
-            limit=limit,
-            include=["metadatas"],
+        ids, metadatas = await asyncio.to_thread(
+            _get_paged, collection, where, limit, ["metadatas"]
         )
         return [
             (id_, dict(metadata) if metadata is not None else {})
-            for id_, metadata in zip(result["ids"], result["metadatas"])
+            for id_, metadata in zip(ids, metadatas)
         ]
 
     async def count(self, filters: dict) -> int:
@@ -116,12 +150,10 @@ class _ChromaBase:
         collection = self._collection
         if not filters:
             return await asyncio.to_thread(collection.count)
-        result = await asyncio.to_thread(
-            collection.get,
-            where=_to_chroma_where(filters),
-            include=[],
+        ids, _ = await asyncio.to_thread(
+            _get_paged, collection, _to_chroma_where(filters), None, []
         )
-        return len(result["ids"])
+        return len(ids)
 
 
 class ChromaBackend(_ChromaBase):

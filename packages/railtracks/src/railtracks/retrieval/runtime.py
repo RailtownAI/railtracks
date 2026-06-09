@@ -303,10 +303,10 @@ class RetrievalRuntime:
         Skip re-embedding only when as many chunks are present as the last
         write expected. A partially-written document (some chunks present after
         an interrupted ingest) has fewer than expected and is re-ingested rather
-        than left broken. find() is metadata-only (no vector search); the second
-        call caps its work at the document's own chunk count, and only runs when
-        a prior version exists. (Counting is done via find() rather than a
-        count() call so the runtime depends only on the Store protocol.)
+        than left broken. find() is metadata-only (no vector search) and only
+        fetches a single entry; the presence check is a count() so no payloads
+        are transferred and large documents never require a single oversized
+        read (Chroma Cloud caps the per-get ``limit`` value).
         """
         if doc.source is None:
             return False
@@ -319,11 +319,10 @@ class RetrievalRuntime:
             return False
         expected = existing[0].chunk_metadata.get("doc_chunk_count")
         if expected is None:
-            # Legacy entry written before count-aware staleness:
-            # preserve the original "exists => complete" behavior.
-            return True
-        present = await self._store.find(stale_filters, limit=expected)
-        return len(present) >= expected
+            # Not written by this runtime (every ingest stamps the count):
+            # completeness can't be verified, so re-ingest.
+            return False
+        return await self._store.count(stale_filters) >= expected
 
     @staticmethod
     def _stamp_staleness_metadata(doc: Document, chunks: list[Chunk]) -> None:
