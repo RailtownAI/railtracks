@@ -572,35 +572,42 @@ async def test_complete_document_with_count_metadata_is_skipped():
     assert embedder2.calls == []
 
 
-async def test_legacy_entry_without_count_metadata_is_skipped():
-    """Backward compat: entries written before count-aware staleness have no
-    doc_chunk_count. The runtime must fall back to 'exists => complete' and
-    skip, rather than re-embedding every document in an existing store."""
+async def test_entry_without_count_metadata_is_reingested():
+    """Every chunk the runtime writes carries doc_chunk_count, so an entry
+    without it was written by something else — its completeness can't be
+    verified and the document must be re-ingested, not skipped."""
     store = _store()
 
-    # Hand-write an entry that mimics pre-upgrade data: source_path +
-    # content_hash present, but no doc_chunk_count in metadata.
+    # Hand-write an entry with source_path + content_hash but no
+    # doc_chunk_count in metadata.
     runtime, _, _ = _runtime(store=store)
     content = "alpha beta gamma"
     doc = Document(source="path/to/doc", content=content)
     chunk_hash = _content_hash(content)
 
-    legacy = StoreEntry(
+    foreign = StoreEntry(
         id=uuid4(),
         content="alpha",
         vector=[1.0, 0.0, 0.0],
-        embedding_model="toy",
+        # Matches _FakeEmbedder so the model-consistency guard (which seeds
+        # itself from existing entries) doesn't trip before the re-ingest.
+        embedding_model="fake-model-1",
         chunk_id=uuid4(),
         document_id=doc.id,
         chunk_metadata={"source_path": "path/to/doc", "content_hash": chunk_hash},
     )
-    await store.write(legacy)
+    await store.write(foreign)
 
     runtime2, _, embedder2 = _runtime(store=store)
     events = [e async for e in runtime2.ingest(_ListLoader([doc]))]
 
-    assert any(isinstance(e, DocumentSkipped) for e in events)
-    assert embedder2.calls == []
+    assert not any(isinstance(e, DocumentSkipped) for e in events)
+    assert embedder2.calls, "unverifiable document should have been re-embedded"
+    # Re-ingest replaced the unstamped entry with properly stamped chunks.
+    entries = await store.find({"source_path": "path/to/doc"}, limit=10)
+    assert entries and all(
+        e.chunk_metadata.get("doc_chunk_count") == 3 for e in entries
+    )
 
 
 async def test_skip_requires_source():
@@ -613,6 +620,38 @@ async def test_skip_requires_source():
     embedder_call_count = len(embedder.calls)
     await runtime.ingest_all(_ListLoader([doc2]))
     assert len(embedder.calls) > embedder_call_count
+
+
+async def test_reingest_never_issues_large_limit_find():
+    """Regression for the Chroma Cloud quota bug (#1180): the old duplicate
+    check called find(limit=doc_chunk_count), and Chroma Cloud rejects any
+    get whose limit exceeds its per-request quota (300). The presence check
+    must instead go through count(), so find() is only ever called with
+    limit=1 no matter how many chunks a document has."""
+    store = _store()
+    seed_runtime, _, _ = _runtime(store=store)
+    # 400 chunks (one per word) — would have produced find(limit=400) before.
+    content = " ".join(f"word{i}" for i in range(400))
+    doc = Document(source="big/doc", content=content)
+    await seed_runtime.ingest_all(_ListLoader([doc]))
+
+    find_limits: list[int] = []
+    original_find = store.find
+
+    async def spying_find(filters, limit=1):
+        find_limits.append(limit)
+        return await original_find(filters, limit=limit)
+
+    store.find = spying_find  # type: ignore[method-assign]
+
+    runtime2, _, embedder2 = _runtime(store=store)
+    same = Document(source="big/doc", content=content)
+    stats = await runtime2.ingest_all(_ListLoader([same]))
+
+    assert stats.documents_skipped == 1
+    assert embedder2.calls == []
+    assert find_limits, "duplicate check should have consulted the store"
+    assert max(find_limits) == 1
 
 
 # ---------------------------------------------------------------------------

@@ -522,3 +522,75 @@ async def test_cloud_create_factory_returns_initialized_backend():
 
     assert isinstance(backend, ChromaCloudBackend)
     assert backend._collection is not None
+
+
+# ---------------------------------------------------------------------------
+# Paged get — Chroma Cloud caps the per-request limit value (#1180)
+# ---------------------------------------------------------------------------
+
+
+def _paging_collection(total: int) -> MagicMock:
+    """A mocked collection holding ``total`` entries whose get() enforces the
+    Chroma Cloud per-request limit quota, mirroring the error from #1180."""
+    ids = [f"id-{i}" for i in range(total)]
+    metadatas = [{"i": i} for i in range(total)]
+
+    def fake_get(where=None, limit=None, offset=0, include=None):
+        if limit is not None and limit > 300:
+            raise RuntimeError(
+                "Quota exceeded: 'Limit value' exceeded quota limit for "
+                f"action 'Get': current usage of {limit} exceeds limit of 300"
+            )
+        end = total if limit is None else min(offset + limit, total)
+        return {
+            "ids": ids[offset:end],
+            "metadatas": (
+                metadatas[offset:end] if include and "metadatas" in include else None
+            ),
+        }
+
+    col = MagicMock()
+    col.get.side_effect = fake_get
+    return col
+
+
+async def test_list_where_pages_large_limits_under_cloud_cap():
+    collection = _paging_collection(total=1056)
+    backend = _injected_backend(collection)
+
+    rows = await backend.list_where({"source_path": "doc"}, limit=1056)
+
+    assert len(rows) == 1056
+    assert rows[0] == ("id-0", {"i": 0})
+    assert rows[-1] == ("id-1055", {"i": 1055})
+    # Every underlying get stayed at or under the per-request cap.
+    assert all(c.kwargs["limit"] <= 300 for c in collection.get.call_args_list)
+
+
+async def test_list_where_stops_at_requested_limit():
+    collection = _paging_collection(total=1000)
+    backend = _injected_backend(collection)
+
+    rows = await backend.list_where({"source_path": "doc"}, limit=5)
+
+    assert len(rows) == 5
+    assert collection.get.call_count == 1
+    assert collection.get.call_args.kwargs["limit"] == 5
+
+
+async def test_filtered_count_pages_to_exhaustion():
+    collection = _paging_collection(total=750)
+    backend = _injected_backend(collection)
+
+    assert await backend.count({"source_path": "doc"}) == 750
+    assert all(c.kwargs["limit"] <= 300 for c in collection.get.call_args_list)
+    # ids only — no payload transfer just to count.
+    assert all(c.kwargs["include"] == [] for c in collection.get.call_args_list)
+
+
+async def test_unfiltered_count_uses_collection_count():
+    collection = _make_collection(count=42)
+    backend = _injected_backend(collection)
+
+    assert await backend.count({}) == 42
+    collection.get.assert_not_called()
