@@ -37,15 +37,11 @@ def _get_paged(
     offset = 0
     while True:
         page = (
-            _GET_PAGE_SIZE
-            if limit is None
-            else min(_GET_PAGE_SIZE, limit - len(ids))
+            _GET_PAGE_SIZE if limit is None else min(_GET_PAGE_SIZE, limit - len(ids))
         )
         if page <= 0:
             break
-        result = collection.get(
-            where=where, limit=page, offset=offset, include=include
-        )
+        result = collection.get(where=where, limit=page, offset=offset, include=include)
         ids.extend(result["ids"])
         metadatas.extend(result.get("metadatas") or [])
         if len(result["ids"]) < page:
