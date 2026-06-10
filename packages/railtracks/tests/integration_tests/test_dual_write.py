@@ -169,6 +169,71 @@ async def test_failure_flow_dual_write(isolated_home) -> None:
     assert any(o["type"] == "ValueError" for o in json_outputs)
 
 
+async def test_v2_full_endpoint_matches_json_file(isolated_home, mock_llm, monkeypatch) -> None:
+    """The /api/v2/sessions/{id}/full bridge endpoint must agree with the
+    JSON file on everything the visualizer reads."""
+    from fastapi.testclient import TestClient
+
+    from railtracks.cli import viz_server
+    from railtracks.persistence.connection import get_engine
+
+    agent = rt.agent_node(
+        name="Echo",
+        system_message="echo things",
+        llm=mock_llm(custom_response="echoed!"),
+    )
+    with rt.Session(flow_name="fullcheck") as sess:
+        await rt.call(agent, user_input="say something")
+        await rt.call(shout, "hi")
+
+    json_payload = _json_payload(isolated_home, sess._identifier)
+
+    monkeypatch.setattr(viz_server, "_engine", get_engine(isolated_home))
+    client = TestClient(viz_server.app)
+    resp = client.get(f"/api/v2/sessions/{sess._identifier}/full")
+    assert resp.status_code == 200
+    sql_payload = resp.json()
+
+    # session header
+    for key in ("flow_name", "flow_id", "session_id", "session_name", "start_time"):
+        assert sql_payload[key] == json_payload[key], key
+
+    # same runs, same wiring
+    json_runs = {r["run_id"]: r for r in json_payload["runs"]}
+    sql_runs = {r["run_id"]: r for r in sql_payload["runs"]}
+    assert sql_runs.keys() == json_runs.keys()
+
+    for run_id, json_run in json_runs.items():
+        sql_run = sql_runs[run_id]
+        assert sql_run["status"] == json_run["status"]
+        assert {n["identifier"] for n in sql_run["nodes"]} == {
+            n["identifier"] for n in json_run["nodes"]
+        }
+        assert {e["identifier"] for e in sql_run["edges"]} == {
+            e["identifier"] for e in json_run["edges"]
+        }
+        # edge statuses and outputs agree
+        json_edges = {e["identifier"]: e for e in json_run["edges"]}
+        for sql_edge in sql_run["edges"]:
+            json_edge = json_edges[sql_edge["identifier"]]
+            assert sql_edge["source"] == json_edge["source"]
+            assert sql_edge["target"] == json_edge["target"]
+            assert sql_edge["details"]["status"] == json_edge["details"]["status"]
+            assert sql_edge["details"]["output"] == json_edge["details"]["output"]
+        # llm token/cost numbers agree per node
+        json_llm = {
+            n["identifier"]: n["details"]["internals"].get("llm_details") or []
+            for n in json_run["nodes"]
+        }
+        for sql_node in sql_run["nodes"]:
+            sql_details = sql_node["details"]["internals"].get("llm_details") or []
+            expected = json_llm[sql_node["identifier"]]
+            assert len(sql_details) == len(expected)
+            for got, want in zip(sql_details, expected):
+                for key in ("model_name", "input_tokens", "output_tokens", "total_cost"):
+                    assert got[key] == want[key], key
+
+
 async def test_save_state_false_writes_nothing(isolated_home) -> None:
     with rt.Session(flow_name="nostate", save_state=False) as sess:
         await rt.call(greet)
