@@ -61,6 +61,15 @@ SKILLS = {
         ),
         "argument_hint": "[describe what the agent should do]",
     },
+    "rag-pipeline": {
+        "name": "rag-pipeline",
+        "description": (
+            "Build a RAG (retrieval-augmented generation) pipeline using railtracks. "
+            "Use when the user wants to ingest documents into a vector store and retrieve "
+            "relevant passages to answer questions."
+        ),
+        "argument_hint": "[describe the data source and what you want to retrieve]",
+    },
 }
 
 SUPPORTED_TOOLS = ("claude", "copilot", "cursor")
@@ -432,6 +441,18 @@ def _print_help():
         example(
             f"{cli_name} add cursor:agent-builder",
             "Install agent-builder skill for Cursor",
+        )
+    )
+    print(
+        example(
+            f"{cli_name} add claude:rag-pipeline",
+            "Install RAG pipeline skill for Claude Code",
+        )
+    )
+    print(
+        example(
+            f"{cli_name} add copilot:rag-pipeline",
+            "Install RAG pipeline skill for GitHub Copilot",
         )
     )
     print()
