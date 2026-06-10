@@ -37,6 +37,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
+    "alembic >= 1.13",
     "colorama >= 0.4.6",
     "litellm >= 1.83.0, <= 1.83.14",
     "mcp >= 1.23.0, <2",
@@ -44,6 +45,7 @@ dependencies = [
     "python-dotenv >= 1.0.0",
     "PyYAML >= 6.0",
     "rich>=13.7.1",
+    "sqlmodel >= 0.0.22",
 ]
 
 [project.optional-dependencies]
