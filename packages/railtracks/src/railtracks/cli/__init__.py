@@ -443,6 +443,18 @@ def _print_help():
             "Install agent-builder skill for Cursor",
         )
     )
+    print(
+        example(
+            f"{cli_name} add claude:rag-pipeline",
+            "Install RAG pipeline skill for Claude Code",
+        )
+    )
+    print(
+        example(
+            f"{cli_name} add copilot:rag-pipeline",
+            "Install RAG pipeline skill for GitHub Copilot",
+        )
+    )
     print()
 
 
