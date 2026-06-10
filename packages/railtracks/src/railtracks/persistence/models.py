@@ -95,6 +95,11 @@ class RequestRow(SQLModel, table=True):
     )
     output_kind: str  # "value" | "failure" | "cancelled" | "open"
     status: str
+    # Creation stamp is written once and never updated; stamp_step/stamp_time
+    # track the latest state change (completion when the request closes).
+    # Both are needed so per-request duration survives incremental updates.
+    created_stamp_step: int
+    created_stamp_time: float
     stamp_step: int
     stamp_time: float
     parent_request_id: str | None = Field(

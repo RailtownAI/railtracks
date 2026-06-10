@@ -164,6 +164,8 @@ def upgrade() -> None:
     sa.Column('output_json', sa.JSON(), nullable=True),
     sa.Column('output_kind', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('status', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+    sa.Column('created_stamp_step', sa.Integer(), nullable=False),
+    sa.Column('created_stamp_time', sa.Float(), nullable=False),
     sa.Column('stamp_step', sa.Integer(), nullable=False),
     sa.Column('stamp_time', sa.Float(), nullable=False),
     sa.Column('parent_request_id', sqlmodel.sql.sqltypes.AutoString(), nullable=True),

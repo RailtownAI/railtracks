@@ -74,6 +74,8 @@ def test_request_self_reference_and_node_endpoints(db_session: Session) -> None:
         sink_node_uuid="n1",
         output_kind="open",
         status="Open",
+        created_stamp_step=0,
+        created_stamp_time=1.0,
         stamp_step=0,
         stamp_time=1.0,
     )
@@ -84,6 +86,8 @@ def test_request_self_reference_and_node_endpoints(db_session: Session) -> None:
         sink_node_uuid="n1",
         output_kind="value",
         status="Completed",
+        created_stamp_step=1,
+        created_stamp_time=2.0,
         stamp_step=1,
         stamp_time=2.0,
         parent_request_id="req-parent",
@@ -107,6 +111,8 @@ def test_failure_attaches_to_request(db_session: Session) -> None:
             sink_node_uuid="n1",
             output_kind="failure",
             status="Failed",
+            created_stamp_step=0,
+            created_stamp_time=1.0,
             stamp_step=1,
             stamp_time=2.0,
         )
