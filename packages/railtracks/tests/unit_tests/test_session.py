@@ -17,6 +17,8 @@ def mock_dependencies(monkeypatch):
     m_RTState = MagicMock()
     m_register_globals = MagicMock()
     m_delete_globals = MagicMock()
+    m_SessionRepository = MagicMock()
+    m_PersistenceSubscriber = MagicMock()
 
     monkeypatch.setattr('railtracks._session.get_global_config', m_get_global_config)
     monkeypatch.setattr('railtracks._session.RTPublisher', m_RTPublisher)
@@ -25,6 +27,11 @@ def mock_dependencies(monkeypatch):
     monkeypatch.setattr('railtracks._session.RTState', m_RTState)
     monkeypatch.setattr('railtracks._session.register_globals', m_register_globals)
     monkeypatch.setattr('railtracks._session.delete_globals', m_delete_globals)
+    # the mocked config makes executor_config.save_state truthy, which would
+    # otherwise wire REAL persistence and leak rows into the developer's
+    # workspace DB (resolve_railtracks_home walks up from cwd)
+    monkeypatch.setattr('railtracks._session.SessionRepository', m_SessionRepository)
+    monkeypatch.setattr('railtracks._session.PersistenceSubscriber', m_PersistenceSubscriber)
 
     return {
         'get_global_config': m_get_global_config,
@@ -34,6 +41,8 @@ def mock_dependencies(monkeypatch):
         'RTState': m_RTState,
         'register_globals': m_register_globals,
         'delete_globals': m_delete_globals,
+        'SessionRepository': m_SessionRepository,
+        'PersistenceSubscriber': m_PersistenceSubscriber,
     }
 # ================ END Mock Fixture ===============
 
