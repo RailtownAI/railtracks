@@ -78,6 +78,7 @@ railtracks add --force claude:agent-builder
 | Skill | Description |
 |---|---|
 | `agent-builder` | Build agents, tools, flows, and multi-agent workflows with railtracks |
+| `rag-pipeline` | Build retrieval-augmented generation (RAG) pipelines with loaders, chunkers, embedders, and vector stores |
 
 
 ## How It Works
@@ -103,3 +104,17 @@ Build me a railtracks agent that searches the web and summarises results
 ```
 
 Your assistant will use the skill to generate correct `rt.function_node` tools, a properly configured `rt.agent_node`, and a `rt.Flow` with a runnable `__main__` block without you having to paste docs into the chat.
+
+## Example: Building a RAG Pipeline
+
+Install the RAG skill and ask your assistant to wire up a pipeline over your data:
+
+```bash
+railtracks add claude:rag-pipeline
+```
+
+```
+Build a RAG pipeline that ingests my PDF docs folder and answers questions about them
+```
+
+Your assistant will set up the correct loader, chunker, embedder, and vector store, wire them into a `RetrievalRuntime`, and expose retrieval as a tool in an agent — without you having to look up import paths or constructor signatures.
