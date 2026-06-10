@@ -72,7 +72,10 @@ class ExecutorConfig:
             prompt_injection=prompt_injection
             if prompt_injection is not None
             else self.prompt_injection,
-            save_state=save_state if save_state is not None else self.save_state,
+            # copy the user's intent (_user_save_state), not the property —
+            # the property folds in RAILTRACKS_TEST_MODE, and copying its
+            # value would bake the test-mode False into the new config
+            save_state=save_state if save_state is not None else self._user_save_state,
             payload_callback=payload_callback
             if payload_callback is not None
             else self.payload_callback,

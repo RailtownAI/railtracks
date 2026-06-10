@@ -19,7 +19,7 @@ class SessionRow(SQLModel, table=True):
     __tablename__ = "sessions"
 
     session_id: str = Field(primary_key=True)
-    flow_id: str = Field(index=True)
+    flow_id: str | None = Field(default=None, index=True)
     flow_name: str | None = None
     session_name: str | None = None
     start_time: float

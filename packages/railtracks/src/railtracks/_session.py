@@ -19,6 +19,8 @@ from .context.central import (
 )
 from .execution.coordinator import Coordinator
 from .execution.execution_strategy import AsyncioExecutionStrategy
+from .persistence.repository import SessionRepository
+from .persistence.subscriber import PersistenceSubscriber
 from .pubsub import RTPublisher, stream_subscriber
 from .state.info import (
     ExecutionInfo,
@@ -129,7 +131,42 @@ class Session:
 
         self._start_time = time.time()
 
+        self._repo = None
+        self._persistence_sub = None
+        if self.executor_config.save_state:
+            self._setup_persistence(executor_info)
+
         logger.debug("Session %s is initialized" % self._identifier)
+
+    def _setup_persistence(self, executor_info: ExecutionInfo):
+        """Attach the SQLite persistence subscriber to the publisher.
+
+        Failures here must never prevent the session from running — the
+        subscriber is also exception-isolated by the Publisher itself.
+        """
+        try:
+            repo = SessionRepository()
+            repo.start_session(
+                session_id=self._identifier,
+                flow_id=self.flow_id,
+                flow_name=self.flow_name,
+                session_name=self.name,
+                start_time=self._start_time,
+            )
+            sub = PersistenceSubscriber(
+                repo, session_id=self._identifier, info=executor_info
+            )
+            self.publisher.subscribe(sub.handle, "Persistence Subscriber")
+            self._repo = repo
+            self._persistence_sub = sub
+        except Exception:
+            logger.warning(
+                "Failed to initialize SQLite persistence for session %s",
+                self._identifier,
+                exc_info=True,
+            )
+            self._repo = None
+            self._persistence_sub = None
 
     @classmethod
     def global_config_precedence(
@@ -164,6 +201,21 @@ class Session:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        if self._persistence_sub is not None:
+            try:
+                # final sync catches anything the event-driven path missed
+                self._persistence_sub.sync()
+                self._repo.end_session(
+                    self._identifier,
+                    end_time=time.time(),
+                    status="Failed" if exc_type is not None else "Completed",
+                )
+            except Exception:
+                logger.warning(
+                    "Error while persisting session %s to SQLite",
+                    self._identifier,
+                    exc_info=True,
+                )
         if self.executor_config.save_state:
             try:
                 railtracks_dir = resolve_railtracks_home()
