@@ -132,112 +132,79 @@ def test_info_property_returns_rt_state_info(mock_dependencies):
 
 
 # ================= START Session: Check saved data ===============
-# tmp_path is a pytest fixture that provides a temporary directory, built in to pytest
+
+def _session_rows(home, session_id):
+    from sqlmodel import Session as DBSession, select
+    from railtracks.persistence.connection import get_engine
+    from railtracks.persistence.models import SessionRow
+
+    engine = get_engine(home)
+    try:
+        with DBSession(engine) as s:
+            return s.exec(
+                select(SessionRow).where(SessionRow.session_id == session_id)
+            ).all()
+    finally:
+        engine.dispose()
+
+
 def test_session_saves_data(tmp_path, monkeypatch):
-    """Test that session saves execution data to JSON file in temp directory."""
+    """Session lifecycle lands in the workspace SQLite DB."""
     name = "abs53562j12h267"
     monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
     monkeypatch.delenv("RAILTRACKS_HOME", raising=False)
     monkeypatch.chdir(tmp_path)
 
-    serialization_mock = {"Key": "Value"}
+    r = Session(name=name, save_state=True)
+    r.__exit__(None, None, None)
 
-    with patch.object(Session, 'info', new_callable=PropertyMock) as mock_info:
-        mock_info.return_value.graph_serialization.return_value = serialization_mock
-
-        r = Session(name=name, save_state=True)
-        r.__exit__(None, None, None)
-
-        # Verify file was created in temp directory
-        sessions_dir = tmp_path / ".railtracks" / "data" / "sessions"
-        assert sessions_dir.exists(), f"Sessions directory not created at {sessions_dir}"
-        
-        files = list(sessions_dir.glob("*.json"))
-        assert len(files) == 1, f"Expected 1 file, found {len(files)}"
-        
-        file_path = files[0]
-        assert file_path.name.startswith(f"{name}_"), f"Unexpected filename: {file_path.name}"
-        assert r._identifier in file_path.name, f"Session ID not in filename: {file_path.name}"
-        
-        # Verify file has content
-        content = json.loads(file_path.read_text())
-        assert "runs" in content, f"'runs' key missing from saved data"
-        assert content["runs"] == serialization_mock, f"Serialization data mismatch"
-        assert content["session_name"] == name, f"Session name mismatch"
-        assert "session_id" in content, f"'session_id' key missing from saved data"
+    home = tmp_path / ".railtracks"
+    assert (home / "data" / "railtracks.db").exists()
+    rows = _session_rows(home, r._identifier)
+    assert len(rows) == 1
+    assert rows[0].session_name == name
+    assert rows[0].status == "Completed"
+    assert rows[0].end_time is not None
 
 
-def test_session_not_saves_data(tmp_path, monkeypatch):
-    """Test that session does not save data when save_state=False."""
-    monkeypatch.chdir(tmp_path)
-    
-    serialization_mock = '{"Key": "Value"}'
-    run_id = "Run 2"
-
-    with patch.object(Session, 'info', new_callable=PropertyMock) as mock_info:
-        mock_info.return_value.graph_serialization.return_value = serialization_mock
-
-        r = Session(name=run_id, save_state=False)
-        r.__exit__(None, None, None)
-
-    # Verify no files were created
-    sessions_dir = tmp_path / ".railtracks" / "data" / "sessions"
-    if sessions_dir.exists():
-        files = list(sessions_dir.glob("*.json"))
-        assert len(files) == 0, f"Expected no files to be created, but found {len(files)}"
-    # If directory doesn't exist, that's also fine - nothing was saved
-
-
-def test_session_fallback_on_invalid_name(tmp_path, monkeypatch):
-    """Test that session falls back to identifier-only filename when name causes issues."""
+def test_session_failure_status_persisted(tmp_path, monkeypatch):
+    """An exception passing through __exit__ marks the session Failed."""
     monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
     monkeypatch.delenv("RAILTRACKS_HOME", raising=False)
     monkeypatch.chdir(tmp_path)
-    
-    # Use a name that would cause issues in file path creation
+
+    r = Session(name="failing", save_state=True)
+    r.__exit__(ValueError, ValueError("boom"), None)
+
+    rows = _session_rows(tmp_path / ".railtracks", r._identifier)
+    assert rows[0].status == "Failed"
+
+
+def test_session_not_saves_data(tmp_path, monkeypatch):
+    """save_state=False writes nothing to the workspace DB."""
+    monkeypatch.chdir(tmp_path)
+
+    r = Session(name="Run 2", save_state=False)
+    r.__exit__(None, None, None)
+
+    db_path = tmp_path / ".railtracks" / "data" / "railtracks.db"
+    if db_path.exists():
+        assert _session_rows(tmp_path / ".railtracks", r._identifier) == []
+
+
+def test_session_name_with_special_chars(tmp_path, monkeypatch):
+    """Names that used to break JSON filenames are stored verbatim now —
+    there is no filesystem-imposed naming constraint in SQLite."""
     invalid_name = "test/invalid:name*with|bad<chars>"
+    monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
+    monkeypatch.delenv("RAILTRACKS_HOME", raising=False)
+    monkeypatch.chdir(tmp_path)
 
-    serialization_mock = {"Key": "Value"}
+    r = Session(name=invalid_name, save_state=True)
+    r.__exit__(None, None, None)
 
-    with patch.object(Session, 'info', new_callable=PropertyMock) as mock_info:
-        mock_info.return_value.graph_serialization.return_value = serialization_mock
-
-        # Mock Path.touch to raise an exception when the path contains the invalid name in the filename
-        original_touch = Path.touch
-        def mock_touch(self, *args, **kwargs):
-            # Only raise exception if the invalid name is in the filename part (not just any path)
-            if invalid_name in self.name:
-                raise OSError("Invalid characters in filename")
-            return original_touch(self, *args, **kwargs)
-
-        with patch.object(Path, 'touch', mock_touch), \
-             patch('railtracks._session.logger') as mock_logger:
-
-            r = Session(name=invalid_name, save_state=True)
-            r.__exit__(None, None, None)
-
-            # Verify that a warning was logged about the invalid name
-            mock_logger.warning.assert_called()
-            warning_calls = [call[0][0] for call in mock_logger.warning.call_args_list]
-            fallback_warning = None
-            for warning_call in warning_calls:
-                if "falling back to using the unique identifier only" in warning_call:
-                    fallback_warning = warning_call
-                    break
-
-            assert fallback_warning is not None, "Expected fallback warning not found"
-            assert invalid_name in fallback_warning
-
-            # Verify that the fallback file was created (identifier only) in temp directory
-            sessions_dir = tmp_path / ".railtracks" / "data" / "sessions"
-            assert sessions_dir.exists(), f"Sessions directory not created at {sessions_dir}"
-            
-            fallback_path = sessions_dir / f"{r._identifier}.json"
-            assert fallback_path.exists(), f"Fallback file not created at {fallback_path}"
-            
-            # Verify file has content
-            content = json.loads(fallback_path.read_text())
-            assert "runs" in content, f"'runs' key missing from saved data"
+    rows = _session_rows(tmp_path / ".railtracks", r._identifier)
+    assert rows[0].session_name == invalid_name
 
 
 # ================= START Session: Decorator Tests ===============

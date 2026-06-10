@@ -19,7 +19,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy import func
 from sqlmodel import Session as DBSession
-from sqlmodel import select
+from sqlmodel import SQLModel, select
 
 from railtracks.paths import resolve_railtracks_home
 from railtracks.persistence.connection import get_engine
@@ -46,6 +46,9 @@ def get_db_engine():
     global _engine
     if _engine is None:
         _engine = get_engine()
+        # a fresh workspace has no DB until the first session runs; make
+        # sure the schema exists so endpoints return empty lists, not 500s
+        SQLModel.metadata.create_all(_engine)
     return _engine
 
 
@@ -79,45 +82,32 @@ async def get_evaluations():
 
 @app.get("/api/sessions")
 async def get_sessions():
-    """Get all session JSON files from .railtracks/data/sessions/"""
-    sessions_dir = get_data_dir("sessions")
-    sessions = []
+    """All sessions in the legacy full-payload shape, rebuilt from SQLite.
 
-    if sessions_dir.exists():
-        for file_path in sessions_dir.glob("*.json"):
-            try:
-                with open(file_path, encoding="utf-8") as f:
-                    content = json.load(f)
-                    sessions.append(content)
-            except (json.JSONDecodeError, OSError) as e:
-                print_error(f"Error reading session file {file_path.name}: {e}")
+    The response shape matches what this endpoint returned when it read
+    JSON files, so the embedded UI keeps working unchanged.
+    """
+    with DBSession(get_db_engine()) as s:
+        session_ids = s.exec(
+            select(SessionRow.session_id).order_by(SessionRow.start_time.desc())
+        ).all()
 
-    return JSONResponse(content=sessions)
+    engine = get_db_engine()
+    payloads = []
+    for session_id in session_ids:
+        payload = legacy_session_payload(engine, session_id)
+        if payload is not None:
+            payloads.append(payload)
+    return JSONResponse(content=payloads)
 
 
 @app.get("/api/sessions/{guid}")
 async def get_session(guid: str):
-    """Get a specific session JSON file by GUID from .railtracks/data/sessions/"""
-    sessions_dir = get_data_dir("sessions")
-    file_path = sessions_dir / f"{guid}.json"
-    if not file_path.exists():
-        matches = list(sessions_dir.glob(f"*_{guid}.json"))
-        if matches:
-            file_path = matches[0]
-
-    if not file_path.exists():
+    """One session in the legacy full-payload shape, rebuilt from SQLite."""
+    payload = legacy_session_payload(get_db_engine(), guid)
+    if payload is None:
         return JSONResponse(content={"error": "Session not found"}, status_code=404)
-
-    try:
-        with open(file_path, encoding="utf-8") as f:
-            content = json.load(f)
-        return JSONResponse(content=content)
-    except json.JSONDecodeError as e:
-        print_error(f"Invalid JSON in {file_path.name}: {e}")
-        return JSONResponse(content={"error": f"Invalid JSON: {e}"}, status_code=400)
-    except Exception as e:
-        print_error(f"Error reading session file {file_path.name}: {e}")
-        return JSONResponse(content={"error": "Internal Server Error"}, status_code=500)
+    return JSONResponse(content=payload)
 
 
 # --------------------------------------------------------------------------
@@ -314,8 +304,9 @@ class RailtracksServer:
         print_status(f"📁 Serving files from: {get_railtracks_dir() / 'ui'}")
         print_status("📋 API endpoints:")
         print_status("   GET  /api/evaluations - Get all evaluation JSON files")
-        print_status("   GET  /api/sessions - Get all session JSON files")
-        print_status("   GET  /api/sessions/{guid} - Get a specific session by GUID")
+        print_status("   GET  /api/sessions - All sessions (legacy shape, SQLite-backed)")
+        print_status("   GET  /api/sessions/{guid} - One session by GUID")
+        print_status("   GET  /api/v2/* - Typed SQL endpoints (sessions, runs, llm-calls, tool-calls)")
         print_status("Press Ctrl+C to stop the server")
 
         def open_browser():

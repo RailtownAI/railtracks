@@ -165,32 +165,40 @@ def test_session_decorator_tuple_handling():
     assert session1._identifier != session2._identifier
 
 
-def test_session_save_file_uses_flow_name_precedence(tmp_path, monkeypatch, allow_persistence):
+def _session_row(home, session_id):
+    from sqlmodel import Session as DBSession, select
+    from railtracks.persistence.connection import get_engine
+    from railtracks.persistence.models import SessionRow
+
+    engine = get_engine(home)
+    try:
+        with DBSession(engine) as s:
+            return s.exec(
+                select(SessionRow).where(SessionRow.session_id == session_id)
+            ).one()
+    finally:
+        engine.dispose()
+
+
+def test_session_persists_flow_and_session_name(tmp_path, monkeypatch, allow_persistence):
     monkeypatch.chdir(tmp_path)
-    # Use both the allow_persistence fixture and explicit save_state=True
     with rt.Session(flow_name="flow-priority", name="session-name", save_state=True) as session_obj:
         pass
 
-    sessions_dir = tmp_path / ".railtracks" / "data" / "sessions"
-    saved_files = list(sessions_dir.glob("*.json"))
-
-    assert len(saved_files) == 1
-    assert saved_files[0].name.startswith("flow-priority_")
-    assert session_obj._identifier in saved_files[0].name
+    row = _session_row(tmp_path / ".railtracks", session_obj._identifier)
+    assert row.flow_name == "flow-priority"
+    assert row.session_name == "session-name"
+    assert row.status == "Completed"
 
 
-def test_session_save_file_falls_back_to_name(tmp_path, monkeypatch, allow_persistence):
+def test_session_persists_without_flow_name(tmp_path, monkeypatch, allow_persistence):
     monkeypatch.chdir(tmp_path)
-    # Use both the allow_persistence fixture and explicit save_state=True
     with rt.Session(name="session-only", save_state=True) as session_obj:
         pass
 
-    sessions_dir = tmp_path / ".railtracks" / "data" / "sessions"
-    saved_files = list(sessions_dir.glob("*.json"))
-
-    assert len(saved_files) == 1
-    assert saved_files[0].name.startswith("session-only_")
-    assert session_obj._identifier in saved_files[0].name
+    row = _session_row(tmp_path / ".railtracks", session_obj._identifier)
+    assert row.flow_name is None
+    assert row.session_name == "session-only"
 
 
 def test_session_payload_callback_called_once(tmp_path, monkeypatch):

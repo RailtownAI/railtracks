@@ -6,12 +6,6 @@ import warnings
 from functools import wraps
 from typing import Any, Callable, Coroutine, Dict, ParamSpec, Tuple, TypeVar, overload
 
-from railtracks.exceptions.messages.exception_messages import (
-    ExceptionMessageKey,
-    get_message,
-)
-from railtracks.paths import resolve_railtracks_home
-
 from .context.central import (
     delete_globals,
     get_global_config,
@@ -214,46 +208,6 @@ class Session:
                 logger.warning(
                     "Error while persisting session %s to SQLite",
                     self._identifier,
-                    exc_info=True,
-                )
-        if self.executor_config.save_state:
-            try:
-                railtracks_dir = resolve_railtracks_home()
-                sessions_dir = railtracks_dir / "data" / "sessions"
-                sessions_dir.mkdir(
-                    parents=True, exist_ok=True
-                )  # Creates directory structure if doesn't exist, skips otherwise.
-
-                # Try to create file path with name, fallback to identifier only if there's an issue
-                if self.flow_name is not None:
-                    name = self.flow_name
-                elif self.name is not None:
-                    name = self.name
-                else:
-                    name = ""
-
-                candidate = sessions_dir / f"{name}_{self._identifier}.json"
-                try:
-                    candidate.touch()
-                    candidate.unlink()
-                    file_path = candidate
-                except OSError:
-                    logger.warning(
-                        get_message(
-                            ExceptionMessageKey.INVALID_SESSION_FILE_NAME_WARN
-                        ).format(name=name, identifier=self._identifier)
-                    )
-                    file_path = sessions_dir / f"{self._identifier}.json"
-
-                logger.info("Saving execution info to %s" % file_path)
-
-                content = json.dumps(self.payload())
-                file_path.write_text(content)
-
-            except Exception as e:
-                logger.error(
-                    "Error while saving execution info to file: %s",
-                    e,
                     exc_info=True,
                 )
         try:

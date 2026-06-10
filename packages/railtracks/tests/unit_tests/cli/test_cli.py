@@ -195,6 +195,9 @@ class TestFastAPIEndpoints(unittest.TestCase):
 
     def tearDown(self):
         """Clean up test environment"""
+        from railtracks.cli import viz_server
+
+        viz_server._engine = None
         os.chdir(self.original_cwd)
         shutil.rmtree(self.test_dir)
         if self._original_railtracks_home is not None:
@@ -227,88 +230,62 @@ class TestFastAPIEndpoints(unittest.TestCase):
         self.assertIn(eval1, data)
         self.assertIn(eval2, data)
 
+    def _seed_session(self, session_id: str, flow_name: str | None = None):
+        from railtracks.persistence.repository import SessionRepository
+        from railtracks.cli import viz_server
+
+        repo = SessionRepository()
+        repo.start_session(
+            session_id=session_id,
+            flow_id=None,
+            flow_name=flow_name,
+            session_name=None,
+            start_time=100.0,
+        )
+        repo.end_session(session_id, end_time=105.0, status="Completed")
+        # the server caches its engine; point it at this test's DB
+        viz_server._engine = repo._engine
+
     def test_get_sessions_empty(self):
-        """Test /api/sessions endpoint with no data directory"""
+        """/api/sessions with an empty workspace DB returns []"""
+        from railtracks.cli import viz_server
+
+        viz_server._engine = None
         response = self.client.get("/api/sessions")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), [])
 
     def test_get_sessions_with_data(self):
-        """Test /api/sessions endpoint with data"""
-        # Create sessions directory and files
-        sessions_dir = Path(".railtracks/data/sessions")
-        sessions_dir.mkdir(parents=True)
-
-        session1 = {"id": "session1", "status": "completed"}
-        session2 = {"id": "session2", "status": "failed"}
-
-        with open(sessions_dir / "session1.json", "w") as f:
-            json.dump(session1, f)
-        with open(sessions_dir / "session2.json", "w") as f:
-            json.dump(session2, f)
+        """/api/sessions returns full legacy payloads from SQLite"""
+        self._seed_session("session1", flow_name="Flow One")
+        self._seed_session("session2", flow_name="Flow Two")
 
         response = self.client.get("/api/sessions")
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(len(data), 2)
-        self.assertIn(session1, data)
-        self.assertIn(session2, data)
+        ids = {d["session_id"] for d in data}
+        self.assertEqual(ids, {"session1", "session2"})
+        for payload in data:
+            self.assertIn("runs", payload)
 
     def test_get_session_by_guid(self):
-        """Test /api/sessions/{guid} endpoint with existing session"""
-        # Create sessions directory and file
-        sessions_dir = Path(".railtracks/data/sessions")
-        sessions_dir.mkdir(parents=True)
+        """/api/sessions/{guid} returns the single legacy payload"""
+        self._seed_session("test-guid-123", flow_name="Stock Analysis")
 
-        session_data = {"id": "test-guid-123", "status": "completed", "data": "test"}
-        guid = "test-guid-123"
-
-        with open(sessions_dir / f"{guid}.json", "w") as f:
-            json.dump(session_data, f)
-
-        response = self.client.get(f"/api/sessions/{guid}")
+        response = self.client.get("/api/sessions/test-guid-123")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), session_data)
-
-    def test_get_session_by_guid_with_flow_name_prefix(self):
-        """Test /api/sessions/{guid} finds session saved as {flow_name}_{guid}.json"""
-        sessions_dir = Path(".railtracks/data/sessions")
-        sessions_dir.mkdir(parents=True)
-
-        session_data = {"session_id": "abc-123-guid", "flow_name": "Stock Analysis"}
-        guid = "abc-123-guid"
-        with open(sessions_dir / f"Stock Analysis_{guid}.json", "w") as f:
-            json.dump(session_data, f)
-
-        response = self.client.get(f"/api/sessions/{guid}")
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), session_data)
+        payload = response.json()
+        self.assertEqual(payload["session_id"], "test-guid-123")
+        self.assertEqual(payload["flow_name"], "Stock Analysis")
+        self.assertEqual(payload["runs"], [])
 
     def test_get_session_by_guid_not_found(self):
-        """Test /api/sessions/{guid} endpoint with non-existent session"""
-        # Create sessions directory but no file
-        sessions_dir = Path(".railtracks/data/sessions")
-        sessions_dir.mkdir(parents=True)
-
+        """/api/sessions/{guid} 404s for unknown sessions"""
+        self._seed_session("known")
         response = self.client.get("/api/sessions/nonexistent-guid")
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json(), {"error": "Session not found"})
-
-    def test_get_session_by_guid_invalid_json(self):
-        """Test /api/sessions/{guid} endpoint with invalid JSON file"""
-        # Create sessions directory and invalid JSON file
-        sessions_dir = Path(".railtracks/data/sessions")
-        sessions_dir.mkdir(parents=True)
-
-        guid = "invalid-json-guid"
-        invalid_file = sessions_dir / f"{guid}.json"
-        with open(invalid_file, "w") as f:
-            f.write("{ invalid json }")
-
-        response = self.client.get(f"/api/sessions/{guid}")
-        self.assertEqual(response.status_code, 400)
-        self.assertIn("error", response.json())
-        self.assertIn("Invalid JSON", response.json()["error"])
 
 
 class TestPortChecking(unittest.TestCase):
