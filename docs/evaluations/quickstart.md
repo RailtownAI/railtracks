@@ -1,6 +1,6 @@
 # Evaluations
 
-Evaluations in `railtracks` are a useful tool to analyze, aggregate, and finally visualize agent runs invoked previously. Sessions are automatically stored in `.railtracks/data/sessions`, so evaluations can be run at any time after invoking your agent. Railtracks locates the `.railtracks` directory by walking up from your current working directory, so the right data is found regardless of which subdirectory you run from.
+Evaluations in `railtracks` are a useful tool to analyze, aggregate, and finally visualize agent runs invoked previously. Sessions are automatically stored in the workspace database at `.railtracks/data/railtracks.db`, so evaluations can be run at any time after invoking your agent — call `extract_agent_data_points()` with no arguments for every session, or pass one or more session ids. Railtracks locates the `.railtracks` directory by walking up from your current working directory, so the right data is found regardless of which subdirectory you run from.
 
 ## Evaluation Definition
 ```python

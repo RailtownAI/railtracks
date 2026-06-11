@@ -1,4 +1,3 @@
-import json
 from collections import defaultdict
 from enum import Enum
 from pathlib import Path
@@ -15,6 +14,7 @@ logger = get_rt_logger(__name__)
 class NodeType(str, Enum):
     AGENT = "Agent"
     TOOL = "Tool"
+    OTHER = "Other"
 
 
 class NodeDataPoint(BaseModel):
@@ -147,27 +147,6 @@ def extract_llm_details(llm_details: list[dict]) -> LLMDetails:
     )
 
 
-def load_session(path: str | Path) -> dict:
-    """Loads a session JSON file and returns its content as a dictionary.
-
-    Args:
-        path: Path to the session JSON file.
-
-    Returns:
-        Dictionary containing the session data.
-    """
-    path = Path(path)
-    if not path.exists():
-        raise FileNotFoundError(f"Session file not found: {path}")
-
-    try:
-        with open(path, "r") as f:
-            session_data = json.load(f)
-    except (json.JSONDecodeError, IOError) as e:
-        raise ValueError(f"Error loading session file: {path}. Details: {e}")
-    return session_data
-
-
 def construct_graph(
     edges: dict[tuple[UUID | None, UUID], EdgeDataPoint],
 ) -> tuple[dict[UUID | None, list[UUID]], dict[UUID, list[EdgeDataPoint]]]:
@@ -230,7 +209,7 @@ def extract_tool_details(
 
 
 def extract_agent_io(
-    sink_list: dict[UUID, list[EdgeDataPoint]], node: NodeDataPoint, file_path: str
+    sink_list: dict[UUID, list[EdgeDataPoint]], node: NodeDataPoint, source: str
 ) -> tuple[dict, dict]:
     """
     Extracts the input and output for an agent node based on its incoming edges.
@@ -238,7 +217,7 @@ def extract_agent_io(
     Args:
         sink_list: A dictionary where keys are target node identifiers and values are lists of EdgeDataPoint instances that have that target.
         node: The NodeDataPoint instance representing the agent node for which to extract input and output.
-        file_path: The path to the session file being processed (used for logging).
+        source: A label for the session being processed (used for logging).
     Returns:
         A tuple containing:
             - agent_input: A dictionary with "args" and "kwargs" keys representing the input to the agent.
@@ -258,155 +237,142 @@ def extract_agent_io(
                 agent_output = edge.details.get("output", {})
             else:
                 logger.warning(
-                    f"Duplicate edge with id: {edge.identifier} for source: {edge.source} and target: {edge.target} in session file {file_path}."
+                    f"Duplicate edge with id: {edge.identifier} for source: {edge.source} and target: {edge.target} in session {source}."
                 )
     return agent_input, agent_output
 
 
-def resolve_file_paths(session_files: list[str] | str) -> list[str]:
-    """Resolves session_files input to a flat list of file paths.
+def data_points_from_payload(session_data: dict) -> list[AgentDataPoint]:
+    """Parse one session payload (the legacy nested shape) into AgentDataPoints.
 
-    Args:
-        session_files: A single file path, a directory path, or a list of file paths.
-
-    Returns:
-        List of resolved file path strings.
-
-    Raises:
-        FileNotFoundError: If a path does not exist.
-        ValueError: If a list item is a directory or no files are found.
-        TypeError: If session_files is not a str or list.
+    The payload comes from ``railtracks.persistence.export.legacy_session_payload``;
+    the same shape sessions used to be saved in as JSON files.
     """
-    file_paths: list[str] = []
+    data_points: list[AgentDataPoint] = []
 
-    if isinstance(session_files, str):
-        path = Path(session_files)
-        if path.is_dir():
-            file_paths = [
-                str(f)
-                for f in path.iterdir()
-                if f.is_file() and not f.name.startswith(".")
-            ]
-            logger.info(f"Found {len(file_paths)} files in directory: {session_files}")
-        elif path.is_file():
-            file_paths = [session_files]
-        else:
-            raise FileNotFoundError(f"Path does not exist: {session_files}")
-    elif isinstance(session_files, list):
-        for item in session_files:
-            item_path = Path(item)
-            if item_path.is_dir():
-                raise ValueError(
-                    f"List items must be file paths, not directories: {item}"
+    session_id = session_data.get("session_id")
+    if session_id is None:
+        logger.warning("no session_id found in payload, skipping.")
+        return data_points
+
+    runs = session_data.get("runs", [])
+
+    if len(runs) == 0:
+        logger.warning(f"Session {session_id} contains no runs")
+    if len(runs) > 1:
+        logger.warning(f"Session {session_id} contains multiple runs")
+
+    for run in runs:
+        nodes = {
+            UUID(node["identifier"]): NodeDataPoint(
+                identifier=node["identifier"],
+                node_type=NodeType(node["node_type"]),
+                name=node["name"],
+                details=node.get("details", {}),
+            )
+            for node in run.get("nodes", [])
+        }
+
+        edges: dict[tuple[UUID | None, UUID], EdgeDataPoint] = {}
+        for edge in run.get("edges", []):
+            key = (
+                (UUID(edge["source"]), UUID(edge["target"]))
+                if edge["source"] is not None
+                else (None, UUID(edge["target"]))
+            )
+            edges[key] = EdgeDataPoint(
+                identifier=UUID(edge["identifier"]),
+                source=UUID(edge["source"]) if edge["source"] is not None else None,
+                target=UUID(edge["target"]),
+                details=edge.get("details", {}),
+            )
+
+        graph, sink_list = construct_graph(edges)
+
+        for node in nodes.values():
+            if node.node_type == NodeType.AGENT:
+                llm_details_dict = node.details.get("internals", {}).get(
+                    "llm_details", []
                 )
-            if not item_path.is_file():
-                raise FileNotFoundError(f"File does not exist: {item}")
-        file_paths = session_files
-    else:
-        raise TypeError(
-            f"session_files must be a string or list of strings, got {type(session_files)}"
-        )
-
-    if not file_paths:
-        raise ValueError("No files found to process")
-
-    return file_paths
-
-
-def extract_agent_data_points(session_files: list[str] | str) -> list[AgentDataPoint]:
-    """
-    Extract AgentDataPoint instances from session JSON files.
-
-    This function processes Railtracks session JSON files and creates AgentDataPoint
-    instances for each agent execution found. It extracts agent inputs, outputs, and
-    internals (including LLM metrics if available).
-
-    Args:
-        session_files: List of paths to session JSON files, a single file path, or a directory path.
-                      If a directory is provided, all files within it will be processed.
-
-    Returns:
-        List of AgentDataPoint instances, one for each agent execution found in the files.
-        Returns empty list if no valid agent data is found.
-    """
-    file_paths = resolve_file_paths(session_files)
-    data_points = []
-
-    for file_path in file_paths:
-        try:
-            session_data = load_session(file_path)
-        except (FileNotFoundError, ValueError) as e:
-            logger.error(str(e))
-            continue
-
-        session_id = session_data.get("session_id")
-        if session_id is None:
-            logger.warning(f"no session_id found in file: {file_path}, skipping file.")
-            continue
-
-        runs = session_data.get("runs", [])
-
-        if len(runs) == 0:
-            logger.warning(f"Session file {file_path} contains no runs")
-        if len(runs) > 1:
-            logger.warning(f"Session file {file_path} contains multiple runs")
-
-        for run in runs:
-            nodes = {
-                UUID(node["identifier"]): NodeDataPoint(
-                    identifier=node["identifier"],
-                    node_type=NodeType(node["node_type"]),
-                    name=node["name"],
-                    details=node.get("details", {}),
-                )
-                for node in run.get("nodes", [])
-            }
-
-            edges: dict[tuple[UUID | None, UUID], EdgeDataPoint] = {}
-            for edge in run.get("edges", []):
-                key = (
-                    (UUID(edge["source"]), UUID(edge["target"]))
-                    if edge["source"] is not None
-                    else (None, UUID(edge["target"]))
-                )
-                edges[key] = EdgeDataPoint(
-                    identifier=UUID(edge["identifier"]),
-                    source=UUID(edge["source"]) if edge["source"] is not None else None,
-                    target=UUID(edge["target"]),
-                    details=edge.get("details", {}),
+                llm_details = (
+                    extract_llm_details(llm_details_dict)
+                    if llm_details_dict
+                    else LLMDetails(calls=[])
                 )
 
-            graph, sink_list = construct_graph(edges)
+                tool_details = extract_tool_details(
+                    nodes, edges, graph, node.identifier
+                )
 
-            for node in nodes.values():
-                if node.node_type == NodeType.AGENT:
-                    llm_details_dict = node.details.get("internals", {}).get(
-                        "llm_details", []
-                    )
-                    llm_details = (
-                        extract_llm_details(llm_details_dict)
-                        if llm_details_dict
-                        else LLMDetails(calls=[])
-                    )
+                agent_input, agent_output = extract_agent_io(
+                    sink_list, node, str(session_id)
+                )
 
-                    tool_details = extract_tool_details(
-                        nodes, edges, graph, node.identifier
+                data_points.append(
+                    AgentDataPoint(
+                        identifier=node.identifier,
+                        session_id=UUID(session_id),
+                        agent_name=node.name,
+                        agent_input=agent_input,
+                        agent_output=agent_output,
+                        llm_details=llm_details,
+                        tool_details=tool_details,
                     )
-
-                    agent_input, agent_output = extract_agent_io(
-                        sink_list, node, file_path
-                    )
-
-                    data_points.append(
-                        AgentDataPoint(
-                            identifier=node.identifier,
-                            session_id=UUID(session_id),
-                            agent_name=node.name,
-                            agent_input=agent_input,
-                            agent_output=agent_output,
-                            llm_details=llm_details,
-                            tool_details=tool_details,
-                        )
-                    )
+                )
 
     return data_points
+
+
+def extract_agent_data_points(
+    session_ids: list[str] | str | None = None,
+    *,
+    railtracks_home: Path | None = None,
+) -> list[AgentDataPoint]:
+    """
+    Extract AgentDataPoint instances from sessions in the workspace database.
+
+    Creates AgentDataPoint instances for each agent execution found in the
+    requested sessions — inputs, outputs, and internals (including LLM
+    metrics if available).
+
+    Args:
+        session_ids: A single session id, a list of session ids, or None to
+                     process every session in the workspace database.
+        railtracks_home: Optional override of the workspace directory
+                         (defaults to `resolve_railtracks_home()`).
+
+    Returns:
+        List of AgentDataPoint instances, one for each agent execution found.
+        Returns empty list if no valid agent data is found.
+    """
+    from sqlmodel import Session as DBSession
+    from sqlmodel import select
+
+    from railtracks.persistence.connection import get_engine
+    from railtracks.persistence.export import legacy_session_payload
+    from railtracks.persistence.models import SessionRow
+
+    engine = get_engine(railtracks_home)
+    try:
+        if session_ids is None:
+            with DBSession(engine) as s:
+                ids = list(
+                    s.exec(
+                        select(SessionRow.session_id).order_by(SessionRow.start_time)
+                    ).all()
+                )
+        elif isinstance(session_ids, str):
+            ids = [session_ids]
+        else:
+            ids = list(session_ids)
+
+        data_points: list[AgentDataPoint] = []
+        for session_id in ids:
+            payload = legacy_session_payload(engine, session_id)
+            if payload is None:
+                logger.error(f"Session not found in workspace DB: {session_id}")
+                continue
+            data_points.extend(data_points_from_payload(payload))
+        return data_points
+    finally:
+        engine.dispose()

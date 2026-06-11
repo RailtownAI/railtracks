@@ -9,37 +9,14 @@ from railtracks.evaluations.point import (
     MessageRole,
     Status,
     construct_graph,
+    data_points_from_payload,
     extract_agent_data_points,
     extract_agent_io,
     extract_llm_details,
     extract_tool_details,
-    load_session,
-    resolve_file_paths,
 )
 
 from .conftest import AGENT_ID, TOOL1_ID, TOOL2_ID, SESSION_ID
-
-
-# ── load_session ──────────────────────────────────────────────────────────────
-
-
-def test_load_session_valid(tmp_path, session_json):
-    path = tmp_path / "session.json"
-    path.write_text(json.dumps(session_json))
-    data = load_session(path)
-    assert data["session_id"] == str(SESSION_ID)
-
-
-def test_load_session_not_found(tmp_path):
-    with pytest.raises(FileNotFoundError):
-        load_session(tmp_path / "missing.json")
-
-
-def test_load_session_invalid_json(tmp_path):
-    path = tmp_path / "bad.json"
-    path.write_text("not valid json{{{")
-    with pytest.raises(ValueError):
-        load_session(path)
 
 
 # ── construct_graph ───────────────────────────────────────────────────────────
@@ -187,52 +164,11 @@ def test_extract_agent_io_ignores_failed_edge(agent_node):
     assert agent_output == {}
 
 
-# ── resolve_file_paths ───────────────────────────────────────────────────────
+# ── data_points_from_payload ─────────────────────────────────────────────────
 
 
-def test_resolve_file_paths_single_file(tmp_path, session_json):
-    path = tmp_path / "session.json"
-    path.write_text(json.dumps(session_json))
-    result = resolve_file_paths(str(path))
-    assert result == [str(path)]
-
-
-def test_resolve_file_paths_list(tmp_path, session_json):
-    path = tmp_path / "session.json"
-    path.write_text(json.dumps(session_json))
-    result = resolve_file_paths([str(path)])
-    assert result == [str(path)]
-
-
-def test_resolve_file_paths_directory(tmp_path, session_json):
-    (tmp_path / "s1.json").write_text(json.dumps(session_json))
-    (tmp_path / "s2.json").write_text(json.dumps(session_json))
-    result = resolve_file_paths(str(tmp_path))
-    assert len(result) == 2
-
-
-def test_resolve_file_paths_missing_file():
-    with pytest.raises(FileNotFoundError):
-        resolve_file_paths("/nonexistent/path/session.json")
-
-
-def test_resolve_file_paths_invalid_type():
-    with pytest.raises(TypeError):
-        resolve_file_paths(12345)  # type: ignore
-
-
-def test_resolve_file_paths_directory_in_list(tmp_path):
-    with pytest.raises(ValueError):
-        resolve_file_paths([str(tmp_path)])
-
-
-# ── extract_agent_data_points ─────────────────────────────────────────────────
-
-
-def test_extract_agent_data_points_from_file(tmp_path, session_json):
-    path = tmp_path / "session.json"
-    path.write_text(json.dumps(session_json))
-    data_points = extract_agent_data_points(str(path))
+def test_data_points_from_payload(session_json):
+    data_points = data_points_from_payload(session_json)
     assert len(data_points) == 1
     dp = data_points[0]
     assert dp.agent_name == "TestAgent"
@@ -240,11 +176,115 @@ def test_extract_agent_data_points_from_file(tmp_path, session_json):
     assert len(dp.llm_details.calls) == 1
 
 
-def test_extract_agent_data_points_tool_details(tmp_path, session_json):
-    path = tmp_path / "session.json"
-    path.write_text(json.dumps(session_json))
-    data_points = extract_agent_data_points(str(path))
-    dp = data_points[0]
+def test_data_points_from_payload_tool_details(session_json):
+    dp = data_points_from_payload(session_json)[0]
     assert "get_stock_price" in dp.tool_details.tool_names
     assert len(dp.tool_details.calls) == 1
     assert dp.tool_details.calls[0].output == 214.88
+
+
+# ── extract_agent_data_points (workspace DB) ─────────────────────────────────
+
+
+@pytest.fixture
+def seeded_workspace(tmp_path, monkeypatch):
+    """A workspace DB seeded with one agent session (agent + tool + llm call)."""
+    from types import SimpleNamespace
+
+    from railtracks.llm import AssistantMessage, MessageHistory, UserMessage
+    from railtracks.persistence.repository import SessionRepository
+    from railtracks.utils.profiling import Stamp
+
+    monkeypatch.setenv("RAILTRACKS_HOME", str(tmp_path))
+    home = tmp_path / ".railtracks"
+    home.mkdir(parents=True, exist_ok=True)
+
+    repo = SessionRepository(home)
+    repo.start_session(
+        session_id=str(SESSION_ID),
+        flow_id="f-1",
+        flow_name="Stock Analysis",
+        session_name=None,
+        start_time=100.0,
+    )
+    repo.start_run(run_id="run-1", session_id=str(SESSION_ID), name="TestAgent", start_time=100.0)
+    repo.upsert_node(node_uuid=str(AGENT_ID), run_id="run-1", name="TestAgent", node_type="Agent")
+    repo.upsert_node(node_uuid=str(TOOL1_ID), run_id="run-1", name="get_stock_price", node_type="Tool")
+    repo.record_request_creation(
+        request_id="dddddddd-0000-0000-0000-000000000003",
+        run_id="run-1",
+        source_node_uuid=None,
+        sink_node_uuid=str(AGENT_ID),
+        input_args=["What is the stock price?"],
+        input_kwargs={},
+        stamp=Stamp(time=100.0, step=0, identifier="created"),
+    )
+    repo.record_request_creation(
+        request_id="dddddddd-0000-0000-0000-000000000001",
+        run_id="run-1",
+        source_node_uuid=str(AGENT_ID),
+        sink_node_uuid=str(TOOL1_ID),
+        input_args=[],
+        input_kwargs={"ticker": "AMZN"},
+        stamp=Stamp(time=101.0, step=1, identifier="tool created"),
+    )
+    repo.record_request_success(
+        "dddddddd-0000-0000-0000-000000000001",
+        output=214.88,
+        stamp=Stamp(time=102.0, step=2, identifier="tool done"),
+    )
+    repo.record_request_success(
+        "dddddddd-0000-0000-0000-000000000003",
+        output={"answer": "The stock is $100."},
+        stamp=Stamp(time=103.0, step=3, identifier="agent done"),
+    )
+    details = SimpleNamespace(
+        input=MessageHistory([UserMessage("What is the stock price?")]),
+        output=AssistantMessage("The stock is $100."),
+        model_name="gpt-4",
+        model_provider="OpenAI",
+        input_tokens=50,
+        output_tokens=10,
+        total_cost=0.001,
+        system_fingerprint=None,
+        latency=1.2,
+    )
+    repo.record_llm_call(details, node_uuid=str(AGENT_ID), session_id=str(SESSION_ID), call_index=0)
+    repo.end_run("run-1", end_time=103.0, status="Completed")
+    repo.end_session(str(SESSION_ID), end_time=103.0, status="Completed")
+    return home
+
+
+def test_extract_agent_data_points_from_db(seeded_workspace):
+    data_points = extract_agent_data_points(str(SESSION_ID), railtracks_home=seeded_workspace)
+    assert len(data_points) == 1
+    dp = data_points[0]
+    assert dp.agent_name == "TestAgent"
+    assert dp.session_id == SESSION_ID
+    assert len(dp.llm_details.calls) == 1
+    call = dp.llm_details.calls[0]
+    assert call.model_name == "gpt-4"
+    assert call.input_tokens == 50
+    assert call.output.role == MessageRole.ASSISTANT
+    assert dp.agent_input == {"args": ["What is the stock price?"], "kwargs": {}}
+    assert dp.agent_output == {"answer": "The stock is $100."}
+
+
+def test_extract_agent_data_points_tool_details_from_db(seeded_workspace):
+    dp = extract_agent_data_points(str(SESSION_ID), railtracks_home=seeded_workspace)[0]
+    assert "get_stock_price" in dp.tool_details.tool_names
+    assert len(dp.tool_details.calls) == 1
+    tool_call = dp.tool_details.calls[0]
+    assert tool_call.output == 214.88
+    assert tool_call.arguments.kwargs == {"ticker": "AMZN"}
+    assert tool_call.status == Status.COMPLETED
+
+
+def test_extract_agent_data_points_all_sessions(seeded_workspace):
+    # None means every session in the workspace
+    data_points = extract_agent_data_points(railtracks_home=seeded_workspace)
+    assert len(data_points) == 1
+
+
+def test_extract_agent_data_points_unknown_session(seeded_workspace):
+    assert extract_agent_data_points("not-a-session", railtracks_home=seeded_workspace) == []

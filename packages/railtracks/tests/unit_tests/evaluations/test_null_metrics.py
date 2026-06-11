@@ -1,14 +1,12 @@
-import json
 import uuid
 import pytest
-from pathlib import Path
-from railtracks.evaluations.point import extract_agent_data_points, AgentDataPoint
+from railtracks.evaluations.point import data_points_from_payload, AgentDataPoint
 from railtracks.evaluations.evaluators.llm_inference_evaluator import LLMInferenceEvaluator
 from railtracks.evaluations.runners._evaluate import evaluate
 
 @pytest.fixture
-def session_with_null_metrics(tmp_path):
-    """Create a temporary session file with null values for metrics."""
+def session_with_null_metrics():
+    """A session payload with null values for metrics."""
     session_id = str(uuid.uuid4())
     agent_node_id = str(uuid.uuid4())
     session_data = {
@@ -52,14 +50,11 @@ def session_with_null_metrics(tmp_path):
             }
         ]
     }
-    
-    session_file = tmp_path / f"{session_id}.json"
-    session_file.write_text(json.dumps(session_data))
-    return tmp_path
+    return session_data
 
-def test_extract_agent_data_points_with_null_metrics(session_with_null_metrics):
-    """Ensure extract_agent_data_points handles null metrics without validation errors."""
-    data_points = extract_agent_data_points(str(session_with_null_metrics))
+def test_data_points_from_payload_with_null_metrics(session_with_null_metrics):
+    """Ensure payload parsing handles null metrics without validation errors."""
+    data_points = data_points_from_payload(session_with_null_metrics)
     assert len(data_points) == 1
     adp = data_points[0]
     
@@ -75,7 +70,7 @@ def test_extract_agent_data_points_with_null_metrics(session_with_null_metrics):
 
 def test_llm_inference_evaluator_with_null_metrics(session_with_null_metrics):
     """Ensure LLMInferenceEvaluator skips null values in aggregation."""
-    data_points = extract_agent_data_points(str(session_with_null_metrics))
+    data_points = data_points_from_payload(session_with_null_metrics)
     evaluator = LLMInferenceEvaluator()
     result = evaluator.run(data_points)
     
@@ -94,7 +89,7 @@ def test_llm_inference_evaluator_with_null_metrics(session_with_null_metrics):
 
 def test_evaluate_runner_with_null_metrics(session_with_null_metrics):
     """Ensure the full evaluate() flow works with null metrics."""
-    data_points = extract_agent_data_points(str(session_with_null_metrics))
+    data_points = data_points_from_payload(session_with_null_metrics)
     evaluator = LLMInferenceEvaluator()
     
     # Should not raise any exceptions

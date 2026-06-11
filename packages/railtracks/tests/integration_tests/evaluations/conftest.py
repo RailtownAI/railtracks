@@ -1,7 +1,5 @@
 """Shared fixtures for evaluations integration tests."""
 
-import json
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -112,75 +110,34 @@ def make_session_dict(
     }
 
 
-# ── File/directory fixtures ───────────────────────────────────────────────────
+# ── Payload fixtures ──────────────────────────────────────────────────────────
 
 
 @pytest.fixture
-def session_file(tmp_path) -> Path:
-    """A single session JSON file (one agent run)."""
-    path = tmp_path / "session1.json"
-    path.write_text(
-        json.dumps(
-            make_session_dict(
-                agent_id=AGENT_ID_1,
-                tool_id=TOOL_ID_1,
-                session_id=SESSION_ID_1,
-            )
-        )
+def session_payload() -> dict:
+    """A single session payload (one agent run)."""
+    return make_session_dict(
+        agent_id=AGENT_ID_1,
+        tool_id=TOOL_ID_1,
+        session_id=SESSION_ID_1,
     )
-    return path
 
 
 @pytest.fixture
-def two_session_files(tmp_path) -> list[Path]:
-    """Two session JSON files representing two runs of the same agent."""
-    f1 = tmp_path / "session1.json"
-    f2 = tmp_path / "session2.json"
-    f1.write_text(
-        json.dumps(
-            make_session_dict(
-                agent_id=AGENT_ID_1,
-                tool_id=TOOL_ID_1,
-                session_id=SESSION_ID_1,
-            )
-        )
-    )
-    f2.write_text(
-        json.dumps(
-            make_session_dict(
-                agent_id=AGENT_ID_2,
-                tool_id=TOOL_ID_2,
-                session_id=SESSION_ID_2,
-            )
-        )
-    )
-    return [f1, f2]
-
-
-@pytest.fixture
-def session_dir(tmp_path) -> Path:
-    """A directory containing two session JSON files."""
-    d = tmp_path / "sessions"
-    d.mkdir()
-    (d / "s1.json").write_text(
-        json.dumps(
-            make_session_dict(
-                agent_id=AGENT_ID_1,
-                tool_id=TOOL_ID_1,
-                session_id=SESSION_ID_1,
-            )
-        )
-    )
-    (d / "s2.json").write_text(
-        json.dumps(
-            make_session_dict(
-                agent_id=AGENT_ID_2,
-                tool_id=TOOL_ID_2,
-                session_id=SESSION_ID_2,
-            )
-        )
-    )
-    return d
+def two_session_payloads() -> list[dict]:
+    """Two session payloads representing two runs of the same agent."""
+    return [
+        make_session_dict(
+            agent_id=AGENT_ID_1,
+            tool_id=TOOL_ID_1,
+            session_id=SESSION_ID_1,
+        ),
+        make_session_dict(
+            agent_id=AGENT_ID_2,
+            tool_id=TOOL_ID_2,
+            session_id=SESSION_ID_2,
+        ),
+    ]
 
 
 @pytest.fixture(autouse=True)

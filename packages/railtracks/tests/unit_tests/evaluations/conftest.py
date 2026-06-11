@@ -1,4 +1,3 @@
-import json
 from uuid import UUID
 
 import pytest
@@ -7,7 +6,7 @@ from railtracks.evaluations.point import (
     EdgeDataPoint,
     NodeDataPoint,
     NodeType,
-    extract_agent_data_points,
+    data_points_from_payload,
 )
 
 AGENT_ID = UUID("aaaaaaaa-0000-0000-0000-000000000001")
@@ -149,8 +148,6 @@ def session_json():
 
 
 @pytest.fixture
-def agent_data_point(tmp_path, session_json):
+def agent_data_point(session_json):
     """A fully parsed AgentDataPoint, ready to use as input for evaluator tests."""
-    path = tmp_path / "session.json"
-    path.write_text(json.dumps(session_json))
-    return extract_agent_data_points(str(path))[0]
+    return data_points_from_payload(session_json)[0]
