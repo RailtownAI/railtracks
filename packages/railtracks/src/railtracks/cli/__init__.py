@@ -408,6 +408,18 @@ def _print_help():
     print(cmd("viz", f"Start the {cli_name} development server"))
     print(
         cmd(
+            "sessions",
+            f"Inspect recorded sessions  {dim}(list | show <id> | sql){rst}",
+        )
+    )
+    print(
+        cmd(
+            "migrate-json-to-sqlite",
+            "Import legacy JSON session files into the workspace DB",
+        )
+    )
+    print(
+        cmd(
             "add",
             f"Install an AI coding assistant skill  {dim}(e.g. {cli_name} add claude:agent-builder){rst}",
         )
@@ -416,6 +428,13 @@ def _print_help():
     print(f"  {bold}Examples:{rst}")
     print(example(f"{cli_name} init", "Initialize visualizer environment"))
     print(example(f"{cli_name} viz", "Start visualizer web app"))
+    print(example(f"{cli_name} sessions list", "List recorded sessions"))
+    print(
+        example(
+            f"{cli_name} sessions show <id> | jq .runs",
+            "Dump one session as JSON",
+        )
+    )
     print(
         example(
             f"{cli_name} add claude:agent-builder",
@@ -478,6 +497,14 @@ def main():
 
         server = RailtracksServer()
         server.start()
+    elif command == "sessions":
+        from .sessions_cli import sessions_command
+
+        sessions_command(sys.argv[2:])
+    elif command == "migrate-json-to-sqlite":
+        from .sessions_cli import migrate_json_command
+
+        migrate_json_command(sys.argv[2:])
     elif command == "add":
         args = sys.argv[2:]
         if not args or args[0].startswith("-"):
@@ -490,7 +517,9 @@ def main():
         add_skill(spec, force=force)
     else:
         print(f"{Fore.RED}Unknown command: {command}{Style.RESET_ALL}")
-        print(f"{Style.DIM}Available commands: init, update, viz, add{Style.RESET_ALL}")
+        print(
+            f"{Style.DIM}Available commands: init, update, viz, sessions, migrate-json-to-sqlite, add{Style.RESET_ALL}"
+        )
         sys.exit(1)
 
 
