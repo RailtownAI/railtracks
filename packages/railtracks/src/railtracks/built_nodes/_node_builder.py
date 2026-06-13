@@ -21,6 +21,7 @@ from pydantic import BaseModel
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
 from railtracks.built_nodes.llm_helpers import (
     ModelInvoker,
+    ModelSource,
     llm_invoke_factory,
     llm_prepare_called_as_tool_factory,
 )
@@ -31,7 +32,6 @@ from railtracks.llm import (
 )
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import Message
-from railtracks.llm.model import ModelBase
 from railtracks.llm.type_mapping import TypeMapper
 from railtracks.middleware import MiddlewareSet
 from railtracks.nodes.nodes import Node
@@ -113,7 +113,7 @@ class NodeBuilder(Generic[_P, _T]):
         name: str,
         class_name: str | None = None,
         *,
-        model: ModelBase,
+        model: ModelSource,
         system_message: SystemMessage | None = None,
         schema: None = None,
         connected_nodes: Iterable[Type[Node]] | None = None,
@@ -131,7 +131,7 @@ class NodeBuilder(Generic[_P, _T]):
         name: str,
         class_name: str | None = None,
         *,
-        model: ModelBase,
+        model: ModelSource,
         system_message: SystemMessage | None = None,
         schema: Type[_TStructured],
         connected_nodes: Iterable[Type[Node]] | None = None,
@@ -148,7 +148,7 @@ class NodeBuilder(Generic[_P, _T]):
         name: str,
         class_name: str | None = None,
         *,
-        model: ModelBase,
+        model: ModelSource,
         system_message: SystemMessage | None = None,
         schema: Type[_TStructured] | None = None,
         connected_nodes: Iterable[Type[Node]] | None = None,

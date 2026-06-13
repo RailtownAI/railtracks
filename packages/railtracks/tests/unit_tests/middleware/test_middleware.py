@@ -1,18 +1,16 @@
 """Tests for the unified middleware primitives + MiddlewareSet engine.
 
-    Wrapper   — execution control (wraps the inner callable)
-    Gateway   — direction-less data transform; the slot it is placed in
-                (gateway_entry vs gateway_exit) decides when it runs
-    MiddlewareSet — ordered bands: outer_wrappers -> gateway_entry
-                    -> inner_wrappers -> core -> gateway_exit
-                    (with internal sys/user layers)
+Wrapper   — execution control (wraps the inner callable)
+Gateway   — direction-less data transform; the slot it is placed in
+            (gateway_entry vs gateway_exit) decides when it runs
+MiddlewareSet — ordered bands: wrappers -> gateway_entry
+                -> inner_wrappers -> core -> gateway_exit
+                (with internal sys/user layers)
 """
 
 import pytest
-
-from railtracks.middleware import Gateway, MiddlewareSet, Wrapper, gateway, wrapper
+from railtracks.middleware import Gateway, MiddlewareSet, gateway, wrapper
 from railtracks.middleware.set import _LayeredList
-
 
 # ---------------------------------------------------------------------------
 # Primitives
@@ -100,7 +98,7 @@ class TestGateway:
             seen.append(x)
             return "raw"
 
-        result = log("hi")            # async fn -> calling returns a coroutine
+        result = log("hi")  # async fn -> calling returns a coroutine
         assert await result == "raw"  # raw return, NOT the apply_entry interpretation
         assert seen == ["hi"]
 
@@ -247,7 +245,7 @@ def _noop_wrapper():
 class TestMiddlewareSetConstruction:
     def test_empty(self):
         ms = MiddlewareSet()
-        assert ms.outer_wrappers == []
+        assert ms.wrappers == []
         assert ms.gateway_entry == []
         assert ms.gateway_exit == []
         assert ms.inner_wrappers == []
@@ -265,8 +263,8 @@ class TestMiddlewareSetConstruction:
         g = _noop_gateway()
         w = _noop_wrapper()
         ms = MiddlewareSet.coerce([g, w])
-        assert ms.gateway_entry == [g]   # bare-list gateways default to entry
-        assert ms.outer_wrappers == [w]
+        assert ms.gateway_entry == [g]  # bare-list gateways default to entry
+        assert ms.wrappers == [w]
 
     def test_coerce_rejects_non_middleware(self):
         with pytest.raises(TypeError):
@@ -275,7 +273,7 @@ class TestMiddlewareSetConstruction:
     def test_constructor_rejects_wrong_band_type(self):
         g = _noop_gateway()
         with pytest.raises(TypeError, match="Wrapper"):
-            MiddlewareSet(outer_wrappers=[g])  # gateway in a wrapper band
+            MiddlewareSet(wrappers=[g])  # gateway in a wrapper band
 
     def test_coerce_middlewareset_is_fresh_copy(self):
         g = _noop_gateway()
@@ -371,7 +369,7 @@ class TestEngineExecution:
             return result
 
         ms = MiddlewareSet(
-            outer_wrappers=[outer],
+            wrappers=[outer],
             gateway_entry=[entry],
             gateway_exit=[exit_],
             inner_wrappers=[inner],

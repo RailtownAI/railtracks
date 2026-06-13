@@ -4,13 +4,13 @@ A :class:`MiddlewareSet` bundles the middleware attached to one site and runs a
 core callable through it. The agreed structure has two fixed wrapper layers
 sandwiching a gateway band::
 
-    outer_wrappers
+    wrappers
     └── entry gateways            (transform input)
         └── inner_wrappers
             └── core              (node / func / model call)
         └── (unwind inner_wrappers)
     └── exit gateways             (transform output)
-    └── (unwind outer_wrappers)
+    └── (unwind wrappers)
 
 Each band is an internal :class:`_LayeredList` with three layers so that
 **system-provided** middleware can be registered without ever touching the
@@ -114,7 +114,7 @@ def _coerce_gateways(items: Iterable[Any] | None) -> list[Gateway]:
         elif isinstance(item, Wrapper):
             raise TypeError(
                 f"Gateway slot at index {i} got a Wrapper: {item!r}. "
-                f"Wrappers belong in outer_wrappers / inner_wrappers."
+                f"Wrappers belong in wrappers / inner_wrappers."
             )
         else:
             # Raw async function (or anything else) -> Gateway validates it.
@@ -129,27 +129,31 @@ class MiddlewareSet:
     so the execution order is obvious at the call site::
 
         MiddlewareSet(
-            outer_wrappers=[retry],
-            gateway_entry=[scrub_pii],   # run before the core (input transforms)
-            gateway_exit=[redact],       # run after the core (output transforms)
-            inner_wrappers=[cache],
+            wrappers=[retry],  # outermost: wrap the whole call
+            gateway_entry=[scrub_pii],  # run before the core (input transforms)
+            gateway_exit=[redact],  # run after the core (output transforms)
+            inner_wrappers=[cache],  # innermost: hug the core, inside the gateways
         )
 
     Or coerce from a bare list via :meth:`coerce` (``Wrapper`` items →
-    ``outer_wrappers``, ``Gateway`` items → ``gateway_entry``).
+    ``wrappers``, ``Gateway`` items → ``gateway_entry``).
     """
 
     def __init__(
         self,
-        outer_wrappers: Iterable[Wrapper] | None = None,
+        wrappers: Iterable[Wrapper] | None = None,
         gateway_entry: Iterable[Gateway] | None = None,
         gateway_exit: Iterable[Gateway] | None = None,
         inner_wrappers: Iterable[Wrapper] | None = None,
     ) -> None:
-        self._outer: _LayeredList[Wrapper] = _LayeredList(_coerce_wrappers(outer_wrappers))
-        self._entry: _LayeredList[Gateway] = _LayeredList(_coerce_gateways(gateway_entry))
+        self._outer: _LayeredList[Wrapper] = _LayeredList(_coerce_wrappers(wrappers))
+        self._entry: _LayeredList[Gateway] = _LayeredList(
+            _coerce_gateways(gateway_entry)
+        )
         self._exit: _LayeredList[Gateway] = _LayeredList(_coerce_gateways(gateway_exit))
-        self._inner: _LayeredList[Wrapper] = _LayeredList(_coerce_wrappers(inner_wrappers))
+        self._inner: _LayeredList[Wrapper] = _LayeredList(
+            _coerce_wrappers(inner_wrappers)
+        )
 
     # ------------------------------------------------------------------
     # Construction helpers
@@ -161,7 +165,7 @@ class MiddlewareSet:
 
         - ``None``           → empty set
         - ``MiddlewareSet``  → fresh copy (user layers preserved, sys layers reset)
-        - ``list`` / iterable → ``Wrapper`` items go to ``outer_wrappers``,
+        - ``list`` / iterable → ``Wrapper`` items go to ``wrappers``,
           ``Gateway`` items go to ``gateway_entry`` (the common case; use the
           explicit constructor for exit gateways)
 
@@ -191,7 +195,7 @@ class MiddlewareSet:
                         f"with @wrapper or @gateway, or use the MiddlewareSet(...) "
                         f"constructor to place a raw function in an explicit slot."
                     )
-            return cls(outer_wrappers=outer, gateway_entry=entry)
+            return cls(wrappers=outer, gateway_entry=entry)
         raise TypeError(
             f"Expected a MiddlewareSet or a list of Wrapper/Gateway, got {value!r}"
         )
@@ -230,7 +234,7 @@ class MiddlewareSet:
     # ------------------------------------------------------------------
 
     @property
-    def outer_wrappers(self) -> list[Wrapper]:
+    def wrappers(self) -> list[Wrapper]:
         return list(self._outer)
 
     @property

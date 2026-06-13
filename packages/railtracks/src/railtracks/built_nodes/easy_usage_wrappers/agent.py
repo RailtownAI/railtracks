@@ -6,8 +6,8 @@ from railtracks.built_nodes.concrete import (
     RTFunction,
 )
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
+from railtracks.built_nodes.llm_helpers import ModelSource
 from railtracks.llm.message import SystemMessage
-from railtracks.llm.model import ModelBase
 from railtracks.llm.tools.parameters._base import Parameter
 from railtracks.middleware import MiddlewareSet
 from railtracks.nodes.manifest import ToolManifest
@@ -40,7 +40,7 @@ def _build_dynamic_agent(
     unpacked_tool_nodes: set[Type[Node]] | None,
     output_schema: Type[_TBaseModel] | None,
     name: str | None,
-    llm: ModelBase[Literal[False]],
+    llm: ModelSource,
     system_message: SystemMessage | str | None,
     tool_details: str | None,
     tool_params: list[Parameter] | None,
@@ -92,7 +92,7 @@ def agent_node(
     *,
     tool_nodes: Iterable[Type[Node] | RTFunction] | None = None,
     output_schema: None = None,
-    llm: ModelBase[Literal[False]],
+    llm: ModelSource,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
     middleware: MiddlewareSet | list | None = None,
@@ -107,7 +107,7 @@ def agent_node(
     *,
     tool_nodes: Iterable[Type[Node] | RTFunction] | None = None,
     output_schema: Type[_TBaseModel],
-    llm: ModelBase[Literal[False]],
+    llm: ModelSource,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
     middleware: MiddlewareSet | list | None = None,
@@ -121,7 +121,7 @@ def agent_node(
     *,
     tool_nodes: Iterable[Type[Node] | RTFunction] | None = None,
     output_schema: Type[_TBaseModel] | None = None,
-    llm: ModelBase[Literal[False]],
+    llm: ModelSource,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
     middleware: MiddlewareSet | list | None = None,
@@ -135,7 +135,9 @@ def agent_node(
         name (str | None): The name of the agent. If none the default will be used.
         tool_nodes (Iterable[Type[Node] | RTFunction] | None): If your agent has access to tools, what does it have access to?
         output_schema (Type[_TBaseModel] | None): If your agent should return a structured output, what is the output_schema?
-        llm (ModelBase): The LLM model to use.
+        llm (ModelBase | Callable[[], ModelBase]): The LLM model to use, or a no-arg
+            factory resolved fresh on every model call (lets the agent pick its model
+            at invocation time, e.g. from config or rt.context).
         system_message (SystemMessage | str | None): System message for the agent.
         manifest (ToolManifest | None): If you want to use this as a tool in other agents you can pass in a ToolManifest.
         middleware (MiddlewareSet | list | None): Middleware applied around the agent's node boundary

@@ -13,7 +13,7 @@ raw LLM model call):
 
 Both can be authored with decorators, but the decorator is **optional** when the
 function goes into an explicit :class:`~railtracks.middleware.MiddlewareSet` slot
-(``outer_wrappers`` / ``inner_wrappers`` for wrappers, ``gateway_entry`` /
+(``wrappers`` / ``inner_wrappers`` for wrappers, ``gateway_entry`` /
 ``gateway_exit`` for gateways): the slot implies the role, so a raw async
 function is auto-wrapped. The decorator then serves mainly as a checker / marker,
 and is only *required* for a bare list, where the role is otherwise ambiguous::

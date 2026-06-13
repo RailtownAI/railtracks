@@ -33,6 +33,11 @@ from railtracks.validation.node_invocation.validation import check_message_histo
 
 _TStructured = TypeVar("_TStructured", bound=BaseModel)
 
+# A model source: a concrete model, or a no-arg factory resolved fresh on every
+# call — the factory form lets a node pick its model at invocation time (e.g.
+# from config or rt.context) instead of binding one at build time.
+ModelSource = ModelBase[Literal[False]] | Callable[[], ModelBase[Literal[False]]]
+
 
 class StringLLMInvoke(Protocol):
     async def __call__(
@@ -56,7 +61,7 @@ class ModelInvoker(Generic[_TStructured]):
     round-trip (i.e. inside the tool-calling loop). The core callable takes
     ``(messages, schema, tools)`` and returns a :class:`Response`::
 
-        outer_wrappers
+        wrappers
         └── entry gateways   (transform messages / schema / tools)
             └── inner_wrappers
                 └── model.chat / structured / chat_with_tools
@@ -72,7 +77,7 @@ class ModelInvoker(Generic[_TStructured]):
 
     def __init__(
         self,
-        model: ModelBase[Literal[False]] | Callable[[], ModelBase[Literal[False]]],
+        model: ModelSource,
         middleware: "MiddlewareSet | list | None" = None,
     ):
         self._get_model = model if callable(model) else lambda: model
@@ -101,7 +106,9 @@ class ModelInvoker(Generic[_TStructured]):
                     model.chat_with_tools, messages, tools=tools
                 )
             elif schema is not None:
-                return await asyncio.to_thread(model.structured, messages, schema=schema)
+                return await asyncio.to_thread(
+                    model.structured, messages, schema=schema
+                )
             else:
                 return await asyncio.to_thread(model.chat, messages)
 
