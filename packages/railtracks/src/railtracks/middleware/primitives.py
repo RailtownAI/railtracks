@@ -27,10 +27,12 @@ and is only *required* for a bare list, where the role is otherwise ambiguous::
                 continue
         raise
 
+
     # entry gateway: placed in `gateway_entry`, transforms input
     @gateway
     async def scrub(*args, **kwargs):
-        return scrub_args(args), kwargs        # MUST return (args, kwargs)
+        return scrub_args(args), kwargs  # MUST return (args, kwargs)
+
 
     # exit gateway: placed in `gateway_exit`, transforms output
     @gateway
@@ -62,7 +64,12 @@ from typing import (
     Awaitable,
     Callable,
     Coroutine,
+    ParamSpec,
+    TypeVar,
 )
+
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
 
 # A wrapper-author function: (inner_call, *args, **kwargs) -> result. Must be async —
 # a wrapper has to ``await`` the inner call, which a sync function cannot do.
@@ -80,7 +87,9 @@ def _require_callable(fn: Callable, role: str) -> None:
 def _require_async(fn: Callable, role: str) -> None:
     _require_callable(fn, role)
     if not inspect.iscoroutinefunction(fn):
-        raise TypeError(f"{role} must be an async function (coroutine function): {fn!r}")
+        raise TypeError(
+            f"{role} must be an async function (coroutine function): {fn!r}"
+        )
 
 
 class _GatewayArgs:
@@ -90,7 +99,7 @@ class _GatewayArgs:
 
     __slots__ = ("args", "kwargs")
 
-    def __init__(self, args: tuple, kwargs: dict) -> None:
+    def __init__(self, args: tuple[Any, ...], kwargs: dict[str, Any]) -> None:
         self.args = args
         self.kwargs = kwargs
 
@@ -120,13 +129,15 @@ class Wrapper:
         self._fn = fn
         functools.update_wrapper(self, fn, updated=())
 
-    def wrap(
-        self, inner: Callable[..., Awaitable[Any]]
-    ) -> Callable[..., Awaitable[Any]]:
-        """Compose this wrapper onto ``inner``, returning a new callable."""
+    def wrap(self, inner: Callable[_P, Awaitable[_R]]) -> Callable[_P, Awaitable[_R]]:
+        """Compose this wrapper onto ``inner``, returning a new callable.
+
+        The returned callable carries ``inner``'s parameter and return types, so
+        wrapping does not erase the signature of the function being wrapped.
+        """
 
         @functools.wraps(self._fn)
-        async def wrapped(*args: Any, **kwargs: Any) -> Any:
+        async def wrapped(*args: _P.args, **kwargs: _P.kwargs) -> _R:
             return await self._fn(inner, *args, **kwargs)
 
         return wrapped
@@ -146,11 +157,12 @@ class Gateway:
     placed in (``gateway_entry`` vs ``gateway_exit``)::
 
         @gateway
-        async def scrub(*args, **kwargs):   # used as an entry gateway
+        async def scrub(*args, **kwargs):  # used as an entry gateway
             return (clean(args), kwargs)
 
+
         @gateway
-        async def redact(result):           # used as an exit gateway
+        async def redact(result):  # used as an exit gateway
             return clean(result)
     """
 
@@ -249,7 +261,7 @@ def _gateway_args(*args: Any, **kwargs: Any) -> _GatewayArgs:
 
         @rt.gateway
         async def reorder(a, b):
-            return rt.gateway.args(b, a, flag=True)   # -> ((b, a), {"flag": True})
+            return rt.gateway.args(b, a, flag=True)  # -> ((b, a), {"flag": True})
     """
     return _GatewayArgs(args, kwargs)
 
