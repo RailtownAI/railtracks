@@ -2,7 +2,8 @@
 
 A developer-facing tour of how the middleware system is built. For how to *use* it, see
 the [Usage Guide](usage.md). This page is for contributors and anyone registering
-framework-level middleware.
+framework-level middleware. Code is referenced by source location rather than reproduced,
+so it can't drift from the implementation.
 
 ## Module layout
 
@@ -20,7 +21,7 @@ model call.
 
 ## The three-layer list
 
-Each band is not a plain list but a `_LayeredList`, which holds three ordered layers:
+Each band is a `_LayeredList`, holding three ordered layers:
 
 ```
 [sys_before]  →  [user]  →  [sys_after]
@@ -38,100 +39,69 @@ ever touching the user's list.
 
 ## `MiddlewareSet`
 
-Four bands, each a `_LayeredList`:
-
-```python
-self._outer   # _LayeredList[Wrapper]
-self._entry   # _LayeredList[Gateway]
-self._exit    # _LayeredList[Gateway]
-self._inner   # _LayeredList[Wrapper]
-```
+Four bands, each a `_LayeredList`: `self._outer` and `self._inner` hold `Wrapper`s,
+`self._entry` and `self._exit` hold `Gateway`s. The public band names are `wrappers`,
+`gateway_entry`, `gateway_exit`, and `inner_wrappers`.
 
 ### Construction & coercion
 
 - The constructor coerces each slot: a raw async function (or, for gateways, a sync
-  function) is auto-wrapped into a `Wrapper` / `Gateway`; an already-built primitive of
-  the *wrong* type for the slot raises `TypeError`. This is why the decorator is optional
-  in explicit slots but the cross-type mistake is still caught.
-- `MiddlewareSet.coerce(value)` normalises user input: `None` → empty set; a
-  `MiddlewareSet` → a fresh copy; a list/tuple → `Wrapper`s to `outer_wrappers`,
-  `Gateway`s to `gateway_entry` (a bare list can't express exit gateways or inner
-  wrappers, and raw functions are ambiguous there, so the decorator is required).
+  function) is auto-wrapped into a `Wrapper` / `Gateway`; an already-built primitive of the
+  *wrong* type for the slot raises `TypeError`. This is why the decorator is optional in
+  explicit slots but the cross-type mistake is still caught.
+- `MiddlewareSet.coerce(value)` normalises user input: `None` → empty set; a `MiddlewareSet`
+  → a fresh copy; a list/tuple → `Wrapper`s to `wrappers`, `Gateway`s to `gateway_entry` (a
+  bare list can't express exit gateways or inner wrappers, and raw functions are ambiguous
+  there, so the decorator is required).
 - `_fresh_copy()` / `copy_user_only()` produce a copy carrying only the **user** layers,
   with system layers reset — so a `MiddlewareSet` reused across nodes gives each site its
   own independent system layers and the caller's object is never mutated.
 
 ### The execution engine
 
-`run(core, args, kwargs)` composes the onion and awaits it:
+`MiddlewareSet.run(core, args, kwargs)` (in `set.py`) composes the onion and awaits it:
 
-```python
-inner = core
-for w in reversed(self._inner.ordered()):
-    inner = w.wrap(inner)
+1. Wrap `core` with the **inner** wrappers, applied in **reversed** `ordered()` order so the
+   first inner wrapper ends up closest to the core.
+2. Build a `gated` callable that runs every **entry** gateway (`apply_entry`), calls the
+   inner stack, then runs every **exit** gateway (`apply_exit`).
+3. Wrap `gated` with the **outer** wrappers, again reversed so the first one ends up
+   outermost.
 
-async def gated(*a, **k):
-    for g in self._entry.ordered():
-        a, k = await g.apply_entry(*a, **k)
-    result = await inner(*a, **k)
-    for g in self._exit.ordered():
-        result = await g.apply_exit(result)
-    return result
-
-outer = gated
-for w in reversed(self._outer.ordered()):
-    outer = w.wrap(outer)
-
-return await outer(*args, **kwargs)
-```
-
-Wrappers are applied in **reversed** order so the first wrapper in the list ends up
-outermost. Entry/exit gateways are **separate lists** driven in `gated`, which is why the
-final order is `outer → entry → inner → core → exit (unwind) → outer (unwind)`.
+Wrappers are reversed at composition so the first wrapper in each list is the outermost of
+its layer; entry/exit gateways are **separate lists** driven inside `gated`. The resulting
+order is `wrappers → entry → inner → core → exit (unwind) → wrappers (unwind)`.
 
 ## Primitives
 
 ### `Wrapper`
 
-`Wrapper.__init__` calls `_require_async` — a wrapper must be a coroutine function,
-because `wrap` produces:
-
-```python
-async def wrapped(*args, **kwargs):
-    return await self._fn(inner, *args, **kwargs)
-```
-
+`Wrapper.__init__` calls `_require_async` — a wrapper must be a coroutine function, because
+`wrap(inner)` returns an `async` callable that `await`s `self._fn(inner, *args, **kwargs)`.
 The wrapper is handed `inner` (the already-composed next layer) and is responsible for
-awaiting it. A sync function cannot `await`, so it is rejected at construction time.
+awaiting it. A sync function cannot `await`, so it is rejected at construction time. `wrap`
+is typed with a `ParamSpec`, so composing a wrapper preserves the wrapped callable's
+signature.
 
 ### `Gateway`
 
-`Gateway.__init__` only requires a callable and records `self._is_async`. `_invoke`
-bridges sync/async:
-
-```python
-async def _invoke(self, *args, **kwargs):
-    if self._is_async:
-        return await self._fn(*args, **kwargs)
-    return self._fn(*args, **kwargs)     # sync gateway: run inline
-```
-
-Sync gateways run **inline** (not in a thread) deliberately, so a sync gateway's
-`rt.context` writes stay on the current context.
+`Gateway.__init__` only requires a callable and records `self._is_async`. `_invoke` bridges
+sync/async: an async gateway is awaited, a sync gateway is run **inline** (not in a thread)
+deliberately, so a sync gateway's `rt.context` writes stay on the current context.
 
 `apply_entry` implements the return contract, in this order: `None` → pass through;
 `_GatewayArgs` → its `(args, kwargs)`; a `(tuple, dict)` 2-tuple → full form; a `tuple` →
-positional-only; a `dict` → keyword-only; anything else → `TypeError`. `apply_exit`
-returns the new result, or the original when the gateway returns `None`.
+positional-only; a `dict` → keyword-only; anything else → `TypeError`. `apply_exit` returns
+the new result, or the original when the gateway returns `None`.
 
 `gateway.args(*a, **k)` returns a `_GatewayArgs` tag carrying both; it is the only
-unambiguous way to state positional **and** keyword args at once, and the escape hatch
-for the rare "single positional arg that looks like `(tuple, dict)`" case.
+unambiguous way to state positional **and** keyword args at once, and the escape hatch for
+the rare "single positional arg that looks like `(tuple, dict)`" case.
 
 `Gateway.__call__` is a thin pass-through to `self._fn` — it preserves decorator
 transparency (a `@gateway`-decorated name stays usable as a plain function) and makes
 generic gateways easy to unit-test or reuse. It deliberately does **not** go through
-`apply_entry`/`apply_exit`, so it returns the raw function result (a coroutine for an
+`apply_entry` / `apply_exit`, so it returns the raw function result (a coroutine for an
 async gateway).
 
 ## Attach-site integration
@@ -140,45 +110,34 @@ async gateway).
 
 The base `Node` carries a class-level `frozen_middleware: MiddlewareSet` default. Each
 instance takes a fresh copy in `__init__` (`self.middleware = self.frozen_middleware
-._fresh_copy()`), and runs through it via:
-
-```python
-async def wrapped_invoke(self, *args, **kwargs):
-    return await self.middleware.run(self.invoke, args, kwargs)
-```
-
-`wrapped_invoke` is what the executor actually calls, so **every** node type goes through
-its node-level middleware exactly once per call. `NodeBuilder` sets `frozen_middleware`
-from the `middleware=` argument via `MiddlewareSet.coerce`.
+._fresh_copy()`), and `wrapped_invoke` runs `invoke` through it
+(`self.middleware.run(self.invoke, args, kwargs)`). `wrapped_invoke` is what the executor
+calls, so **every** node type goes through its node-level middleware exactly once per call.
+`NodeBuilder` sets `frozen_middleware` from the `middleware=` argument via
+`MiddlewareSet.coerce`.
 
 ### Model middleware
 
-`model_middleware` is owned by `ModelInvoker`, which wraps the *raw* model call:
-
-```python
-async def _core_llm_call(messages, schema, tools):
-    ...  # model.chat / structured / chat_with_tools
-return await self._middleware.run(_core_llm_call, (messages, schema, tools), {})
-```
-
+`model_middleware` is owned by `ModelInvoker` (in `llm_helpers.py`), which runs the *raw*
+model call (`model.chat` / `structured` / `chat_with_tools`) through its `MiddlewareSet`.
 `ModelInvoker.invoke` is called inside the agent's tool-calling loop, so model middleware
-runs **once per model round-trip** — a different cardinality and a different core
-signature (`(messages, schema, tools) → Response`) than node middleware. Function nodes
-have no `ModelInvoker`, hence no `model_middleware`.
+runs **once per model round-trip** — a different cardinality and a different core signature
+(`(messages, schema, tools) → Response`) than node middleware. Function nodes have no
+`ModelInvoker`, hence no `model_middleware`.
+
+`ModelInvoker` accepts a `ModelSource` — a `ModelBase` *or* a no-arg `Callable` returning
+one — and resolves it on **every** `invoke`. A factory therefore lets a node swap its model
+at invocation time (from config or `rt.context`) rather than binding one at build time.
 
 ### Context injection
 
 The one framework middleware wired today: when an LLM node is built with
 `context_injection=True`, `NodeBuilder` registers `context_injection_gateway` as a
-**system entry gateway** on the model-level set:
-
-```python
-model_invoker.register_sys_gateway_entry(context_injection_gateway)
-```
-
-It lands in the model band's `sys_before` layer, runs before any user entry gateway on
-every model call, fills `{placeholder}` slots from `rt.context`, and is invisible to the
-public `gateway_entry` view.
+**system entry gateway** on the model-level set
+(`model_invoker.register_sys_gateway_entry(context_injection_gateway)`). It lands in the
+model band's `sys_before` layer, runs before any user entry gateway on every model call,
+fills `{placeholder}` slots from `rt.context`, and is invisible to the public
+`gateway_entry` view.
 
 ## System-registration hooks
 
@@ -194,17 +153,17 @@ middleware (tracing, cost accounting, etc.).
 
 ## Design rationale
 
-- **Wrappers are async-only.** They must `await` the inner call on the event loop;
-  running a sync wrapper off-loop (e.g. in a thread) would lose the run's context, so it
-  is rejected rather than silently bridged.
-- **Sync gateways run inline.** A gateway never awaits the inner call, so a sync gateway
-  is a cheap inline transform — and inline keeps `rt.context` writes on the live context.
+- **Wrappers are async-only.** They must `await` the inner call on the event loop; running a
+  sync wrapper off-loop (e.g. in a thread) would lose the run's context, so it is rejected
+  rather than silently bridged.
+- **Sync gateways run inline.** A gateway never awaits the inner call, so a sync gateway is a
+  cheap inline transform — and inline keeps `rt.context` writes on the live context.
 - **No single-value shorthand for entry returns.** Every accepted entry return is a
-  structured container (`tuple`/`dict`/pair/`gateway.args`/`None`), so a returned `dict`
-  is unambiguously keyword args and is never silently unpacked as one positional arg.
-- **Direction-less gateways.** The same `Gateway` object works in entry or exit slots;
-  the slot picks `apply_entry` vs `apply_exit`. This keeps the primitive small and avoids
-  two near-identical decorators.
+  structured container, so a returned `dict` is unambiguously keyword args and is never
+  silently unpacked as one positional arg.
+- **Direction-less gateways.** The same `Gateway` object works in entry or exit slots; the
+  slot picks `apply_entry` vs `apply_exit`. This keeps the primitive small and avoids two
+  near-identical decorators.
 - **User lists are never mutated.** Construction copies the user layer; system middleware
   lives in separate layers; reuse takes a fresh copy. A `MiddlewareSet` is safe to share
   across many nodes.
