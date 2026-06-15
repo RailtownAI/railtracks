@@ -214,8 +214,15 @@ def function_node(
 
     # assign the correct node class based on whether the function is async or sync
     if asyncio.iscoroutinefunction(func):
+        if inspect.ismethod(func):
+            func = _function_preserving_metadata(func)
         node_class = AsyncDynamicFunctionNode
     elif inspect.isfunction(func):
+        node_class = SyncDynamicFunctionNode
+    elif inspect.ismethod(func):
+        # Bound methods can't hold attributes, so wrap in a plain function first.
+        # functools.wraps preserves __name__, __doc__, and __wrapped__ for the NodeBuilder.
+        func = _function_preserving_metadata(func)
         node_class = SyncDynamicFunctionNode
     elif inspect.isbuiltin(func):
         # builtin functions are written in C and do not have space for the addition of metadata like our node type.
