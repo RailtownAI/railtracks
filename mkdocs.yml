@@ -101,6 +101,8 @@ nav:
               - Overview: documentation/advanced/guardrails/overview.md
               - Quickstart: documentation/advanced/guardrails/quickstart.md
               - Built-in Guardrails: documentation/advanced/guardrails/builtin_guardrails.md
+          - Middleware:
+              - Usage Guide: documentation/advanced/middleware/usage.md
           - Agent Context: documentation/advanced/context.md
 
   - RAG:
@@ -173,6 +175,7 @@ nav:
       - Notebooks:
           - Agent Architectures: tutorials/notebooks/architectures.md
           - FastAPI Integration: tutorials/notebooks/fastapi.md
+          - Gateway Middleware & Context Injection: tutorials/notebooks/gateway_middleware.md
       - Concepts:
           - Core:
               - Agents: tutorials/concepts/agents.md

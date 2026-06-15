@@ -7,8 +7,7 @@ from copy import deepcopy
 from typing import Any, Generic, Literal, ParamSpec, TypeVar
 
 from railtracks.llm.tools.tool import Tool
-from railtracks.nodes.mappers import MapInputs, MapOutputs
-from railtracks.nodes.wrappers import Wrapper
+from railtracks.middleware import MiddlewareSet
 from railtracks.validation.node_creation.validation import (
     check_classmethod,
 )
@@ -96,18 +95,17 @@ class Node(ABC, Generic[_P, _TOutput]):
         # without this direct call to the parent __init_subclass__ method the generic resolutions will not work correctly
         super().__init_subclass__()
 
-    frozen_wrappers: list[Wrapper[_P, _TOutput]] = []
-    frozen_input_maps: list[MapInputs[tuple[list[Any], dict[str, Any]]]] = []
-    frozen_output_maps: list[MapOutputs[_TOutput]] = []
+    # Node-level middleware applied around `invoke` (boundary: the node's call
+    # args -> the node's output). Shared class-level default is never mutated;
+    # each instance takes a fresh copy in __init__.
+    frozen_middleware: MiddlewareSet = MiddlewareSet()
 
     def __init__(
         self,
     ):
         # each fresh node will have a generated uuid that identifies it.
         self.uuid = str(uuid.uuid4())
-        self.wrappers = deepcopy(self.frozen_wrappers)
-        self.input_maps = deepcopy(self.frozen_input_maps)
-        self.output_maps = deepcopy(self.frozen_output_maps)
+        self.middleware = self.frozen_middleware._fresh_copy()
 
     @classmethod
     @abstractmethod
@@ -126,22 +124,9 @@ class Node(ABC, Generic[_P, _TOutput]):
 
     async def wrapped_invoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
         """
-        A special method that will track and save the latency of the running of this invoke method.
+        Runs ``invoke`` through the node-level middleware (wrappers + gateways).
         """
-        invoke_method = self.invoke
-        for wrapper in self.wrappers:
-            invoke_method = wrapper(invoke_method)
-
-        prelim_args, prelim_kwargs = args, kwargs
-        for input_map in self.input_maps:
-            prelim_args, prelim_kwargs = await input_map(*prelim_args, **prelim_kwargs)
-
-        result: _TOutput = await invoke_method(*prelim_args, **prelim_kwargs)  # type: ignore
-
-        for output_map in self.output_maps:
-            result = await output_map(result)
-
-        return result
+        return await self.middleware.run(self.invoke, args, kwargs)
 
     def __repr__(self):
         return f"{self.name()} <{hex(id(self))}>"

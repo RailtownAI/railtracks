@@ -20,7 +20,8 @@ from pydantic import BaseModel
 
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
 from railtracks.built_nodes.llm_helpers import (
-    ModelGateway,
+    ModelInvoker,
+    ModelSource,
     llm_invoke_factory,
     llm_prepare_called_as_tool_factory,
 )
@@ -32,9 +33,9 @@ from railtracks.llm import (
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import Message
 from railtracks.llm.type_mapping import TypeMapper
-from railtracks.nodes.mappers import MapInputs, MapOutputs
+from railtracks.middleware import MiddlewareSet
 from railtracks.nodes.nodes import Node
-from railtracks.nodes.wrappers import Wrapper
+from railtracks.prompts.prompt import context_injection_gateway
 from railtracks.validation.node_creation.validation import (
     _check_duplicate_param_names,
     _check_tool_params_and_details,
@@ -103,9 +104,7 @@ class NodeBuilder(Generic[_P, _T]):
         self._tool_info: Callable[[], Tool] | None = None
         self._prepare_arguments: Callable[..., dict[str, Any]] | None = None
 
-        self._frozen_wrappers: list[Wrapper[_P, _T]] = []
-        self._frozen_input_maps: list[MapInputs] = []
-        self._frozen_output_maps: list[MapOutputs[_T]] = []
+        self._frozen_middleware: MiddlewareSet = MiddlewareSet()
 
     @overload
     @classmethod
@@ -114,15 +113,15 @@ class NodeBuilder(Generic[_P, _T]):
         name: str,
         class_name: str | None = None,
         *,
-        model_gateway: ModelGateway,
+        model: ModelSource,
         system_message: SystemMessage | None = None,
         schema: None = None,
         connected_nodes: Iterable[Type[Node]] | None = None,
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
-        wrappers: list[Wrapper] | None = None,
-        input_maps: list[MapInputs] | None = None,
-        output_maps: list[MapOutputs] | None = None,
+        middleware: MiddlewareSet | list | None = None,
+        model_middleware: MiddlewareSet | list | None = None,
+        context_injection: bool = True,
     ) -> NodeBuilder[[UserInput], StringResponse]: ...
 
     @overload
@@ -132,15 +131,15 @@ class NodeBuilder(Generic[_P, _T]):
         name: str,
         class_name: str | None = None,
         *,
-        model_gateway: ModelGateway,
+        model: ModelSource,
         system_message: SystemMessage | None = None,
         schema: Type[_TStructured],
         connected_nodes: Iterable[Type[Node]] | None = None,
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
-        wrappers: list[Wrapper] | None = None,
-        input_maps: list[MapInputs] | None = None,
-        output_maps: list[MapOutputs] | None = None,
+        middleware: MiddlewareSet | list | None = None,
+        model_middleware: MiddlewareSet | list | None = None,
+        context_injection: bool = True,
     ) -> NodeBuilder[[UserInput], StructuredResponse[_TStructured]]: ...
 
     @classmethod
@@ -149,15 +148,15 @@ class NodeBuilder(Generic[_P, _T]):
         name: str,
         class_name: str | None = None,
         *,
-        model_gateway: ModelGateway,
+        model: ModelSource,
         system_message: SystemMessage | None = None,
         schema: Type[_TStructured] | None = None,
         connected_nodes: Iterable[Type[Node]] | None = None,
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
-        wrappers: list[Wrapper] | None = None,
-        input_maps: list[MapInputs] | None = None,
-        output_maps: list[MapOutputs] | None = None,
+        middleware: MiddlewareSet | list | None = None,
+        model_middleware: MiddlewareSet | list | None = None,
+        context_injection: bool = True,
     ) -> NodeBuilder[[UserInput], StructuredResponse[_TStructured] | StringResponse]:
         instance = cls()
         casted_instance = cast(NodeBuilder, instance)
@@ -165,8 +164,18 @@ class NodeBuilder(Generic[_P, _T]):
         casted_instance._node_name = name
         casted_instance._node_class = "Agent"
 
+        model_invoker = ModelInvoker(model, middleware=model_middleware)
+
+        # Context injection is the default behaviour for all LLM nodes: rt.context
+        # variables are filled into prompt templates before the model call. It is
+        # wired in here as a system gateway so it applies regardless of which
+        # higher-level wrapper created the node. Disable per-node with
+        # context_injection=False, or flow/session-wide via prompt_injection=False.
+        if context_injection:
+            model_invoker.register_sys_gateway_entry(context_injection_gateway)
+
         casted_instance._invoke = llm_invoke_factory(
-            model_gateway=model_gateway,
+            model_invoker=model_invoker,
             system_message=system_message,
             tool_nodes=list(connected_nodes) if connected_nodes else None,
             schema=schema,
@@ -184,9 +193,7 @@ class NodeBuilder(Generic[_P, _T]):
                 )
             }
 
-        casted_instance._frozen_wrappers = wrappers or []
-        casted_instance._frozen_input_maps = input_maps or []
-        casted_instance._frozen_output_maps = output_maps or []
+        casted_instance._frozen_middleware = MiddlewareSet.coerce(middleware)
 
         return casted_instance
 
@@ -214,9 +221,7 @@ class NodeBuilder(Generic[_P, _T]):
         class_name: str | None = None,
         name: str | None = None,
         *,
-        wrappers: list[Wrapper[_P2, _T2]] | None = None,
-        input_maps: list[MapInputs] | None = None,
-        output_maps: list[MapOutputs[_T2]] | None = None,
+        middleware: MiddlewareSet | list | None = None,
         tool_details: str | None = None,
         tool_params: list[Parameter] | Type[BaseModel] | dict[str, Any] | None = None,
         tool_info: Tool | None = None,
@@ -240,9 +245,7 @@ class NodeBuilder(Generic[_P, _T]):
 
         casted_instance._prepare_arguments = tm.convert_kwargs_to_appropriate_types
 
-        casted_instance._frozen_wrappers = wrappers or []
-        casted_instance._frozen_input_maps = input_maps or []
-        casted_instance._frozen_output_maps = output_maps or []
+        casted_instance._frozen_middleware = MiddlewareSet.coerce(middleware)
 
         return casted_instance
 
@@ -264,9 +267,7 @@ class NodeBuilder(Generic[_P, _T]):
         return {
             "tool_info": self._construct_tool_info(),
             "prepare_tool": self._construct_prepared_arguments(),
-            "frozen_wrappers": self._frozen_wrappers,
-            "frozen_input_maps": self._frozen_input_maps,
-            "frozen_output_maps": self._frozen_output_maps,
+            "frozen_middleware": self._frozen_middleware,
         }
 
     def _construct_prepared_arguments(self, **kwargs):

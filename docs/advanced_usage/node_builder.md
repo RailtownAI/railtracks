@@ -1,124 +1,101 @@
-# Custom Class Building with NodeBuilder
+# Custom Node Creation with `NodeBuilder`
 
-Railtracks' `define_agent` provides a robust foundation for configuring agent classes with predefined parameters that handle most use cases. However, when you need agents or nodes with specialized functionality beyond these standard configurations, the **NodeBuilder** class offers the flexibility to create custom implementations while maintaining the core Railtracks functionality.
+`NodeBuilder` is the internal factory behind `rt.agent_node` and `rt.function_node`. Those
+helpers cover almost every case; reach for `NodeBuilder` directly only when you need to
+assemble a node step by step. It is not part of the public API surface — import it from
+`railtracks.built_nodes._node_builder`.
 
-## Overview
+Every builder method returns a builder; call `.build()` to get the node class.
 
-NodeBuilder enables you to:
-- Inherit from existing Railtracks node classes
-- Add custom class methods and attributes
-- Maintain compatibility with the Railtracks ecosystem
-- Create specialized agents tailored to your specific requirements
-
----
-
-## Getting Started
-
-### 1. Initialize NodeBuilder
-
-Begin by selecting the appropriate base node class for inheritance. 
-!!! Note "Common Classes"
-
-    - **Terminal** - For endpoint nodes
-    - **Structured** - For nodes with structured outputs
-    - **ToolCall** - For nodes that can call tools
-    - **StructuredToolCall** - For nodes combining structured outputs with tool calling
-
-When initializing NodeBuilder, you'll specify both a `name` and `class_name`:
-- **`name`**: User-friendly identifier for differentiation in multi-node scenarios
-- **`class_name`**: Internal identifier used by Railtracks and Python
-
-```python
-builder = NodeBuilder[StructuredLLM[_TOutput]](
-    StructuredLLM,
-    name='yourAgentName',
-    class_name='yourClassName',
-)
-```
-
-### 2. Configure LLM Base (Optional)
-
-For nodes that utilize Large Language Models, use the `llm_base` method to specify the system message and model:
-
-```python
-builder.llm_base(your_llm_model, your_system_message)
-```
-
-!!! Warning
-    While LLM configuration is technically optional, it's highly recommended. If you are making a non-LLM node, consider using function nodes instead.
+!!! note "Middleware lives in the middleware guide"
+    `NodeBuilder.llm()` and `NodeBuilder.function()` take the same `middleware` /
+    `model_middleware` parameters as the public helpers. See
+    [Middleware: Wrappers & Gateways](../documentation/advanced/middleware/usage.md) for
+    the full model — this page only shows where they attach.
 
 ---
 
-## Adding Functionality
-
-NodeBuilder provides several methods to decide your node's capabilities, mirroring the functionality available in `agent_node` :
-
-### Core Functionality Options
-
-| Method | Purpose | Required For |
-|--------|---------|--------------|
-| `structured(output_schema)` | Define structured output format | Structured classes |
-| `tool_callable_llm(tool_details, tool_params)` | Enable tool invocation capabilities | ToolCall classes |
-| `tool_calling_llm(tool_nodes)` | Configure tool calling behavior | ToolCall classes |
+## LLM nodes — `NodeBuilder.llm()`
 
 ```python
-# Structured output
-builder.structured(output_schema)
-
-# Tool capabilities
-builder.tool_callable_llm(tool_details, tool_params)
-builder.tool_calling_llm(tool_nodes)
+--8<-- "docs/scripts/node_builder.py:llm_basic"
 ```
 
-### Custom Attributes
+Key parameters: `model` (a `ModelBase` **or** a no-arg factory returning one),
+`system_message`, `schema`, `connected_nodes`, `tool_details` / `tool_params`,
+`middleware`, `model_middleware`, and `context_injection`.
 
-Extend your node with custom methods or class variables using the `add_attribute` method:
+### Structured output
+
+Pass a Pydantic model to `schema` and the node returns `StructuredResponse[YourModel]`
+instead of `StringResponse`:
 
 ```python
-builder.add_attribute(
-    attribute_name,
-    is_function,
-    args,
-    kwargs
-)
+--8<-- "docs/scripts/node_builder.py:llm_structured"
+```
+
+### Connected tools
+
+`connected_nodes` lists the tools the agent may call:
+
+```python
+--8<-- "docs/scripts/node_builder.py:connected_tools"
+```
+
+### Exposing a node as a tool
+
+Pass `tool_details` and `tool_params` to make the node callable as a tool from other
+agents:
+
+```python
+--8<-- "docs/scripts/node_builder.py:expose_as_tool"
 ```
 
 ---
 
-## Building Your Node
+## Function nodes — `NodeBuilder.function()`
 
-Complete the build process by calling the `build()` method:
+Wraps an async function as a node:
 
 ```python
-node = builder.build()
+--8<-- "docs/scripts/node_builder.py:function_node"
+```
+
+Sync functions are not supported directly — wrap them with `asyncio.to_thread` first.
+
+---
+
+## Middleware
+
+Both builders accept `middleware` (around the node boundary, `wrapped_invoke`). LLM nodes
+additionally accept `model_middleware` (around each raw model call, inside the
+tool-calling loop). Each takes a `MiddlewareSet` or a bare list:
+
+```python
+--8<-- "docs/scripts/node_builder.py:middleware"
 ```
 
 ---
 
-## Complete Example
+## Choosing the model at runtime
+
+`model` accepts a no-arg factory as well as a concrete model. The factory is resolved
+fresh on every model call, so the node can pick its model at invocation time:
 
 ```python
-# Initialize the builder
-builder = NodeBuilder[StructuredToolCallLLM[_TOutput]](
-    StructuredToolCallLLM,
-    name=name,
-    class_name="EasyStructuredToolCallLLM",
-    return_into=return_into,
-    format_for_return=format_for_return,
-    format_for_context=format_for_context,
-)
-
-# Configure LLM base
-builder.llm_base(llm_model, system_message)
-
-# Add tool functionality
-builder.tool_calling_llm(set(tool_nodes))
-builder.tool_callable_llm(tool_details, tool_params)
-
-# Configure structured output
-builder.structured(output_schema)
-
-# Build the final node
-node = builder.build()
+--8<-- "docs/scripts/node_builder.py:model_factory"
 ```
 
+---
+
+## Context injection
+
+Context injection (filling `{placeholder}` templates from `rt.context`) is on by default
+for all LLM nodes. Disable it per-node with `context_injection=False`:
+
+```python
+--8<-- "docs/scripts/node_builder.py:context_injection"
+```
+
+See the [Context Injection walkthrough](../tutorials/walkthroughs/prompts_and_context.md)
+for the full four-level control hierarchy.

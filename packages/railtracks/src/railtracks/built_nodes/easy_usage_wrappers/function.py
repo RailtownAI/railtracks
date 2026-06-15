@@ -20,6 +20,7 @@ from typing import (
 from railtracks.built_nodes._node_builder import NodeBuilder
 from railtracks.built_nodes.concrete.function_base import RTFunction
 from railtracks.exceptions import NodeCreationError
+from railtracks.middleware import MiddlewareSet
 from railtracks.nodes.manifest import ToolManifest
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_creation.validation import (
@@ -48,6 +49,7 @@ def function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
+    middleware: MiddlewareSet | list | None = None,
 ) -> CallableAsyncRTFunction[_P, _TOutput]: ...
 
 
@@ -58,6 +60,7 @@ def function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
+    middleware: MiddlewareSet | list | None = None,
 ) -> CallableSyncRTFunction[_P, _TOutput]:
     pass
 
@@ -69,7 +72,20 @@ def function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
+    middleware: MiddlewareSet | list | None = None,
 ) -> List[RTFunction[..., Any]]:
+    pass
+
+
+@overload
+def function_node(
+    func: None = None,
+    /,
+    *,
+    name: str | None = None,
+    manifest: ToolManifest | None = None,
+    middleware: MiddlewareSet | list | None = None,
+) -> Callable[[Callable[_P, _TOutput]], RTFunction[_P, _TOutput]]:
     pass
 
 
@@ -103,6 +119,7 @@ def _single_function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
+    middleware: MiddlewareSet | list | None = None,
 ) -> CallableSyncRTFunction[_P, _TOutput] | CallableAsyncRTFunction[_P, _TOutput]:
     """
     Creates a new Node type from a function that can be used in `rt.call()`.
@@ -166,6 +183,7 @@ def _single_function_node(
     builder = NodeBuilder().function(
         unwrapped_func,
         name=name if name is not None else f"{unwrapped_func.__name__}",
+        middleware=middleware,
         tool_details=manifest.description if manifest is not None else None,
         tool_params=manifest.parameters if manifest is not None else None,
     )
@@ -186,14 +204,17 @@ def _single_function_node(
 
 def function_node(
     func: Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]
-    | List[Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]],
+    | List[Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]]
+    | None = None,
     /,
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
+    middleware: MiddlewareSet | list | None = None,
 ) -> (
     Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]
     | List[Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]]
+    | Callable[[Callable[_P, _TOutput]], RTFunction[_P, _TOutput]]
     | None
 ):
     """
@@ -202,21 +223,56 @@ def function_node(
     By default, it will parse the function's docstring and turn them into tool details and parameters. However, if
     you provide custom ToolManifest it will override that logic.
 
+    Can be used three ways::
+
+        # 1. direct call
+        node = rt.function_node(my_fn, middleware=[guard])
+
+        # 2. bare decorator
+        @rt.function_node
+        def my_fn(...): ...
+
+        # 3. parametrized decorator (attach middleware / guardrails declaratively)
+        @rt.function_node(middleware=[guard], name="echo")
+        def my_fn(...): ...
+
     WARNING: If you overriding tool parameters. It is on you to make sure they will work with your function.
 
     NOTE: If you have already converted this function to a node this function will do nothing
 
     Args:
-        func (Callable): The function to convert into a Node.
+        func (Callable, optional): The function to convert into a Node. Omit it to use the
+            parametrized-decorator form, which returns a decorator that takes the function.
         name (str, optional): Human-readable name for the node/tool.
         manifest (ToolManifest, optional): The details you would like to override the tool with.
+        middleware (MiddlewareSet | list | None): Middleware applied around the node boundary.
+            Accepts a MiddlewareSet or a bare list of Wrapper/Gateway (check-only gateways act as guardrails).
     """
+
+    # No function yet -> parametrized-decorator form: bind the options and return
+    # a decorator that finishes the job once the function is supplied.
+    if func is None:
+        def _decorator(
+            f: Callable[_P, Coroutine[None, None, _TOutput] | _TOutput],
+        ) -> Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]:
+            return function_node(
+                f, name=name, manifest=manifest, middleware=middleware
+            )
+
+        return _decorator
 
     # handle the case where a list of functions is provided
     if isinstance(func, list):
-        return [function_node(f, name=name, manifest=manifest) for f in func]
+        return [
+            function_node(
+                f, name=name, manifest=manifest, middleware=middleware
+            )
+            for f in func
+        ]
     else:
-        return _single_function_node(func, name=name, manifest=manifest)
+        return _single_function_node(
+            func, name=name, manifest=manifest, middleware=middleware
+        )
 
 
 def _function_preserving_metadata(

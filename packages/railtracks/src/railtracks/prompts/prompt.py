@@ -1,7 +1,10 @@
+from typing import Any
+
 import railtracks.context as context
 from railtracks.context.central import get_local_config
 from railtracks.exceptions import ContextError
 from railtracks.llm import MessageHistory
+from railtracks.middleware import gateway
 from railtracks.utils.prompt_injection import ValueDict, inject_values
 
 
@@ -30,3 +33,20 @@ def inject_context(message_history: MessageHistory):
         inject_values(message_history, _ContextDict())
 
     return message_history
+
+
+@gateway
+async def context_injection_gateway(
+    messages: MessageHistory,
+    schema: Any,
+    tools: Any,
+) -> tuple[tuple, dict]:
+    """
+    Entry :class:`~railtracks.middleware.Gateway` that injects context variables
+    into message prompts before the model call.
+
+    Respects the session-level prompt_injection config flag and per-message
+    inject_prompt flags. No-op when no session is active.
+    """
+    inject_context(messages)
+    return (messages, schema, tools), {}
