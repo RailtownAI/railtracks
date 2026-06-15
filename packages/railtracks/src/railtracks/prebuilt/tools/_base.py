@@ -8,14 +8,13 @@ from typing_extensions import Self
 
 class ToolSet(ABC):
 
-    @abstractmethod
     @classmethod
+    @abstractmethod
     def prompt(cls) -> str:
         """Mutilple short sentances guiding the agent"""
 
     @abstractmethod
-    @classmethod
-    def create(cls, *args, **kwargs) -> Iterable[RTFunction]:
+    def tool_set(self) -> Iterable[RTFunction]:
         pass
 
     

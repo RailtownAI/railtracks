@@ -43,7 +43,7 @@ class ToDo(BaseModel):
         return f"{self.state.value} - {self.short_description}"
 
     
-class ToDoDashboard:
+class ToDoToolSet(ToolSet):
     def __init__(self, add_callback: Callable[[str, str, State], None] | None = None):
         self.todos: dict[str, list[ToDo]] = defaultdict(list)
         self.misc_todos: list[ToDo] = []
@@ -204,10 +204,6 @@ class ToDoDashboard:
         
         return dashboard_str.strip()
 
-    
-
-class ToDoToolSet(ToolSet):
-
     @classmethod
     def prompt(cls) -> str:
         return (
@@ -219,21 +215,21 @@ class ToDoToolSet(ToolSet):
             "Retrieve todo identifiers from get_all_todos() before calling any id-based methods."
         )
     
-    @classmethod
-    def create(cls, callback: Callable[[str, str, State], None] | None = None) -> list[RTFunction]:
-        dashboard = ToDoDashboard(add_callback=callback)
+    
+    def tool_set(self) -> list[RTFunction]:
+        
         functions = [
-            dashboard.add,
-            dashboard.complete_todo_by_id,
-            dashboard.start_todo_by_id,
-            dashboard.update_todo_by_id,
-            dashboard.get_all_todos,
-            dashboard.get_completed_todos,
-            dashboard.get_not_started_todos,
-            dashboard.get_incomplete_todos,
+            self.add,
+            self.complete_todo_by_id,
+            self.start_todo_by_id,
+            self.update_todo_by_id,
+            self.get_all_todos,
+            self.get_completed_todos,
+            self.get_not_started_todos,
+            self.get_incomplete_todos,
         ]
 
         return [rt.function_node(func) for func in functions]
-    
 
-    
+
+
