@@ -2,7 +2,7 @@ import json
 from collections import defaultdict
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -230,7 +230,7 @@ def extract_tool_details(
 
 
 def extract_agent_io(
-    sink_list: dict[UUID, list[EdgeDataPoint]], node: NodeDataPoint, file_path: str
+    sink_list: dict[UUID, list[EdgeDataPoint]], node: NodeDataPoint, session_id: str
 ) -> tuple[dict, dict]:
     """
     Extracts the input and output for an agent node based on its incoming edges.
@@ -238,7 +238,7 @@ def extract_agent_io(
     Args:
         sink_list: A dictionary where keys are target node identifiers and values are lists of EdgeDataPoint instances that have that target.
         node: The NodeDataPoint instance representing the agent node for which to extract input and output.
-        file_path: The path to the session file being processed (used for logging).
+        session_id: The id of the session being processed (used for logging).
     Returns:
         A tuple containing:
             - agent_input: A dictionary with "args" and "kwargs" keys representing the input to the agent.
@@ -258,42 +258,42 @@ def extract_agent_io(
                 agent_output = edge.details.get("output", {})
             else:
                 logger.warning(
-                    f"Duplicate edge with id: {edge.identifier} for source: {edge.source} and target: {edge.target} in session file {file_path}."
+                    f"Duplicate edge with id: {edge.identifier} for source: {edge.source} and target: {edge.target} in session {session_id}."
                 )
     return agent_input, agent_output
 
 
-def resolve_file_paths(session_files: list[str] | str) -> list[str]:
-    """Resolves session_files input to a flat list of file paths.
+def resolve_file_paths(sources: list[str] | str) -> list[str]:
+    """Resolves a directory path or list of file paths to a flat list of file paths.
 
     Args:
-        session_files: A single file path, a directory path, or a list of file paths.
+        sources: A directory path (str) whose files will be enumerated, or a list of file paths.
 
     Returns:
         List of resolved file path strings.
 
     Raises:
         FileNotFoundError: If a path does not exist.
-        ValueError: If a list item is a directory or no files are found.
-        TypeError: If session_files is not a str or list.
+        ValueError: If a str is not a directory, if a list item is a directory, or if no files are found.
+        TypeError: If sources is not a str or list.
     """
     file_paths: list[str] = []
 
-    if isinstance(session_files, str):
-        path = Path(session_files)
-        if path.is_dir():
-            file_paths = [
-                str(f)
-                for f in path.iterdir()
-                if f.is_file() and not f.name.startswith(".")
-            ]
-            logger.info(f"Found {len(file_paths)} files in directory: {session_files}")
-        elif path.is_file():
-            file_paths = [session_files]
-        else:
-            raise FileNotFoundError(f"Path does not exist: {session_files}")
-    elif isinstance(session_files, list):
-        for item in session_files:
+    if isinstance(sources, str):
+        path = Path(sources)
+        if not path.exists():
+            raise FileNotFoundError(f"Path does not exist: {sources}")
+        if not path.is_dir():
+            raise ValueError(
+                f"A single string source must be a directory path; got a file: {sources}. "
+                f'Wrap single files in a list: ["{sources}"].'
+            )
+        file_paths = [
+            str(f) for f in path.iterdir() if f.is_file() and not f.name.startswith(".")
+        ]
+        logger.info(f"Found {len(file_paths)} files in directory: {sources}")
+    elif isinstance(sources, list):
+        for item in sources:
             item_path = Path(item)
             if item_path.is_dir():
                 raise ValueError(
@@ -301,10 +301,10 @@ def resolve_file_paths(session_files: list[str] | str) -> list[str]:
                 )
             if not item_path.is_file():
                 raise FileNotFoundError(f"File does not exist: {item}")
-        file_paths = session_files
+        file_paths = sources
     else:
         raise TypeError(
-            f"session_files must be a string or list of strings, got {type(session_files)}"
+            f"sources must be a string (directory) or list, got {type(sources)}"
         )
 
     if not file_paths:
@@ -313,100 +313,119 @@ def resolve_file_paths(session_files: list[str] | str) -> list[str]:
     return file_paths
 
 
-def extract_agent_data_points(session_files: list[str] | str) -> list[AgentDataPoint]:
-    """
-    Extract AgentDataPoint instances from session JSON files.
-
-    This function processes Railtracks session JSON files and creates AgentDataPoint
-    instances for each agent execution found. It extracts agent inputs, outputs, and
-    internals (including LLM metrics if available).
+def _data_points_from_payload(payload: dict) -> list[AgentDataPoint]:
+    """Parse one in-memory session payload into a list of AgentDataPoint instances.
 
     Args:
-        session_files: List of paths to session JSON files, a single file path, or a directory path.
-                      If a directory is provided, all files within it will be processed.
+        payload: A session dict with the shape produced by load_session (and by
+            railtownai.get_agent_runs): {"session_id": ..., "runs": [...]}.
 
     Returns:
-        List of AgentDataPoint instances, one for each agent execution found in the files.
-        Returns empty list if no valid agent data is found.
+        AgentDataPoint instances for every agent execution in the payload. Empty list if
+        the payload has no session_id or no runs.
     """
-    file_paths = resolve_file_paths(session_files)
-    data_points = []
+    session_id = payload.get("session_id")
+    if session_id is None:
+        logger.warning("no session_id found in payload, skipping.")
+        return []
 
-    for file_path in file_paths:
-        try:
-            session_data = load_session(file_path)
-        except (FileNotFoundError, ValueError) as e:
-            logger.error(str(e))
-            continue
+    runs = payload.get("runs", [])
+    if len(runs) == 0:
+        logger.warning(f"Session {session_id} contains no runs")
+    if len(runs) > 1:
+        logger.warning(f"Session {session_id} contains multiple runs")
 
-        session_id = session_data.get("session_id")
-        if session_id is None:
-            logger.warning(f"no session_id found in file: {file_path}, skipping file.")
-            continue
+    data_points: list[AgentDataPoint] = []
+    for run in runs:
+        nodes = {
+            UUID(node["identifier"]): NodeDataPoint(
+                identifier=node["identifier"],
+                node_type=NodeType(node["node_type"]),
+                name=node["name"],
+                details=node.get("details", {}),
+            )
+            for node in run.get("nodes", [])
+        }
 
-        runs = session_data.get("runs", [])
+        edges: dict[tuple[UUID | None, UUID], EdgeDataPoint] = {}
+        for edge in run.get("edges", []):
+            key = (
+                (UUID(edge["source"]), UUID(edge["target"]))
+                if edge["source"] is not None
+                else (None, UUID(edge["target"]))
+            )
+            edges[key] = EdgeDataPoint(
+                identifier=UUID(edge["identifier"]),
+                source=UUID(edge["source"]) if edge["source"] is not None else None,
+                target=UUID(edge["target"]),
+                details=edge.get("details", {}),
+            )
 
-        if len(runs) == 0:
-            logger.warning(f"Session file {file_path} contains no runs")
-        if len(runs) > 1:
-            logger.warning(f"Session file {file_path} contains multiple runs")
+        graph, sink_list = construct_graph(edges)
 
-        for run in runs:
-            nodes = {
-                UUID(node["identifier"]): NodeDataPoint(
-                    identifier=node["identifier"],
-                    node_type=NodeType(node["node_type"]),
-                    name=node["name"],
-                    details=node.get("details", {}),
+        for node in nodes.values():
+            if node.node_type == NodeType.AGENT:
+                llm_details_dict = node.details.get("internals", {}).get(
+                    "llm_details", []
                 )
-                for node in run.get("nodes", [])
-            }
-
-            edges: dict[tuple[UUID | None, UUID], EdgeDataPoint] = {}
-            for edge in run.get("edges", []):
-                key = (
-                    (UUID(edge["source"]), UUID(edge["target"]))
-                    if edge["source"] is not None
-                    else (None, UUID(edge["target"]))
-                )
-                edges[key] = EdgeDataPoint(
-                    identifier=UUID(edge["identifier"]),
-                    source=UUID(edge["source"]) if edge["source"] is not None else None,
-                    target=UUID(edge["target"]),
-                    details=edge.get("details", {}),
+                llm_details = (
+                    extract_llm_details(llm_details_dict)
+                    if llm_details_dict
+                    else LLMDetails(calls=[])
                 )
 
-            graph, sink_list = construct_graph(edges)
+                tool_details = extract_tool_details(
+                    nodes, edges, graph, node.identifier
+                )
 
-            for node in nodes.values():
-                if node.node_type == NodeType.AGENT:
-                    llm_details_dict = node.details.get("internals", {}).get(
-                        "llm_details", []
-                    )
-                    llm_details = (
-                        extract_llm_details(llm_details_dict)
-                        if llm_details_dict
-                        else LLMDetails(calls=[])
-                    )
+                agent_input, agent_output = extract_agent_io(
+                    sink_list, node, session_id
+                )
 
-                    tool_details = extract_tool_details(
-                        nodes, edges, graph, node.identifier
+                data_points.append(
+                    AgentDataPoint(
+                        identifier=node.identifier,
+                        session_id=UUID(session_id),
+                        agent_name=node.name,
+                        agent_input=agent_input,
+                        agent_output=agent_output,
+                        llm_details=llm_details,
+                        tool_details=tool_details,
                     )
+                )
 
-                    agent_input, agent_output = extract_agent_io(
-                        sink_list, node, file_path
-                    )
+    return data_points
 
-                    data_points.append(
-                        AgentDataPoint(
-                            identifier=node.identifier,
-                            session_id=UUID(session_id),
-                            agent_name=node.name,
-                            agent_input=agent_input,
-                            agent_output=agent_output,
-                            llm_details=llm_details,
-                            tool_details=tool_details,
-                        )
-                    )
 
+def extract_agent_data_points(
+    sources: list[str] | str | list[dict],
+) -> list[AgentDataPoint]:
+    """Extract AgentDataPoint instances from session payloads or session JSON files.
+
+    Args:
+        sources: One of:
+            - list[dict]: in-memory session payloads (e.g. from railtownai.get_agent_runs).
+            - list[str]: file paths to session JSON files.
+            - str: a directory path; all files inside are loaded.
+            A single file or single payload must be wrapped in a list. Mixed lists of
+            files and payloads are not supported.
+
+    Returns:
+        List of AgentDataPoint instances, one per agent execution found across all
+        provided payloads. Returns an empty list if no valid agent data is found.
+    """
+    if isinstance(sources, list) and sources and isinstance(sources[0], dict):
+        payloads: list[dict] = cast(list[dict], sources)
+    else:
+        file_sources = cast("list[str] | str", sources)
+        payloads = []
+        for file_path in resolve_file_paths(file_sources):
+            try:
+                payloads.append(load_session(file_path))
+            except (FileNotFoundError, ValueError) as e:
+                logger.error(str(e))
+
+    data_points: list[AgentDataPoint] = []
+    for payload in payloads:
+        data_points.extend(_data_points_from_payload(payload))
     return data_points

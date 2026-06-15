@@ -153,4 +153,4 @@ def agent_data_point(tmp_path, session_json):
     """A fully parsed AgentDataPoint, ready to use as input for evaluator tests."""
     path = tmp_path / "session.json"
     path.write_text(json.dumps(session_json))
-    return extract_agent_data_points(str(path))[0]
+    return extract_agent_data_points([str(path)])[0]

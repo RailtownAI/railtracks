@@ -160,13 +160,13 @@ def test_extract_tool_details_call_fields(agent_node, tool_nodes, edges):
 
 def test_extract_agent_io_completed_edge(agent_node, edges):
     _, sink_list = construct_graph(edges)
-    agent_input, agent_output = extract_agent_io(sink_list, agent_node, "test.json")
+    agent_input, agent_output = extract_agent_io(sink_list, agent_node, str(SESSION_ID))
     assert agent_input["args"] == ["What is the stock price?"]
     assert agent_output == {"answer": "Here is the stock info"}
 
 
 def test_extract_agent_io_no_edges(agent_node):
-    agent_input, agent_output = extract_agent_io(defaultdict(list), agent_node, "test.json")
+    agent_input, agent_output = extract_agent_io(defaultdict(list), agent_node, str(SESSION_ID))
     assert agent_input == {}
     assert agent_output == {}
 
@@ -182,7 +182,7 @@ def test_extract_agent_io_ignores_failed_edge(agent_node):
             )
         ]
     }
-    agent_input, agent_output = extract_agent_io(failed_sink, agent_node, "test.json")
+    agent_input, agent_output = extract_agent_io(failed_sink, agent_node, str(SESSION_ID))
     assert agent_input == {}
     assert agent_output == {}
 
@@ -190,11 +190,11 @@ def test_extract_agent_io_ignores_failed_edge(agent_node):
 # ── resolve_file_paths ───────────────────────────────────────────────────────
 
 
-def test_resolve_file_paths_single_file(tmp_path, session_json):
+def test_resolve_file_paths_single_file_raises(tmp_path, session_json):
     path = tmp_path / "session.json"
     path.write_text(json.dumps(session_json))
-    result = resolve_file_paths(str(path))
-    assert result == [str(path)]
+    with pytest.raises(ValueError, match="must be a directory"):
+        resolve_file_paths(str(path))
 
 
 def test_resolve_file_paths_list(tmp_path, session_json):
@@ -211,7 +211,7 @@ def test_resolve_file_paths_directory(tmp_path, session_json):
     assert len(result) == 2
 
 
-def test_resolve_file_paths_missing_file():
+def test_resolve_file_paths_missing_path():
     with pytest.raises(FileNotFoundError):
         resolve_file_paths("/nonexistent/path/session.json")
 
@@ -232,7 +232,7 @@ def test_resolve_file_paths_directory_in_list(tmp_path):
 def test_extract_agent_data_points_from_file(tmp_path, session_json):
     path = tmp_path / "session.json"
     path.write_text(json.dumps(session_json))
-    data_points = extract_agent_data_points(str(path))
+    data_points = extract_agent_data_points([str(path)])
     assert len(data_points) == 1
     dp = data_points[0]
     assert dp.agent_name == "TestAgent"
@@ -243,8 +243,39 @@ def test_extract_agent_data_points_from_file(tmp_path, session_json):
 def test_extract_agent_data_points_tool_details(tmp_path, session_json):
     path = tmp_path / "session.json"
     path.write_text(json.dumps(session_json))
-    data_points = extract_agent_data_points(str(path))
+    data_points = extract_agent_data_points([str(path)])
     dp = data_points[0]
     assert "get_stock_price" in dp.tool_details.tool_names
     assert len(dp.tool_details.calls) == 1
     assert dp.tool_details.calls[0].output == 214.88
+
+
+def test_extract_agent_data_points_from_payload_list(session_json):
+    """In-memory payload list works without touching disk."""
+    data_points = extract_agent_data_points([session_json])
+    assert len(data_points) == 1
+    dp = data_points[0]
+    assert dp.agent_name == "TestAgent"
+    assert dp.session_id == SESSION_ID
+    assert len(dp.llm_details.calls) == 1
+
+
+def test_extract_agent_data_points_from_multiple_payloads(session_json):
+    """Each payload in the list yields its own AgentDataPoint(s)."""
+    data_points = extract_agent_data_points([session_json, session_json])
+    assert len(data_points) == 2
+    assert all(dp.session_id == SESSION_ID for dp in data_points)
+
+
+def test_extract_agent_data_points_empty_list_raises():
+    """An empty list still raises (file-path fallthrough preserved)."""
+    with pytest.raises(ValueError):
+        extract_agent_data_points([])
+
+
+def test_extract_agent_data_points_str_file_raises(tmp_path, session_json):
+    """A bare string file path is rejected; str inputs must be directories."""
+    path = tmp_path / "session.json"
+    path.write_text(json.dumps(session_json))
+    with pytest.raises(ValueError, match="must be a directory"):
+        extract_agent_data_points(str(path))
