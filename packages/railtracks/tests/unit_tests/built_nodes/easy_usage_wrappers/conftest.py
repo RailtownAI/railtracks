@@ -17,8 +17,8 @@ def mock_schema():
 
 @pytest.fixture
 def mock_function():
-    def f(x : int) -> int:
-        return x
+    def f(x : int, y : int) -> int:
+        return x + y
     return f
 
 @pytest.fixture

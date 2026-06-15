@@ -19,7 +19,7 @@ class _SimpleCalc:
         return x + y + self.offset
 
 @pytest.mark.asyncio
-async def async_func(x):
+async def async_func(x, y):
     return x
 
 def test_function_node_sync(mock_function, mock_manifest):
