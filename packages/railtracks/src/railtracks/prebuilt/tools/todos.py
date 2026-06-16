@@ -240,7 +240,10 @@ class ToDoToolSet(ToolSet):
         for todo in self._get_all_todos():
             if todo.identifier == todo_id:
                 todo.update_state(State.NO_LONGER_PLANNED)
-                return "Successfully marked todo as no longer planned:\n" + todo.complete_print()
+                return (
+                    "Successfully marked todo as no longer planned:\n"
+                    + todo.complete_print()
+                )
         raise ValueError(f"Todo with identifier '{todo_id}' not found.")
 
     def make_all_no_longer_planned(self):
