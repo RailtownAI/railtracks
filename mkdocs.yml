@@ -86,6 +86,9 @@ nav:
       - Agent Design:
           - Overview: documentation/agent_design/overview.md
           - Tools:
+              - Prebuilt Tools:
+                  - Overview: documentation/agent_design/tools/prebuilt/overview.md
+                  - To Do Tool: documentation/agent_design/tools/prebuilt/todos.md
               - Function Tools: documentation/agent_design/tools/function_tools.md
               - Agents as Tools: documentation/agent_design/tools/agents_as_tools.md
               - MCP: documentation/agent_design/tools/mcp.md

@@ -58,7 +58,7 @@ class ToDoToolSet(ToolSet):
     def add(
         self, short_description: str, description: str, state: State = State.NOT_STARTED
     ):
-        """Add a new todo scoped to the current node context.
+        """Add a new todo to this toolset instance.
 
         Args:
             short_description: Brief, unique label for the todo (used as its identifier in listings).
@@ -68,17 +68,17 @@ class ToDoToolSet(ToolSet):
         Raises:
             ValueError: If a todo with the same short_description or description already exists.
         """
-        try:
-            self.add_callback(short_description, description, state)
-        except Exception as e:
-            logger.error(f"Error in callback for todo: {e}")
-
         to_do = ToDo(
             short_description=short_description, description=description, state=state
         )
         validity_check = self.check_if_valid(self.todos, to_do)
         if validity_check is not None:
             raise ValueError(validity_check)
+
+        try:
+            self.add_callback(short_description, description, state)
+        except Exception as e:
+            logger.error(f"Error in callback for todo: {e}")
 
         self.todos.append(to_do)
 
@@ -106,7 +106,7 @@ class ToDoToolSet(ToolSet):
         return self.todos
 
     def get_all_todos(self) -> list[str]:
-        """Return formatted strings for all todos in the current context.
+        """Return formatted strings for all todos in this instance.
 
         Returns:
             List of complete_print() strings for all todos.
@@ -114,7 +114,7 @@ class ToDoToolSet(ToolSet):
         return [todo.complete_print() for todo in self._get_all_todos()]
 
     def get_completed_todos(self) -> list[str]:
-        """Return formatted strings for all completed todos in the current context.
+        """Return formatted strings for all completed todos in this instance.
 
         Returns:
             List of complete_print() strings for todos in COMPLETED state.
@@ -126,7 +126,7 @@ class ToDoToolSet(ToolSet):
         ]
 
     def get_not_started_todos(self) -> list[str]:
-        """Return formatted strings for todos that have not been started in the current context.
+        """Return formatted strings for todos that have not been started in this instance.
 
         Returns:
             List of complete_print() strings for todos in NOT_STARTED state.
@@ -159,7 +159,7 @@ class ToDoToolSet(ToolSet):
             Confirmation string with the updated todo details.
 
         Raises:
-            ValueError: If no todo with the given id exists in the current context.
+            ValueError: If no todo with the given id exists in this instance.
         """
         for todo in self._get_all_todos():
             if todo.identifier == todo_id:
@@ -177,7 +177,7 @@ class ToDoToolSet(ToolSet):
             Confirmation string with the updated todo details.
 
         Raises:
-            ValueError: If no todo with the given id exists in the current context.
+            ValueError: If no todo with the given id exists in this instance.
         """
         for todo in self._get_all_todos():
             if todo.identifier == todo_id:
@@ -196,7 +196,7 @@ class ToDoToolSet(ToolSet):
             Confirmation string with the updated todo details.
 
         Raises:
-            ValueError: If no todo with the given id exists in the current context.
+            ValueError: If no todo with the given id exists in this instance.
         """
         for todo in self._get_all_todos():
             if todo.identifier == todo_id:
@@ -205,7 +205,7 @@ class ToDoToolSet(ToolSet):
         raise ValueError(f"Todo with identifier '{todo_id}' not found.")
 
     def pretty_dashboard(self) -> str:
-        """Return a human-readable summary of all todos in the current context.
+        """Return a human-readable summary of all todos in this instance.
 
         Returns:
             Formatted string listing each todo's state and short description, or a
@@ -224,12 +224,12 @@ class ToDoToolSet(ToolSet):
     @classmethod
     def prompt(cls) -> str:
         return (
-            "Use the todo tools to track tasks throughout your work. "
-            "Before starting, call add() for each task you plan to complete. "
+            "Use the todo tools to plan and track your work. "
+            "Begin by calling add() for every task before starting any of them. "
             "Call start_todo_by_id() when you begin a task and complete_todo_by_id() when it is done. "
-            "Use pretty_dashboard() to review current progress. "
-            "Each todo must have a unique short_description and description. "
-            "Retrieve todo identifiers from get_all_todos() before calling any id-based methods."
+            "Use update_todo_by_id() if a task needs a state change outside of starting or completing. "
+            "Retrieve identifiers via get_all_todos() before calling any id-based method. "
+            "Each todo requires a unique short_description and description."
         )
 
     def tool_set(self) -> list[RTFunction]:

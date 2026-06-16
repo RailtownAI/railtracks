@@ -18,7 +18,6 @@ class _SimpleCalc:
         """Async variant."""
         return x + y + self.offset
 
-@pytest.mark.asyncio
 async def async_func(x, y):
     return x
 
