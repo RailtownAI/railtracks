@@ -71,6 +71,7 @@ class ToDoToolSet(ToolSet):
         to_do = ToDo(
             short_description=short_description, description=description, state=state
         )
+        
         validity_check = self.check_if_valid(self.todos, to_do)
         if validity_check is not None:
             raise ValueError(validity_check)
