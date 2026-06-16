@@ -9,7 +9,7 @@ to_dos = rt.prebuilt.ToDoToolSet(
 
 Agent = rt.agent_node(
     name="Test Agent",
-    tool_nodes=to_dos.tool_set(), # this creates a list of tools your agent can access
+    tool_nodes=[*to_dos.tool_set(), ], # this creates a list of tools your agent can access
     llm=rt.llm.OpenAILLM("gpt-4o"),
     system_message="..."
 )

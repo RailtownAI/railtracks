@@ -2,4 +2,4 @@ Railtracks provides a set of built-in tools that help you skip the engineering p
 
 
 ## Overview of Pre-Built Tools
-- [To Do Tool](todos.md): A tool for your agent to track and plan out to do's. This tool allows your agent to create, manage, and persist to do items across interactions.
+- [To Do Tool](todos.md): A tool for your agent to track and plan out todo's. This tool allows your agent to create, manage, and persist to do items across interactions.

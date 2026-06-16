@@ -41,19 +41,19 @@ class ToDo(BaseModel):
 
 
 class ToDoToolSet(ToolSet):
-    def __init__(self, add_callback: Callable[[str, str, State], None] | None = None):
+    def __init__(self, callback: Callable[[str, str, State], None] | None = None):
         self.todos: list[ToDo] = []
 
-        if add_callback is None:
+        if callback is None:
 
             def default_add_callback(
                 short_description: str, description: str, state: State
             ):
                 pass
 
-            add_callback = default_add_callback
+            callback = default_add_callback
 
-        self.add_callback = add_callback
+        self.add_callback = callback
 
     def add(
         self, short_description: str, description: str, state: State = State.NOT_STARTED
