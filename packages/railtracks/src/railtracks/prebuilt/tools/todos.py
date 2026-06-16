@@ -24,7 +24,6 @@ class ToDo(BaseModel):
     description: str = Field(description="...")
     state: State = Field(description="...", default=State.NOT_STARTED)
 
-    # TODO: add validation here.
 
     @property
     def identifier(self) -> int:
