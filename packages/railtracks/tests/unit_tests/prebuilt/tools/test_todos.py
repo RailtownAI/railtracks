@@ -16,7 +16,7 @@ def ts():
 @pytest.fixture
 def ts_with_callback():
     cb = MagicMock()
-    return ToDoToolSet(add_callback=cb), cb
+    return ToDoToolSet(callback=cb), cb
 
 
 @pytest.fixture
@@ -24,6 +24,16 @@ def populated(ts):
     ts.add("task-a", "Description of task A")
     ts.add("task-b", "Description of task B", state=State.IN_PROGRESS)
     ts.add("task-c", "Description of task C", state=State.COMPLETED)
+    return ts
+
+
+@pytest.fixture
+def full_populated(ts):
+    ts.add("task-a", "Description of task A")
+    ts.add("task-b", "Description of task B", state=State.IN_PROGRESS)
+    ts.add("task-c", "Description of task C", state=State.COMPLETED)
+    ts.add("task-d", "Description of task D", state=State.FAILED)
+    ts.add("task-e", "Description of task E", state=State.NO_LONGER_PLANNED)
     return ts
 
 
@@ -37,7 +47,7 @@ def test_init_empty_todos(ts):
 
 def test_init_custom_callback():
     cb = MagicMock()
-    t = ToDoToolSet(add_callback=cb)
+    t = ToDoToolSet(callback=cb)
     t.add("x", "desc x")
     cb.assert_called_once_with("x", "desc x", State.NOT_STARTED)
 
@@ -91,7 +101,7 @@ def test_add_callback_not_fired_on_validation_failure(ts_with_callback):
 
 def test_add_callback_exception_is_logged_and_todo_still_added(ts):
     failing_cb = MagicMock(side_effect=RuntimeError("boom"))
-    t = ToDoToolSet(add_callback=failing_cb)
+    t = ToDoToolSet(callback=failing_cb)
     with patch("railtracks.prebuilt.tools.todos.logger") as mock_logger:
         t.add("task", "description")
         mock_logger.error.assert_called_once()
@@ -110,6 +120,13 @@ def test_get_all_todos_returns_formatted_strings(populated):
     result = populated.get_all_todos()
     assert len(result) == 3
     assert all(isinstance(s, str) for s in result)
+
+
+def test_get_all_todos_excludes_no_longer_planned(full_populated):
+    result = full_populated.get_all_todos()
+    descriptions = " ".join(result)
+    assert "task-e" not in descriptions
+    assert len(result) == 4
 
 
 # ---------------------------------------------------------------------------
@@ -135,6 +152,32 @@ def test_get_incomplete_todos_includes_not_started_and_in_progress(populated):
     assert "task-a" in descriptions
     assert "task-b" in descriptions
     assert "task-c" not in descriptions
+
+
+def test_get_incomplete_todos_includes_failed(full_populated):
+    result = full_populated.get_incomplete_todos()
+    descriptions = " ".join(result)
+    assert "task-d" in descriptions
+
+
+def test_get_incomplete_todos_excludes_no_longer_planned(full_populated):
+    result = full_populated.get_incomplete_todos()
+    descriptions = " ".join(result)
+    assert "task-e" not in descriptions
+
+
+# ---------------------------------------------------------------------------
+# get_failed_todos()
+# ---------------------------------------------------------------------------
+
+def test_get_failed_todos_empty(populated):
+    assert populated.get_failed_todos() == []
+
+
+def test_get_failed_todos_returns_only_failed(full_populated):
+    result = full_populated.get_failed_todos()
+    assert len(result) == 1
+    assert "task-d" in result[0]
 
 
 # ---------------------------------------------------------------------------
@@ -181,6 +224,69 @@ def test_update_todo_by_id_not_found(ts):
 
 
 # ---------------------------------------------------------------------------
+# fail_todo_by_id()
+# ---------------------------------------------------------------------------
+
+def test_fail_todo_by_id(ts):
+    ts.add("task", "description")
+    todo_id = ts.todos[0].identifier
+    result = ts.fail_todo_by_id(todo_id)
+    assert ts.todos[0].state == State.FAILED
+    assert "failed" in result
+
+
+def test_fail_todo_by_id_not_found(ts):
+    with pytest.raises(ValueError, match="not found"):
+        ts.fail_todo_by_id(999)
+
+
+# ---------------------------------------------------------------------------
+# no_longer_plan_todo_by_id()
+# ---------------------------------------------------------------------------
+
+def test_no_longer_plan_todo_by_id(ts):
+    ts.add("task", "description")
+    todo_id = ts.todos[0].identifier
+    result = ts.no_longer_plan_todo_by_id(todo_id)
+    assert ts.todos[0].state == State.NO_LONGER_PLANNED
+    assert "no longer planned" in result
+
+
+def test_no_longer_plan_todo_by_id_not_found(ts):
+    with pytest.raises(ValueError, match="not found"):
+        ts.no_longer_plan_todo_by_id(999)
+
+
+# ---------------------------------------------------------------------------
+# make_all_no_longer_planned()
+# ---------------------------------------------------------------------------
+
+def test_make_all_no_longer_planned_affects_not_started_and_in_progress(ts):
+    ts.add("task-a", "desc a")
+    ts.add("task-b", "desc b", state=State.IN_PROGRESS)
+    ts.add("task-c", "desc c", state=State.COMPLETED)
+    ts.add("task-d", "desc d", state=State.FAILED)
+    ts.make_all_no_longer_planned()
+    assert ts.todos[0].state == State.NO_LONGER_PLANNED
+    assert ts.todos[1].state == State.NO_LONGER_PLANNED
+    assert ts.todos[2].state == State.COMPLETED
+    assert ts.todos[3].state == State.FAILED
+
+
+def test_make_all_no_longer_planned_returns_count(ts):
+    ts.add("task-a", "desc a")
+    ts.add("task-b", "desc b", state=State.IN_PROGRESS)
+    ts.add("task-c", "desc c", state=State.COMPLETED)
+    result = ts.make_all_no_longer_planned()
+    assert "2" in result
+
+
+def test_make_all_no_longer_planned_empty(ts):
+    result = ts.make_all_no_longer_planned()
+    assert "0" in result
+
+
+# ---------------------------------------------------------------------------
 # pretty_dashboard()
 # ---------------------------------------------------------------------------
 
@@ -193,6 +299,16 @@ def test_pretty_dashboard_lists_todos(populated):
     assert "task-a" in result
     assert "task-b" in result
     assert "task-c" in result
+
+
+def test_pretty_dashboard_excludes_no_longer_planned(full_populated):
+    result = full_populated.pretty_dashboard()
+    assert "task-e" not in result
+
+
+def test_pretty_dashboard_only_no_longer_planned_shows_empty(ts):
+    ts.add("task", "description", state=State.NO_LONGER_PLANNED)
+    assert ts.pretty_dashboard() == "No todos found."
 
 
 # ---------------------------------------------------------------------------

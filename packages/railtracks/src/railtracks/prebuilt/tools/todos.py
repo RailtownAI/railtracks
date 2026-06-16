@@ -17,6 +17,8 @@ class State(Enum):
     NOT_STARTED = "not_started"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
+    FAILED = "failed"
+    NO_LONGER_PLANNED = "no_longer_planned"
 
 
 class ToDo(BaseModel):
@@ -104,12 +106,16 @@ class ToDoToolSet(ToolSet):
         return self.todos
 
     def get_all_todos(self) -> list[str]:
-        """Return formatted strings for all todos in this instance.
+        """Return formatted strings for all active todos (excludes NO_LONGER_PLANNED).
 
         Returns:
-            List of complete_print() strings for all todos.
+            List of complete_print() strings for todos not in NO_LONGER_PLANNED state.
         """
-        return [todo.complete_print() for todo in self._get_all_todos()]
+        return [
+            todo.complete_print()
+            for todo in self._get_all_todos()
+            if todo.state != State.NO_LONGER_PLANNED
+        ]
 
     def get_completed_todos(self) -> list[str]:
         """Return formatted strings for all completed todos in this instance.
@@ -136,15 +142,30 @@ class ToDoToolSet(ToolSet):
         ]
 
     def get_incomplete_todos(self) -> list[str]:
-        """Return formatted strings for all unfinished todos (not started or in progress).
+        """Return formatted strings for all unfinished todos (not started, in progress, or failed).
+
+        NO_LONGER_PLANNED todos are excluded.
 
         Returns:
-            List of complete_print() strings for todos in NOT_STARTED or IN_PROGRESS state.
+            List of complete_print() strings for todos in NOT_STARTED, IN_PROGRESS, or FAILED state.
+        """
+        incomplete_states = {State.NOT_STARTED, State.IN_PROGRESS, State.FAILED}
+        return [
+            todo.complete_print()
+            for todo in self._get_all_todos()
+            if todo.state in incomplete_states
+        ]
+
+    def get_failed_todos(self) -> list[str]:
+        """Return formatted strings for all failed todos in this instance.
+
+        Returns:
+            List of complete_print() strings for todos in FAILED state.
         """
         return [
             todo.complete_print()
             for todo in self._get_all_todos()
-            if todo.state == State.NOT_STARTED or todo.state == State.IN_PROGRESS
+            if todo.state == State.FAILED
         ]
 
     def complete_todo_by_id(self, todo_id: int):
@@ -183,6 +204,61 @@ class ToDoToolSet(ToolSet):
                 return "Successfully started todo:\n" + todo.complete_print()
         raise ValueError(f"Todo with identifier '{todo_id}' not found.")
 
+    def fail_todo_by_id(self, todo_id: int):
+        """Mark a todo as FAILED.
+
+        Args:
+            todo_id: The integer identifier of the todo (from ToDo.identifier).
+
+        Returns:
+            Confirmation string with the updated todo details.
+
+        Raises:
+            ValueError: If no todo with the given id exists in this instance.
+        """
+        for todo in self._get_all_todos():
+            if todo.identifier == todo_id:
+                todo.update_state(State.FAILED)
+                return "Successfully marked todo as failed:\n" + todo.complete_print()
+        raise ValueError(f"Todo with identifier '{todo_id}' not found.")
+
+    def no_longer_plan_todo_by_id(self, todo_id: int):
+        """Mark a todo as NO_LONGER_PLANNED.
+
+        Todos in this state are excluded from most views. Use when a planned task
+        is no longer relevant without it being a failure.
+
+        Args:
+            todo_id: The integer identifier of the todo (from ToDo.identifier).
+
+        Returns:
+            Confirmation string with the updated todo details.
+
+        Raises:
+            ValueError: If no todo with the given id exists in this instance.
+        """
+        for todo in self._get_all_todos():
+            if todo.identifier == todo_id:
+                todo.update_state(State.NO_LONGER_PLANNED)
+                return "Successfully marked todo as no longer planned:\n" + todo.complete_print()
+        raise ValueError(f"Todo with identifier '{todo_id}' not found.")
+
+    def make_all_no_longer_planned(self):
+        """Mark all not-started and in-progress todos as NO_LONGER_PLANNED.
+
+        COMPLETED and FAILED todos are left unchanged. Use when abandoning the
+        current plan entirely.
+
+        Returns:
+            Confirmation string with the number of todos affected.
+        """
+        affected = 0
+        for todo in self._get_all_todos():
+            if todo.state in {State.NOT_STARTED, State.IN_PROGRESS}:
+                todo.update_state(State.NO_LONGER_PLANNED)
+                affected += 1
+        return f"Marked {affected} todo(s) as no longer planned."
+
     def update_todo_by_id(self, todo_id: int, new_state: State):
         """Update a todo to an arbitrary state.
 
@@ -203,13 +279,13 @@ class ToDoToolSet(ToolSet):
         raise ValueError(f"Todo with identifier '{todo_id}' not found.")
 
     def pretty_dashboard(self) -> str:
-        """Return a human-readable summary of all todos in this instance.
+        """Return a human-readable summary of active todos (excludes NO_LONGER_PLANNED).
 
         Returns:
-            Formatted string listing each todo's state and short description, or a
+            Formatted string listing each active todo's state and short description, or a
             'No todos found.' message if none exist.
         """
-        todos = self._get_all_todos()
+        todos = [t for t in self._get_all_todos() if t.state != State.NO_LONGER_PLANNED]
         if not todos:
             return "No todos found."
 
@@ -225,7 +301,10 @@ class ToDoToolSet(ToolSet):
             "Use the todo tools to plan and track your work. "
             "Begin by calling add() for every task before starting any of them. "
             "Call start_todo_by_id() when you begin a task and complete_todo_by_id() when it is done. "
-            "Use update_todo_by_id() if a task needs a state change outside of starting or completing. "
+            "If a task cannot be completed, call fail_todo_by_id() instead. "
+            "If a planned task is no longer relevant, call no_longer_plan_todo_by_id() to remove it from active views. "
+            "To abandon the entire current plan, call make_all_no_longer_planned() — this leaves completed and failed todos unchanged. "
+            "Use update_todo_by_id() if a task needs a state change outside of the helpers above. "
             "Retrieve identifiers via get_all_todos() before calling any id-based method. "
             "Each todo requires a unique short_description and description."
         )
@@ -235,11 +314,15 @@ class ToDoToolSet(ToolSet):
             self.add,
             self.complete_todo_by_id,
             self.start_todo_by_id,
+            self.fail_todo_by_id,
+            self.no_longer_plan_todo_by_id,
+            self.make_all_no_longer_planned,
             self.update_todo_by_id,
             self.get_all_todos,
             self.get_completed_todos,
             self.get_not_started_todos,
             self.get_incomplete_todos,
+            self.get_failed_todos,
         ]
 
         return [rt.function_node(func) for func in functions]
