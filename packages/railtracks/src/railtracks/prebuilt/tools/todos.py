@@ -24,7 +24,6 @@ class ToDo(BaseModel):
     description: str = Field(description="...")
     state: State = Field(description="...", default=State.NOT_STARTED)
 
-
     @property
     def identifier(self) -> int:
         return id(self)
