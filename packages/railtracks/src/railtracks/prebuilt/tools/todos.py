@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import defaultdict
 import railtracks as rt
 from typing import Callable
 
@@ -9,8 +8,6 @@ from railtracks.built_nodes.concrete.function_base import RTFunction
 from railtracks.utils.logging.create import get_rt_logger
 
 from ._base import ToolSet
-
-from ...context.central import get_parent_id
 
 from enum import Enum
 
@@ -45,12 +42,10 @@ class ToDo(BaseModel):
     
 class ToDoToolSet(ToolSet):
     def __init__(self, add_callback: Callable[[str, str, State], None] | None = None):
-        self.todos: dict[str, list[ToDo]] = defaultdict(list)
-        self.misc_todos: list[ToDo] = []
+        self.todos: list[ToDo] = []
 
         if add_callback is None:
             def default_add_callback(short_description: str, description: str, state: State):
-                # default is to do nothing.
                 pass
             add_callback = default_add_callback
 
@@ -67,21 +62,17 @@ class ToDoToolSet(ToolSet):
         Raises:
             ValueError: If a todo with the same short_description or description already exists.
         """
-        parent_id = get_parent_id()
         try:
             self.add_callback(short_description, description, state)
         except Exception as e:
             logger.error(f"Error in callback for todo: {e}")
 
         to_do = ToDo(short_description=short_description, description=description, state=state)
-        validity_check = self.check_if_valid(self.get_all_todos(), to_do)
+        validity_check = self.check_if_valid(self.todos, to_do)
         if validity_check is not None:
             raise ValueError(validity_check)
 
-        if parent_id is None:
-            self.misc_todos.append(to_do)
-        else:
-            self.todos[parent_id].append(to_do)
+        self.todos.append(to_do)
 
     @classmethod
     def check_if_valid(_cls, todos: list[ToDo], todo_to_add: ToDo) -> str | None:
@@ -96,17 +87,23 @@ class ToDoToolSet(ToolSet):
         
         return None
 
-    def get_all_todos(self) -> list[ToDo]:
-        """Return all todos for the current node context.
+    def _get_all_todos(self) -> list[ToDo]:
+        """Return all todos for this toolset instance.
 
         Returns:
-            List of ToDo objects scoped to the current node, or misc todos if called outside a node.
+            List of all ToDo objects tracked by this instance.
         """
-        parent_id = get_parent_id()
-        if parent_id is None:
-            return self.misc_todos  
-        
-        return self.todos[parent_id]
+        return self.todos
+    
+    def get_all_todos(self) -> list[str]:
+        """Return formatted strings for all todos in the current context.
+
+        Returns:
+            List of complete_print() strings for all todos.
+        """
+        return [todo.complete_print() for todo in self._get_all_todos()]
+    
+
     
     def get_completed_todos(self) -> list[str]:
         """Return formatted strings for all completed todos in the current context.
@@ -114,7 +111,7 @@ class ToDoToolSet(ToolSet):
         Returns:
             List of complete_print() strings for todos in COMPLETED state.
         """
-        return [todo.complete_print() for todo in self.get_all_todos() if todo.state == State.COMPLETED]
+        return [todo.complete_print() for todo in self._get_all_todos() if todo.state == State.COMPLETED]
 
     def get_not_started_todos(self) -> list[str]:
         """Return formatted strings for todos that have not been started in the current context.
@@ -122,7 +119,7 @@ class ToDoToolSet(ToolSet):
         Returns:
             List of complete_print() strings for todos in NOT_STARTED state.
         """
-        return [todo.complete_print() for todo in self.get_all_todos() if todo.state == State.NOT_STARTED]
+        return [todo.complete_print() for todo in self._get_all_todos() if todo.state == State.NOT_STARTED]
 
     def get_incomplete_todos(self) -> list[str]:
         """Return formatted strings for all unfinished todos (not started or in progress).
@@ -130,7 +127,7 @@ class ToDoToolSet(ToolSet):
         Returns:
             List of complete_print() strings for todos in NOT_STARTED or IN_PROGRESS state.
         """
-        return [todo.complete_print() for todo in self.get_all_todos() if todo.state == State.NOT_STARTED or todo.state == State.IN_PROGRESS]
+        return [todo.complete_print() for todo in self._get_all_todos() if todo.state == State.NOT_STARTED or todo.state == State.IN_PROGRESS]
 
     def complete_todo_by_id(self, todo_id: int):
         """Mark a todo as COMPLETED.
@@ -144,7 +141,7 @@ class ToDoToolSet(ToolSet):
         Raises:
             ValueError: If no todo with the given id exists in the current context.
         """
-        for todo in self.get_all_todos():
+        for todo in self._get_all_todos():
             if todo.identifier == todo_id:
                 todo.update_state(State.COMPLETED)
                 return "Successfully completed todo:\n" + todo.complete_print()
@@ -162,7 +159,7 @@ class ToDoToolSet(ToolSet):
         Raises:
             ValueError: If no todo with the given id exists in the current context.
         """
-        for todo in self.get_all_todos():
+        for todo in self._get_all_todos():
             if todo.identifier == todo_id:
                 todo.update_state(State.IN_PROGRESS)
                 return "Successfully started todo:\n" + todo.complete_print()
@@ -181,7 +178,7 @@ class ToDoToolSet(ToolSet):
         Raises:
             ValueError: If no todo with the given id exists in the current context.
         """
-        for todo in self.get_all_todos():
+        for todo in self._get_all_todos():
             if todo.identifier == todo_id:
                 todo.update_state(new_state)
                 return "Successfully updated todo:\n" + todo.complete_print()
@@ -194,7 +191,7 @@ class ToDoToolSet(ToolSet):
             Formatted string listing each todo's state and short description, or a
             'No todos found.' message if none exist.
         """
-        todos = self.get_all_todos()
+        todos = self._get_all_todos()
         if not todos:
             return "No todos found."
 
