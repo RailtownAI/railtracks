@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-import railtracks as rt
+from enum import Enum
 from typing import Callable
 
+import railtracks as rt
 from pydantic import BaseModel, Field
 from railtracks.built_nodes.concrete.function_base import RTFunction
 from railtracks.utils.logging.create import get_rt_logger
 
 from ._base import ToolSet
 
-from enum import Enum
-
 logger = get_rt_logger(__name__)
+
 
 class State(Enum):
     NOT_STARTED = "not_started"
@@ -35,23 +35,29 @@ class ToDo(BaseModel):
 
     def complete_print(self) -> str:
         return f"({self.identifier}) [{self.state.value}] {self.short_description}: {self.description}"
-    
+
     def simplified_print(self) -> str:
         return f"{self.state.value} - {self.short_description}"
 
-    
+
 class ToDoToolSet(ToolSet):
     def __init__(self, add_callback: Callable[[str, str, State], None] | None = None):
         self.todos: list[ToDo] = []
 
         if add_callback is None:
-            def default_add_callback(short_description: str, description: str, state: State):
+
+            def default_add_callback(
+                short_description: str, description: str, state: State
+            ):
                 pass
+
             add_callback = default_add_callback
 
         self.add_callback = add_callback
 
-    def add(self, short_description: str, description: str, state: State = State.NOT_STARTED):
+    def add(
+        self, short_description: str, description: str, state: State = State.NOT_STARTED
+    ):
         """Add a new todo scoped to the current node context.
 
         Args:
@@ -67,7 +73,9 @@ class ToDoToolSet(ToolSet):
         except Exception as e:
             logger.error(f"Error in callback for todo: {e}")
 
-        to_do = ToDo(short_description=short_description, description=description, state=state)
+        to_do = ToDo(
+            short_description=short_description, description=description, state=state
+        )
         validity_check = self.check_if_valid(self.todos, to_do)
         if validity_check is not None:
             raise ValueError(validity_check)
@@ -75,16 +83,18 @@ class ToDoToolSet(ToolSet):
         self.todos.append(to_do)
 
     @classmethod
-    def check_if_valid(_cls, todos: list[ToDo], todo_to_add: ToDo) -> str | None:
+    def check_if_valid(cls, todos: list[ToDo], todo_to_add: ToDo) -> str | None:
         if todo_to_add.short_description in [todo.short_description for todo in todos]:
             return f"Todo with short description '{todo_to_add.short_description}' already exists. Please provide a unique short description."
-        
+
         if todo_to_add.description in [todo.description for todo in todos]:
             return f"Todo with description '{todo_to_add.description}' already exists. Please provide a unique description."
-        
+
         if todo_to_add.identifier in [todo.identifier for todo in todos]:
-            raise ValueError(f"Todo with identifier '{todo_to_add.identifier}' already exists. Please provide a unique identifier.")
-        
+            raise ValueError(
+                f"Todo with identifier '{todo_to_add.identifier}' already exists. Please provide a unique identifier."
+            )
+
         return None
 
     def _get_all_todos(self) -> list[ToDo]:
@@ -94,7 +104,7 @@ class ToDoToolSet(ToolSet):
             List of all ToDo objects tracked by this instance.
         """
         return self.todos
-    
+
     def get_all_todos(self) -> list[str]:
         """Return formatted strings for all todos in the current context.
 
@@ -102,16 +112,18 @@ class ToDoToolSet(ToolSet):
             List of complete_print() strings for all todos.
         """
         return [todo.complete_print() for todo in self._get_all_todos()]
-    
 
-    
     def get_completed_todos(self) -> list[str]:
         """Return formatted strings for all completed todos in the current context.
 
         Returns:
             List of complete_print() strings for todos in COMPLETED state.
         """
-        return [todo.complete_print() for todo in self._get_all_todos() if todo.state == State.COMPLETED]
+        return [
+            todo.complete_print()
+            for todo in self._get_all_todos()
+            if todo.state == State.COMPLETED
+        ]
 
     def get_not_started_todos(self) -> list[str]:
         """Return formatted strings for todos that have not been started in the current context.
@@ -119,7 +131,11 @@ class ToDoToolSet(ToolSet):
         Returns:
             List of complete_print() strings for todos in NOT_STARTED state.
         """
-        return [todo.complete_print() for todo in self._get_all_todos() if todo.state == State.NOT_STARTED]
+        return [
+            todo.complete_print()
+            for todo in self._get_all_todos()
+            if todo.state == State.NOT_STARTED
+        ]
 
     def get_incomplete_todos(self) -> list[str]:
         """Return formatted strings for all unfinished todos (not started or in progress).
@@ -127,7 +143,11 @@ class ToDoToolSet(ToolSet):
         Returns:
             List of complete_print() strings for todos in NOT_STARTED or IN_PROGRESS state.
         """
-        return [todo.complete_print() for todo in self._get_all_todos() if todo.state == State.NOT_STARTED or todo.state == State.IN_PROGRESS]
+        return [
+            todo.complete_print()
+            for todo in self._get_all_todos()
+            if todo.state == State.NOT_STARTED or todo.state == State.IN_PROGRESS
+        ]
 
     def complete_todo_by_id(self, todo_id: int):
         """Mark a todo as COMPLETED.
@@ -146,7 +166,7 @@ class ToDoToolSet(ToolSet):
                 todo.update_state(State.COMPLETED)
                 return "Successfully completed todo:\n" + todo.complete_print()
         raise ValueError(f"Todo with identifier '{todo_id}' not found.")
-    
+
     def start_todo_by_id(self, todo_id: int):
         """Mark a todo as IN_PROGRESS.
 
@@ -198,7 +218,7 @@ class ToDoToolSet(ToolSet):
         dashboard_str = "To-Dos\n"
         for todo in todos:
             dashboard_str += todo.simplified_print() + "\n"
-        
+
         return dashboard_str.strip()
 
     @classmethod
@@ -211,10 +231,8 @@ class ToDoToolSet(ToolSet):
             "Each todo must have a unique short_description and description. "
             "Retrieve todo identifiers from get_all_todos() before calling any id-based methods."
         )
-    
-    
+
     def tool_set(self) -> list[RTFunction]:
-        
         functions = [
             self.add,
             self.complete_todo_by_id,
@@ -227,6 +245,3 @@ class ToDoToolSet(ToolSet):
         ]
 
         return [rt.function_node(func) for func in functions]
-
-
-
