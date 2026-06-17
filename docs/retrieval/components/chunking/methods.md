@@ -1,6 +1,6 @@
 # Chunking: Built-in methods
 
-Five chunkers ship under `railtracks.retrieval.chunking`. Pick one based on
+Six chunkers ship under `railtracks.retrieval.chunking`. Pick one based on
 your source format and whether you need offsets back.
 
 ---
@@ -9,11 +9,40 @@ your source format and whether you need offsets back.
 
 | Chunker | Best for | Offsets on `Chunk`? |
 |---|---|---|
+| `IdentityChunker` | No splitting; entire document as one chunk. Baseline and pass-through. | Yes (full-document span) |
 | `RecursiveCharacterChunker` | **Default choice.** General text and markdown bodies. | Yes (character spans) |
 | `MarkdownHeaderChunker` | Markdown with `#` / `##` hierarchy; header context in metadata. | Yes (when body spans are known) |
 | `SentenceChunker` | Sentence-window retrieval; overlap measured in *sentences*. | Yes |
 | `SemanticChunker` | Topic boundaries via embeddings; variable chunk size. | Yes (unit spans in source text) |
 | `FixedTokenChunker` | Hard token budget per chunk (e.g. matching embedder max). | No (see note) |
+
+---
+
+## `IdentityChunker`
+
+Emits the entire document as a single chunk. No splitting is performed.
+``Chunk.offsets`` spans ``(0, len(document.content))`` so offset-based slicing
+works correctly downstream, just like with every other chunker.
+
+```python
+from railtracks.retrieval.chunking import IdentityChunker
+
+chunker = IdentityChunker()
+chunks = chunker.chunk(document)
+# len(chunks) == 1 (or 0 for empty documents)
+# chunks[0].content == document.content
+```
+
+**When to use:**
+
+- Short documents that must never be split (e.g. individual FAQ entries,
+  product descriptions, code snippets).
+- Baseline experiments: compare retrieval quality against a splitting strategy
+  with no other variables changed.
+- Pipeline pass-through: adapting a loader's output to a ``Chunker``-based
+  interface when the downstream expects chunks but splitting is undesirable.
+
+**Offsets:** Yes. ``Chunk.offsets == (0, len(document.content))``.
 
 ---
 
@@ -133,6 +162,7 @@ limit.
 
 | Situation | Start with |
 |---|---|
+| Short docs that must stay whole, or pipeline pass-through | `IdentityChunker` |
 | Plain text, HTML-to-text, PDF extract, mixed prose | `RecursiveCharacterChunker` |
 | Markdown with real heading structure | `MarkdownHeaderChunker` (optionally + `chunk_size`) |
 | Sentence-aligned retrieval windows | `SentenceChunker` |
