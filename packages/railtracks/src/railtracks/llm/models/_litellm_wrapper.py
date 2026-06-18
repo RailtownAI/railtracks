@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import mimetypes
 import time
 import warnings
 from abc import ABC
@@ -719,12 +720,16 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
                             "Use a PDF-capable model (e.g. gpt-4o, claude-3-5-sonnet) "
                             "or render the PDF pages to images first."
                         )
+                    fallback_ext = (
+                        mimetypes.guess_extension(msg_attachment.mime_type or "") or ""
+                    )
                     content_list.append(
                         {
                             "type": "file",
                             "file": {
                                 "file_data": url,
-                                "filename": msg_attachment.filename or "attachment.pdf",
+                                "filename": msg_attachment.filename
+                                or f"attachment{fallback_ext}",
                             },
                         }
                     )

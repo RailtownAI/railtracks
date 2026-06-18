@@ -5,7 +5,7 @@ from urllib.error import HTTPError
 import pytest
 
 from railtracks.llm.encoding import detect_source, encode, ensure_data_uri, _is_base64_attachment
-from railtracks.llm.image_formats import detect_image_mime_from_bytes
+from railtracks.llm.attachment_formats import detect_image_mime_from_bytes
 
 
 class TestDetectSource:

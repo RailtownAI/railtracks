@@ -213,6 +213,58 @@ class TestAttachment:
         assert attachment.encoding is not None
         assert attachment.encoding.startswith("data:application/pdf;base64,")
 
+    def test_url_without_extension_probes_content_type(self, monkeypatch):
+        """
+        Real-world case: https://arxiv.org/pdf/1706.03762 has no .pdf extension
+        but serves application/pdf. We HEAD-probe the URL and use Content-Type +
+        Content-Disposition to classify it as a document.
+        """
+        from railtracks.llm import message as message_module
+
+        pdf_bytes = b"%PDF-1.4\n%remote pdf body\n%%EOF"
+
+        class _FakeResp:
+            headers = {
+                "Content-Type": "application/pdf",
+                "Content-Disposition": 'inline; filename="1706.03762v7.pdf"',
+            }
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        def fake_urlopen(req, timeout=None):
+            assert req.get_method() == "HEAD"
+            return _FakeResp()
+
+        def fake_encode(path):
+            import base64 as _b64
+            return _b64.b64encode(pdf_bytes).decode("utf-8")
+
+        monkeypatch.setattr(message_module.urllib_request, "urlopen", fake_urlopen)
+        monkeypatch.setattr(message_module, "encode", fake_encode)
+
+        attachment = Attachment("https://arxiv.org/pdf/1706.03762")
+        assert attachment.modality == "document"
+        assert attachment.mime_type == "application/pdf"
+        assert attachment.filename == "1706.03762v7.pdf"
+        assert attachment.encoding is not None
+        assert attachment.encoding.startswith("data:application/pdf;base64,")
+
+    def test_url_probe_failure_defaults_to_image(self, monkeypatch):
+        """If HEAD fails, fall back to image so the provider can try the URL."""
+        from urllib.error import URLError
+
+        from railtracks.llm import message as message_module
+
+        def fake_urlopen(req, timeout=None):
+            raise URLError("nope")
+
+        monkeypatch.setattr(message_module.urllib_request, "urlopen", fake_urlopen)
+
+        attachment = Attachment("https://example.com/something-no-extension")
+        assert attachment.modality == "image"
+        assert attachment.mime_type is None
+        assert attachment.encoding is None
+
     def test_data_uri(self):
         data_uri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA"
         attachment = Attachment(data_uri)

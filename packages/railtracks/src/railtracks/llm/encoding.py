@@ -6,7 +6,7 @@ from typing import Literal
 from urllib import error, request
 from urllib.parse import urlparse
 
-from .image_formats import detect_attachment_mime_from_bytes
+from .attachment_formats import detect_attachment_mime_from_bytes
 
 
 def _is_base64_attachment(s: str) -> bool:

@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from copy import deepcopy
 from enum import Enum
 from typing import Generic, TypeVar
+from urllib import error as urllib_error
+from urllib import request as urllib_request
 from urllib.parse import urlparse
 
 from .content import Content, ToolCall, ToolResponse
@@ -30,6 +33,28 @@ def _modality_for_mime(mime_type: str) -> str:
     if mime_type == "application/pdf":
         return "document"
     return "image"
+
+
+def _probe_url_metadata(url: str) -> tuple[str | None, str | None]:
+    """HEAD-probe a URL and return (content_type, filename) or (None, None) on failure.
+
+    Used when a URL has no recognized extension (e.g. arxiv.org/pdf/1706.03762
+    serves a PDF but has no `.pdf` suffix). content_type strips any `; charset=...`
+    suffix; filename comes from Content-Disposition if present.
+    """
+    try:
+        req = urllib_request.Request(url, method="HEAD")
+        with urllib_request.urlopen(req, timeout=10) as resp:
+            ct = (
+                resp.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+                or None
+            )
+            cd = resp.headers.get("Content-Disposition", "")
+            m = re.search(r'filename\*?=(?:[^\'\"]*\'\')?"?([^";]+)"?', cd)
+            fname = m.group(1).strip() if m else None
+            return ct, fname
+    except (urllib_error.URLError, OSError, ValueError):
+        return None, None
 
 
 class Attachment:
@@ -73,10 +98,20 @@ class Attachment:
                 url_path = urlparse(self.url).path
                 _, file_extension = os.path.splitext(url_path)
                 file_extension = file_extension.lower()
+                probed_filename: str | None = None
                 if file_extension in _EXTENSION_MIME_MAP:
                     self.mime_type = _EXTENSION_MIME_MAP[file_extension]
+                else:
+                    # No usable extension (e.g. https://arxiv.org/pdf/1706.03762);
+                    # HEAD-probe to figure out what we're actually being handed.
+                    probed_ct, probed_filename = _probe_url_metadata(self.url)
+                    if probed_ct == "application/pdf" or (
+                        probed_ct and probed_ct.startswith("image/")
+                    ):
+                        self.mime_type = probed_ct
+                if self.mime_type:
                     self.modality = _modality_for_mime(self.mime_type)
-                self.filename = os.path.basename(url_path) or None
+                self.filename = probed_filename or os.path.basename(url_path) or None
                 # Provider file blocks need base64; image_url blocks accept the URL as-is.
                 if self.modality == "document":
                     self.encoding = f"data:{self.mime_type};base64,{encode(url)}"
