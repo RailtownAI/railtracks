@@ -714,6 +714,12 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
                     else msg_attachment.url
                 )
                 if getattr(msg_attachment, "modality", "image") == "document":
+                    if not litellm.utils.supports_pdf_input(self._model_name):
+                        raise ValueError(
+                            f"Model {self._model_name!r} does not support PDF attachments. "
+                            "Use a PDF-capable model (e.g. gpt-4o, claude-3-5-sonnet) "
+                            "or render the PDF pages to images first."
+                        )
                     filename = os.path.basename(msg_attachment.url) or "attachment.pdf"
                     content_list.append(
                         {

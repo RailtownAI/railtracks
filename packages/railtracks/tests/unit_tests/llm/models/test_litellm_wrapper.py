@@ -151,7 +151,7 @@ class TestHelpers:
         """
         import base64 as _b64
 
-        wrapper = mock_litellm_wrapper()
+        wrapper = mock_litellm_wrapper(model_name="gpt-4o")
         pdf_bytes = b"%PDF-1.4\n%fake pdf\n%%EOF"
         b64 = _b64.b64encode(pdf_bytes).decode("utf-8")
         data_uri = f"data:application/pdf;base64,{b64}"
@@ -169,6 +169,26 @@ class TestHelpers:
         assert file_block["type"] == "file"
         assert file_block["file"]["file_data"] == data_uri
         assert "filename" in file_block["file"]
+
+    def test_to_litellm_message_pdf_attachment_rejected_for_unsupported_model(
+        self,
+        mock_litellm_wrapper,
+    ):
+        """
+        Serializing a PDF attachment for a model that does not support PDF input
+        must raise a clear ValueError naming the model, instead of letting the
+        provider 400 later.
+        """
+        import base64 as _b64
+
+        wrapper = mock_litellm_wrapper(model_name="gpt-3.5-turbo")
+        pdf_bytes = b"%PDF-1.4\n%fake pdf\n%%EOF"
+        b64 = _b64.b64encode(pdf_bytes).decode("utf-8")
+        data_uri = f"data:application/pdf;base64,{b64}"
+        message = UserMessage(content="Summarize this.", attachment=[data_uri])
+
+        with pytest.raises(ValueError, match="does not support PDF attachments"):
+            wrapper._to_litellm_message(message)
 
     # =================================== END _to_litellm_message Tests ====================================
 

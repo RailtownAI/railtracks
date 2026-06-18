@@ -64,9 +64,7 @@ class Attachment:
                     )
                 self.mime_type = _EXTENSION_MIME_MAP[file_extension]
                 self.modality = _modality_for_mime(self.mime_type)
-                self.encoding = (
-                    f"data:{self.mime_type};base64,{encode(url)}"
-                )
+                self.encoding = f"data:{self.mime_type};base64,{encode(url)}"
                 self.type = "local"
             case "url":
                 _, file_extension = os.path.splitext(self.url)
@@ -77,9 +75,7 @@ class Attachment:
                 self.type = "url"
             case "data_uri":
                 self.url = "..."
-                self.encoding = ensure_data_uri(
-                    url
-                )  # dynamically add header if needed
+                self.encoding = ensure_data_uri(url)  # dynamically add header if needed
                 # Parse the header we just produced to populate mime_type / modality
                 header = self.encoding.split(",", 1)[0]  # "data:<mime>;base64"
                 self.mime_type = header[len("data:") :].split(";", 1)[0]
