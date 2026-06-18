@@ -5,6 +5,7 @@ import os
 from copy import deepcopy
 from enum import Enum
 from typing import Generic, TypeVar
+from urllib.parse import urlparse
 
 from .content import Content, ToolCall, ToolResponse
 from .encoding import detect_source, encode, ensure_data_uri
@@ -48,6 +49,7 @@ class Attachment:
         self.encoding = None
         self.mime_type: str | None = None
         self.modality = "image"
+        self.filename: str | None = None
 
         if not isinstance(url, str):
             raise TypeError(
@@ -65,13 +67,19 @@ class Attachment:
                 self.mime_type = _EXTENSION_MIME_MAP[file_extension]
                 self.modality = _modality_for_mime(self.mime_type)
                 self.encoding = f"data:{self.mime_type};base64,{encode(url)}"
+                self.filename = os.path.basename(url) or None
                 self.type = "local"
             case "url":
-                _, file_extension = os.path.splitext(self.url)
+                url_path = urlparse(self.url).path
+                _, file_extension = os.path.splitext(url_path)
                 file_extension = file_extension.lower()
                 if file_extension in _EXTENSION_MIME_MAP:
                     self.mime_type = _EXTENSION_MIME_MAP[file_extension]
                     self.modality = _modality_for_mime(self.mime_type)
+                self.filename = os.path.basename(url_path) or None
+                # Provider file blocks need base64; image_url blocks accept the URL as-is.
+                if self.modality == "document":
+                    self.encoding = f"data:{self.mime_type};base64,{encode(url)}"
                 self.type = "url"
             case "data_uri":
                 self.url = "..."

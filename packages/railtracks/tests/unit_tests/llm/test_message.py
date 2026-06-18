@@ -1,7 +1,8 @@
-import pytest
 from typing import List
-from railtracks.llm import UserMessage, SystemMessage, AssistantMessage, ToolMessage
-from railtracks.llm.content import ToolResponse, ToolCall, Stream
+
+import pytest
+from railtracks.llm import AssistantMessage, SystemMessage, ToolMessage, UserMessage
+from railtracks.llm.content import Stream, ToolCall, ToolResponse
 from railtracks.llm.message import Attachment
 
 
@@ -143,6 +144,7 @@ class TestAttachment:
         assert attachment.type == "local"
         assert attachment.modality == "document"
         assert attachment.mime_type == "application/pdf"
+        assert attachment.filename == "doc.pdf"
         assert attachment.encoding is not None
         assert attachment.encoding.startswith("data:application/pdf;base64,")
 
@@ -155,6 +157,7 @@ class TestAttachment:
         assert attachment.type == "data_uri"
         assert attachment.modality == "document"
         assert attachment.mime_type == "application/pdf"
+        assert attachment.filename is None
         assert attachment.encoding is not None
         assert attachment.encoding.startswith("data:application/pdf;base64,")
 
@@ -168,6 +171,7 @@ class TestAttachment:
         assert attachment.type == "data_uri"
         assert attachment.modality == "document"
         assert attachment.mime_type == "application/pdf"
+        assert attachment.filename is None
         assert attachment.encoding == data_uri
 
     def test_url(self):
@@ -175,6 +179,39 @@ class TestAttachment:
         attachment = Attachment(url)
         assert attachment.url == url
         assert attachment.type == "url"
+        assert attachment.modality == "image"
+        assert attachment.mime_type == "image/png"
+        assert attachment.filename == "image.png"
+        # Image URLs are passed to the provider as-is; no fetch at construction.
+        assert attachment.encoding is None
+
+    def test_url_with_query_string(self):
+        url = "https://example.com/photo.png?token=abc&x=1"
+        attachment = Attachment(url)
+        assert attachment.type == "url"
+        assert attachment.modality == "image"
+        assert attachment.mime_type == "image/png"
+        assert attachment.filename == "photo.png"
+
+    def test_url_pdf_is_fetched_and_encoded(self, monkeypatch):
+        from railtracks.llm import message as message_module
+
+        pdf_bytes = b"%PDF-1.4\n%remote pdf body\n%%EOF"
+
+        def fake_encode(path):
+            import base64 as _b64
+            assert path == "https://example.com/docs/report.pdf?sig=xyz"
+            return _b64.b64encode(pdf_bytes).decode("utf-8")
+
+        monkeypatch.setattr(message_module, "encode", fake_encode)
+
+        attachment = Attachment("https://example.com/docs/report.pdf?sig=xyz")
+        assert attachment.type == "url"
+        assert attachment.modality == "document"
+        assert attachment.mime_type == "application/pdf"
+        assert attachment.filename == "report.pdf"
+        assert attachment.encoding is not None
+        assert attachment.encoding.startswith("data:application/pdf;base64,")
 
     def test_data_uri(self):
         data_uri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA"

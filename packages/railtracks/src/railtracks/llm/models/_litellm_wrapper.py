@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 import time
 import warnings
 from abc import ABC
@@ -713,20 +712,19 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
                     if msg_attachment.encoding is not None
                     else msg_attachment.url
                 )
-                if getattr(msg_attachment, "modality", "image") == "document":
+                if msg_attachment.modality == "document":
                     if not litellm.utils.supports_pdf_input(self._model_name):
                         raise ValueError(
                             f"Model {self._model_name!r} does not support PDF attachments. "
                             "Use a PDF-capable model (e.g. gpt-4o, claude-3-5-sonnet) "
                             "or render the PDF pages to images first."
                         )
-                    filename = os.path.basename(msg_attachment.url) or "attachment.pdf"
                     content_list.append(
                         {
                             "type": "file",
                             "file": {
                                 "file_data": url,
-                                "filename": filename,
+                                "filename": msg_attachment.filename or "attachment.pdf",
                             },
                         }
                     )
