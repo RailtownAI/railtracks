@@ -81,3 +81,12 @@ def detect_image_mime_from_bytes(b: bytes) -> str | None:
         return "image/svg+xml"
 
     return None
+
+
+def detect_attachment_mime_from_bytes(b: bytes) -> str | None:
+    """Return MIME type for supported attachment formats (images + documents)."""
+    if not b:
+        return None
+    if b.startswith(b"%PDF"):
+        return "application/pdf"
+    return detect_image_mime_from_bytes(b)

@@ -135,6 +135,41 @@ class TestAttachment:
         with pytest.raises(ValueError, match="Unsupported attachment format"):
             Attachment(str(file))
 
+    def test_local_pdf(self, tmp_path):
+        pdf_file = tmp_path / "doc.pdf"
+        pdf_file.write_bytes(b"%PDF-1.4\n%fake pdf body\n%%EOF")
+
+        attachment = Attachment(str(pdf_file))
+        assert attachment.type == "local"
+        assert attachment.modality == "document"
+        assert attachment.mime_type == "application/pdf"
+        assert attachment.encoding is not None
+        assert attachment.encoding.startswith("data:application/pdf;base64,")
+
+    def test_base64_pdf(self):
+        import base64 as _b64
+        pdf_bytes = b"%PDF-1.4\n%fake pdf body\n%%EOF"
+        b64 = _b64.b64encode(pdf_bytes).decode("utf-8")
+
+        attachment = Attachment(b64)
+        assert attachment.type == "data_uri"
+        assert attachment.modality == "document"
+        assert attachment.mime_type == "application/pdf"
+        assert attachment.encoding is not None
+        assert attachment.encoding.startswith("data:application/pdf;base64,")
+
+    def test_data_uri_pdf(self):
+        import base64 as _b64
+        pdf_bytes = b"%PDF-1.4\n%fake pdf body\n%%EOF"
+        b64 = _b64.b64encode(pdf_bytes).decode("utf-8")
+        data_uri = f"data:application/pdf;base64,{b64}"
+
+        attachment = Attachment(data_uri)
+        assert attachment.type == "data_uri"
+        assert attachment.modality == "document"
+        assert attachment.mime_type == "application/pdf"
+        assert attachment.encoding == data_uri
+
     def test_url(self):
         url = "https://example.com/image.png"
         attachment = Attachment(url)

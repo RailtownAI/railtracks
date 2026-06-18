@@ -6,13 +6,13 @@ from typing import Literal
 from urllib import error, request
 from urllib.parse import urlparse
 
-from .image_formats import detect_image_mime_from_bytes
+from .image_formats import detect_attachment_mime_from_bytes
 
 
-def _is_base64_image(s: str) -> bool:
+def _is_base64_attachment(s: str) -> bool:
     """
-    Return True if s appears to be a base64-encoded image payload (not a full data URI).
-    This attempts a strict decode first, then a tolerant decode if needed.
+    Return True if s appears to be a base64-encoded attachment payload (image or PDF),
+    not a full data URI. Attempts a strict decode first, then a tolerant decode if needed.
     """
     s_stripped = s.strip()
     # fast reject common non-base64 characters (allow padding and urlsafe variants)
@@ -31,19 +31,23 @@ def _is_base64_image(s: str) -> bool:
         except Exception:
             return False
 
-    return detect_image_mime_from_bytes(decoded) is not None
+    return detect_attachment_mime_from_bytes(decoded) is not None
 
 
 def _validate_data_uri_header(header: str) -> bool:
-    # Expect pattern like: data:image/{type};base64,
-    return bool(re.match(r"^data:image/[a-z0-9.+-]+;base64,$", header, flags=re.I))
+    # Expect pattern like: data:image/{type};base64, or data:application/pdf;base64,
+    return bool(
+        re.match(
+            r"^data:(image/[a-z0-9.+-]+|application/pdf);base64,$", header, flags=re.I
+        )
+    )
 
 
 def ensure_data_uri(base64_or_data_uri: str) -> str:
     """
     If input is a valid data URI (with header), use as-is.
-    Otherwise, detect image type and construct header dynamically.
-    Raises ValueError on malformed input or unknown image type.
+    Otherwise, detect attachment type and construct header dynamically.
+    Raises ValueError on malformed input or unknown attachment type.
     """
     s = base64_or_data_uri.strip()
     if s.startswith("data:"):
@@ -56,7 +60,7 @@ def ensure_data_uri(base64_or_data_uri: str) -> str:
         header_with_comma = header + ","
         if not _validate_data_uri_header(header_with_comma):
             raise ValueError(
-                f"Malformed data URI header. Expected format like 'data:image/png;base64,'. Got: {header_with_comma}"
+                f"Malformed data URI header. Expected format like 'data:image/png;base64,' or 'data:application/pdf;base64,'. Got: {header_with_comma}"
             )
         return header_with_comma + payload
 
@@ -69,10 +73,10 @@ def ensure_data_uri(base64_or_data_uri: str) -> str:
         except Exception:
             raise ValueError("Provided string is not valid base64 or a data URI") from e
 
-    mime = detect_image_mime_from_bytes(decoded)
+    mime = detect_attachment_mime_from_bytes(decoded)
     if not mime:
         raise ValueError(
-            "Could not detect image MIME type from provided base64 data. Provide a proper data URI or a known image file."
+            "Could not detect MIME type from provided base64 data. Provide a proper data URI or a supported attachment (image or PDF)."
         )
     return f"data:{mime};base64," + s
 
@@ -93,8 +97,8 @@ def detect_source(path: str) -> Literal["local", "url", "data_uri"]:
     if path.startswith("data:"):
         return "data_uri"
 
-    # If it's a plain base64-encoded image payload, treat as data_uri too
-    if _is_base64_image(path):
+    # If it's a plain base64-encoded attachment payload (image or PDF), treat as data_uri too
+    if _is_base64_attachment(path):
         return "data_uri"
 
     parsed = urlparse(path)

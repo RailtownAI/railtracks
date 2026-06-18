@@ -15,6 +15,22 @@ logger = logging.getLogger(__name__)
 _T = TypeVar("_T", bound=Content)
 
 
+_EXTENSION_MIME_MAP = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+    ".pdf": "application/pdf",
+}
+
+
+def _modality_for_mime(mime_type: str) -> str:
+    if mime_type == "application/pdf":
+        return "document"
+    return "image"
+
+
 class Attachment:
     """
     A simple class that represents an attachment to a message.
@@ -30,7 +46,8 @@ class Attachment:
         self.url = url
         self.file_extension = None
         self.encoding = None
-        self.modality = "image"  # we currently only support image attachments but this could be extended in the future
+        self.mime_type: str | None = None
+        self.modality = "image"
 
         if not isinstance(url, str):
             raise TypeError(
@@ -41,27 +58,32 @@ class Attachment:
             case "local":
                 _, file_extension = os.path.splitext(self.url)
                 file_extension = file_extension.lower()
-                mime_type_map = {
-                    ".jpg": "jpeg",
-                    ".jpeg": "jpeg",
-                    ".png": "png",
-                    ".gif": "gif",
-                    ".webp": "webp",
-                }
-                if file_extension not in mime_type_map:
+                if file_extension not in _EXTENSION_MIME_MAP:
                     raise ValueError(
-                        f"Unsupported attachment format: {file_extension}. Supported formats: {', '.join(mime_type_map.keys())}"
+                        f"Unsupported attachment format: {file_extension}. Supported formats: {', '.join(_EXTENSION_MIME_MAP.keys())}"
                     )
-                self.encoding = f"data:{self.modality}/{mime_type_map[file_extension]};base64,{encode(url)}"
+                self.mime_type = _EXTENSION_MIME_MAP[file_extension]
+                self.modality = _modality_for_mime(self.mime_type)
+                self.encoding = (
+                    f"data:{self.mime_type};base64,{encode(url)}"
+                )
                 self.type = "local"
             case "url":
-                self.url = url
+                _, file_extension = os.path.splitext(self.url)
+                file_extension = file_extension.lower()
+                if file_extension in _EXTENSION_MIME_MAP:
+                    self.mime_type = _EXTENSION_MIME_MAP[file_extension]
+                    self.modality = _modality_for_mime(self.mime_type)
                 self.type = "url"
             case "data_uri":
                 self.url = "..."
                 self.encoding = ensure_data_uri(
                     url
-                )  # dynamicallly add header if needed
+                )  # dynamically add header if needed
+                # Parse the header we just produced to populate mime_type / modality
+                header = self.encoding.split(",", 1)[0]  # "data:<mime>;base64"
+                self.mime_type = header[len("data:") :].split(";", 1)[0]
+                self.modality = _modality_for_mime(self.mime_type)
                 self.type = "data_uri"
 
 

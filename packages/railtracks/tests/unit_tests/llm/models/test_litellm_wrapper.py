@@ -142,6 +142,34 @@ class TestHelpers:
             "image_url": {"url": attachment_data_uri},
         }
 
+    def test_to_litellm_message_user_message_with_pdf_attachment(
+        self,
+        mock_litellm_wrapper,
+    ):
+        """
+        PDF attachments must be serialized as a "file" content block, not "image_url".
+        """
+        import base64 as _b64
+
+        wrapper = mock_litellm_wrapper()
+        pdf_bytes = b"%PDF-1.4\n%fake pdf\n%%EOF"
+        b64 = _b64.b64encode(pdf_bytes).decode("utf-8")
+        data_uri = f"data:application/pdf;base64,{b64}"
+        message = UserMessage(content="Summarize this.", attachment=[data_uri])
+
+        litellm_message = wrapper._to_litellm_message(message)
+
+        assert litellm_message["role"] == "user"
+        assert isinstance(litellm_message["content"], list)
+        assert litellm_message["content"][0] == {
+            "type": "text",
+            "text": "Summarize this.",
+        }
+        file_block = litellm_message["content"][1]
+        assert file_block["type"] == "file"
+        assert file_block["file"]["file_data"] == data_uri
+        assert "filename" in file_block["file"]
+
     # =================================== END _to_litellm_message Tests ====================================
 
 
