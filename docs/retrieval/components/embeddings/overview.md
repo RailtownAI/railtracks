@@ -19,7 +19,7 @@ For the embedders that ship (OpenAI, Azure, Ollama, LiteLLM) see
 
 ## The `EmbeddedChunk` object
 
-The output of the embedding stage is a list of `EmbeddedChunk` instances ([EmbeddedChunk API Reference](../../api_reference/railtracks/retrieval.html#EmbeddedChunk)) one per input chunk
+The output of the embedding stage is a list of `EmbeddedChunk` instances ([EmbeddedChunk API Reference](../../../api_reference/railtracks/retrieval.html#EmbeddedChunk)) one per input chunk
 
 `EmbeddedChunk.chunk` gives you full lineage back to the source `Document`
 via `chunk.document_id`. The `embedding_model` field is what powers the
