@@ -41,6 +41,48 @@ message_history = rt.llm.MessageHistory([
 
 # --8<-- [end: data_uri]
 
+# --8<-- [start: pdf_local]
+message_history = rt.llm.MessageHistory(
+    [
+        rt.llm.UserMessage(
+            content="Summarize the key findings in this paper.",
+            attachment="path/to/local/paper.pdf",
+        )
+    ]
+)
+# --8<-- [end: pdf_local]
+
+# --8<-- [start: pdf_url]
+# URL PDFs are fetched in-process, so they're opt-in via trust_urls=True.
+# Only set this when the URL is developer-controlled (hardcoded, internal,
+# trusted CDN) — never for URLs that originated from end-user input.
+message_history = rt.llm.MessageHistory(
+    [
+        rt.llm.UserMessage(
+            content="Summarize the key findings in this paper.",
+            attachment="https://arxiv.org/pdf/1706.03762v7.pdf",
+            trust_urls=True,
+        )
+    ]
+)
+# --8<-- [end: pdf_url]
+
+# --8<-- [start: pdf_timeout]
+# Per-request timeout (seconds) for the HEAD probe and PDF download.
+# Defaults to 10; raise it for large PDFs over slow links. Only applies
+# when trust_urls=True.
+message_history = rt.llm.MessageHistory(
+    [
+        rt.llm.UserMessage(
+            content="Summarize this paper.",
+            attachment="https://internal.example.com/large-report.pdf",
+            trust_urls=True,
+            attachment_timeout=60,
+        )
+    ]
+)
+# --8<-- [end: pdf_timeout]
+
 # --8<-- [start: combined]
 message_history = rt.llm.MessageHistory(
     [

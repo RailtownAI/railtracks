@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import mimetypes
 import time
 import warnings
 from abc import ABC
@@ -705,18 +706,39 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
             # Initiate content list with text component
             content_list: List[Dict[str, Any]] = [{"type": "text", "text": msg.content}]
 
-            # Add image attachments
+            # Add attachments (images or documents)
             for msg_attachment in msg.attachment:
-                content_list.append(
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": msg_attachment.encoding
-                            if msg_attachment.encoding is not None
-                            else msg_attachment.url,
-                        },
-                    }
+                url = (
+                    msg_attachment.encoding
+                    if msg_attachment.encoding is not None
+                    else msg_attachment.url
                 )
+                if msg_attachment.modality == "document":
+                    if not litellm.utils.supports_pdf_input(self._model_name):
+                        raise ValueError(
+                            f"Model {self._model_name!r} does not support PDF attachments. "
+                            "Use a PDF-capable model or render the PDF pages to images first."
+                        )
+                    fallback_ext = (
+                        mimetypes.guess_extension(msg_attachment.mime_type or "") or ""
+                    )
+                    content_list.append(
+                        {
+                            "type": "file",
+                            "file": {
+                                "file_data": url,
+                                "filename": msg_attachment.filename
+                                or f"attachment{fallback_ext}",
+                            },
+                        }
+                    )
+                else:
+                    content_list.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": url},
+                        }
+                    )
 
             base["content"] = content_list
 

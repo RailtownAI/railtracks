@@ -1,7 +1,8 @@
-import pytest
 from typing import List
-from railtracks.llm import UserMessage, SystemMessage, AssistantMessage, ToolMessage
-from railtracks.llm.content import ToolResponse, ToolCall, Stream
+
+import pytest
+from railtracks.llm import AssistantMessage, SystemMessage, ToolMessage, UserMessage
+from railtracks.llm.content import Stream, ToolCall, ToolResponse
 from railtracks.llm.message import Attachment
 
 
@@ -135,11 +136,247 @@ class TestAttachment:
         with pytest.raises(ValueError, match="Unsupported attachment format"):
             Attachment(str(file))
 
+    def test_local_pdf(self, tmp_path):
+        pdf_file = tmp_path / "doc.pdf"
+        pdf_file.write_bytes(b"%PDF-1.4\n%fake pdf body\n%%EOF")
+
+        attachment = Attachment(str(pdf_file))
+        assert attachment.type == "local"
+        assert attachment.modality == "document"
+        assert attachment.mime_type == "application/pdf"
+        assert attachment.filename == "doc.pdf"
+        assert attachment.encoding is not None
+        assert attachment.encoding.startswith("data:application/pdf;base64,")
+
+    def test_base64_pdf(self):
+        import base64 as _b64
+        pdf_bytes = b"%PDF-1.4\n%fake pdf body\n%%EOF"
+        b64 = _b64.b64encode(pdf_bytes).decode("utf-8")
+
+        attachment = Attachment(b64)
+        assert attachment.type == "data_uri"
+        assert attachment.modality == "document"
+        assert attachment.mime_type == "application/pdf"
+        assert attachment.filename is None
+        assert attachment.encoding is not None
+        assert attachment.encoding.startswith("data:application/pdf;base64,")
+
+    def test_data_uri_pdf(self):
+        import base64 as _b64
+        pdf_bytes = b"%PDF-1.4\n%fake pdf body\n%%EOF"
+        b64 = _b64.b64encode(pdf_bytes).decode("utf-8")
+        data_uri = f"data:application/pdf;base64,{b64}"
+
+        attachment = Attachment(data_uri)
+        assert attachment.type == "data_uri"
+        assert attachment.modality == "document"
+        assert attachment.mime_type == "application/pdf"
+        assert attachment.filename is None
+        assert attachment.encoding == data_uri
+
+    def test_data_uri_pdf_mixed_case_mime(self):
+        """Header validation is case-insensitive, so modality classification must be too."""
+        import base64 as _b64
+        pdf_bytes = b"%PDF-1.4\n%fake pdf body\n%%EOF"
+        b64 = _b64.b64encode(pdf_bytes).decode("utf-8")
+        data_uri = f"data:Application/PDF;base64,{b64}"
+
+        attachment = Attachment(data_uri)
+        assert attachment.type == "data_uri"
+        assert attachment.modality == "document"
+        assert attachment.mime_type == "application/pdf"
+
     def test_url(self):
         url = "https://example.com/image.png"
         attachment = Attachment(url)
         assert attachment.url == url
         assert attachment.type == "url"
+        assert attachment.modality == "image"
+        assert attachment.mime_type == "image/png"
+        assert attachment.filename == "image.png"
+        # Image URLs are passed to the provider as-is; no fetch at construction.
+        assert attachment.encoding is None
+
+    def test_url_with_query_string(self):
+        url = "https://example.com/photo.png?token=abc&x=1"
+        attachment = Attachment(url)
+        assert attachment.type == "url"
+        assert attachment.modality == "image"
+        assert attachment.mime_type == "image/png"
+        assert attachment.filename == "photo.png"
+
+    def test_attachment_timeout_threads_to_probe_and_encode(self, monkeypatch):
+        """attachment_timeout must reach both the HEAD probe and encode()."""
+        from railtracks.llm import message as message_module
+
+        pdf_bytes = b"%PDF-1.4\n%remote pdf body\n%%EOF"
+        seen = {}
+
+        class _FakeResp:
+            headers = {
+                "Content-Type": "application/pdf",
+                "Content-Disposition": 'inline; filename="paper.pdf"',
+            }
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        def fake_urlopen(req, timeout=None):
+            seen["probe_timeout"] = timeout
+            return _FakeResp()
+
+        def fake_encode(path, *, timeout=10.0):
+            import base64 as _b64
+            seen["encode_timeout"] = timeout
+            return _b64.b64encode(pdf_bytes).decode("utf-8")
+
+        monkeypatch.setattr(message_module.urllib_request, "urlopen", fake_urlopen)
+        monkeypatch.setattr(message_module, "encode", fake_encode)
+
+        UserMessage(
+            content="Summarize.",
+            attachment="https://example.com/no-ext",
+            trust_urls=True,
+            attachment_timeout=42.0,
+        )
+        assert seen["probe_timeout"] == 42.0
+        assert seen["encode_timeout"] == 42.0
+
+    def test_url_pdf_is_fetched_and_encoded(self, monkeypatch):
+        from railtracks.llm import message as message_module
+
+        pdf_bytes = b"%PDF-1.4\n%remote pdf body\n%%EOF"
+
+        def fake_encode(path, *, timeout=10.0):
+            import base64 as _b64
+            assert path == "https://example.com/docs/report.pdf?sig=xyz"
+            return _b64.b64encode(pdf_bytes).decode("utf-8")
+
+        monkeypatch.setattr(message_module, "encode", fake_encode)
+
+        attachment = Attachment(
+            "https://example.com/docs/report.pdf?sig=xyz", trust_urls=True
+        )
+        assert attachment.type == "url"
+        assert attachment.modality == "document"
+        assert attachment.mime_type == "application/pdf"
+        assert attachment.filename == "report.pdf"
+        assert attachment.encoding is not None
+        assert attachment.encoding.startswith("data:application/pdf;base64,")
+
+    def test_pdf_url_without_trust_urls_raises(self, monkeypatch):
+        """
+        A .pdf URL without trust_urls=True must refuse to fetch — that's the
+        whole point of the gate. encode() must not be called.
+        """
+        from railtracks.llm import message as message_module
+
+        def boom_encode(path, *, timeout=10.0):
+            raise AssertionError(f"encode() must not be called for {path!r}")
+
+        monkeypatch.setattr(message_module, "encode", boom_encode)
+
+        with pytest.raises(ValueError, match="trust_urls=True"):
+            Attachment("https://example.com/docs/report.pdf")
+
+    def test_url_without_extension_probes_content_type(self, monkeypatch):
+        """
+        Real-world case: https://arxiv.org/pdf/1706.03762 has no .pdf extension
+        but serves application/pdf. With trust_urls=True we HEAD-probe the URL
+        and use Content-Type + Content-Disposition to classify it as a document.
+        """
+        from railtracks.llm import message as message_module
+
+        pdf_bytes = b"%PDF-1.4\n%remote pdf body\n%%EOF"
+
+        class _FakeResp:
+            headers = {
+                "Content-Type": "application/pdf",
+                "Content-Disposition": 'inline; filename="1706.03762v7.pdf"',
+            }
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        def fake_urlopen(req, timeout=None):
+            assert req.get_method() == "HEAD"
+            return _FakeResp()
+
+        def fake_encode(path, *, timeout=10.0):
+            import base64 as _b64
+            return _b64.b64encode(pdf_bytes).decode("utf-8")
+
+        monkeypatch.setattr(message_module.urllib_request, "urlopen", fake_urlopen)
+        monkeypatch.setattr(message_module, "encode", fake_encode)
+
+        attachment = Attachment("https://arxiv.org/pdf/1706.03762", trust_urls=True)
+        assert attachment.modality == "document"
+        assert attachment.mime_type == "application/pdf"
+        assert attachment.filename == "1706.03762v7.pdf"
+        assert attachment.encoding is not None
+        assert attachment.encoding.startswith("data:application/pdf;base64,")
+
+    def test_url_without_extension_skips_probe_when_untrusted(self, monkeypatch):
+        """
+        Without trust_urls, no HEAD probe is issued — even for a URL that would
+        otherwise look like a PDF. Falls back to image so the provider can try
+        the URL as-is.
+        """
+        from railtracks.llm import message as message_module
+
+        def boom_urlopen(req, timeout=None):
+            raise AssertionError("HEAD probe must not be issued when trust_urls=False")
+
+        monkeypatch.setattr(message_module.urllib_request, "urlopen", boom_urlopen)
+
+        attachment = Attachment("https://arxiv.org/pdf/1706.03762")
+        assert attachment.modality == "image"
+        assert attachment.mime_type is None
+        assert attachment.encoding is None
+
+    def test_url_probe_failure_defaults_to_image(self, monkeypatch):
+        """If HEAD fails when trust_urls=True, fall back to image so the provider can try the URL."""
+        from urllib.error import URLError
+
+        from railtracks.llm import message as message_module
+
+        def fake_urlopen(req, timeout=None):
+            raise URLError("nope")
+
+        monkeypatch.setattr(message_module.urllib_request, "urlopen", fake_urlopen)
+
+        attachment = Attachment(
+            "https://example.com/something-no-extension", trust_urls=True
+        )
+        assert attachment.modality == "image"
+        assert attachment.mime_type is None
+        assert attachment.encoding is None
+
+    def test_user_message_threads_trust_urls(self, monkeypatch):
+        """UserMessage(trust_urls=True) must propagate to every Attachment it builds."""
+        from railtracks.llm import message as message_module
+
+        pdf_bytes = b"%PDF-1.4\n%remote pdf body\n%%EOF"
+
+        def fake_encode(path, *, timeout=10.0):
+            import base64 as _b64
+            return _b64.b64encode(pdf_bytes).decode("utf-8")
+
+        monkeypatch.setattr(message_module, "encode", fake_encode)
+
+        # Without trust_urls the PDF URL is rejected.
+        with pytest.raises(ValueError, match="trust_urls=True"):
+            UserMessage(
+                content="Summarize.",
+                attachment="https://example.com/report.pdf",
+            )
+
+        # With trust_urls=True the same call succeeds and fetches in-process.
+        msg = UserMessage(
+            content="Summarize.",
+            attachment=["https://example.com/report.pdf"],
+            trust_urls=True,
+        )
+        assert msg.attachment[0].modality == "document"
+        assert msg.attachment[0].encoding.startswith("data:application/pdf;base64,")
 
     def test_data_uri(self):
         data_uri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA"

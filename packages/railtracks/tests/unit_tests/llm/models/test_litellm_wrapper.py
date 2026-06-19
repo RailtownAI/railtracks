@@ -1,20 +1,20 @@
+import json
+from json import JSONDecodeError
 from typing import Generator, Literal
 from unittest.mock import patch
+
+import litellm
 import pytest
+from pydantic import BaseModel
+from railtracks.exceptions import LLMError, NodeInvocationError
+from railtracks.llm import AssistantMessage, UserMessage
 from railtracks.llm.models._litellm_wrapper import (
     LiteLLMWrapper,
     _parameters_to_json_schema,
     _to_litellm_tool,
 )
-from railtracks.exceptions import NodeInvocationError, LLMError
-from railtracks.llm import AssistantMessage, UserMessage
 from railtracks.llm.providers import ModelProvider
-from pydantic import BaseModel
 from railtracks.llm.response import Response
-from json import JSONDecodeError
-import litellm
-from railtracks.llm.content import Stream
-import json
 
 
 class _ConcreteLiteLLMWrapperForTest(LiteLLMWrapper[Literal[False]]):
@@ -141,6 +141,77 @@ class TestHelpers:
             "type": "image_url",
             "image_url": {"url": attachment_data_uri},
         }
+
+    def test_to_litellm_message_user_message_with_pdf_attachment(
+        self,
+        mock_litellm_wrapper,
+    ):
+        """
+        PDF attachments must be serialized as a "file" content block, not "image_url".
+        Data-URI PDFs have no source filename, so the block falls back to "attachment.pdf".
+        """
+        import base64 as _b64
+
+        wrapper = mock_litellm_wrapper(model_name="gpt-4o")
+        pdf_bytes = b"%PDF-1.4\n%fake pdf\n%%EOF"
+        b64 = _b64.b64encode(pdf_bytes).decode("utf-8")
+        data_uri = f"data:application/pdf;base64,{b64}"
+        message = UserMessage(content="Summarize this.", attachment=[data_uri])
+
+        litellm_message = wrapper._to_litellm_message(message)
+
+        assert litellm_message["role"] == "user"
+        assert isinstance(litellm_message["content"], list)
+        assert litellm_message["content"][0] == {
+            "type": "text",
+            "text": "Summarize this.",
+        }
+        file_block = litellm_message["content"][1]
+        assert file_block["type"] == "file"
+        assert file_block["file"]["file_data"] == data_uri
+        assert file_block["file"]["filename"] == "attachment.pdf"
+
+    def test_to_litellm_message_local_pdf_uses_source_filename(
+        self,
+        mock_litellm_wrapper,
+        tmp_path,
+    ):
+        """
+        Local PDF attachments should carry their on-disk filename through to the
+        file block, not the data-URI fallback.
+        """
+        pdf_file = tmp_path / "report.pdf"
+        pdf_file.write_bytes(b"%PDF-1.4\n%fake pdf\n%%EOF")
+
+        wrapper = mock_litellm_wrapper(model_name="gpt-4o")
+        message = UserMessage(content="Summarize this.", attachment=[str(pdf_file)])
+
+        litellm_message = wrapper._to_litellm_message(message)
+
+        file_block = litellm_message["content"][1]
+        assert file_block["type"] == "file"
+        assert file_block["file"]["filename"] == "report.pdf"
+        assert file_block["file"]["file_data"].startswith("data:application/pdf;base64,")
+
+    def test_to_litellm_message_pdf_attachment_rejected_for_unsupported_model(
+        self,
+        mock_litellm_wrapper,
+    ):
+        """
+        Serializing a PDF attachment for a model that does not support PDF input
+        must raise a clear ValueError naming the model, instead of letting the
+        provider 400 later.
+        """
+        import base64 as _b64
+
+        wrapper = mock_litellm_wrapper(model_name="gpt-3.5-turbo")
+        pdf_bytes = b"%PDF-1.4\n%fake pdf\n%%EOF"
+        b64 = _b64.b64encode(pdf_bytes).decode("utf-8")
+        data_uri = f"data:application/pdf;base64,{b64}"
+        message = UserMessage(content="Summarize this.", attachment=[data_uri])
+
+        with pytest.raises(ValueError, match="does not support PDF attachments"):
+            wrapper._to_litellm_message(message)
 
     # =================================== END _to_litellm_message Tests ====================================
 
@@ -324,7 +395,7 @@ class TestCompletionMethods:
                         assert calls[0]["name"] == "tool_x"
                         assert calls[0]["arguments"] == {"foo": 1}
                         assert calls[0]["identifier"] == "id123"
-                    except Exception as e:
+                    except Exception:
                         pytest.fail("Structured response did not match schema")
                 elif not isinstance(chunk, str):
                     pytest.fail("Stream yielded non-string, non-Response chunk")

@@ -1,5 +1,5 @@
-# Image format magic byte patterns and MIME type mappings
-# Magic bytes are base64-encoded to preserve exact byte values
+# Attachment format magic byte patterns and MIME type mappings (images + documents).
+# Magic bytes are base64-encoded to preserve exact byte values where needed.
 prefix_formats:
   - magic_bytes_b64: "iVBORw0KGgo="  # \x89PNG\r\n\x1a\n
     mime_type: "image/png"
@@ -13,6 +13,8 @@ prefix_formats:
     mime_type: "image/bmp"
   - magic_bytes_b64: "AAAB"  # \x00\x00\x01\x00
     mime_type: "image/x-icon"
+  - magic_bytes: "%PDF"
+    mime_type: "application/pdf"
 
 offset_formats:
   - name: "AVIF"

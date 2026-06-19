@@ -1,4 +1,4 @@
-"""Image format magic byte patterns and MIME type detection."""
+"""Attachment format magic byte patterns and MIME type detection (images + documents)."""
 
 import base64
 from pathlib import Path
@@ -7,12 +7,12 @@ from typing import Any
 import yaml
 
 
-def _load_image_formats() -> dict[str, Any]:
-    """Load image format definitions from YAML file."""
-    formats_file = Path(__file__).parent / "image_formats.yaml"
+def _load_attachment_formats() -> dict[str, Any]:
+    """Load attachment format definitions from YAML file."""
+    formats_file = Path(__file__).parent / "attachment_formats.yaml"
 
     if not formats_file.exists():
-        raise FileNotFoundError(f"Image formats file not found: {formats_file}")
+        raise FileNotFoundError(f"Attachment formats file not found: {formats_file}")
 
     with open(formats_file) as f:
         return yaml.safe_load(f)
@@ -48,36 +48,37 @@ def _convert_yaml_to_python(formats: dict[str, Any]) -> tuple[list, list]:
 
 
 # Load formats at module initialization
-_formats = _load_image_formats()
+_formats = _load_attachment_formats()
 PREFIX_FORMATS, OFFSET_FORMATS = _convert_yaml_to_python(_formats)
 
 
-def detect_image_mime_from_bytes(b: bytes) -> str | None:
-    """Return MIME type for common image formats by inspecting magic bytes.
+def detect_attachment_mime_from_bytes(b: bytes) -> str | None:
+    """Return MIME type for supported attachment formats by inspecting magic bytes.
 
-    Args:
-        b: Bytes to inspect for image format magic bytes.
-
-    Returns:
-        MIME type string (e.g. "image/png") or None if format not detected.
+    Covers images and documents declared in `attachment_formats.yaml`. Add a new
+    format by appending a row there; no code changes needed.
     """
     if not b:
         return None
 
-    # Check prefix-based formats
     for magic_bytes, mime_type in PREFIX_FORMATS:
         if b.startswith(magic_bytes):
             return mime_type
 
-    # Check offset-based formats
     for start, end, fixed_bytes, variable_bytes, mime_type in OFFSET_FORMATS:
         if b.startswith(fixed_bytes):
             if len(b) > end and b[start:end] in variable_bytes:
                 return mime_type
 
-    # Check for SVG/XML (content-based, requires searching)
+    # SVG/XML detection is content-based, not magic-byte-based.
     head = b[:256].lower()
     if b"<svg" in head or head.lstrip().startswith(b"<?xml"):
         return "image/svg+xml"
 
     return None
+
+
+def detect_image_mime_from_bytes(b: bytes) -> str | None:
+    """Return MIME type for image formats only, or None for non-image / unknown bytes."""
+    mime = detect_attachment_mime_from_bytes(b)
+    return mime if mime and mime.startswith("image/") else None
