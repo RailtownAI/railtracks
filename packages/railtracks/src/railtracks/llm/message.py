@@ -35,7 +35,7 @@ def _modality_for_mime(mime_type: str) -> str:
     return "image"
 
 
-def _probe_url_metadata(url: str) -> tuple[str | None, str | None]:
+def _probe_url_metadata(url: str, *, timeout: float) -> tuple[str | None, str | None]:
     """HEAD-probe a URL and return (content_type, filename) or (None, None) on failure.
 
     Used when a URL has no recognized extension (e.g. arxiv.org/pdf/1706.03762
@@ -44,7 +44,7 @@ def _probe_url_metadata(url: str) -> tuple[str | None, str | None]:
     """
     try:
         req = urllib_request.Request(url, method="HEAD")
-        with urllib_request.urlopen(req, timeout=10) as resp:
+        with urllib_request.urlopen(req, timeout=timeout) as resp:
             ct = (
                 resp.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
                 or None
@@ -62,17 +62,28 @@ class Attachment:
     A simple class that represents an attachment to a message.
     """
 
-    def __init__(self, url: str, trust_urls: bool = False):
+    def __init__(
+        self,
+        url: str,
+        trust_urls: bool = False,
+        attachment_timeout: float = 10.0,
+    ):
         """
         A simple class that represents an attachment to a message.
 
         Args:
             url: A file path, URL, or base64/data-URI payload.
             trust_urls: Allow in-process network I/O for URL attachments. When
-                False (default), URLs that would require fetching bytes locally
-                (PDF URLs, or URLs with no recognized extension) raise instead
-                of being downloaded. Set True only for developer-controlled
-                URLs; end-user-supplied URLs are an SSRF surface.
+                False (default), `.pdf` URLs raise instead of being downloaded,
+                and URLs with no recognized extension are passed through to the
+                provider as an `image_url` without a HEAD probe. Set True to
+                enable both (a) HEAD-probing unknown-extension URLs and (b)
+                downloading PDF URLs into the prompt. Only safe for
+                developer-controlled URLs; end-user-supplied URLs are an SSRF
+                surface once their bytes are fetched in-process.
+            attachment_timeout: Per-request timeout in seconds for the HEAD
+                probe and the in-process PDF download. Defaults to 10. Only
+                applies when `trust_urls=True`.
         """
         self.url = url
         self.file_extension = None
@@ -90,7 +101,7 @@ class Attachment:
             case "local":
                 self._init_local(url)
             case "url":
-                self._init_url(url, trust_urls=trust_urls)
+                self._init_url(url, trust_urls=trust_urls, timeout=attachment_timeout)
             case "data_uri":
                 self._init_data_uri(url)
 
@@ -107,7 +118,7 @@ class Attachment:
         self.filename = os.path.basename(url) or None
         self.type = "local"
 
-    def _init_url(self, url: str, *, trust_urls: bool) -> None:
+    def _init_url(self, url: str, *, trust_urls: bool, timeout: float) -> None:
         url_path = urlparse(self.url).path
         _, file_extension = os.path.splitext(url_path)
         file_extension = file_extension.lower()
@@ -119,7 +130,7 @@ class Attachment:
             # HEAD-probe to figure out what we're actually being handed.
             # Skipped when trust_urls=False so we never touch unknown URLs
             # from the railtracks process.
-            probed_ct, probed_filename = _probe_url_metadata(self.url)
+            probed_ct, probed_filename = _probe_url_metadata(self.url, timeout=timeout)
             if probed_ct == "application/pdf" or (
                 probed_ct and probed_ct.startswith("image/")
             ):
@@ -138,15 +149,19 @@ class Attachment:
                     "when the URL is developer-controlled; otherwise download the PDF "
                     "first and pass a local file path or base64/data-URI payload."
                 )
-            self.encoding = f"data:{self.mime_type};base64,{encode(url)}"
+            self.encoding = (
+                f"data:{self.mime_type};base64,{encode(url, timeout=timeout)}"
+            )
         self.type = "url"
 
     def _init_data_uri(self, url: str) -> None:
         self.url = "..."
         self.encoding = ensure_data_uri(url)  # dynamically add header if needed
-        # Parse the header we just produced to populate mime_type / modality
+        # Parse the header we just produced to populate mime_type / modality.
+        # `_validate_data_uri_header` accepts mixed case (re.I), so lowercase
+        # the mime before classification — `_modality_for_mime` matches exactly.
         header = self.encoding.split(",", 1)[0]  # "data:<mime>;base64"
-        self.mime_type = header[len("data:") :].split(";", 1)[0]
+        self.mime_type = header[len("data:") :].split(";", 1)[0].lower()
         self.modality = _modality_for_mime(self.mime_type)
         self.type = "data_uri"
 
@@ -269,11 +284,18 @@ class UserMessage(_StringOnlyContent[Role.user]):
         attachment: The file attachment(s) for the user message. Can be a single string or a list of strings,
                     containing file paths, URLs, or data URIs. Defaults to None.
         inject_prompt: Whether to inject prompt with context variables. Defaults to True.
-        trust_urls: Allow in-process fetch for URL attachments (PDFs, no-extension URLs).
-                    Defaults to False — set True only when every URL in `attachment`
-                    is developer-controlled. End-user-supplied URLs are an SSRF surface
-                    once their bytes are downloaded in-process; prefer downloading the
-                    file out-of-band and passing a local path or data-URI instead.
+        trust_urls: Allow in-process fetch for URL attachments. Defaults to False.
+                    When False, `.pdf` URLs raise and unknown-extension URLs are
+                    handed to the provider unprobed (as `image_url`). When True,
+                    `.pdf` URLs are downloaded and embedded as base64, and
+                    unknown-extension URLs are HEAD-probed to detect PDFs.
+                    Set True only when every URL in `attachment` is
+                    developer-controlled — end-user-supplied URLs are an SSRF
+                    surface once their bytes are fetched in-process.
+        attachment_timeout: Per-request timeout in seconds for the HEAD probe
+                    and the in-process PDF download. Defaults to 10. Only
+                    applies when `trust_urls=True`. Raise this for large PDFs
+                    over slow links.
     """
 
     def __init__(
@@ -282,14 +304,26 @@ class UserMessage(_StringOnlyContent[Role.user]):
         attachment: str | list[str] | None = None,
         inject_prompt: bool = True,
         trust_urls: bool = False,
+        attachment_timeout: float = 10.0,
     ):
         if attachment is not None:
             if isinstance(attachment, list):
                 self.attachment = [
-                    Attachment(att, trust_urls=trust_urls) for att in attachment
+                    Attachment(
+                        att,
+                        trust_urls=trust_urls,
+                        attachment_timeout=attachment_timeout,
+                    )
+                    for att in attachment
                 ]
             else:
-                self.attachment = [Attachment(attachment, trust_urls=trust_urls)]
+                self.attachment = [
+                    Attachment(
+                        attachment,
+                        trust_urls=trust_urls,
+                        attachment_timeout=attachment_timeout,
+                    )
+                ]
 
             if content is None:
                 logger.warning(

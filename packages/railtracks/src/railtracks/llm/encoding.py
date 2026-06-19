@@ -116,11 +116,12 @@ def detect_source(path: str) -> Literal["local", "url", "data_uri"]:
     raise ValueError(f"Could not determine image source type for: {path}")
 
 
-def encode(path: str) -> str:
-    """Encodes image/audio loocated at path to a Base64 string.
+def encode(path: str, *, timeout: float = 10.0) -> str:
+    """Encodes image/audio located at path to a Base64 string.
 
     Args:
-        path (str): The path to the local image file.
+        path: The path to the local file or URL to encode.
+        timeout: Per-request timeout in seconds for URL fetches.
 
     Returns:
         str: Base64 encoded string
@@ -142,11 +143,9 @@ def encode(path: str) -> str:
                 raise ValueError(f"Path is not a file: {path}")
             with open(path, "rb") as image_file:
                 encoding = base64.b64encode(image_file.read()).decode("utf-8")
-        case (
-            "url"
-        ):  # we will not encode urls for now but putting this here for future proofing
+        case "url":
             try:
-                with request.urlopen(path) as url:
+                with request.urlopen(path, timeout=timeout) as url:
                     encoding = base64.b64encode(url.read()).decode("utf-8")
             except error.HTTPError as e:
                 raise ValueError(f"Failed to encode URL: {path}. Error: {e}")

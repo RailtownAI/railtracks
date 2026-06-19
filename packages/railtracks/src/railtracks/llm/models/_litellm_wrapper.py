@@ -717,8 +717,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
                     if not litellm.utils.supports_pdf_input(self._model_name):
                         raise ValueError(
                             f"Model {self._model_name!r} does not support PDF attachments. "
-                            "Use a PDF-capable model (e.g. gpt-4o, claude-3-5-sonnet) "
-                            "or render the PDF pages to images first."
+                            "Use a PDF-capable model or render the PDF pages to images first."
                         )
                     fallback_ext = (
                         mimetypes.guess_extension(msg_attachment.mime_type or "") or ""

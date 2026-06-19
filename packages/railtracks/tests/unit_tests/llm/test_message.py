@@ -174,6 +174,18 @@ class TestAttachment:
         assert attachment.filename is None
         assert attachment.encoding == data_uri
 
+    def test_data_uri_pdf_mixed_case_mime(self):
+        """Header validation is case-insensitive, so modality classification must be too."""
+        import base64 as _b64
+        pdf_bytes = b"%PDF-1.4\n%fake pdf body\n%%EOF"
+        b64 = _b64.b64encode(pdf_bytes).decode("utf-8")
+        data_uri = f"data:Application/PDF;base64,{b64}"
+
+        attachment = Attachment(data_uri)
+        assert attachment.type == "data_uri"
+        assert attachment.modality == "document"
+        assert attachment.mime_type == "application/pdf"
+
     def test_url(self):
         url = "https://example.com/image.png"
         attachment = Attachment(url)
@@ -193,12 +205,48 @@ class TestAttachment:
         assert attachment.mime_type == "image/png"
         assert attachment.filename == "photo.png"
 
+    def test_attachment_timeout_threads_to_probe_and_encode(self, monkeypatch):
+        """attachment_timeout must reach both the HEAD probe and encode()."""
+        from railtracks.llm import message as message_module
+
+        pdf_bytes = b"%PDF-1.4\n%remote pdf body\n%%EOF"
+        seen = {}
+
+        class _FakeResp:
+            headers = {
+                "Content-Type": "application/pdf",
+                "Content-Disposition": 'inline; filename="paper.pdf"',
+            }
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        def fake_urlopen(req, timeout=None):
+            seen["probe_timeout"] = timeout
+            return _FakeResp()
+
+        def fake_encode(path, *, timeout=10.0):
+            import base64 as _b64
+            seen["encode_timeout"] = timeout
+            return _b64.b64encode(pdf_bytes).decode("utf-8")
+
+        monkeypatch.setattr(message_module.urllib_request, "urlopen", fake_urlopen)
+        monkeypatch.setattr(message_module, "encode", fake_encode)
+
+        UserMessage(
+            content="Summarize.",
+            attachment="https://example.com/no-ext",
+            trust_urls=True,
+            attachment_timeout=42.0,
+        )
+        assert seen["probe_timeout"] == 42.0
+        assert seen["encode_timeout"] == 42.0
+
     def test_url_pdf_is_fetched_and_encoded(self, monkeypatch):
         from railtracks.llm import message as message_module
 
         pdf_bytes = b"%PDF-1.4\n%remote pdf body\n%%EOF"
 
-        def fake_encode(path):
+        def fake_encode(path, *, timeout=10.0):
             import base64 as _b64
             assert path == "https://example.com/docs/report.pdf?sig=xyz"
             return _b64.b64encode(pdf_bytes).decode("utf-8")
@@ -222,7 +270,7 @@ class TestAttachment:
         """
         from railtracks.llm import message as message_module
 
-        def boom_encode(path):
+        def boom_encode(path, *, timeout=10.0):
             raise AssertionError(f"encode() must not be called for {path!r}")
 
         monkeypatch.setattr(message_module, "encode", boom_encode)
@@ -252,7 +300,7 @@ class TestAttachment:
             assert req.get_method() == "HEAD"
             return _FakeResp()
 
-        def fake_encode(path):
+        def fake_encode(path, *, timeout=10.0):
             import base64 as _b64
             return _b64.b64encode(pdf_bytes).decode("utf-8")
 
@@ -308,7 +356,7 @@ class TestAttachment:
 
         pdf_bytes = b"%PDF-1.4\n%remote pdf body\n%%EOF"
 
-        def fake_encode(path):
+        def fake_encode(path, *, timeout=10.0):
             import base64 as _b64
             return _b64.b64encode(pdf_bytes).decode("utf-8")
 

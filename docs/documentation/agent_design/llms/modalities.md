@@ -102,3 +102,13 @@ Supported PDF sources:
     ```
 
     Set `trust_urls=True` only when every URL in `attachment` is developer-controlled (a hard-coded path, an internal doc, a trusted CDN). For user-supplied URLs, download the PDF out-of-band first and pass the local path or base64 payload instead.
+
+### Tuning the fetch timeout
+
+The HEAD probe and PDF download share a per-request timeout that defaults to 10 seconds. Raise it via `attachment_timeout` for large PDFs over slow links:
+
+```python
+--8<-- "docs/scripts/multimodal.py:pdf_timeout"
+```
+
+Only applies when `trust_urls=True` — local files, data URIs, and image URLs do not perform any in-process network I/O.
