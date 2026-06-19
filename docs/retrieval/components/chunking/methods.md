@@ -25,12 +25,7 @@ Emits the entire document as a single chunk. No splitting is performed.
 works correctly downstream, just like with every other chunker.
 
 ```python
-from railtracks.retrieval.chunking import IdentityChunker
-
-chunker = IdentityChunker()
-chunks = chunker.chunk(document)
-# len(chunks) == 1 (or 0 for empty documents)
-# chunks[0].content == document.content
+--8<-- "docs/scripts/retrieval/chunking.py:identity"
 ```
 
 **When to use:**
