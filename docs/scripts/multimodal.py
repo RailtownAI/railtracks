@@ -46,7 +46,7 @@ message_history = rt.llm.MessageHistory(
     [
         rt.llm.UserMessage(
             content="Summarize the key findings in this paper.",
-            # attachment="path/to/local/paper.pdf",  # Uncomment and provide a valid local PDF path
+            attachment="path/to/local/paper.pdf",
         )
     ]
 )

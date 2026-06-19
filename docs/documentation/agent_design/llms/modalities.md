@@ -70,10 +70,7 @@ If you would like to see other modalities supported on either input or output si
 Given the LLM powering your agent, you can pass image inputs to your multimodal agent. The only required step is to construct a `UserMessage` and pass in the parameter `attachment`
 
 ```python
-rt.llm.UserMessage(
-    content="What is in this image?",
-    attachment=""
-)
+--8<-- "docs/scripts/multimodal.py:public_url"
 ```
 The `attachment` parameter can be a single `str` or a `list[str]`. We currently support the following:
 
@@ -100,8 +97,6 @@ Supported PDF sources:
     ```python
     --8<-- "docs/scripts/multimodal.py:pdf_url"
     ```
-
-    Set `trust_urls=True` only when every URL in `attachment` is developer-controlled (a hard-coded path, an internal doc, a trusted CDN). For user-supplied URLs, download the PDF out-of-band first and pass the local path or base64 payload instead.
 
 ### Tuning the fetch timeout
 
