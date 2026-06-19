@@ -205,7 +205,9 @@ class TestAttachment:
 
         monkeypatch.setattr(message_module, "encode", fake_encode)
 
-        attachment = Attachment("https://example.com/docs/report.pdf?sig=xyz")
+        attachment = Attachment(
+            "https://example.com/docs/report.pdf?sig=xyz", trust_urls=True
+        )
         assert attachment.type == "url"
         assert attachment.modality == "document"
         assert attachment.mime_type == "application/pdf"
@@ -213,11 +215,26 @@ class TestAttachment:
         assert attachment.encoding is not None
         assert attachment.encoding.startswith("data:application/pdf;base64,")
 
+    def test_pdf_url_without_trust_urls_raises(self, monkeypatch):
+        """
+        A .pdf URL without trust_urls=True must refuse to fetch — that's the
+        whole point of the gate. encode() must not be called.
+        """
+        from railtracks.llm import message as message_module
+
+        def boom_encode(path):
+            raise AssertionError(f"encode() must not be called for {path!r}")
+
+        monkeypatch.setattr(message_module, "encode", boom_encode)
+
+        with pytest.raises(ValueError, match="trust_urls=True"):
+            Attachment("https://example.com/docs/report.pdf")
+
     def test_url_without_extension_probes_content_type(self, monkeypatch):
         """
         Real-world case: https://arxiv.org/pdf/1706.03762 has no .pdf extension
-        but serves application/pdf. We HEAD-probe the URL and use Content-Type +
-        Content-Disposition to classify it as a document.
+        but serves application/pdf. With trust_urls=True we HEAD-probe the URL
+        and use Content-Type + Content-Disposition to classify it as a document.
         """
         from railtracks.llm import message as message_module
 
@@ -242,15 +259,33 @@ class TestAttachment:
         monkeypatch.setattr(message_module.urllib_request, "urlopen", fake_urlopen)
         monkeypatch.setattr(message_module, "encode", fake_encode)
 
-        attachment = Attachment("https://arxiv.org/pdf/1706.03762")
+        attachment = Attachment("https://arxiv.org/pdf/1706.03762", trust_urls=True)
         assert attachment.modality == "document"
         assert attachment.mime_type == "application/pdf"
         assert attachment.filename == "1706.03762v7.pdf"
         assert attachment.encoding is not None
         assert attachment.encoding.startswith("data:application/pdf;base64,")
 
+    def test_url_without_extension_skips_probe_when_untrusted(self, monkeypatch):
+        """
+        Without trust_urls, no HEAD probe is issued — even for a URL that would
+        otherwise look like a PDF. Falls back to image so the provider can try
+        the URL as-is.
+        """
+        from railtracks.llm import message as message_module
+
+        def boom_urlopen(req, timeout=None):
+            raise AssertionError("HEAD probe must not be issued when trust_urls=False")
+
+        monkeypatch.setattr(message_module.urllib_request, "urlopen", boom_urlopen)
+
+        attachment = Attachment("https://arxiv.org/pdf/1706.03762")
+        assert attachment.modality == "image"
+        assert attachment.mime_type is None
+        assert attachment.encoding is None
+
     def test_url_probe_failure_defaults_to_image(self, monkeypatch):
-        """If HEAD fails, fall back to image so the provider can try the URL."""
+        """If HEAD fails when trust_urls=True, fall back to image so the provider can try the URL."""
         from urllib.error import URLError
 
         from railtracks.llm import message as message_module
@@ -260,10 +295,40 @@ class TestAttachment:
 
         monkeypatch.setattr(message_module.urllib_request, "urlopen", fake_urlopen)
 
-        attachment = Attachment("https://example.com/something-no-extension")
+        attachment = Attachment(
+            "https://example.com/something-no-extension", trust_urls=True
+        )
         assert attachment.modality == "image"
         assert attachment.mime_type is None
         assert attachment.encoding is None
+
+    def test_user_message_threads_trust_urls(self, monkeypatch):
+        """UserMessage(trust_urls=True) must propagate to every Attachment it builds."""
+        from railtracks.llm import message as message_module
+
+        pdf_bytes = b"%PDF-1.4\n%remote pdf body\n%%EOF"
+
+        def fake_encode(path):
+            import base64 as _b64
+            return _b64.b64encode(pdf_bytes).decode("utf-8")
+
+        monkeypatch.setattr(message_module, "encode", fake_encode)
+
+        # Without trust_urls the PDF URL is rejected.
+        with pytest.raises(ValueError, match="trust_urls=True"):
+            UserMessage(
+                content="Summarize.",
+                attachment="https://example.com/report.pdf",
+            )
+
+        # With trust_urls=True the same call succeeds and fetches in-process.
+        msg = UserMessage(
+            content="Summarize.",
+            attachment=["https://example.com/report.pdf"],
+            trust_urls=True,
+        )
+        assert msg.attachment[0].modality == "document"
+        assert msg.attachment[0].encoding.startswith("data:application/pdf;base64,")
 
     def test_data_uri(self):
         data_uri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA"

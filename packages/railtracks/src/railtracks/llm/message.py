@@ -62,12 +62,17 @@ class Attachment:
     A simple class that represents an attachment to a message.
     """
 
-    def __init__(self, url: str):
+    def __init__(self, url: str, trust_urls: bool = False):
         """
         A simple class that represents an attachment to a message.
 
         Args:
-            url (str): The URL of the attachment.
+            url: A file path, URL, or base64/data-URI payload.
+            trust_urls: Allow in-process network I/O for URL attachments. When
+                False (default), URLs that would require fetching bytes locally
+                (PDF URLs, or URLs with no recognized extension) raise instead
+                of being downloaded. Set True only for developer-controlled
+                URLs; end-user-supplied URLs are an SSRF surface.
         """
         self.url = url
         self.file_extension = None
@@ -83,47 +88,67 @@ class Attachment:
 
         match detect_source(url):
             case "local":
-                _, file_extension = os.path.splitext(self.url)
-                file_extension = file_extension.lower()
-                if file_extension not in _EXTENSION_MIME_MAP:
-                    raise ValueError(
-                        f"Unsupported attachment format: {file_extension}. Supported formats: {', '.join(_EXTENSION_MIME_MAP.keys())}"
-                    )
-                self.mime_type = _EXTENSION_MIME_MAP[file_extension]
-                self.modality = _modality_for_mime(self.mime_type)
-                self.encoding = f"data:{self.mime_type};base64,{encode(url)}"
-                self.filename = os.path.basename(url) or None
-                self.type = "local"
+                self._init_local(url)
             case "url":
-                url_path = urlparse(self.url).path
-                _, file_extension = os.path.splitext(url_path)
-                file_extension = file_extension.lower()
-                probed_filename: str | None = None
-                if file_extension in _EXTENSION_MIME_MAP:
-                    self.mime_type = _EXTENSION_MIME_MAP[file_extension]
-                else:
-                    # No usable extension (e.g. https://arxiv.org/pdf/1706.03762);
-                    # HEAD-probe to figure out what we're actually being handed.
-                    probed_ct, probed_filename = _probe_url_metadata(self.url)
-                    if probed_ct == "application/pdf" or (
-                        probed_ct and probed_ct.startswith("image/")
-                    ):
-                        self.mime_type = probed_ct
-                if self.mime_type:
-                    self.modality = _modality_for_mime(self.mime_type)
-                self.filename = probed_filename or os.path.basename(url_path) or None
-                # Provider file blocks need base64; image_url blocks accept the URL as-is.
-                if self.modality == "document":
-                    self.encoding = f"data:{self.mime_type};base64,{encode(url)}"
-                self.type = "url"
+                self._init_url(url, trust_urls=trust_urls)
             case "data_uri":
-                self.url = "..."
-                self.encoding = ensure_data_uri(url)  # dynamically add header if needed
-                # Parse the header we just produced to populate mime_type / modality
-                header = self.encoding.split(",", 1)[0]  # "data:<mime>;base64"
-                self.mime_type = header[len("data:") :].split(";", 1)[0]
-                self.modality = _modality_for_mime(self.mime_type)
-                self.type = "data_uri"
+                self._init_data_uri(url)
+
+    def _init_local(self, url: str) -> None:
+        _, file_extension = os.path.splitext(url)
+        file_extension = file_extension.lower()
+        if file_extension not in _EXTENSION_MIME_MAP:
+            raise ValueError(
+                f"Unsupported attachment format: {file_extension}. Supported formats: {', '.join(_EXTENSION_MIME_MAP.keys())}"
+            )
+        self.mime_type = _EXTENSION_MIME_MAP[file_extension]
+        self.modality = _modality_for_mime(self.mime_type)
+        self.encoding = f"data:{self.mime_type};base64,{encode(url)}"
+        self.filename = os.path.basename(url) or None
+        self.type = "local"
+
+    def _init_url(self, url: str, *, trust_urls: bool) -> None:
+        url_path = urlparse(self.url).path
+        _, file_extension = os.path.splitext(url_path)
+        file_extension = file_extension.lower()
+        probed_filename: str | None = None
+        if file_extension in _EXTENSION_MIME_MAP:
+            self.mime_type = _EXTENSION_MIME_MAP[file_extension]
+        elif trust_urls:
+            # No usable extension (e.g. https://arxiv.org/pdf/1706.03762);
+            # HEAD-probe to figure out what we're actually being handed.
+            # Skipped when trust_urls=False so we never touch unknown URLs
+            # from the railtracks process.
+            probed_ct, probed_filename = _probe_url_metadata(self.url)
+            if probed_ct == "application/pdf" or (
+                probed_ct and probed_ct.startswith("image/")
+            ):
+                self.mime_type = probed_ct
+        if self.mime_type:
+            self.modality = _modality_for_mime(self.mime_type)
+        self.filename = probed_filename or os.path.basename(url_path) or None
+        # Provider file blocks need base64; image_url blocks accept the URL as-is.
+        if self.modality == "document":
+            if not trust_urls:
+                raise ValueError(
+                    f"PDF URL attachments require trust_urls=True: {self.url!r}. "
+                    "Constructing this attachment would fetch the URL in-process and "
+                    "embed its bytes into the LLM prompt, which is an SSRF/exfiltration "
+                    "surface for end-user-supplied URLs. Pass trust_urls=True only "
+                    "when the URL is developer-controlled; otherwise download the PDF "
+                    "first and pass a local file path or base64/data-URI payload."
+                )
+            self.encoding = f"data:{self.mime_type};base64,{encode(url)}"
+        self.type = "url"
+
+    def _init_data_uri(self, url: str) -> None:
+        self.url = "..."
+        self.encoding = ensure_data_uri(url)  # dynamically add header if needed
+        # Parse the header we just produced to populate mime_type / modality
+        header = self.encoding.split(",", 1)[0]  # "data:<mime>;base64"
+        self.mime_type = header[len("data:") :].split(";", 1)[0]
+        self.modality = _modality_for_mime(self.mime_type)
+        self.type = "data_uri"
 
 
 class Role(str, Enum):
@@ -244,6 +269,11 @@ class UserMessage(_StringOnlyContent[Role.user]):
         attachment: The file attachment(s) for the user message. Can be a single string or a list of strings,
                     containing file paths, URLs, or data URIs. Defaults to None.
         inject_prompt: Whether to inject prompt with context variables. Defaults to True.
+        trust_urls: Allow in-process fetch for URL attachments (PDFs, no-extension URLs).
+                    Defaults to False — set True only when every URL in `attachment`
+                    is developer-controlled. End-user-supplied URLs are an SSRF surface
+                    once their bytes are downloaded in-process; prefer downloading the
+                    file out-of-band and passing a local path or data-URI instead.
     """
 
     def __init__(
@@ -251,12 +281,15 @@ class UserMessage(_StringOnlyContent[Role.user]):
         content: str | None = None,
         attachment: str | list[str] | None = None,
         inject_prompt: bool = True,
+        trust_urls: bool = False,
     ):
         if attachment is not None:
             if isinstance(attachment, list):
-                self.attachment = [Attachment(att) for att in attachment]
+                self.attachment = [
+                    Attachment(att, trust_urls=trust_urls) for att in attachment
+                ]
             else:
-                self.attachment = [Attachment(attachment)]
+                self.attachment = [Attachment(attachment, trust_urls=trust_urls)]
 
             if content is None:
                 logger.warning(
