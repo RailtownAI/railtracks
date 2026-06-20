@@ -1,3 +1,4 @@
+from .key_value import InMemoryKeyValueStore, KeyValueStore
 from .models import (
     Entity,
     RetrievedStoreEntry,
@@ -20,7 +21,9 @@ __all__ = [
     "ChromaCloudBackend",
     "DistanceMetric",
     "Entity",
+    "InMemoryKeyValueStore",
     "InMemoryVectorBackend",
+    "KeyValueStore",
     "PgvectorBackend",
     "RetrievedStoreEntry",
     "Store",
