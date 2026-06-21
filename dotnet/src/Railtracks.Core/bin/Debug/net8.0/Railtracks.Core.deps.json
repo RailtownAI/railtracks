@@ -1,0 +1,41 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "Railtracks.Core/1.0.0": {
+        "dependencies": {
+          "Microsoft.Extensions.AI.Abstractions": "9.5.0"
+        },
+        "runtime": {
+          "Railtracks.Core.dll": {}
+        }
+      },
+      "Microsoft.Extensions.AI.Abstractions/9.5.0": {
+        "runtime": {
+          "lib/net8.0/Microsoft.Extensions.AI.Abstractions.dll": {
+            "assemblyVersion": "9.5.0.0",
+            "fileVersion": "9.500.25.26507"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "Railtracks.Core/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Microsoft.Extensions.AI.Abstractions/9.5.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-Y46j1S4zOPtLAHCUzhHIm1IhCMr7764754bLYupyc1JZcvLNXjUk+VC7H3Bou20S2hHgDJnfox7X/H/3BYEvzA==",
+      "path": "microsoft.extensions.ai.abstractions/9.5.0",
+      "hashPath": "microsoft.extensions.ai.abstractions.9.5.0.nupkg.sha512"
+    }
+  }
+}

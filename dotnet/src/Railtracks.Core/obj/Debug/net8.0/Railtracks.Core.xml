@@ -1,0 +1,346 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Railtracks.Core</name>
+    </assembly>
+    <members>
+        <member name="T:Railtracks.Exceptions.RailtracksException">
+            <summary>
+            Base class for all Railtracks exceptions to inherit from.
+            Ported from the Python <c>RTError</c> base class.
+            </summary>
+        </member>
+        <member name="M:Railtracks.Exceptions.RailtracksException.Color(System.String,System.String)">
+            <summary>Helper to colorize text for terminal output.</summary>
+        </member>
+        <member name="T:Railtracks.Llm.Attachment">
+            <summary>
+            Represents an attachment to a message (image or PDF). Ported from the Python <c>Attachment</c>.
+            </summary>
+        </member>
+        <member name="P:Railtracks.Llm.Attachment.UrlProbe">
+            <summary>
+            Hook for HEAD-probing a URL with no usable extension, returning (contentType, filename).
+            Defaults to a no-op that returns (null, null); tests/integrations can override.
+            (The Python version uses urllib; in C# this is the injection seam.)
+            </summary>
+        </member>
+        <member name="P:Railtracks.Llm.Attachment.Type">
+            <summary>The source kind: "local", "url", or "data_uri" (matches the Python <c>type</c> field).</summary>
+        </member>
+        <member name="T:Railtracks.Llm.ToolCall">
+            <summary>
+            Represents the moment a tool is called. Ported from the Python pydantic <c>ToolCall</c>.
+            </summary>
+        </member>
+        <member name="P:Railtracks.Llm.ToolCall.Identifier">
+            <summary>The identifier attached to this tool call.</summary>
+        </member>
+        <member name="P:Railtracks.Llm.ToolCall.Name">
+            <summary>The name of the tool being called.</summary>
+        </member>
+        <member name="P:Railtracks.Llm.ToolCall.Arguments">
+            <summary>The arguments provided as input to the tool.</summary>
+        </member>
+        <member name="T:Railtracks.Llm.ToolResponse">
+            <summary>
+            Represents a tool response. Ported from the Python pydantic <c>ToolResponse</c>.
+            </summary>
+        </member>
+        <member name="P:Railtracks.Llm.ToolResponse.Identifier">
+            <summary>The identifier attached to this tool response (matches the tool call's identifier).</summary>
+        </member>
+        <member name="P:Railtracks.Llm.ToolResponse.Name">
+            <summary>The name of the tool that generated this response.</summary>
+        </member>
+        <member name="P:Railtracks.Llm.ToolResponse.Result">
+            <summary>The result of the tool call.</summary>
+        </member>
+        <member name="T:Railtracks.Llm.Stream`1">
+            <summary>
+            Represents a streaming response from a model. Ported from the Python <c>Stream</c>.
+            The Python generator becomes an <see cref="T:System.Collections.Generic.IEnumerable`1"/> of chunk strings.
+            </summary>
+            <typeparam name="TOutput">The type of the final aggregated message (string or a structured model).</typeparam>
+        </member>
+        <member name="P:Railtracks.Llm.Stream`1.Streamer">
+            <summary>The streamer that yields response chunks.</summary>
+        </member>
+        <member name="P:Railtracks.Llm.Stream`1.FinalMessage">
+            <summary>The final message constructed once the streamer has finished.</summary>
+        </member>
+        <member name="T:Railtracks.Llm.AttachmentSource">
+            <summary>One of the three attachment source kinds. Ported from <c>detect_source</c>.</summary>
+        </member>
+        <member name="T:Railtracks.Llm.AttachmentEncoding">
+            <summary>
+            Encoding/detection helpers for attachments. Ported from the Python
+            <c>railtracks.llm.encoding</c> and <c>attachment_formats</c> modules.
+            </summary>
+        </member>
+        <member name="P:Railtracks.Llm.AttachmentEncoding.UrlFetcher">
+            <summary>
+            Hook for fetching the bytes of a URL. Defaults to <see cref="M:Railtracks.Llm.AttachmentEncoding.DefaultUrlFetcher(System.String,System.Double)"/>.
+            Tests override this to avoid in-process network I/O (the Python tests monkeypatch
+            <c>urllib</c>; in C# the seam is this delegate).
+            </summary>
+        </member>
+        <member name="M:Railtracks.Llm.AttachmentEncoding.DetectSource(System.String)">
+            <summary>Detects whether a string is a local file, URL, or data URI / base64 payload.</summary>
+        </member>
+        <member name="M:Railtracks.Llm.AttachmentEncoding.Encode(System.String,System.Double)">
+            <summary>Base64-encodes the bytes at a local path or URL. Ported from <c>encode</c>.</summary>
+        </member>
+        <member name="M:Railtracks.Llm.AttachmentEncoding.EnsureDataUri(System.String)">
+            <summary>
+            If the input is a valid data URI, return it normalized; otherwise treat it as plain
+            base64, sniff the MIME type, and construct a header. Ported from <c>ensure_data_uri</c>.
+            </summary>
+        </member>
+        <member name="M:Railtracks.Llm.AttachmentEncoding.DetectMimeFromBytes(System.ReadOnlySpan{System.Byte})">
+            <summary>
+            Magic-byte MIME sniffing for the supported attachment formats. Ported from the
+            Python <c>detect_attachment_mime_from_bytes</c> (which is driven by a YAML table).
+            </summary>
+        </member>
+        <member name="T:Railtracks.Llm.LlmException">
+            <summary>
+            Base class for all LLM exceptions. Ported from Python <c>RTLLMError</c>.
+            </summary>
+        </member>
+        <member name="T:Railtracks.Llm.RetryException">
+            <summary>
+            Raised when an error occurs during an LLM call that is being retried.
+            Ported from Python <c>RetryError</c>.
+            </summary>
+        </member>
+        <member name="T:Railtracks.Llm.Message">
+            <summary>
+            Base class for a message an LLM can read. Ported from the Python generic <c>Message</c>.
+            The content is held as <see cref="T:System.Object"/> since it may be a string, a list of
+            <see cref="T:Railtracks.Llm.ToolCall"/>, a <see cref="T:Railtracks.Llm.ToolResponse"/>, or a structured model.
+            </summary>
+        </member>
+        <member name="M:Railtracks.Llm.Message.ValidateContent(System.Object)">
+            <summary>Override to validate the content type for a specific message subtype.</summary>
+        </member>
+        <member name="P:Railtracks.Llm.Message.Content">
+            <summary>The content of the message.</summary>
+        </member>
+        <member name="P:Railtracks.Llm.Message.Role">
+            <summary>The role of the message.</summary>
+        </member>
+        <member name="P:Railtracks.Llm.Message.InjectPrompt">
+            <summary>Whether this message should have context variables injected into it.</summary>
+        </member>
+        <member name="P:Railtracks.Llm.Message.ToolCalls">
+            <summary>The tool calls attached to this message, if any; otherwise an empty list.</summary>
+        </member>
+        <member name="T:Railtracks.Llm.StringOnlyMessage">
+            <summary>Base for messages that only accept string content. Ported from <c>_StringOnlyContent</c>.</summary>
+        </member>
+        <member name="P:Railtracks.Llm.StringOnlyMessage.Text">
+            <summary>The string content of this message.</summary>
+        </member>
+        <member name="M:Railtracks.Llm.StringOnlyMessage.FillPrompt(System.Collections.Generic.IReadOnlyDictionary{System.String,System.Object})">
+            <summary>Injects context variables into the content, replacing <c>{key}</c> placeholders.</summary>
+        </member>
+        <member name="T:Railtracks.Llm.UserMessage">
+            <summary>A user message. Only string content is supported. Ported from <c>UserMessage</c>.</summary>
+        </member>
+        <member name="M:Railtracks.Llm.UserMessage.#ctor(System.String,System.String,System.Boolean,System.Boolean,System.Double)">
+            <summary>Convenience constructor for a single attachment.</summary>
+        </member>
+        <member name="P:Railtracks.Llm.UserMessage.Attachment">
+            <summary>The file attachment(s) for this message, or null if none.</summary>
+        </member>
+        <member name="T:Railtracks.Llm.SystemMessage">
+            <summary>A system message. Ported from <c>SystemMessage</c>.</summary>
+        </member>
+        <member name="T:Railtracks.Llm.AssistantMessage">
+            <summary>A message from the assistant. Ported from <c>AssistantMessage</c>.</summary>
+        </member>
+        <member name="P:Railtracks.Llm.AssistantMessage.RawProviderMessage">
+            <summary>
+            Optionally stores the raw provider message so providers that attach extra metadata
+            (e.g. Gemini thought_signature) can round-trip it back. Ported from <c>raw_litellm_message</c>.
+            </summary>
+        </member>
+        <member name="T:Railtracks.Llm.ToolMessage">
+            <summary>A message that is a tool call answer. Ported from <c>ToolMessage</c>.</summary>
+        </member>
+        <member name="P:Railtracks.Llm.ToolMessage.Response">
+            <summary>The tool response content.</summary>
+        </member>
+        <member name="T:Railtracks.Llm.MessageHistory">
+            <summary>
+            A history of messages. Has all the capabilities of a <see cref="T:System.Collections.Generic.List`1"/>
+            (Add, Remove, ...). Ported from the Python <c>MessageHistory(List[Message])</c>.
+            </summary>
+        </member>
+        <member name="M:Railtracks.Llm.MessageHistory.RemovedSystemMessages">
+            <summary>Returns a new <see cref="T:Railtracks.Llm.MessageHistory"/> with all system messages removed.</summary>
+        </member>
+        <member name="T:Railtracks.Llm.ModelBase">
+            <summary>
+            Base class for a model usable for chat, structured, and tool interactions.
+            Ported from the Python <c>ModelBase</c>.
+            <para>
+            Supports pre-hooks (modify messages before sending), post-hooks (modify the response
+            after receiving), and exception-hooks (observe exceptions). The Python sync/streaming
+            generator overloads collapse to async-first methods here; streaming is deferred to a
+            later slice. Concrete providers bind to <c>Microsoft.Extensions.AI.IChatClient</c>.
+            </para>
+            </summary>
+        </member>
+        <member name="M:Railtracks.Llm.ModelBase.ModelName">
+            <summary>The name of the model being used.</summary>
+        </member>
+        <member name="M:Railtracks.Llm.ModelBase.ModelProviderName">
+            <summary>The provider that owns the model.</summary>
+        </member>
+        <member name="M:Railtracks.Llm.ModelBase.ModelGateway">
+            <summary>The API distributor of the model (not necessarily the same as the provider).</summary>
+        </member>
+        <member name="T:Railtracks.Llm.ModelProvider">
+            <summary>
+            Supported LLM model providers. Ported from the Python <c>ModelProvider(str, Enum)</c>.
+            The string <see cref="M:Railtracks.Llm.ModelProviderExtensions.Value(Railtracks.Llm.ModelProvider)"/> matches the Python enum values
+            (some of which differ from the member name, e.g. Gemini -&gt; "Vertex_AI").
+            </summary>
+        </member>
+        <member name="T:Railtracks.Llm.PromptInjection">
+            <summary>
+            Minimal prompt-injection formatter. Ported from the Python <c>KeyOnlyFormatter</c>:
+            substitutes <c>{key}</c> placeholders from the provided values while leaving unknown
+            placeholders untouched (so partial fills don't raise).
+            </summary>
+        </member>
+        <member name="T:Railtracks.Llm.MessageInfo">
+            <summary>
+            Additional information about a model response. Ported from the Python <c>MessageInfo</c>.
+            </summary>
+        </member>
+        <member name="P:Railtracks.Llm.MessageInfo.TotalTokens">
+            <summary>The total tokens used, or null if either input or output token count is missing.</summary>
+        </member>
+        <member name="T:Railtracks.Llm.Response">
+            <summary>
+            A response from a model: the returned message plus metadata. Ported from <c>Response</c>.
+            </summary>
+        </member>
+        <member name="P:Railtracks.Llm.Response.Message">
+            <summary>The message returned as part of this response.</summary>
+        </member>
+        <member name="P:Railtracks.Llm.Response.MessageInfo">
+            <summary>Additional information about the message (tokens, latency, ...).</summary>
+        </member>
+        <member name="T:Railtracks.Llm.Role">
+            <summary>
+            Represents the role of a message. Ported from the Python <c>Role(str, Enum)</c>.
+            </summary>
+        </member>
+        <member name="T:Railtracks.Llm.RoleExtensions">
+            <summary>
+            Helpers for mapping <see cref="T:Railtracks.Llm.Role"/> to/from its wire string value
+            (e.g. <c>Role.Assistant</c> &lt;-&gt; <c>"assistant"</c>).
+            </summary>
+        </member>
+        <member name="M:Railtracks.Llm.RoleExtensions.Value(Railtracks.Llm.Role)">
+            <summary>The lowercase string value of the role (matches the Python enum value).</summary>
+        </member>
+        <member name="T:Railtracks.Llm.Tools.ArrayParameter">
+            <summary>Parameter representing an array type. Ported from <c>ArrayParameter</c>.</summary>
+        </member>
+        <member name="T:Railtracks.Llm.Tools.DocstringParser">
+            <summary>
+            Utilities for parsing Google-style docstrings to extract parameter descriptions and
+            the main description. Ported from the Python <c>docstring_parser</c> module.
+            </summary>
+        </member>
+        <member name="M:Railtracks.Llm.Tools.DocstringParser.ParamFromClrType(System.Type,System.String,System.String,System.Boolean)">
+            <summary>Creates a <see cref="T:Railtracks.Llm.Tools.Parameter"/> from a CLR type. Ported from <c>param_from_python_type</c>.</summary>
+        </member>
+        <member name="M:Railtracks.Llm.Tools.DocstringParser.ParseDocstringArgs(System.String)">
+            <summary>Parses the "Args:" section, mapping parameter names to descriptions.</summary>
+        </member>
+        <member name="M:Railtracks.Llm.Tools.DocstringParser.ExtractArgsSection(System.String)">
+            <summary>Extracts the raw "Args:" section text from a docstring.</summary>
+        </member>
+        <member name="M:Railtracks.Llm.Tools.DocstringParser.ParseArgsSection(System.String)">
+            <summary>Parses an "Args:" section into a parameter-name -&gt; description map.</summary>
+        </member>
+        <member name="M:Railtracks.Llm.Tools.DocstringParser.ExtractMainDescription(System.String)">
+            <summary>Extracts the main description (everything before the first section marker).</summary>
+        </member>
+        <member name="T:Railtracks.Llm.Tools.ObjectParameter">
+            <summary>Parameter representing an object type. Ported from <c>ObjectParameter</c>.</summary>
+        </member>
+        <member name="T:Railtracks.Llm.Tools.ParameterType">
+            <summary>JSON-schema parameter types. Ported from the Python <c>ParameterType(str, Enum)</c>.</summary>
+        </member>
+        <member name="M:Railtracks.Llm.Tools.ParameterTypeExtensions.Value(Railtracks.Llm.Tools.ParameterType)">
+            <summary>The JSON-schema string value (matches the Python enum value).</summary>
+        </member>
+        <member name="M:Railtracks.Llm.Tools.ParameterTypeExtensions.FromClrType(System.Type)">
+            <summary>Maps a CLR type to a <see cref="T:Railtracks.Llm.Tools.ParameterType"/>. Ported from <c>from_python_type</c>.</summary>
+        </member>
+        <member name="T:Railtracks.Llm.Tools.Parameter">
+            <summary>
+            Base parameter with default simple-parameter behavior. Ported from the Python
+            <c>Parameter</c> ABC (which is directly instantiable since it has no abstract members).
+            </summary>
+        </member>
+        <member name="P:Railtracks.Llm.Tools.Parameter.ParamType">
+            <summary>The schema type: a <see cref="T:System.String"/>, a <c>List&lt;string&gt;</c> (union), or null.</summary>
+        </member>
+        <member name="M:Railtracks.Llm.Tools.Parameter.NormalizeScalar(System.Object)">
+            <summary>Maps a ParameterType enum, schema string, or CLR type to a schema type string.</summary>
+        </member>
+        <member name="T:Railtracks.Llm.Tools.RefParameter">
+            <summary>Parameter representing a JSON-schema reference. Ported from <c>RefParameter</c>.</summary>
+        </member>
+        <member name="T:Railtracks.Llm.Tools.SchemaParser">
+            <summary>
+            Parses JSON-schema property dictionaries into <see cref="T:Railtracks.Llm.Tools.Parameter"/> instances.
+            Ported from the Python <c>schema_parser</c> module. Schema objects are represented as
+            <c>IReadOnlyDictionary&lt;string, object?&gt;</c> (matching a deserialized JSON object).
+            </summary>
+        </member>
+        <member name="M:Railtracks.Llm.Tools.SchemaParser.ParseJsonSchemaToParameter(System.String,System.Collections.Generic.IReadOnlyDictionary{System.String,System.Object},System.Boolean)">
+            <summary>Parse a JSON-schema property dict into the appropriate <see cref="T:Railtracks.Llm.Tools.Parameter"/> subtype.</summary>
+        </member>
+        <member name="M:Railtracks.Llm.Tools.SchemaParser.ParseModelProperties(System.Collections.Generic.IReadOnlyDictionary{System.String,System.Object})">
+            <summary>Returns the top-level properties of a (pydantic-style) JSON schema as parameters.</summary>
+        </member>
+        <member name="T:Railtracks.Llm.Tools.Tool">
+            <summary>
+            A quasi-immutable representation of a single tool: name, description, and parameters.
+            Ported from the Python <c>Tool</c>.
+            </summary>
+        </member>
+        <member name="M:Railtracks.Llm.Tools.Tool.#ctor(System.String,System.String,System.Collections.Generic.IReadOnlyDictionary{System.String,System.Object})">
+            <summary>
+            Constructs a tool from a JSON-schema dictionary (with "properties"/"required"),
+            matching the Python overload that accepts a schema dict.
+            </summary>
+        </member>
+        <member name="M:Railtracks.Llm.Tools.Tool.FromMethod(System.Reflection.MethodInfo,System.String,System.String,System.Collections.Generic.IReadOnlyDictionary{System.String,System.String})">
+            <summary>
+            Creates a <see cref="T:Railtracks.Llm.Tools.Tool"/> from a method via reflection. The C# analog of the Python
+            <c>from_function</c>: parameter types come from the signature, required-ness from the
+            presence of a default value, and descriptions from the supplied <paramref name="argDescriptions"/>
+            (C# has no runtime docstrings, so descriptions are provided explicitly).
+            </summary>
+        </member>
+        <member name="M:Railtracks.Llm.Tools.Tool.FromDelegate(System.Delegate,System.String,System.String,System.Collections.Generic.IReadOnlyDictionary{System.String,System.String})">
+            <summary>Convenience overload that builds a tool from a delegate's target method.</summary>
+        </member>
+        <member name="T:Railtracks.Llm.Tools.ToolCreationException">
+            <summary>Exception raised when a tool cannot be created. Ported from <c>ToolCreationError</c>.</summary>
+        </member>
+        <member name="T:Railtracks.Llm.Tools.UnionParameter">
+            <summary>Parameter representing a union type. Ported from <c>UnionParameter</c>.</summary>
+        </member>
+    </members>
+</doc>

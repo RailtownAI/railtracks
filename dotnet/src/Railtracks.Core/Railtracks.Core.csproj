@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Railtracks</RootNamespace>
+    <AssemblyName>Railtracks.Core</AssemblyName>
+    <PackageId>Railtracks.Core</PackageId>
+    <Description>The Railtracks framework for building resilient agentic systems — .NET port of the Python railtracks package.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- litellm has no single NuGet equivalent; Microsoft.Extensions.AI is the
+         provider-agnostic IChatClient abstraction that the concrete model
+         adapters bind to (OpenAI / Azure / Anthropic / Ollama / ...). -->
+    <PackageReference Include="Microsoft.Extensions.AI.Abstractions" Version="9.5.0" />
+  </ItemGroup>
+
+</Project>

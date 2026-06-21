@@ -1,0 +1,15 @@
+C:\Users\Con_\source\repos\railtracks\dotnet\src\Railtracks.Core\obj\Debug\net8.0\Railtracks.Core.csproj.AssemblyReference.cache
+C:\Users\Con_\source\repos\railtracks\dotnet\src\Railtracks.Core\obj\Debug\net8.0\Railtracks.Core.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Con_\source\repos\railtracks\dotnet\src\Railtracks.Core\obj\Debug\net8.0\Railtracks.Core.AssemblyInfoInputs.cache
+C:\Users\Con_\source\repos\railtracks\dotnet\src\Railtracks.Core\obj\Debug\net8.0\Railtracks.Core.AssemblyInfo.cs
+C:\Users\Con_\source\repos\railtracks\dotnet\src\Railtracks.Core\obj\Debug\net8.0\Railtracks.Core.csproj.CoreCompileInputs.cache
+C:\Users\Con_\source\repos\railtracks\dotnet\src\Railtracks.Core\obj\Debug\net8.0\Railtracks.Core.sourcelink.json
+C:\Users\Con_\source\repos\railtracks\dotnet\src\Railtracks.Core\bin\Debug\net8.0\Railtracks.Core.deps.json
+C:\Users\Con_\source\repos\railtracks\dotnet\src\Railtracks.Core\bin\Debug\net8.0\Railtracks.Core.dll
+C:\Users\Con_\source\repos\railtracks\dotnet\src\Railtracks.Core\bin\Debug\net8.0\Railtracks.Core.pdb
+C:\Users\Con_\source\repos\railtracks\dotnet\src\Railtracks.Core\bin\Debug\net8.0\Railtracks.Core.xml
+C:\Users\Con_\source\repos\railtracks\dotnet\src\Railtracks.Core\obj\Debug\net8.0\Railtracks.Core.dll
+C:\Users\Con_\source\repos\railtracks\dotnet\src\Railtracks.Core\obj\Debug\net8.0\refint\Railtracks.Core.dll
+C:\Users\Con_\source\repos\railtracks\dotnet\src\Railtracks.Core\obj\Debug\net8.0\Railtracks.Core.xml
+C:\Users\Con_\source\repos\railtracks\dotnet\src\Railtracks.Core\obj\Debug\net8.0\Railtracks.Core.pdb
+C:\Users\Con_\source\repos\railtracks\dotnet\src\Railtracks.Core\obj\Debug\net8.0\ref\Railtracks.Core.dll

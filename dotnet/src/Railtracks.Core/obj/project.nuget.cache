@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "5fn5P8tvm2o=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\Con_\\source\\repos\\railtracks\\dotnet\\src\\Railtracks.Core\\Railtracks.Core.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Con_\\.nuget\\packages\\microsoft.extensions.ai.abstractions\\9.5.0\\microsoft.extensions.ai.abstractions.9.5.0.nupkg.sha512"
+  ],
+  "logs": []
+}
