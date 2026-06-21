@@ -154,10 +154,6 @@ class GLMOCRLoader(BaseOCRLoader):
         Sends the image as a base64-encoded PNG in a JSON body and reads the
         response with ``httpx.AsyncClient`` so the event loop is not blocked.
 
-        Note: ``httpx`` is a transitive dependency but is not declared in
-        ``railtracks[glm]``. A future release will add it to the extra. Until
-        then, install it separately: ``pip install httpx``.
-
         # TODO: Confirm local endpoint request/response schema once a reference
         # implementation is published.
         """
