@@ -75,6 +75,21 @@ async def test_list_memories_populated(ts):
     assert "b: 2" in out
 
 
+async def test_list_keys_empty(ts):
+    assert await ts.list_keys() == "No memories stored."
+
+
+async def test_list_keys_populated(ts):
+    await ts.remember("a", "1")
+    await ts.remember("b", "2")
+    out = await ts.list_keys()
+    assert "- a" in out
+    assert "- b" in out
+    # values must not leak into a keys-only listing
+    assert "1" not in out
+    assert "2" not in out
+
+
 async def test_search_matches_key_and_value_case_insensitive(ts):
     await ts.remember("favorite_color", "blue")
     await ts.remember("pet", "a Blue parrot")
@@ -151,7 +166,7 @@ async def test_on_change_exception_is_swallowed():
 
 def test_tool_set_returns_rt_functions(ts):
     tools = ts.tool_set()
-    assert len(tools) == 5
+    assert len(tools) == 6
     assert all(hasattr(t, "node_type") for t in tools)
 
 

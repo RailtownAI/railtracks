@@ -121,6 +121,21 @@ class KeyValueMemoryToolSet(ToolSet):
             return "No memories stored."
         return "\n".join(f"- {key}: {value}" for key, value in items.items())
 
+    async def list_keys(self) -> str:
+        """List just the keys currently held in memory, without their values.
+
+        Prefer this over list_memories() to see what is stored without pulling
+        every value into context; then recall(key) only the ones you need.
+
+        Returns:
+            A newline-separated list of keys, or a message saying memory is
+            empty.
+        """
+        keys = await self.store.keys()
+        if not keys:
+            return "No memories stored."
+        return "\n".join(f"- {key}" for key in keys)
+
     async def search_memories(self, query: str) -> str:
         """Search stored memories for a substring across keys and values.
 
@@ -151,7 +166,8 @@ class KeyValueMemoryToolSet(ToolSet):
             "Call remember(key, value) to save a fact under a short, stable, descriptive key; "
             "re-calling remember() with the same key overwrites the old value. "
             "Call recall(key) to read a fact back, and forget(key) to delete one. "
-            "If you are unsure of the exact key, call search_memories() to find by substring "
+            "If you are unsure of the exact key, call search_memories() to find by substring, "
+            "list_keys() to see what is stored without pulling in every value, "
             "or list_memories() to see everything stored. "
             "Save anything the user tells you that may be useful later (preferences, names, goals, "
             "constraints), and recall before asking the user to repeat themselves."
@@ -162,6 +178,7 @@ class KeyValueMemoryToolSet(ToolSet):
             self.remember,
             self.recall,
             self.forget,
+            self.list_keys,
             self.list_memories,
             self.search_memories,
         ]
