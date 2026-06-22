@@ -104,7 +104,7 @@ retrieval = [
     "railtracks[stores-all]",
 ]
 
-all = ["railtracks[visual]", "railtracks[portkey]"]
+all = ["railtracks[visual]", "railtracks[portkey]", "railtracks[retrieval]"]
 
 [project.scripts]
 railtracks = "railtracks.cli:main"

@@ -1,18 +1,23 @@
 from __future__ import annotations
 
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 import railtracks as rt
 from railtracks.built_nodes.concrete.function_base import RTFunction
-from railtracks.retrieval.stores.key_value import (
-    InMemoryKeyValueStore,
-    KeyValueStore,
-)
 from railtracks.utils.logging.create import get_rt_logger
 
 from .._base import ToolSet
 
+if TYPE_CHECKING:
+    from railtracks.retrieval.stores.key_value import KeyValueStore
+
 logger = get_rt_logger(__name__)
+
+
+def _default_store() -> KeyValueStore:
+    from railtracks.retrieval.stores.key_value import InMemoryKeyValueStore
+
+    return InMemoryKeyValueStore()
 
 
 class KeyValueMemoryToolSet(ToolSet):
@@ -46,9 +51,7 @@ class KeyValueMemoryToolSet(ToolSet):
         store: KeyValueStore | None = None,
         on_change: Callable[[str, str | None], None] | None = None,
     ) -> None:
-        self.store: KeyValueStore = (
-            store if store is not None else InMemoryKeyValueStore()
-        )
+        self.store: KeyValueStore = store if store is not None else _default_store()
         self.on_change = on_change
 
     def _notify(self, key: str, value: str | None) -> None:
