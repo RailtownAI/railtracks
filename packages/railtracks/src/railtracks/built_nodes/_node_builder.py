@@ -96,6 +96,9 @@ def safe_create_node(
     return type(class_name + "Node", (Node,), class_dict)
 
 
+
+
+
 class NodeBuilder(Generic[_P, _T]):
     def __init__(self) -> None:
         self._class_name: str | None = None
@@ -226,7 +229,7 @@ class NodeBuilder(Generic[_P, _T]):
         class_name: str | None = None,
         name: str | None = None,
         *,
-        middleware: MiddlewareSet | list | None = None,
+        middleware: MiddlewareSet[_P2, _T2] | None = None,
         tool_details: str | None = None,
         tool_params: list[Parameter] | Type[BaseModel] | dict[str, Any] | None = None,
         tool_info: Tool | None = None,

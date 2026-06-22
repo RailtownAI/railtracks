@@ -148,6 +148,14 @@ def llm_invoke_factory(
     schema: type[_TStructured],
 ) -> StructuredLLMInvoke[_TStructured]: ...
 
+class LLMCallProtocol(Protocol):
+    async def __call__(
+        self,
+        messages: MessageHistory,
+        *,
+        schema: type[BaseModel] | None = None,
+        tools: list[Tool] | None = None,
+    ) -> Response: ...
 
 def llm_invoke_factory(
     model_invoker: ModelInvoker,
@@ -421,7 +429,7 @@ def llm_observe(
 ):
     async def wrapper(message_history: MessageHistory, schema: type[BaseModel] | None, tools: list[Tool] | None):
         prev_message_history = deepcopy(message_history)
-        response: Response = await call(message_history, schema, tools)
+        response: Response = await call(message_history, schema, tools)       
         rd = RequestDetails(
             message_input=prev_message_history,
             output=response.message,

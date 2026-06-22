@@ -231,7 +231,7 @@ class Gateway(Generic[_P, _R]):
         return self._fn(*args, **kwargs)
 
     @property
-    def fn(self) -> Callable[_P, Awaitable[_R]]:
+    def fn(self) -> Callable[_P, Awaitable[_R] | _R]:
         return self._fn
 
     def __repr__(self) -> str:
