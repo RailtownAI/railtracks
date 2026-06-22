@@ -19,7 +19,7 @@ You will usually want to tell the agent how to use memory in your prompt. We pro
 
 ## The Tools
 
-The toolset exposes five tools to the agent:
+The toolset exposes six tools to the agent:
 
 | Tool | Purpose |
 |---|---|
