@@ -64,19 +64,14 @@ from typing import (
     Awaitable,
     Callable,
     Coroutine,
+    Generic,
     ParamSpec,
     TypeVar,
+    overload,
 )
 
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
-
-# A wrapper-author function: (inner_call, *args, **kwargs) -> result. Must be async —
-# a wrapper has to ``await`` the inner call, which a sync function cannot do.
-WrapperFn = Callable[..., Coroutine[Any, Any, Any]]
-# A gateway-author function: entry -> (*args, **kwargs) -> (args, kwargs);
-#                            exit  -> (result) -> result. May be async or plain sync.
-GatewayFn = Callable[..., Any]
 
 
 def _require_callable(fn: Callable, role: str) -> None:
@@ -111,7 +106,7 @@ class _GatewayArgs:
         return f"gateway.args({inner})"
 
 
-class Wrapper:
+class Wrapper(Generic[_P, _R]):
     """Execution-control middleware.
 
     Built from a call-style async function ``fn(call, *args, **kwargs)`` where
@@ -124,10 +119,8 @@ class Wrapper:
     loss of the run's context is not acceptable).
     """
 
-    def __init__(self, fn: WrapperFn) -> None:
-        _require_async(fn, "Wrapper function")
+    def __init__(self, fn: Callable[[Callable[_P, Awaitable[_R]]], Callable[_P, Awaitable[_R]]]) -> None:
         self._fn = fn
-        functools.update_wrapper(self, fn, updated=())
 
     def wrap(self, inner: Callable[_P, Awaitable[_R]]) -> Callable[_P, Awaitable[_R]]:
         """Compose this wrapper onto ``inner``, returning a new callable.
@@ -136,21 +129,17 @@ class Wrapper:
         wrapping does not erase the signature of the function being wrapped.
         """
 
-        @functools.wraps(self._fn)
         async def wrapped(*args: _P.args, **kwargs: _P.kwargs) -> _R:
-            return await self._fn(inner, *args, **kwargs)
+            return await self._fn(inner)(*args, **kwargs)
 
         return wrapped
-
-    @property
-    def fn(self) -> WrapperFn:
-        return self._fn
 
     def __repr__(self) -> str:
         return f"Wrapper({getattr(self._fn, '__name__', self._fn)!r})"
 
 
-class Gateway:
+
+class Gateway(Generic[_P, _R]):
     """Direction-less data-transform middleware.
 
     Build one with :func:`gateway`; its direction is decided by the slot it is
@@ -166,23 +155,24 @@ class Gateway:
             return clean(result)
     """
 
-    def __init__(self, fn: GatewayFn) -> None:
+    def __init__(self, fn: Callable[_P, Awaitable[_R] | _R]) -> None:
         _require_callable(fn, "Gateway function")
         self._fn = fn
-        self._is_async = inspect.iscoroutinefunction(fn)
-        functools.update_wrapper(self, fn, updated=())
 
-    async def _invoke(self, *args: Any, **kwargs: Any) -> Any:
+    async def _invoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _R:
         """Call the underlying function, awaiting it if it is async.
 
         A sync gateway is a quick data transform, so it is run inline (not in a
         thread) — that keeps any ``rt.context`` writes on the current context.
         """
-        if self._is_async:
-            return await self._fn(*args, **kwargs)
-        return self._fn(*args, **kwargs)
+        if inspect.iscoroutinefunction(self._fn):
+            result: _R = await self._fn(*args, **kwargs)
+        else:
+            result: _R = self._fn(*args, **kwargs)
+        
+        return result
 
-    async def apply_entry(self, *args: Any, **kwargs: Any) -> tuple[tuple, dict]:
+    async def apply_entry(self, *args: _P.args, **kwargs: _P.kwargs) -> tuple[tuple, dict]:
         """Run as an entry gateway. Returns the new ``(args, kwargs)``.
 
         The return value is interpreted as:
@@ -220,7 +210,7 @@ class Gateway:
             f"got {result!r}. Wrap a single positional value as (x,) or gateway.args(x)."
         )
 
-    async def apply_exit(self, result: Any) -> Any:
+    async def apply_exit(self, result: _R) -> _R:
         """Run as an exit gateway. Returns the (possibly transformed) result.
 
         A check-only gateway may ``return`` nothing (``None``); the original result is
@@ -229,7 +219,7 @@ class Gateway:
         transformed = await self._invoke(result)
         return result if transformed is None else transformed
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+    def __call__(self, *args: _P.args, **kwargs: _P.kwargs):
         """Invoke the underlying function directly (a raw pass-through).
 
         Handy for reusing a generic gateway — e.g. a logger or validator — as an
@@ -241,14 +231,14 @@ class Gateway:
         return self._fn(*args, **kwargs)
 
     @property
-    def fn(self) -> Callable:
+    def fn(self) -> Callable[_P, Awaitable[_R]]:
         return self._fn
 
     def __repr__(self) -> str:
         return f"Gateway({getattr(self._fn, '__name__', self._fn)!r})"
 
 
-def wrapper(fn: WrapperFn) -> Wrapper:
+def wrapper(fn: Callable[[Callable[_P, Awaitable[_R]]], Callable[_P, Awaitable[_R]]]) -> Wrapper[_P, _R]:
     """Decorator: turn a call-style async function into a :class:`Wrapper`."""
     return Wrapper(fn)
 
@@ -265,8 +255,13 @@ def _gateway_args(*args: Any, **kwargs: Any) -> _GatewayArgs:
     """
     return _GatewayArgs(args, kwargs)
 
+@overload
+def gateway(fn: Callable[_P, Awaitable[_R]]) -> Gateway[_P, _R]: ...
 
-def gateway(fn: GatewayFn) -> Gateway:
+@overload
+def gateway(fn: Callable[_P, _R]) -> Gateway[_P, _R]: ...
+
+def gateway(fn: Callable[_P, Awaitable[_R] | _R]) -> Gateway:
     """Decorator: turn a function into a (direction-less) :class:`Gateway`.
 
     ``fn`` may be ``async`` or plain ``def`` (a sync gateway is run inline).

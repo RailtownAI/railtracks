@@ -23,6 +23,7 @@ from railtracks.built_nodes.llm_helpers import (
     ModelInvoker,
     ModelSource,
     llm_invoke_factory,
+    llm_observe,
     llm_prepare_called_as_tool_factory,
 )
 from railtracks.llm import (
@@ -32,6 +33,7 @@ from railtracks.llm import (
 )
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import Message
+from railtracks.llm.response import Response
 from railtracks.llm.type_mapping import TypeMapper
 from railtracks.middleware import MiddlewareSet
 from railtracks.nodes.nodes import Node
@@ -55,6 +57,7 @@ _P = ParamSpec("_P")
 _T = TypeVar("_T")
 _P2 = ParamSpec("_P2")
 _T2 = TypeVar("_T2")
+_R = TypeVar("_R", bound=StringResponse | StructuredResponse)
 _TStructured = TypeVar("_TStructured", bound=BaseModel)
 
 UserInput = Union[str, MessageHistory, list[Message]]
@@ -119,8 +122,8 @@ class NodeBuilder(Generic[_P, _T]):
         connected_nodes: Iterable[Type[Node]] | None = None,
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
-        middleware: MiddlewareSet | list | None = None,
-        model_middleware: MiddlewareSet | list | None = None,
+        middleware: MiddlewareSet[[UserInput], StringResponse] | None = None,
+        model_middleware: MiddlewareSet[[MessageHistory, type[BaseModel] | None, list[Tool] | None], Response] | None = None,
         context_injection: bool = True,
     ) -> NodeBuilder[[UserInput], StringResponse]: ...
 
@@ -137,8 +140,8 @@ class NodeBuilder(Generic[_P, _T]):
         connected_nodes: Iterable[Type[Node]] | None = None,
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
-        middleware: MiddlewareSet | list | None = None,
-        model_middleware: MiddlewareSet | list | None = None,
+        middleware: MiddlewareSet[[UserInput], StructuredResponse[_TStructured]] | None = None,
+        model_middleware: MiddlewareSet[[MessageHistory, type[BaseModel] | None, list[Tool] | None], Response]  | None = None,
         context_injection: bool = True,
     ) -> NodeBuilder[[UserInput], StructuredResponse[_TStructured]]: ...
 
@@ -154,10 +157,10 @@ class NodeBuilder(Generic[_P, _T]):
         connected_nodes: Iterable[Type[Node]] | None = None,
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
-        middleware: MiddlewareSet | list | None = None,
-        model_middleware: MiddlewareSet | list | None = None,
+        middleware: MiddlewareSet[[UserInput], _R] | None = None,
+        model_middleware: MiddlewareSet[[MessageHistory, type[BaseModel] | None, list[Tool] | None], Response]  | None = None,
         context_injection: bool = True,
-    ) -> NodeBuilder[[UserInput], StructuredResponse[_TStructured] | StringResponse]:
+    ) -> NodeBuilder[[UserInput], _R]:
         instance = cls()
         casted_instance = cast(NodeBuilder, instance)
         casted_instance._class_name = class_name or name
@@ -173,6 +176,8 @@ class NodeBuilder(Generic[_P, _T]):
         # context_injection=False, or flow/session-wide via prompt_injection=False.
         if context_injection:
             model_invoker.register_sys_gateway_entry(context_injection_gateway)
+        
+        model_invoker.register_sys_wrapper(llm_observe)
 
         casted_instance._invoke = llm_invoke_factory(
             model_invoker=model_invoker,
@@ -251,7 +256,8 @@ class NodeBuilder(Generic[_P, _T]):
 
     def construct_required(self) -> dict[str, Any]:
         async def invoke(_self, *args, **kwargs) -> _T:
-            return await unpack(self._invoke)(*args, **kwargs)
+            method = unpack(self._invoke)
+            return await method(*args, **kwargs)
 
         return {
             "invoke": invoke,

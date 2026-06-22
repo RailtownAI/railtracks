@@ -30,11 +30,13 @@ own system middleware independently).
 
 from __future__ import annotations
 
-from typing import Any, Awaitable, Callable, Generic, Iterable, Iterator, TypeVar
+from typing import Any, Awaitable, Callable, Generic, Iterable, Iterator, TypeVar, ParamSpec
 
 from railtracks.middleware.primitives import Gateway, Wrapper
 
 _T = TypeVar("_T")
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
 
 
 class _LayeredList(Generic[_T]):
@@ -122,7 +124,7 @@ def _coerce_gateways(items: Iterable[Any] | None) -> list[Gateway]:
     return result
 
 
-class MiddlewareSet:
+class MiddlewareSet(Generic[_P, _R]):
     """The ordered middleware attached to a single entry point.
 
     Construct with explicit bands — entry and exit gateways are **separate** lists
@@ -141,17 +143,17 @@ class MiddlewareSet:
 
     def __init__(
         self,
-        wrappers: Iterable[Wrapper] | None = None,
-        gateway_entry: Iterable[Gateway] | None = None,
-        gateway_exit: Iterable[Gateway] | None = None,
-        inner_wrappers: Iterable[Wrapper] | None = None,
+        wrappers: Iterable[Wrapper[_P, _R]] | None = None,
+        gateway_entry: Iterable[Gateway[_P, tuple[tuple, dict[str, Any]]]] | None = None,
+        gateway_exit: Iterable[Gateway[[_R], _R]] | None = None,
+        inner_wrappers: Iterable[Wrapper[_P, _R]] | None = None,
     ) -> None:
-        self._outer: _LayeredList[Wrapper] = _LayeredList(_coerce_wrappers(wrappers))
-        self._entry: _LayeredList[Gateway] = _LayeredList(
+        self._outer: _LayeredList[Wrapper[_P, _R]] = _LayeredList(_coerce_wrappers(wrappers))
+        self._entry: _LayeredList[Gateway[_P, tuple[tuple, dict[str, Any]]]] = _LayeredList(
             _coerce_gateways(gateway_entry)
         )
-        self._exit: _LayeredList[Gateway] = _LayeredList(_coerce_gateways(gateway_exit))
-        self._inner: _LayeredList[Wrapper] = _LayeredList(
+        self._exit: _LayeredList[Gateway[[_R], _R]] = _LayeredList(_coerce_gateways(gateway_exit))
+        self._inner: _LayeredList[Wrapper[_P, _R]] = _LayeredList(
             _coerce_wrappers(inner_wrappers)
         )
 
@@ -213,19 +215,19 @@ class MiddlewareSet:
     # System-middleware registration (never touches the user layer)
     # ------------------------------------------------------------------
 
-    def register_sys_gateway_entry(self, gw: Gateway) -> None:
+    def register_sys_gateway_entry(self, gw: Gateway[_P, tuple[tuple, dict[str, Any]]]) -> None:
         """Register a framework entry gateway (runs before user entry gateways)."""
         self._entry.add_sys_before(gw)
 
-    def register_sys_gateway_exit(self, gw: Gateway) -> None:
+    def register_sys_gateway_exit(self, gw: Gateway[[_R], _R]) -> None:
         """Register a framework exit gateway (runs after user exit gateways)."""
         self._exit.add_sys_after(gw)
 
-    def register_sys_outer_wrapper(self, w: Wrapper) -> None:
+    def register_sys_outer_wrapper(self, w: Wrapper[_P, _R]) -> None:
         """Register a framework wrapper outside all user (outer) wrappers."""
         self._outer.add_sys_before(w)
 
-    def register_sys_inner_wrapper(self, w: Wrapper) -> None:
+    def register_sys_inner_wrapper(self, w: Wrapper[_P, _R]) -> None:
         """Register a framework wrapper inside all user (inner) wrappers."""
         self._inner.add_sys_after(w)
 
@@ -234,19 +236,19 @@ class MiddlewareSet:
     # ------------------------------------------------------------------
 
     @property
-    def wrappers(self) -> list[Wrapper]:
+    def wrappers(self):
         return list(self._outer)
 
     @property
-    def inner_wrappers(self) -> list[Wrapper]:
+    def inner_wrappers(self):
         return list(self._inner)
 
     @property
-    def gateway_entry(self) -> list[Gateway]:
+    def gateway_entry(self):
         return list(self._entry)
 
     @property
-    def gateway_exit(self) -> list[Gateway]:
+    def gateway_exit(self):
         return list(self._exit)
 
     # ------------------------------------------------------------------
@@ -255,13 +257,11 @@ class MiddlewareSet:
 
     async def run(
         self,
-        core: Callable[..., Awaitable[Any]],
-        args: tuple = (),
-        kwargs: dict | None = None,
-    ) -> Any:
+        core: Callable[_P, Awaitable[_R]],
+        *args: _P.args,
+        **kwargs: _P.kwargs,
+    ) -> _R:
         """Run ``core(*args, **kwargs)`` through this middleware set."""
-        kwargs = kwargs or {}
-
         entry = self._entry.ordered()
         exit_ = self._exit.ordered()
 
@@ -269,15 +269,16 @@ class MiddlewareSet:
         for w in reversed(self._inner.ordered()):
             inner = w.wrap(inner)
 
-        async def gated(*a: Any, **k: Any) -> Any:
+        async def gated(*a: _P.args, **k: _P.kwargs) -> _R:
             for g in entry:
-                a, k = await g.apply_entry(*a, **k)
+                # no typing remedy possible here until python allows the return type to the be a paramspec
+                a, k = await g.apply_entry(*a, **k) # noqa
             result = await inner(*a, **k)
             for g in exit_:
                 result = await g.apply_exit(result)
             return result
 
-        outer: Callable[..., Awaitable[Any]] = gated
+        outer = gated
         for w in reversed(self._outer.ordered()):
             outer = w.wrap(outer)
 

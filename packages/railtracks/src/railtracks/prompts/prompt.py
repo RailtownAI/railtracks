@@ -1,9 +1,11 @@
 from typing import Any
 
+from pydantic import BaseModel
 import railtracks.context as context
 from railtracks.context.central import get_local_config
 from railtracks.exceptions import ContextError
 from railtracks.llm import MessageHistory
+from railtracks.llm.tools.tool import Tool
 from railtracks.middleware import gateway
 from railtracks.utils.prompt_injection import ValueDict, inject_values
 
@@ -38,9 +40,9 @@ def inject_context(message_history: MessageHistory):
 @gateway
 async def context_injection_gateway(
     messages: MessageHistory,
-    schema: Any,
-    tools: Any,
-) -> tuple[tuple, dict]:
+    schema: type[BaseModel] | None = None,
+    tools: list[Tool] | None = None,
+):
     """
     Entry :class:`~railtracks.middleware.Gateway` that injects context variables
     into message prompts before the model call.
@@ -50,3 +52,5 @@ async def context_injection_gateway(
     """
     inject_context(messages)
     return (messages, schema, tools), {}
+
+

@@ -126,7 +126,7 @@ class Node(ABC, Generic[_P, _TOutput]):
         """
         Runs ``invoke`` through the node-level middleware (wrappers + gateways).
         """
-        return await self.middleware.run(self.invoke, args, kwargs)
+        return await self.middleware.run(self.invoke, *args, **kwargs)
 
     def __repr__(self):
         return f"{self.name()} <{hex(id(self))}>"
