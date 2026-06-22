@@ -3,3 +3,4 @@ Railtracks provides a set of built-in tools that help you skip the engineering p
 
 ## Overview of Pre-Built Tools
 - [To Do Tool](todos.md): A tool for your agent to track and plan out todo's. This tool allows your agent to create, manage, and persist to do items across interactions.
+- [Key-Value Memory Tool](key_value_memory.md): A tool for your agent to remember facts under keys and recall them later. Supports listing, substring search, and optional persistence across runs.
