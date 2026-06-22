@@ -282,16 +282,16 @@ class NodeBuilder(Generic[_P, _T]):
     def construct_optional(self) -> dict[str, Any]:
         return {
             "tool_info": self._construct_tool_info(),
-            "prepare_tool": self._construct_prepared_arguments(),
+            "prepare_args": self._construct_prepared_arguments(),
             "frozen_middleware": self._frozen_middleware,
         }
 
-    def _construct_prepared_arguments(self, **kwargs):
+    def _construct_prepared_arguments(self):
         if self._prepare_arguments is None:
             return None
 
         return classmethod_preserving_function_meta(
-            lambda **kwargs: unpack(self._prepare_arguments)(kwargs)
+            lambda **kwargs: unpack(self._prepare_arguments)(**kwargs)
         )
 
     def _construct_tool_info(self):

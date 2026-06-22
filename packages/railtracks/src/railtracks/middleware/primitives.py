@@ -128,9 +128,9 @@ class Wrapper(Generic[_P, _R]):
         The returned callable carries ``inner``'s parameter and return types, so
         wrapping does not erase the signature of the function being wrapped.
         """
-
+        decorated = self._fn(inner)
         async def wrapped(*args: _P.args, **kwargs: _P.kwargs) -> _R:
-            return await self._fn(inner)(*args, **kwargs)
+            return await decorated(*args, **kwargs)
 
         return wrapped
 

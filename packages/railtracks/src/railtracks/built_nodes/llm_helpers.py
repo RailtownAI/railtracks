@@ -56,9 +56,6 @@ class StructuredLLMInvoke(Protocol[_TStructured]):
     ) -> StructuredResponse[_TStructured]: ...
 
 
-_TStructured = TypeVar("_TStructured", bound=BaseModel)
-
-
 class ModelInvoker:
     """
     Coordinates a single LLM model call through a :class:`MiddlewareSet`.
