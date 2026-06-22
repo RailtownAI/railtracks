@@ -25,7 +25,7 @@ class AzureAILLM(LiteLLMWrapper[_TStream]):
         return ModelProvider.AZUREAI
 
     def model_provider(self) -> ModelProvider:
-        return super().model_provider()
+        return self.model_gateway()
 
     def __init__(
         self,
