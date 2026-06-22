@@ -30,7 +30,16 @@ own system middleware independently).
 
 from __future__ import annotations
 
-from typing import Any, Awaitable, Callable, Generic, Iterable, Iterator, TypeVar, ParamSpec
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Generic,
+    Iterable,
+    Iterator,
+    ParamSpec,
+    TypeVar,
+)
 
 from railtracks.middleware.primitives import Gateway, Wrapper
 
@@ -144,15 +153,20 @@ class MiddlewareSet(Generic[_P, _R]):
     def __init__(
         self,
         wrappers: Iterable[Wrapper[_P, _R]] | None = None,
-        gateway_entry: Iterable[Gateway[_P, tuple[tuple, dict[str, Any]]]] | None = None,
+        gateway_entry: Iterable[Gateway[_P, tuple[tuple, dict[str, Any]]]]
+        | None = None,
         gateway_exit: Iterable[Gateway[[_R], _R]] | None = None,
         inner_wrappers: Iterable[Wrapper[_P, _R]] | None = None,
     ) -> None:
-        self._outer: _LayeredList[Wrapper[_P, _R]] = _LayeredList(_coerce_wrappers(wrappers))
-        self._entry: _LayeredList[Gateway[_P, tuple[tuple, dict[str, Any]]]] = _LayeredList(
-            _coerce_gateways(gateway_entry)
+        self._outer: _LayeredList[Wrapper[_P, _R]] = _LayeredList(
+            _coerce_wrappers(wrappers)
         )
-        self._exit: _LayeredList[Gateway[[_R], _R]] = _LayeredList(_coerce_gateways(gateway_exit))
+        self._entry: _LayeredList[Gateway[_P, tuple[tuple, dict[str, Any]]]] = (
+            _LayeredList(_coerce_gateways(gateway_entry))
+        )
+        self._exit: _LayeredList[Gateway[[_R], _R]] = _LayeredList(
+            _coerce_gateways(gateway_exit)
+        )
         self._inner: _LayeredList[Wrapper[_P, _R]] = _LayeredList(
             _coerce_wrappers(inner_wrappers)
         )
@@ -215,7 +229,9 @@ class MiddlewareSet(Generic[_P, _R]):
     # System-middleware registration (never touches the user layer)
     # ------------------------------------------------------------------
 
-    def register_sys_gateway_entry(self, gw: Gateway[_P, tuple[tuple, dict[str, Any]]]) -> None:
+    def register_sys_gateway_entry(
+        self, gw: Gateway[_P, tuple[tuple, dict[str, Any]]]
+    ) -> None:
         """Register a framework entry gateway (runs before user entry gateways)."""
         self._entry.add_sys_before(gw)
 
@@ -272,7 +288,7 @@ class MiddlewareSet(Generic[_P, _R]):
         async def gated(*a: _P.args, **k: _P.kwargs) -> _R:
             for g in entry:
                 # no typing remedy possible here until python allows the return type to the be a paramspec
-                a, k = await g.apply_entry(*a, **k) # noqa
+                a, k = await g.apply_entry(*a, **k)  # noqa
             result = await inner(*a, **k)
             for g in exit_:
                 result = await g.apply_exit(result)

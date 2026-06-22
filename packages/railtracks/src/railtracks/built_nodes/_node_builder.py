@@ -96,9 +96,6 @@ def safe_create_node(
     return type(class_name + "Node", (Node,), class_dict)
 
 
-
-
-
 class NodeBuilder(Generic[_P, _T]):
     def __init__(self) -> None:
         self._class_name: str | None = None
@@ -126,7 +123,10 @@ class NodeBuilder(Generic[_P, _T]):
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
         middleware: MiddlewareSet[[UserInput], StringResponse] | None = None,
-        model_middleware: MiddlewareSet[[MessageHistory, type[BaseModel] | None, list[Tool] | None], Response] | None = None,
+        model_middleware: MiddlewareSet[
+            [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
+        ]
+        | None = None,
         context_injection: bool = True,
     ) -> NodeBuilder[[UserInput], StringResponse]: ...
 
@@ -143,8 +143,12 @@ class NodeBuilder(Generic[_P, _T]):
         connected_nodes: Iterable[Type[Node]] | None = None,
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
-        middleware: MiddlewareSet[[UserInput], StructuredResponse[_TStructured]] | None = None,
-        model_middleware: MiddlewareSet[[MessageHistory, type[BaseModel] | None, list[Tool] | None], Response]  | None = None,
+        middleware: MiddlewareSet[[UserInput], StructuredResponse[_TStructured]]
+        | None = None,
+        model_middleware: MiddlewareSet[
+            [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
+        ]
+        | None = None,
         context_injection: bool = True,
     ) -> NodeBuilder[[UserInput], StructuredResponse[_TStructured]]: ...
 
@@ -161,7 +165,10 @@ class NodeBuilder(Generic[_P, _T]):
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
         middleware: MiddlewareSet[[UserInput], _R] | None = None,
-        model_middleware: MiddlewareSet[[MessageHistory, type[BaseModel] | None, list[Tool] | None], Response]  | None = None,
+        model_middleware: MiddlewareSet[
+            [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
+        ]
+        | None = None,
         context_injection: bool = True,
     ) -> NodeBuilder[[UserInput], _R]:
         instance = cls()
@@ -179,7 +186,7 @@ class NodeBuilder(Generic[_P, _T]):
         # context_injection=False, or flow/session-wide via prompt_injection=False.
         if context_injection:
             model_invoker.register_sys_gateway_entry(context_injection_gateway)
-        
+
         model_invoker.register_sys_wrapper(llm_observe)
 
         casted_instance._invoke = llm_invoke_factory(

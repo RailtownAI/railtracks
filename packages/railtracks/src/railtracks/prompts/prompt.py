@@ -1,6 +1,5 @@
-from typing import Any
-
 from pydantic import BaseModel
+
 import railtracks.context as context
 from railtracks.context.central import get_local_config
 from railtracks.exceptions import ContextError
@@ -52,5 +51,3 @@ async def context_injection_gateway(
     """
     inject_context(messages)
     return (messages, schema, tools), {}
-
-

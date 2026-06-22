@@ -77,7 +77,6 @@ def function_node(
     pass
 
 
-
 @overload
 def function_node(
     func: None = None,
@@ -86,7 +85,9 @@ def function_node(
     name: str | None = None,
     manifest: ToolManifest | None = None,
     middleware: MiddlewareSet | None = None,
-) -> Callable[[Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]], RTFunction[_P, _TOutput]]:
+) -> Callable[
+    [Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]], RTFunction[_P, _TOutput]
+]:
     pass
 
 
@@ -253,21 +254,18 @@ def function_node(
     # No function yet -> parametrized-decorator form: bind the options and return
     # a decorator that finishes the job once the function is supplied.
     if func is None:
+
         def _decorator(
             f: Callable[_P, Coroutine[None, None, _TOutput] | _TOutput],
         ) -> Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]:
-            return function_node(
-                f, name=name, manifest=manifest, middleware=middleware
-            )
+            return function_node(f, name=name, manifest=manifest, middleware=middleware)
 
         return _decorator
 
     # handle the case where a list of functions is provided
     if isinstance(func, list):
         return [
-            function_node(
-                f, name=name, manifest=manifest, middleware=middleware
-            )
+            function_node(f, name=name, manifest=manifest, middleware=middleware)
             for f in func
         ]
     else:

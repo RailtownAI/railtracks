@@ -30,7 +30,7 @@ from railtracks.llm.response import Response
 from railtracks.llm.tools.parameters._base import Parameter
 from railtracks.llm.tools.tool import Tool
 from railtracks.middleware import Gateway, MiddlewareSet
-from railtracks.middleware.primitives import Wrapper, gateway, wrapper
+from railtracks.middleware.primitives import Wrapper, wrapper
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_invocation.validation import check_message_history
 
@@ -84,12 +84,23 @@ class ModelInvoker:
     def __init__(
         self,
         model: ModelSource,
-        middleware: MiddlewareSet[[MessageHistory, type[BaseModel] | None, list[Tool] | None], Response] | None = None,
+        middleware: MiddlewareSet[
+            [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
+        ]
+        | None = None,
     ):
         self._get_model = model if callable(model) else lambda: model
-        self._middleware: MiddlewareSet[[MessageHistory, type[BaseModel] | None, list[Tool] | None], Response] = MiddlewareSet.coerce(middleware)
+        self._middleware: MiddlewareSet[
+            [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
+        ] = MiddlewareSet.coerce(middleware)
 
-    def register_sys_gateway_entry(self, gw: Gateway[[MessageHistory, type[BaseModel] | None, list[Tool] | None], tuple[tuple, dict[str, Any]]]) -> None:
+    def register_sys_gateway_entry(
+        self,
+        gw: Gateway[
+            [MessageHistory, type[BaseModel] | None, list[Tool] | None],
+            tuple[tuple, dict[str, Any]],
+        ],
+    ) -> None:
         """Register a system entry gateway around the model call (e.g. context injection)."""
         self._middleware.register_sys_gateway_entry(gw)
 
@@ -97,7 +108,12 @@ class ModelInvoker:
         """Register a system exit gateway around the model call (e.g. logging)."""
         self._middleware.register_sys_gateway_exit(gw)
 
-    def register_sys_wrapper(self, w: Wrapper[[MessageHistory, type[BaseModel] | None, list[Tool] | None], Response]) -> None:
+    def register_sys_wrapper(
+        self,
+        w: Wrapper[
+            [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
+        ],
+    ) -> None:
         """Register a system wrapper around the model call (e.g. logging)."""
         self._middleware.register_sys_outer_wrapper(w)
 
@@ -132,7 +148,7 @@ class ModelInvoker:
 @overload
 def llm_invoke_factory(
     model_invoker: ModelInvoker,
-    system_message: SystemMessage | None,\
+    system_message: SystemMessage | None,
     *,
     tool_nodes: list[type[Node]] | None = None,
     schema: None = None,
@@ -148,6 +164,7 @@ def llm_invoke_factory(
     schema: type[_TStructured],
 ) -> StructuredLLMInvoke[_TStructured]: ...
 
+
 class LLMCallProtocol(Protocol):
     async def __call__(
         self,
@@ -156,6 +173,7 @@ class LLMCallProtocol(Protocol):
         schema: type[BaseModel] | None = None,
         tools: list[Tool] | None = None,
     ) -> Response: ...
+
 
 def llm_invoke_factory(
     model_invoker: ModelInvoker,
@@ -421,16 +439,20 @@ def prepare_string_response(
     return StringResponse(content=content, message_history=message_history)
 
 
-
-
 @wrapper
 def llm_observe(
-    call: Callable[[MessageHistory, type[BaseModel] | None, list[Tool] | None], Awaitable[Response]],
+    call: Callable[
+        [MessageHistory, type[BaseModel] | None, list[Tool] | None], Awaitable[Response]
+    ],
 ):
-    async def wrapper(message_history: MessageHistory, schema: type[BaseModel] | None, tools: list[Tool] | None):
+    async def wrapper(
+        message_history: MessageHistory,
+        schema: type[BaseModel] | None,
+        tools: list[Tool] | None,
+    ):
         prev_message_history = deepcopy(message_history)
-        response: Response = await call(message_history, schema, tools)       
-        rd = RequestDetails(
+        response: Response = await call(message_history, schema, tools)
+        _ = RequestDetails(
             message_input=prev_message_history,
             output=response.message,
             model_name=response.message_info.model_name,
@@ -442,13 +464,6 @@ def llm_observe(
             latency=response.message_info.latency,
         )
 
-
         return response
 
     return wrapper
-        
-        
-
-
-   
-

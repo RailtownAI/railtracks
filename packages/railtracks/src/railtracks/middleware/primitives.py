@@ -57,13 +57,11 @@ function with the signature that matches the slot:
 
 from __future__ import annotations
 
-import functools
 import inspect
 from typing import (
     Any,
     Awaitable,
     Callable,
-    Coroutine,
     Generic,
     ParamSpec,
     TypeVar,
@@ -119,7 +117,9 @@ class Wrapper(Generic[_P, _R]):
     loss of the run's context is not acceptable).
     """
 
-    def __init__(self, fn: Callable[[Callable[_P, Awaitable[_R]]], Callable[_P, Awaitable[_R]]]) -> None:
+    def __init__(
+        self, fn: Callable[[Callable[_P, Awaitable[_R]]], Callable[_P, Awaitable[_R]]]
+    ) -> None:
         self._fn = fn
 
     def wrap(self, inner: Callable[_P, Awaitable[_R]]) -> Callable[_P, Awaitable[_R]]:
@@ -136,7 +136,6 @@ class Wrapper(Generic[_P, _R]):
 
     def __repr__(self) -> str:
         return f"Wrapper({getattr(self._fn, '__name__', self._fn)!r})"
-
 
 
 class Gateway(Generic[_P, _R]):
@@ -169,10 +168,12 @@ class Gateway(Generic[_P, _R]):
             result: _R = await self._fn(*args, **kwargs)
         else:
             result: _R = self._fn(*args, **kwargs)
-        
+
         return result
 
-    async def apply_entry(self, *args: _P.args, **kwargs: _P.kwargs) -> tuple[tuple, dict]:
+    async def apply_entry(
+        self, *args: _P.args, **kwargs: _P.kwargs
+    ) -> tuple[tuple, dict]:
         """Run as an entry gateway. Returns the new ``(args, kwargs)``.
 
         The return value is interpreted as:
@@ -238,7 +239,9 @@ class Gateway(Generic[_P, _R]):
         return f"Gateway({getattr(self._fn, '__name__', self._fn)!r})"
 
 
-def wrapper(fn: Callable[[Callable[_P, Awaitable[_R]]], Callable[_P, Awaitable[_R]]]) -> Wrapper[_P, _R]:
+def wrapper(
+    fn: Callable[[Callable[_P, Awaitable[_R]]], Callable[_P, Awaitable[_R]]],
+) -> Wrapper[_P, _R]:
     """Decorator: turn a call-style async function into a :class:`Wrapper`."""
     return Wrapper(fn)
 
@@ -255,13 +258,13 @@ def _gateway_args(*args: Any, **kwargs: Any) -> _GatewayArgs:
     """
     return _GatewayArgs(args, kwargs)
 
+
 @overload
 def gateway(fn: Callable[_P, Awaitable[_R]]) -> Gateway[_P, _R]: ...
 
+
 @overload
 def gateway(fn: Callable[_P, _R]) -> Gateway[_P, _R]: ...
-
-
 
 
 def gateway(fn: Callable[_P, Awaitable[_R] | _R]) -> Gateway:
