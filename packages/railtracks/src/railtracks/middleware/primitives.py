@@ -129,6 +129,7 @@ class Wrapper(Generic[_P, _R]):
         wrapping does not erase the signature of the function being wrapped.
         """
         decorated = self._fn(inner)
+
         async def wrapped(*args: _P.args, **kwargs: _P.kwargs) -> _R:
             return await decorated(*args, **kwargs)
 
