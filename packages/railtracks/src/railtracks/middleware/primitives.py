@@ -261,6 +261,9 @@ def gateway(fn: Callable[_P, Awaitable[_R]]) -> Gateway[_P, _R]: ...
 @overload
 def gateway(fn: Callable[_P, _R]) -> Gateway[_P, _R]: ...
 
+
+
+
 def gateway(fn: Callable[_P, Awaitable[_R] | _R]) -> Gateway:
     """Decorator: turn a function into a (direction-less) :class:`Gateway`.
 

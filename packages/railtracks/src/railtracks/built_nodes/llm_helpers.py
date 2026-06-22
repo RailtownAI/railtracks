@@ -442,7 +442,6 @@ def llm_observe(
             latency=response.message_info.latency,
         )
 
-        print(rd)
 
         return response
 

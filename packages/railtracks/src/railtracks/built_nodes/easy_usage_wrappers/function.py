@@ -49,7 +49,7 @@ def function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: MiddlewareSet | list | None = None,
+    middleware: MiddlewareSet[_P, _TOutput] | None = None,
 ) -> CallableAsyncRTFunction[_P, _TOutput]: ...
 
 
@@ -60,7 +60,7 @@ def function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: MiddlewareSet | list | None = None,
+    middleware: MiddlewareSet[_P, _TOutput] | None = None,
 ) -> CallableSyncRTFunction[_P, _TOutput]:
     pass
 
@@ -72,9 +72,10 @@ def function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: MiddlewareSet | list | None = None,
+    middleware: MiddlewareSet[_P, _TOutput] | None = None,
 ) -> List[RTFunction[..., Any]]:
     pass
+
 
 
 @overload
@@ -84,8 +85,8 @@ def function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: MiddlewareSet | list | None = None,
-) -> Callable[[Callable[_P, _TOutput]], RTFunction[_P, _TOutput]]:
+    middleware: MiddlewareSet | None = None,
+) -> Callable[[Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]], RTFunction[_P, _TOutput]]:
     pass
 
 
@@ -119,7 +120,7 @@ def _single_function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: MiddlewareSet | list | None = None,
+    middleware: MiddlewareSet[_P, _TOutput] | None = None,
 ) -> CallableSyncRTFunction[_P, _TOutput] | CallableAsyncRTFunction[_P, _TOutput]:
     """
     Creates a new Node type from a function that can be used in `rt.call()`.
@@ -210,7 +211,7 @@ def function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: MiddlewareSet | list | None = None,
+    middleware: MiddlewareSet[_P, _TOutput] | None = None,
 ) -> (
     Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]
     | List[Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]]
