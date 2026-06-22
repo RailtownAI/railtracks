@@ -21,9 +21,7 @@ class InMemoryKeyValueStore:
     def __init__(self, snapshot_path: str | Path | None = None) -> None:
         self._data: dict[str, str] = {}
         self._lock = asyncio.Lock()
-        self._snapshot_path = (
-            Path(snapshot_path) if snapshot_path is not None else None
-        )
+        self._snapshot_path = Path(snapshot_path) if snapshot_path is not None else None
 
         if self._snapshot_path is not None and self._snapshot_path.exists():
             self._data = json.loads(self._snapshot_path.read_text())

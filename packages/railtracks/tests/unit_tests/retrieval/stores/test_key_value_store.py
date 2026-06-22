@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
 from railtracks.retrieval.stores.key_value import (
     InMemoryKeyValueStore,
     KeyValueStore,
