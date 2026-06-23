@@ -1,7 +1,9 @@
+import threading
+
 import pytest
 from unittest.mock import MagicMock, patch
 
-from railtracks.prebuilt.tools.todos import State, ToDo, ToDoToolSet
+from railtracks.prebuilt.tools.todo.todos import State, ToDo, ToDoToolSet
 
 
 # ---------------------------------------------------------------------------
@@ -102,10 +104,57 @@ def test_add_callback_not_fired_on_validation_failure(ts_with_callback):
 def test_add_callback_exception_is_logged_and_todo_still_added(ts):
     failing_cb = MagicMock(side_effect=RuntimeError("boom"))
     t = ToDoToolSet(callback=failing_cb)
-    with patch("railtracks.prebuilt.tools.todos.logger") as mock_logger:
+    with patch("railtracks.prebuilt.tools.todo.todos.logger") as mock_logger:
         t.add("task", "description")
         mock_logger.error.assert_called_once()
     assert len(t.todos) == 1
+
+
+# ---------------------------------------------------------------------------
+# ID assignment
+# ---------------------------------------------------------------------------
+
+def test_first_todo_gets_id_1(ts):
+    ts.add("task", "description")
+    assert ts.todos[0].id == 1
+
+
+def test_ids_are_sequential(ts):
+    ts.add("task-a", "desc a")
+    ts.add("task-b", "desc b")
+    ts.add("task-c", "desc c")
+    assert [t.id for t in ts.todos] == [1, 2, 3]
+
+
+def test_ids_are_unique_within_instance(ts):
+    for i in range(10):
+        ts.add(f"task-{i}", f"desc {i}")
+    ids = [t.id for t in ts.todos]
+    assert len(ids) == len(set(ids))
+
+
+def test_id_counters_are_independent_per_instance():
+    t1 = ToDoToolSet()
+    t2 = ToDoToolSet()
+    t1.add("task-a", "desc a")
+    t1.add("task-b", "desc b")
+    t2.add("task-x", "desc x")
+    assert t1.todos[0].id == 1
+    assert t1.todos[1].id == 2
+    assert t2.todos[0].id == 1
+
+
+def test_id_included_in_complete_print(ts):
+    ts.add("task", "description")
+    assert "(1)" in ts.todos[0].complete_print()
+
+
+def test_failed_add_does_not_increment_id_counter(ts):
+    ts.add("task-a", "desc a")
+    with pytest.raises(ValueError):
+        ts.add("task-a", "different desc")  # duplicate short_description
+    ts.add("task-b", "desc b")
+    assert ts.todos[1].id == 2  # gap-free: failure must not consume an id
 
 
 # ---------------------------------------------------------------------------
@@ -186,7 +235,7 @@ def test_get_failed_todos_returns_only_failed(full_populated):
 
 def test_complete_todo_by_id(ts):
     ts.add("task", "description")
-    todo_id = ts.todos[0].identifier
+    todo_id = ts.todos[0].id
     result = ts.complete_todo_by_id(todo_id)
     assert ts.todos[0].state == State.COMPLETED
     assert "Successfully completed" in result
@@ -199,7 +248,7 @@ def test_complete_todo_by_id_not_found(ts):
 
 def test_start_todo_by_id(ts):
     ts.add("task", "description")
-    todo_id = ts.todos[0].identifier
+    todo_id = ts.todos[0].id
     result = ts.start_todo_by_id(todo_id)
     assert ts.todos[0].state == State.IN_PROGRESS
     assert "Successfully started" in result
@@ -212,7 +261,7 @@ def test_start_todo_by_id_not_found(ts):
 
 def test_update_todo_by_id(ts):
     ts.add("task", "description")
-    todo_id = ts.todos[0].identifier
+    todo_id = ts.todos[0].id
     result = ts.update_todo_by_id(todo_id, State.COMPLETED)
     assert ts.todos[0].state == State.COMPLETED
     assert "Successfully updated" in result
@@ -229,7 +278,7 @@ def test_update_todo_by_id_not_found(ts):
 
 def test_fail_todo_by_id(ts):
     ts.add("task", "description")
-    todo_id = ts.todos[0].identifier
+    todo_id = ts.todos[0].id
     result = ts.fail_todo_by_id(todo_id)
     assert ts.todos[0].state == State.FAILED
     assert "failed" in result
@@ -246,7 +295,7 @@ def test_fail_todo_by_id_not_found(ts):
 
 def test_no_longer_plan_todo_by_id(ts):
     ts.add("task", "description")
-    todo_id = ts.todos[0].identifier
+    todo_id = ts.todos[0].id
     result = ts.no_longer_plan_todo_by_id(todo_id)
     assert ts.todos[0].state == State.NO_LONGER_PLANNED
     assert "no longer planned" in result
@@ -350,3 +399,117 @@ def test_prompt_is_non_empty_string():
     result = ToDoToolSet.prompt()
     assert isinstance(result, str)
     assert len(result) > 0
+
+
+# ---------------------------------------------------------------------------
+# Thread safety
+# ---------------------------------------------------------------------------
+
+def test_concurrent_adds_produce_unique_sequential_ids():
+    ts = ToDoToolSet()
+    n = 50
+    errors = []
+
+    def add_todo(i):
+        try:
+            ts.add(f"task-{i}", f"desc {i}")
+        except Exception as e:
+            errors.append(e)
+
+    threads = [threading.Thread(target=add_todo, args=(i,)) for i in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert not errors
+    assert len(ts.todos) == n
+    ids = [todo.id for todo in ts.todos]
+    assert len(set(ids)) == n               # no duplicates
+    assert set(ids) == set(range(1, n + 1)) # exactly 1..n, no gaps
+
+
+def test_concurrent_adds_no_lost_updates():
+    ts = ToDoToolSet()
+    n = 100
+
+    threads = [
+        threading.Thread(target=ts.add, args=(f"task-{i}", f"desc {i}"))
+        for i in range(n)
+    ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert len(ts.todos) == n
+
+
+def test_concurrent_reads_during_writes_do_not_raise():
+    ts = ToDoToolSet()
+    stop = threading.Event()
+    errors = []
+
+    def writer():
+        for i in range(50):
+            ts.add(f"task-{i}", f"desc {i}")
+
+    def reader():
+        while not stop.is_set():
+            try:
+                ts.get_all_todos()
+            except Exception as e:
+                errors.append(e)
+
+    reader_threads = [threading.Thread(target=reader) for _ in range(5)]
+    writer_thread = threading.Thread(target=writer)
+
+    for t in reader_threads:
+        t.start()
+    writer_thread.start()
+    writer_thread.join()
+    stop.set()
+    for t in reader_threads:
+        t.join()
+
+    assert not errors
+
+
+def test_concurrent_state_transitions_on_distinct_todos():
+    ts = ToDoToolSet()
+    n = 20
+    for i in range(n):
+        ts.add(f"task-{i}", f"desc {i}")
+
+    ids = [todo.id for todo in ts.todos]
+    errors = []
+
+    def complete(todo_id):
+        try:
+            ts.complete_todo_by_id(todo_id)
+        except Exception as e:
+            errors.append(e)
+
+    threads = [threading.Thread(target=complete, args=(tid,)) for tid in ids]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert not errors
+    assert all(todo.state == State.COMPLETED for todo in ts.todos)
+
+
+def test_callback_outside_lock_does_not_deadlock():
+    # The callback re-enters the toolset via get_all_todos(). If the callback
+    # were called while the lock was held, this would deadlock on a plain Lock.
+    seen = []
+
+    def reentrant_callback(short_desc, desc, state):
+        seen.append(ts.get_all_todos())
+
+    ts = ToDoToolSet(callback=reentrant_callback)
+    ts.add("task", "description")
+
+    assert len(ts.todos) == 1
+    assert len(seen) == 1
