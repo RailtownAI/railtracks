@@ -23,10 +23,16 @@ class State(Enum):
 
 
 class ToDo(BaseModel):
-    id: int = Field(description="Unique integer identifier assigned by the owning ToDoToolSet.")
-    short_description: str = Field(description="Brief unique label shown in todo listings.")
+    id: int = Field(
+        description="Unique integer identifier assigned by the owning ToDoToolSet."
+    )
+    short_description: str = Field(
+        description="Brief unique label shown in todo listings."
+    )
     description: str = Field(description="Full details of what needs to be done.")
-    state: State = Field(description="Current lifecycle state of this todo.", default=State.NOT_STARTED)
+    state: State = Field(
+        description="Current lifecycle state of this todo.", default=State.NOT_STARTED
+    )
 
     def update_state(self, new_state: State):
         """Transition this todo to new_state."""
@@ -185,7 +191,9 @@ class ToDoToolSet(ToolSet):
         Args:
             todo_id: The integer id of the todo to complete.
         """
-        return "Successfully completed todo:\n" + self._find_and_update(todo_id, State.COMPLETED)
+        return "Successfully completed todo:\n" + self._find_and_update(
+            todo_id, State.COMPLETED
+        )
 
     def start_todo_by_id(self, todo_id: int):
         """Mark a todo as IN_PROGRESS; raises ValueError if not found.
@@ -193,7 +201,9 @@ class ToDoToolSet(ToolSet):
         Args:
             todo_id: The integer id of the todo to start.
         """
-        return "Successfully started todo:\n" + self._find_and_update(todo_id, State.IN_PROGRESS)
+        return "Successfully started todo:\n" + self._find_and_update(
+            todo_id, State.IN_PROGRESS
+        )
 
     def fail_todo_by_id(self, todo_id: int):
         """Mark a todo as FAILED; raises ValueError if not found.
@@ -201,7 +211,9 @@ class ToDoToolSet(ToolSet):
         Args:
             todo_id: The integer id of the todo to fail.
         """
-        return "Successfully marked todo as failed:\n" + self._find_and_update(todo_id, State.FAILED)
+        return "Successfully marked todo as failed:\n" + self._find_and_update(
+            todo_id, State.FAILED
+        )
 
     def no_longer_plan_todo_by_id(self, todo_id: int):
         """Mark a todo as NO_LONGER_PLANNED; raises ValueError if not found.
@@ -209,7 +221,10 @@ class ToDoToolSet(ToolSet):
         Args:
             todo_id: The integer id of the todo to deprioritize.
         """
-        return "Successfully marked todo as no longer planned:\n" + self._find_and_update(todo_id, State.NO_LONGER_PLANNED)
+        return (
+            "Successfully marked todo as no longer planned:\n"
+            + self._find_and_update(todo_id, State.NO_LONGER_PLANNED)
+        )
 
     def make_all_no_longer_planned(self):
         """Mark all NOT_STARTED and IN_PROGRESS todos as NO_LONGER_PLANNED; leaves COMPLETED and FAILED unchanged."""
@@ -228,12 +243,18 @@ class ToDoToolSet(ToolSet):
             todo_id: The integer id of the todo to update.
             new_state: The State to transition the todo to.
         """
-        return "Successfully updated todo:\n" + self._find_and_update(todo_id, new_state)
+        return "Successfully updated todo:\n" + self._find_and_update(
+            todo_id, new_state
+        )
 
     def pretty_dashboard(self) -> str:
         """Return a human-readable dashboard of active todos, or 'No todos found.'"""
         with self._lock:
-            lines = [t.simplified_print() for t in self._get_all_todos() if t.state != State.NO_LONGER_PLANNED]
+            lines = [
+                t.simplified_print()
+                for t in self._get_all_todos()
+                if t.state != State.NO_LONGER_PLANNED
+            ]
         if not lines:
             return "No todos found."
         return "To-Dos\n" + "\n".join(lines)
