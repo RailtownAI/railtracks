@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from railtracks.utils.config import ExecutorConfig
 
 if TYPE_CHECKING:
+    from railtracks.observation.core import Observer
     from railtracks.pubsub.publisher import RTPublisher
 
 
@@ -23,12 +24,14 @@ class InternalContext:
         publisher: RTPublisher | None = None,
         parent_id: str | None = None,
         executor_config: ExecutorConfig,
+        observer: Observer | None = None,
     ):
         self._parent_id: str | None = parent_id
         self._publisher: RTPublisher | None = publisher
         self._session_id: str = session_id
         self._run_id: str | None = run_id
         self._executor_config: ExecutorConfig = executor_config
+        self._observer: Observer | None = observer
 
     @property
     def executor_config(self) -> ExecutorConfig:
@@ -62,6 +65,10 @@ class InternalContext:
     @parent_id.setter
     def parent_id(self, value: str):
         self._parent_id = value
+
+    @property
+    def observer(self) -> Observer | None:
+        return self._observer
 
     @property
     def publisher(self):
@@ -105,4 +112,5 @@ class InternalContext:
             session_id=self._session_id,
             run_id=unwrapped_run_id,
             executor_config=self._executor_config,
+            observer=self._observer,
         )

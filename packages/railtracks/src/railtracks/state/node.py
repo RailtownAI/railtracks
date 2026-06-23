@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Optional, ParamSpec, Type
+from typing import TYPE_CHECKING, Dict, Optional, ParamSpec, Type
 
 from railtracks.nodes.nodes import (
     Node,
@@ -13,6 +13,9 @@ from .forest import (
     AbstractLinkedObject,
     Forest,
 )
+
+if TYPE_CHECKING:
+    from railtracks.observation.core import Observer
 
 _P = ParamSpec("_P")
 
@@ -26,14 +29,15 @@ class LinkedNode(AbstractLinkedObject):
     _node: Node  # have to be careful here because Node objects are mutable.
     parent: Optional[LinkedNode]
 
-    def to_vertex(self):
+    def to_vertex(self, observer: Observer | None = None) -> Vertex:
+        events = observer.events_for(self.identifier) if observer else []
         return Vertex(
             identifier=self.identifier,
             node_type=self.node.type(),
             name=self.node.name(),
             stamp=self.stamp,
-            details={"internals": None},
-            parent=self.parent.to_vertex() if self.parent else None,
+            details={"details": events},
+            parent=self.parent.to_vertex(observer=observer) if self.parent else None,
         )
 
     @property
@@ -81,13 +85,11 @@ class NodeForest(Forest[LinkedNode]):
         node = self._heap[item]
         return node
 
-    def to_vertices(self):
+    def to_vertices(self, observer: Observer | None = None) -> list[Vertex]:
         """
         Converts the current heap into a list of `Vertex` objects.
         """
-        full_nodes = [n.to_vertex() for n in self._heap.values()]
-
-        return full_nodes
+        return [n.to_vertex(observer=observer) for n in self._heap.values()]
 
     def update(self, new_node: Node, stamp: Stamp):
         """

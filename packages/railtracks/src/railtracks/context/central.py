@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Callable, Coroutine, KeysView
 from railtracks.exceptions import ContextError
 
 if TYPE_CHECKING:
+    from railtracks.observation.core import Observer
     from railtracks.pubsub.publisher import RTPublisher
 
 from railtracks.utils.config import ExecutorConfig
@@ -150,6 +151,18 @@ def get_run_id() -> str | None:
     return context.internal_context.run_id
 
 
+def get_observer() -> Observer | None:
+    """
+    Get the observer for the current session, or None if not in a session.
+
+    Returns None rather than raising so LLM hooks degrade gracefully outside a session.
+    """
+    context = runner_context.get()
+    if context is None:
+        return None
+    return context.internal_context.observer
+
+
 def register_globals(
     *,
     session_id: str,
@@ -157,6 +170,7 @@ def register_globals(
     parent_id: str | None,
     executor_config: ExecutorConfig,
     global_context_vars: dict[str, Any],
+    observer: Observer | None = None,
 ):
     """
     Register the global variables for the current thread.
@@ -166,6 +180,7 @@ def register_globals(
         parent_id=parent_id,
         session_id=session_id,
         executor_config=executor_config,
+        observer=observer,
     )
     e_c = MutableExternalContext(global_context_vars)
 

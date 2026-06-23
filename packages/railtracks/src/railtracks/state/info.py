@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
-from typing import Any, List, Tuple, TypeVar
+from typing import TYPE_CHECKING, Any, List, Tuple, TypeVar
+
+if TYPE_CHECKING:
+    from railtracks.observation.core import Observer
 
 from railtracks.utils.profiling import Stamp, StampManager
 from railtracks.utils.serialization.graph import Edge, Vertex
@@ -136,7 +139,7 @@ class ExecutionInfo:
         """
         return self.node_forest.to_vertices(), self.request_forest.to_edges()
 
-    def graph_serialization(self) -> dict[str, Any]:
+    def graph_serialization(self, observer: Observer | None = None) -> list[dict[str, Any]]:
         """
                 Creates a string (JSON) representation of this info object designed to be used to construct a graph for this
                 info object.
@@ -179,7 +182,7 @@ class ExecutionInfo:
             entry = {
                 "name": info.name,
                 "run_id": parent_node_id,
-                "nodes": info.node_forest.to_vertices(),
+                "nodes": info.node_forest.to_vertices(observer=observer),
                 "status": parent_request.status,
                 "edges": info.request_forest.to_edges(),
                 "steps": _get_stamps_from_forests(

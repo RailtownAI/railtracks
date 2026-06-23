@@ -12,8 +12,11 @@ from typing import (
 
 from pydantic import BaseModel
 
-from railtracks.built_nodes.concrete._llm_base import RequestDetails
+import time
+
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
+from railtracks.context.central import get_observer, get_parent_id, get_run_id
+from railtracks.observation.events import LLMCallEvent
 from railtracks.exceptions.errors import LLMError
 from railtracks.interaction._call import call
 from railtracks.llm.content import ToolCall, ToolResponse
@@ -447,15 +450,19 @@ async def llm_observe(
 ) -> Response:
     prev_message_history = deepcopy(message_history)
     response: Response = await call(message_history, schema, tools)
-    _ = RequestDetails(
-        message_input=prev_message_history,
-        output=response.message,
-        model_name=response.message_info.model_name,
-        model_provider=None,  # TODO: implement parsing logic here
-        input_tokens=response.message_info.input_tokens,
-        output_tokens=response.message_info.output_tokens,
-        total_cost=response.message_info.total_cost,
-        system_fingerprint=response.message_info.system_fingerprint,
-        latency=response.message_info.latency,
-    )
+    if observer := get_observer():
+        await observer.post_event(LLMCallEvent(
+            node_id=get_parent_id(),
+            run_id=get_run_id(),
+            timestamp=time.time(),
+            message_input=prev_message_history,
+            output=response.message,
+            model_name=response.message_info.model_name,
+            model_provider=None,  # TODO: implement parsing logic here
+            input_tokens=response.message_info.input_tokens,
+            output_tokens=response.message_info.output_tokens,
+            total_cost=response.message_info.total_cost,
+            latency=response.message_info.latency,
+            success=True,
+        ))
     return response

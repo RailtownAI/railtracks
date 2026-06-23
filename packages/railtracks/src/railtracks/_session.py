@@ -17,6 +17,7 @@ from .context.central import (
     get_global_config,
     register_globals,
 )
+from .observation.core import Observer
 from .execution.coordinator import Coordinator
 from .execution.execution_strategy import AsyncioExecutionStrategy
 from .pubsub import RTPublisher, stream_subscriber
@@ -106,6 +107,10 @@ class Session:
         self.flow_id = flow_id
 
         self.publisher: RTPublisher = RTPublisher()
+        self._observer: Observer = Observer(
+            name="session",
+            stamp_creator=lambda label: self.rt_state.info.stamper.create_stamp(label),
+        )
 
         self._identifier = str(uuid.uuid4())
 
@@ -125,6 +130,7 @@ class Session:
             parent_id=None,
             executor_config=self.executor_config,
             global_context_vars=context,
+            observer=self._observer,
         )
 
         self._start_time = time.time()
@@ -279,7 +285,7 @@ class Session:
         """
         info = self.info
 
-        run_list = info.graph_serialization()
+        run_list = info.graph_serialization(observer=self._observer)
 
         full_dict = {
             "flow_name": self.flow_name,
