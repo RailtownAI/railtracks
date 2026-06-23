@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import threading
+import asyncio
 from enum import Enum
 from typing import Callable
 
@@ -35,15 +35,12 @@ class ToDo(BaseModel):
     )
 
     def update_state(self, new_state: State):
-        """Transition this todo to new_state."""
         self.state = new_state
 
     def complete_print(self) -> str:
-        """Return a fully-formatted string including id, state, and descriptions."""
         return f"({self.id}) [{self.state.value}] {self.short_description}: {self.description}"
 
     def simplified_print(self) -> str:
-        """Return a compact state + short_description string."""
         return f"{self.state.value} - {self.short_description}"
 
 
@@ -56,8 +53,7 @@ class ToDoToolSet(ToolSet):
                       Exceptions are logged and swallowed; the todo is always committed regardless.
         """
         self.todos: list[ToDo] = []
-        self._next_id: int = 1
-        self._lock = threading.Lock()
+        self._lock = asyncio.Lock()
 
         if callback is None:
 
@@ -70,7 +66,7 @@ class ToDoToolSet(ToolSet):
 
         self.add_callback = callback
 
-    def add(
+    async def add(
         self, short_description: str, description: str, state: State = State.NOT_STARTED
     ):
         """Add a new todo to this toolset instance.
@@ -83,9 +79,9 @@ class ToDoToolSet(ToolSet):
         Raises:
             ValueError: If a todo with the same short_description or description already exists.
         """
-        with self._lock:
+        async with self._lock:
             to_do = ToDo(
-                id=self._next_id,
+                id=len(self.todos) + 1,
                 short_description=short_description,
                 description=description,
                 state=state,
@@ -96,7 +92,6 @@ class ToDoToolSet(ToolSet):
                 raise ValueError(validity_check)
 
             self.todos.append(to_do)
-            self._next_id += 1
 
         # Callback fires after the todo is committed; kept outside the lock so
         # user-provided callbacks cannot cause a deadlock.
@@ -122,100 +117,93 @@ class ToDoToolSet(ToolSet):
         return None
 
     def _get_all_todos(self) -> list[ToDo]:
-        """Return the internal todos list."""
         return self.todos
 
-    def get_all_todos(self) -> list[str]:
+    async def get_all_todos(self) -> list[str]:
         """Return complete_print() strings for all active (non-NO_LONGER_PLANNED) todos."""
-        with self._lock:
+        async with self._lock:
             return [
                 todo.complete_print()
                 for todo in self._get_all_todos()
                 if todo.state != State.NO_LONGER_PLANNED
             ]
 
-    def get_completed_todos(self) -> list[str]:
+    async def get_completed_todos(self) -> list[str]:
         """Return complete_print() strings for todos in COMPLETED state."""
-        with self._lock:
+        async with self._lock:
             return [
                 todo.complete_print()
                 for todo in self._get_all_todos()
                 if todo.state == State.COMPLETED
             ]
 
-    def get_not_started_todos(self) -> list[str]:
+    async def get_not_started_todos(self) -> list[str]:
         """Return complete_print() strings for todos in NOT_STARTED state."""
-        with self._lock:
+        async with self._lock:
             return [
                 todo.complete_print()
                 for todo in self._get_all_todos()
                 if todo.state == State.NOT_STARTED
             ]
 
-    def get_incomplete_todos(self) -> list[str]:
+    async def get_incomplete_todos(self) -> list[str]:
         """Return complete_print() strings for todos in NOT_STARTED, IN_PROGRESS, or FAILED state."""
         incomplete_states = {State.NOT_STARTED, State.IN_PROGRESS, State.FAILED}
-        with self._lock:
+        async with self._lock:
             return [
                 todo.complete_print()
                 for todo in self._get_all_todos()
                 if todo.state in incomplete_states
             ]
 
-    def get_failed_todos(self) -> list[str]:
+    async def get_failed_todos(self) -> list[str]:
         """Return complete_print() strings for todos in FAILED state."""
-        with self._lock:
+        async with self._lock:
             return [
                 todo.complete_print()
                 for todo in self._get_all_todos()
                 if todo.state == State.FAILED
             ]
 
-    def _find_and_update(self, todo_id: int, new_state: State) -> str:
-        """Find todo by id, transition it to new_state, return its complete_print(). Raises ValueError if not found.
-
-        Args:
-            todo_id: The integer id of the todo to update.
-            new_state: The State to transition the todo to.
-        """
-        with self._lock:
+    async def _find_and_update(self, todo_id: int, new_state: State) -> str:
+        async with self._lock:
             for todo in self._get_all_todos():
                 if todo.id == todo_id:
                     todo.update_state(new_state)
                     return todo.complete_print()
         raise ValueError(f"Todo with identifier '{todo_id}' not found.")
 
-    def complete_todo_by_id(self, todo_id: int):
+    async def complete_todo_by_id(self, todo_id: int):
         """Mark a todo as COMPLETED; raises ValueError if not found.
 
         Args:
             todo_id: The integer id of the todo to complete.
         """
-        return "Successfully completed todo:\n" + self._find_and_update(
+        return "Successfully completed todo:\n" + await self._find_and_update(
             todo_id, State.COMPLETED
         )
 
-    def start_todo_by_id(self, todo_id: int):
+    async def start_todo_by_id(self, todo_id: int):
         """Mark a todo as IN_PROGRESS; raises ValueError if not found.
 
         Args:
             todo_id: The integer id of the todo to start.
         """
-        return "Successfully started todo:\n" + self._find_and_update(
+        return "Successfully started todo:\n" + await self._find_and_update(
             todo_id, State.IN_PROGRESS
         )
 
-    def fail_todo_by_id(self, todo_id: int):
+    async def fail_todo_by_id(self, todo_id: int):
         """Mark a todo as FAILED; raises ValueError if not found.
 
         Args:
             todo_id: The integer id of the todo to fail.
         """
-        return "Successfully marked todo as failed:\n" + self._find_and_update(
+        return "Successfully marked todo as failed:\n" + await self._find_and_update(
             todo_id, State.FAILED
         )
 
-    def no_longer_plan_todo_by_id(self, todo_id: int):
+    async def no_longer_plan_todo_by_id(self, todo_id: int):
         """Mark a todo as NO_LONGER_PLANNED; raises ValueError if not found.
 
         Args:
@@ -223,33 +211,33 @@ class ToDoToolSet(ToolSet):
         """
         return (
             "Successfully marked todo as no longer planned:\n"
-            + self._find_and_update(todo_id, State.NO_LONGER_PLANNED)
+            + await self._find_and_update(todo_id, State.NO_LONGER_PLANNED)
         )
 
-    def make_all_no_longer_planned(self):
+    async def make_all_no_longer_planned(self):
         """Mark all NOT_STARTED and IN_PROGRESS todos as NO_LONGER_PLANNED; leaves COMPLETED and FAILED unchanged."""
         affected = 0
-        with self._lock:
+        async with self._lock:
             for todo in self._get_all_todos():
                 if todo.state in {State.NOT_STARTED, State.IN_PROGRESS}:
                     todo.update_state(State.NO_LONGER_PLANNED)
                     affected += 1
         return f"Marked {affected} todo(s) as no longer planned."
 
-    def update_todo_by_id(self, todo_id: int, new_state: State):
+    async def update_todo_by_id(self, todo_id: int, new_state: State):
         """Transition a todo to an arbitrary state; raises ValueError if not found.
 
         Args:
             todo_id: The integer id of the todo to update.
             new_state: The State to transition the todo to.
         """
-        return "Successfully updated todo:\n" + self._find_and_update(
+        return "Successfully updated todo:\n" + await self._find_and_update(
             todo_id, new_state
         )
 
-    def pretty_dashboard(self) -> str:
+    async def pretty_dashboard(self) -> str:
         """Return a human-readable dashboard of active todos, or 'No todos found.'"""
-        with self._lock:
+        async with self._lock:
             lines = [
                 t.simplified_print()
                 for t in self._get_all_todos()
