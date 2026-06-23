@@ -1,64 +1,19 @@
-"""Unified middleware primitives shared by every entry point in the system.
+"""Unified middleware primitives for every Railtracks entry point.
 
-Two primitives wrap *any* callable (a function node, an agent, a tool, or the
-raw LLM model call):
+- :class:`Wrapper` — execution control: receives the inner callable and decides
+  whether/how/how-many-times to invoke it (retry, fallback, short-circuit, timing).
+- :class:`Gateway` — direction-neutral data transform: slot placement decides
+  when it runs. ``gateway_entry`` transforms input; ``gateway_exit`` transforms
+  output. Check-only gateways validate and raise, or return ``None`` to pass through.
 
-- :class:`Wrapper` — execution control. Receives the inner callable and the call
-  arguments and decides whether / how / how many times to invoke it (retries,
-  fallbacks, short-circuiting, timing, ...).
-- :class:`Gateway` — a one-directional data transform at a boundary. An ``entry``
-  gateway transforms the input *before* the callable runs; an ``exit`` gateway
-  transforms the output *after*. A gateway may also be check-only — validate and
-  raise (a guardrail) or return its input unchanged.
+``@wrapper`` / ``@gateway`` are optional in named
+:class:`~railtracks.middleware.MiddlewareSet` slots (the slot implies the role
+and auto-coerces raw functions); required in bare lists where the role is ambiguous.
 
-Both can be authored with decorators, but the decorator is **optional** when the
-function goes into an explicit :class:`~railtracks.middleware.MiddlewareSet` slot
-(``wrappers`` / ``inner_wrappers`` for wrappers, ``gateway_entry`` /
-``gateway_exit`` for gateways): the slot implies the role, so a raw async
-function is auto-wrapped. The decorator then serves mainly as a checker / marker,
-and is only *required* for a bare list, where the role is otherwise ambiguous::
-
-    @wrapper
-    async def retry(call, *args, **kwargs):
-        for _ in range(3):
-            try:
-                return await call(*args, **kwargs)
-            except Exception:
-                pass
-        raise RuntimeError("All retries exhausted")
-
-
-    # entry gateway: placed in `gateway_entry`, transforms input
-    @gateway
-    async def scrub(*args, **kwargs):
-        return scrub_args(args), kwargs  # MUST return (args, kwargs)
-
-
-    # exit gateway: placed in `gateway_exit`, transforms output
-    @gateway
-    async def redact(result):
-        return redact_response(result)
-
-The ``@wrapper`` / ``@gateway`` decorators are **optional** when the function
-sits in a typed slot of a :class:`~railtracks.middleware.MiddlewareSet`
-(``wrappers`` / ``inner_wrappers`` / ``gateway_entry`` / ``gateway_exit``):
-the slot implies the role, so a raw function is auto-coerced. The decorator is
-only *required* in a bare list where the role would otherwise be ambiguous.
-
-A ``Gateway`` carries **no** direction — *where you place it* (the
-``gateway_entry`` list vs the ``gateway_exit`` list of a
-:class:`~railtracks.middleware.MiddlewareSet`) decides when it runs. Write the
-function with the signature that matches the slot:
-
-- in ``gateway_entry``: ``(*args, **kwargs) -> ...`` where the return is interpreted as:
-    * ``None``                      — check-only; the call passes through unchanged
-    * a ``dict``                    — the new keyword args (no positional args)
-    * a ``tuple``                   — the new positional args (no keyword args)
-    * a ``(tuple, dict)`` 2-tuple   — the new ``(args, kwargs)`` in full
-    * ``gateway.args(*a, **k)``     — the same, stated explicitly
-  Any other (bare) value raises ``TypeError`` — wrap it (``(x,)`` for a positional
-  arg, ``gateway.args(x)`` to be explicit) so the arity is never ambiguous.
-- in ``gateway_exit``:  ``(result) -> result`` (``None`` keeps the original result)
+Entry gateway return conventions:
+``None`` → pass-through · ``tuple`` → new args · ``dict`` → new kwargs ·
+``(tuple, dict)`` → full replacement · :func:`gateway.args` → explicit form.
+Any other bare value raises ``TypeError``.
 """
 
 from __future__ import annotations
@@ -93,9 +48,7 @@ def _require_async(fn: Callable, role: str) -> None:
 
 
 class _GatewayArgs:
-    """Tagged container returned by :func:`gateway.args` to state an entry gateway's
-    new ``(args, kwargs)`` unambiguously — including multiple positional args and/or
-    keyword args, which a bare return value cannot express."""
+    """Unambiguous ``(args, kwargs)`` container returned by :func:`gateway.args`."""
 
     __slots__ = ("args", "kwargs")
 
@@ -112,13 +65,10 @@ class _GatewayArgs:
 
 
 class Wrapper(Generic[_P, _R]):
-    """Execution-control middleware.
+    """Execution-control middleware: wraps a callable to control how it is invoked.
 
-    Built from an ``async`` function ``fn(call, *args, **kwargs)`` where
-    ``call`` is the inner (already-wrapped) callable and ``*args``/``**kwargs``
-    are the arguments for the current invocation. The function is responsible
-    for invoking ``call`` — it may skip it, retry it, or wrap it in error
-    handling::
+    Built from an async call-style function ``fn(call, *args, **kwargs)`` where
+    ``call`` is the next callable in the chain::
 
         @wrapper
         async def retry(call, *args, **kwargs):
@@ -129,8 +79,7 @@ class Wrapper(Generic[_P, _R]):
                     pass
             raise RuntimeError("All retries exhausted")
 
-    ``fn`` must be ``async``: it has to ``await`` the inner ``call``.
-    Passing a plain ``def`` raises ``TypeError`` at construction time.
+    ``fn`` must be ``async``; passing a plain ``def`` raises ``TypeError``.
     """
 
     def __init__(
@@ -141,11 +90,7 @@ class Wrapper(Generic[_P, _R]):
         self._fn = fn
 
     def wrap(self, inner: Callable[_P, Awaitable[_R]]) -> Callable[_P, Awaitable[_R]]:
-        """Compose this wrapper onto ``inner``, returning a new callable.
-
-        The returned callable carries ``inner``'s parameter and return types, so
-        wrapping does not erase the signature of the function being wrapped.
-        """
+        """Compose this wrapper onto ``inner``, returning a new callable with the same signature."""
         fn = self._fn
 
         async def wrapped(*args: _P.args, **kwargs: _P.kwargs) -> _R:
@@ -158,18 +103,17 @@ class Wrapper(Generic[_P, _R]):
 
 
 class Gateway(Generic[_P, _R]):
-    """Direction-less data-transform middleware.
+    """Direction-neutral data-transform middleware.
 
-    Build one with :func:`gateway`; its direction is decided by the slot it is
-    placed in (``gateway_entry`` vs ``gateway_exit``)::
+    Slot placement decides direction: ``gateway_entry`` transforms input,
+    ``gateway_exit`` transforms output. The same object can serve either::
 
         @gateway
-        async def scrub(*args, **kwargs):  # used as an entry gateway
+        async def scrub(*args, **kwargs):  # entry: clean the inputs
             return (clean(args), kwargs)
 
-
         @gateway
-        async def redact(result):  # used as an exit gateway
+        async def redact(result):          # exit: clean the output
             return clean(result)
     """
 
@@ -178,10 +122,10 @@ class Gateway(Generic[_P, _R]):
         self._fn = fn
 
     async def _invoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _R:
-        """Call the underlying function, awaiting it if it is async.
+        """Call the underlying function, awaiting it if async.
 
-        A sync gateway is a quick data transform, so it is run inline (not in a
-        thread) — that keeps any ``rt.context`` writes on the current context.
+        Sync gateways run inline (not in a thread) to preserve ``rt.context``
+        writes on the current context.
         """
         if inspect.iscoroutinefunction(self._fn):
             result: _R = await self._fn(*args, **kwargs)
@@ -193,19 +137,18 @@ class Gateway(Generic[_P, _R]):
     async def apply_entry(
         self, *args: _P.args, **kwargs: _P.kwargs
     ) -> tuple[tuple, dict]:
-        """Run as an entry gateway. Returns the new ``(args, kwargs)``.
+        """Run as an entry gateway; returns the new ``(args, kwargs)``.
 
-        The return value is interpreted as:
+        Return-value conventions:
 
-        - ``None``                       — check-only; pass the call through unchanged.
-        - a ``dict``                     — new keyword args, i.e. ``((), the_dict)``.
-        - a ``tuple``                    — new positional args, i.e. ``(the_tuple, {})``.
-        - a ``(tuple, dict)`` 2-tuple    — the new ``(args, kwargs)`` in full.
-        - :func:`gateway.args(*a, **k)`  — the same, stated explicitly.
+        - ``None``                      — check-only; pass through unchanged.
+        - ``tuple``                     — new positional args: ``(the_tuple, {})``.
+        - ``dict``                      — new keyword args: ``((), the_dict)``.
+        - ``(tuple, dict)`` 2-tuple     — full ``(args, kwargs)`` replacement.
+        - :func:`gateway.args(*a, **k)` — same, stated explicitly.
 
-        Anything else (a bare value) raises ``TypeError``: there is deliberately no
-        single-value shorthand, so a returned ``dict`` is never silently unpacked as a
-        positional arg. Wrap a lone positional value as ``(x,)`` or ``gateway.args(x)``.
+        Any other bare value raises ``TypeError``. Wrap a lone positional as
+        ``(x,)`` or ``gateway.args(x)``.
         """
         result = await self._invoke(*args, **kwargs)
         if result is None:
@@ -231,22 +174,15 @@ class Gateway(Generic[_P, _R]):
         )
 
     async def apply_exit(self, result: _R) -> _R:
-        """Run as an exit gateway. Returns the (possibly transformed) result.
-
-        A check-only gateway may ``return`` nothing (``None``); the original result is
-        then passed through unchanged.
-        """
+        """Run as an exit gateway; returns the transformed result. ``None`` keeps the original."""
         transformed = await self._invoke(result)
         return result if transformed is None else transformed
 
     def __call__(self, *args: _P.args, **kwargs: _P.kwargs):
-        """Invoke the underlying function directly (a raw pass-through).
+        """Call the underlying function directly, bypassing slot semantics.
 
-        Handy for reusing a generic gateway — e.g. a logger or validator — as an
-        ordinary function. This calls the wrapped function as-is and does **not** apply
-        the slot semantics; use :meth:`apply_entry` / :meth:`apply_exit` for the
-        ``(args, kwargs)`` / result interpretation the engine uses. If the underlying
-        function is ``async`` this returns a coroutine to ``await``.
+        Use :meth:`apply_entry` / :meth:`apply_exit` for the engine's interpretation.
+        Returns a coroutine if the function is ``async``.
         """
         return self._fn(*args, **kwargs)
 
@@ -273,21 +209,18 @@ def wrapper(
 def wrapper(fn: Callable) -> Wrapper:
     """Decorator: turn a call-style async function into a :class:`Wrapper`.
 
-    When the function carries explicit parameter annotations (e.g.
-    ``async def fn(call, x: int, y: int) -> int``), the returned
-    :class:`Wrapper` is parameterised with those types.  When the function
-    uses ``*args, **kwargs`` — the common pattern for generic wrappers like
-    retry or tracing — the second overload fires and returns
-    ``Wrapper[Any, Any]``, which is assignable to any typed wrapper slot.
+    Explicitly-typed functions (named ``call``, ``x``, ``y``, …) resolve to
+    ``Wrapper[_P, _R]``. ``*args, **kwargs`` functions resolve to
+    ``Wrapper[Any, Any]`` via the fallback overload — assignable to any typed slot.
     """
     return Wrapper(fn)
 
 
 def _gateway_args(*args: Any, **kwargs: Any) -> _GatewayArgs:
-    """Build the explicit ``(args, kwargs)`` an entry gateway should produce.
+    """Return an explicit ``(args, kwargs)`` pair for an entry gateway.
 
-    Use it to state both positional and keyword args at once (a returned ``tuple`` is
-    positional-only and a returned ``dict`` is keyword-only)::
+    Use when you need both positional and keyword args — a bare ``tuple`` is
+    positional-only and a bare ``dict`` is keyword-only::
 
         @rt.gateway
         async def reorder(a, b):
@@ -309,18 +242,14 @@ def gateway(fn: Callable[..., Any]) -> Gateway[Any, Any]: ...
 
 
 def gateway(fn: Callable) -> Gateway:
-    """Decorator: turn a function into a (direction-less) :class:`Gateway`.
+    """Decorator: turn a function into a direction-neutral :class:`Gateway`.
 
-    ``fn`` may be ``async`` or plain ``def`` (a sync gateway is run inline).
+    ``fn`` may be ``async`` or plain ``def`` (sync gateways run inline).
+    Explicitly-typed functions resolve to ``Gateway[_P, _R]``; ``*args, **kwargs``
+    functions resolve to ``Gateway[Any, Any]`` — assignable to any typed slot.
 
-    When the function carries explicit parameter annotations the returned
-    :class:`Gateway` is parameterised with those types.  When the function
-    uses ``*args, **kwargs`` the fallback overload fires and returns
-    ``Gateway[Any, Any]``, which is assignable to any typed gateway slot.
-
-    See :meth:`Gateway.apply_entry` for how an entry gateway's return is
-    interpreted; use :func:`gateway.args` to specify multiple positional/keyword
-    args explicitly.
+    See :meth:`Gateway.apply_entry` for return-value conventions; use
+    :func:`gateway.args` to specify both positional and keyword args explicitly.
     """
     return Gateway(fn)
 

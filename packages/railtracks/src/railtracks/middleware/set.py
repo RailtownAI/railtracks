@@ -1,31 +1,19 @@
 """The middleware container + execution engine shared by every entry point.
 
-A :class:`MiddlewareSet` bundles the middleware attached to one site and runs a
-core callable through it. The agreed structure has two fixed wrapper layers
-sandwiching a gateway band::
+:class:`MiddlewareSet` bundles the middleware for one site and runs a core
+callable through it in band order::
 
     wrappers
-    └── entry gateways            (transform input)
+    └── gateway_entry             (transform input args)
         └── inner_wrappers
             └── core              (node / func / model call)
         └── (unwind inner_wrappers)
-    └── exit gateways             (transform output)
+    └── gateway_exit              (transform output)
     └── (unwind wrappers)
 
-Each band is an internal :class:`_LayeredList` with three layers so that
-**system-provided** middleware can be registered without ever touching the
-**user-provided** list:
-
-    [sys_before]  →  [user]  →  [sys_after]
-
-- ``sys_before`` — framework middleware that runs before user middleware.
-- ``user``       — exactly what the caller passed; copied in, never mutated.
-- ``sys_after``  — framework middleware that runs after user middleware.
-
-The caller's original list is copied into the user layer, so the object they
-passed is never modified. When a ``MiddlewareSet`` is reused across nodes, each
-site gets a fresh copy whose system layers are reset (every site registers its
-own system middleware independently).
+Each band is a :class:`_LayeredList` with ``sys_before → user → sys_after``
+layers so framework middleware can be injected without touching user lists.
+The caller's list is always copied in — the original is never mutated.
 """
 
 from __future__ import annotations
@@ -51,8 +39,8 @@ _R = TypeVar("_R")
 class _LayeredList(Generic[_T]):
     """Three-layer ordered list: ``sys_before → user → sys_after``.
 
-    The public iteration interface exposes the **user** layer only; the user
-    list is copied on construction and never mutated thereafter.
+    Public iteration (``__iter__``, ``__len__``, ``__getitem__``) exposes the
+    user layer only. The user list is copied on construction and never mutated.
     """
 
     def __init__(self, user: Iterable[_T] | None = None) -> None:
@@ -96,9 +84,7 @@ class _LayeredList(Generic[_T]):
 
 
 def _coerce_wrappers(items: Iterable[Any] | None) -> list[Wrapper]:
-    """Normalise a wrapper slot. The slot already tells us the role, so a raw
-    async function is auto-wrapped — ``@wrapper`` is optional here. An already
-    built :class:`Gateway` in a wrapper slot is the one thing we reject."""
+    """Coerce a wrapper slot: auto-wraps raw async functions, rejects :class:`Gateway` objects."""
     result: list[Wrapper] = []
     for i, item in enumerate(items or []):
         if isinstance(item, Wrapper):
@@ -115,9 +101,7 @@ def _coerce_wrappers(items: Iterable[Any] | None) -> list[Wrapper]:
 
 
 def _coerce_gateways(items: Iterable[Any] | None) -> list[Gateway]:
-    """Normalise a gateway slot. The slot already tells us the role, so a raw
-    async function is auto-wrapped — ``@gateway`` is optional here. An already
-    built :class:`Wrapper` in a gateway slot is the one thing we reject."""
+    """Coerce a gateway slot: auto-wraps raw functions, rejects :class:`Wrapper` objects."""
     result: list[Gateway] = []
     for i, item in enumerate(items or []):
         if isinstance(item, Gateway):
@@ -134,20 +118,20 @@ def _coerce_gateways(items: Iterable[Any] | None) -> list[Gateway]:
 
 
 class MiddlewareSet(Generic[_P, _R]):
-    """The ordered middleware attached to a single entry point.
+    """Ordered middleware attached to a single entry point.
 
-    Construct with explicit bands — entry and exit gateways are **separate** lists
-    so the execution order is obvious at the call site::
+    Entry and exit gateways are separate constructor arguments so the execution
+    order is explicit::
 
         MiddlewareSet(
-            wrappers=[retry],  # outermost: wrap the whole call
-            gateway_entry=[scrub_pii],  # run before the core (input transforms)
-            gateway_exit=[redact],  # run after the core (output transforms)
-            inner_wrappers=[cache],  # innermost: hug the core, inside the gateways
+            wrappers=[retry],          # outermost: wrap the entire call
+            gateway_entry=[scrub_pii], # transforms input before core runs
+            gateway_exit=[redact],     # transforms output after core returns
+            inner_wrappers=[cache],    # innermost: hugs the core, inside gateways
         )
 
-    Or coerce from a bare list via :meth:`coerce` (``Wrapper`` items →
-    ``wrappers``, ``Gateway`` items → ``gateway_entry``).
+    Coerce from a bare list via :meth:`coerce` (``Wrapper`` → ``wrappers``,
+    ``Gateway`` → ``gateway_entry``).
     """
 
     def __init__(
@@ -176,20 +160,16 @@ class MiddlewareSet(Generic[_P, _R]):
 
     @classmethod
     def coerce(cls, value: "MiddlewareSet | Iterable[Any] | None") -> "MiddlewareSet":
-        """Normalise user input into a fresh ``MiddlewareSet``.
+        """Normalise input into a fresh :class:`MiddlewareSet`.
 
-        - ``None``           → empty set
-        - ``MiddlewareSet``  → fresh copy (user layers preserved, sys layers reset)
-        - ``list`` / iterable → ``Wrapper`` items go to ``wrappers``,
-          ``Gateway`` items go to ``gateway_entry`` (the common case; use the
-          explicit constructor for exit gateways)
+        - ``None``          → empty set.
+        - ``MiddlewareSet`` → fresh copy; user layers preserved, sys layers reset.
+        - ``list``          → :class:`Wrapper` items → ``wrappers``,
+          :class:`Gateway` items → ``gateway_entry``.
 
-        A bare list is the one place the ``@wrapper`` / ``@gateway`` decorator is
-        still required: with no slot to imply the role, a raw async function is
-        ambiguous. Use the explicit ``MiddlewareSet(...)`` constructor to pass
-        raw functions.
-
-        The caller's list / ``MiddlewareSet`` is never mutated.
+        In a bare list ``@wrapper`` / ``@gateway`` are required — without a
+        named slot a raw function's role is ambiguous. Use the explicit
+        constructor to pass raw functions. The caller's input is never mutated.
         """
         if value is None:
             return cls()
