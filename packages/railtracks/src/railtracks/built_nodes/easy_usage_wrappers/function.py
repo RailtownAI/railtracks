@@ -178,6 +178,7 @@ def _single_function_node(
         async def wrapped_function(*args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
             return await asyncio.to_thread(func, *args, **kwargs)
 
+        functools.update_wrapper(wrapped_function, func)  # type: ignore[arg-type]
         unwrapped_func = wrapped_function
     else:
         unwrapped_func = func

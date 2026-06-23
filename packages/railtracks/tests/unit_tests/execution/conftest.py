@@ -13,7 +13,7 @@ def mock_node():
 
 @pytest.fixture
 def mock_task(mock_node):
-    return Task(request_id="req-1", node=mock_node)
+    return Task(request_id="req-1", node=mock_node, arguments=((), {}))
 
 
 @pytest.fixture
