@@ -24,22 +24,31 @@ class State(Enum):
 
 class ToDo(BaseModel):
     id: int = Field(description="Unique integer identifier assigned by the owning ToDoToolSet.")
-    short_description: str = Field(description="...")
-    description: str = Field(description="..c.")
-    state: State = Field(description="...", default=State.NOT_STARTED)
+    short_description: str = Field(description="Brief unique label shown in todo listings.")
+    description: str = Field(description="Full details of what needs to be done.")
+    state: State = Field(description="Current lifecycle state of this todo.", default=State.NOT_STARTED)
 
     def update_state(self, new_state: State):
+        """Transition this todo to new_state."""
         self.state = new_state
 
     def complete_print(self) -> str:
+        """Return a fully-formatted string including id, state, and descriptions."""
         return f"({self.id}) [{self.state.value}] {self.short_description}: {self.description}"
 
     def simplified_print(self) -> str:
+        """Return a compact state + short_description string."""
         return f"{self.state.value} - {self.short_description}"
 
 
 class ToDoToolSet(ToolSet):
     def __init__(self, callback: Callable[[str, str, State], None] | None = None):
+        """Create an empty toolset with an optional post-add callback.
+
+        Args:
+            callback: Invoked after each successful add() with (short_description, description, state).
+                      Exceptions are logged and swallowed; the todo is always committed regardless.
+        """
         self.todos: list[ToDo] = []
         self._next_id: int = 1
         self._lock = threading.Lock()
@@ -92,6 +101,12 @@ class ToDoToolSet(ToolSet):
 
     @classmethod
     def check_if_valid(cls, todos: list[ToDo], todo_to_add: ToDo) -> str | None:
+        """Return an error message if todo_to_add conflicts with existing todos, else None.
+
+        Args:
+            todos: The current list of todos to validate against.
+            todo_to_add: The candidate todo whose short_description and description are checked.
+        """
         if todo_to_add.short_description in [todo.short_description for todo in todos]:
             return f"Todo with short description '{todo_to_add.short_description}' already exists. Please provide a unique short description."
 
@@ -101,19 +116,11 @@ class ToDoToolSet(ToolSet):
         return None
 
     def _get_all_todos(self) -> list[ToDo]:
-        """Return all todos for this toolset instance.
-
-        Returns:
-            List of all ToDo objects tracked by this instance.
-        """
+        """Return the internal todos list."""
         return self.todos
 
     def get_all_todos(self) -> list[str]:
-        """Return formatted strings for all active todos (excludes NO_LONGER_PLANNED).
-
-        Returns:
-            List of complete_print() strings for todos not in NO_LONGER_PLANNED state.
-        """
+        """Return complete_print() strings for all active (non-NO_LONGER_PLANNED) todos."""
         with self._lock:
             return [
                 todo.complete_print()
@@ -122,11 +129,7 @@ class ToDoToolSet(ToolSet):
             ]
 
     def get_completed_todos(self) -> list[str]:
-        """Return formatted strings for all completed todos in this instance.
-
-        Returns:
-            List of complete_print() strings for todos in COMPLETED state.
-        """
+        """Return complete_print() strings for todos in COMPLETED state."""
         with self._lock:
             return [
                 todo.complete_print()
@@ -135,11 +138,7 @@ class ToDoToolSet(ToolSet):
             ]
 
     def get_not_started_todos(self) -> list[str]:
-        """Return formatted strings for todos that have not been started in this instance.
-
-        Returns:
-            List of complete_print() strings for todos in NOT_STARTED state.
-        """
+        """Return complete_print() strings for todos in NOT_STARTED state."""
         with self._lock:
             return [
                 todo.complete_print()
@@ -148,13 +147,7 @@ class ToDoToolSet(ToolSet):
             ]
 
     def get_incomplete_todos(self) -> list[str]:
-        """Return formatted strings for all unfinished todos (not started, in progress, or failed).
-
-        NO_LONGER_PLANNED todos are excluded.
-
-        Returns:
-            List of complete_print() strings for todos in NOT_STARTED, IN_PROGRESS, or FAILED state.
-        """
+        """Return complete_print() strings for todos in NOT_STARTED, IN_PROGRESS, or FAILED state."""
         incomplete_states = {State.NOT_STARTED, State.IN_PROGRESS, State.FAILED}
         with self._lock:
             return [
@@ -164,11 +157,7 @@ class ToDoToolSet(ToolSet):
             ]
 
     def get_failed_todos(self) -> list[str]:
-        """Return formatted strings for all failed todos in this instance.
-
-        Returns:
-            List of complete_print() strings for todos in FAILED state.
-        """
+        """Return complete_print() strings for todos in FAILED state."""
         with self._lock:
             return [
                 todo.complete_print()
@@ -177,10 +166,11 @@ class ToDoToolSet(ToolSet):
             ]
 
     def _find_and_update(self, todo_id: int, new_state: State) -> str:
-        """Find a todo by id, transition it to new_state, and return its complete_print().
+        """Find todo by id, transition it to new_state, return its complete_print(). Raises ValueError if not found.
 
-        Raises:
-            ValueError: If no todo with the given id exists in this instance.
+        Args:
+            todo_id: The integer id of the todo to update.
+            new_state: The State to transition the todo to.
         """
         with self._lock:
             for todo in self._get_all_todos():
@@ -190,73 +180,35 @@ class ToDoToolSet(ToolSet):
         raise ValueError(f"Todo with identifier '{todo_id}' not found.")
 
     def complete_todo_by_id(self, todo_id: int):
-        """Mark a todo as COMPLETED.
+        """Mark a todo as COMPLETED; raises ValueError if not found.
 
         Args:
-            todo_id: The integer identifier of the todo (from ToDo.id).
-
-        Returns:
-            Confirmation string with the updated todo details.
-
-        Raises:
-            ValueError: If no todo with the given id exists in this instance.
+            todo_id: The integer id of the todo to complete.
         """
         return "Successfully completed todo:\n" + self._find_and_update(todo_id, State.COMPLETED)
 
     def start_todo_by_id(self, todo_id: int):
-        """Mark a todo as IN_PROGRESS.
+        """Mark a todo as IN_PROGRESS; raises ValueError if not found.
 
         Args:
-            todo_id: The integer identifier of the todo (from ToDo.id).
-
-        Returns:
-            Confirmation string with the updated todo details.
-
-        Raises:
-            ValueError: If no todo with the given id exists in this instance.
+            todo_id: The integer id of the todo to start.
         """
         return "Successfully started todo:\n" + self._find_and_update(todo_id, State.IN_PROGRESS)
 
     def fail_todo_by_id(self, todo_id: int):
-        """Mark a todo as FAILED.
+        """Mark a todo as FAILED; raises ValueError if not found.
 
         Args:
-            todo_id: The integer identifier of the todo (from ToDo.id).
-
-        Returns:
-            Confirmation string with the updated todo details.
-
-        Raises:
-            ValueError: If no todo with the given id exists in this instance.
+            todo_id: The integer id of the todo to fail.
         """
         return "Successfully marked todo as failed:\n" + self._find_and_update(todo_id, State.FAILED)
 
     def no_longer_plan_todo_by_id(self, todo_id: int):
-        """Mark a todo as NO_LONGER_PLANNED.
-
-        Todos in this state are excluded from most views. Use when a planned task
-        is no longer relevant without it being a failure.
-
-        Args:
-            todo_id: The integer identifier of the todo (from ToDo.id).
-
-        Returns:
-            Confirmation string with the updated todo details.
-
-        Raises:
-            ValueError: If no todo with the given id exists in this instance.
-        """
+        """Mark todo todo_id as NO_LONGER_PLANNED; raises ValueError if not found."""
         return "Successfully marked todo as no longer planned:\n" + self._find_and_update(todo_id, State.NO_LONGER_PLANNED)
 
     def make_all_no_longer_planned(self):
-        """Mark all not-started and in-progress todos as NO_LONGER_PLANNED.
-
-        COMPLETED and FAILED todos are left unchanged. Use when abandoning the
-        current plan entirely.
-
-        Returns:
-            Confirmation string with the number of todos affected.
-        """
+        """Mark all NOT_STARTED and IN_PROGRESS todos as NO_LONGER_PLANNED; leaves COMPLETED and FAILED unchanged."""
         affected = 0
         with self._lock:
             for todo in self._get_all_todos():
@@ -266,27 +218,11 @@ class ToDoToolSet(ToolSet):
         return f"Marked {affected} todo(s) as no longer planned."
 
     def update_todo_by_id(self, todo_id: int, new_state: State):
-        """Update a todo to an arbitrary state.
-
-        Args:
-            todo_id: The integer identifier of the todo (from ToDo.id).
-            new_state: The target State to transition the todo to.
-
-        Returns:
-            Confirmation string with the updated todo details.
-
-        Raises:
-            ValueError: If no todo with the given id exists in this instance.
-        """
+        """Transition todo todo_id to new_state; raises ValueError if not found."""
         return "Successfully updated todo:\n" + self._find_and_update(todo_id, new_state)
 
     def pretty_dashboard(self) -> str:
-        """Return a human-readable summary of active todos (excludes NO_LONGER_PLANNED).
-
-        Returns:
-            Formatted string listing each active todo's state and short description, or a
-            'No todos found.' message if none exist.
-        """
+        """Return a human-readable dashboard of active todos, or 'No todos found.'"""
         with self._lock:
             lines = [t.simplified_print() for t in self._get_all_todos() if t.state != State.NO_LONGER_PLANNED]
         if not lines:
@@ -295,6 +231,7 @@ class ToDoToolSet(ToolSet):
 
     @classmethod
     def prompt(cls) -> str:
+        """Return the system prompt instructing an LLM how to use this toolset."""
         return (
             "Use the todo tools to plan and track your work. "
             "Begin by calling add() for every task before starting any of them. "
@@ -308,6 +245,7 @@ class ToDoToolSet(ToolSet):
         )
 
     def tool_set(self) -> list[RTFunction]:
+        """Return the list of RTFunction nodes for all public tools in this toolset."""
         functions = [
             self.add,
             self.complete_todo_by_id,
