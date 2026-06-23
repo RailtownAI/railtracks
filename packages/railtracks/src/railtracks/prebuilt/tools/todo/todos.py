@@ -204,7 +204,11 @@ class ToDoToolSet(ToolSet):
         return "Successfully marked todo as failed:\n" + self._find_and_update(todo_id, State.FAILED)
 
     def no_longer_plan_todo_by_id(self, todo_id: int):
-        """Mark todo todo_id as NO_LONGER_PLANNED; raises ValueError if not found."""
+        """Mark a todo as NO_LONGER_PLANNED; raises ValueError if not found.
+
+        Args:
+            todo_id: The integer id of the todo to deprioritize.
+        """
         return "Successfully marked todo as no longer planned:\n" + self._find_and_update(todo_id, State.NO_LONGER_PLANNED)
 
     def make_all_no_longer_planned(self):
@@ -218,7 +222,12 @@ class ToDoToolSet(ToolSet):
         return f"Marked {affected} todo(s) as no longer planned."
 
     def update_todo_by_id(self, todo_id: int, new_state: State):
-        """Transition todo todo_id to new_state; raises ValueError if not found."""
+        """Transition a todo to an arbitrary state; raises ValueError if not found.
+
+        Args:
+            todo_id: The integer id of the todo to update.
+            new_state: The State to transition the todo to.
+        """
         return "Successfully updated todo:\n" + self._find_and_update(todo_id, new_state)
 
     def pretty_dashboard(self) -> str:
