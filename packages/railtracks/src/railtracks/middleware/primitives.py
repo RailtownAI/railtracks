@@ -112,8 +112,9 @@ class Gateway(Generic[_P, _R]):
         async def scrub(*args, **kwargs):  # entry: clean the inputs
             return (clean(args), kwargs)
 
+
         @gateway
-        async def redact(result):          # exit: clean the output
+        async def redact(result):  # exit: clean the output
             return clean(result)
     """
 

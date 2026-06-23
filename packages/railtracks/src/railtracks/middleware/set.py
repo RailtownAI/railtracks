@@ -124,10 +124,10 @@ class MiddlewareSet(Generic[_P, _R]):
     order is explicit::
 
         MiddlewareSet(
-            wrappers=[retry],          # outermost: wrap the entire call
-            gateway_entry=[scrub_pii], # transforms input before core runs
-            gateway_exit=[redact],     # transforms output after core returns
-            inner_wrappers=[cache],    # innermost: hugs the core, inside gateways
+            wrappers=[retry],  # outermost: wrap the entire call
+            gateway_entry=[scrub_pii],  # transforms input before core runs
+            gateway_exit=[redact],  # transforms output after core returns
+            inner_wrappers=[cache],  # innermost: hugs the core, inside gateways
         )
 
     Coerce from a bare list via :meth:`coerce` (``Wrapper`` → ``wrappers``,
@@ -137,7 +137,8 @@ class MiddlewareSet(Generic[_P, _R]):
     def __init__(
         self,
         wrappers: Iterable[Wrapper[_P, _R]] | None = None,
-        gateway_entry: Iterable[Gateway[_P, tuple[tuple, dict[str, Any]]]] | None = None,
+        gateway_entry: Iterable[Gateway[_P, tuple[tuple, dict[str, Any]]]]
+        | None = None,
         gateway_exit: Iterable[Gateway[[_R], _R]] | None = None,
         inner_wrappers: Iterable[Wrapper[_P, _R]] | None = None,
     ) -> None:
