@@ -153,18 +153,17 @@ class MiddlewareSet(Generic[_P, _R]):
     def __init__(
         self,
         wrappers: Iterable[Wrapper[_P, _R]] | None = None,
-        gateway_entry: Iterable[Gateway[_P, tuple[tuple, dict[str, Any]]]]
-        | None = None,
+        gateway_entry: Iterable[Gateway[_P, tuple[tuple, dict[str, Any]]]] | None = None,
         gateway_exit: Iterable[Gateway[[_R], _R]] | None = None,
         inner_wrappers: Iterable[Wrapper[_P, _R]] | None = None,
     ) -> None:
         self._outer: _LayeredList[Wrapper[_P, _R]] = _LayeredList(
             _coerce_wrappers(wrappers)
         )
-        self._entry: _LayeredList[Gateway[_P, tuple[tuple, dict[str, Any]]]] = (
-            _LayeredList(_coerce_gateways(gateway_entry))
+        self._entry: _LayeredList[Gateway[Any, Any]] = _LayeredList(
+            _coerce_gateways(gateway_entry)
         )
-        self._exit: _LayeredList[Gateway[[_R], _R]] = _LayeredList(
+        self._exit: _LayeredList[Gateway[Any, Any]] = _LayeredList(
             _coerce_gateways(gateway_exit)
         )
         self._inner: _LayeredList[Wrapper[_P, _R]] = _LayeredList(
@@ -252,19 +251,23 @@ class MiddlewareSet(Generic[_P, _R]):
     # ------------------------------------------------------------------
 
     @property
-    def wrappers(self):
+    def wrappers(self) -> list[Wrapper[_P, _R]]:
+        """User-layer outer wrappers (excludes system-registered layers)."""
         return list(self._outer)
 
     @property
-    def inner_wrappers(self):
+    def inner_wrappers(self) -> list[Wrapper[_P, _R]]:
+        """User-layer inner wrappers (excludes system-registered layers)."""
         return list(self._inner)
 
     @property
-    def gateway_entry(self):
+    def gateway_entry(self) -> list[Gateway[Any, Any]]:
+        """User-layer entry gateways (excludes system-registered layers)."""
         return list(self._entry)
 
     @property
-    def gateway_exit(self):
+    def gateway_exit(self) -> list[Gateway[Any, Any]]:
+        """User-layer exit gateways (excludes system-registered layers)."""
         return list(self._exit)
 
     # ------------------------------------------------------------------
@@ -277,7 +280,18 @@ class MiddlewareSet(Generic[_P, _R]):
         *args: _P.args,
         **kwargs: _P.kwargs,
     ) -> _R:
-        """Run ``core(*args, **kwargs)`` through this middleware set."""
+        """Thread ``core(*args, **kwargs)`` through all middleware in band order.
+
+        Execution order (including system layers within each band):
+
+        1. ``wrappers`` sys_before → user → sys_after  (outermost, entered first)
+        2. ``gateway_entry`` — transforms ``(args, kwargs)`` before the core
+        3. ``inner_wrappers`` sys_before → user → sys_after
+        4. ``core``
+        5. ``inner_wrappers`` unwind  (inner → outer)
+        6. ``gateway_exit`` — transforms the return value
+        7. ``wrappers`` unwind  (inner → outer, exited last)
+        """
         entry = self._entry.ordered()
         exit_ = self._exit.ordered()
 

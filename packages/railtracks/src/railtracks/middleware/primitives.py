@@ -24,8 +24,8 @@ and is only *required* for a bare list, where the role is otherwise ambiguous::
             try:
                 return await call(*args, **kwargs)
             except Exception:
-                continue
-        raise
+                pass
+        raise RuntimeError("All retries exhausted")
 
 
     # entry gateway: placed in `gateway_entry`, transforms input
@@ -38,6 +38,12 @@ and is only *required* for a bare list, where the role is otherwise ambiguous::
     @gateway
     async def redact(result):
         return redact_response(result)
+
+The ``@wrapper`` / ``@gateway`` decorators are **optional** when the function
+sits in a typed slot of a :class:`~railtracks.middleware.MiddlewareSet`
+(``wrappers`` / ``inner_wrappers`` / ``gateway_entry`` / ``gateway_exit``):
+the slot implies the role, so a raw function is auto-coerced. The decorator is
+only *required* in a bare list where the role would otherwise be ambiguous.
 
 A ``Gateway`` carries **no** direction — *where you place it* (the
 ``gateway_entry`` list vs the ``gateway_exit`` list of a
@@ -62,6 +68,7 @@ from typing import (
     Any,
     Awaitable,
     Callable,
+    Concatenate,
     Generic,
     ParamSpec,
     TypeVar,
@@ -107,19 +114,30 @@ class _GatewayArgs:
 class Wrapper(Generic[_P, _R]):
     """Execution-control middleware.
 
-    Built from a call-style async function ``fn(call, *args, **kwargs)`` where
-    ``call`` is the inner (already-wrapped) callable. The function is responsible
+    Built from an ``async`` function ``fn(call, *args, **kwargs)`` where
+    ``call`` is the inner (already-wrapped) callable and ``*args``/``**kwargs``
+    are the arguments for the current invocation. The function is responsible
     for invoking ``call`` — it may skip it, retry it, or wrap it in error
-    handling.
+    handling::
 
-    ``fn`` must be ``async``: a wrapper has to ``await`` the inner ``call``, which a
-    plain ``def`` cannot do without running off the event loop (and the resulting
-    loss of the run's context is not acceptable).
+        @wrapper
+        async def retry(call, *args, **kwargs):
+            for _ in range(3):
+                try:
+                    return await call(*args, **kwargs)
+                except Exception:
+                    pass
+            raise RuntimeError("All retries exhausted")
+
+    ``fn`` must be ``async``: it has to ``await`` the inner ``call``.
+    Passing a plain ``def`` raises ``TypeError`` at construction time.
     """
 
     def __init__(
-        self, fn: Callable[[Callable[_P, Awaitable[_R]]], Callable[_P, Awaitable[_R]]]
+        self,
+        fn: Callable[Concatenate[Callable[_P, Awaitable[_R]], _P], Awaitable[_R]],
     ) -> None:
+        _require_async(fn, "Wrapper function")
         self._fn = fn
 
     def wrap(self, inner: Callable[_P, Awaitable[_R]]) -> Callable[_P, Awaitable[_R]]:
@@ -128,10 +146,10 @@ class Wrapper(Generic[_P, _R]):
         The returned callable carries ``inner``'s parameter and return types, so
         wrapping does not erase the signature of the function being wrapped.
         """
-        decorated = self._fn(inner)
+        fn = self._fn
 
         async def wrapped(*args: _P.args, **kwargs: _P.kwargs) -> _R:
-            return await decorated(*args, **kwargs)
+            return await fn(inner, *args, **kwargs)
 
         return wrapped
 
@@ -240,10 +258,28 @@ class Gateway(Generic[_P, _R]):
         return f"Gateway({getattr(self._fn, '__name__', self._fn)!r})"
 
 
+@overload
 def wrapper(
-    fn: Callable[[Callable[_P, Awaitable[_R]]], Callable[_P, Awaitable[_R]]],
-) -> Wrapper[_P, _R]:
-    """Decorator: turn a call-style async function into a :class:`Wrapper`."""
+    fn: Callable[Concatenate[Callable[_P, Awaitable[_R]], _P], Awaitable[_R]],
+) -> Wrapper[_P, _R]: ...
+
+
+@overload
+def wrapper(
+    fn: Callable[..., Awaitable[Any]],
+) -> Wrapper[Any, Any]: ...
+
+
+def wrapper(fn: Callable) -> Wrapper:
+    """Decorator: turn a call-style async function into a :class:`Wrapper`.
+
+    When the function carries explicit parameter annotations (e.g.
+    ``async def fn(call, x: int, y: int) -> int``), the returned
+    :class:`Wrapper` is parameterised with those types.  When the function
+    uses ``*args, **kwargs`` — the common pattern for generic wrappers like
+    retry or tracing — the second overload fires and returns
+    ``Wrapper[Any, Any]``, which is assignable to any typed wrapper slot.
+    """
     return Wrapper(fn)
 
 
@@ -268,13 +304,24 @@ def gateway(fn: Callable[_P, Awaitable[_R]]) -> Gateway[_P, _R]: ...
 def gateway(fn: Callable[_P, _R]) -> Gateway[_P, _R]: ...
 
 
-def gateway(fn: Callable[_P, Awaitable[_R] | _R]) -> Gateway:
+@overload
+def gateway(fn: Callable[..., Any]) -> Gateway[Any, Any]: ...
+
+
+def gateway(fn: Callable) -> Gateway:
     """Decorator: turn a function into a (direction-less) :class:`Gateway`.
 
     ``fn`` may be ``async`` or plain ``def`` (a sync gateway is run inline).
 
-    See :meth:`Gateway.apply_entry` for how an entry gateway's return is interpreted;
-    use :func:`gateway.args` to specify multiple positional/keyword args explicitly."""
+    When the function carries explicit parameter annotations the returned
+    :class:`Gateway` is parameterised with those types.  When the function
+    uses ``*args, **kwargs`` the fallback overload fires and returns
+    ``Gateway[Any, Any]``, which is assignable to any typed gateway slot.
+
+    See :meth:`Gateway.apply_entry` for how an entry gateway's return is
+    interpreted; use :func:`gateway.args` to specify multiple positional/keyword
+    args explicitly.
+    """
     return Gateway(fn)
 
 

@@ -23,9 +23,9 @@ class TestWrapper:
             wrapper(123)  # type: ignore[arg-type]
 
     def test_wrapper_requires_async(self):
-        # A wrapper must await the inner call, so a sync function is rejected.
+        # A sync function is rejected immediately — wrappers must be async.
         with pytest.raises(TypeError, match="async"):
-            wrapper(lambda call: call)  # type: ignore[arg-type]
+            wrapper(lambda call, *a, **k: call(*a, **k))  # type: ignore[arg-type]
 
     @pytest.mark.asyncio
     async def test_wrapper_wraps_and_calls(self):

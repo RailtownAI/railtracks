@@ -437,30 +437,25 @@ def prepare_string_response(
 
 
 @wrapper
-def llm_observe(
+async def llm_observe(
     call: Callable[
         [MessageHistory, type[BaseModel] | None, list[Tool] | None], Awaitable[Response]
     ],
-):
-    async def wrapper(
-        message_history: MessageHistory,
-        schema: type[BaseModel] | None,
-        tools: list[Tool] | None,
-    ):
-        prev_message_history = deepcopy(message_history)
-        response: Response = await call(message_history, schema, tools)
-        _ = RequestDetails(
-            message_input=prev_message_history,
-            output=response.message,
-            model_name=response.message_info.model_name,
-            model_provider=None,  # TODO: implement parsing logic here
-            input_tokens=response.message_info.input_tokens,
-            output_tokens=response.message_info.output_tokens,
-            total_cost=response.message_info.total_cost,
-            system_fingerprint=response.message_info.system_fingerprint,
-            latency=response.message_info.latency,
-        )
-
-        return response
-
-    return wrapper
+    message_history: MessageHistory,
+    schema: type[BaseModel] | None,
+    tools: list[Tool] | None,
+) -> Response:
+    prev_message_history = deepcopy(message_history)
+    response: Response = await call(message_history, schema, tools)
+    _ = RequestDetails(
+        message_input=prev_message_history,
+        output=response.message,
+        model_name=response.message_info.model_name,
+        model_provider=None,  # TODO: implement parsing logic here
+        input_tokens=response.message_info.input_tokens,
+        output_tokens=response.message_info.output_tokens,
+        total_cost=response.message_info.total_cost,
+        system_fingerprint=response.message_info.system_fingerprint,
+        latency=response.message_info.latency,
+    )
+    return response

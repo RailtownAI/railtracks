@@ -105,13 +105,11 @@ class TestFunctionNodeMiddleware:
         attempt = {"count": 0}
 
         @rt.wrapper
-        def retry_once(call):
-            async def _inner(*args, **kwargs):
-                try:
-                    return await call(*args, **kwargs)
-                except ValueError:
-                    return await call(*args, **kwargs)
-            return _inner
+        async def retry_once(call, *args, **kwargs):
+            try:
+                return await call(*args, **kwargs)
+            except ValueError:
+                return await call(*args, **kwargs)
 
         @rt.function_node(middleware=MiddlewareSet(wrappers=[retry_once]))
         async def flaky() -> str:
@@ -130,10 +128,8 @@ class TestFunctionNodeMiddleware:
         """Wrapper can skip the inner call entirely and return its own result."""
 
         @rt.wrapper
-        def block(call):
-            async def _inner(*args, **kwargs):
-                return "blocked"
-            return _inner
+        async def block(call, *args, **kwargs):
+            return "blocked"
 
         @rt.function_node(middleware=MiddlewareSet(wrappers=[block]))
         async def should_not_run() -> str:
@@ -150,13 +146,11 @@ class TestFunctionNodeMiddleware:
         log = []
 
         @rt.wrapper
-        def outer_wrap(call):
-            async def _inner(*args, **kwargs):
-                log.append("outer_before")
-                result = await call(*args, **kwargs)
-                log.append("outer_after")
-                return result
-            return _inner
+        async def outer_wrap(call, *args, **kwargs):
+            log.append("outer_before")
+            result = await call(*args, **kwargs)
+            log.append("outer_after")
+            return result
 
         @rt.gateway
         def entry_gw(x: int):
@@ -164,13 +158,11 @@ class TestFunctionNodeMiddleware:
             return (x,), {}
 
         @rt.wrapper
-        def inner_wrap(call):
-            async def _inner(*args, **kwargs):
-                log.append("inner_before")
-                result = await call(*args, **kwargs)
-                log.append("inner_after")
-                return result
-            return _inner
+        async def inner_wrap(call, *args, **kwargs):
+            log.append("inner_before")
+            result = await call(*args, **kwargs)
+            log.append("inner_after")
+            return result
 
         @rt.gateway
         def exit_gw(result: int):
@@ -209,22 +201,18 @@ class TestFunctionNodeMiddleware:
         log = []
 
         @rt.wrapper
-        def first(call):
-            async def _inner(*args, **kwargs):
-                log.append("first_before")
-                result = await call(*args, **kwargs)
-                log.append("first_after")
-                return result
-            return _inner
+        async def first(call, *args, **kwargs):
+            log.append("first_before")
+            result = await call(*args, **kwargs)
+            log.append("first_after")
+            return result
 
         @rt.wrapper
-        def second(call):
-            async def _inner(*args, **kwargs):
-                log.append("second_before")
-                result = await call(*args, **kwargs)
-                log.append("second_after")
-                return result
-            return _inner
+        async def second(call, *args, **kwargs):
+            log.append("second_before")
+            result = await call(*args, **kwargs)
+            log.append("second_after")
+            return result
 
         @rt.function_node(middleware=MiddlewareSet(wrappers=[first, second]))
         def identity(x: int) -> int:
@@ -389,11 +377,9 @@ class TestAgentNodeMiddleware:
         call_count = {"n": 0}
 
         @rt.wrapper
-        def count_calls(call):
-            async def _inner(*args, **kwargs):
-                call_count["n"] += 1
-                return await call(*args, **kwargs)
-            return _inner
+        async def count_calls(call, *args, **kwargs):
+            call_count["n"] += 1
+            return await call(*args, **kwargs)
 
         agent = rt.agent_node(
             name="CountedAgent",
@@ -472,11 +458,9 @@ class TestModelMiddleware:
         invocations = {"n": 0}
 
         @rt.wrapper
-        def count_model_calls(call):
-            async def _inner(messages, schema, tools):
-                invocations["n"] += 1
-                return await call(messages, schema, tools)
-            return _inner
+        async def count_model_calls(call, *args, **kwargs):
+            invocations["n"] += 1
+            return await call(*args, **kwargs)
 
         agent = rt.agent_node(
             name="CountedModel",
@@ -558,15 +542,13 @@ class TestModelMiddleware:
         attempts = {"n": 0}
 
         @rt.wrapper
-        def retry_llm(call):
-            async def _inner(messages, schema, tools):
-                for _ in range(3):
-                    try:
-                        return await call(messages, schema, tools)
-                    except Exception:
-                        attempts["n"] += 1
-                raise LLMError(reason="exhausted", message_history=messages)
-            return _inner
+        async def retry_llm(call, *args, **kwargs):
+            for _ in range(3):
+                try:
+                    return await call(*args, **kwargs)
+                except Exception:
+                    attempts["n"] += 1
+            raise LLMError(reason="exhausted", message_history=args[0])
 
         # First call raises, second succeeds
         llm = mock_llm(
