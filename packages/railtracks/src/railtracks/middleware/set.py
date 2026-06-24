@@ -124,9 +124,9 @@ class MiddlewareChain(Generic[_P, _R]):
     order is explicit::
 
         MiddlewareChain(
-            wrappers=[retry],     # outermost: wrap the entire call
+            wrappers=[retry],  # outermost: wrap the entire call
             entry_gate=[scrub_pii],  # transforms input before core runs
-            exit_gate=[redact],      # transforms output after core returns
+            exit_gate=[redact],  # transforms output after core returns
             inner_wrappers=[cache],  # innermost: hugs the core, inside gates
         )
 
@@ -137,8 +137,7 @@ class MiddlewareChain(Generic[_P, _R]):
     def __init__(
         self,
         wrappers: Iterable[Wrapper[_P, _R]] | None = None,
-        entry_gate: Iterable[Gate[_P, tuple[tuple, dict[str, Any]]]]
-        | None = None,
+        entry_gate: Iterable[Gate[_P, tuple[tuple, dict[str, Any]]]] | None = None,
         exit_gate: Iterable[Gate[[_R], _R]] | None = None,
         inner_wrappers: Iterable[Wrapper[_P, _R]] | None = None,
     ) -> None:
@@ -160,7 +159,9 @@ class MiddlewareChain(Generic[_P, _R]):
     # ------------------------------------------------------------------
 
     @classmethod
-    def coerce(cls, value: "MiddlewareChain | Iterable[Any] | None") -> "MiddlewareChain":
+    def coerce(
+        cls, value: "MiddlewareChain | Iterable[Any] | None"
+    ) -> "MiddlewareChain":
         """Normalise input into a fresh :class:`MiddlewareChain`.
 
         - ``None``             → empty chain.
