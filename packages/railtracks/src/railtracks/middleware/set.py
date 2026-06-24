@@ -1,14 +1,14 @@
 """The middleware container + execution engine shared by every entry point.
 
-:class:`MiddlewareSet` bundles the middleware for one site and runs a core
+:class:`MiddlewareChain` bundles the middleware for one site and runs a core
 callable through it in band order::
 
     wrappers
-    └── gateway_entry             (transform input args)
+    └── entry_gate             (transform input args)
         └── inner_wrappers
             └── core              (node / func / model call)
         └── (unwind inner_wrappers)
-    └── gateway_exit              (transform output)
+    └── exit_gate              (transform output)
     └── (unwind wrappers)
 
 Each band is a :class:`_LayeredList` with ``sys_before → user → sys_after``
@@ -29,7 +29,7 @@ from typing import (
     TypeVar,
 )
 
-from railtracks.middleware.primitives import Gateway, Wrapper
+from railtracks.middleware.primitives import Gate, Wrapper
 
 _T = TypeVar("_T")
 _P = ParamSpec("_P")
@@ -84,15 +84,15 @@ class _LayeredList(Generic[_T]):
 
 
 def _coerce_wrappers(items: Iterable[Any] | None) -> list[Wrapper]:
-    """Coerce a wrapper slot: auto-wraps raw async functions, rejects :class:`Gateway` objects."""
+    """Coerce a wrapper slot: auto-wraps raw async functions, rejects :class:`Gate` objects."""
     result: list[Wrapper] = []
     for i, item in enumerate(items or []):
         if isinstance(item, Wrapper):
             result.append(item)
-        elif isinstance(item, Gateway):
+        elif isinstance(item, Gate):
             raise TypeError(
-                f"Wrapper slot at index {i} got a Gateway: {item!r}. "
-                f"Gateways belong in gateway_entry / gateway_exit."
+                f"Wrapper slot at index {i} got a Gate: {item!r}. "
+                f"Gates belong in entry_gate / exit_gate."
             )
         else:
             # Raw async function (or anything else) -> Wrapper validates it.
@@ -100,56 +100,56 @@ def _coerce_wrappers(items: Iterable[Any] | None) -> list[Wrapper]:
     return result
 
 
-def _coerce_gateways(items: Iterable[Any] | None) -> list[Gateway]:
-    """Coerce a gateway slot: auto-wraps raw functions, rejects :class:`Wrapper` objects."""
-    result: list[Gateway] = []
+def _coerce_gates(items: Iterable[Any] | None) -> list[Gate]:
+    """Coerce a gate slot: auto-wraps raw functions, rejects :class:`Wrapper` objects."""
+    result: list[Gate] = []
     for i, item in enumerate(items or []):
-        if isinstance(item, Gateway):
+        if isinstance(item, Gate):
             result.append(item)
         elif isinstance(item, Wrapper):
             raise TypeError(
-                f"Gateway slot at index {i} got a Wrapper: {item!r}. "
+                f"Gate slot at index {i} got a Wrapper: {item!r}. "
                 f"Wrappers belong in wrappers / inner_wrappers."
             )
         else:
-            # Raw async function (or anything else) -> Gateway validates it.
-            result.append(Gateway(item))
+            # Raw async function (or anything else) -> Gate validates it.
+            result.append(Gate(item))
     return result
 
 
-class MiddlewareSet(Generic[_P, _R]):
+class MiddlewareChain(Generic[_P, _R]):
     """Ordered middleware attached to a single entry point.
 
-    Entry and exit gateways are separate constructor arguments so the execution
+    Entry and exit gates are separate constructor arguments so the execution
     order is explicit::
 
-        MiddlewareSet(
-            wrappers=[retry],  # outermost: wrap the entire call
-            gateway_entry=[scrub_pii],  # transforms input before core runs
-            gateway_exit=[redact],  # transforms output after core returns
-            inner_wrappers=[cache],  # innermost: hugs the core, inside gateways
+        MiddlewareChain(
+            wrappers=[retry],     # outermost: wrap the entire call
+            entry_gate=[scrub_pii],  # transforms input before core runs
+            exit_gate=[redact],      # transforms output after core returns
+            inner_wrappers=[cache],  # innermost: hugs the core, inside gates
         )
 
     Coerce from a bare list via :meth:`coerce` (``Wrapper`` → ``wrappers``,
-    ``Gateway`` → ``gateway_entry``).
+    ``Gate`` → ``entry_gate``).
     """
 
     def __init__(
         self,
         wrappers: Iterable[Wrapper[_P, _R]] | None = None,
-        gateway_entry: Iterable[Gateway[_P, tuple[tuple, dict[str, Any]]]]
+        entry_gate: Iterable[Gate[_P, tuple[tuple, dict[str, Any]]]]
         | None = None,
-        gateway_exit: Iterable[Gateway[[_R], _R]] | None = None,
+        exit_gate: Iterable[Gate[[_R], _R]] | None = None,
         inner_wrappers: Iterable[Wrapper[_P, _R]] | None = None,
     ) -> None:
         self._outer: _LayeredList[Wrapper[_P, _R]] = _LayeredList(
             _coerce_wrappers(wrappers)
         )
-        self._entry: _LayeredList[Gateway[Any, Any]] = _LayeredList(
-            _coerce_gateways(gateway_entry)
+        self._entry: _LayeredList[Gate[Any, Any]] = _LayeredList(
+            _coerce_gates(entry_gate)
         )
-        self._exit: _LayeredList[Gateway[Any, Any]] = _LayeredList(
-            _coerce_gateways(gateway_exit)
+        self._exit: _LayeredList[Gate[Any, Any]] = _LayeredList(
+            _coerce_gates(exit_gate)
         )
         self._inner: _LayeredList[Wrapper[_P, _R]] = _LayeredList(
             _coerce_wrappers(inner_wrappers)
@@ -160,45 +160,45 @@ class MiddlewareSet(Generic[_P, _R]):
     # ------------------------------------------------------------------
 
     @classmethod
-    def coerce(cls, value: "MiddlewareSet | Iterable[Any] | None") -> "MiddlewareSet":
-        """Normalise input into a fresh :class:`MiddlewareSet`.
+    def coerce(cls, value: "MiddlewareChain | Iterable[Any] | None") -> "MiddlewareChain":
+        """Normalise input into a fresh :class:`MiddlewareChain`.
 
-        - ``None``          → empty set.
-        - ``MiddlewareSet`` → fresh copy; user layers preserved, sys layers reset.
-        - ``list``          → :class:`Wrapper` items → ``wrappers``,
-          :class:`Gateway` items → ``gateway_entry``.
+        - ``None``             → empty chain.
+        - ``MiddlewareChain``  → fresh copy; user layers preserved, sys layers reset.
+        - ``list``             → :class:`Wrapper` items → ``wrappers``,
+          :class:`Gate` items → ``entry_gate``.
 
-        In a bare list ``@wrapper`` / ``@gateway`` are required — without a
+        In a bare list ``@wrapper`` / ``@gate`` are required — without a
         named slot a raw function's role is ambiguous. Use the explicit
         constructor to pass raw functions. The caller's input is never mutated.
         """
         if value is None:
             return cls()
-        if isinstance(value, MiddlewareSet):
+        if isinstance(value, MiddlewareChain):
             return value._fresh_copy()
         if isinstance(value, (list, tuple)):
             outer: list[Wrapper] = []
-            entry: list[Gateway] = []
+            entry: list[Gate] = []
             for i, item in enumerate(value):
-                if isinstance(item, Gateway):
+                if isinstance(item, Gate):
                     entry.append(item)
                 elif isinstance(item, Wrapper):
                     outer.append(item)
                 else:
                     raise TypeError(
-                        f"Middleware item at index {i} must be a Wrapper or Gateway: "
+                        f"Middleware item at index {i} must be a Wrapper or Gate: "
                         f"{item!r}. In a bare list the role is ambiguous — decorate it "
-                        f"with @wrapper or @gateway, or use the MiddlewareSet(...) "
+                        f"with @wrapper or @gate, or use the MiddlewareChain(...) "
                         f"constructor to place a raw function in an explicit slot."
                     )
-            return cls(wrappers=outer, gateway_entry=entry)
+            return cls(wrappers=outer, entry_gate=entry)
         raise TypeError(
-            f"Expected a MiddlewareSet or a list of Wrapper/Gateway, got {value!r}"
+            f"Expected a MiddlewareChain or a list of Wrapper/Gate, got {value!r}"
         )
 
-    def _fresh_copy(self) -> "MiddlewareSet":
+    def _fresh_copy(self) -> "MiddlewareChain":
         """Copy carrying user layers; system layers reset for independent reuse."""
-        new = MiddlewareSet.__new__(MiddlewareSet)
+        new = MiddlewareChain.__new__(MiddlewareChain)
         new._outer = self._outer.copy_user_only()
         new._entry = self._entry.copy_user_only()
         new._exit = self._exit.copy_user_only()
@@ -209,14 +209,14 @@ class MiddlewareSet(Generic[_P, _R]):
     # System-middleware registration (never touches the user layer)
     # ------------------------------------------------------------------
 
-    def register_sys_gateway_entry(
-        self, gw: Gateway[_P, tuple[tuple, dict[str, Any]]]
+    def register_sys_entry_gate(
+        self, gw: Gate[_P, tuple[tuple, dict[str, Any]]]
     ) -> None:
-        """Register a framework entry gateway (runs before user entry gateways)."""
+        """Register a framework entry gate (runs before user entry gates)."""
         self._entry.add_sys_before(gw)
 
-    def register_sys_gateway_exit(self, gw: Gateway[[_R], _R]) -> None:
-        """Register a framework exit gateway (runs after user exit gateways)."""
+    def register_sys_exit_gate(self, gw: Gate[[_R], _R]) -> None:
+        """Register a framework exit gate (runs after user exit gates)."""
         self._exit.add_sys_after(gw)
 
     def register_sys_outer_wrapper(self, w: Wrapper[_P, _R]) -> None:
@@ -242,13 +242,13 @@ class MiddlewareSet(Generic[_P, _R]):
         return list(self._inner)
 
     @property
-    def gateway_entry(self) -> list[Gateway[Any, Any]]:
-        """User-layer entry gateways (excludes system-registered layers)."""
+    def entry_gate(self) -> list[Gate[Any, Any]]:
+        """User-layer entry gates (excludes system-registered layers)."""
         return list(self._entry)
 
     @property
-    def gateway_exit(self) -> list[Gateway[Any, Any]]:
-        """User-layer exit gateways (excludes system-registered layers)."""
+    def exit_gate(self) -> list[Gate[Any, Any]]:
+        """User-layer exit gates (excludes system-registered layers)."""
         return list(self._exit)
 
     # ------------------------------------------------------------------
@@ -266,11 +266,11 @@ class MiddlewareSet(Generic[_P, _R]):
         Execution order (including system layers within each band):
 
         1. ``wrappers`` sys_before → user → sys_after  (outermost, entered first)
-        2. ``gateway_entry`` — transforms ``(args, kwargs)`` before the core
+        2. ``entry_gate`` — transforms ``(args, kwargs)`` before the core
         3. ``inner_wrappers`` sys_before → user → sys_after
         4. ``core``
         5. ``inner_wrappers`` unwind  (inner → outer)
-        6. ``gateway_exit`` — transforms the return value
+        6. ``exit_gate`` — transforms the return value
         7. ``wrappers`` unwind  (inner → outer, exited last)
         """
         entry = self._entry.ordered()
@@ -297,6 +297,6 @@ class MiddlewareSet(Generic[_P, _R]):
 
     def __repr__(self) -> str:
         return (
-            f"MiddlewareSet(outer={self._outer!r}, "
+            f"MiddlewareChain(outer={self._outer!r}, "
             f"entry={self._entry!r}, exit={self._exit!r}, inner={self._inner!r})"
         )

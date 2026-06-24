@@ -2,17 +2,17 @@
 
 - :class:`Wrapper` — execution control: receives the inner callable and decides
   whether/how/how-many-times to invoke it (retry, fallback, short-circuit, timing).
-- :class:`Gateway` — direction-neutral data transform: slot placement decides
-  when it runs. ``gateway_entry`` transforms input; ``gateway_exit`` transforms
-  output. Check-only gateways validate and raise, or return ``None`` to pass through.
+- :class:`Gate` — direction-neutral data transform: slot placement decides
+  when it runs. ``entry_gate`` transforms input; ``exit_gate`` transforms
+  output. Check-only gates validate and raise, or return ``None`` to pass through.
 
-``@wrapper`` / ``@gateway`` are optional in named
-:class:`~railtracks.middleware.MiddlewareSet` slots (the slot implies the role
+``@wrapper`` / ``@gate`` are optional in named
+:class:`~railtracks.middleware.MiddlewareChain` slots (the slot implies the role
 and auto-coerces raw functions); required in bare lists where the role is ambiguous.
 
-Entry gateway return conventions:
+Entry gate return conventions:
 ``None`` → pass-through · ``tuple`` → new args · ``dict`` → new kwargs ·
-``(tuple, dict)`` → full replacement · :func:`gateway.args` → explicit form.
+``(tuple, dict)`` → full replacement · :func:`gate.args` → explicit form.
 Any other bare value raises ``TypeError``.
 """
 
@@ -47,8 +47,8 @@ def _require_async(fn: Callable, role: str) -> None:
         )
 
 
-class _GatewayArgs:
-    """Unambiguous ``(args, kwargs)`` container returned by :func:`gateway.args`."""
+class _GateArgs:
+    """Unambiguous ``(args, kwargs)`` container returned by :func:`gate.args`."""
 
     __slots__ = ("args", "kwargs")
 
@@ -61,7 +61,7 @@ class _GatewayArgs:
             [repr(a) for a in self.args]
             + [f"{k}={v!r}" for k, v in self.kwargs.items()]
         )
-        return f"gateway.args({inner})"
+        return f"gate.args({inner})"
 
 
 class Wrapper(Generic[_P, _R]):
@@ -102,30 +102,30 @@ class Wrapper(Generic[_P, _R]):
         return f"Wrapper({getattr(self._fn, '__name__', self._fn)!r})"
 
 
-class Gateway(Generic[_P, _R]):
+class Gate(Generic[_P, _R]):
     """Direction-neutral data-transform middleware.
 
-    Slot placement decides direction: ``gateway_entry`` transforms input,
-    ``gateway_exit`` transforms output. The same object can serve either::
+    Slot placement decides direction: ``entry_gate`` transforms input,
+    ``exit_gate`` transforms output. The same object can serve either::
 
-        @gateway
+        @gate
         async def scrub(*args, **kwargs):  # entry: clean the inputs
             return (clean(args), kwargs)
 
 
-        @gateway
+        @gate
         async def redact(result):  # exit: clean the output
             return clean(result)
     """
 
     def __init__(self, fn: Callable[_P, Awaitable[_R] | _R]) -> None:
-        _require_callable(fn, "Gateway function")
+        _require_callable(fn, "Gate function")
         self._fn = fn
 
     async def _invoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _R:
         """Call the underlying function, awaiting it if async.
 
-        Sync gateways run inline (not in a thread) to preserve ``rt.context``
+        Sync gates run inline (not in a thread) to preserve ``rt.context``
         writes on the current context.
         """
         if inspect.iscoroutinefunction(self._fn):
@@ -138,7 +138,7 @@ class Gateway(Generic[_P, _R]):
     async def apply_entry(
         self, *args: _P.args, **kwargs: _P.kwargs
     ) -> tuple[tuple, dict]:
-        """Run as an entry gateway; returns the new ``(args, kwargs)``.
+        """Run as an entry gate; returns the new ``(args, kwargs)``.
 
         Return-value conventions:
 
@@ -146,15 +146,15 @@ class Gateway(Generic[_P, _R]):
         - ``tuple``                     — new positional args: ``(the_tuple, {})``.
         - ``dict``                      — new keyword args: ``((), the_dict)``.
         - ``(tuple, dict)`` 2-tuple     — full ``(args, kwargs)`` replacement.
-        - :func:`gateway.args(*a, **k)` — same, stated explicitly.
+        - :func:`gate.args(*a, **k)`    — same, stated explicitly.
 
         Any other bare value raises ``TypeError``. Wrap a lone positional as
-        ``(x,)`` or ``gateway.args(x)``.
+        ``(x,)`` or ``gate.args(x)``.
         """
         result = await self._invoke(*args, **kwargs)
         if result is None:
             return args, kwargs
-        if isinstance(result, _GatewayArgs):
+        if isinstance(result, _GateArgs):
             return result.args, result.kwargs
         # (args_tuple, kwargs_dict) -> full form. Check before the plain-tuple case.
         if (
@@ -169,13 +169,13 @@ class Gateway(Generic[_P, _R]):
         if isinstance(result, dict):
             return (), result  # keyword args only
         raise TypeError(
-            f"Entry gateway {self._fn!r} must return None, a tuple (positional args), "
-            f"a dict (keyword args), a (tuple, dict) pair, or gateway.args(...); "
-            f"got {result!r}. Wrap a single positional value as (x,) or gateway.args(x)."
+            f"Entry gate {self._fn!r} must return None, a tuple (positional args), "
+            f"a dict (keyword args), a (tuple, dict) pair, or gate.args(...); "
+            f"got {result!r}. Wrap a single positional value as (x,) or gate.args(x)."
         )
 
     async def apply_exit(self, result: _R) -> _R:
-        """Run as an exit gateway; returns the transformed result. ``None`` keeps the original."""
+        """Run as an exit gate; returns the transformed result. ``None`` keeps the original."""
         transformed = await self._invoke(result)
         return result if transformed is None else transformed
 
@@ -192,7 +192,7 @@ class Gateway(Generic[_P, _R]):
         return self._fn
 
     def __repr__(self) -> str:
-        return f"Gateway({getattr(self._fn, '__name__', self._fn)!r})"
+        return f"Gate({getattr(self._fn, '__name__', self._fn)!r})"
 
 
 @overload
@@ -217,43 +217,43 @@ def wrapper(fn: Callable) -> Wrapper:
     return Wrapper(fn)
 
 
-def _gateway_args(*args: Any, **kwargs: Any) -> _GatewayArgs:
-    """Return an explicit ``(args, kwargs)`` pair for an entry gateway.
+def _gate_args(*args: Any, **kwargs: Any) -> _GateArgs:
+    """Return an explicit ``(args, kwargs)`` pair for an entry gate.
 
     Use when you need both positional and keyword args — a bare ``tuple`` is
     positional-only and a bare ``dict`` is keyword-only::
 
-        @rt.gateway
+        @rt.gate
         async def reorder(a, b):
-            return rt.gateway.args(b, a, flag=True)  # -> ((b, a), {"flag": True})
+            return rt.gate.args(b, a, flag=True)  # -> ((b, a), {"flag": True})
     """
-    return _GatewayArgs(args, kwargs)
+    return _GateArgs(args, kwargs)
 
 
 @overload
-def gateway(fn: Callable[_P, Awaitable[_R]]) -> Gateway[_P, _R]: ...
+def gate(fn: Callable[_P, Awaitable[_R]]) -> Gate[_P, _R]: ...
 
 
 @overload
-def gateway(fn: Callable[_P, _R]) -> Gateway[_P, _R]: ...
+def gate(fn: Callable[_P, _R]) -> Gate[_P, _R]: ...
 
 
 @overload
-def gateway(fn: Callable[..., Any]) -> Gateway[Any, Any]: ...
+def gate(fn: Callable[..., Any]) -> Gate[Any, Any]: ...
 
 
-def gateway(fn: Callable) -> Gateway:
-    """Decorator: turn a function into a direction-neutral :class:`Gateway`.
+def gate(fn: Callable) -> Gate:
+    """Decorator: turn a function into a direction-neutral :class:`Gate`.
 
-    ``fn`` may be ``async`` or plain ``def`` (sync gateways run inline).
-    Explicitly-typed functions resolve to ``Gateway[_P, _R]``; ``*args, **kwargs``
-    functions resolve to ``Gateway[Any, Any]`` — assignable to any typed slot.
+    ``fn`` may be ``async`` or plain ``def`` (sync gates run inline).
+    Explicitly-typed functions resolve to ``Gate[_P, _R]``; ``*args, **kwargs``
+    functions resolve to ``Gate[Any, Any]`` — assignable to any typed slot.
 
-    See :meth:`Gateway.apply_entry` for return-value conventions; use
-    :func:`gateway.args` to specify both positional and keyword args explicitly.
+    See :meth:`Gate.apply_entry` for return-value conventions; use
+    :func:`gate.args` to specify both positional and keyword args explicitly.
     """
-    return Gateway(fn)
+    return Gate(fn)
 
 
-# Expose the explicit-args helper as `gateway.args(...)`.
-gateway.args = _gateway_args
+# Expose the explicit-args helper as `gate.args(...)`.
+gate.args = _gate_args

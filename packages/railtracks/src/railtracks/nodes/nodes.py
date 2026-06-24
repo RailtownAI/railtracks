@@ -7,7 +7,7 @@ from copy import deepcopy
 from typing import Any, Generic, Literal, ParamSpec, TypeVar
 
 from railtracks.llm.tools.tool import Tool
-from railtracks.middleware import MiddlewareSet
+from railtracks.middleware import MiddlewareChain
 from railtracks.validation.node_creation.validation import (
     check_classmethod,
 )
@@ -98,7 +98,7 @@ class Node(ABC, Generic[_P, _TOutput]):
     # Node-level middleware applied around `invoke` (boundary: the node's call
     # args -> the node's output). Shared class-level default is never mutated;
     # each instance takes a fresh copy in __init__.
-    frozen_middleware: MiddlewareSet = MiddlewareSet()
+    frozen_middleware: MiddlewareChain = MiddlewareChain()
 
     def __init__(
         self,

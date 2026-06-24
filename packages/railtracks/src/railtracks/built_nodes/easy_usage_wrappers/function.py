@@ -20,7 +20,7 @@ from typing import (
 from railtracks.built_nodes._node_builder import NodeBuilder
 from railtracks.built_nodes.concrete.function_base import RTFunction
 from railtracks.exceptions import NodeCreationError
-from railtracks.middleware import MiddlewareSet
+from railtracks.middleware import MiddlewareChain
 from railtracks.nodes.manifest import ToolManifest
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_creation.validation import (
@@ -49,7 +49,7 @@ def function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: MiddlewareSet[_P, _TOutput] | None = None,
+    middleware: MiddlewareChain[_P, _TOutput] | None = None,
 ) -> CallableAsyncRTFunction[_P, _TOutput]: ...
 
 
@@ -60,7 +60,7 @@ def function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: MiddlewareSet[_P, _TOutput] | None = None,
+    middleware: MiddlewareChain[_P, _TOutput] | None = None,
 ) -> CallableSyncRTFunction[_P, _TOutput]:
     pass
 
@@ -72,7 +72,7 @@ def function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: MiddlewareSet[_P, _TOutput] | None = None,
+    middleware: MiddlewareChain[_P, _TOutput] | None = None,
 ) -> List[RTFunction[..., Any]]:
     pass
 
@@ -84,7 +84,7 @@ def function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: MiddlewareSet | None = None,
+    middleware: MiddlewareChain | None = None,
 ) -> Callable[
     [Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]], RTFunction[_P, _TOutput]
 ]:
@@ -121,7 +121,7 @@ def _single_function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: MiddlewareSet[_P, _TOutput] | None = None,
+    middleware: MiddlewareChain[_P, _TOutput] | None = None,
 ) -> CallableSyncRTFunction[_P, _TOutput] | CallableAsyncRTFunction[_P, _TOutput]:
     """
     Creates a new Node type from a function that can be used in `rt.call()`.
@@ -213,7 +213,7 @@ def function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: MiddlewareSet[_P, _TOutput] | None = None,
+    middleware: MiddlewareChain[_P, _TOutput] | None = None,
 ) -> (
     Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]
     | List[Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]]
@@ -248,8 +248,8 @@ def function_node(
             parametrized-decorator form, which returns a decorator that takes the function.
         name (str, optional): Human-readable name for the node/tool.
         manifest (ToolManifest, optional): The details you would like to override the tool with.
-        middleware (MiddlewareSet | list | None): Middleware applied around the node boundary.
-            Accepts a MiddlewareSet or a bare list of Wrapper/Gateway (check-only gateways act as guardrails).
+        middleware (MiddlewareChain | list | None): Middleware applied around the node boundary.
+            Accepts a MiddlewareChain or a bare list of Wrapper/Gate (check-only gateways act as guardrails).
     """
 
     # No function yet -> parametrized-decorator form: bind the options and return

@@ -15,27 +15,27 @@ call):
                   pass
           raise RuntimeError("All retries exhausted")
 
-- :class:`Gateway` — direction-neutral data transform. Place it in
-  ``gateway_entry`` to transform inputs before the core runs, or in
-  ``gateway_exit`` to transform the output afterwards.
+- :class:`Gate` — direction-neutral data transform. Place it in
+  ``entry_gate`` to transform inputs before the core runs, or in
+  ``exit_gate`` to transform the output afterwards.
 
-:class:`MiddlewareSet` bundles them into an ordered execution chain::
+:class:`MiddlewareChain` bundles them into an ordered execution chain::
 
-    wrappers → gateway_entry → inner_wrappers → core → gateway_exit → (unwind)
+    wrappers → entry_gate → inner_wrappers → core → exit_gate → (unwind)
 """
 
 from railtracks.middleware.primitives import (
-    Gateway,
+    Gate,
     Wrapper,
-    gateway,
+    gate,
     wrapper,
 )
-from railtracks.middleware.set import MiddlewareSet
+from railtracks.middleware.set import MiddlewareChain
 
 __all__ = [
     "Wrapper",
     "wrapper",
-    "Gateway",
-    "gateway",
-    "MiddlewareSet",
+    "Gate",
+    "gate",
+    "MiddlewareChain",
 ]

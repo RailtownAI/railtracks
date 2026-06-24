@@ -2,10 +2,10 @@
 Integration tests for the unified middleware system.
 
 Covers:
-  - Function node: entry/exit gateways, wrappers, ordering, guardrails
+  - Function node: entry/exit gates, wrappers, ordering, guardrails
   - Agent node: node-level middleware (around the user_input → response boundary)
-  - Model middleware: entry/exit gateways and wrappers around each raw model call
-  - MiddlewareSet mechanics: fresh-copy isolation, gateway.args(), coerce()
+  - Model middleware: entry/exit gates and wrappers around each raw model call
+  - MiddlewareChain mechanics: fresh-copy isolation, gate.args(), coerce()
   - Context injection via rt.context prompt templates
   - ModelSource factory form (model resolved fresh per call)
   - Tool calling with prepare_args (end-to-end verify of the prepare_tool→prepare_args fix)
@@ -17,7 +17,7 @@ import pytest
 import railtracks as rt
 from pydantic import BaseModel, Field
 from railtracks.llm import ToolCall
-from railtracks.middleware import MiddlewareSet
+from railtracks.middleware import MiddlewareChain
 
 
 # ---------------------------------------------------------------------------
@@ -29,14 +29,14 @@ class TestFunctionNodeMiddleware:
     """Middleware attached to function node boundaries (user args → return value)."""
 
     @pytest.mark.asyncio
-    async def test_entry_gateway_transforms_args(self):
-        """Entry gateway can rewrite positional args before the function runs."""
+    async def test_entry_gate_transforms_args(self):
+        """Entry gate can rewrite positional args before the function runs."""
 
-        @rt.gateway
+        @rt.gate
         def uppercase_in(text: str):
             return (text.upper(),), {}
 
-        @rt.function_node(middleware=MiddlewareSet(gateway_entry=[uppercase_in]))
+        @rt.function_node(middleware=MiddlewareChain(entry_gate=[uppercase_in]))
         def echo(text: str) -> str:
             return text
 
@@ -45,14 +45,14 @@ class TestFunctionNodeMiddleware:
         assert result == "HELLO"
 
     @pytest.mark.asyncio
-    async def test_exit_gateway_transforms_output(self):
-        """Exit gateway can rewrite the return value after the function returns."""
+    async def test_exit_gate_transforms_output(self):
+        """Exit gate can rewrite the return value after the function returns."""
 
-        @rt.gateway
+        @rt.gate
         def double_out(result: int) -> int:
             return result * 2
 
-        @rt.function_node(middleware=MiddlewareSet(gateway_exit=[double_out]))
+        @rt.function_node(middleware=MiddlewareChain(exit_gate=[double_out]))
         def add(x: int, y: int) -> int:
             return x + y
 
@@ -61,17 +61,17 @@ class TestFunctionNodeMiddleware:
         assert result == 14  # (3 + 4) * 2
 
     @pytest.mark.asyncio
-    async def test_entry_gateway_check_only_passes_through(self):
-        """A check-only entry gateway (returns None) leaves args unchanged."""
+    async def test_entry_gate_check_only_passes_through(self):
+        """A check-only entry gate (returns None) leaves args unchanged."""
 
         checked = {"called": False}
 
-        @rt.gateway
+        @rt.gate
         def just_check(x: int, y: int):
             checked["called"] = True
             # returning None = check-only; args pass through unchanged
 
-        @rt.function_node(middleware=MiddlewareSet(gateway_entry=[just_check]))
+        @rt.function_node(middleware=MiddlewareChain(entry_gate=[just_check]))
         def add(x: int, y: int) -> int:
             return x + y
 
@@ -81,17 +81,17 @@ class TestFunctionNodeMiddleware:
         assert checked["called"]
 
     @pytest.mark.asyncio
-    async def test_entry_gateway_guardrail_raises(self):
-        """Entry gateway acting as a guardrail propagates its exception to the caller."""
+    async def test_entry_gate_guardrail_raises(self):
+        """Entry gate acting as a guardrail propagates its exception to the caller."""
 
-        @rt.gateway
+        @rt.gate
         def no_negatives(x: int, y: int):
             if x < 0 or y < 0:
                 raise ValueError("Negative numbers not allowed")
 
             return (x, y), {}
 
-        @rt.function_node(middleware=MiddlewareSet(gateway_entry=[no_negatives]))
+        @rt.function_node(middleware=MiddlewareChain(entry_gate=[no_negatives]))
         def add(x: int, y: int) -> int:
             return x + y
 
@@ -111,7 +111,7 @@ class TestFunctionNodeMiddleware:
             except ValueError:
                 return await call(*args, **kwargs)
 
-        @rt.function_node(middleware=MiddlewareSet(wrappers=[retry_once]))
+        @rt.function_node(middleware=MiddlewareChain(wrappers=[retry_once]))
         async def flaky() -> str:
             attempt["count"] += 1
             if attempt["count"] < 2:
@@ -131,7 +131,7 @@ class TestFunctionNodeMiddleware:
         async def block(call, *args, **kwargs):
             return "blocked"
 
-        @rt.function_node(middleware=MiddlewareSet(wrappers=[block]))
+        @rt.function_node(middleware=MiddlewareChain(wrappers=[block]))
         async def should_not_run() -> str:
             raise AssertionError("core should not be called")
 
@@ -141,7 +141,7 @@ class TestFunctionNodeMiddleware:
 
     @pytest.mark.asyncio
     async def test_full_band_ordering(self):
-        """Wrappers → entry gateways → inner_wrappers → core → exit gateways → outer unwind."""
+        """Wrappers → entry gates → inner_wrappers → core → exit gates → outer unwind."""
 
         log = []
 
@@ -152,7 +152,7 @@ class TestFunctionNodeMiddleware:
             log.append("outer_after")
             return result
 
-        @rt.gateway
+        @rt.gate
         def entry_gw(x: int):
             log.append("entry")
             return (x,), {}
@@ -164,16 +164,16 @@ class TestFunctionNodeMiddleware:
             log.append("inner_after")
             return result
 
-        @rt.gateway
+        @rt.gate
         def exit_gw(result: int):
             log.append("exit")
             return result
 
-        ms = MiddlewareSet(
+        ms = MiddlewareChain(
             wrappers=[outer_wrap],
-            gateway_entry=[entry_gw],
+            entry_gate=[entry_gw],
             inner_wrappers=[inner_wrap],
-            gateway_exit=[exit_gw],
+            exit_gate=[exit_gw],
         )
 
         @rt.function_node(middleware=ms)
@@ -214,7 +214,7 @@ class TestFunctionNodeMiddleware:
             log.append("second_after")
             return result
 
-        @rt.function_node(middleware=MiddlewareSet(wrappers=[first, second]))
+        @rt.function_node(middleware=MiddlewareChain(wrappers=[first, second]))
         def identity(x: int) -> int:
             log.append("core")
             return x
@@ -230,18 +230,18 @@ class TestFunctionNodeMiddleware:
         ]
 
     @pytest.mark.asyncio
-    async def test_multiple_entry_gateways_apply_sequentially(self):
-        """Multiple entry gateways run in list order; each transforms what the previous produced."""
+    async def test_multiple_entry_gates_apply_sequentially(self):
+        """Multiple entry gates run in list order; each transforms what the previous produced."""
 
-        @rt.gateway
+        @rt.gate
         def add_one(x: int):
             return (x + 1,), {}
 
-        @rt.gateway
+        @rt.gate
         def double(x: int):
             return (x * 2,), {}
 
-        @rt.function_node(middleware=MiddlewareSet(gateway_entry=[add_one, double]))
+        @rt.function_node(middleware=MiddlewareChain(entry_gate=[add_one, double]))
         def identity(x: int) -> int:
             return x  # receives (x+1)*2
 
@@ -250,18 +250,18 @@ class TestFunctionNodeMiddleware:
         assert result == 8
 
     @pytest.mark.asyncio
-    async def test_multiple_exit_gateways_apply_sequentially(self):
-        """Multiple exit gateways chain: first transforms, second transforms the result."""
+    async def test_multiple_exit_gates_apply_sequentially(self):
+        """Multiple exit gates chain: first transforms, second transforms the result."""
 
-        @rt.gateway
+        @rt.gate
         def add_ten(result: int) -> int:
             return result + 10
 
-        @rt.gateway
+        @rt.gate
         def negate(result: int) -> int:
             return -result
 
-        @rt.function_node(middleware=MiddlewareSet(gateway_exit=[add_ten, negate]))
+        @rt.function_node(middleware=MiddlewareChain(exit_gate=[add_ten, negate]))
         def five() -> int:
             return 5  # → +10 = 15 → negate = -15
 
@@ -270,33 +270,33 @@ class TestFunctionNodeMiddleware:
         assert result == -15
 
     @pytest.mark.asyncio
-    async def test_gateway_args_explicit_with_kwargs(self):
-        """gateway.args() lets an entry gateway specify both positional and keyword args."""
+    async def test_gate_args_explicit_with_kwargs(self):
+        """gate.args() lets an entry gate specify both positional and keyword args."""
 
-        @rt.gateway
+        @rt.gate
         def swap_and_flag(a: int, b: int):
-            return rt.gateway.args(b, a, flag=True)
+            return rt.gate.args(b, a, flag=True)
 
         @rt.function_node(
-            middleware=MiddlewareSet(gateway_entry=[swap_and_flag])
+            middleware=MiddlewareChain(entry_gate=[swap_and_flag])
         )
         def compute(a: int, b: int, flag: bool = False) -> str:
             return f"{a}-{b}-{flag}"
 
-        result = await rt.Flow("test_gateway_args", compute).ainvoke(3, 10)  # swap → (10, 3, flag=True)
+        result = await rt.Flow("test_gate_args", compute).ainvoke(3, 10)  # swap → (10, 3, flag=True)
 
         assert result == "10-3-True"
 
     @pytest.mark.asyncio
-    async def test_async_entry_gateway(self):
-        """Entry gateways may be async; they are awaited correctly."""
+    async def test_async_entry_gate(self):
+        """Entry gates may be async; they are awaited correctly."""
 
-        @rt.gateway
+        @rt.gate
         async def async_double_input(x: int):
             await asyncio.sleep(0)
             return (x * 2,), {}
 
-        @rt.function_node(middleware=MiddlewareSet(gateway_entry=[async_double_input]))
+        @rt.function_node(middleware=MiddlewareChain(entry_gate=[async_double_input]))
         def identity(x: int) -> int:
             return x
 
@@ -305,15 +305,15 @@ class TestFunctionNodeMiddleware:
         assert result == 10
 
     @pytest.mark.asyncio
-    async def test_async_exit_gateway(self):
-        """Exit gateways may be async; they are awaited correctly."""
+    async def test_async_exit_gate(self):
+        """Exit gates may be async; they are awaited correctly."""
 
-        @rt.gateway
+        @rt.gate
         async def async_double_output(result: int) -> int:
             await asyncio.sleep(0)
             return result * 2
 
-        @rt.function_node(middleware=MiddlewareSet(gateway_exit=[async_double_output]))
+        @rt.function_node(middleware=MiddlewareChain(exit_gate=[async_double_output]))
         def three() -> int:
             return 3
 
@@ -323,15 +323,15 @@ class TestFunctionNodeMiddleware:
 
     @pytest.mark.asyncio
     async def test_middleware_set_coerce_from_bare_list(self):
-        """MiddlewareSet.coerce() routes Gateways→gateway_entry and Wrappers→wrappers."""
+        """MiddlewareChain.coerce() routes Gates→entry_gate and Wrappers→wrappers."""
 
-        # coerce puts Gateways into gateway_entry (not gateway_exit), so the
-        # gateway must have an entry signature: receives the function's input args.
-        @rt.gateway
+        # coerce puts Gates into entry_gate (not exit_gate), so the
+        # gate must have an entry signature: receives the function's input args.
+        @rt.gate
         def double_x(x: int):
             return (x * 2,), {}
 
-        @rt.function_node(middleware=MiddlewareSet.coerce([double_x]))
+        @rt.function_node(middleware=MiddlewareChain.coerce([double_x]))
         def identity(x: int) -> int:
             return x
 
@@ -349,12 +349,12 @@ class TestAgentNodeMiddleware:
     """Middleware at the agent node boundary (user_input → StringResponse/StructuredResponse)."""
 
     @pytest.mark.asyncio
-    async def test_node_level_exit_gateway_fires_after_response(self, mock_llm):
-        """Node-level exit gateway is called after the full agent response is ready."""
+    async def test_node_level_exit_gate_fires_after_response(self, mock_llm):
+        """Node-level exit gate is called after the full agent response is ready."""
 
         side_effects = {"called": False}
 
-        @rt.gateway
+        @rt.gate
         def mark_called(response):
             side_effects["called"] = True
             # None = check-only, pass response through unchanged
@@ -362,7 +362,7 @@ class TestAgentNodeMiddleware:
         agent = rt.agent_node(
             name="ExitGWAgent",
             llm=mock_llm(custom_response="hello"),
-            middleware=MiddlewareSet(gateway_exit=[mark_called]),
+            middleware=MiddlewareChain(exit_gate=[mark_called]),
         )
 
         result = await rt.Flow("ExitGWAgent", agent).ainvoke("hi")
@@ -384,7 +384,7 @@ class TestAgentNodeMiddleware:
         agent = rt.agent_node(
             name="CountedAgent",
             llm=mock_llm(custom_response="done"),
-            middleware=MiddlewareSet(wrappers=[count_calls]),
+            middleware=MiddlewareChain(wrappers=[count_calls]),
         )
 
         await rt.Flow("CountedAgent", agent).ainvoke("run once")
@@ -393,11 +393,11 @@ class TestAgentNodeMiddleware:
 
     @pytest.mark.asyncio
     async def test_node_level_guardrail_blocks_call(self, mock_llm):
-        """Node-level entry gateway raises before the LLM is ever called."""
+        """Node-level entry gate raises before the LLM is ever called."""
 
         llm_called = {"value": False}
 
-        @rt.gateway
+        @rt.gate
         def block_all(user_input):
             raise PermissionError("Access denied")
 
@@ -409,7 +409,7 @@ class TestAgentNodeMiddleware:
         agent = rt.agent_node(
             name="BlockedAgent",
             llm=mock_llm(custom_response="should not appear"),
-            middleware=MiddlewareSet(gateway_entry=[block_all]),
+            middleware=MiddlewareChain(entry_gate=[block_all]),
         )
 
         with pytest.raises(PermissionError, match="Access denied"):
@@ -418,15 +418,15 @@ class TestAgentNodeMiddleware:
         assert not llm_called["value"]
 
     @pytest.mark.asyncio
-    async def test_structured_output_agent_with_exit_gateway(self, mock_llm):
-        """Exit gateway receives the StructuredResponse and can inspect it."""
+    async def test_structured_output_agent_with_exit_gate(self, mock_llm):
+        """Exit gate receives the StructuredResponse and can inspect it."""
 
         class Answer(BaseModel):
             value: int = Field(description="The answer")
 
         captured = {}
 
-        @rt.gateway
+        @rt.gate
         def capture_response(response):
             captured["response"] = response
 
@@ -434,7 +434,7 @@ class TestAgentNodeMiddleware:
             name="StructuredAgent",
             llm=mock_llm(custom_response='{"value": 42}'),
             output_schema=Answer,
-            middleware=MiddlewareSet(gateway_exit=[capture_response]),
+            middleware=MiddlewareChain(exit_gate=[capture_response]),
         )
 
         result = await rt.Flow("StructuredAgent", agent).ainvoke("what is the answer?")
@@ -465,7 +465,7 @@ class TestModelMiddleware:
         agent = rt.agent_node(
             name="CountedModel",
             llm=mock_llm(custom_response="reply"),
-            model_middleware=MiddlewareSet(wrappers=[count_model_calls]),
+            model_middleware=MiddlewareChain(wrappers=[count_model_calls]),
         )
 
         await rt.Flow("CountedModel", agent).ainvoke("hello")
@@ -473,12 +473,12 @@ class TestModelMiddleware:
         assert invocations["n"] == 1
 
     @pytest.mark.asyncio
-    async def test_model_middleware_entry_gateway_can_inspect_messages(self, mock_llm):
-        """Model-level entry gateway sees the full MessageHistory before the model call."""
+    async def test_model_middleware_entry_gate_can_inspect_messages(self, mock_llm):
+        """Model-level entry gate sees the full MessageHistory before the model call."""
 
         seen_roles = []
 
-        @rt.gateway
+        @rt.gate
         async def capture_roles(messages, schema, tools):
             for m in messages:
                 seen_roles.append(m.role)
@@ -488,7 +488,7 @@ class TestModelMiddleware:
             name="RoleCapture",
             llm=mock_llm(custom_response="ok"),
             system_message="You are a helper.",
-            model_middleware=MiddlewareSet(gateway_entry=[capture_roles]),
+            model_middleware=MiddlewareChain(entry_gate=[capture_roles]),
         )
 
         await rt.Flow("RoleCapture", agent).ainvoke("question")
@@ -497,12 +497,12 @@ class TestModelMiddleware:
         assert "user" in seen_roles
 
     @pytest.mark.asyncio
-    async def test_model_middleware_entry_gateway_can_modify_messages(self, mock_llm):
-        """Model-level entry gateway can inject or rewrite messages."""
+    async def test_model_middleware_entry_gate_can_modify_messages(self, mock_llm):
+        """Model-level entry gate can inject or rewrite messages."""
 
         received_content = []
 
-        @rt.gateway
+        @rt.gate
         async def inject_header(messages, schema, tools):
             from railtracks.llm.message import UserMessage
             from railtracks.llm.history import MessageHistory
@@ -511,7 +511,7 @@ class TestModelMiddleware:
             new_messages.insert(0, UserMessage("[INJECTED]"))
             return (new_messages, schema, tools), {}
 
-        @rt.gateway
+        @rt.gate
         async def capture_first_message(messages, schema, tools):
             received_content.append(messages[0].content)
             # check-only after capture
@@ -519,8 +519,8 @@ class TestModelMiddleware:
         agent = rt.agent_node(
             name="InjectionAgent",
             llm=mock_llm(custom_response="ok"),
-            model_middleware=MiddlewareSet(
-                gateway_entry=[inject_header, capture_first_message]
+            model_middleware=MiddlewareChain(
+                entry_gate=[inject_header, capture_first_message]
             ),
         )
 
@@ -559,7 +559,7 @@ class TestModelMiddleware:
         agent = rt.agent_node(
             name="RetryAgent",
             llm=llm,
-            model_middleware=MiddlewareSet(wrappers=[retry_llm]),
+            model_middleware=MiddlewareChain(wrappers=[retry_llm]),
         )
 
         result = await rt.Flow("RetryAgent", agent).ainvoke("try this")
@@ -569,35 +569,35 @@ class TestModelMiddleware:
 
     @pytest.mark.asyncio
     async def test_model_middleware_independent_per_agent_node(self, mock_llm):
-        """Each agent node gets its own copy of model_middleware; sys gateways don't cross-contaminate."""
+        """Each agent node gets its own copy of model_middleware; sys gates don't cross-contaminate."""
 
-        gateway_a_calls = {"n": 0}
-        gateway_b_calls = {"n": 0}
+        gate_a_calls = {"n": 0}
+        gate_b_calls = {"n": 0}
 
-        @rt.gateway
+        @rt.gate
         async def gw_a(messages, schema, tools):
-            gateway_a_calls["n"] += 1
+            gate_a_calls["n"] += 1
 
-        @rt.gateway
+        @rt.gate
         async def gw_b(messages, schema, tools):
-            gateway_b_calls["n"] += 1
+            gate_b_calls["n"] += 1
 
         agent_a = rt.agent_node(
             "AgentA",
             llm=mock_llm(custom_response="a"),
-            model_middleware=MiddlewareSet(gateway_entry=[gw_a]),
+            model_middleware=MiddlewareChain(entry_gate=[gw_a]),
         )
         agent_b = rt.agent_node(
             "AgentB",
             llm=mock_llm(custom_response="b"),
-            model_middleware=MiddlewareSet(gateway_entry=[gw_b]),
+            model_middleware=MiddlewareChain(entry_gate=[gw_b]),
         )
 
         await rt.Flow("AgentA", agent_a).ainvoke("hello")
         await rt.Flow("AgentB", agent_b).ainvoke("hello")
 
-        assert gateway_a_calls["n"] == 1
-        assert gateway_b_calls["n"] == 1
+        assert gate_a_calls["n"] == 1
+        assert gate_b_calls["n"] == 1
 
 
 # ---------------------------------------------------------------------------
@@ -614,7 +614,7 @@ class TestContextInjection:
 
         injected_system_content = []
 
-        @rt.gateway
+        @rt.gate
         async def capture_system(messages, schema, tools):
             for m in messages:
                 if m.role == "system":
@@ -624,7 +624,7 @@ class TestContextInjection:
             name="TemplateAgent",
             llm=mock_llm(custom_response="done"),
             system_message="You assist {username}.",
-            model_middleware=MiddlewareSet(gateway_entry=[capture_system]),
+            model_middleware=MiddlewareChain(entry_gate=[capture_system]),
         )
 
         await rt.Flow("TemplateAgent", agent, context={"username": "Alice"}).ainvoke("help me")
@@ -637,7 +637,7 @@ class TestContextInjection:
 
         injected_system_content = []
 
-        @rt.gateway
+        @rt.gate
         async def capture_system(messages, schema, tools):
             for m in messages:
                 if m.role == "system":
@@ -647,7 +647,7 @@ class TestContextInjection:
             name="NoInjectionAgent",
             llm=mock_llm(custom_response="done"),
             system_message="You assist {username}.",
-            model_middleware=MiddlewareSet(gateway_entry=[capture_system]),
+            model_middleware=MiddlewareChain(entry_gate=[capture_system]),
             context_injection=False,
         )
 
@@ -792,11 +792,11 @@ class TestToolCallingWithPrepareArgs:
     ):
         """Middleware on a function node tool fires when the tool is called by an agent."""
 
-        gateway_fired = {"value": False}
+        gate_fired = {"value": False}
 
-        @rt.gateway
+        @rt.gate
         def mark_fired(n: int):
-            gateway_fired["value"] = True
+            gate_fired["value"] = True
 
         def increment(n: int) -> int:
             """Increments a number.
@@ -808,7 +808,7 @@ class TestToolCallingWithPrepareArgs:
             return n + 1
 
         tool = rt.function_node(
-            increment, middleware=MiddlewareSet(gateway_entry=[mark_fired])
+            increment, middleware=MiddlewareChain(entry_gate=[mark_fired])
         )
 
         llm = mock_llm(
@@ -824,22 +824,22 @@ class TestToolCallingWithPrepareArgs:
 
         result = await rt.Flow("ToolWithMiddlewareAgent", agent).ainvoke("increment 9")
 
-        assert gateway_fired["value"]
+        assert gate_fired["value"]
         assert "10" in result.content
 
 
 # ---------------------------------------------------------------------------
-# TestMiddlewareSetIsolation
+# TestMiddlewareChainIsolation
 # ---------------------------------------------------------------------------
 
 
-class TestMiddlewareSetIsolation:
-    """MiddlewareSet fresh-copy semantics: sharing a set across nodes is safe."""
+class TestMiddlewareChainIsolation:
+    """MiddlewareChain fresh-copy semantics: sharing a set across nodes is safe."""
 
     def test_shared_middleware_set_not_mutated(self, mock_llm):
-        """Two nodes built from the same MiddlewareSet get independent copies."""
+        """Two nodes built from the same MiddlewareChain get independent copies."""
 
-        shared = MiddlewareSet()
+        shared = MiddlewareChain()
 
         node_a = rt.agent_node("IsoA", llm=mock_llm(), middleware=shared)
         node_b = rt.agent_node("IsoB", llm=mock_llm(), middleware=shared)
@@ -858,17 +858,17 @@ class TestMiddlewareSetIsolation:
         assert instance_a.middleware is not agent_cls.frozen_middleware
 
     @pytest.mark.asyncio
-    async def test_sys_gateway_registered_once_per_node(self, mock_llm):
-        """System-registered gateways (e.g. context injection) do not accumulate across builds."""
+    async def test_sys_gate_registered_once_per_node(self, mock_llm):
+        """System-registered gates (e.g. context injection) do not accumulate across builds."""
 
         call_count = {"n": 0}
 
-        @rt.gateway
+        @rt.gate
         async def counting_gw(messages, schema, tools):
             call_count["n"] += 1
 
         # Build the same agent multiple times with the same model_middleware
-        ms = MiddlewareSet(gateway_entry=[counting_gw])
+        ms = MiddlewareChain(entry_gate=[counting_gw])
 
         for _ in range(3):
             agent = rt.agent_node(

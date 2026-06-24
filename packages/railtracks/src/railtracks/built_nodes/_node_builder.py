@@ -35,7 +35,7 @@ from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import Message
 from railtracks.llm.response import Response
 from railtracks.llm.type_mapping import TypeMapper
-from railtracks.middleware import MiddlewareSet
+from railtracks.middleware import MiddlewareChain
 from railtracks.nodes.nodes import Node
 from railtracks.prompts.prompt import context_injection_gateway
 from railtracks.validation.node_creation.validation import (
@@ -107,7 +107,7 @@ class NodeBuilder(Generic[_P, _T]):
         self._tool_info: Callable[[], Tool] | None = None
         self._prepare_arguments: Callable[..., dict[str, Any]] | None = None
 
-        self._frozen_middleware: MiddlewareSet = MiddlewareSet()
+        self._frozen_middleware: MiddlewareChain = MiddlewareChain()
 
     @overload
     @classmethod
@@ -122,8 +122,8 @@ class NodeBuilder(Generic[_P, _T]):
         connected_nodes: Iterable[Type[Node]] | None = None,
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
-        middleware: MiddlewareSet[[UserInput], StringResponse] | None = None,
-        model_middleware: MiddlewareSet[
+        middleware: MiddlewareChain[[UserInput], StringResponse] | None = None,
+        model_middleware: MiddlewareChain[
             [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
         ]
         | None = None,
@@ -143,9 +143,9 @@ class NodeBuilder(Generic[_P, _T]):
         connected_nodes: Iterable[Type[Node]] | None = None,
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
-        middleware: MiddlewareSet[[UserInput], StructuredResponse[_TStructured]]
+        middleware: MiddlewareChain[[UserInput], StructuredResponse[_TStructured]]
         | None = None,
-        model_middleware: MiddlewareSet[
+        model_middleware: MiddlewareChain[
             [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
         ]
         | None = None,
@@ -164,8 +164,8 @@ class NodeBuilder(Generic[_P, _T]):
         connected_nodes: Iterable[Type[Node]] | None = None,
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
-        middleware: MiddlewareSet[[UserInput], _R] | None = None,
-        model_middleware: MiddlewareSet[
+        middleware: MiddlewareChain[[UserInput], _R] | None = None,
+        model_middleware: MiddlewareChain[
             [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
         ]
         | None = None,
@@ -185,7 +185,7 @@ class NodeBuilder(Generic[_P, _T]):
         # higher-level wrapper created the node. Disable per-node with
         # context_injection=False, or flow/session-wide via prompt_injection=False.
         if context_injection:
-            model_invoker.register_sys_gateway_entry(context_injection_gateway)
+            model_invoker.register_sys_entry_gate(context_injection_gateway)
 
         model_invoker.register_sys_wrapper(llm_observe)
 
@@ -208,7 +208,7 @@ class NodeBuilder(Generic[_P, _T]):
                 )
             }
 
-        casted_instance._frozen_middleware = MiddlewareSet.coerce(middleware)
+        casted_instance._frozen_middleware = MiddlewareChain.coerce(middleware)
 
         return casted_instance
 
@@ -236,7 +236,7 @@ class NodeBuilder(Generic[_P, _T]):
         class_name: str | None = None,
         name: str | None = None,
         *,
-        middleware: MiddlewareSet[_P2, _T2] | None = None,
+        middleware: MiddlewareChain[_P2, _T2] | None = None,
         tool_details: str | None = None,
         tool_params: list[Parameter] | Type[BaseModel] | dict[str, Any] | None = None,
         tool_info: Tool | None = None,
@@ -260,7 +260,7 @@ class NodeBuilder(Generic[_P, _T]):
 
         casted_instance._prepare_arguments = tm.convert_kwargs_to_appropriate_types
 
-        casted_instance._frozen_middleware = MiddlewareSet.coerce(middleware)
+        casted_instance._frozen_middleware = MiddlewareChain.coerce(middleware)
 
         return casted_instance
 

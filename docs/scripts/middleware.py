@@ -48,72 +48,72 @@ async def cached(call, *args, **kwargs):
 # --8<-- [end: wrapper_cached]
 
 
-# --8<-- [start: gateway_entry]
-@rt.gateway
+# --8<-- [start: entry_gate]
+@rt.gate
 async def normalize(text: str):
     return (text.strip().lower(),)  # tuple -> positional args only
 
 
-@rt.gateway
+@rt.gate
 async def route(city: str):
     return {"city": city, "units": "metric"}  # dict -> keyword args only
 
 
-@rt.gateway
+@rt.gate
 async def reorder(a, b):
-    return rt.gateway.args(b, a, flag=True)  # both -> ((b, a), {"flag": True})
-# --8<-- [end: gateway_entry]
+    return rt.gate.args(b, a, flag=True)  # both -> ((b, a), {"flag": True})
+# --8<-- [end: entry_gate]
 
 
-# --8<-- [start: gateway_exit]
-@rt.gateway
+# --8<-- [start: exit_gate]
+@rt.gate
 async def add_banner(result: str):
     return f">>> {result} <<<"
 
 
-@rt.gateway
+@rt.gate
 async def audit(result):
     print(f"produced {result!r}")  # returns None -> result unchanged
-# --8<-- [end: gateway_exit]
+# --8<-- [end: exit_gate]
 
 
-# --8<-- [start: gateway_guardrail]
-@rt.gateway
+# --8<-- [start: gate_guardrail]
+@rt.gate
 async def no_secrets(text: str):
     if "password" in text.lower():
         raise ValueError("blocked: input mentions a secret")
     # returns None -> the call proceeds unchanged
-# --8<-- [end: gateway_guardrail]
+# --8<-- [end: gate_guardrail]
 
 
-# --8<-- [start: gateway_direct_call]
-@rt.gateway
+# --8<-- [start: gate_direct_call]
+@rt.gate
 def tag(x):
     return f"[{x}]"
 
 
 tag("hi")  # -> '[hi]'  (raw function result)
-# --8<-- [end: gateway_direct_call]
+# --8<-- [end: gate_direct_call]
 
 
-# --8<-- [start: middlewareset_bands]
-ms = rt.MiddlewareSet(
+# --8<-- [start: middlewarechain_bands]
+ms = rt.MiddlewareChain(
     wrappers=[retry],  # outermost: wrap the whole call
-    gateway_entry=[normalize],  # transform input (before the core)
-    gateway_exit=[add_banner],  # transform output (after the core)
+    entry_gate=[normalize],  # transform input (before the core)
+    exit_gate=[add_banner],  # transform output (after the core)
     inner_wrappers=[cached],  # innermost: hug the core, inside the gateways
 )
-# --8<-- [end: middlewareset_bands]
+# --8<-- [end: middlewarechain_bands]
 
 
 # --8<-- [start: bare_list]
-# retry -> wrappers, no_secrets -> gateway_entry
+# retry -> wrappers, no_secrets -> entry_gate
 middleware = [retry, no_secrets]
 # --8<-- [end: bare_list]
 
 
 # --8<-- [start: raw_in_slots]
-async def add_marker(text):  # raw async function, no @rt.gateway
+async def add_marker(text):  # raw async function, no @rt.gate
     return (f"[{text}]",)
 
 
@@ -121,7 +121,7 @@ def shout(result):  # raw *sync* function (gateways may be sync)
     return result.upper()
 
 
-raw_ms = rt.MiddlewareSet(gateway_entry=[add_marker], gateway_exit=[shout])
+raw_ms = rt.MiddlewareChain(entry_gate=[add_marker], exit_gate=[shout])
 # --8<-- [end: raw_in_slots]
 
 
@@ -129,7 +129,7 @@ raw_ms = rt.MiddlewareSet(gateway_entry=[add_marker], gateway_exit=[shout])
 echo = rt.function_node(
     lambda text: f"echo: {text}",
     name="echo",
-    middleware=rt.MiddlewareSet(gateway_entry=[normalize], gateway_exit=[add_banner]),
+    middleware=rt.MiddlewareChain(entry_gate=[normalize], exit_gate=[add_banner]),
 )
 # --8<-- [end: attach_function_node]
 
@@ -147,7 +147,7 @@ assistant = rt.agent_node(
     llm=rt.llm.OpenAILLM("gpt-4o-mini"),
     system_message="Answer in one sentence.",
     middleware=[no_secrets],  # node boundary: once per agent call
-    model_middleware=rt.MiddlewareSet(gateway_entry=[normalize]),  # each model call
+    model_middleware=rt.MiddlewareChain(entry_gate=[normalize]),  # each model call
 )
 # --8<-- [end: attach_agent]
 
@@ -180,14 +180,14 @@ async def retry_run(call, *args, **kwargs):
                 raise
 
 
-@rt.gateway
+@rt.gate
 async def hide_secrets(text: str):
     found = re.findall(r"\b[A-Za-z0-9]{10,}\b", text)
     rt.context.put("secrets", found)
     return (re.sub(r"\b[A-Za-z0-9]{10,}\b", "[SECRET]", text),)  # tuple -> positional
 
 
-@rt.gateway
+@rt.gate
 async def restore_secrets(result):
     text = result.content if hasattr(result, "content") else result
     for s in rt.context.get("secrets") or []:
@@ -198,10 +198,10 @@ async def restore_secrets(result):
 secret_agent = rt.agent_node(
     llm=rt.llm.OpenAILLM("gpt-4o"),
     system_message="Echo [SECRET] tokens back verbatim.",
-    middleware=rt.MiddlewareSet(
+    middleware=rt.MiddlewareChain(
         wrappers=[retry_run],
-        gateway_entry=[hide_secrets],
-        gateway_exit=[restore_secrets],
+        entry_gate=[hide_secrets],
+        exit_gate=[restore_secrets],
     ),
 )
 # --8<-- [end: end_to_end]

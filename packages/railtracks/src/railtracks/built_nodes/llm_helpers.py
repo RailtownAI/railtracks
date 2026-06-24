@@ -29,7 +29,7 @@ from railtracks.llm.model import ModelBase
 from railtracks.llm.response import Response
 from railtracks.llm.tools.parameters._base import Parameter
 from railtracks.llm.tools.tool import Tool
-from railtracks.middleware import Gateway, MiddlewareSet
+from railtracks.middleware import Gate, MiddlewareChain
 from railtracks.middleware.primitives import Wrapper, wrapper
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_invocation.validation import check_message_history
@@ -58,7 +58,7 @@ class StructuredLLMInvoke(Protocol[_TStructured]):
 
 class ModelInvoker:
     """
-    Coordinates a single LLM model call through a :class:`MiddlewareSet`.
+    Coordinates a single LLM model call through a :class:`MiddlewareChain`.
 
     The middleware operates around the *raw* model call, once per model
     round-trip (i.e. inside the tool-calling loop). The core callable takes
@@ -72,8 +72,8 @@ class ModelInvoker:
         └── exit gateways    (transform the Response)
         └── (unwind)
 
-    Accepts a :class:`MiddlewareSet` or a bare list of ``Wrapper`` / ``Gateway``
-    (see :meth:`MiddlewareSet.coerce`). The caller's input is never mutated — a
+    Accepts a :class:`MiddlewareChain` or a bare list of ``Wrapper`` / ``Gate``
+    (see :meth:`MiddlewareChain.coerce`). The caller's input is never mutated — a
     fresh copy is taken so system gateways (e.g. context injection) stay
     independent per node.
     """
@@ -81,29 +81,29 @@ class ModelInvoker:
     def __init__(
         self,
         model: ModelSource,
-        middleware: MiddlewareSet[
+        middleware: MiddlewareChain[
             [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
         ]
         | None = None,
     ):
         self._get_model = model if callable(model) else lambda: model
-        self._middleware: MiddlewareSet[
+        self._middleware: MiddlewareChain[
             [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
-        ] = MiddlewareSet.coerce(middleware)
+        ] = MiddlewareChain.coerce(middleware)
 
-    def register_sys_gateway_entry(
+    def register_sys_entry_gate(
         self,
-        gw: Gateway[
+        gw: Gate[
             [MessageHistory, type[BaseModel] | None, list[Tool] | None],
             tuple[tuple, dict[str, Any]],
         ],
     ) -> None:
-        """Register a system entry gateway around the model call (e.g. context injection)."""
-        self._middleware.register_sys_gateway_entry(gw)
+        """Register a system entry gate around the model call (e.g. context injection)."""
+        self._middleware.register_sys_entry_gate(gw)
 
-    def register_sys_gateway_exit(self, gw: Gateway[[Response], Response]) -> None:
-        """Register a system exit gateway around the model call (e.g. logging)."""
-        self._middleware.register_sys_gateway_exit(gw)
+    def register_sys_exit_gate(self, gw: Gate[[Response], Response]) -> None:
+        """Register a system exit gate around the model call (e.g. logging)."""
+        self._middleware.register_sys_exit_gate(gw)
 
     def register_sys_wrapper(
         self,
