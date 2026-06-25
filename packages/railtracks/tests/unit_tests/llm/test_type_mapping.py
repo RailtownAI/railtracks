@@ -46,7 +46,7 @@ def test_convert_kwargs_to_appropriate_types(type_mapper):
         "e": ["1", "2", "3"],
         "f": ("foo", "2"),
     }
-    converted = type_mapper.convert_kwargs_to_appropriate_types(kwargs)
+    converted = type_mapper.convert_kwargs_to_appropriate_types(**kwargs)
 
     assert converted["a"] == 1
     assert converted["b"] == "text"
@@ -83,7 +83,7 @@ def test_convert_to_pydantic_model_failure():
 def test_convert_value_dict_error():
     tm = TypeMapper(dummy_func_with_dict)
     with pytest.raises(RuntimeError):
-        tm.convert_kwargs_to_appropriate_types({"a": {"key": "value"}})
+        tm.convert_kwargs_to_appropriate_types(a={"key": "value"})
 
 
 def test_builtin_function_raises_runtime_error():

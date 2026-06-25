@@ -4,6 +4,7 @@
 ###
 from __future__ import annotations
 
+import inspect
 from abc import ABC, abstractmethod
 from typing import (
     AsyncGenerator,
@@ -162,6 +163,22 @@ class ModelBase(ABC, Generic[_TStream]):
 
         return new_response
 
+    async def async_generator_wrapper(
+        self,
+        generator: AsyncGenerator[str | Response, None],
+        message_history: MessageHistory,
+    ) -> AsyncGenerator[str | Response, None]:
+        """Wrap an async streaming generator to apply post-hooks on the final Response.
+
+        Yields ``str`` chunks unchanged; applies :meth:`_run_post_hooks` on the
+        terminating :class:`Response` item before yielding it.
+        """
+        async for item in generator:
+            if isinstance(item, Response):
+                yield self._run_post_hooks(message_history, item)
+            else:
+                yield item
+
     @overload
     def chat(self: ModelBase[Literal[False]], messages: MessageHistory) -> Response:
         pass
@@ -194,14 +211,12 @@ class ModelBase(ABC, Generic[_TStream]):
     @overload
     async def achat(
         self: ModelBase[Literal[False]], messages: MessageHistory
-    ) -> Response:
-        pass
+    ) -> Response: ...
 
     @overload
     async def achat(
         self: ModelBase[Literal[True]], messages: MessageHistory
-    ) -> Generator[str | Response, None, Response]:
-        pass
+    ) -> AsyncGenerator[str | Response, None]: ...
 
     async def achat(self, messages: MessageHistory):
         """Asynchronous chat with the model using the provided messages."""
@@ -213,11 +228,12 @@ class ModelBase(ABC, Generic[_TStream]):
             self._run_exception_hooks(messages, e)
             raise e
 
+        if inspect.isasyncgen(response):
+            return self.async_generator_wrapper(response, messages)
         if isinstance(response, Generator):
             return self.generator_wrapper(response, messages)
 
         response = self._run_post_hooks(messages, response)
-
         return response
 
     @overload
@@ -258,16 +274,14 @@ class ModelBase(ABC, Generic[_TStream]):
         self: ModelBase[Literal[False]],
         messages: MessageHistory,
         schema: Type[BaseModel],
-    ) -> Response:
-        pass
+    ) -> Response: ...
 
     @overload
     async def astructured(
         self: ModelBase[Literal[True]],
         messages: MessageHistory,
         schema: Type[BaseModel],
-    ) -> Generator[str | Response, None, Response]:
-        pass
+    ) -> AsyncGenerator[str | Response, None]: ...
 
     async def astructured(self, messages: MessageHistory, schema: Type[BaseModel]):
         """Asynchronous structured interaction with the model using the provided messages and output_schema."""
@@ -279,11 +293,12 @@ class ModelBase(ABC, Generic[_TStream]):
             self._run_exception_hooks(messages, e)
             raise e
 
+        if inspect.isasyncgen(response):
+            return self.async_generator_wrapper(response, messages)
         if isinstance(response, Generator):
             return self.generator_wrapper(response, messages)
 
         response = self._run_post_hooks(messages, response)
-
         return response
 
     @overload
@@ -317,14 +332,12 @@ class ModelBase(ABC, Generic[_TStream]):
     @overload
     async def achat_with_tools(
         self: ModelBase[Literal[False]], messages: MessageHistory, tools: List[Tool]
-    ) -> Response:
-        pass
+    ) -> Response: ...
 
     @overload
     async def achat_with_tools(
         self: ModelBase[Literal[True]], messages: MessageHistory, tools: List[Tool]
-    ) -> Generator[str | Response, None, Response]:
-        pass
+    ) -> AsyncGenerator[str | Response, None]: ...
 
     async def achat_with_tools(self, messages: MessageHistory, tools: List[Tool]):
         """Asynchronous chat with the model using the provided messages and tools."""
@@ -336,11 +349,12 @@ class ModelBase(ABC, Generic[_TStream]):
             self._run_exception_hooks(messages, e)
             raise e
 
+        if inspect.isasyncgen(response):
+            return self.async_generator_wrapper(response, messages)
         if isinstance(response, Generator):
             return self.generator_wrapper(response, messages)
 
         response = self._run_post_hooks(messages, response)
-
         return response
 
     @abstractmethod

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ._call import call
+from ._call import astream, call
 from .batch import call_batch
 from .broadcast_ import broadcast
 
@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "call",
+    "astream",
     "call_batch",
     "broadcast",
     "local_chat",

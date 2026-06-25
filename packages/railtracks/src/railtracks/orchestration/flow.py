@@ -4,7 +4,7 @@ import asyncio
 import hashlib
 import json
 from copy import deepcopy
-from typing import Any, Callable, Coroutine, Generic, ParamSpec, TypeVar
+from typing import Any, AsyncGenerator, Callable, Coroutine, Generic, ParamSpec, TypeVar
 
 from railtracks._session import Session
 from railtracks.built_nodes.concrete.function_base import RTFunction
@@ -89,6 +89,70 @@ class Flow(Generic[_P, _TOutput]):
             result = await call(self.entry_point, *args, **kwargs)
 
         return result
+
+    async def astream(
+        self, *args: _P.args, **kwargs: _P.kwargs
+    ) -> AsyncGenerator[str | _TOutput, None]:
+        """Iterate the flow as a stream, yielding chunks then the terminal result.
+
+        Yields each ``str`` chunk in real time as the streaming node produces
+        them, then yields the terminal ``StringResponse`` (or
+        ``StructuredResponse``) as the final item.
+
+        Example::
+
+            async for item in flow.astream("Write a poem."):
+                if isinstance(item, str):
+                    print(item, end="", flush=True)
+                else:
+                    final = item  # StringResponse / StructuredResponse
+
+        Works with any combination of nodes — if a node does not have
+        ``stream=True`` no ``str`` chunks are yielded for that node; only its
+        terminal response appears.  In a multi-node pipeline the chunks from
+        every streaming node appear in execution order.
+
+        .. note::
+            ``broadcast_callback`` registered on the ``Flow`` is not fired when
+            using ``astream()`` — the generator is the delivery mechanism.
+            Use ``ainvoke()`` if you prefer a push-based callback instead.
+        """
+        queue: asyncio.Queue[Any] = asyncio.Queue()
+
+        async def _on_chunk(chunk: str) -> None:
+            await queue.put(chunk)
+
+        async def _run() -> None:
+            try:
+                with Session(
+                    context=deepcopy(self._context),
+                    flow_name=self.name,
+                    flow_id=self.equality_hash(),
+                    name=None,
+                    timeout=self._timeout,
+                    end_on_error=self._end_on_error,
+                    broadcast_callback=_on_chunk,
+                    prompt_injection=self._prompt_injection,
+                    save_state=self._save_state,
+                    payload_callback=self._payload_callback,
+                ):
+                    result = await call(self.entry_point, *args, **kwargs)
+                await queue.put(result)
+            except Exception as exc:
+                await queue.put(exc)
+
+        task = asyncio.create_task(_run())
+
+        while True:
+            item = await queue.get()
+            if isinstance(item, BaseException):
+                raise item
+            yield item
+            if not isinstance(item, str):
+                # Non-str item is the terminal response — stream complete.
+                break
+
+        await task
 
     def invoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
         try:

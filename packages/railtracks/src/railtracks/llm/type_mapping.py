@@ -21,7 +21,7 @@ class TypeMapper:
                 "Please use a custom function."
             )
 
-    def convert_kwargs_to_appropriate_types(self, kwargs) -> Dict[str, Any]:
+    def convert_kwargs_to_appropriate_types(self, **kwargs) -> Dict[str, Any]:
         """Convert kwargs to appropriate types based on function signature."""
         converted_kwargs = {}
 

@@ -22,8 +22,11 @@ from railtracks.built_nodes.concrete.response import StringResponse, StructuredR
 from railtracks.built_nodes.llm_helpers import (
     ModelInvoker,
     ModelSource,
+    StreamingModelSource,
     llm_invoke_factory,
+    llm_observe,
     llm_prepare_called_as_tool_factory,
+    llm_stream_invoke_factory,
 )
 from railtracks.llm import (
     Parameter,
@@ -32,8 +35,9 @@ from railtracks.llm import (
 )
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import Message
+from railtracks.llm.response import Response
 from railtracks.llm.type_mapping import TypeMapper
-from railtracks.middleware import MiddlewareSet
+from railtracks.middleware import MiddlewareChain
 from railtracks.nodes.nodes import Node
 from railtracks.prompts.prompt import context_injection_gateway
 from railtracks.validation.node_creation.validation import (
@@ -55,6 +59,7 @@ _P = ParamSpec("_P")
 _T = TypeVar("_T")
 _P2 = ParamSpec("_P2")
 _T2 = TypeVar("_T2")
+_R = TypeVar("_R", bound=StringResponse | StructuredResponse)
 _TStructured = TypeVar("_TStructured", bound=BaseModel)
 
 UserInput = Union[str, MessageHistory, list[Message]]
@@ -104,7 +109,11 @@ class NodeBuilder(Generic[_P, _T]):
         self._tool_info: Callable[[], Tool] | None = None
         self._prepare_arguments: Callable[..., dict[str, Any]] | None = None
 
-        self._frozen_middleware: MiddlewareSet = MiddlewareSet()
+        self._frozen_middleware: MiddlewareChain = MiddlewareChain()
+
+    # ------------------------------------------------------------------
+    # Non-streaming overloads (stream=False, default)
+    # ------------------------------------------------------------------
 
     @overload
     @classmethod
@@ -119,9 +128,13 @@ class NodeBuilder(Generic[_P, _T]):
         connected_nodes: Iterable[Type[Node]] | None = None,
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
-        middleware: MiddlewareSet | list | None = None,
-        model_middleware: MiddlewareSet | list | None = None,
+        middleware: MiddlewareChain[[UserInput], StringResponse] | None = None,
+        model_middleware: MiddlewareChain[
+            [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
+        ]
+        | None = None,
         context_injection: bool = True,
+        stream: Literal[False] = ...,
     ) -> NodeBuilder[[UserInput], StringResponse]: ...
 
     @overload
@@ -137,9 +150,63 @@ class NodeBuilder(Generic[_P, _T]):
         connected_nodes: Iterable[Type[Node]] | None = None,
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
-        middleware: MiddlewareSet | list | None = None,
-        model_middleware: MiddlewareSet | list | None = None,
+        middleware: MiddlewareChain[[UserInput], StructuredResponse[_TStructured]]
+        | None = None,
+        model_middleware: MiddlewareChain[
+            [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
+        ]
+        | None = None,
         context_injection: bool = True,
+        stream: Literal[False] = ...,
+    ) -> NodeBuilder[[UserInput], StructuredResponse[_TStructured]]: ...
+
+    # ------------------------------------------------------------------
+    # Streaming overloads (stream=True — model must be StreamingModelSource)
+    # ------------------------------------------------------------------
+
+    @overload
+    @classmethod
+    def llm(
+        cls,
+        name: str,
+        class_name: str | None = None,
+        *,
+        model: StreamingModelSource,
+        system_message: SystemMessage | None = None,
+        schema: None = None,
+        connected_nodes: Iterable[Type[Node]] | None = None,
+        tool_details: str | None = None,
+        tool_params: list[Parameter] | None = None,
+        middleware: MiddlewareChain[[UserInput], StringResponse] | None = None,
+        model_middleware: MiddlewareChain[
+            [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
+        ]
+        | None = None,
+        context_injection: bool = True,
+        stream: Literal[True],
+    ) -> NodeBuilder[[UserInput], StringResponse]: ...
+
+    @overload
+    @classmethod
+    def llm(
+        cls,
+        name: str,
+        class_name: str | None = None,
+        *,
+        model: StreamingModelSource,
+        system_message: SystemMessage | None = None,
+        schema: Type[_TStructured],
+        connected_nodes: Iterable[Type[Node]] | None = None,
+        tool_details: str | None = None,
+        tool_params: list[Parameter] | None = None,
+        middleware: MiddlewareChain[[UserInput], StructuredResponse[_TStructured]]
+        | None = None,
+        model_middleware: MiddlewareChain[
+            [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
+        ]
+        | None = None,
+        context_injection: bool = True,
+        stream: Literal[True],
     ) -> NodeBuilder[[UserInput], StructuredResponse[_TStructured]]: ...
 
     @classmethod
@@ -148,16 +215,20 @@ class NodeBuilder(Generic[_P, _T]):
         name: str,
         class_name: str | None = None,
         *,
-        model: ModelSource,
+        model: ModelSource | StreamingModelSource,
         system_message: SystemMessage | None = None,
         schema: Type[_TStructured] | None = None,
         connected_nodes: Iterable[Type[Node]] | None = None,
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
-        middleware: MiddlewareSet | list | None = None,
-        model_middleware: MiddlewareSet | list | None = None,
+        middleware: MiddlewareChain[[UserInput], _R] | None = None,
+        model_middleware: MiddlewareChain[
+            [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
+        ]
+        | None = None,
         context_injection: bool = True,
-    ) -> NodeBuilder[[UserInput], StructuredResponse[_TStructured] | StringResponse]:
+        stream: bool = False,
+    ) -> NodeBuilder[[UserInput], _R]:
         instance = cls()
         casted_instance = cast(NodeBuilder, instance)
         casted_instance._class_name = class_name or name
@@ -172,14 +243,27 @@ class NodeBuilder(Generic[_P, _T]):
         # higher-level wrapper created the node. Disable per-node with
         # context_injection=False, or flow/session-wide via prompt_injection=False.
         if context_injection:
-            model_invoker.register_sys_gateway_entry(context_injection_gateway)
+            model_invoker.register_sys_entry_gate(context_injection_gateway)
 
-        casted_instance._invoke = llm_invoke_factory(
-            model_invoker=model_invoker,
-            system_message=system_message,
-            tool_nodes=list(connected_nodes) if connected_nodes else None,
-            schema=schema,
-        )
+        # llm_observe is registered for non-streaming only; streaming observability
+        # is a pass-through stub until the stream-logger ticket is implemented.
+        if not stream:
+            model_invoker.register_sys_wrapper(llm_observe)
+
+        if stream:
+            casted_instance._invoke = llm_stream_invoke_factory(
+                model_invoker=model_invoker,
+                system_message=system_message,
+                tool_nodes=list(connected_nodes) if connected_nodes else None,
+                schema=schema,
+            )
+        else:
+            casted_instance._invoke = llm_invoke_factory(
+                model_invoker=model_invoker,
+                system_message=system_message,
+                tool_nodes=list(connected_nodes) if connected_nodes else None,
+                schema=schema,
+            )
 
         if tool_details is not None:
             tool = cls._prepare_llm_tool(
@@ -193,7 +277,7 @@ class NodeBuilder(Generic[_P, _T]):
                 )
             }
 
-        casted_instance._frozen_middleware = MiddlewareSet.coerce(middleware)
+        casted_instance._frozen_middleware = MiddlewareChain.coerce(middleware)
 
         return casted_instance
 
@@ -221,7 +305,7 @@ class NodeBuilder(Generic[_P, _T]):
         class_name: str | None = None,
         name: str | None = None,
         *,
-        middleware: MiddlewareSet | list | None = None,
+        middleware: MiddlewareChain[_P2, _T2] | None = None,
         tool_details: str | None = None,
         tool_params: list[Parameter] | Type[BaseModel] | dict[str, Any] | None = None,
         tool_info: Tool | None = None,
@@ -245,13 +329,14 @@ class NodeBuilder(Generic[_P, _T]):
 
         casted_instance._prepare_arguments = tm.convert_kwargs_to_appropriate_types
 
-        casted_instance._frozen_middleware = MiddlewareSet.coerce(middleware)
+        casted_instance._frozen_middleware = MiddlewareChain.coerce(middleware)
 
         return casted_instance
 
     def construct_required(self) -> dict[str, Any]:
         async def invoke(_self, *args, **kwargs) -> _T:
-            return await unpack(self._invoke)(*args, **kwargs)
+            method = unpack(self._invoke)
+            return await method(*args, **kwargs)
 
         return {
             "invoke": invoke,
@@ -266,16 +351,16 @@ class NodeBuilder(Generic[_P, _T]):
     def construct_optional(self) -> dict[str, Any]:
         return {
             "tool_info": self._construct_tool_info(),
-            "prepare_tool": self._construct_prepared_arguments(),
+            "prepare_args": self._construct_prepared_arguments(),
             "frozen_middleware": self._frozen_middleware,
         }
 
-    def _construct_prepared_arguments(self, **kwargs):
+    def _construct_prepared_arguments(self):
         if self._prepare_arguments is None:
             return None
 
         return classmethod_preserving_function_meta(
-            lambda **kwargs: unpack(self._prepare_arguments)(kwargs)
+            lambda **kwargs: unpack(self._prepare_arguments)(**kwargs)
         )
 
     def _construct_tool_info(self):
