@@ -2,6 +2,9 @@
 
 - :class:`Wrapper` — execution control: receives the inner callable and decides
   whether/how/how-many-times to invoke it (retry, fallback, short-circuit, timing).
+  Use ``@wrapper`` for any wrapper function — the mode (streaming or
+  non-streaming) is auto-detected from the function shape (``yield`` vs
+  ``return await``).
 - :class:`Gate` — direction-neutral data transform: slot placement decides
   when it runs. ``entry_gate`` transforms input; ``exit_gate`` transforms
   output. Check-only gates validate and raise, or return ``None`` to pass through.
@@ -21,6 +24,7 @@ from __future__ import annotations
 import inspect
 from typing import (
     Any,
+    AsyncGenerator,
     Awaitable,
     Callable,
     Concatenate,
@@ -32,6 +36,7 @@ from typing import (
 
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
+_TChunk = TypeVar("_TChunk")
 
 
 def _require_callable(fn: Callable, role: str) -> None:
@@ -39,12 +44,166 @@ def _require_callable(fn: Callable, role: str) -> None:
         raise TypeError(f"{role} must be callable, got {fn!r}")
 
 
-def _require_async(fn: Callable, role: str) -> None:
-    _require_callable(fn, role)
-    if not inspect.iscoroutinefunction(fn):
-        raise TypeError(
-            f"{role} must be an async function (coroutine function): {fn!r}"
-        )
+# ---------------------------------------------------------------------------
+# Wrapper
+# ---------------------------------------------------------------------------
+
+
+class Wrapper(Generic[_P, _R]):
+    """Execution-control middleware: wraps a callable to control how it is invoked.
+
+    The wrapper mode is auto-detected from the function shape:
+
+    **Non-streaming** — coroutine function (``return await``)::
+
+        @wrapper
+        async def retry(call, *args, **kwargs):
+            for _ in range(3):
+                try:
+                    return await call(*args, **kwargs)
+                except Exception:
+                    pass
+            raise RuntimeError("All retries exhausted")
+
+    **Streaming** — async generator function (``yield``)::
+
+        @wrapper
+        async def log_chunks(call, *args, **kwargs):
+            async for chunk in call(*args, **kwargs):
+                print(chunk)
+                yield chunk
+
+    ``fn`` must be ``async``; a plain ``def`` raises ``TypeError``.
+
+    On the non-streaming path a streaming wrapper is a transparent pass-through
+    (``wrap()`` returns ``inner`` unchanged), so mixing both kinds in one
+    :class:`~railtracks.middleware.MiddlewareChain` is safe.
+    """
+
+    def __init__(self, fn: Callable) -> None:
+        _require_callable(fn, "Wrapper function")
+        if inspect.isasyncgenfunction(fn):
+            self._stream = True
+        elif inspect.iscoroutinefunction(fn):
+            self._stream = False
+        else:
+            raise TypeError(
+                f"Wrapper function must be an async coroutine function "
+                f"(async def ... return await ...) or an async generator function "
+                f"(async def ... yield ...): {fn!r}"
+            )
+        self._fn = fn
+
+    def wrap(self, inner: Callable[_P, Awaitable[_R]]) -> Callable[_P, Awaitable[_R]]:
+        """Compose this wrapper onto ``inner``, returning a new callable with the same signature.
+
+        For streaming wrappers this is a transparent pass-through — the
+        streaming logic lives in :meth:`wrap_stream`.
+        """
+        if self._stream:
+            return inner
+
+        fn = self._fn
+
+        async def wrapped(*args: _P.args, **kwargs: _P.kwargs) -> _R:
+            return await fn(inner, *args, **kwargs)
+
+        return wrapped
+
+    def wrap_stream(
+        self,
+        inner: Callable[..., AsyncGenerator[_TChunk, None]],
+    ) -> Callable[..., AsyncGenerator[_TChunk, None]]:
+        """Compose this wrapper onto a streaming ``inner`` factory.
+
+        For plain (non-stream) wrappers: transparent pass-through — every chunk
+        is forwarded unchanged so existing ``@wrapper`` wrappers work in the
+        streaming path without modification.
+
+        For streaming wrappers: delegates to the user-supplied async generator
+        function, which receives ``(inner_factory, *args, **kwargs)``.
+        """
+        if not self._stream:
+            async def pass_through(*args: Any, **kwargs: Any) -> AsyncGenerator[_TChunk, None]:
+                async for chunk in inner(*args, **kwargs):
+                    yield chunk
+
+            return pass_through
+
+        fn = self._fn
+
+        async def wrapped(*args: Any, **kwargs: Any) -> AsyncGenerator[_TChunk, None]:
+            async for chunk in fn(inner, *args, **kwargs):
+                yield chunk
+
+        return wrapped
+
+    def __repr__(self) -> str:
+        name = getattr(self._fn, "__name__", self._fn)
+        if self._stream:
+            return f"Wrapper({name!r}, stream=True)"
+        return f"Wrapper({name!r})"
+
+
+@overload
+def wrapper(
+    fn: Callable[Concatenate[Callable[_P, Awaitable[_R]], _P], Awaitable[_R]],
+) -> Wrapper[_P, _R]: ...
+
+
+@overload
+def wrapper(
+    fn: Callable[..., Awaitable[Any]],
+) -> Wrapper[Any, Any]: ...
+
+
+@overload
+def wrapper(
+    fn: Callable[..., AsyncGenerator[Any, None]],
+) -> Wrapper[Any, Any]: ...
+
+
+def wrapper(fn: Callable) -> Wrapper:
+    """Decorator: turn a call-style async function into a :class:`Wrapper`.
+
+    The wrapper mode is auto-detected from ``fn``'s shape:
+
+    - **coroutine function** (``return await``) → non-streaming wrapper,
+      active on ``MiddlewareChain.run()``.
+    - **async generator function** (``yield``) → streaming wrapper,
+      active on ``MiddlewareChain.run_stream()``.
+
+    Non-streaming example::
+
+        @wrapper
+        async def retry(call, *args, **kwargs):
+            for _ in range(3):
+                try:
+                    return await call(*args, **kwargs)
+                except Exception:
+                    pass
+            raise RuntimeError("All retries exhausted")
+
+    Streaming example::
+
+        @wrapper
+        async def log_chunks(call, *args, **kwargs):
+            async for chunk in call(*args, **kwargs):
+                print(chunk)
+                yield chunk
+
+    A plain ``def`` (neither coroutine nor async generator) raises ``TypeError``
+    at decoration time.
+
+    Explicitly-typed direct-decoration resolves to ``Wrapper[_P, _R]``;
+    ``*args, **kwargs`` functions resolve to ``Wrapper[Any, Any]``.
+    """
+    return Wrapper(fn)
+
+
+# ---------------------------------------------------------------------------
+# Gate
+# ---------------------------------------------------------------------------
 
 
 class _GateArgs:
@@ -62,44 +221,6 @@ class _GateArgs:
             + [f"{k}={v!r}" for k, v in self.kwargs.items()]
         )
         return f"gate.args({inner})"
-
-
-class Wrapper(Generic[_P, _R]):
-    """Execution-control middleware: wraps a callable to control how it is invoked.
-
-    Built from an async call-style function ``fn(call, *args, **kwargs)`` where
-    ``call`` is the next callable in the chain::
-
-        @wrapper
-        async def retry(call, *args, **kwargs):
-            for _ in range(3):
-                try:
-                    return await call(*args, **kwargs)
-                except Exception:
-                    pass
-            raise RuntimeError("All retries exhausted")
-
-    ``fn`` must be ``async``; passing a plain ``def`` raises ``TypeError``.
-    """
-
-    def __init__(
-        self,
-        fn: Callable[Concatenate[Callable[_P, Awaitable[_R]], _P], Awaitable[_R]],
-    ) -> None:
-        _require_async(fn, "Wrapper function")
-        self._fn = fn
-
-    def wrap(self, inner: Callable[_P, Awaitable[_R]]) -> Callable[_P, Awaitable[_R]]:
-        """Compose this wrapper onto ``inner``, returning a new callable with the same signature."""
-        fn = self._fn
-
-        async def wrapped(*args: _P.args, **kwargs: _P.kwargs) -> _R:
-            return await fn(inner, *args, **kwargs)
-
-        return wrapped
-
-    def __repr__(self) -> str:
-        return f"Wrapper({getattr(self._fn, '__name__', self._fn)!r})"
 
 
 class Gate(Generic[_P, _R]):
@@ -193,28 +314,6 @@ class Gate(Generic[_P, _R]):
 
     def __repr__(self) -> str:
         return f"Gate({getattr(self._fn, '__name__', self._fn)!r})"
-
-
-@overload
-def wrapper(
-    fn: Callable[Concatenate[Callable[_P, Awaitable[_R]], _P], Awaitable[_R]],
-) -> Wrapper[_P, _R]: ...
-
-
-@overload
-def wrapper(
-    fn: Callable[..., Awaitable[Any]],
-) -> Wrapper[Any, Any]: ...
-
-
-def wrapper(fn: Callable) -> Wrapper:
-    """Decorator: turn a call-style async function into a :class:`Wrapper`.
-
-    Explicitly-typed functions (named ``call``, ``x``, ``y``, …) resolve to
-    ``Wrapper[_P, _R]``. ``*args, **kwargs`` functions resolve to
-    ``Wrapper[Any, Any]`` via the fallback overload — assignable to any typed slot.
-    """
-    return Wrapper(fn)
 
 
 def _gate_args(*args: Any, **kwargs: Any) -> _GateArgs:

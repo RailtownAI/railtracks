@@ -22,9 +22,11 @@ from railtracks.built_nodes.concrete.response import StringResponse, StructuredR
 from railtracks.built_nodes.llm_helpers import (
     ModelInvoker,
     ModelSource,
+    StreamingModelSource,
     llm_invoke_factory,
     llm_observe,
     llm_prepare_called_as_tool_factory,
+    llm_stream_invoke_factory,
 )
 from railtracks.llm import (
     Parameter,
@@ -109,6 +111,10 @@ class NodeBuilder(Generic[_P, _T]):
 
         self._frozen_middleware: MiddlewareChain = MiddlewareChain()
 
+    # ------------------------------------------------------------------
+    # Non-streaming overloads (stream=False, default)
+    # ------------------------------------------------------------------
+
     @overload
     @classmethod
     def llm(
@@ -128,6 +134,7 @@ class NodeBuilder(Generic[_P, _T]):
         ]
         | None = None,
         context_injection: bool = True,
+        stream: Literal[False] = ...,
     ) -> NodeBuilder[[UserInput], StringResponse]: ...
 
     @overload
@@ -150,6 +157,56 @@ class NodeBuilder(Generic[_P, _T]):
         ]
         | None = None,
         context_injection: bool = True,
+        stream: Literal[False] = ...,
+    ) -> NodeBuilder[[UserInput], StructuredResponse[_TStructured]]: ...
+
+    # ------------------------------------------------------------------
+    # Streaming overloads (stream=True — model must be StreamingModelSource)
+    # ------------------------------------------------------------------
+
+    @overload
+    @classmethod
+    def llm(
+        cls,
+        name: str,
+        class_name: str | None = None,
+        *,
+        model: StreamingModelSource,
+        system_message: SystemMessage | None = None,
+        schema: None = None,
+        connected_nodes: Iterable[Type[Node]] | None = None,
+        tool_details: str | None = None,
+        tool_params: list[Parameter] | None = None,
+        middleware: MiddlewareChain[[UserInput], StringResponse] | None = None,
+        model_middleware: MiddlewareChain[
+            [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
+        ]
+        | None = None,
+        context_injection: bool = True,
+        stream: Literal[True],
+    ) -> NodeBuilder[[UserInput], StringResponse]: ...
+
+    @overload
+    @classmethod
+    def llm(
+        cls,
+        name: str,
+        class_name: str | None = None,
+        *,
+        model: StreamingModelSource,
+        system_message: SystemMessage | None = None,
+        schema: Type[_TStructured],
+        connected_nodes: Iterable[Type[Node]] | None = None,
+        tool_details: str | None = None,
+        tool_params: list[Parameter] | None = None,
+        middleware: MiddlewareChain[[UserInput], StructuredResponse[_TStructured]]
+        | None = None,
+        model_middleware: MiddlewareChain[
+            [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
+        ]
+        | None = None,
+        context_injection: bool = True,
+        stream: Literal[True],
     ) -> NodeBuilder[[UserInput], StructuredResponse[_TStructured]]: ...
 
     @classmethod
@@ -158,7 +215,7 @@ class NodeBuilder(Generic[_P, _T]):
         name: str,
         class_name: str | None = None,
         *,
-        model: ModelSource,
+        model: ModelSource | StreamingModelSource,
         system_message: SystemMessage | None = None,
         schema: Type[_TStructured] | None = None,
         connected_nodes: Iterable[Type[Node]] | None = None,
@@ -170,6 +227,7 @@ class NodeBuilder(Generic[_P, _T]):
         ]
         | None = None,
         context_injection: bool = True,
+        stream: bool = False,
     ) -> NodeBuilder[[UserInput], _R]:
         instance = cls()
         casted_instance = cast(NodeBuilder, instance)
@@ -187,14 +245,25 @@ class NodeBuilder(Generic[_P, _T]):
         if context_injection:
             model_invoker.register_sys_entry_gate(context_injection_gateway)
 
-        model_invoker.register_sys_wrapper(llm_observe)
+        # llm_observe is registered for non-streaming only; streaming observability
+        # is a pass-through stub until the stream-logger ticket is implemented.
+        if not stream:
+            model_invoker.register_sys_wrapper(llm_observe)
 
-        casted_instance._invoke = llm_invoke_factory(
-            model_invoker=model_invoker,
-            system_message=system_message,
-            tool_nodes=list(connected_nodes) if connected_nodes else None,
-            schema=schema,
-        )
+        if stream:
+            casted_instance._invoke = llm_stream_invoke_factory(
+                model_invoker=model_invoker,
+                system_message=system_message,
+                tool_nodes=list(connected_nodes) if connected_nodes else None,
+                schema=schema,
+            )
+        else:
+            casted_instance._invoke = llm_invoke_factory(
+                model_invoker=model_invoker,
+                system_message=system_message,
+                tool_nodes=list(connected_nodes) if connected_nodes else None,
+                schema=schema,
+            )
 
         if tool_details is not None:
             tool = cls._prepare_llm_tool(
