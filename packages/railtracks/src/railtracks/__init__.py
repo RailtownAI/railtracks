@@ -19,6 +19,7 @@ __all__ = [
     "Session",
     "session",
     "call",
+    "astream",
     "broadcast",
     "call_batch",
     "interactive",
@@ -70,7 +71,7 @@ from . import (
 )
 from ._session import ExecutionInfo, Session, session
 from .context.central import session_id, set_config
-from .interaction import broadcast, call, call_batch
+from .interaction import astream, broadcast, call, call_batch
 from .middleware import Gate, MiddlewareChain, Wrapper, gate, wrapper
 from .nodes.manifest import ToolManifest
 from .orchestration.flow import Flow

@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 from typing import (
     TYPE_CHECKING,
+    Any,
+    AsyncGenerator,
     Callable,
     Coroutine,
     ParamSpec,
@@ -37,174 +39,56 @@ if TYPE_CHECKING:
 _P = ParamSpec("_P")
 _TOutput = TypeVar("_TOutput")
 
-
-@overload
-async def call(
-    node_: type[Node[_P, _TOutput]],
-    *args: _P.args,
-    **kwargs: _P.kwargs,
-) -> _TOutput: ...
+_BroadcastCallback = (
+    Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
+)
 
 
-@overload
-async def call(
-    node_: RTFunction[_P, _TOutput],
-    *args: _P.args,
-    **kwargs: _P.kwargs,
-) -> _TOutput: ...
+# ── helpers ───────────────────────────────────────────────────────────────────
 
 
-async def call(
+def _resolve_node(
     node_: type[Node[_P, _TOutput]] | RTFunction[_P, _TOutput],
-    *args: _P.args,
-    **kwargs: _P.kwargs,
-) -> _TOutput:
-    """
-    Call a node from within a node inside the framework. This will return a coroutine that you can interact with
-    in whatever way using async/await logic.
-
-    Usage:
-    ```python
-    # for sequential operation
-    result = await call(NodeA, "hello world", 42)
-
-    # for parallel operation
-    tasks = [call(NodeA, "hello world", i) for i in range(10)]
-    results = await asyncio.gather(*tasks)
-    ```
-
-    Args:
-        node: The node type you would like to create. This could be a function decorated with `@function_node`, a function, or a Node instance.
-        *args: The arguments to pass to the node
-        **kwargs: The keyword arguments to pass to the node
-    """
-    node: type[Node[_P, _TOutput]]
-
+) -> type[Node[_P, _TOutput]]:
+    """Normalise an :class:`RTFunction` wrapper to its underlying :class:`Node` class."""
     if hasattr(node_, "node_type"):
-        # local import to prevent circular import issues (note it is a purely type checking import)
-        from railtracks.built_nodes.concrete import RTFunction
+        from railtracks.built_nodes.concrete import RTFunction as _RTFunction  # lazy — circular
 
-        assert isinstance(node_, RTFunction)
-        node = extract_node_from_function(node_)
-    else:
-        node = node_
-
-    # TODO: make sure the function type branch deletion does not break things.,
-
-    # if the context is none then we will need to create a wrapper for the state object to work with.
-    if not is_context_present():
-        # we have to use lazy import here to prevent a circular import issue. This is a must have unfortunately.
-        from railtracks import Session
-
-        with Session():
-            result = await _start(node, args=args, kwargs=kwargs)
-            return result
-
-    # if the context is not active then we know this is the top level request
-    if not is_context_active():
-        result = await _start(node, args=args, kwargs=kwargs)
-        return result
-
-    # if the context is active then we can just run the node
-    result = await _run(node, args=args, kwargs=kwargs)
-    return result
+        assert isinstance(node_, _RTFunction)
+        return extract_node_from_function(node_)
+    return node_  # type: ignore[return-value]
 
 
-def _regular_message_filter(request_id: str):
-    """
-    Returns a filter function that checks if the message matches the request ID.
+def _make_message_filter(
+    request_id: str,
+    *,
+    top_level: bool,
+) -> Callable[[RequestCompletionMessage], bool]:
+    """Return a pub/sub predicate for *request_id*.
+
+    When *top_level* is ``True``, :class:`~railtracks.pubsub.messages.FatalFailure`
+    messages are also accepted so the top-level waiter surfaces fatal errors.
     """
 
-    def filter_func(item: RequestCompletionMessage) -> bool:
-        if isinstance(item, RequestFinishedBase):
-            return item.request_id == request_id
-        return False
+    def _filter(item: RequestCompletionMessage) -> bool:
+        matches = isinstance(item, RequestFinishedBase) and item.request_id == request_id
+        return matches or (top_level and isinstance(item, FatalFailure))
 
-    return filter_func
-
-
-def _top_level_message_filter(request_id: str):
-    """
-    Returns a filter function that checks if the message matches the request ID.
-    """
-
-    def message_filter(item: RequestCompletionMessage) -> bool:
-        # we want to filter and collect the message that matches this request_id
-        matches_request_id = (
-            isinstance(item, RequestFinishedBase) and item.request_id == request_id
-        )
-        fatal_failure = isinstance(item, FatalFailure)
-
-        return matches_request_id or fatal_failure
-
-    return message_filter
-
-
-async def _start(
-    node: type[Node[_P, _TOutput]],
-    args,
-    kwargs,
-):
-    await activate_publisher()
-
-    # there is a really funny edge case that we need to handle here to prevent if the user itself throws an timeout
-    #  exception. It should be handled differently then the global timeout exception.
-    #  Yes I am aware that is a bit of a hack but this is the best way to handle this specific case.
-    timeout_exception_flag = {"value": False}
-
-    async def wrapped_fut(f: Coroutine):
-        try:
-            return await f
-        except asyncio.TimeoutError as error:
-            timeout_exception_flag["value"] = True
-            raise error
-
-    timeout = get_local_config().timeout
-    fut = _execute(
-        node, args=args, kwargs=kwargs, message_filter=_top_level_message_filter
-    )
-    # Here we wait the completion of the future with timeouts.
-    try:
-        result = await asyncio.wait_for(wrapped_fut(fut), timeout=timeout)
-    except asyncio.TimeoutError as e:
-        # if the internal flag is set then the coroutine itself raised a timeout error and it was not the wait
-        #  for function.
-        if timeout_exception_flag["value"]:
-            raise e
-
-        raise GlobalTimeOutError(timeout=timeout)
-
-    return result
-
-
-async def _run(
-    node: type[Node[_P, _TOutput]],
-    args,
-    kwargs,
-):
-    """
-    Executes the given Node set up using the provided arguments and keyword arguments.
-    """
-    return await _execute(
-        node, args=args, kwargs=kwargs, message_filter=_regular_message_filter
-    )
+    return _filter
 
 
 async def _execute(
     node: type[Node[_P, _TOutput]],
-    args,
-    kwargs,
-    message_filter: Callable[[str], Callable[[RequestCompletionMessage], bool]],
+    args: tuple[Any, ...],
+    kwargs: dict[str, Any],
+    *,
+    top_level: bool,
 ) -> _TOutput:
     publisher = get_publisher()
-
-    # generate a unique request ID for this request. We need to hold this reference here because we will use it to
-    # filter for its completion
     request_id = str(uuid4())
 
-    # note we set the listener before we publish the messages ensure that we do not miss any messages
-    # I am actually a bit worried about this logic and I think there is a chance of a bug popping up here.
-    f = publisher.listener(message_filter(request_id), output_mapping)
+    # Register the listener *before* publishing to avoid missing the completion event.
+    f = publisher.listener(_make_message_filter(request_id, top_level=top_level), output_mapping)
 
     await publisher.publish(
         RequestCreation(
@@ -219,3 +103,174 @@ async def _execute(
     )
 
     return await f
+
+
+async def _start(
+    node: type[Node[_P, _TOutput]],
+    args: tuple[Any, ...],
+    kwargs: dict[str, Any],
+) -> _TOutput:
+    """Top-level execution: activates the publisher and enforces the session timeout."""
+    await activate_publisher()
+
+    # asyncio.wait_for raises TimeoutError for both its own deadline and errors
+    # that bubble up from inside the coroutine.  Track which case we're in so we
+    # can re-raise user-originated TimeoutErrors unchanged rather than wrapping
+    # them as GlobalTimeOutError.
+    user_raised_timeout = False
+
+    async def _guarded() -> _TOutput:
+        nonlocal user_raised_timeout
+        try:
+            return await _execute(node, args, kwargs, top_level=True)
+        except asyncio.TimeoutError:
+            user_raised_timeout = True
+            raise
+
+    timeout = get_local_config().timeout
+    try:
+        return await asyncio.wait_for(_guarded(), timeout=timeout)
+    except asyncio.TimeoutError as exc:
+        if user_raised_timeout:
+            raise
+        raise GlobalTimeOutError(timeout=timeout) from exc
+
+
+# ── public API ────────────────────────────────────────────────────────────────
+
+
+@overload
+async def call(
+    node_: type[Node[_P, _TOutput]],
+    *args: _P.args,
+    broadcast_callback: _BroadcastCallback = ...,
+    **kwargs: _P.kwargs,
+) -> _TOutput: ...
+
+
+@overload
+async def call(
+    node_: RTFunction[_P, _TOutput],
+    *args: _P.args,
+    broadcast_callback: _BroadcastCallback = ...,
+    **kwargs: _P.kwargs,
+) -> _TOutput: ...
+
+
+async def call(
+    node_: type[Node[_P, _TOutput]] | RTFunction[_P, _TOutput],
+    *args: _P.args,
+    broadcast_callback: _BroadcastCallback = None,
+    **kwargs: _P.kwargs,
+) -> _TOutput:
+    """Call a node and return its result.
+
+    Usage::
+
+        # sequential
+        result = await call(NodeA, "hello world", 42)
+
+        # parallel
+        results = await asyncio.gather(*[call(NodeA, "hello world", i) for i in range(10)])
+
+        # push streaming — callback receives each str chunk in real time
+        chunks: list[str] = []
+        result = await call(agent, user_input="hi", broadcast_callback=chunks.append)
+
+    Args:
+        node_: The node or ``@function_node`` / ``@agent_node`` to call.
+        *args: Positional arguments forwarded to the node.
+        broadcast_callback: Optional callable invoked with each ``str`` chunk as it
+            arrives.  Accepts both sync ``(str) -> None`` and async
+            ``(str) -> Coroutine`` callables.  Only applied when ``call()``
+            creates its own execution context (i.e., no active context).
+        **kwargs: Keyword arguments forwarded to the node.
+    """
+    node = _resolve_node(node_)
+
+    if not is_context_present():
+        from railtracks import Session  # lazy — avoids circular import
+
+        with Session(broadcast_callback=broadcast_callback):
+            return await _start(node, args, kwargs)
+
+    if not is_context_active():
+        return await _start(node, args, kwargs)
+
+    return await _execute(node, args, kwargs, top_level=False)
+
+
+@overload
+async def astream(
+    node_: type[Node[_P, _TOutput]],
+    *args: _P.args,
+    **kwargs: _P.kwargs,
+) -> AsyncGenerator[str | _TOutput, None]: ...
+
+
+@overload
+async def astream(
+    node_: RTFunction[_P, _TOutput],
+    *args: _P.args,
+    **kwargs: _P.kwargs,
+) -> AsyncGenerator[str | _TOutput, None]: ...
+
+
+async def astream(
+    node_: type[Node[_P, _TOutput]] | RTFunction[_P, _TOutput],
+    *args: _P.args,
+    **kwargs: _P.kwargs,
+) -> AsyncGenerator[str | _TOutput, None]:
+    """Streaming counterpart of :func:`call` — yields chunks then the terminal result.
+
+    Yields each ``str`` chunk in real time as the node produces them, then yields
+    the terminal response (``StringResponse`` / ``StructuredResponse``) as the
+    final item.
+
+    Use anywhere you would use :func:`call` but want real-time chunks. No
+    :class:`~railtracks.orchestration.flow.Flow` wrapper required.
+
+    Example::
+
+        async for item in rt.astream(agent, user_input="Hello"):
+            if isinstance(item, str):
+                print(item, end="", flush=True)
+            else:
+                final = item  # StringResponse
+
+    Args:
+        node_: The node or ``@function_node`` / ``@agent_node`` to stream.
+        *args: Positional arguments forwarded to the node.
+        **kwargs: Keyword arguments forwarded to the node.
+
+    Yields:
+        ``str`` chunks in arrival order, then the terminal response object.
+    """
+    from railtracks import Session  # lazy — avoids circular import
+
+    node = _resolve_node(node_)
+    queue: asyncio.Queue[Any] = asyncio.Queue()
+
+    async def _enqueue_chunk(chunk: str) -> None:
+        await queue.put(chunk)
+
+    async def _produce() -> None:
+        try:
+            with Session(broadcast_callback=_enqueue_chunk):
+                result = await _start(node, args, kwargs)
+            await queue.put(result)
+        except Exception as exc:
+            await queue.put(exc)
+
+    task = asyncio.create_task(_produce())
+
+    while True:
+        item = await queue.get()
+        if isinstance(item, BaseException):
+            task.cancel()
+            raise item
+        yield item
+        if not isinstance(item, str):
+            break
+
+    await task
