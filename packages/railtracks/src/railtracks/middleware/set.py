@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from typing import (
     Any,
+    AsyncGenerator,
     Awaitable,
     Callable,
     Generic,
@@ -34,6 +35,7 @@ from railtracks.middleware.primitives import Gate, Wrapper
 _T = TypeVar("_T")
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
+_TChunk = TypeVar("_TChunk")
 
 
 class _LayeredList(Generic[_T]):
@@ -295,6 +297,64 @@ class MiddlewareChain(Generic[_P, _R]):
             outer = w.wrap(outer)
 
         return await outer(*args, **kwargs)
+
+    async def run_stream(
+        self,
+        core: Callable[..., AsyncGenerator[_TChunk, None]],
+        *args: Any,
+        **kwargs: Any,
+    ) -> AsyncGenerator[_TChunk, None]:
+        """Thread a streaming ``core`` factory through all middleware in band order.
+
+        Streaming execution contract (mirrors :meth:`run` where possible):
+
+        1. ``entry_gate`` transforms ``(args, kwargs)`` before the first chunk.
+        2. ``inner_wrappers`` wrap the core stream via :meth:`Wrapper.wrap_stream`.
+        3. The core is called and yields ``_TChunk`` items.
+        4. For each item that is a :class:`~railtracks.llm.response.Response`, the
+           ``exit_gate`` band is applied before the item is forwarded — this is the
+           single "final result" transform for an LLM streaming round-trip.
+        5. ``wrappers`` wrap the gated stream via :meth:`Wrapper.wrap_stream`.
+
+        The exit gate receives the :class:`~railtracks.llm.response.Response` object
+        directly (not a streaming chunk), so existing non-streaming exit gates can
+        be reused unchanged for post-stream result transforms.
+        """
+        from railtracks.llm.response import Response as _Response
+
+        entry = self._entry.ordered()
+        exit_ = self._exit.ordered()
+
+        # 1. Apply entry gates — transform (args, kwargs) before streaming starts.
+        a: tuple[Any, ...] = args
+        k: dict[str, Any] = kwargs
+        for g in entry:
+            a, k = await g.apply_entry(*a, **k)  # type: ignore[arg-type]
+
+        # 2. Compose inner wrappers around the core stream factory.
+        inner_stream: Callable[..., AsyncGenerator[_TChunk, None]] = core
+        for w in reversed(self._inner.ordered()):
+            inner_stream = w.wrap_stream(inner_stream)
+
+        # 3. Define a gated stream that applies exit gates to Response items.
+        async def _gated(*ga: Any, **gk: Any) -> AsyncGenerator[_TChunk, None]:
+            async for item in inner_stream(*ga, **gk):
+                if isinstance(item, _Response):
+                    result: _Response = item
+                    for g in exit_:
+                        result = await g.apply_exit(result)
+                    yield result  # type: ignore[misc]
+                else:
+                    yield item
+
+        # 4. Compose outer wrappers around the gated stream factory.
+        outer_stream: Callable[..., AsyncGenerator[_TChunk, None]] = _gated
+        for w in reversed(self._outer.ordered()):
+            outer_stream = w.wrap_stream(outer_stream)
+
+        # 5. Execute and yield.
+        async for item in outer_stream(*a, **k):
+            yield item
 
     def __repr__(self) -> str:
         return (

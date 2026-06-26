@@ -93,3 +93,61 @@ def test_agent_node_tool_nodes_func(mock_llm, mock_function, mock_sys_mes):
     )
     assert isinstance(node_cls, type)
     assert node_cls.name() == "AgentWithFuncTool"
+
+
+# --- stream= parameter ---
+
+def test_agent_node_stream_false_is_default(mock_llm):
+    node_cls = agent_node(name="NoStream", llm=mock_llm)
+    assert isinstance(node_cls, type)
+    assert node_cls.name() == "NoStream"
+
+
+def test_agent_node_stream_true_builds_node():
+    from unittest.mock import MagicMock
+    from railtracks.llm.model import ModelBase
+    from typing import Literal
+    streaming_llm = MagicMock(spec=ModelBase[Literal[True]])
+    streaming_llm.stream = True
+    node_cls = agent_node(name="StreamAgent", llm=streaming_llm, stream=True)
+    assert isinstance(node_cls, type)
+    assert node_cls.name() == "StreamAgent"
+
+
+def test_agent_node_stream_true_with_schema_builds_node():
+    from unittest.mock import MagicMock
+    from pydantic import BaseModel
+    from railtracks.llm.model import ModelBase
+    from typing import Literal
+
+    class MyOutput(BaseModel):
+        value: str
+
+    streaming_llm = MagicMock(spec=ModelBase[Literal[True]])
+    streaming_llm.stream = True
+    node_cls = agent_node(
+        name="StreamStructured",
+        llm=streaming_llm,
+        output_schema=MyOutput,
+        stream=True,
+    )
+    assert isinstance(node_cls, type)
+    assert node_cls.name() == "StreamStructured"
+
+
+def test_agent_node_stream_true_with_tool_nodes_builds_node(mock_function, mock_sys_mes):
+    from unittest.mock import MagicMock
+    from railtracks.llm.model import ModelBase
+    from typing import Literal
+
+    streaming_llm = MagicMock(spec=ModelBase[Literal[True]])
+    streaming_llm.stream = True
+    node_cls = agent_node(
+        name="StreamWithTools",
+        llm=streaming_llm,
+        tool_nodes=[function_node(mock_function)],
+        system_message=mock_sys_mes,
+        stream=True,
+    )
+    assert isinstance(node_cls, type)
+    assert node_cls.name() == "StreamWithTools"

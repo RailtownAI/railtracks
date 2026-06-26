@@ -10,6 +10,7 @@ MiddlewareChain — ordered bands: wrappers -> entry_gate
 
 import pytest
 from railtracks.middleware import Gate, MiddlewareChain, gate, wrapper
+from railtracks.middleware.primitives import Wrapper
 from railtracks.middleware.set import _LayeredList
 
 # ---------------------------------------------------------------------------
@@ -23,7 +24,7 @@ class TestWrapper:
             wrapper(123)  # type: ignore[arg-type]
 
     def test_wrapper_requires_async(self):
-        # A sync function is rejected immediately — wrappers must be async.
+        # A plain sync function (not coroutine, not async gen) is rejected.
         with pytest.raises(TypeError, match="async"):
             wrapper(lambda call, *a, **k: call(*a, **k))  # type: ignore[arg-type]
 
@@ -409,3 +410,329 @@ class TestEngineExecution:
 
         await ms.run(core)
         assert order == ["a", "b", "c"]
+
+
+# ---------------------------------------------------------------------------
+# MiddlewareChain.run_stream — streaming engine
+# ---------------------------------------------------------------------------
+
+from railtracks.llm.message import AssistantMessage
+from railtracks.llm.response import MessageInfo, Response
+
+
+def _make_response(model_name: str = "test") -> Response:
+    """Helper: build a minimal Response for use in streaming tests."""
+    return Response(
+        message=AssistantMessage("x"),
+        message_info=MessageInfo(model_name=model_name),
+    )
+
+
+async def _simple_stream(*chunks: str, response: Response | None = None):
+    """Async generator that yields string chunks then a terminal Response."""
+    for c in chunks:
+        yield c
+    yield response if response is not None else _make_response()
+
+
+class TestRunStream:
+    @pytest.mark.asyncio
+    async def test_run_stream_yields_str_chunks(self):
+        """String chunks from the core generator pass through unchanged."""
+        ms = MiddlewareChain()
+
+        async def core():
+            async for item in _simple_stream("a", "b", "c"):
+                yield item
+
+        items = []
+        async for item in ms.run_stream(core):
+            items.append(item)
+
+        str_items = [i for i in items if isinstance(i, str)]
+        assert str_items == ["a", "b", "c"]
+
+    @pytest.mark.asyncio
+    async def test_run_stream_yields_terminal_response(self):
+        """The terminal Response object is yielded as the last item."""
+        ms = MiddlewareChain()
+        sentinel = _make_response("sentinel-model")
+
+        async def core():
+            yield "chunk"
+            yield sentinel
+
+        items = []
+        async for item in ms.run_stream(core):
+            items.append(item)
+
+        response_items = [i for i in items if isinstance(i, Response)]
+        assert len(response_items) == 1
+        assert response_items[0].message_info.model_name == "sentinel-model"
+
+    @pytest.mark.asyncio
+    async def test_run_stream_entry_gate_runs_before_first_chunk(self):
+        """The entry gate fires before any chunk is yielded by the core."""
+        log: list[str] = []
+
+        @gate
+        async def record_entry(*args, **kwargs):
+            log.append("entry")
+            return args, kwargs
+
+        ms = MiddlewareChain(entry_gate=[record_entry])
+
+        async def core():
+            log.append("chunk-1")
+            yield "chunk-1"
+            yield _make_response()
+
+        async for _ in ms.run_stream(core):
+            pass
+
+        assert log[0] == "entry", f"Expected 'entry' first, got {log}"
+        assert "chunk-1" in log
+        assert log.index("entry") < log.index("chunk-1")
+
+    @pytest.mark.asyncio
+    async def test_run_stream_exit_gate_applied_to_response(self):
+        """The exit gate receives the terminal Response and can mutate it."""
+        gate_ran: list[bool] = []
+
+        @gate
+        async def tag_response(result):
+            gate_ran.append(True)
+            result.message_info.model_name = "exit-gate-was-here"
+            return result
+
+        ms = MiddlewareChain(exit_gate=[tag_response])
+
+        async def core():
+            yield "hi"
+            yield _make_response("original")
+
+        response_items = []
+        async for item in ms.run_stream(core):
+            if isinstance(item, Response):
+                response_items.append(item)
+
+        assert gate_ran == [True]
+        assert response_items[0].message_info.model_name == "exit-gate-was-here"
+
+    @pytest.mark.asyncio
+    async def test_run_stream_inner_wrapper_wrap_stream_called(self):
+        """An inner Wrapper subclass that overrides wrap_stream is invoked."""
+        flag: list[bool] = []
+
+        class TrackingWrapper(Wrapper):
+            def wrap_stream(self, inner):
+                flag.append(True)
+
+                async def _passthrough(*a, **k):
+                    async for item in inner(*a, **k):
+                        yield item
+
+                return _passthrough
+
+        @wrapper
+        async def _stub(call, *a, **k):
+            return await call(*a, **k)
+
+        tracking = TrackingWrapper(_stub._fn)
+
+        ms = MiddlewareChain(inner_wrappers=[tracking])
+
+        async def core():
+            yield "x"
+            yield _make_response()
+
+        async for _ in ms.run_stream(core):
+            pass
+
+        assert flag == [True], "wrap_stream was not called on the inner wrapper"
+
+    @pytest.mark.asyncio
+    async def test_run_stream_default_passthrough_via_decorator(self):
+        """@wrapper-decorated wrappers forward all stream items unchanged."""
+
+        @wrapper
+        async def identity(call, *a, **k):
+            return await call(*a, **k)
+
+        ms = MiddlewareChain(wrappers=[identity])
+
+        async def core():
+            for c in ["p", "q", "r"]:
+                yield c
+            yield _make_response()
+
+        items = []
+        async for item in ms.run_stream(core):
+            items.append(item)
+
+        str_items = [i for i in items if isinstance(i, str)]
+        assert str_items == ["p", "q", "r"]
+        assert any(isinstance(i, Response) for i in items)
+
+
+class TestWrapStream:
+    @pytest.mark.asyncio
+    async def test_wrap_stream_default_is_transparent(self):
+        """Default Wrapper.wrap_stream passes all chunks and the Response through."""
+
+        @wrapper
+        async def no_op(call, *a, **k):
+            return await call(*a, **k)
+
+        sentinel = _make_response("transparent")
+
+        async def inner_factory():
+            yield "one"
+            yield "two"
+            yield sentinel
+
+        wrapped_factory = no_op.wrap_stream(inner_factory)
+
+        items = []
+        async for item in wrapped_factory():
+            items.append(item)
+
+        assert items[0] == "one"
+        assert items[1] == "two"
+        assert isinstance(items[2], Response)
+        assert items[2].message_info.model_name == "transparent"
+
+    @pytest.mark.asyncio
+    async def test_wrap_stream_subclass_can_intercept(self):
+        """A Wrapper subclass that overrides wrap_stream can transform chunks."""
+
+        class UpperWrapper(Wrapper):
+            def wrap_stream(self, inner):
+                async def _upper(*a, **k):
+                    async for item in inner(*a, **k):
+                        if isinstance(item, str):
+                            yield item.upper()
+                        else:
+                            yield item
+
+                return _upper
+
+        @wrapper
+        async def _stub(call, *a, **k):
+            return await call(*a, **k)
+
+        upper = UpperWrapper(_stub._fn)
+
+        sentinel = _make_response("sub")
+
+        async def source():
+            yield "hello"
+            yield "world"
+            yield sentinel
+
+        wrapped = upper.wrap_stream(source)
+
+        items = []
+        async for item in wrapped():
+            items.append(item)
+
+        assert items[0] == "HELLO"
+        assert items[1] == "WORLD"
+        assert isinstance(items[2], Response)
+
+
+# ---------------------------------------------------------------------------
+# @wrapper auto-detection (async gen → streaming, coroutine → non-streaming)
+# ---------------------------------------------------------------------------
+
+
+class TestStreamWrapper:
+    def test_stream_wrapper_returns_wrapper(self):
+        @wrapper
+        async def sw(call, *a, **k):
+            async for chunk in call(*a, **k):
+                yield chunk
+
+        assert isinstance(sw, Wrapper)
+        assert sw._stream is True
+
+    def test_coroutine_wrapper_auto_detected_as_non_streaming(self):
+        @wrapper
+        async def w(call, *a, **k):
+            return await call(*a, **k)
+
+        assert isinstance(w, Wrapper)
+        assert w._stream is False
+
+    def test_stream_wrapper_repr(self):
+        @wrapper
+        async def my_sw(call, *a, **k):
+            async for chunk in call(*a, **k):
+                yield chunk
+
+        assert "my_sw" in repr(my_sw)
+
+    @pytest.mark.asyncio
+    async def test_wrap_is_pass_through(self):
+        """wrap() on a streaming Wrapper returns the inner callable unchanged."""
+
+        @wrapper
+        async def sw(call, *a, **k):
+            async for chunk in call(*a, **k):
+                yield chunk
+
+        async def inner(x):
+            return x
+
+        assert sw.wrap(inner) is inner
+
+    @pytest.mark.asyncio
+    async def test_wrap_stream_intercepts_chunks(self):
+        """Streaming @wrapper can transform individual chunks."""
+
+        @wrapper
+        async def upper(call, *a, **k):
+            async for chunk in call(*a, **k):
+                if isinstance(chunk, str):
+                    yield chunk.upper()
+                else:
+                    yield chunk
+
+        sentinel = _make_response("sw-test")
+
+        async def source():
+            yield "hello"
+            yield "world"
+            yield sentinel
+
+        items = []
+        async for item in upper.wrap_stream(source)():
+            items.append(item)
+
+        assert items[0] == "HELLO"
+        assert items[1] == "WORLD"
+        assert items[2] is sentinel
+
+    @pytest.mark.asyncio
+    async def test_stream_wrapper_in_middleware_chain(self):
+        """Streaming @wrapper placed in wrappers slot participates in run_stream."""
+        seen: list[str] = []
+
+        @wrapper
+        async def recorder(call, *a, **k):
+            async for chunk in call(*a, **k):
+                if isinstance(chunk, str):
+                    seen.append(chunk)
+                yield chunk
+
+        ms = MiddlewareChain(wrappers=[recorder])
+
+        async def core():
+            yield "x"
+            yield "y"
+            yield _make_response()
+
+        async for _ in ms.run_stream(core):
+            pass
+
+        assert seen == ["x", "y"]

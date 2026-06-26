@@ -2,6 +2,7 @@ import asyncio
 from copy import deepcopy
 from typing import (
     Any,
+    AsyncGenerator,
     Awaitable,
     Callable,
     Literal,
@@ -16,6 +17,7 @@ from railtracks.built_nodes.concrete._llm_base import RequestDetails
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
 from railtracks.exceptions.errors import LLMError
 from railtracks.interaction._call import call
+from railtracks.interaction.broadcast_ import broadcast
 from railtracks.llm.content import ToolCall, ToolResponse
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import (
@@ -40,6 +42,10 @@ _TStructured = TypeVar("_TStructured", bound=BaseModel)
 # call — the factory form lets a node pick its model at invocation time (e.g.
 # from config or rt.context) instead of binding one at build time.
 ModelSource = ModelBase[Literal[False]] | Callable[[], ModelBase[Literal[False]]]
+
+# Streaming variant — model must have stream=True so achat/astructured/achat_with_tools
+# return AsyncGenerator[str | Response, None] instead of Response.
+StreamingModelSource = ModelBase[Literal[True]] | Callable[[], ModelBase[Literal[True]]]
 
 
 class StringLLMInvoke(Protocol):
@@ -80,13 +86,15 @@ class ModelInvoker:
 
     def __init__(
         self,
-        model: ModelSource,
+        model: ModelSource | StreamingModelSource,
         middleware: MiddlewareChain[
             [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
         ]
         | None = None,
     ):
-        self._get_model = model if callable(model) else lambda: model
+        self._get_model: Callable[[], ModelBase[Literal[False]] | ModelBase[Literal[True]]] = (
+            model if callable(model) else lambda: model  # type: ignore[return-value]
+        )
         self._middleware: MiddlewareChain[
             [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
         ] = MiddlewareChain.coerce(middleware)
@@ -141,6 +149,50 @@ class ModelInvoker:
 
         return await self._middleware.run(_core_llm_call, messages, schema, tools)
 
+    async def invoke_stream(
+        self,
+        messages: MessageHistory,
+        *,
+        schema: type[BaseModel] | None = None,
+        tools: list[Tool] | None = None,
+    ) -> AsyncGenerator[str | Response, None]:
+        """Run a streaming model call through the middleware chain.
+
+        Entry gates transform the input; inner/outer wrappers forward chunks
+        via their :meth:`~Wrapper.wrap_stream` pass-throughs; exit gates are
+        applied to the terminal :class:`~railtracks.llm.response.Response` item
+        before it is yielded.
+
+        The model **must** have been constructed with ``stream=True``; a
+        :class:`ValueError` is raised at call time otherwise.
+        """
+        model = self._get_model()
+        if not model.stream:
+            raise ValueError(
+                "invoke_stream() requires a streaming model (stream=True). "
+                "Use invoke() for non-streaming models."
+            )
+
+        async def _core_llm_stream(
+            messages: MessageHistory,
+            schema: type[BaseModel] | None,
+            tools: list[Tool] | None,
+        ) -> AsyncGenerator[str | Response, None]:
+            if tools is not None and len(tools) > 0:
+                gen = await model.achat_with_tools(messages, tools)
+            elif schema is not None:
+                gen = await model.astructured(messages, schema=schema)
+            else:
+                gen = await model.achat(messages)
+            # gen is AsyncGenerator[str | Response, None] (model.stream=True)
+            async for item in gen:  # type: ignore[union-attr]
+                yield item
+
+        async for item in self._middleware.run_stream(
+            _core_llm_stream, messages, schema, tools
+        ):
+            yield item
+
 
 @overload
 def llm_invoke_factory(
@@ -160,6 +212,20 @@ def llm_invoke_factory(
     tool_nodes: list[type[Node]] | None = None,
     schema: type[_TStructured],
 ) -> StructuredLLMInvoke[_TStructured]: ...
+
+
+class StringLLMStreamInvoke(Protocol):
+    async def __call__(
+        self,
+        user_input: MessageHistory | UserMessage | str | list[Message],
+    ) -> StringResponse: ...
+
+
+class StructuredLLMStreamInvoke(Protocol[_TStructured]):
+    async def __call__(
+        self,
+        user_input: MessageHistory | UserMessage | str | list[Message],
+    ) -> StructuredResponse[_TStructured]: ...
 
 
 class LLMCallProtocol(Protocol):
@@ -211,6 +277,101 @@ def llm_invoke_factory(
                 continue
 
     return llm_invoke
+
+
+@overload
+def llm_stream_invoke_factory(
+    model_invoker: ModelInvoker,
+    system_message: SystemMessage | None,
+    *,
+    tool_nodes: list[type[Node]] | None = None,
+    schema: None = None,
+) -> StringLLMStreamInvoke: ...
+
+
+@overload
+def llm_stream_invoke_factory(
+    model_invoker: ModelInvoker,
+    system_message: SystemMessage | None,
+    *,
+    tool_nodes: list[type[Node]] | None = None,
+    schema: type[_TStructured],
+) -> StructuredLLMStreamInvoke[_TStructured]: ...
+
+
+def llm_stream_invoke_factory(
+    model_invoker: ModelInvoker,
+    system_message: SystemMessage | None,
+    *,
+    tool_nodes: list[type[Node]] | None = None,
+    schema: type[_TStructured] | None = None,
+):
+    """Build a streaming LLM invoke function.
+
+    Identical contract to :func:`llm_invoke_factory` from the caller's
+    perspective — accepts ``UserInput``, returns
+    :class:`~railtracks.built_nodes.concrete.response.StringResponse` or
+    :class:`~railtracks.built_nodes.concrete.response.StructuredResponse`.
+
+    Internally the function streams the model response chunk-by-chunk,
+    **auto-broadcasting** each ``str`` chunk via the pub/sub
+    :func:`~railtracks.interaction.broadcast_.broadcast` helper so that any
+    registered ``broadcast_callback`` receives real-time output.
+
+    Tool-calling is supported: when the terminal
+    :class:`~railtracks.llm.response.Response` indicates tool calls the stream
+    pauses, tools execute, and a new streaming round-trip begins.
+    """
+    tools = [x.tool_info() for x in tool_nodes] if tool_nodes else None
+
+    async def llm_stream_invoke(
+        user_input: MessageHistory | UserMessage | str | list[Message],
+    ):
+        message_history = prepare_message_history(system_message, user_input)
+
+        while True:
+            accumulated: list[str] = []
+            final_response: Response | None = None
+
+            try:
+                async for item in model_invoker.invoke_stream(
+                    message_history, schema=schema, tools=tools
+                ):
+                    if isinstance(item, str):
+                        accumulated.append(item)
+                        await broadcast(item)
+                    elif isinstance(item, Response):
+                        final_response = item
+            except Exception as e:
+                raise LLMError(
+                    reason=f"Exception during streaming model invoke: {repr(e)}",
+                    message_history=message_history,
+                )
+
+            if final_response is None:
+                raise LLMError(
+                    reason="Streaming model invoke produced no Response",
+                    message_history=message_history,
+                )
+
+            path = process_message(final_response, schema)
+
+            if path == "Content":
+                message_history.append(
+                    AssistantMessage("".join(accumulated))
+                )
+                return prepare_string_response(message_history)
+            elif path == "Structured":
+                message_history.append(
+                    AssistantMessage(final_response.message.content)
+                )
+                assert schema is not None
+                return prepare_structured_response(message_history, schema)
+            elif path == "Tool":
+                await run_tools(final_response, message_history, tool_nodes or [])
+                continue
+
+    return llm_stream_invoke
 
 
 async def run_tools(
