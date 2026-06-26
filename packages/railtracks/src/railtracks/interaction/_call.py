@@ -82,7 +82,6 @@ async def call(
 
     if hasattr(node_, "node_type"):
         # local import to prevent circular import issues (note it is a purely type checking import)
-        print(f"Extracting node from function {node_}")
         from railtracks.built_nodes.concrete import RTFunction
 
         assert isinstance(node_, RTFunction)

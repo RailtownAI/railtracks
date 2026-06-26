@@ -69,7 +69,7 @@ def test_nodebuilder_llm_with_tool_details_has_tool_info():
     assert tool.name == "TestNode"
 
 
-def test_nodebuilder_llm_with_tool_details_has_prepare_tool():
+def test_nodebuilder_llm_with_tool_details_has_prepare_args():
     params = [Parameter(name="x", description="Input", param_type="integer")]
     node_cls = NodeBuilder.llm(
         "TestNode",
@@ -77,7 +77,7 @@ def test_nodebuilder_llm_with_tool_details_has_prepare_tool():
         tool_details="Does something",
         tool_params=params,
     ).build()
-    assert hasattr(node_cls, "prepare_tool")
+    assert hasattr(node_cls, "prepare_args")
 
 
 def test_nodebuilder_llm_with_system_message_string():

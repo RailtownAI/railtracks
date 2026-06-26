@@ -10,7 +10,7 @@ Every builder method returns a builder; call `.build()` to get the node class.
 !!! note "Middleware lives in the middleware guide"
     `NodeBuilder.llm()` and `NodeBuilder.function()` take the same `middleware` /
     `model_middleware` parameters as the public helpers. See
-    [Middleware: Wrappers & Gateways](../documentation/advanced/middleware/usage.md) for
+    [Middleware: Wrappers & Gates](../documentation/advanced/middleware/usage.md) for
     the full model — this page only shows where they attach.
 
 ---
@@ -69,7 +69,7 @@ Sync functions are not supported directly — wrap them with `asyncio.to_thread`
 
 Both builders accept `middleware` (around the node boundary, `wrapped_invoke`). LLM nodes
 additionally accept `model_middleware` (around each raw model call, inside the
-tool-calling loop). Each takes a `MiddlewareSet` or a bare list:
+tool-calling loop). Each takes a `MiddlewareChain` or a bare list:
 
 ```python
 --8<-- "docs/scripts/node_builder.py:middleware"
