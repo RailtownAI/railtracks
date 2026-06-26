@@ -52,7 +52,6 @@ def classmethod_preserving_function_meta(func):
     return classmethod(wrapper)
 
 
-_TNode = TypeVar("_TNode", bound=Node)
 _P = ParamSpec("_P")
 _T = TypeVar("_T")
 _P2 = ParamSpec("_P2")
