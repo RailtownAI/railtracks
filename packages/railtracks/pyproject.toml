@@ -65,6 +65,11 @@ ocr = [
     "pillow >= 10.0.0",
     "pypdf >= 4.0.0, <= 6.10.2",
 ]
+glm = [
+    "glmocr >= 0.1.0",
+    "httpx >= 0.23.0",
+    "pillow >= 10.0.0",
+]
 huggingface = ["datasets >= 2.14.0, <= 4.8.5"]
 chroma = [
     "chromadb >= 1.3.0",

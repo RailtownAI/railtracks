@@ -104,3 +104,25 @@ class RetrievalResult:
     chunks: list[RetrievedChunk]
     total_candidates: int | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class OCRResult:
+    """Structured output from an OCR engine.
+
+    Attributes:
+        markdown: Full page text as markdown. Tables and headings are
+            represented in markdown syntax where the engine supports it.
+        bboxes: Bounding-box annotations returned by the engine. Each entry
+            is an engine-specific dict; callers should not assume a fixed
+            schema across engines.
+        tables: Structured table data extracted from the page. Each entry
+            is an engine-specific dict representing one table.
+    """
+
+    markdown: str
+    bboxes: list[dict[str, Any]] = field(default_factory=list)
+    tables: list[dict[str, Any]] = field(default_factory=list)
+
+    def to_text(self) -> str:
+        return self.markdown
