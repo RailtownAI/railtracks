@@ -27,6 +27,7 @@ from typing import (
     Iterator,
     ParamSpec,
     TypeVar,
+    overload,
 )
 
 from railtracks.middleware.primitives import Gate, Wrapper
@@ -295,9 +296,29 @@ class MiddlewareChain(Generic[_P, _R]):
             outer = w.wrap(outer)
 
         return await outer(*args, **kwargs)
+    
+    @overload
+    def attach(
+        self, 
+        node: Node[_P, _T]
+    )
+
+    def attach(
+        self, 
+        node: Node[_P, _T] | RTFunction[_P, _T]
+    ) -> Node[_P, _T] | RTFunction[_P, _T]:
 
     def __repr__(self) -> str:
         return (
             f"MiddlewareChain(outer={self._outer!r}, "
             f"entry={self._entry!r}, exit={self._exit!r}, inner={self._inner!r})"
         )
+
+
+class MiddlewareAttachedNode(Node[_P, _T]):
+    """A node with a middleware set attached.
+
+    The middleware set is **copied** on construction so that system layers can be
+    registered independently for each node.
+    """
+    def wrapped_

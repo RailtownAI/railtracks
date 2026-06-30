@@ -98,7 +98,7 @@ class Node(ABC, Generic[_P, _TOutput]):
     # Node-level middleware applied around `invoke` (boundary: the node's call
     # args -> the node's output). Shared class-level default is never mutated;
     # each instance takes a fresh copy in __init__.
-    frozen_middleware: MiddlewareChain = MiddlewareChain()
+    frozen_middleware: MiddlewareChain[_P, _TOutput] = MiddlewareChain()
 
     def __init__(
         self,
@@ -127,6 +127,20 @@ class Node(ABC, Generic[_P, _TOutput]):
         Runs ``invoke`` through the node-level middleware (wrappers + gateways).
         """
         return await self.middleware.run(self.invoke, *args, **kwargs)
+    
+    @classmethod
+    def override_middleware(cls, middleware: MiddlewareChain[_P, _TOutput]) -> Type[Node[_P, _TOutput]]:
+        """
+        Overrides the default middleware for this node class. This will replace the default middleware for all instances of this node class.
+        """
+        new_cls = deepcopy(cls)
+
+        new_cls.frozen_middleware = middleware._fresh_copy()
+        return new_cls
+
+
+
+    @class
 
     def __repr__(self):
         return f"{self.name()} <{hex(id(self))}>"
