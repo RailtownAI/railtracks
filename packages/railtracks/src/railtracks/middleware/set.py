@@ -58,6 +58,15 @@ class _LayeredList(Generic[_T]):
         if item not in self._sys_after:
             self._sys_after.append(item)
 
+    def add_user(self, item: _T) -> None:
+        """Append an item to the user layer.
+
+        Unlike the system layers this does **not** deduplicate — appending the
+        same middleware twice runs it twice, matching the constructor, which
+        keeps duplicates in the list it is given.
+        """
+        self._user.append(item)
+
     def ordered(self) -> list[_T]:
         """Flat execution order: ``sys_before + user + sys_after``."""
         return self._sys_before + self._user + self._sys_after
@@ -83,38 +92,42 @@ class _LayeredList(Generic[_T]):
         )
 
 
+def _coerce_wrapper(item: Any, *, index: int | None = None) -> Wrapper:
+    """Coerce one wrapper slot entry: auto-wraps a raw async function, rejects a :class:`Gate`."""
+    where = f" at index {index}" if index is not None else ""
+    if isinstance(item, Wrapper):
+        return item
+    if isinstance(item, Gate):
+        raise TypeError(
+            f"Wrapper slot{where} got a Gate: {item!r}. "
+            f"Gates belong in entry_gate / exit_gate."
+        )
+    # Raw async function (or anything else) -> Wrapper validates it.
+    return Wrapper(item)
+
+
+def _coerce_gate(item: Any, *, index: int | None = None) -> Gate:
+    """Coerce one gate slot entry: auto-wraps a raw function, rejects a :class:`Wrapper`."""
+    where = f" at index {index}" if index is not None else ""
+    if isinstance(item, Gate):
+        return item
+    if isinstance(item, Wrapper):
+        raise TypeError(
+            f"Gate slot{where} got a Wrapper: {item!r}. "
+            f"Wrappers belong in wrappers / inner_wrappers."
+        )
+    # Raw async function (or anything else) -> Gate validates it.
+    return Gate(item)
+
+
 def _coerce_wrappers(items: Iterable[Any] | None) -> list[Wrapper]:
     """Coerce a wrapper slot: auto-wraps raw async functions, rejects :class:`Gate` objects."""
-    result: list[Wrapper] = []
-    for i, item in enumerate(items or []):
-        if isinstance(item, Wrapper):
-            result.append(item)
-        elif isinstance(item, Gate):
-            raise TypeError(
-                f"Wrapper slot at index {i} got a Gate: {item!r}. "
-                f"Gates belong in entry_gate / exit_gate."
-            )
-        else:
-            # Raw async function (or anything else) -> Wrapper validates it.
-            result.append(Wrapper(item))
-    return result
+    return [_coerce_wrapper(item, index=i) for i, item in enumerate(items or [])]
 
 
 def _coerce_gates(items: Iterable[Any] | None) -> list[Gate]:
     """Coerce a gate slot: auto-wraps raw functions, rejects :class:`Wrapper` objects."""
-    result: list[Gate] = []
-    for i, item in enumerate(items or []):
-        if isinstance(item, Gate):
-            result.append(item)
-        elif isinstance(item, Wrapper):
-            raise TypeError(
-                f"Gate slot at index {i} got a Wrapper: {item!r}. "
-                f"Wrappers belong in wrappers / inner_wrappers."
-            )
-        else:
-            # Raw async function (or anything else) -> Gate validates it.
-            result.append(Gate(item))
-    return result
+    return [_coerce_gate(item, index=i) for i, item in enumerate(items or [])]
 
 
 class MiddlewareChain(Generic[_P, _R]):
@@ -205,6 +218,29 @@ class MiddlewareChain(Generic[_P, _R]):
         new._exit = self._exit.copy_user_only()
         new._inner = self._inner.copy_user_only()
         return new
+
+    # ------------------------------------------------------------------
+    # User-middleware registration (extends the constructor's user layer;
+    # coerced/role-checked like a slot; ordered, not deduplicated)
+    # ------------------------------------------------------------------
+
+    def add_wrapper(self, w: Wrapper[_P, _R] | Callable[..., Any]) -> None:
+        """Append a user outer wrapper (outermost band). Runs around the whole call."""
+        self._outer.add_user(_coerce_wrapper(w))
+
+    def add_entry_gate(
+        self, g: Gate[_P, tuple[tuple, dict[str, Any]]] | Callable[..., Any]
+    ) -> None:
+        """Append a user entry gate. Transforms the input args before the core runs."""
+        self._entry.add_user(_coerce_gate(g))
+
+    def add_exit_gate(self, g: Gate[[_R], _R] | Callable[..., Any]) -> None:
+        """Append a user exit gate. Transforms the return value after the core runs."""
+        self._exit.add_user(_coerce_gate(g))
+
+    def add_inner_wrapper(self, w: Wrapper[_P, _R] | Callable[..., Any]) -> None:
+        """Append a user inner wrapper (innermost band). Runs inside the gates, hugging the core."""
+        self._inner.add_user(_coerce_wrapper(w))
 
     # ------------------------------------------------------------------
     # System-middleware registration (never touches the user layer)
