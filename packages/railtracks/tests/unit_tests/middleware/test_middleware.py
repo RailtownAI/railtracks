@@ -9,7 +9,7 @@ MiddlewareChain — ordered bands: wrappers -> entry_gate
 """
 
 import pytest
-from railtracks.middleware import Gate, MiddlewareChain, gate, wrapper
+from railtracks.middleware import Gate, MiddlewareChain, Wrapper, gate, wrapper
 from railtracks.middleware.set import _LayeredList
 
 # ---------------------------------------------------------------------------
@@ -305,6 +305,94 @@ class TestMiddlewareChainSysRegistration:
         ms = MiddlewareChain(exit_gate=[user_g])
         ms.register_sys_exit_gate(sys_g)
         assert ms._exit.ordered() == [user_g, sys_g]
+
+    def test_sys_entry_position_before_is_default(self):
+        user_g = _noop_gate()
+        sys_g = _noop_gate()
+        ms = MiddlewareChain(entry_gate=[user_g])
+        ms.register_sys_entry_gate(sys_g)  # default position="before"
+        assert ms._entry.ordered() == [sys_g, user_g]
+
+    def test_sys_entry_position_after_runs_last(self):
+        user_g = _noop_gate()
+        sys_g = _noop_gate()
+        ms = MiddlewareChain(entry_gate=[user_g])
+        ms.register_sys_entry_gate(sys_g, position="after")
+        assert ms._entry.ordered() == [user_g, sys_g]
+
+    def test_sys_entry_before_and_after_bracket_user(self):
+        user_g = _noop_gate()
+        before_g = _noop_gate()
+        after_g = _noop_gate()
+        ms = MiddlewareChain(entry_gate=[user_g])
+        ms.register_sys_entry_gate(before_g, position="before")
+        ms.register_sys_entry_gate(after_g, position="after")
+        assert ms._entry.ordered() == [before_g, user_g, after_g]
+
+    @pytest.mark.asyncio
+    async def test_sys_entry_after_runs_between_user_and_core(self):
+        # Guardrail placement: a sys entry gate registered position="after" must
+        # run after the user entry gate and immediately before the core.
+        order = []
+
+        def make(tag):
+            @gate
+            async def g(*a, **k):
+                order.append(tag)
+                return a, k
+
+            return g
+
+        ms = MiddlewareChain(entry_gate=[make("user")])
+        ms.register_sys_entry_gate(make("sys-before"), position="before")
+        ms.register_sys_entry_gate(make("sys-after"), position="after")
+
+        async def core():
+            order.append("core")
+
+        await ms.run(core)
+        assert order == ["sys-before", "user", "sys-after", "core"]
+
+
+class TestMiddlewareChainUserRegistration:
+    def test_add_appends_to_user_layer(self):
+        w, ig, xg, iw = _noop_wrapper(), _noop_gate(), _noop_gate(), _noop_wrapper()
+        ms = MiddlewareChain()
+        ms.add_wrapper(w)
+        ms.add_entry_gate(ig)
+        ms.add_exit_gate(xg)
+        ms.add_inner_wrapper(iw)
+        assert ms.wrappers == [w]
+        assert ms.entry_gate == [ig]
+        assert ms.exit_gate == [xg]
+        assert ms.inner_wrappers == [iw]
+
+    def test_add_preserves_order_and_keeps_duplicates(self):
+        a, b = _noop_gate(), _noop_gate()
+        ms = MiddlewareChain(entry_gate=[a])
+        ms.add_entry_gate(b)
+        ms.add_entry_gate(a)  # user layer is not deduplicated
+        assert ms.entry_gate == [a, b, a]
+
+    def test_add_coerces_raw_function(self):
+        async def raw_w(call, *a, **k):
+            return await call(*a, **k)
+
+        async def raw_g(*a, **k):
+            return a, k
+
+        ms = MiddlewareChain()
+        ms.add_wrapper(raw_w)
+        ms.add_entry_gate(raw_g)
+        assert isinstance(ms.wrappers[0], Wrapper)
+        assert isinstance(ms.entry_gate[0], Gate)
+
+    def test_add_rejects_wrong_band_type(self):
+        ms = MiddlewareChain()
+        with pytest.raises(TypeError):
+            ms.add_wrapper(_noop_gate())  # gate in a wrapper band
+        with pytest.raises(TypeError):
+            ms.add_entry_gate(_noop_wrapper())  # wrapper in a gate band
 
 
 # ---------------------------------------------------------------------------

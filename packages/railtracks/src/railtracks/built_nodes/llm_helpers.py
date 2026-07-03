@@ -97,9 +97,16 @@ class ModelInvoker:
             [MessageHistory, type[BaseModel] | None, list[Tool] | None],
             tuple[tuple, dict[str, Any]],
         ],
+        *,
+        position: Literal["before", "after"] = "before",
     ) -> None:
-        """Register a system entry gate around the model call (e.g. context injection)."""
-        self._middleware.register_sys_entry_gate(gw)
+        """Register a system entry gate around the model call.
+
+        ``position="before"`` (default) runs before user model-middleware entry gates
+        (e.g. context injection); ``position="after"`` runs after them — the last gate
+        before the model call (e.g. an input guardrail).
+        """
+        self._middleware.register_sys_entry_gate(gw, position=position)
 
     def register_sys_exit_gate(self, gw: Gate[[Response], Response]) -> None:
         """Register a system exit gate around the model call (e.g. logging)."""

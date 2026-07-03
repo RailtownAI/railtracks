@@ -25,6 +25,7 @@ from typing import (
     Generic,
     Iterable,
     Iterator,
+    Literal,
     ParamSpec,
     TypeVar,
 )
@@ -247,10 +248,21 @@ class MiddlewareChain(Generic[_P, _R]):
     # ------------------------------------------------------------------
 
     def register_sys_entry_gate(
-        self, gw: Gate[_P, tuple[tuple, dict[str, Any]]]
+        self,
+        gw: Gate[_P, tuple[tuple, dict[str, Any]]],
+        *,
+        position: Literal["before", "after"] = "before",
     ) -> None:
-        """Register a framework entry gate (runs before user entry gates)."""
-        self._entry.add_sys_before(gw)
+        """Register a framework entry gate.
+
+        ``position="before"`` (default) runs it before the user entry gates — the
+        outer boundary, e.g. context injection. ``position="after"`` runs it after
+        the user entry gates, i.e. the last gate before the core (hugs the core).
+        """
+        if position == "before":
+            self._entry.add_sys_before(gw)
+        else:
+            self._entry.add_sys_after(gw)
 
     def register_sys_exit_gate(self, gw: Gate[[_R], _R]) -> None:
         """Register a framework exit gate (runs after user exit gates)."""
