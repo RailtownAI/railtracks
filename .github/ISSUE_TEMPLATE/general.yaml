@@ -1,15 +1,17 @@
-name: ❓ General Query/Suggestion
-description: Ask a question about using railtracks.
+name: "❓ General / Concern"
+description: "Tech debt, API concerns, documentation feedback, feature ideas, questions, or anything else that doesn't fit Bug/Feature/Task."
 title: "[General] "
-
-
+labels: [general]
 
 body:
   - type: textarea
-    id: feedback_query
+    id: description
     attributes:
-      label: Feedback or Inquiry
-      description: Provide details about your question or suggestion.
+      label: What's on your mind?
+      description: >
+        Tech debt, API design concern, docs gap, feature idea, general question —
+        anything goes here. A maintainer will re-triage into a Feature/Task/Bug if it
+        needs its own tracked issue.
       placeholder: How do I configure railtracks to work offline?
     validations:
       required: true
@@ -18,6 +20,7 @@ body:
     id: additional_context
     attributes:
       label: Additional Context
-      description: Any other information that will help us understand your query or suggestion.
+      description: Any other information that will help us understand your query, concern, or suggestion.
       placeholder: Related documentation, links, or examples.
-
+    validations:
+      required: false

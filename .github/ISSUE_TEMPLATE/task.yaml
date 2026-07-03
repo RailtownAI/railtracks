@@ -1,0 +1,13 @@
+name: "🔧 Task"
+description: "Well-scoped, unambiguous piece of work. Typically created by team members."
+title: "[Task] "
+labels: [task]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What is the change, in code terms? Include specific requirements as a bulleted list.
+      render: markdown
+    validations:
+      required: true

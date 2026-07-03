@@ -1,0 +1,15 @@
+name: "🚀 [Maintainer Only] Epic"
+description: "Multi-week initiative. Railtracks maintainers only."
+title: "[Epic] "
+labels: [epic]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description & Design
+      description: >
+        What are we building, why, and the full design. Write directly here,
+        or link a markdown file committed in-repo (e.g. /docs/design/<epic-name>.md).
+        Not Notion — this needs to be readable by anyone on the issue.
+    validations:
+      required: true
