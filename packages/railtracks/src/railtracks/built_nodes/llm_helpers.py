@@ -14,7 +14,7 @@ from pydantic import BaseModel
 
 from railtracks.built_nodes.concrete._llm_base import RequestDetails
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
-from railtracks.exceptions.errors import LLMError
+from railtracks.exceptions.errors import LLMError, NodeInvocationError
 from railtracks.interaction._call import call
 from railtracks.llm.content import ToolCall, ToolResponse
 from railtracks.llm.history import MessageHistory
@@ -84,6 +84,7 @@ class ModelInvoker:
         middleware: MiddlewareChain[
             [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
         ]
+        | list
         | None = None,
     ):
         self._get_model = model if callable(model) else lambda: model
@@ -198,6 +199,8 @@ def llm_invoke_factory(
                 returned_mess = await model_invoker.invoke(
                     message_history, schema=schema, tools=tools
                 )
+            except NodeInvocationError:
+                raise  # e.g. a guardrail block from a gate; surface as-is, don't mask
             except Exception as e:
                 raise LLMError(
                     reason=f"Exception during model invoke: {repr(e)}",
