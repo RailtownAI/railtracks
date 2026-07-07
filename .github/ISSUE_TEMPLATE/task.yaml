@@ -1,6 +1,6 @@
 name: "🔧 Task"
 description: "Well-scoped, unambiguous piece of work. Typically created by team members."
-title: "[Task] "
+title: ""
 labels: ["[Maintainer] task"]
 body:
   - type: textarea
