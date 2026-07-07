@@ -1,6 +1,5 @@
-name: "🎯 [Maintainer Only] Feature"
+name: "[Maintainer Only] Feature"
 description: "Contained set of user-facing requirements. Railtracks maintainers/team members only."
-title: ""
 labels: ["[Maintainer] feature"]
 body:
   - type: textarea
@@ -14,7 +13,7 @@ body:
     id: requirements
     attributes:
       label: Requirements
-      description: Bulleted list of specific requirements from the user's POV.
+      description: Bulleted list of specific requirements.
       render: markdown
     validations:
       required: true

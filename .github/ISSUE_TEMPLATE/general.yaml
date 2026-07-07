@@ -1,6 +1,5 @@
-name: "❓ General"
+name: "General"
 description: "Tech debt, API concerns, documentation feedback, feature ideas, questions"
-title: ""
 
 body:
   - type: textarea

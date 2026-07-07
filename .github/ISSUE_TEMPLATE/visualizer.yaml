@@ -1,6 +1,5 @@
-name: 🎨 Visualizer Issue
+name: Visualizer Issue
 description: Report issues, bugs, or feature requests for the railtracks CLI visualization tool.
-title: ""
 labels: [visualizer]
 
 body:
