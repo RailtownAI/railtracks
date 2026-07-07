@@ -1,9 +1,5 @@
 name: Bug Report
 description: Report a bug or issue with railtracks.
-<<<<<<< HEAD
-=======
-title: ""
->>>>>>> a7dc21b4d4f3bedf812beabefa5f9cb3f46dac4b
 labels: [bug]
 
 body:
