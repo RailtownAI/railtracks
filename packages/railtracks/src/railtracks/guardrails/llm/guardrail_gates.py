@@ -1,32 +1,19 @@
 """Middleware gates that run the guardrails core around the raw model call.
 
 These adapters let ``agent_node(..., guardrails=Guard(...))`` attach guardrails as
-**system gates on the model-level middleware** (`ModelInvoker`), mirroring how context
-injection is wired. They translate between the runner's ``(value, traces, decision)``
+**system gates on the model-level middleware** (`ModelInvoker`).
+They translate between the runner's ``(value, traces, decision)``
 triple and the middleware transform contract (transform-or-raise):
 
-- :func:`guardrail_input_gate` — an **entry gate**. Register with ``position="after"`` so
+- :func:`guardrail_input_gate`: an **entry gate**. Register with ``position="after"`` so
   it is the last gate before the model call (sees the fully assembled, injected,
   user-transformed prompt). Runs the input rails on the message history.
-- :func:`guardrail_output_gate` — an **exit gate** (register as sys-exit, the last word).
+- :func:`guardrail_output_gate`: an **exit gate** (register as sys-exit, the last word).
   Runs the output rails on the final assistant reply; intermediate tool-call turns pass
   through untouched.
 
 The guardrails core (:class:`GuardRunner`, the built-in guards, decisions, traces) is
-reused unchanged — only the seam moves off the old ``LLMGuardrailsMixin``.
-
-Notes / known limitations:
-
-- **Runs every model round-trip, by design.** The model-level seam does not persist a
-  transform back into the agent's tool-calling loop (the loop keeps its own
-  ``message_history`` and the guards return a *new* history), so redaction must be
-  re-applied on every model call to guarantee the model never sees un-redacted input.
-  The built-in guards are idempotent, so this is safe; it is also the correct security
-  posture. A side-effecting *custom* input guard will therefore fire once per round.
-- **Output guards do not see the upstream history.** An exit gate receives only the
-  ``Response``, so ``event.messages`` is empty. Built-in output guards only inspect the
-  assistant message; a custom output guard that needs conversation context is not
-  supported at this seam (would require a model-level wrapper instead).
+reused unchanged; only the seam moves off the old ``LLMGuardrailsMixin``.
 """
 
 from __future__ import annotations
