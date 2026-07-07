@@ -1,5 +1,5 @@
-name: "❓ General / Concern"
-description: "Tech debt, API concerns, documentation feedback, feature ideas, questions, or anything else that doesn't fit Bug/Feature/Task."
+name: "❓ General"
+description: "Tech debt, API concerns, documentation feedback, feature ideas, questions"
 title: ""
 
 body:
@@ -9,8 +9,7 @@ body:
       label: What's on your mind?
       description: >
         Tech debt, API design concern, docs gap, feature idea, general question —
-        anything goes here. A maintainer will re-triage into a Feature/Task/Bug if it
-        needs its own tracked issue.
+        anything goes here.
       placeholder: How do I configure railtracks to work offline?
     validations:
       required: true
