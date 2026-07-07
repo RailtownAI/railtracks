@@ -1,6 +1,6 @@
 name: 🐛 Bug Report
 description: Report a bug or issue with railtracks.
-title: "[Bug] "
+title: ""
 labels: [bug]
 
 body:
@@ -21,9 +21,9 @@ body:
       description: Provide step-by-step instructions to reproduce the bug.
       placeholder: |
         1. ...
-        ```python 
+        ```python
         def example_code_here():
-        
+
         ```
     validations:
       required: true
