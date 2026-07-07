@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import functools
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Coroutine,
@@ -26,6 +27,10 @@ from railtracks.built_nodes.llm_helpers import (
     llm_observe,
     llm_prepare_called_as_tool_factory,
 )
+from railtracks.guardrails.llm.guardrail_gates import (
+    guardrail_input_gate,
+    guardrail_output_gate,
+)
 from railtracks.llm import (
     Parameter,
     SystemMessage,
@@ -42,6 +47,9 @@ from railtracks.validation.node_creation.validation import (
     _check_duplicate_param_names,
     _check_tool_params_and_details,
 )
+
+if TYPE_CHECKING:
+    from railtracks.guardrails.core import Guard
 
 
 def classmethod_preserving_function_meta(func):
@@ -121,11 +129,13 @@ class NodeBuilder(Generic[_P, _T]):
         connected_nodes: Iterable[Type[Node]] | None = None,
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
-        middleware: MiddlewareChain[[UserInput], StringResponse] | None = None,
+        middleware: MiddlewareChain[[UserInput], StringResponse] | list | None = None,
         model_middleware: MiddlewareChain[
             [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
         ]
+        | list
         | None = None,
+        guardrails: Guard | None = None,
         context_injection: bool = True,
     ) -> NodeBuilder[[UserInput], StringResponse]: ...
 
@@ -143,11 +153,14 @@ class NodeBuilder(Generic[_P, _T]):
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
         middleware: MiddlewareChain[[UserInput], StructuredResponse[_TStructured]]
+        | list
         | None = None,
         model_middleware: MiddlewareChain[
             [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
         ]
+        | list
         | None = None,
+        guardrails: Guard | None = None,
         context_injection: bool = True,
     ) -> NodeBuilder[[UserInput], StructuredResponse[_TStructured]]: ...
 
@@ -163,11 +176,13 @@ class NodeBuilder(Generic[_P, _T]):
         connected_nodes: Iterable[Type[Node]] | None = None,
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
-        middleware: MiddlewareChain[[UserInput], _R] | None = None,
+        middleware: MiddlewareChain[[UserInput], _R] | list | None = None,
         model_middleware: MiddlewareChain[
             [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
         ]
+        | list
         | None = None,
+        guardrails: Guard | None = None,
         context_injection: bool = True,
     ) -> NodeBuilder[[UserInput], _R]:
         instance = cls()
@@ -187,6 +202,15 @@ class NodeBuilder(Generic[_P, _T]):
             model_invoker.register_sys_entry_gate(context_injection_gateway)
 
         model_invoker.register_sys_wrapper(llm_observe)
+
+        # Guardrails: fixed, non-reorderable system gates; input last before the core, output the last word.
+        if guardrails is not None:
+            if guardrails.input:
+                model_invoker.register_sys_entry_gate(
+                    guardrail_input_gate(guardrails), position="after"
+                )
+            if guardrails.output:
+                model_invoker.register_sys_exit_gate(guardrail_output_gate(guardrails))
 
         casted_instance._invoke = llm_invoke_factory(
             model_invoker=model_invoker,
