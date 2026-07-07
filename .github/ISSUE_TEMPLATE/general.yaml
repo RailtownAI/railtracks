@@ -1,7 +1,6 @@
 name: "❓ General / Concern"
 description: "Tech debt, API concerns, documentation feedback, feature ideas, questions, or anything else that doesn't fit Bug/Feature/Task."
 title: "[General] "
-labels: [general]
 
 body:
   - type: textarea

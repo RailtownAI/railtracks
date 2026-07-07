@@ -1,7 +1,7 @@
 name: "🎯 [Maintainer Only] Feature"
 description: "Contained set of user-facing requirements. Railtracks maintainers/team members only."
 title: "[Feature] "
-labels: [feature]
+labels: ["[Maintainer] feature"]
 body:
   - type: textarea
     id: description

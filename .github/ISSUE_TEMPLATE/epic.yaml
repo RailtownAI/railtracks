@@ -1,7 +1,7 @@
 name: "🚀 [Maintainer Only] Epic"
 description: "Multi-week initiative. Railtracks maintainers only."
 title: "[Epic] "
-labels: [epic]
+labels: ["[Maintainer] epic"]
 body:
   - type: textarea
     id: description
