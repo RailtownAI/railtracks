@@ -1,6 +1,5 @@
-name: 🐛 Bug Report
+name: Bug Report
 description: Report a bug or issue with railtracks.
-title: ""
 labels: [bug]
 
 body:
