@@ -1,35 +1,35 @@
 """Tests for the unified middleware primitives + MiddlewareChain engine.
 
-Wrapper   — execution control (wraps the inner callable)
+Middleware — execution control (wraps the inner callable)
 Gate   — direction-less data transform; the slot it is placed in
             (entry_gate vs exit_gate) decides when it runs
-MiddlewareChain — ordered bands: wrappers -> entry_gate
-                -> inner_wrappers -> core -> exit_gate
+MiddlewareChain — ordered bands: middleware -> entry_gate
+                -> inner_middleware -> core -> exit_gate
                 (with internal sys/user layers)
 """
 
 import pytest
-from railtracks.middleware import Gate, MiddlewareChain, Wrapper, gate, wrapper
-from railtracks.middleware.set import _LayeredList
+from railtracks.middlewares import Gate, Middleware, MiddlewareChain, gate, middleware
+from railtracks.middlewares.chain import _LayeredList
 
 # ---------------------------------------------------------------------------
 # Primitives
 # ---------------------------------------------------------------------------
 
 
-class TestWrapper:
-    def test_wrapper_requires_callable(self):
+class TestMiddleware:
+    def test_middleware_requires_callable(self):
         with pytest.raises(TypeError, match="callable"):
-            wrapper(123)  # type: ignore[arg-type]
+            middleware(123)  # type: ignore[arg-type]
 
-    def test_wrapper_requires_async(self):
-        # A sync function is rejected immediately — wrappers must be async.
+    def test_middleware_requires_async(self):
+        # A sync function is rejected immediately — middleware must be async.
         with pytest.raises(TypeError, match="async"):
-            wrapper(lambda call, *a, **k: call(*a, **k))  # type: ignore[arg-type]
+            middleware(lambda call, *a, **k: call(*a, **k))  # type: ignore[arg-type]
 
     @pytest.mark.asyncio
-    async def test_wrapper_wraps_and_calls(self):
-        @wrapper
+    async def test_middleware_wraps_and_calls(self):
+        @middleware
         async def double_call(call, *args, **kwargs):
             first = await call(*args, **kwargs)
             return first * 2
@@ -41,8 +41,8 @@ class TestWrapper:
         assert await wrapped(4) == 10  # (4+1)*2
 
     @pytest.mark.asyncio
-    async def test_wrapper_can_short_circuit(self):
-        @wrapper
+    async def test_middleware_can_short_circuit(self):
+        @middleware
         async def never(call, *args, **kwargs):
             return "blocked"
 
@@ -234,21 +234,21 @@ def _noop_gate():
     return g
 
 
-def _noop_wrapper():
-    @wrapper
-    async def w(call, *args, **kwargs):
+def _noop_middleware():
+    @middleware
+    async def m(call, *args, **kwargs):
         return await call(*args, **kwargs)
 
-    return w
+    return m
 
 
 class TestMiddlewareChainConstruction:
     def test_empty(self):
         ms = MiddlewareChain()
-        assert ms.wrappers == []
+        assert ms.middleware == []
         assert ms.entry_gate == []
         assert ms.exit_gate == []
-        assert ms.inner_wrappers == []
+        assert ms.inner_middleware == []
 
     def test_explicit_entry_and_exit(self):
         g_in, g_out = _noop_gate(), _noop_gate()
@@ -261,10 +261,10 @@ class TestMiddlewareChainConstruction:
 
     def test_coerce_list_splits_by_type(self):
         g = _noop_gate()
-        w = _noop_wrapper()
-        ms = MiddlewareChain.coerce([g, w])
+        m = _noop_middleware()
+        ms = MiddlewareChain.coerce([g, m])
         assert ms.entry_gate == [g]  # bare-list gates default to entry
-        assert ms.wrappers == [w]
+        assert ms.middleware == [m]
 
     def test_coerce_rejects_non_middleware(self):
         with pytest.raises(TypeError):
@@ -272,8 +272,8 @@ class TestMiddlewareChainConstruction:
 
     def test_constructor_rejects_wrong_band_type(self):
         g = _noop_gate()
-        with pytest.raises(TypeError, match="Wrapper"):
-            MiddlewareChain(wrappers=[g])  # gate in a wrapper band
+        with pytest.raises(TypeError, match="Middleware"):
+            MiddlewareChain(middleware=[g])  # gate in a middleware band
 
     def test_coerce_middlewareset_is_fresh_copy(self):
         g = _noop_gate()
@@ -356,16 +356,16 @@ class TestMiddlewareChainSysRegistration:
 
 class TestMiddlewareChainUserRegistration:
     def test_add_appends_to_user_layer(self):
-        w, ig, xg, iw = _noop_wrapper(), _noop_gate(), _noop_gate(), _noop_wrapper()
+        m, ig, xg, im = _noop_middleware(), _noop_gate(), _noop_gate(), _noop_middleware()
         ms = MiddlewareChain()
-        ms.add_wrapper(w)
+        ms.add_middleware(m)
         ms.add_entry_gate(ig)
         ms.add_exit_gate(xg)
-        ms.add_inner_wrapper(iw)
-        assert ms.wrappers == [w]
+        ms.add_inner_middleware(im)
+        assert ms.middleware == [m]
         assert ms.entry_gate == [ig]
         assert ms.exit_gate == [xg]
-        assert ms.inner_wrappers == [iw]
+        assert ms.inner_middleware == [im]
 
     def test_add_preserves_order_and_keeps_duplicates(self):
         a, b = _noop_gate(), _noop_gate()
@@ -375,24 +375,24 @@ class TestMiddlewareChainUserRegistration:
         assert ms.entry_gate == [a, b, a]
 
     def test_add_coerces_raw_function(self):
-        async def raw_w(call, *a, **k):
+        async def raw_m(call, *a, **k):
             return await call(*a, **k)
 
         async def raw_g(*a, **k):
             return a, k
 
         ms = MiddlewareChain()
-        ms.add_wrapper(raw_w)
+        ms.add_middleware(raw_m)
         ms.add_entry_gate(raw_g)
-        assert isinstance(ms.wrappers[0], Wrapper)
+        assert isinstance(ms.middleware[0], Middleware)
         assert isinstance(ms.entry_gate[0], Gate)
 
     def test_add_rejects_wrong_band_type(self):
         ms = MiddlewareChain()
         with pytest.raises(TypeError):
-            ms.add_wrapper(_noop_gate())  # gate in a wrapper band
+            ms.add_middleware(_noop_gate())  # gate in a middleware band
         with pytest.raises(TypeError):
-            ms.add_entry_gate(_noop_wrapper())  # wrapper in a gate band
+            ms.add_entry_gate(_noop_middleware())  # middleware in a gate band
 
 
 # ---------------------------------------------------------------------------
@@ -432,7 +432,7 @@ class TestEngineExecution:
     async def test_full_onion_order(self):
         trace = []
 
-        @wrapper
+        @middleware
         async def outer(call, *a, **k):
             trace.append("outer-in")
             r = await call(*a, **k)
@@ -444,7 +444,7 @@ class TestEngineExecution:
             trace.append("entry")
             return a, k
 
-        @wrapper
+        @middleware
         async def inner(call, *a, **k):
             trace.append("inner-in")
             r = await call(*a, **k)
@@ -457,10 +457,10 @@ class TestEngineExecution:
             return result
 
         ms = MiddlewareChain(
-            wrappers=[outer],
+            middleware=[outer],
             entry_gate=[entry],
             exit_gate=[exit_],
-            inner_wrappers=[inner],
+            inner_middleware=[inner],
         )
 
         async def core():

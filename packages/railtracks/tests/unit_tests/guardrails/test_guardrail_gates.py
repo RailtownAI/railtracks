@@ -19,13 +19,13 @@ from railtracks.guardrails.core import (
     OutputGuard,
 )
 from railtracks.guardrails.llm.guardrail_gates import (
-    guardrail_input_wrapper,
-    guardrail_output_wrapper,
+    guardrail_input_middleware,
+    guardrail_output_middleware,
 )
 from railtracks.llm import AssistantMessage, MessageHistory, UserMessage
 from railtracks.llm.content import ToolCall
 from railtracks.llm.response import MessageInfo, Response
-from railtracks.middleware import MiddlewareChain
+from railtracks.middlewares import MiddlewareChain
 
 
 # --------------------------------------------------------------------------- helpers
@@ -64,14 +64,14 @@ def _tool_call_response() -> Response:
 class TestInputGate:
     @pytest.mark.asyncio
     async def test_empty_input_rails_passes_through(self):
-        gate = guardrail_input_wrapper(Guard(input=[]))
+        gate = guardrail_input_middleware(Guard(input=[]))
         args, kwargs = await gate.apply_entry(MessageHistory([UserMessage("x")]), None, None)
         assert kwargs == {}
         assert isinstance(args[0], MessageHistory)
 
     @pytest.mark.asyncio
     async def test_allow_passes_through_unchanged(self):
-        gate = guardrail_input_wrapper(
+        gate = guardrail_input_middleware(
             Guard(input=[FnInputGuard(lambda _e: GuardrailDecision.allow(reason="ok"))])
         )
         mh = MessageHistory([UserMessage("x")])
@@ -80,7 +80,7 @@ class TestInputGate:
 
     @pytest.mark.asyncio
     async def test_block_raises(self):
-        gate = guardrail_input_wrapper(
+        gate = guardrail_input_middleware(
             Guard(
                 input=[
                     FnInputGuard(
@@ -100,7 +100,7 @@ class TestInputGate:
     @pytest.mark.asyncio
     async def test_transform_forwards_new_messages_and_keeps_schema_tools(self):
         new_hist = MessageHistory([UserMessage("redacted")])
-        gate = guardrail_input_wrapper(
+        gate = guardrail_input_middleware(
             Guard(
                 input=[
                     FnInputGuard(
@@ -124,14 +124,14 @@ class TestInputGate:
 class TestOutputGate:
     @pytest.mark.asyncio
     async def test_empty_output_rails_passes_through(self):
-        gate = guardrail_output_wrapper(Guard(output=[]))
+        gate = guardrail_output_middleware(Guard(output=[]))
         resp = _content_response()
         assert await gate.apply_exit(resp) is resp
 
     @pytest.mark.asyncio
     async def test_intermediate_tool_call_passes_through_untouched(self):
         # A blocking output guard must NOT fire on an intermediate tool-call turn.
-        gate = guardrail_output_wrapper(
+        gate = guardrail_output_middleware(
             Guard(output=[FnOutputGuard(lambda _e: GuardrailDecision.block(reason="should not run"))])
         )
         resp = _tool_call_response()
@@ -139,7 +139,7 @@ class TestOutputGate:
 
     @pytest.mark.asyncio
     async def test_terminal_block_raises(self):
-        gate = guardrail_output_wrapper(
+        gate = guardrail_output_middleware(
             Guard(output=[FnOutputGuard(lambda _e: GuardrailDecision.block(reason="bad output"))])
         )
         with pytest.raises(GuardrailBlockedError) as exc:
@@ -149,7 +149,7 @@ class TestOutputGate:
     @pytest.mark.asyncio
     async def test_terminal_transform_preserves_message_info(self):
         new_msg = AssistantMessage("sanitized")
-        gate = guardrail_output_wrapper(
+        gate = guardrail_output_middleware(
             Guard(
                 output=[
                     FnOutputGuard(
@@ -169,7 +169,7 @@ class TestOutputGate:
 
     @pytest.mark.asyncio
     async def test_terminal_allow_passes_through(self):
-        gate = guardrail_output_wrapper(
+        gate = guardrail_output_middleware(
             Guard(output=[FnOutputGuard(lambda _e: GuardrailDecision.allow(reason="ok"))])
         )
         resp = _content_response()
@@ -191,9 +191,9 @@ class TestWiredIntoMiddlewareChain:
     def _chain(self, guard: Guard) -> MiddlewareChain:
         mc = MiddlewareChain()
         if guard.input:
-            mc.register_sys_gate(guardrail_input_wrapper(guard), position="after")
+            mc.register_sys_gate(guardrail_input_middleware(guard), position="after")
         if guard.output:
-            mc.register_sys_exit_gate(guardrail_output_wrapper(guard))
+            mc.register_sys_exit_gate(guardrail_output_middleware(guard))
         return mc
 
     @pytest.mark.asyncio

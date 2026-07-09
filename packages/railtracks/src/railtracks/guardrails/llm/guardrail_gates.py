@@ -17,9 +17,12 @@ reused unchanged; only the seam moves off the old ``LLMGuardrailsMixin``.
 """
 
 from __future__ import annotations
+
 from typing import Awaitable, Callable
 
 from pydantic import BaseModel
+
+from railtracks.built_nodes.middlewares import after_llm, after_llm, before_llm, before_llm, middleware_llm
 from railtracks.context.central import (
     get_parent_id,
     get_run_id,
@@ -28,8 +31,7 @@ from railtracks.context.central import (
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
-from railtracks.middleware import Gate, gate
-from railtracks.middleware.primitives import Wrapper, wrapper
+from railtracks.middlewares.core import middleware
 from railtracks.utils.logging import get_rt_logger
 
 from ..core import Guard, GuardrailBlockedError, GuardRunner
@@ -83,7 +85,7 @@ def _raise_if_blocked(
         )
 
 
-def guardrail_input_wrapper(guard: Guard):
+def guardrail_input_middleware(guard: Guard):
     """Build an entry gate that runs ``guard.input`` on the message history.
 
     Register on the model middleware with ``position="after"`` so it runs after any user
@@ -92,16 +94,14 @@ def guardrail_input_wrapper(guard: Guard):
     on ``ALLOW`` it passes through unchanged.
     """
 
-    @wrapper
+    @before_llm
     async def _input_gate(
-        call: Callable[
-        [MessageHistory, type[BaseModel] | None, list[Tool] | None], Awaitable[Response]
-    ],
-    message_history: MessageHistory,
-    schema: type[BaseModel] | None,
-    tools: list[Tool] | None,    ):
+        message_history: MessageHistory,
+        schema: type[BaseModel] | None,
+        tools: list[Tool] | None,
+    ):
         if not guard.input:
-            return await call(message_history, schema, tools)
+            return message_history, schema, tools
 
         node_uuid, run_id = _node_metadata()
         event = LLMGuardrailEvent(
@@ -114,12 +114,12 @@ def guardrail_input_wrapper(guard: Guard):
         _record_guard_traces(traces)
         _raise_if_blocked(decision, traces)
 
-        return await call(new_messages, tools, schema)
+        return new_messages, schema, tools
 
     return _input_gate
 
 
-def guardrail_output_wrapper(guard: Guard):
+def guardrail_output_middleware(guard: Guard):
     """Build an exit gate that runs ``guard.output`` on the final model ``Response``.
 
     Register on the model middleware as a sys exit gate (the last word on the response).
@@ -128,16 +128,11 @@ def guardrail_output_wrapper(guard: Guard):
     ``Response``; on ``ALLOW`` it passes through unchanged.
     """
 
-    @wrapper
+    @after_llm
     async def _output_gate(
-        call: Callable[
-        [MessageHistory, type[BaseModel] | None, list[Tool] | None], Awaitable[Response]
-    ],
-    message_history: MessageHistory,
-    schema: type[BaseModel] | None,
-    tools: list[Tool] | None,
-):
-        result = await call(message_history, schema, tools)
+        result: Response,
+    ):
+       
         if not guard.output:
             return result
         if _is_intermediate_tool_call(result):

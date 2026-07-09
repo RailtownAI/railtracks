@@ -1,6 +1,5 @@
 from typing import Awaitable, Callable
 
-
 from pydantic import BaseModel
 
 import railtracks.context as context
@@ -9,8 +8,7 @@ from railtracks.exceptions import ContextError
 from railtracks.llm import MessageHistory
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
-from railtracks.middleware import gate
-from railtracks.middleware.primitives import wrapper
+from railtracks.middlewares.core import middleware
 from railtracks.utils.prompt_injection import ValueDict, inject_values
 
 
@@ -41,8 +39,8 @@ def inject_context(message_history: MessageHistory):
     return message_history
 
 
-@wrapper
-async def context_injection_wrapper(
+@middleware
+async def context_injection_middleware(
     call: Callable[
         [MessageHistory, type[BaseModel] | None, list[Tool] | None], Awaitable[Response]
     ],
@@ -50,9 +48,7 @@ async def context_injection_wrapper(
     schema: type[BaseModel] | None,
     tools: list[Tool] | None,
 ):
-    """
-    
-    """
+    """ """
     inject_context(message_history)
 
     return await call(message_history, schema, tools)

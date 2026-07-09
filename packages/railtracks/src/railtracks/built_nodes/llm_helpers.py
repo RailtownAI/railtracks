@@ -1,7 +1,6 @@
 import asyncio
 from copy import deepcopy
 from typing import (
-    Any,
     Awaitable,
     Callable,
     Literal,
@@ -12,7 +11,8 @@ from typing import (
 
 from pydantic import BaseModel
 
-from railtracks.built_nodes.concrete._llm_base import RequestDetails
+from railtracks.built_nodes.model_invoker import ModelInvoker
+from railtracks.built_nodes.request_details import RequestDetails
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
 from railtracks.exceptions.errors import LLMError, NodeInvocationError
 from railtracks.interaction._call import call
@@ -29,8 +29,8 @@ from railtracks.llm.model import ModelBase
 from railtracks.llm.response import Response
 from railtracks.llm.tools.parameters._base import Parameter
 from railtracks.llm.tools.tool import Tool
-from railtracks.middleware import Gate, MiddlewareChain
-from railtracks.middleware.primitives import Wrapper, wrapper
+
+from railtracks.middlewares.core import Middleware, middleware
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_invocation.validation import check_message_history
 
@@ -54,100 +54,6 @@ class StructuredLLMInvoke(Protocol[_TStructured]):
         self,
         user_input: MessageHistory | UserMessage | str | list[Message],
     ) -> StructuredResponse[_TStructured]: ...
-
-
-class ModelInvoker:
-    """
-    Coordinates a single LLM model call through a :class:`MiddlewareChain`.
-
-    The middleware operates around the *raw* model call, once per model
-    round-trip (i.e. inside the tool-calling loop). The core callable takes
-    ``(messages, schema, tools)`` and returns a :class:`Response`::
-
-        wrappers
-        └── entry gateways   (transform messages / schema / tools)
-            └── inner_wrappers
-                └── model.chat / structured / chat_with_tools
-            └── (unwind)
-        └── exit gateways    (transform the Response)
-        └── (unwind)
-
-    Accepts a :class:`MiddlewareChain` or a bare list of ``Wrapper`` / ``Gate``
-    (see :meth:`MiddlewareChain.coerce`). The caller's input is never mutated — a
-    fresh copy is taken so system gateways (e.g. context injection) stay
-    independent per node.
-    """
-    
-    @wrapper
-    @staticmethod
-    async def llm_observe(
-        call: Callable[
-            [MessageHistory, type[BaseModel] | None, list[Tool] | None], Awaitable[Response]
-        ],
-        message_history: MessageHistory,
-        schema: type[BaseModel] | None,
-        tools: list[Tool] | None,
-    ) -> Response:
-        prev_message_history = deepcopy(message_history)
-        response: Response = await call(message_history, schema, tools)
-        _ = RequestDetails(
-            message_input=prev_message_history,
-            output=response.message,
-            model_name=response.message_info.model_name,
-            model_provider=None,  # TODO: implement parsing logic here
-            input_tokens=response.message_info.input_tokens,
-            output_tokens=response.message_info.output_tokens,
-            total_cost=response.message_info.total_cost,
-            system_fingerprint=response.message_info.system_fingerprint,
-            latency=response.message_info.latency,
-        )
-        return response
-
-
-    def __init__(
-        self,
-        model: ModelSource,
-        wrappers: list[Wrapper[
-            [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
-        ]] | None = None,
-    ):
-        self._get_model = model if callable(model) else lambda: model
-        unwrapped_wrappers = deepcopy(wrappers) if wrappers is not None else []
-        self._middleware= MiddlewareChain([
-            self.llm_observe,
-            *unwrapped_wrappers,
-        ])
-
-    
-
-
-    async def invoke(
-        self,
-        messages: MessageHistory,
-        *,
-        schema: type[BaseModel] | None = None,
-        tools: list[Tool] | None = None,
-    ) -> Response:
-        model = self._get_model()
-
-        async def _core_llm_call(
-            messages: MessageHistory,
-            schema: type[BaseModel] | None,
-            tools: list[Tool] | None,
-        ) -> Response:
-            if tools is not None and len(tools) > 0:
-                return await asyncio.to_thread(
-                    model.chat_with_tools, messages, tools=tools
-                )
-            elif schema is not None:
-                return await asyncio.to_thread(
-                    model.structured, messages, schema=schema
-                )
-            else:
-                return await asyncio.to_thread(model.chat, messages)
-
-        return await self._middleware.run(_core_llm_call, messages, schema, tools)
-
 
 @overload
 def llm_invoke_factory(
@@ -443,6 +349,3 @@ def prepare_string_response(
     )
 
     return StringResponse(content=content, message_history=message_history)
-
-
-

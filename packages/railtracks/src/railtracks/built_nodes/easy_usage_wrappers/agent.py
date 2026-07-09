@@ -7,14 +7,14 @@ from railtracks.built_nodes.concrete import (
 )
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
 from railtracks.built_nodes.llm_helpers import ModelSource
+from railtracks.built_nodes.middlewares.core import ModelMiddleware
 from railtracks.guardrails.core import Guard
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import SystemMessage
 from railtracks.llm.response import Response
 from railtracks.llm.tools.parameters._base import Parameter
 from railtracks.llm.tools.tool import Tool
-from railtracks.middleware import MiddlewareChain
-from railtracks.middleware.primitives import Wrapper
+from railtracks.middlewares.core import Middleware
 from railtracks.nodes.manifest import ToolManifest
 from railtracks.nodes.nodes import Node
 from railtracks.nodes.utils import extract_node_from_function
@@ -50,8 +50,11 @@ def _build_dynamic_agent(
     system_message: SystemMessage | str | None,
     tool_details: str | None,
     tool_params: list[Parameter] | None,
-    wrappers: list[Wrapper[[UserInput], _R]] | None = None,
-    model_wrappers: list[Wrapper[[MessageHistory, list[Tool] | None, BaseModel | None], Response]] | None = None,
+    middleware: list[Middleware[[UserInput], _R]] | None = None,
+    model_middleware: list[
+        ModelMiddleware
+    ]
+    | None = None,
     guardrails: Guard | None = None,
     context_injection: bool = True,
 ):
@@ -69,8 +72,8 @@ def _build_dynamic_agent(
             connected_nodes=unpacked_tool_nodes,
             tool_details=tool_details,
             tool_params=tool_params,
-            wrappers=wrappers,
-            model_wrappers=model_wrappers,
+            middleware=middleware,
+            model_middleware=model_middleware,
             guardrails=guardrails,
             context_injection=context_injection,
         )
@@ -83,8 +86,8 @@ def _build_dynamic_agent(
             connected_nodes=unpacked_tool_nodes,
             tool_details=tool_details,
             tool_params=tool_params,
-            wrappers=wrappers,
-            model_wrappers=model_wrappers,
+            middleware=middleware,
+            model_middleware=model_middleware,
             guardrails=guardrails,
             context_injection=context_injection,
         )
@@ -104,8 +107,11 @@ def agent_node(
     llm: ModelSource,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
-    wrappers: list[Wrapper[[UserInput], StringResponse]] | None = None,
-    model_wrappers: list[Wrapper[[MessageHistory, list[Tool] | None, BaseModel | None], Response]] | None = None,
+    middleware: list[Middleware[[UserInput], StringResponse]] | None = None,
+    model_middleware: list[
+        ModelMiddleware
+    ]
+    | None = None,
     guardrails: Guard | None = None,
     context_injection: bool = True,
 ) -> type[Node[[UserInput], StringResponse]]: ...
@@ -120,8 +126,12 @@ def agent_node(
     llm: ModelSource,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
-    wrappers: list[Wrapper[[UserInput], StructuredResponse[_TBaseModel]]] | None = None,
-    model_wrappers: list[Wrapper[[MessageHistory, list[Tool] | None, BaseModel | None], Response]] | None = None,
+    middleware: list[Middleware[[UserInput], StructuredResponse[_TBaseModel]]]
+    | None = None,
+    model_middleware: list[
+        ModelMiddleware
+    ]
+    | None = None,
     guardrails: Guard | None = None,
     context_injection: bool = True,
 ) -> type[Node[[UserInput], StructuredResponse[_TBaseModel]]]: ...
@@ -135,8 +145,14 @@ def agent_node(
     llm: ModelSource,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
-    wrappers: list[Wrapper[[UserInput], StructuredResponse[_TBaseModel] | StringResponse]] | None = None,
-    model_wrappers: list[Wrapper[[MessageHistory, list[Tool] | None, BaseModel | None], Response]] | None = None,
+    middleware: list[
+        Middleware[[UserInput], StructuredResponse[_TBaseModel] | StringResponse]
+    ]
+    | None = None,
+    model_middleware: list[
+        ModelMiddleware
+    ]
+    | None = None,
     guardrails: Guard | None = None,
     context_injection: bool = True,
 ):
@@ -153,10 +169,10 @@ def agent_node(
         system_message (SystemMessage | str | None): System message for the agent.
         manifest (ToolManifest | None): If you want to use this as a tool in other agents you can pass in a ToolManifest.
         middleware (MiddlewareChain | list | None): Middleware applied around the agent's node boundary
-            (user_input -> Response). Accepts a MiddlewareChain or a bare list of Wrapper/Gate.
+            (user_input -> Response). Accepts a MiddlewareChain or a bare list of Middleware/Gate.
         model_middleware (MiddlewareChain | list | None): Middleware applied around each raw model call
             (messages/schema/tools -> Response), inside the tool-calling loop. Accepts a MiddlewareChain or a
-            bare list of Wrapper/Gate.
+            bare list of Middleware/Gate.
         guardrails (Guard | None): Input/output LLM guardrails to enforce around the model call. Input rails
             run as the last check before the model (after context injection and any model_middleware); output
             rails run on the final reply as the last word. Attached as fixed, non-reorderable system gates.
@@ -183,7 +199,7 @@ def agent_node(
         system_message=system_message,
         tool_details=tool_details,
         tool_params=tool_params,
-        wrappers=middleware,
+        middleware=middleware,
         model_middleware=model_middleware,
         guardrails=guardrails,
         context_injection=context_injection,

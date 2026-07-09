@@ -45,11 +45,12 @@ __all__ = [
     "RagConfig",
     "Flow",
     "enable_logging",
-    "Wrapper",
-    "wrapper",
-    "Gate",
-    "gate",
-    "MiddlewareChain",
+    "middleware",
+    "after",
+    "couple",
+    "before_llm",
+    "after_llm",
+    "middleware_llm",
 ]
 
 from railtracks.built_nodes.concrete.rag import RagConfig
@@ -71,7 +72,8 @@ from . import (
 from ._session import ExecutionInfo, Session, session
 from .context.central import session_id, set_config
 from .interaction import broadcast, call, call_batch
-from .middleware import Gate, MiddlewareChain, Wrapper, gate, wrapper
+from .built_nodes.middlewares import after_llm, before_llm, middleware_llm
+from .middlewares import couple, after, middleware
 from .nodes.manifest import ToolManifest
 from .orchestration.flow import Flow
 from .rt_mcp import MCPHttpParams, MCPStdioParams, connect_mcp, create_mcp_server

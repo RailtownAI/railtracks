@@ -2,9 +2,9 @@
 Integration tests for the unified middleware system.
 
 Covers:
-  - Function node: entry/exit gates, wrappers, ordering, guardrails
+  - Function node: entry/exit gates, middleware, ordering, guardrails
   - Agent node: node-level middleware (around the user_input → response boundary)
-  - Model middleware: entry/exit gates and wrappers around each raw model call
+  - Model middleware: entry/exit gates and middleware around each raw model call
   - MiddlewareChain mechanics: fresh-copy isolation, gate.args(), coerce()
   - Context injection via rt.context prompt templates
   - ModelSource factory form (model resolved fresh per call)
@@ -17,7 +17,7 @@ import pytest
 import railtracks as rt
 from pydantic import BaseModel, Field
 from railtracks.llm import ToolCall
-from railtracks.middleware import MiddlewareChain
+from railtracks.middlewares import MiddlewareChain
 
 
 # ---------------------------------------------------------------------------
@@ -100,18 +100,18 @@ class TestFunctionNodeMiddleware:
 
     @pytest.mark.asyncio
     async def test_wrapper_retries_on_failure(self):
-        """Wrapper can catch exceptions and retry the inner call."""
+        """Middleware can catch exceptions and retry the inner call."""
 
         attempt = {"count": 0}
 
-        @rt.wrapper
+        @rt.middleware
         async def retry_once(call, *args, **kwargs):
             try:
                 return await call(*args, **kwargs)
             except ValueError:
                 return await call(*args, **kwargs)
 
-        @rt.function_node(middleware=MiddlewareChain(wrappers=[retry_once]))
+        @rt.function_node(middleware=MiddlewareChain(middleware=[retry_once]))
         async def flaky() -> str:
             attempt["count"] += 1
             if attempt["count"] < 2:
@@ -125,13 +125,13 @@ class TestFunctionNodeMiddleware:
 
     @pytest.mark.asyncio
     async def test_wrapper_short_circuits(self):
-        """Wrapper can skip the inner call entirely and return its own result."""
+        """Middleware can skip the inner call entirely and return its own result."""
 
-        @rt.wrapper
+        @rt.middleware
         async def block(call, *args, **kwargs):
             return "blocked"
 
-        @rt.function_node(middleware=MiddlewareChain(wrappers=[block]))
+        @rt.function_node(middleware=MiddlewareChain(middleware=[block]))
         async def should_not_run() -> str:
             raise AssertionError("core should not be called")
 
@@ -141,11 +141,11 @@ class TestFunctionNodeMiddleware:
 
     @pytest.mark.asyncio
     async def test_full_band_ordering(self):
-        """Wrappers → entry gates → inner_wrappers → core → exit gates → outer unwind."""
+        """Middleware → entry gates → inner_middleware → core → exit gates → outer unwind."""
 
         log = []
 
-        @rt.wrapper
+        @rt.middleware
         async def outer_wrap(call, *args, **kwargs):
             log.append("outer_before")
             result = await call(*args, **kwargs)
@@ -157,7 +157,7 @@ class TestFunctionNodeMiddleware:
             log.append("entry")
             return (x,), {}
 
-        @rt.wrapper
+        @rt.middleware
         async def inner_wrap(call, *args, **kwargs):
             log.append("inner_before")
             result = await call(*args, **kwargs)
@@ -170,9 +170,9 @@ class TestFunctionNodeMiddleware:
             return result
 
         ms = MiddlewareChain(
-            wrappers=[outer_wrap],
+            middleware=[outer_wrap],
             entry_gate=[entry_gw],
-            inner_wrappers=[inner_wrap],
+            inner_middleware=[inner_wrap],
             exit_gate=[exit_gw],
         )
 
@@ -200,21 +200,21 @@ class TestFunctionNodeMiddleware:
 
         log = []
 
-        @rt.wrapper
+        @rt.middleware
         async def first(call, *args, **kwargs):
             log.append("first_before")
             result = await call(*args, **kwargs)
             log.append("first_after")
             return result
 
-        @rt.wrapper
+        @rt.middleware
         async def second(call, *args, **kwargs):
             log.append("second_before")
             result = await call(*args, **kwargs)
             log.append("second_after")
             return result
 
-        @rt.function_node(middleware=MiddlewareChain(wrappers=[first, second]))
+        @rt.function_node(middleware=MiddlewareChain(middleware=[first, second]))
         def identity(x: int) -> int:
             log.append("core")
             return x
@@ -323,7 +323,7 @@ class TestFunctionNodeMiddleware:
 
     @pytest.mark.asyncio
     async def test_middleware_set_coerce_from_bare_list(self):
-        """MiddlewareChain.coerce() routes Gates→entry_gate and Wrappers→wrappers."""
+        """MiddlewareChain.coerce() routes Gates→entry_gate and Middleware→middleware."""
 
         # coerce puts Gates into entry_gate (not exit_gate), so the
         # gate must have an entry signature: receives the function's input args.
@@ -376,7 +376,7 @@ class TestAgentNodeMiddleware:
 
         call_count = {"n": 0}
 
-        @rt.wrapper
+        @rt.middleware
         async def count_calls(call, *args, **kwargs):
             call_count["n"] += 1
             return await call(*args, **kwargs)
@@ -384,7 +384,7 @@ class TestAgentNodeMiddleware:
         agent = rt.agent_node(
             name="CountedAgent",
             llm=mock_llm(custom_response="done"),
-            middleware=MiddlewareChain(wrappers=[count_calls]),
+            middleware=MiddlewareChain(middleware=[count_calls]),
         )
 
         await rt.Flow("CountedAgent", agent).ainvoke("run once")
@@ -457,7 +457,7 @@ class TestModelMiddleware:
 
         invocations = {"n": 0}
 
-        @rt.wrapper
+        @rt.middleware
         async def count_model_calls(call, *args, **kwargs):
             invocations["n"] += 1
             return await call(*args, **kwargs)
@@ -465,7 +465,7 @@ class TestModelMiddleware:
         agent = rt.agent_node(
             name="CountedModel",
             llm=mock_llm(custom_response="reply"),
-            model_middleware=MiddlewareChain(wrappers=[count_model_calls]),
+            model_middleware=MiddlewareChain(middleware=[count_model_calls]),
         )
 
         await rt.Flow("CountedModel", agent).ainvoke("hello")
@@ -541,7 +541,7 @@ class TestModelMiddleware:
 
         attempts = {"n": 0}
 
-        @rt.wrapper
+        @rt.middleware
         async def retry_llm(call, *args, **kwargs):
             for _ in range(3):
                 try:
@@ -559,7 +559,7 @@ class TestModelMiddleware:
         agent = rt.agent_node(
             name="RetryAgent",
             llm=llm,
-            model_middleware=MiddlewareChain(wrappers=[retry_llm]),
+            model_middleware=MiddlewareChain(middleware=[retry_llm]),
         )
 
         result = await rt.Flow("RetryAgent", agent).ainvoke("try this")

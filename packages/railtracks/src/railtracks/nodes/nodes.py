@@ -6,11 +6,9 @@ from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import Any, Generic, Literal, ParamSpec, TypeVar
 
-from typing_extensions import Self
-
 from railtracks.llm.tools.tool import Tool
-from railtracks.middleware import MiddlewareChain
-from railtracks.middleware.primitives import Wrapper
+from railtracks.middlewares import MiddlewareChain
+from railtracks.middlewares.core import Middleware
 from railtracks.validation.node_creation.validation import (
     check_classmethod,
 )
@@ -98,11 +96,9 @@ class Node(ABC, Generic[_P, _TOutput]):
         # without this direct call to the parent __init_subclass__ method the generic resolutions will not work correctly
         super().__init_subclass__()
 
-    _exterior_wrappers: list[Wrapper[_P, _TOutput]] = []
-    _user_wrappers: list[Wrapper[_P, _TOutput]] = []
-    _interior_wrappers: list[Wrapper[_P, _TOutput]] = []
-
-
+    _exterior_middleware: list[Middleware[_P, _TOutput]] = []
+    _user_middleware: list[Middleware[_P, _TOutput]] = []
+    _interior_middleware: list[Middleware[_P, _TOutput]] = []
 
     def __init__(
         self,
@@ -110,14 +106,12 @@ class Node(ABC, Generic[_P, _TOutput]):
         # each fresh node will have a generated uuid that identifies it.
         self.uuid = str(uuid.uuid4())
         self.middleware = MiddlewareChain[_P, _TOutput](
-            wrappers=[
-                *self._exterior_wrappers,
-                *self._user_wrappers,
-                *self._interior_wrappers,
+            middleware=[
+                *self._exterior_middleware,
+                *self._user_middleware,
+                *self._interior_middleware,
             ]
-
         )
-
 
     @classmethod
     @abstractmethod
@@ -139,14 +133,16 @@ class Node(ABC, Generic[_P, _TOutput]):
         Runs ``invoke`` through the node-level middleware.
         """
         return await self.middleware.run(self.invoke, *args, **kwargs)
-    
+
     @classmethod
-    def extend_middleware(cls, *wrappers: Wrapper[_P, _TOutput]) -> type[Node[_P, _TOutput]]:
+    def extend_middleware(
+        cls, *middleware: Middleware[_P, _TOutput]
+    ) -> type[Node[_P, _TOutput]]:
         """
         Appends middleware to the node. This middleware will be run around the node's invoke method.
         """
         new_klass = deepcopy(cls)
-        new_klass._user_wrappers.extend(wrappers)
+        new_klass._user_middleware.extend(middleware)
         return new_klass
 
     def __repr__(self):
