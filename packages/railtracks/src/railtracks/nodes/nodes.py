@@ -6,8 +6,11 @@ from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import Any, Generic, Literal, ParamSpec, TypeVar
 
+from typing_extensions import Self
+
 from railtracks.llm.tools.tool import Tool
 from railtracks.middleware import MiddlewareChain
+from railtracks.middleware.primitives import Wrapper
 from railtracks.validation.node_creation.validation import (
     check_classmethod,
 )
@@ -95,17 +98,26 @@ class Node(ABC, Generic[_P, _TOutput]):
         # without this direct call to the parent __init_subclass__ method the generic resolutions will not work correctly
         super().__init_subclass__()
 
-    # Node-level middleware applied around `invoke` (boundary: the node's call
-    # args -> the node's output). Shared class-level default is never mutated;
-    # each instance takes a fresh copy in __init__.
-    frozen_middleware: MiddlewareChain[_P, _TOutput] = MiddlewareChain()
+    _exterior_wrappers: list[Wrapper[_P, _TOutput]] = []
+    _user_wrappers: list[Wrapper[_P, _TOutput]] = []
+    _interior_wrappers: list[Wrapper[_P, _TOutput]] = []
+
+
 
     def __init__(
         self,
     ):
         # each fresh node will have a generated uuid that identifies it.
         self.uuid = str(uuid.uuid4())
-        self.middleware = self.frozen_middleware._fresh_copy()
+        self.middleware = MiddlewareChain[_P, _TOutput](
+            wrappers=[
+                *self._exterior_wrappers,
+                *self._user_wrappers,
+                *self._interior_wrappers,
+            ]
+
+        )
+
 
     @classmethod
     @abstractmethod
@@ -124,23 +136,18 @@ class Node(ABC, Generic[_P, _TOutput]):
 
     async def wrapped_invoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
         """
-        Runs ``invoke`` through the node-level middleware (wrappers + gateways).
+        Runs ``invoke`` through the node-level middleware.
         """
         return await self.middleware.run(self.invoke, *args, **kwargs)
     
     @classmethod
-    def override_middleware(cls, middleware: MiddlewareChain[_P, _TOutput]) -> Type[Node[_P, _TOutput]]:
+    def extend_middleware(cls, *wrappers: Wrapper[_P, _TOutput]) -> type[Node[_P, _TOutput]]:
         """
-        Overrides the default middleware for this node class. This will replace the default middleware for all instances of this node class.
+        Appends middleware to the node. This middleware will be run around the node's invoke method.
         """
-        new_cls = deepcopy(cls)
-
-        new_cls.frozen_middleware = middleware._fresh_copy()
-        return new_cls
-
-
-
-    @class
+        new_klass = deepcopy(cls)
+        new_klass._user_wrappers.extend(wrappers)
+        return new_klass
 
     def __repr__(self):
         return f"{self.name()} <{hex(id(self))}>"

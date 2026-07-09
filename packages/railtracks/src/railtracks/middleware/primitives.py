@@ -47,22 +47,6 @@ def _require_async(fn: Callable, role: str) -> None:
         )
 
 
-class _GateArgs:
-    """Unambiguous ``(args, kwargs)`` container returned by :func:`gate.args`."""
-
-    __slots__ = ("args", "kwargs")
-
-    def __init__(self, args: tuple[Any, ...], kwargs: dict[str, Any]) -> None:
-        self.args = args
-        self.kwargs = kwargs
-
-    def __repr__(self) -> str:
-        inner = ", ".join(
-            [repr(a) for a in self.args]
-            + [f"{k}={v!r}" for k, v in self.kwargs.items()]
-        )
-        return f"gate.args({inner})"
-
 
 class Wrapper(Generic[_P, _R]):
     """Execution-control middleware: wraps a callable to control how it is invoked.
@@ -195,19 +179,11 @@ class Gate(Generic[_P, _R]):
         return f"Gate({getattr(self._fn, '__name__', self._fn)!r})"
 
 
-@overload
+
+
 def wrapper(
     fn: Callable[Concatenate[Callable[_P, Awaitable[_R]], _P], Awaitable[_R]],
-) -> Wrapper[_P, _R]: ...
-
-
-@overload
-def wrapper(
-    fn: Callable[..., Awaitable[Any]],
-) -> Wrapper[Any, Any]: ...
-
-
-def wrapper(fn: Callable) -> Wrapper:
+) -> Wrapper[_P, _R]: 
     """Decorator: turn a call-style async function into a :class:`Wrapper`.
 
     Explicitly-typed functions (named ``call``, ``x``, ``y``, …) resolve to
@@ -255,5 +231,4 @@ def gate(fn: Callable) -> Gate:
     return Gate(fn)
 
 
-# Expose the explicit-args helper as `gate.args(...)`.
-gate.args = _gate_args
+

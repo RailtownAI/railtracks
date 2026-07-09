@@ -17,7 +17,9 @@ reused unchanged; only the seam moves off the old ``LLMGuardrailsMixin``.
 """
 
 from __future__ import annotations
+from typing import Awaitable, Callable
 
+from pydantic import BaseModel
 from railtracks.context.central import (
     get_parent_id,
     get_run_id,
@@ -25,7 +27,9 @@ from railtracks.context.central import (
 )
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.response import Response
+from railtracks.llm.tools.tool import Tool
 from railtracks.middleware import Gate, gate
+from railtracks.middleware.primitives import Wrapper, wrapper
 from railtracks.utils.logging import get_rt_logger
 
 from ..core import Guard, GuardrailBlockedError, GuardRunner
@@ -79,7 +83,7 @@ def _raise_if_blocked(
         )
 
 
-def guardrail_input_gate(guard: Guard) -> Gate:
+def guardrail_input_wrapper(guard: Guard):
     """Build an entry gate that runs ``guard.input`` on the message history.
 
     Register on the model middleware with ``position="after"`` so it runs after any user
@@ -88,15 +92,21 @@ def guardrail_input_gate(guard: Guard) -> Gate:
     on ``ALLOW`` it passes through unchanged.
     """
 
-    @gate
-    def _input_gate(messages: MessageHistory, schema=None, tools=None):
+    @wrapper
+    async def _input_gate(
+        call: Callable[
+        [MessageHistory, type[BaseModel] | None, list[Tool] | None], Awaitable[Response]
+    ],
+    message_history: MessageHistory,
+    schema: type[BaseModel] | None,
+    tools: list[Tool] | None,    ):
         if not guard.input:
-            return None
+            return await call(message_history, schema, tools)
 
         node_uuid, run_id = _node_metadata()
         event = LLMGuardrailEvent(
             phase=LLMGuardrailPhase.INPUT,
-            messages=messages,
+            messages=message_history,
             node_uuid=node_uuid,
             run_id=run_id,
         )
@@ -104,15 +114,12 @@ def guardrail_input_gate(guard: Guard) -> Gate:
         _record_guard_traces(traces)
         _raise_if_blocked(decision, traces)
 
-        if new_messages is messages:
-            return None  # ALLOW / check-only — pass through unchanged
-        # Full (args, kwargs) replacement; keep schema + tools (see context injection).
-        return (new_messages, schema, tools), {}
+        return await call(new_messages, tools, schema)
 
     return _input_gate
 
 
-def guardrail_output_gate(guard: Guard) -> Gate:
+def guardrail_output_wrapper(guard: Guard):
     """Build an exit gate that runs ``guard.output`` on the final model ``Response``.
 
     Register on the model middleware as a sys exit gate (the last word on the response).
@@ -121,29 +128,37 @@ def guardrail_output_gate(guard: Guard) -> Gate:
     ``Response``; on ``ALLOW`` it passes through unchanged.
     """
 
-    @gate
-    def _output_gate(response: Response):
+    @wrapper
+    async def _output_gate(
+        call: Callable[
+        [MessageHistory, type[BaseModel] | None, list[Tool] | None], Awaitable[Response]
+    ],
+    message_history: MessageHistory,
+    schema: type[BaseModel] | None,
+    tools: list[Tool] | None,
+):
+        result = await call(message_history, schema, tools)
         if not guard.output:
-            return None
-        if _is_intermediate_tool_call(response):
-            return None
+            return result
+        if _is_intermediate_tool_call(result):
+            return result
 
         node_uuid, run_id = _node_metadata()
         event = LLMGuardrailEvent(
             phase=LLMGuardrailPhase.OUTPUT,
             messages=MessageHistory([]),  # exit-gate seam carries no upstream history
-            output_message=response.message,
+            output_message=result.message,
             node_uuid=node_uuid,
             run_id=run_id,
         )
         new_message, traces, decision = GuardRunner(guard).run_llm_output(
-            event, response.message
+            event, result.message
         )
         _record_guard_traces(traces)
         _raise_if_blocked(decision, traces)
 
-        if new_message is response.message:
-            return None  # ALLOW / check-only — keep the original response
-        return Response(message=new_message, message_info=response.message_info)
+        if new_message is result.message:
+            return result
+        return Response(message=new_message, message_info=result.message_info)
 
     return _output_gate

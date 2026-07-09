@@ -1,11 +1,16 @@
+from typing import Awaitable, Callable
+
+
 from pydantic import BaseModel
 
 import railtracks.context as context
 from railtracks.context.central import get_local_config
 from railtracks.exceptions import ContextError
 from railtracks.llm import MessageHistory
+from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
 from railtracks.middleware import gate
+from railtracks.middleware.primitives import wrapper
 from railtracks.utils.prompt_injection import ValueDict, inject_values
 
 
@@ -36,18 +41,18 @@ def inject_context(message_history: MessageHistory):
     return message_history
 
 
-@gate
-async def context_injection_gateway(
-    messages: MessageHistory,
-    schema: type[BaseModel] | None = None,
-    tools: list[Tool] | None = None,
+@wrapper
+async def context_injection_wrapper(
+    call: Callable[
+        [MessageHistory, type[BaseModel] | None, list[Tool] | None], Awaitable[Response]
+    ],
+    message_history: MessageHistory,
+    schema: type[BaseModel] | None,
+    tools: list[Tool] | None,
 ):
     """
-    Entry :class:`~railtracks.middleware.Gate` that injects context variables
-    into message prompts before the model call.
-
-    Respects the session-level prompt_injection config flag and per-message
-    inject_prompt flags. No-op when no session is active.
+    
     """
-    inject_context(messages)
-    return (messages, schema, tools), {}
+    inject_context(message_history)
+
+    return await call(message_history, schema, tools)

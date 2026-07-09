@@ -278,7 +278,7 @@ class TestMiddlewareChainConstruction:
     def test_coerce_middlewareset_is_fresh_copy(self):
         g = _noop_gate()
         ms1 = MiddlewareChain(entry_gate=[g])
-        ms1.register_sys_entry_gate(_noop_gate())
+        ms1.register_sys_gate(_noop_gate())
         ms2 = MiddlewareChain.coerce(ms1)
         # user layer preserved, sys layer reset
         assert ms2.entry_gate == [g]
@@ -287,7 +287,7 @@ class TestMiddlewareChainConstruction:
     def test_user_list_not_mutated_by_sys_registration(self):
         user = [_noop_gate()]
         ms = MiddlewareChain(entry_gate=user)
-        ms.register_sys_entry_gate(_noop_gate())
+        ms.register_sys_gate(_noop_gate())
         assert len(user) == 1
 
 
@@ -296,7 +296,7 @@ class TestMiddlewareChainSysRegistration:
         user_g = _noop_gate()
         ms = MiddlewareChain(entry_gate=[user_g])
         sys_g = _noop_gate()
-        ms.register_sys_entry_gate(sys_g)
+        ms.register_sys_gate(sys_g)
         assert ms._entry.ordered() == [sys_g, user_g]
 
     def test_sys_exit_runs_after_user_exit(self):
@@ -310,14 +310,14 @@ class TestMiddlewareChainSysRegistration:
         user_g = _noop_gate()
         sys_g = _noop_gate()
         ms = MiddlewareChain(entry_gate=[user_g])
-        ms.register_sys_entry_gate(sys_g)  # default position="before"
+        ms.register_sys_gate(sys_g)  # default position="before"
         assert ms._entry.ordered() == [sys_g, user_g]
 
     def test_sys_entry_position_after_runs_last(self):
         user_g = _noop_gate()
         sys_g = _noop_gate()
         ms = MiddlewareChain(entry_gate=[user_g])
-        ms.register_sys_entry_gate(sys_g, position="after")
+        ms.register_sys_gate(sys_g, position="after")
         assert ms._entry.ordered() == [user_g, sys_g]
 
     def test_sys_entry_before_and_after_bracket_user(self):
@@ -325,8 +325,8 @@ class TestMiddlewareChainSysRegistration:
         before_g = _noop_gate()
         after_g = _noop_gate()
         ms = MiddlewareChain(entry_gate=[user_g])
-        ms.register_sys_entry_gate(before_g, position="before")
-        ms.register_sys_entry_gate(after_g, position="after")
+        ms.register_sys_gate(before_g, position="before")
+        ms.register_sys_gate(after_g, position="after")
         assert ms._entry.ordered() == [before_g, user_g, after_g]
 
     @pytest.mark.asyncio
@@ -344,8 +344,8 @@ class TestMiddlewareChainSysRegistration:
             return g
 
         ms = MiddlewareChain(entry_gate=[make("user")])
-        ms.register_sys_entry_gate(make("sys-before"), position="before")
-        ms.register_sys_entry_gate(make("sys-after"), position="after")
+        ms.register_sys_gate(make("sys-before"), position="before")
+        ms.register_sys_gate(make("sys-after"), position="after")
 
         async def core():
             order.append("core")

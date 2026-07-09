@@ -10,6 +10,7 @@ from typing import (
     Callable,
     Coroutine,
     Generic,
+    Iterable,
     List,
     ParamSpec,
     Protocol,
@@ -21,6 +22,7 @@ from railtracks.built_nodes._node_builder import NodeBuilder
 from railtracks.built_nodes.concrete.function_base import RTFunction
 from railtracks.exceptions import NodeCreationError
 from railtracks.middleware import MiddlewareChain
+from railtracks.middleware.primitives import Wrapper
 from railtracks.nodes.manifest import ToolManifest
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_creation.validation import (
@@ -42,14 +44,17 @@ class CallableAsyncRTFunction(
     async def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput: ...
 
 
+# note there is an intentional overlap in overloads
+# by running the first overload check it will pick up all `async` functions
+# this avoid python's inability to distinguish between `async` and `sync` functions in overloads
 @overload
-def function_node(
+def function_node(  # pyright: ignore[reportOverlappingOverload]
     func: Callable[_P, Coroutine[None, None, _TOutput]],
     /,
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: MiddlewareChain[_P, _TOutput] | None = None,
+    wrappers: Iterable[Wrapper[_P, _TOutput]] | None = None,
 ) -> CallableAsyncRTFunction[_P, _TOutput]: ...
 
 
@@ -60,20 +65,20 @@ def function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: MiddlewareChain[_P, _TOutput] | None = None,
+    wrappers: Iterable[Wrapper[_P, _TOutput]] | None = None,
 ) -> CallableSyncRTFunction[_P, _TOutput]:
     pass
 
 
 @overload
 def function_node(
-    func: List[Callable[..., Any]],
+    func: List[Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput]],
     /,
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: MiddlewareChain[_P, _TOutput] | None = None,
-) -> List[RTFunction[..., Any]]:
+    wrappers: Iterable[Wrapper[_P, _TOutput]] | None = None,
+) -> List[CallableAsyncRTFunction[_P, _TOutput] | CallableSyncRTFunction[_P, _TOutput]]:
     pass
 
 
@@ -84,15 +89,16 @@ def function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: MiddlewareChain | None = None,
+    wrappers: Iterable[Wrapper[_P, _TOutput]] | None = None,
 ) -> Callable[
-    [Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]], RTFunction[_P, _TOutput]
+    [Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput]],
+    RTFunction[_P, _TOutput],
 ]:
     pass
 
 
 def validate_function_parameters(
-    func: Callable[_P, Coroutine[None, None, _TOutput] | _TOutput],
+    func: Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput],
     manifest: ToolManifest | None = None,
 ):
     """
@@ -116,12 +122,12 @@ def validate_function_parameters(
 
 
 def _single_function_node(
-    func: Callable[_P, Coroutine[None, None, _TOutput] | _TOutput],
+    func: Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput],
     /,
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: MiddlewareChain[_P, _TOutput] | None = None,
+    wrappers: Iterable[Wrapper[_P, _TOutput]] | None = None,
 ) -> CallableSyncRTFunction[_P, _TOutput] | CallableAsyncRTFunction[_P, _TOutput]:
     """
     Creates a new Node type from a function that can be used in `rt.call()`.
@@ -178,15 +184,15 @@ def _single_function_node(
         async def wrapped_function(*args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
             return await asyncio.to_thread(func, *args, **kwargs)
 
-        functools.update_wrapper(wrapped_function, func)  # type: ignore[arg-type]
+        functools.update_wrapper(wrapped_function, func)
         unwrapped_func = wrapped_function
     else:
         unwrapped_func = func
 
-    builder = NodeBuilder().function(
+    builder = NodeBuilder.function(
         unwrapped_func,
         name=name if name is not None else f"{unwrapped_func.__name__}",
-        middleware=middleware,
+        wrappers=wrappers,
         tool_details=manifest.description if manifest is not None else None,
         tool_params=manifest.parameters if manifest is not None else None,
     )
@@ -206,18 +212,23 @@ def _single_function_node(
 
 
 def function_node(
-    func: Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]
-    | List[Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]]
+    func: Callable[_P, Coroutine[None, None, _TOutput]]
+    | Callable[_P, _TOutput]
+    | List[Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput]]
     | None = None,
     /,
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: MiddlewareChain[_P, _TOutput] | None = None,
+    wrappers: Iterable[Wrapper[_P, _TOutput]] | None = None,
 ) -> (
-    Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]
-    | List[Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]]
-    | Callable[[Callable[_P, _TOutput]], RTFunction[_P, _TOutput]]
+    CallableAsyncRTFunction[_P, _TOutput]
+    | CallableSyncRTFunction[_P, _TOutput]
+    | List[CallableAsyncRTFunction[_P, _TOutput] | CallableSyncRTFunction[_P, _TOutput]]
+    | Callable[
+        [Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput]],
+        RTFunction[_P, _TOutput],
+    ]
     | None
 ):
     """
@@ -257,21 +268,21 @@ def function_node(
     if func is None:
 
         def _decorator(
-            f: Callable[_P, Coroutine[None, None, _TOutput] | _TOutput],
-        ) -> Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]:
-            return function_node(f, name=name, manifest=manifest, middleware=middleware)
+            f: Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput],
+        ) -> CallableAsyncRTFunction[_P, _TOutput] | CallableSyncRTFunction[_P, _TOutput]:
+            return function_node(f, name=name, manifest=manifest, wrappers=wrappers)
 
         return _decorator
 
     # handle the case where a list of functions is provided
     if isinstance(func, list):
         return [
-            function_node(f, name=name, manifest=manifest, middleware=middleware)
+            function_node(f, name=name, manifest=manifest, wrappers=wrappers)
             for f in func
         ]
     else:
         return _single_function_node(
-            func, name=name, manifest=manifest, middleware=middleware
+            func, name=name, manifest=manifest, wrappers=wrappers
         )
 
 

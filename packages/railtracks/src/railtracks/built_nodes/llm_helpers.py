@@ -77,50 +77,49 @@ class ModelInvoker:
     fresh copy is taken so system gateways (e.g. context injection) stay
     independent per node.
     """
+    
+    @wrapper
+    @staticmethod
+    async def llm_observe(
+        call: Callable[
+            [MessageHistory, type[BaseModel] | None, list[Tool] | None], Awaitable[Response]
+        ],
+        message_history: MessageHistory,
+        schema: type[BaseModel] | None,
+        tools: list[Tool] | None,
+    ) -> Response:
+        prev_message_history = deepcopy(message_history)
+        response: Response = await call(message_history, schema, tools)
+        _ = RequestDetails(
+            message_input=prev_message_history,
+            output=response.message,
+            model_name=response.message_info.model_name,
+            model_provider=None,  # TODO: implement parsing logic here
+            input_tokens=response.message_info.input_tokens,
+            output_tokens=response.message_info.output_tokens,
+            total_cost=response.message_info.total_cost,
+            system_fingerprint=response.message_info.system_fingerprint,
+            latency=response.message_info.latency,
+        )
+        return response
+
 
     def __init__(
         self,
         model: ModelSource,
-        middleware: MiddlewareChain[
+        wrappers: list[Wrapper[
             [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
-        ]
-        | list
-        | None = None,
+        ]] | None = None,
     ):
         self._get_model = model if callable(model) else lambda: model
-        self._middleware: MiddlewareChain[
-            [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
-        ] = MiddlewareChain.coerce(middleware)
+        unwrapped_wrappers = deepcopy(wrappers) if wrappers is not None else []
+        self._middleware= MiddlewareChain([
+            self.llm_observe,
+            *unwrapped_wrappers,
+        ])
 
-    def register_sys_entry_gate(
-        self,
-        gw: Gate[
-            [MessageHistory, type[BaseModel] | None, list[Tool] | None],
-            tuple[tuple, dict[str, Any]],
-        ],
-        *,
-        position: Literal["before", "after"] = "before",
-    ) -> None:
-        """Register a system entry gate around the model call.
+    
 
-        ``position="before"`` (default) runs before user model-middleware entry gates
-        (e.g. context injection); ``position="after"`` runs after them — the last gate
-        before the model call (e.g. an input guardrail).
-        """
-        self._middleware.register_sys_entry_gate(gw, position=position)
-
-    def register_sys_exit_gate(self, gw: Gate[[Response], Response]) -> None:
-        """Register a system exit gate around the model call (e.g. logging)."""
-        self._middleware.register_sys_exit_gate(gw)
-
-    def register_sys_wrapper(
-        self,
-        w: Wrapper[
-            [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
-        ],
-    ) -> None:
-        """Register a system wrapper around the model call (e.g. logging)."""
-        self._middleware.register_sys_outer_wrapper(w)
 
     async def invoke(
         self,
@@ -446,26 +445,4 @@ def prepare_string_response(
     return StringResponse(content=content, message_history=message_history)
 
 
-@wrapper
-async def llm_observe(
-    call: Callable[
-        [MessageHistory, type[BaseModel] | None, list[Tool] | None], Awaitable[Response]
-    ],
-    message_history: MessageHistory,
-    schema: type[BaseModel] | None,
-    tools: list[Tool] | None,
-) -> Response:
-    prev_message_history = deepcopy(message_history)
-    response: Response = await call(message_history, schema, tools)
-    _ = RequestDetails(
-        message_input=prev_message_history,
-        output=response.message,
-        model_name=response.message_info.model_name,
-        model_provider=None,  # TODO: implement parsing logic here
-        input_tokens=response.message_info.input_tokens,
-        output_tokens=response.message_info.output_tokens,
-        total_cost=response.message_info.total_cost,
-        system_fingerprint=response.message_info.system_fingerprint,
-        latency=response.message_info.latency,
-    )
-    return response
+

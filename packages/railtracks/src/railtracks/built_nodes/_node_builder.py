@@ -4,6 +4,7 @@ import functools
 from typing import (
     TYPE_CHECKING,
     Any,
+    Awaitable,
     Callable,
     Coroutine,
     Generic,
@@ -17,6 +18,8 @@ from typing import (
     overload,
 )
 
+from litellm import deepcopy
+from numpy import iterable
 from pydantic import BaseModel
 
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
@@ -24,12 +27,11 @@ from railtracks.built_nodes.llm_helpers import (
     ModelInvoker,
     ModelSource,
     llm_invoke_factory,
-    llm_observe,
     llm_prepare_called_as_tool_factory,
 )
 from railtracks.guardrails.llm.guardrail_gates import (
-    guardrail_input_gate,
-    guardrail_output_gate,
+    guardrail_input_wrapper,
+    guardrail_output_wrapper,
 )
 from railtracks.llm import (
     Parameter,
@@ -41,12 +43,14 @@ from railtracks.llm.message import Message
 from railtracks.llm.response import Response
 from railtracks.llm.type_mapping import TypeMapper
 from railtracks.middleware import MiddlewareChain
+from railtracks.middleware.primitives import Wrapper
 from railtracks.nodes.nodes import Node
-from railtracks.prompts.prompt import context_injection_gateway
+from railtracks.prompts.prompt import context_injection_wrapper
 from railtracks.validation.node_creation.validation import (
     _check_duplicate_param_names,
     _check_tool_params_and_details,
 )
+
 
 if TYPE_CHECKING:
     from railtracks.guardrails.core import Guard
@@ -114,7 +118,7 @@ class NodeBuilder(Generic[_P, _T]):
         self._tool_info: Callable[[], Tool] | None = None
         self._prepare_arguments: Callable[..., dict[str, Any]] | None = None
 
-        self._frozen_middleware: MiddlewareChain = MiddlewareChain()
+        self._user_wrappers: list[Wrapper[_P, _T]] = []
 
     @overload
     @classmethod
@@ -129,11 +133,10 @@ class NodeBuilder(Generic[_P, _T]):
         connected_nodes: Iterable[Type[Node]] | None = None,
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
-        middleware: MiddlewareChain[[UserInput], StringResponse] | list | None = None,
-        model_middleware: MiddlewareChain[
+        wrappers: Iterable[Wrapper[[UserInput], StringResponse]] | None = None,
+        model_wrappers: Iterable[Wrapper[
             [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
-        ]
-        | list
+        ]]
         | None = None,
         guardrails: Guard | None = None,
         context_injection: bool = True,
@@ -152,14 +155,10 @@ class NodeBuilder(Generic[_P, _T]):
         connected_nodes: Iterable[Type[Node]] | None = None,
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
-        middleware: MiddlewareChain[[UserInput], StructuredResponse[_TStructured]]
-        | list
-        | None = None,
-        model_middleware: MiddlewareChain[
+        wrappers: Iterable[Wrapper[[UserInput], StructuredResponse[_TStructured]]] | None = None,
+        model_wrappers: Iterable[Wrapper[
             [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
-        ]
-        | list
-        | None = None,
+        ]] | None = None,
         guardrails: Guard | None = None,
         context_injection: bool = True,
     ) -> NodeBuilder[[UserInput], StructuredResponse[_TStructured]]: ...
@@ -176,11 +175,10 @@ class NodeBuilder(Generic[_P, _T]):
         connected_nodes: Iterable[Type[Node]] | None = None,
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
-        middleware: MiddlewareChain[[UserInput], _R] | list | None = None,
-        model_middleware: MiddlewareChain[
+        wrappers: Iterable[Wrapper[[UserInput], _R]] | None = None,
+        model_wrappers: Iterable[Wrapper[
             [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
-        ]
-        | list
+        ]]
         | None = None,
         guardrails: Guard | None = None,
         context_injection: bool = True,
@@ -191,26 +189,22 @@ class NodeBuilder(Generic[_P, _T]):
         casted_instance._node_name = name
         casted_instance._node_class = "Agent"
 
-        model_invoker = ModelInvoker(model, middleware=model_middleware)
-
-        # Context injection is the default behaviour for all LLM nodes: rt.context
-        # variables are filled into prompt templates before the model call. It is
-        # wired in here as a system gateway so it applies regardless of which
-        # higher-level wrapper created the node. Disable per-node with
-        # context_injection=False, or flow/session-wide via prompt_injection=False.
-        if context_injection:
-            model_invoker.register_sys_entry_gate(context_injection_gateway)
-
-        model_invoker.register_sys_wrapper(llm_observe)
+        unwrapped_model_wrappers = list(deepcopy(model_wrappers)) if model_wrappers is not None else []
+        unwrapped_wrappers = list(deepcopy(wrappers)) if wrappers is not None else []
 
         # Guardrails: fixed, non-reorderable system gates; input last before the core, output the last word.
         if guardrails is not None:
             if guardrails.input:
-                model_invoker.register_sys_entry_gate(
-                    guardrail_input_gate(guardrails), position="after"
+                unwrapped_model_wrappers.insert(0, 
+                    guardrail_input_wrapper(guardrails)
                 )
             if guardrails.output:
-                model_invoker.register_sys_exit_gate(guardrail_output_gate(guardrails))
+                unwrapped_model_wrappers.insert(0, guardrail_output_wrapper(guardrails))
+
+        if context_injection:
+            unwrapped_model_wrappers.insert(0, context_injection_wrapper)
+
+        model_invoker = ModelInvoker(model, wrappers=unwrapped_model_wrappers)
 
         casted_instance._invoke = llm_invoke_factory(
             model_invoker=model_invoker,
@@ -231,7 +225,7 @@ class NodeBuilder(Generic[_P, _T]):
                 )
             }
 
-        casted_instance._frozen_middleware = MiddlewareChain.coerce(middleware)
+        casted_instance._user_wrappers = unwrapped_wrappers 
 
         return casted_instance
 
@@ -259,7 +253,7 @@ class NodeBuilder(Generic[_P, _T]):
         class_name: str | None = None,
         name: str | None = None,
         *,
-        middleware: MiddlewareChain[_P2, _T2] | None = None,
+        wrappers: Iterable[Wrapper[_P2, _T2]] | None = None,
         tool_details: str | None = None,
         tool_params: list[Parameter] | Type[BaseModel] | dict[str, Any] | None = None,
         tool_info: Tool | None = None,
@@ -283,7 +277,7 @@ class NodeBuilder(Generic[_P, _T]):
 
         casted_instance._prepare_arguments = tm.convert_kwargs_to_appropriate_types
 
-        casted_instance._frozen_middleware = MiddlewareChain.coerce(middleware)
+        casted_instance._user_wrappers = list(wrappers) if wrappers is not None else []
 
         return casted_instance
 
@@ -306,7 +300,7 @@ class NodeBuilder(Generic[_P, _T]):
         return {
             "tool_info": self._construct_tool_info(),
             "prepare_args": self._construct_prepared_arguments(),
-            "frozen_middleware": self._frozen_middleware,
+            "_user_wrappers": self._user_wrappers,
         }
 
     def _construct_prepared_arguments(self):

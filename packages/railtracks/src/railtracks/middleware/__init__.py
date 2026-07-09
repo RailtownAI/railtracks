@@ -31,6 +31,7 @@ from railtracks.middleware.primitives import (
     wrapper,
 )
 from railtracks.middleware.set import MiddlewareChain
+from railtracks.middleware.couple import couple
 
 __all__ = [
     "Wrapper",
@@ -38,4 +39,5 @@ __all__ = [
     "Gate",
     "gate",
     "MiddlewareChain",
+    "couple",
 ]
