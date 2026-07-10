@@ -89,9 +89,7 @@ class LexicalSearch:
 
             # Token-level: coverage of the query terms in each field.
             score += cfg.key_coverage * self._coverage(query_tokens, _tokenize(key))
-            score += cfg.value_coverage * self._coverage(
-                query_tokens, _tokenize(value)
-            )
+            score += cfg.value_coverage * self._coverage(query_tokens, _tokenize(value))
 
             if score > 0.0:
                 scored.append((key, value, score))

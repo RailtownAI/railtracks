@@ -64,7 +64,9 @@ class KeyValueMemoryToolSet(ToolSet):
         on_change: Callable[[str, str | None], None] | None = None,
     ) -> None:
         self.store: KeyValueStore = store if store is not None else _default_store()
-        self._search: SearchAlgorithm = search if search is not None else _default_search()
+        self._search: SearchAlgorithm = (
+            search if search is not None else _default_search()
+        )
         self.on_change = on_change
 
     def _notify(self, key: str, value: str | None) -> None:
