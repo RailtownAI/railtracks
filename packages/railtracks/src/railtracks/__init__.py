@@ -48,8 +48,8 @@ __all__ = [
     "wrap_node",
     "after",
     "couple",
-    "before_llm",
-    "after_llm",
+    "before_model",
+    "after_model",
     "wrap_model",
 ]
 
@@ -70,7 +70,7 @@ from . import (
     vector_stores,
 )
 from ._session import ExecutionInfo, Session, session
-from .built_nodes.middlewares import after_llm, before_llm, wrap_model
+from .built_nodes.middlewares import after_model, before_model, wrap_model
 from .context.central import session_id, set_config
 from .interaction import broadcast, call, call_batch
 from .middlewares import after, couple, wrap_node

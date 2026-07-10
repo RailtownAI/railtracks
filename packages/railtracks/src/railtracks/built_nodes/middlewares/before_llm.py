@@ -2,22 +2,22 @@ from typing import Awaitable, Callable
 
 from pydantic import BaseModel
 
+from railtracks.built_nodes.middlewares.wrap_model import wrap_model
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.tools.tool import Tool
-from railtracks.middlewares.core import wrap_node
 from railtracks.utils.unpack import unpack_async_sync
 
 from .._types import LLM_CALL
 
 
-def before_llm(
+def before_model(
     fn: Callable[
         [MessageHistory, type[BaseModel] | None, list[Tool] | None],
         tuple[MessageHistory, type[BaseModel] | None, list[Tool] | None]
         | Awaitable[tuple[MessageHistory, type[BaseModel] | None, list[Tool] | None]],
     ],
 ):
-    @wrap_node
+    @wrap_model
     async def wrapper(
         llm_call: LLM_CALL,
         message_history: MessageHistory,

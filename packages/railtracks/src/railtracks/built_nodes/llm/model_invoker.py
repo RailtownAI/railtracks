@@ -13,31 +13,8 @@ from railtracks.llm.tools.tool import Tool
 from railtracks.middlewares.chain import MiddlewareChain
 
 
-class ModelInvoker:
-    """
-    Coordinates a single LLM model call through a :class:`MiddlewareChain`.
-
-    The middleware operates around the *raw* model call, once per model
-    round-trip (i.e. inside the tool-calling loop). The core callable takes
-    ``(messages, schema, tools)`` and returns a :class:`Response`::
-
-        middleware
-        └── entry gateways   (transform messages / schema / tools)
-            └── inner_middleware
-                └── model.chat / structured / chat_with_tools
-            └── (unwind)
-        └── exit gateways    (transform the Response)
-        └── (unwind)
-
-    Accepts a :class:`MiddlewareChain` or a bare list of ``Middleware`` / ``Gate``
-    (see :meth:`MiddlewareChain.coerce`). The caller's input is never mutated — a
-    fresh copy is taken so system gateways (e.g. context injection) stay
-    independent per node.
-    """
-
-    @wrap_model
-    @staticmethod
-    async def llm_observe(
+@wrap_model
+async def _llm_observe(
         call: Callable[
             [MessageHistory, type[BaseModel] | None, list[Tool] | None],
             Awaitable[Response],
@@ -61,6 +38,30 @@ class ModelInvoker:
         )
         return response
 
+class ModelInvoker:
+    """
+    Coordinates a single LLM model call through a :class:`MiddlewareChain`.
+
+    The middleware operates around the *raw* model call, once per model
+    round-trip (i.e. inside the tool-calling loop). The core callable takes
+    ``(messages, schema, tools)`` and returns a :class:`Response`::
+
+        middleware
+        └── entry gateways   (transform messages / schema / tools)
+            └── inner_middleware
+                └── model.chat / structured / chat_with_tools
+            └── (unwind)
+        └── exit gateways    (transform the Response)
+        └── (unwind)
+
+    Accepts a :class:`MiddlewareChain` or a bare list of ``Middleware`` / ``Gate``
+    (see :meth:`MiddlewareChain.coerce`). The caller's input is never mutated — a
+    fresh copy is taken so system gateways (e.g. context injection) stay
+    independent per node.
+    """
+
+    
+
     def __init__(
         self,
         model: ModelSource,
@@ -70,7 +71,7 @@ class ModelInvoker:
         unwrapped_middleware = deepcopy(middleware) if middleware is not None else []
         self._middleware = MiddlewareChain(
             [
-                self.llm_observe,
+                _llm_observe,
                 *unwrapped_middleware,
             ]
         )

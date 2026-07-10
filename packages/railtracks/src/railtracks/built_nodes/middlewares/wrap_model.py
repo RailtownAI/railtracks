@@ -7,7 +7,7 @@ from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
 from railtracks.middlewares.core import wrap_node
 
-from ._llm_types import LLM_CALL
+from .._types import LLM_CALL
 
 
 def wrap_model(

@@ -10,7 +10,7 @@ from railtracks.middlewares.core import wrap_node
 from railtracks.utils.unpack import unpack_async_sync
 
 
-def after_llm(fn: Callable[[Response], Response | Awaitable[Response]]):
+def after_model(fn: Callable[[Response], Response | Awaitable[Response]]):
     @wrap_node
     async def wrapper(
         llm_call: LLM_CALL,

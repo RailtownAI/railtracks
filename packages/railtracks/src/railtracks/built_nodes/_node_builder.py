@@ -192,19 +192,23 @@ class NodeBuilder(Generic[_P, _T]):
             list(deepcopy(middleware)) if middleware is not None else []
         )
 
+        if context_injection:
+            unwrapped_model_middleware.append(context_injection_middleware)
+
         # Guardrails: fixed, non-reorderable system gates; input last before the core, output the last word.
         if guardrails is not None:
             if guardrails.input:
-                unwrapped_model_middleware.insert(
-                    0, guardrail_input_middleware(guardrails)
+                unwrapped_model_middleware.append(
+                    guardrail_input_middleware(guardrails)
                 )
             if guardrails.output:
-                unwrapped_model_middleware.insert(
-                    0, guardrail_output_middleware(guardrails)
+                unwrapped_model_middleware.append(
+                    guardrail_output_middleware(guardrails)
                 )
 
-        if context_injection:
-            unwrapped_model_middleware.insert(0, context_injection_middleware)
+        
+
+        
 
         model_invoker = ModelInvoker(model, middleware=unwrapped_model_middleware)
 

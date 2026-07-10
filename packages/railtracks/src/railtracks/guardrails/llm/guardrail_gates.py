@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from railtracks.built_nodes.middlewares import after_llm, before_llm
+from railtracks.built_nodes.middlewares import after_model, before_model
 from railtracks.context.central import (
     get_parent_id,
     get_run_id,
@@ -91,7 +91,7 @@ def guardrail_input_middleware(guard: Guard):
     on ``ALLOW`` it passes through unchanged.
     """
 
-    @before_llm
+    @before_model
     async def _input_gate(
         message_history: MessageHistory,
         schema: type[BaseModel] | None,
@@ -125,7 +125,7 @@ def guardrail_output_middleware(guard: Guard):
     ``Response``; on ``ALLOW`` it passes through unchanged.
     """
 
-    @after_llm
+    @after_model
     async def _output_gate(
         result: Response,
     ):
