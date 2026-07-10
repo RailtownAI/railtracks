@@ -9,7 +9,7 @@ MiddlewareChain — ordered bands: middleware -> entry_gate
 """
 
 import pytest
-from railtracks.middlewares import Gate, Middleware, MiddlewareChain, gate, middleware
+from railtracks.middlewares import Gate, Middleware, MiddlewareChain, gate, wrap_node
 from railtracks.middlewares.chain import _LayeredList
 
 # ---------------------------------------------------------------------------
@@ -20,16 +20,16 @@ from railtracks.middlewares.chain import _LayeredList
 class TestMiddleware:
     def test_middleware_requires_callable(self):
         with pytest.raises(TypeError, match="callable"):
-            middleware(123)  # type: ignore[arg-type]
+            wrap_node(123)  # type: ignore[arg-type]
 
     def test_middleware_requires_async(self):
         # A sync function is rejected immediately — middleware must be async.
         with pytest.raises(TypeError, match="async"):
-            middleware(lambda call, *a, **k: call(*a, **k))  # type: ignore[arg-type]
+            wrap_node(lambda call, *a, **k: call(*a, **k))  # type: ignore[arg-type]
 
     @pytest.mark.asyncio
     async def test_middleware_wraps_and_calls(self):
-        @middleware
+        @wrap_node
         async def double_call(call, *args, **kwargs):
             first = await call(*args, **kwargs)
             return first * 2
@@ -42,7 +42,7 @@ class TestMiddleware:
 
     @pytest.mark.asyncio
     async def test_middleware_can_short_circuit(self):
-        @middleware
+        @wrap_node
         async def never(call, *args, **kwargs):
             return "blocked"
 
@@ -235,7 +235,7 @@ def _noop_gate():
 
 
 def _noop_middleware():
-    @middleware
+    @wrap_node
     async def m(call, *args, **kwargs):
         return await call(*args, **kwargs)
 
@@ -432,7 +432,7 @@ class TestEngineExecution:
     async def test_full_onion_order(self):
         trace = []
 
-        @middleware
+        @wrap_node
         async def outer(call, *a, **k):
             trace.append("outer-in")
             r = await call(*a, **k)
@@ -444,7 +444,7 @@ class TestEngineExecution:
             trace.append("entry")
             return a, k
 
-        @middleware
+        @wrap_node
         async def inner(call, *a, **k):
             trace.append("inner-in")
             r = await call(*a, **k)

@@ -15,7 +15,6 @@ _P = ParamSpec("_P")
 _R = TypeVar("_R")
 
 
-
 class MiddlewareChain(Generic[_P, _R]):
     def __init__(
         self,

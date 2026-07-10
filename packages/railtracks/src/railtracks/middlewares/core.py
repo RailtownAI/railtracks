@@ -33,7 +33,7 @@ class Middleware(Generic[_P, _R]):
     Built from an async call-style function ``fn(call, *args, **kwargs)`` where
     ``call`` is the next callable in the chain::
 
-        @middleware
+        @wrap_node
         async def retry(call, *args, **kwargs):
             for _ in range(3):
                 try:
@@ -65,13 +65,10 @@ class Middleware(Generic[_P, _R]):
         return f"Middleware({getattr(self._fn, '__name__', self._fn)!r})"
 
 
-def middleware(
+def wrap_node(
     fn: Callable[Concatenate[Callable[_P, Awaitable[_R]], _P], Awaitable[_R]],
 ) -> Middleware[_P, _R]:
     """
     Decorator to wrap any async wrapper function into a Middleware object. The wrapped function will accept
     """
     return Middleware(fn)
-
-
-

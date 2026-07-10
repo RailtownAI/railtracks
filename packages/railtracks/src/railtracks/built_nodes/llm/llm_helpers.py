@@ -1,8 +1,6 @@
 import asyncio
 from copy import deepcopy
 from typing import (
-    Awaitable,
-    Callable,
     Literal,
     Protocol,
     TypeVar,
@@ -10,10 +8,8 @@ from typing import (
 )
 
 from pydantic import BaseModel
-
-from railtracks.built_nodes.model_invoker import ModelInvoker
-from railtracks.built_nodes.request_details import RequestDetails
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
+from railtracks.built_nodes.llm.model_invoker import ModelInvoker
 from railtracks.exceptions.errors import LLMError, NodeInvocationError
 from railtracks.interaction._call import call
 from railtracks.llm.content import ToolCall, ToolResponse
@@ -25,21 +21,13 @@ from railtracks.llm.message import (
     ToolMessage,
     UserMessage,
 )
-from railtracks.llm.model import ModelBase
 from railtracks.llm.response import Response
 from railtracks.llm.tools.parameters._base import Parameter
 from railtracks.llm.tools.tool import Tool
-
-from railtracks.middlewares.core import Middleware, middleware
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_invocation.validation import check_message_history
 
 _TStructured = TypeVar("_TStructured", bound=BaseModel)
-
-# A model source: a concrete model, or a no-arg factory resolved fresh on every
-# call — the factory form lets a node pick its model at invocation time (e.g.
-# from config or rt.context) instead of binding one at build time.
-ModelSource = ModelBase[Literal[False]] | Callable[[], ModelBase[Literal[False]]]
 
 
 class StringLLMInvoke(Protocol):
@@ -54,6 +42,7 @@ class StructuredLLMInvoke(Protocol[_TStructured]):
         self,
         user_input: MessageHistory | UserMessage | str | list[Message],
     ) -> StructuredResponse[_TStructured]: ...
+
 
 @overload
 def llm_invoke_factory(

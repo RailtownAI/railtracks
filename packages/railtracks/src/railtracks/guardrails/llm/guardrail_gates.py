@@ -18,11 +18,9 @@ reused unchanged; only the seam moves off the old ``LLMGuardrailsMixin``.
 
 from __future__ import annotations
 
-from typing import Awaitable, Callable
-
 from pydantic import BaseModel
 
-from railtracks.built_nodes.middlewares import after_llm, after_llm, before_llm, before_llm, middleware_llm
+from railtracks.built_nodes.middlewares import after_llm, before_llm
 from railtracks.context.central import (
     get_parent_id,
     get_run_id,
@@ -31,7 +29,6 @@ from railtracks.context.central import (
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
-from railtracks.middlewares.core import middleware
 from railtracks.utils.logging import get_rt_logger
 
 from ..core import Guard, GuardrailBlockedError, GuardRunner
@@ -132,7 +129,6 @@ def guardrail_output_middleware(guard: Guard):
     async def _output_gate(
         result: Response,
     ):
-       
         if not guard.output:
             return result
         if _is_intermediate_tool_call(result):

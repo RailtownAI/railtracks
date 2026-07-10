@@ -104,7 +104,7 @@ class TestFunctionNodeMiddleware:
 
         attempt = {"count": 0}
 
-        @rt.middleware
+        @rt.wrap_node
         async def retry_once(call, *args, **kwargs):
             try:
                 return await call(*args, **kwargs)
@@ -127,7 +127,7 @@ class TestFunctionNodeMiddleware:
     async def test_wrapper_short_circuits(self):
         """Middleware can skip the inner call entirely and return its own result."""
 
-        @rt.middleware
+        @rt.wrap_node
         async def block(call, *args, **kwargs):
             return "blocked"
 
@@ -145,7 +145,7 @@ class TestFunctionNodeMiddleware:
 
         log = []
 
-        @rt.middleware
+        @rt.wrap_node
         async def outer_wrap(call, *args, **kwargs):
             log.append("outer_before")
             result = await call(*args, **kwargs)
@@ -157,7 +157,7 @@ class TestFunctionNodeMiddleware:
             log.append("entry")
             return (x,), {}
 
-        @rt.middleware
+        @rt.wrap_node
         async def inner_wrap(call, *args, **kwargs):
             log.append("inner_before")
             result = await call(*args, **kwargs)
@@ -200,14 +200,14 @@ class TestFunctionNodeMiddleware:
 
         log = []
 
-        @rt.middleware
+        @rt.wrap_node
         async def first(call, *args, **kwargs):
             log.append("first_before")
             result = await call(*args, **kwargs)
             log.append("first_after")
             return result
 
-        @rt.middleware
+        @rt.wrap_node
         async def second(call, *args, **kwargs):
             log.append("second_before")
             result = await call(*args, **kwargs)
@@ -376,7 +376,7 @@ class TestAgentNodeMiddleware:
 
         call_count = {"n": 0}
 
-        @rt.middleware
+        @rt.wrap_node
         async def count_calls(call, *args, **kwargs):
             call_count["n"] += 1
             return await call(*args, **kwargs)
@@ -457,7 +457,7 @@ class TestModelMiddleware:
 
         invocations = {"n": 0}
 
-        @rt.middleware
+        @rt.wrap_node
         async def count_model_calls(call, *args, **kwargs):
             invocations["n"] += 1
             return await call(*args, **kwargs)
@@ -541,7 +541,7 @@ class TestModelMiddleware:
 
         attempts = {"n": 0}
 
-        @rt.middleware
+        @rt.wrap_node
         async def retry_llm(call, *args, **kwargs):
             for _ in range(3):
                 try:

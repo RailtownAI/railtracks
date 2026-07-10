@@ -21,9 +21,7 @@ from litellm import deepcopy
 from pydantic import BaseModel
 
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
-from railtracks.built_nodes.llm_helpers import (
-    ModelInvoker,
-    ModelSource,
+from railtracks.built_nodes.llm.llm_helpers import (
     llm_invoke_factory,
     llm_prepare_called_as_tool_factory,
 )
@@ -48,6 +46,9 @@ from railtracks.validation.node_creation.validation import (
     _check_duplicate_param_names,
     _check_tool_params_and_details,
 )
+
+from ._types import ModelSource
+from .llm.model_invoker import ModelInvoker
 
 if TYPE_CHECKING:
     from railtracks.guardrails.core import Guard
@@ -156,10 +157,7 @@ class NodeBuilder(Generic[_P, _T]):
         tool_params: list[Parameter] | None = None,
         middleware: Iterable[Middleware[[UserInput], StructuredResponse[_TStructured]]]
         | None = None,
-        model_middleware: Iterable[
-            ModelMiddleware
-        ]
-        | None = None,
+        model_middleware: Iterable[ModelMiddleware] | None = None,
         guardrails: Guard | None = None,
         context_injection: bool = True,
     ) -> NodeBuilder[[UserInput], StructuredResponse[_TStructured]]: ...
@@ -177,10 +175,7 @@ class NodeBuilder(Generic[_P, _T]):
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
         middleware: Iterable[Middleware[[UserInput], _R]] | None = None,
-        model_middleware: Iterable[
-            ModelMiddleware
-        ]
-        | None = None,
+        model_middleware: Iterable[ModelMiddleware] | None = None,
         guardrails: Guard | None = None,
         context_injection: bool = True,
     ) -> NodeBuilder[[UserInput], _R]:

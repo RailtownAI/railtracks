@@ -6,14 +6,11 @@ from railtracks.built_nodes.concrete import (
     RTFunction,
 )
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
-from railtracks.built_nodes.llm_helpers import ModelSource
+from railtracks.built_nodes.llm.llm_helpers import ModelSource
 from railtracks.built_nodes.middlewares.core import ModelMiddleware
 from railtracks.guardrails.core import Guard
-from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import SystemMessage
-from railtracks.llm.response import Response
 from railtracks.llm.tools.parameters._base import Parameter
-from railtracks.llm.tools.tool import Tool
 from railtracks.middlewares.core import Middleware
 from railtracks.nodes.manifest import ToolManifest
 from railtracks.nodes.nodes import Node
@@ -51,10 +48,7 @@ def _build_dynamic_agent(
     tool_details: str | None,
     tool_params: list[Parameter] | None,
     middleware: list[Middleware[[UserInput], _R]] | None = None,
-    model_middleware: list[
-        ModelMiddleware
-    ]
-    | None = None,
+    model_middleware: list[ModelMiddleware] | None = None,
     guardrails: Guard | None = None,
     context_injection: bool = True,
 ):
@@ -108,10 +102,7 @@ def agent_node(
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
     middleware: list[Middleware[[UserInput], StringResponse]] | None = None,
-    model_middleware: list[
-        ModelMiddleware
-    ]
-    | None = None,
+    model_middleware: list[ModelMiddleware] | None = None,
     guardrails: Guard | None = None,
     context_injection: bool = True,
 ) -> type[Node[[UserInput], StringResponse]]: ...
@@ -128,10 +119,7 @@ def agent_node(
     manifest: ToolManifest | None = None,
     middleware: list[Middleware[[UserInput], StructuredResponse[_TBaseModel]]]
     | None = None,
-    model_middleware: list[
-        ModelMiddleware
-    ]
-    | None = None,
+    model_middleware: list[ModelMiddleware] | None = None,
     guardrails: Guard | None = None,
     context_injection: bool = True,
 ) -> type[Node[[UserInput], StructuredResponse[_TBaseModel]]]: ...
@@ -149,10 +137,7 @@ def agent_node(
         Middleware[[UserInput], StructuredResponse[_TBaseModel] | StringResponse]
     ]
     | None = None,
-    model_middleware: list[
-        ModelMiddleware
-    ]
-    | None = None,
+    model_middleware: list[ModelMiddleware] | None = None,
     guardrails: Guard | None = None,
     context_injection: bool = True,
 ):

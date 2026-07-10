@@ -1,8 +1,6 @@
 from railtracks.llm import Message, MessageHistory, ModelProvider
 
 
-
-
 class RequestDetails:
     """
     A named tuple to store details of each LLM request.

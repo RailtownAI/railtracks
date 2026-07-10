@@ -8,7 +8,7 @@ from railtracks.exceptions import ContextError
 from railtracks.llm import MessageHistory
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
-from railtracks.middlewares.core import middleware
+from railtracks.middlewares.core import wrap_node
 from railtracks.utils.prompt_injection import ValueDict, inject_values
 
 
@@ -39,7 +39,7 @@ def inject_context(message_history: MessageHistory):
     return message_history
 
 
-@middleware
+@wrap_node
 async def context_injection_middleware(
     call: Callable[
         [MessageHistory, type[BaseModel] | None, list[Tool] | None], Awaitable[Response]

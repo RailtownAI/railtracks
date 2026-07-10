@@ -1,18 +1,15 @@
-
-
 import asyncio
 from copy import deepcopy
 from typing import Awaitable, Callable
 
 from pydantic import BaseModel
+from railtracks.built_nodes._types import ModelSource
+from railtracks.built_nodes.llm.request_details import RequestDetails
 from railtracks.built_nodes.middlewares.core import ModelMiddleware
-from railtracks.built_nodes.middlewares.middleware_llm import middleware_llm
-from railtracks.built_nodes.request_details import RequestDetails
-from railtracks.built_nodes.llm_helpers import ModelSource
+from railtracks.built_nodes.middlewares.wrap_model import wrap_model
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
-from railtracks.middlewares.core import Middleware, middleware
 from railtracks.middlewares.chain import MiddlewareChain
 
 
@@ -38,8 +35,7 @@ class ModelInvoker:
     independent per node.
     """
 
-    
-    @middleware_llm
+    @wrap_model
     @staticmethod
     async def llm_observe(
         call: Callable[
@@ -68,10 +64,7 @@ class ModelInvoker:
     def __init__(
         self,
         model: ModelSource,
-        middleware: list[
-            ModelMiddleware
-        ]
-        | None = None,
+        middleware: list[ModelMiddleware] | None = None,
     ):
         self._get_model = model if callable(model) else lambda: model
         unwrapped_middleware = deepcopy(middleware) if middleware is not None else []
@@ -108,4 +101,3 @@ class ModelInvoker:
                 return await asyncio.to_thread(model.chat, messages)
 
         return await self._middleware.run(_core_llm_call, messages, schema, tools)
-

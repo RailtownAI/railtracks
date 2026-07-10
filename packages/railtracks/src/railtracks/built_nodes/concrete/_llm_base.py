@@ -13,9 +13,9 @@ from typing import (
 )
 
 from pydantic import BaseModel
-from railtracks.built_nodes.request_details import RequestDetails
 from typing_extensions import Self
 
+from railtracks.built_nodes.llm.request_details import RequestDetails
 from railtracks.exceptions.errors import LLMError, NodeInvocationError
 from railtracks.exceptions.messages.exception_messages import get_message
 from railtracks.llm import (

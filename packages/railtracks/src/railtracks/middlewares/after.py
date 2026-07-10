@@ -1,10 +1,11 @@
-import inspect
 from typing import Awaitable, Callable, TypeVar
 
 from railtracks.utils.unpack import unpack_async_sync
-from .core import middleware
+
+from .core import wrap_node
 
 _R = TypeVar("_R")
+
 
 def after(
     fn: Callable[[_R], Awaitable[_R]] | Callable[[_R], _R],
@@ -15,7 +16,7 @@ def after(
     NOTE: This middleware will not run the node raises an exception.
     """
 
-    @middleware
+    @wrap_node
     async def wrapper(call: Callable[..., Awaitable[_R]], *args, **kwargs):
         result = await call(*args, **kwargs)
         post_after_result = fn(result)

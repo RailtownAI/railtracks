@@ -13,7 +13,7 @@ import railtracks as rt
 def test_function_node_middleware_runs():
     events = []
 
-    @rt.middleware
+    @rt.wrap_node
     async def tracing(call, *args, **kwargs):
         events.append("before")
         result = await call(*args, **kwargs)
@@ -35,7 +35,7 @@ def test_function_node_middleware_runs():
 
 
 def test_function_node_middleware_can_short_circuit():
-    @rt.middleware
+    @rt.wrap_node
     async def block(call, *args, **kwargs):
         return -1
 
