@@ -1,4 +1,10 @@
-from .key_value import InMemoryKeyValueStore, KeyValueStore
+from .key_value import (
+    InMemoryKeyValueStore,
+    KeyValueStore,
+    LexicalSearch,
+    LexicalSearchConfig,
+    SearchAlgorithm,
+)
 from .models import (
     Entity,
     RetrievedStoreEntry,
@@ -24,8 +30,11 @@ __all__ = [
     "InMemoryKeyValueStore",
     "InMemoryVectorBackend",
     "KeyValueStore",
+    "LexicalSearch",
+    "LexicalSearchConfig",
     "PgvectorBackend",
     "RetrievedStoreEntry",
+    "SearchAlgorithm",
     "Store",
     "StoreEntry",
     "StoreQuery",

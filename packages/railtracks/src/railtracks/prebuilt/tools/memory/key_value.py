@@ -9,7 +9,7 @@ from railtracks.utils.logging.create import get_rt_logger
 from .._base import ToolSet
 
 if TYPE_CHECKING:
-    from railtracks.retrieval.stores.key_value import KeyValueStore
+    from railtracks.retrieval.stores.key_value import KeyValueStore, SearchAlgorithm
 
 logger = get_rt_logger(__name__)
 
@@ -18,6 +18,12 @@ def _default_store() -> KeyValueStore:
     from railtracks.retrieval.stores.key_value import InMemoryKeyValueStore
 
     return InMemoryKeyValueStore()
+
+
+def _default_search() -> SearchAlgorithm:
+    from railtracks.retrieval.stores.key_value import LexicalSearch
+
+    return LexicalSearch()
 
 
 class KeyValueMemoryToolSet(ToolSet):
@@ -39,6 +45,11 @@ class KeyValueMemoryToolSet(ToolSet):
     Args:
         store: Backing key-value store. Defaults to a fresh, ephemeral
             ``InMemoryKeyValueStore``.
+        search: Ranking algorithm used by ``search_memories``. Defaults to
+            ``LexicalSearch()``. Pass a ``LexicalSearch(LexicalSearchConfig(...))``
+            to tune the ranking weights, or any other
+            :class:`~railtracks.retrieval.stores.key_value.SearchAlgorithm`
+            implementation to swap the algorithm entirely.
         on_change: Optional callback fired after every mutation, letting an
             outer system react (push to a UI, mirror to a database, log).
             Called as ``on_change(key, value)`` where ``value`` is the new
@@ -49,9 +60,11 @@ class KeyValueMemoryToolSet(ToolSet):
     def __init__(
         self,
         store: KeyValueStore | None = None,
+        search: SearchAlgorithm | None = None,
         on_change: Callable[[str, str | None], None] | None = None,
     ) -> None:
         self.store: KeyValueStore = store if store is not None else _default_store()
+        self._search: SearchAlgorithm = search if search is not None else _default_search()
         self.on_change = on_change
 
     def _notify(self, key: str, value: str | None) -> None:
@@ -140,27 +153,25 @@ class KeyValueMemoryToolSet(ToolSet):
         return "\n".join(f"- {key}" for key in keys)
 
     async def search_memories(self, query: str) -> str:
-        """Search stored memories for a substring across keys and values.
+        """Search stored memories for relevance to a query across keys and values.
 
         Use this when you remember roughly what a fact was about but not the
-        exact key. Matching is case-insensitive.
+        exact key. Ranking favors exact and substring key matches, but also
+        catches value hits, multi-word queries, and near-miss typos — so it
+        finds more than a plain substring search would.
 
         Args:
-            query: Substring to look for in keys and values.
+            query: Free-text search string.
 
         Returns:
-            Matching "key: value" entries, or a message saying nothing matched.
+            Matching "key: value" entries ranked by relevance, or a message
+            saying nothing matched.
         """
-        needle = query.casefold()
         items = await self.store.items()
-        matches = [
-            f"- {key}: {value}"
-            for key, value in items.items()
-            if needle in key.casefold() or needle in value.casefold()
-        ]
-        if not matches:
+        hits = self._search.search(items, query)
+        if not hits:
             return f"No memories matched '{query}'."
-        return "\n".join(matches)
+        return "\n".join(f"- {key}: {value}" for key, value, _score in hits)
 
     @classmethod
     def prompt(cls) -> str:
@@ -169,7 +180,7 @@ class KeyValueMemoryToolSet(ToolSet):
             "Call remember(key, value) to save a fact under a short, stable, descriptive key; "
             "re-calling remember() with the same key overwrites the old value. "
             "Call recall(key) to read a fact back, and forget(key) to delete one. "
-            "If you are unsure of the exact key, call search_memories() to find by substring, "
+            "If you are unsure of the exact key, call search_memories() to find related entries, "
             "list_keys() to see what is stored without pulling in every value, "
             "or list_memories() to see everything stored. "
             "Save anything the user tells you that may be useful later (preferences, names, goals, "
