@@ -1,16 +1,20 @@
-"""Middleware gates that run the guardrails core around the raw model call.
+"""Middleware that runs the guardrails core around the raw model call.
 
 These adapters let ``agent_node(..., guardrails=Guard(...))`` attach guardrails as
-**system gates on the model-level middleware** (`ModelInvoker`).
-They translate between the runner's ``(value, traces, decision)``
-triple and the middleware transform contract (transform-or-raise):
+fixed, non-reorderable **model-level middleware** (`ModelInvoker`). They translate
+between the runner's ``(value, traces, decision)`` triple and the middleware
+transform contract (transform-or-raise):
 
-- :func:`guardrail_input_gate`: an **entry gate**. Register with ``position="after"`` so
-  it is the last gate before the model call (sees the fully assembled, injected,
-  user-transformed prompt). Runs the input rails on the message history.
-- :func:`guardrail_output_gate`: an **exit gate** (register as sys-exit, the last word).
-  Runs the output rails on the final assistant reply; intermediate tool-call turns pass
-  through untouched.
+- :func:`guardrail_input_middleware`: a ``@before_model`` layer. ``NodeBuilder.llm``
+  places it innermost (last in the model-middleware list) so it is the last check
+  before the model call — it sees the fully assembled, context-injected,
+  user-``model_middleware``-transformed prompt. Runs the input rails on the message
+  history.
+- :func:`guardrail_output_middleware`: an ``@after_model`` layer. ``NodeBuilder.llm``
+  places it outermost (first in the model-middleware list) so it unwinds last — the
+  final word on the response, after any user ``model_middleware`` has had its own
+  say. Runs the output rails on the final assistant reply; intermediate tool-call
+  turns pass through untouched.
 
 The guardrails core (:class:`GuardRunner`, the built-in guards, decisions, traces) is
 reused unchanged; only the seam moves off the old ``LLMGuardrailsMixin``.
@@ -83,10 +87,10 @@ def _raise_if_blocked(
 
 
 def guardrail_input_middleware(guard: Guard):
-    """Build an entry gate that runs ``guard.input`` on the message history.
+    """Build a ``@before_model`` middleware that runs ``guard.input`` on the message history.
 
-    Register on the model middleware with ``position="after"`` so it runs after any user
-    entry gates; the last transform before the model call. On ``BLOCK`` it raises
+    ``NodeBuilder.llm`` appends this last onto the model-middleware list, so it is the
+    last transform before the model call. On ``BLOCK`` it raises
     :class:`GuardrailBlockedError`; on ``TRANSFORM`` it forwards the rewritten history;
     on ``ALLOW`` it passes through unchanged.
     """
@@ -117,12 +121,11 @@ def guardrail_input_middleware(guard: Guard):
 
 
 def guardrail_output_middleware(guard: Guard):
-    """Build an exit gate that runs ``guard.output`` on the final model ``Response``.
+    """Build an ``@after_model`` middleware that runs ``guard.output`` on the final model ``Response``.
 
-    Register on the model middleware as a sys exit gate (the last word on the response).
-    Intermediate tool-call turns pass through untouched, so output rails fire only on the
-    final reply. On ``BLOCK`` it raises; on ``TRANSFORM`` it returns a rewritten
-    ``Response``; on ``ALLOW`` it passes through unchanged.
+    Intermediate tool-call turns pass through untouched, so output rails fire only on the final reply. On ``BLOCK``
+    it raises; on ``TRANSFORM`` it returns a rewritten ``Response``; on ``ALLOW`` it
+    passes through unchanged.
     """
 
     @after_model

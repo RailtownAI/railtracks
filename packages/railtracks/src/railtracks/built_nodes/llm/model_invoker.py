@@ -44,23 +44,16 @@ class ModelInvoker:
 
     The middleware operates around the *raw* model call, once per model
     round-trip (i.e. inside the tool-calling loop). The core callable takes
-    ``(messages, schema, tools)`` and returns a :class:`Response`::
+    ``(messages, schema, tools)`` and returns a :class:`Response`. Middleware wraps
+    symmetrically (an earlier list entry is outer: it runs first going in and last
+    coming out), so a ``@before_model``/``@wrap_model`` layer earlier in the list
+    sees/transforms the request before one placed later, and sees the final
+    ``Response`` after it on the way back out.
 
-        middleware
-        └── entry gateways   (transform messages / schema / tools)
-            └── inner_middleware
-                └── model.chat / structured / chat_with_tools
-            └── (unwind)
-        └── exit gateways    (transform the Response)
-        └── (unwind)
-
-    Accepts a :class:`MiddlewareChain` or a bare list of ``Middleware`` / ``Gate``
-    (see :meth:`MiddlewareChain.coerce`). The caller's input is never mutated — a
-    fresh copy is taken so system gateways (e.g. context injection) stay
+    Accepts a bare list of :class:`Middleware`. The caller's input is never mutated —
+    a fresh copy is taken so system middleware (e.g. context injection) stays
     independent per node.
     """
-
-    
 
     def __init__(
         self,

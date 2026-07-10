@@ -257,8 +257,7 @@ def function_node(
             parametrized-decorator form, which returns a decorator that takes the function.
         name (str, optional): Human-readable name for the node/tool.
         manifest (ToolManifest, optional): The details you would like to override the tool with.
-        middleware (MiddlewareChain | list | None): Middleware applied around the node boundary.
-            Accepts a MiddlewareChain or a bare list of Middleware/Gate (check-only gateways act as guardrails).
+        middleware (list[Middleware] | None): Middleware applied around the node boundary.
     """
 
     # No function yet -> parametrized-decorator form: bind the options and return

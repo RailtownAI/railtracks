@@ -6,7 +6,7 @@ from railtracks.built_nodes.concrete import (
     RTFunction,
 )
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
-from railtracks.built_nodes.llm.llm_helpers import ModelSource
+from railtracks.built_nodes._types import ModelSource
 from railtracks.built_nodes.middlewares.core import ModelMiddleware
 from railtracks.guardrails.core import Guard
 from railtracks.llm.message import SystemMessage
@@ -153,14 +153,13 @@ def agent_node(
             at invocation time, e.g. from config or rt.context).
         system_message (SystemMessage | str | None): System message for the agent.
         manifest (ToolManifest | None): If you want to use this as a tool in other agents you can pass in a ToolManifest.
-        middleware (MiddlewareChain | list | None): Middleware applied around the agent's node boundary
-            (user_input -> Response). Accepts a MiddlewareChain or a bare list of Middleware/Gate.
-        model_middleware (MiddlewareChain | list | None): Middleware applied around each raw model call
-            (messages/schema/tools -> Response), inside the tool-calling loop. Accepts a MiddlewareChain or a
-            bare list of Middleware/Gate.
+        middleware (list[Middleware] | None): Middleware applied around the agent's node boundary
+            (user_input -> Response).
+        model_middleware (list[Middleware] | None): Middleware applied around each raw model call
+            (messages/schema/tools -> Response), inside the tool-calling loop.
         guardrails (Guard | None): Input/output LLM guardrails to enforce around the model call. Input rails
             run as the last check before the model (after context injection and any model_middleware); output
-            rails run on the final reply as the last word. Attached as fixed, non-reorderable system gates.
+            rails run on the final reply as the last word. Attached as fixed, non-reorderable system middleware.
         context_injection (bool): Whether to inject rt.context variables into prompt templates for this node.
             Defaults to True. Set to False to disable context injection for this specific agent regardless
             of the session-level prompt_injection setting. Can also be controlled at the session level via

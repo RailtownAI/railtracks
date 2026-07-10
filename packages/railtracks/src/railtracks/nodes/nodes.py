@@ -135,15 +135,10 @@ class Node(ABC, Generic[_P, _TOutput]):
         return await self.middleware.run(self.invoke, *args, **kwargs)
 
     @classmethod
-    def extend_middleware(
-        cls, *middleware: Middleware[_P, _TOutput]
-    ) -> type[Node[_P, _TOutput]]:
-        """
-        Appends middleware to the node. This middleware will be run around the node's invoke method.
-        """
-        new_klass = deepcopy(cls)
-        new_klass._user_middleware.extend(middleware)
-        return new_klass
+    def extend_middleware(cls, *middleware: Middleware[_P, _TOutput]) -> type[Node[_P, _TOutput]]:
+        new_middleware = [*deepcopy(cls._user_middleware), *middleware]  # fresh list a nice protection around things
+        return type(cls.__name__, (cls,), {"_user_middleware": new_middleware})
+
 
     def __repr__(self):
         return f"{self.name()} <{hex(id(self))}>"
