@@ -2,11 +2,11 @@ from typing import Iterable, Literal, Type, TypeVar, overload
 
 from pydantic import BaseModel
 
+from railtracks.built_nodes._types import ModelSource
 from railtracks.built_nodes.concrete import (
     RTFunction,
 )
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
-from railtracks.built_nodes._types import ModelSource
 from railtracks.built_nodes.middlewares.core import ModelMiddleware
 from railtracks.guardrails.core import Guard
 from railtracks.llm.message import SystemMessage
