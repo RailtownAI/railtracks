@@ -1,9 +1,6 @@
 from .key_value import (
     InMemoryKeyValueStore,
     KeyValueStore,
-    LexicalSearch,
-    LexicalSearchConfig,
-    SearchAlgorithm,
 )
 from .models import (
     Entity,
@@ -13,6 +10,12 @@ from .models import (
     StoreScope,
 )
 from .protocol import Store
+from .search import (
+    LexicalSearch,
+    LexicalSearchConfig,
+    SearchAlgorithm,
+    SemanticSearch,
+)
 from .vector import VectorStore
 from .vector.backends import (
     ChromaBackend,
@@ -35,6 +38,7 @@ __all__ = [
     "PgvectorBackend",
     "RetrievedStoreEntry",
     "SearchAlgorithm",
+    "SemanticSearch",
     "Store",
     "StoreEntry",
     "StoreQuery",
