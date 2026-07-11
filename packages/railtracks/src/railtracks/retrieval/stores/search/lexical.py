@@ -33,6 +33,10 @@ class LexicalSearch:
     Intended for small stores (an agent's memory holds tens to low hundreds of
     entries); the fuzzy fallback is O(entries x query_tokens x field_tokens),
     which is inconsequential at that scale.
+
+    ``search`` is declared ``async`` to satisfy
+    :class:`~.protocol.SearchAlgorithm` — the body does no I/O and never
+    awaits, so it returns synchronously in practice.
     """
 
     def __init__(self, config: LexicalSearchConfig | None = None) -> None:
@@ -62,7 +66,7 @@ class LexicalSearch:
                 total += best
         return total / len(query_tokens)
 
-    def search(
+    async def search(
         self, items: dict[str, str], query: str, *, top_k: int = 5
     ) -> list[tuple[str, str, float]]:
         cfg = self._config

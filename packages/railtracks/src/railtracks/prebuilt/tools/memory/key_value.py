@@ -9,7 +9,8 @@ from railtracks.utils.logging.create import get_rt_logger
 from .._base import ToolSet
 
 if TYPE_CHECKING:
-    from railtracks.retrieval.stores.key_value import KeyValueStore, SearchAlgorithm
+    from railtracks.retrieval.stores.key_value import KeyValueStore
+    from railtracks.retrieval.stores.search import SearchAlgorithm
 
 logger = get_rt_logger(__name__)
 
@@ -21,7 +22,7 @@ def _default_store() -> KeyValueStore:
 
 
 def _default_search() -> SearchAlgorithm:
-    from railtracks.retrieval.stores.key_value import LexicalSearch
+    from railtracks.retrieval.stores.search import LexicalSearch
 
     return LexicalSearch()
 
@@ -47,8 +48,9 @@ class KeyValueMemoryToolSet(ToolSet):
             ``InMemoryKeyValueStore``.
         search: Ranking algorithm used by ``search_memories``. Defaults to
             ``LexicalSearch()``. Pass a ``LexicalSearch(LexicalSearchConfig(...))``
-            to tune the ranking weights, or any other
-            :class:`~railtracks.retrieval.stores.key_value.SearchAlgorithm`
+            to tune the ranking weights, pass a
+            ``SemanticSearch(embedding=...)`` for dense-vector ranking, or any
+            other :class:`~railtracks.retrieval.stores.search.SearchAlgorithm`
             implementation to swap the algorithm entirely.
         on_change: Optional callback fired after every mutation, letting an
             outer system react (push to a UI, mirror to a database, log).
@@ -170,7 +172,7 @@ class KeyValueMemoryToolSet(ToolSet):
             saying nothing matched.
         """
         items = await self.store.items()
-        hits = self._search.search(items, query)
+        hits = await self._search.search(items, query)
         if not hits:
             return f"No memories matched '{query}'."
         return "\n".join(f"- {key}: {value}" for key, value, _score in hits)
