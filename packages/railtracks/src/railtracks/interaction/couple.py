@@ -14,20 +14,11 @@ _P = ParamSpec("_P")
 _R = TypeVar("_R")
 
 
-@overload
-def couple(
-    node: type[Node[_P, _R]], middleware: Middleware[_P, _R] | None = None, model_middleware: list[ModelMiddleware] | None = None
-) -> type[Node[_P, _R]]: ...
 
-
-@overload
-def couple(
-    node: RTFunction[_P, _R], middleware: Middleware[_P, _R]
-) -> RTFunction[_P, _R]: ...
 
 
 def couple(
-    node: type[Node[_P, _R]] | RTFunction[_P, _R], middleware: list[Middleware[_P, _R]] | None = None, model_middleware: list[ModelMiddleware] | None = None
+    node: type[Node[_P, _R]] | RTFunction[_P, _R], middleware: list[Middleware[_P, _R]]
 ) -> type[Node[_P, _R]] | RTFunction[_P, _R]:
     
 

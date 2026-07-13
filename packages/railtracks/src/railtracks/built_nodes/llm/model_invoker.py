@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 from copy import deepcopy
 from typing import Awaitable, Callable
@@ -96,3 +98,16 @@ class ModelInvoker:
                 return await asyncio.to_thread(model.chat, messages)
 
         return await self._middleware.run(_core_llm_call, messages, schema, tools)
+    
+
+    def extend_middleware(self, *model_middleware: ModelMiddleware) -> ModelInvoker:
+        """
+        Returns a new :class:`ModelInvoker` with the given middleware appended to the
+        existing middleware chain.
+        """
+        new_middleware_chain = deepcopy(self._middleware)
+
+        for m in model_middleware:
+            new_middleware_chain.add_middleware(m)
+
+        return ModelInvoker(self._get_model, new_middleware_chain._middleware)
