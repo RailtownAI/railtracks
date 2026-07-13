@@ -46,7 +46,7 @@ __all__ = [
     "Flow",
     "enable_logging",
     "wrap_node",
-    "after",
+    "after_node",
     "couple",
     "before_model",
     "after_model",
@@ -73,7 +73,7 @@ from ._session import ExecutionInfo, Session, session
 from .built_nodes.middlewares import after_model, before_model, wrap_model
 from .context.central import session_id, set_config
 from .interaction import broadcast, call, call_batch
-from .middlewares import after, couple, wrap_node
+from .middlewares import after_node, couple, wrap_node
 from .nodes.manifest import ToolManifest
 from .orchestration.flow import Flow
 from .rt_mcp import MCPHttpParams, MCPStdioParams, connect_mcp, create_mcp_server

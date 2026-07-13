@@ -7,7 +7,7 @@ from .core import wrap_node
 _R = TypeVar("_R")
 
 
-def after(
+def after_node(
     fn: Callable[[_R], Awaitable[_R]] | Callable[[_R], _R],
 ):
     """
