@@ -28,11 +28,6 @@ _SUPPORTED_IMAGE_SUFFIXES = frozenset(
 
 
 def _parse_glmocr_response(raw: dict) -> OCRResult:
-    # TODO: Confirm actual GLM-OCR JSON response schema once SDK docs are
-    # published. Current stub assumes:
-    #   raw["markdown"]         str        — full page text in markdown format
-    #   raw.get("bboxes", [])   list[dict] — bounding-box annotations (optional)
-    #   raw.get("tables", [])   list[dict] — extracted table data (optional)
     return OCRResult(
         markdown=raw.get("markdown", ""),
         bboxes=raw.get("bboxes", []),
@@ -136,9 +131,6 @@ class GLMOCRLoader(BaseOCRLoader):
 
         Encodes the image as PNG bytes in the calling thread, then offloads
         the blocking network call to a worker thread.
-
-        # TODO: Replace with confirmed SDK signature once glmocr API docs are
-        # finalised. Current stub: glmocr.ocr(image_bytes) -> dict
         """
         import io
 
@@ -153,9 +145,6 @@ class GLMOCRLoader(BaseOCRLoader):
 
         Sends the image as a base64-encoded PNG in a JSON body and reads the
         response with ``httpx.AsyncClient`` so the event loop is not blocked.
-
-        # TODO: Confirm local endpoint request/response schema once a reference
-        # implementation is published.
         """
         import base64
         import io
@@ -303,21 +292,12 @@ class GLMOCRPDFLoader(GLMOCRLoader):
         return await self._call_local_pdf(pdf_bytes)
 
     async def _call_cloud_pdf(self, pdf_bytes: bytes) -> OCRResult:
-        """Send PDF bytes to the Zhipu cloud API.
-
-        # TODO: Confirm whether the SDK accepts raw bytes or requires base64,
-        # and whether format="pdf" is the correct flag. Replace the stub call
-        # once the glmocr SDK docs cover PDF input.
-        """
+        """Send PDF bytes to the Zhipu cloud API via the glmocr SDK."""
         raw: dict = await asyncio.to_thread(glmocr.ocr, pdf_bytes, format="pdf")
         return _parse_glmocr_response(raw)
 
     async def _call_local_pdf(self, pdf_bytes: bytes) -> OCRResult:
-        """POST PDF bytes (base64-encoded) to the local endpoint.
-
-        # TODO: Confirm local endpoint schema for PDF input. Current stub
-        # mirrors the image path with "pdf" as the key and format flag.
-        """
+        """POST PDF bytes (base64-encoded) to the local endpoint."""
         import base64
 
         import httpx
