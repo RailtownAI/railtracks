@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ParamSpec, TypeVar, overload
+from typing import TYPE_CHECKING, Iterable, ParamSpec, TypeVar, overload
 
 from railtracks.built_nodes.middlewares.core import ModelMiddleware
 from railtracks.middlewares.core import Middleware
@@ -18,7 +18,7 @@ _R = TypeVar("_R")
 
 
 def couple(
-    node: type[Node[_P, _R]] | RTFunction[_P, _R], middleware: list[Middleware[_P, _R]]
+    node: type[Node[_P, _R]] | RTFunction[_P, _R], middleware: Iterable[Middleware[_P, _R]]
 ) -> type[Node[_P, _R]] | RTFunction[_P, _R]:
     
 
