@@ -1,5 +1,5 @@
 name: "Task"
-description: "Well-scoped, unambiguous piece of work. Typically created by team members."
+description: "A well-scoped, unambiguous piece of work. Typically created by team members."
 labels: ["[Maintainer] task"]
 body:
   - type: textarea
@@ -7,6 +7,5 @@ body:
     attributes:
       label: Description
       description: What is the change, in code terms? Include specific requirements as a bulleted list.
-      render: markdown
     validations:
       required: true

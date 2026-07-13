@@ -7,8 +7,7 @@ body:
     attributes:
       label: What's on your mind?
       description: >
-        Tech debt, API design concern, docs gap, feature idea, general question —
-        anything goes here.
+        Tech debt, API design concerns, docs gaps, feature ideas, general questions. Anything goes here.
       placeholder: How do I configure railtracks to work offline?
     validations:
       required: true
