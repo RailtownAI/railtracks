@@ -87,7 +87,9 @@ class SemanticSearch:
             await self._backend.delete(key)
 
         if changed:
-            vectors = (await self._embedding.aembed([texts[k] for k in changed])).vectors
+            vectors = (
+                await self._embedding.aembed([texts[k] for k in changed])
+            ).vectors
             for key, vector in zip(changed, vectors):
                 await self._backend.upsert(
                     key,
