@@ -10,7 +10,8 @@ from .._base import ToolSet
 
 if TYPE_CHECKING:
     from railtracks.retrieval.stores.key_value import KeyValueStore
-    from railtracks.retrieval.stores.search import SearchAlgorithm
+
+    from .search import SearchAlgorithm
 
 logger = get_rt_logger(__name__)
 
@@ -22,7 +23,7 @@ def _default_store() -> KeyValueStore:
 
 
 def _default_search() -> SearchAlgorithm:
-    from railtracks.retrieval.stores.search import LexicalSearch
+    from .search import LexicalSearch
 
     return LexicalSearch()
 
@@ -50,7 +51,7 @@ class KeyValueMemoryToolSet(ToolSet):
             ``LexicalSearch()``. Pass a ``LexicalSearch(LexicalSearchConfig(...))``
             to tune the ranking weights, pass a
             ``SemanticSearch(embedding=...)`` for dense-vector ranking, or any
-            other :class:`~railtracks.retrieval.stores.search.SearchAlgorithm`
+            other :class:`~railtracks.prebuilt.tools.memory.search.SearchAlgorithm`
             implementation to swap the algorithm entirely.
         on_change: Optional callback fired after every mutation, letting an
             outer system react (push to a UI, mirror to a database, log).
