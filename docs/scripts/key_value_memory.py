@@ -34,6 +34,31 @@ agent = rt.agent_node(
 )
 # --8<-- [end: kv_memory_persistent]
 
+# --8<-- [start: kv_memory_search_semantic]
+import railtracks as rt
+from railtracks.prebuilt.tools.memory import SemanticSearch
+from railtracks.retrieval.embedding import OpenAIEmbedding
+from railtracks.retrieval.stores.vector.backends import InMemoryBackend
+
+# swap the default lexical ranker for meaning-based (vector) search
+memory = rt.prebuilt.KeyValueMemoryToolSet(
+    search=SemanticSearch(
+        embedding=OpenAIEmbedding(),
+        # optional: persist the embeddings so they survive across runs
+        backend=InMemoryBackend(snapshot_path="memory_vectors.json"),
+    ),
+)
+# --8<-- [end: kv_memory_search_semantic]
+
+# --8<-- [start: kv_memory_search_lexical]
+from railtracks.prebuilt.tools.memory import LexicalSearch, LexicalSearchConfig
+
+# tune the default lexical ranker's scoring weights
+memory = rt.prebuilt.KeyValueMemoryToolSet(
+    search=LexicalSearch(LexicalSearchConfig(value_coverage=8.0, fuzzy_threshold=0.7)),
+)
+# --8<-- [end: kv_memory_search_lexical]
+
 # --8<-- [start: kv_memory_callback]
 import railtracks as rt
 
