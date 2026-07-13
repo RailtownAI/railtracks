@@ -62,7 +62,7 @@ class Middleware(Generic[_P, _R]):
         return wrapped
 
     def __repr__(self) -> str:
-        return f"Middleware({getattr(self._fn, '__name__', self._fn)!r})"
+        return f"Middleware({self._fn.__name__})"
 
 
 def wrap_node(

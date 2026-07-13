@@ -64,13 +64,15 @@ class ModelInvoker:
         middleware: list[ModelMiddleware] | None = None,
     ):
         self._get_model = model if callable(model) else lambda: model
+        self._middleware = MiddlewareChain(middleware or [])
+
+    @classmethod 
+    def create_with_llm_observe(cls, model: ModelSource, middleware: list[ModelMiddleware] | None = None) -> ModelInvoker:
+        """
+        Creates a new :class:`ModelInvoker` with the given model and middleware, inserting the obersvation middleware as the last element run.
+        """
         unwrapped_middleware = deepcopy(middleware) if middleware is not None else []
-        self._middleware = MiddlewareChain(
-            [
-                _llm_observe,
-                *unwrapped_middleware,
-            ]
-        )
+        return cls(model, [*unwrapped_middleware, _llm_observe])
 
     async def invoke(
         self,

@@ -17,7 +17,7 @@ from typing import (
     overload,
 )
 
-from litellm import deepcopy
+from copy import deepcopy
 from pydantic import BaseModel
 
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
@@ -201,7 +201,7 @@ class NodeBuilder(Generic[_P, _T]):
         if context_injection:
             unwrapped_model_middleware.insert(0, context_injection_middleware)
 
-        model_invoker = ModelInvoker(model, middleware=unwrapped_model_middleware)
+        model_invoker = ModelInvoker.create_with_llm_observe(model, middleware=unwrapped_model_middleware)
 
         casted_instance._invoke = llm_invoke_factory(
             model_invoker=model_invoker,
