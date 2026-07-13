@@ -1,47 +1,57 @@
-"""Tests for the unified middleware primitives + MiddlewareChain engine.
+"""Unit tests for the middleware primitive and the MiddlewareChain engine.
 
-Middleware — execution control (wraps the inner callable)
-Gate   — direction-less data transform; the slot it is placed in
-            (entry_gate vs exit_gate) decides when it runs
-MiddlewareChain — ordered bands: middleware -> entry_gate
-                -> inner_middleware -> core -> exit_gate
-                (with internal sys/user layers)
+Middleware — execution-control wrapper around a callable:
+    `async fn(call, *args, **kwargs) -> result`
+``call`` is the next callable in the chain; the wrapper is responsible for awaiting it
+(or not, to short-circuit).
+
+MiddlewareChain — a flat, ordered list of Middleware. ``run()`` wraps the core callable
+with each middleware in ``reversed()`` order, so **index 0 is the outermost layer**: its
+"before" code runs first and its "after" code runs last.
 """
 
 import pytest
-from railtracks.middlewares import Gate, Middleware, MiddlewareChain, gate, wrap_node
-from railtracks.middlewares.chain import _LayeredList
 
-# ---------------------------------------------------------------------------
-# Primitives
-# ---------------------------------------------------------------------------
+from railtracks.middlewares import Middleware, MiddlewareChain, wrap_node
 
 
 class TestMiddleware:
-    def test_middleware_requires_callable(self):
+    def test_requires_callable(self):
         with pytest.raises(TypeError, match="callable"):
             wrap_node(123)  # type: ignore[arg-type]
 
-    def test_middleware_requires_async(self):
-        # A sync function is rejected immediately — middleware must be async.
+    def test_requires_async(self):
+        # A sync function is rejected immediately -- middleware must be async.
         with pytest.raises(TypeError, match="async"):
             wrap_node(lambda call, *a, **k: call(*a, **k))  # type: ignore[arg-type]
 
-    @pytest.mark.asyncio
-    async def test_middleware_wraps_and_calls(self):
+    def test_decorator_builds_middleware_instance(self):
         @wrap_node
-        async def double_call(call, *args, **kwargs):
+        async def m(call, *args, **kwargs):
+            return await call(*args, **kwargs)
+
+        assert isinstance(m, Middleware)
+
+    def test_repr_includes_function_name(self):
+        @wrap_node
+        async def named_middleware(call, *a, **k):
+            return await call(*a, **k)
+
+        assert "named_middleware" in repr(named_middleware)
+
+    async def test_wraps_and_calls(self):
+        @wrap_node
+        async def double_result(call, *args, **kwargs):
             first = await call(*args, **kwargs)
             return first * 2
 
         async def core(x):
             return x + 1
 
-        wrapped = double_call.wrap(core)
-        assert await wrapped(4) == 10  # (4+1)*2
+        wrapped = double_result.wrap(core)
+        assert await wrapped(4) == 10  # (4 + 1) * 2
 
-    @pytest.mark.asyncio
-    async def test_middleware_can_short_circuit(self):
+    async def test_can_short_circuit(self):
         @wrap_node
         async def never(call, *args, **kwargs):
             return "blocked"
@@ -51,449 +61,136 @@ class TestMiddleware:
 
         assert await never.wrap(core)() == "blocked"
 
-
-class TestGate:
-    def test_gate_requires_callable(self):
-        with pytest.raises(TypeError, match="callable"):
-            Gate(123)  # type: ignore[arg-type]
-
-    @pytest.mark.asyncio
-    async def test_sync_gate_is_adapted(self):
-        # A plain `def` gate is accepted and run inline.
-        @gate
-        def shout(result):
-            return result + "!"
-
-        assert await shout.apply_exit("hi") == "hi!"
-
-    @pytest.mark.asyncio
-    async def test_sync_entry_gate_is_adapted(self):
-        @gate
-        def strip_in(text):
-            return (text.strip(),), {}
-
-        assert await strip_in.apply_entry("  hi  ") == (("hi",), {})
-
-    def test_decorator_builds_gate(self):
-        @gate
-        async def g(*args, **kwargs):
-            return args, kwargs
-
-        assert isinstance(g, Gate)
-
-    def test_sync_gate_is_directly_callable(self):
-        # __call__ is a raw passthrough to the underlying function (no slot semantics).
-        @gate
-        def tag(x):
-            return f"[{x}]"
-
-        assert tag("a") == "[a]"
-
-    @pytest.mark.asyncio
-    async def test_async_gate_call_returns_coroutine(self):
-        seen = []
-
-        @gate
-        async def log(x):
-            seen.append(x)
-            return "raw"
-
-        result = log("hi")  # async fn -> calling returns a coroutine
-        assert await result == "raw"  # raw return, NOT the apply_entry interpretation
-        assert seen == ["hi"]
-
-    @pytest.mark.asyncio
-    async def test_entry_bare_value_raises(self):
-        # No single-value shorthand: a bare value is ambiguous and rejected.
-        @gate
-        async def upper(text):
-            return text.upper()
-
-        with pytest.raises(TypeError, match="must return None"):
-            await upper.apply_entry("hi")
-
-    @pytest.mark.asyncio
-    async def test_entry_tuple_is_positional_args(self):
-        @gate
-        async def pair(*args, **kwargs):
-            return (1, 2)  # tuple -> positional args only
-
-        assert await pair.apply_entry("x") == ((1, 2), {})
-
-    @pytest.mark.asyncio
-    async def test_entry_dict_is_keyword_args(self):
-        @gate
-        async def kw(*args, **kwargs):
-            return {"k": 3}  # dict -> keyword args only
-
-        assert await kw.apply_entry("x") == ((), {"k": 3})
-
-    @pytest.mark.asyncio
-    async def test_entry_explicit_args_kwargs_tuple(self):
-        @gate
-        async def reshape(*args, **kwargs):
-            return (1, 2), {"k": 3}
-
-        assert await reshape.apply_entry("x") == ((1, 2), {"k": 3})
-
-    @pytest.mark.asyncio
-    async def test_entry_gate_args_helper(self):
-        @gate
-        async def reorder(a, b):
-            return gate.args(b, a, flag=True)
-
-        assert await reorder.apply_entry(1, 2) == ((2, 1), {"flag": True})
-
-    @pytest.mark.asyncio
-    async def test_check_only_entry_gate_passes_through(self):
-        # Returning None == "inspected only, don't change the call".
-        seen = []
-
-        @gate
-        async def log(*args, **kwargs):
-            seen.append((args, kwargs))
-
-        assert await log.apply_entry("hi", n=1) == (("hi",), {"n": 1})
-        assert seen == [(("hi",), {"n": 1})]
-
-    @pytest.mark.asyncio
-    async def test_check_only_exit_gate_passes_through(self):
-        @gate
-        async def audit(result):
-            pass  # returns None -> original result kept
-
-        assert await audit.apply_exit("unchanged") == "unchanged"
-
-    @pytest.mark.asyncio
-    async def test_exit_transforms_result(self):
-        @gate
-        async def shout(result):
-            return result.upper()
-
-        assert await shout.apply_exit("hi") == "HI"
-
-    @pytest.mark.asyncio
-    async def test_same_gate_object_can_serve_either_slot(self):
-        # A gate carries no direction; apply_entry / apply_exit pick behaviour.
-        @gate
-        async def passthrough(*args, **kwargs):
-            return args, kwargs
-
-        assert await passthrough.apply_entry(1, x=2) == ((1,), {"x": 2})
-
-
-# ---------------------------------------------------------------------------
-# _LayeredList
-# ---------------------------------------------------------------------------
-
-
-class TestLayeredList:
-    def test_user_layer_only_iter(self):
-        layers = _LayeredList(["a", "b"])
-        layers.add_sys_before("s0")
-        layers.add_sys_after("s1")
-        assert list(layers) == ["a", "b"]
-        assert len(layers) == 2
-
-    def test_execution_order(self):
-        layers = _LayeredList(["u"])
-        layers.add_sys_before("before")
-        layers.add_sys_after("after")
-        assert layers.ordered() == ["before", "u", "after"]
-
-    def test_sys_add_idempotent(self):
-        layers = _LayeredList()
-        layers.add_sys_before("x")
-        layers.add_sys_before("x")
-        assert layers.ordered() == ["x"]
-
-    def test_copy_user_only_resets_sys(self):
-        layers = _LayeredList(["u"])
-        layers.add_sys_before("s")
-        copy = layers.copy_user_only()
-        assert list(copy) == ["u"]
-        assert copy.ordered() == ["u"]
-
-    def test_original_list_not_mutated(self):
-        original = ["u"]
-        layers = _LayeredList(original)
-        layers.add_sys_before("s")
-        assert original == ["u"]
-
-
-# ---------------------------------------------------------------------------
-# MiddlewareChain construction / coercion
-# ---------------------------------------------------------------------------
-
-
-def _noop_gate():
-    @gate
-    async def g(*args, **kwargs):
-        return args, kwargs
-
-    return g
-
-
-def _noop_middleware():
-    @wrap_node
-    async def m(call, *args, **kwargs):
-        return await call(*args, **kwargs)
-
-    return m
-
-
-class TestMiddlewareChainConstruction:
-    def test_empty(self):
-        ms = MiddlewareChain()
-        assert ms.middleware == []
-        assert ms.entry_gate == []
-        assert ms.exit_gate == []
-        assert ms.inner_middleware == []
-
-    def test_explicit_entry_and_exit(self):
-        g_in, g_out = _noop_gate(), _noop_gate()
-        ms = MiddlewareChain(entry_gate=[g_in], exit_gate=[g_out])
-        assert ms.entry_gate == [g_in]
-        assert ms.exit_gate == [g_out]
-
-    def test_coerce_none(self):
-        assert isinstance(MiddlewareChain.coerce(None), MiddlewareChain)
-
-    def test_coerce_list_splits_by_type(self):
-        g = _noop_gate()
-        m = _noop_middleware()
-        ms = MiddlewareChain.coerce([g, m])
-        assert ms.entry_gate == [g]  # bare-list gates default to entry
-        assert ms.middleware == [m]
-
-    def test_coerce_rejects_non_middleware(self):
-        with pytest.raises(TypeError):
-            MiddlewareChain.coerce([object()])
-
-    def test_constructor_rejects_wrong_band_type(self):
-        g = _noop_gate()
-        with pytest.raises(TypeError, match="Middleware"):
-            MiddlewareChain(middleware=[g])  # gate in a middleware band
-
-    def test_coerce_middlewareset_is_fresh_copy(self):
-        g = _noop_gate()
-        ms1 = MiddlewareChain(entry_gate=[g])
-        ms1.register_sys_gate(_noop_gate())
-        ms2 = MiddlewareChain.coerce(ms1)
-        # user layer preserved, sys layer reset
-        assert ms2.entry_gate == [g]
-        assert ms2._entry._sys_before == []
-
-    def test_user_list_not_mutated_by_sys_registration(self):
-        user = [_noop_gate()]
-        ms = MiddlewareChain(entry_gate=user)
-        ms.register_sys_gate(_noop_gate())
-        assert len(user) == 1
-
-
-class TestMiddlewareChainSysRegistration:
-    def test_sys_entry_runs_before_user_entry(self):
-        user_g = _noop_gate()
-        ms = MiddlewareChain(entry_gate=[user_g])
-        sys_g = _noop_gate()
-        ms.register_sys_gate(sys_g)
-        assert ms._entry.ordered() == [sys_g, user_g]
-
-    def test_sys_exit_runs_after_user_exit(self):
-        user_g = _noop_gate()
-        sys_g = _noop_gate()
-        ms = MiddlewareChain(exit_gate=[user_g])
-        ms.register_sys_exit_gate(sys_g)
-        assert ms._exit.ordered() == [user_g, sys_g]
-
-    def test_sys_entry_position_before_is_default(self):
-        user_g = _noop_gate()
-        sys_g = _noop_gate()
-        ms = MiddlewareChain(entry_gate=[user_g])
-        ms.register_sys_gate(sys_g)  # default position="before"
-        assert ms._entry.ordered() == [sys_g, user_g]
-
-    def test_sys_entry_position_after_runs_last(self):
-        user_g = _noop_gate()
-        sys_g = _noop_gate()
-        ms = MiddlewareChain(entry_gate=[user_g])
-        ms.register_sys_gate(sys_g, position="after")
-        assert ms._entry.ordered() == [user_g, sys_g]
-
-    def test_sys_entry_before_and_after_bracket_user(self):
-        user_g = _noop_gate()
-        before_g = _noop_gate()
-        after_g = _noop_gate()
-        ms = MiddlewareChain(entry_gate=[user_g])
-        ms.register_sys_gate(before_g, position="before")
-        ms.register_sys_gate(after_g, position="after")
-        assert ms._entry.ordered() == [before_g, user_g, after_g]
-
-    @pytest.mark.asyncio
-    async def test_sys_entry_after_runs_between_user_and_core(self):
-        # Guardrail placement: a sys entry gate registered position="after" must
-        # run after the user entry gate and immediately before the core.
-        order = []
-
-        def make(tag):
-            @gate
-            async def g(*a, **k):
-                order.append(tag)
-                return a, k
-
-            return g
-
-        ms = MiddlewareChain(entry_gate=[make("user")])
-        ms.register_sys_gate(make("sys-before"), position="before")
-        ms.register_sys_gate(make("sys-after"), position="after")
+    async def test_can_transform_args_before_calling(self):
+        @wrap_node
+        async def upper_args(call, text):
+            return await call(text.upper())
+
+        async def core(text):
+            return text
+
+        wrapped = upper_args.wrap(core)
+        assert await wrapped("hi") == "HI"
+
+    async def test_can_catch_and_translate_exception(self):
+        @wrap_node
+        async def translate(call, *args, **kwargs):
+            try:
+                return await call(*args, **kwargs)
+            except ValueError as e:
+                raise RuntimeError(f"translated: {e}") from e
 
         async def core():
-            order.append("core")
+            raise ValueError("boom")
 
-        await ms.run(core)
-        assert order == ["sys-before", "user", "sys-after", "core"]
-
-
-class TestMiddlewareChainUserRegistration:
-    def test_add_appends_to_user_layer(self):
-        m, ig, xg, im = _noop_middleware(), _noop_gate(), _noop_gate(), _noop_middleware()
-        ms = MiddlewareChain()
-        ms.add_middleware(m)
-        ms.add_entry_gate(ig)
-        ms.add_exit_gate(xg)
-        ms.add_inner_middleware(im)
-        assert ms.middleware == [m]
-        assert ms.entry_gate == [ig]
-        assert ms.exit_gate == [xg]
-        assert ms.inner_middleware == [im]
-
-    def test_add_preserves_order_and_keeps_duplicates(self):
-        a, b = _noop_gate(), _noop_gate()
-        ms = MiddlewareChain(entry_gate=[a])
-        ms.add_entry_gate(b)
-        ms.add_entry_gate(a)  # user layer is not deduplicated
-        assert ms.entry_gate == [a, b, a]
-
-    def test_add_coerces_raw_function(self):
-        async def raw_m(call, *a, **k):
-            return await call(*a, **k)
-
-        async def raw_g(*a, **k):
-            return a, k
-
-        ms = MiddlewareChain()
-        ms.add_middleware(raw_m)
-        ms.add_entry_gate(raw_g)
-        assert isinstance(ms.middleware[0], Middleware)
-        assert isinstance(ms.entry_gate[0], Gate)
-
-    def test_add_rejects_wrong_band_type(self):
-        ms = MiddlewareChain()
-        with pytest.raises(TypeError):
-            ms.add_middleware(_noop_gate())  # gate in a middleware band
-        with pytest.raises(TypeError):
-            ms.add_entry_gate(_noop_middleware())  # middleware in a gate band
+        with pytest.raises(RuntimeError, match="translated: boom"):
+            await translate.wrap(core)()
 
 
-# ---------------------------------------------------------------------------
-# MiddlewareChain.run — the engine
-# ---------------------------------------------------------------------------
-
-
-class TestEngineExecution:
-    @pytest.mark.asyncio
-    async def test_bare_core(self):
-        ms = MiddlewareChain()
+class TestMiddlewareChain:
+    async def test_empty_chain_is_passthrough(self):
+        chain = MiddlewareChain()
 
         async def core(x):
             return x * 2
 
-        assert await ms.run(core, 5) == 10
+        assert await chain.run(core, 5) == 10
 
-    @pytest.mark.asyncio
-    async def test_entry_then_exit(self):
-        @gate
-        async def add_one(x):
-            return (x + 1,), {}
+    async def test_single_middleware_wraps_core(self):
+        @wrap_node
+        async def add_one_after(call, *args, **kwargs):
+            result = await call(*args, **kwargs)
+            return result + 1
 
-        @gate
-        async def times_ten(result):
-            return result * 10
-
-        ms = MiddlewareChain(entry_gate=[add_one], exit_gate=[times_ten])
+        chain = MiddlewareChain([add_one_after])
 
         async def core(x):
-            return x
+            return x * 2
 
-        # core(5+1)=6 -> *10 = 60
-        assert await ms.run(core, 5) == 60
+        assert await chain.run(core, 5) == 11  # (5 * 2) + 1
 
-    @pytest.mark.asyncio
-    async def test_full_onion_order(self):
+    async def test_index_zero_is_outermost(self):
+        """The first entry in the list is the outermost layer: its "before" code runs
+        first, and its "after" code (whatever runs after `await call(...)`) runs last."""
         trace = []
 
-        @wrap_node
-        async def outer(call, *a, **k):
-            trace.append("outer-in")
-            r = await call(*a, **k)
-            trace.append("outer-out")
-            return r
+        def make(tag):
+            @wrap_node
+            async def m(call, *args, **kwargs):
+                trace.append(f"{tag}-in")
+                result = await call(*args, **kwargs)
+                trace.append(f"{tag}-out")
+                return result
 
-        @gate
-        async def entry(*a, **k):
-            trace.append("entry")
-            return a, k
+            return m
 
-        @wrap_node
-        async def inner(call, *a, **k):
-            trace.append("inner-in")
-            r = await call(*a, **k)
-            trace.append("inner-out")
-            return r
-
-        @gate
-        async def exit_(result):
-            trace.append("exit")
-            return result
-
-        ms = MiddlewareChain(
-            middleware=[outer],
-            entry_gate=[entry],
-            exit_gate=[exit_],
-            inner_middleware=[inner],
-        )
+        chain = MiddlewareChain([make("first"), make("second"), make("third")])
 
         async def core():
             trace.append("core")
             return "done"
 
-        assert await ms.run(core) == "done"
+        assert await chain.run(core) == "done"
         assert trace == [
-            "outer-in",
-            "entry",
-            "inner-in",
+            "first-in",
+            "second-in",
+            "third-in",
             "core",
-            "inner-out",
-            "exit",
-            "outer-out",
+            "third-out",
+            "second-out",
+            "first-out",
         ]
 
-    @pytest.mark.asyncio
-    async def test_multiple_entry_gates_in_order(self):
-        order = []
+    async def test_middleware_can_short_circuit_the_chain(self):
+        @wrap_node
+        async def block(call, *args, **kwargs):
+            return "blocked"
 
-        def make(tag):
-            @gate
-            async def g(*a, **k):
-                order.append(tag)
-                return a, k
-
-            return g
-
-        ms = MiddlewareChain(entry_gate=[make("a"), make("b"), make("c")])
+        chain = MiddlewareChain([block])
 
         async def core():
-            return None
+            raise AssertionError("core should not run")
 
-        await ms.run(core)
-        assert order == ["a", "b", "c"]
+        assert await chain.run(core) == "blocked"
+
+    def test_add_middleware_appends(self):
+        @wrap_node
+        async def m1(call, *a, **k):
+            return await call(*a, **k)
+
+        @wrap_node
+        async def m2(call, *a, **k):
+            return await call(*a, **k)
+
+        chain = MiddlewareChain([m1])
+        chain.add_middleware(m2)
+        assert chain.middleware == [m1, m2]
+
+    def test_add_middleware_allows_duplicates(self):
+        @wrap_node
+        async def m(call, *a, **k):
+            return await call(*a, **k)
+
+        chain = MiddlewareChain([m])
+        chain.add_middleware(m)
+        assert chain.middleware == [m, m]
+
+    def test_middleware_property_returns_a_copy(self):
+        @wrap_node
+        async def m(call, *a, **k):
+            return await call(*a, **k)
+
+        chain = MiddlewareChain([m])
+        snapshot = chain.middleware
+        snapshot.append(m)
+        assert chain.middleware == [m]  # mutating the snapshot didn't affect the chain
+
+    def test_construction_does_not_mutate_caller_list(self):
+        @wrap_node
+        async def m(call, *a, **k):
+            return await call(*a, **k)
+
+        original = [m]
+        chain = MiddlewareChain(original)
+        chain.add_middleware(m)
+        assert original == [m]

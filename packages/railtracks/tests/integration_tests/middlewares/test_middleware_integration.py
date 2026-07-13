@@ -1,23 +1,18 @@
-"""
-Integration tests for the unified middleware system.
-
-Covers:
-  - Function node: entry/exit gates, middleware, ordering, guardrails
-  - Agent node: node-level middleware (around the user_input → response boundary)
-  - Model middleware: entry/exit gates and middleware around each raw model call
-  - MiddlewareChain mechanics: fresh-copy isolation, gate.args(), coerce()
-  - Context injection via rt.context prompt templates
-  - ModelSource factory form (model resolved fresh per call)
-  - Tool calling with prepare_args (end-to-end verify of the prepare_tool→prepare_args fix)
-"""
-
 import asyncio
 
 import pytest
 import railtracks as rt
 from pydantic import BaseModel, Field
-from railtracks.llm import ToolCall
-from railtracks.middlewares import MiddlewareChain
+from railtracks.exceptions.errors import LLMError
+from railtracks.guardrails.core import (
+    Guard,
+    GuardrailBlockedError,
+    GuardrailDecision,
+    InputGuard,
+    OutputGuard,
+)
+from railtracks.llm import AssistantMessage, MessageHistory, ToolCall, UserMessage
+from railtracks.llm.response import MessageInfo, Response
 
 
 # ---------------------------------------------------------------------------
@@ -26,82 +21,116 @@ from railtracks.middlewares import MiddlewareChain
 
 
 class TestFunctionNodeMiddleware:
-    """Middleware attached to function node boundaries (user args → return value)."""
+    """Middleware attached to function node boundaries (user args -> return value),
+    across all three `rt.function_node` calling forms."""
 
-    @pytest.mark.asyncio
-    async def test_entry_gate_transforms_args(self):
-        """Entry gate can rewrite positional args before the function runs."""
+    async def test_direct_call_form(self):
+        log = []
 
-        @rt.gate
-        def uppercase_in(text: str):
-            return (text.upper(),), {}
+        @rt.wrap_node
+        async def tracer(call, *args, **kwargs):
+            log.append("in")
+            result = await call(*args, **kwargs)
+            log.append("out")
+            return result
 
-        @rt.function_node(middleware=MiddlewareChain(entry_gate=[uppercase_in]))
+        def add(x: int, y: int) -> int:
+            return x + y
+
+        node = rt.function_node(add, middleware=[tracer])
+        result = await rt.Flow("direct_call", node).ainvoke(3, 4)
+
+        assert result == 7
+        assert log == ["in", "out"]
+
+    async def test_bare_decorator_form_has_no_middleware(self):
+        @rt.function_node
+        def add(x: int, y: int) -> int:
+            return x + y
+
+        result = await rt.Flow("bare_decorator", add).ainvoke(3, 4)
+        assert result == 7
+
+    async def test_parametrized_decorator_form(self):
+        log = []
+
+        @rt.wrap_node
+        async def tracer(call, *args, **kwargs):
+            log.append("in")
+            return await call(*args, **kwargs)
+
+        @rt.function_node(middleware=[tracer], name="echo")
+        def echo(text: str) -> str:
+            return text
+
+        result = await rt.Flow("parametrized_decorator", echo).ainvoke("hi")
+
+        assert result == "hi"
+        assert log == ["in"]
+
+    async def test_list_of_functions_form_applies_same_middleware_to_each(self):
+        log = []
+
+        @rt.wrap_node
+        async def tracer(call, *args, **kwargs):
+            log.append(call.__name__ if hasattr(call, "__name__") else "call")
+            return await call(*args, **kwargs)
+
+        def add(x: int, y: int) -> int:
+            return x + y
+
+        def sub(x: int, y: int) -> int:
+            return x - y
+
+        add_node, sub_node = rt.function_node([add, sub], middleware=[tracer])
+
+        add_result = await rt.Flow("list_add", add_node).ainvoke(3, 4)
+        sub_result = await rt.Flow("list_sub", sub_node).ainvoke(10, 4)
+
+        assert add_result == 7
+        assert sub_result == 6
+        assert len(log) == 2  # tracer fired once per node
+
+    async def test_middleware_transforms_args_before_call(self):
+        @rt.wrap_node
+        async def uppercase_in(call, text):
+            return await call(text.upper())
+
+        @rt.function_node(middleware=[uppercase_in])
         def echo(text: str) -> str:
             return text
 
         result = await rt.Flow("test_echo", echo).ainvoke("hello")
-
         assert result == "HELLO"
 
-    @pytest.mark.asyncio
-    async def test_exit_gate_transforms_output(self):
-        """Exit gate can rewrite the return value after the function returns."""
-
-        @rt.gate
-        def double_out(result: int) -> int:
+    async def test_middleware_transforms_output_after_call(self):
+        @rt.wrap_node
+        async def double_out(call, *args, **kwargs):
+            result = await call(*args, **kwargs)
             return result * 2
 
-        @rt.function_node(middleware=MiddlewareChain(exit_gate=[double_out]))
+        @rt.function_node(middleware=[double_out])
         def add(x: int, y: int) -> int:
             return x + y
 
         result = await rt.Flow("test_add", add).ainvoke(3, 4)
-
         assert result == 14  # (3 + 4) * 2
 
-    @pytest.mark.asyncio
-    async def test_entry_gate_check_only_passes_through(self):
-        """A check-only entry gate (returns None) leaves args unchanged."""
-
-        checked = {"called": False}
-
-        @rt.gate
-        def just_check(x: int, y: int):
-            checked["called"] = True
-            # returning None = check-only; args pass through unchanged
-
-        @rt.function_node(middleware=MiddlewareChain(entry_gate=[just_check]))
-        def add(x: int, y: int) -> int:
-            return x + y
-
-        result = await rt.Flow("test_add_check", add).ainvoke(3, 4)
-
-        assert result == 7
-        assert checked["called"]
-
-    @pytest.mark.asyncio
-    async def test_entry_gate_guardrail_raises(self):
-        """Entry gate acting as a guardrail propagates its exception to the caller."""
-
-        @rt.gate
-        def no_negatives(x: int, y: int):
+    async def test_middleware_raising_prevents_the_call(self):
+        @rt.wrap_node
+        async def no_negatives(call, x, y):
             if x < 0 or y < 0:
                 raise ValueError("Negative numbers not allowed")
+            return await call(x, y)
 
-            return (x, y), {}
-
-        @rt.function_node(middleware=MiddlewareChain(entry_gate=[no_negatives]))
+        @rt.function_node(middleware=[no_negatives])
         def add(x: int, y: int) -> int:
             return x + y
 
         with pytest.raises(ValueError, match="Negative"):
             await rt.Flow("test_add_guardrail", add).ainvoke(-1, 5)
 
-    @pytest.mark.asyncio
-    async def test_wrapper_retries_on_failure(self):
-        """Middleware can catch exceptions and retry the inner call."""
-
+    async def test_middleware_retries_on_failure(self):
         attempt = {"count": 0}
 
         @rt.wrap_node
@@ -111,7 +140,7 @@ class TestFunctionNodeMiddleware:
             except ValueError:
                 return await call(*args, **kwargs)
 
-        @rt.function_node(middleware=MiddlewareChain(middleware=[retry_once]))
+        @rt.function_node(middleware=[retry_once])
         async def flaky() -> str:
             attempt["count"] += 1
             if attempt["count"] < 2:
@@ -123,81 +152,19 @@ class TestFunctionNodeMiddleware:
         assert result == "ok"
         assert attempt["count"] == 2
 
-    @pytest.mark.asyncio
-    async def test_wrapper_short_circuits(self):
-        """Middleware can skip the inner call entirely and return its own result."""
-
+    async def test_middleware_short_circuits(self):
         @rt.wrap_node
         async def block(call, *args, **kwargs):
             return "blocked"
 
-        @rt.function_node(middleware=MiddlewareChain(middleware=[block]))
+        @rt.function_node(middleware=[block])
         async def should_not_run() -> str:
             raise AssertionError("core should not be called")
 
         result = await rt.Flow("test_block", should_not_run).ainvoke()
-
         assert result == "blocked"
 
-    @pytest.mark.asyncio
-    async def test_full_band_ordering(self):
-        """Middleware → entry gates → inner_middleware → core → exit gates → outer unwind."""
-
-        log = []
-
-        @rt.wrap_node
-        async def outer_wrap(call, *args, **kwargs):
-            log.append("outer_before")
-            result = await call(*args, **kwargs)
-            log.append("outer_after")
-            return result
-
-        @rt.gate
-        def entry_gw(x: int):
-            log.append("entry")
-            return (x,), {}
-
-        @rt.wrap_node
-        async def inner_wrap(call, *args, **kwargs):
-            log.append("inner_before")
-            result = await call(*args, **kwargs)
-            log.append("inner_after")
-            return result
-
-        @rt.gate
-        def exit_gw(result: int):
-            log.append("exit")
-            return result
-
-        ms = MiddlewareChain(
-            middleware=[outer_wrap],
-            entry_gate=[entry_gw],
-            inner_middleware=[inner_wrap],
-            exit_gate=[exit_gw],
-        )
-
-        @rt.function_node(middleware=ms)
-        def core(x: int) -> int:
-            log.append("core")
-            return x + 1
-
-        result = await rt.Flow("test_band_order", core).ainvoke(5)
-
-        assert result == 6
-        assert log == [
-            "outer_before",
-            "entry",
-            "inner_before",
-            "core",
-            "inner_after",
-            "exit",
-            "outer_after",
-        ]
-
-    @pytest.mark.asyncio
-    async def test_multiple_wrappers_outer_to_inner_order(self):
-        """First wrapper in the list is outermost; list order = outer-to-inner."""
-
+    async def test_multiple_middleware_outer_to_inner_order(self):
         log = []
 
         @rt.wrap_node
@@ -214,13 +181,14 @@ class TestFunctionNodeMiddleware:
             log.append("second_after")
             return result
 
-        @rt.function_node(middleware=MiddlewareChain(middleware=[first, second]))
+        @rt.function_node(middleware=[first, second])
         def identity(x: int) -> int:
             log.append("core")
             return x
 
-        await rt.Flow("test_wrapper_order", identity).ainvoke(0)
+        result = await rt.Flow("test_wrapper_order", identity).ainvoke(0)
 
+        assert result == 0
         assert log == [
             "first_before",
             "second_before",
@@ -229,116 +197,6 @@ class TestFunctionNodeMiddleware:
             "first_after",
         ]
 
-    @pytest.mark.asyncio
-    async def test_multiple_entry_gates_apply_sequentially(self):
-        """Multiple entry gates run in list order; each transforms what the previous produced."""
-
-        @rt.gate
-        def add_one(x: int):
-            return (x + 1,), {}
-
-        @rt.gate
-        def double(x: int):
-            return (x * 2,), {}
-
-        @rt.function_node(middleware=MiddlewareChain(entry_gate=[add_one, double]))
-        def identity(x: int) -> int:
-            return x  # receives (x+1)*2
-
-        result = await rt.Flow("test_entry_gw_chain", identity).ainvoke(3)  # (3+1)*2 = 8
-
-        assert result == 8
-
-    @pytest.mark.asyncio
-    async def test_multiple_exit_gates_apply_sequentially(self):
-        """Multiple exit gates chain: first transforms, second transforms the result."""
-
-        @rt.gate
-        def add_ten(result: int) -> int:
-            return result + 10
-
-        @rt.gate
-        def negate(result: int) -> int:
-            return -result
-
-        @rt.function_node(middleware=MiddlewareChain(exit_gate=[add_ten, negate]))
-        def five() -> int:
-            return 5  # → +10 = 15 → negate = -15
-
-        result = await rt.Flow("test_exit_gw_chain", five).ainvoke()
-
-        assert result == -15
-
-    @pytest.mark.asyncio
-    async def test_gate_args_explicit_with_kwargs(self):
-        """gate.args() lets an entry gate specify both positional and keyword args."""
-
-        @rt.gate
-        def swap_and_flag(a: int, b: int):
-            return rt.gate.args(b, a, flag=True)
-
-        @rt.function_node(
-            middleware=MiddlewareChain(entry_gate=[swap_and_flag])
-        )
-        def compute(a: int, b: int, flag: bool = False) -> str:
-            return f"{a}-{b}-{flag}"
-
-        result = await rt.Flow("test_gate_args", compute).ainvoke(3, 10)  # swap → (10, 3, flag=True)
-
-        assert result == "10-3-True"
-
-    @pytest.mark.asyncio
-    async def test_async_entry_gate(self):
-        """Entry gates may be async; they are awaited correctly."""
-
-        @rt.gate
-        async def async_double_input(x: int):
-            await asyncio.sleep(0)
-            return (x * 2,), {}
-
-        @rt.function_node(middleware=MiddlewareChain(entry_gate=[async_double_input]))
-        def identity(x: int) -> int:
-            return x
-
-        result = await rt.Flow("test_async_entry", identity).ainvoke(5)
-
-        assert result == 10
-
-    @pytest.mark.asyncio
-    async def test_async_exit_gate(self):
-        """Exit gates may be async; they are awaited correctly."""
-
-        @rt.gate
-        async def async_double_output(result: int) -> int:
-            await asyncio.sleep(0)
-            return result * 2
-
-        @rt.function_node(middleware=MiddlewareChain(exit_gate=[async_double_output]))
-        def three() -> int:
-            return 3
-
-        result = await rt.Flow("test_async_exit", three).ainvoke()
-
-        assert result == 6
-
-    @pytest.mark.asyncio
-    async def test_middleware_set_coerce_from_bare_list(self):
-        """MiddlewareChain.coerce() routes Gates→entry_gate and Middleware→middleware."""
-
-        # coerce puts Gates into entry_gate (not exit_gate), so the
-        # gate must have an entry signature: receives the function's input args.
-        @rt.gate
-        def double_x(x: int):
-            return (x * 2,), {}
-
-        @rt.function_node(middleware=MiddlewareChain.coerce([double_x]))
-        def identity(x: int) -> int:
-            return x
-
-        result = await rt.Flow("test_coerce", identity).ainvoke(7)
-
-        assert result == 14
-
 
 # ---------------------------------------------------------------------------
 # TestAgentNodeMiddleware
@@ -346,34 +204,29 @@ class TestFunctionNodeMiddleware:
 
 
 class TestAgentNodeMiddleware:
-    """Middleware at the agent node boundary (user_input → StringResponse/StructuredResponse)."""
+    """Middleware at the agent node boundary (user_input -> StringResponse/StructuredResponse)."""
 
-    @pytest.mark.asyncio
-    async def test_node_level_exit_gate_fires_after_response(self, mock_llm):
-        """Node-level exit gate is called after the full agent response is ready."""
-
+    async def test_node_level_middleware_fires_after_response(self, mock_llm):
         side_effects = {"called": False}
 
-        @rt.gate
-        def mark_called(response):
+        @rt.wrap_node
+        async def mark_called(call, *args, **kwargs):
+            result = await call(*args, **kwargs)
             side_effects["called"] = True
-            # None = check-only, pass response through unchanged
+            return result
 
         agent = rt.agent_node(
-            name="ExitGWAgent",
+            name="ExitAgent",
             llm=mock_llm(custom_response="hello"),
-            middleware=MiddlewareChain(exit_gate=[mark_called]),
+            middleware=[mark_called],
         )
 
-        result = await rt.Flow("ExitGWAgent", agent).ainvoke("hi")
+        result = await rt.Flow("ExitAgent", agent).ainvoke("hi")
 
         assert side_effects["called"]
         assert "hello" in result.content
 
-    @pytest.mark.asyncio
-    async def test_node_level_wrapper_around_agent(self, mock_llm):
-        """Node-level wrapper wraps the entire agent invocation."""
-
+    async def test_node_level_wrapper_wraps_whole_agent_invocation(self, mock_llm):
         call_count = {"n": 0}
 
         @rt.wrap_node
@@ -384,57 +237,54 @@ class TestAgentNodeMiddleware:
         agent = rt.agent_node(
             name="CountedAgent",
             llm=mock_llm(custom_response="done"),
-            middleware=MiddlewareChain(middleware=[count_calls]),
+            middleware=[count_calls],
         )
 
         await rt.Flow("CountedAgent", agent).ainvoke("run once")
 
         assert call_count["n"] == 1
 
-    @pytest.mark.asyncio
-    async def test_node_level_guardrail_blocks_call(self, mock_llm):
-        """Node-level entry gate raises before the LLM is ever called."""
-
+    async def test_node_level_middleware_blocks_before_llm_is_called(self, mock_llm):
         llm_called = {"value": False}
 
-        @rt.gate
-        def block_all(user_input):
+        def track_and_respond(messages):
+            llm_called["value"] = True
+            return Response(
+                message=AssistantMessage("should not appear"),
+                message_info=MessageInfo(model_name="m"),
+            )
+
+        model = mock_llm()
+        model._chat = track_and_respond
+
+        @rt.wrap_node
+        async def block_all(call, *args, **kwargs):
             raise PermissionError("Access denied")
 
-        class TrackingLLM(type(mock_llm())):
-            def _chat(self, messages, **kwargs):
-                llm_called["value"] = True
-                return super()._chat(messages, **kwargs)
-
-        agent = rt.agent_node(
-            name="BlockedAgent",
-            llm=mock_llm(custom_response="should not appear"),
-            middleware=MiddlewareChain(entry_gate=[block_all]),
-        )
+        agent = rt.agent_node(name="BlockedAgent", llm=model, middleware=[block_all])
 
         with pytest.raises(PermissionError, match="Access denied"):
             await rt.Flow("BlockedAgent", agent).ainvoke("attempt this")
 
         assert not llm_called["value"]
 
-    @pytest.mark.asyncio
-    async def test_structured_output_agent_with_exit_gate(self, mock_llm):
-        """Exit gate receives the StructuredResponse and can inspect it."""
-
+    async def test_structured_output_agent_with_node_level_middleware(self, mock_llm):
         class Answer(BaseModel):
             value: int = Field(description="The answer")
 
         captured = {}
 
-        @rt.gate
-        def capture_response(response):
-            captured["response"] = response
+        @rt.wrap_node
+        async def capture_response(call, *args, **kwargs):
+            result = await call(*args, **kwargs)
+            captured["response"] = result
+            return result
 
         agent = rt.agent_node(
             name="StructuredAgent",
             llm=mock_llm(custom_response='{"value": 42}'),
             output_schema=Answer,
-            middleware=MiddlewareChain(exit_gate=[capture_response]),
+            middleware=[capture_response],
         )
 
         result = await rt.Flow("StructuredAgent", agent).ainvoke("what is the answer?")
@@ -449,12 +299,9 @@ class TestAgentNodeMiddleware:
 
 
 class TestModelMiddleware:
-    """Middleware around each raw model call (messages/schema/tools → Response)."""
+    """Middleware around each raw model call (messages/schema/tools -> Response)."""
 
-    @pytest.mark.asyncio
-    async def test_model_middleware_wrapper_invoked_per_llm_call(self, mock_llm):
-        """A model_middleware wrapper runs once per raw model invocation."""
-
+    async def test_model_middleware_invoked_once_per_raw_model_call(self, mock_llm):
         invocations = {"n": 0}
 
         @rt.wrap_node
@@ -465,30 +312,60 @@ class TestModelMiddleware:
         agent = rt.agent_node(
             name="CountedModel",
             llm=mock_llm(custom_response="reply"),
-            model_middleware=MiddlewareChain(middleware=[count_model_calls]),
+            model_middleware=[count_model_calls],
         )
 
         await rt.Flow("CountedModel", agent).ainvoke("hello")
 
         assert invocations["n"] == 1
 
-    @pytest.mark.asyncio
-    async def test_model_middleware_entry_gate_can_inspect_messages(self, mock_llm):
-        """Model-level entry gate sees the full MessageHistory before the model call."""
+    async def test_model_middleware_fires_once_per_tool_loop_iteration(self, mock_llm):
+        """A tool-calling round trip means two raw model calls: one that requests the
+        tool, one that produces the final reply -- model_middleware must fire for both."""
+        invocations = {"n": 0}
 
+        @rt.wrap_node
+        async def count_model_calls(call, *args, **kwargs):
+            invocations["n"] += 1
+            return await call(*args, **kwargs)
+
+        def double(n: int) -> int:
+            """Doubles a number.
+            Args:
+                n (int): The number to double.
+            Returns:
+                int: The doubled number.
+            """
+            return n * 2
+
+        llm = mock_llm(
+            requested_tool_calls=[ToolCall(name="double", identifier="c1", arguments={"n": 5})]
+        )
+        agent = rt.agent_node(
+            name="ToolLoopModel",
+            llm=llm,
+            tool_nodes=[rt.function_node(double)],
+            model_middleware=[count_model_calls],
+        )
+
+        await rt.Flow("ToolLoopModel", agent).ainvoke("double 5")
+
+        assert invocations["n"] == 2
+
+    async def test_model_middleware_can_inspect_messages_before_call(self, mock_llm):
         seen_roles = []
 
-        @rt.gate
-        async def capture_roles(messages, schema, tools):
+        @rt.wrap_node
+        async def capture_roles(call, messages, schema, tools):
             for m in messages:
                 seen_roles.append(m.role)
-            # None = check-only
+            return await call(messages, schema, tools)
 
         agent = rt.agent_node(
             name="RoleCapture",
             llm=mock_llm(custom_response="ok"),
             system_message="You are a helper.",
-            model_middleware=MiddlewareChain(entry_gate=[capture_roles]),
+            model_middleware=[capture_roles],
         )
 
         await rt.Flow("RoleCapture", agent).ainvoke("question")
@@ -496,48 +373,34 @@ class TestModelMiddleware:
         assert "system" in seen_roles
         assert "user" in seen_roles
 
-    @pytest.mark.asyncio
-    async def test_model_middleware_entry_gate_can_modify_messages(self, mock_llm):
-        """Model-level entry gate can inject or rewrite messages."""
-
+    async def test_model_middleware_can_modify_messages_before_call(self, mock_llm):
         received_content = []
 
-        @rt.gate
-        async def inject_header(messages, schema, tools):
-            from railtracks.llm.message import UserMessage
-            from railtracks.llm.history import MessageHistory
-
+        @rt.wrap_node
+        async def inject_header(call, messages, schema, tools):
             new_messages = MessageHistory(list(messages))
             new_messages.insert(0, UserMessage("[INJECTED]"))
-            return (new_messages, schema, tools), {}
+            return await call(new_messages, schema, tools)
 
-        @rt.gate
-        async def capture_first_message(messages, schema, tools):
+        @rt.wrap_node
+        async def capture_first_message(call, messages, schema, tools):
             received_content.append(messages[0].content)
-            # check-only after capture
+            return await call(messages, schema, tools)
 
         agent = rt.agent_node(
             name="InjectionAgent",
             llm=mock_llm(custom_response="ok"),
-            model_middleware=MiddlewareChain(
-                entry_gate=[inject_header, capture_first_message]
-            ),
+            model_middleware=[inject_header, capture_first_message],
         )
 
         await rt.Flow("InjectionAgent", agent).ainvoke("actual question")
 
         assert received_content[0] == "[INJECTED]"
 
-    @pytest.mark.asyncio
     async def test_model_middleware_wrapper_can_retry_on_llm_error(self, mock_llm):
-        """Model-level wrapper can catch model errors and retry.
-
-        model_middleware wraps _core_llm_call directly, so the wrapper sees the
-        raw Exception from the model — LLMError wrapping happens one layer above
-        in llm_invoke_factory after the middleware stack unwinds.
-        """
-
-        from railtracks.exceptions.errors import LLMError
+        """model_middleware wraps _core_llm_call directly, so the wrapper sees the raw
+        exception -- LLMError wrapping happens one layer above in llm_invoke_factory,
+        after the middleware stack unwinds."""
 
         attempts = {"n": 0}
 
@@ -550,7 +413,6 @@ class TestModelMiddleware:
                     attempts["n"] += 1
             raise LLMError(reason="exhausted", message_history=args[0])
 
-        # First call raises, second succeeds
         llm = mock_llm(
             custom_response="success",
             errors=[lambda: Exception("transient network error")],
@@ -559,7 +421,7 @@ class TestModelMiddleware:
         agent = rt.agent_node(
             name="RetryAgent",
             llm=llm,
-            model_middleware=MiddlewareChain(middleware=[retry_llm]),
+            model_middleware=[retry_llm],
         )
 
         result = await rt.Flow("RetryAgent", agent).ainvoke("try this")
@@ -567,30 +429,27 @@ class TestModelMiddleware:
         assert "success" in result.content
         assert attempts["n"] == 1
 
-    @pytest.mark.asyncio
     async def test_model_middleware_independent_per_agent_node(self, mock_llm):
-        """Each agent node gets its own copy of model_middleware; sys gates don't cross-contaminate."""
-
+        """Each agent node gets its own copy of model_middleware; middleware from one
+        node never fires for another."""
         gate_a_calls = {"n": 0}
         gate_b_calls = {"n": 0}
 
-        @rt.gate
-        async def gw_a(messages, schema, tools):
+        @rt.wrap_node
+        async def mw_a(call, *args, **kwargs):
             gate_a_calls["n"] += 1
+            return await call(*args, **kwargs)
 
-        @rt.gate
-        async def gw_b(messages, schema, tools):
+        @rt.wrap_node
+        async def mw_b(call, *args, **kwargs):
             gate_b_calls["n"] += 1
+            return await call(*args, **kwargs)
 
         agent_a = rt.agent_node(
-            "AgentA",
-            llm=mock_llm(custom_response="a"),
-            model_middleware=MiddlewareChain(entry_gate=[gw_a]),
+            "AgentA", llm=mock_llm(custom_response="a"), model_middleware=[mw_a]
         )
         agent_b = rt.agent_node(
-            "AgentB",
-            llm=mock_llm(custom_response="b"),
-            model_middleware=MiddlewareChain(entry_gate=[gw_b]),
+            "AgentB", llm=mock_llm(custom_response="b"), model_middleware=[mw_b]
         )
 
         await rt.Flow("AgentA", agent_a).ainvoke("hello")
@@ -606,83 +465,182 @@ class TestModelMiddleware:
 
 
 class TestContextInjection:
-    """Context injection: rt.context variables substituted into prompt templates."""
+    """Context injection: rt.context values substituted into {placeholder} templates."""
 
-    @pytest.mark.asyncio
     async def test_context_variable_injected_into_system_message(self, mock_llm):
-        """rt.context values are substituted into {placeholder} template syntax before the LLM call."""
-
         injected_system_content = []
 
-        @rt.gate
-        async def capture_system(messages, schema, tools):
+        @rt.wrap_node
+        async def capture_system(call, messages, schema, tools):
             for m in messages:
                 if m.role == "system":
                     injected_system_content.append(m.content)
+            return await call(messages, schema, tools)
 
         agent = rt.agent_node(
             name="TemplateAgent",
             llm=mock_llm(custom_response="done"),
             system_message="You assist {username}.",
-            model_middleware=MiddlewareChain(entry_gate=[capture_system]),
+            model_middleware=[capture_system],
         )
 
-        await rt.Flow("TemplateAgent", agent, context={"username": "Alice"}).ainvoke("help me")
+        await rt.Flow("TemplateAgent", agent, context={"username": "Alice"}).ainvoke(
+            "help me"
+        )
 
         assert any("Alice" in c for c in injected_system_content)
 
-    @pytest.mark.asyncio
     async def test_context_injection_disabled_when_flag_is_false(self, mock_llm):
-        """context_injection=False prevents {placeholder} substitution."""
-
         injected_system_content = []
 
-        @rt.gate
-        async def capture_system(messages, schema, tools):
+        @rt.wrap_node
+        async def capture_system(call, messages, schema, tools):
             for m in messages:
                 if m.role == "system":
                     injected_system_content.append(m.content)
+            return await call(messages, schema, tools)
 
         agent = rt.agent_node(
             name="NoInjectionAgent",
             llm=mock_llm(custom_response="done"),
             system_message="You assist {username}.",
-            model_middleware=MiddlewareChain(entry_gate=[capture_system]),
+            model_middleware=[capture_system],
             context_injection=False,
         )
 
-        await rt.Flow("NoInjectionAgent", agent, context={"username": "Alice"}).ainvoke("help me")
+        await rt.Flow("NoInjectionAgent", agent, context={"username": "Alice"}).ainvoke(
+            "help me"
+        )
 
         assert all("{username}" in c for c in injected_system_content)
 
 
 # ---------------------------------------------------------------------------
-# TestModelSourceFactory
+# TestGuardrailsEndToEnd
 # ---------------------------------------------------------------------------
 
 
-class TestModelSourceFactory:
-    """ModelSource can be a no-arg callable resolved fresh on every model call."""
+class TestGuardrailsEndToEnd:
+    """Guardrails wired as fixed model-middleware through `agent_node(guardrails=...)`."""
 
-    @pytest.mark.asyncio
-    async def test_model_factory_resolved_per_agent_call(self, mock_llm):
-        """A factory ModelSource is called once per agent invocation."""
+    async def test_input_block_prevents_llm_call(self, mock_llm):
+        llm_called = {"value": False}
 
-        factory_calls = {"n": 0}
+        def track_and_respond(messages):
+            llm_called["value"] = True
+            return Response(
+                message=AssistantMessage("leaked"), message_info=MessageInfo(model_name="m")
+            )
 
-        def llm_factory():
-            factory_calls["n"] += 1
-            return mock_llm(custom_response=f"response_{factory_calls['n']}")
+        model = mock_llm()
+        model._chat = track_and_respond
 
-        agent = rt.agent_node(name="FactoryAgent", llm=llm_factory)
+        class BlockAllInput(InputGuard):
+            def __call__(self, event):
+                return GuardrailDecision.block(reason="blocked input")
 
-        flow = rt.Flow("FactoryAgent", agent)
-        r1 = await flow.ainvoke("first call")
-        r2 = await flow.ainvoke("second call")
+        agent = rt.agent_node(
+            "GuardedInputAgent", llm=model, guardrails=Guard(input=[BlockAllInput()])
+        )
 
-        assert factory_calls["n"] == 2
-        assert "response_1" in r1.content
-        assert "response_2" in r2.content
+        with pytest.raises(GuardrailBlockedError):
+            await rt.Flow("GuardedInputAgent", agent).ainvoke("attempt this")
+
+        assert not llm_called["value"]
+
+    async def test_output_block_on_terminal_response(self, mock_llm):
+        class BlockAllOutput(OutputGuard):
+            def __call__(self, event):
+                return GuardrailDecision.block(reason="blocked output")
+
+        agent = rt.agent_node(
+            "GuardedOutputAgent",
+            llm=mock_llm(custom_response="secret data"),
+            guardrails=Guard(output=[BlockAllOutput()]),
+        )
+
+        with pytest.raises(GuardrailBlockedError):
+            await rt.Flow("GuardedOutputAgent", agent).ainvoke("hi")
+
+    async def test_output_guard_skipped_on_intermediate_tool_call(self, mock_llm):
+        fired = {"n": 0}
+
+        class CountingAllowOutput(OutputGuard):
+            def __call__(self, event):
+                fired["n"] += 1
+                return GuardrailDecision.allow(reason="ok")
+
+        def increment(n: int) -> int:
+            """Increments a number.
+            Args:
+                n (int): The number.
+            Returns:
+                int: n + 1.
+            """
+            return n + 1
+
+        llm = mock_llm(
+            requested_tool_calls=[
+                ToolCall(name="increment", identifier="id1", arguments={"n": 1})
+            ]
+        )
+        agent = rt.agent_node(
+            "GuardedToolAgent",
+            llm=llm,
+            tool_nodes=[rt.function_node(increment)],
+            guardrails=Guard(output=[CountingAllowOutput()]),
+        )
+
+        result = await rt.Flow("GuardedToolAgent", agent).ainvoke("increment 1")
+
+        # Fires once for the final content reply, not for the intermediate tool-call turn.
+        assert fired["n"] == 1
+        assert "2" in result.content
+
+    async def test_guardrail_block_is_not_wrapped_as_llmerror(self, mock_llm):
+        """GuardrailBlockedError is a NodeInvocationError; llm_invoke_factory
+        deliberately re-raises it as-is instead of masking it as a generic LLMError."""
+
+        class BlockAllInput(InputGuard):
+            def __call__(self, event):
+                return GuardrailDecision.block(reason="blocked")
+
+        agent = rt.agent_node(
+            "GuardedAgent",
+            llm=mock_llm(custom_response="hi"),
+            guardrails=Guard(input=[BlockAllInput()]),
+        )
+
+        with pytest.raises(GuardrailBlockedError) as exc:
+            await rt.Flow("GuardedAgent", agent).ainvoke("hi")
+        assert not isinstance(exc.value, LLMError)
+
+    async def test_node_level_middleware_sees_guardrail_block_uncaught(self, mock_llm):
+        seen = {"exc_type": None}
+
+        @rt.wrap_node
+        async def observe(call, *args, **kwargs):
+            try:
+                return await call(*args, **kwargs)
+            except Exception as e:
+                seen["exc_type"] = type(e)
+                raise
+
+        class BlockAllInput(InputGuard):
+            def __call__(self, event):
+                return GuardrailDecision.block(reason="blocked")
+
+        agent = rt.agent_node(
+            "ObservedGuardedAgent",
+            llm=mock_llm(custom_response="hi"),
+            middleware=[observe],
+            guardrails=Guard(input=[BlockAllInput()]),
+        )
+
+        with pytest.raises(GuardrailBlockedError):
+            await rt.Flow("ObservedGuardedAgent", agent).ainvoke("hi")
+
+        assert seen["exc_type"] is GuardrailBlockedError
 
 
 # ---------------------------------------------------------------------------
@@ -691,12 +649,9 @@ class TestModelSourceFactory:
 
 
 class TestToolCallingWithPrepareArgs:
-    """End-to-end tool calling via the NodeBuilder path (verifies prepare_args fix)."""
+    """End-to-end tool calling via the NodeBuilder path (verifies the prepare_args fix)."""
 
-    @pytest.mark.asyncio
     async def test_function_node_tool_called_with_correct_args(self, mock_llm):
-        """Agent dispatches a tool call; the function node receives correctly typed arguments."""
-
         received = {}
 
         def double(n: int) -> int:
@@ -715,9 +670,7 @@ class TestToolCallingWithPrepareArgs:
             ]
         )
         agent = rt.agent_node(
-            name="DoubleAgent",
-            llm=llm,
-            tool_nodes=[rt.function_node(double)],
+            name="DoubleAgent", llm=llm, tool_nodes=[rt.function_node(double)]
         )
 
         result = await rt.Flow("DoubleAgent", agent).ainvoke("double 5")
@@ -725,10 +678,7 @@ class TestToolCallingWithPrepareArgs:
         assert received.get("n") == 5
         assert "10" in result.content
 
-    @pytest.mark.asyncio
     async def test_multiple_parallel_tool_calls(self, mock_llm):
-        """Agent dispatching multiple tool calls in one response runs them all."""
-
         calls_made = []
 
         def tag(label: str) -> str:
@@ -747,20 +697,13 @@ class TestToolCallingWithPrepareArgs:
                 ToolCall(name="tag", identifier="id_b", arguments={"label": "beta"}),
             ]
         )
-        agent = rt.agent_node(
-            name="MultiToolAgent",
-            llm=llm,
-            tool_nodes=[rt.function_node(tag)],
-        )
+        agent = rt.agent_node(name="MultiToolAgent", llm=llm, tool_nodes=[rt.function_node(tag)])
 
         await rt.Flow("MultiToolAgent", agent).ainvoke("tag alpha and beta")
 
         assert sorted(calls_made) == ["alpha", "beta"]
 
-    @pytest.mark.asyncio
     async def test_tool_exception_surfaced_to_llm_as_string(self, mock_llm):
-        """Tool runtime errors become error-string ToolMessages; the LLM loop continues."""
-
         def always_fails(x: int) -> int:
             """Always raises.
             Args:
@@ -776,9 +719,7 @@ class TestToolCallingWithPrepareArgs:
             ]
         )
         agent = rt.agent_node(
-            name="ErrorToolAgent",
-            llm=llm,
-            tool_nodes=[rt.function_node(always_fails)],
+            name="ErrorToolAgent", llm=llm, tool_nodes=[rt.function_node(always_fails)]
         )
 
         result = await rt.Flow("ErrorToolAgent", agent).ainvoke("call always_fails")
@@ -786,17 +727,13 @@ class TestToolCallingWithPrepareArgs:
         # The error is surfaced to the LLM as a tool message string, not raised.
         assert result is not None
 
-    @pytest.mark.asyncio
-    async def test_function_node_tool_with_middleware_executes_middleware(
-        self, mock_llm
-    ):
-        """Middleware on a function node tool fires when the tool is called by an agent."""
+    async def test_function_node_tool_with_middleware_executes_middleware(self, mock_llm):
+        fired = {"value": False}
 
-        gate_fired = {"value": False}
-
-        @rt.gate
-        def mark_fired(n: int):
-            gate_fired["value"] = True
+        @rt.wrap_node
+        async def mark_fired(call, *args, **kwargs):
+            fired["value"] = True
+            return await call(*args, **kwargs)
 
         def increment(n: int) -> int:
             """Increments a number.
@@ -807,76 +744,258 @@ class TestToolCallingWithPrepareArgs:
             """
             return n + 1
 
-        tool = rt.function_node(
-            increment, middleware=MiddlewareChain(entry_gate=[mark_fired])
-        )
+        tool = rt.function_node(increment, middleware=[mark_fired])
 
         llm = mock_llm(
             requested_tool_calls=[
                 ToolCall(name="increment", identifier="id_inc", arguments={"n": 9})
             ]
         )
-        agent = rt.agent_node(
-            name="ToolWithMiddlewareAgent",
-            llm=llm,
-            tool_nodes=[tool],
-        )
+        agent = rt.agent_node(name="ToolWithMiddlewareAgent", llm=llm, tool_nodes=[tool])
 
         result = await rt.Flow("ToolWithMiddlewareAgent", agent).ainvoke("increment 9")
 
-        assert gate_fired["value"]
+        assert fired["value"]
         assert "10" in result.content
 
 
 # ---------------------------------------------------------------------------
-# TestMiddlewareChainIsolation
+# TestCoupleAndComposition
 # ---------------------------------------------------------------------------
 
 
-class TestMiddlewareChainIsolation:
-    """MiddlewareChain fresh-copy semantics: sharing a set across nodes is safe."""
+class TestCoupleAndComposition:
+    """`rt.couple` post-hoc attachment, and multi-level composition of every
+    injection mechanism on a single agent."""
 
-    def test_shared_middleware_set_not_mutated(self, mock_llm):
-        """Two nodes built from the same MiddlewareChain get independent copies."""
+    async def test_couple_attaches_middleware_after_build(self, mock_llm):
+        log = []
 
-        shared = MiddlewareChain()
+        @rt.wrap_node
+        async def tracer(call, *args, **kwargs):
+            log.append("in")
+            result = await call(*args, **kwargs)
+            log.append("out")
+            return result
 
-        node_a = rt.agent_node("IsoA", llm=mock_llm(), middleware=shared)
-        node_b = rt.agent_node("IsoB", llm=mock_llm(), middleware=shared)
+        agent = rt.agent_node("CoupledAgent", llm=mock_llm(custom_response="ok"))
+        agent = rt.couple(agent, [tracer])
 
-        assert node_a.frozen_middleware is not node_b.frozen_middleware
-        assert node_a.frozen_middleware is not shared
+        result = await rt.Flow("CoupledAgent", agent).ainvoke("hi")
 
-    def test_node_instance_middleware_independent_from_class(self, mock_llm):
-        """Each Node instance gets a fresh copy of frozen_middleware; mutations don't bleed."""
+        assert "ok" in result.content
+        assert log == ["in", "out"]
 
+
+    async def test_full_stack_composition_order(self, mock_llm):
+        """Node-level middleware + model_middleware + guardrails + a post-hoc couple()
+        all compose in the actual documented append order."""
+        trace = []
+
+        @rt.wrap_node
+        async def node_a(call, *args, **kwargs):
+            trace.append("node_a-in")
+            result = await call(*args, **kwargs)
+            trace.append("node_a-out")
+            return result
+
+        @rt.wrap_node
+        async def node_c(call, *args, **kwargs):
+            trace.append("node_c-in")
+            result = await call(*args, **kwargs)
+            trace.append("node_c-out")
+            return result
+
+        @rt.wrap_node
+        async def model_b(call, *args, **kwargs):
+            trace.append("model_b-in")
+            result = await call(*args, **kwargs)
+            trace.append("model_b-out")
+            return result
+
+        class TraceInputGuard(InputGuard):
+            def __call__(self, event):
+                trace.append("guardrail_input")
+                return GuardrailDecision.allow(reason="ok")
+
+        class TraceOutputGuard(OutputGuard):
+            def __call__(self, event):
+                trace.append("guardrail_output")
+                return GuardrailDecision.allow(reason="ok")
+
+        agent = rt.agent_node(
+            "FullStackAgent",
+            llm=mock_llm(custom_response="hi"),
+            middleware=[node_a],
+            model_middleware=[model_b],
+            guardrails=Guard(input=[TraceInputGuard()], output=[TraceOutputGuard()]),
+        )
+        agent = rt.couple(agent, [node_c])
+
+        await rt.Flow("FullStackAgent", agent).ainvoke("hello")
+
+        # Node-level: build-time middleware (node_a) is outer, coupled middleware
+        # (node_c) is inner (couple appends after existing _user_middleware).
+        assert (
+            trace.index("node_a-in")
+            < trace.index("node_c-in")
+            < trace.index("node_c-out")
+            < trace.index("node_a-out")
+        )
+
+        # Model-level: the actual current splice order is
+        # [context_injection, *user_model_middleware, guardrail_output, guardrail_input]
+        # -- so user model_middleware (model_b) wraps OUTSIDE guardrail_output, which
+        # wraps outside guardrail_input (closest to the model call). See the
+        # ordering-bug regression test in test_node_builder.py: this means a user's
+        # own model_middleware can silently override what the output guardrail decided.
+        assert (
+            trace.index("model_b-in")
+            < trace.index("guardrail_input")
+            < trace.index("guardrail_output")
+            < trace.index("model_b-out")
+        )
+
+
+# ---------------------------------------------------------------------------
+# TestMiddlewareIsolation
+# ---------------------------------------------------------------------------
+
+
+class TestMiddlewareIsolation:
+    """Isolation guarantees: sharing a bare middleware list across nodes is safe."""
+
+    async def test_shared_node_level_middleware_list_not_mutated(self, mock_llm):
+        shared = []
+
+        node_a = rt.agent_node("IsoA", llm=mock_llm(custom_response="a"), middleware=shared)
+        node_b = rt.agent_node("IsoB", llm=mock_llm(custom_response="b"), middleware=shared)
+
+        assert node_a._user_middleware is not node_b._user_middleware
+        assert shared == []
+
+    def test_node_instance_middleware_chain_independent_from_class(self, mock_llm):
         agent_cls = rt.agent_node("InstanceIso", llm=mock_llm())
         instance_a = agent_cls()
         instance_b = agent_cls()
 
         assert instance_a.middleware is not instance_b.middleware
-        assert instance_a.middleware is not agent_cls.frozen_middleware
 
-    @pytest.mark.asyncio
-    async def test_sys_gate_registered_once_per_node(self, mock_llm):
-        """System-registered gates (e.g. context injection) do not accumulate across builds."""
+    async def test_building_same_agent_repeatedly_does_not_accumulate(self, mock_llm):
+        calls = {"n": 0}
 
-        call_count = {"n": 0}
+        @rt.wrap_node
+        async def counting(call, *args, **kwargs):
+            calls["n"] += 1
+            return await call(*args, **kwargs)
 
-        @rt.gate
-        async def counting_gw(messages, schema, tools):
-            call_count["n"] += 1
-
-        # Build the same agent multiple times with the same model_middleware
-        ms = MiddlewareChain(entry_gate=[counting_gw])
+        shared = [counting]
 
         for _ in range(3):
             agent = rt.agent_node(
-                name="AccumTest",
-                llm=mock_llm(custom_response="ok"),
-                model_middleware=ms,
+                "RepeatBuild", llm=mock_llm(custom_response="ok"), model_middleware=shared
             )
-            await rt.Flow("AccumTest", agent).ainvoke("hi")
+            await rt.Flow("RepeatBuild", agent).ainvoke("hi")
 
-        # counting_gw fires exactly once per call, 3 calls total
-        assert call_count["n"] == 3
+        assert calls["n"] == 3  # fires once per call, not accumulating across builds
+        assert shared == [counting]  # the original list is untouched
+
+
+# ---------------------------------------------------------------------------
+# TestConcurrencyAndRetryInterplay
+# ---------------------------------------------------------------------------
+
+
+class TestConcurrencyAndRetryInterplay:
+    async def test_concurrent_invocations_do_not_leak_state(self):
+        order = []
+
+        @rt.wrap_node
+        async def tracer(call, tag):
+            order.append(f"start-{tag}")
+            result = await call(tag)
+            order.append(f"end-{tag}")
+            return result
+
+        @rt.function_node(middleware=[tracer])
+        async def slow_identity(tag: int) -> int:
+            await asyncio.sleep(0.01 if tag == 0 else 0)
+            return tag
+
+        with rt.Session():
+            results = await asyncio.gather(
+                rt.call(slow_identity, 0),
+                rt.call(slow_identity, 1),
+            )
+
+        assert sorted(results) == [0, 1]
+        assert order.count("start-0") == 1
+        assert order.count("end-0") == 1
+        assert order.count("start-1") == 1
+        assert order.count("end-1") == 1
+
+    async def test_middleware_retry_and_builtin_retry_approach_do_not_conflict(
+        self, mock_llm
+    ):
+        """A model_middleware retry wrapper and the built-in retry_approach operate at
+        different layers -- retry_approach resolves entirely inside the single raw
+        model call that model_middleware wraps, so they don't double up."""
+        from unittest.mock import patch
+
+        import litellm
+        from railtracks.llm.retries import FixedRetry
+
+        def rate_limited():
+            return litellm.exceptions.RateLimitError(
+                message="rate limited", llm_provider="mock", model="MockLLM"
+            )
+
+        middleware_attempts = {"n": 0}
+
+        @rt.wrap_node
+        async def count_attempts(call, *args, **kwargs):
+            middleware_attempts["n"] += 1
+            return await call(*args, **kwargs)
+
+        llm = mock_llm(
+            custom_response="final answer",
+            errors=[rate_limited, rate_limited],
+            retry_approach=FixedRetry(max_tries=5, delay=0.0),
+        )
+        agent = rt.agent_node(
+            name="RetryInterplayAgent", llm=llm, model_middleware=[count_attempts]
+        )
+
+        with patch("railtracks.llm.retries.base.time.sleep"):
+            result = await rt.Flow("RetryInterplayAgent", agent).ainvoke("hi")
+
+        assert result.content == "final answer"
+        # count_attempts wraps the whole raw model call (including the built-in
+        # retry loop inside it), so it fires once per round-trip, not once per
+        # underlying retry attempt.
+        assert middleware_attempts["n"] == 1
+
+
+# ---------------------------------------------------------------------------
+# TestSessionPersistence
+# ---------------------------------------------------------------------------
+
+
+class TestSessionPersistence:
+    async def test_middleware_attached_node_serializes_cleanly(
+        self, mock_llm, json_state_schema
+    ):
+        from jsonschema import validate
+
+        @rt.wrap_node
+        async def tracer(call, *args, **kwargs):
+            return await call(*args, **kwargs)
+
+        agent = rt.agent_node(
+            "PersistAgent", llm=mock_llm(custom_response="ok"), middleware=[tracer]
+        )
+
+        with rt.Session() as session:
+            await rt.call(agent, user_input="hi")
+
+        validate(session.payload(), json_state_schema)

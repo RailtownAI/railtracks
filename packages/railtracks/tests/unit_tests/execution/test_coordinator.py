@@ -100,7 +100,7 @@ def test_coordinator_handle_item_success_and_failure(coordinator, mock_task):
     assert coordinator.state.job_list[0].result == "success"
 
     # Add another job for failure
-    mock_task2 = Task(request_id="req-2", node=mock_task.node)
+    mock_task2 = Task(request_id="req-2", node=mock_task.node, arguments=((), {}))
     coordinator.state.add_job(mock_task2)
     msg_fail = RequestFailure(request_id="req-2", node_state="dummy", error=Exception("fail"))
     coordinator.handle_item(msg_fail)

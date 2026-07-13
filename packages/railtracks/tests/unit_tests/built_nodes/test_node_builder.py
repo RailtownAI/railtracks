@@ -1,6 +1,7 @@
 import asyncio
 
 import pytest
+import railtracks as rt
 from pydantic import BaseModel
 from unittest.mock import MagicMock
 
@@ -9,8 +10,13 @@ from railtracks.built_nodes._node_builder import (
     classmethod_preserving_function_meta,
     safe_create_node,
 )
+from railtracks.built_nodes.middlewares import after_model
 from railtracks.exceptions.errors import NodeCreationError
-from railtracks.llm import Parameter, SystemMessage
+from railtracks.guardrails.core import Guard, GuardrailDecision, InputGuard, OutputGuard
+from railtracks.llm import Message, MessageHistory, Parameter, SystemMessage
+from railtracks.llm.message import AssistantMessage, Role
+from railtracks.llm.response import Response
+from railtracks.middlewares import wrap_node
 from railtracks.nodes.nodes import Node
 
 
@@ -49,10 +55,6 @@ def test_nodebuilder_llm_has_invoke():
     node_cls = NodeBuilder.llm("TestNode", model=dummy_model()).build()
     assert hasattr(node_cls, "invoke")
 
-
-def test_nodebuilder_llm_no_tool_details_has_no_tool_info():
-    node_cls = NodeBuilder.llm("TestNode", model=dummy_model()).build()
-    assert not hasattr(node_cls, "tool_info")
 
 
 def test_nodebuilder_llm_with_tool_details_has_tool_info():
@@ -218,3 +220,213 @@ def test_classmethod_preserving_function_meta():
 
     Dummy.f = cm
     assert Dummy.f(2) == 3
+
+
+# --- middleware / guardrails / context injection wiring ---
+
+
+def test_nodebuilder_function_middleware_sets_user_middleware():
+    @wrap_node
+    async def tag(call, *args, **kwargs):
+        return await call(*args, **kwargs)
+
+    node_cls = NodeBuilder.function(async_func, middleware=[tag]).build()
+    assert node_cls._user_middleware == [tag]
+
+
+def test_nodebuilder_llm_middleware_sets_user_middleware(mock_llm):
+    # NodeBuilder.llm deep-copies `middleware` before storing it, so the stored
+    # Middleware objects are copies (not identical by `==`) -- assert functionally.
+    fired = {"value": False}
+
+    @wrap_node
+    async def tag(call, *args, **kwargs):
+        fired["value"] = True
+        return await call(*args, **kwargs)
+
+    node_cls = NodeBuilder.llm(
+        "TestNode", model=mock_llm(custom_response="hi"), middleware=[tag]
+    ).build()
+
+    async def top():
+        with rt.Session():
+            return await rt.call(node_cls, user_input="hello")
+
+    asyncio.run(top())
+    assert fired["value"]
+    assert len(node_cls._user_middleware) == 1
+
+
+def test_nodebuilder_llm_model_middleware_wraps_model_call(mock_llm):
+    calls = []
+
+    @wrap_node
+    async def tracer(call, *args, **kwargs):
+        calls.append("in")
+        result = await call(*args, **kwargs)
+        calls.append("out")
+        return result
+
+    node_cls = NodeBuilder.llm(
+        "TestNode", model=mock_llm(custom_response="hi"), model_middleware=[tracer]
+    ).build()
+
+    async def top():
+        with rt.Session():
+            return await rt.call(node_cls, user_input="hello")
+
+    result = asyncio.run(top())
+    assert result.content == "hi"
+    assert calls == ["in", "out"]
+
+
+def _echo_last_message(messages):
+    return Response(message=Message(role=Role.assistant, content=messages[-1].content))
+
+
+def test_nodebuilder_llm_context_injection_default_true(mock_llm):
+    # Empty user_input -> the system message is the only (and therefore last) message,
+    # so echoing messages[-1] reflects the (possibly context-injected) system content.
+    model = mock_llm()
+    model._chat = _echo_last_message
+
+    node_cls = NodeBuilder.llm(
+        "CtxNode", model=model, system_message=SystemMessage(content="{secret}")
+    ).build()
+
+    async def top():
+        with rt.Session(context={"secret": "tomato"}):
+            return await rt.call(node_cls, user_input=MessageHistory())
+
+    assert asyncio.run(top()).content == "tomato"
+
+
+def test_nodebuilder_llm_context_injection_false_skips_substitution(mock_llm):
+    model = mock_llm()
+    model._chat = _echo_last_message
+
+    node_cls = NodeBuilder.llm(
+        "CtxNode",
+        model=model,
+        system_message=SystemMessage(content="{secret}"),
+        context_injection=False,
+    ).build()
+
+    async def top():
+        with rt.Session(context={"secret": "tomato"}):
+            return await rt.call(node_cls, user_input=MessageHistory())
+
+    assert asyncio.run(top()).content == "{secret}"
+
+
+def test_nodebuilder_llm_guardrails_input_and_output_both_fire(mock_llm):
+    fired = {"input": False, "output": False}
+
+    class MarkInputGuard(InputGuard):
+        def __call__(self, event):
+            fired["input"] = True
+            return GuardrailDecision.allow(reason="ok")
+
+    class MarkOutputGuard(OutputGuard):
+        def __call__(self, event):
+            fired["output"] = True
+            return GuardrailDecision.allow(reason="ok")
+
+    node_cls = NodeBuilder.llm(
+        "GuardedNode",
+        model=mock_llm(custom_response="hi"),
+        guardrails=Guard(input=[MarkInputGuard()], output=[MarkOutputGuard()]),
+    ).build()
+
+    async def top():
+        with rt.Session():
+            return await rt.call(node_cls, user_input="hello")
+
+    asyncio.run(top())
+    assert fired == {"input": True, "output": True}
+
+
+def test_nodebuilder_llm_guardrails_input_only_does_not_fire_output(mock_llm):
+    fired = {"input": False}
+
+    class MarkInputGuard(InputGuard):
+        def __call__(self, event):
+            fired["input"] = True
+            return GuardrailDecision.allow(reason="ok")
+
+    node_cls = NodeBuilder.llm(
+        "GuardedInputOnlyNode",
+        model=mock_llm(custom_response="hi"),
+        guardrails=Guard(input=[MarkInputGuard()]),
+    ).build()
+
+    async def top():
+        with rt.Session():
+            return await rt.call(node_cls, user_input="hello")
+
+    result = asyncio.run(top())
+    assert fired["input"]
+    assert result.content == "hi"
+
+
+def test_nodebuilder_llm_empty_guardrail_lists_are_a_no_op(mock_llm):
+    node_cls = NodeBuilder.llm(
+        "EmptyGuardNode", model=mock_llm(custom_response="hi"), guardrails=Guard()
+    ).build()
+
+    async def top():
+        with rt.Session():
+            return await rt.call(node_cls, "hello")
+
+    assert asyncio.run(top()).content == "hi"
+
+
+def test_nodebuilder_llm_guardrail_output_should_be_outermost_over_user_model_middleware(
+    mock_llm,
+):
+    """Regression/spec test.
+
+    `guardrail_output_middleware`'s own docstring says it is placed outermost in the
+    model-middleware chain ("the final word on the response, after any user
+    model_middleware has had its own say"). But `NodeBuilder.llm`'s actual splice order
+    appends it AFTER user model_middleware, making it more inner -- so a user's own
+    post-call transform can silently overwrite the guardrail's decision. This test
+    asserts the DOCUMENTED/intended order and is expected to fail until that ordering
+    bug is fixed.
+    """
+
+    class AlwaysRedactOutputGuard(OutputGuard):
+        def __call__(self, event):
+            return GuardrailDecision.transform_output(
+                output_message=AssistantMessage("[REDACTED BY GUARDRAIL]"),
+                reason="always redact",
+            )
+
+    @after_model
+    def overwrite_after_guardrail(response):
+        return Response(
+            message=AssistantMessage("overwritten by user middleware"),
+            message_info=response.message_info,
+        )
+
+    node_cls = NodeBuilder.llm(
+        "GuardOrderNode",
+        model=mock_llm(custom_response="hello"),
+        model_middleware=[overwrite_after_guardrail],
+        guardrails=Guard(output=[AlwaysRedactOutputGuard()]),
+    ).build()
+
+    async def top():
+        with rt.Session():
+            return await rt.call(node_cls, user_input="hi")
+
+    result = asyncio.run(top())
+    assert result.content == "[REDACTED BY GUARDRAIL]"
+
+
+def test_nodebuilder_function_has_no_middleware_by_default():
+    """Mirrors what `rt_mcp.main.from_mcp` does: NodeBuilder.function with no
+    `middleware=` produces a node with no middleware at all -- there is no injection
+    point for an MCP-derived tool node other than `rt.couple()` post-hoc."""
+    node_cls = NodeBuilder.function(async_func).build()
+    assert node_cls._user_middleware == []

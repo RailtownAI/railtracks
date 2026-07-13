@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import TYPE_CHECKING, Iterable, ParamSpec, TypeVar, overload
 
 from railtracks.built_nodes.middlewares.core import ModelMiddleware
@@ -16,19 +17,19 @@ _R = TypeVar("_R")
 
 @overload
 def couple(
-    node: type[Node[_P, _R]], middleware: Iterable[Middleware[_P, _R]]
+    node: type[Node[_P, _R]], *middleware: Middleware[_P, _R]
 ) -> type[Node[_P, _R]]:
     ...
 
 @overload
 def couple(
-    node: RTFunction[_P, _R], middleware: Iterable[Middleware[_P, _R]]
+    node: RTFunction[_P, _R], *middleware: Middleware[_P, _R]
 ) -> RTFunction[_P, _R]:
     ...
 
 
 def couple(
-    node: type[Node[_P, _R]] | RTFunction[_P, _R], middleware: Iterable[Middleware[_P, _R]]
+    node: type[Node[_P, _R]] | RTFunction[_P, _R], *middleware: Middleware[_P, _R]
 ) -> type[Node[_P, _R]] | RTFunction[_P, _R]:
     """ 
     Attaches middleware to a Node. This function return a completely new Node type so it will not effect the original Node inputted. 
@@ -41,6 +42,15 @@ def couple(
     - Middleware = [A, B, C] -> A wraps B, B wraps C, C wraps the node. A -> B -> C -> Node -> C -> B -> A
     - If there is previous middleware present these will wrap around them. 
     """
+
+    if isinstance(node, RTFunction):
+        new_klass = deepcopy(node)
+        new_node_type = node.node_type.extend_middleware(*middleware)
+        new_klass.node_type = new_node_type
+        
+        return new_klass
+    
+    
     new_klass = node.extend_middleware(*middleware)
 
     return new_klass

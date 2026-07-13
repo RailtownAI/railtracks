@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 from railtracks.built_nodes.easy_usage_wrappers.function import function_node, _function_preserving_metadata
+from railtracks.exceptions.errors import NodeCreationError
 
 @pytest.mark.asyncio
 async def async_func(x):
@@ -29,10 +30,8 @@ def test_function_node_builtin():
 def test_function_node_already_node_type(mock_function):
     f = mock_function
     setattr(f, "node_type", "AlreadyNodeType")
-    with patch("warnings.warn") as warn_mock:
-        result = function_node(f)
-        assert result is f
-        warn_mock.assert_called_once()
+    with pytest.raises(NodeCreationError):
+        function_node(f, name="TestFunc")
 
 def test_function_node_invalid_type():
     class NotAFunction:
