@@ -7,6 +7,6 @@ body:
     attributes:
       label: Description & Design
       description: >
-        What are we building, why, and the full design (feel free to add this full design later)
+        What are we building, why, and the design (feel free to add the full design later).
     validations:
       required: true
