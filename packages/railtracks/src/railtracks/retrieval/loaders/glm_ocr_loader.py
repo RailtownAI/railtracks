@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import io
 from collections.abc import AsyncGenerator
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
@@ -10,10 +12,11 @@ from railtracks.retrieval.models import Document, DocumentType, OCRResult
 
 try:
     import glmocr
+    from PIL import Image as PILImage
 except ImportError as exc:
     raise ImportError(
-        "glmocr is required for GLMOCRLoader and GLMOCRPDFLoader. "
-        'Install it with: pip install "railtracks[glm]".'
+        "glmocr and pillow are required for GLMOCRLoader and GLMOCRPDFLoader. "
+        'Install them with: pip install "railtracks[glm]".'
     ) from exc
 
 if TYPE_CHECKING:
@@ -132,8 +135,6 @@ class GLMOCRLoader(BaseOCRLoader):
         Encodes the image as PNG bytes in the calling thread, then offloads
         the blocking network call to a worker thread.
         """
-        import io
-
         buf = io.BytesIO()
         await asyncio.to_thread(image.save, buf, format="PNG")
         image_bytes = buf.getvalue()
@@ -146,9 +147,6 @@ class GLMOCRLoader(BaseOCRLoader):
         Sends the image as a base64-encoded PNG in a JSON body and reads the
         response with ``httpx.AsyncClient`` so the event loop is not blocked.
         """
-        import base64
-        import io
-
         import httpx
 
         buf = io.BytesIO()
@@ -168,8 +166,6 @@ class GLMOCRLoader(BaseOCRLoader):
 
     async def _stream_image(self, path: Path) -> AsyncGenerator[Document, None]:
         """Yield a single Document from one image file."""
-        from PIL import Image as PILImage
-
         image = await asyncio.to_thread(PILImage.open, path)
         result = await self._ocr_image_structured(image)
         if not result.markdown or not result.markdown.strip():
@@ -298,8 +294,6 @@ class GLMOCRPDFLoader(GLMOCRLoader):
 
     async def _call_local_pdf(self, pdf_bytes: bytes) -> OCRResult:
         """POST PDF bytes (base64-encoded) to the local endpoint."""
-        import base64
-
         import httpx
 
         b64 = base64.b64encode(pdf_bytes).decode()
