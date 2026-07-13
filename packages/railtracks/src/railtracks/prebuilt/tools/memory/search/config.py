@@ -8,8 +8,8 @@ class LexicalSearchConfig:
     """Tunable scoring weights for :class:`~.lexical.LexicalSearch`.
 
     Defaults are tuned so an exact key match dominates, a key hit outranks a
-    value hit, and multi-term queries reward broader coverage; see the field
-    docs below. Override individual fields to bias ranking for a specific
+    value hit, and multi-term queries reward broader coverage; see the grouped
+    comments below. Override individual fields to bias ranking for a specific
     corpus, e.g. raise ``value_coverage`` when values are long free-text notes
     rather than short facts, or lower ``fuzzy_threshold`` to be more forgiving
     of typos at the cost of more false positives.
