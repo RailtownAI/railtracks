@@ -17,6 +17,17 @@ def before_model(
         | Awaitable[tuple[MessageHistory, type[BaseModel] | None, list[Tool] | None]],
     ],
 ):
+    """
+    A special decorator to create a middleware that maps the inputs to a new input before every call to a model
+    
+    Example usage:
+    ```python
+    @before_model
+    async def my_middleware(message_history, schema, tools):
+        # do something with the inputs
+        return message_history, schema, tools
+    ```
+    """
     @wrap_model
     async def wrapper(
         llm_call: LLM_CALL,

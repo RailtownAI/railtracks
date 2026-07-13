@@ -148,10 +148,14 @@ def _single_function_node(
             "The provided function has already been converted to a node.",
             UserWarning,
         )
-        assert issubclass(func.node_type, Node), (
-            "The provided function has a node_type attribute but it is not a Node. This unexpected behavior"
-        )
-        return func
+
+        if func.node_type is type:
+            assert issubclass(func.node_type, Node), (
+                "The provided function has a node_type attribute but it is not a Node. This unexpected behavior"
+            )
+            return func
+        else:
+            
 
     if not isinstance(
         func, BuiltinFunctionType

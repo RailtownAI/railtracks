@@ -16,6 +16,19 @@ def wrap_model(
         Awaitable[Response],
     ],
 ):
+    """
+    A special decorator to create a middleware wrapper that wraps every call to an llm
+    
+    Example usage:
+    ```python
+    @wrap_model
+    async def my_middleware(llm_call, message_history, schema, tools):
+        # do something with the inputs
+        response = await llm_call(message_history, schema, tools)
+        # do something with the response
+        return response
+    ```
+    """
     wrapped = wrap_node(fn)
 
     return wrapped
