@@ -89,8 +89,6 @@ async def call(
     else:
         node = node_
 
-    # TODO: make sure the function type branch deletion does not break things.,
-
     # if the context is none then we will need to create a wrapper for the state object to work with.
     if not is_context_present():
         # we have to use lazy import here to prevent a circular import issue. This is a must have unfortunately.

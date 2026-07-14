@@ -8,6 +8,7 @@ from typing import Any, Generic, Literal, ParamSpec, TypeVar
 
 from railtracks.llm.tools.tool import Tool
 from railtracks.middleware import MiddlewareChain
+from railtracks.middleware.core import Middleware
 from railtracks.validation.node_creation.validation import (
     check_classmethod,
 )
@@ -95,17 +96,22 @@ class Node(ABC, Generic[_P, _TOutput]):
         # without this direct call to the parent __init_subclass__ method the generic resolutions will not work correctly
         super().__init_subclass__()
 
-    # Node-level middleware applied around `invoke` (boundary: the node's call
-    # args -> the node's output). Shared class-level default is never mutated;
-    # each instance takes a fresh copy in __init__.
-    frozen_middleware: MiddlewareChain = MiddlewareChain()
+    _exterior_middleware: list[Middleware[_P, _TOutput]] = []
+    _user_middleware: list[Middleware[_P, _TOutput]] = []
+    _interior_middleware: list[Middleware[_P, _TOutput]] = []
 
     def __init__(
         self,
     ):
         # each fresh node will have a generated uuid that identifies it.
         self.uuid = str(uuid.uuid4())
-        self.middleware = self.frozen_middleware._fresh_copy()
+        self.middleware = MiddlewareChain[_P, _TOutput](
+            middleware=[
+                *self._exterior_middleware,
+                *self._user_middleware,
+                *self._interior_middleware,
+            ]
+        )
 
     @classmethod
     @abstractmethod
@@ -124,9 +130,19 @@ class Node(ABC, Generic[_P, _TOutput]):
 
     async def wrapped_invoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
         """
-        Runs ``invoke`` through the node-level middleware (wrappers + gateways).
+        Runs ``invoke`` through the node-level middleware.
         """
         return await self.middleware.run(self.invoke, *args, **kwargs)
+
+    @classmethod
+    def extend_middleware(
+        cls, *middleware: Middleware[_P, _TOutput]
+    ) -> type[Node[_P, _TOutput]]:
+        new_middleware = [
+            *deepcopy(cls._user_middleware),
+            *middleware,
+        ]  # fresh list a nice protection around things
+        return type(cls.__name__, (cls,), {"_user_middleware": new_middleware})
 
     def __repr__(self):
         return f"{self.name()} <{hex(id(self))}>"

@@ -6,21 +6,21 @@ import inspect
 import warnings
 from types import BuiltinFunctionType
 from typing import (
-    Any,
     Callable,
     Coroutine,
     Generic,
+    Iterable,
     List,
     ParamSpec,
-    Protocol,
     TypeVar,
+    cast,
     overload,
 )
 
 from railtracks.built_nodes._node_builder import NodeBuilder
 from railtracks.built_nodes.concrete.function_base import RTFunction
 from railtracks.exceptions import NodeCreationError
-from railtracks.middleware import MiddlewareChain
+from railtracks.middleware.core import Middleware
 from railtracks.nodes.manifest import ToolManifest
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_creation.validation import (
@@ -32,24 +32,55 @@ _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
 
 
-class CallableSyncRTFunction(RTFunction[_P, _TOutput], Protocol, Generic[_P, _TOutput]):
-    def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput: ...
+class CallableSyncRTFunction(RTFunction[_P, _TOutput], Generic[_P, _TOutput]):
+    def __init__(
+        self, func: Callable[_P, _TOutput], node_type: type[Node[_P, _TOutput]]
+    ):
+        self.func = func
+        self.node_type = node_type
+        functools.update_wrapper(self, func, updated=())
+
+    def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
+        return self.func(*args, **kwargs)
+
+    def with_node_type(
+        self, node_type: type[Node[_P, _TOutput]]
+    ) -> CallableSyncRTFunction[_P, _TOutput]:
+        """Returns a copy of this CallableSyncRTFunction with a different `node_type`. Does not modify this instance."""
+        return CallableSyncRTFunction(self.func, node_type)
 
 
-class CallableAsyncRTFunction(
-    RTFunction[_P, _TOutput], Protocol, Generic[_P, _TOutput]
-):
-    async def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput: ...
+class CallableAsyncRTFunction(RTFunction[_P, _TOutput], Generic[_P, _TOutput]):
+    def __init__(
+        self,
+        func: Callable[_P, Coroutine[None, None, _TOutput]],
+        node_type: type[Node[_P, _TOutput]],
+    ):
+        self.func = func
+        self.node_type = node_type
+        functools.update_wrapper(self, func, updated=())
+
+    async def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
+        return await self.func(*args, **kwargs)
+
+    def with_node_type(
+        self, node_type: type[Node[_P, _TOutput]]
+    ) -> CallableAsyncRTFunction[_P, _TOutput]:
+        """Returns a copy of this CallableAsyncRTFunction with a different `node_type`. Does not modify this instance."""
+        return CallableAsyncRTFunction(self.func, node_type)
 
 
+# note there is an intentional overlap in overloads
+# by running the first overload check it will pick up all `async` functions
+# this avoid python's inability to distinguish between `async` and `sync` functions in overloads
 @overload
-def function_node(
+def function_node(  # pyright: ignore[reportOverlappingOverload]
     func: Callable[_P, Coroutine[None, None, _TOutput]],
     /,
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: MiddlewareChain[_P, _TOutput] | None = None,
+    middleware: Iterable[Middleware[_P, _TOutput]] | None = None,
 ) -> CallableAsyncRTFunction[_P, _TOutput]: ...
 
 
@@ -60,20 +91,20 @@ def function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: MiddlewareChain[_P, _TOutput] | None = None,
+    middleware: Iterable[Middleware[_P, _TOutput]] | None = None,
 ) -> CallableSyncRTFunction[_P, _TOutput]:
     pass
 
 
 @overload
 def function_node(
-    func: List[Callable[..., Any]],
+    func: List[Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput]],
     /,
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: MiddlewareChain[_P, _TOutput] | None = None,
-) -> List[RTFunction[..., Any]]:
+    middleware: Iterable[Middleware[_P, _TOutput]] | None = None,
+) -> List[CallableAsyncRTFunction[_P, _TOutput] | CallableSyncRTFunction[_P, _TOutput]]:
     pass
 
 
@@ -84,15 +115,16 @@ def function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: MiddlewareChain | None = None,
+    middleware: Iterable[Middleware[_P, _TOutput]] | None = None,
 ) -> Callable[
-    [Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]], RTFunction[_P, _TOutput]
+    [Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput]],
+    RTFunction[_P, _TOutput],
 ]:
     pass
 
 
 def validate_function_parameters(
-    func: Callable[_P, Coroutine[None, None, _TOutput] | _TOutput],
+    func: Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput],
     manifest: ToolManifest | None = None,
 ):
     """
@@ -116,12 +148,12 @@ def validate_function_parameters(
 
 
 def _single_function_node(
-    func: Callable[_P, Coroutine[None, None, _TOutput] | _TOutput],
+    func: Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput],
     /,
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: MiddlewareChain[_P, _TOutput] | None = None,
+    middleware: Iterable[Middleware[_P, _TOutput]] | None = None,
 ) -> CallableSyncRTFunction[_P, _TOutput] | CallableAsyncRTFunction[_P, _TOutput]:
     """
     Creates a new Node type from a function that can be used in `rt.call()`.
@@ -139,15 +171,12 @@ def _single_function_node(
         manifest (ToolManifest, optional): The details you would like to override the tool with.
     """
 
-    if hasattr(func, "node_type"):
-        warnings.warn(
-            "The provided function has already been converted to a node.",
-            UserWarning,
-        )
-        assert issubclass(func.node_type, Node), (
-            "The provided function has a node_type attribute but it is not a Node. This unexpected behavior"
-        )
+    if isinstance(func, CallableSyncRTFunction) or isinstance(
+      func, CallableAsyncRTFunction
+    ):
         return func
+
+        
 
     if not isinstance(
         func, BuiltinFunctionType
@@ -173,17 +202,19 @@ def _single_function_node(
         )
 
     unwrapped_func: Callable[_P, Coroutine[None, None, _TOutput]]
+    is_sync = False
     if not asyncio.iscoroutinefunction(func):
+        is_sync = True
 
         async def wrapped_function(*args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
             return await asyncio.to_thread(func, *args, **kwargs)
 
-        functools.update_wrapper(wrapped_function, func)  # type: ignore[arg-type]
+        functools.update_wrapper(wrapped_function, func)
         unwrapped_func = wrapped_function
     else:
         unwrapped_func = func
 
-    builder = NodeBuilder().function(
+    builder = NodeBuilder.function(
         unwrapped_func,
         name=name if name is not None else f"{unwrapped_func.__name__}",
         middleware=middleware,
@@ -194,30 +225,39 @@ def _single_function_node(
     completed_node_type = builder.build()
 
     if issubclass(completed_node_type, Node):
-        setattr(func, "node_type", completed_node_type)
-        return func
-    else:
-        raise NodeCreationError(
-            message="The provided function did not create a valid node type.",
-            notes=[
-                "Please make a github issue with the details of what went wrong.",
-            ],
-        )
+        if is_sync:
+            new_func = cast(Callable[_P, _TOutput], func)
+            return CallableSyncRTFunction(new_func, completed_node_type)
+        else:
+            new_func = cast(Callable[_P, Coroutine[None, None, _TOutput]], func)
+            return CallableAsyncRTFunction(new_func, completed_node_type)
+
+    raise NodeCreationError(
+        message="The provided function did not create a valid node type.",
+        notes=[
+            "Please make a github issue with the details of what went wrong.",
+        ],
+    )
 
 
 def function_node(
-    func: Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]
-    | List[Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]]
+    func: Callable[_P, Coroutine[None, None, _TOutput]]
+    | Callable[_P, _TOutput]
+    | List[Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput]]
     | None = None,
     /,
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: MiddlewareChain[_P, _TOutput] | None = None,
+    middleware: Iterable[Middleware[_P, _TOutput]] | None = None,
 ) -> (
-    Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]
-    | List[Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]]
-    | Callable[[Callable[_P, _TOutput]], RTFunction[_P, _TOutput]]
+    CallableAsyncRTFunction[_P, _TOutput]
+    | CallableSyncRTFunction[_P, _TOutput]
+    | List[CallableAsyncRTFunction[_P, _TOutput] | CallableSyncRTFunction[_P, _TOutput]]
+    | Callable[
+        [Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput]],
+        RTFunction[_P, _TOutput],
+    ]
     | None
 ):
     """
@@ -248,8 +288,7 @@ def function_node(
             parametrized-decorator form, which returns a decorator that takes the function.
         name (str, optional): Human-readable name for the node/tool.
         manifest (ToolManifest, optional): The details you would like to override the tool with.
-        middleware (MiddlewareChain | list | None): Middleware applied around the node boundary.
-            Accepts a MiddlewareChain or a bare list of Wrapper/Gate (check-only gateways act as guardrails).
+        middleware (list[Middleware] | None): Middleware applied around the node boundary.
     """
 
     # No function yet -> parametrized-decorator form: bind the options and return
@@ -257,8 +296,10 @@ def function_node(
     if func is None:
 
         def _decorator(
-            f: Callable[_P, Coroutine[None, None, _TOutput] | _TOutput],
-        ) -> Callable[_P, Coroutine[None, None, _TOutput] | _TOutput]:
+            f: Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput],
+        ) -> (
+            CallableAsyncRTFunction[_P, _TOutput] | CallableSyncRTFunction[_P, _TOutput]
+        ):
             return function_node(f, name=name, manifest=manifest, middleware=middleware)
 
         return _decorator

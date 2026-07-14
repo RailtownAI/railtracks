@@ -1,9 +1,10 @@
-"""Unit tests for the guardrail middleware gates (guardrail_gates.py).
+"""Unit tests for the guardrail-as-middleware adapters (guardrail_gates.py).
 
-These replace the LLMGuardrailsMixin seam: input guards -> entry gate, output guards ->
-exit gate, both delegating to GuardRunner. Tests exercise the gates directly via
-apply_entry / apply_exit, and end-to-end through a MiddlewareChain wired the way
-ModelInvoker wires them (input as sys entry position="after", output as sys exit).
+`guardrail_input_middleware` / `guardrail_output_middleware` are thin `@before_model` /
+`@after_model` adapters over `GuardRunner`. Since the real `Middleware` primitive has no
+separate entry/exit-gate concept, each is exercised by calling `.wrap(core)` directly and
+awaiting the result, plus end-to-end through a real `MiddlewareChain` wired the way
+`NodeBuilder.llm` wires them onto `ModelInvoker`.
 """
 
 from __future__ import annotations
@@ -19,14 +20,13 @@ from railtracks.guardrails.core import (
     OutputGuard,
 )
 from railtracks.guardrails.llm.guardrail_gates import (
-    guardrail_input_gate,
-    guardrail_output_gate,
+    guardrail_input_middleware,
+    guardrail_output_middleware,
 )
 from railtracks.llm import AssistantMessage, MessageHistory, UserMessage
 from railtracks.llm.content import ToolCall
 from railtracks.llm.response import MessageInfo, Response
 from railtracks.middleware import MiddlewareChain
-
 
 # --------------------------------------------------------------------------- helpers
 
@@ -50,7 +50,9 @@ class FnOutputGuard(OutputGuard):
 
 
 def _content_response(text: str = "hi") -> Response:
-    return Response(message=AssistantMessage(text), message_info=MessageInfo(model_name="m"))
+    return Response(
+        message=AssistantMessage(text), message_info=MessageInfo(model_name="m")
+    )
 
 
 def _tool_call_response() -> Response:
@@ -58,49 +60,62 @@ def _tool_call_response() -> Response:
     return Response(message=msg, message_info=MessageInfo(model_name="m"))
 
 
-# --------------------------------------------------------------------------- input gate
+# --------------------------------------------------------------------------- input middleware
 
 
-class TestInputGate:
-    @pytest.mark.asyncio
+class TestInputMiddleware:
     async def test_empty_input_rails_passes_through(self):
-        gate = guardrail_input_gate(Guard(input=[]))
-        args, kwargs = await gate.apply_entry(MessageHistory([UserMessage("x")]), None, None)
-        assert kwargs == {}
-        assert isinstance(args[0], MessageHistory)
+        mw = guardrail_input_middleware(Guard(input=[]))
+        seen = {}
 
-    @pytest.mark.asyncio
+        async def core(messages, schema, tools):
+            seen["messages"] = messages
+            return _content_response()
+
+        await mw.wrap(core)(MessageHistory([UserMessage("x")]), None, None)
+        assert isinstance(seen["messages"], MessageHistory)
+
     async def test_allow_passes_through_unchanged(self):
-        gate = guardrail_input_gate(
+        mw = guardrail_input_middleware(
             Guard(input=[FnInputGuard(lambda _e: GuardrailDecision.allow(reason="ok"))])
         )
         mh = MessageHistory([UserMessage("x")])
-        args, kwargs = await gate.apply_entry(mh, None, None)
-        assert args[0] is mh  # unchanged object flows through
+        seen = {}
 
-    @pytest.mark.asyncio
+        async def core(messages, schema, tools):
+            seen["messages"] = messages
+            return _content_response()
+
+        await mw.wrap(core)(mh, None, None)
+        assert seen["messages"] is mh  # unchanged object flows through
+
     async def test_block_raises(self):
-        gate = guardrail_input_gate(
+        mw = guardrail_input_middleware(
             Guard(
                 input=[
                     FnInputGuard(
-                        lambda _e: GuardrailDecision.block(reason="nope", user_facing_message="u"),
+                        lambda _e: GuardrailDecision.block(
+                            reason="nope", user_facing_message="u"
+                        ),
                         name="blocker",
                     )
                 ]
             )
         )
+
+        async def core(messages, schema, tools):
+            raise AssertionError("core should not run")
+
         with pytest.raises(GuardrailBlockedError) as exc:
-            await gate.apply_entry(MessageHistory([UserMessage("x")]), None, None)
+            await mw.wrap(core)(MessageHistory([UserMessage("x")]), None, None)
         assert exc.value.reason == "nope"
         assert exc.value.user_facing_message == "u"
         assert exc.value.rail_name == "blocker"
         assert exc.value.traces and exc.value.traces[-1].action == "block"
 
-    @pytest.mark.asyncio
     async def test_transform_forwards_new_messages_and_keeps_schema_tools(self):
         new_hist = MessageHistory([UserMessage("redacted")])
-        gate = guardrail_input_gate(
+        mw = guardrail_input_middleware(
             Guard(
                 input=[
                     FnInputGuard(
@@ -111,45 +126,90 @@ class TestInputGate:
                 ]
             )
         )
+        seen = {}
         schema, tools = object(), ["t"]
-        args, kwargs = await gate.apply_entry(MessageHistory([UserMessage("x")]), schema, tools)
-        # full (messages, schema, tools) replacement — schema/tools preserved
-        assert args == (new_hist, schema, tools)
-        assert kwargs == {}
+
+        async def core(messages, schema_, tools_):
+            seen["args"] = (messages, schema_, tools_)
+            return _content_response()
+
+        await mw.wrap(core)(MessageHistory([UserMessage("x")]), schema, tools)
+        assert seen["args"] == (new_hist, schema, tools)
+
+    async def test_runs_on_every_call_no_latch(self):
+        """No latch: redaction is re-applied on every model round-trip."""
+        calls = []
+        mw = guardrail_input_middleware(
+            Guard(
+                input=[
+                    FnInputGuard(
+                        lambda _e: GuardrailDecision.transform_messages(
+                            messages=MessageHistory([UserMessage("redacted")]),
+                            reason="x",
+                        )
+                    )
+                ]
+            )
+        )
+
+        async def core(messages, schema, tools):
+            calls.append(messages[0].content)
+            return _content_response()
+
+        wrapped = mw.wrap(core)
+        await wrapped(MessageHistory([UserMessage("secret")]), None, None)
+        await wrapped(MessageHistory([UserMessage("secret")]), None, None)
+        assert calls == ["redacted", "redacted"]
 
 
-# --------------------------------------------------------------------------- output gate
+# --------------------------------------------------------------------------- output middleware
 
 
-class TestOutputGate:
-    @pytest.mark.asyncio
+class TestOutputMiddleware:
     async def test_empty_output_rails_passes_through(self):
-        gate = guardrail_output_gate(Guard(output=[]))
+        mw = guardrail_output_middleware(Guard(output=[]))
         resp = _content_response()
-        assert await gate.apply_exit(resp) is resp
 
-    @pytest.mark.asyncio
+        async def core(messages, schema, tools):
+            return resp
+
+        assert await mw.wrap(core)(MessageHistory(), None, None) is resp
+
     async def test_intermediate_tool_call_passes_through_untouched(self):
         # A blocking output guard must NOT fire on an intermediate tool-call turn.
-        gate = guardrail_output_gate(
-            Guard(output=[FnOutputGuard(lambda _e: GuardrailDecision.block(reason="should not run"))])
+        mw = guardrail_output_middleware(
+            Guard(
+                output=[
+                    FnOutputGuard(
+                        lambda _e: GuardrailDecision.block(reason="should not run")
+                    )
+                ]
+            )
         )
         resp = _tool_call_response()
-        assert await gate.apply_exit(resp) is resp  # unchanged, no raise
 
-    @pytest.mark.asyncio
+        async def core(messages, schema, tools):
+            return resp
+
+        assert await mw.wrap(core)(MessageHistory(), None, None) is resp
+
     async def test_terminal_block_raises(self):
-        gate = guardrail_output_gate(
-            Guard(output=[FnOutputGuard(lambda _e: GuardrailDecision.block(reason="bad output"))])
+        mw = guardrail_output_middleware(
+            Guard(
+                output=[FnOutputGuard(lambda _e: GuardrailDecision.block(reason="bad output"))]
+            )
         )
+
+        async def core(messages, schema, tools):
+            return _content_response("evil")
+
         with pytest.raises(GuardrailBlockedError) as exc:
-            await gate.apply_exit(_content_response("evil"))
+            await mw.wrap(core)(MessageHistory(), None, None)
         assert exc.value.traces[-1].phase == "llm_output"
 
-    @pytest.mark.asyncio
     async def test_terminal_transform_preserves_message_info(self):
         new_msg = AssistantMessage("sanitized")
-        gate = guardrail_output_gate(
+        mw = guardrail_output_middleware(
             Guard(
                 output=[
                     FnOutputGuard(
@@ -161,19 +221,25 @@ class TestOutputGate:
             )
         )
         info = MessageInfo(input_tokens=3, output_tokens=5, model_name="m")
-        resp = Response(message=AssistantMessage("raw"), message_info=info)
-        out = await gate.apply_exit(resp)
+
+        async def core(messages, schema, tools):
+            return Response(message=AssistantMessage("raw"), message_info=info)
+
+        out = await mw.wrap(core)(MessageHistory(), None, None)
         assert isinstance(out, Response)
         assert out.message is new_msg
         assert out.message_info is info
 
-    @pytest.mark.asyncio
     async def test_terminal_allow_passes_through(self):
-        gate = guardrail_output_gate(
+        mw = guardrail_output_middleware(
             Guard(output=[FnOutputGuard(lambda _e: GuardrailDecision.allow(reason="ok"))])
         )
         resp = _content_response()
-        assert await gate.apply_exit(resp) is resp
+
+        async def core(messages, schema, tools):
+            return resp
+
+        assert await mw.wrap(core)(MessageHistory(), None, None) is resp
 
 
 # --------------------------------------------------------------------------- wired like ModelInvoker
@@ -186,17 +252,19 @@ def _pii_input_guard():
 
 
 class TestWiredIntoMiddlewareChain:
-    """Wire the gates the way NodeBuilder.llm wires them onto ModelInvoker and run."""
+    """Wire the gates the way NodeBuilder.llm wires them onto ModelInvoker, then run
+    through a real MiddlewareChain (a bare list -- MiddlewareChain has no separate
+    entry/exit band, so output is placed before input, matching the actual splice
+    order in `_node_builder.py`: `[*user_model_middleware, output_gate, input_gate]`)."""
 
     def _chain(self, guard: Guard) -> MiddlewareChain:
-        mc = MiddlewareChain()
-        if guard.input:
-            mc.register_sys_entry_gate(guardrail_input_gate(guard), position="after")
+        middleware = []
         if guard.output:
-            mc.register_sys_exit_gate(guardrail_output_gate(guard))
-        return mc
+            middleware.append(guardrail_output_middleware(guard))
+        if guard.input:
+            middleware.append(guardrail_input_middleware(guard))
+        return MiddlewareChain(middleware)
 
-    @pytest.mark.asyncio
     async def test_input_redaction_reaches_core(self):
         seen = {}
 
@@ -204,39 +272,37 @@ class TestWiredIntoMiddlewareChain:
             seen["messages"] = messages
             return _content_response("done")
 
-        mc = self._chain(Guard(input=[_pii_input_guard()]))
+        chain = self._chain(Guard(input=[_pii_input_guard()]))
         original = MessageHistory([UserMessage("email me at alice@example.com")])
-        await mc.run(core, original, None, None)
+        await chain.run(core, original, None, None)
 
         # The core saw redacted content; the caller's original is untouched.
         assert "[EMAIL_ADDRESS]" in seen["messages"][0].content
         assert "alice@example.com" in original[0].content
 
-    @pytest.mark.asyncio
     async def test_input_gate_runs_every_round_no_latch(self):
-        # No latch: redaction is re-applied on every model call, so a second round
-        # (same original history) still reaches the core redacted.
+        # No latch: redaction re-applies on every model call, so a second round (same
+        # original history) still reaches the core redacted.
         calls = []
 
         async def core(messages, schema, tools):
             calls.append(messages[0].content)
             return _content_response()
 
-        mc = self._chain(Guard(input=[_pii_input_guard()]))
+        chain = self._chain(Guard(input=[_pii_input_guard()]))
         original = MessageHistory([UserMessage("ssn 123-45-6789")])
-        await mc.run(core, original, None, None)
-        await mc.run(core, original, None, None)
+        await chain.run(core, original, None, None)
+        await chain.run(core, original, None, None)
 
         assert len(calls) == 2
-        assert all("[US_SSN]" in c for c in calls)  # redacted every round
+        assert all("[US_SSN]" in c for c in calls)
 
-    @pytest.mark.asyncio
     async def test_output_block_propagates_through_run(self):
         async def core(messages, schema, tools):
             return _content_response("leak")
 
-        mc = self._chain(
+        chain = self._chain(
             Guard(output=[FnOutputGuard(lambda _e: GuardrailDecision.block(reason="blocked"))])
         )
         with pytest.raises(GuardrailBlockedError):
-            await mc.run(core, MessageHistory([UserMessage("q")]), None, None)
+            await chain.run(core, MessageHistory([UserMessage("q")]), None, None)

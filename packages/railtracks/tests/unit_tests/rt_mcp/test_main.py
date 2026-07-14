@@ -122,7 +122,7 @@ def test_from_mcp_prepare_args(fake_tool, mcp_http_params):
     mock_loop = MagicMock()
     mock_client = AsyncMock()
     result_class = from_mcp(fake_tool, mock_client, mock_loop)
-    # prepare_args is inherited from Node — passes kwargs through unchanged
+    
     assert result_class.prepare_args(one=1, two=2) == {"one": 1, "two": 2}
 
 @pytest.mark.asyncio

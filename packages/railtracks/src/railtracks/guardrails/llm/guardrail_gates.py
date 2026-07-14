@@ -1,16 +1,20 @@
-"""Middleware gates that run the guardrails core around the raw model call.
+"""Middleware that runs the guardrails core around the raw model call.
 
 These adapters let ``agent_node(..., guardrails=Guard(...))`` attach guardrails as
-**system gates on the model-level middleware** (`ModelInvoker`).
-They translate between the runner's ``(value, traces, decision)``
-triple and the middleware transform contract (transform-or-raise):
+fixed, non-reorderable **model-level middleware** (`ModelInvoker`). They translate
+between the runner's ``(value, traces, decision)`` triple and the middleware
+transform contract (transform-or-raise):
 
-- :func:`guardrail_input_gate`: an **entry gate**. Register with ``position="after"`` so
-  it is the last gate before the model call (sees the fully assembled, injected,
-  user-transformed prompt). Runs the input rails on the message history.
-- :func:`guardrail_output_gate`: an **exit gate** (register as sys-exit, the last word).
-  Runs the output rails on the final assistant reply; intermediate tool-call turns pass
-  through untouched.
+- :func:`guardrail_input_middleware`: a ``@before_model`` layer. ``NodeBuilder.llm``
+  places it innermost (last in the model-middleware list) so it is the last check
+  before the model call — it sees the fully assembled, context-injected,
+  user-``model_middleware``-transformed prompt. Runs the input rails on the message
+  history.
+- :func:`guardrail_output_middleware`: an ``@after_model`` layer. ``NodeBuilder.llm``
+  places it outermost (first in the model-middleware list) so it unwinds last — the
+  final word on the response, after any user ``model_middleware`` has had its own
+  say. Runs the output rails on the final assistant reply; intermediate tool-call
+  turns pass through untouched.
 
 The guardrails core (:class:`GuardRunner`, the built-in guards, decisions, traces) is
 reused unchanged; only the seam moves off the old ``LLMGuardrailsMixin``.
@@ -18,6 +22,9 @@ reused unchanged; only the seam moves off the old ``LLMGuardrailsMixin``.
 
 from __future__ import annotations
 
+from pydantic import BaseModel
+
+from railtracks.built_nodes.llm.middleware import after_llm, before_llm
 from railtracks.context.central import (
     get_parent_id,
     get_run_id,
@@ -25,7 +32,7 @@ from railtracks.context.central import (
 )
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.response import Response
-from railtracks.middleware import Gate, gate
+from railtracks.llm.tools.tool import Tool
 from railtracks.utils.logging import get_rt_logger
 
 from ..core import Guard, GuardrailBlockedError, GuardRunner
@@ -79,24 +86,28 @@ def _raise_if_blocked(
         )
 
 
-def guardrail_input_gate(guard: Guard) -> Gate:
-    """Build an entry gate that runs ``guard.input`` on the message history.
+def guardrail_input_middleware(guard: Guard):
+    """Build a ``@before_model`` middleware that runs ``guard.input`` on the message history.
 
-    Register on the model middleware with ``position="after"`` so it runs after any user
-    entry gates; the last transform before the model call. On ``BLOCK`` it raises
+    ``NodeBuilder.llm`` appends this last onto the model-middleware list, so it is the
+    last transform before the model call. On ``BLOCK`` it raises
     :class:`GuardrailBlockedError`; on ``TRANSFORM`` it forwards the rewritten history;
     on ``ALLOW`` it passes through unchanged.
     """
 
-    @gate
-    def _input_gate(messages: MessageHistory, schema=None, tools=None):
+    @before_llm
+    async def _input_gate(
+        message_history: MessageHistory,
+        schema: type[BaseModel] | None,
+        tools: list[Tool] | None,
+    ):
         if not guard.input:
-            return None
+            return message_history, schema, tools
 
         node_uuid, run_id = _node_metadata()
         event = LLMGuardrailEvent(
             phase=LLMGuardrailPhase.INPUT,
-            messages=messages,
+            messages=message_history,
             node_uuid=node_uuid,
             run_id=run_id,
         )
@@ -104,46 +115,44 @@ def guardrail_input_gate(guard: Guard) -> Gate:
         _record_guard_traces(traces)
         _raise_if_blocked(decision, traces)
 
-        if new_messages is messages:
-            return None  # ALLOW / check-only — pass through unchanged
-        # Full (args, kwargs) replacement; keep schema + tools (see context injection).
-        return (new_messages, schema, tools), {}
+        return new_messages, schema, tools
 
     return _input_gate
 
 
-def guardrail_output_gate(guard: Guard) -> Gate:
-    """Build an exit gate that runs ``guard.output`` on the final model ``Response``.
+def guardrail_output_middleware(guard: Guard):
+    """Build an ``@after_model`` middleware that runs ``guard.output`` on the final model ``Response``.
 
-    Register on the model middleware as a sys exit gate (the last word on the response).
-    Intermediate tool-call turns pass through untouched, so output rails fire only on the
-    final reply. On ``BLOCK`` it raises; on ``TRANSFORM`` it returns a rewritten
-    ``Response``; on ``ALLOW`` it passes through unchanged.
+    Intermediate tool-call turns pass through untouched, so output rails fire only on the final reply. On ``BLOCK``
+    it raises; on ``TRANSFORM`` it returns a rewritten ``Response``; on ``ALLOW`` it
+    passes through unchanged.
     """
 
-    @gate
-    def _output_gate(response: Response):
+    @after_llm
+    async def _output_gate(
+        result: Response,
+    ):
         if not guard.output:
-            return None
-        if _is_intermediate_tool_call(response):
-            return None
+            return result
+        if _is_intermediate_tool_call(result):
+            return result
 
         node_uuid, run_id = _node_metadata()
         event = LLMGuardrailEvent(
             phase=LLMGuardrailPhase.OUTPUT,
             messages=MessageHistory([]),  # exit-gate seam carries no upstream history
-            output_message=response.message,
+            output_message=result.message,
             node_uuid=node_uuid,
             run_id=run_id,
         )
         new_message, traces, decision = GuardRunner(guard).run_llm_output(
-            event, response.message
+            event, result.message
         )
         _record_guard_traces(traces)
         _raise_if_blocked(decision, traces)
 
-        if new_message is response.message:
-            return None  # ALLOW / check-only — keep the original response
-        return Response(message=new_message, message_info=response.message_info)
+        if new_message is result.message:
+            return result
+        return Response(message=new_message, message_info=result.message_info)
 
     return _output_gate

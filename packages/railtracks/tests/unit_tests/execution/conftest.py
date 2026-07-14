@@ -7,7 +7,7 @@ from railtracks.execution.task import Task
 def mock_node():
     node = AsyncMock()
     node.uuid = "mock-uuid"
-    node.tracked_invoke = AsyncMock(return_value="result")
+    node.wrapped_invoke = AsyncMock(return_value="result")
     return node
 
 
