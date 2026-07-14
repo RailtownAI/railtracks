@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import functools
 from typing import (
+    Callable,
     Generic,
     ParamSpec,
     Protocol,
@@ -21,3 +23,11 @@ class RTFunction(Protocol, Generic[_P, _TOutput]):
     """
 
     node_type: type[Node[_P, _TOutput]]
+
+    def with_node_type(
+        self, node_type: type[Node[_P, _TOutput]]
+    ) -> "RTFunction[_P, _TOutput]":
+        """Returns a copy of this RTFunction with a different `node_type`. Does not modify this instance."""
+        ...
+
+
