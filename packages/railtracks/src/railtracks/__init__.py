@@ -11,7 +11,6 @@ import logging
 from typing import TYPE_CHECKING
 
 from dotenv import load_dotenv
-from railtracks.built_nodes.llm.middleware import after_llm, before_llm
 
 if TYPE_CHECKING:
     import railtracks.interaction.interactive as interactive
@@ -51,7 +50,7 @@ __all__ = [
     "couple",
     "before_llm",
     "after_llm",
-    "wrap_model",
+    "wrap_llm",
 ]
 
 from railtracks.built_nodes.concrete.rag import RagConfig
@@ -71,7 +70,8 @@ from . import (
     vector_stores,
 )
 from ._session import ExecutionInfo, Session, session
-from .built_nodes.middleware import wrap_model
+
+from .built_nodes.llm.middleware import after_llm, before_llm, wrap_llm
 from .context.central import session_id, set_config
 from .interaction import broadcast, call, call_batch, couple
 from .middleware import after_node, wrap_node
