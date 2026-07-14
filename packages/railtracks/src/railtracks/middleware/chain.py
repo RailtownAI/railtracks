@@ -9,7 +9,7 @@ from typing import (
     TypeVar,
 )
 
-from railtracks.middlewares.core import Middleware
+from railtracks.middleware.core import Middleware
 
 _P = ParamSpec("_P")
 _R = TypeVar("_R")

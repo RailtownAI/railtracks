@@ -26,7 +26,7 @@ from railtracks.guardrails.llm.guardrail_gates import (
 from railtracks.llm import AssistantMessage, MessageHistory, UserMessage
 from railtracks.llm.content import ToolCall
 from railtracks.llm.response import MessageInfo, Response
-from railtracks.middlewares import MiddlewareChain
+from railtracks.middleware import MiddlewareChain
 
 # --------------------------------------------------------------------------- helpers
 

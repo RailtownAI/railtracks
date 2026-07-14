@@ -74,7 +74,7 @@ from ._session import ExecutionInfo, Session, session
 from .built_nodes.middleware import wrap_model
 from .context.central import session_id, set_config
 from .interaction import broadcast, call, call_batch, couple
-from .middlewares import after_node, wrap_node
+from .middleware import after_node, wrap_node
 from .nodes.manifest import ToolManifest
 from .orchestration.flow import Flow
 from .rt_mcp import MCPHttpParams, MCPStdioParams, connect_mcp, create_mcp_server

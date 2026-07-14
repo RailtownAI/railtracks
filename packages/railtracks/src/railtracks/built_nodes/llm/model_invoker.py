@@ -12,7 +12,7 @@ from railtracks.built_nodes.llm.middleware.wrap_model import wrap_model
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
-from railtracks.middlewares.chain import MiddlewareChain
+from railtracks.middleware.chain import MiddlewareChain
 
 
 @wrap_model

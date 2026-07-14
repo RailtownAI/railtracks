@@ -14,7 +14,7 @@ import asyncio
 
 import railtracks as rt
 from railtracks.interaction import couple
-from railtracks.middlewares import wrap_node
+from railtracks.middleware import wrap_node
 
 
 def _make_node():

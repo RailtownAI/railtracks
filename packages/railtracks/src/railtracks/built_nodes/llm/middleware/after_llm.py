@@ -6,7 +6,7 @@ from railtracks.built_nodes._types import LLM_CALL
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
-from railtracks.middlewares.core import wrap_node
+from railtracks.middleware.core import wrap_node
 from railtracks.utils.unpack import unpack_async_sync
 
 

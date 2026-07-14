@@ -39,7 +39,7 @@ from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import Message
 from railtracks.llm.response import Response
 from railtracks.llm.type_mapping import TypeMapper
-from railtracks.middlewares.core import Middleware
+from railtracks.middleware.core import Middleware
 from railtracks.nodes.nodes import Node
 from railtracks.prompts.prompt import context_injection_middleware
 from railtracks.validation.node_creation.validation import (

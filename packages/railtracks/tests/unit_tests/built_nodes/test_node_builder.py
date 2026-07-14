@@ -16,7 +16,7 @@ from railtracks.guardrails.core import Guard, GuardrailDecision, InputGuard, Out
 from railtracks.llm import Message, MessageHistory, Parameter, SystemMessage
 from railtracks.llm.message import AssistantMessage, Role
 from railtracks.llm.response import Response
-from railtracks.middlewares import wrap_node
+from railtracks.middleware import wrap_node
 from railtracks.nodes.nodes import Node
 
 

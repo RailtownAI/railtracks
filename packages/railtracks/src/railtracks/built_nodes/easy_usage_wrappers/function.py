@@ -20,7 +20,7 @@ from typing import (
 from railtracks.built_nodes._node_builder import NodeBuilder
 from railtracks.built_nodes.concrete.function_base import RTFunction
 from railtracks.exceptions import NodeCreationError
-from railtracks.middlewares.core import Middleware
+from railtracks.middleware.core import Middleware
 from railtracks.nodes.manifest import ToolManifest
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_creation.validation import (

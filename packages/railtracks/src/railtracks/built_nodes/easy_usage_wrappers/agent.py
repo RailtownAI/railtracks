@@ -11,7 +11,7 @@ from railtracks.built_nodes.llm.middleware.core import ModelMiddleware
 from railtracks.guardrails.core import Guard
 from railtracks.llm.message import SystemMessage
 from railtracks.llm.tools.parameters._base import Parameter
-from railtracks.middlewares.core import Middleware
+from railtracks.middleware.core import Middleware
 from railtracks.nodes.manifest import ToolManifest
 from railtracks.nodes.nodes import Node
 from railtracks.nodes.utils import extract_node_from_function

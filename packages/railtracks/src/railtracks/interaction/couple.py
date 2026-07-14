@@ -7,7 +7,7 @@ from railtracks.built_nodes.easy_usage_wrappers.function import (
     CallableAsyncRTFunction,
     CallableSyncRTFunction,
 )
-from railtracks.middlewares.core import Middleware
+from railtracks.middleware.core import Middleware
 from railtracks.nodes.nodes import Node
 
 _P = ParamSpec("_P")

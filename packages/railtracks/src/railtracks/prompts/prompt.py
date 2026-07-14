@@ -8,7 +8,7 @@ from railtracks.exceptions import ContextError
 from railtracks.llm import MessageHistory
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
-from railtracks.middlewares.core import wrap_node
+from railtracks.middleware.core import wrap_node
 from railtracks.utils.prompt_injection import ValueDict, inject_values
 
 

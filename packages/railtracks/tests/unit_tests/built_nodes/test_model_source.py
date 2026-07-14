@@ -7,7 +7,7 @@ import railtracks as rt
 from railtracks.llm import Message, MessageHistory
 from railtracks.llm.message import Role
 from railtracks.llm.response import Response
-from railtracks.middlewares import wrap_node
+from railtracks.middleware import wrap_node
 
 
 def _echo_last_message(messages: MessageHistory) -> Response:
