@@ -36,7 +36,7 @@ def couple(
     node: type[Node[_P, _R]] | RTFunction[_P, _R], *middleware: Middleware[_P, _R]
 ) -> type[Node[_P, _R]] | RTFunction[_P, _R]:
     """
-    Attaches middleware to a Node or RTFunction. Returns a new object; the one passed in is never modified.
+    Attaches middleware to a Node or RTFunction. Returns a new deepcopied Node or RTFunction; the one passed in is never modified.
 
     Args:
         node: The Node or RTFunction to attach middleware to.
