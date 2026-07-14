@@ -2,12 +2,12 @@ from typing import Awaitable, Callable
 
 from pydantic import BaseModel
 
-from railtracks.built_nodes.middlewares.wrap_model import wrap_model
+from railtracks.built_nodes.llm.middleware.wrap_model import wrap_model
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.tools.tool import Tool
 from railtracks.utils.unpack import unpack_async_sync
 
-from .._types import LLM_CALL
+from ..._types import LLM_CALL
 
 
 def before_model(

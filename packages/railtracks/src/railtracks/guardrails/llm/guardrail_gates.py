@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from railtracks.built_nodes.middlewares import after_model, before_model
+from railtracks.built_nodes.llm.middleware import after_model, before_model
 from railtracks.context.central import (
     get_parent_id,
     get_run_id,

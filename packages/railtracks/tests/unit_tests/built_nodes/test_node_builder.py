@@ -10,7 +10,7 @@ from railtracks.built_nodes._node_builder import (
     classmethod_preserving_function_meta,
     safe_create_node,
 )
-from railtracks.built_nodes.middlewares import after_model
+from railtracks.built_nodes.llm.middleware import after_model
 from railtracks.exceptions.errors import NodeCreationError
 from railtracks.guardrails.core import Guard, GuardrailDecision, InputGuard, OutputGuard
 from railtracks.llm import Message, MessageHistory, Parameter, SystemMessage

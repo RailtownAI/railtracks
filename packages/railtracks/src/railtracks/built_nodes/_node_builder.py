@@ -25,7 +25,7 @@ from railtracks.built_nodes.llm.llm_helpers import (
     llm_invoke_factory,
     llm_prepare_called_as_tool_factory,
 )
-from railtracks.built_nodes.middlewares.core import ModelMiddleware
+from railtracks.built_nodes.llm.middleware.core import ModelMiddleware
 from railtracks.guardrails.llm.guardrail_gates import (
     guardrail_input_middleware,
     guardrail_output_middleware,

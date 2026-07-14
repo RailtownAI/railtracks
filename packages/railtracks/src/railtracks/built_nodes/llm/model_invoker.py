@@ -7,8 +7,8 @@ from typing import Awaitable, Callable
 from pydantic import BaseModel
 from railtracks.built_nodes._types import ModelSource
 from railtracks.built_nodes.llm.request_details import RequestDetails
-from railtracks.built_nodes.middlewares.core import ModelMiddleware
-from railtracks.built_nodes.middlewares.wrap_model import wrap_model
+from railtracks.built_nodes.llm.middleware.core import ModelMiddleware
+from railtracks.built_nodes.llm.middleware.wrap_model import wrap_model
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool

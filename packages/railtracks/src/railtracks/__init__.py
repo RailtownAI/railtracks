@@ -11,6 +11,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from dotenv import load_dotenv
+from railtracks.built_nodes.llm.middleware import after_model, before_model
 
 if TYPE_CHECKING:
     import railtracks.interaction.interactive as interactive
@@ -70,7 +71,7 @@ from . import (
     vector_stores,
 )
 from ._session import ExecutionInfo, Session, session
-from .built_nodes.middlewares import after_model, before_model, wrap_model
+from .built_nodes.middleware import wrap_model
 from .context.central import session_id, set_config
 from .interaction import broadcast, call, call_batch, couple
 from .middlewares import after_node, wrap_node
