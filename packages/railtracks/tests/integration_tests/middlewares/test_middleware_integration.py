@@ -1,4 +1,5 @@
 import asyncio
+from unittest.mock import patch
 
 import pytest
 import railtracks as rt
@@ -16,6 +17,7 @@ from railtracks.llm.response import MessageInfo, Response
 
 import litellm
 from jsonschema import validate
+from railtracks.llm.retries.fixed import FixedRetry
 
 
 
@@ -838,8 +840,6 @@ class TestCoupleAndComposition:
 
         await rt.Flow("FullStackAgent", agent).ainvoke("hello")
 
-        # Node-level: build-time middleware (node_a) is outer, coupled middleware
-        # (node_c) is inner (couple appends after existing _user_middleware).
         assert (
             trace.index("node_a-in")
             < trace.index("node_c-in")
@@ -850,8 +850,8 @@ class TestCoupleAndComposition:
         assert (
             trace.index("model_b-in")
             < trace.index("guardrail_input")
-            < trace.index("guardrail_output")
             < trace.index("model_b-out")
+            < trace.index("guardrail_output")
         )
 
 
@@ -965,9 +965,6 @@ class TestConcurrencyAndRetryInterplay:
             result = await rt.Flow("RetryInterplayAgent", agent).ainvoke("hi")
 
         assert result.content == "final answer"
-        # count_attempts wraps the whole raw model call (including the built-in
-        # retry loop inside it), so it fires once per round-trip, not once per
-        # underlying retry attempt.
         assert middleware_attempts["n"] == 1
 
 

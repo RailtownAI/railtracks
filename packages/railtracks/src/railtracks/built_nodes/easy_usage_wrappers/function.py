@@ -12,7 +12,6 @@ from typing import (
     Iterable,
     List,
     ParamSpec,
-    Protocol,
     TypeVar,
     cast,
     overload,
@@ -39,9 +38,9 @@ class CallableSyncRTFunction(RTFunction[_P, _TOutput], Generic[_P, _TOutput]):
     ):
         self.func = func
         self.node_type = node_type
+        functools.update_wrapper(self, func, updated=())
 
-
-    def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput: 
+    def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
         return self.func(*args, **kwargs)
 
     def with_node_type(
@@ -49,19 +48,19 @@ class CallableSyncRTFunction(RTFunction[_P, _TOutput], Generic[_P, _TOutput]):
     ) -> CallableSyncRTFunction[_P, _TOutput]:
         """Returns a copy of this CallableSyncRTFunction with a different `node_type`. Does not modify this instance."""
         return CallableSyncRTFunction(self.func, node_type)
-    
 
 
-class CallableAsyncRTFunction(
-    RTFunction[_P, _TOutput], Generic[_P, _TOutput]
-):
+class CallableAsyncRTFunction(RTFunction[_P, _TOutput], Generic[_P, _TOutput]):
     def __init__(
-        self, func: Callable[_P, Coroutine[None, None, _TOutput]], node_type: type[Node[_P, _TOutput]]
+        self,
+        func: Callable[_P, Coroutine[None, None, _TOutput]],
+        node_type: type[Node[_P, _TOutput]],
     ):
         self.func = func
         self.node_type = node_type
+        functools.update_wrapper(self, func, updated=())
 
-    async def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput: 
+    async def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
         return await self.func(*args, **kwargs)
 
     def with_node_type(
@@ -172,24 +171,12 @@ def _single_function_node(
         manifest (ToolManifest, optional): The details you would like to override the tool with.
     """
 
-    if  isinstance(func, CallableSyncRTFunction) or isinstance(func, CallableAsyncRTFunction):
-        already_converted = cast(
-            CallableSyncRTFunction[_P, _TOutput] | CallableAsyncRTFunction[_P, _TOutput],
-            func,
-        )
-        if isinstance(already_converted.node_type, type):
-            warnings.warn(
-                "The provided function has already been converted to a node.",
-                UserWarning,
-            )
-            assert issubclass(already_converted.node_type, Node), (
-                "The provided function has a node_type attribute but it is not a Node. This unexpected behavior"
-            )
-            return already_converted
+    if isinstance(func, CallableSyncRTFunction) or isinstance(
+      func, CallableAsyncRTFunction
+    ):
+        return func
 
-        raise NodeCreationError(
-            "The function had a node_type attribute but it was not a type. Please ensure that the function has not been modified in an unexpected way.",
-        )
+        
 
     if not isinstance(
         func, BuiltinFunctionType
@@ -219,14 +206,12 @@ def _single_function_node(
     if not asyncio.iscoroutinefunction(func):
         is_sync = True
 
-
         async def wrapped_function(*args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
             return await asyncio.to_thread(func, *args, **kwargs)
 
         functools.update_wrapper(wrapped_function, func)
         unwrapped_func = wrapped_function
     else:
-        
         unwrapped_func = func
 
     builder = NodeBuilder.function(
@@ -238,23 +223,21 @@ def _single_function_node(
     )
 
     completed_node_type = builder.build()
-   
 
     if issubclass(completed_node_type, Node):
         if is_sync:
             new_func = cast(Callable[_P, _TOutput], func)
             return CallableSyncRTFunction(new_func, completed_node_type)
         else:
-
             new_func = cast(Callable[_P, Coroutine[None, None, _TOutput]], func)
             return CallableAsyncRTFunction(new_func, completed_node_type)
-           
+
     raise NodeCreationError(
-            message="The provided function did not create a valid node type.",
-            notes=[
-                "Please make a github issue with the details of what went wrong.",
-            ],
-        )
+        message="The provided function did not create a valid node type.",
+        notes=[
+            "Please make a github issue with the details of what went wrong.",
+        ],
+    )
 
 
 def function_node(

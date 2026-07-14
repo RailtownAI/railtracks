@@ -340,7 +340,7 @@ def test_nodebuilder_llm_guardrails_input_and_output_both_fire(mock_llm):
 
     async def top():
         with rt.Session():
-            return await rt.call(node_cls, user_input="hello")
+            return await rt.call(node_cls, "hello")
 
     asyncio.run(top())
     assert fired == {"input": True, "output": True}
@@ -362,7 +362,7 @@ def test_nodebuilder_llm_guardrails_input_only_does_not_fire_output(mock_llm):
 
     async def top():
         with rt.Session():
-            return await rt.call(node_cls, user_input="hello")
+            return await rt.call(node_cls, "hello")
 
     result = asyncio.run(top())
     assert fired["input"]
@@ -416,8 +416,5 @@ def test_nodebuilder_llm_guardrail_output_should_be_outermost_over_user_model_mi
 
 
 def test_nodebuilder_function_has_no_middleware_by_default():
-    """Mirrors what `rt_mcp.main.from_mcp` does: NodeBuilder.function with no
-    `middleware=` produces a node with no middleware at all -- there is no injection
-    point for an MCP-derived tool node other than `rt.couple()` post-hoc."""
     node_cls = NodeBuilder.function(async_func).build()
     assert node_cls._user_middleware == []
