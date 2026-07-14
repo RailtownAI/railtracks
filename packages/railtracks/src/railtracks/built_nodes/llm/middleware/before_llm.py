@@ -22,7 +22,7 @@ def before_llm(
 
     Example usage:
     ```python
-    @before_model
+    @before_llm
     async def my_middleware(message_history, schema, tools):
         # do something with the inputs
         return message_history, schema, tools

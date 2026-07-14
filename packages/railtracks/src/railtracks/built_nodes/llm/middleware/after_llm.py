@@ -13,6 +13,14 @@ from railtracks.utils.unpack import unpack_async_sync
 def after_llm(fn: Callable[[Response], Response | Awaitable[Response]]):
     """
     A special decorator to create a middleware that runs after every successful call to the model.
+
+    Example usage:
+    ```python
+    @after_llm
+    async def my_middleware(response):
+        # do something with the response
+        return response
+    ```
     """
 
     @wrap_node
