@@ -11,7 +11,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from dotenv import load_dotenv
-from railtracks.built_nodes.llm.middleware import after_model, before_model
+from railtracks.built_nodes.llm.middleware import after_llm, before_llm
 
 if TYPE_CHECKING:
     import railtracks.interaction.interactive as interactive
@@ -49,8 +49,8 @@ __all__ = [
     "wrap_node",
     "after_node",
     "couple",
-    "before_model",
-    "after_model",
+    "before_llm",
+    "after_llm",
     "wrap_model",
 ]
 

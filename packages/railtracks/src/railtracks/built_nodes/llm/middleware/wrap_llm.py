@@ -10,7 +10,7 @@ from railtracks.middleware.core import wrap_node
 from ..._types import LLM_CALL
 
 
-def wrap_model(
+def wrap_llm(
     fn: Callable[
         [LLM_CALL, MessageHistory, type[BaseModel] | None, list[Tool] | None],
         Awaitable[Response],

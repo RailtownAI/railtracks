@@ -10,7 +10,7 @@ from railtracks.built_nodes._node_builder import (
     classmethod_preserving_function_meta,
     safe_create_node,
 )
-from railtracks.built_nodes.llm.middleware import after_model
+from railtracks.built_nodes.llm.middleware import after_llm
 from railtracks.exceptions.errors import NodeCreationError
 from railtracks.guardrails.core import Guard, GuardrailDecision, InputGuard, OutputGuard
 from railtracks.llm import Message, MessageHistory, Parameter, SystemMessage
@@ -393,7 +393,7 @@ def test_nodebuilder_llm_guardrail_output_should_be_outermost_over_user_model_mi
                 reason="always redact",
             )
 
-    @after_model
+    @after_llm
     def overwrite_after_guardrail(response):
         return Response(
             message=AssistantMessage("overwritten by user middleware"),

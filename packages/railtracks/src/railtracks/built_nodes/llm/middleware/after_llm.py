@@ -10,7 +10,7 @@ from railtracks.middleware.core import wrap_node
 from railtracks.utils.unpack import unpack_async_sync
 
 
-def after_model(fn: Callable[[Response], Response | Awaitable[Response]]):
+def after_llm(fn: Callable[[Response], Response | Awaitable[Response]]):
     """
     A special decorator to create a middleware that runs after every successful call to the model.
     """

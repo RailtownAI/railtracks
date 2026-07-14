@@ -2,7 +2,7 @@ from typing import Awaitable, Callable
 
 from pydantic import BaseModel
 
-from railtracks.built_nodes.llm.middleware.wrap_model import wrap_model
+from railtracks.built_nodes.llm.middleware.wrap_llm import wrap_llm
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.tools.tool import Tool
 from railtracks.utils.unpack import unpack_async_sync
@@ -10,7 +10,7 @@ from railtracks.utils.unpack import unpack_async_sync
 from ..._types import LLM_CALL
 
 
-def before_model(
+def before_llm(
     fn: Callable[
         [MessageHistory, type[BaseModel] | None, list[Tool] | None],
         tuple[MessageHistory, type[BaseModel] | None, list[Tool] | None]
@@ -29,7 +29,7 @@ def before_model(
     ```
     """
 
-    @wrap_model
+    @wrap_llm
     async def wrapper(
         llm_call: LLM_CALL,
         message_history: MessageHistory,
