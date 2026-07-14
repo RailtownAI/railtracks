@@ -46,10 +46,7 @@ def test_function_node_middleware_can_short_circuit():
         return a + b
     
     node = add.node_type()
-
-    print(node.invoke(1, 2))
-    print(node.wrapped_invoke(1, 2))
-
+    
     async def top_level():
         with rt.Session():
             return await rt.call(add, 1, 2)

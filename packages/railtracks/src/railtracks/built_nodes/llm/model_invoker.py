@@ -66,8 +66,10 @@ class ModelInvoker:
         self._get_model = model if callable(model) else lambda: model
         self._middleware = MiddlewareChain(middleware or [])
 
-    @classmethod 
-    def create_with_llm_observe(cls, model: ModelSource, middleware: list[ModelMiddleware] | None = None) -> ModelInvoker:
+    @classmethod
+    def create_with_llm_observe(
+        cls, model: ModelSource, middleware: list[ModelMiddleware] | None = None
+    ) -> ModelInvoker:
         """
         Creates a new :class:`ModelInvoker` with the given model and middleware, inserting the obersvation middleware as the last element run.
         """
@@ -100,7 +102,6 @@ class ModelInvoker:
                 return await asyncio.to_thread(model.chat, messages)
 
         return await self._middleware.run(_core_llm_call, messages, schema, tools)
-    
 
     def extend_middleware(self, *model_middleware: ModelMiddleware) -> ModelInvoker:
         """

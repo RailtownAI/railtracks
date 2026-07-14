@@ -5,5 +5,4 @@ from railtracks.middlewares.core import (
     wrap_node,
 )
 
-
 __all__ = ["Middleware", "wrap_node", "MiddlewareChain", "after_node"]

@@ -384,16 +384,7 @@ def test_nodebuilder_llm_empty_guardrail_lists_are_a_no_op(mock_llm):
 def test_nodebuilder_llm_guardrail_output_should_be_outermost_over_user_model_middleware(
     mock_llm,
 ):
-    """Regression/spec test.
 
-    `guardrail_output_middleware`'s own docstring says it is placed outermost in the
-    model-middleware chain ("the final word on the response, after any user
-    model_middleware has had its own say"). But `NodeBuilder.llm`'s actual splice order
-    appends it AFTER user model_middleware, making it more inner -- so a user's own
-    post-call transform can silently overwrite the guardrail's decision. This test
-    asserts the DOCUMENTED/intended order and is expected to fail until that ordering
-    bug is fixed.
-    """
 
     class AlwaysRedactOutputGuard(OutputGuard):
         def __call__(self, event):

@@ -80,7 +80,6 @@ async def call(
     """
     node: type[Node[_P, _TOutput]]
 
-
     if hasattr(node_, "node_type"):
         # local import to prevent circular import issues (note it is a purely type checking import)
         from railtracks.built_nodes.concrete import RTFunction
@@ -89,8 +88,6 @@ async def call(
         node = extract_node_from_function(node_)
     else:
         node = node_
-
-   
 
     # if the context is none then we will need to create a wrapper for the state object to work with.
     if not is_context_present():

@@ -144,8 +144,6 @@ def _single_function_node(
     """
 
     if hasattr(func, "node_type"):
-        
-
         if func.node_type is type:
             warnings.warn(
                 "The provided function has already been converted to a node.",
@@ -155,12 +153,10 @@ def _single_function_node(
                 "The provided function has a node_type attribute but it is not a Node. This unexpected behavior"
             )
             return func
-        
+
         raise NodeCreationError(
             "The function had a node_type attribute but it was not a type. Please ensure that the function has not been modified in an unexpected way.",
         )
-
-
 
     if not isinstance(
         func, BuiltinFunctionType

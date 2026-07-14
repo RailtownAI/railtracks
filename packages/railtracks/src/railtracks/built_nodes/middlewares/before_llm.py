@@ -19,7 +19,7 @@ def before_model(
 ):
     """
     A special decorator to create a middleware that maps the inputs to a new input before every call to a model
-    
+
     Example usage:
     ```python
     @before_model
@@ -28,6 +28,7 @@ def before_model(
         return message_history, schema, tools
     ```
     """
+
     @wrap_model
     async def wrapper(
         llm_call: LLM_CALL,

@@ -51,13 +51,13 @@ def test_couple_on_node_type_returns_new_subclass():
     assert new_cls._user_middleware == [mw]
 
 
-def test_couple_on_rt_function_mutates_node_type_in_place():
+def test_couple_on_rt_function_does_not_mutate_node_type_in_place():
     fn = _make_node()
     mw = _tracer("m", [])
 
     result = couple(fn, mw)
 
-    assert result is fn
+    assert result is not fn
     assert fn.node_type._user_middleware == [mw]
 
 

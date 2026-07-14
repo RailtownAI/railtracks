@@ -14,6 +14,7 @@ def after_model(fn: Callable[[Response], Response | Awaitable[Response]]):
     """
     A special decorator to create a middleware that runs after every successful call to the model.
     """
+
     @wrap_node
     async def wrapper(
         llm_call: LLM_CALL,

@@ -18,7 +18,7 @@ def wrap_model(
 ):
     """
     A special decorator to create a middleware wrapper that wraps every call to an llm
-    
+
     Example usage:
     ```python
     @wrap_model

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import functools
+from copy import deepcopy
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -17,7 +18,6 @@ from typing import (
     overload,
 )
 
-from copy import deepcopy
 from pydantic import BaseModel
 
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
@@ -196,14 +196,16 @@ class NodeBuilder(Generic[_P, _T]):
             unwrapped_model_middleware.insert(0, context_injection_middleware)
 
         if guardrails is not None and guardrails.output:
-            unwrapped_model_middleware.insert(0, guardrail_output_middleware(guardrails))
+            unwrapped_model_middleware.insert(
+                0, guardrail_output_middleware(guardrails)
+            )
 
         if guardrails is not None and guardrails.input:
             unwrapped_model_middleware.append(guardrail_input_middleware(guardrails))
 
-        
-
-        model_invoker = ModelInvoker.create_with_llm_observe(model, middleware=unwrapped_model_middleware)
+        model_invoker = ModelInvoker.create_with_llm_observe(
+            model, middleware=unwrapped_model_middleware
+        )
 
         casted_instance._invoke = llm_invoke_factory(
             model_invoker=model_invoker,

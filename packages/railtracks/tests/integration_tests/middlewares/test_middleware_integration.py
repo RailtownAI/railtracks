@@ -14,6 +14,10 @@ from railtracks.guardrails.core import (
 from railtracks.llm import AssistantMessage, MessageHistory, ToolCall, UserMessage
 from railtracks.llm.response import MessageInfo, Response
 
+import litellm
+ from jsonschema import validate
+
+
 
 # ---------------------------------------------------------------------------
 # TestFunctionNodeMiddleware
@@ -779,7 +783,7 @@ class TestCoupleAndComposition:
             return result
 
         agent = rt.agent_node("CoupledAgent", llm=mock_llm(custom_response="ok"))
-        agent = rt.couple(agent, [tracer])
+        agent = rt.couple(agent, tracer)
 
         result = await rt.Flow("CoupledAgent", agent).ainvoke("hi")
 
@@ -830,7 +834,7 @@ class TestCoupleAndComposition:
             model_middleware=[model_b],
             guardrails=Guard(input=[TraceInputGuard()], output=[TraceOutputGuard()]),
         )
-        agent = rt.couple(agent, [node_c])
+        agent = rt.couple(agent, node_c)
 
         await rt.Flow("FullStackAgent", agent).ainvoke("hello")
 
@@ -843,12 +847,6 @@ class TestCoupleAndComposition:
             < trace.index("node_a-out")
         )
 
-        # Model-level: the actual current splice order is
-        # [context_injection, *user_model_middleware, guardrail_output, guardrail_input]
-        # -- so user model_middleware (model_b) wraps OUTSIDE guardrail_output, which
-        # wraps outside guardrail_input (closest to the model call). See the
-        # ordering-bug regression test in test_node_builder.py: this means a user's
-        # own model_middleware can silently override what the output guardrail decided.
         assert (
             trace.index("model_b-in")
             < trace.index("guardrail_input")
@@ -940,10 +938,7 @@ class TestConcurrencyAndRetryInterplay:
         """A model_middleware retry wrapper and the built-in retry_approach operate at
         different layers -- retry_approach resolves entirely inside the single raw
         model call that model_middleware wraps, so they don't double up."""
-        from unittest.mock import patch
-
-        import litellm
-        from railtracks.llm.retries import FixedRetry
+       
 
         def rate_limited():
             return litellm.exceptions.RateLimitError(
@@ -985,7 +980,7 @@ class TestSessionPersistence:
     async def test_middleware_attached_node_serializes_cleanly(
         self, mock_llm, json_state_schema
     ):
-        from jsonschema import validate
+       
 
         @rt.wrap_node
         async def tracer(call, *args, **kwargs):

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from copy import deepcopy
 from typing import (
     Generic,
     ParamSpec,
@@ -22,5 +21,3 @@ class RTFunction(Protocol, Generic[_P, _TOutput]):
     """
 
     node_type: type[Node[_P, _TOutput]]
-
-        
