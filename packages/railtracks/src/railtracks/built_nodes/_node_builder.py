@@ -46,8 +46,6 @@ from railtracks.validation.node_creation.validation import (
 from ._types import ModelSource
 from .llm.model_invoker import ModelInvoker
 
-if TYPE_CHECKING:
-    pass
 
 
 def classmethod_preserving_function_meta(func):
