@@ -12,10 +12,13 @@ from .models import (
     Event,
     Stamp,
 )
+from .writers import JsonlWriter, Writer
 
 __all__ = [
     "Event",
     "Stamp",
+    "Writer",
+    "JsonlWriter",
     "SCOPE_SESSION",
     "SCOPE_RETRIEVAL",
     "SCOPE_EVALUATION",
