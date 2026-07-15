@@ -5,10 +5,9 @@ from typing import Any, Iterable, Literal, cast
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import Message
 
-from .config import Guard
 from .decision import GuardrailAction, GuardrailDecision
 from .event import LLMGuardrailEvent, LLMGuardrailPhase
-from .interfaces import BaseLLMGuardrail
+from .interfaces import BaseLLMGuardrail, InputGuard, OutputGuard
 from .trace import GuardrailTrace
 
 
@@ -76,9 +75,6 @@ class GuardRunner:
     when True, processing continues with the last good value; when False, the chain
     stops and the third return value is a blocking :class:`GuardrailDecision`.
     """
-
-    def __init__(self, guard: Guard):
-        self.guard = guard
 
     def _sync_event_after_transform(
         self,
@@ -235,7 +231,7 @@ class GuardRunner:
         return value, traces, None
 
     def run_llm_input(
-        self, event: LLMGuardrailEvent
+        self, guard: InputGuard, event: LLMGuardrailEvent
     ) -> tuple[MessageHistory, list[GuardrailTrace], GuardrailDecision | None]:
         """Run all input rails on ``event.messages``.
 
@@ -263,7 +259,7 @@ class GuardRunner:
         input_event = input_event.model_copy(update={"output_message": None})
 
         value, traces, blocked = self._run_chain(
-            rails=cast(Iterable[BaseLLMGuardrail], self.guard.input),
+            rails=[guard],
             phase=LLMGuardrailPhase.INPUT,
             event=input_event,
             value=input_event.messages,
@@ -271,7 +267,7 @@ class GuardRunner:
         return value, traces, blocked
 
     def run_llm_output(
-        self, event: LLMGuardrailEvent, output: Message
+        self, guard: OutputGuard, event: LLMGuardrailEvent, output: Message
     ) -> tuple[Message, list[GuardrailTrace], GuardrailDecision | None]:
         """Run all output rails on ``output`` with ``event`` as context.
 
@@ -301,7 +297,7 @@ class GuardRunner:
         output_event.output_message = output
 
         value, traces, blocked = self._run_chain(
-            rails=cast(Iterable[BaseLLMGuardrail], self.guard.output),
+            rails=[guard],
             phase=LLMGuardrailPhase.OUTPUT,
             event=output_event,
             value=output,

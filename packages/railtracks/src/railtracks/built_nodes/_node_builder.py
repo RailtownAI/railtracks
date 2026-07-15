@@ -26,10 +26,6 @@ from railtracks.built_nodes.llm.llm_helpers import (
     llm_prepare_called_as_tool_factory,
 )
 from railtracks.built_nodes.llm.middleware.core import ModelMiddleware
-from railtracks.guardrails.llm.guardrail_gates import (
-    guardrail_input_middleware,
-    guardrail_output_middleware,
-)
 from railtracks.llm import (
     Parameter,
     SystemMessage,
@@ -51,7 +47,7 @@ from ._types import ModelSource
 from .llm.model_invoker import ModelInvoker
 
 if TYPE_CHECKING:
-    from railtracks.guardrails.core import Guard
+    pass
 
 
 def classmethod_preserving_function_meta(func):
@@ -138,7 +134,6 @@ class NodeBuilder(Generic[_P, _T]):
             ]
         ]
         | None = None,
-        guardrails: Guard | None = None,
         context_injection: bool = True,
     ) -> NodeBuilder[[UserInput], StringResponse]: ...
 
@@ -158,7 +153,6 @@ class NodeBuilder(Generic[_P, _T]):
         middleware: Iterable[Middleware[[UserInput], StructuredResponse[_TStructured]]]
         | None = None,
         model_middleware: Iterable[ModelMiddleware] | None = None,
-        guardrails: Guard | None = None,
         context_injection: bool = True,
     ) -> NodeBuilder[[UserInput], StructuredResponse[_TStructured]]: ...
 
@@ -176,7 +170,6 @@ class NodeBuilder(Generic[_P, _T]):
         tool_params: list[Parameter] | None = None,
         middleware: Iterable[Middleware[[UserInput], _R]] | None = None,
         model_middleware: Iterable[ModelMiddleware] | None = None,
-        guardrails: Guard | None = None,
         context_injection: bool = True,
     ) -> NodeBuilder[[UserInput], _R]:
         instance = cls()
@@ -194,14 +187,6 @@ class NodeBuilder(Generic[_P, _T]):
 
         if context_injection:
             unwrapped_model_middleware.insert(0, context_injection_middleware)
-
-        if guardrails is not None and guardrails.output:
-            unwrapped_model_middleware.insert(
-                0, guardrail_output_middleware(guardrails)
-            )
-
-        if guardrails is not None and guardrails.input:
-            unwrapped_model_middleware.append(guardrail_input_middleware(guardrails))
 
         model_invoker = ModelInvoker.create_with_llm_observe(
             model, middleware=unwrapped_model_middleware
