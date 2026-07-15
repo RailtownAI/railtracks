@@ -2,9 +2,6 @@
 
 In Railtracks, you can use any **Agent** as a tool that other agents can use. This allows you to create complex agents that can be composed of smaller, reusable components. 
 
-!!! info "What are Nodes?"
-    Nodes are the building blocks of Railtracks. They are responsible for executing a single task and returning a result. Read more about [**Nodes**](../../system_internals/node.md).
-
 !!! info "How to build an Agent?"
     Read more about how to build an agent [**Build your First Agent**](../../tutorials/walkthroughs/byfa.md).
 
