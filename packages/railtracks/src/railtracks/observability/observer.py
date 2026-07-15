@@ -9,7 +9,7 @@ from ..utils.logging.create import get_rt_logger
 from .models import Event
 from .writers.base import Writer
 
-logger = get_rt_logger(__name__) # for now, we can make another logger later
+logger = get_rt_logger(__name__)  # for now, we can make another logger later
 
 
 class QueuePolicy(Enum):
@@ -36,7 +36,7 @@ class _Entry:
 class Observer:
     def __init__(self) -> None:
         self._writers: dict[str, _Entry] = {}
-        self._drops: dict[str, int] = {} # dropped events per writer
+        self._drops: dict[str, int] = {}  # dropped events per writer
         self._running = False
 
     # async context manager support added for now, this will become more clear
@@ -74,12 +74,16 @@ class Observer:
         if name in self._writers:
             raise ValueError(f"Writer {name!r} is already registered.")
         await writer.start()
-        queue: asyncio.Queue[Any] = asyncio.Queue(maxsize=maxsize) # Each writer has its own queue
+        queue: asyncio.Queue[Any] = asyncio.Queue(
+            maxsize=maxsize
+        )  # Each writer has its own queue
         task = asyncio.create_task(
             self._consumer_loop(name, writer, queue),
             name=f"observer-consumer:{name}",
         )
-        self._writers[name] = _Entry(writer=writer, queue=queue, task=task, policy=policy)
+        self._writers[name] = _Entry(
+            writer=writer, queue=queue, task=task, policy=policy
+        )
         self._drops[name] = 0
 
     async def unregister(self, name: str) -> None:
