@@ -8,12 +8,12 @@ from railtracks.guardrails.core import (
     Guard,
     GuardrailAction,
     GuardrailDecision,
-    GuardRunner,
     InputGuard,
     LLMGuardrailEvent,
     LLMGuardrailPhase,
     OutputGuard,
 )
+from railtracks.guardrails.core.GuardRunner import GuardRunner
 from railtracks.llm import AssistantMessage, MessageHistory, UserMessage
 
 

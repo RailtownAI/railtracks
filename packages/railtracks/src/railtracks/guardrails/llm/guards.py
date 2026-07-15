@@ -5,7 +5,7 @@ from railtracks.context.central import get_parent_id, get_run_id, is_context_pre
 from railtracks.guardrails.core.decision import GuardrailAction, GuardrailDecision
 from railtracks.guardrails.core.errors import GuardrailBlockedError
 from railtracks.guardrails.core.event import LLMGuardrailEvent, LLMGuardrailPhase
-from railtracks.guardrails.core.interfaces import InputGuard, OutputGuard
+from railtracks.guardrails.llm.interfaces import InputGuard, OutputGuard
 from railtracks.guardrails.core.runner import GuardRunner
 from railtracks.guardrails.core.trace import GuardrailTrace
 from railtracks.llm.history import MessageHistory
@@ -13,48 +13,10 @@ from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
 from railtracks.utils.logging.create import get_rt_logger
 
-from .core import ModelMiddleware
+from railtracks.built_nodes.llm.middleware.core import ModelMiddleware
 
 logger = get_rt_logger("guardrails")
 
-
-class GuardMixIn:
-    _guard_runner = GuardRunner()
-
-    @staticmethod
-    def _node_metadata() -> tuple[str | None, str | None]:
-        """``(node_uuid, run_id)`` for event observability.
-
-        Returns ``(None, None)`` when no run context is active — the gate logic never
-        depends on this metadata, so it must not raise just to populate it.
-        """
-        if not is_context_present():
-            return None, None
-        return get_parent_id(), get_run_id()
-
-    @staticmethod
-    def _record_guard_traces(traces: list[GuardrailTrace]) -> None:
-        """The single sink for guardrail traces.
-
-        TODO: Determine the correct home for observability traces. For now, just log them at debug level.
-        """
-        for t in traces:
-            logger.debug("guardrail trace: %s", t)
-
-    @staticmethod
-    def _raise_if_blocked(
-        decision: GuardrailDecision | None, traces: list[GuardrailTrace]
-    ) -> None:
-        """Raise :class:`GuardrailBlockedError` when a rail returned ``BLOCK``."""
-        if decision is not None and decision.action == GuardrailAction.BLOCK:
-            rail_name = traces[-1].rail_name if traces else None
-            raise GuardrailBlockedError(
-                rail_name=rail_name,
-                reason=decision.reason,
-                user_facing_message=decision.user_facing_message,
-                traces=traces,
-                meta=decision.meta,
-            )
 
 
 class InputGuardrailMiddleware(ModelMiddleware, GuardMixIn):
@@ -106,7 +68,7 @@ class InputGuardrailMiddleware(ModelMiddleware, GuardMixIn):
         return new_messages, schema, tools
 
 
-class OutputGuardrailMiddleware(ModelMiddleware, GuardMixIn):
+class OutputGuardrailMiddleware(ModelMiddleware):
     def __init__(self, guard_fn: OutputGuard):
         super().__init__(fn=self._create_fn(guard_fn))
 

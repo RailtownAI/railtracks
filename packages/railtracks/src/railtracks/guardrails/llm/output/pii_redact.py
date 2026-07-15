@@ -4,7 +4,7 @@ from copy import deepcopy
 
 from railtracks.guardrails.core.decision import GuardrailDecision
 from railtracks.guardrails.core.event import LLMGuardrailEvent
-from railtracks.guardrails.core.interfaces import OutputGuard
+from railtracks.guardrails.llm.concrete import OutputGuard
 
 from .._pii.config import PIIRedactConfig
 from .._pii.engine import PIIEngine, build_redaction_meta

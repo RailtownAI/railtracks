@@ -4,7 +4,7 @@ from copy import deepcopy
 
 from railtracks.guardrails.core.decision import GuardrailDecision
 from railtracks.guardrails.core.event import LLMGuardrailEvent
-from railtracks.guardrails.core.interfaces import InputGuard
+from railtracks.guardrails.llm.concrete import InputGuard
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import Message, Role
 

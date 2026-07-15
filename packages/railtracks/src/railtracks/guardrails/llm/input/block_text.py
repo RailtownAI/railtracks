@@ -4,7 +4,7 @@ import re
 
 from railtracks.guardrails.core.decision import GuardrailDecision
 from railtracks.guardrails.core.event import LLMGuardrailEvent
-from railtracks.guardrails.core.interfaces import InputGuard
+from railtracks.guardrails.llm.concrete import InputGuard, OutputGuard
 from railtracks.llm.message import Role
 
 _SCANNABLE_ROLES = frozenset({Role.user, Role.system})
@@ -51,3 +51,4 @@ class BlockTextInputGuard(InputGuard):
                     user_facing_message=self._user_facing_message,
                 )
         return GuardrailDecision.allow(reason="No blocked patterns detected in input.")
+

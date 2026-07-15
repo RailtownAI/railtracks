@@ -4,7 +4,7 @@ import re
 
 from railtracks.guardrails.core.decision import GuardrailDecision
 from railtracks.guardrails.core.event import LLMGuardrailEvent
-from railtracks.guardrails.core.interfaces import OutputGuard
+from railtracks.guardrails.llm.concrete import OutputGuard
 
 
 class BlockTextOutputGuard(OutputGuard):
