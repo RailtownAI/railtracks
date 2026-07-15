@@ -67,7 +67,7 @@ class KeyValueMemoryToolSet(ToolSet):
         on_change: Callable[[str, str | None], None] | None = None,
     ) -> None:
         self.store: KeyValueStore = store if store is not None else _default_store()
-        self._search: SearchAlgorithm = (
+        self.search: SearchAlgorithm = (
             search if search is not None else _default_search()
         )
         self.on_change = on_change
@@ -173,7 +173,7 @@ class KeyValueMemoryToolSet(ToolSet):
             saying nothing matched.
         """
         items = await self.store.items()
-        hits = await self._search.search(items, query)
+        hits = await self.search.search(items, query)
         if not hits:
             return f"No memories matched '{query}'."
         return "\n".join(f"- {key}: {value}" for key, value, _score in hits)
