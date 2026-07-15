@@ -68,3 +68,10 @@ async def test_config_is_tunable():
 
 def test_default_config_used_when_none_given():
     assert LexicalSearch(None)._config == LexicalSearchConfig()
+
+
+async def test_non_ascii_tokens_are_not_mangled():
+    # A Unicode-aware tokenizer keeps the accented word whole.
+    items = {"trip": "visited a café in Zürich", "other": "unrelated note"}
+    hits = await LexicalSearch().search(items, "café")
+    assert hits and hits[0][0] == "trip"

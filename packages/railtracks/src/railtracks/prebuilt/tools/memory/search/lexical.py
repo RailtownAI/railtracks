@@ -5,11 +5,12 @@ from difflib import SequenceMatcher
 
 from .config import LexicalSearchConfig
 
-_TOKEN_RE = re.compile(r"[a-z0-9]+")
+# Unicode letters/digits minus underscore: keeps non-ASCII intact (``café``) while splitting on ``_`` and punctuation.
+_TOKEN_RE = re.compile(r"[^\W_]+")
 
 
 def _tokenize(text: str) -> list[str]:
-    """Split ``text`` into lowercase alphanumeric tokens."""
+    """Split ``text`` into casefolded Unicode letter/digit tokens."""
     return _TOKEN_RE.findall(text.casefold())
 
 
