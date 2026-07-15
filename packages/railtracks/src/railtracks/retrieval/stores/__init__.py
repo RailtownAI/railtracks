@@ -1,4 +1,7 @@
-from .key_value import InMemoryKeyValueStore, KeyValueStore
+from .key_value import (
+    InMemoryKeyValueStore,
+    KeyValueStore,
+)
 from .models import (
     Entity,
     RetrievedStoreEntry,
