@@ -5,12 +5,12 @@ from railtracks.observability import (
     SCOPE_RETRIEVAL,
     SCOPE_SESSION,
     Event,
-    Stamp,
+    Timestamp,
 )
 
 
 def test_stamp_now_returns_tz_aware_utc_datetime():
-    stamp = Stamp.now()
+    stamp = Timestamp.now()
     assert isinstance(stamp, datetime)
     assert stamp.tzinfo is not None
     assert stamp.utcoffset() == timezone.utc.utcoffset(stamp)
@@ -19,7 +19,7 @@ def test_stamp_now_returns_tz_aware_utc_datetime():
 def test_event_defaults():
     event = Event(
         event_type="llm.call",
-        stamp=Stamp.now(),
+        stamp=Timestamp.now(),
         scope_type=SCOPE_SESSION,
         scope_id="s1",
     )
@@ -29,15 +29,15 @@ def test_event_defaults():
 
 
 def test_event_ids_are_unique_by_default():
-    a = Event(event_type="x", stamp=Stamp.now(), scope_type=SCOPE_SESSION, scope_id="s1")
-    b = Event(event_type="x", stamp=Stamp.now(), scope_type=SCOPE_SESSION, scope_id="s1")
+    a = Event(event_type="x", stamp=Timestamp.now(), scope_type=SCOPE_SESSION, scope_id="s1")
+    b = Event(event_type="x", stamp=Timestamp.now(), scope_type=SCOPE_SESSION, scope_id="s1")
     assert a.event_id != b.event_id
 
 
 def test_event_json_round_trip():
     event = Event(
         event_type="tool.invoke",
-        stamp=Stamp.now(),
+        stamp=Timestamp.now(),
         scope_type=SCOPE_RETRIEVAL,
         scope_id="r1",
         parent_scope_id="s1",
@@ -50,7 +50,7 @@ def test_event_json_round_trip():
 def test_event_type_accepts_arbitrary_strings():
     Event(
         event_type="totally.made.up.event",
-        stamp=Stamp.now(),
+        stamp=Timestamp.now(),
         scope_type=SCOPE_EVALUATION,
         scope_id="e1",
     )

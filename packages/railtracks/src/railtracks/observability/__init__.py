@@ -10,14 +10,14 @@ from .models import (
     SCOPE_RETRIEVAL,
     SCOPE_SESSION,
     Event,
-    Stamp,
+    Timestamp,
 )
 from .observer import Observer, QueuePolicy
 from .writers import JsonlWriter, Writer
 
 __all__ = [
     "Event",
-    "Stamp",
+    "Timestamp",
     "Observer",
     "QueuePolicy",
     "Writer",

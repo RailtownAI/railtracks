@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
 
 from ..utils.logging.create import get_rt_logger
 from .models import Event
@@ -24,11 +23,13 @@ class _EndOfStream:
 
 _END = _EndOfStream()
 
+_QueueItem = Event | _EndOfStream
+
 
 @dataclass
 class _Entry:
     writer: Writer
-    queue: asyncio.Queue[Any]
+    queue: asyncio.Queue[_QueueItem]
     task: asyncio.Task[None]
     policy: QueuePolicy
 
@@ -74,7 +75,7 @@ class Observer:
         if name in self._writers:
             raise ValueError(f"Writer {name!r} is already registered.")
         await writer.start()
-        queue: asyncio.Queue[Any] = asyncio.Queue(
+        queue: asyncio.Queue[_QueueItem] = asyncio.Queue(
             maxsize=maxsize
         )  # Each writer has its own queue
         task = asyncio.create_task(
@@ -128,7 +129,7 @@ class Observer:
         await entry.writer.shutdown()
 
     async def _consumer_loop(
-        self, name: str, writer: Writer, queue: asyncio.Queue[Any]
+        self, name: str, writer: Writer, queue: asyncio.Queue[_QueueItem]
     ) -> None:
         while True:
             item = await queue.get()
@@ -145,7 +146,7 @@ class Observer:
                 )
 
 
-def _enqueue_end(queue: asyncio.Queue[Any]) -> None:
+def _enqueue_end(queue: asyncio.Queue[_QueueItem]) -> None:
     try:
         queue.put_nowait(_END)
     except asyncio.QueueFull:

@@ -11,7 +11,7 @@ SCOPE_RETRIEVAL = "retrieval"
 SCOPE_EVALUATION = "evaluation"
 
 
-class Stamp:
+class Timestamp:
     """Namespace helper for constructing `Event.stamp`. The field itself is a plain tz-aware UTC datetime."""
 
     # Doing it this way to make potential changes easier
@@ -23,7 +23,7 @@ class Stamp:
 class Event(BaseModel):
     event_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     event_type: str
-    stamp: datetime
+    stamp: datetime = Field(default_factory=Timestamp.now)
     scope_type: str
     scope_id: str
     parent_scope_id: str | None = None

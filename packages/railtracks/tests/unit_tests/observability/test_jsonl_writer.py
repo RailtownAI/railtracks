@@ -5,14 +5,14 @@ from railtracks.observability import (
     SCOPE_SESSION,
     Event,
     JsonlWriter,
-    Stamp,
+    Timestamp,
 )
 
 
 def _make_event(scope_type: str, scope_id: str = "id-1", **kw) -> Event:
     return Event(
         event_type=kw.pop("event_type", "test.event"),
-        stamp=Stamp.now(),
+        stamp=Timestamp.now(),
         scope_type=scope_type,
         scope_id=scope_id,
         **kw,

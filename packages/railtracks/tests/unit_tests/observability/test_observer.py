@@ -8,7 +8,7 @@ from railtracks.observability import (
     Event,
     Observer,
     QueuePolicy,
-    Stamp,
+    Timestamp,
 )
 
 
@@ -41,7 +41,7 @@ class MemoryWriter:
 def _event(scope_id: str = "s1") -> Event:
     return Event(
         event_type="test",
-        stamp=Stamp.now(),
+        stamp=Timestamp.now(),
         scope_type=SCOPE_SESSION,
         scope_id=scope_id,
     )
