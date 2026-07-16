@@ -1,3 +1,5 @@
+from email import message
+
 from pydantic import BaseModel
 from railtracks.context.central import get_parent_id, get_run_id, is_context_present
 from railtracks.guardrails.core.decision import GuardrailAction, GuardrailDecision
@@ -48,11 +50,11 @@ class BaseLLMGuardrail(BaseGuardrail[[MessageHistory, type[BaseModel] | None, li
         pass
 
     @abstractmethod
-    def convert(self, value: str | Any | MessageHistory | LLMGuardrailEvent, /) -> LLMGuardrailEvent:
+    def convert(self, value: str | Message | MessageHistory | LLMGuardrailEvent, /) -> LLMGuardrailEvent:
         """Build an event from a raw value. Implemented per phase by InputGuard and OutputGuard."""
         pass
 
-    def decide(self, value: str | Any | MessageHistory | LLMGuardrailEvent, /) -> GuardrailDecision:
+    def decide(self, value: str | Message | MessageHistory | LLMGuardrailEvent, /) -> GuardrailDecision:
         """Convert value to an event and run this guard on it directly, outside a chain."""
         converted_event = self.convert(value)
 
@@ -70,7 +72,7 @@ class BaseLLMGuardrail(BaseGuardrail[[MessageHistory, type[BaseModel] | None, li
         if isinstance(input, Message):
             return MessageHistory([input])
         raise TypeError(
-            f"Expected str, Message, MessageHistory, or LLMGuardrailEvent, "
+            f"Expected str, Message, or MessageHistory "
             f"got {type(input).__name__}"
         )
 
