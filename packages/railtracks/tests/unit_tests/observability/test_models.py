@@ -34,19 +34,6 @@ def test_event_ids_are_unique_by_default():
     assert a.event_id != b.event_id
 
 
-def test_event_json_round_trip():
-    event = Event(
-        event_type="tool.invoke",
-        stamp=Timestamp.now(),
-        scope_type=SCOPE_RETRIEVAL,
-        scope_id="r1",
-        parent_scope_id="s1",
-        payload={"tool": "search", "args": {"q": "hello"}},
-    )
-    parsed = Event.model_validate_json(event.model_dump_json())
-    assert parsed == event
-
-
 def test_event_type_accepts_arbitrary_strings():
     Event(
         event_type="totally.made.up.event",

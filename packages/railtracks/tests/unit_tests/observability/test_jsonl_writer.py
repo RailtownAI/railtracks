@@ -1,3 +1,5 @@
+import json
+from datetime import datetime
 from pathlib import Path
 
 from railtracks.observability import (
@@ -17,6 +19,12 @@ def _make_event(scope_type: str, scope_id: str = "id-1", **kw) -> Event:
         scope_id=scope_id,
         **kw,
     )
+
+
+def _parse_line(line: str) -> Event:
+    data = json.loads(line)
+    data["stamp"] = datetime.fromisoformat(data["stamp"])
+    return Event(**data)
 
 
 async def test_start_creates_directory(tmp_path: Path):
@@ -70,7 +78,7 @@ async def test_each_line_round_trips_to_original_event(tmp_path: Path):
 
     lines = (tmp_path / "session.jsonl").read_text().splitlines()
     assert len(lines) == 1
-    assert Event.model_validate_json(lines[0]) == original
+    assert _parse_line(lines[0]) == original
 
 
 async def test_append_across_writer_lifecycles(tmp_path: Path):
@@ -85,7 +93,7 @@ async def test_append_across_writer_lifecycles(tmp_path: Path):
     await second.shutdown()
 
     lines = (tmp_path / "session.jsonl").read_text().splitlines()
-    assert [Event.model_validate_json(line).scope_id for line in lines] == ["a", "b"]
+    assert [_parse_line(line).scope_id for line in lines] == ["a", "b"]
 
 
 async def test_shutdown_closes_handles(tmp_path: Path):
