@@ -2,18 +2,10 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import Any, Awaitable, Callable, Generic, ParamSpec, Protocol, TypeVar
-
-from pydantic import BaseModel
-from railtracks.context.central import get_parent_id, get_run_id, is_context_present
-from railtracks.guardrails.core.trace import GuardrailTrace
-from railtracks.llm.history import MessageHistory
-from railtracks.llm.message import AssistantMessage, Message, UserMessage
-from railtracks.llm.response import Response
-from railtracks.llm.tools.tool import Tool
 from railtracks.middleware.core import Middleware
 
 from .decision import GuardrailDecision
-from .event import LLMGuardrailEvent, LLMGuardrailPhase
+
 
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
@@ -22,8 +14,8 @@ class Guardrail(Protocol):
     """
     Base protocol for all guardrails: callable with a name.
 
-    Concrete ABC hierarchies (e.g. :class:`BaseLLMGuardrail`) narrow the event
-    type and add domain-specific attributes like ``phase``.
+    Concrete ABC hierarchies narrow the event
+    type and add domain-specific attributes.
     """
 
     name: str
