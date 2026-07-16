@@ -52,6 +52,7 @@ class InputGuard(BaseLLMGuardrail[MessageHistory]):
         schema: type[BaseModel] | None,
         tools: list[Tool] | None,
     ):
+        """Run this guard on the message history, then call onward with the result."""
         message_history, schema, tools = self._input_wrapper(
             message_history, schema, tools
         )
@@ -64,6 +65,7 @@ class InputGuard(BaseLLMGuardrail[MessageHistory]):
         schema: type[BaseModel] | None,
         tools: list[Tool] | None,
     ):
+        """Build the input event, run this guard, and raise if it blocks."""
         node_uuid, run_id = self._node_metadata()
         event = LLMGuardrailEvent(
             phase=LLMGuardrailPhase.INPUT,
@@ -110,19 +112,19 @@ class InputGuard(BaseLLMGuardrail[MessageHistory]):
         return event
 
     def _extract_transform_value(self, decision: GuardrailDecision) -> Any:
-        
-            if decision.messages is None:
-                raise ValueError(
-                    "Input guardrail returned TRANSFORM without decision.messages."
-                )
-            return decision.messages
-    
+        """Return the replacement messages from a TRANSFORM decision."""
+        if decision.messages is None:
+            raise ValueError(
+                "Input guardrail returned TRANSFORM without decision.messages."
+            )
+        return decision.messages
+
     def _sync_event_after_transform(
         self,
         event: LLMGuardrailEvent,
         value: MessageHistory,
     ) -> LLMGuardrailEvent:
-        
+        """Return a copy of event with its messages replaced."""
         return event.model_copy(update={"messages": value})
         
         
@@ -150,17 +152,18 @@ class OutputGuard(BaseLLMGuardrail[Message]):
         schema: type[BaseModel] | None,
         tools: list[Tool] | None,
     ):
+        """Call onward for the response, then run this guard on the resulting message."""
         result = await call(message_history, schema, tools)
         return self._output_wrapper(result=result)
 
-        
+
 
 
     def _output_wrapper(
         self,
         result: Response,
     ):
-        
+        """Build the output event, run this guard, and rebuild the response if the message changed."""
         node_uuid, run_id = self._node_metadata()
         event = LLMGuardrailEvent(
             phase=LLMGuardrailPhase.OUTPUT,
@@ -228,6 +231,7 @@ class OutputGuard(BaseLLMGuardrail[Message]):
         return event
     
     def _extract_transform_value(self, decision: GuardrailDecision) -> Message:
+        """Return the replacement output message from a TRANSFORM decision."""
         if decision.output_message is None:
             raise ValueError(
                 "Output guardrail returned TRANSFORM without decision.output_message."
@@ -239,4 +243,5 @@ class OutputGuard(BaseLLMGuardrail[Message]):
         event: LLMGuardrailEvent,
         value: Message,
     ) -> LLMGuardrailEvent:
+        """Return a copy of event with its output message replaced."""
         return event.model_copy(update={"output_message": cast(Message, value)})

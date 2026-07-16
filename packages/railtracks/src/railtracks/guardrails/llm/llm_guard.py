@@ -31,13 +31,16 @@ class BaseLLMGuardrail(BaseGuardrail[[MessageHistory, type[BaseModel] | None, li
 
     @abstractmethod
     def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
+        """Evaluate the event and return a decision. Implemented by each concrete guard."""
         pass
 
     @abstractmethod
     def convert(self, value: str | Any | MessageHistory | LLMGuardrailEvent, /) -> LLMGuardrailEvent:
+        """Build an event from a raw value. Implemented per phase by InputGuard and OutputGuard."""
         pass
 
     def decide(self, value: str | Any | MessageHistory | LLMGuardrailEvent, /) -> GuardrailDecision:
+        """Convert value to an event and run this guard on it directly, outside a chain."""
         converted_event = self.convert(value)
 
         return self(converted_event)
@@ -104,6 +107,7 @@ class BaseLLMGuardrail(BaseGuardrail[[MessageHistory, type[BaseModel] | None, li
     ) -> (
         tuple[Literal["continue"], _TValue] | tuple[Literal["stop"], _TValue, GuardrailDecision]
     ):
+        """Record exc as a trace and return a stop outcome with a blocking decision."""
         traces.append(self._trace_for_exception(exc=exc))
         block = GuardrailDecision.block(
             reason=f"{reason_prefix}: {self._rail_name()}",
@@ -121,6 +125,11 @@ class BaseLLMGuardrail(BaseGuardrail[[MessageHistory, type[BaseModel] | None, li
         event: LLMGuardrailEvent,
         value: _TValue,
     ) -> tuple[_TValue, list[GuardrailTrace], GuardrailDecision | None]:
+        """Run this guard once on event and value.
+
+        Returns the resulting value, the traces recorded, and a blocking decision
+        if the run stopped, or None if it completed.
+        """
         traces: list[GuardrailTrace] = []
 
 
@@ -146,6 +155,7 @@ class BaseLLMGuardrail(BaseGuardrail[[MessageHistory, type[BaseModel] | None, li
         tuple[Literal["continue"], _TValue, LLMGuardrailEvent]
         | tuple[Literal["stop"], _TValue, GuardrailDecision]
     ):
+        """Call this guard, validate the returned decision, and dispatch it."""
         try:
             decision = self(event)
             if not isinstance(decision, GuardrailDecision):
@@ -188,6 +198,7 @@ class BaseLLMGuardrail(BaseGuardrail[[MessageHistory, type[BaseModel] | None, li
         tuple[Literal["continue"], _TValue, LLMGuardrailEvent]
         | tuple[Literal["stop"], _TValue, GuardrailDecision]
     ):
+        """Apply a TRANSFORM, BLOCK, or unknown-action decision returned by this guard."""
         if decision.action == GuardrailAction.TRANSFORM:
             try:
                 value = self._extract_transform_value(decision)
@@ -229,6 +240,7 @@ class BaseLLMGuardrail(BaseGuardrail[[MessageHistory, type[BaseModel] | None, li
         event: LLMGuardrailEvent,
         value: _TValue,
     ) -> LLMGuardrailEvent:
+        """Return a copy of event updated with the transformed value. Implemented per phase."""
         pass
 
     @abstractmethod
@@ -236,9 +248,11 @@ class BaseLLMGuardrail(BaseGuardrail[[MessageHistory, type[BaseModel] | None, li
         self,
         decision: GuardrailDecision
     ) -> _TValue:
+       """Extract the replacement value from a TRANSFORM decision. Implemented per phase."""
        pass
 
     def _rail_name(self) -> str:
+        """Return this guard's name, falling back to its class name if unset."""
         name = self.name
         if isinstance(name, str) and name.strip():
             return name
@@ -250,6 +264,7 @@ class BaseLLMGuardrail(BaseGuardrail[[MessageHistory, type[BaseModel] | None, li
 
         decision: GuardrailDecision,
     ) -> GuardrailTrace:
+        """Build a trace recording this guard's decision."""
         return GuardrailTrace(
             rail_name=self._rail_name(),
             phase=self.phase.value,
@@ -264,6 +279,7 @@ class BaseLLMGuardrail(BaseGuardrail[[MessageHistory, type[BaseModel] | None, li
         *,
         exc: Exception,
     ) -> GuardrailTrace:
+        """Build a trace recording an exception raised by this guard."""
         return GuardrailTrace(
             rail_name=self._rail_name(),
             phase=self.phase.value,
