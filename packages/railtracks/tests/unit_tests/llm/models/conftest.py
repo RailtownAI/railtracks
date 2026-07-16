@@ -1,15 +1,14 @@
-import pytest
-from pydantic import BaseModel, Field
-from railtracks.llm.message import UserMessage, AssistantMessage, ToolMessage
-from railtracks.llm.history import MessageHistory
-from railtracks.llm.content import ToolCall, ToolResponse
-from railtracks.llm.providers import ModelProvider
-from railtracks.llm.tools import Tool, Parameter
-from railtracks.llm.models._litellm_wrapper import LiteLLMWrapper
-
-from typing import Any, Optional, Tuple, Union
-from litellm.utils import CustomStreamWrapper, ModelResponse  # type: ignore
 import logging
+from typing import Any, Optional, Tuple, Union
+
+import pytest
+from litellm.utils import CustomStreamWrapper, ModelResponse  # type: ignore
+from pydantic import BaseModel
+from railtracks.llm.content import ToolCall, ToolResponse
+from railtracks.llm.history import MessageHistory
+from railtracks.llm.message import AssistantMessage, ToolMessage, UserMessage
+from railtracks.llm.models._litellm_wrapper import LiteLLMWrapper
+from railtracks.llm.tools import Parameter, Tool
 
 
 # ====================================== START Tool Fixtures ======================================
@@ -202,8 +201,10 @@ class MockLiteLLMWrapper(LiteLLMWrapper):
         *,
         response_format: Optional[Any] = None,
         tools: Optional[list[Tool]] = None,
+        stream: Optional[bool] = None,
     ) -> Tuple[Union[CustomStreamWrapper, ModelResponse], float]:
-        if self.stream:
+        resolved_stream = self.stream if stream is None else stream
+        if resolved_stream:
 
             def _stream_gen():
                 for i, char in enumerate(self.content):
@@ -241,48 +242,6 @@ class MockLiteLLMWrapper(LiteLLMWrapper):
             return (
                 CustomStreamWrapper(
                     completion_stream=_stream_gen(),
-                    model=self.model_name(),
-                    logging_obj=MockLogger(),
-                ),
-                0.0,
-            )
-        else:
-            return self._invoke_content()
-
-    async def _ainvoke(
-        self,
-        messages: MessageHistory,
-        *,
-        response_format: Optional[Any] = None,
-        tools: Optional[list[Tool]] = None,
-    ) -> Tuple[Union[CustomStreamWrapper, ModelResponse], float]:
-        if self.stream:
-
-            async def _astream_gen():
-                for i, char in enumerate(self.content):
-                    yield ChatCompletionChunk(
-                        id=str(i),
-                        choices=[
-                            MockChoice(
-                                delta=MockDelta(
-                                    content=char,
-                                    tool_calls=self.tool_calls,
-                                ),
-                                finish_reason=(
-                                    "stop" if i == len(self.content) else ""
-                                ),
-                            )
-                        ],
-                    )
-                
-                yield ChatCompletionChunk(
-                    id=str(len(self.content) + 1),
-                    choices=[],
-                )
-
-            return (
-                CustomStreamWrapper(
-                    completion_stream=_astream_gen(),
                     model=self.model_name(),
                     logging_obj=MockLogger(),
                 ),

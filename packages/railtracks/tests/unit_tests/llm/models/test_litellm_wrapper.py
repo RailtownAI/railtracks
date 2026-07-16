@@ -1,20 +1,21 @@
+import json
+from json import JSONDecodeError
 from typing import Generator, Literal
 from unittest.mock import patch
+
+import litellm
 import pytest
+from pydantic import BaseModel
+from railtracks.exceptions import LLMError, NodeInvocationError
+from railtracks.llm import AssistantMessage, UserMessage
+from railtracks.llm.history import MessageHistory
 from railtracks.llm.models._litellm_wrapper import (
     LiteLLMWrapper,
     _parameters_to_json_schema,
     _to_litellm_tool,
 )
-from railtracks.exceptions import NodeInvocationError, LLMError
-from railtracks.llm import AssistantMessage, UserMessage
 from railtracks.llm.providers import ModelProvider
-from pydantic import BaseModel
 from railtracks.llm.response import Response
-from json import JSONDecodeError
-import litellm
-from railtracks.llm.content import Stream
-import json
 
 
 class _ConcreteLiteLLMWrapperForTest(LiteLLMWrapper[Literal[False]]):
@@ -324,7 +325,7 @@ class TestCompletionMethods:
                         assert calls[0]["name"] == "tool_x"
                         assert calls[0]["arguments"] == {"foo": 1}
                         assert calls[0]["identifier"] == "id123"
-                    except Exception as e:
+                    except Exception:
                         pytest.fail("Structured response did not match schema")
                 elif not isinstance(chunk, str):
                     pytest.fail("Stream yielded non-string, non-Response chunk")
@@ -336,6 +337,79 @@ class TestCompletionMethods:
             assert calls[0].name == "tool_x"
             assert calls[0].arguments == {"foo": 1}
             assert calls[0].identifier == "id123"
+
+
+# ================= START async streaming (sync bridge) tests =========================
+class TestAsyncStreaming:
+    """Exercise the per-call `astream_*` surface, which rides the synchronous
+    `litellm.completion(stream=True)` bridged onto the event loop by `_bridge_sync_stream`.
+
+    The model is constructed with `stream=False` on purpose: per-call streaming forces the
+    streamed request itself, independent of the (deprecated) constructor flag."""
+
+    @pytest.mark.asyncio
+    async def test_astream_chat_yields_chunks_then_response(self, mock_litellm_wrapper):
+        wrapper = mock_litellm_wrapper(content="Hello", stream=False)
+
+        chunks: list[str] = []
+        final: Response | None = None
+        async for item in wrapper.astream_chat(MessageHistory([UserMessage("hi")])):
+            if isinstance(item, Response):
+                final = item
+            else:
+                chunks.append(item)
+
+        assert "".join(chunks) == "Hello"
+        assert final is not None
+        assert isinstance(final.message, AssistantMessage)
+        assert final.message.content == "Hello"
+
+    @pytest.mark.asyncio
+    async def test_astream_structured_final_is_parsed(self, mock_litellm_wrapper):
+        class ExampleSchema(BaseModel):
+            field: str
+
+        wrapper = mock_litellm_wrapper(content='{"field": "VAL"}', stream=False)
+
+        final: Response | None = None
+        async for item in wrapper.astream_structured(
+            MessageHistory([UserMessage("hi")]), schema=ExampleSchema
+        ):
+            if isinstance(item, Response):
+                final = item
+
+        assert final is not None
+        assert isinstance(final.message.content, ExampleSchema)
+        assert final.message.content.field == "VAL"
+
+    @pytest.mark.asyncio
+    async def test_astream_chat_early_break_is_clean(self, mock_litellm_wrapper):
+        """Breaking out early must not raise or hang (the worker is signalled to stop and the
+        underlying stream is closed on its own thread)."""
+        wrapper = mock_litellm_wrapper(content="abcdef", stream=False)
+
+        got = None
+        async for item in wrapper.astream_chat(MessageHistory([UserMessage("hi")])):
+            if isinstance(item, str):
+                got = item
+                break
+
+        assert got is not None
+
+    @pytest.mark.asyncio
+    async def test_astream_chat_propagates_errors(self, mock_litellm_wrapper):
+        wrapper = mock_litellm_wrapper(content="Hello", stream=False)
+
+        def _boom(*args, **kwargs):
+            raise RuntimeError("stream open failed")
+
+        with patch.object(wrapper, "_invoke", side_effect=_boom):
+            with pytest.raises(RuntimeError, match="stream open failed"):
+                async for _ in wrapper.astream_chat(MessageHistory([UserMessage("hi")])):
+                    pass
+
+
+# ================= END async streaming (sync bridge) tests =========================
 
 
 def test_temperature_passed_to_litellm_completion(message_history):
@@ -353,18 +427,19 @@ def test_temperature_passed_to_litellm_completion(message_history):
 
 
 @pytest.mark.asyncio
-async def test_temperature_passed_to_litellm_acompletion(message_history):
-    """Assert that when a LiteLLMWrapper is created with temperature, it is passed to litellm.acompletion."""
-    with patch.object(litellm, "acompletion") as mock_acompletion:
-        mock_acompletion.return_value = litellm.utils.ModelResponse(
+async def test_temperature_passed_through_async_chat(message_history):
+    """The async surface (`achat`) runs the sync `litellm.completion` on a worker thread, so
+    temperature must still reach litellm."""
+    with patch.object(litellm, "completion") as mock_completion:
+        mock_completion.return_value = litellm.utils.ModelResponse(
             choices=[{"message": {"content": "ok"}}]
         )
         wrapper = _ConcreteLiteLLMWrapperForTest(
             model_name="test-model", stream=False, temperature=0.7
         )
         await wrapper.achat(message_history)
-        mock_acompletion.assert_called_once()
-        assert mock_acompletion.call_args.kwargs.get("temperature") == 0.7
+        mock_completion.assert_called_once()
+        assert mock_completion.call_args.kwargs.get("temperature") == 0.7
 
 
 # ================= END completion methods tests =========================

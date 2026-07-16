@@ -4,6 +4,7 @@
 ###
 from __future__ import annotations
 
+import warnings
 from abc import ABC, abstractmethod
 from typing import (
     AsyncGenerator,
@@ -12,6 +13,7 @@ from typing import (
     Generic,
     List,
     Literal,
+    Sequence,
     Type,
     TypeVar,
     overload,
@@ -20,6 +22,7 @@ from typing import (
 from pydantic import BaseModel
 
 from .history import MessageHistory
+from .message import Message
 from .providers import ModelProvider
 from .response import Response
 from .retries.base import RetryApproach
@@ -62,6 +65,16 @@ class ModelBase(ABC, Generic[_TStream]):
             exception_hooks: List[Callable[[MessageHistory, Exception], None]] = []
         else:
             exception_hooks = __exception_hooks
+
+        if stream:
+            warnings.warn(
+                "Constructing a model with stream=True is deprecated. Streaming is now "
+                "requested at the call site: use `rt.astream(...)` (or a `stream_callback` "
+                "on your Session/Flow) instead, or call `model.astream_chat(...)` directly "
+                "for a one-off streamed model request.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
 
         self._pre_hooks = pre_hooks
         self._post_hooks = post_hooks
@@ -215,6 +228,9 @@ class ModelBase(ABC, Generic[_TStream]):
 
         if isinstance(response, Generator):
             return self.generator_wrapper(response, messages)
+        if isinstance(response, AsyncGenerator):
+            # deprecated constructor-level stream=True path: pass the stream through untouched
+            return response
 
         response = self._run_post_hooks(messages, response)
 
@@ -281,6 +297,9 @@ class ModelBase(ABC, Generic[_TStream]):
 
         if isinstance(response, Generator):
             return self.generator_wrapper(response, messages)
+        if isinstance(response, AsyncGenerator):
+            # deprecated constructor-level stream=True path: pass the stream through untouched
+            return response
 
         response = self._run_post_hooks(messages, response)
 
@@ -338,10 +357,133 @@ class ModelBase(ABC, Generic[_TStream]):
 
         if isinstance(response, Generator):
             return self.generator_wrapper(response, messages)
+        if isinstance(response, AsyncGenerator):
+            # deprecated constructor-level stream=True path: pass the stream through untouched
+            return response
 
         response = self._run_post_hooks(messages, response)
 
         return response
+
+    # ================ START Streaming (per-call) LLM calls ===============
+    # These methods request a streamed response for a single call, regardless of how the model
+    # was constructed. They are the model-level building blocks of railtracks streaming (see
+    # `rt.astream` and `rt.broadcast_stream`).
+
+    @staticmethod
+    def _coerce_message_history(
+        messages: MessageHistory | Sequence[Message],
+    ) -> MessageHistory:
+        """Normalizes a plain sequence of messages into a MessageHistory."""
+        if isinstance(messages, MessageHistory):
+            return messages
+        return MessageHistory(list(messages))
+
+    async def astream_chat(
+        self, messages: MessageHistory | Sequence[Message]
+    ) -> AsyncGenerator[str | Response, None]:
+        """
+        Chat with the model, streaming the response.
+
+        Returns an async generator that yields `str` token chunks as they arrive, followed by a
+        single final `Response` object containing the complete message (and usage info).
+
+        ```python
+        async for item in model.astream_chat([UserMessage("hi")]):
+            if isinstance(item, str):
+                ...  # token chunk
+            else:
+                final = item  # the terminal Response
+        ```
+
+        Tip: inside a node, prefer `await rt.broadcast_stream(model.astream_chat(...))`, which
+        forwards the chunks to whoever is consuming the run and returns the final `Response`.
+
+        Args:
+            messages: The conversation so far — a `MessageHistory` or any sequence of
+                `Message` objects (e.g. a plain list of `UserMessage`s).
+
+        Yields:
+            str | Response: `str` token chunks, then one final complete `Response`.
+        """
+        history = self._coerce_message_history(messages)
+        history = self._run_pre_hooks(history)
+        try:
+            agen = self._astream_chat(history)
+            async for item in agen:
+                if isinstance(item, Response):
+                    yield self._run_post_hooks(history, item)
+                else:
+                    yield item
+        except Exception as e:
+            self._run_exception_hooks(history, e)
+            raise e
+
+    async def astream_chat_with_tools(
+        self, messages: MessageHistory | Sequence[Message], tools: List[Tool]
+    ) -> AsyncGenerator[str | Response, None]:
+        """
+        Chat with the model using tools, streaming the response.
+
+        Yields `str` content chunks as they arrive, followed by a single final `Response`. The
+        final `Response` contains either the complete assistant text or the requested tool
+        calls (tool-call deltas are accumulated internally and are not yielded as chunks).
+
+        Args:
+            messages: The conversation so far — a `MessageHistory` or any sequence of
+                `Message` objects.
+            tools: The tools to make available to the model.
+
+        Yields:
+            str | Response: `str` content chunks, then one final complete `Response`.
+        """
+        history = self._coerce_message_history(messages)
+        history = self._run_pre_hooks(history)
+        try:
+            agen = self._astream_chat_with_tools(history, tools)
+            async for item in agen:
+                if isinstance(item, Response):
+                    yield self._run_post_hooks(history, item)
+                else:
+                    yield item
+        except Exception as e:
+            self._run_exception_hooks(history, e)
+            raise e
+
+    async def astream_structured(
+        self, messages: MessageHistory | Sequence[Message], schema: Type[BaseModel]
+    ) -> AsyncGenerator[str | Response, None]:
+        """
+        Structured interaction with the model, streaming the response.
+
+        Yields the raw (JSON) `str` chunks as they arrive, followed by a single final
+        `Response` whose message content is the parsed `schema` instance.
+
+        Note the chunks are unvalidated JSON fragments; validation only happens once the stream
+        completes, so a schema mismatch surfaces at the end of the stream.
+
+        Args:
+            messages: The conversation so far — a `MessageHistory` or any sequence of
+                `Message` objects.
+            schema: The pydantic model the response must conform to.
+
+        Yields:
+            str | Response: raw JSON `str` chunks, then one final complete `Response`.
+        """
+        history = self._coerce_message_history(messages)
+        history = self._run_pre_hooks(history)
+        try:
+            agen = self._astream_structured(history, schema)
+            async for item in agen:
+                if isinstance(item, Response):
+                    yield self._run_post_hooks(history, item)
+                else:
+                    yield item
+        except Exception as e:
+            self._run_exception_hooks(history, e)
+            raise e
+
+    # ================ END Streaming (per-call) LLM calls ===============
 
     @abstractmethod
     def _chat(
@@ -360,6 +502,31 @@ class ModelBase(ABC, Generic[_TStream]):
         self, messages: MessageHistory, tools: List[Tool]
     ) -> Response | Generator[str | Response, None, Response]:
         pass
+
+    # Note: the _astream_* methods are deliberately NOT abstract so that existing ModelBase
+    # subclasses keep working; subclasses that support streaming should override them with
+    # async generator implementations yielding `str` chunks followed by a final `Response`.
+
+    def _astream_chat(
+        self, messages: MessageHistory
+    ) -> AsyncGenerator[str | Response, None]:
+        raise NotImplementedError(
+            f"{type(self).__name__} does not support streamed chat calls."
+        )
+
+    def _astream_chat_with_tools(
+        self, messages: MessageHistory, tools: List[Tool]
+    ) -> AsyncGenerator[str | Response, None]:
+        raise NotImplementedError(
+            f"{type(self).__name__} does not support streamed tool-calling calls."
+        )
+
+    def _astream_structured(
+        self, messages: MessageHistory, schema: Type[BaseModel]
+    ) -> AsyncGenerator[str | Response, None]:
+        raise NotImplementedError(
+            f"{type(self).__name__} does not support streamed structured calls."
+        )
 
     @abstractmethod
     async def _achat(
