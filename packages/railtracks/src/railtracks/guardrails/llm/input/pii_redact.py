@@ -63,7 +63,7 @@ class PIIRedactInputGuard(InputGuard):
 
         if not all_records:
             return GuardrailDecision.allow(reason="No PII detected in input.")
-
+        
         return GuardrailDecision.transform_messages(
             messages=MessageHistory(new_messages),
             reason=f"Redacted {len(all_records)} PII span(s) from input messages.",

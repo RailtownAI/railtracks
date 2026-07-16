@@ -12,8 +12,8 @@ from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
 from railtracks.middleware.core import Middleware
 
-from ..core.decision import GuardrailDecision
-from ..core.event import LLMGuardrailEvent, LLMGuardrailPhase
+from .decision import GuardrailDecision
+from .event import LLMGuardrailEvent, LLMGuardrailPhase
 
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
