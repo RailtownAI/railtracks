@@ -17,9 +17,10 @@ async def broadcast(item: Any, channel: str = "default"):
     Consumers attached to the run will receive it:
 
     - `rt.astream(...)` (pull mode) yields the item from its async iterator.
-    - A configured `stream_callback` (push mode) is invoked with the item; when the callback
-      is a dict, the item is routed to the callable registered under `channel` (a single
-      callable receives every item on every channel).
+    - A configured `broadcast_callback` (passive listener) is invoked with the item; when
+      the callback is a dict, the item is routed to the callable registered under `channel`
+      (a single callable receives every item on every channel). Registering one never
+      enables streaming.
     - `rt.context.get_stream(channel, ...)` (pull mode, from inside the run) yields it.
 
     If nothing is listening, the item is simply dropped — broadcasting is always safe.
@@ -66,7 +67,7 @@ async def broadcast_stream(
 
     This is the bridge between a raw model stream and the railtracks streaming system: inside a
     custom node you can forward a `model.astream_chat(...)` stream to whoever is consuming the
-    run (`rt.astream` or a `stream_callback`) while still receiving the complete final response
+    run (`rt.astream`, `Stream.route()`, or a `broadcast_callback`) while still receiving the complete final response
     to build your node's return value:
 
     ```python

@@ -5,7 +5,7 @@ import railtracks as rt
 def example_broadcasting_handler(data):
     print(f"Received data: {data}")
 
-rt.set_config(stream_callback=example_broadcasting_handler)
+rt.set_config(broadcast_callback=example_broadcasting_handler)
 # --8<-- [end: callback_creation]
 
 # --8<-- [start: broadcast_call]

@@ -36,22 +36,25 @@ A `Stream` is also awaitable — `await stream` consumes it to completion and re
 --8<-- "docs/scripts/streaming.py:flow_astream"
 ```
 
-## Push — `stream_callback`
+## Push — `Stream.route()` and `broadcast_callback`
 
-If you prefer callbacks over iteration, attach a `stream_callback` to a `Flow` (scoped to its runs) or set one globally with `rt.set_config` — never construct a `Session` yourself, it is an internal object. Its presence enables streaming for top-level calls, and the framework invokes your callback per chunk while `.invoke()` / `rt.call` still return the complete response:
-
-```python
---8<-- "docs/scripts/streaming.py:stream_callback"
-```
-
-To route chunks from different sources, pass a dict mapping channel names to callbacks (see [Channels](#channels) below). Chunks on channels without a registered callback are dropped:
+**Callbacks never enable streaming — only `astream` does.** For push-style consumption of a streamed call, `route()` the stream: it dispatches each chunk to your handler(s) by channel and returns the final result. Never construct a `Session` yourself — it is an internal object:
 
 ```python
---8<-- "docs/scripts/streaming.py:stream_callback_channels"
+--8<-- "docs/scripts/streaming.py:route"
 ```
 
-!!! Note "One streaming callback"
-    `stream_callback` is the single push-mode consumer: it receives every streamed **and** broadcast item (`rt.broadcast` notes included), routes per channel when given a dict, and its presence enables token streaming for top-level calls. (The former `broadcast_callback` has been merged into it.) The end-of-run `payload_callback` is separate — it fires once with the serialized session payload.
+Separately, a **`broadcast_callback`** (on the `Flow`, or globally via `rt.set_config`) is a *passive* session-wide listener: it receives every streamed/broadcast item of the run — including one-off `rt.broadcast` progress notes and chunks from *any* scope (e.g. nested `astream`s) — but it does not turn streaming on. Prefer the dict form (channel name → callback); a bare callable is the firehose and will also receive token chunks whenever something streams:
+
+```python
+--8<-- "docs/scripts/streaming.py:broadcast_callback"
+```
+
+!!! Note "Which push consumer?"
+    `route()` = **this call's** chunks (per-call isolated, enables the streaming, returns the result). `broadcast_callback` = **everything in the session**, passively (buffered runs included — explicit `rt.broadcast`/`rt.broadcast_stream` items always flow). The end-of-run `payload_callback` is separate — it fires once with the serialized session payload.
+
+!!! Tip "Unused-callback warnings"
+    If a `broadcast_callback` (or any of its channel entries) never fires during a session, a warning is logged at close — distinguishing "nothing was broadcast (did you forget `astream`?)" from "traffic existed on other channels (channel-name typo?)". `route()` logs the same for handler channels that never matched.
 
 ## Custom Nodes — `rt.broadcast_stream`
 
@@ -71,7 +74,7 @@ Every chunk is emitted on a named channel (default: `"default"`). Channels let m
 
 - Producers: `rt.broadcast_stream(gen, channel="draft")`, `rt.broadcast("note", channel="progress")`.
 - Pull consumers: chain `.on_channel("final")` on the stream handle to yield only that channel (by default a stream yields everything in the run).
-- Push consumers: `stream_callback={"draft": fn1, "final": fn2}` routes per channel.
+- Push consumers: `stream.route({"draft": fn1, "final": fn2})` for one call, or a passive `broadcast_callback` dict for the whole session.
 
 ```python
 --8<-- "docs/scripts/streaming.py:custom_channels"
@@ -79,7 +82,7 @@ Every chunk is emitted on a named channel (default: `"default"`). Channels let m
 
 ### Binding a prebuilt agent to a channel — `stream_channel`
 
-Custom nodes pick their channel at each `broadcast_stream` call. Prebuilt agents bind theirs at construction with `agent_node(..., stream_channel="...")` — every token the agent streams (including every round of its tool-calling loop) is emitted on that bus. Combined with a `stream_callback` dict, different agents in one flow route to different consumers:
+Custom nodes pick their channel at each `broadcast_stream` call. Prebuilt agents bind theirs at construction with `agent_node(..., stream_channel="...")` — every token the agent streams (including every round of its tool-calling loop) is emitted on that bus. Combined with a passive `broadcast_callback` dict, different agents in one flow route to different consumers:
 
 ```python
 --8<-- "docs/scripts/streaming.py:agent_stream_channel"
@@ -89,7 +92,7 @@ Note the nested `rt.astream(writer, ...)` inside the pipeline: nested `rt.call`s
 
 ## Consuming a Channel From Inside a Run
 
-`rt.astream` and `stream_callback` both consume at the *top* of a run. To consume a channel **from inside** a run — e.g. an orchestrator node that runs a child concurrently and folds the child's live tokens into its own work — use `rt.context.get_stream(channel)`:
+`rt.astream` (with or without `route()`) and `broadcast_callback` both consume at the *top* of a run. To consume a channel **from inside** a run — e.g. an orchestrator node that runs a child concurrently and folds the child's live tokens into its own work — use `rt.context.get_stream(channel)`:
 
 ```python
 --8<-- "docs/scripts/streaming.py:get_stream"
@@ -134,4 +137,4 @@ This is what the framework uses internally, and what you pass to `rt.broadcast_s
     Token streaming with **tool calling** is currently supported on OpenAI models only. Streamed runs of tool-calling agents on other providers automatically fall back to a buffered model call (a warning is logged) — the final result is unaffected; you just don't get incremental chunks.
 
 !!! Warning "Deprecated: `stream=True` on the model"
-    Constructing a model with `stream=True` (e.g. `OpenAILLM("gpt-4o", stream=True)`) is deprecated. It no longer changes agent behavior — agents built from such models return complete responses. Use `rt.astream(...)` or a `stream_callback` instead.
+    Constructing a model with `stream=True` (e.g. `OpenAILLM("gpt-4o", stream=True)`) is deprecated. It no longer changes agent behavior — agents built from such models return complete responses. Use `rt.astream(...)` (optionally with `.route(...)`) instead.

@@ -29,7 +29,7 @@ class TerminalLLM(
     - UserMessage: A single UserMessage object
     - str: A string that will be converted to a UserMessage
 
-    Streaming: when invoked through `rt.astream` (or with a `stream_callback` configured), this
+    Streaming: when invoked through `rt.astream` / `Flow.astream`, this
     node streams the model response token-by-token — each chunk is broadcast on the node's
     `stream_channel` — and still returns the complete `StringResponse` at the end. In a regular
     `rt.call` the model is invoked buffered (no streaming overhead).

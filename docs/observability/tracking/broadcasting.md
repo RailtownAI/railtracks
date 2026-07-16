@@ -10,7 +10,7 @@ Railtracks supports basic **data broadcasting**, enabling you to receive these u
 
 ## Usage
 
-To enable broadcasting, provide a **callback function** to the `stream_callback` parameter in `set_config` (or on your `Flow`). It receives every broadcast item; pass a dict mapping channel name -> callback to route items per channel. Note: providing a `stream_callback` also enables token streaming for top-level calls (see [Streaming](../../integrations/llms/streaming.md)).
+To observe broadcasts, provide a **callback** to the `broadcast_callback` parameter on your `Flow` (or globally via `set_config`). Prefer the dict form mapping channel name -> callback to route items per channel; a bare callable receives every item on every channel. It is a *passive* listener — it never enables token streaming (see [Streaming](../../integrations/llms/streaming.md)); if it never fires during a session, a warning is logged at close.
 
 ```python
 --8<-- "docs/scripts/broadcast.py:callback_creation"

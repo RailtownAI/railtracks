@@ -41,36 +41,39 @@ async def main_flow():
 # --8<-- [end: flow_astream]
 
 
-# --8<-- [start: stream_callback]
+# --8<-- [start: route]
 def on_chunk(chunk: str) -> None:
     print(chunk, end="", flush=True)
 
 
-# attach the callback to the Flow (scoped) — do not construct a Session yourself
-push_flow = rt.Flow(name="poet_push", entry_point=agent, stream_callback=on_chunk)
-
-
 async def main_push():
-    result = await push_flow.ainvoke("Write a poem.")
+    # push-style consumption of ONE streamed call: route() dispatches chunks to handlers
+    # by channel and returns the final result. route() is what enables the streaming.
+    push_flow = rt.Flow(name="poet_push", entry_point=agent)
+    result = await push_flow.astream("Write a poem.").route(on_chunk)
     print("\n\nresult:", result.text)
-# --8<-- [end: stream_callback]
+
+    # dict form routes per channel (unregistered channels are skipped)
+    result = await push_flow.astream("Write a poem.").route({"default": on_chunk})
+# --8<-- [end: route]
 
 
-# --8<-- [start: stream_callback_channels]
-channel_flow = rt.Flow(
-    name="poet_channels",
+# --8<-- [start: broadcast_callback]
+# a PASSIVE session-wide listener: receives every broadcast item of the flow's runs but
+# never enables streaming. Prefer the dict form; if it never fires, a warning is logged.
+observer_flow = rt.Flow(
+    name="poet_observed",
     entry_point=agent,
-    stream_callback={
-        "default": lambda chunk: print(chunk, end="", flush=True),
-        "progress": lambda chunk: print(f"[progress] {chunk}"),
+    broadcast_callback={
+        "progress": lambda item: print(f"[progress] {item}"),
     },
 )
 
 
-async def main_channels():
-    result = await channel_flow.ainvoke("Write a poem.")
-    return result
-# --8<-- [end: stream_callback_channels]
+async def main_observed():
+    result = await observer_flow.ainvoke("Write a poem.")  # buffered; only explicit
+    return result                                          # rt.broadcast items observed
+# --8<-- [end: broadcast_callback]
 
 
 # --8<-- [start: custom_node]
@@ -144,10 +147,13 @@ async def review_pipeline(topic: str) -> str:
     return review.text
 
 
+# a passive broadcast_callback observes ALL scopes in the session — including the
+# nested astream scopes created inside the pipeline (route() would only see the entry
+# scope, so the multi-agent fan-out uses the session-wide listener instead)
 routed_flow = rt.Flow(
     name="review",
     entry_point=review_pipeline,
-    stream_callback={
+    broadcast_callback={
         "writer": lambda c: print(c, end="", flush=True),   # writer tokens → pane 1
         "critic": lambda c: print(f"\x1b[2m{c}\x1b[0m", end="", flush=True),  # critic → pane 2
     },

@@ -201,12 +201,9 @@ async def _execute(
     # filter for its completion
     request_id = str(uuid4())
 
-    # Streaming is opt-in and frame-local. A regular `rt.call` never streams, with one
-    # exception: a top-level call (no parent frame) made while a `stream_callback` is
-    # configured streams in "push" mode so the callback receives token chunks.
-    stream = (
-        get_parent_id() is None and get_local_config().stream_subscriber is not None
-    )
+    # Streaming is opt-in and frame-local: a regular `rt.call` NEVER streams. The only
+    # enabler is `rt.astream` / `Flow.astream`, which publishes its own RequestCreation with
+    # stream=True (callbacks are passive listeners and do not enable streaming).
 
     # note we set the listener before we publish the messages ensure that we do not miss any messages
     # I am actually a bit worried about this logic and I think there is a chance of a bug popping up here.
@@ -221,7 +218,6 @@ async def _execute(
             new_node_type=node,
             args=args,
             kwargs=kwargs,
-            stream=stream,
             current_stream_id=get_stream_id(),
         )
     )

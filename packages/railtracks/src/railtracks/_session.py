@@ -19,12 +19,12 @@ from .context.central import (
 )
 from .execution.coordinator import Coordinator
 from .execution.execution_strategy import AsyncioExecutionStrategy
-from .pubsub import RTPublisher, stream_chunk_subscriber
+from .pubsub import BroadcastCallbackSubscriber, RTPublisher
 from .state.info import (
     ExecutionInfo,
 )
 from .state.state import RTState
-from .utils.config import ExecutorConfig, StreamCallback
+from .utils.config import BroadcastCallback, ExecutorConfig
 from .utils.logging.create import get_rt_logger
 
 logger = get_rt_logger(__name__)
@@ -48,7 +48,7 @@ class Session:
     - `name`: None
     - `timeout`: 150.0 seconds
     - `end_on_error`: False
-    - `stream_callback`: None (no push-mode streaming)
+    - `broadcast_callback`: None (no bus listener)
     - `prompt_injection`: True (the prompt will be automatically injected from context variables)
     - `save_state`: True (the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory)
 
@@ -60,11 +60,11 @@ class Session:
         flow_id (str | None, optional): The unique identifier of the flow this session is associated with.
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
-        stream_callback (Callable or dict[str, Callable], optional): A callback that receives every
-            streamed/broadcast item (push-mode streaming). Providing it enables token streaming for
-            top-level calls made within this session. Pass a dict mapping channel name -> callback
-            to route items per channel; a single callable receives every item on every channel.
-            Callbacks may be sync or async.
+        broadcast_callback (Callable or dict[str, Callable], optional): A passive listener on the
+            broadcast bus. Pass a dict mapping channel name -> callback to route items per channel
+            (preferred); a single callable receives every item on every channel. It never enables
+            streaming — only `rt.astream` / `Flow.astream` do. Callbacks may be sync or async.
+            If it never fires during the session, a warning is logged at close.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
     """
@@ -78,7 +78,7 @@ class Session:
         name: str | None = None,
         timeout: float | None = None,
         end_on_error: bool | None = None,
-        stream_callback: StreamCallback | None = None,
+        broadcast_callback: BroadcastCallback | None = None,
         prompt_injection: bool | None = None,
         save_state: bool | None = None,
         payload_callback: Callable[[dict[str, Any]], None] | None = None,
@@ -94,7 +94,7 @@ class Session:
         self.executor_config = self.global_config_precedence(
             timeout=timeout,
             end_on_error=end_on_error,
-            stream_callback=stream_callback,
+            broadcast_callback=broadcast_callback,
             prompt_injection=prompt_injection,
             save_state=save_state,
             payload_callback=payload_callback,
@@ -141,7 +141,7 @@ class Session:
         prompt_injection: bool | None,
         save_state: bool | None,
         payload_callback: Callable[[dict[str, Any]], None] | None,
-        stream_callback: StreamCallback | None = None,
+        broadcast_callback: BroadcastCallback | None = None,
     ) -> ExecutorConfig:
         """
         Uses the following precedence order to determine the configuration parameters:
@@ -154,7 +154,7 @@ class Session:
         return global_executor_config.precedence_overwritten(
             timeout=timeout,
             end_on_error=end_on_error,
-            stream_subscriber=stream_callback,
+            broadcast_callback=broadcast_callback,
             prompt_injection=prompt_injection,
             save_state=save_state,
             payload_callback=payload_callback,
@@ -215,22 +215,32 @@ class Session:
 
     def _setup_subscriber(self):
         """
-        Prepares and attaches the saved stream_callback to the publisher attached to this runner.
+        Prepares and attaches the saved broadcast_callback to the publisher attached to this
+        runner. The subscriber instance is kept so `_close` can warn if it never fired.
         """
+        self._broadcast_subscriber: BroadcastCallbackSubscriber | None = None
 
-        if self.executor_config.stream_subscriber is not None:
+        if self.executor_config.broadcast_callback is not None:
+            self._broadcast_subscriber = BroadcastCallbackSubscriber(
+                self.executor_config.broadcast_callback
+            )
             self.publisher.subscribe(
-                stream_chunk_subscriber(self.executor_config.stream_subscriber),
-                name="Stream Callback Subscriber",
+                self._broadcast_subscriber,
+                name="Broadcast Callback Subscriber",
             )
 
     def _close(self):
         """
         Closes the runner and cleans up all resources.
 
+        - Warns if a registered broadcast_callback never fired
         - Shuts down the state object
         - Deletes all the global variables that were registered in the context
         """
+        # surface silent-callback issues (channel typos, expecting tokens without astream)
+        if self._broadcast_subscriber is not None:
+            self._broadcast_subscriber.warn_if_unused()
+
         # FIX: Resource leak - publisher background task wasn't being shut down on Session exit
         # VISION: Session owns publisher lifecycle and must clean up all resources when exiting
         if self.publisher.is_running():
@@ -315,7 +325,7 @@ def session(
     context: Dict[str, Any] | None = None,
     timeout: float | None = None,
     end_on_error: bool | None = None,
-    stream_callback: StreamCallback | None = None,
+    broadcast_callback: BroadcastCallback | None = None,
     prompt_injection: bool | None = None,
     save_state: bool | None = None,
 ) -> Callable[
@@ -335,9 +345,9 @@ def session(
         context (Dict[str, Any], optional): A dictionary of global context variables to be used during the execution.
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
-        stream_callback (Callable or dict[str, Callable], optional): A callback (or channel-name
-            -> callback dict) that receives every streamed/broadcast item; providing it enables
-            push-mode streaming for top-level calls.
+        broadcast_callback (Callable or dict[str, Callable], optional): A passive listener on
+            the broadcast bus (or a channel-name -> callback dict routing items per channel).
+            It never enables streaming; use rt.astream for that.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
 
@@ -355,7 +365,7 @@ def session(
     context: Dict[str, Any] | None = None,
     timeout: float | None = None,
     end_on_error: bool | None = None,
-    stream_callback: StreamCallback | None = None,
+    broadcast_callback: BroadcastCallback | None = None,
     prompt_injection: bool | None = None,
     save_state: bool | None = None,
 ) -> (
@@ -386,9 +396,9 @@ def session(
         context (Dict[str, Any], optional): A dictionary of global context variables to be used during the execution.
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
-        stream_callback (Callable or dict[str, Callable], optional): A callback (or channel-name
-            -> callback dict) that receives every streamed/broadcast item; providing it enables
-            push-mode streaming for top-level calls.
+        broadcast_callback (Callable or dict[str, Callable], optional): A passive listener on
+            the broadcast bus (or a channel-name -> callback dict routing items per channel).
+            It never enables streaming; use rt.astream for that.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
 
@@ -417,7 +427,7 @@ def session(
                 context=context,
                 timeout=timeout,
                 end_on_error=end_on_error,
-                stream_callback=stream_callback,
+                broadcast_callback=broadcast_callback,
                 name=name,
                 prompt_injection=prompt_injection,
                 save_state=save_state,

@@ -55,7 +55,7 @@ class LLMBase(Node[..., _TCollectedOutput], ABC, Generic[_TCollectedOutput]):
     store debugging details that will allow us to determine token usage.
 
     Streaming: LLM nodes decide *per invocation* whether to stream. When the frame was entered
-    via `rt.astream` (or a configured `stream_callback`), `self._should_stream()` is True and the
+    via `rt.astream` / `Flow.astream`, `self._should_stream()` is True and the
     node consumes the model's streamed response internally, broadcasting each chunk with
     `rt.broadcast` before returning its regular (complete) response object. Nested `rt.call`
     children always run buffered — streaming is frame-local.
@@ -293,7 +293,7 @@ class LLMBase(Node[..., _TCollectedOutput], ABC, Generic[_TCollectedOutput]):
     def _should_stream(self) -> bool:
         """
         Returns True when this node's frame was invoked with streaming enabled (via
-        `rt.astream` or a configured `stream_callback`).
+        `rt.astream` / `Flow.astream` — callbacks never enable streaming).
 
         Streaming is frame-local: nested nodes started with `rt.call` from within this node
         will see False here and run buffered.
@@ -306,7 +306,8 @@ class LLMBase(Node[..., _TCollectedOutput], ABC, Generic[_TCollectedOutput]):
         The named channel this node emits its streamed chunks on.
 
         Override this on a node subclass to route its tokens to a dedicated channel (consumed
-        with `rt.astream(..., channel=...)` or a `stream_callback` dict keyed by channel name).
+        with `stream.on_channel(...)`, `route()` handlers, or a `broadcast_callback` dict
+        keyed by channel name).
         """
         return "default"
 

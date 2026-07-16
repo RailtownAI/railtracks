@@ -69,9 +69,9 @@ class ModelBase(ABC, Generic[_TStream]):
         if stream:
             warnings.warn(
                 "Constructing a model with stream=True is deprecated. Streaming is now "
-                "requested at the call site: use `rt.astream(...)` (or a `stream_callback` "
-                "on your Session/Flow) instead, or call `model.astream_chat(...)` directly "
-                "for a one-off streamed model request.",
+                "requested at the call site: use `rt.astream(...)` / `Flow.astream(...)` "
+                "instead, or call `model.astream_chat(...)` directly for a one-off streamed "
+                "model request.",
                 DeprecationWarning,
                 stacklevel=3,
             )

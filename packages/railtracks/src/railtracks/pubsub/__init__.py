@@ -21,10 +21,10 @@ __all__ = [
     "Streaming",
     "output_mapping",
     "RTPublisher",
-    "stream_chunk_subscriber",
+    "BroadcastCallbackSubscriber",
     "StreamEnd",
 ]
 
-from ._subscriber import stream_chunk_subscriber
+from ._subscriber import BroadcastCallbackSubscriber
 from .publisher import RTPublisher
 from .utils import output_mapping

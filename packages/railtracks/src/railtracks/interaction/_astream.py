@@ -9,6 +9,7 @@ from typing import (
     Callable,
     Generator,
     Generic,
+    Mapping,
     NoReturn,
     ParamSpec,
     TypeVar,
@@ -36,6 +37,7 @@ from railtracks.pubsub.messages import (
     Streaming,
 )
 from railtracks.pubsub.utils import output_mapping
+from railtracks.utils.config import BroadcastCallback
 from railtracks.utils.logging import get_rt_logger
 
 if TYPE_CHECKING:
@@ -255,6 +257,13 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
         ...
     ```
 
+    For push-style consumption, `route` dispatches chunks to handlers by channel and returns
+    the final result:
+
+    ```python
+    final = await rt.astream(node, topic="x").route({"draft": fn1, "final": fn2})
+    ```
+
     Error behavior: if the invoked node raises, the exception propagates out of the `async for`
     loop (or the `await`), exactly like `rt.call`.
 
@@ -369,7 +378,8 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
                     return
                 if self._channel is not None and message.channel != self._channel:
                     return
-                queue.put_nowait(("chunk", message.streamed_object))
+                # keep the channel alongside the payload so route() can dispatch by it
+                queue.put_nowait(("chunk", (message.channel, message.streamed_object)))
             elif isinstance(message, RequestFinishedBase):
                 if message.request_id == request_id:
                     queue.put_nowait(("done", message))
@@ -418,6 +428,16 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
         return self
 
     async def __anext__(self) -> Any:
+        _, chunk = await self._next_tagged()
+        return chunk
+
+    async def _next_tagged(self) -> tuple[str, Any]:
+        """Core iteration step: returns the next `(channel, chunk)` pair.
+
+        Raises `StopAsyncIteration` once the run finishes (resolving `.result`), or the
+        node's error / `GlobalTimeOutError` like `__anext__` does. `route()` uses the channel;
+        `__anext__` discards it (public iteration yields chunks only).
+        """
         if self._finished:
             raise StopAsyncIteration
 
@@ -436,7 +456,7 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
             self._finish_with_timeout()
 
         if kind == "chunk":
-            return payload
+            return payload  # (channel, chunk)
 
         # the run has finished: resolve the final result (or raise the node's error)
         self._finished = True
@@ -447,6 +467,74 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
             self._error = e
             raise
         raise StopAsyncIteration
+
+    async def route(self, handlers: BroadcastCallback) -> _TOutput:
+        """
+        Consumes this stream push-style, dispatching each chunk to handler(s) by channel, and
+        returns the node's final result.
+
+        This is the per-call push consumer: unlike a session-level `broadcast_callback`
+        (which passively observes *every* run in the session), `route` receives only this
+        stream's own chunks and is what actually enables the streaming.
+
+        ```python
+        final = await flow.astream("Write a poem.").route(
+            {"draft": to_editor_pane, "final": to_chat_pane}
+        )
+        ```
+
+        Args:
+            handlers: A single callable (receives every chunk of this stream), or a mapping of
+                channel name -> callable (chunks on unregistered channels are skipped).
+                Callables may be sync or async.
+
+        Returns:
+            _TOutput: The node's final return value (same as `stream.result`).
+
+        Raises:
+            BaseException: The node's own exception, if the run failed.
+
+        Note:
+            Only chunks in *this* stream's scope are routed. A nested `rt.astream` inside the
+            invoked node creates its own scope — consume those with a session-level
+            `broadcast_callback` instead. If some registered channels never receive a chunk, a
+            warning is logged when the stream ends.
+        """
+        registered = set(handlers.keys()) if isinstance(handlers, Mapping) else None
+        fired: set[str] = set()
+        seen: set[str] = set()
+
+        while True:
+            try:
+                channel, chunk = await self._next_tagged()
+            except StopAsyncIteration:
+                break
+
+            seen.add(channel)
+            if isinstance(handlers, Mapping):
+                fn = handlers.get(channel)
+                if fn is None:
+                    continue
+                fired.add(channel)
+            else:
+                fn = handlers
+
+            result = fn(chunk)
+            if asyncio.iscoroutine(result):
+                await result
+
+        if registered is not None:
+            unused = registered - fired
+            if unused:
+                logger.warning(
+                    "route(): handler channels %s never received any chunks%s.",
+                    sorted(unused),
+                    f"; observed channels were {sorted(seen)}"
+                    if seen
+                    else " — the stream produced no chunks",
+                )
+
+        return self.result
 
     def _finish_with_timeout(self) -> NoReturn:
         """Marks the stream as finished and raises the global timeout error."""

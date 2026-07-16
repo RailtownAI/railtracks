@@ -27,7 +27,7 @@ def _should_stream(model: ModelBase, tools: list[Tool] | None) -> bool:
     """
     Frame-level streaming decision for a single model call.
 
-    Streaming is requested at the call site (`rt.astream` / a configured `stream_callback`)
+    Streaming is requested at the call site (`rt.astream` / `Flow.astream`)
     and is frame-local, so this returns True only for the entry frame of a streamed
     invocation. Tool-calling requests against blacklisted providers fall back to a buffered
     call (with a warning) instead of erroring.
@@ -151,7 +151,7 @@ class ModelInvoker:
             tools: list[Tool] | None,
         ) -> Response:
             # Streaming path: consume the model stream here, broadcasting each chunk to the
-            # run's consumers (rt.astream / stream_callback), and hand the complete Response
+            # run's consumers (rt.astream / route() / broadcast_callback), and hand the complete Response
             # back through the middleware chain — exit middleware (e.g. output guardrails)
             # operates on the buffered final response.
             if _should_stream(model, tools):

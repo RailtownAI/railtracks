@@ -204,7 +204,7 @@ class Streaming(RequestCompletionMessage):
         streamed_object: The item being streamed (typically a `str` chunk).
         node_id: The id of the node that emitted the item.
         channel: The named channel this item was emitted on. Consumers (`rt.astream`,
-            `stream_callback`) can filter/route on this name. Defaults to `"default"`.
+            `broadcast_callback`) can filter/route on this name. Defaults to `"default"`.
         stream_id: The stream scope this item belongs to. This is the request id of the entry
             frame that was invoked with streaming enabled (see `rt.astream`), or None if the
             item was broadcast outside any streaming scope.

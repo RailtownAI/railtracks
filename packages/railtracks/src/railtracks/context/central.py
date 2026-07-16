@@ -174,7 +174,7 @@ def get_run_id() -> str | None:
 def is_streaming_enabled() -> bool:
     """
     Returns True when the current frame was invoked with streaming enabled (via `rt.astream`
-    or a configured `stream_callback`).
+    / `Flow.astream` — callbacks never enable streaming).
 
     LLM nodes use this to decide whether to stream their model responses token-by-token.
     The flag is frame-local: it is True only for the entry frame of a streamed invocation and
@@ -423,7 +423,7 @@ def set_config(
     *,
     timeout: float | None = None,
     end_on_error: bool | None = None,
-    stream_callback: (
+    broadcast_callback: (
         Callable[[str], Any] | dict[str, Callable[[str], Any]] | None
     ) = None,
     prompt_injection: bool | None = None,
@@ -438,9 +438,9 @@ def set_config(
     Args:
         timeout: The maximum number of seconds to wait for a response to your top-level request.
         end_on_error: If True, the execution will stop when an exception is encountered.
-        stream_callback: A callback (or dict mapping channel name -> callback) that receives
-            every streamed/broadcast item. Providing this also enables token streaming for
-            top-level calls (push-mode streaming).
+        broadcast_callback: A passive listener on the broadcast bus (or a dict mapping channel
+            name -> callback to route items per channel). It never enables streaming — only
+            `rt.astream` / `Flow.astream` do.
         prompt_injection: If True, the prompt will be automatically injected from context variables.
         save_state: If True, the state of the execution will be saved to a file at the end of the run.
     """
@@ -455,7 +455,7 @@ def set_config(
     new_config = config.precedence_overwritten(
         timeout=timeout,
         end_on_error=end_on_error,
-        stream_subscriber=stream_callback,
+        broadcast_callback=broadcast_callback,
         prompt_injection=prompt_injection,
         save_state=save_state,
     )

@@ -144,7 +144,7 @@ StreamingNode = rt.function_node(streaming_func)
 async def test_streaming_inserted_globally():
     handler = StreamHandler()
 
-    railtracks.context.central.set_config(stream_callback=handler.handle)
+    railtracks.context.central.set_config(broadcast_callback=handler.handle)
     with rt.Session():
         result = await rt.call(StreamingNode)
         assert result is None
@@ -157,7 +157,7 @@ async def test_streaming_inserted_globally():
 async def test_streaming_inserted_locally():
     handler = StreamHandler()
 
-    with rt.Session(stream_callback=handler.handle):
+    with rt.Session(broadcast_callback=handler.handle):
         result = await rt.call(StreamingNode)
         assert result is None
 
@@ -173,8 +173,8 @@ def fake_handler(item: str) -> None:
 async def test_streaming_overwrite():
     handler = StreamHandler()
 
-    railtracks.context.central.set_config(stream_callback=fake_handler)
-    with rt.Session(stream_callback=handler.handle):
+    railtracks.context.central.set_config(broadcast_callback=fake_handler)
+    with rt.Session(broadcast_callback=handler.handle):
         result = await rt.call(StreamingNode)
         assert result is None
 

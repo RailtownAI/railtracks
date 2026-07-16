@@ -10,7 +10,7 @@ from railtracks._session import Session
 from railtracks.built_nodes.concrete.function_base import RTFunction
 from railtracks.interaction._astream import Stream
 from railtracks.interaction._call import call
-from railtracks.utils.config import StreamCallback
+from railtracks.utils.config import BroadcastCallback
 
 from ..nodes.nodes import Node
 
@@ -30,10 +30,12 @@ class Flow(Generic[_P, _TOutput]):
         context (dict[str, Any], optional): Context to be passed to all instantiations (or runs) of this flow. Note that the context can be overridden at invocation time.
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
-        stream_callback (Callable or dict[str, Callable], optional): A callback that receives every
-            streamed/broadcast item (push-mode streaming). Providing it enables token streaming for
-            the entry point on every invocation of this flow. Pass a dict mapping channel name ->
-            callback to route items per channel. Callbacks may be sync or async.
+        broadcast_callback (Callable or dict[str, Callable], optional): A passive listener on the
+            broadcast bus for this flow's runs. Pass a dict mapping channel name -> callback to
+            route items per channel (preferred); a single callable receives every item on every
+            channel. It never enables streaming — use `flow.astream(...)` (optionally with
+            `.route(...)`) to stream. If it never fires during a run, a warning is logged at
+            session close. Callbacks may be sync or async.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
         payload_callback (Callable[[dict[str, Any]], None], optional): A callback function that will run upon completion of the flow with the final payload as an argument.
@@ -47,7 +49,7 @@ class Flow(Generic[_P, _TOutput]):
         context: dict[str, Any] | None = None,
         timeout: float | None = None,
         end_on_error: bool | None = None,
-        stream_callback: StreamCallback | None = None,
+        broadcast_callback: BroadcastCallback | None = None,
         prompt_injection: bool | None = None,
         save_state: bool | None = None,
         payload_callback: Callable[[dict[str, Any]], Any] | None = None,
@@ -63,7 +65,7 @@ class Flow(Generic[_P, _TOutput]):
         self._context: dict[str, Any] = context or {}
         self._timeout = timeout
         self._end_on_error = end_on_error
-        self._stream_callback = stream_callback
+        self._broadcast_callback = broadcast_callback
         self._prompt_injection = prompt_injection
         self._save_state = save_state
         self._payload_callback = payload_callback
@@ -85,7 +87,7 @@ class Flow(Generic[_P, _TOutput]):
             name=None,
             timeout=self._timeout,
             end_on_error=self._end_on_error,
-            stream_callback=self._stream_callback,
+            broadcast_callback=self._broadcast_callback,
             prompt_injection=self._prompt_injection,
             save_state=self._save_state,
             payload_callback=self._payload_callback,
@@ -122,7 +124,9 @@ class Flow(Generic[_P, _TOutput]):
         ```
 
         To consume a single named channel, chain `on_channel` before iterating:
-        `flow.astream("prompt").on_channel("final")`.
+        `flow.astream("prompt").on_channel("final")`. For push-style consumption, route the
+        chunks to handlers by channel instead of iterating:
+        `final = await flow.astream("prompt").route({"default": on_chunk})`.
 
         Args:
             *args: The positional arguments to pass to the entry point.

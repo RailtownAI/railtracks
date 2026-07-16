@@ -68,7 +68,7 @@ class StructuredLLM(
 ):
     """Creates a new instance of the StructuredlLLM class
 
-    Streaming: when invoked through `rt.astream` (or with a `stream_callback` configured), the
+    Streaming: when invoked through `rt.astream` / `Flow.astream`, the
     raw JSON tokens of the structured response are streamed chunk-by-chunk; the final returned
     `StructuredResponse` is parsed and validated once the stream completes. In a regular
     `rt.call` the model is invoked buffered.

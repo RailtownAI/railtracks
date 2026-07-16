@@ -174,9 +174,9 @@ def agent_node(
             of the session-level prompt_injection setting. Can also be controlled at the session level via
             rt.Session(prompt_injection=False) or per-message via message.inject_prompt = False.
         stream_channel (str): The named channel this agent's streamed tokens are broadcast on
-            when a run streams (see `rt.astream` / `stream_callback`). Defaults to "default".
+            when a run streams (see `rt.astream` / `Flow.astream`). Defaults to "default".
             Give different agents in one flow distinct channels to route their tokens to
-            different consumers (e.g. `stream_callback={"writer": fn1, "critic": fn2}` or
+            different consumers (e.g. `broadcast_callback={"writer": fn1, "critic": fn2}` or
             `stream.on_channel("writer")`). Note each round of a tool-calling loop is one
             production on this channel.
     """

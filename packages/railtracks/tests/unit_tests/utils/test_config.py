@@ -11,19 +11,19 @@ def test_instantiation_with_all_defaults():
     assert config.timeout is None
     assert config.end_on_error is False
     assert config.prompt_injection is True
-    assert config.stream_subscriber is None
+    assert config.broadcast_callback is None
 
 def test_instantiation_with_custom_values(tmp_path):
     test_subscriber = lambda x: x
     config = ExecutorConfig(
         timeout=12.0,
         end_on_error=True,
-        stream_callback=test_subscriber,
+        broadcast_callback=test_subscriber,
         prompt_injection=False
     )
     assert config.timeout == 12.0
     assert config.end_on_error is True
-    assert config.stream_subscriber == test_subscriber
+    assert config.broadcast_callback == test_subscriber
     assert config.prompt_injection is False
 
 # ================ END ExecutorConfig: Instantiation tests ===============
@@ -31,26 +31,26 @@ def test_instantiation_with_custom_values(tmp_path):
 
 
 
-# ================= START ExecutorConfig: stream_callback handling tests ============
+# ================= START ExecutorConfig: broadcast_callback handling tests ============
 
 def test_subscriber_accepts_callable():
-    config = ExecutorConfig(stream_callback=lambda s: s)
-    assert callable(config.stream_subscriber)
+    config = ExecutorConfig(broadcast_callback=lambda s: s)
+    assert callable(config.broadcast_callback)
 
 @pytest.mark.asyncio
 async def test_subscriber_accepts_coroutine_function():
     async def async_sub_fn(text):
         return text
-    config = ExecutorConfig(stream_callback=async_sub_fn)
+    config = ExecutorConfig(broadcast_callback=async_sub_fn)
     # (not invoked/executed here, just type accepted)
-    assert callable(config.stream_subscriber)
-    assert isinstance(config.stream_subscriber, types.FunctionType)
+    assert callable(config.broadcast_callback)
+    assert isinstance(config.broadcast_callback, types.FunctionType)
 
 def test_subscriber_is_none_by_default():
     config = ExecutorConfig()
-    assert config.stream_subscriber is None
+    assert config.broadcast_callback is None
 
-# ================ END ExecutorConfig: stream_callback handling tests ===============
+# ================ END ExecutorConfig: broadcast_callback handling tests ===============
 
 
 # ================= START ExecutorConfig: prompt_injection tests ============
