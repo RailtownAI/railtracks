@@ -196,6 +196,14 @@ class FatalFailure(RequestCompletionMessage):
         return f"{self.__class__.__name__}(error={self.error})"
 
 
+# The two kinds of broadcast traffic. "event": a one-off item published with `rt.broadcast`
+# (progress notes, tool events, ...). "stream": one chunk of a continuous production published
+# through `rt.broadcast_stream` — which includes all LLM token streaming. Session-level
+# callbacks are split along this line: `broadcast_callback` observes events, `stream_callback`
+# observes stream chunks.
+StreamingKind = Literal["event", "stream"]
+
+
 class Streaming(RequestCompletionMessage):
     """
     A message carrying a single streamed item (e.g. an LLM token chunk or a user broadcast).
@@ -204,10 +212,15 @@ class Streaming(RequestCompletionMessage):
         streamed_object: The item being streamed (typically a `str` chunk).
         node_id: The id of the node that emitted the item.
         channel: The named channel this item was emitted on. Consumers (`rt.astream`,
-            `broadcast_callback`) can filter/route on this name. Defaults to `"default"`.
+            `broadcast_callback` / `stream_callback`) can filter/route on this name.
+            Defaults to `"default"`.
         stream_id: The stream scope this item belongs to. This is the request id of the entry
             frame that was invoked with streaming enabled (see `rt.astream`), or None if the
             item was broadcast outside any streaming scope.
+        kind: What produced this item: `"event"` for a one-off `rt.broadcast`, `"stream"` for
+            a chunk of an `rt.broadcast_stream` production (LLM token streams included).
+            Session-level callbacks filter on this; scoped consumers (`rt.astream`,
+            `rt.context.get_stream`) do not — they separate traffic by channel instead.
     """
 
     def __init__(
@@ -217,16 +230,19 @@ class Streaming(RequestCompletionMessage):
         node_id: str | None,
         channel: str = "default",
         stream_id: str | None = None,
+        kind: StreamingKind = "event",
     ):
         self.streamed_object = streamed_object
         self.node_id = node_id
         self.channel = channel
         self.stream_id = stream_id
+        self.kind = kind
 
     def __repr__(self):
         return (
             f"{self.__class__.__name__}(streamed_object={self.streamed_object}, "
-            f"node_id={self.node_id}, channel={self.channel}, stream_id={self.stream_id})"
+            f"node_id={self.node_id}, channel={self.channel}, stream_id={self.stream_id}, "
+            f"kind={self.kind})"
         )
 
 

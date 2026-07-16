@@ -426,6 +426,9 @@ def set_config(
     broadcast_callback: (
         Callable[[str], Any] | dict[str, Callable[[str], Any]] | None
     ) = None,
+    stream_callback: (
+        Callable[[str], Any] | dict[str, Callable[[str], Any]] | None
+    ) = None,
     prompt_injection: bool | None = None,
     save_state: bool | None = None,
 ):
@@ -438,9 +441,12 @@ def set_config(
     Args:
         timeout: The maximum number of seconds to wait for a response to your top-level request.
         end_on_error: If True, the execution will stop when an exception is encountered.
-        broadcast_callback: A passive listener on the broadcast bus (or a dict mapping channel
-            name -> callback to route items per channel). It never enables streaming — only
-            `rt.astream` / `Flow.astream` do.
+        broadcast_callback: A passive listener for one-off events published with `rt.broadcast`
+            (or a dict mapping channel name -> callback to route events per channel). Streamed
+            chunks go to `stream_callback` instead.
+        stream_callback: A passive listener for stream chunks published through
+            `rt.broadcast_stream` (LLM token streams included). It never enables streaming —
+            only `rt.astream` / `Flow.astream` do.
         prompt_injection: If True, the prompt will be automatically injected from context variables.
         save_state: If True, the state of the execution will be saved to a file at the end of the run.
     """
@@ -456,6 +462,7 @@ def set_config(
         timeout=timeout,
         end_on_error=end_on_error,
         broadcast_callback=broadcast_callback,
+        stream_callback=stream_callback,
         prompt_injection=prompt_injection,
         save_state=save_state,
     )

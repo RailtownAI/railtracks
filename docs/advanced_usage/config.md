@@ -20,7 +20,8 @@ Configuration parameters follow a specific precedence order, allowing you to ove
 ### Advanced Settings
 
 - **`context`** (`Dict[str, Any]`): Global context variables for execution
-- **`broadcast_callback`** (`Callable | dict[str, Callable]`): Passive listener (or per-channel dict) for streamed/broadcast items; never enables streaming
+- **`broadcast_callback`** (`Callable | dict[str, Callable]`): Passive listener (or per-channel dict) for one-off `rt.broadcast` events
+- **`stream_callback`** (`Callable | dict[str, Callable]`): Passive listener (or per-channel dict) for `rt.broadcast_stream` chunks (LLM tokens included); never enables streaming
 - **`prompt_injection`** (`bool`): Automatically inject prompts from context variables
 - **`save_state`** (`bool`): Save execution state to the `.railtracks` data directory (see [Data directory resolution](#data-directory-railtracks) below)
 
@@ -30,7 +31,8 @@ Configuration parameters follow a specific precedence order, allowing you to ove
 # Default configuration values
 timeout = 150.0                   # seconds
 end_on_error = False              # continue on errors
-broadcast_callback = None         # no bus listener
+broadcast_callback = None         # no event listener
+stream_callback = None            # no stream-chunk listener
 prompt_injection = True           # enable prompt injection
 save_state = True                 # save execution state
 ```

@@ -4,30 +4,18 @@ from typing import TYPE_CHECKING, Any, AsyncIterable, Iterable, Union, overload
 from uuid import uuid4
 
 from railtracks.context.central import get_parent_id, get_publisher, get_stream_id
-from railtracks.pubsub.messages import StreamEnd, Streaming
+from railtracks.pubsub.messages import StreamEnd, Streaming, StreamingKind
 
 if TYPE_CHECKING:
     from railtracks.llm.response import Response
 
 
-async def broadcast(item: Any, channel: str = "default"):
-    """
-    Streams the given item to the session's broadcast bus.
+async def _publish_item(item: Any, channel: str, kind: StreamingKind) -> None:
+    """Publishes one item on the broadcast bus, tagged with its traffic kind.
 
-    Consumers attached to the run will receive it:
-
-    - `rt.astream(...)` (pull mode) yields the item from its async iterator.
-    - A configured `broadcast_callback` (passive listener) is invoked with the item; when
-      the callback is a dict, the item is routed to the callable registered under `channel`
-      (a single callable receives every item on every channel). Registering one never
-      enables streaming.
-    - `rt.context.get_stream(channel, ...)` (pull mode, from inside the run) yields it.
-
-    If nothing is listening, the item is simply dropped — broadcasting is always safe.
-
-    Args:
-        item: The item you want to stream (typically a `str` chunk).
-        channel: The named channel to emit on. Defaults to `"default"`.
+    The kind separates the two callback lanes: `"event"` items go to `broadcast_callback`,
+    `"stream"` chunks go to `stream_callback`. Scoped consumers (`rt.astream`,
+    `rt.context.get_stream`) receive both kinds and separate traffic by channel instead.
     """
     publisher = get_publisher()
 
@@ -37,8 +25,36 @@ async def broadcast(item: Any, channel: str = "default"):
             streamed_object=item,
             channel=channel,
             stream_id=get_stream_id(),
+            kind=kind,
         )
     )
+
+
+async def broadcast(item: Any, channel: str = "default"):
+    """
+    Broadcasts a one-off **event** to the session's broadcast bus.
+
+    Consumers attached to the run will receive it:
+
+    - A configured `broadcast_callback` (passive event listener) is invoked with the item;
+      when the callback is a dict, the item is routed to the callable registered under
+      `channel` (a single callable receives every event on every channel). Events do NOT
+      reach `stream_callback` — that lane carries `rt.broadcast_stream` chunks only.
+    - `rt.astream(...)` / `Stream.route(...)` yield/route it (scoped consumers see both
+      events and stream chunks; use channels to separate them).
+    - `rt.context.get_stream(channel, ...)` (pull mode, from inside the run) yields it.
+
+    If nothing is listening, the item is simply dropped — broadcasting is always safe.
+
+    For a *continuous* production (an LLM token stream, a chunked file read), use
+    `rt.broadcast_stream` instead: its chunks are tagged as stream traffic and it publishes
+    a completion marker consumers can count.
+
+    Args:
+        item: The item you want to broadcast.
+        channel: The named channel to emit on. Defaults to `"default"`.
+    """
+    await _publish_item(item, channel, "event")
 
 
 @overload
@@ -67,8 +83,8 @@ async def broadcast_stream(
 
     This is the bridge between a raw model stream and the railtracks streaming system: inside a
     custom node you can forward a `model.astream_chat(...)` stream to whoever is consuming the
-    run (`rt.astream`, `Stream.route()`, or a `broadcast_callback`) while still receiving the complete final response
-    to build your node's return value:
+    run (`rt.astream`, `Stream.route()`, or a `stream_callback`) while still receiving the
+    complete final response to build your node's return value:
 
     ```python
     @rt.function_node
@@ -84,7 +100,9 @@ async def broadcast_stream(
     a buffered call — so the same node works with and without streaming.
 
     Behavior:
-    - Every `str` item is broadcast on `channel` (see `rt.broadcast`) and accumulated.
+    - Every `str` item is published on `channel` as **stream** traffic (it reaches
+      `stream_callback`, not `broadcast_callback` — use `rt.broadcast` for one-off events)
+      and accumulated.
     - The first non-`str` item is treated as the stream's final result (model streams such as
       `astream_chat` yield a final `Response` after the chunks).
     - When the stream is exhausted — or the producer raises — a `StreamEnd` marker is
@@ -109,14 +127,14 @@ async def broadcast_stream(
             async for item in stream:  # type: ignore[union-attr]
                 if isinstance(item, str):
                     parts.append(item)
-                    await broadcast(item, channel=channel)
+                    await _publish_item(item, channel, "stream")
                 else:
                     final = item
         else:
             for item in stream:  # type: ignore[union-attr]
                 if isinstance(item, str):
                     parts.append(item)
-                    await broadcast(item, channel=channel)
+                    await _publish_item(item, channel, "stream")
                 else:
                     final = item
     finally:

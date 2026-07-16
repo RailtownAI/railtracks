@@ -36,7 +36,7 @@ A `Stream` is also awaitable — `await stream` consumes it to completion and re
 --8<-- "docs/scripts/streaming.py:flow_astream"
 ```
 
-## Push — `Stream.route()` and `broadcast_callback`
+## Push — `Stream.route()` and `stream_callback`
 
 **Callbacks never enable streaming — only `astream` does.** For push-style consumption of a streamed call, `route()` the stream: it dispatches each chunk to your handler(s) by channel and returns the final result. Never construct a `Session` yourself — it is an internal object:
 
@@ -44,17 +44,19 @@ A `Stream` is also awaitable — `await stream` consumes it to completion and re
 --8<-- "docs/scripts/streaming.py:route"
 ```
 
-Separately, a **`broadcast_callback`** (on the `Flow`, or globally via `rt.set_config`) is a *passive* session-wide listener: it receives every streamed/broadcast item of the run — including one-off `rt.broadcast` progress notes and chunks from *any* scope (e.g. nested `astream`s) — but it does not turn streaming on. Prefer the dict form (channel name → callback); a bare callable is the firehose and will also receive token chunks whenever something streams:
+Separately, a **`stream_callback`** (on the `Flow`, or globally via `rt.set_config`) is a *passive* session-wide listener for **stream chunks**: it receives every `rt.broadcast_stream` chunk of the run — LLM tokens included, from *any* scope (e.g. nested `astream`s) — but it does not turn streaming on. Prefer the dict form (channel name → callback); a bare callable is the firehose and receives every chunk on every channel.
+
+One-off **events** published with `rt.broadcast` (progress notes, tool events, …) ride a separate lane: they go to the **`broadcast_callback`** — see [Broadcasting](../../observability/tracking/broadcasting.md). Streams are continuous productions; broadcasts are discrete events — the two callbacks keep those mental models apart:
 
 ```python
---8<-- "docs/scripts/streaming.py:broadcast_callback"
+--8<-- "docs/scripts/streaming.py:stream_callback"
 ```
 
 !!! Note "Which push consumer?"
-    `route()` = **this call's** chunks (per-call isolated, enables the streaming, returns the result). `broadcast_callback` = **everything in the session**, passively (buffered runs included — explicit `rt.broadcast`/`rt.broadcast_stream` items always flow). The end-of-run `payload_callback` is separate — it fires once with the serialized session payload.
+    `route()` = **this call's** traffic (per-call isolated, enables the streaming, returns the result — it sees both chunks and events, separated by channel). `stream_callback` = **every streamed chunk in the session**, passively. `broadcast_callback` = **every `rt.broadcast` event in the session**, passively (buffered runs included — explicit broadcasts always flow). The end-of-run `payload_callback` is separate — it fires once with the serialized session payload.
 
 !!! Tip "Unused-callback warnings"
-    If a `broadcast_callback` (or any of its channel entries) never fires during a session, a warning is logged at close — distinguishing "nothing was broadcast (did you forget `astream`?)" from "traffic existed on other channels (channel-name typo?)". `route()` logs the same for handler channels that never matched.
+    If a `stream_callback` / `broadcast_callback` (or any of its channel entries) never fires during a session, a `UserWarning` is emitted at close (visible by default, no logging setup needed) — distinguishing "nothing streamed (did you forget `astream`?)" from "traffic existed on other channels (channel-name typo?)". It even flags lane mix-ups: a `broadcast_callback` on a channel that only carried stream chunks is pointed to `stream_callback`, and vice versa. `route()` emits the same for handler channels that never matched.
 
 ## Custom Nodes — `rt.broadcast_stream`
 
@@ -66,7 +68,7 @@ Inside a custom node, call the model's streaming API directly and forward the st
 
 If nothing is listening (a plain `rt.call` with no consumers), the chunks are simply dropped and the node behaves exactly like a buffered call — the same node works in both modes.
 
-For one-off chunks (progress messages, notes), `rt.broadcast(item, channel=...)` publishes a single item the same way.
+For one-off **events** (progress messages, notes), `rt.broadcast(item, channel=...)` publishes a single item — but on the event lane: it reaches `broadcast_callback` (and scoped consumers like `route()`/`get_stream`), not `stream_callback`.
 
 ### Channels
 
@@ -74,7 +76,7 @@ Every chunk is emitted on a named channel (default: `"default"`). Channels let m
 
 - Producers: `rt.broadcast_stream(gen, channel="draft")`, `rt.broadcast("note", channel="progress")`.
 - Pull consumers: chain `.on_channel("final")` on the stream handle to yield only that channel (by default a stream yields everything in the run).
-- Push consumers: `stream.route({"draft": fn1, "final": fn2})` for one call, or a passive `broadcast_callback` dict for the whole session.
+- Push consumers: `stream.route({"draft": fn1, "final": fn2})` for one call, or a passive `stream_callback` dict for the whole session.
 
 ```python
 --8<-- "docs/scripts/streaming.py:custom_channels"
@@ -82,7 +84,7 @@ Every chunk is emitted on a named channel (default: `"default"`). Channels let m
 
 ### Binding a prebuilt agent to a channel — `stream_channel`
 
-Custom nodes pick their channel at each `broadcast_stream` call. Prebuilt agents bind theirs at construction with `agent_node(..., stream_channel="...")` — every token the agent streams (including every round of its tool-calling loop) is emitted on that bus. Combined with a passive `broadcast_callback` dict, different agents in one flow route to different consumers:
+Custom nodes pick their channel at each `broadcast_stream` call. Prebuilt agents bind theirs at construction with `agent_node(..., stream_channel="...")` — every token the agent streams (including every round of its tool-calling loop) is emitted on that bus. Combined with a passive `stream_callback` dict, different agents in one flow route to different consumers:
 
 ```python
 --8<-- "docs/scripts/streaming.py:agent_stream_channel"
@@ -92,7 +94,7 @@ Note the nested `rt.astream(writer, ...)` inside the pipeline: nested `rt.call`s
 
 ## Consuming a Channel From Inside a Run
 
-`rt.astream` (with or without `route()`) and `broadcast_callback` both consume at the *top* of a run. To consume a channel **from inside** a run — e.g. an orchestrator node that runs a child concurrently and folds the child's live tokens into its own work — use `rt.context.get_stream(channel)`:
+`rt.astream` (with or without `route()`) and `stream_callback` both consume at the *top* of a run. To consume a channel **from inside** a run — e.g. an orchestrator node that runs a child concurrently and folds the child's live tokens into its own work — use `rt.context.get_stream(channel)`:
 
 ```python
 --8<-- "docs/scripts/streaming.py:get_stream"

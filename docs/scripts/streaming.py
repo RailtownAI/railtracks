@@ -58,12 +58,17 @@ async def main_push():
 # --8<-- [end: route]
 
 
-# --8<-- [start: broadcast_callback]
-# a PASSIVE session-wide listener: receives every broadcast item of the flow's runs but
-# never enables streaming. Prefer the dict form; if it never fires, a warning is logged.
+# --8<-- [start: stream_callback]
+# PASSIVE session-wide listeners — neither enables streaming. Two lanes:
+#   stream_callback    -> chunks from rt.broadcast_stream (LLM tokens included)
+#   broadcast_callback -> one-off events from rt.broadcast (progress notes, ...)
+# Prefer the dict form; if a callback never fires, a UserWarning is emitted at close.
 observer_flow = rt.Flow(
     name="poet_observed",
     entry_point=agent,
+    stream_callback={
+        "default": lambda chunk: print(chunk, end="", flush=True),
+    },
     broadcast_callback={
         "progress": lambda item: print(f"[progress] {item}"),
     },
@@ -71,9 +76,10 @@ observer_flow = rt.Flow(
 
 
 async def main_observed():
-    result = await observer_flow.ainvoke("Write a poem.")  # buffered; only explicit
-    return result                                          # rt.broadcast items observed
-# --8<-- [end: broadcast_callback]
+    stream_result = await observer_flow.astream("Write a poem.")  # tokens observed
+    buffered = await observer_flow.ainvoke("Write a poem.")       # buffered: only explicit
+    return stream_result, buffered                                # rt.broadcast events fire
+# --8<-- [end: stream_callback]
 
 
 # --8<-- [start: custom_node]
@@ -147,13 +153,13 @@ async def review_pipeline(topic: str) -> str:
     return review.text
 
 
-# a passive broadcast_callback observes ALL scopes in the session — including the
-# nested astream scopes created inside the pipeline (route() would only see the entry
-# scope, so the multi-agent fan-out uses the session-wide listener instead)
+# a passive stream_callback observes streamed chunks from ALL scopes in the session —
+# including the nested astream scopes created inside the pipeline (route() would only see
+# the entry scope, so the multi-agent fan-out uses the session-wide listener instead)
 routed_flow = rt.Flow(
     name="review",
     entry_point=review_pipeline,
-    broadcast_callback={
+    stream_callback={
         "writer": lambda c: print(c, end="", flush=True),   # writer tokens → pane 1
         "critic": lambda c: print(f"\x1b[2m{c}\x1b[0m", end="", flush=True),  # critic → pane 2
     },

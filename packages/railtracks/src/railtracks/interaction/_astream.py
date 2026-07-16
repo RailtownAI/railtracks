@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+import warnings
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -473,9 +474,9 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
         Consumes this stream push-style, dispatching each chunk to handler(s) by channel, and
         returns the node's final result.
 
-        This is the per-call push consumer: unlike a session-level `broadcast_callback`
-        (which passively observes *every* run in the session), `route` receives only this
-        stream's own chunks and is what actually enables the streaming.
+        This is the per-call push consumer: unlike a session-level `stream_callback`
+        (which passively observes streamed chunks from *every* run in the session), `route`
+        receives only this stream's own chunks and is what actually enables the streaming.
 
         ```python
         final = await flow.astream("Write a poem.").route(
@@ -497,8 +498,8 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
         Note:
             Only chunks in *this* stream's scope are routed. A nested `rt.astream` inside the
             invoked node creates its own scope — consume those with a session-level
-            `broadcast_callback` instead. If some registered channels never receive a chunk, a
-            warning is logged when the stream ends.
+            `stream_callback` instead. If some registered channels never receive a chunk, a
+            `UserWarning` is emitted when the stream ends.
         """
         registered = set(handlers.keys()) if isinstance(handlers, Mapping) else None
         fired: set[str] = set()
@@ -526,12 +527,17 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
         if registered is not None:
             unused = registered - fired
             if unused:
-                logger.warning(
-                    "route(): handler channels %s never received any chunks%s.",
-                    sorted(unused),
+                detail = (
                     f"; observed channels were {sorted(seen)}"
                     if seen
-                    else " — the stream produced no chunks",
+                    else " — the stream produced no chunks"
+                )
+                # a UserWarning (not a log record) so it is visible by default
+                warnings.warn(
+                    f"route(): handler channels {sorted(unused)} never received any "
+                    f"chunks{detail}.",
+                    UserWarning,
+                    stacklevel=2,
                 )
 
         return self.result

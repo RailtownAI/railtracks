@@ -306,7 +306,7 @@ class LLMBase(Node[..., _TCollectedOutput], ABC, Generic[_TCollectedOutput]):
         The named channel this node emits its streamed chunks on.
 
         Override this on a node subclass to route its tokens to a dedicated channel (consumed
-        with `stream.on_channel(...)`, `route()` handlers, or a `broadcast_callback` dict
+        with `stream.on_channel(...)`, `route()` handlers, or a `stream_callback` dict
         keyed by channel name).
         """
         return "default"

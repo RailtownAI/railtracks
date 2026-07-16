@@ -151,7 +151,7 @@ class ModelInvoker:
             tools: list[Tool] | None,
         ) -> Response:
             # Streaming path: consume the model stream here, broadcasting each chunk to the
-            # run's consumers (rt.astream / route() / broadcast_callback), and hand the complete Response
+            # run's consumers (rt.astream / route() / stream_callback), and hand the complete Response
             # back through the middleware chain — exit middleware (e.g. output guardrails)
             # operates on the buffered final response.
             if _should_stream(model, tools):

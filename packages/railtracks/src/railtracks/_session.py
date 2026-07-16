@@ -48,7 +48,8 @@ class Session:
     - `name`: None
     - `timeout`: 150.0 seconds
     - `end_on_error`: False
-    - `broadcast_callback`: None (no bus listener)
+    - `broadcast_callback`: None (no event listener)
+    - `stream_callback`: None (no stream-chunk listener)
     - `prompt_injection`: True (the prompt will be automatically injected from context variables)
     - `save_state`: True (the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory)
 
@@ -60,11 +61,17 @@ class Session:
         flow_id (str | None, optional): The unique identifier of the flow this session is associated with.
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
-        broadcast_callback (Callable or dict[str, Callable], optional): A passive listener on the
-            broadcast bus. Pass a dict mapping channel name -> callback to route items per channel
-            (preferred); a single callable receives every item on every channel. It never enables
-            streaming — only `rt.astream` / `Flow.astream` do. Callbacks may be sync or async.
-            If it never fires during the session, a warning is logged at close.
+        broadcast_callback (Callable or dict[str, Callable], optional): A passive listener for
+            one-off **events** published with `rt.broadcast`. Pass a dict mapping channel name ->
+            callback to route events per channel (preferred); a single callable receives every
+            event on every channel. It does not receive streamed chunks — see `stream_callback`.
+            Callbacks may be sync or async. If it never fires during the session, a
+            `UserWarning` is emitted at close.
+        stream_callback (Callable or dict[str, Callable], optional): A passive listener for
+            **stream chunks** published through `rt.broadcast_stream` (LLM token streams
+            included). Same shapes as `broadcast_callback`. It never enables streaming — only
+            `rt.astream` / `Flow.astream` do. If it never fires during the session, a
+            `UserWarning` is emitted at close.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
     """
@@ -79,6 +86,7 @@ class Session:
         timeout: float | None = None,
         end_on_error: bool | None = None,
         broadcast_callback: BroadcastCallback | None = None,
+        stream_callback: BroadcastCallback | None = None,
         prompt_injection: bool | None = None,
         save_state: bool | None = None,
         payload_callback: Callable[[dict[str, Any]], None] | None = None,
@@ -95,6 +103,7 @@ class Session:
             timeout=timeout,
             end_on_error=end_on_error,
             broadcast_callback=broadcast_callback,
+            stream_callback=stream_callback,
             prompt_injection=prompt_injection,
             save_state=save_state,
             payload_callback=payload_callback,
@@ -142,6 +151,7 @@ class Session:
         save_state: bool | None,
         payload_callback: Callable[[dict[str, Any]], None] | None,
         broadcast_callback: BroadcastCallback | None = None,
+        stream_callback: BroadcastCallback | None = None,
     ) -> ExecutorConfig:
         """
         Uses the following precedence order to determine the configuration parameters:
@@ -155,6 +165,7 @@ class Session:
             timeout=timeout,
             end_on_error=end_on_error,
             broadcast_callback=broadcast_callback,
+            stream_callback=stream_callback,
             prompt_injection=prompt_injection,
             save_state=save_state,
             payload_callback=payload_callback,
@@ -215,31 +226,49 @@ class Session:
 
     def _setup_subscriber(self):
         """
-        Prepares and attaches the saved broadcast_callback to the publisher attached to this
-        runner. The subscriber instance is kept so `_close` can warn if it never fired.
+        Prepares and attaches the saved callbacks to the publisher attached to this runner:
+        `broadcast_callback` listens to one-off events (`rt.broadcast`), `stream_callback`
+        to stream chunks (`rt.broadcast_stream` / LLM token streams). The subscriber
+        instances are kept so `_close` can warn if they never fired.
         """
         self._broadcast_subscriber: BroadcastCallbackSubscriber | None = None
+        self._stream_subscriber: BroadcastCallbackSubscriber | None = None
 
         if self.executor_config.broadcast_callback is not None:
             self._broadcast_subscriber = BroadcastCallbackSubscriber(
-                self.executor_config.broadcast_callback
+                self.executor_config.broadcast_callback,
+                kind="event",
+                param_name="broadcast_callback",
             )
             self.publisher.subscribe(
                 self._broadcast_subscriber,
                 name="Broadcast Callback Subscriber",
             )
 
+        if self.executor_config.stream_callback is not None:
+            self._stream_subscriber = BroadcastCallbackSubscriber(
+                self.executor_config.stream_callback,
+                kind="stream",
+                param_name="stream_callback",
+            )
+            self.publisher.subscribe(
+                self._stream_subscriber,
+                name="Stream Callback Subscriber",
+            )
+
     def _close(self):
         """
         Closes the runner and cleans up all resources.
 
-        - Warns if a registered broadcast_callback never fired
+        - Warns if a registered broadcast_callback / stream_callback never fired
         - Shuts down the state object
         - Deletes all the global variables that were registered in the context
         """
-        # surface silent-callback issues (channel typos, expecting tokens without astream)
+        # surface silent-callback issues (channel typos, wrong lane, tokens without astream)
         if self._broadcast_subscriber is not None:
             self._broadcast_subscriber.warn_if_unused()
+        if self._stream_subscriber is not None:
+            self._stream_subscriber.warn_if_unused()
 
         # FIX: Resource leak - publisher background task wasn't being shut down on Session exit
         # VISION: Session owns publisher lifecycle and must clean up all resources when exiting
@@ -326,6 +355,7 @@ def session(
     timeout: float | None = None,
     end_on_error: bool | None = None,
     broadcast_callback: BroadcastCallback | None = None,
+    stream_callback: BroadcastCallback | None = None,
     prompt_injection: bool | None = None,
     save_state: bool | None = None,
 ) -> Callable[
@@ -345,8 +375,11 @@ def session(
         context (Dict[str, Any], optional): A dictionary of global context variables to be used during the execution.
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
-        broadcast_callback (Callable or dict[str, Callable], optional): A passive listener on
-            the broadcast bus (or a channel-name -> callback dict routing items per channel).
+        broadcast_callback (Callable or dict[str, Callable], optional): A passive listener for
+            one-off events published with rt.broadcast (or a channel-name -> callback dict
+            routing events per channel). Streamed chunks go to `stream_callback` instead.
+        stream_callback (Callable or dict[str, Callable], optional): A passive listener for
+            stream chunks published through rt.broadcast_stream (LLM token streams included).
             It never enables streaming; use rt.astream for that.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
@@ -366,6 +399,7 @@ def session(
     timeout: float | None = None,
     end_on_error: bool | None = None,
     broadcast_callback: BroadcastCallback | None = None,
+    stream_callback: BroadcastCallback | None = None,
     prompt_injection: bool | None = None,
     save_state: bool | None = None,
 ) -> (
@@ -396,8 +430,11 @@ def session(
         context (Dict[str, Any], optional): A dictionary of global context variables to be used during the execution.
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
-        broadcast_callback (Callable or dict[str, Callable], optional): A passive listener on
-            the broadcast bus (or a channel-name -> callback dict routing items per channel).
+        broadcast_callback (Callable or dict[str, Callable], optional): A passive listener for
+            one-off events published with rt.broadcast (or a channel-name -> callback dict
+            routing events per channel). Streamed chunks go to `stream_callback` instead.
+        stream_callback (Callable or dict[str, Callable], optional): A passive listener for
+            stream chunks published through rt.broadcast_stream (LLM token streams included).
             It never enables streaming; use rt.astream for that.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
@@ -428,6 +465,7 @@ def session(
                 timeout=timeout,
                 end_on_error=end_on_error,
                 broadcast_callback=broadcast_callback,
+                stream_callback=stream_callback,
                 name=name,
                 prompt_injection=prompt_injection,
                 save_state=save_state,

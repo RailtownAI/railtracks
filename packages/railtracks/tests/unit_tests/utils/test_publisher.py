@@ -543,6 +543,25 @@ class TestSubscriberStream:
         await handler(streaming_message)
         assert results == [streamed_object]
 
+    @pytest.mark.asyncio
+    async def test_broadcast_callback_subscriber_filters_by_kind(self):
+        """An event-lane subscriber ignores stream chunks, and vice versa."""
+        from railtracks.pubsub.messages import Streaming
+
+        event_msg = Streaming(streamed_object="ev", node_id="1", kind="event")
+        chunk_msg = Streaming(streamed_object="ch", node_id="1", kind="stream")
+
+        events, chunks = [], []
+        event_handler = BroadcastCallbackSubscriber(events.append, kind="event")
+        stream_handler = BroadcastCallbackSubscriber(chunks.append, kind="stream")
+
+        for msg in (event_msg, chunk_msg):
+            await event_handler(msg)
+            await stream_handler(msg)
+
+        assert events == ["ev"]
+        assert chunks == ["ch"]
+
 # ================ END Subscriber (BroadcastCallbackSubscriber) tests ===============
 
 # ================= START Miscellaneous corner cases ============
