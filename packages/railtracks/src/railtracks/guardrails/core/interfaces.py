@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import Any, Awaitable, Callable, Generic, ParamSpec, Protocol, TypeVar
+
 from railtracks.middleware.core import Middleware
 
 from .decision import GuardrailDecision
 
-
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
+
 
 class Guardrail(Protocol):
     """
@@ -39,13 +40,9 @@ class BaseGuardrail(ABC, Middleware[_P, _R], Generic[_P, _R]):
 
     @abstractmethod
     async def _middleware_fn(
-        cls,
+        self,
         call: Callable[_P, Awaitable[_R]],
         *args: _P.args,
         **kwargs: _P.kwargs,
     ) -> _R:
         pass
-
-
-
-

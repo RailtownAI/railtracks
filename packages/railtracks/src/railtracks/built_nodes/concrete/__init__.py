@@ -19,7 +19,6 @@ from .chat_tool_call_llm import ChatToolCallLLM
 from .function_base import (
     RTFunction,
 )
-
 from .response import StringResponse, StructuredResponse
 from .structured_llm_base import StructuredLLM
 from .structured_tool_call_llm_base import StructuredToolCallLLM

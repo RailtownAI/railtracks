@@ -1,35 +1,25 @@
 from __future__ import annotations
 
-from abc import ABC
-from typing import Any, Awaitable, Callable, ParamSpec, Protocol, TypeVar, cast, cast, overload
-from railtracks.guardrails.llm.llm_guard import BaseLLMGuardrail
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    cast,
+)
 
 from pydantic import BaseModel
 
+from railtracks.guardrails.llm.llm_guard import BaseLLMGuardrail
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import AssistantMessage, Message
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
-from railtracks.middleware.core import Middleware
+from railtracks.utils.logging.create import get_rt_logger
 
 from ..core.decision import GuardrailDecision
 from ..core.event import LLMGuardrailEvent, LLMGuardrailPhase
 
-from typing import Awaitable, Callable
-
-from pydantic import BaseModel
-from railtracks.guardrails.core.decision import GuardrailDecision
-from railtracks.guardrails.core.event import LLMGuardrailEvent, LLMGuardrailPhase
-from railtracks.llm.history import MessageHistory
-from railtracks.llm.response import Response
-from railtracks.llm.tools.tool import Tool
-from railtracks.utils.logging.create import get_rt_logger
-
-from railtracks.built_nodes.llm.middleware.core import ModelMiddleware
-
 logger = get_rt_logger("guardrails")
-
-
 
 
 class InputGuard(BaseLLMGuardrail[MessageHistory]):
@@ -41,13 +31,12 @@ class InputGuard(BaseLLMGuardrail[MessageHistory]):
 
     phase = LLMGuardrailPhase.INPUT
 
-
     async def _middleware_fn(
         self,
         call: Callable[
-                [MessageHistory, type[BaseModel] | None, list[Tool] | None],
-                Awaitable[Response],
-            ],
+            [MessageHistory, type[BaseModel] | None, list[Tool] | None],
+            Awaitable[Response],
+        ],
         message_history: MessageHistory,
         schema: type[BaseModel] | None,
         tools: list[Tool] | None,
@@ -57,7 +46,6 @@ class InputGuard(BaseLLMGuardrail[MessageHistory]):
             message_history, schema, tools
         )
         return await call(message_history, schema, tools)
-
 
     def _input_wrapper(
         self,
@@ -73,14 +61,12 @@ class InputGuard(BaseLLMGuardrail[MessageHistory]):
             node_uuid=node_uuid,
             run_id=run_id,
         )
-        
+
         new_messages, traces, decision = self.run(event=event, value=message_history)
         self._record_guard_traces(traces)
         self._raise_if_blocked(decision, traces)
 
         return new_messages, schema, tools
-
-        
 
     def convert(
         self,
@@ -126,8 +112,6 @@ class InputGuard(BaseLLMGuardrail[MessageHistory]):
     ) -> LLMGuardrailEvent:
         """Return a copy of event with its messages replaced."""
         return event.model_copy(update={"messages": value})
-        
-        
 
 
 class OutputGuard(BaseLLMGuardrail[Message]):
@@ -145,9 +129,9 @@ class OutputGuard(BaseLLMGuardrail[Message]):
     async def _middleware_fn(
         self,
         call: Callable[
-                [MessageHistory, type[BaseModel] | None, list[Tool] | None],
-                Awaitable[Response],
-            ],
+            [MessageHistory, type[BaseModel] | None, list[Tool] | None],
+            Awaitable[Response],
+        ],
         message_history: MessageHistory,
         schema: type[BaseModel] | None,
         tools: list[Tool] | None,
@@ -155,9 +139,6 @@ class OutputGuard(BaseLLMGuardrail[Message]):
         """Call onward for the response, then run this guard on the resulting message."""
         result = await call(message_history, schema, tools)
         return self._output_wrapper(result=result)
-
-
-
 
     def _output_wrapper(
         self,
@@ -167,7 +148,7 @@ class OutputGuard(BaseLLMGuardrail[Message]):
         node_uuid, run_id = self._node_metadata()
         event = LLMGuardrailEvent(
             phase=LLMGuardrailPhase.OUTPUT,
-            messages=MessageHistory([]), 
+            messages=MessageHistory([]),
             output_message=result.message,
             node_uuid=node_uuid,
             run_id=run_id,
@@ -178,14 +159,10 @@ class OutputGuard(BaseLLMGuardrail[Message]):
 
         if new_message is result.message:
             return result
-        
+
         return Response(message=new_message, message_info=result.message_info)
 
-    def convert(
-        self,
-        output: str | Any | MessageHistory | LLMGuardrailEvent,
-        /
-    ):
+    def convert(self, output: str | Any | MessageHistory | LLMGuardrailEvent, /):
         """Run this guard without building an :class:`LLMGuardrailEvent` by hand.
 
         Args:
@@ -229,7 +206,7 @@ class OutputGuard(BaseLLMGuardrail[Message]):
             output_message=output_message,
         )
         return event
-    
+
     def _extract_transform_value(self, decision: GuardrailDecision) -> Message:
         """Return the replacement output message from a TRANSFORM decision."""
         if decision.output_message is None:

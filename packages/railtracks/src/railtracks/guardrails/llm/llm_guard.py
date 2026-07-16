@@ -1,29 +1,32 @@
-from email import message
+from abc import abstractmethod
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel
+from typing_extensions import Literal
+
 from railtracks.context.central import get_parent_id, get_run_id, is_context_present
 from railtracks.guardrails.core.decision import GuardrailAction, GuardrailDecision
 from railtracks.guardrails.core.errors import GuardrailBlockedError
 from railtracks.guardrails.core.event import LLMGuardrailEvent, LLMGuardrailPhase
-from railtracks.guardrails.core.trace import GuardrailTrace
 from railtracks.guardrails.core.interfaces import BaseGuardrail
+from railtracks.guardrails.core.trace import GuardrailTrace
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import Message, UserMessage
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
 from railtracks.utils.logging.create import get_rt_logger
 
-
-from abc import abstractmethod
-from typing import Any, Generic, TypeVar, cast
-from typing_extensions import Literal
-
 logger = get_rt_logger("guardrails")
 
 _TValue = TypeVar("_TValue", bound=MessageHistory | Message)
 
 
-class BaseLLMGuardrail(BaseGuardrail[[MessageHistory, type[BaseModel] | None, list[Tool] | None], Response], Generic[_TValue]):
+class BaseLLMGuardrail(
+    BaseGuardrail[
+        [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
+    ],
+    Generic[_TValue],
+):
     """Abstract base class for guardrails that run on LLM input or output.
 
     Attributes:
@@ -43,18 +46,21 @@ class BaseLLMGuardrail(BaseGuardrail[[MessageHistory, type[BaseModel] | None, li
         super().__init__(name=name)
         self.fail_open = fail_open
 
-
     @abstractmethod
     def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
         """Evaluate the event and return a decision. Implemented by each concrete guard."""
         pass
 
     @abstractmethod
-    def convert(self, value: str | Message | MessageHistory | LLMGuardrailEvent, /) -> LLMGuardrailEvent:
+    def convert(
+        self, value: str | Message | MessageHistory | LLMGuardrailEvent, /
+    ) -> LLMGuardrailEvent:
         """Build an event from a raw value. Implemented per phase by InputGuard and OutputGuard."""
         pass
 
-    def decide(self, value: str | Message | MessageHistory | LLMGuardrailEvent, /) -> GuardrailDecision:
+    def decide(
+        self, value: str | Message | MessageHistory | LLMGuardrailEvent, /
+    ) -> GuardrailDecision:
         """Convert value to an event and run this guard on it directly, outside a chain."""
         converted_event = self.convert(value)
 
@@ -72,10 +78,8 @@ class BaseLLMGuardrail(BaseGuardrail[[MessageHistory, type[BaseModel] | None, li
         if isinstance(input, Message):
             return MessageHistory([input])
         raise TypeError(
-            f"Expected str, Message, or MessageHistory "
-            f"got {type(input).__name__}"
+            f"Expected str, Message, or MessageHistory got {type(input).__name__}"
         )
-
 
     @staticmethod
     def _node_metadata() -> tuple[str | None, str | None]:
@@ -120,14 +124,15 @@ class BaseLLMGuardrail(BaseGuardrail[[MessageHistory, type[BaseModel] | None, li
         value: _TValue,
         reason_prefix: str,
     ) -> (
-        tuple[Literal["continue"], _TValue] | tuple[Literal["stop"], _TValue, GuardrailDecision]
+        tuple[Literal["continue"], _TValue]
+        | tuple[Literal["stop"], _TValue, GuardrailDecision]
     ):
         """Record exc as a trace and return a stop outcome with a blocking decision."""
         traces.append(self._trace_for_exception(exc=exc))
 
         if self.fail_open:
             return ("continue", value)
-        
+
         block = GuardrailDecision.block(
             reason=f"{reason_prefix}: {self._rail_name()}",
             user_facing_message="Request blocked by guardrails.",
@@ -151,19 +156,17 @@ class BaseLLMGuardrail(BaseGuardrail[[MessageHistory, type[BaseModel] | None, li
         """
         traces: list[GuardrailTrace] = []
 
-
         step = self._eval_one_rail(
-                event=event,
-                value=value,
-                traces=traces,
+            event=event,
+            value=value,
+            traces=traces,
         )
         if step[0] == "stop":
-                return step[1], traces, step[2]
+            return step[1], traces, step[2]
 
         _, value, event = step
 
         return value, traces, None
-
 
     def _eval_one_rail(
         self,
@@ -203,8 +206,6 @@ class BaseLLMGuardrail(BaseGuardrail[[MessageHistory, type[BaseModel] | None, li
             decision=decision,
             traces=traces,
         )
-
-
 
     def _dispatch_non_allow_decision(
         self,
@@ -266,12 +267,9 @@ class BaseLLMGuardrail(BaseGuardrail[[MessageHistory, type[BaseModel] | None, li
         pass
 
     @abstractmethod
-    def _extract_transform_value(
-        self,
-        decision: GuardrailDecision
-    ) -> _TValue:
-       """Extract the replacement value from a TRANSFORM decision. Implemented per phase."""
-       pass
+    def _extract_transform_value(self, decision: GuardrailDecision) -> _TValue:
+        """Extract the replacement value from a TRANSFORM decision. Implemented per phase."""
+        pass
 
     def _rail_name(self) -> str:
         """Return this guard's name, falling back to its class name if unset."""
@@ -283,7 +281,6 @@ class BaseLLMGuardrail(BaseGuardrail[[MessageHistory, type[BaseModel] | None, li
 
     def _trace_from_decision(
         self,
-
         decision: GuardrailDecision,
     ) -> GuardrailTrace:
         """Build a trace recording this guard's decision."""
@@ -294,7 +291,6 @@ class BaseLLMGuardrail(BaseGuardrail[[MessageHistory, type[BaseModel] | None, li
             reason=decision.reason,
             meta=decision.meta,
         )
-
 
     def _trace_for_exception(
         self,

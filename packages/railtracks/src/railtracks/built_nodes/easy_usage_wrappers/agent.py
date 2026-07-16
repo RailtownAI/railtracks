@@ -8,7 +8,6 @@ from railtracks.built_nodes.concrete import (
 )
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
 from railtracks.built_nodes.llm.middleware.core import ModelMiddleware
-
 from railtracks.llm.message import SystemMessage
 from railtracks.llm.tools.parameters._base import Parameter
 from railtracks.middleware.core import Middleware

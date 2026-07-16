@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any, Callable, Iterable, Type, Union
 
-from railtracks.built_nodes._node_builder import NodeBuilder
 from railtracks.built_nodes.concrete.tool_call_llm_base import (
     StreamingToolCallLLM,
     ToolCallLLM,
@@ -49,23 +48,4 @@ def tool_call_llm(
     Returns:
         Type[ToolCallLLM]: The dynamically generated node class with the specified configuration.
     """
-    is_streaming = llm is not None and llm.stream
-    base_cls = StreamingToolCallLLM if is_streaming else ToolCallLLM
-
-    builder = NodeBuilder(
-        base_cls,
-        name=name,
-        class_name="EasyToolCallLLM",
-        return_into=return_into,
-        format_for_return=format_for_return,
-        format_for_context=format_for_context,
-    )
-    builder.llm_base(llm, system_message)
-    builder.tool_calling_llm(tool_nodes)
-    if tool_details is not None or tool_params is not None:
-        builder.tool_callable_llm(tool_details, tool_params)
-
-    if guardrails is not None:
-        builder.add_attribute("guardrails", guardrails, make_function=False)
-
-    return builder.build()
+    pass

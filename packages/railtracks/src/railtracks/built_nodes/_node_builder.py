@@ -3,7 +3,6 @@ from __future__ import annotations
 import functools
 from copy import deepcopy
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     Coroutine,
@@ -45,7 +44,6 @@ from railtracks.validation.node_creation.validation import (
 
 from ._types import ModelSource
 from .llm.model_invoker import ModelInvoker
-
 
 
 def classmethod_preserving_function_meta(func):

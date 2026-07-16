@@ -22,7 +22,9 @@ class OutputLengthGuard(OutputGuard):
         name: Optional display name for the guardrail instance.
     """
 
-    def __init__(self, max_chars: int = 2048, name: str | None = None, fail_open: bool = False) -> None:
+    def __init__(
+        self, max_chars: int = 2048, name: str | None = None, fail_open: bool = False
+    ) -> None:
         super().__init__(name=name, fail_open=fail_open)
         if max_chars <= 0:
             raise ValueError(f"max_chars must be a positive integer, got {max_chars!r}")
