@@ -3,7 +3,7 @@ from railtracks.exceptions.messages.exception_messages import (
     get_message,
     get_notes,
 )
-from railtracks.llm import Message, MessageHistory, ModelBase
+from railtracks.llm import Message, MessageHistory, ModelBase, SystemMessage
 from railtracks.utils.logging import get_rt_logger
 
 # Global logger for validation
@@ -11,8 +11,19 @@ logger = get_rt_logger(__name__)
 
 
 def check_message_history(
-    message_history: MessageHistory, system_message: str | None = None
+    message_history: MessageHistory,
+    system_message: SystemMessage | str | None = None,
 ) -> None:
+    """Validates a message history (and optional system message) before an LLM node runs.
+
+    Args:
+        message_history: The history to validate.
+        system_message: The node-level system message (if any); only its presence is used.
+
+    Raises:
+        NodeInvocationError: If the history contains non-Message items or is empty while no
+            system message is configured.
+    """
     if any(not isinstance(m, Message) for m in message_history):
         raise NodeInvocationError(
             message=get_message("MESSAGE_HISTORY_TYPE_MSG"),

@@ -1,20 +1,17 @@
-from typing import Literal, TypeVar
-
 from ._llm_base import StringOutputMixIn
-from ._tool_call_base import OutputLessToolCallLLM, StreamingOutputLessToolCallLLM
+from ._tool_call_base import OutputLessToolCallLLM
 from .response import StringResponse
-
-_TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
 
 class ToolCallLLM(
     StringOutputMixIn,
     OutputLessToolCallLLM[StringResponse],
 ):
-    pass
+    """A tool-calling LLM node that returns the final assistant text as a `StringResponse`.
 
+    Streaming: when invoked through `rt.astream` / `Flow.astream`, all
+    text produced during the tool-call loop is streamed chunk-by-chunk; the node still returns
+    the complete `StringResponse` at the end. Nested tool nodes always run buffered.
+    """
 
-class StreamingToolCallLLM(
-    StringOutputMixIn, StreamingOutputLessToolCallLLM[StringResponse]
-):
     pass

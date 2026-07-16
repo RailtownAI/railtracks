@@ -1,5 +1,6 @@
 import railtracks as rt
 
+
 # --8<-- [start: callback_creation]
 def example_broadcasting_handler(data):
     print(f"Received data: {data}")

@@ -4,11 +4,13 @@ import asyncio
 import hashlib
 import json
 from copy import deepcopy
-from typing import Any, Callable, Coroutine, Generic, ParamSpec, TypeVar
+from typing import Any, Callable, Generic, ParamSpec, TypeVar
 
 from railtracks._session import Session
 from railtracks.built_nodes.concrete.function_base import RTFunction
+from railtracks.interaction._astream import Stream
 from railtracks.interaction._call import call
+from railtracks.utils.config import BroadcastCallback
 
 from ..nodes.nodes import Node
 
@@ -28,7 +30,19 @@ class Flow(Generic[_P, _TOutput]):
         context (dict[str, Any], optional): Context to be passed to all instantiations (or runs) of this flow. Note that the context can be overridden at invocation time.
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
-        broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
+        broadcast_callback (Callable or dict[str, Callable], optional): A passive listener for
+            one-off **events** published with `rt.broadcast` during this flow's runs. Pass a
+            dict mapping channel name -> callback to route events per channel (preferred); a
+            single callable receives every event on every channel. Streamed chunks go to
+            `stream_callback` instead. If it never fires during a run, a `UserWarning` is
+            emitted at session close. Callbacks may be sync or async.
+        stream_callback (Callable or dict[str, Callable], optional): A passive listener for
+            **stream chunks** published through `rt.broadcast_stream` (LLM token streams
+            included). Same shapes as `broadcast_callback`. It never enables streaming — use
+            `flow.astream(...)` (optionally with `.route(...)`) to stream; its niche over
+            `route` is observing every streaming scope in the run (e.g. nested `astream`s in
+            multi-agent flows). If it never fires during a run, a `UserWarning` is emitted at
+            session close.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
         payload_callback (Callable[[dict[str, Any]], None], optional): A callback function that will run upon completion of the flow with the final payload as an argument.
@@ -42,16 +56,15 @@ class Flow(Generic[_P, _TOutput]):
         context: dict[str, Any] | None = None,
         timeout: float | None = None,
         end_on_error: bool | None = None,
-        broadcast_callback: (
-            Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
-        ) = None,
+        broadcast_callback: BroadcastCallback | None = None,
+        stream_callback: BroadcastCallback | None = None,
         prompt_injection: bool | None = None,
         save_state: bool | None = None,
         payload_callback: Callable[[dict[str, Any]], Any] | None = None,
     ) -> None:
         self.entry_point: type[Node[_P, _TOutput]]
 
-        if hasattr(entry_point, "node_type"):
+        if isinstance(entry_point, RTFunction):
             self.entry_point = entry_point.node_type
         else:
             self.entry_point = entry_point
@@ -61,6 +74,7 @@ class Flow(Generic[_P, _TOutput]):
         self._timeout = timeout
         self._end_on_error = end_on_error
         self._broadcast_callback = broadcast_callback
+        self._stream_callback = stream_callback
         self._prompt_injection = prompt_injection
         self._save_state = save_state
         self._payload_callback = payload_callback
@@ -73,8 +87,9 @@ class Flow(Generic[_P, _TOutput]):
         new_obj._context.update(context)
         return new_obj
 
-    async def ainvoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
-        with Session(
+    def _create_session(self) -> Session:
+        """Creates a fresh Session configured from this flow."""
+        return Session(
             context=deepcopy(self._context),
             flow_name=self.name,
             flow_id=self.equality_hash(),
@@ -82,10 +97,14 @@ class Flow(Generic[_P, _TOutput]):
             timeout=self._timeout,
             end_on_error=self._end_on_error,
             broadcast_callback=self._broadcast_callback,
+            stream_callback=self._stream_callback,
             prompt_injection=self._prompt_injection,
             save_state=self._save_state,
             payload_callback=self._payload_callback,
-        ):
+        )
+
+    async def ainvoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
+        with self._create_session():
             result = await call(self.entry_point, *args, **kwargs)
 
         return result
@@ -98,6 +117,41 @@ class Flow(Generic[_P, _TOutput]):
             raise RuntimeError(
                 "Cannot invoke flow synchronously within an active event loop. Use 'ainvoke' instead."
             )
+
+    def astream(self, *args: _P.args, **kwargs: _P.kwargs) -> Stream[_TOutput]:
+        """
+        Invoke this flow with streaming enabled and return a `Stream` over the emitted chunks.
+
+        The entry point streams its LLM responses token-by-token; nested `rt.call` children run
+        buffered (streaming is frame-local). The flow's session is created for this run and is
+        closed automatically once the stream completes.
+
+        ```python
+        stream = flow.astream("Write a short poem about rain.")
+        async for chunk in stream:
+            print(chunk, end="", flush=True)
+        final = stream.result  # the entry point's complete return value
+        ```
+
+        To consume a single named channel, chain `on_channel` before iterating:
+        `flow.astream("prompt").on_channel("final")`. For push-style consumption, route the
+        chunks to handlers by channel instead of iterating:
+        `final = await flow.astream("prompt").route({"default": on_chunk})`.
+
+        Args:
+            *args: The positional arguments to pass to the entry point.
+            **kwargs: The keyword arguments to pass to the entry point.
+
+        Returns:
+            Stream[_TOutput]: An async iterator over chunks with `.result` for the final value.
+        """
+        session = self._create_session()
+        return Stream(
+            self.entry_point,
+            args,
+            kwargs,
+            owned_session=session,
+        )
 
     def equality_hash(self) -> str:
         """

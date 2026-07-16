@@ -56,8 +56,9 @@ async def test_structured_llm_run_with_different_inputs(mock_llm, simple_output_
         assert isinstance(response.content.number, int)
 
 @pytest.mark.asyncio
-async def test_terminal_llm_streaming(mock_llm):
-    """Test that the terminal LLM can stream responses."""
+async def test_terminal_llm_legacy_stream_flag_is_buffered(mock_llm):
+    """A model constructed with the deprecated stream=True flag still yields a complete
+    response from rt.call (streaming is now requested at the call site via rt.astream)."""
     llm = mock_llm(stream=True, custom_response="hello world")
 
     agent = rt.agent_node(
@@ -68,21 +69,13 @@ async def test_terminal_llm_streaming(mock_llm):
 
     with rt.Session():
         response = await rt.call(agent, user_input=rt.llm.MessageHistory([rt.llm.UserMessage("hello world")]))
-        accumulated_text = ""
-        for chunk in response:
-            assert isinstance(chunk, (str, StringResponse))
-            if isinstance(chunk, StringResponse):
-                assert isinstance(chunk.text, str)
-                assert chunk.text == "hello world"
-            if isinstance(chunk, str):
-                accumulated_text += chunk
-            
-        assert accumulated_text == "hello world"
+        assert isinstance(response, StringResponse)
+        assert response.text == "hello world"
 
 
 @pytest.mark.asyncio
-async def test_structured_llm_streaming(mock_llm, simple_output_model):
-    """Test Structured LLM streaming."""
+async def test_structured_llm_legacy_stream_flag_is_buffered(mock_llm, simple_output_model):
+    """Same as above, for structured output."""
     llm = mock_llm(stream=True, custom_response='{"text":"hello world", "number":"42"}')
 
     agent = rt.agent_node(
@@ -94,19 +87,10 @@ async def test_structured_llm_streaming(mock_llm, simple_output_model):
 
     with rt.Session():
         response = await rt.call(agent, user_input=rt.llm.MessageHistory([rt.llm.UserMessage("hello world")]))
-        accumulated_text = ""
-        for chunk in response:
-            assert isinstance(chunk, (str, StructuredResponse))
-
-            if isinstance(chunk, StructuredResponse):
-                assert isinstance(chunk.structured, simple_output_model)
-                assert chunk.structured.text == "hello world"
-                assert chunk.structured.number == 42
-
-            if isinstance(chunk, str):
-                accumulated_text += chunk
-
-        assert accumulated_text == '{"text":"hello world","number":42}'
+        assert isinstance(response, StructuredResponse)
+        assert isinstance(response.structured, simple_output_model)
+        assert response.structured.text == "hello world"
+        assert response.structured.number == 42
 
 
 

@@ -180,8 +180,32 @@ class MockLLM(rt.llm.ModelBase):
     async def _achat_with_tools(self, messages, tools, **kwargs):
         return self._base_chat_with_tools(messages, **kwargs)
 
+    # ---- per-call streaming (rt.astream / model.astream_*): async generators yielding
+    # str chunks followed by a final Response ----
     async def _astream_chat(self, messages, **kwargs):
-        return self._base_chat()
+        text = self.custom_response or "mocked Message"
+        for char in text:
+            yield char
+        yield Response(
+            message=AssistantMessage(content=text),
+            message_info=self.mocked_message_info,
+        )
+
+    async def _astream_structured(self, messages, schema, **kwargs):
+        response = self._base_structured(messages, schema)
+        assert isinstance(response, Response)
+        content = response.message.content
+        for char in content.model_dump_json():
+            yield char
+        yield response
+
+    async def _astream_chat_with_tools(self, messages, tools, **kwargs):
+        response = self._base_chat_with_tools(messages)
+        assert isinstance(response, Response)
+        if isinstance(response.message.content, str):
+            for char in response.message.content:
+                yield char
+        yield response
 
     def _chat(self, messages, **kwargs):
         return self._base_chat()

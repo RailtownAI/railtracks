@@ -11,19 +11,23 @@ def test_instantiation_with_all_defaults():
     assert config.timeout is None
     assert config.end_on_error is False
     assert config.prompt_injection is True
-    assert config.subscriber is None
+    assert config.broadcast_callback is None
+    assert config.stream_callback is None
 
 def test_instantiation_with_custom_values(tmp_path):
     test_subscriber = lambda x: x
+    test_stream_subscriber = lambda x: x
     config = ExecutorConfig(
         timeout=12.0,
         end_on_error=True,
         broadcast_callback=test_subscriber,
+        stream_callback=test_stream_subscriber,
         prompt_injection=False
     )
     assert config.timeout == 12.0
     assert config.end_on_error is True
-    assert config.subscriber == test_subscriber
+    assert config.broadcast_callback == test_subscriber
+    assert config.stream_callback == test_stream_subscriber
     assert config.prompt_injection is False
 
 # ================ END ExecutorConfig: Instantiation tests ===============
@@ -35,7 +39,7 @@ def test_instantiation_with_custom_values(tmp_path):
 
 def test_subscriber_accepts_callable():
     config = ExecutorConfig(broadcast_callback=lambda s: s)
-    assert callable(config.subscriber)
+    assert callable(config.broadcast_callback)
 
 @pytest.mark.asyncio
 async def test_subscriber_accepts_coroutine_function():
@@ -43,12 +47,19 @@ async def test_subscriber_accepts_coroutine_function():
         return text
     config = ExecutorConfig(broadcast_callback=async_sub_fn)
     # (not invoked/executed here, just type accepted)
-    assert callable(config.subscriber)
-    assert isinstance(config.subscriber, types.FunctionType)
+    assert callable(config.broadcast_callback)
+    assert isinstance(config.broadcast_callback, types.FunctionType)
 
 def test_subscriber_is_none_by_default():
     config = ExecutorConfig()
-    assert config.subscriber is None
+    assert config.broadcast_callback is None
+
+def test_precedence_overwritten_carries_stream_callback():
+    stream_cb = lambda s: s
+    config = ExecutorConfig(stream_callback=stream_cb)
+    updated = config.precedence_overwritten(timeout=5.0)
+    assert updated.stream_callback is stream_cb
+    assert updated.broadcast_callback is None
 
 # ================ END ExecutorConfig: broadcast_callback handling tests ===============
 

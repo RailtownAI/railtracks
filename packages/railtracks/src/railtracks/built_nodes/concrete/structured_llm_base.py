@@ -1,11 +1,14 @@
+from __future__ import annotations
+
 import asyncio
 from abc import ABC
-from typing import Generator, Generic, Literal, TypeVar
+from typing import Generic, TypeVar
 
 from pydantic import BaseModel
 
 from railtracks.exceptions.errors import LLMError
 from railtracks.llm import Message, MessageHistory, ModelBase, UserMessage
+from railtracks.llm.response import Response
 from railtracks.validation.node_creation.validation import (
     check_classmethod,
     check_schema,
@@ -14,24 +17,20 @@ from railtracks.validation.node_creation.validation import (
 from ._llm_base import LLMBase, StructuredOutputMixIn
 from .response import StructuredResponse
 
-_TOutput = TypeVar("_TOutput", bound=StructuredResponse)
-_TStream = TypeVar("_TStream", Literal[True], Literal[False])
-_T = TypeVar("_T")
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 
 
 class StructuredLLMBase(
     StructuredOutputMixIn[_TBaseModel],
-    LLMBase[_T, StructuredResponse[_TBaseModel], _TStream],
+    LLMBase[StructuredResponse[_TBaseModel]],
     ABC,
-    Generic[_T, _TStream, _TBaseModel],
+    Generic[_TBaseModel],
 ):
     """
-    Python typing doesn't work great, so please ensure that you fit the following requirements when defining generics:
-    - _T is the final output type of the invoke method
-    - _TStream is a Literal type, either Literal[True] or Literal[False]
-    - _TBaseModel is a subclass of pydantic.BaseModel that defines the schema for the structured output
+    Base class for LLM nodes returning structured (pydantic) output.
 
+    Generics:
+    - _TBaseModel is a subclass of pydantic.BaseModel that defines the schema for the structured output
     """
 
     def __init_subclass__(cls):
@@ -46,7 +45,7 @@ class StructuredLLMBase(
     def __init__(
         self,
         user_input: MessageHistory | UserMessage | str | list[Message],
-        llm: ModelBase[_TStream] | None = None,
+        llm: ModelBase | None = None,
     ):
         super().__init__(llm=llm, user_input=user_input)
 
@@ -63,11 +62,16 @@ class StructuredLLMBase(
 
 
 class StructuredLLM(
-    StructuredLLMBase[StructuredResponse[_TBaseModel], Literal[False], _TBaseModel],
+    StructuredLLMBase[_TBaseModel],
     ABC,
     Generic[_TBaseModel],
 ):
     """Creates a new instance of the StructuredlLLM class
+
+    Streaming: when invoked through `rt.astream` / `Flow.astream`, the
+    raw JSON tokens of the structured response are streamed chunk-by-chunk; the final returned
+    `StructuredResponse` is parsed and validated once the stream completes. In a regular
+    `rt.call` the model is invoked buffered.
 
     Args:
         user_input (MessageHistory | UserMessage | str | list[Message]): The input to use for the LLM. Can be a MessageHistory object, a UserMessage object, or a string.
@@ -88,59 +92,22 @@ class StructuredLLM(
         context = self._pre_invoke(self.message_hist)
         self.message_hist = context
 
-        returned_mess = await asyncio.to_thread(
-            self.llm_model.structured, self.message_hist, schema=self.output_schema()
-        )
+        if self._should_stream():
+            returned_mess = await self._stream_model_response(
+                self.llm_model.astream_structured(
+                    self.message_hist, schema=self.output_schema()
+                )
+            )
+        else:
+            returned_mess = await asyncio.to_thread(self._buffered_structured)
 
         returned_mess = self._post_invoke(self.message_hist, returned_mess)
 
         self._handle_output(returned_mess.message)
         return self.return_output(returned_mess.message)
 
-
-class StreamingStructuredLLM(
-    StructuredLLMBase[
-        Generator[
-            StructuredResponse[_TBaseModel] | str, None, StructuredResponse[_TBaseModel]
-        ],
-        Literal[True],
-        _TBaseModel,
-    ],
-    ABC,
-    Generic[_TBaseModel],
-):
-    """A simple streaming LLM node that takes in a message and returns a response. It is the simplest of all LLMs.
-    This node accepts message_history in the following formats:
-    - MessageHistory: A list of Message objects
-    - UserMessage: A single UserMessage object
-    - str: A string that will be converted to a UserMessage
-
-    Examples:
-        ```python
-        # Using MessageHistory
-        mh = MessageHistory([UserMessage("Tell me about the world around us")])
-        result = await rt.call(StreamingStructuredLLM, user_input=mh)
-        # Using UserMessage
-        user_msg = UserMessage("Tell me about the world around us")
-        result = await rt.call(StreamingStructuredLLM, user_input=user_msg)
-        # Using string
-        result = await rt.call(
-            StreamingStructuredLLM, user_input="Tell me about the world around us"
+    def _buffered_structured(self) -> Response:
+        """Runs a regular (non-streaming) structured call, draining legacy stream=True generators."""
+        return self._collect_streamed_response(
+            self.llm_model.structured(self.message_hist, schema=self.output_schema())
         )
-        ```
-    """
-
-    async def invoke(self):
-        """Makes a call containing the inputted message and system prompt to the llm model and returns the response
-
-        Returns:
-            (StructuredlLLM.Output): The response message from the llm model
-        """
-        context = self._pre_invoke(self.message_hist)
-        self.message_hist = context
-
-        returned_mess = await asyncio.to_thread(
-            self.llm_model.structured, self.message_hist, schema=self.output_schema()
-        )
-
-        return self._gen_wrapper(returned_mess)

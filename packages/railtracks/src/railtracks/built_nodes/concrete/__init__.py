@@ -3,11 +3,8 @@ __all__ = [
     "StructuredResponse",
     "TerminalLLM",
     "GuardedTerminalLLM",
-    "GuardedStreamingTerminalLLM",
     "GuardedStructuredLLM",
-    "GuardedStreamingStructuredLLM",
     "GuardedToolCallLLM",
-    "GuardedStreamingToolCallLLM",
     "GuardedStructuredToolCallLLM",
     "StructuredLLM",
     "ToolCallLLM",
@@ -27,9 +24,6 @@ from .function_base import (
     RTFunction,
 )
 from .guarded_llm import (
-    GuardedStreamingStructuredLLM,
-    GuardedStreamingTerminalLLM,
-    GuardedStreamingToolCallLLM,
     GuardedStructuredLLM,
     GuardedStructuredToolCallLLM,
     GuardedTerminalLLM,

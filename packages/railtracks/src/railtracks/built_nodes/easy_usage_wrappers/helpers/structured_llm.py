@@ -4,11 +4,9 @@ from pydantic import BaseModel
 
 from railtracks.built_nodes._node_builder import NodeBuilder
 from railtracks.built_nodes.concrete.guarded_llm import (
-    GuardedStreamingStructuredLLM,
     GuardedStructuredLLM,
 )
 from railtracks.built_nodes.concrete.structured_llm_base import (
-    StreamingStructuredLLM,
     StructuredLLM,
 )
 from railtracks.guardrails.core import Guard
@@ -33,7 +31,7 @@ def structured_llm(
     return_into: str | None = None,
     format_for_return: Callable[[Any], Any] | None = None,
     format_for_context: Callable[[Any], Any] | None = None,
-) -> Type[StructuredLLM[_TOutput] | StreamingStructuredLLM[_TOutput]]:
+) -> Type[StructuredLLM[_TOutput]]:
     """
     Dynamically create a StructuredLastMessageLLM node class with custom configuration for output_schema.
 
@@ -56,14 +54,12 @@ def structured_llm(
     Returns:
         Type[StructuredLLM]: The dynamically generated node class with the specified configuration.
     """
-    is_streaming = llm is not None and llm.stream
-
+    # streaming is decided at the call site (rt.astream); the same node class serves both
+    # streaming and buffered invocations.
     if guardrails is not None:
-        base_cls = (
-            GuardedStreamingStructuredLLM if is_streaming else GuardedStructuredLLM
-        )
+        base_cls = GuardedStructuredLLM
     else:
-        base_cls = StreamingStructuredLLM if is_streaming else StructuredLLM
+        base_cls = StructuredLLM
 
     builder = NodeBuilder(
         base_cls,

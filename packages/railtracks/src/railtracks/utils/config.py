@@ -1,7 +1,18 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Callable, Coroutine
+from typing import Any, Callable, Mapping
+
+# A bus callback is either a single callable invoked for every item (the "firehose" form), or
+# a mapping of channel name -> callable used to route items per channel (preferred;
+# unregistered channels are skipped). Callables may be sync or async. Both callback lanes are
+# PASSIVE listeners: registering one never enables streaming (only rt.astream does).
+#
+# The two lanes carry different traffic:
+# - `broadcast_callback` receives one-off EVENTS published with `rt.broadcast`.
+# - `stream_callback` receives STREAM chunks published through `rt.broadcast_stream`
+#   (which includes all LLM token streaming during `rt.astream` runs).
+BroadcastCallback = Callable[[Any], Any] | Mapping[str, Callable[[Any], Any]]
 
 
 class ExecutorConfig:
@@ -10,9 +21,8 @@ class ExecutorConfig:
         *,
         timeout: float | None = None,
         end_on_error: bool = False,
-        broadcast_callback: (
-            Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
-        ) = None,
+        broadcast_callback: BroadcastCallback | None = None,
+        stream_callback: BroadcastCallback | None = None,
         prompt_injection: bool = True,
         save_state: bool = True,
         payload_callback: Callable[[dict[str, Any]], None] | None = None,
@@ -23,13 +33,25 @@ class ExecutorConfig:
         Args:
             timeout (float | None): The maximum number of seconds to wait for a response to your top level request. Pass None (or omit) to disable the timeout entirely.
             end_on_error (bool): If true, the executor will stop execution when an exception is encountered.
-            broadcast_callback (Callable or Coroutine): A function or coroutine that will handle streaming messages.
+            broadcast_callback (Callable or Mapping[str, Callable]): A passive listener for
+                one-off **events** published with `rt.broadcast`. A mapping routes events per
+                channel; a single callable receives every event on every channel. It does not
+                receive streamed chunks — see `stream_callback`.
+            stream_callback (Callable or Mapping[str, Callable]): A passive listener for
+                **stream chunks** published through `rt.broadcast_stream` (LLM token streams
+                included). It never enables streaming — only `rt.astream` / `Flow.astream`
+                do; use `Stream.route(...)` for push-style consumption of a single streamed
+                call. Its niche over `route` is observing streams session-wide (e.g. nested
+                `astream` scopes in multi-agent runs).
             prompt_injection (bool): If true, prompts can be injected with global context
             save_state (bool): If true, the state of the executor will be saved to disk.
+            payload_callback (Callable): A callback invoked once at session end with the full
+                serialized session payload.
         """
         self.timeout = timeout
         self.end_on_error = end_on_error
-        self.subscriber = broadcast_callback
+        self.broadcast_callback = broadcast_callback
+        self.stream_callback = stream_callback
         self.prompt_injection = prompt_injection
         # During test runs, disable save_state by default unless RAILTRACKS_ALLOW_PERSISTENCE is set
         self._user_save_state = save_state
@@ -51,9 +73,8 @@ class ExecutorConfig:
         *,
         timeout: float | None = None,
         end_on_error: bool | None = None,
-        subscriber: (
-            Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
-        ) = None,
+        broadcast_callback: BroadcastCallback | None = None,
+        stream_callback: BroadcastCallback | None = None,
         prompt_injection: bool | None = None,
         save_state: bool | None = None,
         payload_callback: Callable[[dict[str, Any]], None] | None = None,
@@ -66,9 +87,12 @@ class ExecutorConfig:
             end_on_error=end_on_error
             if end_on_error is not None
             else self.end_on_error,
-            broadcast_callback=subscriber
-            if subscriber is not None
-            else self.subscriber,
+            broadcast_callback=broadcast_callback
+            if broadcast_callback is not None
+            else self.broadcast_callback,
+            stream_callback=stream_callback
+            if stream_callback is not None
+            else self.stream_callback,
             prompt_injection=prompt_injection
             if prompt_injection is not None
             else self.prompt_injection,

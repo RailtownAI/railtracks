@@ -5,13 +5,13 @@ from abc import ABC, abstractmethod
 from typing import (
     Any,
     Dict,
-    Generator,
     Generic,
     Literal,
     ParamSpec,
     Set,
     Type,
     TypeVar,
+    cast,
 )
 
 from railtracks.built_nodes.concrete.response import LLMResponse
@@ -29,25 +29,26 @@ from railtracks.llm import (
 )
 from railtracks.llm.content import Content
 from railtracks.llm.message import Role
-from railtracks.llm.providers import ModelProvider
+from railtracks.llm.providers import TOOL_CALLING_STREAMING_BLACKLIST
 from railtracks.llm.response import Response
 from railtracks.nodes.nodes import Node
+from railtracks.utils.logging import get_rt_logger
 from railtracks.validation.node_creation.validation import check_connected_nodes
 
 from ._llm_base import LLMBase
 
-_T = TypeVar("_T")
 _P = ParamSpec("_P")
-_TStream = TypeVar("_TStream", Literal[True], Literal[False])
 _TCollectedOutput = TypeVar("_TCollectedOutput", bound=LLMResponse)
 
 _TContent = TypeVar("_TContent", bound=Content)
 
+logger = get_rt_logger(__name__)
+
 
 class OutputLessToolCallLLMBase(
-    LLMBase[_T, _TCollectedOutput, _TStream],
+    LLMBase[_TCollectedOutput],
     ABC,
-    Generic[_T, _TCollectedOutput, _TStream],
+    Generic[_TCollectedOutput],
 ):
     """A base class that is a node which contains
      an LLm that can make tool calls. The tool calls will be returned
@@ -76,33 +77,33 @@ class OutputLessToolCallLLMBase(
 
     @classmethod
     def streaming_blacklist(cls):
-        return {
-            ModelProvider.ANTHROPIC,
-            ModelProvider.AZUREAI,
-            ModelProvider.GEMINI,
-            ModelProvider.OLLAMA,
-            ModelProvider.HUGGINGFACE,
-        }
+        """Providers we do not support token streaming for when tool calling is involved.
+
+        When a streamed invocation hits one of these providers, the node falls back to a
+        buffered model call (with a warning) instead of erroring — the final response is
+        unaffected, you just don't get incremental chunks.
+        """
+        return set(TOOL_CALLING_STREAMING_BLACKLIST)
 
     def __init__(
         self,
         user_input: MessageHistory | UserMessage | str | list[Message],
-        llm: ModelBase[_TStream] | None = None,
+        llm: ModelBase | None = None,
     ):
         super().__init__(llm=llm, user_input=user_input)
-        model = self.get_llm()
-        # we only support Openai for streaming calls atm.
-        if (
-            model is not None
-            and model.stream
-            and model.model_provider() in self.streaming_blacklist()
-        ):
-            raise NodeCreationError(
-                f"Currently we do not allow streaming with {model.model_provider()} (specifically for tool calling)",
-                notes=[
-                    "Create a new issue on the railtracks repo or switch to openai's models"
-                ],
+
+    def _should_stream(self) -> bool:
+        """Frame-level streaming decision, including the tool-calling provider blacklist."""
+        if not super()._should_stream():
+            return False
+        if self.llm_model.model_provider() in self.streaming_blacklist():
+            logger.warning(
+                "Streaming is not supported with %s for tool calling; falling back to a "
+                "buffered response.",
+                self.llm_model.model_provider(),
             )
+            return False
+        return True
 
     @classmethod
     def name(cls) -> str:
@@ -129,7 +130,8 @@ class OutputLessToolCallLLMBase(
                 message=f"Tool {tool_name} has multiple nodes, this is not allowed. Current Node include {[x.tool_info().name for x in self.tool_nodes()]}",
                 notes=["Please check the tool names in the connected nodes."],
             )
-        return node[0].prepare_tool(arguments)
+        # `prepare_tool` is attached dynamically by the node builder; Node has no static stub.
+        return cast(Any, node[0]).prepare_tool(arguments)
 
     def get_node_from_name(self, tool_name: str):
         """
@@ -152,7 +154,8 @@ class OutputLessToolCallLLMBase(
     async def run_node_from_tool(self, tool_name: str, arguments: dict[str, Any]):
         node = self.get_node_from_name(tool_name)
 
-        return await call(node.prepare_tool, **arguments)
+        # `prepare_tool` is attached dynamically by the node builder; Node has no static stub.
+        return await call(cast(Any, node).prepare_tool, **arguments)
 
     @classmethod
     def tools(cls):
@@ -223,7 +226,7 @@ class OutputLessToolCallLLMBase(
 
 
 class OutputLessToolCallLLM(
-    OutputLessToolCallLLMBase[_TCollectedOutput, _TCollectedOutput, Literal[False]],
+    OutputLessToolCallLLMBase[_TCollectedOutput],
     ABC,
     Generic[_TCollectedOutput],
 ):
@@ -238,6 +241,11 @@ class OutputLessToolCallLLM(
         - Executes a tool call and appends the results to the message history.
         - Handles malformed LLM responses and raises errors as needed.
 
+        Streaming: when the frame has streaming enabled, every round of the tool-call loop is
+        requested as a streamed model call and all text chunks are broadcast as they arrive —
+        including text produced in rounds that end in tool calls. The returned `Response` is
+        always the complete (accumulated) one, so the loop logic is identical either way.
+
         Returns:
             A 3-tuple ``(still_looping, final_message, final_response)``.
             ``still_looping`` is True when tool calls were dispatched and the
@@ -249,9 +257,16 @@ class OutputLessToolCallLLM(
             LLMError: If the LLM returns an unexpected message type or the message is malformed.
         """
         try:
-            response = await asyncio.to_thread(
-                self.llm_model.chat_with_tools, self.message_hist, tools=self.tools()
-            )
+            if self._should_stream():
+                response = await self._stream_model_response(
+                    self.llm_model.astream_chat_with_tools(
+                        self.message_hist, tools=self.tools()
+                    )
+                )
+            else:
+                response = await asyncio.to_thread(self._buffered_chat_with_tools)
+        except LLMError:
+            raise
         except Exception as e:
             raise LLMError(
                 reason=f"Exception during llm model chat: {repr(e)}",
@@ -267,6 +282,12 @@ class OutputLessToolCallLLM(
         is_tool, message = await self._handle_response(response.message)
         final_response = None if is_tool else response
         return is_tool, message, final_response
+
+    def _buffered_chat_with_tools(self) -> Response:
+        """Runs a regular (non-streaming) tool call, draining legacy stream=True generators."""
+        return self._collect_streamed_response(
+            self.llm_model.chat_with_tools(self.message_hist, tools=self.tools())
+        )
 
     async def invoke(self):
         context = self._pre_invoke(self.message_hist)
@@ -286,83 +307,3 @@ class OutputLessToolCallLLM(
                 self.message_hist[-1] = message
 
         return self.return_output(message)
-
-
-class StreamingOutputLessToolCallLLM(
-    OutputLessToolCallLLMBase[
-        Generator[str | _TCollectedOutput, None, _TCollectedOutput],
-        _TCollectedOutput,
-        Literal[True],
-    ],
-    ABC,
-    Generic[_TCollectedOutput],
-):
-    async def _handle_tool_calls(self):  # noqa: C901
-        try:
-            returned_mess = await asyncio.to_thread(
-                self.llm_model.chat_with_tools, self.message_hist, tools=self.tools()
-            )
-        except Exception as e:
-            raise LLMError(
-                reason=f"Exception during llm model chat: {repr(e)}",
-                message_history=self.message_hist,
-            ) from e
-
-        first_item = next(returned_mess)
-        if isinstance(first_item, str):
-
-            def gen_wrapper():
-                yield first_item
-                # yield the rest of the items
-                for chunk in returned_mess:
-                    if isinstance(chunk, str):
-                        yield chunk
-                    elif isinstance(chunk, Response):
-                        if chunk.message.role != Role.assistant:
-                            raise LLMError(
-                                reason="ModelLLM returned an unexpected message type.",
-                                message_history=self.message_hist,
-                            )
-                        self.message_hist.append(chunk.message)
-                        response = self.return_output(chunk.message)
-                        yield response
-                        return response
-
-                raise LLMError(
-                    "Badly formatted response from the LLM",
-                    message_history=self.message_hist,
-                )
-
-            return gen_wrapper()
-
-        if isinstance(first_item, Response):
-            assert first_item.message.role == Role.assistant
-
-            if len(first_item.message.tool_calls) > 0:
-                is_tool, _ = await self._handle_response(first_item.message)
-
-                if not is_tool:
-                    raise LLMError(
-                        "Message returned did not contain tool calls and it should have.",
-                        message_history=self.message_hist,
-                    )
-            else:
-                raise LLMError(
-                    "Message returned did not contain tool calls and it should have.",
-                    message_history=self.message_hist,
-                )
-
-    async def invoke(self):
-        """Makes a call containing the inputted message and system prompt to the llm model and returns the response.
-
-        Note: only input guardrails are wired here.  Output guardrails on the
-        streaming tool-call path are deferred because the inner generator
-        bypasses ``LLMBase._gen_wrapper`` where ``_post_invoke`` normally runs.
-        """
-        context = self._pre_invoke(self.message_hist)
-        self.message_hist = context
-
-        while True:
-            result = await self._handle_tool_calls()
-            if result is not None:
-                return result

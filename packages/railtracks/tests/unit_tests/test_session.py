@@ -88,21 +88,37 @@ def test_setup_subscriber_adds_subscriber_if_present():
     sub_subscriber = Mock()
     runner = Session(broadcast_callback=sub_subscriber)
     runner.publisher = MagicMock()
-    with patch('railtracks._session.stream_subscriber', return_value="fake_stream_sub") as m_stream:
+    with patch('railtracks._session.BroadcastCallbackSubscriber', return_value="fake_sub") as m_sub:
         runner._setup_subscriber()
         runner.publisher.subscribe.assert_called_once_with(
-            "fake_stream_sub", name="Streaming Subscriber"
+            "fake_sub", name="Broadcast Callback Subscriber"
         )
-        m_stream.assert_called_once_with(sub_subscriber)
+        m_sub.assert_called_once_with(
+            sub_subscriber, kind="event", param_name="broadcast_callback"
+        )
+
+def test_setup_subscriber_adds_stream_subscriber_if_present():
+    stream_subscriber = Mock()
+    runner = Session(stream_callback=stream_subscriber)
+    runner.publisher = MagicMock()
+    with patch('railtracks._session.BroadcastCallbackSubscriber', return_value="fake_sub") as m_sub:
+        runner._setup_subscriber()
+        runner.publisher.subscribe.assert_called_once_with(
+            "fake_sub", name="Stream Callback Subscriber"
+        )
+        m_sub.assert_called_once_with(
+            stream_subscriber, kind="stream", param_name="stream_callback"
+        )
 
 def test_setup_subscriber_noop_if_no_subscriber(mock_dependencies):
     runner = Session()
-    runner.executor_config.subscriber = None
+    runner.executor_config.broadcast_callback = None
+    runner.executor_config.stream_callback = None
     runner.publisher = MagicMock()
-    with patch('railtracks._session.stream_subscriber') as m_stream:
+    with patch('railtracks._session.BroadcastCallbackSubscriber') as m_sub:
         runner._setup_subscriber()
         runner.publisher.subscribe.assert_not_called()
-        m_stream.assert_not_called()
+        m_sub.assert_not_called()
 
 # ================ END Session: setup_subscriber ===============
 

@@ -1,4 +1,4 @@
-from typing import Iterable, Literal, Type, TypeVar, overload
+from typing import Iterable, Type, TypeVar, overload
 
 from pydantic import BaseModel
 
@@ -19,7 +19,6 @@ from railtracks.nodes.utils import extract_node_from_function
 from .._node_builder import NodeBuilder, UserInput
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
-_TStream = TypeVar("_TStream", Literal[True], Literal[False])
 _R = TypeVar("_R", bound=StructuredResponse | StringResponse)
 
 
@@ -51,6 +50,7 @@ def _build_dynamic_agent(
     model_middleware: list[ModelMiddleware] | None = None,
     guardrails: Guard | None = None,
     context_injection: bool = True,
+    stream_channel: str = "default",
 ):
     resolved_system = (
         SystemMessage(content=system_message)
@@ -70,6 +70,7 @@ def _build_dynamic_agent(
             model_middleware=model_middleware,
             guardrails=guardrails,
             context_injection=context_injection,
+            stream_channel=stream_channel,
         )
     else:
         nb = NodeBuilder.llm(
@@ -84,6 +85,7 @@ def _build_dynamic_agent(
             model_middleware=model_middleware,
             guardrails=guardrails,
             context_injection=context_injection,
+            stream_channel=stream_channel,
         )
 
     return nb.build()
@@ -105,7 +107,10 @@ def agent_node(
     model_middleware: list[ModelMiddleware] | None = None,
     guardrails: Guard | None = None,
     context_injection: bool = True,
-) -> type[Node[[UserInput], StringResponse]]: ...
+    stream_channel: str = "default",
+    # note: the parameter spec is `...` (not `[UserInput]`) so both the canonical keyword
+    # style `rt.call(agent, user_input=...)` and the positional style type-check.
+) -> type[Node[..., StringResponse]]: ...
 
 
 @overload
@@ -122,7 +127,10 @@ def agent_node(
     model_middleware: list[ModelMiddleware] | None = None,
     guardrails: Guard | None = None,
     context_injection: bool = True,
-) -> type[Node[[UserInput], StructuredResponse[_TBaseModel]]]: ...
+    stream_channel: str = "default",
+    # note: the parameter spec is `...` (not `[UserInput]`) so both the canonical keyword
+    # style `rt.call(agent, user_input=...)` and the positional style type-check.
+) -> type[Node[..., StructuredResponse[_TBaseModel]]]: ...
 
 
 def agent_node(
@@ -140,6 +148,7 @@ def agent_node(
     model_middleware: list[ModelMiddleware] | None = None,
     guardrails: Guard | None = None,
     context_injection: bool = True,
+    stream_channel: str = "default",
 ):
     """
     Dynamically creates an agent based on the provided parameters.
@@ -164,6 +173,12 @@ def agent_node(
             Defaults to True. Set to False to disable context injection for this specific agent regardless
             of the session-level prompt_injection setting. Can also be controlled at the session level via
             rt.Session(prompt_injection=False) or per-message via message.inject_prompt = False.
+        stream_channel (str): The named channel this agent's streamed tokens are broadcast on
+            when a run streams (see `rt.astream` / `Flow.astream`). Defaults to "default".
+            Give different agents in one flow distinct channels to route their tokens to
+            different consumers (e.g. `stream_callback={"writer": fn1, "critic": fn2}` or
+            `stream.on_channel("writer")`). Note each round of a tool-calling loop is one
+            production on this channel.
     """
     unpacked_tool_nodes = _unpack_tool_nodes(tool_nodes)
 
@@ -187,6 +202,7 @@ def agent_node(
         model_middleware=model_middleware,
         guardrails=guardrails,
         context_injection=context_injection,
+        stream_channel=stream_channel,
     )
 
     return agent

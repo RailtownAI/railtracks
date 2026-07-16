@@ -4,20 +4,23 @@ from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import (
     Any,
+    AsyncGenerator,
     Dict,
     Generator,
     Generic,
     Iterable,
-    Literal,
     TypeVar,
+    cast,
 )
 
 from pydantic import BaseModel
 from typing_extensions import Self
 
 from railtracks.built_nodes.llm.request_details import RequestDetails
+from railtracks.context.central import is_streaming_enabled
 from railtracks.exceptions.errors import LLMError, NodeInvocationError
 from railtracks.exceptions.messages.exception_messages import get_message
+from railtracks.interaction.broadcast_ import broadcast_stream
 from railtracks.llm import (
     Message,
     MessageHistory,
@@ -40,19 +43,22 @@ from .response import LLMResponse, StringResponse, StructuredResponse
 # Global logger for LLM nodes
 logger = get_rt_logger(__name__)
 
-_T = TypeVar("_T")
 
-
-_TStream = TypeVar("_TStream", Literal[True], Literal[False])
 _TCollectedOutput = TypeVar("_TCollectedOutput", bound=LLMResponse)
 
 
-class LLMBase(Node[..., _T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
+class LLMBase(Node[..., _TCollectedOutput], ABC, Generic[_TCollectedOutput]):
     """
     A basic LLM base class that encapsulates the attaching of an LLM model and message history object.
 
     The main functionality of the class is contained within the attachment of pre and post hooks to the model so we can
     store debugging details that will allow us to determine token usage.
+
+    Streaming: LLM nodes decide *per invocation* whether to stream. When the frame was entered
+    via `rt.astream` / `Flow.astream`, `self._should_stream()` is True and the
+    node consumes the model's streamed response internally, broadcasting each chunk with
+    `rt.broadcast` before returning its regular (complete) response object. Nested `rt.call`
+    children always run buffered — streaming is frame-local.
 
     Args:
         user_input: The message history to use. Can be a MessageHistory object, a UserMessage object, or a string.
@@ -64,7 +70,7 @@ class LLMBase(Node[..., _T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
     def __init__(
         self,
         user_input: MessageHistory | UserMessage | str | list[Message],
-        llm: ModelBase[_TStream] | None = None,
+        llm: ModelBase | None = None,
     ):
         super().__init__()
 
@@ -84,8 +90,9 @@ class LLMBase(Node[..., _T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
         )  # Ensure we don't modify the original message history
 
         # If there is a system_message method we add it to message history
-        if self.system_message() is not None:
-            if not isinstance(self.system_message(), (SystemMessage, str)):
+        system_message = self.system_message()
+        if system_message is not None:
+            if not isinstance(system_message, (SystemMessage, str)):
                 raise NodeInvocationError(
                     message=get_message("INVALID_SYSTEM_MESSAGE_MSG"),
                     fatal=True,
@@ -98,9 +105,9 @@ class LLMBase(Node[..., _T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
             message_history_copy.insert(
                 0,
                 (
-                    SystemMessage(self.system_message())
-                    if isinstance(self.system_message(), str)
-                    else self.system_message()
+                    SystemMessage(system_message)
+                    if isinstance(system_message, str)
+                    else system_message
                 ),
             )
 
@@ -125,8 +132,9 @@ class LLMBase(Node[..., _T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
 
         self.message_hist = message_history_copy
 
-        self._details["guard_details"] = []
-        self._details["llm_details"] = []
+        # detail storage consumed by the guardrails mixin and request bookkeeping
+        # (Node no longer provides this attribute, so it is created here)
+        self._details: Dict[str, Any] = {"guard_details": [], "llm_details": []}
 
         self._attach_llm_hooks()
 
@@ -140,9 +148,16 @@ class LLMBase(Node[..., _T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
 
     @classmethod
     def prepare_tool_message_history(
-        cls, tool_parameters: Dict[str, Any], tool_params: Iterable[Parameter] = None
-    ) -> MessageHistory:
-        pass
+        cls,
+        tool_parameters: Dict[str, Any],
+        tool_params: Iterable[Parameter] | None = None,
+    ) -> MessageHistory | None:
+        """Hook for building a message history from tool parameters.
+
+        The default implementation returns None; node builders override this when the node
+        is exposed as a tool.
+        """
+        return None
 
     @abstractmethod
     def return_output(self, message: Message | None = None) -> _TCollectedOutput: ...
@@ -153,12 +168,12 @@ class LLMBase(Node[..., _T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
         check_message_history(message_history, cls.system_message())
 
     @classmethod
-    def _verify_llm_model(cls, llm: ModelBase[_TStream] | None):
+    def _verify_llm_model(cls, llm: ModelBase | None):
         """Verify the llm model is valid for this LLM."""
         check_llm_model(llm)
 
     @classmethod
-    def get_llm(cls) -> ModelBase[_TStream] | None:
+    def get_llm(cls) -> ModelBase | None:
         return None
 
     @classmethod
@@ -232,7 +247,7 @@ class LLMBase(Node[..., _T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
         """
         return None
 
-    def format_for_return(self, result: _T) -> Any:
+    def format_for_return(self, result: _TCollectedOutput) -> Any:
         """
         Format the result for return when return_into is provided. This method can be overridden by subclasses to
         customize the return format. By default, it returns None.
@@ -245,7 +260,7 @@ class LLMBase(Node[..., _T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
         """
         return None
 
-    def format_for_context(self, result: _T) -> Any:
+    def format_for_context(self, result: _TCollectedOutput) -> Any:
         """
         Format the result for context when return_into is provided. This method can be overridden by subclasses to
         customize the context format. By default, it returns the result as is.
@@ -259,7 +274,8 @@ class LLMBase(Node[..., _T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
         return result
 
     def safe_copy(self) -> Self:
-        new_instance: LLMBase = super().safe_copy()
+        # Node.safe_copy is typed as returning Node; the copy is always this concrete type.
+        new_instance = cast(Self, super().safe_copy())
 
         # This has got to be one of the weirdest things I've seen working with python
         # basically if we don't reattach the hooks, the `self` inserted into the model hooks will be the old memory address
@@ -274,30 +290,62 @@ class LLMBase(Node[..., _T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
     def type(cls):
         return "Agent"
 
-    def _gen_wrapper(
-        self, returned_mess: Generator[str | Response, None, Response]
-    ) -> Generator[str | _TCollectedOutput, None, _TCollectedOutput]:
-        for r in returned_mess:
-            if isinstance(r, Response):
-                r = self._post_invoke(self.message_hist, r)
-                message = r.message
+    def _should_stream(self) -> bool:
+        """
+        Returns True when this node's frame was invoked with streaming enabled (via
+        `rt.astream` / `Flow.astream` — callbacks never enable streaming).
 
-                self._handle_output(message)
-                response = self.return_output(message)
-                yield response
-                return response
-            elif isinstance(r, str):
-                yield r
-            else:
+        Streaming is frame-local: nested nodes started with `rt.call` from within this node
+        will see False here and run buffered.
+        """
+        return is_streaming_enabled()
+
+    @classmethod
+    def stream_channel(cls) -> str:
+        """
+        The named channel this node emits its streamed chunks on.
+
+        Override this on a node subclass to route its tokens to a dedicated channel (consumed
+        with `stream.on_channel(...)`, `route()` handlers, or a `stream_callback` dict
+        keyed by channel name).
+        """
+        return "default"
+
+    async def _stream_model_response(
+        self, model_stream: AsyncGenerator[str | Response, None]
+    ) -> Response:
+        """
+        Consumes a model stream (e.g. `llm_model.astream_chat(...)`), broadcasting each `str`
+        chunk on this node's `stream_channel`, and returns the final complete `Response`.
+        """
+        result = await broadcast_stream(model_stream, channel=self.stream_channel())
+        if not isinstance(result, Response):
+            raise LLMError(
+                reason="The model stream did not yield a final Response object.",
+                message_history=self.message_hist,
+            )
+        return result
+
+    def _collect_streamed_response(
+        self, returned: Response | Generator[str | Response, None, Response]
+    ) -> Response:
+        """
+        Backwards-compatibility shim for models constructed with the deprecated `stream=True`
+        flag: their sync chat methods return a generator, which we drain here so buffered
+        invocations still produce a complete `Response`.
+        """
+        if isinstance(returned, Generator):
+            final: Response | None = None
+            for item in returned:
+                if isinstance(item, Response):
+                    final = item
+            if final is None:
                 raise LLMError(
-                    reason=f"ModelLLM returned unexpected type in generator. Expected str or Response, got {type(r)}",
+                    reason="The generator did not yield a final Response object",
                     message_history=self.message_hist,
                 )
-
-        raise LLMError(
-            reason="The generator did not yield a final Response object",
-            message_history=self.message_hist,
-        )
+            return final
+        return returned
 
     def _handle_output(self, output: Message):
         if output.role != "assistant":

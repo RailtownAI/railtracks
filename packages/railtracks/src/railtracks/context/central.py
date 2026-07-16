@@ -3,7 +3,7 @@ from __future__ import annotations
 import contextvars
 import logging
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, KeysView
+from typing import TYPE_CHECKING, Any, Callable, KeysView
 
 from railtracks.exceptions import ContextError
 
@@ -30,13 +30,24 @@ class RunnerContextVars:
         self.internal_context = internal_context
         self.external_context = external_context
 
-    def prepare_new(self, new_parent_id: str, new_run_id: str | None = None):
+    def prepare_new(
+        self,
+        new_parent_id: str,
+        new_run_id: str | None = None,
+        stream: bool = False,
+        stream_id: str | None = None,
+    ):
         """
         Update the parent ID of the internal context.
+
+        `stream` marks the new frame as streaming-enabled (frame-local, never inherited),
+        while `stream_id` (inherited when None) tracks which stream scope the frame belongs to.
         """
         new_internal_context = self.internal_context.prepare_new(
             new_parent_id=new_parent_id,
             run_id=new_run_id,
+            stream=stream,
+            stream_id=stream_id,
         )
 
         return RunnerContextVars(
@@ -101,10 +112,20 @@ def get_publisher() -> RTPublisher:
         RTPublisher: The publisher associated with the current thread's global variables.
 
     Raises:
-        RuntimeError: If the global variables have not been registered.
+        ContextError: If the global variables have not been registered or no publisher is
+            attached to the current context.
     """
     context = safe_get_runner_context()
-    return context.internal_context.publisher
+    publisher = context.internal_context.publisher
+    if publisher is None:
+        raise ContextError(
+            message="No publisher is attached to the current context.",
+            notes=[
+                "You need to have an active runner to access the publisher.",
+                "Eg.-\n with rt.Session():\n    _ = rt.call(node)",
+            ],
+        )
+    return publisher
 
 
 def get_session_id() -> str | None:
@@ -148,6 +169,33 @@ def get_run_id() -> str | None:
     """
     context = safe_get_runner_context()
     return context.internal_context.run_id
+
+
+def is_streaming_enabled() -> bool:
+    """
+    Returns True when the current frame was invoked with streaming enabled (via `rt.astream`
+    / `Flow.astream` — callbacks never enable streaming).
+
+    LLM nodes use this to decide whether to stream their model responses token-by-token.
+    The flag is frame-local: it is True only for the entry frame of a streamed invocation and
+    never propagates to nested `rt.call` children. Returns False when no context is present.
+    """
+    context = runner_context.get()
+    if context is None:
+        return False
+    return context.internal_context.stream_enabled
+
+
+def get_stream_id() -> str | None:
+    """
+    Returns the stream scope id of the current frame (the entry request id of the streamed
+    run this frame belongs to), or None when the frame is not part of a streamed run or no
+    context is present.
+    """
+    context = runner_context.get()
+    if context is None:
+        return None
+    return context.internal_context.stream_id
 
 
 def register_globals(
@@ -199,11 +247,12 @@ async def shutdown_publisher():
     This function should be called to stop the publisher and clean up resources.
     """
     context = safe_get_runner_context()
-    context = context.internal_context
-    assert context is not None
+    internal_context = context.internal_context
 
-    assert context.publisher.is_running()
-    await context.publisher.shutdown()
+    publisher = internal_context.publisher
+    assert publisher is not None, "Cannot shutdown a publisher that was never attached."
+    assert publisher.is_running()
+    await publisher.shutdown()
 
 
 def get_global_config() -> ExecutorConfig:
@@ -240,7 +289,8 @@ def set_local_config(
     """
     context = safe_get_runner_context()
 
-    context.executor_config = executor_config
+    # the config lives on the internal context (RunnerContextVars has no such attribute)
+    context.internal_context.executor_config = executor_config
     runner_context.set(context)
 
 
@@ -256,11 +306,25 @@ def set_global_config(
     global_executor_config.set(executor_config)
 
 
-def update_parent_id(new_parent_id: str, new_run_id: str | None = None):
+def update_parent_id(
+    new_parent_id: str,
+    new_run_id: str | None = None,
+    *,
+    stream: bool = False,
+    stream_id: str | None = None,
+):
     """
     Update the parent ID of the current thread's global variables.
 
     If no run ID is provided, the current run ID will be used.
+
+    Args:
+        new_parent_id: The parent id of the new frame.
+        new_run_id: The run id of the new frame (defaults to the current one).
+        stream: If True, the new frame will have streaming enabled. This is frame-local:
+            child frames created afterwards will NOT inherit it.
+        stream_id: The stream scope id for the new frame. If None, the current stream id is
+            inherited.
     """
     current_context = safe_get_runner_context()
 
@@ -271,7 +335,9 @@ def update_parent_id(new_parent_id: str, new_run_id: str | None = None):
     if current_context is None:
         raise RuntimeError("No global variable set")
 
-    new_context = current_context.prepare_new(new_parent_id, new_run_id=new_run_id)
+    new_context = current_context.prepare_new(
+        new_parent_id, new_run_id=new_run_id, stream=stream, stream_id=stream_id
+    )
 
     runner_context.set(new_context)
 
@@ -358,7 +424,10 @@ def set_config(
     timeout: float | None = None,
     end_on_error: bool | None = None,
     broadcast_callback: (
-        Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
+        Callable[[str], Any] | dict[str, Callable[[str], Any]] | None
+    ) = None,
+    stream_callback: (
+        Callable[[str], Any] | dict[str, Callable[[str], Any]] | None
     ) = None,
     prompt_injection: bool | None = None,
     save_state: bool | None = None,
@@ -369,7 +438,17 @@ def set_config(
     - If you call this function after the runner has been created, it will not affect the current runner.
     - This function will only overwrite the values that are provided, leaving the rest unchanged.
 
-
+    Args:
+        timeout: The maximum number of seconds to wait for a response to your top-level request.
+        end_on_error: If True, the execution will stop when an exception is encountered.
+        broadcast_callback: A passive listener for one-off events published with `rt.broadcast`
+            (or a dict mapping channel name -> callback to route events per channel). Streamed
+            chunks go to `stream_callback` instead.
+        stream_callback: A passive listener for stream chunks published through
+            `rt.broadcast_stream` (LLM token streams included). It never enables streaming —
+            only `rt.astream` / `Flow.astream` do.
+        prompt_injection: If True, the prompt will be automatically injected from context variables.
+        save_state: If True, the state of the execution will be saved to a file at the end of the run.
     """
 
     if is_context_active():
@@ -382,7 +461,8 @@ def set_config(
     new_config = config.precedence_overwritten(
         timeout=timeout,
         end_on_error=end_on_error,
-        subscriber=broadcast_callback,
+        broadcast_callback=broadcast_callback,
+        stream_callback=stream_callback,
         prompt_injection=prompt_injection,
         save_state=save_state,
     )
