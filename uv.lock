@@ -4008,8 +4008,28 @@ dependencies = [
 
 [package.optional-dependencies]
 all = [
+    { name = "asyncpg" },
+    { name = "azure-core" },
+    { name = "azure-identity" },
+    { name = "azure-storage-blob" },
+    { name = "boto3" },
+    { name = "chromadb" },
+    { name = "datasets" },
     { name = "fastapi" },
+    { name = "google-cloud-storage" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "pdfplumber" },
+    { name = "pgvector" },
+    { name = "pillow" },
     { name = "portkey-ai" },
+    { name = "pypdf" },
+    { name = "pypdfium2" },
+    { name = "pytesseract" },
+    { name = "scikit-learn", version = "1.7.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "scikit-learn", version = "1.9.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "sqlalchemy" },
+    { name = "tiktoken" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 aws = [
@@ -4134,6 +4154,7 @@ requires-dist = [
     { name = "railtracks", extras = ["ocr"], marker = "extra == 'retrieval'", editable = "packages/railtracks" },
     { name = "railtracks", extras = ["pdf"], marker = "extra == 'retrieval-core'", editable = "packages/railtracks" },
     { name = "railtracks", extras = ["portkey"], marker = "extra == 'all'", editable = "packages/railtracks" },
+    { name = "railtracks", extras = ["retrieval"], marker = "extra == 'all'", editable = "packages/railtracks" },
     { name = "railtracks", extras = ["retrieval-core"], marker = "extra == 'retrieval'", editable = "packages/railtracks" },
     { name = "railtracks", extras = ["semantic"], marker = "extra == 'retrieval-core'", editable = "packages/railtracks" },
     { name = "railtracks", extras = ["sql"], marker = "extra == 'retrieval'", editable = "packages/railtracks" },

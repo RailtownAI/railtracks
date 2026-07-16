@@ -41,6 +41,7 @@ __all__ = [
     "ToolManifest",
     "session_id",
     "evaluations",
+    "observability",
     "retrieval",
     "Flow",
     "enable_logging",
@@ -57,6 +58,7 @@ from . import (
     guardrails,
     integrations,
     llm,
+    observability,
     prebuilt,
 )
 from ._session import ExecutionInfo, Session, session
