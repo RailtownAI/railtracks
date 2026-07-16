@@ -4,17 +4,19 @@ from railtracks.guardrails.core.decision import GuardrailAction, GuardrailDecisi
 from railtracks.guardrails.core.errors import GuardrailBlockedError
 from railtracks.guardrails.core.event import LLMGuardrailEvent, LLMGuardrailPhase
 from railtracks.guardrails.core.trace import GuardrailTrace
-from railtracks.guardrails.llm.concrete import logger
 from railtracks.guardrails.core.interfaces import BaseGuardrail
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import Message, UserMessage
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
+from railtracks.utils.logging.create import get_rt_logger
 
 
 from abc import abstractmethod
 from typing import Any, Generic, TypeVar, cast
 from typing_extensions import Literal
+
+logger = get_rt_logger("guardrails")
 
 _TValue = TypeVar("_TValue", bound=MessageHistory | Message)
 

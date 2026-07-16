@@ -10,7 +10,6 @@ from ..llm.concrete import (
 from .trace import GuardrailTrace
 
 __all__ = [
-    "Guard",
     "GuardrailAction",
     "GuardrailDecision",
     "GuardrailBlockedError",

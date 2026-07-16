@@ -150,10 +150,10 @@ def agent_node(
         middleware (list[Middleware] | None): Middleware applied around the agent's node boundary
             (user_input -> Response).
         model_middleware (list[Middleware] | None): Middleware applied around each raw model call
-            (messages/schema/tools -> Response), inside the tool-calling loop.
-        guardrails (Guard | None): Input/output LLM guardrails to enforce around the model call. Input rails
-            run as the last check before the model (after context injection and any model_middleware); output
-            rails run on the final reply as the last word. Attached as fixed, non-reorderable system middleware.
+            (messages/schema/tools -> Response), inside the tool-calling loop. LLM guardrails
+            (e.g. `InputGuard`/`OutputGuard` subclasses) are plain entries in this list — there is
+            no separate guardrails slot, so list order is exactly execution order and is fully
+            caller-controlled.
         context_injection (bool): Whether to inject rt.context variables into prompt templates for this node.
             Defaults to True. Set to False to disable context injection for this specific agent regardless
             of the session-level prompt_injection setting. Can also be controlled at the session level via

@@ -6,7 +6,6 @@ import railtracks as rt
 from pydantic import BaseModel, Field
 from railtracks.exceptions.errors import LLMError
 from railtracks.guardrails.core import (
-    Guard,
     GuardrailBlockedError,
     GuardrailDecision,
     InputGuard,
@@ -527,7 +526,7 @@ class TestContextInjection:
 
 
 class TestGuardrailsEndToEnd:
-    """Guardrails wired as fixed model-middleware through `agent_node(guardrails=...)`."""
+    """Guardrails wired as plain entries in `agent_node(model_middleware=[...])`."""
 
     async def test_input_block_prevents_llm_call(self, mock_llm):
         llm_called = {"value": False}
@@ -546,7 +545,7 @@ class TestGuardrailsEndToEnd:
                 return GuardrailDecision.block(reason="blocked input")
 
         agent = rt.agent_node(
-            "GuardedInputAgent", llm=model, guardrails=Guard(input=[BlockAllInput()])
+            "GuardedInputAgent", llm=model, model_middleware=[BlockAllInput()]
         )
 
         with pytest.raises(GuardrailBlockedError):
@@ -562,13 +561,17 @@ class TestGuardrailsEndToEnd:
         agent = rt.agent_node(
             "GuardedOutputAgent",
             llm=mock_llm(custom_response="secret data"),
-            guardrails=Guard(output=[BlockAllOutput()]),
+            model_middleware=[BlockAllOutput()],
         )
 
         with pytest.raises(GuardrailBlockedError):
             await rt.Flow("GuardedOutputAgent", agent).ainvoke("hi")
 
-    async def test_output_guard_skipped_on_intermediate_tool_call(self, mock_llm):
+    async def test_output_guard_fires_per_model_round_trip(self, mock_llm):
+        """OutputGuard is plain model_middleware: it wraps every raw model call inside
+        the tool-calling loop, so it fires on the intermediate tool-call turn too, not
+        only on the final content reply. (The old Guarded*LLM hierarchy special-cased
+        "final reply only"; that guarantee no longer holds under this architecture.)"""
         fired = {"n": 0}
 
         class CountingAllowOutput(OutputGuard):
@@ -594,13 +597,13 @@ class TestGuardrailsEndToEnd:
             "GuardedToolAgent",
             llm=llm,
             tool_nodes=[rt.function_node(increment)],
-            guardrails=Guard(output=[CountingAllowOutput()]),
+            model_middleware=[CountingAllowOutput()],
         )
 
         result = await rt.Flow("GuardedToolAgent", agent).ainvoke("increment 1")
 
-        # Fires once for the final content reply, not for the intermediate tool-call turn.
-        assert fired["n"] == 1
+        # Fires once for the intermediate tool-call turn and once for the final reply.
+        assert fired["n"] == 2
         assert "2" in result.content
 
     async def test_guardrail_block_is_not_wrapped_as_llmerror(self, mock_llm):
@@ -614,7 +617,7 @@ class TestGuardrailsEndToEnd:
         agent = rt.agent_node(
             "GuardedAgent",
             llm=mock_llm(custom_response="hi"),
-            guardrails=Guard(input=[BlockAllInput()]),
+            model_middleware=[BlockAllInput()],
         )
 
         with pytest.raises(GuardrailBlockedError) as exc:
@@ -640,7 +643,7 @@ class TestGuardrailsEndToEnd:
             "ObservedGuardedAgent",
             llm=mock_llm(custom_response="hi"),
             middleware=[observe],
-            guardrails=Guard(input=[BlockAllInput()]),
+            model_middleware=[BlockAllInput()],
         )
 
         with pytest.raises(GuardrailBlockedError):
@@ -795,7 +798,10 @@ class TestCoupleAndComposition:
 
     async def test_full_stack_composition_order(self, mock_llm):
         """Node-level middleware + model_middleware + guardrails + a post-hoc couple()
-        all compose in the actual documented append order."""
+        all compose in the actual documented append order. Guardrails are ordinary
+        model_middleware entries with no automatic slot: reproducing the classic
+        "input guard closest to the model, output guard has the final say" shape now
+        requires the caller to order the model_middleware list that way explicitly."""
         trace = []
 
         @rt.wrap_node
@@ -833,8 +839,7 @@ class TestCoupleAndComposition:
             "FullStackAgent",
             llm=mock_llm(custom_response="hi"),
             middleware=[node_a],
-            model_middleware=[model_b],
-            guardrails=Guard(input=[TraceInputGuard()], output=[TraceOutputGuard()]),
+            model_middleware=[TraceOutputGuard(), model_b, TraceInputGuard()],
         )
         agent = rt.couple(agent, node_c)
 
