@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import dataclasses
 import json
-from datetime import datetime
 from pathlib import Path
-from typing import Any, TextIO
+from typing import TextIO
 
 from ..models import Event
 
@@ -35,10 +34,6 @@ class JsonlWriter:
 
 
 def _serialize(event: Event) -> str:
-    return json.dumps(dataclasses.asdict(event), default=_json_default)
-
-
-def _json_default(obj: Any) -> Any:
-    if isinstance(obj, datetime):
-        return obj.isoformat()
-    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+    data = dataclasses.asdict(event)
+    data["stamp"] = event.stamp.isoformat()
+    return json.dumps(data)
