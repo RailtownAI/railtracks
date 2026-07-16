@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Callable, Coroutine
+from typing import Any, Callable, Mapping
+
+# A stream callback is either a single callable invoked for every chunk, or a mapping of
+# channel name -> callable used to route chunks per channel. Callables may be sync or async.
+StreamCallback = Callable[[Any], Any] | Mapping[str, Callable[[Any], Any]]
 
 
 class ExecutorConfig:
@@ -10,9 +14,7 @@ class ExecutorConfig:
         *,
         timeout: float | None = None,
         end_on_error: bool = False,
-        broadcast_callback: (
-            Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
-        ) = None,
+        stream_callback: StreamCallback | None = None,
         prompt_injection: bool = True,
         save_state: bool = True,
         payload_callback: Callable[[dict[str, Any]], None] | None = None,
@@ -23,13 +25,18 @@ class ExecutorConfig:
         Args:
             timeout (float | None): The maximum number of seconds to wait for a response to your top level request. Pass None (or omit) to disable the timeout entirely.
             end_on_error (bool): If true, the executor will stop execution when an exception is encountered.
-            broadcast_callback (Callable or Coroutine): A function or coroutine that will handle streaming messages.
+            stream_callback (Callable or Mapping[str, Callable]): A callback (or mapping of channel
+                name -> callback) that receives every streamed/broadcast item. Providing it also
+                enables token streaming for top-level calls (push-mode streaming; see `rt.astream`
+                for pull-mode).
             prompt_injection (bool): If true, prompts can be injected with global context
             save_state (bool): If true, the state of the executor will be saved to disk.
+            payload_callback (Callable): A callback invoked once at session end with the full
+                serialized session payload.
         """
         self.timeout = timeout
         self.end_on_error = end_on_error
-        self.subscriber = broadcast_callback
+        self.stream_subscriber = stream_callback
         self.prompt_injection = prompt_injection
         # During test runs, disable save_state by default unless RAILTRACKS_ALLOW_PERSISTENCE is set
         self._user_save_state = save_state
@@ -51,9 +58,7 @@ class ExecutorConfig:
         *,
         timeout: float | None = None,
         end_on_error: bool | None = None,
-        subscriber: (
-            Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
-        ) = None,
+        stream_subscriber: StreamCallback | None = None,
         prompt_injection: bool | None = None,
         save_state: bool | None = None,
         payload_callback: Callable[[dict[str, Any]], None] | None = None,
@@ -66,9 +71,9 @@ class ExecutorConfig:
             end_on_error=end_on_error
             if end_on_error is not None
             else self.end_on_error,
-            broadcast_callback=subscriber
-            if subscriber is not None
-            else self.subscriber,
+            stream_callback=stream_subscriber
+            if stream_subscriber is not None
+            else self.stream_subscriber,
             prompt_injection=prompt_injection
             if prompt_injection is not None
             else self.prompt_injection,

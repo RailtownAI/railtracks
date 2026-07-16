@@ -20,7 +20,7 @@ Configuration parameters follow a specific precedence order, allowing you to ove
 ### Advanced Settings
 
 - **`context`** (`Dict[str, Any]`): Global context variables for execution
-- **`broadcast_callback`** (`Callable`): Callback function for broadcast messages
+- **`stream_callback`** (`Callable | dict[str, Callable]`): Callback (or per-channel dict) for streamed/broadcast items; also enables push-mode token streaming
 - **`prompt_injection`** (`bool`): Automatically inject prompts from context variables
 - **`save_state`** (`bool`): Save execution state to the `.railtracks` data directory (see [Data directory resolution](#data-directory-railtracks) below)
 
@@ -30,7 +30,7 @@ Configuration parameters follow a specific precedence order, allowing you to ove
 # Default configuration values
 timeout = 150.0                   # seconds
 end_on_error = False              # continue on errors
-broadcast_callback = None         # no broadcast callback
+stream_callback = None            # no stream/broadcast callback
 prompt_injection = True           # enable prompt injection
 save_state = True                 # save execution state
 ```
@@ -139,7 +139,7 @@ def debug_callback(message: str):
     print(f"Broadcast: {message}")
 
 with rt.session(
-    broadcast_callback=debug_callback,
+    stream_callback=debug_callback,
 ):
     response = await rt.call(
         my_agent,

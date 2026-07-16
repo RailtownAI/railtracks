@@ -1,7 +1,6 @@
 from typing import Awaitable, Callable
 
 from pydantic import BaseModel
-
 from railtracks.built_nodes._types import LLM_CALL
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.response import Response

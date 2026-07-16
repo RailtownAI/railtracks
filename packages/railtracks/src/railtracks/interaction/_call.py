@@ -17,6 +17,7 @@ from railtracks.context.central import (
     get_parent_id,
     get_publisher,
     get_run_id,
+    get_stream_id,
     is_context_active,
     is_context_present,
 )
@@ -200,6 +201,13 @@ async def _execute(
     # filter for its completion
     request_id = str(uuid4())
 
+    # Streaming is opt-in and frame-local. A regular `rt.call` never streams, with one
+    # exception: a top-level call (no parent frame) made while a `stream_callback` is
+    # configured streams in "push" mode so the callback receives token chunks.
+    stream = (
+        get_parent_id() is None and get_local_config().stream_subscriber is not None
+    )
+
     # note we set the listener before we publish the messages ensure that we do not miss any messages
     # I am actually a bit worried about this logic and I think there is a chance of a bug popping up here.
     f = publisher.listener(message_filter(request_id), output_mapping)
@@ -213,6 +221,8 @@ async def _execute(
             new_node_type=node,
             args=args,
             kwargs=kwargs,
+            stream=stream,
+            current_stream_id=get_stream_id(),
         )
     )
 

@@ -106,7 +106,10 @@ class RequestFailure(RequestFinishedBase):
         )
 
     def log_message(self) -> str:
-        return f"{self.node_state.node.name()} FAILED with error {self.error}"
+        node_name = (
+            self.node_state.node.name() if self.node_state is not None else "<unknown>"
+        )
+        return f"{node_name} FAILED with error {self.error}"
 
 
 class RequestCreationFailure(RequestFinishedBase):
@@ -131,6 +134,20 @@ class RequestCreationFailure(RequestFinishedBase):
 class RequestCreation(RequestCompletionMessage):
     """
     A message that describes the creation of a new request in the system.
+
+    Args:
+        current_node_id: The id of the node creating this request (None for a top level request).
+        current_run_id: The run id of the tree this request belongs to (None for a top level request).
+        new_request_id: The unique identifier of the request being created.
+        running_mode: The execution mode used to run this request.
+        new_node_type: The node type to instantiate for this request.
+        args: The positional arguments to pass to the node.
+        kwargs: The keyword arguments to pass to the node.
+        stream: If True, the created node's frame will have streaming enabled (see `rt.astream`).
+            Note this flag is frame-local: it applies only to the node created by this request,
+            never to its children.
+        current_stream_id: The stream scope id of the *creating* frame. Children inherit this id so
+            their explicit broadcasts can be routed to the consumer attached to the entry frame.
     """
 
     def __init__(
@@ -143,6 +160,8 @@ class RequestCreation(RequestCompletionMessage):
         new_node_type: Type[Node],
         args,
         kwargs,
+        stream: bool = False,
+        current_stream_id: str | None = None,
     ):
         self.current_node_id = current_node_id
         self.current_run_id = current_run_id
@@ -151,6 +170,8 @@ class RequestCreation(RequestCompletionMessage):
         self.new_node_type = new_node_type
         self.args = args
         self.kwargs = kwargs
+        self.stream = stream
+        self.current_stream_id = current_stream_id
 
     def __repr__(self):
         return (
@@ -177,12 +198,73 @@ class FatalFailure(RequestCompletionMessage):
 
 class Streaming(RequestCompletionMessage):
     """
-    A message that indicates a streaming operation in the request completion system.
+    A message carrying a single streamed item (e.g. an LLM token chunk or a user broadcast).
+
+    Args:
+        streamed_object: The item being streamed (typically a `str` chunk).
+        node_id: The id of the node that emitted the item.
+        channel: The named channel this item was emitted on. Consumers (`rt.astream`,
+            `stream_callback`) can filter/route on this name. Defaults to `"default"`.
+        stream_id: The stream scope this item belongs to. This is the request id of the entry
+            frame that was invoked with streaming enabled (see `rt.astream`), or None if the
+            item was broadcast outside any streaming scope.
     """
 
-    def __init__(self, *, streamed_object: Any, node_id: str):
+    def __init__(
+        self,
+        *,
+        streamed_object: Any,
+        node_id: str | None,
+        channel: str = "default",
+        stream_id: str | None = None,
+    ):
         self.streamed_object = streamed_object
         self.node_id = node_id
+        self.channel = channel
+        self.stream_id = stream_id
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(streamed_object={self.streamed_object}, node_id={self.node_id})"
+        return (
+            f"{self.__class__.__name__}(streamed_object={self.streamed_object}, "
+            f"node_id={self.node_id}, channel={self.channel}, stream_id={self.stream_id})"
+        )
+
+
+class StreamEnd(RequestCompletionMessage):
+    """
+    Marks the completion of one `rt.broadcast_stream` production on a channel.
+
+    `broadcast_stream` publishes this exactly once when its source stream is exhausted (or
+    fails), *after* all of its chunks — bus dispatch is FIFO, so a consumer that has seen this
+    marker has already received every chunk of that production. Channel consumers
+    (`rt.context.get_stream`) use these markers to know when the expected number of
+    productions has finished, without needing an external termination signal.
+
+    Note a channel itself never "closes": this marks the end of ONE production; other
+    producers may still write to the same channel.
+
+    Args:
+        channel: The channel the finished production was broadcast on.
+        node_id: The id of the node that ran the production.
+        stream_id: The stream scope the production belonged to (see `Streaming.stream_id`).
+        source_id: A unique id of this particular production (one per `broadcast_stream` call).
+    """
+
+    def __init__(
+        self,
+        *,
+        channel: str,
+        node_id: str | None,
+        stream_id: str | None,
+        source_id: str,
+    ):
+        self.channel = channel
+        self.node_id = node_id
+        self.stream_id = stream_id
+        self.source_id = source_id
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}(channel={self.channel}, node_id={self.node_id}, "
+            f"stream_id={self.stream_id}, source_id={self.source_id})"
+        )

@@ -25,7 +25,7 @@ async def test_simple_streamer():
 
     sub = SubObject()
     with rt.Session(
-        broadcast_callback=sub.handle,
+        stream_callback=sub.handle,
     ):
         finished_result = await rt.call(StreamingRNGNode)
 
@@ -49,7 +49,7 @@ async def test_slow_streamer():
             self.finished_message = item
 
     sub = Sub()
-    with rt.Session(broadcast_callback=sub.handle):
+    with rt.Session(stream_callback=sub.handle):
         finished_result = await rt.call(StreamingRNGNode)
 
     assert isinstance(finished_result, float)
@@ -88,7 +88,7 @@ async def rng_stream_tester(
                 self.total_streams.append(item)
 
     sub = Sub()
-    with rt.Session(broadcast_callback=sub.handle):
+    with rt.Session(stream_callback=sub.handle):
         finished_result = await rt.call(
             RNGTreeStreamer, num_calls, parallel_call_nums, multiplier
         )

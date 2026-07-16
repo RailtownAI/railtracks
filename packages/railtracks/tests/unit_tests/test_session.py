@@ -86,20 +86,20 @@ def test_session_name_is_taken_from_executor_config():
 
 def test_setup_subscriber_adds_subscriber_if_present():
     sub_subscriber = Mock()
-    runner = Session(broadcast_callback=sub_subscriber)
+    runner = Session(stream_callback=sub_subscriber)
     runner.publisher = MagicMock()
-    with patch('railtracks._session.stream_subscriber', return_value="fake_stream_sub") as m_stream:
+    with patch('railtracks._session.stream_chunk_subscriber', return_value="fake_stream_sub") as m_stream:
         runner._setup_subscriber()
         runner.publisher.subscribe.assert_called_once_with(
-            "fake_stream_sub", name="Streaming Subscriber"
+            "fake_stream_sub", name="Stream Callback Subscriber"
         )
         m_stream.assert_called_once_with(sub_subscriber)
 
 def test_setup_subscriber_noop_if_no_subscriber(mock_dependencies):
     runner = Session()
-    runner.executor_config.subscriber = None
+    runner.executor_config.stream_subscriber = None
     runner.publisher = MagicMock()
-    with patch('railtracks._session.stream_subscriber') as m_stream:
+    with patch('railtracks._session.stream_chunk_subscriber') as m_stream:
         runner._setup_subscriber()
         runner.publisher.subscribe.assert_not_called()
         m_stream.assert_not_called()

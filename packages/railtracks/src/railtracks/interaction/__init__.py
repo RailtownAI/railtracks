@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ._astream import Stream, astream
 from ._call import call
 from .batch import call_batch
-from .broadcast_ import broadcast
+from .broadcast_ import broadcast, broadcast_stream
 from .couple import couple
 
 if TYPE_CHECKING:
@@ -13,7 +14,10 @@ if TYPE_CHECKING:
 __all__ = [
     "call",
     "call_batch",
+    "astream",
+    "Stream",
     "broadcast",
+    "broadcast_stream",
     "local_chat",
     "couple",
 ]

@@ -2,11 +2,9 @@ from typing import Any, Callable
 
 from railtracks.built_nodes._node_builder import NodeBuilder
 from railtracks.built_nodes.concrete.guarded_llm import (
-    GuardedStreamingTerminalLLM,
     GuardedTerminalLLM,
 )
 from railtracks.built_nodes.concrete.terminal_llm_base import (
-    StreamingTerminalLLM,
     TerminalLLM,
 )
 from railtracks.guardrails.core import Guard
@@ -47,12 +45,12 @@ def terminal_llm(
     Returns:
         Type[LastMessageTerminalLLM]: The dynamically generated node class with the specified configuration.
     """
-    is_streaming = llm is not None and llm.stream
-
+    # streaming is decided at the call site (rt.astream); the same node class serves both
+    # streaming and buffered invocations.
     if guardrails is not None:
-        base_cls = GuardedStreamingTerminalLLM if is_streaming else GuardedTerminalLLM
+        base_cls = GuardedTerminalLLM
     else:
-        base_cls = StreamingTerminalLLM if is_streaming else TerminalLLM
+        base_cls = TerminalLLM
 
     builder = NodeBuilder(
         base_cls,

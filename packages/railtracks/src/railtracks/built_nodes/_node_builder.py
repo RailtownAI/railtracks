@@ -140,6 +140,7 @@ class NodeBuilder(Generic[_P, _T]):
         | None = None,
         guardrails: Guard | None = None,
         context_injection: bool = True,
+        stream_channel: str = "default",
     ) -> NodeBuilder[[UserInput], StringResponse]: ...
 
     @overload
@@ -160,6 +161,7 @@ class NodeBuilder(Generic[_P, _T]):
         model_middleware: Iterable[ModelMiddleware] | None = None,
         guardrails: Guard | None = None,
         context_injection: bool = True,
+        stream_channel: str = "default",
     ) -> NodeBuilder[[UserInput], StructuredResponse[_TStructured]]: ...
 
     @classmethod
@@ -178,6 +180,7 @@ class NodeBuilder(Generic[_P, _T]):
         model_middleware: Iterable[ModelMiddleware] | None = None,
         guardrails: Guard | None = None,
         context_injection: bool = True,
+        stream_channel: str = "default",
     ) -> NodeBuilder[[UserInput], _R]:
         instance = cls()
         casted_instance = cast(NodeBuilder, instance)
@@ -204,7 +207,9 @@ class NodeBuilder(Generic[_P, _T]):
             unwrapped_model_middleware.append(guardrail_input_middleware(guardrails))
 
         model_invoker = ModelInvoker.create_with_llm_observe(
-            model, middleware=unwrapped_model_middleware
+            model,
+            middleware=unwrapped_model_middleware,
+            stream_channel=stream_channel,
         )
 
         casted_instance._invoke = llm_invoke_factory(

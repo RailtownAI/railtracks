@@ -2,17 +2,69 @@ from __future__ import annotations
 
 import asyncio
 from copy import deepcopy
-from typing import Awaitable, Callable
+from typing import Awaitable, Callable, Generator
 
 from pydantic import BaseModel
 from railtracks.built_nodes._types import ModelSource
-from railtracks.built_nodes.llm.request_details import RequestDetails
 from railtracks.built_nodes.llm.middleware.core import ModelMiddleware
 from railtracks.built_nodes.llm.middleware.wrap_llm import wrap_llm
+from railtracks.built_nodes.llm.request_details import RequestDetails
+from railtracks.context.central import is_streaming_enabled
+from railtracks.exceptions.errors import LLMError
+from railtracks.interaction.broadcast_ import broadcast_stream
 from railtracks.llm.history import MessageHistory
+from railtracks.llm.model import ModelBase
+from railtracks.llm.providers import TOOL_CALLING_STREAMING_BLACKLIST
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
 from railtracks.middleware.chain import MiddlewareChain
+from railtracks.utils.logging import get_rt_logger
+
+logger = get_rt_logger(__name__)
+
+
+def _should_stream(model: ModelBase, tools: list[Tool] | None) -> bool:
+    """
+    Frame-level streaming decision for a single model call.
+
+    Streaming is requested at the call site (`rt.astream` / a configured `stream_callback`)
+    and is frame-local, so this returns True only for the entry frame of a streamed
+    invocation. Tool-calling requests against blacklisted providers fall back to a buffered
+    call (with a warning) instead of erroring.
+    """
+    if not is_streaming_enabled():
+        return False
+    if (
+        tools is not None
+        and len(tools) > 0
+        and model.model_provider() in TOOL_CALLING_STREAMING_BLACKLIST
+    ):
+        logger.warning(
+            "Streaming is not supported with %s for tool calling; falling back to a "
+            "buffered response.",
+            model.model_provider(),
+        )
+        return False
+    return True
+
+
+def _collect_legacy_stream(result: Response | Generator, messages: MessageHistory) -> Response:
+    """
+    Drains the sync generator returned by models constructed with the deprecated
+    `stream=True` flag so buffered invocations still produce a complete `Response`.
+    """
+    if isinstance(result, Generator):
+        final: Response | None = None
+        for item in result:
+            if isinstance(item, Response):
+                final = item
+        if final is None:
+            raise LLMError(
+                reason="The generator did not yield a final Response object",
+                message_history=messages,
+            )
+        return final
+    return result
 
 
 @wrap_llm
@@ -62,19 +114,27 @@ class ModelInvoker:
         self,
         model: ModelSource,
         middleware: list[ModelMiddleware] | None = None,
+        stream_channel: str = "default",
     ):
         self._get_model = model if callable(model) else lambda: model
         self._middleware = MiddlewareChain(middleware or [])
+        # the named channel this invoker's streamed chunks are broadcast on (see rt.broadcast)
+        self._stream_channel = stream_channel
 
     @classmethod
     def create_with_llm_observe(
-        cls, model: ModelSource, middleware: list[ModelMiddleware] | None = None
+        cls,
+        model: ModelSource,
+        middleware: list[ModelMiddleware] | None = None,
+        stream_channel: str = "default",
     ) -> ModelInvoker:
         """
         Creates a new :class:`ModelInvoker` with the given model and middleware, inserting the obersvation middleware as the last element run.
         """
         unwrapped_middleware = deepcopy(middleware) if middleware is not None else []
-        return cls(model, [*unwrapped_middleware, _llm_observe])
+        return cls(
+            model, [*unwrapped_middleware, _llm_observe], stream_channel=stream_channel
+        )
 
     async def invoke(
         self,
@@ -90,16 +150,40 @@ class ModelInvoker:
             schema: type[BaseModel] | None,
             tools: list[Tool] | None,
         ) -> Response:
+            # Streaming path: consume the model stream here, broadcasting each chunk to the
+            # run's consumers (rt.astream / stream_callback), and hand the complete Response
+            # back through the middleware chain — exit middleware (e.g. output guardrails)
+            # operates on the buffered final response.
+            if _should_stream(model, tools):
+                if tools is not None and len(tools) > 0:
+                    model_stream = model.astream_chat_with_tools(messages, tools=tools)
+                elif schema is not None:
+                    model_stream = model.astream_structured(messages, schema=schema)
+                else:
+                    model_stream = model.astream_chat(messages)
+
+                result = await broadcast_stream(
+                    model_stream, channel=self._stream_channel
+                )
+                if not isinstance(result, Response):
+                    raise LLMError(
+                        reason="The model stream did not yield a final Response object.",
+                        message_history=messages,
+                    )
+                return result
+
             if tools is not None and len(tools) > 0:
-                return await asyncio.to_thread(
+                buffered = await asyncio.to_thread(
                     model.chat_with_tools, messages, tools=tools
                 )
             elif schema is not None:
-                return await asyncio.to_thread(
+                buffered = await asyncio.to_thread(
                     model.structured, messages, schema=schema
                 )
             else:
-                return await asyncio.to_thread(model.chat, messages)
+                buffered = await asyncio.to_thread(model.chat, messages)
+
+            return _collect_legacy_stream(buffered, messages)
 
         return await self._middleware.run(_core_llm_call, messages, schema, tools)
 
@@ -113,4 +197,8 @@ class ModelInvoker:
         for m in model_middleware:
             new_middleware_chain.add_middleware(m)
 
-        return ModelInvoker(self._get_model, new_middleware_chain._middleware)
+        return ModelInvoker(
+            self._get_model,
+            new_middleware_chain._middleware,
+            stream_channel=self._stream_channel,
+        )

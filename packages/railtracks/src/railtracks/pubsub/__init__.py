@@ -6,6 +6,7 @@ from .messages import (
     RequestFailure,
     RequestFinishedBase,
     RequestSuccess,
+    StreamEnd,
     Streaming,
 )
 
@@ -20,9 +21,10 @@ __all__ = [
     "Streaming",
     "output_mapping",
     "RTPublisher",
-    "stream_subscriber",
+    "stream_chunk_subscriber",
+    "StreamEnd",
 ]
 
-from ._subscriber import stream_subscriber
+from ._subscriber import stream_chunk_subscriber
 from .publisher import RTPublisher
 from .utils import output_mapping

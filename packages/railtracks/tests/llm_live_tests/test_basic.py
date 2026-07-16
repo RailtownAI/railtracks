@@ -3,7 +3,7 @@ import railtracks as rt
 from pydantic import BaseModel, Field
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
 
-from .llm_map import llm_map
+from .llm_map import llm_map, streaming_llm_map
 
 # Filter out Cohere LLMs for these tests
 llm_map_filtered = {k: v for k, v in llm_map.items() if "cohere" not in k.lower()}
@@ -61,17 +61,32 @@ async def test_terminal_llm(llm):
         response = await rt.call(
             terminal_node, user_input="Please reverse '12345'."
         )
-        final_resp: StringResponse | None = None
-        if llm.stream:
-            for chunk in response:
-                assert isinstance(chunk, (str, StringResponse)), "The response should be either string or the final response"
-                if isinstance(chunk, StringResponse):
-                    final_resp = chunk
-        else:
-            final_resp = response
-        
+        assert isinstance(response, StringResponse)
+        assert '54321' in response.content
 
-        assert final_resp is not None and '54321' in final_resp.content
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("llm", streaming_llm_map.values(), ids=streaming_llm_map.keys())
+async def test_terminal_llm_astream(llm):
+    """Test pull-based streaming (rt.astream) against live providers."""
+
+    terminal_node = rt.agent_node(
+        name="Terminal Node",
+        system_message="You are a helpful assistant reverses the input string.",
+        llm=llm,
+    )
+
+    with rt.Session():
+        stream = rt.astream(terminal_node, user_input="Please reverse '12345'.")
+        accumulated = ""
+        async for chunk in stream:
+            assert isinstance(chunk, str), "astream should only yield str chunks"
+            accumulated += chunk
+
+        final_resp = stream.result
+        assert isinstance(final_resp, StringResponse)
+        assert "54321" in final_resp.content
+        assert "54321" in accumulated
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("llm", llm_map_filtered.values(), ids=llm_map_filtered.keys())
@@ -92,15 +107,7 @@ async def test_structured_llm(llm, test_case):
             user_input=test_case["user_input"]
         )
 
-        final_resp = None
-
-        if llm.stream:
-            for chunk in response:
-                assert isinstance(chunk, (str, StructuredResponse)), "The response should be either string or the final response"
-                if isinstance(chunk, StructuredResponse):
-                    final_resp = chunk
-        else:
-            final_resp = response
+        final_resp = response
 
         # Basic type check
         assert final_resp is not None

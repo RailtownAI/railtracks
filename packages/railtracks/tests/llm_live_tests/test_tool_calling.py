@@ -1,8 +1,6 @@
 import pytest
 from railtracks.built_nodes.concrete.response import StringResponse
-from railtracks.exceptions.errors import NodeCreationError
-from railtracks.llm.providers import ModelProvider
-from .llm_map import llm_map
+from .llm_map import llm_map, streaming_llm_map
 import railtracks as rt
 from pydantic import BaseModel, Field
 from typing import Optional, final
@@ -37,27 +35,49 @@ async def test_function_as_tool(llm):
     )
 
     with rt.Session():
-        if llm.stream and llm.model_provider() != ModelProvider.OPENAI:
-            with pytest.raises(NodeCreationError):
-                response = await rt.call(agent, user_input="First find the magic number for 4. Then use the magic_operator with `x` as the result from magic_number and `y` as 3. Return the result from the magic_operator.")
+        response = await rt.call(agent, user_input="First find the magic number for 4. Then use the magic_operator with `x` as the result from magic_number and `y` as 3. Return the result from the magic_operator.")
 
-            return
-        else:
-            response = await rt.call(agent, user_input="First find the magic number for 4. Then use the magic_operator with `x` as the result from magic_number and `y` as 3. Return the result from the magic_operator.")
-
-        final_resp = None
-        if llm.stream:
-            for chunk in response:
-                assert isinstance(chunk, (str, StringResponse))
-                if isinstance(chunk, StringResponse):
-                    final_resp = chunk
-        else:
-            final_resp = response
+        final_resp = response
 
         assert final_resp is not None
         assert '15' in final_resp.content
         assert rt.context.get("magic_number_called")
         assert rt.context.get("magic_operator_called")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("llm", streaming_llm_map.values(), ids=streaming_llm_map.keys())
+async def test_function_as_tool_astream(llm):
+    """Tool-calling agents streamed via rt.astream: text chunks stream, tools still run.
+
+    Non-OpenAI providers are on the tool-calling streaming blacklist and fall back to a
+    buffered call (no chunks) — the final result must be identical either way.
+    """
+
+    def magic_number(input_num: int):
+        """
+        Args:
+            input_num (int): The input number to test.
+        """
+        rt.context.put("magic_number_called", True)
+        return input_num + 2
+
+    agent = rt.agent_node(
+        tool_nodes={rt.function_node(magic_number)},
+        name="Magic Number Agent",
+        system_message="You are a helpful assistant that can call the tools available to you to answer user queries",
+        llm=llm,
+    )
+
+    with rt.Session():
+        stream = rt.astream(agent, user_input="Find the magic number for 4 and return it.")
+        async for chunk in stream:
+            assert isinstance(chunk, str), "astream should only yield str chunks"
+
+        final_resp = stream.result
+        assert isinstance(final_resp, StringResponse)
+        assert '6' in final_resp.content
+        assert rt.context.get("magic_number_called")
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("llm", llm_map.values(), ids=llm_map.keys())
@@ -100,19 +120,10 @@ async def test_realistic_scenario(llm):
     )
 
     with rt.Session():
-        if llm.stream and llm.model_provider() != ModelProvider.OPENAI:
-            return
-        else:
-            response = await rt.call(
-                agent, rt.llm.MessageHistory([rt.llm.UserMessage(usr_prompt)])
-            )
+        await rt.call(
+            agent, rt.llm.MessageHistory([rt.llm.UserMessage(usr_prompt)])
+        )
         assert rt.context.get("staff_directory_updated")
-
-        if llm.stream:
-            for chunk in response:
-                assert isinstance(chunk, (str, StringResponse))
-                pass
-
 
     assert DB["John"]["role"] == "Senior Manager"
     assert DB["John"]["phone"] == "5555"
@@ -169,22 +180,12 @@ async def test_agents_as_tools(llm):
 
     # Run the parent tool
     with rt.Session(timeout=100):
-        if llm.stream:
-            return
-        
         response = await rt.call(
             parent_tool, user_input="Get me the secret phrase for id `1`."
         )
 
-        final_resp = None
-        if llm.stream:
-            for chunk in response:
-                assert isinstance(chunk, (str, StringResponse))
-                if isinstance(chunk, StringResponse):
-                    final_resp = chunk
-        else:
-            final_resp = response
-            
+        final_resp = response
+
         assert final_resp is not None
         assert rt.context.get("secret_phrase_called")
 

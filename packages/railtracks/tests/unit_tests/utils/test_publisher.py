@@ -3,7 +3,7 @@ import asyncio
 import time
 from railtracks.utils.publisher import Publisher, Subscriber
 
-from railtracks.pubsub._subscriber import stream_subscriber
+from railtracks.pubsub._subscriber import stream_chunk_subscriber
 
 # ================= START Subscriber class tests ============
 
@@ -220,13 +220,13 @@ class TestSubscriberList:
 
         time.sleep(0.1)  # Give some time to process the message
 
-        assert _message is None, "Unsubscribed broadcast_callback should not receive messages."
+        assert _message is None, "Unsubscribed subscriber should not receive messages."
 
 
     @pytest.mark.asyncio
     async def test_bad_unsubscribe(self, started_publisher):
         with pytest.raises(KeyError):
-            # Attempting to unsubscribe a non-existent broadcast_callback should raise KeyError
+            # Attempting to unsubscribe a non-existent callback should raise KeyError
             started_publisher.unsubscribe("nonexistent_id")
 
 
@@ -379,14 +379,14 @@ class TestPublisherException:
         await asyncio.sleep(0.1)
         assert (
             _message == "another message"
-        ), "Callback should still receive messages even if one broadcast_callback throws an exception"
+        ), "Callback should still receive messages even if one subscriber throws an exception"
 
     @pytest.mark.asyncio
-    async def test_stream_subscriber_callback_exception(self, streaming_message):
+    async def test_stream_chunk_subscriber_callback_exception(self, streaming_message):
         def bad(val):
             raise Exception("fail!")  # coverage for error handling
 
-        handler = stream_subscriber(bad)
+        handler = stream_chunk_subscriber(bad)
         with pytest.raises(Exception):
             await handler(streaming_message)
 # ================ END Publisher exception tests ===============
@@ -499,10 +499,10 @@ class TestPublisherSanity:
 
 # ================ END Publisher advanced tests ===============
 
-# ================= START Subscriber (stream_subscriber) tests ============
+# ================= START Subscriber (stream_chunk_subscriber) tests ============
 class TestSubscriberStream:
     @pytest.mark.asyncio
-    async def test_stream_subscriber_handles_streaming_true(
+    async def test_stream_chunk_subscriber_handles_streaming_true(
         self, streaming_message, streamed_object
     ):
         results = []
@@ -510,13 +510,13 @@ class TestSubscriberStream:
         def cb(val):
             results.append(val)
 
-        handler = stream_subscriber(cb)
+        handler = stream_chunk_subscriber(cb)
         await handler(streaming_message)
         assert results == [streamed_object]
 
 
     @pytest.mark.asyncio
-    async def test_stream_subscriber_skips_non_streaming(self):
+    async def test_stream_chunk_subscriber_skips_non_streaming(self):
         class DummyMsg:
             pass
 
@@ -525,13 +525,13 @@ class TestSubscriberStream:
         def cb(val):
             results.append(val)
 
-        handler = stream_subscriber(cb)
+        handler = stream_chunk_subscriber(cb)
         await handler(DummyMsg())
         assert results == []
 
 
     @pytest.mark.asyncio
-    async def test_stream_subscriber_supports_async_callbacks(
+    async def test_stream_chunk_subscriber_supports_async_callbacks(
         self, streaming_message, streamed_object
     ):
         results = []
@@ -539,11 +539,11 @@ class TestSubscriberStream:
         async def cb(val):
             results.append(val)
 
-        handler = stream_subscriber(cb)
+        handler = stream_chunk_subscriber(cb)
         await handler(streaming_message)
         assert results == [streamed_object]
 
-# ================ END Subscriber (stream_subscriber) tests ===============
+# ================ END Subscriber (stream_chunk_subscriber) tests ===============
 
 # ================= START Miscellaneous corner cases ============
 class TestMisc:

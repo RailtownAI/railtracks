@@ -48,14 +48,9 @@ class TestSimpleToolCalling:
                 agent,
                 user_input="What is the secret phrase? Only return the secret phrase, no other text.",
             )
-            collected_response: StringResponse | None = None
-            if stream:
-                for chunk in response:
-                    assert isinstance(chunk, (str, StringResponse))
-                    if isinstance(chunk, StringResponse):
-                        collected_response = chunk
-            else:
-                collected_response = response
+            # streaming is now decided at the call site (rt.astream); the deprecated
+            # stream=True model flag still yields a complete response from rt.call.
+            collected_response: StringResponse | None = response
             assert collected_response is not None
             assert "Constantinople" in collected_response.text
             assert rt.context.get("secret_phrase_called")

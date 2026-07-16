@@ -7,9 +7,6 @@ import railtracks as rt
 from pydantic import BaseModel, Field
 
 from railtracks.built_nodes.concrete import (
-    GuardedStreamingStructuredLLM,
-    GuardedStreamingTerminalLLM,
-    GuardedStreamingToolCallLLM,
     GuardedStructuredLLM,
     GuardedStructuredToolCallLLM,
     GuardedTerminalLLM,
@@ -87,7 +84,6 @@ async def test_terminal_agent_uses_guarded_base_when_guardrails_set(
         guardrails=Guard(input=[allow_input]),
     )
     assert issubclass(Agent, GuardedTerminalLLM)
-    assert not issubclass(Agent, GuardedStreamingTerminalLLM)
 
 
 @pytest.mark.asyncio
@@ -124,6 +120,8 @@ async def test_terminal_input_allow_calls_llm(mock_llm, allow_input):
 @pytest.mark.parametrize("stream", [False, True])
 @pytest.mark.asyncio
 async def test_streaming_terminal_guardrails(mock_llm, allow_input, stream):
+    # streaming is now decided at the call site (rt.astream); a model constructed with the
+    # deprecated stream=True flag maps to the same guarded class and a complete response.
     llm = mock_llm(custom_response="streamed", stream=stream)
     counts = _counting_chat(llm)
     Agent = rt.agent_node(
@@ -131,22 +129,14 @@ async def test_streaming_terminal_guardrails(mock_llm, allow_input, stream):
         llm=llm,
         guardrails=Guard(input=[allow_input]),
     )
-    assert issubclass(Agent, GuardedStreamingTerminalLLM if stream else GuardedTerminalLLM)
+    assert issubclass(Agent, GuardedTerminalLLM)
 
     with rt.Session():
         result = await rt.call(Agent, user_input="hi")
 
     assert counts["n"] == 1
-    if stream:
-        collected: StringResponse | None = None
-        for chunk in result:
-            if isinstance(chunk, StringResponse):
-                collected = chunk
-        assert collected is not None
-        assert "streamed" in collected.text
-    else:
-        assert isinstance(result, StringResponse)
-        assert "streamed" in result.text
+    assert isinstance(result, StringResponse)
+    assert "streamed" in result.text
 
 
 @pytest.mark.asyncio
@@ -217,6 +207,8 @@ async def test_structured_output_block_after_llm(mock_llm, allow_input):
 @pytest.mark.parametrize("stream", [False, True])
 @pytest.mark.asyncio
 async def test_structured_streaming_guardrails(mock_llm, allow_input, stream):
+    # streaming is now decided at the call site (rt.astream); a model constructed with the
+    # deprecated stream=True flag maps to the same guarded class and a complete response.
     llm = mock_llm(custom_response='{"text":"s"}', stream=stream)
     counts = _counting_structured(llm)
     Agent = rt.agent_node(
@@ -225,25 +217,14 @@ async def test_structured_streaming_guardrails(mock_llm, allow_input, stream):
         llm=llm,
         guardrails=Guard(input=[allow_input]),
     )
-    assert issubclass(
-        Agent,
-        GuardedStreamingStructuredLLM if stream else GuardedStructuredLLM,
-    )
+    assert issubclass(Agent, GuardedStructuredLLM)
 
     with rt.Session():
         result = await rt.call(Agent, user_input="hi")
 
     assert counts["n"] == 1
-    if stream:
-        final: StructuredResponse[_Answer] | None = None
-        for chunk in result:
-            if isinstance(chunk, StructuredResponse):
-                final = chunk
-        assert final is not None
-        assert final.structured.text == "s"
-    else:
-        assert isinstance(result, StructuredResponse)
-        assert result.structured.text == "s"
+    assert isinstance(result, StructuredResponse)
+    assert result.structured.text == "s"
 
 
 
@@ -419,7 +400,7 @@ async def test_tool_call_no_guardrails_produces_unguarded_node(mock_llm):
 
 
 # ============================================================
-# StreamingToolCallLLM guardrail tests
+# Tool-call guardrail tests with (deprecated) stream=True models
 # ============================================================
 
 
@@ -434,7 +415,7 @@ async def test_streaming_tool_call_uses_guarded_base(mock_llm, allow_input):
         llm=mock_llm(stream=True),
         guardrails=Guard(input=[allow_input]),
     )
-    assert issubclass(Agent, GuardedStreamingToolCallLLM)
+    assert issubclass(Agent, GuardedToolCallLLM)
 
 
 @pytest.mark.asyncio

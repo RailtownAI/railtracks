@@ -11,19 +11,19 @@ def test_instantiation_with_all_defaults():
     assert config.timeout is None
     assert config.end_on_error is False
     assert config.prompt_injection is True
-    assert config.subscriber is None
+    assert config.stream_subscriber is None
 
 def test_instantiation_with_custom_values(tmp_path):
     test_subscriber = lambda x: x
     config = ExecutorConfig(
         timeout=12.0,
         end_on_error=True,
-        broadcast_callback=test_subscriber,
+        stream_callback=test_subscriber,
         prompt_injection=False
     )
     assert config.timeout == 12.0
     assert config.end_on_error is True
-    assert config.subscriber == test_subscriber
+    assert config.stream_subscriber == test_subscriber
     assert config.prompt_injection is False
 
 # ================ END ExecutorConfig: Instantiation tests ===============
@@ -31,26 +31,26 @@ def test_instantiation_with_custom_values(tmp_path):
 
 
 
-# ================= START ExecutorConfig: broadcast_callback handling tests ============
+# ================= START ExecutorConfig: stream_callback handling tests ============
 
 def test_subscriber_accepts_callable():
-    config = ExecutorConfig(broadcast_callback=lambda s: s)
-    assert callable(config.subscriber)
+    config = ExecutorConfig(stream_callback=lambda s: s)
+    assert callable(config.stream_subscriber)
 
 @pytest.mark.asyncio
 async def test_subscriber_accepts_coroutine_function():
     async def async_sub_fn(text):
         return text
-    config = ExecutorConfig(broadcast_callback=async_sub_fn)
+    config = ExecutorConfig(stream_callback=async_sub_fn)
     # (not invoked/executed here, just type accepted)
-    assert callable(config.subscriber)
-    assert isinstance(config.subscriber, types.FunctionType)
+    assert callable(config.stream_subscriber)
+    assert isinstance(config.stream_subscriber, types.FunctionType)
 
 def test_subscriber_is_none_by_default():
     config = ExecutorConfig()
-    assert config.subscriber is None
+    assert config.stream_subscriber is None
 
-# ================ END ExecutorConfig: broadcast_callback handling tests ===============
+# ================ END ExecutorConfig: stream_callback handling tests ===============
 
 
 # ================= START ExecutorConfig: prompt_injection tests ============
