@@ -29,6 +29,17 @@ class BaseLLMGuardrail(BaseGuardrail[[MessageHistory, type[BaseModel] | None, li
 
     phase: LLMGuardrailPhase
 
+    def __init__(self, name: str | None = None, fail_open: bool = False):
+        """Initialize the guardrail.
+
+        Args:
+            name: Rail name for traces and debugging; defaults to the class name.
+            fail_open: Whether to allow the request to continue when this guard raises an unexpected exception.
+        """
+        super().__init__(name=name)
+        self.fail_open = fail_open
+
+
     @abstractmethod
     def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
         """Evaluate the event and return a decision. Implemented by each concrete guard."""
@@ -109,6 +120,10 @@ class BaseLLMGuardrail(BaseGuardrail[[MessageHistory, type[BaseModel] | None, li
     ):
         """Record exc as a trace and return a stop outcome with a blocking decision."""
         traces.append(self._trace_for_exception(exc=exc))
+
+        if self.fail_open:
+            return ("continue", value)
+        
         block = GuardrailDecision.block(
             reason=f"{reason_prefix}: {self._rail_name()}",
             user_facing_message="Request blocked by guardrails.",
@@ -227,6 +242,9 @@ class BaseLLMGuardrail(BaseGuardrail[[MessageHistory, type[BaseModel] | None, li
                 meta={"action": str(decision.action)},
             )
         )
+
+        if self.fail_open:
+            return ("continue", value, event)
 
         block = GuardrailDecision.block(
             reason=f"Unknown guardrail action from {self._rail_name()}",

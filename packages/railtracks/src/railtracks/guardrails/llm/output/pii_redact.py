@@ -18,6 +18,7 @@ class PIIRedactOutputGuard(OutputGuard):
         config: PIIRedactConfig | None = None,
         *,
         name: str | None = None,
+        fail_open: bool = False,
     ) -> None:
         """Initialize the output PII redactor.
 
@@ -25,8 +26,9 @@ class PIIRedactOutputGuard(OutputGuard):
             config: Which built-in entities and custom patterns to apply; defaults to
                 all built-in entity kinds.
             name: Optional rail name for traces (see :class:`OutputGuard`).
+            fail_open: Whether to allow the request to continue when this guard raises
         """
-        super().__init__(name=name)
+        super().__init__(name=name, fail_open=fail_open)
         self._config = config or PIIRedactConfig()
         self._engine = PIIEngine(self._config)
 

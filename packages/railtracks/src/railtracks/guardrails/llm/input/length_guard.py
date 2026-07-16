@@ -21,10 +21,12 @@ class InputLengthGuard(InputGuard):
         max_chars: Maximum number of characters allowed across all messages in the
             input history.  Defaults to ``4096``.
         name: Optional display name for the guardrail instance.
+        fail_open: Whether to allow the request to continue when this guard raises
+            an unexpected exception.
     """
 
-    def __init__(self, max_chars: int = 4096, name: str | None = None) -> None:
-        super().__init__(name=name)
+    def __init__(self, max_chars: int = 4096, name: str | None = None, fail_open: bool = False) -> None:
+        super().__init__(name=name, fail_open=fail_open)
         if max_chars <= 0:
             raise ValueError(f"max_chars must be a positive integer, got {max_chars!r}")
         self.max_chars = max_chars

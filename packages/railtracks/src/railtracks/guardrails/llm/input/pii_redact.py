@@ -22,6 +22,7 @@ class PIIRedactInputGuard(InputGuard):
         config: PIIRedactConfig | None = None,
         *,
         name: str | None = None,
+        fail_open: bool = False,
     ) -> None:
         """Initialize the input PII redactor.
 
@@ -29,8 +30,9 @@ class PIIRedactInputGuard(InputGuard):
             config: Redaction settings; defaults to all built-in entity kinds and no
                 custom patterns (see :class:`~railtracks.guardrails.llm.PIIRedactConfig`).
             name: Optional rail name for traces (see :class:`InputGuard`).
+            fail_open: Whether to allow the request to continue when this guard raises an unexpected exception.
         """
-        super().__init__(name=name)
+        super().__init__(name=name, fail_open=fail_open)
         self._config = config or PIIRedactConfig()
         self._engine = PIIEngine(self._config)
 
@@ -63,7 +65,7 @@ class PIIRedactInputGuard(InputGuard):
 
         if not all_records:
             return GuardrailDecision.allow(reason="No PII detected in input.")
-        
+
         return GuardrailDecision.transform_messages(
             messages=MessageHistory(new_messages),
             reason=f"Redacted {len(all_records)} PII span(s) from input messages.",
