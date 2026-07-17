@@ -1,29 +1,36 @@
 from __future__ import annotations
 
+import asyncio
 import json
+import threading
 import time
 import warnings
 from abc import ABC
 from json import JSONDecodeError
 from typing import (
     Any,
+    AsyncGenerator,
     Callable,
     Dict,
     Generator,
-    Generic,
     Iterable,
     List,
     Literal,
-    Optional,
     Tuple,
     Type,
     TypeVar,
+    cast,
     overload,
 )
 
 import litellm
 from litellm.litellm_core_utils.streaming_handler import CustomStreamWrapper
-from litellm.types.utils import ModelResponse
+from litellm.types.utils import (
+    ChatCompletionMessageToolCall,
+    Function,
+    ModelResponse,
+    ModelResponseStream,
+)
 from pydantic import BaseModel, Field
 
 from ...exceptions.errors import LLMError, NodeInvocationError
@@ -37,6 +44,11 @@ from ..tools import Tool
 from ..tools.parameters import Parameter
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
+
+# Sentinel marking normal end-of-stream on the sync→async bridge queue (see
+# `_bridge_sync_stream` / `_pump_sync_stream`). A dedicated object avoids colliding with any
+# legitimate streamed value.
+_STREAM_DONE = object()
 
 # Dropped unsupported parameters from the request to the model.
 litellm.drop_params = True
@@ -135,18 +147,15 @@ class StreamedToolCall(BaseModel):
             )
 
 
-_TStream = TypeVar("_TStream", Literal[True], Literal[False])
-
-
-class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
+class LiteLLMWrapper(ModelBase, ABC):
     """
     A large base class that wraps around a litellm model.
 
     Note that the model object should be interacted with via the methods provided in the wrapper class:
     - `chat`
     - `structured`
-    - `stream_chat`
     - `chat_with_tools`
+    - `astream_chat` (and the other `astream_*` per-call streaming methods)
 
     Each individual API should implement the required `abstract_methods` in order to allow users to interact with a
     model of that type.
@@ -155,13 +164,12 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
     def __init__(
         self,
         model_name: str,
-        stream: _TStream = False,
         api_base: str | None = None,
         api_key: str | None = None,
         temperature: float | None = None,
         retry_approach: RetryApproach | None = None,
     ):
-        super().__init__(stream=stream, retry_approach=retry_approach)
+        super().__init__(retry_approach=retry_approach)
         self._model_name = model_name
         self.api_base = api_base
         self.api_key = api_key
@@ -169,36 +177,54 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
 
     @overload
     def _invoke(
-        self: LiteLLMWrapper[Literal[False]],
+        self,
         messages: MessageHistory,
         *,
-        response_format: Optional[Any] = None,
-        tools: Optional[list[Tool]] = None,
-    ) -> Tuple[ModelResponse, float]:
-        pass
+        response_format: Any | None = ...,
+        tools: list[Tool] | None = ...,
+        stream: Literal[True],
+    ) -> Tuple[CustomStreamWrapper, float]: ...
 
     @overload
     def _invoke(
-        self: LiteLLMWrapper[Literal[True]],
+        self,
         messages: MessageHistory,
         *,
-        response_format: Optional[Any] = None,
-        tools: Optional[list[Tool]] = None,
-    ) -> Tuple[CustomStreamWrapper, float]:
-        pass
+        response_format: Any | None = ...,
+        tools: list[Tool] | None = ...,
+        stream: Literal[False] = ...,
+    ) -> Tuple[ModelResponse, float]: ...
 
     def _invoke(
         self,
         messages: MessageHistory,
         *,
-        response_format: Optional[Any] = None,
-        tools: Optional[list[Tool]] = None,
+        response_format: Any | None = None,
+        tools: list[Tool] | None = None,
+        stream: bool = False,
     ) -> Tuple[CustomStreamWrapper | ModelResponse, float]:
         """
         Internal helper that:
           1. Converts MessageHistory
           2. Merges default kwargs
           3. Calls litellm.completion
+
+        This is a *blocking* call. Streaming rides litellm's synchronous
+        `completion(stream=True)` API (bridged onto the event loop by `_bridge_sync_stream`);
+        run it in a worker thread (e.g. `asyncio.to_thread`) from async contexts.
+
+        Args:
+            messages: The message history to send to the model.
+            response_format: An optional response format (e.g. a pydantic schema).
+            tools: The tools to make available to the model, if any.
+            stream: When True, requests a streamed response and returns a `CustomStreamWrapper`;
+                when False (the default), returns a buffered `ModelResponse`.
+
+        Returns:
+            A `(completion, time)` tuple. When `stream=True`, `completion` is a
+            `CustomStreamWrapper` and `time` is the request start time; when `stream=False`,
+            `completion` is a `ModelResponse` and `time` is the completion latency. The
+            overloads narrow the return type from the `stream` literal.
         """
         start_time = time.time()
         litellm_messages = [self._to_litellm_message(m) for m in messages]
@@ -220,11 +246,15 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         if self.temperature is not None:
             merged["temperature"] = self.temperature
 
+        warnings.filterwarnings(
+            "ignore", category=UserWarning, module="pydantic.*"
+        )  # Supress pydantic warnings. See issue #204 for more deatils.
+
         def completion_function():
             return litellm.completion(
                 model=self._model_name,
                 messages=litellm_messages,
-                stream=self.stream,
+                stream=stream,
                 **merged,
             )
 
@@ -239,141 +269,86 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
             completion_time = time.time() - start_time
             return completion, completion_time
 
-    @overload
-    async def _ainvoke(
-        self: LiteLLMWrapper[Literal[False]],
-        messages: MessageHistory,
-        *,
-        response_format: Any | None = None,
-        tools: Optional[list[Tool]] = None,
-    ) -> Tuple[ModelResponse, float]:
-        pass
-
-    @overload
-    async def _ainvoke(
-        self: LiteLLMWrapper[Literal[True]],
-        messages: MessageHistory,
-        *,
-        response_format: Any | None = None,
-        tools: Optional[list[Tool]] = None,
-    ) -> Tuple[CustomStreamWrapper, float]:
-        pass
-
-    async def _ainvoke(
-        self,
-        messages: MessageHistory,
-        *,
-        response_format: Optional[Any] = None,
-        tools: Optional[list[Tool]] = None,
-    ) -> Tuple[CustomStreamWrapper | ModelResponse, float]:
-        """
-        Internal helper that:
-          1. Converts MessageHistory
-          2. Merges default kwargs
-          3. Calls litellm.completion
-        """
-        start_time = time.time()
-        litellm_messages = [self._to_litellm_message(m) for m in messages]
-        merged = {}
-        if response_format is not None:
-            merged["response_format"] = response_format
-        if tools is not None:
-            litellm_tools = [_to_litellm_tool(t) for t in tools]
-            merged["tools"] = litellm_tools
-        if self.api_base is not None:
-            merged["api_base"] = self.api_base
-        if self.api_key is not None:
-            merged["api_key"] = self.api_key
-        if self.temperature is not None:
-            merged["temperature"] = self.temperature
-        warnings.filterwarnings(
-            "ignore", category=UserWarning, module="pydantic.*"
-        )  # Supress pydantic warnings. See issue #204 for more deatils.
-
-        def completion_function():
-            return litellm.acompletion(
-                model=self._model_name,
-                messages=litellm_messages,
-                stream=self.stream,
-                **merged,
-            )
-
-        if self.retry_approach is not None:
-            completion = await self.retry_approach.acall_with_retry(completion_function)
-        else:
-            completion = await completion_function()
-
-        if isinstance(completion, CustomStreamWrapper):
-            return completion, start_time
-        else:
-            completion_time = time.time() - start_time
-            return completion, completion_time
-
     # ================ START Streaming Handlers ===============
-    async def _astream_handler_base(
+    async def _bridge_sync_stream(
         self,
-        raw: CustomStreamWrapper,
-        start_time: float,
-        output_schema: Type[BaseModel] | None = None,
-    ):
+        make_stream: Callable[[], Generator[str | Response, None, Response]],
+    ) -> AsyncGenerator[str | Response, None]:
         """
-        Add handler to the streamed response so that we preoperly construct the response object at the end of the stream.
+        Run a *blocking* sync stream on a dedicated worker thread and surface its items as an
+        async generator, without blocking the event loop.
+
+        litellm's synchronous `completion(stream=True)` is better maintained than its async
+        counterpart (the async path is prone to leaking noisy logs/warnings), so railtracks
+        streams on the sync API and bridges the blocking iterator here. A single worker thread
+        owns the underlying network stream for its whole lifetime — it is created, iterated,
+        and closed on that one thread, so the stream object is never touched from more than one
+        thread — while items are handed to the event loop through a thread-safe queue.
+
+        Args:
+            make_stream: A zero-arg factory (run *on the worker thread*) that opens the request
+                and returns the sync `_stream_handler_base` generator of `str` chunks followed
+                by a final `Response`.
+
+        Yields:
+            str | Response: `str` chunks as they arrive, then the terminal `Response`.
         """
-        tools: List[ToolCall] = []
-        accumulated_content = ""
-        structured_response: BaseModel | None = None
-        # fall back on empty message info if we don't get one from the stream.
-        message_info = MessageInfo()
-        active_tool_calls: Dict[int, StreamedToolCall] = {}
-        stream_finished = False
+        loop = asyncio.get_running_loop()
+        queue: asyncio.Queue[Any] = asyncio.Queue()
+        stop = threading.Event()
 
-        async for chunk in raw.completion_stream:
-            if stream_finished:
-                # the last chunk will contain the full message info
-                message_info = self.extract_message_info(
-                    chunk, time.time() - start_time
-                )
-
-                if output_schema is not None:
-                    structured_response = output_schema(
-                        **json.loads(accumulated_content)
-                    )
-                break
-
-            choice = chunk.choices[0]
-
-            if self._is_stream_finished(choice):
-                stream_finished = True
-                tools = self._finalize_remaining_tool_calls(active_tool_calls)
-                continue
-
-            if choice.delta.tool_calls:
-                # TODO: determine if it would be useful to stream tools
-                self._handle_tool_call_delta(
-                    choice.delta.tool_calls[0], active_tool_calls
-                )
-
-            elif choice.delta.content:
-                content = self._handle_content_delta(choice.delta.content)
-                accumulated_content += content
-                yield content
-
-        if structured_response is not None:
-            r = Response(
-                message=AssistantMessage(content=structured_response),
-                message_info=message_info,
+        worker = asyncio.ensure_future(
+            asyncio.to_thread(
+                self._pump_sync_stream, make_stream, loop, queue, stop
             )
-        elif len(tools) > 0:
-            r = Response(
-                message=AssistantMessage(content=tools), message_info=message_info
-            )
+        )
+        try:
+            while True:
+                item = await queue.get()
+                if item is _STREAM_DONE:
+                    break
+                if isinstance(item, BaseException):
+                    raise item
+                yield cast("str | Response", item)
+        finally:
+            # On early break, signal the worker to stop; it observes `stop` at the next chunk
+            # boundary, closes the stream on its own thread, and exits. Retrieve its result so
+            # a late failure isn't reported as "exception never retrieved".
+            stop.set()
+            if worker.done():
+                worker.exception()
+            else:
+                worker.add_done_callback(lambda t: t.exception())
+
+    @staticmethod
+    def _pump_sync_stream(
+        make_stream: Callable[[], Generator[str | Response, None, Response]],
+        loop: asyncio.AbstractEventLoop,
+        queue: asyncio.Queue[Any],
+        stop: threading.Event,
+    ) -> None:
+        """Worker-thread half of `_bridge_sync_stream`.
+
+        Opens, iterates, and closes the blocking stream entirely on the calling thread (so the
+        network stream object is never touched from more than one thread), marshaling each item
+        — or a terminal `_STREAM_DONE` / exception — back to the loop thread via `queue`.
+        """
+        try:
+            gen = make_stream()
+        except BaseException as exc:  # noqa: BLE001 - marshaled to the consumer
+            loop.call_soon_threadsafe(queue.put_nowait, exc)
+            return
+        try:
+            for item in gen:
+                loop.call_soon_threadsafe(queue.put_nowait, item)
+                if stop.is_set():
+                    break
+        except BaseException as exc:  # noqa: BLE001 - marshaled to the consumer
+            loop.call_soon_threadsafe(queue.put_nowait, exc)
         else:
-            r = Response(
-                message=AssistantMessage(content=accumulated_content),
-                message_info=message_info,
-            )
-
-        yield r
+            loop.call_soon_threadsafe(queue.put_nowait, _STREAM_DONE)
+        finally:
+            gen.close()
 
     def _stream_handler_base(
         self,
@@ -466,10 +441,6 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
 
         return r
 
-    async def _aconsume_stream(self, raw: CustomStreamWrapper, start_time: float):
-        """Consume the entire async stream and extract chunks, content, and metadata."""
-        return self._stream_handler_base(raw, start_time)
-
     def _is_stream_finished(self, choice) -> bool:
         """Check if the stream has finished."""
         return choice.finish_reason in ("stop", "tool_calls")
@@ -531,6 +502,48 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
 
     # ================ END Streaming Handlers ===============
 
+    # ================ START Per-call Streaming LLM calls ===============
+    # These implement the ModelBase._astream_* extension points. Each one forces a streamed
+    # request (regardless of the deprecated constructor-level stream flag) and returns an async
+    # generator yielding `str` chunks followed by a single final `Response`. They ride litellm's
+    # synchronous `completion(stream=True)` API, bridged onto the event loop by
+    # `_bridge_sync_stream` (a dedicated worker thread), so the loop never blocks.
+
+    async def _astream_chat(self, messages: MessageHistory):
+        def _open() -> Generator[str | Response, None, Response]:
+            raw, start_time = self._invoke(messages, stream=True)
+            assert isinstance(raw, CustomStreamWrapper)
+            return self._stream_handler_base(raw, start_time)
+
+        async for item in self._bridge_sync_stream(_open):
+            yield item
+
+    async def _astream_chat_with_tools(
+        self, messages: MessageHistory, tools: List[Tool]
+    ):
+        def _open() -> Generator[str | Response, None, Response]:
+            raw, start_time = self._invoke(messages, tools=tools, stream=True)
+            assert isinstance(raw, CustomStreamWrapper)
+            return self._stream_handler_base(raw, start_time)
+
+        async for item in self._bridge_sync_stream(_open):
+            yield item
+
+    async def _astream_structured(
+        self, messages: MessageHistory, schema: Type[BaseModel]
+    ):
+        def _open() -> Generator[str | Response, None, Response]:
+            raw, start_time = self._invoke(
+                messages, response_format=schema, stream=True
+            )
+            assert isinstance(raw, CustomStreamWrapper)
+            return self._stream_handler_base(raw, start_time, schema)
+
+        async for item in self._bridge_sync_stream(_open):
+            yield item
+
+    # ================ END Per-call Streaming LLM calls ===============
+
     # ================ START Base Handlers ==================
 
     def _chat_handle_base(self, raw: ModelResponse, info: MessageInfo):
@@ -556,16 +569,18 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         choice = raw.choices[0]
 
         if choice.finish_reason == "stop" and not choice.message.tool_calls:
+            # litellm types content as str | None, but a plain "stop" completion always
+            # carries (possibly empty) text content.
             return Response(
-                message=AssistantMessage(content=choice.message.content),
+                message=AssistantMessage(content=cast(str, choice.message.content)),
                 message_info=info,
             )
 
         calls: List[ToolCall] = []
-        for tc in choice.message.tool_calls:
+        for tc in choice.message.tool_calls or []:
             args = json.loads(tc.function.arguments)
             calls.append(
-                ToolCall(identifier=tc.id, name=tc.function.name, arguments=args)
+                ToolCall(identifier=tc.id, name=tc.function.name or "", arguments=args)
             )
 
         assistant_msg = AssistantMessage(content=calls)
@@ -579,31 +594,22 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
 
     # ================ START Sync LLM calls ===============
 
-    def _chat(self, messages: MessageHistory):
+    def _chat(self, messages: MessageHistory) -> Response:
         response, time = self._invoke(messages=messages)
-        if isinstance(response, CustomStreamWrapper):
-            return self._stream_handler_base(response, time)
+        return self._chat_handle_base(
+            response, self.extract_message_info(response, time)
+        )
 
-        elif isinstance(response, ModelResponse):
-            return self._chat_handle_base(
-                response, self.extract_message_info(response, time)
-            )
-        else:
-            raise ValueError("Unexpected response type")
-
-    def _structured(self, messages: MessageHistory, schema: Type[BaseModel]):
+    def _structured(
+        self, messages: MessageHistory, schema: Type[BaseModel]
+    ) -> Response:
         try:
             model_resp, time = self._invoke(messages, response_format=schema)
-            if isinstance(model_resp, CustomStreamWrapper):
-                return self._stream_handler_base(model_resp, time, schema)
-            elif isinstance(model_resp, ModelResponse):
-                return self._structured_handle_base(
-                    model_resp,
-                    self.extract_message_info(model_resp, time),
-                    schema,
-                )
-            else:
-                raise ValueError("Unexpected response type")
+            return self._structured_handle_base(
+                model_resp,
+                self.extract_message_info(model_resp, time),
+                schema,
+            )
         except JSONDecodeError as jde:
             raise jde
         except Exception as e:
@@ -612,73 +618,44 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
                 message_history=messages,
             ) from e
 
-    def _chat_with_tools(self, messages: MessageHistory, tools: List[Tool]):
+    def _chat_with_tools(
+        self, messages: MessageHistory, tools: List[Tool]
+    ) -> Response:
         """
         Chat with the model using tools.
 
         Args:
             messages: The message history to use as context
             tools: The tools to make available to the model
-            **kwargs: Additional arguments to pass to litellm.completion
 
         Returns:
             A Response containing either plain assistant text or ToolCall(s).
         """
         resp, time = self._invoke(messages, tools=tools)
-        if isinstance(resp, CustomStreamWrapper):
-            return self._stream_handler_base(resp, time)
-        elif isinstance(resp, ModelResponse):
-            return self._chat_with_tools_handler_base(
-                resp, self.extract_message_info(resp, time)
-            )
-        else:
-            raise ValueError("Unexpected response type")
+        return self._chat_with_tools_handler_base(
+            resp, self.extract_message_info(resp, time)
+        )
 
     # ================ END Sync LLM calls ===============
 
     # ================ START Async LLM calls ===============
-    async def _achat(self, messages: MessageHistory):
-        response, time = await self._ainvoke(messages=messages)
-        if isinstance(response, CustomStreamWrapper):
-            return self._astream_handler_base(response, time)
-        elif isinstance(response, ModelResponse):
-            return self._chat_handle_base(
-                response, self.extract_message_info(response, time)
-            )
-        else:
-            raise ValueError("Unexpected response type")
+    # litellm's async API (`acompletion`) is intentionally not used: its sync counterpart is
+    # better maintained and does not leak the noisy logs/warnings the async path is prone to.
+    # The async surface is preserved by running the blocking sync calls on a worker thread
+    # (`asyncio.to_thread`), exactly as the framework's buffered node path already does.
 
-    async def _astructured(self, messages: MessageHistory, schema: Type[BaseModel]):
-        try:
-            model_resp, time = await self._ainvoke(messages, response_format=schema)
-            if isinstance(model_resp, CustomStreamWrapper):
-                return self._astream_handler_base(model_resp, time, schema)
-            elif isinstance(model_resp, ModelResponse):
-                return self._structured_handle_base(
-                    model_resp,
-                    self.extract_message_info(model_resp, time),
-                    schema,
-                )
-            else:
-                raise ValueError("Unexpected response type")
-        except JSONDecodeError as jde:
-            raise jde
-        except Exception as e:
-            raise LLMError(
-                reason="Structured LLM call failed",
-                message_history=messages,
-            ) from e
+    async def _achat(self, messages: MessageHistory) -> Response:
+        return await asyncio.to_thread(self._chat, messages)
 
-    async def _achat_with_tools(self, messages: MessageHistory, tools: List[Tool]):
-        resp, time = await self._ainvoke(messages, tools=tools)
-        if isinstance(resp, CustomStreamWrapper):
-            return self._astream_handler_base(resp, time)
-        elif isinstance(resp, ModelResponse):
-            return self._chat_with_tools_handler_base(
-                resp, self.extract_message_info(resp, time)
-            )
-        else:
-            raise ValueError("Unexpected response type")
+    async def _astructured(
+        self, messages: MessageHistory, schema: Type[BaseModel]
+    ) -> Response:
+        return await asyncio.to_thread(self._structured, messages, schema)
+
+    async def _achat_with_tools(
+        self, messages: MessageHistory, tools: List[Tool]
+    ) -> Response:
+        return await asyncio.to_thread(self._chat_with_tools, messages, tools)
 
     # ================ END Async LLM calls ===============
 
@@ -729,8 +706,8 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
             assert all(isinstance(t_c, ToolCall) for t_c in msg.content)
             base["content"] = ""
             base["tool_calls"] = [
-                litellm.utils.ChatCompletionMessageToolCall(
-                    function=litellm.utils.Function(
+                ChatCompletionMessageToolCall(
+                    function=Function(
                         arguments=tool_call.arguments, name=tool_call.name
                     ),
                     id=tool_call.identifier,
@@ -767,7 +744,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
 
     @classmethod
     def extract_message_info(
-        cls, model_response: ModelResponse, latency: float
+        cls, model_response: ModelResponse | ModelResponseStream, latency: float
     ) -> MessageInfo:
         """
         Create a Response object from a ModelResponse.
@@ -779,16 +756,15 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         Returns:
             MessageInfo: An object containing the details about the message info.
         """
-        input_tokens = _return_none_on_error(lambda: model_response.usage.prompt_tokens)
-        output_tokens = _return_none_on_error(
-            lambda: model_response.usage.completion_tokens
-        )
-        model_name = _return_none_on_error(lambda: model_response.model)
-        system_fingerprint = _return_none_on_error(
-            lambda: model_response.system_fingerprint
-        )
+        # litellm does not statically type these attributes (usage/_hidden_params are set
+        # dynamically), so we go through Any; _return_none_on_error absorbs absent fields.
+        raw: Any = model_response
+        input_tokens = _return_none_on_error(lambda: raw.usage.prompt_tokens)
+        output_tokens = _return_none_on_error(lambda: raw.usage.completion_tokens)
+        model_name = _return_none_on_error(lambda: raw.model)
+        system_fingerprint = _return_none_on_error(lambda: raw.system_fingerprint)
         total_cost = _return_none_on_error(
-            lambda: model_response._hidden_params["response_cost"]
+            lambda: raw._hidden_params["response_cost"]
         )
 
         return MessageInfo(

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Generic, List, Literal, TypeVar
+from typing import List
 
 import litellm
 from litellm.litellm_core_utils.get_llm_provider_logic import get_llm_provider
@@ -12,14 +12,11 @@ from ...tools import Tool
 from .._litellm_wrapper import LiteLLMWrapper
 from .._model_exception_base import FunctionCallingNotSupportedError, ModelNotFoundError
 
-_TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
-
-class ProviderLLMWrapper(LiteLLMWrapper[_TStream], ABC, Generic[_TStream]):
+class ProviderLLMWrapper(LiteLLMWrapper, ABC):
     def __init__(
         self,
         model_name: str,
-        stream: _TStream = False,
         api_base: str | None = None,
         api_key: str | None = None,
         temperature: float | None = None,
@@ -28,7 +25,6 @@ class ProviderLLMWrapper(LiteLLMWrapper[_TStream], ABC, Generic[_TStream]):
         model_name = self._pre_init_provider_check(model_name)
         super().__init__(
             model_name=self.full_model_name(model_name),
-            stream=stream,
             api_base=api_base,
             api_key=api_key,
             temperature=temperature,
@@ -81,7 +77,7 @@ class ProviderLLMWrapper(LiteLLMWrapper[_TStream], ABC, Generic[_TStream]):
             raise FunctionCallingNotSupportedError(self._model_name)
 
     def _chat_with_tools(
-        self, messages: MessageHistory, tools: List[Tool], **kwargs: Any
+        self, messages: MessageHistory, tools: List[Tool]
     ) -> Response:
         self._validate_tool_calling_support()
-        return super()._chat_with_tools(messages, tools, **kwargs)
+        return super()._chat_with_tools(messages, tools)

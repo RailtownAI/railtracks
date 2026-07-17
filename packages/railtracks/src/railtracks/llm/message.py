@@ -4,7 +4,7 @@ import logging
 import os
 from copy import deepcopy
 from enum import Enum
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 from .content import Content, ToolCall, ToolResponse
 from .encoding import detect_source, encode, ensure_data_uri
@@ -242,7 +242,7 @@ class AssistantMessage(Message[_T, Role.assistant], Generic[_T]):
         # Optionally stores the raw litellm message object so providers that
         # attach extra metadata (e.g. Gemini thought_signature) can round-trip
         # it back without any manual reconstruction.
-        self.raw_litellm_message = None
+        self.raw_litellm_message: Any | None = None
 
 
 # TODO further constrict the possible return type of a ToolMessage.
