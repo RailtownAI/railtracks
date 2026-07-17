@@ -1,6 +1,6 @@
 from unittest import mock
 import pytest
-from railtracks.built_nodes.easy_usage_wrappers.agent import agent_node
+from railtracks.built_nodes.llm.node import agent_node
 from railtracks import ToolManifest
 from railtracks.llm import Parameter
 from railtracks.built_nodes.concrete import LLMBase

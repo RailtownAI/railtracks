@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
 
 from railtracks import interactive
 from railtracks.built_nodes.concrete._llm_base import LLMBase
-from railtracks.built_nodes.concrete.response import LLMResponse
+from railtracks.built_nodes.llm.response import LLMResponse
 from railtracks.human_in_the_loop import ChatUI, HILMessage
 from railtracks.human_in_the_loop.local_chat_ui import UIUserMessage, UserMessageAttachment
 from railtracks.interaction.interactive import _process_attachment

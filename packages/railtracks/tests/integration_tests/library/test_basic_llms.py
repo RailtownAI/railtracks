@@ -3,7 +3,7 @@ import railtracks as rt
 from typing import Generator
 import json
 
-from railtracks.built_nodes.concrete.response import LLMResponse, StringResponse, StructuredResponse
+from railtracks.built_nodes.llm.response import LLMResponse, StringResponse, StructuredResponse
 from railtracks.llm.message import Role
 
 

@@ -5,7 +5,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.tools import Tool as MCPTool
 from mcp.server.fastmcp.utilities.func_metadata import func_metadata
 
-from railtracks.built_nodes.concrete import (
+from railtracks.built_nodes.function.base import (
     RTFunction,
 )
 

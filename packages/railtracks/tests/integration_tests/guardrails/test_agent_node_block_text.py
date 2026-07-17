@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 import railtracks as rt
 
-from railtracks.built_nodes.concrete.response import StringResponse
+from railtracks.built_nodes.llm.response import StringResponse
 from railtracks.guardrails import GuardrailBlockedError
 from railtracks.guardrails.llm import BlockTextInputGuard, BlockTextOutputGuard
 

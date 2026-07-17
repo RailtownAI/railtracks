@@ -1,7 +1,7 @@
 import pytest 
 import railtracks as rt
 from pydantic import BaseModel, Field
-from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
+from railtracks.built_nodes.llm.response import StringResponse, StructuredResponse
 
 from .llm_map import llm_map
 

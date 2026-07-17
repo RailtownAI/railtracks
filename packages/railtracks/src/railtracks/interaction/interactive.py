@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Literal, Type, TypeVar
 
-from railtracks.built_nodes.concrete.response import LLMResponse
+from railtracks.built_nodes.llm.response import LLMResponse
 
 from ..built_nodes.concrete._llm_base import LLMBase
 from ..human_in_the_loop import HILMessage

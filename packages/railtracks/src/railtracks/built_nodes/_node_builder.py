@@ -19,7 +19,7 @@ from typing import (
 
 from pydantic import BaseModel
 
-from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
+from railtracks.built_nodes.llm.response import StringResponse, StructuredResponse
 from railtracks.built_nodes.llm.llm_helpers import (
     llm_invoke_factory,
     llm_prepare_called_as_tool_factory,
@@ -31,7 +31,7 @@ from railtracks.llm import (
     Tool,
 )
 from railtracks.llm.history import MessageHistory
-from railtracks.llm.message import Message
+from railtracks.llm.message import Message, UserMessage
 from railtracks.llm.response import Response
 from railtracks.llm.type_mapping import TypeMapper
 from railtracks.middleware.core import Middleware
@@ -61,7 +61,7 @@ _T2 = TypeVar("_T2")
 _R = TypeVar("_R", bound=StringResponse | StructuredResponse)
 _TStructured = TypeVar("_TStructured", bound=BaseModel)
 
-UserInput = Union[str, MessageHistory, list[Message]]
+UserInput = Union[str, MessageHistory, list[Message], UserMessage]
 
 
 def unpack(item: _T | None, /) -> _T:
