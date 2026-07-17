@@ -5,8 +5,6 @@ exercised only indirectly through the now-deleted GuardRunner.
 
 from __future__ import annotations
 
-import pytest
-
 from railtracks.guardrails.core import (
     GuardrailAction,
     GuardrailDecision,
