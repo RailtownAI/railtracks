@@ -59,7 +59,6 @@ from . import (
     integrations,
     llm,
     observability,
-    observability_bridge,
     prebuilt,
 )
 from ._session import ExecutionInfo, Session, session

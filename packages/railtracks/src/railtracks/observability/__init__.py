@@ -2,6 +2,7 @@
 plus a process-wide default Observer.
 """
 
+from .configure import configure_writers
 from .models import (
     SCOPE_EVALUATION,
     SCOPE_RETRIEVAL,
@@ -10,7 +11,6 @@ from .models import (
     Timestamp,
 )
 from .observer import Observer, QueuePolicy
-from .configure import configure_writers
 from .publish import publish_event
 from .writers import JsonlWriter, Writer
 
