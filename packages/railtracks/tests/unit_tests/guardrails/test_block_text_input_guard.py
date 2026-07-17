@@ -3,12 +3,11 @@ from __future__ import annotations
 import re
 
 import pytest
-
 from railtracks.guardrails.core.decision import GuardrailAction
 from railtracks.guardrails.core.event import LLMGuardrailEvent, LLMGuardrailPhase
 from railtracks.guardrails.llm import BlockTextInputGuard
 from railtracks.llm import MessageHistory
-from railtracks.llm.message import AssistantMessage, Role, SystemMessage, UserMessage
+from railtracks.llm.message import AssistantMessage, SystemMessage, UserMessage
 
 
 def _make_input_event(messages: MessageHistory) -> LLMGuardrailEvent:
