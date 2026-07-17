@@ -3,11 +3,11 @@ from typing import Iterable, Literal, Type, TypeVar, overload
 from pydantic import BaseModel
 
 from railtracks.built_nodes._types import ModelSource
-from railtracks.built_nodes.concrete import (
+from railtracks.built_nodes.function.base import (
     RTFunction,
 )
-from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
 from railtracks.built_nodes.llm.middleware.core import ModelMiddleware
+from railtracks.built_nodes.llm.response import StringResponse, StructuredResponse
 from railtracks.llm.message import SystemMessage
 from railtracks.llm.tools.parameters._base import Parameter
 from railtracks.middleware.core import Middleware
@@ -15,7 +15,7 @@ from railtracks.nodes.manifest import ToolManifest
 from railtracks.nodes.nodes import Node
 from railtracks.nodes.utils import extract_node_from_function
 
-from .._node_builder import NodeBuilder, UserInput
+from .node_builder import LLMNodeBuilder, UserInput
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 _TStream = TypeVar("_TStream", Literal[True], Literal[False])
@@ -57,7 +57,7 @@ def _build_dynamic_agent(
     )
 
     if output_schema is None:
-        nb = NodeBuilder.llm(
+        nb = LLMNodeBuilder.llm(
             name=name if name is not None else "LLM Agent",
             model=llm,
             system_message=resolved_system,
@@ -69,7 +69,7 @@ def _build_dynamic_agent(
             context_injection=context_injection,
         )
     else:
-        nb = NodeBuilder.llm(
+        nb = LLMNodeBuilder.llm(
             name=name if name is not None else "LLM Agent",
             model=llm,
             system_message=resolved_system,

@@ -6,11 +6,12 @@ from pydantic import BaseModel
 from unittest.mock import MagicMock
 
 from railtracks.built_nodes._node_builder import (
-    NodeBuilder,
     classmethod_preserving_function_meta,
     safe_create_node,
 )
+from railtracks.built_nodes.function.node_builder import FunctionNodeBuilder
 from railtracks.built_nodes.llm.middleware import after_llm
+from railtracks.built_nodes.llm.node_builder import LLMNodeBuilder
 from railtracks.exceptions.errors import NodeCreationError
 from railtracks.guardrails.core import GuardrailDecision, InputGuard, OutputGuard
 from railtracks.llm import Message, MessageHistory, Parameter, SystemMessage
@@ -32,34 +33,34 @@ async def async_func(x: int) -> int:
     return x
 
 
-# --- NodeBuilder.llm ---
+# --- LLMNodeBuilder.llm ---
 
 def test_nodebuilder_llm_basic_build():
-    node_cls = NodeBuilder.llm("TestNode", model=dummy_model()).build()
+    node_cls = LLMNodeBuilder.llm("TestNode", model=dummy_model()).build()
     assert issubclass(node_cls, Node)
     assert node_cls.name() == "TestNode"
     assert node_cls.type() == "Agent"
 
 
 def test_nodebuilder_llm_default_class_name():
-    node_cls = NodeBuilder.llm("MyLLM", model=dummy_model()).build()
+    node_cls = LLMNodeBuilder.llm("MyLLM", model=dummy_model()).build()
     assert node_cls.__name__ == "MyLLMNode"
 
 
 def test_nodebuilder_llm_custom_class_name():
-    node_cls = NodeBuilder.llm("MyLLM", class_name="Custom", model=dummy_model()).build()
+    node_cls = LLMNodeBuilder.llm("MyLLM", class_name="Custom", model=dummy_model()).build()
     assert node_cls.__name__ == "CustomNode"
 
 
 def test_nodebuilder_llm_has_invoke():
-    node_cls = NodeBuilder.llm("TestNode", model=dummy_model()).build()
+    node_cls = LLMNodeBuilder.llm("TestNode", model=dummy_model()).build()
     assert hasattr(node_cls, "invoke")
 
 
 
 def test_nodebuilder_llm_with_tool_details_has_tool_info():
     params = [Parameter(name="x", description="Input", param_type="integer")]
-    node_cls = NodeBuilder.llm(
+    node_cls = LLMNodeBuilder.llm(
         "TestNode",
         model=dummy_model(),
         tool_details="Does something",
@@ -73,7 +74,7 @@ def test_nodebuilder_llm_with_tool_details_has_tool_info():
 
 def test_nodebuilder_llm_with_tool_details_has_prepare_args():
     params = [Parameter(name="x", description="Input", param_type="integer")]
-    node_cls = NodeBuilder.llm(
+    node_cls = LLMNodeBuilder.llm(
         "TestNode",
         model=dummy_model(),
         tool_details="Does something",
@@ -83,7 +84,7 @@ def test_nodebuilder_llm_with_tool_details_has_prepare_args():
 
 
 def test_nodebuilder_llm_with_system_message_string():
-    node_cls = NodeBuilder.llm(
+    node_cls = LLMNodeBuilder.llm(
         "TestNode",
         model=dummy_model(),
         system_message=SystemMessage(content="sysmsg"),
@@ -92,7 +93,7 @@ def test_nodebuilder_llm_with_system_message_string():
 
 
 def test_nodebuilder_llm_with_schema():
-    node_cls = NodeBuilder.llm(
+    node_cls = LLMNodeBuilder.llm(
         "TestNode",
         model=dummy_model(),
         schema=Schema,
@@ -106,7 +107,7 @@ def test_nodebuilder_llm_duplicate_param_names_error():
         Parameter(name="x", param_type="integer", description="desc"),
     ]
     with pytest.raises(NodeCreationError):
-        NodeBuilder.llm(
+        LLMNodeBuilder.llm(
             "TestNode",
             model=dummy_model(),
             tool_details="details",
@@ -117,35 +118,35 @@ def test_nodebuilder_llm_duplicate_param_names_error():
 # --- NodeBuilder.function ---
 
 def test_nodebuilder_function_basic_build():
-    node_cls = NodeBuilder.function(async_func).build()
+    node_cls = FunctionNodeBuilder.function(async_func).build()
     assert issubclass(node_cls, Node)
     assert node_cls.name() == "async_func"
     assert node_cls.type() == "Tool"
 
 
 def test_nodebuilder_function_default_class_name():
-    node_cls = NodeBuilder.function(async_func).build()
+    node_cls = FunctionNodeBuilder.function(async_func).build()
     assert node_cls.__name__ == "Async_funcNode"
 
 
 def test_nodebuilder_function_custom_name():
-    node_cls = NodeBuilder.function(async_func, name="MyFunc").build()
+    node_cls = FunctionNodeBuilder.function(async_func, name="MyFunc").build()
     assert node_cls.name() == "MyFunc"
 
 
 def test_nodebuilder_function_custom_class_name():
-    node_cls = NodeBuilder.function(async_func, class_name="MyClass").build()
+    node_cls = FunctionNodeBuilder.function(async_func, class_name="MyClass").build()
     assert node_cls.__name__ == "MyClassNode"
 
 
 def test_nodebuilder_function_has_tool_info():
-    node_cls = NodeBuilder.function(async_func).build()
+    node_cls = FunctionNodeBuilder.function(async_func).build()
     assert hasattr(node_cls, "tool_info")
 
 
 def test_nodebuilder_function_tool_info_detail():
     params = [Parameter(name="x", param_type="integer", description="Input")]
-    node_cls = NodeBuilder.function(
+    node_cls = FunctionNodeBuilder.function(
         async_func,
         tool_details="Does a thing",
         tool_params=params,
@@ -154,7 +155,7 @@ def test_nodebuilder_function_tool_info_detail():
 
 
 def test_nodebuilder_function_invoke_calls_func():
-    node_cls = NodeBuilder.function(async_func).build()
+    node_cls = FunctionNodeBuilder.function(async_func).build()
     result = asyncio.run(node_cls().invoke(5))
     assert result == 5
 
@@ -230,12 +231,12 @@ def test_nodebuilder_function_middleware_sets_user_middleware():
     async def tag(call, *args, **kwargs):
         return await call(*args, **kwargs)
 
-    node_cls = NodeBuilder.function(async_func, middleware=[tag]).build()
+    node_cls = FunctionNodeBuilder.function(async_func, middleware=[tag]).build()
     assert node_cls._user_middleware == [tag]
 
 
 def test_nodebuilder_llm_middleware_sets_user_middleware(mock_llm):
-    # NodeBuilder.llm deep-copies `middleware` before storing it, so the stored
+    # LLMNodeBuilder.llm deep-copies `middleware` before storing it, so the stored
     # Middleware objects are copies (not identical by `==`) -- assert functionally.
     fired = {"value": False}
 
@@ -244,7 +245,7 @@ def test_nodebuilder_llm_middleware_sets_user_middleware(mock_llm):
         fired["value"] = True
         return await call(*args, **kwargs)
 
-    node_cls = NodeBuilder.llm(
+    node_cls = LLMNodeBuilder.llm(
         "TestNode", model=mock_llm(custom_response="hi"), middleware=[tag]
     ).build()
 
@@ -267,7 +268,7 @@ def test_nodebuilder_llm_model_middleware_wraps_model_call(mock_llm):
         calls.append("out")
         return result
 
-    node_cls = NodeBuilder.llm(
+    node_cls = LLMNodeBuilder.llm(
         "TestNode", model=mock_llm(custom_response="hi"), model_middleware=[tracer]
     ).build()
 
@@ -290,7 +291,7 @@ def test_nodebuilder_llm_context_injection_default_true(mock_llm):
     model = mock_llm()
     model._chat = _echo_last_message
 
-    node_cls = NodeBuilder.llm(
+    node_cls = LLMNodeBuilder.llm(
         "CtxNode", model=model, system_message=SystemMessage(content="{secret}")
     ).build()
 
@@ -305,7 +306,7 @@ def test_nodebuilder_llm_context_injection_false_skips_substitution(mock_llm):
     model = mock_llm()
     model._chat = _echo_last_message
 
-    node_cls = NodeBuilder.llm(
+    node_cls = LLMNodeBuilder.llm(
         "CtxNode",
         model=model,
         system_message=SystemMessage(content="{secret}"),
@@ -332,7 +333,7 @@ def test_nodebuilder_llm_guardrails_input_and_output_both_fire(mock_llm):
             fired["output"] = True
             return GuardrailDecision.allow(reason="ok")
 
-    node_cls = NodeBuilder.llm(
+    node_cls = LLMNodeBuilder.llm(
         "GuardedNode",
         model=mock_llm(custom_response="hi"),
         model_middleware=[MarkInputGuard(), MarkOutputGuard()],
@@ -354,7 +355,7 @@ def test_nodebuilder_llm_guardrails_input_only_does_not_fire_output(mock_llm):
             fired["input"] = True
             return GuardrailDecision.allow(reason="ok")
 
-    node_cls = NodeBuilder.llm(
+    node_cls = LLMNodeBuilder.llm(
         "GuardedInputOnlyNode",
         model=mock_llm(custom_response="hi"),
         model_middleware=[MarkInputGuard()],
@@ -370,7 +371,7 @@ def test_nodebuilder_llm_guardrails_input_only_does_not_fire_output(mock_llm):
 
 
 def test_nodebuilder_llm_empty_model_middleware_is_a_no_op(mock_llm):
-    node_cls = NodeBuilder.llm(
+    node_cls = LLMNodeBuilder.llm(
         "EmptyGuardNode", model=mock_llm(custom_response="hi"), model_middleware=[]
     ).build()
 
@@ -404,13 +405,13 @@ def test_nodebuilder_llm_guardrail_vs_user_middleware_order_is_list_position(
             message_info=response.message_info,
         )
 
-    guard_first_cls = NodeBuilder.llm(
+    guard_first_cls = LLMNodeBuilder.llm(
         "GuardFirstNode",
         model=mock_llm(custom_response="hello"),
         model_middleware=[AlwaysRedactOutputGuard(), overwrite_after_guardrail],
     ).build()
 
-    user_first_cls = NodeBuilder.llm(
+    user_first_cls = LLMNodeBuilder.llm(
         "UserFirstNode",
         model=mock_llm(custom_response="hello"),
         model_middleware=[overwrite_after_guardrail, AlwaysRedactOutputGuard()],
@@ -428,5 +429,5 @@ def test_nodebuilder_llm_guardrail_vs_user_middleware_order_is_list_position(
 
 
 def test_nodebuilder_function_has_no_middleware_by_default():
-    node_cls = NodeBuilder.function(async_func).build()
+    node_cls = FunctionNodeBuilder.function(async_func).build()
     assert node_cls._user_middleware == []

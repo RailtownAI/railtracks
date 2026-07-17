@@ -1,5 +1,5 @@
 import pytest
-from railtracks.built_nodes.concrete.response import StringResponse
+from railtracks.built_nodes.llm.response import StringResponse
 from railtracks.exceptions.errors import NodeCreationError
 from railtracks.llm.providers import ModelProvider
 from .llm_map import llm_map

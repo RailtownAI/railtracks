@@ -43,6 +43,8 @@ __all__ = [
     "evaluations",
     "observability",
     "retrieval",
+    "vector_stores",
+    "rag",
     "Flow",
     "enable_logging",
     "wrap_node",
@@ -53,7 +55,8 @@ __all__ = [
     "wrap_llm",
 ]
 
-from railtracks.built_nodes.easy_usage_wrappers import (
+
+from railtracks.built_nodes import (
     agent_node,
     function_node,
 )
@@ -66,6 +69,8 @@ from . import (
     llm,
     observability,
     prebuilt,
+    vector_stores,
+    rag,
 )
 from ._session import ExecutionInfo, Session, session
 from .built_nodes.llm.middleware import after_llm, before_llm, wrap_llm
