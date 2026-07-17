@@ -7,6 +7,6 @@ publishing — this module just does the framework-aware step of turning a
 (type, payload) pair into a scoped Event.
 """
 
-from ._factory import make_event
+from ._factory import make_session_event
 
-__all__ = ["make_event"]
+__all__ = ["make_session_event"]

@@ -26,7 +26,7 @@ class _CollectingWriter:
         pass
 
 
-def _make_event(event_type: str = "test.event") -> Event:
+def _make_session_event(event_type: str = "test.event") -> Event:
     return Event(
         event_type=event_type,
         scope_type=SCOPE_SESSION,
@@ -58,7 +58,7 @@ async def test_concurrent_ensure_started_coalesces():
     assert configure._started is True
 
     # Registration succeeded — publishing works end-to-end.
-    event = _make_event()
+    event = _make_session_event()
     publish_event(event)
     await _drain_and_shutdown()
     assert writer.events == [event]
@@ -68,7 +68,7 @@ async def test_reset_for_tests_allows_fresh_start():
     # First run.
     writer1 = _CollectingWriter()
     configure_writers([writer1])
-    event1 = _make_event("first")
+    event1 = _make_session_event("first")
     publish_event(event1)
     await _drain_and_shutdown()
     assert writer1.events == [event1]
@@ -86,7 +86,7 @@ async def test_reset_for_tests_allows_fresh_start():
     # Fresh start with a different writer.
     writer2 = _CollectingWriter()
     configure_writers([writer2])
-    event2 = _make_event("second")
+    event2 = _make_session_event("second")
     publish_event(event2)
     await _drain_and_shutdown()
     assert writer2.events == [event2]

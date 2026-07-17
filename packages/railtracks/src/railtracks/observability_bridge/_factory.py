@@ -5,8 +5,8 @@ from typing import Any
 from railtracks.context.central import get_session_id
 from railtracks.observability import SCOPE_SESSION, Event
 
-
-def make_event(event_type: str, payload: dict[str, Any]) -> Event:
+#TODO: rename to make_session_event
+def make_session_event(event_type: str, payload: dict[str, Any]) -> Event:
     """Build an `Event` scoped to the currently active Session.
     Args:
         event_type: The type of the event, e.g. "node.create"

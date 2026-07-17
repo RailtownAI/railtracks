@@ -55,7 +55,7 @@ async def _drain_and_shutdown() -> None:
         await configure._observer.shutdown()
 
 
-def _make_event(event_type: str = "test.event", payload: dict[str, Any] | None = None) -> Event:
+def _make_session_event(event_type: str = "test.event", payload: dict[str, Any] | None = None) -> Event:
     return Event(
         event_type=event_type,
         scope_type=SCOPE_SESSION,
@@ -66,7 +66,7 @@ def _make_event(event_type: str = "test.event", payload: dict[str, Any] | None =
 
 def test_no_running_loop_warns_and_drops(caplog):
     with caplog.at_level(logging.WARNING, logger="railtracks.observability.publish"):
-        publish_event(_make_event())
+        publish_event(_make_session_event())
     assert "no running loop" in caplog.text
     assert publish._pending_tasks == set()
 
@@ -75,7 +75,7 @@ async def test_publishes_to_configured_writer():
     writer = _CollectingWriter()
     configure_writers([writer])
 
-    event = _make_event("node.create", {"node_id": "n1"})
+    event = _make_session_event("node.create", {"node_id": "n1"})
     publish_event(event)
     await _drain_and_shutdown()
 
@@ -84,7 +84,7 @@ async def test_publishes_to_configured_writer():
 
 async def test_no_writers_configured_is_a_silent_no_op():
     # No configure_writers() call at all.
-    publish_event(_make_event())
+    publish_event(_make_session_event())
     await _drain_and_shutdown()
     # Nothing to assert on the writer side — the point is that this doesn't blow up.
     # The observer started, has zero writers, fan-out is a no-op.
@@ -95,7 +95,7 @@ async def test_writer_that_raises_does_not_break_other_writers():
     good = _CollectingWriter()
     configure_writers([_RaisingWriter(), good])
 
-    event = _make_event()
+    event = _make_session_event()
     publish_event(event)
     await _drain_and_shutdown()
 
@@ -108,7 +108,7 @@ async def test_multiple_events_delivered_in_order():
     writer = _CollectingWriter()
     configure_writers([writer])
 
-    events = [_make_event(f"event-{i}") for i in range(5)]
+    events = [_make_session_event(f"event-{i}") for i in range(5)]
     for event in events:
         publish_event(event)
     await _drain_and_shutdown()
@@ -121,7 +121,7 @@ async def test_publish_event_returns_immediately():
     writer = _CollectingWriter()
     configure_writers([writer])
 
-    publish_event(_make_event())
+    publish_event(_make_session_event())
     # Right after the call, the task exists but hasn't necessarily run.
     assert len(publish._pending_tasks) == 1
 
@@ -142,7 +142,7 @@ async def test_publish_after_shutdown_logs_and_does_not_raise(caplog):
     await configure._observer.shutdown()
 
     with caplog.at_level(logging.WARNING, logger="railtracks.observability.publish"):
-        publish_event(_make_event())
+        publish_event(_make_session_event())
         if publish._pending_tasks:
             await asyncio.gather(
                 *list(publish._pending_tasks), return_exceptions=True
