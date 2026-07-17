@@ -5,9 +5,14 @@ from __future__ import annotations
 import pytest
 import railtracks as rt
 from pydantic import BaseModel, Field
-
 from railtracks.built_nodes.llm.response import StringResponse, StructuredResponse
-from railtracks.guardrails import GuardrailBlockedError, GuardrailDecision, InputGuard, LLMGuardrailEvent, OutputGuard
+from railtracks.guardrails import (
+    GuardrailBlockedError,
+    GuardrailDecision,
+    InputGuard,
+    LLMGuardrailEvent,
+    OutputGuard,
+)
 from railtracks.llm import AssistantMessage
 
 
@@ -347,11 +352,10 @@ async def test_tool_call_output_transform_updates_response_and_history(mock_llm,
 
 
 @pytest.mark.asyncio
-async def test_tool_call_output_guard_fires_per_model_round_trip(mock_llm, allow_input):
-    """OutputGuard is plain model_middleware: it wraps every raw model call inside the
-    tool-calling loop (once for the tool-call turn, once for the final reply), not just
-    the final reply. The old Guarded*LLM hierarchy special-cased "final reply only"; that
-    guarantee no longer holds now that guards are ordinary model_middleware entries.
+async def test_tool_call_output_guard_fires_only_on_final_reply(mock_llm, allow_input):
+    """OutputGuard wraps every raw model call inside the tool-calling loop, but
+    intermediate tool-call turns pass through unguarded — output rails fire only on
+    the final replys.
     """
     @rt.function_node
     async def weather_tool(city: str) -> str:
@@ -381,7 +385,7 @@ async def test_tool_call_output_guard_fires_per_model_round_trip(mock_llm, allow
     with rt.Session():
         await rt.call(Agent, user_input="weather?")
 
-    assert fire_count["n"] == 2
+    assert fire_count["n"] == 1
 
 
 # ============================================================

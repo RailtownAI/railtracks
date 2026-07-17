@@ -114,11 +114,22 @@ class InputGuard(BaseLLMGuardrail[MessageHistory]):
         return event.model_copy(update={"messages": value})
 
 
+def _is_intermediate_tool_call(response: Response) -> bool:
+    """A model round-trip is *intermediate* (not the final reply) when it requests tools.
+
+    Mirrors ``process_message`` in ``llm_helpers`` (tool calls present => "Tool").
+    """
+    return len(response.message.tool_calls) > 0
+
+
 class OutputGuard(BaseLLMGuardrail[Message]):
     """Base for guardrails that run on LLM output (e.g. model response).
 
     Inspect ``event.output_message`` for the assistant message produced this turn.
     ``event.messages`` is conversation context and may not yet include that reply.
+
+    Intermediate tool-call turns pass through untouched, so output rails fire only
+    on the final reply.
 
     Attributes:
         phase: Always :attr:`LLMGuardrailPhase.OUTPUT`.
@@ -136,8 +147,14 @@ class OutputGuard(BaseLLMGuardrail[Message]):
         schema: type[BaseModel] | None,
         tools: list[Tool] | None,
     ):
-        """Call onward for the response, then run this guard on the resulting message."""
+        """Call onward for the response, then run this guard on the final reply.
+
+        Responses that request tools are intermediate steps of the tool-calling
+        loop and pass through unguarded.
+        """
         result = await call(message_history, schema, tools)
+        if _is_intermediate_tool_call(result):
+            return result
         return self._output_wrapper(result=result)
 
     def _output_wrapper(
