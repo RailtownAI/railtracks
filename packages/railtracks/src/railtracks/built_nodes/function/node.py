@@ -62,13 +62,13 @@ def function_node(
 
 @overload
 def function_node(
-    func: List[Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput]],
+    func: List[Callable],
     /,
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: Iterable[Middleware[_P, _TOutput]] | None = None,
-) -> List[CallableAsyncRTFunction[_P, _TOutput] | CallableSyncRTFunction[_P, _TOutput]]:
+    middleware: Iterable[Middleware] | None = None,
+) -> List[CallableAsyncRTFunction | CallableSyncRTFunction]:
     pass
 
 

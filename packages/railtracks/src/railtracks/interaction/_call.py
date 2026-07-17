@@ -31,7 +31,7 @@ from railtracks.pubsub.messages import (
 from railtracks.pubsub.utils import output_mapping
 
 if TYPE_CHECKING:
-    from railtracks.built_nodes.concrete import RTFunction
+    from railtracks.built_nodes.function.base import RTFunction
     from railtracks.nodes.nodes import Node
 
 _P = ParamSpec("_P")

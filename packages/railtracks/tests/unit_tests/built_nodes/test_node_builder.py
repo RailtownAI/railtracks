@@ -114,6 +114,19 @@ def test_nodebuilder_llm_duplicate_param_names_error():
         )
 
 
+def test_nodebuilder_llm_tool_params_without_tool_details_error():
+    # tool_details="" (falsy but not None) is the only way to reach this check through
+    # NodeBuilder.llm: tool_details=None skips tool setup entirely, so the check never runs.
+    params = [Parameter(name="x", param_type="integer", description="desc")]
+    with pytest.raises(NodeCreationError):
+        NodeBuilder.llm(
+            "TestNode",
+            model=dummy_model(),
+            tool_details="",
+            tool_params=params,
+        )
+
+
 # --- NodeBuilder.function ---
 
 def test_nodebuilder_function_basic_build():

@@ -194,6 +194,7 @@ class NodeBuilder(Generic[_P, _T]):
             tool_nodes=list(connected_nodes) if connected_nodes else None,
             schema=schema,
         )
+        print(f"Tool details: {tool_details}, Tool params: {tool_params}")
 
         if tool_details is not None:
             tool = cls._prepare_llm_tool(
@@ -218,15 +219,17 @@ class NodeBuilder(Generic[_P, _T]):
         _check_tool_params_and_details(tool_params, tool_details)
         _check_duplicate_param_names(tool_params or [])
 
+        name = name.replace(" ", "_")
+
+
         tool = Tool(
-            name=name.replace(" ", "_"),
+            name=name,
             detail=tool_details,
             parameters=tool_params,
         )
 
         return tool
 
-    # TODO: consider overload helpers to help with the typing
 
     @classmethod
     def function(
