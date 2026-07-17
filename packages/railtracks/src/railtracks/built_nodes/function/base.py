@@ -32,7 +32,6 @@ class RTFunction(Protocol, Generic[_P, _TOutput]):
         ...
 
 
-
 class CallableSyncRTFunction(RTFunction[_P, _TOutput], Generic[_P, _TOutput]):
     def __init__(
         self, func: Callable[_P, _TOutput], node_type: type[Node[_P, _TOutput]]

@@ -8,8 +8,9 @@ from typing import (
 )
 
 from pydantic import BaseModel
-from railtracks.built_nodes.llm.response import StringResponse, StructuredResponse
+
 from railtracks.built_nodes.llm.model_invoker import ModelInvoker
+from railtracks.built_nodes.llm.response import StringResponse, StructuredResponse
 from railtracks.exceptions.errors import LLMError, NodeInvocationError
 from railtracks.interaction._call import call
 from railtracks.llm.content import ToolCall, ToolResponse

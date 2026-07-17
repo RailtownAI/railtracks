@@ -54,8 +54,8 @@ __all__ = [
 
 
 from railtracks.built_nodes import (
-    function_node,
     agent_node,
+    function_node,
 )
 
 from . import (

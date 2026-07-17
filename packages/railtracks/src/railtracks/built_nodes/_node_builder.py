@@ -19,12 +19,12 @@ from typing import (
 
 from pydantic import BaseModel
 
-from railtracks.built_nodes.llm.response import StringResponse, StructuredResponse
 from railtracks.built_nodes.llm.llm_helpers import (
     llm_invoke_factory,
     llm_prepare_called_as_tool_factory,
 )
 from railtracks.built_nodes.llm.middleware.core import ModelMiddleware
+from railtracks.built_nodes.llm.response import StringResponse, StructuredResponse
 from railtracks.llm import (
     Parameter,
     SystemMessage,
@@ -221,7 +221,6 @@ class NodeBuilder(Generic[_P, _T]):
 
         name = name.replace(" ", "_")
 
-
         tool = Tool(
             name=name,
             detail=tool_details,
@@ -229,7 +228,6 @@ class NodeBuilder(Generic[_P, _T]):
         )
 
         return tool
-
 
     @classmethod
     def function(

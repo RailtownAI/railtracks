@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, Type, TypeVar
+from typing import TYPE_CHECKING, Type, TypeVar
 
 from railtracks.built_nodes.llm.response import LLMResponse
 from railtracks.nodes.nodes import Node
-
 
 from ..human_in_the_loop import HILMessage
 from ..llm.history import MessageHistory
@@ -62,7 +61,9 @@ async def _chat_ui_interactive(
     Returns:
         The final output from the node after the interactive session concludes.
     """
-    raise NotImplementedError("This function is not yet implemented. Please implement the logic for the interactive session.")
+    raise NotImplementedError(
+        "This function is not yet implemented. Please implement the logic for the interactive session."
+    )
     msg_history = MessageHistory([])
 
     if initial_message_to_user is not None:
@@ -139,7 +140,9 @@ async def local_chat(
         The final output from the node after the interactive session concludes.
         The return type matches the node's `_TOutput` generic type.
     """
-    raise NotImplementedError("This function is not yet implemented. Please implement the logic for starting the local chat session.")
+    raise NotImplementedError(
+        "This function is not yet implemented. Please implement the logic for starting the local chat session."
+    )
     chat_ui_kwargs = {}
     if port is not None:
         chat_ui_kwargs["port"] = port

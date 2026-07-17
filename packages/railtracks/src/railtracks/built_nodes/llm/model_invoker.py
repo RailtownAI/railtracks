@@ -5,6 +5,7 @@ from copy import deepcopy
 from typing import Awaitable, Callable
 
 from pydantic import BaseModel
+
 from railtracks.built_nodes._types import ModelSource
 from railtracks.built_nodes.llm.middleware.core import ModelMiddleware
 from railtracks.built_nodes.llm.middleware.wrap_llm import wrap_llm

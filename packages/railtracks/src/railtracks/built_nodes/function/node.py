@@ -8,7 +8,6 @@ from types import BuiltinFunctionType
 from typing import (
     Callable,
     Coroutine,
-    Generic,
     Iterable,
     List,
     ParamSpec,

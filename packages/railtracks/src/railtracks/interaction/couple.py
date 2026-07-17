@@ -50,6 +50,7 @@ def couple(
       (the new middleware ends up innermost, closest to the node).
     """
     from railtracks.built_nodes.function.base import RTFunction
+
     if isinstance(node, RTFunction):
         new_node_type = node.node_type.extend_middleware(*middleware)
         return node.with_node_type(new_node_type)

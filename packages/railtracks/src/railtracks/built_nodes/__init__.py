@@ -1,9 +1,4 @@
-__all__ = [
-    "function_node",
-    "agent_node",
-    "middleware"
-
-]
+__all__ = ["function_node", "agent_node", "middleware"]
 
 
 from .function import function_node
