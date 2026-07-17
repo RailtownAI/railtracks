@@ -15,13 +15,13 @@ from typing import (
 from pydantic import BaseModel
 from typing_extensions import Self
 
+from railtracks.built_nodes.llm.request_details import RequestDetails
 from railtracks.exceptions.errors import LLMError, NodeInvocationError
 from railtracks.exceptions.messages.exception_messages import get_message
 from railtracks.llm import (
     Message,
     MessageHistory,
     ModelBase,
-    ModelProvider,
     Parameter,
     SystemMessage,
     UserMessage,
@@ -43,42 +43,11 @@ logger = get_rt_logger(__name__)
 _T = TypeVar("_T")
 
 
-class RequestDetails:
-    """
-    A named tuple to store details of each LLM request.
-    """
-
-    def __init__(
-        self,
-        message_input: MessageHistory,
-        output: Message | None,
-        model_name: str | None,
-        model_provider: ModelProvider | None,
-        input_tokens: int | None = None,
-        output_tokens: int | None = None,
-        total_cost: float | None = None,
-        system_fingerprint: str | None = None,
-        latency: float | None = None,
-    ):
-        self.input = message_input
-        self.output = output
-        self.model_name = model_name
-        self.model_provider = model_provider
-        self.input_tokens = input_tokens
-        self.output_tokens = output_tokens
-        self.total_cost = total_cost
-        self.system_fingerprint = system_fingerprint
-        self.latency = latency
-
-    def __repr__(self):
-        return f"RequestDetails(model_name={self.model_name}, model_provider={self.model_provider}, input={self.input}, output={self.output})"
-
-
 _TStream = TypeVar("_TStream", Literal[True], Literal[False])
 _TCollectedOutput = TypeVar("_TCollectedOutput", bound=LLMResponse)
 
 
-class LLMBase(Node[_T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
+class LLMBase(Node[..., _T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
     """
     A basic LLM base class that encapsulates the attaching of an LLM model and message history object.
 
@@ -173,48 +142,7 @@ class LLMBase(Node[_T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
     def prepare_tool_message_history(
         cls, tool_parameters: Dict[str, Any], tool_params: Iterable[Parameter] = None
     ) -> MessageHistory:
-        """
-        Prepare a message history for a tool call with the given parameters.
-
-        This method creates a coherent instruction message from tool parameters instead of
-        multiple separate messages.
-
-        Args:
-            tool_parameters: Dictionary of parameter names to values
-            tool_params: Iterable of Parameter objects defining the tool parameters
-
-        Returns:
-            MessageHistory object with a single UserMessage containing the formatted parameters
-        """
-        # If no parameters, return empty message history
-        if not tool_params:
-            return MessageHistory([])
-
-        # Create a single, coherent instruction instead of multiple separate messages
-        instruction_parts = [
-            "You are being called as a tool with the following parameters:",
-            "",
-        ]
-
-        for param in tool_params:
-            value = tool_parameters[param.name]
-            # Format the parameter appropriately based on its type
-            if param.param_type == "array" and isinstance(value, list):
-                formatted_value = ", ".join(str(v) for v in value)
-                instruction_parts.append(f"• {param.name}: {formatted_value}")
-            elif param.param_type == "object" and isinstance(value, dict):
-                # For objects, show key-value pairs
-                formatted_value = "; ".join(f"{k}={v}" for k, v in value.items())
-                instruction_parts.append(f"• {param.name}: {formatted_value}")
-            else:
-                instruction_parts.append(f"• {param.name}: {value}")
-
-        instruction_parts.extend(
-            ["", "Please execute your function based on these parameters."]
-        )
-
-        # Create a single UserMessage with the complete instruction
-        return MessageHistory([UserMessage("\n".join(instruction_parts))])
+        pass
 
     @abstractmethod
     def return_output(self, message: Message | None = None) -> _TCollectedOutput: ...

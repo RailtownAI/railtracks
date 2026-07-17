@@ -105,6 +105,8 @@ nav:
               - Overview: documentation/advanced/guardrails/overview.md
               - Quickstart: documentation/advanced/guardrails/quickstart.md
               - Built-in Guardrails: documentation/advanced/guardrails/builtin_guardrails.md
+          - Middleware:
+              - Usage Guide: documentation/advanced/middleware/usage.md
           - Agent Context: documentation/advanced/context.md
 
   - Retrieval:

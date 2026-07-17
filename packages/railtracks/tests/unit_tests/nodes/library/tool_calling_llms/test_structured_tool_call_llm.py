@@ -106,19 +106,7 @@ async def test_structured_tool_call_llm_return_output_exception(mock_llm, schema
         await node.invoke()
 
 
-def test_structured_llm_easy_usage_wrapper(mock_llm, schema, mock_tool):
-    mh = MessageHistory([SystemMessage("system prompt"), UserMessage("extract value")])
-    node = structured_tool_call_llm(
-        system_message="system prompt",
-        tool_nodes={mock_tool},
-        llm=mock_llm(),
-        output_schema=schema,
-        tool_details="Extracts a value.",
-        tool_params=None,
-        name="Mock Structured ToolCallLLM",
-    )
-    node = node(mh, mock_llm())
-    assert hasattr(node, "structured_resp_node")
+
 
 def test_structured_tool_call_llm_instantiate_with_string(mock_llm, schema, mock_tool):
     """Test that StructuredToolCallLLM can be instantiated with a string input."""

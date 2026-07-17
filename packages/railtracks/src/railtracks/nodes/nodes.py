@@ -1,20 +1,17 @@
 from __future__ import annotations
 
 import asyncio
-import inspect
-import time
 import uuid
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Callable, Dict, Generic, Literal, TypeVar
+from typing import Any, Generic, Literal, ParamSpec, TypeVar
 
-from typing_extensions import Self
-
+from railtracks.llm.tools.tool import Tool
+from railtracks.middleware import MiddlewareChain
+from railtracks.middleware.core import Middleware
 from railtracks.validation.node_creation.validation import (
     check_classmethod,
 )
-
-from .tool_callable import ToolCallable
 
 _TOutput = TypeVar("_TOutput")
 
@@ -64,7 +61,10 @@ class LatencyDetails:
         self.total_time = total_time
 
 
-class Node(ABC, ToolCallable, Generic[_TOutput]):
+_P = ParamSpec("_P")
+
+
+class Node(ABC, Generic[_P, _TOutput]):
     """An abstract base class which defines some the functionality of a node"""
 
     def __init_subclass__(cls):
@@ -87,7 +87,7 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
 
         # ================= Checks for Creation ================
         # 1. Check if the class methods are all classmethods, else raise an exception
-        class_method_checklist = ["tool_info", "prepare_tool", "name"]
+        class_method_checklist = ["tool_info", "prepare_tool", "prepare_args", "name"]
         for method_name in class_method_checklist:
             if method_name in cls.__dict__ and callable(cls.__dict__[method_name]):
                 method = cls.__dict__[method_name]
@@ -96,24 +96,22 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
         # without this direct call to the parent __init_subclass__ method the generic resolutions will not work correctly
         super().__init_subclass__()
 
-    pre_invokes: list[Callable[[Self], None]] = []
+    _exterior_middleware: list[Middleware[_P, _TOutput]] = []
+    _user_middleware: list[Middleware[_P, _TOutput]] = []
+    _interior_middleware: list[Middleware[_P, _TOutput]] = []
 
     def __init__(
         self,
-        *,
-        debug_details: DebugDetails | None = None,
     ):
         # each fresh node will have a generated uuid that identifies it.
         self.uuid = str(uuid.uuid4())
-        self._details: DebugDetails = debug_details or DebugDetails()
-
-    @property
-    def details(self) -> DebugDetails:
-        """
-        Returns a debug details object that contains information about the node.
-        This is used for debugging and logging purposes.
-        """
-        return self._details
+        self.middleware = MiddlewareChain[_P, _TOutput](
+            middleware=[
+                *self._exterior_middleware,
+                *self._user_middleware,
+                *self._interior_middleware,
+            ]
+        )
 
     @classmethod
     @abstractmethod
@@ -124,52 +122,27 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
         pass
 
     @abstractmethod
-    async def invoke(self) -> _TOutput:
+    async def invoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
         """
         The main method that runs when this node is called
         """
         pass
 
+    async def wrapped_invoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
+        """
+        Runs ``invoke`` through the node-level middleware.
+        """
+        return await self.middleware.run(self.invoke, *args, **kwargs)
+
     @classmethod
-    def add_pre_invoke(cls, function: Callable[[Self], None]):
-        """
-        Add a method to be run immeadetly prior to the invoke.
-        """
-        cls.pre_invokes.append(function)
-
-    async def tracked_invoke(self) -> _TOutput:
-        """
-        A special method that will track and save the latency of the running of this invoke method.
-        """
-        start_time = time.time()
-        try:
-            for func in self.pre_invokes:
-                result = func(self)
-                if inspect.iscoroutine(result):
-                    await result
-            return await self.invoke()
-        except Exception as e:
-            raise e
-        finally:
-            latency = time.time() - start_time
-            self.details["latency"] = LatencyDetails(total_time=latency)
-
-    def state_details(self) -> Dict[str, str]:
-        """
-        Places the __dict__ of the current object into a dictionary of strings.
-        """
-        di = {k: str(v) for k, v in self.__dict__.items()}
-        return di
-
-    def safe_copy(self) -> Self:
-        """
-        A method used to create a new pass by value copy of every element of the node.
-        """
-        cls = self.__class__
-        result = cls.__new__(cls)
-        for k, v in self.__dict__.items():
-            setattr(result, k, deepcopy(v))
-        return result
+    def extend_middleware(
+        cls, *middleware: Middleware[_P, _TOutput]
+    ) -> type[Node[_P, _TOutput]]:
+        new_middleware = [
+            *deepcopy(cls._user_middleware),
+            *middleware,
+        ]  # fresh list a nice protection around things
+        return type(cls.__name__, (cls,), {"_user_middleware": new_middleware})
 
     def __repr__(self):
         return f"{self.name()} <{hex(id(self))}>"
@@ -178,3 +151,35 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
     @abstractmethod
     def type(cls) -> Literal["Tool", "Agent", "Other"]:
         pass
+
+    @classmethod
+    def tool_info(cls) -> Tool:
+        """
+        A method used to provide information about the node in the form of a tool definition.
+        This is commonly used with LLMs Tool Calling tooling.
+        """
+        # TODO: this should default to interfacing within the init method of the class
+        raise NotImplementedError(
+            "You must implement the tool_info method in your node"
+        )
+
+    @classmethod
+    def prepare_args(cls, **kwargs) -> dict[str, Any]:
+        """
+        This method creates a new instance of the node by unpacking the tool parameters.
+
+        If you would like any custom behavior please override this method.
+        """
+        return kwargs
+
+    def safe_copy(self) -> Node[_P, _TOutput]:
+        """
+        Creates a copy of the node that is safe to pass across process barriers. This is done by creating a new instance
+        of the node and copying over any relevant information. Note that this will not copy over any non picklable
+        information such as open file handles or database connections.
+        """
+        cls = self.__class__
+        result = cls.__new__(cls)  # type: ignore
+        for key, value in self.__dict__.items():
+            setattr(result, key, deepcopy(value))
+        return result

@@ -7,13 +7,13 @@ from railtracks.execution.task import Task
 def mock_node():
     node = AsyncMock()
     node.uuid = "mock-uuid"
-    node.tracked_invoke = AsyncMock(return_value="result")
+    node.wrapped_invoke = AsyncMock(return_value="result")
     return node
 
 
 @pytest.fixture
 def mock_task(mock_node):
-    return Task(request_id="req-1", node=mock_node)
+    return Task(request_id="req-1", node=mock_node, arguments=((), {}))
 
 
 @pytest.fixture

@@ -4,7 +4,7 @@ from copy import deepcopy
 
 from railtracks.guardrails.core.decision import GuardrailDecision
 from railtracks.guardrails.core.event import LLMGuardrailEvent
-from railtracks.guardrails.core.interfaces import InputGuard
+from railtracks.guardrails.llm.concrete import InputGuard
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import Message, Role
 
@@ -22,6 +22,7 @@ class PIIRedactInputGuard(InputGuard):
         config: PIIRedactConfig | None = None,
         *,
         name: str | None = None,
+        fail_open: bool = False,
     ) -> None:
         """Initialize the input PII redactor.
 
@@ -29,8 +30,9 @@ class PIIRedactInputGuard(InputGuard):
             config: Redaction settings; defaults to all built-in entity kinds and no
                 custom patterns (see :class:`~railtracks.guardrails.llm.PIIRedactConfig`).
             name: Optional rail name for traces (see :class:`InputGuard`).
+            fail_open: Whether to allow the request to continue when this guard raises an unexpected exception.
         """
-        super().__init__(name=name)
+        super().__init__(name=name, fail_open=fail_open)
         self._config = config or PIIRedactConfig()
         self._engine = PIIEngine(self._config)
 

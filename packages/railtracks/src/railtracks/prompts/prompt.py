@@ -1,7 +1,14 @@
+from typing import Awaitable, Callable
+
+from pydantic import BaseModel
+
 import railtracks.context as context
 from railtracks.context.central import get_local_config
 from railtracks.exceptions import ContextError
 from railtracks.llm import MessageHistory
+from railtracks.llm.response import Response
+from railtracks.llm.tools.tool import Tool
+from railtracks.middleware.core import wrap_node
 from railtracks.utils.prompt_injection import ValueDict, inject_values
 
 
@@ -30,3 +37,18 @@ def inject_context(message_history: MessageHistory):
         inject_values(message_history, _ContextDict())
 
     return message_history
+
+
+@wrap_node
+async def context_injection_middleware(
+    call: Callable[
+        [MessageHistory, type[BaseModel] | None, list[Tool] | None], Awaitable[Response]
+    ],
+    message_history: MessageHistory,
+    schema: type[BaseModel] | None,
+    tools: list[Tool] | None,
+):
+    """ """
+    inject_context(message_history)
+
+    return await call(message_history, schema, tools)

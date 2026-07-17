@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import Any, Literal, ParamSpec, Type, TypeVar
+from typing import Any, Generic, Literal, ParamSpec, Type, TypeVar
 
 from railtracks.nodes.nodes import Node, NodeState
 
@@ -30,7 +30,7 @@ class RequestCompletionMessage(ABC):
 # TODO add generic typing for all these types
 
 
-class RequestFinishedBase(RequestCompletionMessage, ABC):
+class RequestFinishedBase(RequestCompletionMessage, ABC, Generic[_P, _TOutput, _TNode]):
     """
     A simple base class for all messages that pertain to a request finishing.
     """
@@ -39,13 +39,13 @@ class RequestFinishedBase(RequestCompletionMessage, ABC):
         self,
         *,
         request_id: str,
-        node_state: NodeState[Node[_TOutput]] | None,
+        node_state: NodeState[Node[_P, _TOutput]] | None,
     ):
         self.request_id = request_id
         self.node_state = node_state
 
     @property
-    def node(self) -> Node[_TOutput] | None:
+    def node(self) -> Node[_P, _TOutput] | None:
         """
         Gets a node instance from the provided node state.
 
@@ -69,11 +69,12 @@ class RequestSuccess(RequestFinishedBase):
         self,
         *,
         request_id: str,
-        node_state: NodeState[_TNode[_TOutput]],
+        node_state: NodeState[Node[_P, _TOutput]],
         result: _TOutput,
     ):
         super().__init__(request_id=request_id, node_state=node_state)
         self.result = result
+        self.node_state = node_state
 
     def __repr__(self):
         return f"{self.__class__.__name__}(request_id={self.request_id}, node_state={self.node_state}, result={self.result})"
@@ -91,11 +92,12 @@ class RequestFailure(RequestFinishedBase):
         self,
         *,
         request_id: str,
-        node_state: NodeState[_TNode[_TOutput]] | None,
+        node_state: NodeState[Node[_P, _TOutput]] | None,
         error: Exception,
     ):
         super().__init__(request_id=request_id, node_state=node_state)
         self.error = error
+        self.node_state = node_state
 
     def __repr__(self):
         return (

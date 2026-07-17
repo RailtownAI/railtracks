@@ -1,7 +1,12 @@
 import inspect
 import pytest
 from unittest.mock import patch, MagicMock
-from railtracks.built_nodes.easy_usage_wrappers.function import function_node, _function_preserving_metadata
+from railtracks.built_nodes.easy_usage_wrappers.function import (
+    function_node,
+    _function_preserving_metadata,
+    CallableSyncRTFunction,
+    CallableAsyncRTFunction,
+)
 
 
 class _SimpleCalc:
@@ -41,13 +46,45 @@ def test_function_node_builtin():
     node = function_node(math.ceil, name="CeilFunc")
     assert hasattr(node, "node_type")
 
-def test_function_node_already_node_type(mock_function):
+def test_function_node_with_stray_node_type_attribute_is_rebuilt(mock_function):
     f = mock_function
     setattr(f, "node_type", "AlreadyNodeType")
-    with patch("warnings.warn") as warn_mock:
-        result = function_node(f)
-        assert result is f
-        warn_mock.assert_called_once()
+    node = function_node(f, name="TestFunc")
+    assert isinstance(node, CallableSyncRTFunction)
+    assert isinstance(node.node_type, type)
+
+def test_function_node_reconversion_is_a_noop_returns_same_object(mock_function):
+    node = function_node(mock_function, name="TestFunc")
+    again = function_node(node)
+    assert again is node
+
+def test_function_node_async_reconversion_is_a_noop_returns_same_object():
+    async def my_async_fn(x: int) -> int:
+        return x
+
+    node = function_node(my_async_fn)
+    again = function_node(node)
+    assert again is node
+
+def test_function_node_preserves_name_and_doc():
+    def my_fn(x: int) -> int:
+        """My docstring."""
+        return x
+
+    node = function_node(my_fn)
+    assert node.__name__ == "my_fn"
+    assert node.__doc__ == "My docstring."
+
+@pytest.mark.asyncio
+async def test_function_node_async_preserves_name_and_doc():
+    async def my_async_fn(x: int) -> int:
+        """My async docstring."""
+        return x
+
+    node = function_node(my_async_fn)
+    assert isinstance(node, CallableAsyncRTFunction)
+    assert node.__name__ == "my_async_fn"
+    assert node.__doc__ == "My async docstring."
 
 def test_function_node_invalid_type():
     class NotAFunction:

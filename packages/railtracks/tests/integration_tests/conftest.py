@@ -92,31 +92,6 @@ async def planner(current_city: str, destination_city: str):
     return {"outbound_booking": outbound_booking, "inbound_booking": inbound_booking}
 
 
-TLLMNode = rt.agent_node(
-    system_message="You are excellent chooser of random items from a list. You never make mistakes and have a god like ability to accomplish tasks.",
-)
-
-@rt.function_node
-async def planner_with_llm(llm: rt.llm.ModelBase):
-    cities = []
-    available_cities = ["New York", "Chicago", "Los Angeles", "Houston"]
-    while True:
-
-        result = await rt.call(
-            TLLMNode, 
-            user_input=f"Choose a Random city from {available_cities} and give me the index of the city only. Nothing else.",
-            llm=llm,
-        )  # we will make the mock_llm return a random integer between 0 and 3 to simulate the random choice
-
-        city = available_cities[int(result.text)]
-        if city in available_cities:
-            available_cities.remove(city)
-            cities.append(city)
-
-        if len(cities) == 2:
-            break
-
-    return await rt.call(planner, *cities)
 
 
 @pytest.fixture
@@ -124,9 +99,7 @@ def planner_node():
     return planner
 
 
-@pytest.fixture
-def planner_with_llm_node():
-    return planner_with_llm
+
 
 
 @pytest.fixture

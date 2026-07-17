@@ -8,7 +8,22 @@ In this example, the system message will be expanded to: "You are a technical as
 
 ### Enabling and Disabling Context Injection
 
-Context injection is enabled by default but can be disabled if needed:
+Context injection is enabled by default but can be disabled at four levels, from broadest to narrowest scope:
+
+| Scope | How | Applies to |
+| --- | --- | --- |
+| **Global** | `rt.set_config(prompt_injection=False)` | Every flow/run, unless a flow overrides it |
+| **Flow** | `prompt_injection=False` on `rt.Flow(...)` | Every run of that flow |
+| **Agent / node** | `context_injection=False` on `rt.agent_node(...)` | Every instantiation of that node |
+| **Message** | `inject_prompt=False` on a `SystemMessage` / `UserMessage` | That single message |
+
+#### Precedence
+
+The levels combine as independent gates: a placeholder is filled **only when injection is enabled at every applicable level**. In other words, the most restrictive setting wins — disabling injection at any level turns it off within that level's scope, and a narrower scope cannot re-enable injection that a broader scope has turned off.
+
+The one exception is the run-wide flag itself: a **Flow's `prompt_injection` overrides the global `rt.set_config` value**. If the flow does not set it, the global value applies; if neither is set, the default (`True`) is used.
+
+#### Global and Flow level
 
 ```python
 --8<-- "docs/scripts/prompts.py:disable_injection"
@@ -16,9 +31,17 @@ Context injection is enabled by default but can be disabled if needed:
 
 This may be useful when formatting prompts that should not change based on the context.
 
+#### Agent / node level
+
+If you only want to disable injection for a particular agent — for example one whose prompt legitimately contains `{}` braces that should be left untouched — pass `context_injection=False` when creating it. This takes effect for that agent even when injection is enabled globally or at the flow level:
+
+```python
+--8<-- "docs/scripts/prompts.py:disable_injection_node_level"
+```
+
 !!! note "Message-Level Control"
 
-    Context injection can be controlled at the message level using the `inject_prompt` parameter:
+    Context injection can also be controlled at the message level using the `inject_prompt` parameter:
 
     ```python
     --8<-- "docs/scripts/prompts.py:injection_at_message_level"
@@ -42,7 +65,7 @@ If you need to include literal curly braces in your prompt without triggering co
 If your prompts aren't producing the expected results:
 
 1. **Check context values**: Ensure the context contains the expected values for your placeholders
-2. **Verify prompt injection is enabled**: Check that `prompt_injection=True` in your session configuration
+2. **Verify prompt injection is enabled**: Check that `prompt_injection` is not disabled globally (`rt.set_config`) or on the flow, that the agent was not created with `context_injection=False`, and that the message was not created with `inject_prompt=False`
 3. **Look for syntax errors**: Ensure your placeholders use the correct format `{variable_name}`
 
 

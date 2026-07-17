@@ -26,9 +26,20 @@ flow = rt.Flow(
     prompt_injection=False
 )
 
-# or globally via 
+# or globally via
 rt.set_config(prompt_injection=False)
 # --8<-- [end: disable_injection]
+
+# --8<-- [start: disable_injection_node_level]
+# Disable context injection for a single agent, regardless of the
+# session/flow-level prompt_injection setting.
+literal_assistant = rt.agent_node(
+    name="Literal Assistant",
+    system_message="Always answer using the {placeholder} syntax verbatim.",
+    llm=rt.llm.OpenAILLM("gpt-4o"),
+    context_injection=False,
+)
+# --8<-- [end: disable_injection_node_level]
 
 # --8<-- [start: injection_at_message_level]
 # This message will have context injection applied
