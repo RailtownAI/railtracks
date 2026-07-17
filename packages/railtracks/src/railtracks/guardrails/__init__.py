@@ -1,9 +1,5 @@
 from . import llm
 from .core import (
-    BaseGuardrail,
-    BaseLLMGuardrail,
-    Guard,
-    Guardrail,
     GuardrailAction,
     GuardrailBlockedError,
     GuardrailDecision,
@@ -15,14 +11,10 @@ from .core import (
 )
 
 __all__ = [
-    "Guard",
-    "Guardrail",
-    "BaseGuardrail",
     "GuardrailAction",
     "GuardrailBlockedError",
     "GuardrailDecision",
     "GuardrailTrace",
-    "BaseLLMGuardrail",
     "InputGuard",
     "OutputGuard",
     "LLMGuardrailEvent",

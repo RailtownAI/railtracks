@@ -1,15 +1,10 @@
 from typing import Any, Callable
 
 from railtracks.built_nodes._node_builder import NodeBuilder
-from railtracks.built_nodes.concrete.guarded_llm import (
-    GuardedStreamingTerminalLLM,
-    GuardedTerminalLLM,
-)
 from railtracks.built_nodes.concrete.terminal_llm_base import (
     StreamingTerminalLLM,
     TerminalLLM,
 )
-from railtracks.guardrails.core import Guard
 from railtracks.llm import ModelBase, SystemMessage
 from railtracks.llm.tools import Parameter
 
@@ -19,7 +14,6 @@ def terminal_llm(
     *,
     system_message: SystemMessage | str | None = None,
     llm: ModelBase | None = None,
-    guardrails: Guard | None = None,
     tool_details: str | None = None,
     tool_params: set[Parameter] | None = None,
     return_into: str | None = None,
@@ -37,7 +31,6 @@ def terminal_llm(
         name (str, optional): Human-readable name for the node/tool.
         llm (ModelBase or None, optional): The LLM model instance to use for this node.
         system_message (SystemMessage or str or None, optional): The system prompt/message for the node. If not passed here it can be passed at runtime in message history.
-        guardrails (Guard or None, optional): Guardrail config. When provided, the node runs input/output guardrails.
         tool_details (str or None, optional): Description of the node subclass for other LLMs to know how to use this as a tool.
         tool_params (set of params or None, optional): Parameters that must be passed if other LLMs want to use this as a tool.
         return_into (str, optional): The key to store the result of the tool call into context. If not specified, the result will not be put into context.
@@ -48,11 +41,7 @@ def terminal_llm(
         Type[LastMessageTerminalLLM]: The dynamically generated node class with the specified configuration.
     """
     is_streaming = llm is not None and llm.stream
-
-    if guardrails is not None:
-        base_cls = GuardedStreamingTerminalLLM if is_streaming else GuardedTerminalLLM
-    else:
-        base_cls = StreamingTerminalLLM if is_streaming else TerminalLLM
+    base_cls = StreamingTerminalLLM if is_streaming else TerminalLLM
 
     builder = NodeBuilder(
         base_cls,
@@ -63,8 +52,6 @@ def terminal_llm(
         format_for_context=format_for_context,
     )
     builder.llm_base(llm, system_message)
-    if guardrails is not None:
-        builder.add_attribute("guardrails", guardrails, make_function=False)
     if tool_details is not None or tool_params is not None:
         builder.tool_callable_llm(tool_details, tool_params)
 

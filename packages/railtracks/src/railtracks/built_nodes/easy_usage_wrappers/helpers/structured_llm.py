@@ -3,15 +3,10 @@ from typing import Any, Callable, Iterable, Type, TypeVar
 from pydantic import BaseModel
 
 from railtracks.built_nodes._node_builder import NodeBuilder
-from railtracks.built_nodes.concrete.guarded_llm import (
-    GuardedStreamingStructuredLLM,
-    GuardedStructuredLLM,
-)
 from railtracks.built_nodes.concrete.structured_llm_base import (
     StreamingStructuredLLM,
     StructuredLLM,
 )
-from railtracks.guardrails.core import Guard
 from railtracks.llm import (
     ModelBase,
     SystemMessage,
@@ -26,7 +21,6 @@ def structured_llm(
     *,
     system_message: SystemMessage | str | None = None,
     llm: ModelBase | None = None,
-    guardrails: Guard | None = None,
     name: str | None = None,
     tool_details: str | None = None,
     tool_params: Iterable[Parameter] | None = None,
@@ -45,7 +39,6 @@ def structured_llm(
         output_schema (Type[BaseModel]): The Pydantic model that defines the structure of the output.
         name (str, optional): Human-readable name for the node/tool.
         llm (ModelBase or None, optional): The LLM model instance to use for this node.
-        guardrails (Guard or None, optional): Guardrail config. When provided, the node runs input/output guardrails.
         system_message (SystemMessage or str or None, optional): The system prompt/message for the node. If not passed here it can be passed at runtime in message history.
         tool_details (str or None, optional): Description of the node subclass for other LLMs to know how to use this as a tool.
         tool_params (set of params or None, optional): Parameters that must be passed if other LLMs want to use this as a tool.
@@ -57,13 +50,7 @@ def structured_llm(
         Type[StructuredLLM]: The dynamically generated node class with the specified configuration.
     """
     is_streaming = llm is not None and llm.stream
-
-    if guardrails is not None:
-        base_cls = (
-            GuardedStreamingStructuredLLM if is_streaming else GuardedStructuredLLM
-        )
-    else:
-        base_cls = StreamingStructuredLLM if is_streaming else StructuredLLM
+    base_cls = StreamingStructuredLLM if is_streaming else StructuredLLM
 
     builder = NodeBuilder(
         base_cls,
@@ -75,8 +62,6 @@ def structured_llm(
     )
     builder.llm_base(llm, system_message)
     builder.structured(output_schema)
-    if guardrails is not None:
-        builder.add_attribute("guardrails", guardrails, make_function=False)
     if tool_details is not None or tool_params is not None:
         builder.tool_callable_llm(tool_details, tool_params)
 

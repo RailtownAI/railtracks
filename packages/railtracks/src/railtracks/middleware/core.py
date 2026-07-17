@@ -64,6 +64,9 @@ class Middleware(Generic[_P, _R]):
     def __repr__(self) -> str:
         return f"Middleware({self._fn.__name__})"
 
+    def middleware_type(self) -> str:
+        return "General"
+
 
 def wrap_node(
     fn: Callable[Concatenate[Callable[_P, Awaitable[_R]], _P], Awaitable[_R]],

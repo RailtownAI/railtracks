@@ -172,11 +172,9 @@ def _single_function_node(
     """
 
     if isinstance(func, CallableSyncRTFunction) or isinstance(
-      func, CallableAsyncRTFunction
+        func, CallableAsyncRTFunction
     ):
         return func
-
-        
 
     if not isinstance(
         func, BuiltinFunctionType

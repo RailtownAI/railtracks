@@ -8,7 +8,6 @@ from railtracks.built_nodes.concrete import (
 )
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
 from railtracks.built_nodes.llm.middleware.core import ModelMiddleware
-from railtracks.guardrails.core import Guard
 from railtracks.llm.message import SystemMessage
 from railtracks.llm.tools.parameters._base import Parameter
 from railtracks.middleware.core import Middleware
@@ -49,7 +48,6 @@ def _build_dynamic_agent(
     tool_params: list[Parameter] | None,
     middleware: list[Middleware[[UserInput], _R]] | None = None,
     model_middleware: list[ModelMiddleware] | None = None,
-    guardrails: Guard | None = None,
     context_injection: bool = True,
 ):
     resolved_system = (
@@ -68,7 +66,6 @@ def _build_dynamic_agent(
             tool_params=tool_params,
             middleware=middleware,
             model_middleware=model_middleware,
-            guardrails=guardrails,
             context_injection=context_injection,
         )
     else:
@@ -82,7 +79,6 @@ def _build_dynamic_agent(
             tool_params=tool_params,
             middleware=middleware,
             model_middleware=model_middleware,
-            guardrails=guardrails,
             context_injection=context_injection,
         )
 
@@ -103,7 +99,6 @@ def agent_node(
     manifest: ToolManifest | None = None,
     middleware: list[Middleware[[UserInput], StringResponse]] | None = None,
     model_middleware: list[ModelMiddleware] | None = None,
-    guardrails: Guard | None = None,
     context_injection: bool = True,
 ) -> type[Node[[UserInput], StringResponse]]: ...
 
@@ -120,7 +115,6 @@ def agent_node(
     middleware: list[Middleware[[UserInput], StructuredResponse[_TBaseModel]]]
     | None = None,
     model_middleware: list[ModelMiddleware] | None = None,
-    guardrails: Guard | None = None,
     context_injection: bool = True,
 ) -> type[Node[[UserInput], StructuredResponse[_TBaseModel]]]: ...
 
@@ -138,7 +132,6 @@ def agent_node(
     ]
     | None = None,
     model_middleware: list[ModelMiddleware] | None = None,
-    guardrails: Guard | None = None,
     context_injection: bool = True,
 ):
     """
@@ -156,10 +149,10 @@ def agent_node(
         middleware (list[Middleware] | None): Middleware applied around the agent's node boundary
             (user_input -> Response).
         model_middleware (list[Middleware] | None): Middleware applied around each raw model call
-            (messages/schema/tools -> Response), inside the tool-calling loop.
-        guardrails (Guard | None): Input/output LLM guardrails to enforce around the model call. Input rails
-            run as the last check before the model (after context injection and any model_middleware); output
-            rails run on the final reply as the last word. Attached as fixed, non-reorderable system middleware.
+            (messages/schema/tools -> Response), inside the tool-calling loop. LLM guardrails
+            (e.g. `InputGuard`/`OutputGuard` subclasses) are plain entries in this list — there is
+            no separate guardrails slot, so list order is exactly execution order and is fully
+            caller-controlled.
         context_injection (bool): Whether to inject rt.context variables into prompt templates for this node.
             Defaults to True. Set to False to disable context injection for this specific agent regardless
             of the session-level prompt_injection setting. Can also be controlled at the session level via
@@ -185,7 +178,6 @@ def agent_node(
         tool_params=tool_params,
         middleware=middleware,
         model_middleware=model_middleware,
-        guardrails=guardrails,
         context_injection=context_injection,
     )
 

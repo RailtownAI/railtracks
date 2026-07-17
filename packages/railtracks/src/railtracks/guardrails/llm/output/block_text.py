@@ -4,7 +4,7 @@ import re
 
 from railtracks.guardrails.core.decision import GuardrailDecision
 from railtracks.guardrails.core.event import LLMGuardrailEvent
-from railtracks.guardrails.core.interfaces import OutputGuard
+from railtracks.guardrails.llm.concrete import OutputGuard
 
 
 class BlockTextOutputGuard(OutputGuard):
@@ -15,6 +15,7 @@ class BlockTextOutputGuard(OutputGuard):
         pattern: str,
         *,
         name: str | None = None,
+        fail_open: bool = False,
         user_facing_message: str | None = None,
     ) -> None:
         """Initialize the output block-text guard.
@@ -23,13 +24,14 @@ class BlockTextOutputGuard(OutputGuard):
             pattern: Regex pattern; if it matches the output message content
                 the guard returns ``BLOCK``.
             name: Optional rail name for traces (see :class:`OutputGuard`).
+            fail_open: Whether to allow the request to continue when this guard raises an unexpected exception.
             user_facing_message: Optional message surfaced to UIs and
                 visualizers when the guard blocks.
 
         Raises:
             re.error: If *pattern* is not a valid regular expression.
         """
-        super().__init__(name=name)
+        super().__init__(name=name, fail_open=fail_open)
         self._pattern = re.compile(pattern)
         self._user_facing_message = user_facing_message
 
